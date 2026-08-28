@@ -272,6 +272,20 @@ function AboutPage(props: AboutPageProps) {
                 />
             </FocusableItem>
 
+            <PanelSectionRow>
+                <FocusableItem
+                    outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                    focusKey="about:check-updates"
+                    onClick={actions.onCheckNow}
+                >
+                    {state.checkingForUpdate
+                        ? t(state.language, "Checking...")
+                        : t(state.language, "Check for Updates")}
+                </FocusableItem>
+            </PanelSectionRow>
+
+            {noticeSlot === "check" && noticeRow}
+
             {state.updateAvailable && (
                 <PanelSectionRow>
                     <div ref={updateBlockRef} style={{ paddingBottom: "4px" }}>
@@ -329,20 +343,6 @@ function AboutPage(props: AboutPageProps) {
                     </FocusableItem>
                 </PanelSectionRow>
             )}
-
-            <PanelSectionRow>
-                <FocusableItem
-                    outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
-                    focusKey="about:check-updates"
-                    onClick={actions.onCheckNow}
-                >
-                    {state.checkingForUpdate
-                        ? t(state.language, "Checking...")
-                        : t(state.language, "Check for Updates")}
-                </FocusableItem>
-            </PanelSectionRow>
-
-            {noticeSlot === "check" && noticeRow}
 
             <SectionTitle label={t(state.language, "Links")} />
 
