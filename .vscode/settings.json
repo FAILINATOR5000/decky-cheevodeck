@@ -1,0 +1,19 @@
+{
+  "editor.formatOnSave": true,
+  // Ruff formats as well as lints, so format-on-save above would let it reflow
+  // the whole backend. Keep the linting, lose the formatting.
+  "[python]": {
+    "editor.formatOnSave": false
+  },
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "editor.tabSize": 4,
+  "editor.detectIndentation": true,
+  // VS Code allows comments in settings.json and tasks.json by name, so without
+  // this it flags every comment in deploy-settings.json. The script reads them.
+  "files.associations": {
+    "**/deploy-settings.json": "jsonc",
+    "**/deploy-settings.example.json": "jsonc"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "CheevoDeck",
+  "author": "FAILINATOR5000",
+  "api_version": 1,
+  "flags": [
+    "root"
+  ],
+  "publish": {
+    "tags": [
+      "retroachievements",
+      "achievements",
+      "emulation",
+      "games",
+      "social",
+      "decky",
+      "plugin",
+      "steam",
+      "deck",
+      "steamos"
+    ],
+    "description": "A full RetroAchievements tracking and management system inside the Quick Access Menu. Track achievements, build custom lists, keep notes, reminders and goals, read guides, even follow activity feeds, discussions and community events — all without leaving your game.",
+    "image": "https://raw.githubusercontent.com/FAILINATOR5000/decky-cheevodeck/main/docs/images/cheevodeck-wide.webp"
+  }
+}

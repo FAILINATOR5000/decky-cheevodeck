@@ -1,0 +1,10 @@
+// Copy this to deploy-settings.json and put your own Deck in it. That file is
+// gitignored, so your host and key never end up in a commit. Comments are fine
+// in it, wherever you like them.
+{
+  "steamDeckUserName": "deck",
+  "steamDeckHost": "192.168.1.10",
+  "steamDeckPort": "22",
+  "sshKey": "",
+  "steamDeckRemotePluginDir": "/home/deck/homebrew/plugins/decky-cheevodeck"
+}

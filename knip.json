@@ -1,0 +1,16 @@
+{
+    "$schema": "https://unpkg.com/knip@6/schema.json",
+    "entry": [
+        "src/index.tsx"
+    ],
+    "project": [
+        "src/**/*.{ts,tsx}"
+    ],
+    "ignoreDependencies": [
+        "react",
+        "tslib",
+        "@rollup/rollup-linux-x64-musl",
+        "@types/react-dom",
+        "@types/webpack"
+    ]
+}

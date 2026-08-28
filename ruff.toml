@@ -1,0 +1,41 @@
+# Ruff runs as a lint-only gate over the backend. It replaces the pyflakes step
+# the validation chain always named but never actually had installed.
+#
+# The rule selection is deliberately narrow: real-defect families only. The
+# simplification families (SIM, PERF, RET, PIE) are left OFF on purpose —
+# their suggestions push toward contextlib.suppress, comprehensions and
+# ternaries, which is linter-shaped code rather than hand-written code, and
+# that cuts against what this project is going for. SIM105 in particular would
+# land on the deliberate `except OSError: pass` chown shrugs, which are
+# load-bearing, not sloppy.
+#
+# The formatter is never run here. It would reflow all ~30k backend lines away
+# from the house style.
+
+target-version = "py311"
+line-length = 120
+
+# Decky bundles its own runtime and the plugin ships as a source tree, so
+# there is nothing to exclude beyond the usual build noise.
+extend-exclude = ["node_modules", "dist", "defaults"]
+
+[lint]
+select = [
+    "F",    # pyflakes — the step the chain always claimed to run
+    "E9",   # syntax / IO errors
+    "B",    # bugbear: mutable defaults, raise-without-from, loop-variable capture
+    "ARG",  # unused arguments — catches a signature that drifted from its callers
+    "RUF",  # ruff's own checks — RUF006 (dangling asyncio task) earned its keep
+]
+
+ignore = [
+    # Same reasoning as the disabled families above: these three ask for
+    # linter-shaped rewrites, not better code.
+    "RUF005",  # wants [a, *b] over [a] + b
+    "RUF046",  # wants int(round(x)) unwrapped; the explicit cast reads clearer
+    # False positive here. The only hits are class-level dicts of compiled
+    # regexes used as constant lookup tables (news_service._TAG_PATTERNS).
+    # Nothing mutates them, and annotating them ClassVar purely to quiet the
+    # rule adds a typing import that buys nothing.
+    "RUF012",
+]

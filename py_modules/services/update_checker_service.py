@@ -1,0 +1,439 @@
+from pathlib import Path
+from urllib.parse import urlparse
+
+import json
+import threading
+import time
+import urllib.error
+import urllib.request
+
+import decky
+
+from services._tick_common import GenerationFence
+from notifications import emit_notification, is_type_enabled
+from ra_client import build_user_agent
+from utils import chown_to_data_owner
+
+
+GITHUB_OWNER = "FAILINATOR5000"
+GITHUB_REPO = "decky-cheevodeck"
+
+LATEST_RELEASE_URL = "https://api.github.com/repos/%s/%s/releases/latest" % (GITHUB_OWNER, GITHUB_REPO)
+
+RELEASE_ASSET_NAME = "CheevoDeck.zip"
+
+INSTALL_DOWNLOAD_URL = "https://github.com/%s/%s/releases/latest/download/%s" % (
+    GITHUB_OWNER,
+    GITHUB_REPO,
+    RELEASE_ASSET_NAME,
+)
+
+CHECK_INTERVAL_SECONDS = 12 * 60 * 60
+
+TICK_SECONDS = 15 * 60
+
+STARTUP_DELAY_SECONDS = 20.0
+
+MANUAL_COOLDOWN_SECONDS = 10
+
+FETCH_TIMEOUT_SECONDS = 15
+
+ERROR_UNREACHABLE = "unreachable"
+
+RELEASE_DOWNLOAD_HOSTS = ("github.com", "githubusercontent.com")
+
+DOWNLOAD_MAX_BYTES = 64 * 1024 * 1024
+
+DOWNLOAD_TIMEOUT_SECONDS = 120
+
+DOWNLOAD_BAD_FOLDER = "bad_folder"
+DOWNLOAD_TOO_BIG = "too_big"
+DOWNLOAD_FAILED = "failed"
+
+
+_generation_fence = GenerationFence()
+
+
+def display_version(raw):
+    """Strip a tag down to the bare number for anything the user reads.
+
+    The installed version comes from package.json, which has no "v" on it, so
+    a v-prefixed tag printed raw gives you "Version v0.9.0 available." sitting
+    directly under "Version 0.8.0" — the same number written two ways, in two
+    lines that are meant to be compared. Tag however you like; the "v" stops
+    at the display boundary.
+    """
+    text = str(raw or "").strip()
+    if text[:1] in ("v", "V"):
+        text = text[1:]
+    return text
+
+
+def parse_version(raw):
+    """Turn "v0.5.0" into (0, 5, 0), or None if it isn't a plain number tag.
+
+    Deliberately unforgiving about anything that isn't digits-and-dots: a tag
+    we can't read comes back None, and every caller reads None as "not newer".
+    That's what keeps a hand-cut tag ("nightly", "0.5.0-rc1") from painting a
+    phantom update banner.
+    """
+    text = display_version(raw)
+    if not text:
+        return None
+
+    parts = []
+    for chunk in text.split("."):
+        if not chunk.isdigit():
+            return None
+        parts.append(int(chunk))
+    return tuple(parts) if parts else None
+
+
+def is_newer_version(candidate, installed):
+    left = parse_version(candidate)
+    right = parse_version(installed)
+    if left is None or right is None:
+        return False
+    return left > right
+
+
+def installed_version():
+    return str(getattr(decky, "DECKY_PLUGIN_VERSION", "") or "").strip()
+
+
+class UpdateCheckerService:
+    """Background daemon that watches GitHub for a newer CheevoDeck release.
+
+    One tick every TICK_SECONDS, and each tick asks the same question the
+    "Check now" button on the About page asks -- has enough time passed, and
+    if so, what does GitHub say. When a release lands that's newer than what's
+    installed, and that we haven't already interrupted the user about, we push
+    a "system" notification and cache the release so the About page can offer
+    the install link and the patch notes.
+
+    Nothing here touches RetroAchievements, so nothing here takes an RA
+    semaphore slot. Taking one would mean a version check could block a
+    user-initiated RA task behind a GitHub call, which is exactly backwards.
+
+    Threading: the tick runs on its own OS thread and the "Check now" RPC
+    arrives on the asyncio loop, so main.py bounces it off-loop with
+    asyncio.to_thread and every caller ends up on the thread side. One
+    threading.Lock guards the whole check-and-write section -- the gate test
+    and the last-checked stamp have to be in the same held section, or two
+    ticks can both read "yes, it's been 12 hours" before either stamps.
+
+    Install stays manual by design. The user copies the release zip URL and
+    pastes it into Decky's Install from URL. Reaching into Decky's own
+    install_plugin is an undocumented API on an independently-updating
+    project, with a self-overwrite wrinkle on top.
+    """
+
+    def __init__(self, *, settings_store, ssl_context, notifications_store=None):
+        self._settings_store = settings_store
+        self._ssl_context = ssl_context
+
+        self._notifications = notifications_store
+
+        self._thread = None
+        self._stop_event = threading.Event()
+        self._lifecycle_lock = threading.Lock()
+
+        self._check_lock = threading.Lock()
+
+        self._generation = -1
+
+        self._debug_logging = False
+
+        self._event_loop = None
+
+    def _debug_log(self, message, *args):
+        if self._debug_logging:
+            decky.logger.info(message, *args)
+
+    def set_event_loop(self, loop):
+        self._event_loop = loop
+
+    def start(self):
+        with self._lifecycle_lock:
+            if self._thread is not None and self._thread.is_alive():
+                return
+
+            self._stop_event.clear()
+            self._generation = _generation_fence.claim()
+            thread = threading.Thread(
+                target=self._run_loop,
+                name="update-checker",
+                daemon=True,
+            )
+            self._thread = thread
+
+        thread.start()
+        decky.logger.info(
+            "update: thread started (generation %d)",
+            self._generation,
+        )
+
+    def stop(self):
+        self._stop_event.set()
+        decky.logger.info("update: stop requested")
+
+    def _run_loop(self):
+        my_generation = self._generation
+        if self._stop_event.wait(STARTUP_DELAY_SECONDS):
+            return
+
+        while not self._stop_event.is_set():
+            if not _generation_fence.is_live(my_generation):
+                self._debug_log(
+                    "update: gen=%d superseded, exiting tid=%d",
+                    my_generation,
+                    threading.get_ident(),
+                )
+                return
+
+            try:
+                self.check()
+            except Exception as exc:
+                decky.logger.exception(
+                    "update: tick crashed: %s (%s)",
+                    type(exc).__name__,
+                    exc,
+                )
+
+            if self._stop_event.wait(TICK_SECONDS):
+                return
+
+    def check(self, force=False):
+        """Poll GitHub if the caller's gate allows it, and return the status.
+
+        force is the "Check now" button: it skips the 12-hour gate but still
+        honours the short cooldown, so a mash can't turn into a run of HTTP
+        calls. Either way the answer that comes back is the current status,
+        so a press that lands inside the cooldown reports the freshly fetched
+        result rather than doing nothing visible.
+        """
+        with self._check_lock:
+            try:
+                cfg = self._settings_store.load_config()
+                self._debug_logging = self._settings_store.get_debug_logging(cfg)
+            except Exception:
+                cfg = None
+
+            state = self._settings_store.load_update_check_state(cfg)
+            now = int(time.time())
+            last_checked = state["lastCheckedAt"]
+
+            if last_checked > now:
+                last_checked = 0
+
+            gate = MANUAL_COOLDOWN_SECONDS if force else CHECK_INTERVAL_SECONDS
+            if last_checked and now - last_checked < gate:
+                self._debug_log(
+                    "update: gate closed, %ds since last check (force=%s)",
+                    now - last_checked,
+                    force,
+                )
+                return self._status_for(state)
+
+            try:
+                release = self._fetch_latest_release()
+            except Exception as exc:
+                self._debug_log(
+                    "update: fetch failed: %s (%s)",
+                    type(exc).__name__,
+                    exc,
+                )
+                return self._status_for(state, error=ERROR_UNREACHABLE)
+
+            if release is None:
+                return self._status_for(state, error=ERROR_UNREACHABLE)
+
+            self._settings_store.save_update_release(release, now)
+
+            state = {
+                "release": release,
+                "lastCheckedAt": now,
+                "lastNotifiedTag": state["lastNotifiedTag"],
+            }
+            self._maybe_notify(state)
+
+            return self._status_for(state)
+
+    def get_status(self):
+        """The cached answer, with no poll. What the About page reads on open."""
+        state = self._settings_store.load_update_check_state()
+        return self._status_for(state)
+
+    def download_release(self, dest_dir):
+        """Save the release zip into the folder the user picked.
+
+        The second of the two install routes the About page offers. The first
+        one hands Decky the URL and lets it do the fetching; this one puts the
+        file on disk so the user can install it from the ZIP picker instead,
+        keep a copy to go back to, or carry it to a second device.
+
+        Runs as root against a path that came out of the file picker, so the
+        same posture as the patch downloader: the URL is ours and constant, the
+        redirect it lands on is re-checked against RELEASE_DOWNLOAD_HOSTS, the
+        read is bounded, and the file gets chowned back afterwards or the user
+        can't touch what we just wrote for them.
+        """
+        folder = Path(str(dest_dir or "").strip())
+        if not folder.is_dir():
+            return {"ok": False, "error": DOWNLOAD_BAD_FOLDER}
+
+        state = self._settings_store.load_update_check_state()
+        release = state["release"]
+        name = self._download_filename(release.get("tag", "") if release else "")
+
+        try:
+            data = self._fetch_release_zip()
+        except urllib.error.HTTPError as exc:
+            decky.logger.error("update download failed with HTTP %s", exc.code)
+            return {"ok": False, "error": DOWNLOAD_FAILED}
+        except Exception as exc:
+            decky.logger.error("update download failed (%s: %s)", type(exc).__name__, exc)
+            return {"ok": False, "error": DOWNLOAD_FAILED}
+        if data is None:
+            return {"ok": False, "error": DOWNLOAD_TOO_BIG}
+
+        path = folder / name
+        try:
+            path.write_bytes(data)
+        except OSError as exc:
+            decky.logger.error("couldn't write the update to %s (%s)", path, exc)
+            return {"ok": False, "error": DOWNLOAD_BAD_FOLDER}
+
+        chown_to_data_owner(path)
+        decky.logger.info("update saved to %s (%d bytes)", path, len(data))
+        return {"ok": True, "path": str(path), "name": path.name}
+
+    def _download_filename(self, tag):
+        number = display_version(tag)
+        if parse_version(number) is None:
+            return RELEASE_ASSET_NAME
+        return "CheevoDeck-%s.zip" % number
+
+    def _fetch_release_zip(self):
+        request = urllib.request.Request(
+            INSTALL_DOWNLOAD_URL,
+            headers={"User-Agent": build_user_agent()},
+        )
+        with urllib.request.urlopen(
+            request,
+            context=self._ssl_context,
+            timeout=DOWNLOAD_TIMEOUT_SECONDS,
+        ) as response:
+            final = response.geturl()
+            if not self._allowed_download_host(final):
+                raise ValueError(
+                    "release download redirected to %s" % (urlparse(final).hostname or "?")
+                )
+            data = response.read(DOWNLOAD_MAX_BYTES + 1)
+        return None if len(data) > DOWNLOAD_MAX_BYTES else data
+
+    def _allowed_download_host(self, url):
+        host = (urlparse(str(url or "")).hostname or "").lower()
+        return any(
+            host == allowed or host.endswith("." + allowed)
+            for allowed in RELEASE_DOWNLOAD_HOSTS
+        )
+
+    def _status_for(self, state, error=None):
+        release = state["release"]
+        tag = release.get("tag", "") if release else ""
+        current = installed_version()
+        return {
+            "ok": True,
+            "installedVersion": current,
+            "latestVersion": display_version(tag),
+            "updateAvailable": is_newer_version(tag, current),
+            "patchNotesUrl": release.get("htmlUrl", "") if release else "",
+            "installUrl": INSTALL_DOWNLOAD_URL,
+            "publishedAt": release.get("publishedAt", "") if release else "",
+            "lastCheckedAt": state["lastCheckedAt"],
+            "error": error,
+        }
+
+    def _fetch_latest_release(self):
+        request = urllib.request.Request(
+            LATEST_RELEASE_URL,
+            headers={
+                "User-Agent": build_user_agent(),
+                "Accept": "application/vnd.github+json",
+            },
+        )
+        with urllib.request.urlopen(
+            request,
+            timeout=FETCH_TIMEOUT_SECONDS,
+            context=self._ssl_context,
+        ) as response:
+            raw = json.loads(response.read().decode("utf-8"))
+
+        if not isinstance(raw, dict):
+            return None
+
+        tag = str(raw.get("tag_name") or "").strip()
+        if not tag:
+            return None
+
+        if not self._has_install_asset(raw):
+            decky.logger.warning(
+                "update: release %s has no %s asset, ignoring",
+                tag,
+                RELEASE_ASSET_NAME,
+            )
+            return None
+
+        return {
+            "tag": tag,
+            "htmlUrl": str(raw.get("html_url") or "").strip(),
+            "publishedAt": str(raw.get("published_at") or "").strip(),
+        }
+
+    def _has_install_asset(self, raw):
+        assets = raw.get("assets")
+        if not isinstance(assets, list):
+            return False
+        for asset in assets:
+            if isinstance(asset, dict) and str(asset.get("name") or "").strip() == RELEASE_ASSET_NAME:
+                return True
+        return False
+
+    def _maybe_notify(self, state):
+        release = state["release"]
+        tag = release.get("tag", "")
+        if not is_newer_version(tag, installed_version()):
+            return
+        if tag == state["lastNotifiedTag"]:
+            return
+
+        self._settings_store.save_update_notified_tag(tag)
+
+        decky.logger.info("update: %s is newer than %s, notifying", tag, installed_version())
+
+        if self._notifications is not None and is_type_enabled("system", self._settings_store):
+            self._notifications.append({
+                "type": "system",
+                "kind": "actionable",
+                "iconSource": "none",
+                "title": "CheevoDeck Update Available",
+                "body": "Version %s available." % display_version(tag),
+                "source": "notifications",
+                "target": {
+                    "view": "external",
+                    "url": release.get("htmlUrl", ""),
+                },
+                "meta": {
+                    "version": display_version(tag),
+                },
+            })
+
+        emit_notification(
+            ntype="system",
+            title_key="CheevoDeck Update Available",
+            line_key="Version {{version}} available.",
+            template_vars={"version": display_version(tag)},
+            settings_store=self._settings_store,
+            event_loop=self._event_loop,
+        )

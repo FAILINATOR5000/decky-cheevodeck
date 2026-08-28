@@ -1,0 +1,7 @@
+{
+  "extraPaths": [
+    "py_modules"
+  ],
+  "stubPath": "typings",
+  "reportMissingModuleSource": "none"
+}

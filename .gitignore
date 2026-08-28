@@ -1,0 +1,80 @@
+lib-cov
+*.seed
+*.log
+*.csv
+*.dat
+*.out
+*.pid
+*.gz
+*.swp
+
+pids
+logs
+results
+tmp
+
+# Coverage reports
+coverage
+
+# API keys and secrets
+.env
+
+# Your own Deck's address for the deploy script. The example file next to it
+# is tracked; this one is yours.
+.vscode/deploy-settings.json
+
+# Dependency directory
+node_modules
+bower_components
+.pnpm-store
+
+# Editors
+.idea
+*.iml
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Ignore built ts files
+dist/
+
+__pycache__/
+
+# Lint / dead-code tooling caches. The configs (ruff.toml, knip.json) are
+# tracked; only the caches they generate are not.
+.ruff_cache/
+.knip/
+knip.log
+node_modules/.cache/
+
+/.yalc
+yalc.lock
+
+
+# Ignore output folder
+
+backend/out
+
+# Make sure to ignore any instance of the loader's decky_plugin.py
+decky_plugin.py
+
+# Ignore decky CLI for building plugins
+out
+out/*
+cli/
+cli/*
+cli/decky
+
+# The bundled reference catalogues. They're gzipped JSON, which the *.gz rule
+# above would quietly swallow — and a plugin shipped without them verifies
+# nothing at all while looking perfectly healthy.
+!defaults/dats/*.json.gz
+
+# The generator's download cache. Tens of megabytes of upstream DAT text that
+# rebuilds itself on demand.
+tools/.dat-cache/
+
+# Author-side scripts for rebuilding the bundled DAT index. Not shipped to the
+# device, not imported by the plugin, and not much use without the catalogues.
+tools/

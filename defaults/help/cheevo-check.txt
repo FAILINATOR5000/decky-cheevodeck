@@ -1,0 +1,418 @@
+CHEEVO CHECK — WHAT IT CHECKS, AND HOW TO NAME YOUR FOLDERS
+===========================================================
+
+Cheevo Check walks a folder of ROMs and makes up to two passes over it.
+
+THE RA CHECK works out the hash of every file the way RetroAchievements does,
+and tells you which of your games have achievement sets waiting for them. This
+one always runs.
+
+THE DUMP CHECK compares each file against the published dump lists — No-Intro,
+Redump and TOSEC — and tells you whether the copy of the game you have is a
+valid dump. This one only runs if you turn on Verify Dump in Options.
+
+Neither can say anything about a file it cannot identify, and identification
+comes down to your folder names. This document is the list of what Cheevo Check
+knows and what it expects to find.
+
+
+USING EMUDECK? YOU HAVE NOTHING TO DO
+-------------------------------------
+
+The folder names below ARE EmuDeck's folder names, and ES-DE uses the same ones.
+If either of those set your library up, it is already named correctly — every
+folder in it that Cheevo Check knows will be found. That includes a handful of
+consoles RetroAchievements has no sets for at all, Switch and 3DS among them:
+the RA Check passes straight over those, and the Dump Check still reads them.
+The rest of this section is for libraries put together by hand.
+
+
+HOW A FILE GETS IDENTIFIED
+--------------------------
+
+Two things decide which console a file belongs to, in this order:
+
+  1. THE FOLDER NAME. If a file sits anywhere under a folder named after a
+     console, that settles it. This is the reliable one, and it is why the
+     folder names below are worth getting right.
+
+  2. THE FILE EXTENSION. Used only when no folder above the file names a
+     console. Some extensions belong to several systems (.chd, .cue and .iso
+     are each shared by a lot of them), so the scan tries each in turn until
+     one of them recognises the file.
+
+One extension is never matched that way: .wad. It belongs to exactly one
+console, so trying it against the others would settle nothing — and plenty of
+other software has used .wad for its own data files, which is how a folder of
+someone else's assets can end up being read as Wii games. A .wad is picked up
+only when the folder above it names Wii or GameCube.
+
+The folder match ignores case, spaces and punctuation, so "Mega-CD", "mega cd"
+and "MEGACD" are all the same name. You may also put the maker's name on the
+front — "Sega Genesis", "Nintendo GameCube" and "Sony PlayStation 2" all work,
+even though the lists below leave the maker off. Only the names below are
+listed, but the common longer forms of them are understood too.
+
+One name is deliberately NOT accepted: "Neo Geo" on its own. It could mean the
+Pocket, the CD, or the arcade hardware, and those are three different answers —
+name the folder "Neo Geo Pocket" or "Neo Geo CD" instead.
+
+What it will NOT do is search inside the name. A folder called
+"RA - Atari Jaguar CD" matches nothing, because the name it is compared against
+is "raatarijaguarcd" and that is not one of the names below. If your folders are
+named like that, the extension is doing all the work, and anything with a shared
+extension may not be identified.
+
+The short version: name the folder exactly one of the names listed against your
+console below, and everything inside it will be found.
+
+
+WHAT THE RA CHECK RESULTS MEAN
+------------------------------
+
+  SUPPORTED GAMES  RetroAchievements knows this exact dump and has achievements
+                   for it. Ready to play.
+
+  NO ACHIEVEMENTS  RA knows the dump, but nobody has made a set for it yet.
+                   Nothing wrong with your file.
+
+  UNSUPPORTED      The file may be fine, but the hash for this file does not
+  FILES            exist on RA. Almost always a different dump, a translation, a
+                   hack or a repack where the hash hasn't been added to RA yet.
+
+  COULDN'T SCAN    No hash could be produced at all. A truncated download, a
+                   broken archive, or a disc image in a layout the hasher can't
+                   read.
+
+  ARCHIVE NAME     The archive is named one thing and holds another. Every file
+  MISMATCHES       here is already in one of the four lists above — this is a
+                   second way of reading the same results, not a bucket of its
+                   own. Usually harmless, but the name on the outside is the one
+                   you would go looking for.
+
+Supported Games counts games: two discs of one title, or three dumps of it, fold
+into a single entry. The other four count files, one row each, because a file is
+what you would go and do something about.
+
+
+WHAT THE DUMP CHECK ADDS
+------------------------
+
+Turning on Verify Dump in Options gives you a second set of results, answering a
+different question. The five above are about achievements: does RetroAchievements
+know this game. These six are about your files: Is it a valid dump and is it most
+likely not corrupt?
+
+  VERIFIED        Matches a published dump exactly, byte for byte. This is the
+                  bucket you want everything in, and it is the only result in
+                  here that is a plain statement of fact. Switch games land here
+                  too, by a different route — see below.
+
+  RECOGNISED      No dump list has it, but RetroAchievements does, and on this
+  (FULL HASH)     system RA hashes the whole file. So your copy is identical to
+                  one somebody registered with RA. Nothing in here is corrupt —
+                  every byte was checked and matched. What turns up in this
+                  bucket is fan translation patches and the patched builds RA
+                  distributes for its own subsets, which no dump list will ever
+                  carry, including the ones that kept the original name and
+                  size. Nothing to do.
+
+  RECOGNISED      RA knows it, but on this system RA skips a header, or reads
+  (PARTIAL HASH)  only the part a disc boots from. You know what the game is and
+                  nothing about the rest of the bytes. Not a warning — just a
+                  weaker answer than the one above. Nothing to do.
+
+  DOESN'T MATCH   Same name, same exact size as a published dump, different
+  ITS NAME        contents, and nobody vouching for the difference. This is the
+                  one bucket worth reading. Anything RetroAchievements
+                  recognises has already gone to one of the Recognised buckets
+                  instead, so a patch or a translation you actually play will
+                  not be sitting here — which is why this list is normally
+                  almost empty. A Switch game here is a different matter: it
+                  failed its own internal checksums, which is damage.
+
+  NOT RECOGNISED  No dump list and no RA set. Hacks, translations and homebrew
+                  that nobody has listed. Completely normal for a real library,
+                  and often most of it. Nothing to do.
+
+  CAN'T VERIFY    Nothing could be settled either way, and each row says why —
+                  trimmed padding, nothing published for that system, a disc
+                  that would not rebuild, a check you switched off. The two that
+                  might be a real problem, a file that would not read and a disc
+                  that would not unpack, are sorted to the top. Nothing to do
+                  for the rest.
+
+A healthy library is mostly Verified and Not Recognised, with a handful in the
+two Recognised buckets and next to nothing in Doesn't Match Its Name. On one
+real 3,595-file library it came to a single row.
+
+
+WHAT A FAILED CHECK DOES AND DOESN'T MEAN
+-----------------------------------------
+
+Almost nothing in here means your file is broken.
+
+Two results do. A file that would not read at all — the archive would not open,
+or the disc would not unpack — is a real fault and it says so plainly. And a
+Switch game whose contents do not match the checksums it carries for itself is
+damaged, because on that system the file names ARE the checksums.
+
+Everything else is a mismatch, and a mismatch has a lot of innocent
+explanations. The dump lists these checks use cover official releases. They do
+not cover:
+
+  - fan translations
+  - ROM hacks and quality-of-life patches
+  - the patched builds RetroAchievements itself distributes for some games
+  - homebrew
+  - trimmed dumps, where the blank padding was cut off to save space
+  - rebuilt discs, repacked smaller with the empty space taken out
+  - anything released after the lists were last updated
+
+Any of those will not match, and all of them are fine.
+
+Discs deserve their own warning. A CHD does not always rebuild into exactly the
+file it was made from, so a disc can fail to match while being perfectly good.
+The check is worth running because a match PROVES a good dump — but a miss
+proves nothing at all, and this tool will never tell you a disc is corrupt on
+that basis.
+
+
+DISCS GET TWO CHECKS, AND THEY ANSWER DIFFERENT QUESTIONS
+---------------------------------------------------------
+
+This is worth understanding if you care about whether your discs are rotting,
+because only one of the two checks can tell you.
+
+THE WHOLE-DISC CHECK covers every byte. A CHD carries a checksum of the entire
+image, written when the file was made, and this recomputes it from what is
+actually on your drive now. One flipped bit anywhere — in the data, in an audio
+track, in the padding — fails it. Nothing else in this feature covers the whole
+file, and it is the check that answers "has this file gone bad since I got it".
+A disc that fails it is reported as a real fault, and it is sorted to the top of
+Can't Verify.
+
+THE DUMP LIST CHECK covers identity: is this the dump it claims to be. It is the
+stronger claim of the two, but it only reaches the one track Redump lists — the
+data track. On a disc with audio tracks, nothing published has anything to say
+about them.
+
+So a disc marked Verified has had every byte re-checked against its own checksum
+AND its data track matched against a published dump. A disc in Can't Verify
+saying it "doesn't match Redump" has still passed the whole-disc check — its row
+says so — which means the file has not degraded, it simply is not the exact
+release Redump describes.
+
+WHAT NEITHER CHECK CAN DO is tell you a disc was ripped badly BEFORE the CHD was
+made. The whole-disc checksum was computed from whatever it was handed, so a bad
+rip compressed into a CHD verifies cleanly forever. The dump list check would
+catch that on the data track, and on the data track only.
+
+IF THE DISC CHECK IS TOO SLOW there is a switch for it. "Ignore Discs When
+Verifying Dump" in Options leaves discs out of the Dump Check and does
+everything else, which turns a pass measured in hours into one measured in
+minutes — discs are effectively the whole cost, because a cartridge finishes in
+milliseconds and a disc is a minute of reading gigabytes.
+
+It changes nothing about achievements. The RA Check reads your discs the way it
+always has and still tells you which games have sets; the only thing being
+skipped is the extra byte-for-byte check described above. Discs still appear in
+the results, in Can't Verify, with a row saying they were left out on purpose —
+so a skipped disc never reads as a disc that passed.
+
+
+WHY RETROACHIEVEMENTS PASSING ISN'T THE SAME ANSWER
+---------------------------------------------------
+
+For most cartridge systems RetroAchievements hashes the whole file, so if it
+recognises your game, the file is byte-for-byte what somebody registered with
+them. That is a real check and this tool says so.
+
+For discs, DS cards and a few others it hashes only a part — the piece a disc
+boots from, or everything after a header on the front. A file can be wrong
+everywhere else and still pass. That is the gap this feature exists to close,
+and it is why the results separate "RetroAchievements knows this, and it checked
+the whole file" from "RetroAchievements knows this, but it skipped part of it".
+
+The header cases are smaller than they sound and worth knowing about. On NES and
+the Famicom Disk System, RA skips the 16-byte header on the front, which carries
+mapper flags rather than anything the game runs. On SNES it skips a 512-byte
+copier header, but only on the files that have one — the same console can be
+whole-file on one dump and part-file on the next, and this works that out per
+file rather than assuming. A file whose only difference from the published dump
+is inside that skipped header gets a row saying exactly that.
+
+
+THINGS THAT SURPRISE PEOPLE
+---------------------------
+
+GAMECUBE AND WII need Dolphin installed. Their common formats (.rvz, .wbfs,
+.gcz and friends) are containers the RetroAchievements hasher cannot open, so
+Cheevo Check asks Dolphin to do it. Without Dolphin, only raw .iso and .gcm
+images are read; everything else is skipped rather than marked bad.
+
+A FOLDER CALLED "dolphin" IS FINE FOR BOTH of them, even though it is listed
+below under GameCube. A folder can only name one console, but some consoles are
+checked against each other, and those two are a pair.
+
+CLOSE COUSINS ARE CHECKED AGAINST EACH OTHER, so you do not have to keep these
+apart if you would rather not:
+
+{{RELATED}}
+
+Putting your Game Boy games in the Game Boy Color folder is the usual reason —
+they get a colour palette that way — and it costs you nothing here. The same
+goes for a disk-system game filed with the cartridges, or either Dolphin console
+in the other's folder. Anything else does need its own folder.
+
+ARCADE IS NOT SCANNED AT ALL. RetroAchievements identifies an arcade game by
+its filename rather than by its contents, and an arcade zip is a bundle of chip
+dumps rather than one ROM. That needs a different approach, so an arcade folder
+is simply left alone.
+
+SOME FOLDERS ARE SKIPPED BY THE RA CHECK. Consoles RetroAchievements has no
+sets for are dropped before hashing, rather than guessed at by extension —
+guessing there produced confident wrong answers on perfectly good discs. Files
+in these folders get no achievement result at all:
+
+  {{SKIPPED_FOLDERS}}
+
+Some of them are still read by the Dump Check. Switch, 3DS, PlayStation 3, Xbox
+and Xbox 360 have no achievement sets to find, but there is still something to
+check their files against, so they are skipped by one pass and covered by the
+other. They appear in the six verification buckets and in none of the five
+above.
+
+A PS3 DUMP IS A FOLDER, NOT A FILE, and the whole folder is stepped over. A
+decrypted PlayStation 3 game is a directory tree full of the game's own data
+files, and walking into it produces hundreds of rows about things that were
+never games. It is recognised by what it holds — a PS3_GAME folder, or a
+PS3_DISC.SFB file — rather than by what it is called, so it works whatever you
+named yours. A loose .iso sitting beside one is still picked up and checked
+normally.
+
+MULTI-DISC GAMES are hashed one disc at a time. If disc 1 is recognised and
+disc 2 isn't, the game still shows as Supported and the odd disc shows under
+Unsupported. That is deliberate: it is better than hiding a working game.
+
+.M3U PLAYLISTS are ignored when they sit loose in a folder — each disc beside
+them is hashed on its own, which still finds the game even if disc 1 is the one
+you don't have. Inside a zip they ARE read, because only one file in an archive
+can be picked and the playlist is the thing that says which.
+
+ARCHIVES (.zip, .7z and .rar) are opened and the game inside is hashed. Disc
+images in archives are extracted first, which needs temporary space — a zipped
+PS2 ISO is several gigabytes. If there isn't room, the file is reported rather
+than silently skipped.
+
+If an archive holds more than one thing that looks like a game, it is left
+alone rather than guessed at — except when a playlist inside says which disc
+comes first, which is how multi-disc sets are handled.
+
+
+SWITCH CHECKS ITSELF, AND NEEDS NO DUMP LIST
+--------------------------------------------
+
+Nobody publishes a list of Switch dump hashes, and one would not help much if
+they did: an NSP is a container that can be repacked, so its whole-file hash
+depends on which tool built it rather than on what is inside.
+
+The format makes a list unnecessary. Every content file inside an NSP or an XCI
+is named after the first sixteen bytes of its own SHA-256 — the name IS the
+checksum. So the Dump Check opens the container, hashes each piece, and compares
+the answer to the name it is filed under. Nothing is decrypted and no keys are
+needed; the contents are only ever read and hashed.
+
+All of them match, and the game lands in Verified, with a row saying it was
+checked against the checksums it carries for itself rather than against a
+published dump. One of them does not, and it goes to Doesn't Match Its Name,
+which on this system means damage: something was corrupted, or a transfer never
+finished.
+
+Two things this cannot do. A .xcz or .nsz is a compressed form and no longer
+hashes to its own name, so those come back as nothing-to-check rather than as a
+fault. And it proves a file is internally consistent, not that it came from a
+real cartridge — a rebuilt dump would be consistent with its own names too.
+
+Switch files are covered by the same switch as 3DS cards, "Ignore Large Carts
+When Verifying Dump", because they are the same kind of cost: gigabytes each.
+It is cheaper than it looks, though — hashing is all this does, and a 27 GB game
+came back in about forty seconds off a USB drive.
+
+
+THE SETTINGS WORTH KNOWING BEFORE A LONG PASS
+---------------------------------------------
+
+Everything in Options has a sensible default. These four are the ones that
+change how long a pass takes and what it covers.
+
+IGNORE DISCS WHEN VERIFYING DUMP is described above — discs are effectively the
+entire cost of the Dump Check.
+
+IGNORE LARGE CARTS WHEN VERIFYING DUMP is the same idea for 3DS and Switch
+cards, which are gigabytes each where an older cartridge is kilobytes. Once
+discs are out of the way these are usually all that is left of the time: on one
+library, 39 3DS cards came to 60 GB, more than everything else in it put
+together. Turning it on leaves them out and checks everything else. Like the
+disc switch, it changes nothing about achievements — the RA Check reads those
+cards the way it always has.
+
+SPEED decides how hard a pass hits your drive. Gentle keeps a game playable
+while it runs; Full Speed gets it done and lets the drive take the hit. It is
+the one control that applies to a pass already running — adjust it and the next
+file pass will reflect the new speed.
+
+There is a limit to it. Speed paces the reads Cheevo Check does itself, which is
+every cartridge, every archive and every plain file. The two tiers that hand the
+work to an outside tool — Dolphin containers and CHD discs — read flat out at
+every setting, because the pacing happens between chunks and there are no chunks
+to pace when another program owns the read. On a disc library, Gentle is
+therefore quieter than Full Speed everywhere except the part that takes longest.
+
+EXTRACT TO RAM unpacks archives into memory instead of onto the drive. Best left
+off unless you have memory to spare: a disc game inside a zip can be several
+gigabytes, and that comes straight out of whatever you are playing. Anything too
+big to fit falls back to the drive on its own, so nothing gets skipped either
+way. The point of this option is to reduce drive activity to allow for a smoother
+gameplay experience in games that rely on heavily streaming from a drive;
+however, the cost is a reduced amount of RAM available to that game. This option
+is only good for custom SteamOS devices with a lot of RAM (32 GB+) or modified
+Steam Machines.
+
+
+SYSTEMS AND FOLDER NAMES
+------------------------
+
+Any one of the folder names listed will do. The file types are what gets picked
+up inside that folder. A few systems are marked Dump Check only — those have no
+achievements to find, but their files are still checked as dumps.
+
+{{SYSTEMS}}
+
+
+WHAT CAN BE VERIFIED, PER SYSTEM
+--------------------------------
+
+Two columns, and the second is the least obvious thing in the whole feature.
+
+"Dump list" says whether a published list of reference hashes ships with the
+plugin for that system. Without one there is nothing to compare a file against,
+so the answer falls back on what RetroAchievements knows — which is why a system
+with no list can still put files in the two Recognised buckets, and why the ones
+RA does not know land in Can't Verify. That is a comment on what has been
+published, not on your files. Switch is the exception and the table says so: its
+dumps carry their own checksums.
+
+Two of the answers in that column look alike and are not. "none published" means
+nobody has made such a list. "none bundled" means one exists but its licence
+does not let CheevoDeck ship it — the slot is left open, so a copy you obtain
+yourself will be picked up and used, and until then the answer falls back on
+what RetroAchievements knows.
+
+"RetroAchievements hash" says how much of a file RA's own check covers. Where it
+covers the whole file, RA recognising your copy is nearly as strong as a match
+against a published dump. Where it covers only part, RA tells you what the game
+is and nothing about the rest of the bytes. That difference is why two of the
+six result buckets exist.
+
+{{VERIFICATION}}

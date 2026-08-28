@@ -1,0 +1,86 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    // SETUP
+    {
+      "label": "Install Dependencies",
+      "type": "shell",
+      "command": "pnpm install",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Install Dependencies + Build",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "Install Dependencies",
+        "Build"
+      ],
+      "group": "build",
+      "problemMatcher": []
+    },
+    // BUILD
+    {
+      "label": "Build",
+      "type": "shell",
+      "command": "pnpm run build",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    // DEPLOY
+    {
+      "label": "Deploy",
+      "type": "shell",
+      "command": "${workspaceFolder}/.vscode/scripts/deploy.sh",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Deploy Locally",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "${workspaceFolder}/.vscode/scripts/deploy-local.sh"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Build + Deploy",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "Build",
+        "Deploy"
+      ],
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build + Deploy Locally",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "Build",
+        "Deploy Locally"
+      ],
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}
