@@ -93,7 +93,7 @@ These are some of the larger modal dialogs within CheevoDeck: Large Guide Viewer
 
 2. Go into **Game Mode** and open the **Quick Access Menu** (The ... button on Steam Deck or Steam Controller).
 
-3. Select the **Decky Loader** plugin button (the one with the plug icon), and select the options button in the upper right corner (the gear icon).
+3. Select the **Decky Loader** plugin button (the one with the plug icon), and select the settings button in the upper right corner (the gear icon).
 
 4. Under the **General** tab, toggle **Enable Developer Mode** on. The **Developer** tab should now appear.
 
@@ -157,7 +157,7 @@ CheevoDeck makes updating an incredibly easy process. Whenever there is an updat
 
 2. Once copied, exit the CheevoDeck plugin by selecting the back arrow (←) at the top of the page. You will now be within the **Decky Loader** plugins list.
 
-3. While here, select the settings options (the cog in the upper right corner) and then ensure **Developer Mode** is enabled in the **General** settings tab. (It should be from when you installed CheevoDeck)
+3. While here, select the settings button in the upper right corner (the gear icon) and then ensure **Developer Mode** is enabled in the **General** settings tab. (It should be from when you installed CheevoDeck)
 
 4. Select the **Developer** tab. If you chose to copy the URL from step 1, then select the field under **Install Plugin from URL**, paste your copied URL (Use the **Paste** button in the lower right corner of the on-screen keyboard), and then select **Install**. If you chose to download it instead, select the **Browse** button and choose your downloaded file.
 
