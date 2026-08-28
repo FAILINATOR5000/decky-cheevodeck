@@ -73,7 +73,6 @@ const ES: LocaleTable = {
     "Couldn't reach GitHub.": "No se pudo conectar con GitHub.",
     "Install link copied.": "Enlace de instalación copiado.",
     "Couldn't copy the link. Try the Download ZIP button instead.": "Qué raro... No se pudo copiar el enlace. Prueba con el botón «Descargar ZIP».",
-    "Version {{version}} found.": "Se encontró la versión {{version}}.",
     "Still the newest.": "Sigue siendo la más reciente.",
     "Saves the file to your Deck first, then install it from Decky → Settings → Developer → Install plugin from ZIP.": "Guarda el archivo en tu Deck primero y luego lo instalas desde Decky → Ajustes → Desarrollador → Instalar plugin desde ZIP.",
     "Download ZIP": "Descargar ZIP",

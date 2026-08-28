@@ -20,7 +20,6 @@ export type AboutUpdateNotice =
     | "unreachable"
     | "copied"
     | "copyFailed"
-    | "updateFound"
     | "stillNewest";
 
 const DEFAULT_SAVE_DIR = "/home/deck/Downloads";
@@ -109,8 +108,8 @@ export function useAboutController({
                 else if (!res.updateAvailable) {
                     setUpdateNotice("upToDate");
                 }
-                else {
-                    setUpdateNotice(res.latestVersion !== previous ? "updateFound" : "stillNewest");
+                else if (res.latestVersion === previous) {
+                    setUpdateNotice("stillNewest");
                 }
             }
             catch (err) {

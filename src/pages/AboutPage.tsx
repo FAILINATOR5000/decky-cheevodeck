@@ -21,7 +21,6 @@ function updateNoticeSlot(notice: AboutUpdateNotice): "copy" | "check" | "" {
     }
     if (notice === "upToDate"
         || notice === "unreachable"
-        || notice === "updateFound"
         || notice === "stillNewest") {
         return "check";
     }
@@ -40,9 +39,6 @@ function updateNoticeKey(notice: AboutUpdateNotice): string {
     }
     if (notice === "copyFailed") {
         return "Couldn't copy the link. Try the Download ZIP button instead.";
-    }
-    if (notice === "updateFound") {
-        return "Version {{version}} found.";
     }
     if (notice === "stillNewest") {
         return "Still the newest.";
@@ -215,9 +211,7 @@ function AboutPage(props: AboutPageProps) {
     const updateBlockRef = useRef<HTMLDivElement>(null);
 
     const noticeKey = updateNoticeKey(state.updateNotice);
-    const noticeText = noticeKey
-        ? t(state.language, noticeKey, { version: state.latestVersion })
-        : "";
+    const noticeText = noticeKey ? t(state.language, noticeKey) : "";
 
     const noticeSlot = updateNoticeSlot(state.updateNotice);
     const noticeRow = noticeText

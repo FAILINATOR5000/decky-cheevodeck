@@ -73,7 +73,6 @@ const JA: LocaleTable = {
     "Couldn't reach GitHub.": "GitHub に接続できませんでした。",
     "Install link copied.": "インストール用リンクをコピーしました。",
     "Couldn't copy the link. Try the Download ZIP button instead.": "おかしいですね... リンクをコピーできませんでした。代わりに「ZIP をダウンロード」を使ってください。",
-    "Version {{version}} found.": "バージョン {{version}} が見つかりました。",
     "Still the newest.": "これが最新のままです。",
     "Saves the file to your Deck first, then install it from Decky → Settings → Developer → Install plugin from ZIP.": "まずファイルを Deck に保存し、Decky →「設定」→「開発者」→「ZIP からプラグインをインストール」からインストールします。",
     "Download ZIP": "ZIP をダウンロード",

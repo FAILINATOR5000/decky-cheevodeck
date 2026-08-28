@@ -73,7 +73,6 @@ export const EN: LocaleTable = {
     "Couldn't reach GitHub.": "OOPS! Couldn't reach GitHub.",
     "Install link copied.": "Install link copied.",
     "Couldn't copy the link. Try the Download ZIP button instead.": "Weird... Couldn't copy the link. Try the Download ZIP button instead.",
-    "Version {{version}} found.": "Version {{version}} found.",
     "Still the newest.": "Still the newest.",
     "Saves the file to your Deck first, then install it from Decky → Settings → Developer → Install plugin from ZIP.": "Saves the file to your Deck first, then install it from Decky → Settings → Developer → Install plugin from ZIP.",
     "Download ZIP": "Download ZIP",
