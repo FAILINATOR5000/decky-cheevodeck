@@ -20,14 +20,6 @@ GITHUB_REPO = "decky-cheevodeck"
 
 LATEST_RELEASE_URL = "https://api.github.com/repos/%s/%s/releases/latest" % (GITHUB_OWNER, GITHUB_REPO)
 
-RELEASE_ASSET_NAME = "CheevoDeck.zip"
-
-INSTALL_DOWNLOAD_URL = "https://github.com/%s/%s/releases/latest/download/%s" % (
-    GITHUB_OWNER,
-    GITHUB_REPO,
-    RELEASE_ASSET_NAME,
-)
-
 CHECK_INTERVAL_SECONDS = 12 * 60 * 60
 
 TICK_SECONDS = 15 * 60
@@ -87,6 +79,52 @@ def parse_version(raw):
             return None
         parts.append(int(chunk))
     return tuple(parts) if parts else None
+
+
+def release_asset_name(tag):
+    """The zip's filename for a tag: v0.8.1 gives CheevoDeck-0.8.1.zip.
+
+    The name carries the version so consecutive downloads sit side by side in
+    the user's folder instead of overwriting each other, and so it's obvious
+    which one is about to be installed. It also has to agree with what's
+    actually attached to the release, because that agreement is the only thing
+    standing between a mistyped upload and a release nobody is ever told about.
+
+    Empty for a tag that isn't digits and dots, which is the same answer every
+    other version function here gives to a tag it can't read.
+    """
+    number = display_version(tag)
+    if parse_version(number) is None:
+        return ""
+    return "CheevoDeck-%s.zip" % number
+
+
+def release_install_url(tag):
+    """Where that zip lives, pinned to its own release rather than to latest.
+
+    /releases/latest/download/<asset> would be shorter, and it used to be what
+    this was, but it points at whatever is newest at the moment it's followed:
+    copy the link, wait for the next release, paste it, and you quietly install
+    a version you never asked for. The per-release path can only ever hand back
+    the build the About page was talking about.
+
+    Built here rather than read off the API's browser_download_url so the URL
+    stays one of ours. It also survives a round trip through the settings
+    store, which keeps only the tag, the page URL and the timestamp.
+
+    Safe to interpolate without escaping: parse_version accepts nothing but an
+    optional v and digits and dots, so a tag that reaches this line has no
+    separator in it to climb out of the path with.
+    """
+    name = release_asset_name(tag)
+    if not name:
+        return ""
+    return "https://github.com/%s/%s/releases/download/%s/%s" % (
+        GITHUB_OWNER,
+        GITHUB_REPO,
+        str(tag or "").strip(),
+        name,
+    )
 
 
 def is_newer_version(candidate, installed):
@@ -273,7 +311,8 @@ class UpdateCheckerService:
         keep a copy to go back to, or carry it to a second device.
 
         Runs as root against a path that came out of the file picker, so the
-        same posture as the patch downloader: the URL is ours and constant, the
+        same posture as the patch downloader: the URL is ours, built here from
+        the tag rather than taken off the API response, the
         redirect it lands on is re-checked against RELEASE_DOWNLOAD_HOSTS, the
         read is bounded, and the file gets chowned back afterwards or the user
         can't touch what we just wrote for them.
@@ -284,10 +323,15 @@ class UpdateCheckerService:
 
         state = self._settings_store.load_update_check_state()
         release = state["release"]
-        name = self._download_filename(release.get("tag", "") if release else "")
+        tag = release.get("tag", "") if release else ""
+        name = release_asset_name(tag)
+        url = release_install_url(tag)
+        if not name or not url:
+            decky.logger.error("update: cached release has no usable tag (%r)", tag)
+            return {"ok": False, "error": DOWNLOAD_FAILED}
 
         try:
-            data = self._fetch_release_zip()
+            data = self._fetch_release_zip(url)
         except urllib.error.HTTPError as exc:
             decky.logger.error("update download failed with HTTP %s", exc.code)
             return {"ok": False, "error": DOWNLOAD_FAILED}
@@ -308,15 +352,9 @@ class UpdateCheckerService:
         decky.logger.info("update saved to %s (%d bytes)", path, len(data))
         return {"ok": True, "path": str(path), "name": path.name}
 
-    def _download_filename(self, tag):
-        number = display_version(tag)
-        if parse_version(number) is None:
-            return RELEASE_ASSET_NAME
-        return "CheevoDeck-%s.zip" % number
-
-    def _fetch_release_zip(self):
+    def _fetch_release_zip(self, url):
         request = urllib.request.Request(
-            INSTALL_DOWNLOAD_URL,
+            url,
             headers={"User-Agent": build_user_agent()},
         )
         with urllib.request.urlopen(
@@ -349,7 +387,7 @@ class UpdateCheckerService:
             "latestVersion": display_version(tag),
             "updateAvailable": is_newer_version(tag, current),
             "patchNotesUrl": release.get("htmlUrl", "") if release else "",
-            "installUrl": INSTALL_DOWNLOAD_URL,
+            "installUrl": release_install_url(tag),
             "publishedAt": release.get("publishedAt", "") if release else "",
             "lastCheckedAt": state["lastCheckedAt"],
             "error": error,
@@ -377,11 +415,12 @@ class UpdateCheckerService:
         if not tag:
             return None
 
-        if not self._has_install_asset(raw):
+        wanted = release_asset_name(tag)
+        if not wanted or not self._has_install_asset(raw, wanted):
             decky.logger.warning(
                 "update: release %s has no %s asset, ignoring",
                 tag,
-                RELEASE_ASSET_NAME,
+                wanted or "version-stamped zip",
             )
             return None
 
@@ -391,12 +430,12 @@ class UpdateCheckerService:
             "publishedAt": str(raw.get("published_at") or "").strip(),
         }
 
-    def _has_install_asset(self, raw):
+    def _has_install_asset(self, raw, wanted):
         assets = raw.get("assets")
         if not isinstance(assets, list):
             return False
         for asset in assets:
-            if isinstance(asset, dict) and str(asset.get("name") or "").strip() == RELEASE_ASSET_NAME:
+            if isinstance(asset, dict) and str(asset.get("name") or "").strip() == wanted:
                 return True
         return False
 

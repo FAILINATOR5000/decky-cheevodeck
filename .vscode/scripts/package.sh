@@ -5,7 +5,6 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
 PLUGIN_DIR_NAME="decky-cheevodeck"
-ASSET_NAME="CheevoDeck.zip"
 OUT_DIR="$REPO_ROOT/out"
 STAGE_DIR="$OUT_DIR/stage"
 
@@ -23,6 +22,7 @@ PAYLOAD=(
 )
 
 VERSION="$(node -p "require('./package.json').version")"
+ASSET_NAME="CheevoDeck-${VERSION}.zip"
 
 if [[ -n "$(git status --porcelain)" ]]; then
     if [[ "${PACKAGE_ALLOW_DIRTY:-}" != "1" ]]; then
@@ -75,4 +75,4 @@ echo "  size     $(du -h "$OUT_DIR/$ASSET_NAME" | cut -f1)"
 echo "  sha256   $(sha256sum "$OUT_DIR/$ASSET_NAME" | cut -d' ' -f1)"
 echo "  entries  $(unzip -l "$OUT_DIR/$ASSET_NAME" | tail -1 | awk '{print $2}')"
 echo
-echo "==> Done. Upload it as ${ASSET_NAME}, never a versioned name."
+echo "==> Done. Upload it as ${ASSET_NAME}; the checker derives that name from the tag."
