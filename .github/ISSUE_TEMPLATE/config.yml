@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Troubleshooting
+    url: https://github.com/FAILINATOR5000/decky-cheevodeck#troubleshooting
+    about: Common problems and answers. Worth checking before opening an issue.
+  - name: Questions and general talk
+    url: https://github.com/FAILINATOR5000/decky-cheevodeck/discussions
+    about: For anything that isn't a bug or a feature request.

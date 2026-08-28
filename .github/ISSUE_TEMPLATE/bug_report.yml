@@ -1,0 +1,91 @@
+name: Bug report
+description: Something in CheevoDeck isn't working the way it should
+labels: ["bug"]
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have a look at the [Troubleshooting](https://github.com/FAILINATOR5000/decky-cheevodeck#troubleshooting) section of the README before you start. A few of the most common ones are already answered there, and you'll get your answer a lot faster than I can give you one.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you expected, and what you got instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen again
+      description: Walk me through it from opening the Quick Access Menu. If you can't get it to happen on purpose, say so, that's worth knowing too.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: over-game
+    attributes:
+      label: Was a game running when you opened the panel?
+      description: This matters more than it sounds like it should. SteamOS treats the Quick Access Menu differently when it's opened over a running game, and a fair number of focus and layout bugs only turn up in that state.
+      options:
+        - Yes, a game was running
+        - No, I was on the Steam library
+        - I'm not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: device
+    attributes:
+      label: Device
+      options:
+        - Steam Deck OLED
+        - Steam Deck LCD
+        - Steam Deck, not sure which
+        - Steam Machine
+        - Another SteamOS device
+    validations:
+      required: true
+
+  - type: input
+    id: cheevodeck-version
+    attributes:
+      label: CheevoDeck version
+      description: "**Quick Menu (the hamburger menu at the top) > Options > About** shows it."
+      placeholder: 0.8.1
+    validations:
+      required: true
+
+  - type: input
+    id: decky-version
+    attributes:
+      label: Decky Loader version
+      description: The gear icon at the top of Decky's own menu, then Settings.
+    validations:
+      required: true
+
+  - type: input
+    id: steamos-version
+    attributes:
+      label: SteamOS version and update channel
+      description: "**Steam > Settings > System**, near the top. Stable, Beta and Main each behave a little differently, so the channel is worth including."
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log
+      description: |
+        The logs are in `/home/deck/homebrew/logs/decky-cheevodeck`. If you can, turn on **Options > Advanced > Debug Logging** and then make the bug happen again, because a lot of the per-item detail is switched off by default and won't be in the file otherwise.
+
+        There's no API key, connect token or password in there, I've checked. It does contain RetroAchievements usernames, yours and your friends', and folder paths from any scanning you've done, so have a quick look before you paste it.
+      render: text
+
+  - type: textarea
+    id: anything-else
+    attributes:
+      label: Anything else
+      description: Screenshots, a photo of the screen, anything that didn't fit above.

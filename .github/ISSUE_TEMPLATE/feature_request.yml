@@ -1,0 +1,22 @@
+name: Feature request
+description: An idea for something CheevoDeck could do
+labels: ["enhancement"]
+title: "[Feature] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Preferably keep new feature requests to the scope of the Quick Access Menu, because CheevoDeck has been built with portability in-mind. No matter what your request is though, I'm all ears.
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What feature would you like added?
+    validations:
+      required: true
+
+  - type: textarea
+    id: where
+    attributes:
+      label: Where would it be added?
+      description: Which page or menu would this feature be added to? Or perhaps, would it be a new section altogether? In that case, how would the user get there from the main page?
