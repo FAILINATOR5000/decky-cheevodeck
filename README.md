@@ -24,11 +24,15 @@ CheevoDeck isn't just a basic RetroAchievements tracker — it's a full suite fo
 
 - **Built for the panel** — Almost everything happens in the side panel, the **Quick Access Menu**, next to your game rather than on top of it. Pause, opening the panel, check what you're missing, read a guide, reply to a friend, and drop right back in. Only a handful of things ask for the bigger dialog, and those are the ones that you genuinely may want the room for—such as notes editing dialogs or the larger version of our guides viewer.
 
-- **Bonus utilities** —
-    - **Dolphin Mapper** Sets GameCube and Wii controller layouts for Dolphin so you don't have to do it by hand. No more nightmare tuning profiles for the many different wii control schemes. This does not touch your profiles; it only changes the active controller settings.
-    - **Cheevo Check** scans your ROM library and tells you which files are RetroAchievements compatible. Also, offers validating your roms to ensure they are proper dumps.
-    - **File Watcher** Ideal for archivists; it keeps an eye on your ROM folders, hashes them and keeps an eye on them on a schedule you set or via manually to check file integrity. In other words, it lets you know if any of your files became corrupt due to failing controller, drive, etc. It's also smart enough to know if a file was changed, removed, etc.
-    - **SMB Shares** mounts your network drives, so a library living on a NAS works the same as one on the SD card. Useful if you want to access roms/files on your network.
+- **Bonus utilities**
+
+    - **Dolphin Mapper** — sets GameCube and Wii controller layouts for Dolphin so you don't have to do it by hand. No more nightmare tuning profiles for the many different wii control schemes. This does not touch your profiles; it only changes the active controller settings.
+
+    - **Cheevo Check** — scans your ROM library and tells you which files are RetroAchievements compatible. Also, offers validating your roms to ensure they are proper dumps.
+
+    - **File Watcher** — ideal for archivists; it keeps an eye on your ROM folders, hashes them and keeps an eye on them on a schedule you set or via manually to check file integrity. In other words, it lets you know if any of your files became corrupt due to failing controller, drive, etc. It's also smart enough to know if a file was changed, removed, etc.
+
+    - **SMB Shares** — mounts your network drives, so a library living on a NAS works the same as one on the SD card. Useful if you want to access roms/files on your network.
 
 ## Screenshots
 
@@ -74,7 +78,9 @@ These are some of the larger modal dialogs within CheevoDeck: Large Guide Viewer
 ## Requirements
 
 - Any device with **SteamOS** is required to run the plugin (Steam Deck, Steam Machine, Asus ROG Ally, custom installation, etc.)
+
 - **Decky Loader** is also required to be installed on your SteamOS device.
+
 - A **RetroAchievements** account is required for the plugin to work.
 
 [Get Decky Loader Here](https://github.com/SteamDeckHomebrew/decky-loader)
@@ -84,11 +90,17 @@ These are some of the larger modal dialogs within CheevoDeck: Large Guide Viewer
 ## Installation
 
 1. Enter **Desktop Mode** and download the latest version of CheevoDeck from the [Releases page](https://github.com/FAILINATOR5000/decky-cheevodeck/releases). Place the ZIP file in an easy to access location such as desktop or downloads.
+
 2. Go into **Game Mode** and open the **Quick Access Menu** (The ... button on Steam Deck or Steam Controller).
+
 3. Select the **Decky Loader** plugin button (the one with the plug icon), and select the options button in the upper right corner (the gear icon).
+
 4. Under the **General** tab, toggle **Enable Developer Mode** on. The **Developer** tab should now appear.
-5. From the **Developer** section, select **Install plugin from ZIP**.
+
+5. From the **Developer** section, select **Install Plugin from ZIP File**.
+
 6. Select the downloaded ZIP file you had downloaded in the first step.
+
 7. Congratulations! CheevoDeck is now installed!
 
 ## Getting Started
@@ -251,17 +263,27 @@ Clone the repo and run **pnpm install**. That's the only setup step for the fron
 
 Please don't run **ruff format**. It would reformat the entire backend away from how the rest of it is written. The workspace settings in **.vscode/settings.json** already turn format-on-save off for Python so the Ruff extension can't do it to you by accident, which is the reason that file is tracked at all.
 
-### There are no tests, and I want to be upfront about that
+### Testing
 
-**npm test** is a stub that exits with an error. There's no unit test suite, no integration tests, nothing. The only real way to know something works is to put it on a Steam Deck and use it, which is a genuine downside if you're thinking about contributing, and it's the honest reason to be a little careful with changes that touch anything you can't see the effect of. The checks above will catch a lot, but they can't tell you that a page still behaves the way it should.
+The only real way to know if something is working is to put it on a SteamOS device and use it. The checks above will catch a lot, but they cannot tell you that a feature behaves the way it should.
 
 ### Getting it onto a device
 
-There are two scripts in **.vscode/scripts/**. **deploy-local.sh** copies the plugin into **/home/deck/homebrew/plugins/decky-cheevodeck** and restarts Decky, which is what you want if you're building on the Deck itself. **deploy.sh** does the same thing over SSH if you're working on another machine and pushing to a Deck on your network.
+There are two deploy scripts in **.vscode/scripts/**. **deploy-local.sh** copies the plugin into **/home/deck/homebrew/plugins/decky-cheevodeck** and restarts Decky, which is what you want if you're building on the Deck itself. **deploy.sh** does the same thing over SSH if you're working on another machine and pushing to a Deck on your network.
 
 The SSH one has to be told where your Deck is. Copy **.vscode/deploy-settings.example.json** to **.vscode/deploy-settings.json** and fill in your host, your username, and a key path if you use one instead of a password. That file is gitignored, so your home network never ends up in a commit, and **deploy.sh** reads it itself, which means it works the same from a plain terminal as it does from the **Deploy** task in VS Code. It's read with python3 when it's there, and if you skip it entirely the script tells you rather than hanging on a connection to nowhere.
 
-Worth knowing what actually gets copied: **dist/**, **main.py**, **py_modules/** and **defaults/**. The **src/** folder is deliberately excluded, because the bundle is what runs, not the TypeScript. So if you changed frontend code and nothing seems different on the device, the usual reason is that the build didn't run.
+What actually gets copied: **dist/**, **main.py**, **py_modules/** and **defaults/**. The **src/** folder is deliberately excluded, because the bundle is what runs, not the TypeScript. So if you changed frontend code and nothing seems different on the device, the usual reason is that the build didn't run.
+
+### Making a release zip
+
+**.vscode/scripts/package.sh** builds the same zip that goes up on the Releases page, which also makes it the way to test a real install instead of an rsync deploy. It runs **pnpm run build** first, so **dist/** always matches the source being packaged, then writes **out/CheevoDeck-<version>.zip** with the version read straight out of **package.json**. **out/** is gitignored. While the packaging script is in the **.vscode** folder, it will run from anywhere, such as a terminal.
+
+It refuses to run on a dirty working tree, because a zip built from uncommitted changes isn't a build of anything you can point back at later. **PACKAGE_ALLOW_DIRTY=1** overrides that if you know that's what you want, and **PACKAGE_SKIP_BUILD=1** reuses **dist/** as it stands instead of rebuilding.
+
+I'd like to mention this before you add files to the project: it packages an allowlist, not everything minus a denylist. Ten paths go in — **main.py**, **plugin.json**, **package.json**, **LICENSE**, **THIRD-PARTY-LICENSES**, **README.md**, **ATTRIBUTIONS.md**, **dist/**, **py_modules/** and **defaults/**. Anything else is left out. So a new file the plugin needs at runtime has to be added to that list as well, or it'll work fine on your own device, where the deploy scripts put it there, and be missing from a fresh install. If a listed path is missing the script stops rather than shipping a zip with a hole in it.
+
+If you're thinking about contributing, have a read of [CONTRIBUTING.md](CONTRIBUTING.md) first. It covers what to raise with me before you start on anything, and what to run before you open a pull request.
 
 ## Architecture
 
