@@ -137,6 +137,22 @@ These are some of the larger modal dialogs within CheevoDeck: Large Guide Viewer
 
 If nothing is loaded, make sure you are logged into your RA account in your emulator or front-end. Also, make sure your current game is supported on RetroAchievements and is a valid dump. If the game's hash differs from what RA has, it is not supported.
 
+## Updating CheevoDeck
+
+CheevoDeck makes updating an incredibly easy process. Whenever there is an update available, you will be notified of the update in your **Notifications** accessed via the bell on each page. To begin the update process, you can either select the update notification, which will bring you to the **About** page or you can access it directly from the **Main Achievements Page** by selecting the **Quick Menu** > **About**.
+
+1. In the About page, you have two options: You can either copy the URL link for the update or download the update directly to any location you like. In this case, it's recommended and much easier to just copy the URL link.
+
+2. Once copied, exit the CheevoDeck plugin by selecting the back arrow (←) at the top of the page. You will now be within the **Decky Loader** plugins list.
+
+3. While here, select the settings options (the cog in the upper right corner) and then ensure **Developer Mode** is enabled in the **General** settings tab. (It should be from when you installed CheevoDeck)
+
+4. Select the **Developer** tab. If you chose to copy the URL from step 1, then select the field under **Install Plugin from URL**, paste your copied URL (Use the **Paste** button in the lower right corner of the on-screen keyboard), and then select **Install**. If you chose to download it instead, select the **Browse** button and choose your downloaded file.
+
+5. The update for CheevoDeck will now be installed. All of your data stays intact and nothing is touched during the update process, so you can jump right back into achievement hunting with no issues.
+
+I would also like to mention, while CheevoDeck does check for updates and notifies you automatically, it does it in 12-hour ticks. If you know an update is released and would like to download it right away, you can also select the **Check for Updates** button.
+
 ## Tutorial
 
 *Coming soon.*
