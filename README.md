@@ -115,7 +115,7 @@ CheevoDeck is pretty resilient and will continue working, as most operations use
 
 ### I'm getting random generic error messages, such as "Couldn't refresh your achievements right now", "Couldn't load this game's achievements.", "Couldn't load your recent unlocks right now.", and/or "Couldn't check your current game right now." What do these mean???
 
-Depending on your location within the plugin, all of those are associated with a poor connection to RetroAchievements. It could be on your end as an intermittent drop in your internet connection or it could be on RetroAchievements's end as a server hiccup. Generally, once either of the problems resolve, you shouldn't see those errors anymore. If you want more advanced details, feel free to check the logs in **/home/deck/homebrew/decky-cheevodeck/logs**.
+Depending on your location within the plugin, all of those are associated with a poor connection to RetroAchievements. It could be on your end as an intermittent drop in your internet connection or it could be on RetroAchievements's end as a server hiccup. Generally, once either of the problems resolve, you shouldn't see those errors anymore. If you want more advanced details, feel free to check the logs in **/home/deck/homebrew/logs/decky-cheevodeck**.
 
 ### My friend changed their avatar and I still see the old one
 
