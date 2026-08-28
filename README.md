@@ -259,7 +259,7 @@ Clone the repo and run **pnpm install**. That's the only setup step for the fron
 
 **npx knip** looks for exports, files and dependencies that nothing uses. It's currently at zero findings and I'd like to keep it there, so if it starts reporting something after your change, that's worth a look rather than a shrug.
 
-**ruff check main.py py_modules/** handles the Python side. The config lives in the repo as **ruff.toml**, so however you installed ruff you'll get the same rules I do. There should be exactly 5 findings, and all 5 are deliberate: I've looked at each one and decided to leave it. If you see 6, the new one is yours.
+**ruff check main.py py_modules/** handles the Python side. The config lives in the repo as **ruff.toml**, so however you installed ruff you'll get the same rules I do. There should be exactly 6 findings, and all 6 are deliberate: I've looked at each one and decided to leave it. If you see 7, the new one is yours.
 
 Please don't run **ruff format**. It would reformat the entire backend away from how the rest of it is written. The workspace settings in **.vscode/settings.json** already turn format-on-save off for Python so the Ruff extension can't do it to you by accident, which is the reason that file is tracked at all.
 
