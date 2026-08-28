@@ -3457,9 +3457,6 @@ class SettingsStore:
     def get_pin_latest_guides(self, cfg: dict) -> bool:
         return bool(cfg.get("pinLatestGuides", False))
 
-    def get_top_padding(self, cfg: dict) -> int:
-        return 0
-
     def get_block_padding(self, cfg: dict) -> int:
         value = to_int(cfg.get("blockPadding", 8), 8)
         return value if value in {2, 4, 6, 8, 10, 12} else 8
