@@ -14,6 +14,7 @@ PAYLOAD=(
     plugin.json
     package.json
     LICENSE
+    THIRD-PARTY-LICENSES
     README.md
     ATTRIBUTIONS.md
     dist

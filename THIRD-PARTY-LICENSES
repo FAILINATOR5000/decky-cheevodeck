@@ -1,0 +1,107 @@
+This project includes third-party components under the following licenses:
+
+-------------------------------------------------------------------
+BSD 3-Clause License
+
+Includes the decky-plugin-template originally developed by Steam Deck Homebrew,
+and a gamepad scroll-region pattern from TabMaster used under the BSD 3-Clause
+option of its dual license.
+
+Copyright (c) 2022-2024, Steam Deck Homebrew
+Copyright Travis Lane (Tormak) and Jessebofill
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its
+   contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+-------------------------------------------------------------------
+THIRD-PARTY NOTICES
+
+Font Awesome Free (https://fontawesome.com)
+  Icons licensed under CC BY 4.0
+  https://creativecommons.org/licenses/by/4.0/
+  Icon paths were redrawn as standalone inline SVG React components;
+  original viewBox retained, fills changed to currentColor.
+  No Font Awesome CSS, JS, or webfont is distributed with this plugin.
+
+react-icons (https://github.com/react-icons/react-icons)
+  Licensed under the MIT License.
+  Bundled icon sets retain their original licenses; the Font Awesome
+  icons used via react-icons are CC BY 4.0 as noted above. The Ko-fi and
+  Patreon marks come from its Simple Icons set (https://simpleicons.org),
+  dedicated to the public domain under CC0 1.0, which requires nothing;
+  they are drawn the same way as the Font Awesome paths above.
+  https://creativecommons.org/publicdomain/zero/1.0/
+
+RAHasher (https://github.com/LeXofLeviafan/RAHasher)
+  Copyright (c) LeXofLeviafan and the RALibretro / rcheevos contributors.
+  Licensed under the GNU General Public License v3.0.
+  The full licence text ships alongside the binary as bin/RAHasher.COPYING,
+  and bin/RAHasher.PROVENANCE.md pins the exact upstream release (1.8.3),
+  with checksums and a link to its source.
+  RAHasher is bundled unmodified at bin/RAHasher and is run as a SEPARATE
+  EXECUTABLE over its command-line interface — CheevoDeck does not link
+  against it and contains none of its code. Its GPL terms cover that binary
+  alone; CheevoDeck's own source remains under the BSD-3 licence in LICENSE.
+
+chdman (https://github.com/mamedev/mame)
+  Copyright (c) MAMEdev and the MAME contributors.
+  Licensed under the GNU General Public License version 2 ONLY — MAME's
+  COPYING states version 2 with no "or later" clause, so this is a different
+  licence from RAHasher's above and ships as its own text.
+  The full licence text ships alongside the binary as bin/chdman.COPYING, and
+  bin/chdman.PROVENANCE.md pins the MAME release tag this binary was built
+  from, with its checksum.
+  chdman is built by me from that tag, stripped, bundled at bin/chdman and run
+  as a SEPARATE EXECUTABLE over its command-line interface — CheevoDeck does
+  not link against it and contains none of its code. Its GPL terms cover that
+  binary alone; CheevoDeck's own source remains under the BSD-3 licence in
+  LICENSE.
+
+Reference catalogues in dats/ (https://github.com/libretro/libretro-database)
+  Copyright (c) the libretro-database contributors.
+  Licensed under Creative Commons Attribution-ShareAlike 4.0 International.
+  The full licence text ships alongside the data as dats/LICENSE-CC-BY-SA-4.0.txt,
+  and dats/PROVENANCE.md pins the upstream commit, records the per-file
+  checksums, and states what was changed.
+  THE DATA WAS MODIFIED: each DAT was parsed and re-emitted as gzipped JSON,
+  with the md5 and sha1 columns and all remaining per-entry metadata dropped.
+  Share-alike therefore applies to dats/, and anyone redistributing CheevoDeck
+  inherits that obligation for those files. It does NOT reach CheevoDeck's own
+  source, which is a separate work shipped alongside the database rather than
+  an adaptation of it, and stays under the BSD-3 licence in LICENSE.
+  The underlying catalogues originate with the No-Intro, Redump and TOSEC
+  projects; libretro-database mirrors them, and taking libretro's copy is what
+  keeps everything here under one stated licence.
+
+@decky/ui, @decky/api (https://github.com/SteamDeckHomebrew/decky-frontend-lib)
+  Licensed under LGPL-2.1.
+  https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
+  @decky/ui is loaded from the Decky runtime and is not distributed with
+  this plugin. @decky/api is bundled into dist/index.js. This plugin's own
+  source is published in full under the BSD-3 license in LICENSE, and
+  @decky/api's source is public, so the library can be replaced and the plugin
+  rebuilt.

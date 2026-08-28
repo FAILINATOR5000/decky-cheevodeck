@@ -221,7 +221,7 @@ Have any cool ideas you'd like to see implemented? Or just have questions, need 
 
 ## License
 
-BSD 3-Clause. The full text is in [LICENSE](LICENSE).
+BSD 3-Clause. The full text is in [LICENSE](LICENSE), and the licenses for third-party components are in [THIRD-PARTY-LICENSES](THIRD-PARTY-LICENSES).
 
 ## Disclaimer
 
