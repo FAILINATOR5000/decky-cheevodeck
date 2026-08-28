@@ -1,0 +1,5 @@
+CheevoDeck {{VERSION}}
+
+- Fixed error involving the Download ZIP button in the About Page.
+
+- Layout in About Page was fixed as well to ensure a smooth experience.
