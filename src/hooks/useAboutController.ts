@@ -1,7 +1,7 @@
-import { FileSelectionType, openFilePicker } from "@decky/api";
+import { FileSelectionType, openFilePicker, toaster } from "@decky/api";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ButtonSpacing, UpdateStatusResponse } from "../types";
-import type { LanguageCode } from "../locales";
+import { t, type LanguageCode } from "../locales";
 import { checkForUpdateNow, downloadUpdateZip, getPluginVersion, getUpdateStatus } from "../api";
 import { copyTextToClipboard } from "../utils/clipboard";
 import { openExternalUrl } from "../utils/navigation";
@@ -20,10 +20,6 @@ export type AboutUpdateNotice =
     | "unreachable"
     | "copied"
     | "copyFailed"
-    | "downloaded"
-    | "downloadBadFolder"
-    | "downloadTooBig"
-    | "downloadFailed"
     | "updateFound"
     | "stillNewest";
 
@@ -48,7 +44,6 @@ export function useAboutController({
     const [checkingForUpdate, setCheckingForUpdate] = useState(false);
     const [updateNotice, setUpdateNotice] = useState<AboutUpdateNotice>("");
 
-    const [downloadedName, setDownloadedName] = useState("");
     const [downloadingZip, setDownloadingZip] = useState(false);
 
     const mountedRef = useRef(true);
@@ -160,7 +155,7 @@ export function useAboutController({
             catch {
                 return;
             }
-            if (!folder || !mountedRef.current) {
+            if (!folder) {
                 return;
             }
 
@@ -168,30 +163,22 @@ export function useAboutController({
             setUpdateNotice("");
             try {
                 const saved = await downloadUpdateZip(folder);
-                if (!mountedRef.current) {
-                    return;
-                }
-                if (saved?.ok) {
-                    setDownloadedName(saved.name ?? "");
-                    setUpdateNotice("downloaded");
-                }
-                else {
-                    setUpdateNotice(downloadNoticeFor(saved?.error));
-                }
+                toaster.toast(saved?.ok
+                    ? { title: t(language, "Update saved"), body: saved.name ?? "" }
+                    : { title: t(language, "Update not saved"), body: t(language, downloadErrorKey(saved?.error)) });
             }
             catch (err) {
                 logError("download update zip", err);
-                if (mountedRef.current) {
-                    setUpdateNotice("downloadFailed");
-                }
+                toaster.toast({
+                    title: t(language, "Update not saved"),
+                    body: t(language, downloadErrorKey(null))
+                });
             }
             finally {
-                if (mountedRef.current) {
-                    setDownloadingZip(false);
-                }
+                setDownloadingZip(false);
             }
         })();
-    }, [downloadingZip]);
+    }, [downloadingZip, language]);
 
     const patchNotesUrl = updateStatus?.patchNotesUrl ?? "";
 
@@ -213,13 +200,11 @@ export function useAboutController({
         patchNotesUrl,
         checkingForUpdate,
         downloadingZip,
-        downloadedName,
         updateNotice,
         attributionsUrl: GITHUB_ATTRIBUTIONS_URL
     }), [
         buttonSpacing,
         checkingForUpdate,
-        downloadedName,
         downloadingZip,
         focusScopeResetToken,
         installUrl,
@@ -253,12 +238,12 @@ export function useAboutController({
     };
 }
 
-function downloadNoticeFor(code: string | null | undefined): AboutUpdateNotice {
+function downloadErrorKey(code: string | null | undefined): string {
     if (code === "bad_folder") {
-        return "downloadBadFolder";
+        return "Couldn't save there. Pick another folder.";
     }
     if (code === "too_big") {
-        return "downloadTooBig";
+        return "That download is bigger than expected, so it was left alone.";
     }
-    return "downloadFailed";
+    return "Couldn't download the update.";
 }

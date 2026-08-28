@@ -15,15 +15,9 @@ import { getCurrentTextScale, scaleMultiplier, textSize } from "../utils/scale";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
-function updateNoticeSlot(notice: AboutUpdateNotice): "copy" | "download" | "check" | "" {
+function updateNoticeSlot(notice: AboutUpdateNotice): "copy" | "check" | "" {
     if (notice === "copied" || notice === "copyFailed") {
         return "copy";
-    }
-    if (notice === "downloaded"
-        || notice === "downloadBadFolder"
-        || notice === "downloadTooBig"
-        || notice === "downloadFailed") {
-        return "download";
     }
     if (notice === "upToDate"
         || notice === "unreachable"
@@ -46,18 +40,6 @@ function updateNoticeKey(notice: AboutUpdateNotice): string {
     }
     if (notice === "copyFailed") {
         return "Couldn't copy the link. Try the Download ZIP button instead.";
-    }
-    if (notice === "downloaded") {
-        return "Saved as {{name}}.";
-    }
-    if (notice === "downloadBadFolder") {
-        return "Couldn't save there. Pick another folder.";
-    }
-    if (notice === "downloadTooBig") {
-        return "That download is bigger than expected, so it was left alone.";
-    }
-    if (notice === "downloadFailed") {
-        return "Couldn't download the update.";
     }
     if (notice === "updateFound") {
         return "Version {{version}} found.";
@@ -89,7 +71,6 @@ type AboutPageState = {
     patchNotesUrl: string;
     checkingForUpdate: boolean;
     downloadingZip: boolean;
-    downloadedName: string;
     updateNotice: AboutUpdateNotice;
     attributionsUrl: string;
 };
@@ -235,7 +216,7 @@ function AboutPage(props: AboutPageProps) {
 
     const noticeKey = updateNoticeKey(state.updateNotice);
     const noticeText = noticeKey
-        ? t(state.language, noticeKey, { name: state.downloadedName, version: state.latestVersion })
+        ? t(state.language, noticeKey, { version: state.latestVersion })
         : "";
 
     const noticeSlot = updateNoticeSlot(state.updateNotice);
@@ -336,7 +317,6 @@ function AboutPage(props: AboutPageProps) {
                 </PanelSectionRow>
             )}
 
-            {noticeSlot === "download" && noticeRow}
 
             {state.updateAvailable && state.patchNotesUrl && (
                 <PanelSectionRow>
