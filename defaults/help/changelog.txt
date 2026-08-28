@@ -1,3 +1,0 @@
-CheevoDeck {{VERSION}}
-
-Welcome to CheevoDeck!
