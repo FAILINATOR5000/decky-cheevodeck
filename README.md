@@ -93,7 +93,49 @@ These are some of the larger modal dialogs within CheevoDeck: Large Guide Viewer
 
 ## Getting Started
 
-*Coming soon.*
+1. When you first start CheevoDeck, the only button you will see is the **Enter Credentials** button. Select the button to begin the setup process.
+
+2. You will be taken to the **RetroAchievements Credentials** dialog where it will ask for your RetroAchievements account username and API key. You can find your API key at [https://retroachievements.org/settings](https://retroachievements.org/settings) under the **Applications** tab.
+
+    The easiest way to enter it is by selecting the **Find your Web API Key on RetroAchievements** link within the **Enter Credentials** dialog itself to be taken directly to the page where you can select your API key to copy it to your clipboard. Then, simply go back to the dialog and paste your key via the **Paste** option on Steam's on-screen keyboard in the lower right. Once entered, press the **Save** button to continue the setup process.
+
+    <a href="docs/images/getting-started-credentials.webp"><img src="docs/images/getting-started-credentials.webp" width="560" alt="The RetroAchievements Credentials dialog"></a>
+
+    <a href="docs/images/getting-started-api-key.webp"><img src="docs/images/getting-started-api-key.webp" width="800" alt="The Web API Key on the RetroAchievements settings page"></a>
+
+3. Next, you will be asked to select a settings profile that works for you: between **Basic**, **Social**, and **Balanced**.
+
+    <a href="docs/images/getting-started-profiles.webp"><img src="docs/images/getting-started-profiles.webp" width="560" alt="Choosing a settings profile"></a>
+
+    - **Basic** — This profile is for those who just want to hunt achievements, with none of the extra bells and whistles, so social features and notifications are turned off. This includes all of the core achievement hunting and tracking features, but without the extra noise.
+
+    - **Social** — This is the recommended default for those starting CheevoDeck, as it includes all of the rich social features enabled with full notifications. You'll be notified via toasts of friend activity, such as unlocks, or whenever a player is near your progress. It is also pushed to the notification bell in the upper right corner of each page.
+
+    - **Balanced** — A hybrid of the above features; it contains all of the social features, but they aren't pushed to notifications or toasts. They can instead be viewed in the feeds on-demand. This is good for people who want to focus on hunting achievements but don't want notifications and toasts informing them of social activity.
+
+    The above three profiles can each be tweaked manually in the **Options** page, where you can fine-tune options such as the frequency of activity, which notifications & toasts you want on/off, and much more.
+
+4. After selecting a settings profile, you will be asked to choose a view size preset.
+
+    <a href="docs/images/getting-started-view-size.webp"><img src="docs/images/getting-started-view-size.webp" width="560" alt="Choosing a view size"></a>
+
+    - **Portable** — This is the recommended default if you are on a portable device, such as Steam Deck or the Asus ROG Ally. Text and UI elements will seem about just-right.
+
+    - **Big Screen** — Recommended for those who are playing on a TV, as it makes all text and UI elements larger for further viewing distances.
+
+    - **Big Text** — This offers the biggest text and UI scale of the three.
+
+    Nothing here is locked in — you can later further tweak the UI and accessibility settings in the **Options** page.
+
+5. Congratulations! You are now done with the onboarding and can now begin hunting achievements! Here's how it works:
+
+    1. Start up your RetroAchievements supported game in whichever emulator you choose. Ensure you are logged into your RetroAchievements account within the emulator or front-end first. Once your game is started, RA is notified of the current game you are playing.
+
+    2. Once the game is running, in **Game Mode**, press the **Quick Access Menu** button (**...** on Steam Deck) to open the side window. If CheevoDeck isn't opened, select it from your list of plugins. CheevoDeck will automatically detect that your game has changed by checking with RA. Your achievement progress and other stuff for that game will be loaded.
+
+    3. Enjoy!
+
+If nothing is loaded, make sure you are logged into your RA account in your emulator or front-end. Also, make sure your current game is supported on RetroAchievements and is a valid dump. If the game's hash differs from what RA has, it is not supported.
 
 ## Tutorial
 
