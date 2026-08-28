@@ -34,29 +34,29 @@ CheevoDeck isn't just a basic RetroAchievements tracker — it's a full suite fo
 
 <table>
   <tr>
-    <td><a href="docs/images/01_main_menu.webp"><img src="docs/images/01_main_menu.webp" width="260" alt="Main menu"></a></td>
-    <td><a href="docs/images/02_main_menu_achievements.webp"><img src="docs/images/02_main_menu_achievements.webp" width="260" alt="Achievement list on the main page"></a></td>
-    <td><a href="docs/images/03_tracked.webp"><img src="docs/images/03_tracked.webp" width="260" alt="Tracked achievements"></a></td>
+    <td><a href="docs/images/01-main-menu.webp"><img src="docs/images/01-main-menu.webp" width="260" alt="Main menu"></a></td>
+    <td><a href="docs/images/02-main-menu-achievements.webp"><img src="docs/images/02-main-menu-achievements.webp" width="260" alt="Achievement list on the main page"></a></td>
+    <td><a href="docs/images/03-tracked.webp"><img src="docs/images/03-tracked.webp" width="260" alt="Tracked achievements"></a></td>
   </tr>
   <tr>
-    <td><a href="docs/images/04_notes.webp"><img src="docs/images/04_notes.webp" width="260" alt="Game notes"></a></td>
-    <td><a href="docs/images/05_friends_list.webp"><img src="docs/images/05_friends_list.webp" width="260" alt="Friends list"></a></td>
-    <td><a href="docs/images/06_user_profile.webp"><img src="docs/images/06_user_profile.webp" width="260" alt="User profile"></a></td>
+    <td><a href="docs/images/04-notes.webp"><img src="docs/images/04-notes.webp" width="260" alt="Game notes"></a></td>
+    <td><a href="docs/images/05-friends-list.webp"><img src="docs/images/05-friends-list.webp" width="260" alt="Friends list"></a></td>
+    <td><a href="docs/images/06-user-profile.webp"><img src="docs/images/06-user-profile.webp" width="260" alt="User profile"></a></td>
   </tr>
   <tr>
-    <td><a href="docs/images/07_players_near_you.webp"><img src="docs/images/07_players_near_you.webp" width="260" alt="Players Near You"></a></td>
-    <td><a href="docs/images/08_social_hub_activity.webp"><img src="docs/images/08_social_hub_activity.webp" width="260" alt="Social Hub activity feed"></a></td>
-    <td><a href="docs/images/09_community_subscribed.webp"><img src="docs/images/09_community_subscribed.webp" width="260" alt="Subscribed community discussions"></a></td>
+    <td><a href="docs/images/07-players-near-you.webp"><img src="docs/images/07-players-near-you.webp" width="260" alt="Players Near You"></a></td>
+    <td><a href="docs/images/08-social-hub-activity.webp"><img src="docs/images/08-social-hub-activity.webp" width="260" alt="Social Hub activity feed"></a></td>
+    <td><a href="docs/images/09-community-subscribed.webp"><img src="docs/images/09-community-subscribed.webp" width="260" alt="Subscribed community discussions"></a></td>
   </tr>
   <tr>
-    <td><a href="docs/images/10_news_and_events.webp"><img src="docs/images/10_news_and_events.webp" width="260" alt="News and events"></a></td>
-    <td><a href="docs/images/11_mastery_goals_list.webp"><img src="docs/images/11_mastery_goals_list.webp" width="260" alt="Mastery Goals list"></a></td>
-    <td><a href="docs/images/12_mastery_goals_manage.webp"><img src="docs/images/12_mastery_goals_manage.webp" width="260" alt="Managing a Mastery Goal"></a></td>
+    <td><a href="docs/images/10-news-and-events.webp"><img src="docs/images/10-news-and-events.webp" width="260" alt="News and events"></a></td>
+    <td><a href="docs/images/11-mastery-goals-list.webp"><img src="docs/images/11-mastery-goals-list.webp" width="260" alt="Mastery Goals list"></a></td>
+    <td><a href="docs/images/12-mastery-goals-manage.webp"><img src="docs/images/12-mastery-goals-manage.webp" width="260" alt="Managing a Mastery Goal"></a></td>
   </tr>
   <tr>
-    <td><a href="docs/images/13_guides_reader_panel.webp"><img src="docs/images/13_guides_reader_panel.webp" width="260" alt="Guide reader in the panel"></a></td>
-    <td><a href="docs/images/14_friend_games.webp"><img src="docs/images/14_friend_games.webp" width="260" alt="A friend's games"></a></td>
-    <td><a href="docs/images/15_main_comments.webp"><img src="docs/images/15_main_comments.webp" width="260" alt="Comments on a game"></a></td>
+    <td><a href="docs/images/13-guides-reader-panel.webp"><img src="docs/images/13-guides-reader-panel.webp" width="260" alt="Guide reader in the panel"></a></td>
+    <td><a href="docs/images/14-friend-games.webp"><img src="docs/images/14-friend-games.webp" width="260" alt="A friend's games"></a></td>
+    <td><a href="docs/images/15-main-comments.webp"><img src="docs/images/15-main-comments.webp" width="260" alt="Comments on a game"></a></td>
   </tr>
 </table>
 
@@ -64,8 +64,8 @@ Here is just a sample of some of the pages within the plugin. There's plenty mor
 
 <table>
   <tr>
-    <td><a href="docs/images/guides_reader_modal.webp"><img src="docs/images/guides_reader_modal.webp" width="420" alt="Guide reader in the full-size dialog"></a></td>
-    <td><a href="docs/images/notifications_modal.webp"><img src="docs/images/notifications_modal.webp" width="420" alt="Notifications"></a></td>
+    <td><a href="docs/images/guides-reader-modal.webp"><img src="docs/images/guides-reader-modal.webp" width="420" alt="Guide reader in the full-size dialog"></a></td>
+    <td><a href="docs/images/notifications-modal.webp"><img src="docs/images/notifications-modal.webp" width="420" alt="Notifications"></a></td>
   </tr>
 </table>
 
