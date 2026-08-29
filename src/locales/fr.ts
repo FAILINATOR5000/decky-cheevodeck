@@ -63,6 +63,8 @@ const FR: LocaleTable = {
     "Game data from RetroAchievements.": "Données de jeu fournies par RetroAchievements.",
     "Full credits on GitHub": "Crédits complets sur GitHub",
     "What's New in CheevoDeck": "Nouveautés de CheevoDeck",
+    "Message from FAILINATOR5000": "Message from FAILINATOR5000",
+    "View in Notifications": "Voir dans les notifications",
     "CheevoDeck Update Available": "Mise à jour de CheevoDeck disponible",
     "Version {{version}} available.": "Version {{version}} disponible.",
     "Paste this link into Decky → Settings → Developer → Install from URL.": "Colle ce lien dans Decky → Paramètres → Développeur → Installer depuis une URL.",

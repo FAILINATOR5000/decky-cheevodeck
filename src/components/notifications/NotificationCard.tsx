@@ -1,6 +1,8 @@
 import React, { Fragment, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { DialogButton, Focusable } from "@decky/ui";
 import { FaTrophy } from "react-icons/fa";
+
+import { DEVELOPER_AVATAR_IMAGE } from "../ui/developerAvatar";
 import {
     cacheAchievementIcons,
     getAchievementIcons,
@@ -142,6 +144,10 @@ function isFileWatcherPass(notification: CheevoNotification): boolean {
 
 function isChangelogRow(notification: CheevoNotification): boolean {
     return notification.type === "system" && notification.target?.view === "changelog";
+}
+
+function isDeveloperMessage(notification: CheevoNotification): boolean {
+    return notification.type === "system" && notification.target?.view === "message";
 }
 
 function cheevoCheckAbortKey(reason: string): string {
@@ -518,16 +524,19 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                                 ? fileWatcherPassBody(notification, language)
                                 : isChangelogRow(notification)
                                     ? null
-                                    : notification.type === "system"
-                                        ? t(language, "Version {{version}} available.", {
-                                              version: metaString(notification, "version")
-                                          })
-                                        : null;
+                                    : isDeveloperMessage(notification)
+                                        ? null
+                                        : notification.type === "system"
+                                            ? t(language, "Version {{version}} available.", {
+                                                  version: metaString(notification, "version")
+                                              })
+                                            : null;
 
     const isClampedBody =
         ((notification.type === "commentTracker" || notification.type === "wall")
             && notification.meta?.bulk !== true)
-        || isChangelogRow(notification);
+        || isChangelogRow(notification)
+        || isDeveloperMessage(notification);
 
     useLayoutEffect(() => {
         if (!isClampedBody) {
@@ -588,7 +597,9 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                                         ? t(language, "File Watcher")
                                         : isChangelogRow(notification)
                                             ? t(language, "What's New in CheevoDeck")
-                                            : notification.type === "system"
+                                            : isDeveloperMessage(notification)
+                                                ? t(language, "Message from FAILINATOR5000")
+                                                : notification.type === "system"
                                                 ? t(language, "CheevoDeck Update Available")
                                                 : notification.title;
 
@@ -664,6 +675,16 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                     <line x1="17" y1="13.5" x2="20.5" y2="13.5" />
                     <line x1="16.8" y1="17" x2="20" y2="18.5" />
                 </svg>
+            );
+        }
+
+        if (isDeveloperMessage(notification)) {
+            return renderBoxedIcon(
+                <img
+                    src={DEVELOPER_AVATAR_IMAGE}
+                    alt=""
+                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                />
             );
         }
 

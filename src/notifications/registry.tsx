@@ -14,7 +14,8 @@ export type NotificationNav = {
     openAbout?: () => void;
     openCheevoCheck?: () => void;
     openFileWatcher?: () => void;
-    openChangelog?: () => void;
+    openChangelog?: (body: string) => void;
+    openMessage?: (body: string) => void;
     openExternalUrl?: (url: string) => void;
     openMultipath?: (ctx: NotificationMultipathContext) => void;
 };
@@ -163,8 +164,12 @@ export const NOTIFICATION_REGISTRY: Record<NotificationType, NotificationTypeEnt
                 nav.openFileWatcher();
                 return;
             }
+            if (n.target?.view === "message" && nav.openMessage) {
+                nav.openMessage(n.body);
+                return;
+            }
             if (n.target?.view === "changelog" && nav.openChangelog) {
-                nav.openChangelog();
+                nav.openChangelog(n.body);
                 return;
             }
             if (nav.openAbout) {

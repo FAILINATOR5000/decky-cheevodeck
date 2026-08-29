@@ -21,7 +21,8 @@ type TextViewerModalProps = {
     language: LanguageCode;
     mouseKeyboardMode: boolean;
     title: string;
-    documentName: string;
+    documentName?: string;
+    text?: string;
     close: () => void;
 };
 
@@ -33,7 +34,7 @@ const MODAL_WIDTH_CSS = `
 }`;
 
 export function TextViewerModal(props: TextViewerModalProps) {
-    const { language, mouseKeyboardMode, title, documentName, close } = props;
+    const { language, mouseKeyboardMode, title, documentName, text: providedText, close } = props;
 
     const [text, setText] = useState<string | null>(null);
     const [failed, setFailed] = useState(false);
@@ -44,6 +45,19 @@ export function TextViewerModal(props: TextViewerModalProps) {
     const focusedRef = useRef(false);
 
     useEffect(() => {
+        if (providedText !== undefined) {
+            if (providedText) {
+                setText(providedText);
+            }
+            else {
+                setFailed(true);
+            }
+            return;
+        }
+        if (!documentName) {
+            setFailed(true);
+            return;
+        }
         let cancelled = false;
         void (async () => {
             try {

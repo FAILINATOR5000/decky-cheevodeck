@@ -33,6 +33,7 @@ from services.comments_service import CommentsService
 from services.new_sets_service import NewSetsService
 from services.tracked_sets_monitor_service import TrackedSetsMonitorService
 from services.update_checker_service import UpdateCheckerService, installed_version
+from services.developer_message_service import DeveloperMessageService
 from services.emulator_login_sync_service import EmulatorLoginSyncService
 from notes_store import NotesStore
 from guides_store import GuidesStore
@@ -46,6 +47,7 @@ from subscriptions_store import SubscriptionsStore
 from saved_comments_store import SavedCommentsStore
 from comment_baselines_store import CommentBaselinesStore
 from resolved_avatar_store import ResolvedAvatarStore
+from developer_message_store import DeveloperMessageStore
 from cheevo_check_store import CheevoCheckStore
 from file_watcher_store import FileWatcherStore
 from dolphin_mappings_store import DolphinMappingsStore
@@ -308,6 +310,9 @@ class Plugin(
         self.resolved_avatar_store = ResolvedAvatarStore(
             base_dir=self.runtime_dir,
         )
+        self.developer_message_store = DeveloperMessageStore(
+            base_dir=self.runtime_dir,
+        )
         self.cache_store = CacheStore(
             cache_file=self.cache_file,
             friends_cache_file=self.friends_cache_file,
@@ -405,6 +410,12 @@ class Plugin(
         )
         self.update_checker_service = UpdateCheckerService(
             settings_store=self.settings_store,
+            ssl_context=self._ssl_ctx,
+            notifications_store=self.notifications_store,
+        )
+        self.developer_message_service = DeveloperMessageService(
+            settings_store=self.settings_store,
+            message_store=self.developer_message_store,
             ssl_context=self._ssl_ctx,
             notifications_store=self.notifications_store,
         )
@@ -646,6 +657,8 @@ class Plugin(
 
         self.update_checker_service.set_event_loop(self._asyncio_loop)
         self.update_checker_service.start()
+        self.developer_message_service.set_event_loop(self._asyncio_loop)
+        self.developer_message_service.start()
 
         self.cheevo_check_service.set_event_loop(self._asyncio_loop)
         try:
@@ -779,6 +792,7 @@ class Plugin(
         self.notes_reminder_service.stop()
         self.tracked_sets_monitor_service.stop()
         self.update_checker_service.stop()
+        self.developer_message_service.stop()
         self.file_watcher_service.stop()
         self._restore_deck_controller_safe()
 

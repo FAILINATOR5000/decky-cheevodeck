@@ -3518,13 +3518,24 @@ function AchievementsRoot() {
             navIntentRef.current = "hub";
             goToFileWatcher();
         },
-        openChangelog: () => {
+        openMessage: (body: string) => {
+            showManagedModal((close) => (
+                <TextViewerModal
+                    language={language}
+                    mouseKeyboardMode={mouseKeyboardMode}
+                    title={t(language, "Message from FAILINATOR5000")}
+                    text={body}
+                    close={close}
+                />
+            ));
+        },
+        openChangelog: (body: string) => {
             showManagedModal((close) => (
                 <TextViewerModal
                     language={language}
                     mouseKeyboardMode={mouseKeyboardMode}
                     title={t(language, "What's New in CheevoDeck")}
-                    documentName="changelog"
+                    text={body}
                     close={close}
                 />
             ));

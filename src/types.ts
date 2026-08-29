@@ -639,7 +639,7 @@ export type NotificationIconSource = "game" | "achievement" | "avatar" | "setMos
 type NotificationSource = "notifications";
 
 type NotificationNavTarget = {
-    view: "gameNotes" | "trackedSetOpen" | "gameOverview" | "achievementOverview" | "cheevoCheck" | "fileWatcher" | "changelog" | "external";
+    view: "gameNotes" | "trackedSetOpen" | "gameOverview" | "achievementOverview" | "cheevoCheck" | "fileWatcher" | "changelog" | "message" | "external";
     gameId?: number | null;
     achievementId?: number | null;
     noteId?: string | null;
