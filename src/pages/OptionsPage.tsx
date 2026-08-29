@@ -70,6 +70,7 @@ import {
 import { trackedColorHex, trackedColorLabelKey } from "../utils/achievements";
 import { resolveGlyphStyle } from "../utils/controllerGlyphs";
 import { BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT } from "../utils/gamepadButtons";
+import { playOkSound } from "../utils/navSound";
 import { regularButtonSpacingStyle, smallTextStyle } from "../utils/style";
 
 type TabIconProps = { size?: number };
@@ -959,10 +960,12 @@ function SystemTab(props: TabContentProps) {
                     onClick={() => actions.onCycleShortcutBinding(entry.id)}
                     onButtonDown={(evt) => {
                         if (evt?.detail?.button === BUTTON_BUMPER_LEFT) {
+                            playOkSound();
                             void actions.onCycleShortcutBindingBack(entry.id);
                             return;
                         }
                         if (evt?.detail?.button === BUTTON_BUMPER_RIGHT) {
+                            playOkSound();
                             void actions.onCycleShortcutBinding(entry.id);
                         }
                     }}
