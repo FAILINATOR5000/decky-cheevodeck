@@ -1,6 +1,6 @@
 import { DialogButton, Focusable, PanelSection, PanelSectionRow } from "@decky/ui";
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
-import { FaClipboardCheck, FaClock, FaCompressArrowsAlt, FaExpandAlt, FaFileAlt, FaGamepad, FaHistory, FaNetworkWired, FaSyncAlt, FaThumbtack } from "react-icons/fa";
+import { FaClipboardCheck, FaClock, FaCompressArrowsAlt, FaExpandAlt, FaFileAlt, FaGamepad, FaHistory, FaNetworkWired, FaSyncAlt, FaThumbtack, FaTrophy } from "react-icons/fa";
 import { AchievementList } from "../components/achievements/AchievementList";
 import { ButtonHints } from "../components/ui/ButtonHints";
 import { playOkSound } from "../utils/navSound";
@@ -492,6 +492,7 @@ const QUICK_MENU_SHORTCUT_ICONS: Record<QuickMenuShortcut, ComponentType<{ size?
     smbShares: FaNetworkWired,
     fileWatcher: FaFileAlt,
     socialActivity: FaClock,
+    visitRa: FaTrophy,
     uiDefault: FaExpandAlt,
     uiCompact: FaCompressArrowsAlt
 };
@@ -607,6 +608,7 @@ type MainAchievementsPageProps = {
         openCheevoCheck: () => void | Promise<void>;
         openSmbShares: () => void | Promise<void>;
         openFileWatcher: () => void | Promise<void>;
+        openRaSite: () => void | Promise<void>;
         onApplyMainUiPreset: (preset: MainUiPreset) => void | Promise<void>;
         goToGameNotes: (focusKeyAfter?: string) => void | Promise<void>;
         onViewGameOverview: () => void | Promise<void>;
@@ -915,6 +917,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
             openCheevoCheck,
             openSmbShares,
             openFileWatcher,
+            openRaSite,
             onApplyMainUiPreset,
             goToGameNotes,
             onViewGameOverview,
@@ -1232,6 +1235,10 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
         }
         if (id === "socialActivity") {
             void goToSocialActivity();
+            return;
+        }
+        if (id === "visitRa") {
+            void openRaSite();
         }
     }
 

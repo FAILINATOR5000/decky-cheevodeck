@@ -241,6 +241,7 @@ export const QUICK_MENU_SHORTCUTS: { id: QuickMenuShortcut; labelKey: string; he
     { id: "smbShares", labelKey: "SMB Shares", helpKey: "help_quick_shortcut_smb_shares" },
     { id: "fileWatcher", labelKey: "File Watcher", helpKey: "help_quick_shortcut_file_watcher" },
     { id: "socialActivity", labelKey: "Social Activity Feed", helpKey: "help_quick_shortcut_social_activity" },
+    { id: "visitRa", labelKey: "Visit RA", helpKey: "help_quick_shortcut_visit_ra" },
     { id: "uiDefault", labelKey: "UI: Default View", helpKey: "help_quick_shortcut_ui_default" },
     { id: "uiCompact", labelKey: "UI: Compact View", helpKey: "help_quick_shortcut_ui_compact" }
 ];
@@ -283,6 +284,7 @@ const SHORTCUT_ACTIONS: { id: ShortcutAction; labelKey: string }[] = [
     { id: "smbShares", labelKey: "SMB Shares" },
     { id: "fileWatcher", labelKey: "File Watcher" },
     { id: "socialActivity", labelKey: "Social Activity Feed" },
+    { id: "visitRa", labelKey: "Visit RA" },
     { id: "snapshot", labelKey: "Snapshot" },
     { id: "nightMode", labelKey: "Night Mode" },
     { id: "doNotDisturb", labelKey: "Do Not Disturb" },

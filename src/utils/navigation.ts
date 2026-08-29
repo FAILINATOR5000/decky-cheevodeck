@@ -2,6 +2,10 @@ import { Navigation } from "@decky/ui";
 
 const RA_BASE = "https://retroachievements.org";
 
+export function raHomeUrl() {
+    return RA_BASE;
+}
+
 export function raAchievementUrl(id: number) {
     return `${RA_BASE}/achievement/${id}`;
 }

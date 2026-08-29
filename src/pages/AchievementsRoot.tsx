@@ -224,7 +224,7 @@ import {
 import { measureCommentWindow } from "../utils/commentGeometry";
 import { currentQuickGuideVisible, setQuickGuide } from "../utils/quickGuide";
 import { guideBelongsToMapping } from "../utils/guidesResolve";
-import { openExternalUrl, raAchievementUrl, raAchievementCommentsUrl, raGameUrl, raGameCommentsUrl, raLookupSearchUrl, raUserUrl, raUserCommentsUrl } from "../utils/navigation";
+import { openExternalUrl, raAchievementUrl, raAchievementCommentsUrl, raGameUrl, raGameCommentsUrl, raHomeUrl, raLookupSearchUrl, raUserUrl, raUserCommentsUrl } from "../utils/navigation";
 import { userRefFor } from "../utils/friends";
 import { loadCachedImage } from "../utils/loadCachedImage";
 import { beginGuardedRun } from "../utils/runGuard";
@@ -4228,6 +4228,10 @@ function AchievementsRoot() {
             openGameSearch("search", "hub");
             return;
         }
+        if (action === "visitRa") {
+            void openExternalUrl(raHomeUrl());
+            return;
+        }
 
         navIntentRef.current = "hub";
         if (action === "notifications") {
@@ -4457,6 +4461,7 @@ function AchievementsRoot() {
                                     openCheevoCheck: goToCheevoCheck,
                                     openSmbShares: goToSmbShares,
                                     openFileWatcher: goToFileWatcher,
+                                    openRaSite: () => { void openExternalUrl(raHomeUrl()); },
                                     onApplyMainUiPreset: optionsActions.onApplyMainUiPreset,
                                     goToGameNotes,
                                     goToGuides,

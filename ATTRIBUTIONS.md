@@ -108,7 +108,7 @@ Most of CheevoDeck's glyphs are inline SVGs whose path data comes from [**Font A
 
 CC BY asks that changes be indicated, so plainly: the paths were copied from Font Awesome Free and redrawn as standalone inline React SVG components. The original `viewBox` is kept, but the fills were swapped to `currentColor` so Decky's focus inversion can tint them, and no Font Awesome CSS, JavaScript, or webfont is bundled with the plugin.
 
-The thirteen Font Awesome icons obtained through `react-icons` (`FaTrophy`, `FaHistory`, `FaSyncAlt`, `FaThumbtack`, `FaUnlock`, `FaRegCalendar`, and the seven quick-menu shortcut glyphs — `FaGamepad`, `FaClipboardCheck`, `FaNetworkWired`, `FaFileAlt`, `FaClock`, `FaExpandAlt`, `FaCompressArrowsAlt`) are CC BY 4.0 for the same reason, even though the `react-icons` package itself is MIT.
+The thirteen Font Awesome icons obtained through `react-icons` (`FaHistory`, `FaSyncAlt`, `FaThumbtack`, `FaUnlock`, `FaRegCalendar`, and the eight quick-menu shortcut glyphs — `FaGamepad`, `FaClipboardCheck`, `FaNetworkWired`, `FaFileAlt`, `FaClock`, `FaTrophy`, `FaExpandAlt`, `FaCompressArrowsAlt`) are CC BY 4.0 for the same reason, even though the `react-icons` package itself is MIT.
 
 ## Material Design Icons — two glyphs on the Welcome modal
 

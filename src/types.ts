@@ -581,6 +581,7 @@ export type QuickMenuShortcut =
     | "smbShares"
     | "fileWatcher"
     | "socialActivity"
+    | "visitRa"
     | "uiDefault"
     | "uiCompact";
 
@@ -611,6 +612,7 @@ export type ShortcutAction =
     | "smbShares"
     | "fileWatcher"
     | "socialActivity"
+    | "visitRa"
     | "snapshot"
     | "nightMode"
     | "doNotDisturb"

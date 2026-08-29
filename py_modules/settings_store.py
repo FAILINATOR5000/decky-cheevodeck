@@ -178,6 +178,7 @@ _ALLOWED_QUICK_MENU_SHORTCUTS = (
     "smbShares",
     "fileWatcher",
     "socialActivity",
+    "visitRa",
     "uiDefault",
     "uiCompact",
 )
@@ -212,6 +213,7 @@ _ALLOWED_SHORTCUT_ACTIONS = (
     "smbShares",
     "fileWatcher",
     "socialActivity",
+    "visitRa",
     "snapshot",
     "nightMode",
     "doNotDisturb",
