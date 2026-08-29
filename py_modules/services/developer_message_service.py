@@ -14,7 +14,7 @@ from ra_client import build_user_agent
 
 MESSAGE_URL = "https://raw.githubusercontent.com/%s/%s/main/broadcast/message.txt" % (GITHUB_OWNER, GITHUB_REPO)
 
-CHECK_INTERVAL_SECONDS = 55 * 60
+CHECK_INTERVAL_SECONDS = 14 * 60
 
 TICK_SECONDS = 15 * 60
 
