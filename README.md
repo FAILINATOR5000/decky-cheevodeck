@@ -236,12 +236,12 @@ If there ever is a moment, where you think to yourself, "Can I turn this off?" o
 
 <table>
   <tr>
-    <td><a href="docs/images/tutorial-default-view.webp"><img src="docs/images/tutorial-default-view.webp" width="320" alt="The Main Menu with the Social Hub and Mastery Goals buttons"></a></td>
-    <td><a href="docs/images/tutorial-compact-view.webp"><img src="docs/images/tutorial-compact-view.webp" width="320" alt="The Main Menu in Compact View with those buttons removed"></a></td>
+    <td width="320" align="center"><a href="docs/images/tutorial-default-view.webp"><img src="docs/images/tutorial-default-view.webp" width="320" alt="The Main Menu with the Social Hub and Mastery Goals buttons"></a></td>
+    <td width="320" align="center"><a href="docs/images/tutorial-compact-view.webp"><img src="docs/images/tutorial-compact-view.webp" width="320" alt="The Main Menu in Compact View with those buttons removed"></a></td>
   </tr>
   <tr>
-    <td align="center"><b>Default View</b></td>
-    <td align="center"><b>Compact View</b></td>
+    <td width="320" align="center"><b>Default View</b></td>
+    <td width="320" align="center"><b>Compact View</b></td>
   </tr>
 </table>
 
