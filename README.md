@@ -2,6 +2,25 @@
 
 A full RetroAchievements tracking and management system inside the Quick Access Menu. Track achievements, build custom lists, keep notes, reminders and goals, read guides, even follow activity feeds, discussions and community events — all without leaving your game.
 
+## Table of Contents
+
+- [Features](#features)
+- [Screenshots](#screenshots)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Getting Started](#getting-started)
+- [Quick Start Tips](#quick-start-tips)
+- [Updating CheevoDeck](#updating-cheevodeck)
+- [Troubleshooting](#troubleshooting)
+- [Localization](#localization)
+- [Challenges & Limitations](#challenges--limitations)
+- [Building](#building)
+- [Architecture](#architecture)
+- [Credits](#credits)
+- [Author & Support](#author--support)
+- [License](#license)
+- [Disclaimer](#disclaimer)
+
 ## Features
 
 CheevoDeck isn't just a basic RetroAchievements tracker — it's a full suite for achievement hunters who want an enjoyable, cozy, and smooth time obtaining their goals. It was built from the ground up to take advantage of the Steam Quick Access Menu, offering a smooth, portable experience.
@@ -14,7 +33,7 @@ CheevoDeck isn't just a basic RetroAchievements tracker — it's a full suite fo
 
 - **GameFAQs integration** — Pick a guide for whatever you're playing and open it without ever leaving the game. Access guides quickly by enabling the special guides pin that appears on each page at the top or map it to a button on your controller. It's not just a boring guides viewer. It has zoom, search, bookmarks, and supports both formatted and classic guides. You can view guides from the quick access menu for portability or you can view them in a large dialog for wider view.
 
-- **Social** — Unlike traditional tracker apps, CheevoDeck offers rich social features, such as friend activity feeds, in-app comments viewing/tracking, wall post notifications, live notifications, and more. Don't have any friends? Don't sweat it! CheevoDeck offers a unique social feature called, **Players Near You**, which is a special per-game social feed that show players around your progress. It's a good opportunity to reach out and connect with those around you, and CheevoDeck makes that incredibly easy! You are able to view others' profiles in the **Profile Page**, where you can post comments, follow new friends, and offers many things to view: all game, recent game, game progress, want to play, awards, wall posts, stats, and much more. Because the RA API, does not offer the ability befriend someone or post comments, CheevoDeck makes this as seamless as possible being sent to directly where you need to be. For example, each in-app comments section has a **Post** button where you will be sent directly to the comments section externally where you can post a comment. Finally, if you have a competitive itch, there are multiple ways to do so, such as comparing stats & achievements, viewing a ranking amongst friends, and comparing stats in leaderboards—offering filters to filter just between you and friends or against everyone.
+- **Social** — Unlike traditional tracker apps, CheevoDeck offers rich social features, such as friend activity feeds, in-app comments viewing/tracking, wall post notifications, live notifications, and more. Don't have any friends? Don't sweat it! CheevoDeck offers a unique social feature called, **Players Near You**, which is a special per-game social feed that show players around your progress. It's a good opportunity to reach out and connect with those around you, and CheevoDeck makes that incredibly easy! You are able to view others' profiles in the **Profile** page, where you can post comments, follow new friends, and offers many things to view: all game, recent game, game progress, want to play, awards, wall posts, stats, and much more. Because the RA API, does not offer the ability befriend someone or post comments, CheevoDeck makes this as seamless as possible being sent to directly where you need to be. For example, each in-app comments section has a **Post** button where you will be sent directly to the comments section externally where you can post a comment. Finally, if you have a competitive itch, there are multiple ways to do so, such as comparing stats & achievements, viewing a ranking amongst friends, and comparing stats in leaderboards—offering filters to filter just between you and friends or against everyone.
 
 - **Community features** — The best part of RetroAchievements is the people. Join in with Achievement of the Week, catch the latest RA news to participate in special events, and watch new sets and revisions as they land.
 
@@ -149,9 +168,71 @@ These are some of the larger modal dialogs within CheevoDeck: Large Guide Viewer
 
 If nothing is loaded, make sure you are logged into your RA account in your emulator or front-end. Also, make sure your current game is supported on RetroAchievements and is a valid dump. If the game's hash differs from what RA has, it is not supported.
 
+## Quick Start Tips
+
+Most of CheevoDeck is reachable from the three buttons in the top right corner of the **Main Menu**. There are also various shortcuts that will allow you to get around quickly and smoothly, as well as toggle features on and off with ease. With the top button strip, combined with the shortcuts, getting around becomes a breeze.
+
+### The Top Button Strip
+
+<a href="docs/images/tutorial-top-button-strip.webp"><img src="docs/images/tutorial-top-button-strip.webp" width="420" alt="The top button strip on the Main Menu"></a>
+
+On the **Main Menu** there are three buttons in the top right corner, and between these three you are able to access many pages and settings quickly. From left to right, there is the **Profile** button, **Quick Menu** button, and the **Notifications** button.
+
+- **Profile** — This is the button with your RetroAchievements avatar on it. Selecting it brings you straight to your in-CheevoDeck profile page, where you can view all different kinds of stats about yourself, such as: points total, profile info, mastery goals, games list with status, recent games, current game with stats, ranking amongst friends, awards, want to play, wall posts, and much more.
+
+- **Quick Menu** — The hamburger-looking one in the middle, and the single-most useful one, contains shortcuts to different pages and subsections, as well as shortcuts to instantly toggle different settings on or off; some of it can be customized as well.
+
+- **Notifications** — The notification bell in the upper right corner can be used to access your **Notifications** feed. If you have any new notifications, you will see a glowing orange dot on top of the bell icon.
+
+On every other page, the same corner gives you two buttons instead: **Home**, which takes you straight back to the **Main Menu** from wherever you are, and the same **Notifications** bell. No matter where you are, your **Notifications** feed is just one press away.
+
+### The Quick Menu
+
+<a href="docs/images/tutorial-quick-menu.webp"><img src="docs/images/tutorial-quick-menu.webp" width="420" alt="The Quick Menu expanded on the Main Menu"></a>
+
+Pressing the hamburger-looking button, as a part of the button strip, on the **Main Menu** opens the **Quick Menu** over the top of the page, and pressing **B** closes it again. Below is a breakdown of all of the features it offers, and you will learn just how powerful it really is:
+
+- **Search Game** — The row at the very top. This allows you to look up any game that is supported on RetroAchievements, which then brings you to the **Game Info** page. Here you can view detailed game info, screenshots, videos, comments (view, post and subscribe), achievements, and patches (as well as download them too!).
+
+- **The first row of buttons** — Useful toggles that you might find yourself commonly flipping.
+
+    - **Do Not Disturb** — Turns off notifications and toasts while toggled on. This is also very useful to flip on if you plan to leave achievement hunting and play a Steam game; this stops you from getting unlock toasts while playing other games that are non-RetroAchievements related. There is one exception though: if you have a reminder set for one of your notes in the **Game Notes** page, you will still see the popup toast that reminds you about whatever you set. While you will no longer see the notification dot on the notifications bell in the upper right corner, you still get notifications pushed to it. It will just not bother you. Simply toggle off when done. What if you just want toasts off only but keep the orange dot on the notification bell? Luckily, you can achieve that (No pun intended). **Do Not Disturb** can be customized as to *what* it does when toggled on. Go to **Options** > **System** tab > **Do Not Disturb Disabled Features** and customize it there.
+
+    - **Night Mode** — Simply dims all of your pages to make it easier on your eyes at night. You can customize the intensity in **Options** > **System** tab > **Night Mode**.
+
+    - **Battery Saver** — Simply turns off most of your background services. So social services that fetch data and sends it to your feeds will be turned off. I'd like to note that I have done testing, and these services have such a minimal impact on battery. It's more useful if you just want to turn those services off temporarily, so you are not fetching from RA unnecessarily when not hunting achievements. And guess what? Just like with **Do Not Disturb**, you can customize *what* **Battery Saver** does when toggled on in **Options** > **System** tab > **Battery Saver Disabled Services**.
+
+    - **Mouse & Keyboard Mode** — Useful if you are switching over to playing a standalone RetroAchievements-supported game such as Terraria or Final Fantasy XI. This switches over the UI to make everything work well for mouse and keyboard users. When going back to a controller-based game, simply turn it off and you are good to go.
+
+- **The cluster of 12 small buttons** — These are quick shortcuts to different useful pages. From left to right, top to bottom: **Social Hub**, **News**, **Achievement of the Week**, **New Sets & Revisions**, **Subscribed Discussions**, **Saved Comments**, **Mastery Goals**, **Utilities**, **User Accounts**, **Options**, **About**, and a **Refresh**. While **News**, **Achievement of the Week**, **New Sets & Revisions**, **Subscribed Discussions**, and **Saved Comments** are all from the **Social Hub**, they are in different tabs and subsections within it, so these shortcuts in the **Quick Menu** make getting there incredibly fast.
+
+- **The last row of buttons** — Your own custom shortcuts and actions. You can pin up to four of the places you go often or actions that you perform often, so they sit one press away. Which four is up to you, and you choose them in **Options** > **Display & Notifications** tab > **Customize Quick Menu**. Your default loadout is: **Dolphin Mapper**, **Social Activity Feed**, **UI: Default View**, and **UI: Compact View**.
+
+The name of whatever you're hovering shows above the icons, so you can find your way around the grid without memorizing what each one means.
+
+### Getting Around
+
+Here are some speed-hacks that will help you move through the many pages of CheevoDeck like a pro:
+
+- **B goes back, everywhere** — It's the fastest way through the plugin: press it once to leave a page for the one you came from, and keep pressing to end up back at the **Main Menu**. The one exception is if you press **B** on the **Main Menu**, it closes the plugin and brings you to the Decky plugin list. Or if you press **B** while in the **Quick Menu**, it closes it.
+
+- **Use the Home button** — On every page but the **Main Menu**, there is a **Home** button in the upper right corner. Selecting this will immediately send you back to the **Main Menu**.
+
+- **View (Xbox, Steam Controller), Minus (Nintendo), Share/Create (Sony) buttons** are linked to **Page Up** by default — So pressing this button will instantly bring you to the top of whatever page you are on.
+
+- **Menu (Xbox, Steam Controller), Plus (Nintendo), Options (Sony) buttons** are linked to **Notifications** by default — These will all open the **Notifications** feed with a press of a button.
+
+- **Make use of customizing the Quick Menu** — You can customize the bottom row of the **Quick Menu** on the **Main Menu**, adding custom shortcuts and actions to it. Do that by going to **Options** > **Display & Notifications** tab > **Customize Quick Menu**.
+
+- **Map shortcuts and actions to your controller** — You can also skip the trip entirely by mapping common shortcuts and actions to your controller buttons. Go to **Options** > **System** tab > **Mapped Shortcuts** to customize this. While the other buttons are reserved for the core features in CheevoDeck, the ones that you are able to map are: **Menu**, **View**, **L3**, **L4**, **L5**, **R3**, **R4**, and **R5**.
+
+    <a href="docs/images/tutorial-mapped-shortcuts.webp"><img src="docs/images/tutorial-mapped-shortcuts.webp" width="320" alt="The Mapped Shortcuts list in Options"></a>
+
+For now, all mappings (minus snapshot) work within the **Quick Access Menu** environment which is 95% of CheevoDeck. Modal support will eventually be added for the ones that make sense.
+
 ## Updating CheevoDeck
 
-CheevoDeck makes updating an incredibly easy process. Whenever there is an update available, you will be notified of the update in your **Notifications** accessed via the bell on each page. To begin the update process, you can either select the update notification, which will bring you to the **About** page or you can access it directly from the **Main Achievements Page** by selecting the **Quick Menu** > **About**.
+CheevoDeck makes updating an incredibly easy process. Whenever there is an update available, you will be notified of the update in your **Notifications** accessed via the bell on each page. To begin the update process, you can either select the update notification, which will bring you to the **About** page or you can access it directly from the **Main Menu** by selecting the **Quick Menu** > **About**.
 
 1. In the About page, you have two options: You can either copy the URL link for the update or download the update directly to any location you like. In this case, it's recommended and much easier to just copy the URL link.
 
@@ -165,19 +246,15 @@ CheevoDeck makes updating an incredibly easy process. Whenever there is an updat
 
 I would also like to mention, while CheevoDeck does check for updates and notifies you automatically, it does it in 12-hour ticks. If you know an update is released and would like to download it right away, you can also select the **Check for Updates** button.
 
-## Tutorial
-
-*Coming soon.*
-
 ## Troubleshooting
 
-### The **Main Achievements Page** says "No Game Found"
+### The **Main Menu** says "No Game Found"
 
 This means that your RetroAchievements account is brand new and you have no last game registered with it yet. Simply play a supported game with that emulator signed in to your RetroAchievements account, and then go back into the CheevoDeck plugin. The data should then be loaded and populated.
 
 ### I keep getting an error saying that I have an invalid API Key all of a sudden
 
-This can occur if you have changed your API key for RetroAchievements. To solve this, from the **Main Achievements Page** go to **Quick Menu (The hamburger-looking menu at the top) > Options > Edit Credentials**. You can click the link in the dialog that pops up to be forwarded to the dashboard on RetroAchievements. Select the **Applications** tab and then select your API Key to copy to clipboard. From here, you can go back to the **Edit Credentials** dialog to paste your new API Key. Steam's on-screen keyboard contains the **Paste** option in the lower right corner. Ensure your username is up-to-date as well, and then simply save the new details.
+This can occur if you have changed your API key for RetroAchievements. To solve this, from the **Main Menu** go to **Quick Menu (The hamburger-looking menu at the top) > Options > Edit Credentials**. You can click the link in the dialog that pops up to be forwarded to the dashboard on RetroAchievements. Select the **Applications** tab and then select your API Key to copy to clipboard. From here, you can go back to the **Edit Credentials** dialog to paste your new API Key. Steam's on-screen keyboard contains the **Paste** option in the lower right corner. Ensure your username is up-to-date as well, and then simply save the new details.
 
 ### I changed my username at RetroAchievements. What do I do?
 
@@ -193,7 +270,7 @@ The friend avatar is cached for 48 hours, so it will be updated automatically vi
 
 ### My friend changed their username and I still see the old name
 
-Since almost all operations are done via the users' ULID, everything will continue to work, and the roster service will update the username within one week automatically. If you want to change it immediately, from the **Main Achievements Page** go to **Quick Menu (The hamburger-looking menu at the top) > Options > Cache & Data Tab > Refresh Friends Now.**
+Since almost all operations are done via the users' ULID, everything will continue to work, and the roster service will update the username within one week automatically. If you want to change it immediately, from the **Main Menu** go to **Quick Menu (The hamburger-looking menu at the top) > Options > Cache & Data Tab > Refresh Friends Now.**
 
 ### My friend avatar is wrong. Why? And how do I fix it?
 
