@@ -230,6 +230,21 @@ Here are some speed-hacks that will help you move through the many pages of Chee
 
 For now, all mappings (minus snapshot) work within the **Quick Access Menu** environment which is 95% of CheevoDeck. Modal support will eventually be added for the ones that make sense.
 
+### Customize Your Experience
+
+If there ever is a moment, where you think to yourself, "Can I turn this off?" or "Can I change this?", consider checking the **Options** page, which contains over two-hundred settings for you to completely customize your experience. For example, on the **Main Menu**, by default you have the **Social Hub** and the **Mastery Goals** full-size buttons. It's not technically needed since it's in the **Quick Menu**, but it is convenient. Some people might wonder if they could remove those buttons. Well, there are options for that! Under **Options** > **Display & Notifications** tab > **Main UI Presets** you can choose the **Compact View** options to remove them. Want to remove just one of them? Or replace one with a different button? Or even add an additional full-size button? That can be done by going to **Options** > **Display & Notifications** tab > **Main Menu / Profile**. This is just a small taste of the customization you can do, so when in doubt, browse the **Options**!
+
+<table>
+  <tr>
+    <td><a href="docs/images/tutorial-default-view.webp"><img src="docs/images/tutorial-default-view.webp" width="320" alt="The Main Menu with the Social Hub and Mastery Goals buttons"></a></td>
+    <td><a href="docs/images/tutorial-compact-view.webp"><img src="docs/images/tutorial-compact-view.webp" width="320" alt="The Main Menu in Compact View with those buttons removed"></a></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Default View</b></td>
+    <td align="center"><b>Compact View</b></td>
+  </tr>
+</table>
+
 ## Updating CheevoDeck
 
 CheevoDeck makes updating an incredibly easy process. Whenever there is an update available, you will be notified of the update in your **Notifications** accessed via the bell on each page. To begin the update process, you can either select the update notification, which will bring you to the **About** page or you can access it directly from the **Main Menu** by selecting the **Quick Menu** > **About**.
