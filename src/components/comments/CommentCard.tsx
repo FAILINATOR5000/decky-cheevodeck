@@ -5,7 +5,7 @@ import { t } from "../../locales";
 import { FocusableItem } from "../ui/FocusableItem";
 import { UserAvatar } from "../ui/UserAvatar";
 import { formatUnlockDate } from "../../utils/achievements";
-import { BODY_LINE_CLAMP, commentBodyPreview } from "../../utils/commentBody";
+import { BODY_LINE_CLAMP, commentBodyColumnPx, commentBodyPreview } from "../../utils/commentBody";
 import { type AchievementUiMetrics, smallTextStyle } from "../../utils/style";
 import { commentsTextSize } from "../../utils/scale";
 
@@ -28,7 +28,9 @@ export const CommentCard = React.memo(function CommentCard(props: CommentCardPro
     const username = String(comment.user || "").trim() || t(language, "Someone");
     const dateText = formatUnlockDate(comment.submitted, { includeYear: true }, language);
     const bodyFontSize = commentsTextSize(metrics.bodyFontSize);
-    const body = commentBodyPreview(String(comment.commentText || "").trim(), bodyFontSize);
+    const avatarGap = Math.max(8, metrics.iconGap - 2);
+    const bodyColumn = commentBodyColumnPx(showIcons ? metrics.iconSize + avatarGap : 0, contentPaddingRight ?? 0);
+    const body = commentBodyPreview(String(comment.commentText || "").trim(), bodyFontSize, bodyColumn);
 
     function handleClick() {
         void onClick(comment);
@@ -45,7 +47,7 @@ export const CommentCard = React.memo(function CommentCard(props: CommentCardPro
                 style={{
                     width: "100%",
                     display: "flex",
-                    gap: `${Math.max(8, metrics.iconGap - 2)}px`,
+                    gap: `${avatarGap}px`,
                     alignItems: "flex-start",
                     padding: "2px 0",
                     minWidth: 0
