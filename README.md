@@ -218,9 +218,9 @@ Here are some speed-hacks that will help you move through the many pages of Chee
 
 - **Use the Home button** — On every page but the **Main Menu**, there is a **Home** button in the upper right corner. Selecting this will immediately send you back to the **Main Menu**.
 
-- **View (Xbox, Steam Controller), Minus (Nintendo), Share/Create (Sony) buttons** are linked to **Page Up** by default — So pressing this button will instantly bring you to the top of whatever page you are on.
+- **Jump to the top of any page** — **View** (Xbox, Steam Controller), **Minus** (Nintendo) and **Share/Create** (Sony) are all linked to **Page Up** by default, so pressing that button will instantly bring you to the top of whatever page you are on.
 
-- **Menu (Xbox, Steam Controller), Plus (Nintendo), Options (Sony) buttons** are linked to **Notifications** by default — These will all open the **Notifications** feed with a press of a button.
+- **Open Notifications from anywhere** — **Menu** (Xbox, Steam Controller), **Plus** (Nintendo) and **Options** (Sony) are all linked to **Notifications** by default, so pressing that button will open your **Notifications** feed.
 
 - **Make use of customizing the Quick Menu** — You can customize the bottom row of the **Quick Menu** on the **Main Menu**, adding custom shortcuts and actions to it. Do that by going to **Options** > **Display & Notifications** tab > **Customize Quick Menu**.
 
