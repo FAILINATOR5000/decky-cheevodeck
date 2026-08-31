@@ -151,7 +151,7 @@ const PT: LocaleTable = {
     "tab_social": "Social",
     "tab_cache": "Cache e Dados",
     "tab_advanced": "Avançado",
-    "tab_this_game": "Este jogo",
+    "tab_this_game": "Jogo atual",
     "tab_other_games": "Outros jogos",
     "tab_add_all_missable": "Adicionar perdíveis",
     "tab_clear": "Limpar",

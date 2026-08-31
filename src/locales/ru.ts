@@ -151,7 +151,7 @@ const RU: LocaleTable = {
     "tab_social": "Общение",
     "tab_cache": "Кэш и данные",
     "tab_advanced": "Дополнительно",
-    "tab_this_game": "Эта игра",
+    "tab_this_game": "Текущая игра",
     "tab_other_games": "Другие игры",
     "tab_add_all_missable": "Добавить все",
     "tab_clear": "Очистить",

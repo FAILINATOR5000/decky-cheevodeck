@@ -151,7 +151,7 @@ const JA: LocaleTable = {
     "tab_social": "ソーシャル",
     "tab_cache": "キャッシュとデータ",
     "tab_advanced": "詳細",
-    "tab_this_game": "このゲーム",
+    "tab_this_game": "現在のゲーム",
     "tab_other_games": "他のゲーム",
     "tab_add_all_missable": "取り逃し注意をすべて追加",
     "tab_clear": "削除",

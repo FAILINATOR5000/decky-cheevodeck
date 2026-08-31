@@ -151,7 +151,7 @@ export const EN: LocaleTable = {
     "tab_social": "Social",
     "tab_cache": "Cache & Data",
     "tab_advanced": "Advanced",
-    "tab_this_game": "This Game",
+    "tab_this_game": "Current Game",
     "tab_other_games": "Other Games",
     "tab_add_all_missable": "Add All Missables",
     "tab_clear": "Clear",
