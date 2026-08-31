@@ -4,18 +4,6 @@ CheevoDeck is a RetroAchievements tracking and management system that runs as a 
 
 Roughly 90% of it lives inside the QAM side panel rather than a full-screen modal. That one decision shapes most of what follows.
 
-## The QAM constraint
-
-The QAM panel is a narrow column, has no router, and is torn down and remounted whenever it closes or a modal opens over it. Everything below is downstream of those three facts.
-
-| The panel… | so… |
-|---|---|
-| has no router | all 31 views live in one component and gate on a `view` string |
-| unmounts on close | anything that must survive is written to disk when it *opens*, not when it closes |
-| unmounts under a modal | a modal is a portal in a different document; state does not survive it in memory |
-| is a narrow column | rows wrap to two lines rather than truncate; sizes scale, never fixed px |
-| runs in another realm | a bare `document` reference addresses the wrong document |
-
 ## Layout
 
 ```
@@ -24,16 +12,16 @@ py_modules/
   mixins/            domain method groups; organisational only, MRO-merged into Plugin
   services/          long-running tick loops and on-demand workers
   *_store.py         persistence, ULID-keyed per user or global
-  ra_client.py       the RetroAchievements HTTP client and its rate limiter
+  ra_client.py       the RetroAchievements HTTP client
 src/
   index.tsx          frontend entry, registers the QAM panel
   pages/             27 screens, each taking a `state` + `actions` prop pair
-  hooks/             43 useXController hooks — state and IPC per feature
+  hooks/             43 hooks, 27 of them useXController — state and IPC per feature
   components/        109 components in 19 feature folders
   resume/            readers for state persisted across a panel teardown
   locales/           8 languages; every key exists in all 8
   routes.ts          one row per view: back-button focus key, mount policy, back handler
-  api.ts             the IPC surface, 417 typed thunks
+  api.ts             the IPC surface, 419 typed thunks
   types.ts           shared types, including the ViewKey union
 defaults/            files packaged to the device: RAHasher, chdman, 53 dat catalogues
 docs/                this file, and the banner images
@@ -67,14 +55,14 @@ Each view is a sibling inside a single `<Focusable key={view}>`. The key is what
 ```
 Plugin (main.py)
   └─ 18 mixins            419 IPC methods, grouped by domain, merged by MRO
-       └─ services        23 of them; 8 run on a shared tick loop, the rest on demand
-            └─ stores     18; JSON on disk, ULID-keyed per account or global
+       └─ services        24 of them; 9 run on a shared tick loop, the rest on demand
+            └─ stores     19; JSON on disk, ULID-keyed per account or global
                  └─ ra_client.py → RetroAchievements API
 ```
 
 Mixins are organisational only. They carry no state and are merged into one `Plugin` class, so a method's home is about where a reader would look for it, not about isolation.
 
-Services are where anything long-running lives: polling for new achievement sets, trickling social activity, watching ROM folders, mounting SMB shares. The eight that tick share `_tick_common.py`, which owns the backoff, the quiet gate and the debug-logging policy.
+Services are where anything long-running lives: polling for new achievement sets, trickling social activity, watching ROM folders, mounting SMB shares. The nine that tick share `_tick_common.py`, which owns the backoff, the quiet gate and the debug-logging policy.
 
 Stores are the only things that touch disk. The backend runs as root, so every file it writes is chowned back to the user — otherwise the plugin locks itself out of its own data.
 
@@ -121,7 +109,7 @@ Two deliberate exceptions are addressed by name, because RA's own URLs are: avat
 
 ## Rate limiting
 
-RetroAchievements returns 429 readily, so requests go through a semaphore in `ra_client.py`.
+RetroAchievements returns 429 readily, so requests go through a semaphore in `main.py`.
 
 | Lane | For | Rule |
 |---|---|---|
@@ -155,4 +143,4 @@ npx knip             unused exports, files and dependencies; baseline is zero
 
 **There is no test suite.** `npm test` is a stub that exits 1. The gate is the checks above plus running the plugin on a device, which is worth knowing before offering a change: nothing here can tell you a behavioural regression happened.
 
-Deploying copies `dist/`, `main.py`, `py_modules/` and `defaults/` to the device and restarts Decky. `src/` is not deployed — the bundle is.
+Deploying rsyncs the repo to the device and restarts Decky, excluding `src/`, `docs/`, `node_modules/` and the dot-directories — what runs on the device is the bundle in `dist/`, never the source. Packaging a release works the other way round: `.vscode/scripts/package.sh` copies an explicit ten-entry payload into `out/CheevoDeck-<version>.zip`.

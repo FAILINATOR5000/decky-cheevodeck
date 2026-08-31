@@ -13,6 +13,7 @@ A full RetroAchievements tracking and management system inside the Quick Access 
 - [Updating CheevoDeck](#updating-cheevodeck)
 - [Troubleshooting](#troubleshooting)
 - [Localization](#localization)
+- [Motivation](#motivation)
 - [Challenges & Limitations](#challenges--limitations)
 - [Building](#building)
 - [Architecture](#architecture)
@@ -43,13 +44,15 @@ CheevoDeck isn't just a basic RetroAchievements tracker — it's a full suite fo
 
 - **Built for the panel** — Almost everything happens in the side panel, the **Quick Access Menu**, next to your game rather than on top of it. Pause, opening the panel, check what you're missing, read a guide, reply to a friend, and drop right back in. Only a handful of things ask for the bigger dialog, and those are the ones that you genuinely may want the room for—such as notes editing dialogs or the larger version of our guides viewer.
 
+- **Steam Machine tested** — Thoroughly tested to work well with Steam Machine, in addition to the other SteamOS devices.
+
 - **Bonus utilities**
 
     - **Dolphin Mapper** — sets GameCube and Wii controller layouts for Dolphin so you don't have to do it by hand. No more nightmare tuning profiles for the many different wii control schemes. This does not touch your profiles; it only changes the active controller settings.
 
     - **Cheevo Check** — scans your ROM library and tells you which files are RetroAchievements compatible. Also, offers validating your roms to ensure they are proper dumps.
 
-    - **File Watcher** — ideal for archivists; it keeps an eye on your ROM folders, hashes them and keeps an eye on them on a schedule you set or via manually to check file integrity. In other words, it lets you know if any of your files became corrupt due to failing controller, drive, etc. It's also smart enough to know if a file was changed, removed, etc.
+    - **File Watcher** — ideal for archivists; monitor the integrity of your ROMs folders by setting up a schedule to check your files against the hashes, or by running a check manually. You will be notified if your files got corrupted, changed, removed, etc., and prompted for approval of changes.
 
     - **SMB Shares** — mounts your network drives, so a library living on a NAS works the same as one on the SD card. Useful if you want to access roms/files on your network.
 
@@ -299,6 +302,10 @@ The plugin doesn't ask for everyone automatically from RA because it's one reque
 
 CheevoDeck ships in eight languages: English, German, Spanish, French, Japanese, Polish, Portuguese and Russian. I only speak English and know a little bit of German and Japanese. For the most part, the other seven were translated without a native speaker, so while they should be perfectly understandable, some of it is bound to read stiffly or miss the phrase a player would actually use. If one of these is your language and something reads wrong to you, a fix is genuinely welcome — and so is a language that isn't here yet.
 
+## Motivation
+
+What really motivated me to work on CheevoDeck is my nephew's interest in RetroAchievements. This plugin was really developed for him, but that doesn't mean I shouldn't share it! Over the past year, my friends and family have probably spent thousands of hours using (and indirectly testing) CheevoDeck, enjoying RetroAchievements. It wasn't until recently that I officially decided I should probably share the love with the community as well. So here it is, and I sincerely hope you all enjoy this. If this brings joy to even one person, I'm happy with that. This plugin was developed from the ground-up with social features implemented, because it helps bring me and my family even closer—even though we are hundreds of miles apart.
+
 ## Challenges & Limitations
 
 ### Almost everything lives in the Quick Access Menu
@@ -307,15 +314,13 @@ This was the whole point of CheevoDeck, but it's also the hardest thing to build
 
 ### The panel gets unmounted/thrown away every time you close it
 
-Not hidden, not paused. Steam destroys the whole thing and builds a brand new one the next time you open it, and it does the same any time a dialog opens on top of it. So the plugin has no memory of its own. Whatever page you were on, whatever guide you had open, where you'd scrolled to, which tab you were reading, all of it is gone the instant you close the panel unless it was written down somewhere first.
+The front-end gets completely unmounted/destroyed as the **Quick Access Menu** closes. So the plugin has no memory of its own. Whatever page you were on, whatever guide you had open, where you'd scrolled to, which tab you were reading, all of it is gone the instant you close the panel unless it was written down somewhere first.
 
-The part that took getting used to is that it has to be saved at the wrong end. You can't save on the way out, because by the time the panel is closing it has already been torn down and there's nothing left to do the saving. So things get written the moment they open instead: open a guide and the fact that you're reading that guide is saved right then before you've done anything with it. It feels backwards while you're writing it, but it's the only order that survives.
+The part that took some getting used to is the state had to be persisted for each page. So, for example, when I re-open the **Profile** page, I expect my previous game I was looking at for a friend to be there still, along with the current sorting and filtering methods. What complicated things is where I had to use modal dialogs. Modal dialogs force the QAM to close, which in turn causes it to unmount; so I had to factor in handling persistence there as well.
 
-It also rules out a control I'd otherwise have used everywhere. Decky's UI library ships a dropdown component, the normal thing for a setting with a lot of possible values, the kind you press and a list appears. Decky's own settings use them. But opening one in the QAM opens what is basically a modal, so the whole panel goes down exactly like it does for a dialog: Steam draws the list over in a completely different window and leaves the panel behind it empty. The control that looks like the cheap, simple option turns out to be one of the most expensive things you can put in here, and that's why there isn't a single dropdown in CheevoDeck. Every multi-value setting in **Options** cycles through its values instead: press the row, get the next one. It looks like an odd choice until you know what the alternative costs.
+I avoided using modal dialogs in general. First, because I want this plugin to be greater than 95% within the QAM, making it portable. Second, because I would have to factor in persistence and resume state. This is why in the **Options** page, I have added controls that cycle options at the press of a button versus having it open up a modal and tear everything down. And, in the end, it did turn out to be quite the surprise and has worked pretty well.
 
-Once that clicked, it works better than you'd expect. The one I'm happiest with is comments: you can be halfway down a thread on an achievement or game, open something on top of it, and come back to the same thread in the same place. That's a hard one because the panel really is gone in between, and it works on all five places comments show up in the plugin.
-
-The one thing that still doesn't come back is the cursor. The plugin can put you on the right page with the right game loaded and the right tab open, because all of that is just information and information can be written down. Where the highlight was sitting is a different kind of thing. When the panel opens, Steam decides where the cursor goes before the plugin has finished drawing anything for it to land on, so it picks the first thing it can find, which is usually Decky's own back arrow at the top. Getting it to land on the achievement you were looking at instead is still on the list.
+Overall, with that in-mind, in the future perhaps I will further improve features like remembering where you left off when viewing an achievement. I've already implemented that for comments and that largely has been a success; however, it gets a little complicated because content is loaded dynamically. So once I further fine-tune comments, and I feel confident enough, I will attempt persist and resume state regarding other things within the plugin, such as achievement cards. I notice other Decky Loader plugins tend to not remember the state of dynamic content either, and I honestly don't blame them. On a positive note, I have established working methods, so I can perhaps apply it to other things in the future!
 
 ### The focus ring sometimes doesn't show up when you open the QAM
 
