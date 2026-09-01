@@ -182,6 +182,8 @@ class UpdateCheckerService:
 
         self._debug_logging = False
 
+        self._held_tag = ""
+
         self._event_loop = None
 
     def _debug_log(self, message, *args):
@@ -452,8 +454,12 @@ class UpdateCheckerService:
             return
 
         if not str(self._settings_store.load_config().get("activeUlid") or "").strip():
-            decky.logger.info("update: %s is newer, holding until an account exists", tag)
+            if tag != self._held_tag:
+                self._held_tag = tag
+                decky.logger.info("update: %s is newer, holding until an account exists", tag)
             return
+
+        self._held_tag = ""
 
         self._settings_store.save_update_notified_tag(tag)
 
