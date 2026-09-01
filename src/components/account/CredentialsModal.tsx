@@ -107,11 +107,11 @@ export function CredentialsModal(props: CredentialsModalProps) {
                     }}
                     flow-children="row"
                 >
-                    <DialogButton onClick={close} disabled={modalSaving}>
-                        {t(language, "Cancel")}
-                    </DialogButton>
                     <DialogButton onClick={handleSave} disabled={!canSave}>
                         {modalSaving ? t(language, "Saving...") : t(language, "Save")}
+                    </DialogButton>
+                    <DialogButton onClick={close} disabled={modalSaving}>
+                        {t(language, "Cancel")}
                     </DialogButton>
                 </Focusable>
             </SaveOnStart>
