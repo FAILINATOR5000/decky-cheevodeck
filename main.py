@@ -1455,6 +1455,10 @@ class Plugin(
                 self._empty_dir_contents(self.runtime_dir)
                 self._empty_dir_contents(self.settings_dir)
 
+                version = installed_version()
+                if version and version != "unknown":
+                    self.settings_store.save_changelog_version(version)
+
             self.settings_store.run_under_config_lock(_wipe)
 
             self._apply_user_scope("")
