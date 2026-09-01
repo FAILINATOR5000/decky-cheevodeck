@@ -161,7 +161,11 @@ These are some of the larger modal dialogs within CheevoDeck: Large Guide Viewer
 
     Nothing here is locked in — you can later further tweak the UI and accessibility settings in the **Options** page.
 
-5. Congratulations! You are now done with the onboarding and can now begin hunting achievements! Here's how it works:
+5. Finally, you will be asked to pick the **Main Menu** layout, choosing between the **Default View** and **Compact View**. This isn't locked in and can be changed anytime in **Options**.
+
+    <a href="docs/images/getting-started-view-style.webp"><img src="docs/images/getting-started-view-style.webp" width="560" alt="Choosing a view style"></a>
+
+6. Congratulations! You are now done with the onboarding and can now begin hunting achievements! Here's how it works:
 
     1. Start up your RetroAchievements supported game in whichever emulator you choose. Ensure you are logged into your RetroAchievements account within the emulator or front-end first. Once your game is started, RA is notified of the current game you are playing.
 
