@@ -271,6 +271,7 @@ class UpdateCheckerService:
                     now - last_checked,
                     force,
                 )
+                self._maybe_notify(state)
                 return self._status_for(state)
 
             try:
@@ -441,10 +442,17 @@ class UpdateCheckerService:
 
     def _maybe_notify(self, state):
         release = state["release"]
+        if not isinstance(release, dict):
+            return
+
         tag = release.get("tag", "")
         if not is_newer_version(tag, installed_version()):
             return
         if tag == state["lastNotifiedTag"]:
+            return
+
+        if not str(self._settings_store.load_config().get("activeUlid") or "").strip():
+            decky.logger.info("update: %s is newer, holding until an account exists", tag)
             return
 
         self._settings_store.save_update_notified_tag(tag)
