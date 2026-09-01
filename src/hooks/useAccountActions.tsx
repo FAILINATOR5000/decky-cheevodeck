@@ -23,6 +23,7 @@ import { CredentialsModal } from "../components/account/CredentialsModal";
 import { LanguageModal } from "../components/account/LanguageModal";
 import { SwitchUserModal, type SwitchUserOutcome } from "../components/account/SwitchUserModal";
 import { WelcomeFollowupModal } from "../components/account/WelcomeFollowupModal";
+import { WelcomeMainUiModal } from "../components/account/WelcomeMainUiModal";
 import { WelcomeModal } from "../components/account/WelcomeModal";
 import { t, type LanguageCode } from "../locales";
 import type {
@@ -34,6 +35,7 @@ import type {
 import { getErrorMessage, logError } from "../utils/errors";
 import { showManagedModal } from "../utils/modalRegistry";
 import type { ScalePreset } from "../types";
+import type { MainUiPreset } from "../utils/options";
 
 type UseAccountActionsArgs = {
     language: LanguageCode;
@@ -54,6 +56,7 @@ type UseAccountActionsArgs = {
     ) => Promise<void>;
     onApplySetupProfile: (profile: string, preserveOtherSettings: boolean) => void | Promise<void>;
     onApplyScalePreset: (preset: ScalePreset) => void | Promise<void>;
+    onApplyMainUiPreset: (preset: MainUiPreset) => void | Promise<void>;
     onSelectLanguage: (code: LanguageCode) => void | Promise<void>;
     username: string;
     hasApiKey: boolean;
@@ -83,6 +86,7 @@ export function useAccountActions({
     refreshGameData,
     onApplySetupProfile,
     onApplyScalePreset,
+    onApplyMainUiPreset,
     onSelectLanguage,
     username,
     hasApiKey,
@@ -162,6 +166,17 @@ export function useAccountActions({
             <WelcomeFollowupModal
                 language={language}
                 onApplyScalePreset={onApplyScalePreset}
+                onDone={openMainUiModal}
+                close={close}
+            />
+        ));
+    }
+
+    function openMainUiModal() {
+        showManagedModal((close) => (
+            <WelcomeMainUiModal
+                language={language}
+                onApplyMainUiPreset={onApplyMainUiPreset}
                 close={close}
             />
         ));

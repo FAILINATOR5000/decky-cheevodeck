@@ -9,6 +9,7 @@ import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 type WelcomeFollowupModalProps = {
     language: LanguageCode;
     onApplyScalePreset: (preset: ScalePreset) => void | Promise<void>;
+    onDone: () => void;
     close: () => void;
 };
 
@@ -75,7 +76,7 @@ const PRESETS = [
 ];
 
 export function WelcomeFollowupModal(props: WelcomeFollowupModalProps) {
-    const { language, onApplyScalePreset, close } = props;
+    const { language, onApplyScalePreset, onDone, close } = props;
 
     const portableRef = useRef<HTMLDivElement | null>(null);
     const [focusedPreset, setFocusedPreset] = useState<string | null>(null);
@@ -89,11 +90,13 @@ export function WelcomeFollowupModal(props: WelcomeFollowupModalProps) {
     function pickPreset(preset: string) {
         if (preset === "portable") {
             close();
+            onDone();
             return;
         }
 
         close();
         void onApplyScalePreset(preset as ScalePreset);
+        onDone();
     }
 
     const discSize = modalSize(52);

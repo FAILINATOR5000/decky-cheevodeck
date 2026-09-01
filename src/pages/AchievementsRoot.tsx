@@ -2068,6 +2068,7 @@ function AchievementsRoot() {
         onApplySetupProfile: (profile, preserveOtherSettings) =>
             optionsActions.onApplySetupProfile(profile, preserveOtherSettings),
         onApplyScalePreset: (preset) => optionsActions.onApplyScalePreset(preset),
+        onApplyMainUiPreset: (preset) => optionsActions.onApplyMainUiPreset(preset),
         onSelectLanguage: (code) => optionsActions.onSelectLanguage(code),
         username,
         hasApiKey,
