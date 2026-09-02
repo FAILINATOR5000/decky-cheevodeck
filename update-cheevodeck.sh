@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+RELEASE_JSON=""
+WORK_DIR=""
+
+finish() {
+    rm -f "${RELEASE_JSON}"
+    rm -rf "${WORK_DIR}"
+    printf "\nPress Enter to close this window."
+    read -r _ || true
+}
+trap finish EXIT
+
 REPO="FAILINATOR5000/decky-cheevodeck"
 PLUGIN_DIR_NAME="decky-cheevodeck"
 SERVICE="${DECKY_SERVICE:-}"
@@ -84,7 +95,6 @@ PY
 
 echo "Checking GitHub for the latest release..."
 RELEASE_JSON="$(mktemp)"
-trap 'rm -f "$RELEASE_JSON"' EXIT
 
 if ! curl -fsSL -H "Accept: application/vnd.github+json" \
         "https://api.github.com/repos/${REPO}/releases/latest" -o "$RELEASE_JSON"; then
@@ -132,7 +142,6 @@ if [[ "${1:-}" != "--force" ]]; then
 fi
 
 WORK_DIR="$(mktemp -d)"
-trap 'rm -f "$RELEASE_JSON"; rm -rf "$WORK_DIR"' EXIT
 ZIP_PATH="${WORK_DIR}/CheevoDeck-${LATEST_VERSION}.zip"
 
 echo "Downloading ${LATEST_VERSION}..."
