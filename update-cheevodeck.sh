@@ -137,7 +137,7 @@ if [[ "${1:-}" != "--force" ]]; then
     verdict=$?
     set -e
     if [[ ${verdict} -eq 1 ]]; then
-        echo "Already up to date. Pass --force to reinstall anyway."
+        echo "Already up to date."
         exit 0
     fi
 fi
