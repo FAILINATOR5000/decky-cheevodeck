@@ -282,6 +282,8 @@ CheevoDeck makes updating an incredibly easy process. Whenever there is an updat
 
 I would also like to mention, while CheevoDeck does check for updates and notifies you automatically, it does it in 12-hour ticks. If you know an update is released and would like to download it right away, you can also select the **Check for Updates** button.
 
+**Prefer to update from Desktop Mode?** CheevoDeck can put a one-click updater on your desktop. It's offered when you first set the plugin up, and you can add it any time from **About** > **Add Updater to Desktop**. Head into Desktop Mode, double-click **Install/Update CheevoDeck**, and enter your password when it asks. It fetches the newest release, swaps it in, and restarts Decky for you. Your data is left alone, exactly as with the steps above. It can install CheevoDeck from scratch too, so it's handy if you ever need to reinstall.
+
 ## Troubleshooting
 
 ### The **Main Menu** says "No Game Found"
