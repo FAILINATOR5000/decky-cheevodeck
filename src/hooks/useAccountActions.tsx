@@ -11,6 +11,7 @@ import {
     generateConnectToken,
     getSettings,
     markIntroViewed,
+    placeDesktopUpdater,
     reinjectActiveLogin,
     removeUser,
     saveInjectEmulatorLogin,
@@ -127,6 +128,9 @@ export function useAccountActions({
             const result = await saveSettings(nextUsernameInput, nextApiKeyInput);
             const showWelcome = !result.viewedIntro;
             const welcomeUsername = result.username;
+            if (showWelcome && result.putUpdaterOnDesktop) {
+                void placeDesktopUpdater().catch((err) => logError("place desktop updater after setup", err));
+            }
             if (!mountedRef.current) {
                 return { ok: true, showWelcome, username: welcomeUsername };
             }

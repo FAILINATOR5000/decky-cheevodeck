@@ -2035,6 +2035,9 @@ export const saveShowSocialHubButton = callable<[boolean], { ok: boolean; showSo
 export const saveShowTrackedSetsButton = callable<[boolean], { ok: boolean; showTrackedSetsButton: boolean }>(
     "save_show_tracked_sets_button"
 );
+export const savePutUpdaterOnDesktop = callable<[boolean], { ok: boolean; putUpdaterOnDesktop: boolean }>(
+    "save_put_updater_on_desktop"
+);
 export const saveShowOptionsButton = callable<[boolean], { ok: boolean; showOptionsButton: boolean }>(
     "save_show_options_button"
 );

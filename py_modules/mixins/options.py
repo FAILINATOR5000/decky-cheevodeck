@@ -615,6 +615,14 @@ class OptionsMixin(PluginContext):
             "showTrackedSetsButton": value,
         }
 
+    async def save_put_updater_on_desktop(self, put_updater_on_desktop: bool):
+        value = self.settings_store.update_put_updater_on_desktop(put_updater_on_desktop)
+
+        return {
+            "ok": True,
+            "putUpdaterOnDesktop": value,
+        }
+
     async def save_show_options_button(self, show_options_button: bool):
         value = self.settings_store.update_show_options_button(show_options_button)
 

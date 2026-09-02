@@ -872,6 +872,7 @@ export type SettingsResponse = {
     gameNotesAButtonMode: GameNoteAButtonMode;
     showSocialHubButton: boolean;
     showTrackedSetsButton: boolean;
+    putUpdaterOnDesktop: boolean;
     showOptionsButton: boolean;
     quickMenuShortcuts: QuickMenuShortcut[];
     shortcutBindings: Record<ShortcutButton, ShortcutAction>;

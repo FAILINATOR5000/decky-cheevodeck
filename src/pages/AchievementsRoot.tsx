@@ -3952,6 +3952,8 @@ function AchievementsRoot() {
                 error={error}
                 onEditCredentials={openCredentialsModal}
                 onClearApiKey={onClearApiKey}
+                putUpdaterOnDesktop={optionsState.putUpdaterOnDesktop}
+                onTogglePutUpdaterOnDesktop={optionsActions.onTogglePutUpdaterOnDesktop}
             />
         );
     }

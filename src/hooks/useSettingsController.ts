@@ -112,6 +112,7 @@ export function useSettingsController({
     const [gameNotesAButtonMode, setGameNotesAButtonMode] = useState<GameNoteAButtonMode>("editNote");
     const [showSocialHubButton, setShowSocialHubButton] = useState(true);
     const [showTrackedSetsButton, setShowTrackedSetsButton] = useState(true);
+    const [putUpdaterOnDesktop, setPutUpdaterOnDesktop] = useState(true);
     const [showOptionsButton, setShowOptionsButton] = useState(false);
     const [quickMenuShortcuts, setQuickMenuShortcuts] = useState<QuickMenuShortcut[]>([]);
     const [shortcutBindings, setShortcutBindings] = useState<Record<ShortcutButton, ShortcutAction>>(DEFAULT_SHORTCUT_BINDINGS);
@@ -380,6 +381,7 @@ export function useSettingsController({
         if (!options.skipButtonToggles) {
             setShowSocialHubButton(source.showSocialHubButton);
             setShowTrackedSetsButton(source.showTrackedSetsButton);
+            setPutUpdaterOnDesktop(source.putUpdaterOnDesktop);
             setShowOptionsButton(source.showOptionsButton);
             setQuickMenuShortcuts(source.quickMenuShortcuts);
             setShortcutBindings(source.shortcutBindings);
@@ -634,6 +636,7 @@ export function useSettingsController({
         gameNotesAButtonMode,
         showSocialHubButton,
         showTrackedSetsButton,
+        putUpdaterOnDesktop,
         showOptionsButton,
         quickMenuShortcuts,
         shortcutBindings,
@@ -855,6 +858,7 @@ export function useSettingsController({
         setGameNotesAButtonMode,
         setShowSocialHubButton,
         setShowTrackedSetsButton,
+        setPutUpdaterOnDesktop,
         setShowOptionsButton,
         setQuickMenuShortcuts,
         setShortcutBindings,

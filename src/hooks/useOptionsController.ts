@@ -140,6 +140,7 @@ import {
     saveNightModeBrightness,
     saveShowSocialHubButton,
     saveShowTrackedSetsButton,
+    savePutUpdaterOnDesktop,
     saveShowOptionsButton,
     saveQuickMenuShortcuts,
     saveLastScalePreset,
@@ -455,6 +456,7 @@ type UseOptionsControllerArgs = {
     showAButtonModeTracked: boolean;
     showSocialHubButton: boolean;
     showTrackedSetsButton: boolean;
+    putUpdaterOnDesktop: boolean;
     showOptionsButton: boolean;
     quickMenuShortcuts: QuickMenuShortcut[];
     quickMenuShortcutRefused: QuickMenuShortcut | null;
@@ -515,6 +517,7 @@ type UseOptionsControllerArgs = {
     setShowAButtonModeTracked: Dispatch<SetStateAction<boolean>>;
     setShowSocialHubButton: Dispatch<SetStateAction<boolean>>;
     setShowTrackedSetsButton: Dispatch<SetStateAction<boolean>>;
+    setPutUpdaterOnDesktop: Dispatch<SetStateAction<boolean>>;
     setShowOptionsButton: Dispatch<SetStateAction<boolean>>;
     setQuickMenuShortcuts: Dispatch<SetStateAction<QuickMenuShortcut[]>>;
     setQuickMenuShortcutRefused: Dispatch<SetStateAction<QuickMenuShortcut | null>>;
@@ -864,6 +867,7 @@ export function useOptionsController({
     showAButtonModeTracked,
     showSocialHubButton,
     showTrackedSetsButton,
+    putUpdaterOnDesktop,
     showOptionsButton,
     quickMenuShortcuts,
     quickMenuShortcutRefused,
@@ -924,6 +928,7 @@ export function useOptionsController({
     setShowAButtonModeTracked,
     setShowSocialHubButton,
     setShowTrackedSetsButton,
+    setPutUpdaterOnDesktop,
     setShowOptionsButton,
     setQuickMenuShortcuts,
     setQuickMenuShortcutRefused,
@@ -1159,6 +1164,7 @@ export function useOptionsController({
         setShowAButtonModeTracked(Boolean(result.showAButtonModeTracked ?? true));
         setShowSocialHubButton(Boolean(result.showSocialHubButton ?? true));
         setShowTrackedSetsButton(Boolean(result.showTrackedSetsButton ?? true));
+        setPutUpdaterOnDesktop(Boolean(result.putUpdaterOnDesktop ?? true));
         setShowOptionsButton(Boolean(result.showOptionsButton ?? false));
         setQuickMenuShortcuts(result.quickMenuShortcuts ?? []);
         setShortcutBindings(result.shortcutBindings ?? DEFAULT_SHORTCUT_BINDINGS);
@@ -3049,6 +3055,15 @@ export function useOptionsController({
             getSavedValue: (result, fallbackValue) => Boolean(result.showTrackedSetsButton ?? fallbackValue),
         });
 
+    const onTogglePutUpdaterOnDesktop = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: putUpdaterOnDesktop,
+            applyValue: setPutUpdaterOnDesktop,
+            saveCall: savePutUpdaterOnDesktop,
+            getSavedValue: (result, fallbackValue) => Boolean(result.putUpdaterOnDesktop ?? fallbackValue),
+        });
+
     const onToggleShowOptionsButton = (nextValue: boolean) =>
         saveSettingWithRollback<boolean>({
             nextValue,
@@ -3346,6 +3361,7 @@ export function useOptionsController({
         quickMenuShortcuts,
         quickMenuShortcutRefused,
         shortcutBindings,
+        putUpdaterOnDesktop,
         showAllToggleMain,
         showAllToggleFriend,
         showTrackedNotesMain,
@@ -3567,6 +3583,7 @@ export function useOptionsController({
         onToggleShowAButtonModeTracked,
         onToggleShowSocialHubButton,
         onToggleShowTrackedSetsButton,
+        onTogglePutUpdaterOnDesktop,
         onToggleShowOptionsButton,
         onToggleShowAllToggleMain,
         onToggleShowAllToggleFriend,

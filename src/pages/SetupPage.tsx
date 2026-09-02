@@ -1,6 +1,7 @@
 import { PanelSection, PanelSectionRow } from "@decky/ui";
 import { ErrorText } from "../components/ui/ErrorText";
 import { FocusableItem } from "../components/ui/FocusableItem";
+import { OptionToggle } from "../components/options/OptionRows";
 import type { LanguageCode } from "../locales";
 import type { ButtonSpacing } from "../types";
 import { localizeRuntimeText, t } from "../locales";
@@ -14,6 +15,8 @@ type SetupPageProps = {
     error: string | null;
     onEditCredentials: () => void;
     onClearApiKey: () => void | Promise<void>;
+    putUpdaterOnDesktop: boolean;
+    onTogglePutUpdaterOnDesktop: (nextValue: boolean) => void | Promise<void>;
 };
 
 function SetupPage(props: SetupPageProps) {
@@ -24,7 +27,9 @@ function SetupPage(props: SetupPageProps) {
         saving,
         error,
         onEditCredentials,
-        onClearApiKey
+        onClearApiKey,
+        putUpdaterOnDesktop,
+        onTogglePutUpdaterOnDesktop
     } = props;
 
     return (
@@ -39,6 +44,14 @@ function SetupPage(props: SetupPageProps) {
                     {hasApiKey ? t(language, "Edit Credentials") : t(language, "Enter Credentials")}
                 </FocusableItem>
             </PanelSectionRow>
+            <OptionToggle
+                outerStyle={regularButtonSpacingStyle(buttonSpacing)}
+                label={t(language, "Add Updater to Desktop")}
+                value={putUpdaterOnDesktop}
+                onChange={onTogglePutUpdaterOnDesktop}
+                disabled={saving}
+                help={t(language, "Puts a launcher on your Desktop. Run it from Desktop Mode and it installs the newest version for you.")}
+            />
             {hasApiKey && (
                 <PanelSectionRow>
                     <FocusableItem

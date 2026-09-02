@@ -379,6 +379,7 @@ _KNOBS = (
     Knob("gameNotesAButtonMode", default="editNote", normalize=True),
     Knob("showSocialHubButton", default=True, normalize=True),
     Knob("showTrackedSetsButton", default=True, normalize=True),
+    Knob("putUpdaterOnDesktop", default=True, normalize=True),
     Knob("showOptionsButton", default=False, normalize=True),
     Knob("quickMenuShortcuts", factory=_default_quick_menu_shortcuts, normalize=True),
     Knob("shortcutBindings", factory=_default_shortcut_bindings, normalize=True),
@@ -1941,6 +1942,7 @@ class SettingsStore:
         return {
             "showSocialHubButton": self.get_show_social_hub_button(cfg),
             "showTrackedSetsButton": self.get_show_tracked_sets_button(cfg),
+            "putUpdaterOnDesktop": self.get_put_updater_on_desktop(cfg),
             "showOptionsButton": self.get_show_options_button(cfg),
             "showAButtonMode": self.get_show_a_button_mode(cfg),
         }
@@ -1996,6 +1998,11 @@ class SettingsStore:
         cfg = self._update_config("showTrackedSetsButton", bool(value))
 
         return self.get_show_tracked_sets_button(cfg)
+
+    def update_put_updater_on_desktop(self, value: bool) -> bool:
+        cfg = self._update_config("putUpdaterOnDesktop", bool(value))
+
+        return self.get_put_updater_on_desktop(cfg)
 
     def update_show_options_button(self, value: bool) -> bool:
         cfg = self._update_config("showOptionsButton", bool(value))
@@ -3495,6 +3502,9 @@ class SettingsStore:
 
     def get_show_tracked_sets_button(self, cfg: dict) -> bool:
         return bool(cfg.get("showTrackedSetsButton", True))
+
+    def get_put_updater_on_desktop(self, cfg: dict) -> bool:
+        return bool(cfg.get("putUpdaterOnDesktop", True))
 
     def get_show_options_button(self, cfg: dict) -> bool:
         return bool(cfg.get("showOptionsButton", False))
