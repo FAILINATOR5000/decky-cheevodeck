@@ -24,9 +24,11 @@ A full RetroAchievements tracking and management system inside the Quick Access 
 
 ## Features
 
-CheevoDeck isn't just a basic RetroAchievements tracker — it's a full suite for achievement hunters who want an enjoyable, cozy, and smooth time obtaining their goals. It was built from the ground up to take advantage of the Steam Quick Access Menu, offering a smooth, portable experience.
+CheevoDeck isn't just a basic RetroAchievements tracker — it's a full suite for achievement hunters who want an enjoyable, cozy, and smooth time obtaining their goals. It was built from the ground up to take advantage of the Steam Quick Access Menu, offering a lightweight, portable experience.
 
 - **Advanced tracking** — Tracking an achievement adds it to a special per-game list built to keep you organized: categorize them, add notes, view info, and more. Unlock it and it quietly takes itself off the list.
+
+- **Mastery Goals** — Group games into a goal of your own making, whether that's a series you want to see through, the shelf you grew up with as a kid, certain genres, or just a favorite games list. Simply make a Mastery Goal, naming it whatever you want, then add games by searching or by browsing a console. You can add notes, customize the order, and keep track of progress on your Mastery Goal. CheevoDeck keeps track of your progress in the background and you are notified and congratulated once you complete a goal.
 
 - **Comment tracking** — Stuck on a tough achievement? Subscribe to an achievement or a game's comments and you'll know the moment somebody replies, whether the panel is open or you're deep in a game. Find advice worth hanging onto and you can favorite it, and it'll be sitting in the Social Hub whenever you come back for it.
 
@@ -34,7 +36,17 @@ CheevoDeck isn't just a basic RetroAchievements tracker — it's a full suite fo
 
 - **GameFAQs integration** — Pick a guide for whatever you're playing and open it without ever leaving the game. Access guides quickly by enabling the special guides pin that appears on each page at the top or map it to a button on your controller. It's not just a boring guides viewer. It has zoom, search, bookmarks, and supports both formatted and classic guides. You can view guides from the quick access menu for portability or you can view them in a large dialog for wider view.
 
-- **Social** — Unlike traditional tracker apps, CheevoDeck offers rich social features, such as friend activity feeds, in-app comments viewing/tracking, wall post notifications, live notifications, and more. Don't have any friends? Don't sweat it! CheevoDeck offers a unique social feature called, **Players Near You**, which is a special per-game social feed that show players around your progress. It's a good opportunity to reach out and connect with those around you, and CheevoDeck makes that incredibly easy! You are able to view others' profiles in the **Profile** page, where you can post comments, follow new friends, and offers many things to view: all game, recent game, game progress, want to play, awards, wall posts, stats, and much more. Because the RA API, does not offer the ability befriend someone or post comments, CheevoDeck makes this as seamless as possible being sent to directly where you need to be. For example, each in-app comments section has a **Post** button where you will be sent directly to the comments section externally where you can post a comment. Finally, if you have a competitive itch, there are multiple ways to do so, such as comparing stats & achievements, viewing a ranking amongst friends, and comparing stats in leaderboards—offering filters to filter just between you and friends or against everyone.
+- **Social** — Unlike traditional tracker apps, CheevoDeck offers rich social features, such as friend activity feeds, in-app comments viewing/tracking, wall post notifications, live notifications, and more. Don't have any friends? Don't sweat it! CheevoDeck offers a unique social feature called **Players Near You**, which is a special per-game social feed that shows players around your progress. It's a good opportunity to reach out and connect with those around you, and CheevoDeck makes that incredibly easy! You are able to view others' profiles in the **Profile** page, where you can post comments, follow new friends, with many things to view: all game, recent game, game progress, want to play, awards, wall posts, stats, and much more. Because the RA API does not offer the ability to befriend someone or post comments, CheevoDeck makes this as seamless as possible being sent to directly where you need to be. For example, each in-app comments section has a **Post** button where you will be sent directly to the comments section externally where you can post a comment. Finally, if you have a competitive itch, there are multiple ways to do so, such as comparing stats & achievements, viewing a ranking amongst friends, and comparing stats in leaderboards—offering filters to filter just between you and friends or against everyone.
+
+- **Players Near You** — A per-game feed of other players, strangers and friends alike, who are near your progress in real-time. View the feed or get notifications and toasts to stay connected. It's a good way to find and connect with players near you or even make some new friends. There are four modes that you can set per-game:
+
+    - **Playing Through** — finds players relative to where you are in the game.
+
+    - **Starting Over** — finds players at the top of your Up Next list.
+
+    - **Cleaning Up** — finds players near whatever you unlocked last.
+
+    - **Sitting Out** — finds nobody near you. Pure silence.
 
 - **Community features** — The best part of RetroAchievements is the people. Join in with Achievement of the Week, catch the latest RA news to participate in special events, and watch new sets and revisions as they land.
 
@@ -42,9 +54,11 @@ CheevoDeck isn't just a basic RetroAchievements tracker — it's a full suite fo
 
 - **Customization** — Presets if you want it set up in a minute, and over 200 options if you'd rather take your time. Map controls to actions and shortcuts, scale the UI, tune every notification, choose what shows up in your quick menu, and plenty more.
 
-- **Built for the panel** — Almost everything happens in the side panel, the **Quick Access Menu**, next to your game rather than on top of it. Pause, opening the panel, check what you're missing, read a guide, reply to a friend, and drop right back in. Only a handful of things ask for the bigger dialog, and those are the ones that you genuinely may want the room for—such as notes editing dialogs or the larger version of our guides viewer.
+- **Everything at your fingertips** — Almost everything happens in the side panel, the **Quick Access Menu**. Everything that you can think of can be accessed all from within the panel, whether it be tracking achievements, checking a friend's profile, viewing their games & progress, making notes, viewing a guide, and much more.
 
 - **Steam Machine tested** — Thoroughly tested to work well with Steam Machine, in addition to the other SteamOS devices.
+
+- **Update with ease** — Whenever a new update is available, you will receive a message in **Notifications** letting you know about the update with a link to the **About** page. While there, simply copy the update URL with a press of a button and paste it under the **Developer** section in Decky options to install the update immediately.
 
 - **Bonus utilities**
 
