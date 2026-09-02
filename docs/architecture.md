@@ -38,7 +38,9 @@ Four layers, and the direction of travel is one way.
 | `pages/` | one screen's markup | its own state |
 | `components/` | one widget | knowledge of which page it is on |
 
-A page receives `state` and `actions` and renders. A controller owns the state and the IPC. The root composes controllers and passes their output down; it is the only place that knows what a "page" is, because the panel supplies no router to know it.
+A page receives `state` and `actions` and renders. A controller owns the state and the IPC. The root composes controllers and passes their output down.
+
+The panel has no router. Decky hands the plugin a single mount point, and the content only lives while the panel is open: Steam reports the visibility change and Decky unmounts the tree, so there is nowhere for a URL or a history stack to survive. A "page" in CheevoDeck is a `view` value the root switches on: every screen is mounted in the same tree, and each one draws only when `view` matches it, so navigating is a matter of changing that one value. That is why the root holds the view state. It is the navigation layer, because nothing else can be.
 
 The root is large for that reason, and grows only when a feature is genuinely global. A local feature should cost it nothing: adding a button to a friend row cost 2 lines, while adding gamepad shortcuts that work from every screen cost 211. Both are correct.
 
