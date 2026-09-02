@@ -28,11 +28,11 @@ CheevoDeck isn't just a basic RetroAchievements tracker — it's a full suite fo
 
 - **Advanced tracking** — Tracking an achievement adds it to a special per-game list built to keep you organized: categorize them, add notes, view info, and more. Unlock it and it quietly takes itself off the list.
 
+- **Notes, goals and reminders** — Create per-game notes/goals/reminders in style! Color them, tag them into categories, set a reminder once or on repeat. Mark one complete and it gets filed away under Completed, or just delete it instead.
+
 - **Mastery Goals** — Group games into a goal of your own making, whether that's a series you want to see through, the shelf you grew up with as a kid, certain genres, or just a favorite games list. Simply make a Mastery Goal, naming it whatever you want, then add games by searching or by browsing a console. You can add notes, customize the order, and keep track of progress on your Mastery Goal. CheevoDeck keeps track of your progress in the background and you are notified and congratulated once you complete a goal.
 
 - **Comment tracking** — Stuck on a tough achievement? Subscribe to an achievement or a game's comments and you'll know the moment somebody replies, whether the panel is open or you're deep in a game. Find advice worth hanging onto and you can favorite it, and it'll be sitting in the Social Hub whenever you come back for it.
-
-- **Notes, goals and reminders** — Create per-game notes/goals/reminders in style! Color them, tag them into categories, set a reminder once or on repeat. Mark one complete and it gets filed away under Completed, or just delete it instead.
 
 - **GameFAQs integration** — Pick a guide for whatever you're playing and open it without ever leaving the game. Access guides quickly by enabling the special guides pin that appears on each page at the top or map it to a button on your controller. It's not just a boring guides viewer. It has zoom, search, bookmarks, and supports both formatted and classic guides. You can view guides from the quick access menu for portability or you can view them in a large dialog for wider view.
 
