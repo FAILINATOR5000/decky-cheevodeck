@@ -44,7 +44,8 @@ fi
 
 HOMEBREW_DIR="${DECKY_HOME:-}"
 if [[ -z "${HOMEBREW_DIR}" ]]; then
-    loader_path="$(ps -eo args= 2>/dev/null | grep -m1 -oE '\S+/services/PluginLoader' || true)"
+    running="$(ps -eo args= 2>/dev/null || true)"
+    loader_path="$(grep -m1 -oE '\S+/services/PluginLoader' <<< "${running}" || true)"
     if [[ -n "${loader_path}" ]]; then
         HOMEBREW_DIR="${loader_path%/services/PluginLoader}"
     fi
@@ -152,7 +153,8 @@ if ! unzip -tqq "${ZIP_PATH}" >/dev/null 2>&1; then
     exit 1
 fi
 
-if ! unzip -Z1 "${ZIP_PATH}" | grep -q "^${PLUGIN_DIR_NAME}/"; then
+ZIP_ENTRIES="$(unzip -Z1 "${ZIP_PATH}")"
+if ! grep -q "^${PLUGIN_DIR_NAME}/" <<< "${ZIP_ENTRIES}"; then
     echo "That zip doesn't contain a ${PLUGIN_DIR_NAME} folder. Nothing was changed." >&2
     exit 1
 fi
