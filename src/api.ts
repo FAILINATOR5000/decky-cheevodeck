@@ -993,6 +993,10 @@ export const downloadUpdateZip = callable<
     [string],
     { ok: boolean; error?: string; name?: string; path?: string }
 >("download_update_zip");
+export const placeDesktopUpdater = callable<
+    [],
+    { ok: boolean; error?: string; name?: string; path?: string }
+>("place_desktop_updater");
 export const getCachedFriends = callable<[], CachedFriendsResponse>("get_cached_friends");
 export const getSocialActivity = callable<[], SocialActivityResponse>("get_social_activity");
 export const getPlayersNearYou = callable<[number | null | undefined], PlayersNearYouResponse>("get_players_near_you");

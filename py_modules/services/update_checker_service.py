@@ -2,6 +2,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import json
+import re
 import threading
 import time
 import urllib.error
@@ -41,6 +42,27 @@ DOWNLOAD_TIMEOUT_SECONDS = 120
 DOWNLOAD_BAD_FOLDER = "bad_folder"
 DOWNLOAD_TOO_BIG = "too_big"
 DOWNLOAD_FAILED = "failed"
+
+UPDATER_SCRIPT_URL = "https://raw.githubusercontent.com/%s/%s/main/update-cheevodeck.sh" % (
+    GITHUB_OWNER,
+    GITHUB_REPO,
+)
+
+LAUNCHER_FILE_NAME = "Install or Update CheevoDeck.desktop"
+
+LAUNCHER_NO_DESKTOP = "no_desktop"
+LAUNCHER_FAILED = "launcher_failed"
+
+LAUNCHER_TEXT = """#!/usr/bin/env xdg-open
+[Desktop Entry]
+Name=Install/Update CheevoDeck
+Comment=Install CheevoDeck, or update it to the latest version
+Exec=sh -c 'rm -f /tmp/update-cheevodeck.sh; if curl -fsL --connect-timeout 60 -o /tmp/update-cheevodeck.sh %s && head -n 1 /tmp/update-cheevodeck.sh | grep -q "^#!"; then bash /tmp/update-cheevodeck.sh; else echo "Could not download the updater. Check your connection and try again."; read -r _; fi'
+Icon=system-software-update
+Terminal=true
+Type=Application
+StartupNotify=false
+""" % UPDATER_SCRIPT_URL
 
 
 _generation_fence = GenerationFence()
@@ -166,9 +188,10 @@ class UpdateCheckerService:
     project, with a self-overwrite wrinkle on top.
     """
 
-    def __init__(self, *, settings_store, ssl_context, notifications_store=None):
+    def __init__(self, *, settings_store, ssl_context, user_home, notifications_store=None):
         self._settings_store = settings_store
         self._ssl_context = ssl_context
+        self._user_home = Path(user_home)
 
         self._notifications = notifications_store
 
@@ -354,6 +377,58 @@ class UpdateCheckerService:
         chown_to_data_owner(path)
         decky.logger.info("update saved to %s (%d bytes)", path, len(data))
         return {"ok": True, "path": str(path), "name": path.name}
+
+    def place_desktop_launcher(self):
+        """Put the one-click updater on the user's desktop.
+
+        The launcher holds a URL, not a copy of the script: it downloads
+        update-cheevodeck.sh into /tmp each time it runs. That way a fix to the
+        script reaches everyone who already has the launcher, and nothing
+        stale is left lying around between runs.
+
+        Runs as root, so the file lands root-owned and unreadable to the person
+        who asked for it unless it gets chowned back. It also needs the execute
+        bit or KDE refuses to launch it and opens a text editor instead.
+        """
+        desktop = self._desktop_dir()
+        if desktop is None:
+            decky.logger.error("update: no desktop folder under %s", self._user_home)
+            return {"ok": False, "error": LAUNCHER_NO_DESKTOP}
+
+        path = desktop / LAUNCHER_FILE_NAME
+        try:
+            path.write_text(LAUNCHER_TEXT, encoding="utf-8")
+            path.chmod(0o755)
+        except OSError as exc:
+            decky.logger.error("couldn't write the updater launcher to %s (%s)", path, exc)
+            return {"ok": False, "error": LAUNCHER_FAILED}
+
+        chown_to_data_owner(path)
+        decky.logger.info("updater launcher written to %s", path)
+        return {"ok": True, "path": str(path), "name": path.name}
+
+    def _desktop_dir(self):
+        """Where the user's desktop actually is.
+
+        Reading user-dirs.dirs rather than running xdg-user-dir, because this
+        process is root and the tool would answer for root's home instead of
+        theirs. The folder is localised on a non-English install, so ~/Desktop
+        is the fallback and not the first guess.
+        """
+        config = self._user_home / ".config" / "user-dirs.dirs"
+        try:
+            for line in config.read_text(encoding="utf-8", errors="replace").splitlines():
+                match = re.match(r'\s*XDG_DESKTOP_DIR\s*=\s*"(.*)"\s*$', line)
+                if match:
+                    raw = match.group(1).replace("$HOME", str(self._user_home))
+                    candidate = Path(raw)
+                    if candidate.is_dir():
+                        return candidate
+        except OSError:
+            pass
+
+        fallback = self._user_home / "Desktop"
+        return fallback if fallback.is_dir() else None
 
     def _fetch_release_zip(self, url):
         request = urllib.request.Request(

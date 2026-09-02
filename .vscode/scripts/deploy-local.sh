@@ -19,6 +19,7 @@ rsync -rlv --delete --delete-excluded \
   --exclude ".vscode" \
   --exclude "docs" \
   --exclude "/broadcast" \
+  --exclude "/update-cheevodeck.sh" \
   --exclude "node_modules" \
   --exclude "src" \
   --exclude "__pycache__" \

@@ -411,6 +411,7 @@ class Plugin(
         self.update_checker_service = UpdateCheckerService(
             settings_store=self.settings_store,
             ssl_context=self._ssl_ctx,
+            user_home=self.user_home,
             notifications_store=self.notifications_store,
         )
         self.developer_message_service = DeveloperMessageService(
@@ -1494,6 +1495,11 @@ class Plugin(
     async def download_update_zip(self, dest_dir):
         return await asyncio.to_thread(
             self.update_checker_service.download_release, dest_dir
+        )
+
+    async def place_desktop_updater(self):
+        return await asyncio.to_thread(
+            self.update_checker_service.place_desktop_launcher
         )
 
     async def get_resume_state(self):

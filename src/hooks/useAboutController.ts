@@ -2,7 +2,7 @@ import { FileSelectionType, openFilePicker, toaster } from "@decky/api";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ButtonSpacing, UpdateStatusResponse } from "../types";
 import { t, type LanguageCode } from "../locales";
-import { checkForUpdateNow, downloadUpdateZip, getPluginVersion, getUpdateStatus } from "../api";
+import { checkForUpdateNow, downloadUpdateZip, getPluginVersion, getUpdateStatus, placeDesktopUpdater } from "../api";
 import { copyTextToClipboard } from "../utils/clipboard";
 import { openExternalUrl } from "../utils/navigation";
 import { logError } from "../utils/errors";
@@ -44,6 +44,7 @@ export function useAboutController({
     const [updateNotice, setUpdateNotice] = useState<AboutUpdateNotice>("");
 
     const [downloadingZip, setDownloadingZip] = useState(false);
+    const [placingUpdater, setPlacingUpdater] = useState(false);
 
     const mountedRef = useRef(true);
     useEffect(() => {
@@ -179,6 +180,33 @@ export function useAboutController({
         })();
     }, [downloadingZip, language]);
 
+    const onPlaceDesktopUpdater = useCallback(() => {
+        if (placingUpdater) {
+            return;
+        }
+
+        void (async () => {
+            setPlacingUpdater(true);
+            setUpdateNotice("");
+            try {
+                const placed = await placeDesktopUpdater();
+                toaster.toast(placed?.ok
+                    ? { title: t(language, "CheevoDeck Updater Added"), body: t(language, "Updater added to your desktop.") }
+                    : { title: t(language, "Updater not added"), body: t(language, launcherErrorKey(placed?.error)) });
+            }
+            catch (err) {
+                logError("place desktop updater", err);
+                toaster.toast({
+                    title: t(language, "Updater not added"),
+                    body: t(language, launcherErrorKey(null))
+                });
+            }
+            finally {
+                setPlacingUpdater(false);
+            }
+        })();
+    }, [placingUpdater, language]);
+
     const patchNotesUrl = updateStatus?.patchNotesUrl ?? "";
 
     const onViewPatchNotes = useCallback(() => {
@@ -199,6 +227,7 @@ export function useAboutController({
         patchNotesUrl,
         checkingForUpdate,
         downloadingZip,
+        placingUpdater,
         updateNotice,
         attributionsUrl: GITHUB_ATTRIBUTIONS_URL
     }), [
@@ -209,6 +238,7 @@ export function useAboutController({
         installUrl,
         language,
         patchNotesUrl,
+        placingUpdater,
         updateNotice,
         updateStatus,
         version
@@ -228,13 +258,21 @@ export function useAboutController({
         onCheckNow,
         onCopyInstallLink,
         onDownloadZip,
+        onPlaceDesktopUpdater,
         onViewPatchNotes
-    }), [onBack, onCheckNow, onCopyInstallLink, onDownloadZip, onViewPatchNotes]);
+    }), [onBack, onCheckNow, onCopyInstallLink, onDownloadZip, onPlaceDesktopUpdater, onViewPatchNotes]);
 
     return {
         state,
         actions
     };
+}
+
+function launcherErrorKey(code: string | null | undefined): string {
+    if (code === "no_desktop") {
+        return "Couldn't find your Desktop folder.";
+    }
+    return "Couldn't create the updater launcher.";
 }
 
 function downloadErrorKey(code: string | null | undefined): string {

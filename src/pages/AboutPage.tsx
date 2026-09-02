@@ -66,6 +66,7 @@ type AboutPageState = {
     installUrl: string;
     patchNotesUrl: string;
     checkingForUpdate: boolean;
+    placingUpdater: boolean;
     downloadingZip: boolean;
     updateNotice: AboutUpdateNotice;
     attributionsUrl: string;
@@ -80,6 +81,7 @@ type AboutPageActions = {
     onCheckNow: () => void;
     onCopyInstallLink: (from: Element | null) => void;
     onDownloadZip: () => void;
+    onPlaceDesktopUpdater: () => void;
     onViewPatchNotes: () => void;
 };
 
@@ -337,6 +339,19 @@ function AboutPage(props: AboutPageProps) {
                     </FocusableItem>
                 </PanelSectionRow>
             )}
+
+            <PanelSectionRow>
+                <FocusableItem
+                    outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                    focusKey="about:desktop-updater"
+                    onClick={actions.onPlaceDesktopUpdater}
+                    help={t(state.language, "Puts a launcher on your Desktop. Run it from Desktop Mode and it installs the newest version for you.")}
+                >
+                    {state.placingUpdater
+                        ? t(state.language, "Saving...")
+                        : t(state.language, "Add Updater to Desktop")}
+                </FocusableItem>
+            </PanelSectionRow>
 
             <SectionTitle label={t(state.language, "Links")} />
 
