@@ -58,7 +58,7 @@ CheevoDeck isn't just a basic RetroAchievements tracker — it's a full suite fo
 
 - **Steam Machine tested** — Thoroughly tested to work well with Steam Machine, in addition to the other SteamOS devices.
 
-- **Update with ease** — Whenever a new update is available, you will receive a message in **Notifications** letting you know about the update with a link to the **About** page. While there, simply copy the update URL with a press of a button and paste it under the **Developer** section in Decky options to install the update immediately.
+- **Update with ease** — Whenever a new update is available, you will receive a message in **Notifications** letting you know about the update with a link to the **About** page. While there, simply copy the update URL with a press of a button and paste it under the **Developer** section in Decky options to install the update immediately. You can also do a simple one-click Desktop mode updater as well.
 
 - **Bonus utilities**
 
