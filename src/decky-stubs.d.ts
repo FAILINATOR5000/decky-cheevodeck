@@ -56,6 +56,8 @@ declare module "@decky/api" {
     export const routerHook: {
         addPatch(path: string, patch: RoutePatch): RoutePatch;
         removePatch(path: string, patch: RoutePatch): void;
+        addGlobalComponent(name: string, component: () => any): void;
+        removeGlobalComponent(name: string): void;
     };
 }
 declare module "@decky/ui" {

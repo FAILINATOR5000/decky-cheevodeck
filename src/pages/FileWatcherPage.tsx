@@ -9,6 +9,7 @@ import { PageNavStrip } from "../components/ui/PageNavStrip";
 import { ProgressBar } from "../components/ui/ProgressBar";
 import { SectionTitle } from "../components/ui/SectionTitle";
 import { ToggleRow } from "../components/ui/ToggleRow";
+import { DarkenScreenRow } from "../components/darken/DarkenScreenRow";
 import { DirectoryCard, type DirectoryCardListProps } from "../components/filewatcher/DirectoryCard";
 import { FileWatcherExclusionsModal } from "../components/pickers/FileWatcherExclusionsModal";
 import { FileWatcherFindingsModal } from "../components/pickers/FileWatcherFindingsModal";
@@ -287,14 +288,18 @@ function FileWatcherPage(props: FileWatcherPageProps) {
                             </div>
                         </PanelSectionRow>
 
-                        <ScanControls
+                        <SectionTitle label={t(language, "Options")} />
+                        <SpeedRow
                             language={language}
                             speed={settings.speed}
+                            onSaveSpeed={settings.saveSpeed}
+                        />
+                        <DarkenScreenRow language={language} buttonSpacing={state.buttonSpacing} />
+                        <RunDuringGamesRow
+                            language={language}
                             runDuringGames={settings.runDuringGames}
                             buttonSpacing={state.buttonSpacing}
-                            onSaveSpeed={settings.saveSpeed}
                             onSaveRunDuringGames={settings.saveRunDuringGames}
-                            marginTop="6px"
                         />
 
                         {activePass && (
@@ -429,14 +434,17 @@ function FileWatcherPage(props: FileWatcherPageProps) {
                         )}
 
                         <SectionTitle label={t(language, "Options")} />
-                        <ScanControls
+                        <SpeedRow
                             language={language}
                             speed={settings.speed}
+                            onSaveSpeed={settings.saveSpeed}
+                        />
+                        <DarkenScreenRow language={language} buttonSpacing={state.buttonSpacing} />
+                        <RunDuringGamesRow
+                            language={language}
                             runDuringGames={settings.runDuringGames}
                             buttonSpacing={state.buttonSpacing}
-                            onSaveSpeed={settings.saveSpeed}
                             onSaveRunDuringGames={settings.saveRunDuringGames}
-                            showHelp
                         />
 
                         <SectionTitle label={t(language, "Setup")} />
@@ -532,46 +540,49 @@ function pausedLine(
     return t(language, "Paused at {{percent}}%", { percent });
 }
 
-function ScanControls(props: {
+function SpeedRow(props: {
     language: LanguageCode;
     speed: FileWatcherSpeed;
-    runDuringGames: boolean;
-    buttonSpacing: ButtonSpacing;
     onSaveSpeed: (value: FileWatcherSpeed) => void | Promise<void>;
-    onSaveRunDuringGames: (value: boolean) => void | Promise<void>;
-    marginTop?: string;
-    showHelp?: boolean;
 }) {
     const { language } = props;
     return (
-        <>
-            <PanelSectionRow>
-                <div data-focus-key="fileWatcher:speed" style={{ marginTop: props.marginTop }}>
-                    <SliderField
-                        label={t(language, "Speed: {{speed}}", { speed: fileWatcherSpeedLabel(props.speed, language) })}
-                        value={Math.max(0, SPEED_ORDER.indexOf(props.speed))}
-                        min={0}
-                        max={SPEED_ORDER.length - 1}
-                        step={1}
-                        notchCount={SPEED_ORDER.length}
-                        notchTicksVisible
-                        layout="below"
-                        bottomSeparator="none"
-                        onChange={(index) => void props.onSaveSpeed(SPEED_ORDER[index] ?? "gentle")}
-                    />
-                </div>
-            </PanelSectionRow>
-            <PanelSectionRow>
-                <ToggleRow
-                    outerStyle={regularButtonSpacingStyle(props.buttonSpacing)}
-                    label={t(language, "Run during games")}
-                    value={props.runDuringGames}
-                    bottomSeparator={props.showHelp ? "standard" : "none"}
-                    onChange={props.onSaveRunDuringGames}
-                    help={props.showHelp ? t(language, "help_file_watcher_run_during_games") : undefined}
+        <PanelSectionRow>
+            <div data-focus-key="fileWatcher:speed">
+                <SliderField
+                    label={t(language, "Speed: {{speed}}", { speed: fileWatcherSpeedLabel(props.speed, language) })}
+                    value={Math.max(0, SPEED_ORDER.indexOf(props.speed))}
+                    min={0}
+                    max={SPEED_ORDER.length - 1}
+                    step={1}
+                    notchCount={SPEED_ORDER.length}
+                    notchTicksVisible
+                    layout="below"
+                    bottomSeparator="none"
+                    onChange={(index) => void props.onSaveSpeed(SPEED_ORDER[index] ?? "gentle")}
                 />
-            </PanelSectionRow>
-        </>
+            </div>
+        </PanelSectionRow>
+    );
+}
+
+function RunDuringGamesRow(props: {
+    language: LanguageCode;
+    runDuringGames: boolean;
+    buttonSpacing: ButtonSpacing;
+    onSaveRunDuringGames: (value: boolean) => void | Promise<void>;
+}) {
+    const { language } = props;
+    return (
+        <PanelSectionRow>
+            <ToggleRow
+                outerStyle={regularButtonSpacingStyle(props.buttonSpacing)}
+                label={t(language, "Run during games")}
+                value={props.runDuringGames}
+                onChange={props.onSaveRunDuringGames}
+                help={t(language, "help_file_watcher_run_during_games")}
+            />
+        </PanelSectionRow>
     );
 }
 

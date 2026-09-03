@@ -7,6 +7,7 @@ import { setDeviceIsSteamMachine } from "./utils/scale";
 import { logError } from "./utils/errors";
 import { quickAccessMenuClasses } from "@decky/ui";
 import { disableLibraryBadge, enableLibraryBadge } from "./components/library/libraryBadgePatch";
+import { registerScreenDarken, unregisterScreenDarken } from "./components/darken/screenDarken";
 
 const NOTIFICATION_EVENT = "cheevodeck_notification";
 
@@ -59,6 +60,8 @@ export default definePlugin(() => {
     };
     addEventListener(AVATAR_HEALED_EVENT, onAvatarHealed);
 
+    registerScreenDarken();
+
     return {
         name: "CheevoDeck",
         title: <div className={quickAccessMenuClasses.Title}>CheevoDeck</div>,
@@ -68,6 +71,7 @@ export default definePlugin(() => {
             removeEventListener(NOTIFICATION_EVENT, onNotificationToast);
             removeEventListener(AVATAR_HEALED_EVENT, onAvatarHealed);
             disableLibraryBadge();
+            unregisterScreenDarken();
         }
     };
 });

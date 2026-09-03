@@ -15,6 +15,7 @@ import { TextViewerModal } from "../components/ui/TextViewerModal";
 import { ToggleRow } from "../components/ui/ToggleRow";
 import { showManagedModal } from "../utils/modalRegistry";
 import { fileWatcherSpeedLabel } from "../utils/fileWatcher";
+import { DarkenScreenRow } from "../components/darken/DarkenScreenRow";
 import { useCheevoCheck } from "../components/cheevocheck/CheevoCheckContext";
 import { t, type LanguageCode } from "../locales";
 import type {
@@ -267,13 +268,18 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
 
             {
 }
-            {busy && settings.verifyHashes && (
-                <VerifySpeedSlider
-                    language={language}
-                    speed={settings.verifySpeed}
-                    onSaveSpeed={settings.saveVerifySpeed}
-                    marginTop="6px"
-                />
+            {busy && (
+                <>
+                    <SectionTitle label={t(language, "Options")} />
+                    {settings.verifyHashes && (
+                        <VerifySpeedSlider
+                            language={language}
+                            speed={settings.verifySpeed}
+                            onSaveSpeed={settings.saveVerifySpeed}
+                        />
+                    )}
+                    <DarkenScreenRow language={language} buttonSpacing={state.buttonSpacing} />
+                </>
             )}
 
             {
@@ -630,6 +636,8 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                     {!settings.optionsCollapsed && (
                     <>
 
+                    <DarkenScreenRow language={language} buttonSpacing={state.buttonSpacing} />
+
                     <PanelSectionRow>
                         <ToggleRow
                             label={t(language, "Temporarily Disable Services")}
@@ -733,14 +741,13 @@ function VerifySpeedSlider(props: {
     language: LanguageCode;
     speed: CheevoCheckVerifySpeed;
     onSaveSpeed: (value: CheevoCheckVerifySpeed) => void | Promise<void>;
-    marginTop?: string;
     help?: ReactNode;
     separator?: boolean;
 }) {
     const { language } = props;
     return (
         <PanelSectionRow>
-            <div data-focus-key="cheevoCheck:verifySpeed" style={{ marginTop: props.marginTop }}>
+            <div data-focus-key="cheevoCheck:verifySpeed">
                 <SliderField
                     label={t(language, "Speed: {{speed}}", { speed: fileWatcherSpeedLabel(props.speed, language) })}
                     value={Math.max(0, SPEED_ORDER.indexOf(props.speed))}
