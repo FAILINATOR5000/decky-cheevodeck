@@ -902,6 +902,7 @@ export type SettingsResponse = {
     cheevoCheckOptionsCollapsed: boolean;
     cheevoCheckSkipDiscVerify: boolean;
     cheevoCheckSkipCartVerify: boolean;
+    libraryBadge: boolean;
     fileWatcherSpeed: FileWatcherSpeed;
     fileWatcherRunDuringGames: boolean;
     trackedSetAButtonMode: TrackedSetAButtonMode;

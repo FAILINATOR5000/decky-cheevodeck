@@ -50,6 +50,13 @@ declare module "@decky/api" {
         allowAllFiles?: boolean,
         max?: number
     ): Promise<FilePickerRes>;
+
+    export type RoutePatch = (route: any) => any;
+
+    export const routerHook: {
+        addPatch(path: string, patch: RoutePatch): RoutePatch;
+        removePatch(path: string, patch: RoutePatch): void;
+    };
 }
 declare module "@decky/ui" {
     type NoDomFocusEvents = {
@@ -118,6 +125,22 @@ declare module "@decky/ui" {
     export const TextField: any;
     export const quickAccessMenuClasses: any;
     export const showModal: any;
+
+    export const afterPatch: (
+        object: any,
+        property: string,
+        handler: (args: any[], ret: any) => any
+    ) => { unpatch: () => void };
+
+    export const createReactTreePatcher: (
+        steps: ((node: any) => any)[],
+        handler: (args: any[], ret?: any) => any
+    ) => (args: any[], ret?: any) => any;
+
+    export const findInReactTree: (node: any, filter: (element: any) => boolean) => any;
+
+    export const appDetailsClasses: { InnerContainer: string };
+
 }
 declare module "react-icons/fa" {
     export const FaTrophy: any;

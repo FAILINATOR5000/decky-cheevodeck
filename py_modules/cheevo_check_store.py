@@ -12,7 +12,7 @@ CURRENT_SCHEMA_VERSION = 1
 
 MAX_ROWS_PER_SECTION = 2000
 
-MAX_SUPPORTED_ROWS = 10000
+MAX_SUPPORTED_ROWS = 25000
 
 
 class CheevoCheckStore:
@@ -84,6 +84,24 @@ class CheevoCheckStore:
         ("failed", MAX_ROWS_PER_SECTION),
         ("supportedGames", MAX_SUPPORTED_ROWS),
     )
+
+    def results_fingerprint(self):
+        """What identifies the current results file, without reading it.
+
+        The library badge asks on every game page a user opens, and on a big
+        library results.json is megabytes — so parsing the whole thing to read
+        one timestamp is the wrong shape entirely. A stat is microseconds and
+        moves whenever save_results replaces the file, which is the only way the
+        contents ever change.
+
+        None when there is no file, which is the same answer an empty scan gives
+        and needs no special case at the caller.
+        """
+        try:
+            stat = self._results_path().stat()
+        except OSError:
+            return None
+        return (stat.st_mtime_ns, stat.st_size)
 
     def load_results(self):
         """The last scan's verdict, with every list field guaranteed present.

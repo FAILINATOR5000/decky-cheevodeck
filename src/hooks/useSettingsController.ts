@@ -146,6 +146,7 @@ export function useSettingsController({
     const [cheevoCheckOptionsCollapsed, setCheevoCheckOptionsCollapsed] = useState(false);
     const [cheevoCheckSkipDiscVerify, setCheevoCheckSkipDiscVerify] = useState(false);
     const [cheevoCheckSkipCartVerify, setCheevoCheckSkipCartVerify] = useState(false);
+    const [libraryBadge, setLibraryBadge] = useState(false);
     const [fileWatcherSpeed, setFileWatcherSpeed] = useState<FileWatcherSpeed>("gentle");
     const [fileWatcherRunDuringGames, setFileWatcherRunDuringGames] = useState(true);
     const [trackedSetAButtonMode, setTrackedSetAButtonMode] = useState<TrackedSetAButtonMode>("editNote");
@@ -412,6 +413,7 @@ export function useSettingsController({
         setCheevoCheckOptionsCollapsed(source.cheevoCheckOptionsCollapsed);
         setCheevoCheckSkipDiscVerify(source.cheevoCheckSkipDiscVerify);
         setCheevoCheckSkipCartVerify(source.cheevoCheckSkipCartVerify);
+        setLibraryBadge(source.libraryBadge);
         setFileWatcherSpeed(source.fileWatcherSpeed);
         setFileWatcherRunDuringGames(source.fileWatcherRunDuringGames);
         setTrackedSetAButtonMode(source.trackedSetAButtonMode);
@@ -670,6 +672,7 @@ export function useSettingsController({
         setCheevoCheckOptionsCollapsed,
         cheevoCheckSkipDiscVerify,
         cheevoCheckSkipCartVerify,
+        libraryBadge,
         fileWatcherSpeed,
         fileWatcherRunDuringGames,
         trackedSetAButtonMode,
@@ -884,6 +887,7 @@ export function useSettingsController({
         setCheevoCheckVerifySpeed,
         setCheevoCheckSkipDiscVerify,
         setCheevoCheckSkipCartVerify,
+        setLibraryBadge,
         setFileWatcherSpeed,
         setFileWatcherRunDuringGames,
         setTrackedSetAButtonMode,

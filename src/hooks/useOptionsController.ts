@@ -128,6 +128,7 @@ import {
     saveTrackedColor,
     saveShowIcons,
     saveDeferModalCleanup,
+    saveLibraryBadge,
     saveLegacyCommentsLoading,
     saveBatterySaverDisablesSocialActivity,
     saveBatterySaverDisablesComments,
@@ -167,6 +168,7 @@ import {
     saveUnlockHistoryDays,
     saveUnlockLookbackMinutes
 } from "../api";
+import { applyLibraryBadge } from "../components/library/libraryBadgePatch";
 import { DEFAULT_LANGUAGE, ensureLanguageLoaded, setCurrentLanguage, type LanguageCode } from "../locales";
 import type {
     ButtonSpacing,
@@ -438,6 +440,7 @@ type UseOptionsControllerArgs = {
     modalScale: ScaleStep;
     showIcons: boolean;
     deferModalCleanup: boolean;
+    libraryBadge: boolean;
     legacyCommentsLoading: boolean;
     batterySaverDisablesSocialActivity: boolean;
     batterySaverDisablesComments: boolean;
@@ -484,6 +487,7 @@ type UseOptionsControllerArgs = {
     setAutoRefresh: Dispatch<SetStateAction<boolean>>;
     setShowIcons: Dispatch<SetStateAction<boolean>>;
     setDeferModalCleanup: Dispatch<SetStateAction<boolean>>;
+    setLibraryBadge: Dispatch<SetStateAction<boolean>>;
     setLegacyCommentsLoading: Dispatch<SetStateAction<boolean>>;
     setBatterySaverDisablesSocialActivity: Dispatch<SetStateAction<boolean>>;
     setBatterySaverDisablesComments: Dispatch<SetStateAction<boolean>>;
@@ -849,6 +853,7 @@ export function useOptionsController({
     modalScale,
     showIcons,
     deferModalCleanup,
+    libraryBadge,
     legacyCommentsLoading,
     batterySaverDisablesSocialActivity,
     batterySaverDisablesComments,
@@ -895,6 +900,7 @@ export function useOptionsController({
     setAutoRefresh,
     setShowIcons,
     setDeferModalCleanup,
+    setLibraryBadge,
     setLegacyCommentsLoading,
     setBatterySaverDisablesSocialActivity,
     setBatterySaverDisablesComments,
@@ -3019,6 +3025,18 @@ export function useOptionsController({
             getSavedValue: (result, fallbackValue) => Boolean(result.autoRefresh ?? fallbackValue),
         });
 
+    const onToggleLibraryBadge = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: libraryBadge,
+            applyValue: (value: boolean) => {
+                setLibraryBadge(value);
+                applyLibraryBadge(value);
+            },
+            saveCall: saveLibraryBadge,
+            getSavedValue: (result, fallbackValue) => Boolean(result.libraryBadge ?? fallbackValue),
+        });
+
     const onToggleDeferModalCleanup = (nextValue: boolean) =>
         saveSettingWithRollback<boolean>({
             nextValue,
@@ -3339,6 +3357,7 @@ export function useOptionsController({
         modalScale,
         showIcons,
         deferModalCleanup,
+        libraryBadge,
         legacyCommentsLoading,
         batterySaverDisablesSocialActivity,
         batterySaverDisablesComments,
@@ -3565,6 +3584,7 @@ export function useOptionsController({
         onCycleShortcutBindingBack,
         onToggleShowIcons,
         onToggleDeferModalCleanup,
+        onToggleLibraryBadge,
         onToggleLegacyCommentsLoading,
         onToggleBatterySaverDisablesSocialActivity,
         onToggleBatterySaverDisablesComments,

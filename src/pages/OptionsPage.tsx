@@ -228,6 +228,7 @@ type OptionsPageState = {
     trackedSetsRefreshMinutes: number;
     debugLogging: boolean;
     deferModalCleanup: boolean;
+    libraryBadge: boolean;
     legacyCommentsLoading: boolean;
     batterySaverDisablesSocialActivity: boolean;
     batterySaverDisablesComments: boolean;
@@ -437,6 +438,7 @@ type OptionsPageActions = {
     onCycleTrackedSetsRefreshMinutes: () => void | Promise<void>;
     onToggleDebugLogging: (nextValue: boolean) => void | Promise<void>;
     onToggleDeferModalCleanup: (nextValue: boolean) => void | Promise<void>;
+    onToggleLibraryBadge: (nextValue: boolean) => void | Promise<void>;
     onToggleLegacyCommentsLoading: (nextValue: boolean) => void | Promise<void>;
     onToggleBatterySaverDisablesSocialActivity: (nextValue: boolean) => void | Promise<void>;
     onToggleBatterySaverDisablesComments: (nextValue: boolean) => void | Promise<void>;
@@ -824,6 +826,14 @@ function SystemTab(props: TabContentProps) {
                 onChange={actions.onToggleAutoPurgeService}
                 disabled={disabled}
                 help={t(state.language, "help_auto_purge_service")}
+            />
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                label={t(state.language, "Steam Library Badge")}
+                value={state.libraryBadge}
+                onChange={actions.onToggleLibraryBadge}
+                disabled={disabled}
+                help={t(state.language, "help_library_badge")}
             />
             <OptionButton
                 outerStyle={buttonOuterStyle}

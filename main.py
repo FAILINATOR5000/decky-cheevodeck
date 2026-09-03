@@ -74,6 +74,7 @@ from mixins.smb_shares import SmbSharesMixin
 from mixins.cheevo_check import CheevoCheckMixin
 from mixins.file_watcher import FileWatcherMixin
 from mixins.guides import GuidesMixin
+from mixins.library_badge import LibraryBadgeMixin
 
 
 DEFAULT_IPC_SLOW_THRESHOLD_MS = 250
@@ -124,6 +125,7 @@ class Plugin(
     CheevoCheckMixin,
     FileWatcherMixin,
     GuidesMixin,
+    LibraryBadgeMixin,
 ):
     DEFAULT_LANGUAGE = "en"
     RECENT_UNLOCK_LOOKBACK_MINUTES = 1440

@@ -7,6 +7,7 @@ import {
     clearTrackedCountMemoryCache,
     clearUserAvatarMemoryCache
 } from "../api";
+import { forgetLibraryBadgeProgress } from "../components/library/libraryBadgeProgress";
 import type { FriendGamePayload, FriendRow, FriendsPayload, Payload } from "../types";
 
 type UseFrontendMirrorWipeArgs = {
@@ -44,6 +45,7 @@ export function useFrontendMirrorWipe({
         clearGameImageMemoryCache();
         clearUserAvatarMemoryCache();
         clearTrackedCountMemoryCache();
+        forgetLibraryBadgeProgress();
         setGameIconDataUri(null);
         setGameIngameDataUri(null);
         setImageRefreshKey((value) => value + 1);

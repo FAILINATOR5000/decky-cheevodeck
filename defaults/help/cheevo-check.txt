@@ -53,9 +53,17 @@ front — "Sega Genesis", "Nintendo GameCube" and "Sony PlayStation 2" all work,
 even though the lists below leave the maker off. Only the names below are
 listed, but the common longer forms of them are understood too.
 
-One name is deliberately NOT accepted: "Neo Geo" on its own. It could mean the
-Pocket, the CD, or the arcade hardware, and those are three different answers —
-name the folder "Neo Geo Pocket" or "Neo Geo CD" instead.
+"Neo Geo" on its own is read as the arcade hardware, which is what a folder of
+that name holds on a Deck. The Pocket and the CD have their own names — "ngpc",
+"Neo Geo Pocket", "neogeocd", "Neo Geo CD" — and folders called those are
+identified normally. A Neo Geo CD disc left loose in the plain "neogeo" folder
+is still found too, because a loose file in an arcade folder falls back on its
+extension rather than being taken for an arcade set.
+
+The one thing that does not survive is a ZIPPED Neo Geo Pocket game sitting in a
+folder called "neogeo". In an arcade folder a zip is an arcade set by
+definition, so that one is looked up by its name and will not be found. Put
+those in "ngp" or "ngpc", which is where they belong anyway.
 
 What it will NOT do is search inside the name. A folder called
 "RA - Atari Jaguar CD" matches nothing, because the name it is compared against
@@ -265,10 +273,30 @@ they get a colour palette that way — and it costs you nothing here. The same
 goes for a disk-system game filed with the cartridges, or either Dolphin console
 in the other's folder. Anything else does need its own folder.
 
-ARCADE IS NOT SCANNED AT ALL. RetroAchievements identifies an arcade game by
-its filename rather than by its contents, and an arcade zip is a bundle of chip
-dumps rather than one ROM. That needs a different approach, so an arcade folder
-is simply left alone.
+ARCADE IS IDENTIFIED BY ITS FILENAME, and it is the only system that is.
+RetroAchievements never reads an arcade file — it works from the name with the
+extension taken off, because an arcade zip holds a machine's worth of chip dumps
+rather than one ROM. So the name has to be the short one MAME uses, in lower
+case: sf2.zip, mslug.zip, progolf.zip. "Street Fighter II (World 910522).zip"
+will never be recognised however good the file is, and neither will SF2.zip.
+Nothing here can work around that.
+
+THE ARCADE DISC BOARDS ARE NAMED BY THEIR FOLDER instead. A Naomi or Triforce
+game dumps as a folder named after the machine with one disc image inside it, so
+there "cvs2" is the name that counts and the .chd's own name means nothing.
+A folder inside an arcade folder is read that way when its name looks like a MAME
+one — lower case, letters and digits only, eight characters at most. Your own
+disc folders are safe: "Shenmue (Europe)" and "BrainDead 13 (USA)" look nothing
+like a MAME name, so a disc filed in its own folder is still identified normally.
+
+Because the name carries all the weight, the file still has to open before
+anything is claimed for it. A zip that is empty, truncated or not really an
+archive lands in Couldn't Scan rather than being reported as a game on the
+strength of what somebody called it, and a disc image has to carry a real disc
+header. Verification then goes further: a set is checked chip by chip against
+the checksums the archive stores for itself, and a disc board goes through the
+same whole-disc check every other disc gets. For a system nobody publishes a
+dump list for, that is the strongest statement available.
 
 SOME FOLDERS ARE SKIPPED BY THE RA CHECK. Consoles RetroAchievements has no
 sets for are dropped before hashing, rather than guessed at by extension —

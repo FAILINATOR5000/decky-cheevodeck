@@ -4,7 +4,9 @@ import AchievementsRoot from "./pages/AchievementsRoot";
 import { getSettings, refreshHealedUserAvatar } from "./api";
 import { t, getCurrentLanguage, setCurrentLanguage } from "./locales";
 import { setDeviceIsSteamMachine } from "./utils/scale";
+import { logError } from "./utils/errors";
 import { quickAccessMenuClasses } from "@decky/ui";
+import { disableLibraryBadge, enableLibraryBadge } from "./components/library/libraryBadgePatch";
 
 const NOTIFICATION_EVENT = "cheevodeck_notification";
 
@@ -40,8 +42,12 @@ export default definePlugin(() => {
                 setCurrentLanguage(settings.language);
             }
             setDeviceIsSteamMachine(settings?.isSteamMachine ?? false);
+            if (settings?.libraryBadge) {
+                enableLibraryBadge();
+            }
         })
-        .catch(() => {
+        .catch((e) => {
+            logError("index: couldn't read settings at startup", e);
         });
 
     const onAvatarHealed = (payload: { username?: string }) => {
@@ -61,6 +67,7 @@ export default definePlugin(() => {
         onDismount() {
             removeEventListener(NOTIFICATION_EVENT, onNotificationToast);
             removeEventListener(AVATAR_HEALED_EVENT, onAvatarHealed);
+            disableLibraryBadge();
         }
     };
 });

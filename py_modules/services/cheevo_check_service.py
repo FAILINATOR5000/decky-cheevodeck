@@ -107,6 +107,10 @@ DISC_EXTENSIONS = frozenset((
 
 CART_IMAGE_EXTENSIONS = frozenset((".3ds", ".cci", ".cxi", ".xci", ".nsp", ".xcz", ".nsz"))
 
+_ARCADE_SET_DISC_EXTENSIONS = frozenset((".chd", ".gdi", ".cue", ".iso"))
+
+_CHD_MAGIC = b"MComprHD"
+
 VERIFY_URGENT_REASONS = (VERIFY_READ_FAILED, VERIFY_CHD_EXTRACT_FAILED)
 
 VERIFY_SPEED_FACTORS = {"full": 0.0, "balanced": 1.0, "gentle": 3.0}
@@ -186,6 +190,8 @@ class CheevoCheckService:
         self._cancel = threading.Event()
         self._dolphin_ready = None
         self._indexes = {}
+
+        self._identity_cache = None
 
     def set_event_loop(self, loop) -> None:
         self._event_loop = loop
@@ -552,10 +558,14 @@ class CheevoCheckService:
             folder = self._system_from_folders(root, path)
         except Unscannable:
             return ()
+        suffix = path.suffix.lower()
         if folder is not None:
+            if kind == "plain" and systems.hashes_the_name(folder):
+                if _arcade_set_directory(path):
+                    return (folder,)
+                return systems.by_extension(suffix)
             return (folder,)
 
-        suffix = path.suffix.lower()
         if kind == "plain":
             return systems.by_extension(suffix)
 
@@ -755,6 +765,10 @@ class CheevoCheckService:
                     scanned.append({**candidate, "system": system, "hash": digest})
                     self._advance_progress(1)
                     continue
+                if systems.hashes_the_name(candidate["systems"][0]):
+                    scanned.append(self._arcade_scan(candidate))
+                    self._advance_progress(1)
+                    continue
                 if candidate["kind"] == "archive":
                     scanned.append(self._hash_archive(candidate, cache if cache_on else None))
                     self._advance_progress(1)
@@ -776,6 +790,68 @@ class CheevoCheckService:
         finally:
             if cache_on:
                 self._store.save_hash_cache(cache if aborted else self._prune_cache(cache))
+
+    def _arcade_scan(self, candidate):
+        """An arcade set's row, without ever hashing its contents.
+
+        RA's arcade hash is md5 of the filename with the extension taken off, so
+        identification here is free and says nothing whatsoever about the bytes.
+        That is a weaker claim than any other system makes, and left alone it
+        would put a green Supported row — and a badge on Steam's own library
+        page — against a zip that is empty, truncated, or not a zip at all.
+
+        So the name has to be backed by the container opening. That is a central
+        directory read on a zip and a `7z l` on the two extractable formats,
+        which is the cheapest thing that separates a real set from a failed
+        download: 745 sets came out in 0.05 seconds. It says nothing about the
+        chips inside — that is verification's job and it has its own path below —
+        but it does mean a file has to be an archive before it may claim to be a
+        game.
+
+        A GD-ROM board is the same idea with the name a level up: the directory is
+        the machine and the disc inside it is unnamed, so the gate becomes the CHD
+        header rather than a central directory. Same contract either way — prove
+        the container is what it claims before crediting the name.
+
+        Deliberately not cached. The whole thing is a fraction of a millisecond a
+        file, and an entry keyed on size and mtime would buy nothing but the
+        right to skip the one read that is doing the work.
+        """
+        path = candidate["path"]
+        system = candidate["systems"][0]
+        name = _arcade_set_directory(path)
+        if not self._arcade_container_opens(path, candidate["kind"], name is not None):
+            return {**candidate, "system": system, "hash": None}
+        stem = (name if name is not None else path.stem).encode("utf-8", "surrogateescape")
+        return {**candidate, "system": system, "hash": hashlib.md5(stem).hexdigest()}
+
+    def _arcade_container_opens(self, path: Path, kind: str, is_disc: bool) -> bool:
+        """The gate that stops a name being credited to a file that isn't one.
+
+        Cheap by design and it has to stay that way — it runs on every arcade
+        file in the library. A zip is a central directory read, a 7z is a listing,
+        and a disc image is eight bytes off the front.
+
+        The CHD check is the magic and nothing more. chdman would say far more,
+        but that is verification's job and it costs a minute a disc; here the
+        question is only whether this is a disc image at all.
+        """
+        if is_disc:
+            if path.suffix.lower() != ".chd":
+                return True
+            try:
+                with open(path, "rb") as handle:
+                    return handle.read(len(_CHD_MAGIC)) == _CHD_MAGIC
+            except OSError as error:
+                self._debug("arcade: %s wouldn't open (%s)", path.name, error)
+                return False
+
+        try:
+            entries = self._archive_entries(path, kind)
+        except Exception as error:
+            self._debug("arcade: %s wouldn't open (%s)", path.name, error)
+            return False
+        return bool(entries)
 
     def _hash_batched(self, root: Path, candidates: list, cache):
         """Everything that RAHasher (or dolphin-tool) can take a path to.
@@ -1419,10 +1495,13 @@ class CheevoCheckService:
         if self._dolphin_ready is not None:
             return self._dolphin_ready
 
-        marker = self._user_home / ".var" / "app" / DOLPHIN_FLATPAK_APP_ID
-        if marker.exists():
-            self._dolphin_ready = True
-            return True
+        for installed in (
+            self._user_home / ".local" / "share" / "flatpak" / "app" / DOLPHIN_FLATPAK_APP_ID,
+            Path("/var/lib/flatpak/app") / DOLPHIN_FLATPAK_APP_ID,
+        ):
+            if installed.is_dir():
+                self._dolphin_ready = True
+                return True
 
         code, out, _ = subprocess_util.run_command(
             ["flatpak", "info", "--show-location", DOLPHIN_FLATPAK_APP_ID],
@@ -1619,9 +1698,18 @@ class CheevoCheckService:
         its ROM is the documented case — .md is Mega Drive, so the archive reads
         as two games — and those simply went missing from this list. It can only
         find entries the bare call missed; nothing it already answered changes.
+
+        Arcade is out. A MAME set holds a dozen or more chip dumps and not one of
+        them is "the ROM", so _pick_rom_entry would either come back empty or
+        name a chip — and either way the answer would be reported as an archive
+        holding something other than what it is called, which for arcade is the
+        normal and correct state of affairs.
         """
         kind = item.get("kind")
         if kind not in ("zip", "archive"):
+            return None
+        system = item.get("system") or item["systems"][0]
+        if systems.hashes_the_name(system):
             return None
         path = item["path"]
         try:
@@ -1630,7 +1718,6 @@ class CheevoCheckService:
             return None
         if not names:
             return None
-        system = item.get("system") or item["systems"][0]
         picked = names[0] if len(names) == 1 else self._pick_rom_entry(
             names, system.console_id, self._archive_peek(path, kind)
         )
@@ -1716,6 +1803,7 @@ class CheevoCheckService:
             })
 
         for key, rows in contributors.items():
+            supported[key]["paths"] = [r["path"] for r in rows]
             if len(rows) > 1 or any(r.get("innerName") for r in rows):
                 supported[key]["files"] = rows
 
@@ -1887,10 +1975,12 @@ class CheevoCheckService:
 
         indexes = self._indexes_for(system)
         if not indexes:
-            if recognised:
-                return self._ra_row(row, system)
             if system.self_check == "switch":
                 return self._switch_row(item, row)
+            if system.self_check == "arcade_zip":
+                return self._arcade_row(item, row)
+            if recognised:
+                return self._ra_row(row, system)
             return self._unverifiable(row, VERIFY_NO_REFERENCE)
 
         computed = self._verify_read(item, system, row)
@@ -1966,6 +2056,61 @@ class CheevoCheckService:
             return self._unverifiable(row, VERIFY_CARTS_OFF)
 
         outcome = self._verify_switch(path, row, self._verify_speed())
+        if isinstance(outcome, str):
+            return self._unverifiable(row, outcome)
+        if outcome:
+            return {**row, "bucket": "verified", "selfCheck": "passed"}
+        return {**row, "bucket": "mismatch", "selfCheck": "failed"}
+
+    def _arcade_row(self, item, row: dict) -> dict:
+        """An arcade set's verdict, from the CRCs the archive stores about itself.
+
+        Same shape as _switch_row and for the same reason: no catalogue ships for
+        arcade, but the file does not need one to be checked. A zip records the
+        CRC32 of every entry in its own central directory, so decompressing each
+        chip and comparing it against the number the archive already claims for
+        it catches corruption, truncation and bit rot without a reference of any
+        kind. A whole 8.5 GB arcade library came out in 46 seconds, which is
+        cheaper than one disc.
+
+        What it cannot say is whether the set is *right* — complete, and the
+        chips MAME expects for that machine. That needs MAME's own DAT, with
+        parent and clone inheritance on top, and none is bundled. So a pass is
+        Verified with the row saying it was a self-check, exactly as Switch does:
+        every byte in here is the byte this archive says it should be.
+
+        A GD-ROM board is a disc, so it goes through chdman the way every other
+        CHD does — and it is gated by the disc toggle, which the zip half is not.
+        Getting that branch wrong is not a near miss: handing a .chd to the zip
+        reader raises BadZipFile, which this function reads as a CRC mismatch,
+        and every GD-ROM set in the library would have been reported as damaged.
+
+        The zip half is gated by neither toggle. A MAME set is not a disc image
+        and not a big cartridge dump, and at a median 12 MB it is not what either
+        was added to make optional.
+
+        A .7z or .rar set says nothing rather than something wrong. Both store
+        their own checksums and 7z could be asked to test them, but that is a
+        subprocess per file for a shape no real arcade collection uses — RA
+        distributes zips. What matters is that they do not reach the zip reader,
+        for exactly the reason the paragraph above gives.
+        """
+        path = item["path"]
+        suffix = path.suffix.lower()
+        if _arcade_set_directory(path):
+            if self._skip_disc_verify_enabled():
+                return self._unverifiable(row, VERIFY_DISCS_OFF)
+            if suffix != ".chd":
+                return self._unverifiable(row, VERIFY_NO_REFERENCE)
+            reason = self._chd_self_check(path, row)
+            if reason is not None:
+                return self._unverifiable(row, reason)
+            return {**row, "bucket": "verified"}
+
+        if suffix != systems.ZIP_EXTENSION:
+            return self._unverifiable(row, VERIFY_NO_REFERENCE)
+
+        outcome = self._verify_zip_contents(path, row, self._verify_speed())
         if isinstance(outcome, str):
             return self._unverifiable(row, outcome)
         if outcome:
@@ -2181,6 +2326,49 @@ class CheevoCheckService:
             if name == picked:
                 return (format(crc & 0xFFFFFFFF, "08x"), Path(name).name, size)
         return VERIFY_READ_FAILED
+
+    def _verify_zip_contents(self, path: Path, row, speed: float):
+        """True if every entry decompresses to the CRC32 the zip claims for it.
+
+        The one verification in the feature that needs no reference at all. A zip
+        stores each entry's CRC in its own central directory, so reading the
+        entries back and checking them against those numbers is a complete answer
+        to "are these bytes intact" — self-contained, and the only kind of check
+        available for a format nobody publishes a dump list for.
+
+        zipfile already does the comparison on read and raises BadZipFile on a
+        mismatch, so this reads rather than hashes; the point of the loop is the
+        throttle and the cancel check, not the arithmetic. Chunked for the same
+        reason everything else here is: a set decompressing in one gulp would
+        ignore the speed setting entirely and there is no reason for a background
+        check to be the thing that makes a game stutter.
+
+        A reason string when the archive can't be read at all, which is a
+        different answer from its contents being wrong.
+        """
+        try:
+            with zipfile.ZipFile(path) as archive:
+                entries = [item for item in archive.infolist() if not item.is_dir()]
+                if not entries:
+                    return VERIFY_READ_FAILED
+                for entry in entries:
+                    with archive.open(entry) as handle:
+                        while True:
+                            started = time.monotonic()
+                            block = handle.read(VERIFY_CHUNK_BYTES)
+                            if not block:
+                                break
+                            if self._cancel.is_set():
+                                return VERIFY_READ_FAILED
+                            if speed:
+                                time.sleep((time.monotonic() - started) * speed)
+        except zipfile.BadZipFile as error:
+            self._debug("zip self-check failed: %s (%s)", path.name, error)
+            return False
+        except Exception:
+            return VERIFY_READ_FAILED
+        row["selfCheckCount"] = len(entries)
+        return True
 
     def _verify_dolphin(self, path: Path, row):
         """GameCube, Wii and WAD, through Dolphin's own tool.
@@ -2489,6 +2677,119 @@ class CheevoCheckService:
             event_loop=self._event_loop,
             force_toast=True,
         )
+
+    def _identity_index(self):
+        """path -> the four fields the library badge needs, built off the scan.
+
+        Four fields and nothing else. load_results hands back the whole parsed
+        file, which is megabytes on a real library, and holding that between page
+        visits is the only thing here that could genuinely matter for memory — so
+        the blob is projected and dropped in the same breath.
+
+        Keyed on the results file's own stat, which moves whenever a scan
+        replaces it. That makes a stale entry impossible rather than something to
+        sweep up, so there is no cleanup pass and none should be written.
+
+        The stat is load-bearing and this used to key on completedAt instead,
+        which meant reading and parsing the entire file on every single call just
+        to look at one timestamp — the cache saved the index build and none of
+        the cost. Measured on a 15,000 game library: 5 MB parsed and 17 ms burnt
+        per page view, against 8 us for the stat. Do not move the cheap check
+        back below the load.
+
+        Read through the store rather than the file: its accessors unwrap the
+        envelope and check schemaVersion, and hand-parsing skips both and reads a
+        stale schema as valid.
+        """
+        stamp = self._store.results_fingerprint()
+        cached = self._identity_cache
+        if cached is not None and cached[0] == stamp:
+            return cached[1], cached[2]
+
+        self._identity_cache = None
+        results = self._store.load_results() or {}
+
+        folders = {}
+
+        def resolved(path):
+            folder, name = os.path.split(path)
+            real = folders.get(folder)
+            if real is None:
+                try:
+                    real = os.path.realpath(folder)
+                except OSError:
+                    real = folder
+                folders[folder] = real
+            return os.path.join(real, name)
+
+        by_path = {}
+        by_name = {}
+        for game in results.get("supportedGames") or []:
+            if not isinstance(game, dict):
+                continue
+            entry = {
+                "gameId": to_int(game.get("gameId"), 0),
+                "title": str(game.get("title") or ""),
+                "systemId": to_int(game.get("systemId"), 0),
+                "achievements": to_int(game.get("achievements"), 0),
+            }
+            if not entry["gameId"]:
+                continue
+            for raw in game.get("paths") or []:
+                path = str(raw or "")
+                if not path:
+                    continue
+                by_path[path] = entry
+                by_path[resolved(path)] = entry
+                by_name.setdefault(os.path.basename(path), []).append(path)
+
+        self._identity_cache = (stamp, by_path, by_name)
+        return by_path, by_name
+
+    def identify(self, candidates) -> dict:
+        """Which RA game these candidate ROM paths are, or an empty answer.
+
+        Exact path first, then the filename on its own — and only where that name
+        belongs to one game across the whole scan. Two copies of a ROM in
+        different folders is a real thing, and a badge naming the wrong game on
+        Steam's own page is worse than no badge, because the user has no
+        CheevoDeck context there to doubt it.
+        """
+        by_path, by_name = self._identity_index()
+        if not by_path:
+            return {}
+
+        for candidate in candidates or []:
+            path = str(candidate or "")
+            if not path:
+                continue
+            found = by_path.get(path)
+            if found is not None:
+                return dict(found, matchedBy="path")
+            owners = by_name.get(os.path.basename(path)) or []
+            if len(owners) == 1:
+                return dict(by_path[owners[0]], matchedBy="name")
+            if owners:
+                self._debug("badge: %s is ambiguous across %d paths", path, len(owners))
+        return {}
+
+
+def _arcade_set_directory(path: Path):
+    """The directory this arcade set is named after, or None when the file is.
+
+    GD-ROM arcade boards dump as a directory named after the machine holding one
+    disc image, and RetroAchievements hashes the directory — md5("cvs2"), never
+    md5("gdl-0008"). Everything else in arcade is a container named after itself.
+
+    Called from both the discovery pass and the hashing pass, because the two
+    have to agree about which name is the game. Working it out twice from the
+    path is cheaper than threading a flag through the candidate dict, and it
+    cannot go stale.
+    """
+    if path.suffix.lower() not in _ARCADE_SET_DISC_EXTENSIONS:
+        return None
+    parent = path.parent.name
+    return parent if systems.is_arcade_set_folder(parent) else None
 
 
 def _is_wii_wad(path: Path) -> bool:

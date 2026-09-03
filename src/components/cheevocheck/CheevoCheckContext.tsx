@@ -9,12 +9,14 @@ import {
     saveCheevoCheckSkipDiscVerify,
     saveCheevoCheckVerifyCollapsed,
     saveCheevoCheckVerifyHashes,
-    saveCheevoCheckVerifySpeed
+    saveCheevoCheckVerifySpeed,
+    saveLibraryBadge
 } from "../../api";
 import { useCheevoCheckController } from "../../hooks/useCheevoCheckController";
 import type { SettingsController } from "../../hooks/useSettingsController";
 import type { LanguageCode } from "../../locales";
 import type { CheevoCheckVerifySpeed } from "../../types";
+import { applyLibraryBadge } from "../library/libraryBadgePatch";
 
 type CheevoCheck = ReturnType<typeof useCheevoCheckController> & {
     settings: ReturnType<typeof cheevoCheckSettings>;
@@ -35,6 +37,19 @@ function cheevoCheckSettings(controller: SettingsController) {
         optionsCollapsed: state.cheevoCheckOptionsCollapsed,
         skipDiscVerify: state.cheevoCheckSkipDiscVerify,
         skipCartVerify: state.cheevoCheckSkipCartVerify,
+        libraryBadge: state.libraryBadge,
+
+        saveLibraryBadge: (nextValue: boolean) =>
+            actions.saveSettingWithRollback<boolean>({
+                nextValue,
+                previousValue: state.libraryBadge,
+                applyValue: (value: boolean) => {
+                    actions.setLibraryBadge(value);
+                    applyLibraryBadge(value);
+                },
+                saveCall: saveLibraryBadge,
+                getSavedValue: (result, fallbackValue) => result.libraryBadge ?? fallbackValue,
+            }),
 
         saveCacheHashes: (nextValue: boolean) =>
             actions.saveSettingWithRollback<boolean>({

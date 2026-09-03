@@ -286,6 +286,8 @@ const PL: LocaleTable = {
     "help_legacy_achievement_links": "Wyłączone (domyślnie): dotknięcie osiągnięcia w dowolnym miejscu wtyczki otwiera wbudowaną stronę podglądu osiągnięcia. Włączone: otwiera osiągnięcie na retroachievements.org w przeglądarce.",
     "help_legacy_game_links": "Wyłączone (domyślnie): dotknięcie gry w dowolnym miejscu wtyczki otwiera wbudowaną stronę podglądu gry. Włączone: otwiera grę na retroachievements.org w przeglądarce.",
     "help_auto_purge_service": "Włączone (domyślnie): przy wczytaniu wtyczki przycina stare ikony gier i awatary osób spoza listy znajomych do rozsądnego limitu oraz kasuje pobrane strony poradników, których nie otwierałeś od 30 dni, żeby katalog danych nie rósł w nieskończoność. Ulubione poradniki i zakładki nigdy nie są ruszane. Wyłączone: nic nie jest przycinane automatycznie, a rozmiarem pamięci zarządzasz ręcznie przyciskami czyszczenia.",
+    "Steam Library Badge": "Plakietka w bibliotece Steam",
+    "help_library_badge": "Pokazuje liczbę odblokowanych osiągnięć na stronach gier wygenerowanych przez Steam ROM Manager. Naciśnij w górę z przycisku Graj, aby ją zaznaczyć, a potem wybierz ją, aby zobaczyć rozszerzone informacje o grze. Najpierw musisz wykonać skanowanie Cheevo Check folderu źródłowego całej biblioteki, żeby się pojawiła. Zeskanuj ponownie po dodaniu nowych gier. Kolejne skanowania są szybsze.",
     "help_debug_logging": "Wyłączone (domyślnie): wtyczka zapisuje tylko zdarzenia cyklu życia, błędy i ostrzeżenia. Włączone: dokłada dodatkowe szczegóły diagnostyczne z całej wtyczki — wolne wywołania backendu, wybór znajomych w każdym cyklu, uzbrajanie pasków i inne wewnętrzne zdarzenia. Przydaje się, gdy coś wygląda podejrzanie i chcesz mieć jaśniejszy obraz w logach Decky. Czysta diagnostyka. Zostawiłbym to wyłączone... chyba że chcesz rozdmuchać plik logów.",
     "help_defer_modal_cleanup": "Włączone (domyślnie): jeśli przy zamykaniu menu szybkiego dostępu okno dialogowe wciąż jest otwarte, zostanie sprzątnięte chwilę po ponownym otwarciu menu. Wyłączone: okno zostaje otwarte i zamykasz je sam, tak jak normalnie robi to system. Zostaw włączone, chyba że sprzątanie zacznie płatać figle po aktualizacji Steama.",
     "help_legacy_comments_loading": "Wyłączone (domyślnie): gdy otworzysz komentarz i wrócisz, wczytana lista zostaje przywrócona, a kursor wraca na otwarty komentarz. Włączone: wątek za każdym razem ładuje się od pierwszej strony, tak jak dawniej. To zapasowe wyjście — włącz je, jeśli powrót z komentarza zacznie płatać figle po aktualizacji Steama.",
@@ -1225,6 +1227,7 @@ const PL: LocaleTable = {
     "{{count}} game": "{{count}} gra",
     "{{pct}}% complete": "{{pct}}% ukończenia",
     "{{awarded}} / {{total}}": "{{awarded}} / {{total}}",
+    "{{earned}} / {{total}} Unlocked": "{{earned}} / {{total}} odblokowanych",
     "{{count}} achievements": {
         one: "{{count}} osiągnięcie",
         few: "{{count}} osiągnięcia",

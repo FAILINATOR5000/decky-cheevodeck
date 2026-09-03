@@ -195,6 +195,7 @@ class RetroAchievementsClient:
         username: str,
         game_id: int,
         web_api_key: str,
+        timeout: Optional[float] = None,
     ) -> Any:
         return self._get_json(
             "API_GetGameInfoAndUserProgress.php",
@@ -204,6 +205,7 @@ class RetroAchievementsClient:
                 "y": web_api_key,
                 "a": 1,
             },
+            timeout=timeout,
         )
 
     def get_game(self, game_id, web_api_key: str) -> Any:

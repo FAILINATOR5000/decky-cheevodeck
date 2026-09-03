@@ -414,6 +414,25 @@ export const saveCheevoCheckSkipCartVerify = callable<
     [boolean],
     { ok: boolean; cheevoCheckSkipCartVerify: boolean }
 >("save_cheevo_check_skip_cart_verify");
+export const getLibraryBadgeIdentity = callable<
+    [number],
+    {
+        gameId?: number;
+        title?: string;
+        systemId?: number;
+        achievements?: number;
+        matchedBy?: "path" | "name";
+        activeUlid?: string;
+    }
+>("get_library_badge_identity");
+export const getLibraryBadgeProgress = callable<
+    [number],
+    { gameId?: number; earned?: number; total?: number }
+>("get_library_badge_progress");
+export const saveLibraryBadge = callable<
+    [boolean],
+    { ok: boolean; libraryBadge: boolean }
+>("save_library_badge");
 export const saveCheevoCheckVerifySpeed = callable<
     [string],
     { ok: boolean; cheevoCheckVerifySpeed: string }

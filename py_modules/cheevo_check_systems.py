@@ -11,14 +11,17 @@ which is why folder detection is trusted ahead of the extension.
 
 Not every system RAHasher prints is here. This is the set worth answering
 confidently for; anything missing simply doesn't get scanned, which is a far
-better failure than a wrong verdict. Two are left out on purpose:
+better failure than a wrong verdict. What stays out is the consoles RAHasher
+lists with a blank group, which its own help text says RA does not support yet.
 
-* **Arcade.** RA hashes an arcade ROM from its *filename*, not its contents, and
-  an arcade zip is a bundle of chip dumps — so the zip introspection that saves
-  Wrecking Crew '98 would break every MAME set instead. Wrong model, needs its own
-  path.
-* Consoles RAHasher lists with a blank group, which its own help text says RA does
-  not support yet.
+Arcade used to be out too, and it's worth saying why it isn't any more. RA
+identifies an arcade game by its *filename* with the extension taken off —
+md5("progolf") and nothing else — so an arcade zip is the one file in a library
+whose contents have no bearing on which game it is. That's the opposite of every
+other row here, which is what ra_hash="name" says, and it's why the zip
+introspection that saves Wrecking Crew '98 would tear a MAME set apart looking
+for a ROM that was never in there. Arcade gets its own path through the scanner
+instead, and its container is opened only to prove that it opens.
 """
 
 
@@ -448,6 +451,16 @@ SYSTEMS = (
     System(75, "ELEK", "Elektor TV Games Computer",
            folders=("elektor", "elektortvgamescomputer"),
            extensions=(".bin", ".pgm")),
+    System(27, "ARC", "Arcade",
+           folders=("arcade", "mame", "mameadvmame", "mamemame4all",
+                    "fbneo", "fba", "neogeo",
+                    "cps", "cps1", "cps2", "cps3",
+                    "atomiswave", "naomi", "naomi2", "naomigd",
+                    "model2", "model3"),
+           extensions=(".zip", ".7z"),
+           ra_hash="name",
+           self_check="arcade_zip",
+    ),
 )
 
 VERIFY_ONLY_SYSTEMS = (
@@ -503,9 +516,16 @@ for _system in SYSTEMS:
     for _alias in _system.folders:
         _BY_FOLDER.setdefault(_fold(_alias), _system)
 
+ZIP_EXTENSION = ".zip"
+EXTRACT_EXTENSIONS = (".7z", ".rar")
+
+CONTAINER_EXTENSIONS = frozenset((ZIP_EXTENSION,)) | frozenset(EXTRACT_EXTENSIONS)
+
 _BY_EXTENSION = {}
 for _system in SYSTEMS:
     for _extension in _system.extensions:
+        if _extension in CONTAINER_EXTENSIONS:
+            continue
         _BY_EXTENSION.setdefault(_extension, []).append(_system)
 
 _BY_CONSOLE_ID = {system.console_id: system for system in SYSTEMS}
@@ -520,9 +540,6 @@ DAT_SYSTEMS = tuple(
 )
 
 ROM_EXTENSIONS = frozenset(_BY_EXTENSION)
-
-ZIP_EXTENSION = ".zip"
-EXTRACT_EXTENSIONS = (".7z", ".rar")
 
 JUNK_EXTENSIONS = frozenset((
     ".txt", ".url", ".nfo", ".diz", ".md5", ".sfv", ".dat", ".xml", ".log", ".cfg",
@@ -562,6 +579,45 @@ def ra_covers_whole_file(system, inner_size=None) -> bool:
     if system.ra_hash == "copier_header":
         return inner_size is None or inner_size % 1024 != 512
     return False
+
+
+def hashes_the_name(system) -> bool:
+    """Whether RA's hash for this system is computed from the filename alone.
+
+    Arcade and only arcade, but asked by name rather than by console number so
+    the scanner never has to carry 27 around. Every branch that skips hashing,
+    skips looking inside the archive, or picks the verification path turns on
+    this, and they all mean the same thing: opening this file would tell us
+    nothing about which game it is.
+    """
+    return system.ra_hash == "name"
+
+
+def is_arcade_set_folder(name) -> bool:
+    """Whether a directory name is a MAME short name rather than a game's title.
+
+    Arcade comes in two shapes. Most of it is one zip per machine, named after
+    the machine. The GD-ROM boards are a directory named after the machine with
+    a disc image inside it, and there RA hashes the *directory* — md5("cvs2"),
+    not md5("gdl-0008").
+
+    Telling that apart from somebody's per-game disc folder is what this is for,
+    and MAME's own naming does the work: short names are lower-case, ASCII,
+    alphanumeric and at most eight characters, which is the DOS-era limit MAME
+    still keeps. "cvs2" and "monkeyba" pass; "Shenmue (Europe) (En,Fr,De,Es)"
+    and "BrainDead 13 (USA)" fail on every count. Measured across a library of
+    both: 8 hits, all of them real GD-ROM sets, and 14 misses, all of them real
+    disc folders.
+
+    A directory that names a console is not a game directory however short it
+    is, which is what keeps arcade/cps2/ from reading as a machine called cps2.
+    """
+    text = str(name or "")
+    if not (1 <= len(text) <= 8) or not text.isascii() or not text.isalnum():
+        return False
+    if text != text.lower():
+        return False
+    return by_folder_name(text) is None
 
 
 def related_console_ids(console_id):
@@ -604,6 +660,8 @@ def describe_verification() -> str:
             reference = "yes"
         elif system.dat_key:
             reference = "none bundled — a slot is left for one"
+        elif system.self_check == "arcade_zip":
+            reference = "not needed — the archive checks itself"
         elif system.self_check:
             reference = "not needed — the dump checks itself"
         else:
@@ -616,6 +674,8 @@ def describe_verification() -> str:
             covers = "the whole file apart from its 16-byte header"
         elif system.ra_hash == "copier_header":
             covers = "the whole file, less a 512-byte copier header where there is one"
+        elif system.ra_hash == "name":
+            covers = "none of the file — the name alone"
         else:
             covers = "part of the file"
         lines.append(f"{system.name}")

@@ -75,7 +75,7 @@ export const FADE_IN_KEYFRAMES = `
     to { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
-    .da-fade-image {
+    .da-fade-image, .da-faded {
         animation: none !important;
         opacity: 1 !important;
     }

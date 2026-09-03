@@ -409,6 +409,7 @@ _KNOBS = (
     Knob("cheevoCheckOptionsCollapsed", default=False, normalize=True, read=READ_BOOL),
     Knob("cheevoCheckSkipDiscVerify", default=False, normalize=True, read=READ_BOOL),
     Knob("cheevoCheckSkipCartVerify", default=False, normalize=True, read=READ_BOOL),
+    Knob("libraryBadge", default=False, normalize=True, read=READ_BOOL),
     Knob("fileWatcherSpeed", default="gentle", normalize=True),
     Knob("fileWatcherRunDuringGames", default=True, normalize=True, read=READ_BOOL),
     Knob("trackedSetAButtonMode", default="editNote", normalize=True),
@@ -1254,6 +1255,11 @@ class SettingsStore:
         cfg = self._update_config("cheevoCheckSkipCartVerify", bool(value))
 
         return self.get_cheevo_check_skip_cart_verify(cfg)
+
+    def update_library_badge(self, value: bool) -> bool:
+        cfg = self._update_config("libraryBadge", bool(value))
+
+        return self.get_library_badge(cfg)
 
     def update_cheevo_check_scan_collapsed(self, value: bool) -> bool:
         cfg = self._update_config("cheevoCheckScanCollapsed", bool(value))
@@ -3669,6 +3675,9 @@ class SettingsStore:
 
     def get_cheevo_check_skip_cart_verify(self, cfg: dict) -> bool:
         return bool(cfg.get("cheevoCheckSkipCartVerify", False))
+
+    def get_library_badge(self, cfg: dict) -> bool:
+        return bool(cfg.get("libraryBadge", False))
 
     def get_cheevo_check_verify_speed(self, cfg: dict) -> str:
         value = str(cfg.get("cheevoCheckVerifySpeed", "full") or "full").strip()
