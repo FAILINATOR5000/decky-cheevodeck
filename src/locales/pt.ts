@@ -1571,7 +1571,7 @@ const PT: LocaleTable = {
     "{{count}} files nothing has a record of": "{{count}} ficheiros de que não há registo em lado nenhum",
     "{{count}} files we couldn't verify either way": "{{count}} ficheiros que não conseguimos verificar de forma nenhuma",
 
-    "help_utils_cheevo_check": "Queres saber quais dos teus jogos têm mesmo suporte do RetroAchievements? Descobre aqui. Se quiseres, podes ainda verificar as cópias da tua biblioteca de ROM para perceber se há ficheiros danificados ou cópias más.",
+    "help_utils_cheevo_check": "Queres saber quais dos teus jogos têm mesmo suporte do RetroAchievements? Descobre aqui. A verificação principal também te deixa acrescentar emblemas às páginas dos teus jogos. Se quiseres, podes verificar as cópias da tua biblioteca de ROM para determinar se o ficheiro está danificado ou se é uma cópia má.",
 
     "This can take a while on a big library. You can leave this page or close the panel — we'll let you know when it's done.": "Numa biblioteca grande isso pode demorar. Pode sair desta página ou fechar o painel — a gente avisa quando terminar.",
     "Supported Games ({{count}})": "Jogos com suporte ({{count}})",

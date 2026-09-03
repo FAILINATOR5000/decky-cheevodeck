@@ -1612,7 +1612,7 @@ const PL: LocaleTable = {
     "{{count}} files nothing has a record of": "{{count}} plików, których nigdzie nie odnotowano",
     "{{count}} files we couldn't verify either way": "{{count}} plików, których nie dało się rozstrzygnąć",
 
-    "help_utils_cheevo_check": "Zastanawiasz się, które z twoich gier w ogóle obsługują RetroAchievements? Tutaj się dowiesz. Opcjonalnie możesz też sprawdzić zrzuty w swojej bibliotece ROM-ów i ocenić, na ile prawdopodobne jest uszkodzenie pliku albo zły zrzut.",
+    "help_utils_cheevo_check": "Zastanawiasz się, które z twoich gier faktycznie obsługują RetroAchievements? Tutaj się dowiesz. Podstawowe sprawdzenie pozwala też dodać odznaki na stronach twoich gier. Opcjonalnie możesz zweryfikować zrzuty w swojej bibliotece ROM-ów i ustalić, czy plik jest uszkodzony albo czy to zły zrzut.",
 
     "This can take a while on a big library. You can leave this page or close the panel — we'll let you know when it's done.": "Przy dużej bibliotece to może chwilę potrwać. Możesz wyjść z tej strony albo zamknąć panel — damy znać, jak skończymy.",
     "Supported Games ({{count}})": "Wspierane gry ({{count}})",

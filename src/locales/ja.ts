@@ -1552,7 +1552,7 @@ const JA: LocaleTable = {
     "{{count}} files nothing has a record of": "どこにも記録がないファイル: {{count}}",
     "{{count}} files we couldn't verify either way": "どちらとも判断できなかったファイル: {{count}}",
 
-    "help_utils_cheevo_check": "手持ちのゲームのうち、どれが RetroAchievements に対応しているのか気になりませんか。ここで確認できます。さらに、必要であれば ROM ライブラリのダンプを検証して、ファイル破損や不良ダンプの可能性を確かめられます。",
+    "help_utils_cheevo_check": "手持ちのゲームのうち、どれが RetroAchievements に対応しているのか気になりませんか。ここで確認できます。基本のスキャンでは、ゲームページにバッジを表示することもできます。さらに、必要であれば ROM ライブラリのダンプを検証して、ファイルが壊れているのか不良ダンプなのかを確かめられます。",
 
     "This can take a while on a big library. You can leave this page or close the panel — we'll let you know when it's done.": "大きなライブラリでは時間がかかることがあります。このページを離れてもパネルを閉じても大丈夫です。終わったらお知らせします。",
     "Supported Games ({{count}})": "対応ゲーム ({{count}})",

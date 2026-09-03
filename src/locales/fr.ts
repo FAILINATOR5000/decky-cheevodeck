@@ -1571,7 +1571,7 @@ const FR: LocaleTable = {
     "{{count}} files nothing has a record of": "{{count}} fichiers dont rien ne garde trace",
     "{{count}} files we couldn't verify either way": "{{count}} fichiers que nous n'avons pas pu trancher",
 
-    "help_utils_cheevo_check": "Tu te demandes lesquels de tes jeux prennent en charge RetroAchievements ? Réponse ici. Tu peux aussi, si tu veux, vérifier les dumps de ta collection de ROM pour estimer le risque de fichier corrompu ou de mauvais dump.",
+    "help_utils_cheevo_check": "Tu te demandes lesquels de tes jeux prennent vraiment en charge RetroAchievements ? Réponse ici. La vérification principale te permet aussi d'ajouter des badges sur les pages de tes jeux. Si tu veux, tu peux vérifier les dumps de ta collection de ROM pour savoir si un fichier est corrompu ou s'il s'agit d'un mauvais dump.",
 
     "This can take a while on a big library. You can leave this page or close the panel — we'll let you know when it's done.": "Sur une grosse bibliothèque, ça peut prendre un moment. Tu peux quitter cette page ou fermer le panneau — on te préviendra quand ce sera fini.",
     "Supported Games ({{count}})": "Jeux pris en charge ({{count}})",

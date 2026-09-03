@@ -1565,7 +1565,7 @@ export const EN: LocaleTable = {
     "{{count}} files nothing has a record of": "{{count}} files nothing has a record of",
     "{{count}} files we couldn't verify either way": "{{count}} files we couldn't verify either way",
 
-    "help_utils_cheevo_check": "Wondering which of your games actually supports RetroAchievements? Find out here. Also, optionally, you can verify the dumps in your ROM library to determine the likelihood of file corruption or a bad dump.",
+    "help_utils_cheevo_check": "Wondering which of your games actually support RetroAchievements? Find out here. The core scan also allows you to add badges to your game pages. Optionally, you can verify the dumps in your ROM library to determine if your file is corrupted or a bad dump.",
 
     "This can take a while on a big library. You can leave this page or close the panel — we'll let you know when it's done.": "This can take a while on a big library. You can leave this page or close the panel — we'll let you know when it's done.",
     "Supported Games ({{count}})": "Supported Games ({{count}})",
