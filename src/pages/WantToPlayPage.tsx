@@ -97,9 +97,7 @@ function WantToPlayPage(props: WantToPlayPageProps) {
     }
 
     const total = props.wantToPlayPayload?.total ?? 0;
-    const titleSection = props.selectedFriend
-        ? props.selectedFriend.username
-        : t(props.language, "Want to Play");
+    const titleSection = t(props.language, "Want to Play");
 
     return (
         <>

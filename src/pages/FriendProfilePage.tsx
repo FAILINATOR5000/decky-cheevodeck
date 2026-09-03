@@ -639,7 +639,7 @@ function FriendProfilePage(props: FriendProfilePageProps) {
             <style>{FADE_IN_KEYFRAMES}</style>
             <PanelSection>
                 <PageNavStrip
-                    title={friendDisplayName || t(language, "Friend Progress")}
+                    title={t(language, "Profile")}
                     buttonSpacing={buttonSpacing}
                     onHome={actions.onHome}
                 />

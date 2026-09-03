@@ -324,11 +324,7 @@ function AllGamesPage(props: AllGamesPageProps) {
             <style>{FADE_IN_KEYFRAMES}</style>
             <PanelSection>
                 <PageNavStrip
-                    title={
-                        props.selectedFriend
-                            ? t(props.language, "{{name}}'s Games", { name: props.selectedFriend.username })
-                            : t(props.language, "All Games")
-                    }
+                    title={t(props.language, "Games")}
                     buttonSpacing={props.buttonSpacing}
                     onHome={props.onHome}
                 />
