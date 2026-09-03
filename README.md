@@ -64,7 +64,7 @@ CheevoDeck isn't just a basic RetroAchievements tracker — it's a full suite fo
 
     - **Dolphin Mapper** — sets GameCube and Wii controller layouts for Dolphin so you don't have to do it by hand. No more nightmare tuning profiles for the many different wii control schemes. This does not touch your profiles; it only changes the active controller settings.
 
-    - **Cheevo Check** — scans your ROM library and tells you which files are RetroAchievements compatible. Also, offers validating your roms to ensure they are proper dumps.
+    - **Cheevo Check** — scans your ROM library and tells you which files are RetroAchievements compatible. Also, offers validating your roms to ensure they are proper dumps. Run the scan once and each game page you added through Steam ROM Manager picks up a badge with your achievement progress on it.
 
     - **File Watcher** — ideal for archivists; monitor the integrity of your ROMs folders by setting up a schedule to check your files against the hashes, or by running a check manually. You will be notified if your files got corrupted, changed, removed, etc., and prompted for approval of changes.
 
