@@ -239,7 +239,7 @@ def _default_shortcut_bindings() -> dict:
 
 
 def _default_quick_menu_shortcuts() -> list:
-    return ["dolphinMapper", "socialActivity", "uiDefault", "uiCompact"]
+    return ["dolphinMapper", "cheevoCheck", "socialActivity", "visitRa"]
 
 
 def _default_saved_comments_prefs() -> dict:
