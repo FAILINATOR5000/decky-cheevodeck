@@ -233,8 +233,10 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
         })));
     }
 
+    const scopeKey = `cheevoCheck:view:${busy ? "scan" : "idle"}:${state.focusScopeResetToken}`;
+
     return (
-        <PanelSection key={`cheevoCheck:view:${state.focusScopeResetToken}`}>
+        <PanelSection key={scopeKey}>
             <PageNavStrip
                 title={t(language, "Cheevo Check")}
                 buttonSpacing={state.buttonSpacing}
