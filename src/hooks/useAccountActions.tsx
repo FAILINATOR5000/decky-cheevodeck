@@ -4,6 +4,7 @@ import { useLatestRef } from "./useLatestRef";
 
 import {
     addUser,
+    announceWelcome,
     clearApiKey,
     clearConnectLogin,
     clearResumeState,
@@ -177,13 +178,20 @@ export function useAccountActions({
     }
 
     function openMainUiModal() {
-        showManagedModal((close) => (
-            <WelcomeMainUiModal
-                language={language}
-                onApplyMainUiPreset={onApplyMainUiPreset}
-                close={close}
-            />
-        ));
+        showManagedModal((close) => {
+            function finish() {
+                close();
+                void announceWelcome().catch(() => {});
+            }
+
+            return (
+                <WelcomeMainUiModal
+                    language={language}
+                    onApplyMainUiPreset={onApplyMainUiPreset}
+                    close={finish}
+                />
+            );
+        });
     }
 
     function openSetupProfilesModal(userName?: string) {

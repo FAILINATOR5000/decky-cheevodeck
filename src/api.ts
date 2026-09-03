@@ -985,6 +985,7 @@ export const saveDynamicFollowedRanking = callable<[boolean], { ok: boolean; dyn
 export const resetOptionSettings = callable<[], OkResult & SettingsResponse>("reset_option_settings");
 export const applySetupProfile = callable<[string, boolean], OkResult & SettingsResponse>("apply_setup_profile");
 export const markIntroViewed = callable<[], { ok: boolean; viewedIntro: boolean }>("mark_intro_viewed");
+export const announceWelcome = callable<[], { ok: boolean; announced: boolean }>("announce_welcome");
 export const setFriendFavorite = callable<[string, boolean], { ok: boolean; favoriteFriends: string[] }>(
     "set_friend_favorite"
 );

@@ -53,7 +53,7 @@ from file_watcher_store import FileWatcherStore
 from dolphin_mappings_store import DolphinMappingsStore
 from smb_shares_store import SmbSharesStore
 from settings_store import SettingsStore
-from notifications import NotificationsStore, NotificationsArchiveStore, NOTIFICATION_EVENT, is_type_enabled
+from notifications import NotificationsStore, NotificationsArchiveStore, NOTIFICATION_EVENT, emit_notification, is_type_enabled
 from utils import chown_to_data_owner, ensure_dir, init_data_owner, is_network_error, ssl_context
 
 from mixins.notifications import NotificationsMixin
@@ -1307,6 +1307,38 @@ class Plugin(
             "ok": True,
             "viewedIntro": True,
         }
+
+    async def announce_welcome(self):
+        """The greeting, posted when the last of the intro modals closes."""
+        document = await self.load_help_document("welcome")
+        text = str(document.get("text") or "").strip()
+        if not text:
+            return {"ok": True, "announced": False}
+
+        cfg = self.settings_store.load_config()
+        decky.logger.info("welcome: intro finished, announcing")
+
+        if is_type_enabled("system", self.settings_store, cfg):
+            self.notifications_store.append({
+                "type": "system",
+                "kind": "actionable",
+                "iconSource": "none",
+                "title": "Message from FAILINATOR5000",
+                "body": text,
+                "source": "notifications",
+                "target": {"view": "message"},
+                "meta": {"welcome": True},
+            })
+
+        emit_notification(
+            ntype="system",
+            title_key="Message from FAILINATOR5000",
+            line_key="View in Notifications",
+            settings_store=self.settings_store,
+            event_loop=self._asyncio_loop,
+        )
+
+        return {"ok": True, "announced": True}
 
     async def clear_api_key(self):
         self.settings_store.clear_api_key()

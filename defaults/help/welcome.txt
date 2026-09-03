@@ -1,0 +1,19 @@
+Welcome to CheevoDeck {{VERSION}}!
+
+Hello, I hope you are doing well! I just want to give you a warm welcome, along with some quick advice that'll get you started in no time. Here are a few good pointers:
+
+1. CheevoDeck loads your achievements for you. All you have to do is start a RA-supported game in your favorite emulator while signed into it with your RetroAchievements account. Then open the side window <b>Quick Access Menu</b> with the <b>...</b> button or open CheevoDeck, and you are good to go! Everything is loaded, and you are ready to hunt achievements.
+
+2. Make use of the <b>Quick Menu!</b> On the <b>Main Page</b> in the upper-right corner, press the button that looks like a hamburger to access it. From here, you will find shortcuts to different parts of CheevoDeck, along with some useful toggles.
+
+3. When no longer playing RetroAchievements games, on the main page, select the <b>Quick Menu</b> and toggle the <b>Do Not Disturb</b> button to on. That way, you won't get any popup toasts for achievement unlocks while playing non-RetroAchievements games.
+
+4. If you want badges on all of your game pages, showing your achievement status, you can enable it by going to the <b>Quick Menu</b> on main and then by selecting <b>Cheevo Check</b>. Scroll down and turn on <b>Steam Library Badge</b>. For this to really work its magic, you first have to scan your entire rom library here as well. So be sure to select the <b>Scan</b> button. Once it is started, it can take a while with very large libraries, but no worries! You can leave Cheevo Check while it is running and do whatever you like. It will let you know when it is done scanning. Once finished, you will start to see your achievement progress on your favorite games.
+
+5. Take advantage of button shortcuts! By default, you can press <b>Start</b> to view your notifications on any page. Also, you can press <b>Select</b> which will warp you to the top of any page in an instant. You can assign more actions to other buttons in <b>Quick Menu > Options > System Tab > Mapped Shortcuts</b>.
+
+With these tips in mind, you will become a CheevoDeck pro in no time! I <i>sincerely</i> hope you enjoy this plugin, and if you find this message useful, press <b>X</b> on your controller or select the star button to archive it! This will keep it forever so you are able to view this message for future reference in the <b>Archived</b> tab.
+
+Best Wishes,
+
+FAILINATOR5000
