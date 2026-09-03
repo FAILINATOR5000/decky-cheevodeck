@@ -3,6 +3,7 @@ import { DialogButton, Focusable } from "@decky/ui";
 import { FaTrophy } from "react-icons/fa";
 
 import { DEVELOPER_AVATAR_IMAGE } from "../ui/developerAvatar";
+import { withInlineTags } from "../ui/inlineTags";
 import {
     cacheAchievementIcons,
     getAchievementIcons,
@@ -858,7 +859,7 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                                 } : {})
                             } as CSSProperties}
                         >
-                            {templatedBody ?? notification.body}
+                            {templatedBody ?? withInlineTags(notification.body)}
                         </div>
                     )}
                     {isClampedBody && bodyTruncated && (

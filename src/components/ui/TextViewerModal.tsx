@@ -2,6 +2,7 @@ import { DialogButton, Focusable, ModalRoot, ScrollPanelGroup } from "@decky/ui"
 import { useEffect, useRef, useState } from "react";
 
 import { InlineSpinner } from "./InlineSpinner";
+import { withInlineTags } from "./inlineTags";
 import { loadHelpDocument, saveTextViewerZoom } from "../../api";
 import { logError } from "../../utils/errors";
 import { t, type LanguageCode } from "../../locales";
@@ -117,7 +118,7 @@ export function TextViewerModal(props: TextViewerModalProps) {
                 wordBreak: "break-word",
             }}
         >
-            {text}
+            {text === null ? null : withInlineTags(text)}
         </div>
     );
 
