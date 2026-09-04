@@ -10,6 +10,7 @@ import { LabeledRow } from "../components/ui/LabeledRow";
 import { ToggleRow } from "../components/ui/ToggleRow";
 import { ReorderStrip } from "../components/ui/ReorderStrip";
 import { InfoText } from "../components/ui/InfoText";
+import { TextViewerModal } from "../components/ui/TextViewerModal";
 import { ErrorText } from "../components/ui/ErrorText";
 import { CollapseChevron } from "../components/ui/CollapseChevron";
 import { ExternalLink } from "../components/ui/ExternalLink";
@@ -157,6 +158,18 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
                 existing={existing}
                 language={language}
                 saveMapping={saveMapping}
+                close={close}
+            />
+        ));
+    };
+
+    const openHelp = () => {
+        showManagedModal((close) => (
+            <TextViewerModal
+                language={language}
+                mouseKeyboardMode={mouseKeyboardMode}
+                title={t(language, "Help")}
+                text={t(language, "help_dolphin_controller_order")}
                 close={close}
             />
         ));
@@ -444,7 +457,14 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
             />
 
             <PanelSectionRow>
-                <InfoText>{t(language, "help_dolphin_controller_order")}</InfoText>
+                <FocusableItem
+                    focusKey="dolphinMapper:help"
+                    outerStyle={regularButtonSpacingStyle(buttonSpacing)}
+                    onClick={openHelp}
+                    bottomSeparator="standard"
+                >
+                    {t(language, "Help")}
+                </FocusableItem>
             </PanelSectionRow>
 
             <PanelSectionRow>
