@@ -908,6 +908,7 @@ const RU: LocaleTable = {
     "help_deck_controller_disable": "Освобождает встроенный контроллер от слота игрока, чтобы Deck в док-станции его не занимал. Сначала отключи его, потом подключай свои контроллеры.",
     "warn_deck_controller_crash": "⚠ ВЫКЛЮЧИ ВСЕ ВНЕШНИЕ КОНТРОЛЛЕРЫ, ПРЕЖДЕ ЧЕМ ВКЛЮЧАТЬ ЭТО, ИНАЧЕ СЛЕДУЮЩИЙ ЗАПУСК ИГРЫ ЗАВИСНЕТ. ПРИ ВЫКЛЮЧЕНИИ ИЛИ ПЕРЕЗАГРУЗКЕ ВСЁ СБРАСЫВАЕТСЯ, ТАК ЧТО ЭТО БЕЗОБИДНО.",
     "Xbox One": "Xbox One",
+    "Xbox 360 Wireless Controller": "Xbox 360 Wireless Controller",
     "Xbox Series X": "Xbox Series X",
     "DualSense": "DualSense",
     "Switch Pro Controller": "Switch Pro Controller",

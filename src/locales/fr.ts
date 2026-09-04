@@ -908,6 +908,7 @@ const FR: LocaleTable = {
     "help_deck_controller_disable": "Libère la manette intégrée d'un emplacement joueur pour qu'un Deck en station n'en occupe pas un. Désactive-la d'abord, puis connecte tes manettes.",
     "warn_deck_controller_crash": "⚠ ÉTEINS TOUTES LES MANETTES EXTERNES AVANT D'ACTIVER CECI, SINON LE PROCHAIN LANCEMENT DE JEU VA GELER. ÇA SE RÉINITIALISE QUAND TU LE DÉSACTIVES OU REDÉMARRES, DONC C'EST SANS DANGER.",
     "Xbox One": "Xbox One",
+    "Xbox 360 Wireless Controller": "Xbox 360 Wireless Controller",
     "Xbox Series X": "Xbox Series X",
     "DualSense": "DualSense",
     "Switch Pro Controller": "Switch Pro Controller",

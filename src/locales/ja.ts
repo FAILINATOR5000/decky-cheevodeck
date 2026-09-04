@@ -908,6 +908,7 @@ const JA: LocaleTable = {
     "help_deck_controller_disable": "内蔵コントローラーをプレイヤー枠から外し、ドックに置いた Deck が枠を占領しないようにします。先にこれを無効化してから、コントローラーを接続してください。",
     "warn_deck_controller_crash": "⚠ これをオンにする前に外部コントローラーをすべて切ってください。さもないと次のゲーム起動でフリーズします。オフにするか再起動すれば元に戻るので、害はありません。",
     "Xbox One": "Xbox One",
+    "Xbox 360 Wireless Controller": "Xbox 360 Wireless Controller",
     "Xbox Series X": "Xbox Series X",
     "DualSense": "DualSense",
     "Switch Pro Controller": "Switch Pro コントローラー",

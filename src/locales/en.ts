@@ -908,6 +908,7 @@ export const EN: LocaleTable = {
     "help_deck_controller_disable": "Frees the built-in controller from a player slot so a docked Deck doesn't hog one. Disable it first, then connect your controllers.",
     "warn_deck_controller_crash": "⚠ TURN OFF ALL EXTERNAL CONTROLLERS BEFORE ENABLING THIS, OR THE NEXT GAME LAUNCH WILL FREEZE. IT RESETS WHEN YOU TURN IT OFF OR REBOOT, SO IT'S HARMLESS.",
     "Xbox One": "Xbox One",
+    "Xbox 360 Wireless Controller": "Xbox 360 Wireless Controller",
     "Xbox Series X": "Xbox Series X",
     "DualSense": "DualSense",
     "Switch Pro Controller": "Switch Pro Controller",

@@ -908,6 +908,7 @@ const PT: LocaleTable = {
     "help_deck_controller_disable": "Libera o controle embutido de um espaço de jogador para que um Deck na dock não ocupe um. Desative-o primeiro e depois conecte seus controles.",
     "warn_deck_controller_crash": "⚠ DESLIGUE TODOS OS CONTROLES EXTERNOS ANTES DE ATIVAR ISTO, OU O PRÓXIMO JOGO VAI TRAVAR AO INICIAR. ELE REINICIA QUANDO VOCÊ DESLIGA OU REINICIA O APARELHO, ENTÃO É INOFENSIVO.",
     "Xbox One": "Xbox One",
+    "Xbox 360 Wireless Controller": "Xbox 360 Wireless Controller",
     "Xbox Series X": "Xbox Series X",
     "DualSense": "DualSense",
     "Switch Pro Controller": "Switch Pro Controller",

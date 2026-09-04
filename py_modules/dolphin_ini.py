@@ -23,6 +23,7 @@ SDL_DEVICE_NAMES = {
     "steamcontroller": "Steam Controller",
     "xbox": "Xbox Series X Controller",
     "xboxone": "Xbox One controller",
+    "xbox360": "#controller_xbox360",
     "dualsense": "DualSense Wireless Controller",
     "ps4": "PlayStation 4 Controller",
     "switchpro": "Nintendo Switch Pro Controller",

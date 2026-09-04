@@ -15,7 +15,7 @@ MAX_MAPPINGS = 500
 
 ALLOWED_SYSTEMS = ("gamecube", "wii")
 ALLOWED_WII_STYLES = ("wiimote_sideways", "wiimote_nunchuk", "classic")
-ALLOWED_CONTROLLER_TYPES = ("steamdeck", "rogally", "steamcontroller", "xbox", "xboxone", "dualsense", "ps4", "switchpro", "realwiimote")
+ALLOWED_CONTROLLER_TYPES = ("steamdeck", "rogally", "steamcontroller", "xbox", "xboxone", "xbox360", "dualsense", "ps4", "switchpro", "realwiimote")
 ALLOWED_FACE_LAYOUTS = ("standard", "literal", "swap_ab", "swap_xy")
 
 ALLOWED_RUMBLE_MOTORS = ("both", "left", "right")

@@ -22,7 +22,7 @@ export type TrackedAchievementAction = "untrack" | "info" | "editNote" | "reorde
 export type DolphinSystem = "gamecube" | "wii";
 export type DolphinSystemFilter = "all" | "wii" | "gamecube";
 export type WiiStyle = "wiimote_sideways" | "wiimote_nunchuk" | "classic";
-export type ControllerType = "steamdeck" | "rogally" | "steamcontroller" | "xbox" | "xboxone" | "dualsense" | "ps4" | "switchpro" | "realwiimote";
+export type ControllerType = "steamdeck" | "rogally" | "steamcontroller" | "xbox" | "xboxone" | "xbox360" | "dualsense" | "ps4" | "switchpro" | "realwiimote";
 export type FaceLayout = "standard" | "literal" | "swap_ab" | "swap_xy";
 export type RumbleMotor = "both" | "left" | "right";
 

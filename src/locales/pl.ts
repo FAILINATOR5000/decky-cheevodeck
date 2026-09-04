@@ -933,6 +933,7 @@ const PL: LocaleTable = {
     "help_deck_controller_disable": "Zwalnia wbudowany kontroler z gniazda gracza, żeby zadokowany Deck nie zajmował jednego z nich. Najpierw go wyłącz, a dopiero potem podłącz swoje kontrolery.",
     "warn_deck_controller_crash": "⚠ WYŁĄCZ WSZYSTKIE ZEWNĘTRZNE KONTROLERY, ZANIM TO WŁĄCZYSZ, INACZEJ NASTĘPNE URUCHOMIENIE GRY SIĘ ZAWIESI. RESETUJE SIĘ PO WYŁĄCZENIU LUB RESTARCIE, WIĘC JEST NIEGROŹNE.",
     "Xbox One": "Xbox One",
+    "Xbox 360 Wireless Controller": "Xbox 360 Wireless Controller",
     "Xbox Series X": "Xbox Series X",
     "DualSense": "DualSense",
     "Switch Pro Controller": "Switch Pro Controller",

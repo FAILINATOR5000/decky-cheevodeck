@@ -67,7 +67,7 @@ const DOLPHIN_TAG_SEEDS: ReadonlyArray<{ key: string; tag: string }> = [
 
 const SYSTEM_OPTIONS: DolphinSystem[] = ["gamecube", "wii"];
 const WII_STYLE_OPTIONS: WiiStyle[] = ["wiimote_sideways", "wiimote_nunchuk", "classic"];
-const CONTROLLER_OPTIONS: ControllerType[] = ["steamdeck", "steamcontroller", "rogally", "xbox", "xboxone", "dualsense", "ps4", "switchpro"];
+const CONTROLLER_OPTIONS: ControllerType[] = ["steamdeck", "steamcontroller", "rogally", "xbox", "xboxone", "xbox360", "dualsense", "ps4", "switchpro"];
 
 function controllerOptions(system: DolphinSystem): ControllerType[] {
     return system === "wii" ? [...CONTROLLER_OPTIONS, REAL_WIIMOTE] : CONTROLLER_OPTIONS;

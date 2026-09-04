@@ -34,6 +34,7 @@ _SINGLE_PLAYER_TAGS = (
     ("Switch Pro", "switchpro"),
     ("PlayStation 4", "ps4"),
     ("Steam Controller (2026)", "steamcontroller"),
+    ("Xbox 360 (Wireless)", "xbox360"),
     ("Xbox One", "xboxone"),
     ("Xbox Series X", "xbox"),
 )
