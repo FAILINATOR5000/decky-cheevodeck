@@ -24,6 +24,7 @@ from pathlib import Path
 import hashlib
 import os
 import re
+import shlex
 import shutil
 import threading
 import time
@@ -66,6 +67,16 @@ _HASH_RE = re.compile(r"^[0-9a-f]{32}$")
 
 _CUE_EXTENSIONS = (".cue", ".gdi", ".m3u", ".ccd", ".toc")
 _TRACK_EXTENSIONS = (".bin", ".img")
+
+# A .toc sends its whole directory back to the old rule instead of getting a
+# reader. MAME's own parse_toc has no CDRDAO branch and there is no sample to
+# test against, so a parser here would be guesswork, and guessing wrong drops
+# somebody's disc silently. Do not add one without a real file to check it.
+_UNREADABLE_SHEET_EXTENSIONS = (".toc",)
+
+_MAX_SHEET_BYTES = 256 * 1024
+
+_CUE_FILE_LINE = re.compile(r'^\s*FILE\s+(?:"([^"]*)"|(\S+))', re.IGNORECASE | re.MULTILINE)
 
 FAILED_UNREADABLE = "unreadable"
 FAILED_AMBIGUOUS = "ambiguous"
@@ -511,21 +522,115 @@ class CheevoCheckService:
                 return None
             current = current.parent
 
+    def _read_sheet(self, path: Path):
+        """A sheet's text, or None when it cannot be read.
+
+        None is not the same as an empty sheet, and the caller has to keep them
+        apart: an empty sheet claims nothing, while an unreadable one means the
+        directory's associations are unknown and the old rule has to take over.
+        """
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace") as handle:
+                return handle.read(_MAX_SHEET_BYTES)
+        except OSError:
+            return None
+
+    def _claimed_by_cue(self, path: Path):
+        """The track filenames a .cue names on its FILE lines."""
+        text = self._read_sheet(path)
+        if text is None:
+            return None
+        return {
+            Path(quoted or bare).name.lower()
+            for quoted, bare in _CUE_FILE_LINE.findall(text)
+            if (quoted or bare)
+        }
+
+    def _claimed_by_gdi(self, path: Path):
+        """The track filenames a Sega .gdi names.
+
+        A track line is six whitespace-separated fields and the filename is the
+        fifth, optionally quoted. MAME's parse_gdi rejects any line that is not
+        exactly six, so a line that is not is the track count or a stray, and
+        skipping it here matches. Reference: cdrom.cpp parse_gdi.
+        """
+        text = self._read_sheet(path)
+        if text is None:
+            return None
+        out = set()
+        for line in text.splitlines():
+            try:
+                fields = shlex.split(line)
+            except ValueError:
+                fields = line.split()
+            if len(fields) != 6:
+                continue
+            out.add(Path(fields[4]).name.lower())
+        return out
+
+    def _claimed_by_ccd(self, path: Path):
+        """The track a CloneCD .ccd speaks for, which it never names.
+
+        The format carries no filename anywhere, so the stem is the only thing
+        tying the sheet to its image. Reading the file would tell us nothing,
+        which is why this one does not open it.
+        """
+        stem = path.stem.lower()
+        return {stem + extension for extension in _TRACK_EXTENSIONS}
+
+    def _claimed_tracks(self, files: list, suffixes: dict):
+        """Every track filename the sheets in this directory speak for.
+
+        Returns None when the answer is unknowable — an unreadable sheet, or a
+        format with no reader — which tells the caller to fall back rather than
+        act on a partial picture. A partial picture is the dangerous one: it
+        looks like an answer and quietly unskips somebody else's tracks.
+        """
+        readers = {".cue": self._claimed_by_cue, ".gdi": self._claimed_by_gdi,
+                   ".ccd": self._claimed_by_ccd}
+        claimed = set()
+        for path in files:
+            suffix = suffixes[path]
+            if suffix in _UNREADABLE_SHEET_EXTENSIONS:
+                return None
+            reader = readers.get(suffix)
+            if reader is None:
+                continue
+            found = reader(path)
+            if found is None:
+                return None
+            claimed |= found
+        return claimed
+
     def _candidates_in(self, root: Path, files: list) -> list:
         """Turn one directory's files into scan candidates.
 
         The track rule is the interesting part. A disc laid out loose is a cue
         sheet plus its .bin tracks, and only track one hashes to anything — the
         rest would show up as a row of corrupt-looking files that aren't. So when
-        a directory holds a cue sheet and more than one track file, the tracks are
-        left to the sheet. A single .bin beside its .cue is left alone: both hash
-        identically (Silent Hill does exactly this), and the duplicate fold is
-        what turns those into one row.
+        a directory holds a cue sheet and more than one track file, the tracks
+        the sheets actually name are left to them. A single .bin beside its .cue
+        is left alone: both hash identically (Silent Hill does exactly this), and
+        the duplicate fold is what turns those into one row.
+
+        Which tracks get skipped is read out of the sheets rather than assumed
+        from the directory. Assuming was wrong for a bare .bin nobody named,
+        which on an EmuDeck layout is one flat folder per console and therefore
+        the common case: it was read as somebody's stray track and dropped with
+        no row in any bucket at all. The count of tracks still gates the rule, so
+        a directory holding one game as one sheet and one track is untouched.
         """
         suffixes = {path: path.suffix.lower() for path in files}
         tracks = [path for path in files if suffixes[path] in _TRACK_EXTENSIONS]
         has_sheet = any(suffixes[path] in _CUE_EXTENSIONS for path in files)
-        skip = set(tracks) if has_sheet and len(tracks) > 1 else set()
+
+        skip = set()
+        if has_sheet and len(tracks) > 1:
+            claimed = self._claimed_tracks(files, suffixes)
+            if claimed is None:
+                skip = set(tracks)
+            else:
+                skip = {path for path in tracks if path.name.lower() in claimed}
 
         out = []
         for path in files:
