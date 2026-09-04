@@ -602,11 +602,6 @@ export function DolphinMappingModal(props: DolphinMappingModalProps) {
                                 flow-children="row"
                                 style={{ display: "flex", flexDirection: "row", gap: "8px", justifyContent: "flex-end" }}
                             >
-                                <div data-focus-key="dmapform:cancel">
-                                    <DialogButton onClick={close} disabled={saving} style={compactButtonStyle}>
-                                        {t(language, "Cancel")}
-                                    </DialogButton>
-                                </div>
                                 <div data-focus-key="dmapform:save">
                                     <DialogButton
                                         onClick={handleSave}
@@ -614,6 +609,11 @@ export function DolphinMappingModal(props: DolphinMappingModalProps) {
                                         style={compactButtonStyle}
                                     >
                                         {t(language, "Save")}
+                                    </DialogButton>
+                                </div>
+                                <div data-focus-key="dmapform:cancel">
+                                    <DialogButton onClick={close} disabled={saving} style={compactButtonStyle}>
+                                        {t(language, "Cancel")}
                                     </DialogButton>
                                 </div>
                             </Focusable>
