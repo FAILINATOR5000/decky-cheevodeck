@@ -260,6 +260,8 @@ export function groupMappingsByTag(mappings: DolphinMapping[], language: Languag
         group.mappings.push(mapping);
     }
 
+    groups.sort((a, b) => (a.tag ?? "").localeCompare(b.tag ?? "", language || "en", { numeric: true }));
+
     groups.push({
         tag: null,
         header: t(language, "Mappings ({{count}})", { count: untagged.length }),
