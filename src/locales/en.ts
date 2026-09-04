@@ -173,7 +173,7 @@ export const EN: LocaleTable = {
     "greeting_morning": "Good Morning",
     "greeting_afternoon": "Good Afternoon",
     "greeting_evening": "Good Evening",
-    "welcome_intro": "Welcome to CheevoDeck, the ultimate RetroAchievement tracking and management system. Please choose one of the three profiles below that best suits your style. Happy achievement hunting!",
+    "welcome_intro": "Welcome to CheevoDeck, the ultimate RetroAchievements tracking and management system. Please choose one of the three profiles below that best suits your style. Happy achievement hunting!",
     "profile_basic": "Basic",
     "profile_balanced": "Balanced",
     "profile_social": "Social",
