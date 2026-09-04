@@ -22,7 +22,7 @@ function complainOnce(what: string, e: unknown) {
     logError(`libraryBadge: ${what}`, e);
 }
 
-let installed: { patch: RoutePatch; unpatchers: (() => void)[] } | undefined;
+let installed: { patch: RoutePatch; release: () => void } | undefined;
 
 // Checked on every render, not just at registration: removePatch cannot reach a
 // page that is already mounted, so this is what makes turning the knob off take
@@ -74,26 +74,37 @@ export function enableLibraryBadge() {
         return;
     }
 
-    const unpatchers: (() => void)[] = [];
+    let live: (() => void) | undefined;
+
+    const seen = new WeakSet<object>();
+
     const patch = routerHook.addPatch(LIBRARY_ROUTE, (route: any) => {
         try {
             const host = findInReactTree(route, (node: any) => typeof node?.props?.renderFunc === "function");
-            if (!host) {
+            if (!host?.props || seen.has(host.props)) {
                 return route;
             }
+            seen.add(host.props);
             const patched = afterPatch(
                 host.props,
                 "renderFunc",
                 createReactTreePatcher([(tree: any) => tree?.props?.children], insertBadge)
             );
-            unpatchers.push(() => patched.unpatch());
+            live = () => patched.unpatch();
         } catch (e) {
             complainOnce("couldn't patch the library route", e);
         }
         return route;
     });
 
-    installed = { patch, unpatchers };
+    installed = {
+        patch,
+        release: () => {
+            const last = live;
+            live = undefined;
+            last?.();
+        }
+    };
 }
 
 export function applyLibraryBadge(enabled: boolean) {
@@ -109,18 +120,16 @@ export function disableLibraryBadge() {
     if (!installed) {
         return;
     }
-    const { patch, unpatchers } = installed;
+    const { patch, release } = installed;
     installed = undefined;
     try {
         routerHook.removePatch(LIBRARY_ROUTE, patch);
     } catch (e) {
         logError("libraryBadge: couldn't remove the route patch", e);
     }
-    for (const unpatch of unpatchers) {
-        try {
-            unpatch();
-        } catch (e) {
-            logError("libraryBadge: couldn't unwrap a render function", e);
-        }
+    try {
+        release();
+    } catch (e) {
+        logError("libraryBadge: couldn't unwrap a render function", e);
     }
 }
