@@ -70,7 +70,7 @@ CheevoDeck isn't just a basic RetroAchievements tracker — it's a full suite fo
 
     - **SMB Shares** — mounts your network drives, so a library living on a NAS works the same as one on the SD card. Useful if you want to access ROMs/files on your network.
 
-- **Steam library badges** — Your achievement progress can show up right on the game pages in your Steam library, on anything you've added as a non-Steam shortcut with Steam ROM Manager. Press up from the Play button to select the badge, then press A to open the full Game Info for it. It works off a Cheevo Check scan, so the badge is matched to your actual file and not to whatever the shortcut happened to get named, so you are guaranteed 100% match accuracy. If Cheevo Check verifies a file as a valid RA-supported file, it is guaranteed to have a badge. The option can be turned on or off in the **Cheevo Check** page under **Steam Library Badge**.
+- **Steam library badges** — Your achievement progress can show up right on the game pages in your Steam library, on anything you've added as a non-Steam shortcut with Steam ROM Manager. Press up from the Play button to select the badge, then press A to open the full game info for it. It works off a Cheevo Check scan, so the badge is matched to your actual file and not to whatever the shortcut happened to get named, so you are guaranteed 100% match accuracy. If Cheevo Check verifies a file as a valid RA-supported file, it is guaranteed to have a badge. The option can be turned on or off in the **Cheevo Check** page under **Steam Library Badge**.
 
 ## Screenshots
 
