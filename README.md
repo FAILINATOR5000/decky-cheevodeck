@@ -113,6 +113,14 @@ Here is just a sample of some of the pages within the plugin. There's plenty mor
 
 These are some of the larger modal dialogs within CheevoDeck: Large Guide Viewer and Notifications—both of which can be accessed from any page.
 
+<table>
+  <tr>
+    <td><a href="docs/images/steam-library-badge.webp"><img src="docs/images/steam-library-badge.webp" width="860" alt="The achievement badge on a Steam game page, and the CheevoDeck panel it opens"></a></td>
+  </tr>
+</table>
+
+An example of Steam library badges in action.
+
 ## Requirements
 
 - Any device with **SteamOS** is required to run the plugin (Steam Deck, Steam Machine, Asus ROG Ally, custom installation, etc.)
