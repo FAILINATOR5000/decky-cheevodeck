@@ -7,7 +7,7 @@ from mixins._context import PluginContext
 from utils import is_network_error, to_int
 
 
-PROGRESS_TIMEOUT_SECONDS = 5.0
+PROGRESS_TIMEOUT_SECONDS = 8.0
 
 
 class LibraryBadgeMixin(PluginContext):
@@ -86,10 +86,9 @@ class LibraryBadgeMixin(PluginContext):
             )
         except Exception as exc:
             if is_network_error(exc):
-                if getattr(self, "_debug_logging", False):
-                    decky.logger.info(
-                        "library badge: RA unreachable for game %s (%s)", wanted, exc
-                    )
+                decky.logger.warning(
+                    "library badge: RA unreachable for game %s (%s)", wanted, exc
+                )
             else:
                 decky.logger.error(
                     "library badge: progress for game %s failed (%s: %s)",

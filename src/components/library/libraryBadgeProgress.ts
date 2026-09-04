@@ -22,7 +22,7 @@ function since() {
 const SUCCESS_TTL_MS = 30 * 1000;
 const FAILURE_TTL_MS = 15 * 1000;
 
-const DEADLINE_MS = 6000;
+const DEADLINE_MS = 10000;
 
 const MAX_ENTRIES = 300;
 
