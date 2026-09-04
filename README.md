@@ -36,7 +36,7 @@ CheevoDeck isn't just a basic RetroAchievements tracker — it's a full suite fo
 
 - **GameFAQs integration** — Pick a guide for whatever you're playing and open it without ever leaving the game. Access guides quickly by enabling the special guides pin that appears on each page at the top or map it to a button on your controller. It's not just a boring guides viewer. It has zoom, search, bookmarks, and supports both formatted and classic guides. You can view guides from the quick access menu for portability or you can view them in a large dialog for wider view.
 
-- **Social** — Unlike traditional tracker apps, CheevoDeck offers rich social features, such as friend activity feeds, in-app comments viewing/tracking, wall post notifications, live notifications, and more. Don't have any friends? Don't sweat it! CheevoDeck offers a unique social feature called **Players Near You**, which is a special per-game social feed that shows players around your progress. It's a good opportunity to reach out and connect with those around you, and CheevoDeck makes that incredibly easy! You are able to view others' profiles in the **Profile** page, where you can post comments, follow new friends, with many things to view: all game, recent game, game progress, want to play, awards, wall posts, stats, and much more. Because the RA API does not offer the ability to befriend someone or post comments, CheevoDeck makes this as seamless as possible being sent to directly where you need to be. For example, each in-app comments section has a **Post** button where you will be sent directly to the comments section externally where you can post a comment. Finally, if you have a competitive itch, there are multiple ways to do so, such as comparing stats & achievements, viewing a ranking amongst friends, and comparing stats in leaderboards—offering filters to filter just between you and friends or against everyone.
+- **Social** — Unlike traditional tracker apps, CheevoDeck offers rich social features, such as friend activity feeds, in-app comments viewing/tracking, wall post notifications, live notifications, and more. Don't have any friends? Don't sweat it! CheevoDeck offers a unique social feature called **Players Near You**, which is a special per-game social feed that shows players around your progress. It's a good opportunity to reach out and connect with those around you, and CheevoDeck makes that incredibly easy! You are able to view others' profiles in the **Profile** page, where you can post comments, follow new friends, with many things to view: all game, recent game, game progress, want to play, awards, wall posts, stats, and much more. Because the RA API does not offer the ability to befriend someone or post comments, CheevoDeck makes this as seamless as possible by sending you directly where you need to be. For example, each in-app comments section has a **Post** button where you will be sent directly to the comments section externally where you can post a comment. Finally, if you have a competitive itch, there are multiple ways to do so, such as comparing stats & achievements, viewing a ranking amongst friends, and comparing stats in leaderboards—offering filters to filter just between you and friends or against everyone.
 
 - **Players Near You** — A per-game feed of other players, strangers and friends alike, who are near your progress in real-time. View the feed or get notifications and toasts to stay connected. It's a good way to find and connect with players near you or even make some new friends. There are four modes that you can set per-game:
 
@@ -62,13 +62,13 @@ CheevoDeck isn't just a basic RetroAchievements tracker — it's a full suite fo
 
 - **Bonus utilities**
 
-    - **Dolphin Mapper** — sets GameCube and Wii controller layouts for Dolphin so you don't have to do it by hand. No more nightmare tuning profiles for the many different wii control schemes. This does not touch your profiles; it only changes the active controller settings.
+    - **Dolphin Mapper** — sets GameCube and Wii controller layouts for Dolphin so you don't have to do it by hand. No more nightmare tuning profiles for the many different Wii control schemes. This does not touch your profiles; it only changes the active controller settings.
 
-    - **Cheevo Check** — scans your ROM library and tells you which files are RetroAchievements compatible. Also, offers validating your roms to ensure they are proper dumps. Run the scan once and each game page you added through Steam ROM Manager picks up a badge with your achievement progress on it.
+    - **Cheevo Check** — scans your ROM library and tells you which files are RetroAchievements compatible. Also, offers validating your ROMs to ensure they are proper dumps. Run the scan once and each game page you added through Steam ROM Manager picks up a badge with your achievement progress on it.
 
     - **File Watcher** — ideal for archivists; monitor the integrity of your ROMs folders by setting up a schedule to check your files against the hashes, or by running a check manually. You will be notified if your files got corrupted, changed, removed, etc., and prompted for approval of changes.
 
-    - **SMB Shares** — mounts your network drives, so a library living on a NAS works the same as one on the SD card. Useful if you want to access roms/files on your network.
+    - **SMB Shares** — mounts your network drives, so a library living on a NAS works the same as one on the SD card. Useful if you want to access ROMs/files on your network.
 
 - **Steam library badges** — Your achievement progress can show up right on the game pages in your Steam library, on anything you've added as a non-Steam shortcut with Steam ROM Manager. Press up from the Play button to select the badge, then press A to open the full Game Info for it. It works off a Cheevo Check scan, so the badge is matched to your actual file and not to whatever the shortcut happened to get named, so you are guaranteed 100% match accuracy. If Cheevo Check verifies a file as a valid RA-supported file, it is guaranteed to have a badge. The option can be turned on or off in the **Cheevo Check** page under **Steam Library Badge**.
 
@@ -127,7 +127,7 @@ These are some of the larger modal dialogs within CheevoDeck: Large Guide Viewer
 
 ## Installation
 
-1. Enter **Desktop Mode** and download the latest version of CheevoDeck from the [Releases page](https://github.com/FAILINATOR5000/decky-cheevodeck/releases). Place the ZIP file in an easy to access location such as desktop or downloads.
+1. Enter **Desktop Mode** and download the latest version of CheevoDeck from the [Releases page](https://github.com/FAILINATOR5000/decky-cheevodeck/releases). Place the ZIP file in an easy-to-access location such as desktop or downloads.
 
 2. Go into **Game Mode** and open the **Quick Access Menu** (The ... button on Steam Deck or Steam Controller).
 
@@ -326,7 +326,7 @@ CheevoDeck ships in eight languages: English, German, Spanish, French, Japanese,
 
 ## Motivation
 
-What really motivated me to work on CheevoDeck is my nephew's interest in RetroAchievements. This plugin was really developed for him, but that doesn't mean I shouldn't share it! Over the past year, my friends and family have probably spent thousands of hours using (and indirectly testing) CheevoDeck, enjoying RetroAchievements. It wasn't until recently that I officially decided I should probably share the love with the community as well. So here it is, and I sincerely hope you all enjoy this. If this brings joy to even one person, I'm happy with that. This plugin was developed from the ground-up with social features implemented, because it helps bring me and my family even closer—even though we are hundreds of miles apart.
+What really motivated me to work on CheevoDeck is my nephew's interest in RetroAchievements. This plugin was really developed for him, but that doesn't mean I shouldn't share it! Over the past year, my friends and family have probably spent thousands of hours using (and indirectly testing) CheevoDeck, enjoying RetroAchievements. It wasn't until recently that I officially decided I should probably share the love with the community as well. So here it is, and I sincerely hope you all enjoy this. If this brings joy to even one person, I'm happy with that. This plugin was developed from the ground up with social features implemented, because it helps bring me and my family even closer—even though we are hundreds of miles apart.
 
 ## Challenges & Limitations
 
