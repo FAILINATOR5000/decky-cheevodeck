@@ -1,11 +1,14 @@
 import { PanelSection, PanelSectionRow } from "@decky/ui";
 import { ErrorText } from "../components/ui/ErrorText";
 import { FocusableItem } from "../components/ui/FocusableItem";
-import { OptionToggle } from "../components/options/OptionRows";
+import { OptionToggle, OptionValueRow } from "../components/options/OptionRows";
 import type { LanguageCode } from "../locales";
 import type { ButtonSpacing } from "../types";
-import { localizeRuntimeText, t } from "../locales";
+import { LANGUAGES, localizeRuntimeText, t } from "../locales";
+import { openExternalUrl } from "../utils/navigation";
 import { regularButtonSpacingStyle } from "../utils/style";
+
+const GETTING_STARTED_URL = "https://github.com/FAILINATOR5000/decky-cheevodeck#getting-started";
 
 type SetupPageProps = {
     language: LanguageCode;
@@ -14,6 +17,7 @@ type SetupPageProps = {
     saving: boolean;
     error: string | null;
     onEditCredentials: () => void;
+    onOpenLanguage: () => void | Promise<void>;
     onClearApiKey: () => void | Promise<void>;
     putUpdaterOnDesktop: boolean;
     onTogglePutUpdaterOnDesktop: (nextValue: boolean) => void | Promise<void>;
@@ -27,6 +31,7 @@ function SetupPage(props: SetupPageProps) {
         saving,
         error,
         onEditCredentials,
+        onOpenLanguage,
         onClearApiKey,
         putUpdaterOnDesktop,
         onTogglePutUpdaterOnDesktop
@@ -44,6 +49,26 @@ function SetupPage(props: SetupPageProps) {
                     {hasApiKey ? t(language, "Edit Credentials") : t(language, "Enter Credentials")}
                 </FocusableItem>
             </PanelSectionRow>
+            <PanelSectionRow>
+                <FocusableItem
+                    focusKey="setup:getting-started"
+                    onClick={() => { void openExternalUrl(GETTING_STARTED_URL); }}
+                    disabled={saving}
+                    bottomSeparator="none"
+                    outerStyle={regularButtonSpacingStyle(buttonSpacing)}
+                >
+                    {t(language, "Getting Started")}
+                </FocusableItem>
+            </PanelSectionRow>
+            <OptionValueRow
+                outerStyle={regularButtonSpacingStyle(buttonSpacing)}
+                focusKey="setup:language"
+                onClick={onOpenLanguage}
+                disabled={saving}
+                label={t(language, "Language")}
+                value={LANGUAGES[language]?.label ?? language}
+                help={t(language, "help_language")}
+            />
             <OptionToggle
                 outerStyle={regularButtonSpacingStyle(buttonSpacing)}
                 label={t(language, "Add Updater to Desktop")}
@@ -58,6 +83,7 @@ function SetupPage(props: SetupPageProps) {
                         focusKey="setup:clear"
                         onClick={onClearApiKey}
                         disabled={saving}
+                        bottomSeparator="none"
                         outerStyle={regularButtonSpacingStyle(buttonSpacing)}
                     >
                         {t(language, "Clear Saved API Key")}

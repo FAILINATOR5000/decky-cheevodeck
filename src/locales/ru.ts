@@ -541,6 +541,7 @@ const RU: LocaleTable = {
     "Loading All Games...": "Загрузка всех игр...",
     "CheevoDeck Setup": "Настройка CheevoDeck",
     "Enter Credentials": "Ввести учётные данные",
+    "Getting Started": "Начало работы",
     "Clear Saved API Key": "Стереть сохранённый API-ключ",
     "RetroAchievements Credentials": "Учётные данные RetroAchievements",
     "Saving...": "Сохранение...",

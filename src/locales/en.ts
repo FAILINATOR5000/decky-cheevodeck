@@ -541,6 +541,7 @@ export const EN: LocaleTable = {
     "Loading All Games...": "Loading All Games...",
     "CheevoDeck Setup": "CheevoDeck Setup",
     "Enter Credentials": "Enter Credentials",
+    "Getting Started": "Getting Started",
     "Clear Saved API Key": "Clear Saved API Key",
     "RetroAchievements Credentials": "RetroAchievements Credentials",
     "Saving...": "Saving...",

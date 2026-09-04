@@ -541,6 +541,7 @@ const JA: LocaleTable = {
     "Loading All Games...": "全ゲームを読み込み中...",
     "CheevoDeck Setup": "CheevoDeck の初期設定",
     "Enter Credentials": "認証情報を入力",
+    "Getting Started": "はじめに",
     "Clear Saved API Key": "保存した API キーを削除",
     "RetroAchievements Credentials": "RetroAchievements の認証情報",
     "Saving...": "保存中...",

@@ -3951,6 +3951,7 @@ function AchievementsRoot() {
                 saving={saving}
                 error={error}
                 onEditCredentials={openCredentialsModal}
+                onOpenLanguage={openLanguageModal}
                 onClearApiKey={onClearApiKey}
                 putUpdaterOnDesktop={optionsState.putUpdaterOnDesktop}
                 onTogglePutUpdaterOnDesktop={optionsActions.onTogglePutUpdaterOnDesktop}
