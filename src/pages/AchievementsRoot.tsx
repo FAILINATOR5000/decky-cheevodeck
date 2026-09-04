@@ -4432,6 +4432,7 @@ function AchievementsRoot() {
                                     notesPendingReminderBadge: gameNotesState.pendingReminderBadge,
                                     doNotDisturb,
                                     notificationsHasUnread: notif.hasUnread,
+                                    updateAvailable: aboutState.updateAvailable,
                                     mainTab,
                                     nightMode,
                                     batterySaver,

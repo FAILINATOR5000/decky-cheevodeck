@@ -579,6 +579,7 @@ type MainAchievementsPageProps = {
         notesPendingReminderBadge: boolean;
         showNotesDot: boolean;
         notificationsHasUnread: boolean;
+        updateAvailable: boolean;
         mainTab: MainAchievementsTab;
         nightMode: boolean;
         doNotDisturb: boolean;
@@ -888,6 +889,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
             showNotesDot,
             notesPendingReminderBadge,
             notificationsHasUnread,
+            updateAvailable,
             mainTab,
             nightMode,
             doNotDisturb,
@@ -1296,7 +1298,8 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    marginTop: rowTopMargin
+                    marginTop: rowTopMargin,
+                    position: "relative"
                 }}
             >
                 <DialogButton
@@ -1376,6 +1379,24 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                 >
                     <Icon size={20} />
                 </DialogButton>
+                {entry.id === "about" && updateAvailable && (
+                    <div
+                        className="da-notes-dot"
+                        style={{
+                            position: "absolute",
+                            top: "-2px",
+                            right: "-2px",
+                            width: "8px",
+                            height: "8px",
+                            borderRadius: "50%",
+                            background: warnAmber,
+                            boxShadow: "0 0 0 1px rgba(0,0,0,0.4)",
+                            animation: "da-notes-dot-pulse 3.2s ease-in-out infinite"
+                        }}
+                    >
+                        <style>{NOTES_DOT_KEYFRAMES}</style>
+                    </div>
+                )}
             </div>
         );
     }
