@@ -9,6 +9,7 @@ import { loadProgress, readCachedProgress } from "./libraryBadgeProgress";
 import { openGameOverviewForGame } from "./openGameOverview";
 
 type Settled = {
+    appId: number;
     gameId: number;
     label: string;
 };
@@ -53,6 +54,7 @@ export function LibraryBadge({ appId }: LibraryBadgeProps) {
                 }
                 const language = getCurrentLanguage();
                 setSettled({
+                    appId,
                     gameId,
                     label: progress
                         ? t(language, "{{earned}} / {{total}} Unlocked", {
@@ -70,7 +72,7 @@ export function LibraryBadge({ appId }: LibraryBadgeProps) {
         };
     }, [appId]);
 
-    if (!settled) {
+    if (!settled || settled.appId !== appId) {
         return null;
     }
 
