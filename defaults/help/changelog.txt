@@ -1,49 +1,21 @@
 CheevoDeck {{VERSION}}
 
-This update is quite a hefty one, with one highlight being the new updater feature. You can now choose to install an updater to be placed on your Desktop upon first-time onboarding or by manually pressing the <b>Add Updater to Desktop</b> button in the About page. This adds another option alongside downloading the ZIP or copying the URL to install. All it takes is a simple double click of the launcher in Desktop mode, and everything is updated.
+This is a smaller update compared to the last, but it aims at better accessibility and assistance at the first screen. It also focuses a little bit on Dolphin Mapper.
 
-The next major change is the addition of arcade games support to Cheevo Check, as well as Steam library badges that, when enabled, show a badge on your library game pages with your achievement progress. You can interact with it to be brought straight to a detailed info page for the game. Because it relies on Cheevo Check to obtain hashes from your game library to determine if supported on RetroAchievements, you must run a Cheevo Check scan of your whole library. In EmuDeck, that would be your /home/deck/Emulation/roms folder, which the scan option opens up to by default. Once your files are hashed and verified, each of those games will display a badge. If you add any new games to your library, run the scan again; luckily it becomes faster as it caches your local hashes by default.
+<b>What's New</b>
 
-<b>New</b>
+- You can pick your language right on the setup screen now before you enter anything. No more having to go to options to change it after the intro.
 
-- The CheevoDeck Updater. A button in About installs it to your desktop, and there's a toggle for it during first-time setup.
+- A <b>Getting Started</b> button was added to the startup page which opens a guided walkthrough.
 
-- RA badges on your Steam library pages for non-Steam games, showing achievement progress. Select one to jump to Game Info.
+- Dolphin Mapper supports the Xbox 360 wireless controller and its dongle. Fourteen starter mappings have been added.
 
-- Arcade support in Cheevo Check, which is what makes arcade badges possible.
+- A <b>Help</b> button was added to the Dolphin Mapper page leading to a small tutorial.
 
-- Developer messages. If a SteamOS or client update breaks something, I can push a message straight to your notifications with a workaround until there's a proper fix.
+<b>What's Fixed</b>
 
-- A welcome message after first-time setup, covering the basics of getting around.
+- Fixed a problem where the language picked during setup was wiped during the onboarding process. It also survives a settings reset now.
 
-- View Style joins the first-time setup dialogs, so you can pick Default or Compact alongside the social and scaling presets.
+- Dolphin Mapper tags are sorted alphabetically now.
 
-- Darken Screen on Cheevo Check and File Watcher, so an OLED panel can rest through a long scan.
-
-- Visit RA is now available both as a mapped shortcut and as a Quick Menu button.
-
-- A scroll indicator in the text viewer, and its default zoom is down to 130.
-
-<b>Fixed</b>
-
-- A long username with no spaces in it pushed the title strip off to the right on Friend Profile, Want to Play and All Games.
-
-- Finishing or cancelling a Cheevo Check scan left the page with no focus at all.
-
-- A factory reset made the What's New card announce a release you'd been running for weeks.
-
-- An update found while you were still entering your credentials lost its notification, because there was no account for it to live in yet. It waits for one now.
-
-- An archived What's New card showed the notes for whatever version you had installed instead of the release it was announcing.
-
-- The About page gave the new version number twice, once in a smaller font under Check for Updates.
-
-- The up-to-date message mentioned a force option that isn't there.
-
-- Truncated comment cards were missing their A prompt.
-
-- L1 and R1 made no sound when cycling a mapped shortcut, though A did.
-
-- The save and add buttons in the credential modals moved to the left, to match everything else.
-
-- The This Game tab is now Current Game.
+- The save button in the mapping form moved to the left for convenience.
