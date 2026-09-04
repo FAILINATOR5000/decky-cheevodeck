@@ -78,8 +78,8 @@ export function legendGlyph(mark: string) {
 const HIGHLIGHT_MATCH = "cheevo-guide-search";
 const HIGHLIGHT_CURRENT = "cheevo-guide-search-current";
 
-const PROGRESS_TRACK_PX = 3;
-const PROGRESS_MARK_PX = 18;
+export const PROGRESS_TRACK_PX = 3;
+export const PROGRESS_MARK_PX = 18;
 
 const SEARCH_MATCH_MARGIN_PX = 10;
 
