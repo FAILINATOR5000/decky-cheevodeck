@@ -417,7 +417,7 @@ _KNOBS = (
     Knob("friendAchievementFilter", default="all", normalize=True),
     Knob("friendAchievementSort", default="upNext", normalize=True),
     Knob("friendShowAllAchievements", default=True, normalize=True),
-    Knob("language", from_attr="_default_language", normalize=True),
+    Knob("language", from_attr="_default_language", reset=False, normalize=True),
     Knob("friendRefreshDelayMs", default=1000, normalize=True),
     Knob("activityCacheMinutes", default=5, normalize=True),
     Knob("trickleLookbackHours", default=3, normalize=True),
