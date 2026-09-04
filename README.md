@@ -424,4 +424,4 @@ BSD 3-Clause. The full text is in [LICENSE](LICENSE), and the licenses for third
 
 ## Disclaimer
 
-CheevoDeck is not affiliated with or endorsed by Steam, Valve, RetroAchievements, GameFAQs, or Decky Loader. It does not provide downloads to ROMs, BIOS, or game data.
+CheevoDeck is not affiliated with or endorsed by Steam, Valve, RetroAchievements, GameFAQs, Decky Loader, EmuDeck, or Steam ROM Manager. It does not provide downloads to ROMs, BIOS, or game data.
