@@ -34,6 +34,7 @@ from services.new_sets_service import NewSetsService
 from services.tracked_sets_monitor_service import TrackedSetsMonitorService
 from services.update_checker_service import UpdateCheckerService, installed_version
 from services.developer_message_service import DeveloperMessageService
+from services.repair_service import RepairService
 from services.emulator_login_sync_service import EmulatorLoginSyncService
 from notes_store import NotesStore
 from guides_store import GuidesStore
@@ -416,6 +417,9 @@ class Plugin(
             user_home=self.user_home,
             notifications_store=self.notifications_store,
         )
+        self.repair_service = RepairService(
+            update_checker_service=self.update_checker_service,
+        )
         self.developer_message_service = DeveloperMessageService(
             settings_store=self.settings_store,
             message_store=self.developer_message_store,
@@ -641,6 +645,14 @@ class Plugin(
 
     async def _main(self):
         self._asyncio_loop = asyncio.get_running_loop()
+
+        try:
+            await asyncio.to_thread(self.repair_service.run_startup_repairs)
+        except Exception as e:
+            decky.logger.warning(
+                "repair: startup repairs dispatch failed: %s",
+                type(e).__name__,
+            )
 
         self.current_game_service.set_event_loop(self._asyncio_loop)
 

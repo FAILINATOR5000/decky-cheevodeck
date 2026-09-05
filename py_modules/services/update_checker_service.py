@@ -50,12 +50,14 @@ UPDATER_SCRIPT_URL = "https://raw.githubusercontent.com/%s/%s/main/update-cheevo
 
 LAUNCHER_FILE_NAME = "Install or Update CheevoDeck.desktop"
 
+LAUNCHER_OLD_NAME = "Name=Install/Update CheevoDeck"
+
 LAUNCHER_NO_DESKTOP = "no_desktop"
 LAUNCHER_FAILED = "launcher_failed"
 
 LAUNCHER_TEXT = """#!/usr/bin/env xdg-open
 [Desktop Entry]
-Name=Install/Update CheevoDeck
+Name=Update CheevoDeck
 Comment=Install CheevoDeck, or update it to the latest version
 Exec=sh -c 'rm -f /tmp/update-cheevodeck.sh; if curl -fsL --connect-timeout 60 -o /tmp/update-cheevodeck.sh %s && head -n 1 /tmp/update-cheevodeck.sh | grep -q "^#!"; then bash /tmp/update-cheevodeck.sh; else echo "Could not download the updater. Check your connection and try again."; read -r _; fi'
 Icon=system-software-update
@@ -406,6 +408,42 @@ class UpdateCheckerService:
         chown_to_data_owner(path)
         decky.logger.info("updater launcher written to %s", path)
         return {"ok": True, "path": str(path), "name": path.name}
+
+    def refresh_desktop_launcher(self):
+        """Put the new label on a launcher that was placed before the rename.
+
+        RepairService calls this on every start. A launcher is written once,
+        when the user asks for it, and nothing goes back to it afterwards — so
+        somebody who added the updater under the old name keeps the truncated
+        label forever unless something reaches in and corrects it. This is that
+        something.
+
+        Only ever touches the one file we placed, at the one path we place it
+        at. A stray launcher the user built or copied themselves is theirs, and
+        a plugin that tidies up files it does not recognise eventually removes
+        the wrong one.
+
+        Returns True only when it actually fixed something, so a boot with
+        nothing to do stays silent in the log.
+        """
+        desktop = self._desktop_dir()
+        if desktop is None:
+            return False
+
+        path = desktop / LAUNCHER_FILE_NAME
+        try:
+            current = path.read_text(encoding="utf-8", errors="replace")
+        except FileNotFoundError:
+            return False
+        except OSError as exc:
+            decky.logger.warning("repair: couldn't read the updater launcher at %s (%s)", path, exc)
+            return False
+
+        if LAUNCHER_OLD_NAME not in [line.strip() for line in current.splitlines()]:
+            return False
+
+        result = self.place_desktop_launcher()
+        return bool(result.get("ok"))
 
     def _desktop_dir(self):
         """Where the user's desktop actually is.
