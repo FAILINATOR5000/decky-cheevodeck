@@ -1,21 +1,17 @@
 CheevoDeck {{VERSION}}
 
-This is a smaller update compared to the last, but it aims at better accessibility and assistance at the first screen. It also focuses a little bit on Dolphin Mapper.
+This one is mostly repairs and refinements for Cheevo Check and the Steam library badges feature.
 
 <b>What's New</b>
 
-- You can pick your language right on the setup screen now before you enter anything. No more having to go to options to change it after the intro.
-
-- A <b>Getting Started</b> button was added to the startup page which opens a guided walkthrough.
-
-- Dolphin Mapper supports the Xbox 360 wireless controller and its dongle. Fourteen starter mappings have been added.
-
-- A <b>Help</b> button was added to the Dolphin Mapper page leading to a small tutorial.
+- The <b>About</b> button in the Quick Menu now shows a small, glowing dot when an update is available.
 
 <b>What's Fixed</b>
 
-- Fixed a problem where the language picked during setup was wiped during the onboarding process. It also survives a settings reset now.
+- Cheevo Check recognizes the rest of EmuDeck's ROM folder names now, including the regional ones. This allows full coverage and integration with libraries for users who use EmuDeck.
 
-- Dolphin Mapper tags are sorted alphabetically now.
+- For Cheevo Check, cue sheets are read properly now, instead of using the old educated guess algorithm. Single .bin games were sometimes ignored, but not anymore!
 
-- The save button in the mapping form moved to the left for convenience.
+- The library badge waits a little longer for RetroAchievements before it gives up, so a slow connection is more likely to show your progress, instead of the fallback achievement count.
+
+- The library badge no longer flashes the previous game's progress for a moment when you go straight from one game page to another.
