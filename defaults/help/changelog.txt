@@ -1,17 +1,9 @@
 CheevoDeck {{VERSION}}
 
-This focuses mainly on making Cheevo Check much easier to get started with, improving the help text as well as decluttering the area around the <b>Scan</b> button. Also, first-timers are now able to turn on Steam library badges at the setup page.
+This update is a small one, but includes something I've been meaning to add to <b>Steam Library Badges</b>. In addition to showing your achievement progress, if completed or mastered, it will now show that status.
 
 <b>What's New</b>
 
-- The <b>Steam Library Badge</b> can be switched on right from the setup page now.
+- The <b>Steam Library Badges</b> now show <b>Completed</b> and <b>Mastered</b> status.
 
-- The <b>Guide</b> has moved out of the Scan section and into its own <b>Help</b> section, further down the Cheevo Check page. It just seemed weird that I had it up there.
-
-<b>What's Fixed</b>
-
-- The help text across Cheevo Check has been drastically improved. Less jargon, more meaningful explaining! The result explanations in particular were doing a lot of explaining about why a thing happened. What you probably want to know is whether your game is supported or not! I do have whys, but not unnecessary ones.
-
-- The <b>Scan</b> and <b>Offline Scan</b> buttons now tell you what they actually do, including the part where EmuDeck and ES-DE libraries are already named correctly, so you are completely fine with folder naming if you use either.
-
-- The desktop updater is called <b>Update CheevoDeck</b> now. The old name was too long and got cut off, and anyone who already has the old one will have it renamed automatically the next time CheevoDeck starts.
+- Added info text that shows in the intermediary loading window if connection to RA is weak.
