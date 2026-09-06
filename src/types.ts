@@ -7,6 +7,7 @@ type RaPayloadResponse<T> = {
     changed: boolean;
 };
 
+// Shared primitives
 export type OkResult = {
     ok: boolean;
     error?: string;
@@ -19,6 +20,7 @@ export type ButtonSpacing = "verysmall" | "small" | "medium" | "large" | "xlarge
 export type MainAchievementAction = "track" | "info";
 export type TrackedAchievementAction = "untrack" | "info" | "editNote" | "reorder";
 
+// Dolphin mapper
 export type DolphinSystem = "gamecube" | "wii";
 export type DolphinSystemFilter = "all" | "wii" | "gamecube";
 export type WiiStyle = "wiimote_sideways" | "wiimote_nunchuk" | "classic";
@@ -61,6 +63,7 @@ export type DolphinMapping = {
     updatedAt: number;
 };
 
+// SMB shares
 export type SmbVersion = "auto" | "3.1.1" | "3.0" | "2.1" | "2.0" | "1.0";
 
 export type SmbShareStatus = "mounted" | "idle" | "disabled" | "unreachable" | "error";
@@ -96,6 +99,7 @@ export type SmbSharePayload = {
 
 type CheevoCheckFailReason = "unreadable" | "ambiguous" | "no_space" | "archive";
 
+// Cheevo Check
 export type CheevoCheckRow = {
     system: string;
     systemId: number;
@@ -228,6 +232,7 @@ export type CheevoCheckState = {
     startDir: string;
 };
 
+// File Watcher
 export type FileWatcherSpeed = "full" | "balanced" | "gentle";
 
 export type FileWatcherRoot = {
@@ -324,6 +329,7 @@ export type FileWatcherState = {
     pass: FileWatcherPass | null;
 };
 
+// Dolphin responses
 export type DolphinMappingInput = {
     id?: string;
     name: string;
@@ -366,6 +372,7 @@ export type SetDeckControllerResponse = {
     status: DeckControllerStatus;
 };
 
+// Filters and sorts
 export type PlayersNearYouTapMode = "profile" | "achievement" | "game";
 
 export type PlayersNearYouMode = "classic" | "enhanced" | "recent" | "off";
@@ -392,6 +399,7 @@ export type TrackedAchievementSort =
 
 export type FollowedRankingMetric = "hardcorePoints" | "softcorePoints" | "retroPoints" | "retroRatio";
 
+// Routing
 export type ViewKey =
     | "achievements"
     | "tracked"
@@ -419,6 +427,8 @@ export type ViewKey =
     | "cheevoCheck"
     | "fileWatcher"
     | "guides";
+
+// Guides
 export type GuidesSubView = "list" | "reader" | "search";
 export type GuideKind = "formatted" | "plaintext";
 
@@ -461,6 +471,7 @@ export type GameGuidesRecord = {
     typeFilter: string;
 };
 
+// Page sub-views
 export type AchievementListMode = "main" | "friend" | "tracked" | "overview";
 export type FriendAchievementFilter = "all" | "locked" | "unlocked-hardcore" | "unlocked-softcore" | "missable";
 export type FriendGameSource = "recentGames" | "allGames";
@@ -531,6 +542,8 @@ export type AchievementOverviewSnapshot = {
     dateEarned: string | null;
     dateEarnedHardcore?: string | null;
 };
+
+// Display enums
 export type AchievementStyle = "centered" | "left";
 
 export type ControllerGlyphStyle = "auto" | "deck" | "steamcontroller" | "xbox" | "playstation" | "nintendo" | "universal";
@@ -571,6 +584,7 @@ export type SocialEntryDefault = SocialView | "lastUsed";
 
 export type ActivityCardAction = "profile" | "achievement" | "game";
 
+// Options and shortcuts
 export type OptionsTab = "system" | "gui" | "social" | "cache" | "advanced";
 
 export type ScalePreset = "portable" | "bigScreen" | "bigText";
@@ -623,6 +637,7 @@ export type TrackedTab = "thisGame" | "otherGames" | "addAllMissable" | "clear";
 
 export type CacheClearGroup = "gameData" | "friendGamePayloads" | "friends" | "images" | "awardIcons" | "socialActivity" | "gameActivity" | "playersNearYou" | "gamesList" | "awardsList" | "wantToPlayList" | "setsList" | "leaderboards" | "cheevoCheckResults" | "cheevoCheckHashes" | "cheevoCheckRaData";
 
+// Notifications
 export type NotificationType =
     | "noteReminder"
     | "trackedSet"
@@ -687,6 +702,7 @@ export type ArchiveSort =
     | "createdDesc"
     | "createdAsc";
 
+// Updates and accounts
 export type UpdateStatusResponse = {
     ok: boolean;
     installedVersion: string;
@@ -707,6 +723,7 @@ export type SavedUser = {
     hardcore: boolean;
 };
 
+// Settings response
 export type SettingsResponse = {
     username: string;
     activeUlid: string;
@@ -941,6 +958,7 @@ export type SwitchUserResult =
           inject?: InjectResult | null;
       } & SettingsResponse);
 
+// Achievements and payload
 export type AchievementRow = {
     badgeUrl?: string | null;
     id: number;
@@ -985,6 +1003,7 @@ export type Payload = {
     achievements: AchievementRow[];
 };
 
+// Friends and games
 export type FriendRecentGame = {
     gameId: number;
     title: string;
@@ -1130,6 +1149,7 @@ export type UnlockHistoryResponse = RaPayloadResponse<UnlockHistoryPayload>;
 
 type SocialActivityKind = "achievementUnlocked" | "gameBeaten" | "gameMastered";
 
+// Social activity
 export type SocialActivityEvent = {
     id: string;
     username: string;
@@ -1229,6 +1249,7 @@ export type SocialHubTickerResponse = {
     event: SocialHubTickerEvent | null;
 };
 
+// Response wrappers
 export type CachedResponse = { payload: Payload | null };
 export type CachedFriendsResponse = { payload: FriendsPayload | null; hasCache?: boolean };
 
@@ -1285,6 +1306,7 @@ type LeaderboardUserEntry = {
     dateUpdated?: string | null;
 };
 
+// Leaderboards
 export type LeaderboardRow = {
     id: number;
     rankAsc: boolean;
@@ -1332,6 +1354,7 @@ export type LeaderboardUserEntryPayload = {
 
 export type LeaderboardUserEntryResponse = RaPayloadResponse<LeaderboardUserEntryPayload>;
 
+// Tracked notes and sets
 export type TrackedNotes = Record<string, string>;
 
 export type NoteColor =
@@ -1480,6 +1503,7 @@ export type SaveTrackedSetsSelectorFilterResponse = {
 };
 
 
+// Subscriptions
 export type SubscriptionKind = "game" | "achievement";
 
 export type Subscription = {
@@ -1528,6 +1552,7 @@ export type RemoveSubscriptionResponse = {
 };
 
 
+// Saved comments
 export type SavedCommentSourceKind = "game" | "achievement" | "userWall";
 
 export type SavedCommentSource = {
@@ -1618,6 +1643,7 @@ export type SavedCommentsPrefs = {
 };
 
 
+// Tracked responses
 export type TrackedAchievementsResponse = {
     gameId: number | null;
     viewOpen: boolean;
@@ -1679,6 +1705,7 @@ export type RecentTagsResponse = {
     recentTags: string[];
 };
 
+// Game notes
 export type GameNoteSortMode = "newest" | "oldest" | "manual";
 
 export type GameNoteReminderMode = "off" | "once" | "every";
@@ -1823,6 +1850,7 @@ export type TrackedDrillInState = {
     onReorderMove: (direction: ReorderDirection, groupIds?: number[] | null) => void | Promise<void>;
 };
 
+// News and AotW
 export type NewsEntry = {
     id: number | null;
     title: string;
@@ -1914,6 +1942,7 @@ export type NewSetsAndRevisionsResponse = {
     error?: string;
 };
 
+// Game comments
 export type GameComment = {
     user: string;
     ulid: string;
@@ -1931,6 +1960,7 @@ export type GameCommentsResponse = {
     restricted?: boolean;
 };
 
+// Resume state
 export type ResumeState = {
     view: ViewKey;
     navStack?: ViewKey[] | null;
