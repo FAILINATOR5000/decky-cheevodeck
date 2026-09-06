@@ -986,6 +986,7 @@ const RU: LocaleTable = {
     Cancel: "Отмена",
     "Refreshing Achievements...": "Обновление достижений...",
     "Just a paws...": "Минутку, мур-мур...",
+    "Hold tight... still connecting! Trying to reach RA servers... could be your connection or their servers are slow.": "Секунду... подключение продолжается! Идёт попытка связаться с серверами RA... возможно, дело в вашем соединении или их серверы работают медленно.",
     "Herding cats...": "Пасём котов...",
     "Chasing down your data...": "Догоняем твои данные...",
     "Track / Untrack": "Отслеживать / убрать",

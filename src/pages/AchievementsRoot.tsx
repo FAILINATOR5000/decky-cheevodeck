@@ -194,7 +194,7 @@ import type {
     SocialView
 } from "../types";
 
-import { achievementUiMetrics, FADE_IN_KEYFRAMES } from "../utils/style";
+import { achievementUiMetrics, bodyTextStyle, FADE_IN_KEYFRAMES } from "../utils/style";
 import { logError } from "../utils/errors";
 import { SHORTCUT_BUTTON_BY_CODE } from "../utils/gamepadButtons";
 import { requestJumpToTop } from "../utils/jumpToTop";
@@ -422,6 +422,7 @@ function AchievementsRoot() {
     const [showBootSpinner, setShowBootSpinner] = useState(false);
     const [bootCatLine, setBootCatLine] = useState(BOOT_CAT_LINES[0]);
     const [bootCatPreview, setBootCatPreview] = useState(false);
+    const [showBootSlowNote, setShowBootSlowNote] = useState(false);
     const [settingsMode, setSettingsMode] = useState(false);
     const [view, setViewState] = useState<ViewKey>("achievements");
     const [nav, setNav] = useState(() => initialNav("achievements"));
@@ -2932,7 +2933,7 @@ function AchievementsRoot() {
             if (mountedRef.current) {
                 setBootCatPreview(false);
             }
-        }, 4000);
+        }, 12000);
     }
 
     async function onManualRefreshFriends() {
@@ -3902,6 +3903,19 @@ function AchievementsRoot() {
         };
     }, [settingsLoaded]);
 
+    useEffect(() => {
+        if (settingsLoaded && !bootCatPreview) {
+            setShowBootSlowNote(false);
+            return;
+        }
+        const timer = setTimeout(() => {
+            setShowBootSlowNote(true);
+        }, 5000);
+        return () => {
+            clearTimeout(timer);
+        };
+    }, [settingsLoaded, bootCatPreview]);
+
     // Derived state
     const panelOverlayVisible = loading || clearingAllCache || Boolean(friendProfileOverlayText);
 
@@ -3930,6 +3944,17 @@ function AchievementsRoot() {
                         }}
                     />
                     <InlineSpinner label={t(language, bootCatLine)} bold />
+                    {showBootSlowNote && (
+                        <div
+                            style={{
+                                ...bodyTextStyle(),
+                                textAlign: "center",
+                                maxWidth: "92%"
+                            }}
+                        >
+                            {t(language, "Hold tight... still connecting! Trying to reach RA servers... could be your connection or their servers are slow.")}
+                        </div>
+                    )}
                 </div>
             </PanelSectionRow>
         </PanelSection>

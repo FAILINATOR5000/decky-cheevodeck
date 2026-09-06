@@ -1011,6 +1011,7 @@ const PL: LocaleTable = {
     Cancel: "Anuluj",
     "Refreshing Achievements...": "Odświeżanie osiągnięć...",
     "Just a paws...": "Jeszcze łapkę cierpliwości...",
+    "Hold tight... still connecting! Trying to reach RA servers... could be your connection or their servers are slow.": "Chwileczkę... trwa łączenie! Próba połączenia z serwerami RA... to może być twoje połączenie albo ich serwery działają wolno.",
     "Herding cats...": "Zaganiamy koty...",
     "Chasing down your data...": "Gonimy twoje dane...",
     "Track / Untrack": "Przypnij / Odepnij",

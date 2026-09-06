@@ -988,6 +988,7 @@ const ES: LocaleTable = {
     Cancel: "Cancelar",
     "Refreshing Achievements...": "Actualizando logros...",
     "Just a paws...": "Solo una patita...",
+    "Hold tight... still connecting! Trying to reach RA servers... could be your connection or their servers are slow.": "Un momento... ¡todavía conectando! Intentando llegar a los servidores de RA... puede ser tu conexión o que sus servidores vayan lentos.",
     "Herding cats...": "Arreando gatos...",
     "Chasing down your data...": "Persiguiendo tus datos...",
     "Track / Untrack": "Seguir / dejar de seguir",

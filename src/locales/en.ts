@@ -986,6 +986,7 @@ export const EN: LocaleTable = {
     Cancel: "Cancel",
     "Refreshing Achievements...": "Refreshing Achievements...",
     "Just a paws...": "Just a paws...",
+    "Hold tight... still connecting! Trying to reach RA servers... could be your connection or their servers are slow.": "Hold tight... still connecting! Trying to reach RA servers... could be your connection or their servers are slow.",
     "Herding cats...": "Herding cats...",
     "Chasing down your data...": "Chasing down your data...",
     "Track / Untrack": "Track / Untrack",

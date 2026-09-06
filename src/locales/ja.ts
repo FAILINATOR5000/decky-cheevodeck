@@ -986,6 +986,7 @@ const JA: LocaleTable = {
     Cancel: "キャンセル",
     "Refreshing Achievements...": "実績を更新中...",
     "Just a paws...": "ちょっと待つニャ...",
+    "Hold tight... still connecting! Trying to reach RA servers... could be your connection or their servers are slow.": "少々お待ちください…まだ接続中です！RAサーバーへの接続を試みています…回線の問題か、サーバーが混み合っている可能性があります。",
     "Herding cats...": "猫の手も借りたい...",
     "Chasing down your data...": "データを追いかけています...",
     "Track / Untrack": "追跡 / 解除",
