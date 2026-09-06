@@ -61,10 +61,10 @@ function AllSystemsIcon(props: { size?: number }) {
 
 const VERIFY_HEADINGS: Record<string, string> = {
     verified: "Verified",
-    raFull: "Recognised — Full Hash",
-    raPartial: "Recognised — Partial Hash",
+    raFull: "Recognized — Full Hash",
+    raPartial: "Recognized — Partial Hash",
     mismatch: "Doesn't Match Its Name",
-    unrecognised: "Not Recognised",
+    unrecognised: "Not Recognized",
     unverifiable: "Can't Verify"
 };
 

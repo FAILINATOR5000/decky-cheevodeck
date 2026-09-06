@@ -2,7 +2,7 @@
 
 This is where I thank the people whose work made parts of CheevoDeck easier, faster, or possible at all — the Decky plugins I learned an approach from, the tools and reference data that ship inside it, and the platform and the site it all runs on.
 
-Where a licence has terms attached, the entry names it and links to the text, and the ones a user should see are repeated on the About page inside the plugin. CheevoDeck's own licence is `LICENSE`.
+Where a license has terms attached, the entry names it and links to the text, and the ones a user should see are repeated on the About page inside the plugin. CheevoDeck's own license is `LICENSE`.
 
 ## TabMaster — scrollable text region pattern
 
@@ -66,7 +66,7 @@ Reading work of cdrip is what made the reader possible at all.
 
 Cheevo Check ships [**RAHasher**](https://github.com/LeXofLeviafan/RAHasher) (**LeXofLeviafan**'s build, from RALibretro) at `bin/RAHasher` and runs it as a separate executable over its command line. It's the whole hard part of the feature and it's 1.2 MB: it knows RA's hashing rules for around seventy systems, reads CHD and zip natively, and is the only thing that can produce an answer RA will work with.
 
-**RAHasher is GPL-3.0**, and unlike everything else on this page I actually distribute it, so this one genuinely asks something of me. The full licence text ships beside it as `bin/RAHasher.COPYING`, its copyright notices are intact, and `bin/RAHasher.PROVENANCE.md` pins the exact upstream release I ship (1.8.3) with checksums and a link, which is how the corresponding source stays available.
+**RAHasher is GPL-3.0**, and unlike everything else on this page I actually distribute it, so this one genuinely asks something of me. The full license text ships beside it as `bin/RAHasher.COPYING`, its copyright notices are intact, and `bin/RAHasher.PROVENANCE.md` pins the exact upstream release I ship (1.8.3) with checksums and a link, which is how the corresponding source stays available.
 
 CheevoDeck's own source stays BSD-3. It invokes RAHasher as a separate process rather than linking against it, and GPLv3's mere-aggregation provision covers shipping it alongside a differently-licensed work. Its GPL terms cover that binary alone.
 
@@ -74,31 +74,31 @@ The underlying rcheevos is MIT, but the packaged tool is not, so the GPL is what
 
 ## chdman — the bundled disc tool
 
-Cheevo Check's verification pass ships [**chdman**](https://github.com/mamedev/mame) at `bin/chdman` and runs it as a separate executable over its command line. It's MAME's CHD tool, and it does the one thing verification cannot do without: turn a compressed disc image back into the plain image a published catalogue describes. CHD is how most disc-based games end up being stored, so without it every one of them would be a blank spot in the results.
+Cheevo Check's verification pass ships [**chdman**](https://github.com/mamedev/mame) at `bin/chdman` and runs it as a separate executable over its command line. It's MAME's CHD tool, and it does the one thing verification cannot do without: turn a compressed disc image back into the plain image a published catalog describes. CHD is how most disc-based games end up being stored, so without it every one of them would be a blank spot in the results.
 
 **I build it myself from a pinned MAME release tag** rather than repackaging someone else's build. EmuDeck bundles its own copy and there is no upstream release of chdman on its own to point at, so there was no third-party binary I could ship and still honestly promise source for. Building it means the tag I pin really is the corresponding source. Only the tool is built, not the emulator.
 
-**chdman is GPL-2.0-only** — MAME's COPYING names version 2 with no "or later" clause — so it needs its own licence text rather than sharing RAHasher's GPL-3.0. That text ships beside it as `bin/chdman.COPYING`, and `bin/chdman.PROVENANCE.md` records the release tag, the exact build command and the binary's checksum.
+**chdman is GPL-2.0-only** — MAME's COPYING names version 2 with no "or later" clause — so it needs its own license text rather than sharing RAHasher's GPL-3.0. That text ships beside it as `bin/chdman.COPYING`, and `bin/chdman.PROVENANCE.md` records the release tag, the exact build command and the binary's checksum.
 
 Same arm's-length arrangement as RAHasher: a separate process over a command line, no linking, none of its code here. CheevoDeck's own source stays BSD-3.
 
-## libretro-database — the bundled reference catalogues
+## libretro-database — the bundled reference catalogs
 
-Verification compares your files against hashes that ship with the plugin, in `dats/`. They come from [**libretro-database**](https://github.com/libretro/libretro-database), which is **CC BY-SA 4.0** — the first share-alike licence this project has taken on, and a deliberate choice.
+Verification compares your files against hashes that ship with the plugin, in `dats/`. They come from [**libretro-database**](https://github.com/libretro/libretro-database), which is **CC BY-SA 4.0** — the first share-alike license this project has taken on, and a deliberate choice.
 
-One repository was picked over several on purpose. libretro mirrors No-Intro, TOSEC *and* Redump under a single stated licence.
+One repository was picked over several on purpose. libretro mirrors No-Intro, TOSEC *and* Redump under a single stated license.
 
-**The data is modified.** Each DAT was parsed and re-emitted as gzipped JSON, with the md5 and sha1 columns and the remaining per-entry metadata dropped — what is left is a name, a size and a CRC32. That took 100 MB of DAT text down to 2.8 MB. `dats/PROVENANCE.md` pins the upstream commit, records a checksum per file and states the changes; the licence text ships beside it as `dats/LICENSE-CC-BY-SA-4.0.txt`.
+**The data is modified.** Each DAT was parsed and re-emitted as gzipped JSON, with the md5 and sha1 columns and the remaining per-entry metadata dropped — what is left is a name, a size and a CRC32. That took 100 MB of DAT text down to 2.8 MB. `dats/PROVENANCE.md` pins the upstream commit, records a checksum per file and states the changes; the license text ships beside it as `dats/LICENSE-CC-BY-SA-4.0.txt`.
 
 Share-alike applies to `dats/` and travels with anyone who redistributes CheevoDeck. It does not reach the plugin's own source: the two are separate works shipped together, not an adaptation of the database.
 
 ## No-Intro, Redump and TOSEC — the reference data itself
 
-The catalogues above are compiled by the [**No-Intro**](https://no-intro.org), [**Redump**](http://redump.org) and [**TOSEC**](https://www.tosecdev.org) projects. None of them states a licence, which is why the data reaches me through libretro's mirror rather than directly — but the work of establishing what a correct dump of a given game actually is, across tens of thousands of releases, is theirs. Verification has nothing to say without it.
+The catalogs above are compiled by the [**No-Intro**](https://no-intro.org), [**Redump**](http://redump.org) and [**TOSEC**](https://www.tosecdev.org) projects. None of them states a license, which is why the data reaches me through libretro's mirror rather than directly — but the work of establishing what a correct dump of a given game actually is, across tens of thousands of releases, is theirs. Verification has nothing to say without it.
 
 ## dolphin-tool — GameCube, Wii and WAD
 
-Three of verification's six tiers, and the GameCube/Wii half of scanning, lean on `dolphin-tool` from the [**Dolphin**](https://dolphin-emu.org) flatpak. It reads the container formats those libraries are actually stored in (`.rvz`, `.wbfs`, `.gcz`, `.wia`, `.nkit`), returns the checksum of the *decompressed* image so the answer is directly comparable to a catalogue, and reports a WAD's integrity problems — which is the only route to saying anything at all about one.
+Three of verification's six tiers, and the GameCube/Wii half of scanning, lean on `dolphin-tool` from the [**Dolphin**](https://dolphin-emu.org) flatpak. It reads the container formats those libraries are actually stored in (`.rvz`, `.wbfs`, `.gcz`, `.wia`, `.nkit`), returns the checksum of the *decompressed* image so the answer is directly comparable to a catalog, and reports a WAD's integrity problems — which is the only route to saying anything at all about one.
 
 Not distributed with CheevoDeck. It's the user's own Dolphin install, invoked through `flatpak run`, and when it isn't there those files are simply skipped, and the scan tells you they were.
 

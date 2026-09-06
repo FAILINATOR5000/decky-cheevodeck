@@ -39,7 +39,7 @@ Two things decide which console a file belongs to, in this order:
   2. THE FILE EXTENSION. Used only when no folder above the file names a
      console. Some extensions belong to several systems (.chd, .cue and .iso
      are each shared by a lot of them), so the scan tries each in turn until
-     one of them recognises the file.
+     one of them recognizes the file.
 
 One extension is never matched that way: .wad. It belongs to exactly one
 console, so trying it against the others would settle nothing — and plenty of
@@ -116,7 +116,7 @@ likely not corrupt?
                   here that is a plain statement of fact. Switch games land here
                   too, by a different route — see below.
 
-  RECOGNISED      No dump list has it, but RetroAchievements does, and on this
+  RECOGNIZED      No dump list has it, but RetroAchievements does, and on this
   (FULL HASH)     system RA hashes the whole file. So your copy is identical to
                   one somebody registered with RA. Nothing in here is corrupt —
                   every byte was checked and matched. What turns up in this
@@ -125,7 +125,7 @@ likely not corrupt?
                   carry, including the ones that kept the original name and
                   size. Nothing to do.
 
-  RECOGNISED      RA knows it, but on this system RA skips a header, or reads
+  RECOGNIZED      RA knows it, but on this system RA skips a header, or reads
   (PARTIAL HASH)  only the part a disc boots from. You know what the game is and
                   nothing about the rest of the bytes. Not a warning — just a
                   weaker answer than the one above. Nothing to do.
@@ -133,13 +133,13 @@ likely not corrupt?
   DOESN'T MATCH   Same name, same exact size as a published dump, different
   ITS NAME        contents, and nobody vouching for the difference. This is the
                   one bucket worth reading. Anything RetroAchievements
-                  recognises has already gone to one of the Recognised buckets
+                  recognizes has already gone to one of the Recognized buckets
                   instead, so a patch or a translation you actually play will
                   not be sitting here — which is why this list is normally
                   almost empty. A Switch game here is a different matter: it
                   failed its own internal checksums, which is damage.
 
-  NOT RECOGNISED  No dump list and no RA set. Hacks, translations and homebrew
+  NOT RECOGNIZED  No dump list and no RA set. Hacks, translations and homebrew
                   that nobody has listed. Completely normal for a real library,
                   and often most of it. Nothing to do.
 
@@ -150,8 +150,8 @@ likely not corrupt?
                   that would not unpack, are sorted to the top. Nothing to do
                   for the rest.
 
-A healthy library is mostly Verified and Not Recognised, with a handful in the
-two Recognised buckets and next to nothing in Doesn't Match Its Name. On one
+A healthy library is mostly Verified and Not Recognized, with a handful in the
+two Recognized buckets and next to nothing in Doesn't Match Its Name. On one
 real 3,595-file library it came to a single row.
 
 
@@ -233,7 +233,7 @@ WHY RETROACHIEVEMENTS PASSING ISN'T THE SAME ANSWER
 ---------------------------------------------------
 
 For most cartridge systems RetroAchievements hashes the whole file, so if it
-recognises your game, the file is byte-for-byte what somebody registered with
+recognizes your game, the file is byte-for-byte what somebody registered with
 them. That is a real check and this tool says so.
 
 For discs, DS cards and a few others it hashes only a part — the piece a disc
@@ -269,7 +269,7 @@ apart if you would rather not:
 {{RELATED}}
 
 Putting your Game Boy games in the Game Boy Color folder is the usual reason —
-they get a colour palette that way — and it costs you nothing here. The same
+they get a color palette that way — and it costs you nothing here. The same
 goes for a disk-system game filed with the cartridges, or either Dolphin console
 in the other's folder. Anything else does need its own folder.
 
@@ -278,7 +278,7 @@ RetroAchievements never reads an arcade file — it works from the name with the
 extension taken off, because an arcade zip holds a machine's worth of chip dumps
 rather than one ROM. So the name has to be the short one MAME uses, in lower
 case: sf2.zip, mslug.zip, progolf.zip. "Street Fighter II (World 910522).zip"
-will never be recognised however good the file is, and neither will SF2.zip.
+will never be recognized however good the file is, and neither will SF2.zip.
 Nothing here can work around that.
 
 THE ARCADE DISC BOARDS ARE NAMED BY THEIR FOLDER instead. A Naomi or Triforce
@@ -314,12 +314,12 @@ above.
 A PS3 DUMP IS A FOLDER, NOT A FILE, and the whole folder is stepped over. A
 decrypted PlayStation 3 game is a directory tree full of the game's own data
 files, and walking into it produces hundreds of rows about things that were
-never games. It is recognised by what it holds — a PS3_GAME folder, or a
+never games. It is recognized by what it holds — a PS3_GAME folder, or a
 PS3_DISC.SFB file — rather than by what it is called, so it works whatever you
 named yours. A loose .iso sitting beside one is still picked up and checked
 normally.
 
-MULTI-DISC GAMES are hashed one disc at a time. If disc 1 is recognised and
+MULTI-DISC GAMES are hashed one disc at a time. If disc 1 is recognized and
 disc 2 isn't, the game still shows as Supported and the odd disc shows under
 Unsupported. That is deliberate: it is better than hiding a working game.
 
@@ -426,19 +426,19 @@ Two columns, and the second is the least obvious thing in the whole feature.
 "Dump list" says whether a published list of reference hashes ships with the
 plugin for that system. Without one there is nothing to compare a file against,
 so the answer falls back on what RetroAchievements knows — which is why a system
-with no list can still put files in the two Recognised buckets, and why the ones
+with no list can still put files in the two Recognized buckets, and why the ones
 RA does not know land in Can't Verify. That is a comment on what has been
 published, not on your files. Switch is the exception and the table says so: its
 dumps carry their own checksums.
 
 Two of the answers in that column look alike and are not. "none published" means
-nobody has made such a list. "none bundled" means one exists but its licence
+nobody has made such a list. "none bundled" means one exists but its license
 does not let CheevoDeck ship it — the slot is left open, so a copy you obtain
 yourself will be picked up and used, and until then the answer falls back on
 what RetroAchievements knows.
 
 "RetroAchievements hash" says how much of a file RA's own check covers. Where it
-covers the whole file, RA recognising your copy is nearly as strong as a match
+covers the whole file, RA recognizing your copy is nearly as strong as a match
 against a published dump. Where it covers only part, RA tells you what the game
 is and nothing about the rest of the bytes. That difference is why two of the
 six result buckets exist.

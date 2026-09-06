@@ -51,10 +51,10 @@ const VERIFY_BUCKETS: Array<{
     colour: string;
 }> = [
     { bucket: "verified", label: "Verified", help: "help_cheevo_check_verified", colour: achievementGreen },
-    { bucket: "raFull", label: "Recognised — Full Hash", help: "help_cheevo_check_ra_full", colour: achievementGreen },
-    { bucket: "raPartial", label: "Recognised — Partial Hash", help: "help_cheevo_check_ra_partial", colour: warnAmber },
+    { bucket: "raFull", label: "Recognized — Full Hash", help: "help_cheevo_check_ra_full", colour: achievementGreen },
+    { bucket: "raPartial", label: "Recognized — Partial Hash", help: "help_cheevo_check_ra_partial", colour: warnAmber },
     { bucket: "mismatch", label: "Doesn't Match Its Name", help: "help_cheevo_check_mismatch", colour: errorRed },
-    { bucket: "unrecognised", label: "Not Recognised", help: "help_cheevo_check_unrecognised", colour: warnAmber },
+    { bucket: "unrecognised", label: "Not Recognized", help: "help_cheevo_check_unrecognised", colour: warnAmber },
     { bucket: "unverifiable", label: "Can't Verify", help: "help_cheevo_check_unverifiable", colour: faultViolet }
 ];
 
@@ -258,7 +258,7 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                     <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "12px" }}>
                         <InlineSpinner label={t(language, "Checking your library...")} bold />
                         <div style={bodyTextStyle()}>
-                            {t(language, "This can take a while on a big library. You can leave this page or close the panel — we'll let you know when it's done.")}
+                            {t(language, "This can take a while on a big library. You can leave this page or close the panel, and you'll get a notification when it's done.")}
                         </div>
                         <ProgressBar fraction={scanFraction(progress)} />
                         {progress && <div style={bodyTextStyle()}>{phaseLine(progress, language)}</div>}
@@ -1042,10 +1042,10 @@ function verifyNote(row: CheevoCheckVerifyRow, language: LanguageCode): string {
         return t(language, "No-Intro, Redump and TOSEC don't list this exact copy — a patch or a translation usually — but RetroAchievements hashes this system whole and knows every byte of it. Nothing is wrong with the file.");
     }
     if (row.headerDiff) {
-        return t(language, "RetroAchievements hashes everything after the small header on the front of these files, and it recognises this copy — so the game data is in good condition and recognised. The difference from the published dump is in that header, which carries mapper flags and padding rather than anything the game uses.");
+        return t(language, "RetroAchievements hashes everything after the small header on the front of these files, and it recognizes this copy — so the game data is in good condition and recognized. The difference from the published dump is in that header, which carries mapper flags and padding rather than anything the game uses.");
     }
     if (row.bucket === "raPartial" && row.datCrc) {
-        return t(language, "This file couldn't be verified against the No-Intro, Redump or TOSEC hashes, but part of the hash is recognised by RetroAchievements. This file is most likely okay — probably a patch or a different dump that RA accepts.");
+        return t(language, "This file couldn't be verified against the No-Intro, Redump or TOSEC hashes, but part of the hash is recognized by RetroAchievements. This file is most likely okay — probably a patch or a different dump that RA accepts.");
     }
     if (row.reason) {
         return t(language, verifyReasonKey(row.reason));
@@ -1073,7 +1073,7 @@ function verifyReasonKey(reason: string): string {
         return "This file wouldn't read. That's a real fault rather than a mismatch.";
     }
     if (reason === "chd_extract_failed") {
-        return "We couldn't unpack this disc. Usually damage, but some discs are built in a way our tool can't read, so it's worth trying another one before concluding anything.";
+        return "This disc wouldn't unpack. Usually damage, but some discs are built in a way the tool can't read, so it's worth trying another one before concluding anything.";
     }
     if (reason === "chd_no_match") {
         return "The disc unpacked fine and doesn't match Redump. That isn't evidence of damage — discs don't always rebuild byte for byte, and a patched disc looks the same from here.";
@@ -1088,7 +1088,7 @@ function verifyReasonKey(reason: string): string {
         return "No-Intro, Redump and TOSEC don't cover this system, so there's nothing to check against. This says nothing about the file.";
     }
     if (reason === "no_single_rom") {
-        return "This archive holds several game files and we couldn't tell which is the game, so we didn't guess.";
+        return "This archive holds several game files, and which one is the game wasn't clear, so nothing was guessed.";
     }
     if (reason === "no_space") {
         return "Checking a disc needs temporary space about the size of the disc, and there wasn't enough free.";
@@ -1100,7 +1100,7 @@ function verifyReasonKey(reason: string): string {
         return "Big cartridge image checking is turned off, so this one was left alone. Turn off Ignore Large Carts When Verifying Dump to include them.";
     }
     if (reason === "no_tool") {
-        return "The tool that reads this kind of file wasn't available, so we couldn't check it.";
+        return "The tool that reads this kind of file wasn't available, so it wasn't checked.";
     }
     return "The signatures aren't the originals. That's normal for files kept outside a real console and says nothing about the game data, which checked out.";
 }
@@ -1113,7 +1113,7 @@ function failReasonKey(reason: string): string {
         return "Not enough free space to unpack this one. Free some up and scan again.";
     }
     if (reason === "archive") {
-        return "We couldn't unpack this archive.";
+        return "This archive wouldn't unpack.";
     }
     return "Couldn't read this file. It may be a bad dump.";
 }

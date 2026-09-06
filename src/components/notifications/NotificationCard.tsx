@@ -156,7 +156,7 @@ function cheevoCheckAbortKey(reason: string): string {
         return "The scan stopped: that folder went away. Check the drive or share is still connected.";
     }
     if (reason === "fetch_failed") {
-        return "The scan stopped: we couldn't reach RetroAchievements. Your previous results are unchanged.";
+        return "The scan stopped: RetroAchievements couldn't be reached. Your previous results are unchanged.";
     }
     if (reason === "no_data") {
         return "There's no saved RetroAchievements data to check against yet. Run a Scan first.";
@@ -181,7 +181,7 @@ function cheevoCheckScanBody(notification: CheevoNotification, language: Languag
         ["raPartial", "{{count}} files RetroAchievements only part-checked"],
         ["mismatch", "{{count}} files don't match the name they carry"],
         ["unrecognised", "{{count}} files nothing has a record of"],
-        ["unverifiable", "{{count}} files we couldn't verify either way"]
+        ["unverifiable", "{{count}} files that couldn't be verified either way"]
     ];
     return (
         <>
