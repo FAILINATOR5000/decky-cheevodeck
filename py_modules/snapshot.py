@@ -57,7 +57,7 @@ def _destination(runtime_dir: Path) -> Path:
 
     Pictures rather than the plugin's own data dir because it is where someone
     looks for pictures, desktop mode's file manager already shows it, and it
-    survives a reinstall — which the data dirs deliberately do not.
+    survives a reinstall, which the data dirs deliberately do not.
     """
     owner = pwd.getpwuid(runtime_dir.stat().st_uid)
     return Path(owner.pw_dir) / "Pictures" / "CheevoDeck"

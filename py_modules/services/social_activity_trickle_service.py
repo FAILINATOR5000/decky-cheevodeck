@@ -341,13 +341,13 @@ class SocialActivityTrickleService(TickServiceBase):
         """Make one RA call and merge any new unlocks into the cache.
 
         Returns one of:
-            "ok_new"        — call succeeded and added at least one event
-            "ok_empty"      — call succeeded but nothing new
-            "error"         — call failed (network, timeout, malformed)
-            "rate_limited"  — RA returned 429 or 503; caller should abort
-                              the tick. The name is historical; we use it
-                              for both rate-limit (429) and service-down
-                              (503) because callers don't care which.
+
+            "ok_new"        succeeded, and added at least one event
+            "ok_empty"      succeeded, nothing new
+            "error"         failed: network, timeout, or malformed
+            "rate_limited"  RA answered 429 or 503, so the caller should abort
+                            the tick. One name covers both because no caller
+                            cares which it was.
         """
         username = str(friend.get("username") or "").strip()
         friend_ref = ra_user_ref(friend)
@@ -527,18 +527,17 @@ class SocialActivityTrickleService(TickServiceBase):
     def _pick_candidates(self, friends, favorite_keys, cache, friends_per_tick):
         """Pick up to ``friends_per_tick`` friends for this tick.
 
-        For per-tick = 3 (default): slot 1 is a due starred friend (oldest
-        first), the rest are weighted random.
+        At three per tick, the default, slot 1 is a due starred friend, oldest
+        first, and the rest are weighted random.
 
-        For per-tick = 4 or 5: the first 2 slots try to be due starred
-        friends (oldest first, so favorites rotate), the rest are weighted
-        random. Starred friends still get a bonus weight on the random
-        slots, so even with 5/tick a single favorite can't keep skipping
-        their cooldown.
+        At four or five, the first two slots try to be due starred friends,
+        oldest first so favorites rotate, and the rest are weighted random.
+        Starred friends still get a bonus weight on the random slots, so even
+        at five per tick a single favorite can't keep skipping their cooldown.
 
-        Either way, if there aren't enough starred friends due to fill
-        the reserved slots, the remainder falls through to the weighted
-        random pool — we never return less than we could.
+        Either way, if there aren't enough starred friends due to fill the
+        reserved slots, the remainder falls through to the weighted random
+        pool. This never returns fewer than it could.
         """
         friend_state = cache.get("friendState") or {}
         now_ts = int(time.time())
@@ -618,28 +617,30 @@ class SocialActivityTrickleService(TickServiceBase):
         return float(weight)
 
     def _maybe_set_game_ticker(self, own_username, own_ulid, cache, existing_event_ids):
-        """Look at every event in the cache that matches the user's
-        current game; if any are newer than the last one we showed and
-        within the freshness window, stash the freshest as the pending
-        nudge. Older pending nudges get overwritten — newer always wins.
+        """Stash the freshest matching unlock in the user's current game as the
+        pending nudge.
 
-        We resolve the user's current game from the cached payload rather
-        than making another RA call. That's the same data the main page
-        is already showing, so a match here means the line will line up
-        with what the user sees on the page.
+        Every event in the cache that matches the current game is considered;
+        any that are newer than the last one shown and inside the freshness
+        window qualify, and the freshest wins. An older pending nudge gets
+        overwritten, because newer always wins.
 
-        The watermark (lastShownGameTickerTimestampByGame, read for the
-        current game) is the unlock timestamp of the last nudge we showed
-        for THIS game. We only consider events strictly newer than that,
-        so once a user has seen achievement A in this game, the next nudge
-        has to be for something that happened after A. That keeps the line
-        from feeling like it's bouncing around in time, and stops a stale
-        event in the cache from re-arming the same nudge after a clear or a
-        reload of the game (Issue 9).
+        The user's current game comes off the cached payload rather than
+        another RA call. That is the same data the main page is already
+        showing, so a match here means the line will agree with what the user
+        sees.
 
-        ``existing_event_ids`` is unused now — kept on the signature so
-        the call site doesn't have to special-case the no-watermark
-        cold-start path.
+        The watermark, lastShownGameTickerTimestampByGame read for the current
+        game, is the unlock timestamp of the last nudge shown for that game.
+        Only events strictly newer than it are considered, so once a user has
+        seen achievement A in this game the next nudge has to be for something
+        that happened after A. That keeps the line from bouncing around in
+        time, and stops a stale event in the cache re-arming the same nudge
+        after a clear or a reload of the game.
+
+        ``existing_event_ids`` is unused. It stays on the signature so the call
+            site
+        doesn't have to special-case the no-watermark cold-start path.
         """
         del existing_event_ids
 
@@ -750,18 +751,17 @@ class SocialActivityTrickleService(TickServiceBase):
         return cache["pendingGameTickerEvent"]
 
     def _maybe_set_social_hub_ticker(self, own_username, own_ulid, cache):
-        """Sibling of _maybe_set_game_ticker, but for unlocks in any
-        OTHER game than the one the user is currently playing.
+        """Sibling of _maybe_set_game_ticker, for unlocks in any game other than
+        the one the user is currently playing.
 
-        We deliberately skip events whose gameId matches the user's
-        current game — those are the game ticker's job, and we don't
-        want the same unlock to surface in two different lines on the
-        same page open. The current game is read from the cached
-        payload, same source the game ticker uses.
+        Events whose gameId matches the current game are deliberately skipped.
+        Those are the game ticker's job, and the same unlock must not surface
+        in two different lines on one page open. The current game is read from
+        the cached payload, the same source the game ticker uses.
 
-        The watermark (lastShownSocialHubTimestamp) is independent
-        from the game ticker's; they each only consider events strictly
-        newer than their own last-shown timestamp.
+        The watermark, lastShownSocialHubTimestamp, is independent from the
+        game ticker's. Each only considers events strictly newer than its own
+        last-shown timestamp.
         """
         cached_payload = (self._activity._cache_store.load_payload() or {}).get("payload") or {}
         current_game_id = cached_payload.get("gameId")
@@ -868,14 +868,14 @@ class SocialActivityTrickleService(TickServiceBase):
     def _emit_social_unlock_notifications(self, cfg, game_pick, hub_pick, notify_enabled):
         """Turn this tick's ticker picks into notifications.
 
-        A stored row per pick when the social notification is enabled, and
-        a single toast -- favouring the current-game pick if both passes
-        armed, since that's the unlock tied to what the user's actually
-        looking at. emit_notification self-gates the toast popup on the
-        social toast toggle and still emits the event that refreshes an
-        open modal / the unread dot, so we always call it and let it
-        decide. Everything's built from the pick dicts the passes already
-        produced, so there's no extra RA call here.
+        A stored row per pick when the social notification is enabled, and a
+        single toast, favouring the current-game pick when both passes armed,
+        since that is the unlock tied to what the user is actually looking at.
+        emit_notification self-gates the toast popup on the social toast toggle
+        and still emits the event that refreshes an open modal and the unread
+        dot, so it is always called and left to decide. Everything is built
+        from the pick dicts the passes already produced, so there is no extra
+        RA call here.
         """
         if notify_enabled and self._notifications is not None:
             for pick in (game_pick, hub_pick):

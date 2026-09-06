@@ -34,24 +34,22 @@ CURRENT_SCHEMA_VERSION = 1
 class NotesStore:
     """Per-game free-form notes, one JSON file per game.
 
-    Storage layout: ``<notes_dir>/<gameid>.json``. Single file per game,
-    all notes inside, plus the per-game top-level fields (sortMode,
-    tagVocabulary, schemaVersion). Single-file-per-game keeps reorder
-    writes atomic and gives the reminder service one read per tick.
+    Storage layout: ``<notes_dir>/<gameid>.json``. One file per game, all its
+    notes inside, plus the per-game top-level fields: sortMode, tagVocabulary,
+    schemaVersion. One file per game keeps reorder writes atomic and gives the
+    reminder service one read per tick.
 
-    Threading: every public method that touches a game's file does so
-    under that game's lock. The master lock guards the lock-dict itself
-    and is only held long enough to look up or create an entry -- never
-    held simultaneously with a per-game lock. This is the same shape as
-    SettingsStore's tracked-file locking, lifted on purpose so anyone
-    reading both files sees the same pattern.
+    Threading: every public method that touches a game's file does so under
+    that game's lock. The master lock guards the lock dict itself and is only
+    held long enough to look up or create an entry, never at the same time as a
+    per-game lock. The same shape as SettingsStore's tracked-file locking,
+    lifted on purpose so anyone reading both files sees the same pattern.
 
-    Why threading.Lock and not asyncio.Lock: the reminder service
-    (phase 4) runs on its own OS thread, not on the event loop. We need
-    a primitive that serializes across threads, not just within the
-    event loop. RPC handlers calling in from the loop will block
-    briefly on contention, but the read-modify-write here is microsecond-
-    scale so the loop hitch is invisible.
+    threading.Lock rather than asyncio.Lock because the reminder service runs
+    on its own OS thread rather than on the event loop, so what is needed is a
+    primitive that serializes across threads. RPC handlers calling in from the
+    loop block briefly on contention, but the read-modify-write here is
+    microsecond-scale so the loop hitch is invisible.
     """
 
     def __init__(self, *, notes_dir: Path):

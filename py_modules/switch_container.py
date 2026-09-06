@@ -1,30 +1,26 @@
-"""The two containers a Nintendo Switch dump arrives in, read far enough to
-find the content files inside them.
+"""The two containers a Nintendo Switch dump arrives in, read far enough to find
+the content files inside them.
 
 Switch is the one system here that can answer for itself. Nobody publishes a
-catalogue we can use — No-Intro's Switch sets are not mirrored by libretro and
-state no licence, the same wall Mega Duck hit — but the format does not need
-one. **Every NCA is named after the first sixteen bytes of its own SHA-256**,
-so hashing the content and comparing it to the name it is filed under is a
-complete integrity check that needs no reference data and no keys at all.
-
-Measured against a real library before this was written: three NSPs gave 12 of
-12 NCAs matching, and a 2.56 GB NCA inside an XCI matched as well.
+usable catalogue, since No-Intro's Switch sets are not mirrored by libretro and
+state no licence, but the format does not need one. **Every NCA is named after
+the first sixteen bytes of its own SHA-256**, so hashing the content and
+comparing it to the name it is filed under is a complete integrity check that
+needs no reference data and no keys at all.
 
 Two containers, both simple:
 
-  NSP   a PFS0 archive. 16-byte header, then one 24-byte entry per file, then
-        the string table, then the data.
-  XCI   an "HEAD" card header at 0x100 whose root HFS0 partition holds the
-        four sub-partitions (update / logo / normal / secure), each itself an
-        HFS0. The NCAs live in secure. HFS0 entries are 64 bytes and carry a
-        SHA-256 of their own first `hash_size` bytes — which is *not* worth
-        checking: it is 512 bytes of a multi-gigabyte file, 0.0001% of the
-        content, and reading it as verification would be a false comfort.
-        The NCA name is the real check on both containers.
+  NSP   a PFS0 archive. 16-byte header, then one 24-byte entry per file, then the
+        string table, then the data.
+  XCI   an "HEAD" card header at 0x100 whose root HFS0 partition holds the four
+        sub-partitions (update, logo, normal, secure), each itself an HFS0. The
+        NCAs live in secure. HFS0 entries are 64 bytes and carry a SHA-256 of
+        their own first `hash_size` bytes, which is not worth checking: it is 512
+        bytes of a multi-gigabyte file, and reading it as verification would be a
+        false comfort. The NCA name is the real check on both containers.
 
-Nothing here decrypts anything. The NCAs stay encrypted and unread beyond
-being hashed, which is why no keys are needed.
+Nothing here decrypts anything. The NCAs stay encrypted and unread beyond being
+hashed, which is why no keys are needed.
 """
 
 import struct
@@ -56,11 +52,11 @@ class Entry:
 
 
 def _read_table(handle, base, magic, entry_size):
-    """One PFS0/HFS0 partition's entries, or None if it isn't one.
+    """One PFS0 or HFS0 partition's entries, or None if it isn't one.
 
-    Both formats share a shape — magic, count, string table size, four bytes
-    the format doesn't use, then fixed-size entries and a string table — so one
-    reader covers them and only the stride differs.
+    Both formats share a shape: magic, count, string table size, four bytes the
+    format doesn't use, then fixed-size entries and a string table. One reader
+    covers them and only the stride differs.
     """
     try:
         handle.seek(base)
@@ -99,8 +95,8 @@ def _read_table(handle, base, magic, entry_size):
 def content_entries(path):
     """Every content file in a Switch container, or None if it isn't one.
 
-    None means "this is not a shape we know", which the caller must not read as
-    a fault: an .nsp that fails here has told us nothing about itself.
+    None means this is not a shape the reader knows, which the caller must not
+    read as a fault: an .nsp that fails here has said nothing about itself.
     """
     path = Path(path)
     try:
@@ -142,8 +138,8 @@ def named_hash(name):
 
     "3e1d6097fa7d9cc0dd0675bf3d2eb654.nca" is the whole mechanism: that is the
     first sixteen bytes of the file's own digest, written down by whoever built
-    it. Anything else in the container — the ticket, the certificate — is named
-    by title id and has nothing to check.
+    it. Anything else in the container, the ticket and the certificate, is
+    named by title id and has nothing to check.
     """
     text = str(name or "")
     if not text.lower().endswith(".nca"):

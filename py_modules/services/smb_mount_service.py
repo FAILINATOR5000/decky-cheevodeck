@@ -124,10 +124,10 @@ class SmbMountService:
 
     Slug-to-unit-name translation, unit rendering, the credentials and sidecar
     files, systemd invocation, the reachability probe, status reading, and
-    teardown. It is not a daemon -- nothing here ticks; the page calls in and
-    the methods run to completion on a worker thread.
+    teardown. Not a daemon: nothing here ticks, and the page calls in so the
+    methods run to completion on a worker thread.
 
-    Keeping this out of the mixin is the point: the mixin is thin IPC glue, and
+    Keeping this out of the mixin is the point. The mixin is thin IPC glue, and
     this module is where the entire blast radius of the feature lives.
 
     Everything that talks to systemd goes through one lock. daemon-reload is
@@ -160,19 +160,15 @@ class SmbMountService:
     def _failure_text(self, unit: str, stderr: str) -> str:
         """What actually went wrong with a unit, which is not what systemctl said.
 
-        This is the hole the whole error taxonomy was falling through. When a
-        mount fails, `systemctl start` does not relay the mount helper's stderr.
-        It prints its own line:
+        When a mount fails, `systemctl start` does not relay the mount helper's
+        stderr. It prints its own line:
 
             Job for run-media-cheevodeck-x.mount failed.
             See "systemctl status ..." and "journalctl -xeu ..." for details.
 
-        and the message that matters, `mount error(13): Permission denied`, goes
-        to the journal instead. So every signature in the table was being
-        matched against text that could never contain one, and every real
-        failure came out as "generic". Captured on device: three consecutive
-        wrong-password mounts, all of them reported to the user as "something
-        went wrong".
+        and the message that matters, `mount error(13): Permission denied`,
+        goes to the journal instead. Match a signature against systemctl's own
+        text and every real failure comes out as "generic".
 
         Scoped to the unit's current InvocationID rather than the last N lines,
         so a previous failure's text can't be read as this attempt's.
@@ -206,8 +202,8 @@ class SmbMountService:
 
         systemd rejects a unit whose filename doesn't match its Where=, and the
         escaping rules have enough corners that hand-building the name is a bug
-        waiting to happen. So we ask systemd-escape and cache the answer, which
-        is safe because a slug never changes.
+        waiting to happen. So systemd-escape is asked and the answer cached,
+        which is safe because a slug never changes.
         """
         cached = self._unit_names.get(slug)
         if cached is not None:
@@ -231,13 +227,13 @@ class SmbMountService:
         return UNIT_DIR / mount_unit, UNIT_DIR / automount_unit
 
     def _unit_glob(self) -> str:
-        """The pattern that matches every unit we could have written.
+        """The pattern that matches every unit this service could have written.
 
         Escaped from MOUNT_ROOT rather than spelled out, so it can't drift away
         from the names unit_names actually produces. Cached for the same reason
-        unit_names is: it's derived from a constant, and the page's status
-        poller reaches this often enough that spawning systemd-escape for it
-        every few seconds would be silly.
+        unit_names is: it is derived from a constant, and the page's status
+        poller reaches this often enough that spawning systemd-escape every few
+        seconds would be silly.
         """
         if self._unit_glob_pattern is not None:
             return self._unit_glob_pattern
@@ -426,15 +422,15 @@ class SmbMountService:
     def ensure_mount_point(self, slug: str) -> None:
         """Make the mount point, and hand it to the user.
 
-        systemd creates these itself (confirmed on device), so the mkdir is
-        belt and braces. The chown is not: an unmounted mount point is a real
-        empty directory, and systemd leaves it root-owned, so the path flips
-        between root:root while the share is off and deck:deck while it is
-        mounted -- because uid=/gid= only apply to the mount on top. Anything
-        that walks the path with the share disabled sees a directory it can't
-        write, and the ownership changing underneath is the kind of thing that
-        confuses a scanner far more than an empty folder does. Owning it as
-        deck throughout costs nothing and keeps the path consistent.
+        systemd creates these itself, so the mkdir is belt and braces. The
+        chown is not. An unmounted mount point is a real empty directory and
+        systemd leaves it root-owned, so the path flips between root:root while
+        the share is off and deck:deck while it is mounted, because uid= and
+        gid= only apply to the mount on top. Anything that walks the path with
+        the share disabled sees a directory it can't write, and the ownership
+        changing underneath confuses a scanner far more than an empty folder
+        does. Owning it as deck throughout costs nothing and keeps the path
+        consistent.
         """
         point = self.mount_point(slug)
         if self.is_mounted(slug):
@@ -450,22 +446,22 @@ class SmbMountService:
     def _own_empty_mount_point(self, point) -> None:
         """chmod and chown the mount point, and only ever the empty local one.
 
-        The check above reads /proc/mounts, which is a check against a path, and
-        a path can have something mounted on it a microsecond later. That window
-        is tiny and the consequence is not: while a share is mounted this path
-        is the share's root on the server, so a chown landing in that window
-        would be a metadata write to somebody's NAS.
+        The caller's check reads /proc/mounts, which is a check against a path,
+        and a path can have something mounted on it a microsecond later. That
+        window is tiny and the consequence is not: while a share is mounted
+        this path is the share's root on the server, so a chown landing in that
+        window would be a metadata write to somebody's NAS.
 
         So this works on a file descriptor instead. An open fd stays bound to
-        the inode it opened -- mounting something over the path afterwards does
-        not redirect it -- which means the fchown below can only ever reach the
-        empty local directory, whatever happens in between.
+        the inode it opened, and mounting something over the path afterwards
+        does not redirect it, so the fchown below can only ever reach the empty
+        local directory.
 
-        The device-number comparison covers the other half: if something was
-        already mounted when we opened it, the fd is the mounted filesystem's
-        root and its st_dev differs from the tmpfs parent's, so we leave it
-        alone. Same filesystem as the parent means it really is our own empty
-        directory.
+        The device-number comparison covers the other half. If something was
+        already mounted when the fd was opened, the fd is the mounted
+        filesystem's root and its st_dev differs from the tmpfs parent's, so it
+        is left alone. The same filesystem as the parent means it really is the
+        empty local directory.
         """
         try:
             fd = os.open(point, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
@@ -496,13 +492,13 @@ class SmbMountService:
         Match on the filesystem type, not just the path. An armed .automount
         registers an autofs entry at its own mount point whether or not the
         share behind it is mounted, so matching the path alone would report
-        every enabled share as permanently mounted -- the idle and unreachable
-        states would never appear and the status line would be decorative.
-        When the share really is mounted both entries sit at the same path, the
+        every enabled share as permanently mounted: the idle and unreachable
+        states would never appear and the status line would be decorative. When
+        the share really is mounted both entries sit at the same path, the
         autofs one and the cifs one, so looking for cifs is what tells them
         apart.
 
-        Read fresh every time and never cached as truth: the user can umount
+        Read fresh every time and never cached as truth. The user can umount
         from Konsole, and the honest answer is that the share is idle and the
         next access will remount it.
         """
@@ -521,11 +517,11 @@ class SmbMountService:
         return paths
 
     def _anything_mounted_at(self, point) -> bool:
-        """Is there any mount at this path at all, whatever kind.
+        """Whether there is any mount at this path at all, of whatever kind.
 
-        is_mounted deliberately asks a narrower question -- is there a *cifs*
-        mount here -- because an armed automount leaves an autofs stub at the
-        same path and counting that would make every enabled share look
+        is_mounted deliberately asks a narrower question, whether there is a
+        cifs mount here, because an armed automount leaves an autofs stub at
+        the same path and counting that would make every enabled share look
         permanently mounted. Removing the directory is the one job that needs
         the broader question: rmdir refuses while anything is mounted there,
         autofs stub included, which is how a deleted share kept its folder.
@@ -547,23 +543,23 @@ class SmbMountService:
         return str(self.mount_point(slug)) in mounted_paths
 
     def unit_state(self, slug: str) -> dict:
-        """Everything systemd will tell us about a share's automount, in one call.
+        """Everything systemd will say about a share's automount, in one call.
 
-        This used to be `is-enabled`, which answers exactly one question: does
-        the enable symlink exist. That is the toggle's question and it is not
-        the status line's. Two real situations slip straight past it:
+        `is-enabled` answers exactly one question: whether the enable symlink
+        exists. That is the toggle's question and it is not the status line's.
+        Two real situations slip straight past it.
 
-        an armed automount can be stopped without being disabled (someone runs
-        systemctl stop by hand, or umounts the path while the share is idle,
-        which unmounts the autofs stub that *is* what sits there when idle) and
+        An armed automount can be stopped without being disabled, by someone
+        running systemctl stop by hand, or by umounting the path while the
+        share is idle, which unmounts the autofs stub that is what sits there
+        when idle.
 
-        the unit file can vanish under us, which is what a SteamOS update that
-        didn't honour our keep-list drop-in would look like.
+        And the unit file can vanish, which is what a SteamOS update that
+        didn't honour the keep-list drop-in would look like.
 
-        Both leave the symlink in place, so both used to read as a perfectly
-        healthy idle share while nothing would ever mount. Asking for the three
-        properties together costs one subprocess, the same as the one question
-        did.
+        Both leave the symlink in place, so both read as a perfectly healthy
+        idle share while nothing would ever mount. Asking for the properties
+        together costs one subprocess, the same as the one question did.
         """
         mount_unit, automount_unit = self.unit_names(slug)
         code, out, _ = self._systemctl(
@@ -601,7 +597,7 @@ class SmbMountService:
         return self.unit_state(slug)["enabled"]
 
     def probe(self, server: str, *, use_cache=True) -> bool:
-        """Can we open a TCP connection to the server's SMB port?
+        """Whether a TCP connection to the server's SMB port opens.
 
         This is what turns "NAS asleep, wrong IP, typo'd hostname" into an
         immediate specific message instead of a long opaque wait on the mount.
@@ -628,18 +624,18 @@ class SmbMountService:
     def verify_credentials(self, share: dict, password: str) -> dict:
         """Ask the server whether these credentials actually open this share.
 
-        The probe only proves something is listening on 445, so "Test
-        Connection" would happily pass a completely wrong username, and saving
-        went on to build a share that could never mount. This asks the real
-        question, through smbclient rather than a trial mount: no root mount
-        cycle, no unit files, nothing to undo if it fails.
+        The probe only proves something is listening on 445, so Test Connection
+        would happily pass a completely wrong username, and saving would go on
+        to build a share that could never mount. This asks the real question
+        through smbclient rather than a trial mount: no root mount cycle, no
+        unit files, nothing to undo if it fails.
 
         Three verdicts, and the difference matters. "rejected" is the server
-        telling us no, which is worth blocking a save over. "unknown" is
-        anything we can't read as a definite answer, and it must never block:
-        the local smbclient refuses SMB1 outright, so a legacy NAS that would
-        mount perfectly well fails this check for reasons that have nothing to
-        do with the credentials.
+        saying no, which is worth blocking a save over. "unknown" is anything
+        that can't be read as a definite answer, and it must never block: the
+        local smbclient refuses SMB1 outright, so a legacy NAS that would mount
+        perfectly well fails this check for reasons that have nothing to do
+        with the credentials.
         """
         if not SMBCLIENT.exists():
             return {"verdict": "unknown"}
@@ -683,13 +679,14 @@ class SmbMountService:
         return {"verdict": "unknown"}
 
     def list_server_shares(self, share: dict, password: str) -> list:
-        """The share names this server will admit to, for when ours is wrong.
+        """The share names this server will admit to, for when the configured one
+        is wrong.
 
-        "No share with that name" is true and unhelpful: the user is now
+        "No share with that name" is true and unhelpful: the user is then
         guessing at a name only the NAS knows, and the difference is usually a
-        space, a capital or a word they misremembered. We are already
-        authenticated at the point we need this, so asking costs one more call
-        and turns the guess into a list.
+        space, a capital or a word they misremembered. The connection is
+        already authenticated at the point this is needed, so asking costs one
+        more call and turns the guess into a list.
         """
         if not SMBCLIENT.exists():
             return []
@@ -751,20 +748,19 @@ class SmbMountService:
     def status_for(self, share: dict, *, mounted_paths=None, probe=True) -> dict:
         """What this share is actually doing right now, and why if it's unhappy.
 
-        Returns the status and, when that status is "error", the code naming the
-        failure. They come back together because every caller needs both and
-        working them out twice would mean asking systemd twice.
+        Returns the status and, when that status is "error", the code naming
+        the failure. They come back together because every caller needs both
+        and working them out twice would mean asking systemd twice.
 
-        Order matters, and each step earns its place:
-
-        Mounted wins outright, whatever else is true. A share the user switched
-        off is off, not broken. A unit file that has gone missing is the next
-        thing worth knowing, because everything below it would be reasoning
-        about a unit that isn't there. Enabled but not armed comes next, since
-        the symlink says yes and the trigger says no. Only then does a
-        remembered mount failure beat "idle", because idle and broken look
-        identical from outside (both enabled, both unmounted) and the failure is
-        the only thing that tells them apart.
+        Order matters, and each step earns its place. Mounted wins outright,
+        whatever else is true. A share the user switched off is off, not
+        broken. A unit file that has gone missing is the next thing worth
+        knowing, because everything below it would be reasoning about a unit
+        that isn't there. Enabled but not armed comes next, since the symlink
+        says yes and the trigger says no. Only then does a remembered mount
+        failure beat "idle", because idle and broken look identical from
+        outside, both enabled and both unmounted, and the failure is the only
+        thing that tells them apart.
         """
         slug = share["slug"]
         if self.is_mounted(slug, mounted_paths):
@@ -804,7 +800,7 @@ class SmbMountService:
     def _consider_detaching(self, slug: str, server: str) -> None:
         """Detach a mount whose server has been gone a while.
 
-        The mount stays put through a blip on purpose: `soft` means an app
+        The mount stays put through a blip on purpose. `soft` means an app
         reading through it gets an error rather than hanging, and cifs
         reconnects by itself the moment the server answers again, so pulling
         the rug on a two-second hiccup would cost a copy that was going to
@@ -816,10 +812,9 @@ class SmbMountService:
         it starts timing out, the network coming back up included.
 
         The trigger is deliberately left armed. Detaching is not switching the
-        share off -- the user never asked for that -- it is putting it back to
-        the state an idle share is in anyway, where the next access mounts it
-        again. The row keeps saying unreachable either way, so nothing about
-        this changes what they are looking at.
+        share off, which the user never asked for. It puts the share back to
+        the state an idle one is in anyway, where the next access mounts it
+        again. The row keeps saying unreachable either way.
         """
         now = time.monotonic()
         since = self._unreachable_since.get(slug)
@@ -847,13 +842,13 @@ class SmbMountService:
     def _try_rearm(self, slug: str, server: str, *, probe=True) -> bool:
         """Start a trigger that stopped, if it's worth trying.
 
-        Only ever called for a share the user has switched on, so re-arming is
-        carrying out their stated intent rather than overriding a decision they
-        made elsewhere. Three guards on top of that, each closing off a way this
-        could become a loop rather than a fix:
+        Only ever called for a share the user has switched on, so re-arming
+        carries out their stated intent rather than overriding a decision they
+        made elsewhere. Three guards on top of that, each closing off a way
+        this could become a loop rather than a fix.
 
         Not against a server that isn't answering. Arming a trigger for a NAS
-        that has gone is how you get the loop: it arms, something touches the
+        that has gone is how the loop starts: it arms, something touches the
         path, the mount blocks for the unit's whole timeout, fails, and the
         trigger stops again. Nothing has been gained and a mount attempt has
         been spent. When the server is unreachable the row already says so.
@@ -894,9 +889,9 @@ class SmbMountService:
     def statuses_for(self, shares, *, probe=True) -> dict:
         """Status for a whole list in one pass.
 
-        /proc/mounts is read once rather than per share, and the probes -- the
-        only slow part -- run concurrently, so a page with five mounts against a
-        dead NAS takes one probe timeout rather than five.
+        /proc/mounts is read once rather than per share, and the probes, which
+        are the only slow part, run concurrently. A page with five mounts
+        against a dead NAS takes one probe timeout rather than five.
         """
         mounted_paths = self._mounted_paths()
         usable = [s for s in shares if is_safe_slug(s.get("slug"))]
@@ -919,11 +914,11 @@ class SmbMountService:
     def _discard_partial_create(self, share: dict) -> None:
         """Undo a create that fell over partway.
 
-        Every step is best-effort and independent, because we have no idea how
-        far the create got before it raised -- the whole point is to be safe to
-        run against any prefix of it, including none of it. The keep-list
-        drop-in deliberately stays: it is shared infrastructure, harmless on its
-        own, and other shares may depend on it.
+        Every step is best-effort and independent, because how far the create
+        got before it raised is unknown. The whole point is to be safe to run
+        against any prefix of it, including none of it. The keep-list drop-in
+        deliberately stays: it is shared infrastructure, harmless on its own,
+        and other shares may depend on it.
         """
         slug = share.get("slug")
         if not is_safe_slug(slug):
@@ -966,16 +961,17 @@ class SmbMountService:
         return names
 
     def classify_error(self, stderr: str) -> str:
-        """Map mount/kernel stderr onto one of the taxonomy codes.
+        """Map mount and kernel stderr onto one of the taxonomy codes.
 
         Two passes. The signature table is the captured-off-the-device half and
-        wins; the errno table behind it catches the same failures when the words
-        are ones we've never seen, which is the case every future kernel version
-        gets to create. "generic" is what's left, and the point of the second
-        pass is that a real mount failure should almost never reach it.
+        wins; the errno table behind it catches the same failures when the
+        words are ones nobody has seen yet, which is what every future kernel
+        version gets to create. "generic" is what's left, and the point of the
+        second pass is that a real mount failure should almost never reach it.
 
-        The raw text is kept for the debug log rather than shown: it says "cifs"
-        a lot, which is genuinely useful for searching and meaningless in a UI.
+        The raw text is kept for the debug log rather than shown. It says
+        "cifs" a lot, which is genuinely useful for searching and meaningless
+        in a UI.
         """
         text = stderr or ""
         for signature, code in _ERROR_SIGNATURES:
@@ -1020,13 +1016,13 @@ class SmbMountService:
     def update(self, share: dict, *, password=None, clear_password=False) -> dict:
         """Rewrite an existing share's units in place.
 
-        Where= never changes -- the slug is immutable and so is the mount point
-        -- so this is a rewrite rather than a move, and no external path
+        Where= never changes, since the slug is immutable and so is the mount
+        point, so this is a rewrite rather than a move and no external path
         pointing at this share can break. What can change is What= (server or
-        share name) and Options= (dialect, soft/hard, guest vs credentials),
+        share name) and Options= (dialect, soft or hard, guest or credentials),
         which means stopping, rewriting and re-arming.
 
-        A password of None means "leave the saved one alone", which is what a
+        A password of None means leave the saved one alone, which is what a
         blank password field on the Edit modal sends.
         """
         slug = share["slug"]
@@ -1256,15 +1252,15 @@ class SmbMountService:
     def teardown(self, share: dict, *, force=False) -> dict:
         """Remove one share's system state, in the order that survives failure.
 
-        Blocking through the unit files: if systemd state or a unit file can't
-        be dealt with, we stop and the caller keeps the store entry, keeps the
-        row on screen and shows the error. Dropping the record first and failing
-        here would leave orphaned live units with no UI to manage them, which is
-        the exact failure Remove All exists to dig out of.
+        Blocking through the unit files. If systemd state or a unit file can't
+        be dealt with, this stops, and the caller keeps the store entry, keeps
+        the row on screen and shows the error. Dropping the record first and
+        failing here would leave orphaned live units with no UI to manage them,
+        which is the exact failure Remove All exists to dig out of.
 
         Best-effort from the credentials onward: those are cleanup, and a
-        leftover file in /etc or a directory on tmpfs is not worth stranding the
-        user over.
+        leftover file in /etc or a directory on tmpfs is not worth stranding
+        the user over.
         """
         slug = share["slug"]
         with self._lock:
@@ -1359,10 +1355,11 @@ class SmbMountService:
         a plugin reinstall, and someone deleting smb_shares.json by hand.
 
         Takes the lock despite being a read, because both of those reconciles
-        write: create() lays the sidecar down before the units, so a rehydrate
-        landing in that window would see a sidecar with no units, call it stale,
-        and delete the credentials of the share being created right then. The
-        page's poller makes that window reachable rather than theoretical.
+        write. create() lays the sidecar down before the units, so a rehydrate
+        landing in that window would see a sidecar with no units, call it
+        stale, and delete the credentials of the share being created right
+        then. The page's poller makes that window reachable rather than
+        theoretical.
         """
         records = []
         seen_slugs = set()

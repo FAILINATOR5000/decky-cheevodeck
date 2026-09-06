@@ -1,22 +1,20 @@
-"""
-Just enough of the CHD v5 container to read sectors out of a data track.
+"""Just enough of the CHD v5 container to read sectors out of a data track.
 
-This exists because RAHasher mis-locates the boot sector on a handful of discs
-(see cheevo_check_service._needs_pregap_recovery), and the only way to get it a
-correct answer is to hand it the track as a plain cue+bin. chdman would do that,
-but it is a 4.6 MB binary that links libSDL2 and would drag a third-party licence
-obligation in with it — for a job that amounts to decompressing a few hunks. The
-format is documented and the two codecs that matter are both in the stdlib, so it
-lives here instead.
+This exists because RAHasher mis-locates the boot sector on a handful of discs,
+and the only way to get it a correct answer is to hand it the track as a plain
+cue+bin. chdman would do that, but it is a 4.6 MB binary that links libSDL2 and
+would drag a third-party licence obligation in with it, for a job that amounts
+to decompressing a few hunks. The format is documented and the two codecs that
+matter are both in the stdlib, so it lives here instead.
 
 Nothing plugin-shaped in here on purpose: no decky import, no settings, no
 logging. That keeps it drivable straight from a terminal harness.
 
 Deliberately partial. FLAC hunks are refused rather than decoded, because only
-audio uses FLAC and no hash reads an audio track. A data track can still tip into
-a FLAC hunk where it shares one with the audio ahead of it, and the caller has to
-treat that as "read as far as I could" rather than an error — the read stops, and
-what came back is still usable under the rules in the recipe's §6.
+audio uses FLAC and no hash reads an audio track. A data track can still tip
+into a FLAC hunk where it shares one with the audio ahead of it, and the caller
+has to treat that as "read as far as I could" rather than as an error: the read
+stops, and what came back is still usable.
 """
 
 from pathlib import Path
@@ -46,8 +44,9 @@ _TRACK_PADDING = 4
 
 
 class ChdError(Exception):
-    """This file isn't a CHD we can read. Never a reason to fail a scan — the
-    caller falls back to whatever it would have reported without us."""
+    """This file isn't a CHD that can be read. Never a reason to fail a scan: the
+    caller falls back to whatever it would have reported anyway.
+    """
 
 
 class _BitReader:
@@ -137,20 +136,21 @@ class _Huffman:
 def shape_tags(path) -> set:
     """Which metadata tags a CHD carries, whatever shape of disc it holds.
 
-    The one thing that says what is actually in there: CHT2/CHTR is a CD, "DVD "
-    is a DVD, CHGD is a GD-ROM. Anything unpacking a CHD has to dispatch on this
-    and never on the console — chdman's extractcd and extractdvd both exit 0 on
-    the wrong kind of image and just hand back a different number of bytes, so
-    there is no error to catch and trial-and-error cannot resolve it.
+    The one thing that says what is actually in there: CHT2 or CHTR is a CD,
+    "DVD " is a DVD, CHGD is a GD-ROM. Anything unpacking a CHD has to dispatch
+    on this and never on the console. chdman's extractcd and extractdvd both
+    exit 0 on the wrong kind of image and just hand back a different number of
+    bytes, so there is no error to catch and trial-and-error cannot resolve it.
 
     Separate from ChdFile on purpose. ChdFile refuses anything that isn't CD
-    framed, which is right for it — every method on it reads 2448-byte frames —
-    but it means asking *it* what shape a disc is answers "not a CD image" for
-    every DVD, which is not the same statement as "this file is damaged". This
-    reads the header and the metadata chain and asserts nothing about framing.
+    framed, which is right for it since every method on it reads 2448-byte
+    frames, but it means asking ChdFile what shape a disc is answers "not a CD
+    image" for every DVD, which is not the same statement as "this file is
+    damaged". This reads the header and the metadata chain and asserts nothing
+    about framing.
 
-    Returns an empty set for anything it cannot read, which callers must treat as
-    "we could not tell" rather than as a fault.
+    Returns an empty set for anything it cannot read, which callers must treat
+    as "could not tell" rather than as a fault.
     """
     try:
         with open(path, "rb") as handle:

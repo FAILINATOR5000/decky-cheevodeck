@@ -5,29 +5,30 @@ binary map keyed by index. This turns an appid back into the file on disk that
 the shortcut actually runs, which is what lets the library badge join a Steam
 game page to a Cheevo Check scan.
 
-The format is four type bytes and nothing else: 0x00 opens a nested map, 0x01 is
-a NUL-terminated string, 0x02 is a little-endian uint32, 0x08 closes a map. Keys
-are NUL-terminated and their casing is inconsistent — the real file has ``appid``
-and ``exe`` lowercase beside ``LaunchOptions`` and ``StartDir`` capitalised, in
-one file written by one tool — so every lookup here folds case.
+The format is four type bytes and nothing else: 0x00 opens a nested map, 0x01
+is a NUL-terminated string, 0x02 is a little-endian uint32, 0x08 closes a map.
+Keys are NUL-terminated and their casing is inconsistent, with ``appid`` and
+``exe`` lowercase beside ``LaunchOptions`` and ``StartDir`` capitalised in one
+file written by one tool, so every lookup here folds case.
 
 The command line is the awkward half, because SRM produces two arrangements and
 either one on its own looks like the whole story:
 
-* the emulator in ``exe`` and the ROM in ``LaunchOptions``, which is what its 333
+* the emulator in ``exe`` and the ROM in ``LaunchOptions``, which is what its
   shipped presets emit, and
 * everything folded into ``exe`` as one quoted command, which is what its writer
-  actually produced for all 246 shortcuts on the machine this was measured on.
+  actually produced on the machine this was measured against.
 
-So both fields get walked and neither is assumed. A third arrangement passes the
-ROM's bare filename with its directory as a separate argument, which is how MAME
-is invoked; that one cannot produce a path at all and falls back to the name.
+So both fields get walked and neither is assumed. A third arrangement passes
+the ROM's bare filename with its directory as a separate argument, which is how
+MAME is invoked; that one cannot produce a path at all and falls back to the
+name.
 
-Never write to this file. It is Steam's, SRM owns its contents, Steam rewrites it
-on exit, and the backend runs as root.
+Never write to this file. It is Steam's, SRM owns its contents, Steam rewrites
+it on exit, and the backend runs as root.
 
-Stdlib only and no decky import, same as the other readers here, so it stays
-drivable from a terminal against a real device.
+Stdlib only and no decky import, the same as the other readers here, so it
+stays drivable from a terminal against a real device.
 """
 
 import os
@@ -89,8 +90,8 @@ def parse_shortcuts(data: bytes) -> dict:
     """The entries out of a shortcuts.vdf, keyed by their index string.
 
     The file opens with the root map's type byte and the key "shortcuts", and
-    ends with one spare byte closing that root — tolerated rather than checked,
-    since nothing after the entries is worth reading.
+    ends with one spare byte closing that root. That trailing byte is tolerated
+    rather than checked, since nothing after the entries is worth reading.
     """
     if not data:
         return {}
@@ -102,10 +103,10 @@ def parse_shortcuts(data: bytes) -> dict:
 def iter_shortcuts_files(home=None):
     """Every shortcuts.vdf on the machine, deduplicated.
 
-    The three locations are usually the same directory reached three ways —
-    ~/.steam/steam and ~/.steam/root are normally symlinks into the first — so
-    resolving before deduplicating is what stops the same file being read three
-    times.
+    The three locations are usually the same directory reached three ways,
+    since ~/.steam/steam and ~/.steam/root are normally symlinks into the
+    first, so resolving before deduplicating is what stops the same file being
+    read three times.
     """
     base = Path(home) if home else Path.home()
     seen = set()
@@ -174,10 +175,10 @@ def _tokens(field: str):
 def _walk(field: str):
     """The ROM-ish and directory-ish tokens out of one command line.
 
-    The extension check has to be a hard filter rather than a "looks like a path"
-    heuristic, because shape A hands over flatpak app ids — org.libretro.RetroArch
-    and org.DolphinEmu.dolphin-emu both carry dots and both pass any reasonable
-    path test. Only the extension rejects them.
+    The extension check has to be a hard filter rather than a "looks like a
+    path" heuristic, because one of the arrangements hands over flatpak app
+    ids. org.libretro.RetroArch and org.DolphinEmu.dolphin-emu both carry dots
+    and both pass any reasonable path test. Only the extension rejects them.
     """
     roms = []
     dirs = []
@@ -195,13 +196,13 @@ def _walk(field: str):
 def resolve_rom_path(exe, launch_options=None, start_dir=None):
     """Where the ROM this shortcut launches lives, as best as the command says.
 
-    Returns an absolute path where the command gave one, a directory-joined path
-    where a sibling argument supplied the directory, and a bare filename where
-    neither did — the caller matches that last one on name alone.
+    Returns an absolute path where the command gave one, a directory-joined
+    path where a sibling argument supplied the directory, and a bare filename
+    where neither did. The caller matches that last one on name alone.
 
-    The last qualifying token wins. Command lines put the content argument at the
-    end, and it is the only ordering that survives an emulator whose own path
-    happens to carry a listed extension.
+    The last qualifying token wins. Command lines put the content argument at
+    the end, and it is the only ordering that survives an emulator whose own
+    path happens to carry a listed extension.
     """
     for field in (launch_options, exe):
         if not field:
@@ -227,13 +228,13 @@ def expand_playlist(path):
     """The discs a .m3u names, resolved against the playlist's own directory.
 
     Every entry in every real playlist measured is a bare filename, so the
-    playlist's directory is what they are relative to — StartDir would build
+    playlist's directory is what they are relative to. StartDir would build
     paths that cannot exist.
 
     All of them come back rather than the first, because a playlist is not
     guaranteed to hold what its name implies: one real file lists a single disc
-    whose name says nothing about being disc one, and a partial rip may only have
-    had disc two scanned.
+    whose name says nothing about being disc one, and a partial rip may only
+    have had disc two scanned.
     """
     folder = os.path.dirname(path)
     try:
@@ -264,7 +265,7 @@ def rom_candidates(exe, launch_options=None, start_dir=None):
     """Every path this shortcut could mean, best first, ready to look up.
 
     Absolute paths come back resolved, because roughly half a real EmuDeck tree
-    is symlinks out to other drives and the scan follows them — so the recorded
+    is symlinks out to other drives and the scan follows them, so the recorded
     path is a real one and the lookup has to match on real paths too. A bare
     filename is passed through untouched for the caller's name tier.
     """

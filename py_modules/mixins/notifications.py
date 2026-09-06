@@ -153,8 +153,8 @@ class NotificationsMixin(PluginContext):
 
         The version is the installed one with the minor bumped, so it reads
         like a real release rather than a placeholder, and the target matches
-        what the checker sends -- which is what makes pressing the card land
-        on the About page the same way a real one does.
+        what the checker sends, which is what makes pressing the card land on
+        the About page the same way a real one does.
         """
         parsed = parse_version(installed_version()) or (0, 0, 0)
         numbers = list(parsed) + [0] * (3 - len(parsed))

@@ -1,25 +1,24 @@
-"""
-Just enough of the DiscJuggler container to lay a .cdi back out as cue+bin.
+"""Just enough of the DiscJuggler container to lay a .cdi back out as cue+bin.
 
 RAHasher reads a .cdi only when its tracks are already sitting on disk as a cue
 and its bins; handed the bare container it stops at "Could not open track". The
 tracks are all in there uncompressed and in order, with a descriptor at the end
-of the file saying where each one starts and how big its sectors are, so the job
-is reading that table and copying the tracks back out under names a cue sheet can
-point at. cdirip does exactly this, but it is another binary to bundle and
-another licence to carry for what amounts to a table walk.
+of the file saying where each one starts and how big its sectors are, so the
+job is reading that table and copying the tracks back out under names a cue
+sheet can point at. cdirip does exactly this, but it is another binary to
+bundle and another licence to carry for what amounts to a table walk.
 
 Nothing plugin-shaped in here on purpose: no decky import, no settings, no
-logging. That keeps it drivable straight from a terminal harness, same as
+logging. That keeps it drivable straight from a terminal harness, the same as
 chd_reader.
 
-Deliberately partial. Nothing is decoded or rebuilt — sectors come back exactly
+Deliberately partial. Nothing is decoded or rebuilt. Sectors come back exactly
 as DiscJuggler stored them, at whatever size the descriptor declares, which is
 what lets this skip the sync headers and ECC a real image builder would have to
-synthesise. A container whose track table doesn't account for the file is refused
-outright rather than trimmed to fit: a layout that is wrong by one sector still
-hands RAHasher a confident wrong answer, so there is no safe way to publish a
-guess.
+synthesise. A container whose track table doesn't account for the file is
+refused outright rather than trimmed to fit: a layout that is wrong by one
+sector still hands RAHasher a confident wrong answer, so there is no safe way
+to publish a guess.
 """
 
 from pathlib import Path
@@ -46,8 +45,9 @@ _COPY_CHUNK = 1 << 20
 
 
 class CdiError(Exception):
-    """This file isn't a .cdi we can lay out. Never a reason to fail a scan —
-    the caller falls back to whatever it would have reported without us."""
+    """This file isn't a .cdi that can be laid out. Never a reason to fail a scan:
+    the caller falls back to whatever it would have reported anyway.
+    """
 
 
 class _Walk:
@@ -212,13 +212,13 @@ class CdiFile:
     def content_start(self, track: dict) -> int:
         """Which sector of this track actually holds something.
 
-        Normally the declared pregap, and that is where the search starts —
-        a gap is only ever understated, so this never moves a track's content
-        earlier than the descriptor says. But one Jaguar CD disc measured here
-        declares 150 silent sectors and carries 151, which is enough to make a
-        hasher read a sector of nothing and decide the disc isn't the console it
-        plainly is. The same shape of lie as the CHD pregap bug, from a different
-        container.
+        Normally the declared pregap, and that is where the search starts,
+        since a gap is only ever understated and this must never move a track's
+        content earlier than the descriptor says. But one Jaguar CD disc
+        measured here declares 150 silent sectors and carries 151, which is
+        enough to make a hasher read a sector of nothing and decide the disc
+        isn't the console it plainly is. The same shape of lie as the CHD
+        pregap problem, from a different container.
 
         Only worth asking about a track something is going to be read out of.
         Leading silence in an audio track is the recording, not a bad gap, and
@@ -250,7 +250,7 @@ class CdiFile:
         """Scratch a full lay-out will take, which is more than the image.
 
         The gaps get written as silence, because a cue sheet has no way to say
-        "and then nothing for eleven thousand sectors" — position in a cue is
+        "and then nothing for eleven thousand sectors": position in a cue is
         the sum of what came before it.
         """
         total = 0

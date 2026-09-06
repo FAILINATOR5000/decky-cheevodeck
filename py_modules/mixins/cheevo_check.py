@@ -34,12 +34,13 @@ def _dat_stem(name: str) -> str:
 class CheevoCheckMixin(PluginContext):
     """IPC surface for the Cheevo Check utility.
 
-    Thin on purpose, same shape as the SMB mixin: the store owns persistence, the
-    service owns the scan, and this only sequences the two and stays off the
-    event loop. Nothing here takes an _ra_slot() — Jameson's call. The scan never
-    waits on plugin state and never blocks it, and the politeness that would have
-    bought is handled inside the service instead, by fetching sequentially with a
-    gap.
+    Thin on purpose, the same shape as the SMB mixin: the store owns
+    persistence, the service owns the scan, and this only sequences the two and
+    stays off the event loop.
+
+    Nothing here takes an _ra_slot(). The scan never waits on plugin state and
+    never blocks it, and the politeness a slot would have bought is handled
+    inside the service instead, by fetching sequentially with a gap.
     """
 
     def _cheevo_check_start_dir(self) -> str:
@@ -83,18 +84,21 @@ class CheevoCheckMixin(PluginContext):
         }
 
     async def cancel_cheevo_check_scan(self):
-        """Ask the running scan to stop. Sets an event and returns — the worker
-        notices at its next check point, so the page finds out the same way it
-        finds out about anything else, on its next status poll."""
+        """Ask the running scan to stop.
+
+        Sets an event and returns. The worker notices at its next check point,
+        so the page finds out the same way it finds out about anything else, on
+        its next status poll.
+        """
         return self.cheevo_check_service.cancel()
 
     async def get_cheevo_check_scan_status(self):
         """The three fields that move while a scan runs, and nothing else.
 
         The page asks this every few seconds for the progress bar, and the full
-        state above carries the whole results blob — a disk read, a JSON parse
-        and a serialise of everything the last scan found, for a bar. This one
-        reads a couple of in-memory values, so it doesn't go through a thread.
+        state carries the whole results blob: a disk read, a JSON parse and a
+        serialise of everything the last scan found, for a bar. This one reads
+        a couple of in-memory values, so it doesn't go through a thread.
         """
         return self.cheevo_check_service.status()
 
@@ -207,11 +211,12 @@ class CheevoCheckMixin(PluginContext):
     async def update_cheevo_check_reference_data(self):
         """Fetch newer catalogues than the ones bundled with the plugin.
 
-        Optional throughout. The plugin ships with a full set, so this only ever
-        adds newer data — and every failure leaves the bundled copy in place,
-        because a system is only written once its download has been parsed and
-        found to hold entries. There is no way for this to end with less
-        reference data than it started with, which is why it needs no undo.
+        Optional throughout. The plugin ships with a full set, so this only
+        ever adds newer data, and every failure leaves the bundled copy in
+        place because a system is only written once its download has been
+        parsed and found to hold entries. There is no way for this to end with
+        less reference data than it started with, which is why it needs no
+        undo.
         """
         return await asyncio.to_thread(self._update_cheevo_check_reference_data)
 
@@ -261,10 +266,10 @@ class CheevoCheckMixin(PluginContext):
         """One system's catalogues, re-parsed into the bundled index shape.
 
         The same clrmamepro parse the generator does, against the same pinned
-        commit's directory layout but at whatever master holds now — that is the
-        entire point of the button. A rename upstream shows up as a system in the
-        failed count rather than as silently missing data, because the bundled
-        copy is what keeps being used.
+        commit's directory layout but at whatever master holds now, which is
+        the entire point of the button. A rename upstream shows up as a system
+        in the failed count rather than as silently missing data, because the
+        bundled copy is what keeps being used.
         """
         rows = []
         seen = set()

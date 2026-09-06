@@ -74,11 +74,11 @@ def _live_collapse_keys(mappings) -> set:
 class DolphinMappingsStore:
     """User-defined Dolphin controller mappings for the Dolphin Mapper utility.
 
-    One JSON file (dolphin_mappings.json) holding every mapping in list order,
-    which is also the on-screen order. Unlike the per-account stores this one is
-    global: mappings are hardware setups, not RA content, so every plugin
-    account shares the same file. That's why main.py builds it once and leaves
-    it out of _apply_user_scope -- it never repoints.
+    One JSON file, dolphin_mappings.json, holding every mapping in list order,
+    which is also the on-screen order. Unlike the per-account stores this one
+    is global: mappings are hardware setups rather than RA content, so every
+    plugin account shares the same file. That is why main.py builds it once and
+    leaves it out of _apply_user_scope; it never repoints.
     """
 
     def __init__(self, *, base_dir: Path):
@@ -364,12 +364,14 @@ class DolphinMappingsStore:
         return {"ok": True, "mappings": data["mappings"]}
 
     def seed(self, mappings) -> dict:
-        """One-shot starter seed: write the given mappings, but only onto an
-        empty store. If the user already has any mappings (a returning user, or
-        one mid-way through building their own), we leave the file untouched and
-        report that nothing was seeded -- the caller still flags seeding done so
-        we never reconsider. Mappings go through the same _clean_mapping the
-        modal's saves do, so a bad seed entry can't corrupt the file.
+        """One-shot starter seed: write the given mappings, but only onto an empty
+        store.
+
+        If the user already has any mappings, whether a returning user or one
+        part-way through building their own, the file is left untouched and
+        nothing is reported as seeded. The caller still flags seeding done, so
+        it is never reconsidered. Mappings go through the same _clean_mapping
+        the modal's saves do, so a bad seed entry can't corrupt the file.
         """
         with self._lock:
             data = self._load_raw()

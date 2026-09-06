@@ -13,64 +13,74 @@ VERDICT_TTL_SECONDS = 7 * 24 * 60 * 60
 
 
 class ResolvedAvatarStore:
-    """ULID-keyed record of "we already figured out this friend's avatar".
+    """ULID-keyed record of an already-settled friend avatar.
 
-    The friend-pic healer makes at most one paced profile call per
-    renamed friend to learn where their real avatar actually lives,
-    then never wants to ask again until a TTL lapses. This is where it
-    remembers the answer. Keyed by ULID rather than username because RA
-    usernames are not stable -- a rename keeps the same ULID, so a
-    verdict filed under it survives the rename that caused the problem
-    in the first place.
+    The friend-pic healer makes at most one paced profile call per renamed
+    friend to learn where their real avatar actually lives, then never wants to
+    ask again until a TTL lapses. This is where it remembers the answer. Keyed
+    by ULID rather than username because RA usernames are not stable: a rename
+    keeps the same ULID, so a verdict filed under it survives the rename that
+    caused the problem in the first place.
 
-    Each verdict is:
-      - userPic    -- the avatar path RA's profile returned for this
-                      user, e.g. "/UserPic/Andrey199650.png". An EMPTY
-                      string is a real verdict too: "checked, this user
-                      is genuinely avatarless, the default joystick is
-                      their correct picture." Both cases mean "stop
-                      asking", which is the whole point of the cooldown.
-      - checkedAt  -- epoch seconds the verdict was recorded, for the
-                      TTL the healer gates on.
-      - mode       -- "fast" or "accurate": which path settled this
-                      verdict. The fast path trusts any real picture
-                      sitting at the user's convention file; the accurate
-                      path asks their profile where the picture actually
-                      lives, which is the only way to catch a friend who
-                      renamed INTO a name somebody else had already
-                      uploaded a picture under. The healer's gate reads
-                      this so that turning Verify on puts the friends it
-                      settled fast back in the queue, while an accurate
-                      verdict satisfies a friend who only needs fast.
-                      A verdict written before this field existed has no
-                      mode and reads as "fast", which is simply true.
+    Each verdict carries:
 
-    Same shape as CommentBaselinesStore on purpose: its own little JSON
-    file under the runtime dir, one threading.Lock around the whole
-    read-modify-write since the healer writes from its own thread, and
-    a forgiving load so a missing or corrupt file just means "no
-    verdicts yet" instead of crashing a background tick.
+    ``userPic``
+        The avatar path RA's profile returned for this user, for example
+        "/UserPic/Andrey199650.png". An empty string is a real verdict too,
+            meaning
+        this user is genuinely avatarless and the default joystick is their
+            correct
+        picture. Both cases mean stop asking, which is the whole point of the
+        cooldown.
+    ``checkedAt``
+        Epoch seconds the verdict was recorded, for the TTL the healer gates
+            on.
+    ``mode``
+        "fast" or "accurate", which path settled this verdict. The fast path
+            trusts
+        any real picture sitting at the user's convention file; the accurate
+            path asks
+        their profile where the picture actually lives, which is the only way
+            to catch
+        a friend who renamed into a name somebody else had already uploaded a
+            picture
+        under. The healer's gate reads this, so turning Verify on puts the
+            friends it
+        settled fast back in the queue while an accurate verdict satisfies a
+            friend
+        who only needs fast. A verdict written before this field existed has no
+            mode
+        and reads as "fast", which is simply true.
 
-    The same file also carries two side tables the healer leans on:
+    The same file carries two side tables the healer leans on:
 
-      - names    -- a username->userPic routing index. Verdicts are
-                    keyed by ULID (stable across renames), but the fetch
-                    path only ever has a username. When the healer
-                    settles a renamed friend, it drops a username->path
-                    line here so a later avatar fetch can route straight
-                    to the real picture without re-profiling. Only
-                    renamed friends land in here; avatarless and
-                    living-at-their-own-name friends don't need a route.
-      - probeHash -- the last-good sha256 of RA's default joystick
-                    avatar, learned from the two-name sentinel probe.
-                    Persisted so a fresh boot starts from the last known
-                    answer instead of an empty fingerprint set while the
-                    first probe runs.
+    ``names``
+        A username to userPic routing index. Verdicts are keyed by ULID, which
+            is
+        stable across renames, but the fetch path only ever has a username.
+            When the
+        healer settles a renamed friend it drops a line here so a later avatar
+            fetch
+        can route straight to the real picture without re-profiling. Only
+            renamed
+        friends land in here; avatarless friends and friends living at their
+            own name
+        need no route.
+    ``probeHash``
+        The last-good sha256 of RA's default joystick avatar, learned from the
+        two-name sentinel probe. Persisted so a fresh boot starts from the last
+            known
+        answer instead of an empty fingerprint set while the first probe runs.
 
-    Kept deliberately out of CacheStore (typed load_*/save_* methods,
-    no free-form key-value) and out of the normal cache wipe -- a
-    "clear image cache" has no business throwing away verdicts that are
-    tiny, self-correcting, and expensive to rebuild.
+    Its own small JSON file under the runtime dir, with one threading.Lock
+    around the whole read-modify-write since the healer writes from its own
+    thread, and a forgiving load so a missing or corrupt file just means no
+    verdicts yet rather than crashing a background tick.
+
+    Deliberately out of CacheStore, which takes typed load and save methods
+    rather than free-form keys, and out of the normal cache wipe: clearing an
+    image cache has no business throwing away verdicts that are tiny,
+    self-correcting and expensive to rebuild.
     """
 
     def __init__(self, *, base_dir: Path):

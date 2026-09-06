@@ -13,24 +13,25 @@ _ULID_RE = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
 class WantToPlayCacheStore:
     """Global cache of a user's want-to-play list, one JSON file per ULID.
 
-    Same layout and rationale as AwardsListCacheStore: ``<store_dir>/<ULID>.json``
-    holding ``{schema, payload, cachedAt}``, shared across every plugin account
-    because the list belongs to the player it describes, not to whoever is
-    looking at it. No ``repoint``, and left off ``_apply_user_scope``.
+    Same layout and reasoning as AwardsListCacheStore:
+    ``<store_dir>/<ULID>.json`` holding ``{schema, payload, cachedAt}``, shared
+    across every plugin account because the list belongs to the player it
+    describes rather than to whoever is looking at it. No ``repoint``, and left
+    off ``_apply_user_scope``.
 
-    The window is sized like the games-list one rather than long. The membership
-    is slow-moving — people add to it in ones and twos — but every row carries the
-    user's unlock count for that game, and that moves whenever they play, so the
-    numbers are what set the ceiling here, not the list. It still spares the two
-    RA calls this used to spend on every single panel open. The window is read
-    live from settings on every load, so changing it in Options takes effect on
-    the next open with no reload.
+    The window is sized like the games-list one rather than long. The
+    membership is slow-moving, since people add to it in ones and twos, but
+    every row carries the user's unlock count for that game and that moves
+    whenever they play, so the numbers set the ceiling here rather than the
+    list. It still spares the two RA calls this would otherwise spend on every
+    panel open. The window is read live from settings on every load, so
+    changing it in Options takes effect on the next open with no reload.
 
-    Threading mirrors the other two list caches: every method that touches a file
-    takes that ULID's lock; the master lock only guards the lock dict (and the
-    clear walk + generation). ``_generation`` is the monotonic counter bumped on
-    every clear so a clear that lands mid-fetch is honoured — ``save`` drops the
-    write if the generation moved while the RA call was in flight.
+    Threading mirrors the other two list caches: every method that touches a
+    file takes that ULID's lock, and the master lock only guards the lock dict,
+    the clear walk and the generation. ``_generation`` is the monotonic counter
+    bumped on every clear so a clear that lands mid-fetch is honoured: ``save``
+    drops the write if the generation moved while the RA call was in flight.
     """
 
     def __init__(self, *, store_dir: Path):

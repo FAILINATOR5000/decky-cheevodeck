@@ -40,15 +40,15 @@ def _has_control_chars(value: str) -> bool:
 def slugify(name: str) -> str:
     """Turn a display name into the identity that every filesystem path hangs off.
 
-    Generated once at creation and then immutable, which is the single most
-    important rule in this store: the slug is what
-    /run/media/cheevodeck/<slug> and both unit filenames are built from, so a
-    slug that tracked the name would silently move a live mount out from under
-    every RetroArch playlist and Kodi source pointing at it.
+    Generated once at creation and then immutable, which is the thing to know
+    before touching this file: the slug is what /run/media/cheevodeck/<slug>
+    and both unit filenames are built from, so a slug that tracked the name
+    would silently move a live mount out from under every RetroArch playlist
+    and Kodi source pointing at it.
 
-    Returns "" when the name has nothing usable in it — an all-emoji or all-CJK
-    name is entirely realistic across eight locales — and the caller falls back
-    to a numbered slug.
+    Returns "" when the name has nothing usable in it, which an all-emoji or
+    all-CJK name realistically is, and the caller falls back to a numbered
+    slug.
     """
     lowered = str(name or "").strip().lower()
     folded = unicodedata.normalize("NFKD", lowered)
@@ -61,10 +61,10 @@ def unique_slug(base: str, taken) -> str:
     """Settle a slug against the ones already in use.
 
     Two different names can slugify identically ("Movies NAS" and "movies-nas"
-    both land on movies_nas), so a collision gets a _2, _3 suffix. An empty base
-    means slugify found nothing usable, and we fall back to mount_<n>.
+    both land on movies_nas), so a collision gets a _2 or _3 suffix. An empty
+    base means slugify found nothing usable, and the fallback is mount_<n>.
 
-    The caller is expected to feed `taken` from the store *and* from whatever is
+    The caller is expected to feed `taken` from the store and from whatever is
     actually on disk, so a stale unit file left behind by a previous install
     can't be silently adopted.
     """
@@ -135,13 +135,12 @@ def validate_share(value) -> str:
 
 
 def validate_credential_field(value, *, kind: str, max_len: int) -> str:
-    """Shared rules for username and domain.
+    """Shared checks for username and domain.
 
     Both land in the credentials file as `key=value` lines, which is where the
-    newline rule comes from: a username of "bob\\npassword=whatever" would inject
-    a line and silently swap the password out from under us. This is the
-    validation rule most likely to be skipped, so it lives in one place that
-    both fields go through.
+    newline restriction comes from: a username carrying a newline could inject
+    a second line and silently swap the password out. That is the check most
+    likely to be skipped, so it lives in one place that both fields go through.
     """
     if value is None or value == "":
         return None
@@ -165,11 +164,13 @@ def validate_domain(value) -> str:
 
 
 def validate_password(value) -> str:
-    """The password never reaches the store — it goes straight to the .cred file
-    — but it validates here so the whole of 6.6 reads in one place.
+    """Check a password before it goes anywhere.
 
-    Commas are fine, unlike every other field: this value only ever lands in the
-    credentials file, never on a comma-separated options line. Newlines and
+    The password never reaches the store; it goes straight to the .cred file.
+    It validates here so all the field checks read in one place.
+
+    Commas are fine, unlike every other field: this value only ever lands in
+    the credentials file, never on a comma-separated options line. Newlines and
     control characters are not, for the injection reason in
     validate_credential_field.
     """
@@ -191,10 +192,11 @@ def validate_vers(value) -> str:
 def is_safe_slug(value) -> bool:
     """Last gate before a slug reaches a path or a unit filename.
 
-    Belt and braces: slugs are generated here and never accepted from the
-    frontend, so this should always pass. It runs anyway because the one place
-    it could fail — a hand-edited smb_shares.json, or a sidecar rebuilt from
-    disk — is exactly the place a bad value would turn into a path.
+    Belt and braces. Slugs are generated in this module and never accepted from
+    the frontend, so in practice this always passes. It runs anyway to cover the
+    one route that could produce a bad one: a hand-edited smb_shares.json, or a
+    sidecar rebuilt from whatever happens to be on disk. That is precisely where
+    a bad value would become a path.
     """
     if not isinstance(value, str) or not value:
         return False
@@ -206,15 +208,15 @@ def is_safe_slug(value) -> bool:
 class SmbSharesStore:
     """The configured SMB shares for the SMB Shares utility.
 
-    One JSON file (smb_shares.json) holding every record. Like the Dolphin
-    mappings store this one is global rather than per-ULID — mounts are
-    hardware and network config, not RA content — so main.py builds it once and
-    leaves it out of _apply_user_scope.
+    One JSON file, smb_shares.json, holding every record. Like the Dolphin
+    mappings store this one is global rather than per-ULID, since mounts are
+    hardware and network config rather than RA content, so main.py builds it
+    once and leaves it out of _apply_user_scope.
 
-    The important thing to know before touching this: **the file is a cache, not
-    the source of truth.** Every record is mirrored to a sidecar at
-    /etc/cheevodeck/smb/<slug>.json, and the store rebuilds from those. That's
-    what keeps a factory reset (which empties runtime_dir) from orphaning live
+    The important thing to know before touching this: **the file is a cache,
+    not the source of truth.** Every record is mirrored to a sidecar at
+    /etc/cheevodeck/smb/<slug>.json, and the store rebuilds from those. That is
+    what keeps a factory reset, which empties runtime_dir, from orphaning live
     mounts, and what lets a reinstalled plugin re-adopt mounts it created in a
     previous life. Any code that treats smb_shares.json as authoritative is
     wrong.
@@ -272,8 +274,8 @@ class SmbSharesStore:
     def _clean_share(self, raw) -> dict:
         """Tolerant read-back, unlike the strict validation the write paths run.
 
-        A field we can coerce gets coerced; a record we can't build a safe path
-        from gets dropped entirely. That asymmetry is deliberate — a bad
+        A field that can be coerced gets coerced; a record that can't produce a
+        safe path is dropped entirely. That asymmetry is deliberate: a bad
         display name is cosmetic, a bad slug is a path.
         """
         if not isinstance(raw, dict):
@@ -350,9 +352,10 @@ class SmbSharesStore:
     def validate_new(self, payload, *, extra_taken_slugs=None) -> dict:
         """Check an add payload and settle its slug, without writing anything.
 
-        Split out from `add` so the mount service can render units and write the
-        credentials file for a share that doesn't exist in the store yet — the
-        store entry is written last, once the system state has actually taken.
+        Split out from `add` so the mount service can render units and write
+        the credentials file for a share that doesn't exist in the store yet.
+        The store entry is written last, once the system state has actually
+        taken.
         """
         if not isinstance(payload, dict):
             return {"ok": False, "error": "invalid_payload"}
@@ -415,10 +418,10 @@ class SmbSharesStore:
         """Check an edit payload against the record it's editing.
 
         Name and slug are immutable, so a payload carrying a name is rejected
-        rather than quietly ignored — silently dropping a field the caller
-        clearly meant to change is how a frontend bug goes unnoticed. Everything
-        else is editable, and none of it moves the mount point, so an edit can
-        never break a ROM path pointing at this share.
+        rather than quietly ignored: silently dropping a field the caller
+        clearly meant to change is how a frontend bug goes unnoticed.
+        Everything else is editable, and none of it moves the mount point, so
+        an edit can never break a ROM path pointing at this share.
         """
         if not isinstance(payload, dict):
             return {"ok": False, "error": "invalid_payload"}

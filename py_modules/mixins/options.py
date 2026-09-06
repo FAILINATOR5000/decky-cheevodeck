@@ -843,7 +843,7 @@ class OptionsMixin(PluginContext):
 
         Named from an allowlist rather than by path. The backend runs as root,
         so a name that reached the filesystem unchecked would be a way to read
-        anything on the Deck and hand it to the panel — and the whole point of
+        anything on the Deck and hand it to the panel, and the whole point of
         these is that there are only ever a few of them.
         """
         filename = HELP_DOCUMENTS.get(str(name or ""))

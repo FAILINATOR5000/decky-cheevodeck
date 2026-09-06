@@ -8,25 +8,21 @@ from utils import frontend_error, to_int
 class AotwService:
     """Fetches and caches the Achievement of the Week payload.
 
-    The AOTW payload itself (achievement metadata, game, full unlocks
-    list) gets a 30-minute TTL on disk. AOTW data moves slowly -- the
-    achievement itself is the same all week and the top of the Unlocks
-    list stabilises within hours -- so we can be patient about how
-    often we ask.
+    The payload itself, meaning achievement metadata, game, and the full
+    unlocks list, gets a 30-minute TTL on disk. AOTW data moves slowly: the
+    achievement is the same all week and the top of the Unlocks list stabilises
+    within hours.
 
-    Comments are NOT fetched or cached here anymore. The Comments tab
-    reads them live through the shared getAchievementComments IPC (the
-    same one Achievement Overview uses), so a just-posted comment shows
-    up on the next visit instead of waiting up to 30 minutes for this
-    payload's TTL to roll over.
+    Comments are not fetched or cached here. The Comments tab reads them live
+    through the shared getAchievementComments IPC, the same one Achievement
+    Overview uses, so a just-posted comment shows up on the next visit instead
+    of waiting out this payload's TTL.
 
-    What also does NOT get cached is the "did the signed-in user unlock
-    this?" answer. We recompute that fresh on every call so a user
-    who just earned the AOTW achievement sees the UI acknowledge it
-    immediately, not half an hour later when the TTL happens to roll
-    over. The fast path checks the cached Unlocks list; the fallback
-    is one game-info call which authoritatively answers regardless
-    of when the unlock happened.
+    Neither is "did the signed-in user unlock this?". That is recomputed on
+    every call so a user who just earned the AOTW achievement sees the UI
+    acknowledge it immediately rather than half an hour later. The fast path
+    checks the cached Unlocks list; the fallback is one game-info call, which
+    answers authoritatively regardless of when the unlock happened.
     """
 
     _CACHE_TTL_SECONDS = 30 * 60
@@ -219,35 +215,28 @@ class AotwService:
     def get_achievement_of_the_week(self, user_ref: str, web_api_key: str, display_name: str) -> dict:
         """Return the current AOTW payload, hitting cache when fresh.
 
-        The AOTW page header and unlocks list load from this one IPC.
-        Comments are no longer part of this payload -- the Comments tab
-        fetches them live through getAchievementComments so a freshly
-        posted comment isn't hidden behind this payload's 30-minute TTL.
-        The avatars on the unlocks list and the achievement badge itself
-        are NOT resolved here; they come in lazily on the frontend via
-        <UserAvatar> and the existing getAchievementIcons IPC after
-        mount. Pre-resolving them inside this slot used to block the
-        page paint for 10-20s on a cold cache because each per-username
-        CDN fetch sits behind Cloudflare's ~500ms cold latency. Letting
-        them lazy-load lets the page paint in ~1s and the images fill in
-        over the next second or two -- and the disk cache makes the next
-        visit instant either way.
+        Returns ``{"payload": {...}, "comments": [], "currentUserHasUnlocked":
+        bool, "fromCache": bool}`` on success, or a dict with an "error" key,
+        and the stale payload where there is one, on network failure. The
+        "comments" field is kept in the shape for response compatibility and is
+        always empty.
 
-        currentUserHasUnlocked: fast path checks the user's display
-        name against the cached Unlocks list. If they're not there, we
-        fall back to a single get_game_info_and_user_progress call
-        (queried by user_ref, so it survives a rename) which
-        authoritatively answers "has this user unlocked the AOTW
-        achievement, ever?" regardless of how long ago. Runs on warm
-        cache hits too -- the whole reason this isn't cached is that it
-        has to reflect the user's state right now.
+        The avatars on the unlocks list and the achievement badge are not
+        resolved here. They come in lazily on the frontend via <UserAvatar> and
+        the existing getAchievementIcons IPC after mount. Pre-resolving them
+        inside this slot blocks the page paint for ten to twenty seconds on a
+        cold cache, because each per-username CDN fetch sits behind
+        Cloudflare's cold latency. Lazy-loading lets the page paint in about a
+        second and the images fill in behind it, and the disk cache makes the
+        next visit instant either way.
 
-        Returns
-        ``{"payload": {...}, "comments": [],
-           "currentUserHasUnlocked": bool, "fromCache": bool}``
-        on success, or a dict with an "error" key (and stale payload if
-        we have one) on network failure. The "comments" field is kept in
-        the shape for response compatibility but is always empty now.
+        currentUserHasUnlocked: the fast path checks the user's display name
+        against the cached Unlocks list. If they are not there, it falls back
+        to a single get_game_info_and_user_progress call, queried by user_ref
+        so it survives a rename, which answers whether this user has ever
+        unlocked the AOTW achievement. It runs on warm cache hits too, since
+        the whole reason it isn't cached is that it has to reflect the user's
+        state right now.
         """
         service_start = time.monotonic()
         cached_wrapper = self._cache_store.load_aotw()

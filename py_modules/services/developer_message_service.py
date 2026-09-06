@@ -37,14 +37,14 @@ class FetchFailure(Exception):
 def parse_message(raw_bytes):
     """Split the fetched file into (message_id, body).
 
-    Leading lines beginning with "#" are metadata: the first one shaped
-    like "#id token" names the message, the rest are comments for
-    whoever is editing the file. Only leading ones — a "#" further down
-    is ordinary text.
+    Leading lines beginning with "#" are metadata: the first one shaped like
+    "#id token" names the message, and the rest are comments for whoever is
+    editing the file. Only leading ones, since a "#" further down is ordinary
+    text.
 
     Falling back to a hash of the body when there is no id line means a
-    malformed or comment-free file still settles instead of looking new
-    on every single poll.
+    malformed or comment-free file still settles instead of looking new on
+    every single poll.
     """
     text = raw_bytes.decode("utf-8", errors="replace")
     if text.startswith("﻿"):
@@ -69,16 +69,16 @@ def parse_message(raw_bytes):
 class DeveloperMessageService:
     """Polls the repo for a message from the developer and announces it.
 
-    The mirror image of the update checker: same tick shape, same
-    generation fence, same two-lock split, but it reads one small text
-    file off the CDN rather than the releases API, and its answer is
-    "here is something you should know" rather than "you can update".
+    The mirror image of the update checker: same tick shape, same generation
+    fence, same two-lock split, but it reads one small text file off the CDN
+    rather than the releases API, and its answer is "here is something you
+    should know" rather than "you can update".
 
-    Two locks for the same reason the update checker has two: the gate
-    test and the lastCheckedAt stamp have to happen in one held section,
-    or two ticks both read "yes, the gate is open" before either stamps.
-    Measured, not assumed — four simultaneous ticks make four fetches
-    unlocked and one locked.
+    Two locks for the same reason the update checker has two: the gate test and
+    the lastCheckedAt stamp have to happen in one held section, or two ticks
+    both read "yes, the gate is open" before either stamps. Measured rather
+    than assumed: four simultaneous ticks make four fetches unlocked and one
+    locked.
     """
 
     def __init__(self, *, settings_store, message_store, ssl_context, notifications_store=None):
@@ -155,10 +155,9 @@ class DeveloperMessageService:
     def check(self):
         """One poll. Silent about everything except an actual message.
 
-        There is no About-page surface for this and nothing the user
-        could do about a failure, so a failure produces no card, no
-        toast and no stored state — just a debug line and a retry on
-        the next tick.
+        There is no About-page surface for this and nothing the user could do
+        about a failure, so a failure produces no card, no toast and no stored
+        state, just a debug line and a retry on the next tick.
         """
         with self._check_lock:
             try:

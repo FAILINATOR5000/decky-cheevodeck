@@ -231,10 +231,10 @@ class FriendsSocialMixin(PluginContext):
     async def get_social_hub_ticker_event(self):
         """Return the pending Social Hub ticker event, or None.
 
-        Sibling of get_game_ticker_event — used by the line below the
-        Social Hub button on the main page. consume_* marks it shown on
-        read; the frontend's clear_social_hub_ticker_event after rendering
-        is slot cleanup.
+        Sibling of get_game_ticker_event, used by the line below the Social Hub
+        button on the main page. consume_* marks it shown on read; the
+        frontend's clear_social_hub_ticker_event after rendering is slot
+        cleanup.
         """
         try:
             event = self.social_activity_cache_service.consume_pending_social_hub_ticker_event()

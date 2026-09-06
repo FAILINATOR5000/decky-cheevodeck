@@ -1,10 +1,8 @@
-"""
-Stateless helpers shared by the rest of the backend.
+"""Stateless helpers shared by the rest of the backend.
 
-These were previously methods on a ``HelpersMixin`` class, but none of them
-actually needed ``self`` — they only operated on their arguments. Module-level
-functions are the right shape and let other modules import the specific
-helpers they use, which makes dependencies visible.
+Module-level functions rather than methods, since none of them need an
+instance: they only operate on their arguments, and this way other modules
+import the specific helpers they use, which makes dependencies visible.
 """
 
 import json
@@ -42,16 +40,16 @@ _data_owner = None
 def init_data_owner(*candidates) -> None:
     """Work out who should own the plugin's data files and cache it.
 
-    The backend runs as root (the Dolphin controller-disable flag needs it), so
-    anything we create lands root-owned, and a later unprivileged run — flag
-    dropped, Decky tightens up, a user downgrades — then can't touch its own
-    data. So we hand every file we write back to the user that owns the data dir.
+    The backend runs as root, because the Dolphin controller-disable flag needs
+    it, so anything created here lands root-owned and a later unprivileged run
+    can't touch its own data. Every file written is handed back to the user
+    that owns the data directory.
 
     Tries each candidate path in order and takes the first that resolves to a
-    non-root owner. A root-owned data root is the poisoned state this whole thing
-    exists to undo, so it can never be the right answer to inherit — we skip past
-    it to the user home. Falls back to the "deck" account, then gives up and
-    leaves the helpers as no-ops rather than guessing wrong.
+    non-root owner. A root-owned data root is the state this whole thing exists
+    to undo, so it can never be the right answer to inherit and gets skipped in
+    favour of the user home. Falls back to the "deck" account, then gives up
+    and leaves the helpers as no-ops rather than guessing wrong.
     """
     global _data_owner
     for path in candidates:
@@ -75,12 +73,13 @@ _chown_warned = False
 
 
 def chown_to_data_owner(path) -> None:
-    """Hand a file or dir we just created back to the data-dir owner.
+    """Hand a newly created file or directory back to the data-dir owner.
 
-    No-op unless we're actually root and we know the target, so an unprivileged
-    build stays a silent pass instead of raising on every write. Best-effort by
-    design: an exFAT/vFAT SD card carries no Unix ownership and os.chown fails
-    there harmlessly, which must never propagate up a write path.
+    A no-op unless the process is actually root and the target is known, so an
+    unprivileged build stays a silent pass instead of raising on every write.
+    Best-effort by design: an exFAT or vFAT SD card carries no Unix ownership
+    and os.chown fails there harmlessly, which must never propagate up a write
+    path.
     """
     global _chown_warned
 
@@ -105,12 +104,12 @@ def chown_to_data_owner(path) -> None:
 def lchown_to_data_owner(path) -> None:
     """The symlink version, and the reason it has to exist.
 
-    chown_to_data_owner goes through os.chown, which follows the link — aimed at
-    a symlink it would walk to the far end and take ownership of the mount point
-    the link is pointing at, which is somebody else's business entirely. lchown
-    stops at the link. Same best-effort shrug as its sibling: the link already
-    works whoever owns it, since deleting one depends on the directory's
-    permissions rather than the link's.
+    chown_to_data_owner goes through os.chown, which follows the link. Aimed at
+    a symlink it would walk to the far end and take ownership of the mount
+    point the link points at, which is somebody else's business entirely.
+    lchown stops at the link. Same best-effort shrug as its sibling: the link
+    already works whoever owns it, since deleting one depends on the
+    directory's permissions rather than the link's.
     """
     if _data_owner is None:
         return
@@ -136,21 +135,18 @@ def ensure_dir(path) -> None:
 def save_json_file(path: Path, payload: Any, *, compact: bool = False) -> None:
     """Write ``payload`` as JSON to ``path``.
 
-    Defaults to pretty-printed (indent=2) since that's what settings.json
-    expects -- it's read by humans during debugging. Callers handling
-    files that get rewritten on every mutation (tracked.json, mostly)
-    can pass ``compact=True`` to skip the indentation. On a large dict
-    that knocks ~60% off the serialize cost, and saves a third of the
-    on-disk size too. The downside is the file isn't eyeball-friendly
-    without piping it through ``jq``, which is fine for files we don't
-    edit by hand.
+    Pretty-printed by default, indent=2, since that is what settings.json
+    wants: a person reads it while debugging. Callers handling files that get
+    rewritten on every mutation can pass ``compact=True`` to skip the
+    indentation, which on a large dict knocks about 60% off the serialize cost
+    and a third off the on-disk size. The downside is a file that needs `jq` to
+    read, which is fine for files nobody edits by hand.
 
-    Writes go via a sibling ``.tmp`` file that gets renamed into place at
-    the end, so a power loss or kill mid-write leaves the previous
-    contents intact instead of a half-written file that ``json.loads``
-    fails on. ``Path.replace`` is atomic on POSIX when the source and
-    target live on the same filesystem, which is always the case here
-    since the tmp file lives next to its target.
+    Writes go via a sibling ``.tmp`` file renamed into place at the end, so a
+    power loss or a kill mid-write leaves the previous contents intact instead
+    of a half-written file that ``json.loads`` chokes on. ``Path.replace`` is
+    atomic on POSIX when source and target share a filesystem, which is always
+    the case here since the tmp file lives next to its target.
     """
     if compact:
         serialized = json.dumps(payload, separators=(",", ":"))
@@ -187,7 +183,6 @@ def norm_game_id(value: Any) -> Optional[int]:
 
 
 def to_int(value: Any, default: int = 0) -> int:
-    """Coerce ``value`` to ``int``, falling back to ``default`` on failure."""
     try:
         return int(value)
     except (ValueError, TypeError, OverflowError):
@@ -195,7 +190,6 @@ def to_int(value: Any, default: int = 0) -> int:
 
 
 def to_float(value: Any, default: float = 0.0) -> float:
-    """Coerce ``value`` to ``float``, falling back to ``default`` on failure."""
     try:
         return float(value)
     except (ValueError, TypeError, OverflowError):
@@ -203,14 +197,14 @@ def to_float(value: Any, default: float = 0.0) -> float:
 
 
 def ra_user_ref(row: Any) -> str:
-    """Pick the value to put in RA's user slot for a friend (or any user row).
+    """Pick the value to put in RA's user slot for a friend, or any user row.
 
-    RA's user slot takes a ULID exactly like it takes a username, and the
-    ULID rides through a rename while a saved name goes stale -- so we query
-    by ULID whenever the row carries one and only fall back to the name. This
-    is the friend-side twin of the plugin's ``_active_ra_user``, which does
-    the same for our own account. A non-dict row (or one with neither field)
-    returns "" so callers can treat a missing ref like a missing name.
+    RA's user slot takes a ULID exactly like it takes a username, and the ULID
+    rides through a rename while a saved name goes stale, so the query goes by
+    ULID whenever the row carries one and only falls back to the name. This is
+    the friend-side twin of ``_active_ra_user``, which does the same for the
+    signed-in account. A non-dict row, or one with neither field, returns "" so
+    callers can treat a missing ref like a missing name.
     """
     if not isinstance(row, dict):
         return ""
@@ -221,15 +215,15 @@ def ra_user_ref(row: Any) -> str:
 def normalize_ra_comment(raw: Any) -> Optional[dict]:
     """Normalise a single comment row from RA's GetComments endpoint.
 
-    RA mixes real user comments in with audit-log entries (badge edits,
-    set promotions, type changes) authored by a system user literally
-    named "Server". We drop those -- the spelling is always exactly
-    "Server", case-sensitive, so a plain equality check is enough.
-    Anything else gets re-keyed from PascalCase to camelCase for the
-    frontend. Non-dict inputs return None so callers can skip them.
+    RA mixes real user comments in with audit-log entries (badge edits, set
+    promotions, type changes) authored by a system user literally named
+    "Server". Those are dropped: the spelling is always exactly "Server",
+    case-sensitive, so a plain equality check is enough. Anything else gets
+    re-keyed from PascalCase to camelCase for the frontend. Non-dict inputs
+    return None so callers can skip them.
 
-    Lives in utils because both aotw_service and game_comments_service
-    use it -- keeping it here means the Server-filter rule has one home.
+    Lives in utils because both aotw_service and game_comments_service use it,
+    which keeps the Server filter in one place.
     """
     if not isinstance(raw, dict):
         return None
@@ -272,7 +266,6 @@ _NETWORK_ERROR_MARKERS = (
 
 
 def is_network_error(exc: Exception) -> bool:
-    """Return ``True`` when ``exc`` looks like a transient network failure."""
     text = str(exc or "").lower()
     return any(marker in text for marker in _NETWORK_ERROR_MARKERS)
 
@@ -280,14 +273,14 @@ def is_network_error(exc: Exception) -> bool:
 def frontend_error(prefix: str, exc: Exception) -> str:
     """Return a user-facing message for a failed network call.
 
-    The raw exception text is intentionally dropped from the return value —
-    urllib/SSL traceback fragments read terribly in the UI, and they're often
-    misleading too. Callers pass a complete sentence as ``prefix`` and that's
-    what the user sees.
+    The raw exception text is intentionally dropped from the return value.
+    urllib and SSL traceback fragments read terribly in the UI and are often
+    misleading. Callers pass a complete sentence as ``prefix`` and that is what
+    the user sees.
 
-    The exception itself is logged here (with its type and message) so we
-    have a real diagnostic trail without having to wire logging into every
-    caller. This is the single chokepoint for "an outbound call failed".
+    The exception itself is logged here, with its type and message, so there is
+    a real diagnostic trail without logging having to be wired into every
+    caller. This is the single chokepoint for an outbound call failing.
     """
     decky.logger.exception("%s — %s (%s)", prefix, type(exc).__name__, exc)
     return prefix

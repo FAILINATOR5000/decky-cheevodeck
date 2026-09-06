@@ -1,15 +1,16 @@
 """Reference hashes for one system, read out of the bundled catalogue index.
 
-The data comes from libretro-database (CC BY-SA 4.0), which mirrors the No-Intro,
-Redump and TOSEC catalogues. What ships is a compacted form of it: a game name,
-a rom name where it differs, and one [size, crc] pair per rom. The pinned upstream
-commit and the per-file checksums live in `defaults/dats/PROVENANCE.md`.
+The data comes from libretro-database (CC BY-SA 4.0), which mirrors the
+No-Intro, Redump and TOSEC catalogues. What ships is a compacted form of it: a
+game name, a rom name where it differs, and one [size, crc] pair per rom. The
+pinned upstream commit and the per-file checksums live in
+`defaults/dats/PROVENANCE.md`.
 
-Deliberately plain: stdlib only, no decky import, no settings and no logging, so
-it can be driven from a terminal against a real index the way `chd_reader` can.
-Everything it can be handed is a file somebody else wrote, so nothing in here
-raises past `load` — a truncated download, JSON that turns out to be a
-dictionary, a CRC that is not hex, all of it degrades to "no reference data for
+Deliberately plain: stdlib only, no decky import, no settings and no logging,
+so it can be driven from a terminal against a real index the way `chd_reader`
+can. Everything it can be handed is a file somebody else wrote, so nothing in
+here raises past `load`. A truncated download, JSON that turns out to be a
+dictionary, a CRC that is not hex: all of it degrades to "no reference data for
 this system", which the service turns into Can't Verify.
 """
 
@@ -74,8 +75,7 @@ class Index:
     """One system's catalogue, queryable two ways.
 
     By CRC, which answers "is this a known dump", and by normalised name, which
-    is what rule 2 needs to spot a file claiming to be a release it does not
-    hash like.
+    is what spots a file claiming to be a release it does not hash like.
     """
 
     __slots__ = ("_by_crc", "_by_name", "key")
@@ -96,16 +96,17 @@ class Index:
         return self._by_crc.get(str(crc or "").lower())
 
     def rebuilt(self, name, size):
-        """The release this file is named after but is SMALLER than.
+        """The release this file is named after but is smaller than.
 
         Which is the signature of an image somebody rebuilt to save room. Every
         Redump Xbox entry is 7,825,162,240 bytes, the whole DVD, and a real
-        library's copies come in at a third of that — the padding is gone. Same
-        story as a trimmed cartridge, and the same consequence: it can never
-        match, and saying so is far more use than "nothing has a record of this".
+        library's copies come in at a third of that, because the padding is
+        gone. Same story as a trimmed cartridge, and the same consequence: it
+        can never match, and saying so is far more use than "nothing has a
+        record of this".
 
-        Only smaller counts. A file LARGER than its catalogue entry is something
-        else entirely and gets no opinion from here.
+        Only smaller counts. A file larger than its catalogue entry is
+        something else entirely and gets no opinion from here.
         """
         wanted = norm_full(file_stem(name))
         if not wanted or size <= 0:
@@ -172,11 +173,11 @@ def _read(path: Path):
 def load(key, *, bundled_dir: Path, data_dir=None):
     """One system's index, or None if there is no usable catalogue for it.
 
-    The refreshed copy in the data directory wins when it reads cleanly, and the
-    bundled one is the fallback for **any** failure — bad gzip, a truncated
+    The refreshed copy in the data directory wins when it reads cleanly, and
+    the bundled one is the fallback for **any** failure: bad gzip, a truncated
     write, JSON that decodes to something that is not a list. That is why
-    "Update Dump Lists" needs no button to undo it: a download that went
-    wrong self-heals on the next scan rather than leaving the plugin with no
+    "Update Dump Lists" needs no button to undo it. A download that went wrong
+    self-heals on the next scan rather than leaving the plugin with no
     reference data at all.
     """
     if not key:

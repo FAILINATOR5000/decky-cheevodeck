@@ -19,11 +19,11 @@ CURRENT_SCHEMA_VERSION = 1
 def section_key(kind: Any, target_id: Any) -> str:
     """Stable identifier for one followed thread, ``"<kind>:<id>"``.
 
-    Defined here so the store, the Comments Service baselines, and the
-    frontend's isSubscribed check all derive the key the same way -- if
-    the shape ever changes there's one place to change it. The id goes
-    through norm_game_id first so "12345" and 12345 collapse to the same
-    key (RA hands ids back as strings in some payloads, ints in others).
+    Defined here so the store, the Comments Service baselines and the
+    frontend's isSubscribed check all derive the key the same way, and if the
+    shape ever changes there is one place to change it. The id goes through
+    norm_game_id first so "12345" and 12345 collapse to the same key, since RA
+    hands ids back as strings in some payloads and ints in others.
     """
     normalized = norm_game_id(target_id)
     return "{}:{}".format(kind, normalized)
@@ -39,18 +39,18 @@ class SubscriptionsStore:
     """The handful of comment threads the user has chosen to follow.
 
     Storage layout: one user-level file, ``<base_dir>/subscriptions.json``,
-    holding a flat list of at most MAX_SUBSCRIPTIONS entries. Metadata
-    only -- each entry carries enough to render its card and navigate
-    into the thread without an RA hit (title, parent game, console, an
-    icon url), so the Subscribed Discussions tab paints straight off
-    disk. The icons themselves come from the existing image cache keyed
-    on the url, same as tracked sets.
+    holding a flat list of at most MAX_SUBSCRIPTIONS entries. Metadata only:
+    each entry carries enough to render its card and navigate into the thread
+    without an RA hit, meaning title, parent game, console and an icon url, so
+    the Subscribed Discussions tab paints straight off disk. The icons
+    themselves come from the existing image cache keyed on the url, the same as
+    tracked sets.
 
-    Threading: one master lock guards the whole read-modify-write, same
-    threading.Lock (not asyncio.Lock) reasoning as the tracked sets
-    store -- the RPC handlers and the Comments Service can come from
-    different threads and we want them to serialize cleanly. The list is
-    tiny, so holding the lock across a load/save is never a problem.
+    Threading: one master lock guards the whole read-modify-write, with the
+    same threading.Lock rather than asyncio.Lock reasoning as the tracked sets
+    store, since the RPC handlers and the Comments Service can come from
+    different threads and have to serialize cleanly. The list is tiny, so
+    holding the lock across a load and save is never a problem.
     """
 
     def __init__(self, *, base_dir: Path):

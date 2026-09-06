@@ -29,17 +29,16 @@ _UNSAFE_NAME = re.compile(r"[^A-Za-z0-9._ ()\[\]+-]")
 class GameHashesService:
     """Fetches the supported-hash set for a single game.
 
-    The Game Overview "Supported Hashes" tab lists which ROM dumps are
-    linked to a game, the tags RA files them under (no-intro, redump,
-    rapatches, ...), and -- for translations and hacks -- a link to the
-    compatibility patch. It's a single RA call with no pagination, so
-    this stays a thin wrapper: fetch, reshape the rows for the frontend,
-    hand back a dict. Game-keyed, so there's no user identity in here at
-    all.
+    The Game Overview "Supported Hashes" tab lists which ROM dumps are linked
+    to a game, the tags RA files them under (no-intro, redump, rapatches and so
+    on), and, for translations and hacks, a link to the compatibility patch. It
+    is a single RA call with no pagination, so this stays a thin wrapper:
+    fetch, reshape the rows for the frontend, hand back a dict. Game-keyed, so
+    there is no user identity in here at all.
 
-    There is intentionally no cache and no store. The set is small and
-    the tab gets opened rarely, so a fresh fetch each time is cheaper
-    than a cache we'd have to keep warm and sweep.
+    There is intentionally no cache and no store. The set is small and the tab
+    gets opened rarely, so a fresh fetch each time is cheaper than a cache that
+    would have to be kept warm and swept.
     """
 
     def __init__(self, *, ra):
@@ -69,16 +68,16 @@ class GameHashesService:
     def download_patch(self, url, dest_dir) -> dict:
         """Fetch one patch into a directory the user picked.
 
-        The Hashes tab used to hand these links to the in-client browser, where
-        the download simply never landed — the browser is sandboxed enough that
-        the file grab fails. Pulling it here instead is the whole reason the tab
-        stops being read-only.
+        Handing these links to the in-client browser does not work: it is
+        sandboxed enough that the file grab fails and the download simply never
+        lands. Pulling it here instead is the whole reason the tab stops being
+        read-only.
 
         Everything below runs as root against a URL that came out of RA's API
         and a path that came out of the file picker, so both are treated as
         untrusted: host allowlist, no redirect off the allowlist, a size
-        ceiling, and a filename scrubbed of anything that could climb out of the
-        directory it's being written to.
+        ceiling, and a filename scrubbed of anything that could climb out of
+        the directory it is being written to.
         """
         target = self._checked_url(url)
         if target is None:

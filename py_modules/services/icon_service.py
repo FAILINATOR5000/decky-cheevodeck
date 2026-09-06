@@ -88,12 +88,11 @@ class IconService:
         """Fetch any image URL and return a data URI, or None on failure.
 
         One retry on transient failures. The Cloudflare-fronted RA CDN
-        occasionally drops individual requests under burst load -- a
-        connection reset, an empty body, a slow first byte -- and the
-        immediate retry almost always succeeds because the issue is
-        per-connection rather than something we did wrong. Without
-        this, ~10% of icons on a cold-cache page load end up letter-
-        tiled until the 24h disk TTL clears.
+        occasionally drops individual requests under burst load, with a
+        connection reset, an empty body or a slow first byte, and the immediate
+        retry almost always succeeds because the problem is per-connection.
+        Without it a noticeable share of icons on a cold-cache page load end up
+        letter-tiled until the 24h disk TTL clears.
         """
         url = str(url or "").strip()
         if not url:
@@ -188,8 +187,8 @@ class IconService:
         """Look up one badge inside a pre-loaded bundle dict.
 
         The bundle is always the per-game blob from
-        cache_store.load_game_bundle(game_id), so we only need the
-        badge name to key in here -- the game id is implicit.
+        cache_store.load_game_bundle(game_id), so the badge name is the only
+        key needed here and the game id is implicit.
         """
         badge = str(badge_name or "").strip()
         if not badge or not isinstance(bundle, dict):
@@ -368,8 +367,8 @@ class IconService:
         """Look up the game icon entry inside a pre-loaded bundle.
 
         The bundle is the per-game blob from
-        cache_store.load_game_bundle(game_id); we only care about the
-        single "gameIcon" slot inside it.
+        cache_store.load_game_bundle(game_id), and only its single "gameIcon"
+        slot matters here.
         """
         if not isinstance(bundle, dict):
             return None
@@ -408,26 +407,23 @@ class IconService:
     def get_game_icons(self, entries) -> dict:
         """Batch version of get_game_icon.
 
-        Takes a list of ``{"gameId": int, "imageIcon": str}`` pairs
-        and returns ``{"icons": {gameId: dataUri | None, ...}}``. Same
-        shape as get_user_avatars_cached: one call into here takes one
-        image-lane slot in the IPC wrapper (the CDN lane, not the RA slot),
-        and the per-game fetches that miss the cache run inside a bounded
-        thread pool.
+        Takes a list of ``{"gameId": int, "imageIcon": str}`` pairs and returns
+        ``{"icons": {gameId: dataUri | None, ...}}``. Same shape as
+        get_user_avatars_cached: one call into here takes one image-lane slot
+        in the IPC wrapper, which is the CDN lane rather than the RA slot, and
+        the per-game fetches that miss the cache run inside a bounded thread
+        pool.
 
-        New Sets pages render up to 50 rows at once, each of which
-        used to fire its own get_game_icon IPC. At parallelRaCalls=3
-        that meant 17+ rounds of serialised IPCs queued behind
-        whatever else (avatars, comments) was firing alongside, and
-        every transient CDN flake left a row with a blank tile and
-        no retry. Batching this gives every row's URL one shot under
-        one slot and the safety-net retry in the frontend catches
-        anything that still slips through.
+        The alternative is one IPC per row, which on a page rendering fifty of
+        them serialises into round after round of calls queued behind whatever
+        else is firing, with every transient CDN flake leaving a blank tile and
+        no retry. Batching gives every row's URL one shot under one slot, and
+        the frontend's safety-net retry catches anything that still slips
+        through.
 
-        Missing or invalid game ids are dropped silently. The fetches
-        run on the dedicated game-icon worker pool (Game Icon Workers),
-        since game icons sit on the RA media host rather than the badge
-        CDN.
+        Missing or invalid game ids are dropped silently. The fetches run on
+        the dedicated game-icon worker pool, since game icons sit on the RA
+        media host rather than the badge CDN.
         """
         cleaned = []
         seen = set()
@@ -499,21 +495,20 @@ class IconService:
         return {"icons": icons}
 
     def get_award_icons(self, entries) -> dict:
-        """Batch-fetch badge art for site / event awards that have no gameId.
+        """Batch-fetch badge art for site and event awards that have no gameId.
 
-        Takes a list of ``{"url": str}`` pairs and returns
-        ``{"icons": {url: dataUri | None, ...}}`` keyed by the badge-art URL.
-        Same one-slot-per-batch shape as get_game_icons: the IPC wrapper holds
-        a single image-lane slot and the cache misses fan out across the game-icon
-        worker pool (these render on the Badges page, the same page that runs
-        the game-icon batch on that pool).
+        Takes a list of ``{"url": str}`` pairs and returns ``{"icons": {url:
+        dataUri | None, ...}}`` keyed by the badge-art URL. Same
+        one-slot-per-batch shape as get_game_icons: the IPC wrapper holds a
+        single image-lane slot and the cache misses fan out across the
+        game-icon worker pool.
 
         Keyed by URL rather than gameId on purpose. These awards all report
         AwardData = 0, so the gameId path would collapse every one of them onto
-        the single game-id-0 bundle slot and they'd show each other's art. Each
-        award's URL is unique, so the per-URL file gives each its own slot and
-        the collision can't happen. There's no TTL -- a present dataUri is a
-        hit, full stop; badge art doesn't change.
+        the single game-id-0 bundle slot and they would show each other's art.
+        Each award's URL is unique, so the per-URL file gives each its own
+        slot. There is no TTL: a present dataUri is a hit, since badge art
+        doesn't change.
 
         Blank URLs are dropped silently.
         """
@@ -597,17 +592,16 @@ class IconService:
 
         Same cache-first contract and return shape as get_game_icons. The
         difference is cancellation: each call claims a monotonic request id,
-        and the moment a newer call -- a tab switch firing its own batch, or
-        cancel_tab_game_icons -- bumps that id, this one stops submitting the
-        rest of its queue. The handful already in flight (at most worker_count)
-        finish as the pool drains and we return what we have. That's how a
-        letter-tab switch walks away from the previous tab's icon work without
-        waiting on a slow CDN round-trip.
+        and the moment a newer call bumps that id, whether a tab switch firing
+        its own batch or cancel_tab_game_icons, this one stops submitting the
+        rest of its queue. The handful already in flight finish as the pool
+        drains and what is done comes back. That is how a letter-tab switch
+        walks away from the previous tab's icon work without waiting on a slow
+        CDN round-trip.
 
-        AllGamesPage and BadgesPage drive this: one cancelable batch per tab /
+        AllGamesPage and BadgesPage drive this: one cancelable batch per tab or
         filter, with the frontend holding a single batch in flight at a time so
-        even a fast A-Z sweep can't burst the media host the way the old
-        per-row IPCs did.
+        even a fast A-Z sweep can't burst the media host.
         """
         my_seq = self._next_tab_icon_seq()
 
@@ -785,19 +779,18 @@ class IconService:
         return self._fresh_data_uri(entry, self._user_avatar_max_age_seconds)
 
     def get_user_avatar_cached(self, username, web_api_key=None) -> dict:
-        """Return a data URI for the avatar, fetching + caching if needed.
+        """Return a data URI for the avatar, fetching and caching if needed.
 
-        Same shape as get_game_icon's response so the frontend layer
-        can use the same pattern -- ``{"dataUri": str | None}``.
+        Same shape as get_game_icon's response, ``{"dataUri": str | None}``, so
+        the frontend layer can use the same pattern.
 
-        Kept around for callers that only ever want one avatar at a
-        time. The body just calls into get_user_avatars_cached with a
-        one-element list so we don't have to maintain two copies of
-        the cache / fetch / write logic.
+        For callers that only ever want one avatar at a time. The body calls
+        into get_user_avatars_cached with a one-element list rather than
+        keeping a second copy of the cache, fetch and write logic.
 
-        web_api_key is accepted for compatibility with the RPC wrapper
-        in main.py but not used -- this path uses the convention URL
-        which doesn't need credentials.
+        web_api_key is accepted for compatibility with the RPC wrapper in
+        main.py and not used: this path builds the convention URL, which needs
+        no credentials.
         """
         key = self._normalise_avatar_key(username)
         if not key:
@@ -812,37 +805,34 @@ class IconService:
     def get_user_avatars_cached(self, usernames, web_api_key=None, max_workers=None) -> dict:
         """Batch version of get_user_avatar_cached.
 
-        Takes a list of usernames, returns ``{"avatars": {lowered_name:
-        dataUri | None, ...}}``. Mirrors get_achievement_icons' shape:
-        one call into this method takes one image-lane slot in the
-        IPC wrapper, and the per-username fetches that miss the cache
-        run inside a bounded thread pool. That keeps an AOTW page's
-        20-row avatar warm-up to one slot instead of 20.
+        Takes a list of usernames and returns ``{"avatars": {lowered_name:
+        dataUri | None, ...}}``. Mirrors get_achievement_icons' shape: one call
+        into this method takes one image-lane slot in the IPC wrapper, and the
+        per-username fetches that miss the cache run inside a bounded thread
+        pool. A page's twenty-row avatar warm-up costs one slot instead of
+        twenty.
 
         Avatar URLs are built via the convention path
-        (media.retroachievements.org/UserPic/<name>.png), not the
-        profile endpoint. The profile endpoint is rate-limited
-        aggressively and even one batch of ten users was enough to
-        burst-trip it. The convention URL hits a CDN that doesn't
-        rate-limit at our scale, so we can keep the parallel worker
-        pool without ending up in a 429 spiral.
+        (media.retroachievements.org/UserPic/<name>.png), not the profile
+        endpoint. The profile endpoint is rate-limited aggressively and even
+        one batch of ten users was enough to burst-trip it. The convention URL
+        hits a CDN that doesn't rate-limit at this scale, so the parallel
+        worker pool doesn't end in a 429 spiral.
 
-        Custom avatars come through fine here as long as the name is
-        cased the way RA spells it -- the CDN path is case-sensitive,
-        and the earlier "convention is inaccurate" belief was really
-        just the URL being lowercased before the fetch. We now build
-        the URL from the cased name (see user_avatar_url) and key the
-        cache lowercased, so this path returns the real picture.
+        Custom avatars come through fine as long as the name is cased the way
+        RA spells it, because the CDN path is case-sensitive. The URL is built
+        from the cased name and the cache is keyed lowercased.
 
-        ``max_workers`` lets a caller pin the pool size for this one
-        batch (independently of the constructor-time default).
+        ``max_workers`` pins the pool size for this one batch, independently of
+            the
+        constructor-time default.
 
-        web_api_key is accepted for compatibility with the RPC wrapper
-        in main.py but is not used by the convention-URL path.
+        web_api_key is accepted for compatibility with the RPC wrapper in
+        main.py and is not used by the convention-URL path.
 
-        Usernames in the result dict are lower-cased -- callers should
-        look them up with the same normalisation. Missing or empty
-        usernames are dropped silently.
+        Usernames in the result dict are lower-cased, so callers should look
+        them up with the same normalisation. Missing or empty usernames are
+        dropped silently.
         """
         cleaned = []
         cased_by_key = {}
@@ -938,13 +928,12 @@ class IconService:
         """Write a healed, profile-sourced avatar into the reservoir.
 
         The friend-pic healer calls this once it has resolved a renamed
-        friend's real picture. The convention write paths yield to an
-        entry that's still fresh; this one is the opposite, on purpose,
-        because a profile entry is the authoritative answer and has to
-        overwrite whatever's there (a stale convention joystick, in the
-        case we care about). Keyed lowercased like every other reservoir
-        entry. The "profile" tag is a record of how the bytes were
-        settled, for reading the reservoir by eye; nothing branches on it.
+        friend's real picture. The convention write paths yield to an entry
+        that is still fresh; this one is the opposite, on purpose, because a
+        profile entry is the authoritative answer and has to overwrite whatever
+        is there, typically a stale convention joystick. Keyed lowercased like
+        every other reservoir entry. The "profile" tag records how the bytes
+        were settled, for reading the reservoir by eye; nothing branches on it.
         """
         key = self._normalise_avatar_key(username)
         data_uri = str(data_uri or "").strip()
@@ -964,25 +953,23 @@ class IconService:
         """Keep bytes the healer fetched from a user's convention file.
 
         The other half of put_profile_avatar. Before settling a verdict the
-        healer downloads whatever is sitting at a user's convention path so
-        it can fingerprint it against the stock joystick, and those bytes
-        are exactly what the render path goes and asks the same CDN for the
-        next time a panel needs that user. Handing them over here is what
-        stops the picture being pulled twice.
+        healer downloads whatever is sitting at a user's convention path so it
+        can fingerprint it against the stock joystick, and those bytes are
+        exactly what the render path would go and ask the same CDN for next
+        time a panel needs that user. Handing them over here is what stops the
+        picture being pulled twice.
 
-        Follows the batch write's rule rather than put_profile_avatar's: a
+        Behaves like the batch write rather than like put_profile_avatar: a
         still-fresh entry stays put, a stale one gets replaced. The freshness
         test is what protects a renamed friend, whose entry holds their real
-        picture from another path entirely and must not be overwritten with
-        the joystick (or the stranger) living at their own name.
+        picture from another path entirely and must not be overwritten with the
+        joystick, or the stranger, living at their own name.
 
-        force=True skips that freshness test, for the on-demand resolve: the
-        entry it means to replace is by definition still inside its TTL, and
-        the bytes in hand were just fetched past it on purpose. It stays on
-        this method rather than borrowing put_profile_avatar, which would
-        overwrite just as happily but would file convention bytes under the
-        "profile" tag and leave anyone reading the reservoir by eye with the
-        wrong story about where the picture came from.
+        force=True skips that test, for the on-demand resolve: the entry it
+        means to replace is by definition still inside its TTL, and the bytes
+        in hand were just fetched past it on purpose. It stays on this method
+        rather than borrowing put_profile_avatar, which would overwrite just as
+        happily but would file convention bytes under the "profile" tag.
         """
         key = self._normalise_avatar_key(username)
         data_uri = str(data_uri or "").strip()
@@ -1004,17 +991,17 @@ class IconService:
         """Raw bytes of a fresh reservoir entry that came from ``source_url``.
 
         The healer's fingerprint step asks a narrower question than "what is
-        this user's avatar" -- it asks what is sitting at one specific file.
-        A renamed friend's entry holds their real picture from some other
-        path, and hashing that would answer the wrong question and could
-        flip their verdict. Every entry records the URL it was fetched from,
-        so matching on it is the thing that makes reuse sound: a mismatch
-        falls through to a real fetch, which is the only answer that would
-        have been right for that user anyway.
+        this user's avatar": it asks what is sitting at one specific file. A
+        renamed friend's entry holds their real picture from some other path,
+        and hashing that would answer the wrong question and could flip their
+        verdict. Every entry records the URL it was fetched from, so matching
+        on it is what makes reuse sound. A mismatch falls through to a real
+        fetch, which is the only answer that would have been right for that
+        user anyway.
 
-        None whenever there's nothing usable (no entry, past its TTL, filed
-        under a different URL, or a data URI we can't decode), and the
-        caller goes to the CDN exactly as it did before.
+        None whenever there is nothing usable: no entry, past its TTL, filed
+        under a different URL, or a data URI that won't decode. The caller then
+        goes to the CDN exactly as it did before.
         """
         key = self._normalise_avatar_key(username)
         wanted = str(source_url or "").strip()

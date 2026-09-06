@@ -13,20 +13,21 @@ _ULID_RE = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
 class GamesListCacheStore:
     """Global cache of friend All-Games payloads, one JSON file per ULID.
 
-    Storage layout: ``<store_dir>/<ULID>.json``, each holding
-    ``{schema, payload, cachedAt}``. Unlike the per-account stores (notes, PNY,
-    etc.) this one is shared across every plugin account on purpose -- a friend's
-    library is theirs, not the viewer's, so two of our accounts that both follow
-    the same person reuse one file and it stays warm across an account switch.
-    That's also why there's no ``repoint``: the dir never moves, so adding one
-    would be dead scaffolding. It is deliberately left off ``_apply_user_scope``.
+    Storage layout: ``<store_dir>/<ULID>.json``, each holding ``{schema,
+    payload, cachedAt}``. Unlike the per-account stores this one is shared
+    across every plugin account on purpose: a friend's library is theirs rather
+    than the viewer's, so two accounts that both follow the same person reuse
+    one file and it stays warm across an account switch. That is also why there
+    is no ``repoint``, since the directory never moves and adding one would be
+    dead scaffolding. It is deliberately left off ``_apply_user_scope``.
 
-    Threading mirrors PlayersNearYouStore: every method that touches a file takes
-    that ULID's lock; the master lock only guards the lock dict (and the clear
-    walk + generation). The one extra wrinkle is ``_generation`` -- a monotonic
-    counter bumped on every clear. A full-fetch can run for several seconds, so a
-    clear can land mid-fetch; the fetch captures the generation up front and
-    ``save`` drops the write if it moved, so a clear is never silently undone.
+    Threading mirrors PlayersNearYouStore: every method that touches a file
+    takes that ULID's lock, and the master lock only guards the lock dict, the
+    clear walk and the generation. The one extra wrinkle is ``_generation``, a
+    monotonic counter bumped on every clear. A full fetch can run for several
+    seconds, so a clear can land mid-fetch; the fetch captures the generation
+    up front and ``save`` drops the write if it moved, so a clear is never
+    silently undone.
     """
 
     def __init__(self, *, store_dir: Path):

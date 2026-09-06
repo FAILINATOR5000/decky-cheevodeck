@@ -68,25 +68,20 @@ def _bytes_to_data_uri(raw, content_type):
 class FriendsRosterService(TickServiceBase):
     """Background thread that keeps the friends roster validated on a slow loop.
 
-    Companion to SocialActivityTrickleService. That one keeps the
-    activity feed warm by sampling friends for new unlocks; this one
-    periodically re-fetches the follow list so adds and removes the
-    user made on the RA website show up without them opening Friends
-    and forcing a manual refresh. Runs as a daemon thread so plugin
-    shutdown can't deadlock on it.
+    Companion to SocialActivityTrickleService. That one keeps the activity feed
+    warm by sampling friends for new unlocks; this one periodically re-fetches
+    the follow list so adds and removes the user made on the RA website show up
+    without them opening Friends and forcing a manual refresh. Runs as a daemon
+    thread so plugin shutdown can't deadlock on it.
 
-    Renamed from FriendsImageService -- avatars used to live on the
-    friend row and that service warmed them. That's gone: every surface
-    now resolves avatars on demand through the case-correct convention
-    CDN, so keeping the roster current is the background job here. The
-    healer below still leaves the reservoir warmer than it found it, but
-    only as a by-product: it downloads a picture to fingerprint it and
-    keeps what it already has rather than making the render path fetch
-    the identical file again.
+    The healer below leaves the avatar reservoir warmer than it found it, but
+    only as a by-product: it downloads a picture to fingerprint it and keeps
+    what it already has rather than making the render path fetch the identical
+    file again.
 
-    The persisted config id stays friendImageService (and the FIS_*
-    constants keep that token) so existing settings files keep working;
-    the Options label is "Roster Sync".
+    The persisted config id is friendImageService, and the FIS_* constants keep
+    that token, so existing settings files keep working. The Options label is
+    "Roster Sync".
     """
 
     def __init__(self, *, friends_service, cache_store, settings_store, resolved_avatar_store, ra, icon_service, plugin=None, notifications_store=None):
@@ -121,25 +116,24 @@ class FriendsRosterService(TickServiceBase):
         self._wake_event.set()
 
     def resolve_avatar_now(self, ulid, name, web_api_key):
-        """Resolve one friend's avatar now. True if we ran, False if we declined.
+        """Resolve one friend's avatar now. True if it ran, False if it declined.
 
         Lock order is why this lives on the service rather than in the IPC.
-        Every tick takes the trickle lock and *then* asks for an RA slot; an
-        IPC that took a slot first and reached for the lock afterwards would
-        acquire them in the opposite order, and with Parallel RA Calls set to
-        1 that isn't a stall, it's a hang: our press holds the only slot
-        waiting on the lock while the tick holds the lock waiting for a slot.
-        So we take the lock here and let the usual bridge take the slot
-        underneath us.
+        Every tick takes the trickle lock and then asks for an RA slot; an IPC
+        that took a slot first and reached for the lock afterwards would
+        acquire them in the opposite order, and with Parallel RA Calls set to 1
+        that isn't a stall, it is a hang: the press holds the only slot waiting
+        on the lock while the tick holds the lock waiting for a slot. So the
+        lock is taken here and the usual bridge takes the slot underneath.
 
-        Going through that bridge also means the shared background pacing
-        floor applies, which is a gift rather than a cost: it puts a hard gap
-        between two presses without a line of code.
+        Going through that bridge also means the shared background pacing floor
+        applies, which is a gift rather than a cost: it puts a hard gap between
+        two presses without a line of code.
 
-        No account-switch fence. The verdict is keyed by ULID, so it stays
-        true for that friend whichever account is signed in, and the one
-        reservoir entry a switch could strand gets replaced by the new
-        account's own resolve. The window is a single call wide.
+        No account-switch fence. The verdict is keyed by ULID, so it stays true
+        for that friend whichever account is signed in, and the one reservoir
+        entry a switch could strand gets replaced by the new account's own
+        resolve. The window is a single call wide.
         """
         ulid = str(ulid or "").strip()
         name = str(name or "").strip()
@@ -573,29 +567,28 @@ class FriendsRosterService(TickServiceBase):
     def _resolve_one_friend(self, ulid, name, web_api_key, accurate, *, force=False):
         """Resolve one friend's avatar; returns True if a profile call was made.
 
-        Runs on a worker thread inside the RA slot. FAIL-SAFE: a verdict
-        is written ONLY on a clean resolve. Any error, timeout,
-        unexpected shape, missing UserPic, or failed image fetch leaves
-        no verdict, so the friend is simply retried on the next pass.
-        The avatarless answer in particular is recorded only after a
-        clean profile read AND a clean joystick fingerprint of the
-        picture that profile points at.
+        Runs on a worker thread inside the RA slot. Fail-safe: a verdict is
+        written only on a clean resolve. Any error, timeout, unexpected shape,
+        missing UserPic or failed image fetch leaves no verdict, so the friend
+        is simply retried on the next pass. The avatarless answer in particular
+        is recorded only after a clean profile read and a clean joystick
+        fingerprint of the picture that profile points at.
 
-        Two paths. The fast one trusts a real picture found at the friend's
-        own convention file and stops there, no profile call. The accurate
-        one doesn't: RA's UserPic is the filename at UPLOAD time and doesn't
-        move on a rename, so a friend who renamed into a name some earlier
-        account had already uploaded a picture under gets that stranger's
-        picture served at their convention path. Real bytes, wrong person,
-        and only the profile knows. That call is expensive, which is why
-        accurate is opt-in per friend rather than always on.
+        Two paths. The fast one trusts a real picture found at the friend's own
+        convention file and stops there, with no profile call. The accurate one
+        doesn't: RA's UserPic is the filename at upload time and doesn't move
+        on a rename, so a friend who renamed into a name some earlier account
+        had already uploaded a picture under gets that stranger's picture
+        served at their convention path. Real bytes, wrong person, and only the
+        profile knows. That call is expensive, which is why accurate is opt-in
+        per friend rather than always on.
 
         force is the user pressing Y on a friend row. It always arrives with
         accurate, and it changes three things: the convention bytes come from
         the CDN rather than the reservoir, the write overwrites rather than
         yielding, and the profile is looked up by ULID with an identity check
-        before anything is written. See _resolve_avatar_now for why the
-        identity check has to exist.
+        before anything is written. See _profile_is_this_friend for why that
+        check has to exist.
         """
         convention_url = self._icon_service.user_avatar_url(name)
         if not convention_url:
@@ -647,25 +640,25 @@ class FriendsRosterService(TickServiceBase):
         return True
 
     def _profile_is_this_friend(self, profile, ulid, name):
-        """Is this profile the friend our roster row says it is?
+        """Whether this profile is the friend the roster row says it is.
 
-        Only the forced path asks. Two ways it can be no, and both have to
-        stop the resolve before a single byte is written:
+        Only the forced path asks. Two ways it can be no, and both have to stop
+        the resolve before a single byte is written.
 
-        Wrong account. We asked by ULID so this should not happen, but a
-        profile whose ULID doesn't match ours is somebody else and writing
-        their UserPic as our friend's route would put a stranger's picture
-        on the row for a week.
+        Wrong account. The lookup went by ULID so this should not happen, but a
+        profile whose ULID doesn't match is somebody else, and writing their
+        UserPic as this friend's route would put a stranger's picture on the
+        row for a week.
 
-        Right account, different name. The friend renamed on RA and our
-        roster row hasn't caught up. Resolving anyway files a route under
-        their old name while the verdict goes under their ULID, and those
-        two come apart the moment the roster refresh heals the name: prune
-        drops the orphaned route, the ULID verdict survives, and the heal
-        pass then skips them for the whole TTL with their avatar falling
-        back to a convention URL that may be nobody's. Writing nothing
-        leaves them pending, which is the fail-safe the rest of this
-        resolver already takes. Names are friends_service's job.
+        Right account, different name. The friend renamed on RA and the roster
+        row hasn't caught up. Resolving anyway files a route under their old
+        name while the verdict goes under their ULID, and those two come apart
+        the moment the roster refresh heals the name: prune drops the orphaned
+        route, the ULID verdict survives, and the heal pass then skips them for
+        the whole TTL with their avatar falling back to a convention URL that
+        may be nobody's. Writing nothing leaves them pending, which is the
+        fail-safe the rest of this resolver already takes. Names are
+        friends_service's job.
         """
         if not isinstance(profile, dict):
             return False
@@ -739,29 +732,28 @@ class FriendsRosterService(TickServiceBase):
         return future.result(timeout=60)
 
     def _resolve_self(self, name, web_api_key, *, force=False):
-        """Resolve the signed-in user's own avatar; returns True if a profile
-        call was made.
+        """Resolve the signed-in user's own avatar; returns True if a profile call
+        was made.
 
         The self twin of _resolve_one_friend. Same convention-then-profile
-        classification and the same fail-safe stance: the watermark is
-        written ONLY on a clean resolve, so any error / unexpected shape /
-        failed fetch leaves it unwritten and the next pass simply retries.
-        The only differences from the friend path are that the answer lands
-        in the self watermark (set_self) instead of a ULID verdict, and the
-        route it writes on a rename is what makes the main-page profile
-        avatar resolve to the real picture for a user who renamed in the
-        past.
+        classification and the same fail-safe stance: the watermark is written
+        only on a clean resolve, so any error, unexpected shape or failed fetch
+        leaves it unwritten and the next pass simply retries. The differences
+        are that the answer lands in the self watermark rather than a ULID
+        verdict, and that the route it writes on a rename is what makes the
+        main-page profile avatar resolve to the real picture for a user who
+        renamed in the past.
 
-        Self is always on the accurate path -- there's no toggle. It's one
-        profile call a week (the watermark gate above is unchanged), it's the
-        first picture the user sees after signing in, and it's the one avatar
-        they'd immediately notice was somebody else's.
+        Self is always on the accurate path, with no toggle. It is one profile
+        call a week, it is the first picture the user sees after signing in,
+        and it is the one avatar they would immediately notice was somebody
+        else's.
 
-        force is Y on your own row, and it needs no identity check: this
-        account's name comes off the live config every time, so there's no
+        force is Y on the user's own row, and it needs no identity check: this
+        account's name comes off the live config every time, so there is no
         stale roster row to be wrong about. It skips the reservoir and
-        overwrites, same as the friend path, which is what makes a picture
-        you changed on RA a minute ago show up now instead of within 48h.
+        overwrites, the same as the friend path, which is what makes a picture
+        changed on RA a minute ago show up now instead of within 48h.
         """
         convention_url = self._icon_service.user_avatar_url(name)
         if not convention_url:
@@ -850,28 +842,26 @@ class FriendsRosterService(TickServiceBase):
     def _convention_bytes(self, name, convention_url, *, force=False):
         """Step 1's bytes, from the reservoir when it already has them.
 
-        force=True skips the reservoir and goes to the CDN. That's the
-        on-demand button: the reservoir entry is up to 48h old, so
-        reusing it would fingerprint the picture the friend had
-        yesterday and miss the one they just uploaded. Deleting the
-        entry first would do the same job, but it can't be done safely.
-        An absent entry is a cache miss, and a miss is the one path that
-        follows the routing index, so a visible-row avatar warm landing
-        in that window refills it from the stale route and the write
-        below then yields to it.
+        Returns (raw, content_type, from_cdn). The reservoir is checked first
+        because the render path fetches this same file for this same user, and
+        a warm entry filed under this exact URL is that file's contents by
+        definition. A routed entry, meaning a renamed friend's real picture
+        living somewhere else entirely, is filed under a different URL and
+        doesn't match, so it falls through to the fetch, which is the only
+        answer that would have been right for them anyway.
 
-        Returns (raw, content_type, from_cdn). The reservoir is checked
-        first because the render path fetches this same file for this same
-        user, and a warm entry filed under this exact URL is that file's
-        contents by definition. A routed entry (a renamed friend's real
-        picture, living somewhere else entirely) is filed under a different
-        URL and doesn't match, so it falls through to the fetch, which is
-        the only answer that would have been right for them anyway.
+        force=True skips the reservoir and goes to the CDN. That is the
+        on-demand button: the reservoir entry is up to 48h old, so reusing it
+        would fingerprint the picture the friend had yesterday and miss the one
+        they just uploaded. Deleting the entry first would do the same job and
+        cannot be done safely. An absent entry is a cache miss, and a miss is
+        the one path that follows the routing index, so a visible-row avatar
+        warm landing in that window refills it from the stale route and the
+        write below then yields to it.
 
-        content_type comes back as None on a reservoir hit; nothing needs
-        it there, because a hit means the bytes are already cached and
-        there's nothing left to write. from_cdn is what the callers gate
-        their write-back on.
+        content_type comes back as None on a reservoir hit, because a hit means
+        the bytes are already cached and there is nothing left to write.
+        from_cdn is what the callers gate their write-back on.
         """
         if not force:
             cached = self._icon_service.cached_avatar_bytes(name, convention_url)

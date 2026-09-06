@@ -155,8 +155,11 @@ class DolphinMapperMixin(PluginContext):
 
     def _find_deck_controller_path(self):
         """The Deck built-in controller's USB bus path (e.g. "3-3"), found by
-        VID/PID. Cached, so we can still re-bind after an unbind drops it from
-        the scan. Returns None on non-Deck hardware."""
+        VID/PID.
+
+        Cached, so a re-bind still works after an unbind drops it from the
+        scan. Returns None on non-Deck hardware.
+        """
         if USB_DEVICES_DIR.exists():
             for dev in USB_DEVICES_DIR.iterdir():
                 vid = self._read_sysfs(dev / "idVendor")
@@ -310,9 +313,12 @@ class DolphinMapperMixin(PluginContext):
 
     def _set_ini_value(self, path: Path, section: str, key: str, value: str) -> None:
         """Set `key = value` under `[section]` in a Dolphin .ini, preserving the
-        rest of the file. Creates the key (and the section) if absent. Kept
-        hand-rolled rather than configparser so we never reflow or lose the
-        exact formatting Dolphin is picky about elsewhere."""
+        rest of the file.
+
+        Creates the key, and the section, if absent. Hand-rolled rather than
+        configparser so nothing ever reflows or loses the exact formatting
+        Dolphin is picky about elsewhere.
+        """
         lines = []
         if path.exists():
             lines = path.read_text(encoding="utf-8").splitlines()

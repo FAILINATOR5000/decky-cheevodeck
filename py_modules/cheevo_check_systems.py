@@ -1,27 +1,25 @@
-"""
-Which console a ROM belongs to, and what RetroAchievements calls it.
+"""Which console a ROM belongs to, and what RetroAchievements calls it.
 
-The ID and key columns come from RAHasher's own ``--help`` output (1.8.3, captured
-alongside the recipe) — that's the upstream authority on which hash algorithm goes
-with which number, and it prints roughly seventy systems. The folder aliases and
-extension lists are ours, and that's deliberate: the aliases that matter on a Deck
-are EmuDeck's directory names, which no upstream list knows about. ES-DE uses the
-same names, so they're a de facto standard rather than one launcher's habit —
-which is why folder detection is trusted ahead of the extension.
+The ID and key columns come from RAHasher's own ``--help`` output, which is the
+upstream authority on which hash algorithm goes with which number. The folder
+aliases and extension lists are not from there, deliberately: the aliases that
+matter on a Deck are EmuDeck's directory names, which no upstream list knows
+about. ES-DE uses the same names, so they are a de facto standard rather than
+one launcher's habit, which is why folder detection is trusted ahead of the
+extension.
 
 Not every system RAHasher prints is here. This is the set worth answering
 confidently for; anything missing simply doesn't get scanned, which is a far
 better failure than a wrong verdict. What stays out is the consoles RAHasher
 lists with a blank group, which its own help text says RA does not support yet.
 
-Arcade used to be out too, and it's worth saying why it isn't any more. RA
-identifies an arcade game by its *filename* with the extension taken off —
-md5("progolf") and nothing else — so an arcade zip is the one file in a library
-whose contents have no bearing on which game it is. That's the opposite of every
-other row here, which is what ra_hash="name" says, and it's why the zip
-introspection that saves Wrecking Crew '98 would tear a MAME set apart looking
-for a ROM that was never in there. Arcade gets its own path through the scanner
-instead, and its container is opened only to prove that it opens.
+Arcade is the odd one. RA identifies an arcade game by its filename with the
+extension taken off, and nothing else, so an arcade zip is the one file in a
+library whose contents have no bearing on which game it is. That is what
+ra_hash="name" says, and it is why the zip introspection that rescues a ROM
+shipped beside a stray file would tear a MAME set apart looking for a ROM that
+was never in there. Arcade gets its own path through the scanner instead, and
+its container is opened only to prove that it opens.
 """
 
 
@@ -567,10 +565,10 @@ def ra_covers_whole_file(system, inner_size=None) -> bool:
 
     The question the two buckets actually ask. A file RA recognises on a system
     it hashes whole is a copy of something somebody registered, byte for byte,
-    and there is nothing left for a catalogue to be right about. Where RA skips a
-    header, that much less is vouched for — the skipped bytes are mapper flags
-    and copier metadata rather than game data, but they are still bytes we cannot
-    speak for, so those files get the weaker of the two answers.
+    and there is nothing left for a catalogue to be right about. Where RA skips
+    a header, that much less is vouched for. The skipped bytes are mapper flags
+    and copier metadata rather than game data, but they are still bytes nothing
+    here can speak for, so those files get the weaker of the two answers.
 
     inner_size is the ROM's own size, not the archive's. Left out when nothing
     has been read yet, which only happens on systems that ship no catalogue at
@@ -587,10 +585,10 @@ def hashes_the_name(system) -> bool:
     """Whether RA's hash for this system is computed from the filename alone.
 
     Arcade and only arcade, but asked by name rather than by console number so
-    the scanner never has to carry 27 around. Every branch that skips hashing,
-    skips looking inside the archive, or picks the verification path turns on
-    this, and they all mean the same thing: opening this file would tell us
-    nothing about which game it is.
+    the scanner never has to carry the number around. Every branch that skips
+    hashing, skips looking inside the archive, or picks the verification path
+    turns on this, and they all mean the same thing: opening this file would
+    say nothing about which game it is.
     """
     return system.ra_hash == "name"
 
@@ -600,16 +598,14 @@ def is_arcade_set_folder(name) -> bool:
 
     Arcade comes in two shapes. Most of it is one zip per machine, named after
     the machine. The GD-ROM boards are a directory named after the machine with
-    a disc image inside it, and there RA hashes the *directory* — md5("cvs2"),
-    not md5("gdl-0008").
+    a disc image inside it, and there RA hashes the directory: md5("cvs2"), not
+    md5("gdl-0008").
 
-    Telling that apart from somebody's per-game disc folder is what this is for,
-    and MAME's own naming does the work: short names are lower-case, ASCII,
-    alphanumeric and at most eight characters, which is the DOS-era limit MAME
-    still keeps. "cvs2" and "monkeyba" pass; "Shenmue (Europe) (En,Fr,De,Es)"
-    and "BrainDead 13 (USA)" fail on every count. Measured across a library of
-    both: 8 hits, all of them real GD-ROM sets, and 14 misses, all of them real
-    disc folders.
+    Telling that apart from somebody's per-game disc folder is what this is
+    for, and MAME's own naming does the work. Short names are lower-case,
+    ASCII, alphanumeric and at most eight characters, which is the DOS-era
+    limit MAME still keeps. "cvs2" and "monkeyba" pass; "Shenmue (Europe)
+    (En,Fr,De,Es)" and "BrainDead 13 (USA)" fail on every count.
 
     A directory that names a console is not a game directory however short it
     is, which is what keeps arcade/cps2/ from reading as a machine called cps2.
@@ -631,8 +627,7 @@ def describe_systems() -> str:
 
     Rendered rather than written out, because a copy of fifty-odd systems and
     their folder names in a document is a second list to keep in step with this
-    one, and it would be wrong within a session — `.cdi` moved consoles twice in
-    the afternoon this was added.
+    one, and it would be wrong within a session.
     """
     lines = []
     for system in sorted(SYSTEMS + VERIFY_ONLY_SYSTEMS, key=lambda item: item.name.lower()):
@@ -650,11 +645,11 @@ def describe_systems() -> str:
 def describe_verification() -> str:
     """What verification can say about each system, for the in-app guide.
 
-    Generated for the same reason describe_systems is: verification adds two
-    more facts per console — whether a catalogue ships for it and how much of
-    the file RA's own hash covers — and both of those move as systems get
-    probed. A hand-typed copy would be stale by the end of the session that
-    wrote it.
+    Generated for the same reason describe_systems is. Verification adds two facts
+    per console that the systems table alone does not carry: whether a catalogue
+    ships for it, and how much of the file RA's own hash covers. Both move as
+    systems get probed, so a hand-typed copy would be stale by the end of the
+    session that wrote it.
     """
     lines = []
     for system in sorted(SYSTEMS + VERIFY_ONLY_SYSTEMS, key=lambda item: item.name.lower()):
@@ -755,7 +750,7 @@ def verify_only_by_folder_name(name):
     """The verify-only system a directory named ``name`` holds, or None.
 
     Asked before folder_is_unsupported, since both of these are in that list on
-    purpose — the scan has to keep skipping them.
+    purpose: the scan has to keep skipping them.
     """
     folded = _fold(name)
     found = _VERIFY_BY_FOLDER.get(folded)
@@ -774,9 +769,9 @@ FOLDER_ONLY_EXTENSIONS = frozenset((".wad",))
 def by_extension(extension):
     """Every system a file with this suffix could belong to.
 
-    Usually one. The overlap is all discs — a bare .chd or .cue could be any of
-    eight consoles — which is why the folder name gets asked first and this is
-    the fallback.
+    Usually one. The overlap is all discs, since a bare .chd or .cue could be
+    any of several consoles, which is why the folder name gets asked first and
+    this is the fallback.
     """
     suffix = str(extension or "").lower()
     if suffix in FOLDER_ONLY_EXTENSIONS:

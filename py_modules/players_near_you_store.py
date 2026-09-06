@@ -18,19 +18,21 @@ class PlayersNearYouStore:
     """Per-game storage for the Players Near You feed, one JSON file per game.
 
     Storage layout: ``<store_dir>/<gameid>.json``. Each file holds that one
-    game's feed: ``{items, lastRefreshAt, watermarkByAchievement}``, plus the
-    game's ``mode`` — its Playstyle, the one field in here the background
-    service doesn't own and the only copy of that preference anywhere. The feed
-    used to live in a single flat per-user file pooled across every game, which
-    is what let one game's unlockers bleed into another's list on a game switch.
-    One small file per game fixes that -- the read only ever touches the current
+    game's feed, ``{items, lastRefreshAt, watermarkByAchievement}``, plus the
+    game's ``mode``, its Playstyle, which is the one field in here the
+    background service doesn't own and the only copy of that preference
+    anywhere.
+
+    One small file per game rather than a flat per-user file pooled across
+    every game, because pooling is what let one game's unlockers bleed into
+    another's list on a game switch. The read only ever touches the current
     game's file, so switching games swaps the whole feed.
 
     Threading mirrors NotesStore exactly. Every public method that touches a
-    game's file takes that game's lock; the master lock only guards the lock
-    dict itself and is never held at the same time as a per-game lock. The
+    game's file takes that game's lock, and the master lock only guards the
+    lock dict itself and is never held at the same time as a per-game lock. The
     background service is the sole writer and the RPC reader is read-only, so
-    there's no multi-writer race -- the per-game lock is here for the same
+    there is no multi-writer race. The per-game lock is here for the same
     reason NotesStore's is: keep a save atomic against a concurrent read, and
     serialize cleanly with whatever path is current after a repoint.
     """

@@ -41,11 +41,11 @@ def saved_comment_id(kind: str, source_id: str, ulid: Any, submitted: Any, comme
 
     Defined here so the store owns the one authoritative derivation and the
     frontend can mirror it to answer "is this already saved?" against its
-    in-memory id set without a round-trip. RA hands back no comment id, so we
-    synthesize one from the parts that make a comment unique: which surface
-    (kind + source_id), who posted (ulid), when (submitted), and a digest of
-    the text to separate a genuine different-content double-post at the same
-    second while still collapsing an identical re-save.
+    in-memory id set without a round-trip. RA hands back no comment id, so one
+    is synthesized from the parts that make a comment unique: which surface
+    (kind and source_id), who posted (ulid), when (submitted), and a digest of
+    the text, which separates a genuine different-content double-post at the
+    same second while still collapsing an identical re-save.
     """
     text = comment_text if isinstance(comment_text, str) else ""
     digest = hashlib.sha1(text.encode("utf-8")).hexdigest()[:_TEXT_HASH_LEN]
@@ -59,17 +59,18 @@ class SavedCommentsStore:
 
     Storage layout: one user-level file, ``<base_dir>/saved_comments.json``,
     holding a flat list of at most MAX_SAVED_COMMENTS snapshots. Each row is a
-    self-contained snapshot — the four RA comment fields plus the source
-    context (which game / achievement / wall it came from, with icon urls) —
-    so the Saved Comments tab rebuilds every card straight off disk with no RA
-    call. The avatar and the banner icon resolve lazily off the shared image
-    cache keyed on username / url, same as every other comment surface.
+    self-contained snapshot, the four RA comment fields plus the source
+    context, meaning which game, achievement or wall it came from with icon
+    urls, so the Saved Comments tab rebuilds every card straight off disk with
+    no RA call. The avatar and the banner icon resolve lazily off the shared
+    image cache keyed on username or url, the same as every other comment
+    surface.
 
-    Threading: one master lock guards the whole read-modify-write, same
-    threading.Lock (not asyncio.Lock) reasoning as the subscriptions store —
-    the RPC handlers can come from different threads and we want them to
-    serialize cleanly. The list is small, so holding the lock across a
-    load/save is never a problem.
+    Threading: one master lock guards the whole read-modify-write, with the
+    same threading.Lock rather than asyncio.Lock reasoning as the subscriptions
+    store, since the RPC handlers can come from different threads and have to
+    serialize cleanly. The list is small, so holding the lock across a load and
+    save is never a problem.
     """
 
     def __init__(self, *, base_dir: Path):

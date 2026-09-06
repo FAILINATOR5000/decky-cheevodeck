@@ -88,22 +88,24 @@ def deadzone_value(percent):
 
 
 def deadzone_keys(system, wii_style):
-    """The (left stick, right stick) Dead Zone keys a profile has, either of
-    which is None where that stick has nothing a deadzone can apply to.
+    """The (left stick, right stick) Dead Zone keys a profile has, either of which
+    is None where that stick has nothing a deadzone can apply to.
 
-    The key belongs to whatever group the physical stick is bound INTO, which on
-    Wii means the emulated attachment rather than the bare Wiimote: the Nunchuk's
-    stick, or the Classic's own two. On the Wii side an attachment is the ONLY
-    thing that offers a deadzone (confirmed in Dolphin's UI), which is what rules
-    Sideways out entirely: it has no attachment, and its left stick rides on
-    the Wiimote D-Pad, a Buttons group with no numeric settings at all. A stick
-    bound to a digital direction there flips it at a fixed ~50% deflection, so
-    it already ignores far more travel than any deadzone would ask for.
+    The key belongs to whatever group the physical stick is bound into, which
+    on Wii means the emulated attachment rather than the bare Wiimote: the
+    Nunchuk's stick, or the Classic's own two. On the Wii side an attachment is
+    the only thing that offers a deadzone, confirmed in Dolphin's UI, and that
+    is what leaves Sideways out entirely. It has no attachment, and its left
+    stick rides on the Wiimote D-Pad, a Buttons group with no numeric settings
+    at all. A stick bound to a digital direction there flips it at a fixed ~50%
+    deflection, so it already ignores far more travel than any deadzone would
+    ask for.
 
-    Nunchuk and Sideways put the right stick on the IR pointer, so neither has a
-    plain stick deadzone on that side. On Nunchuk the pointer's own `IR/Dead
-    Zone` covers it instead — see _apply_ir_settings below — and Sideways is left
-    with nothing, which is the whole reason its Map Directions row exists."""
+    Nunchuk and Sideways put the right stick on the IR pointer, so neither has
+    a plain stick deadzone on that side. On Nunchuk the pointer's own `IR/Dead
+    Zone` covers it instead, see _apply_ir_settings below, and Sideways is left
+    with nothing, which is the whole reason its Map Directions row exists.
+    """
     if system == "gamecube":
         return "Main Stick/Dead Zone", "C-Stick/Dead Zone"
     if wii_style == "classic":
@@ -400,19 +402,21 @@ def generate_ini(defaults_dir, mapping, *, balance_board=False):
 
 
 def generate_empty_ini(system):
-    """All four ports blanked for a system. Written over the OTHER system's
-    config on every apply: some games (e.g. Arc Rise Fantasia) glitch their
-    controls when both a Wii and a GameCube controller are configured at once,
-    so applying one system's mapping clears the other.
+    """All four ports blanked for a system.
 
-    This is the whole story for Wii (Source = 0 turns the port off) but only
-    half of it for GameCube, where the port itself is switched in Dolphin.ini.
-    gc_si_devices() carries the other half.
+    Written over the other system's config on every apply: some games glitch
+    their controls when both a Wii and a GameCube controller are configured at
+    once, so applying one system's mapping clears the other.
 
-    The Balance Board goes off with the ports, whatever the toggle says: this
-    runs when a GameCube mapping is applied, and a board can't do anything for a
-    GameCube game. The toggle keeps its value and the next Wii apply arms it
-    again, the same way the mapping's own players come back."""
+    This is the whole story for Wii, where Source = 0 turns the port off, but
+    only half of it for GameCube, where the port itself is switched in
+    Dolphin.ini. gc_si_devices() carries the other half.
+
+    The Balance Board goes off with the ports whatever the toggle says: this
+    runs when a GameCube mapping is applied, and a board can't do anything for
+    a GameCube game. The toggle keeps its value and the next Wii apply arms it
+    again, the same way the mapping's own players come back.
+    """
     sections = [_unused_section(system, port) for port in range(1, 5)]
     if system == "wii":
         sections.append(_balance_board_section(False))
@@ -426,16 +430,18 @@ SI_DEVICE_STANDARD_PAD = "6"
 def gc_si_devices(mapping):
     """The four [Core] SIDevice values a mapping implies, port 1 to 4.
 
-    GameCube ports are switched on in Dolphin.ini, not GCPadNew.ini -- the pad
-    file only carries bindings. So blanking GCPadNew.ini drops the mappings and
-    leaves the pad plugged in, and a port with no SIDevice key at all reads as
-    Standard Controller, because that's Dolphin's default and it only persists
-    values that differ from it. Turning a port off has to be written out.
+    GameCube ports are switched on in Dolphin.ini, not GCPadNew.ini, since the
+    pad file only carries bindings. So blanking GCPadNew.ini drops the mappings
+    and leaves the pad plugged in, and a port with no SIDevice key at all reads
+    as Standard Controller, because that is Dolphin's default and it only
+    persists values that differ from it. Turning a port off has to be written
+    out.
 
-    Same rule Source already follows on the Wii side: the ports the mapping
-    actually uses are on, everything else is off. A Wii mapping turns all four
-    off, which is the point -- that's the GameCube half of the cross-system
-    clear that generate_empty_ini() can't express."""
+    The same arrangement Source already uses on the Wii side: the ports the
+    mapping actually uses are on, everything else is off. A Wii mapping turns
+    all four off, which is the point. That is the GameCube half of the
+    cross-system clear that generate_empty_ini() can't express.
+    """
     if mapping.get("system") != "gamecube":
         return [SI_DEVICE_NONE] * 4
     mapped = len((mapping.get("players") or [])[:4])

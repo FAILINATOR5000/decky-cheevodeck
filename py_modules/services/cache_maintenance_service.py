@@ -9,17 +9,17 @@ from utils import norm_game_id
 class CacheMaintenanceService:
     """One-shot pruning of the on-disk caches that grow without bound.
 
-    Runs once when the plugin loads (kicked off from Plugin._main). The
-    actual session is left untouched: caches grow naturally as the user
-    plays and get trimmed on the next restart. Sweeping on every write
-    would add work to the hot path and force hysteresis math to avoid
-    thrashing at the cap; sweeping on load runs once when nothing's
-    time-critical and the panel is already spinning up.
+    Runs once when the plugin loads, kicked off from Plugin._main. The actual
+    session is left untouched: caches grow naturally as the user plays and get
+    trimmed on the next restart. Sweeping on every write would add work to the
+    hot path and force hysteresis math to avoid thrashing at the cap; sweeping
+    on load runs once when nothing is time-critical and the panel is already
+    spinning up.
 
-    Disk caps are 2x the matching in-memory caps for the same data type
-    -- memory holds the hot working set, disk acts as a warm reservoir
-    so things that fall out of the in-memory LRU can still be served
-    from disk on the next encounter without an RA call.
+    Disk caps are twice the matching in-memory caps for the same data type.
+    Memory holds the hot working set and disk acts as a warm reservoir, so
+    things that fall out of the in-memory LRU can still be served from disk on
+    the next encounter without an RA call.
     """
 
     def __init__(

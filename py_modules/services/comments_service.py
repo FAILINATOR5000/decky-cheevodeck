@@ -114,15 +114,15 @@ class CommentsService(TickServiceBase):
 
     Lazy producer for the commentTracker and wall notification types. The
     Subscribed Discussions tab reads subscriptions off disk; this service is
-    what turns a new comment on one of those threads (or on the user's own
-    wall) into a notification. Runs as a daemon thread so plugin shutdown can't
+    what turns a new comment on one of those threads, or on the user's own
+    wall, into a notification. Runs as a daemon thread so plugin shutdown can't
     deadlock on it.
 
-    Reads its like next door: built and started/stopped alongside the activity
-    trickle and friends-image service, holds the same shared trickle lock for
-    its whole walk, paces with the same politeness peek, and routes every RA
-    call through the plugin's slot bridge so the work serializes against user
-    IPCs through the shared slot counter.
+    Built and started and stopped alongside the activity trickle and the
+    friends roster service, holds the same shared trickle lock for its whole
+    walk, paces with the same politeness peek, and routes every RA call through
+    the plugin's slot bridge so the work serializes against user IPCs through
+    the shared slot counter.
     """
 
     def __init__(self, *, game_comments_service, subscriptions_store, comment_baselines_store, settings_store, plugin=None, notifications_store=None):

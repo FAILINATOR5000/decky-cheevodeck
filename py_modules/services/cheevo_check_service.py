@@ -1,22 +1,15 @@
-"""
-The Cheevo Check worker: walk a ROM directory, hash everything, and say which
+"""The Cheevo Check worker: walk a ROM directory, hash everything, and say which
 games RetroAchievements doesn't cover.
 
-The approach here — work out the console from the folder, pull RA's hash lists
-for the consoles you actually found, hash each file, look the hash up locally —
-is the one ra-scan (https://github.com/TheDragonary/RetroAchievements-ROM-Scanner,
-GPL-3.0) demonstrated, and it's credited in ATTRIBUTIONS.md. What we took is the
-sequence, which is mostly dictated by RAHasher's command line and RA's API in the
-first place; none of its code is here, and the systems table below was built from
-RAHasher's own `--help` output rather than from theirs. Everything with real
-substance in it is ours and mostly exists because ra-scan gets it wrong: batching
-with resume-on-abort, zip introspection, one-archive-at-a-time extraction, the
-dolphin-tool path for GameCube and Wii containers, and the three-state result
-model.
+The sequence it follows is the one ra-scan demonstrated: work out the console
+from the folder, pull RA's hash lists for the consoles that turned up, hash
+each file, then look the hash up locally.
+https://github.com/TheDragonary/RetroAchievements-ROM-Scanner, GPL-3.0. None of
+its code is here; see ATTRIBUTIONS.md.
 
-Not a ticking daemon — it doesn't inherit _tick_common. One run per user request,
-on its own thread, and the "a scan is running" flag lives in memory rather than on
-disk so a reload or a reboot can never leave a stale one behind.
+Not a ticking daemon, so it does not inherit _tick_common. One run per user
+request, on its own thread, and the "a scan is running" flag lives in memory
+rather than on disk so a reload or a reboot can never leave a stale one behind.
 """
 
 from pathlib import Path
@@ -143,8 +136,11 @@ _ARCHIVE_VERIFY_REASONS = {
 
 
 class Unscannable(Exception):
-    """This file sits under a console RA has no sets for. Not an error — the
-    walk drops it, the same as a file whose extension we don't recognise."""
+    """This file sits under a console RA has no sets for.
+
+    Not an error. The walk drops it, the same as a file with an extension
+    nothing recognises.
+    """
 
 
 ABORT_ROOT_GONE = "root_gone"
@@ -248,9 +244,12 @@ class CheevoCheckService:
         return {"running": self._running, "error": self._last_error, "progress": progress}
 
     def _set_progress(self, phase: str, done: int, total: int) -> None:
-        """Where the scan has got to. total 0 means there is no denominator —
-        the walk is still discovering how much there is, and the bar says so by
-        going indeterminate rather than by guessing."""
+        """Where the scan has got to.
+
+        A total of 0 means there is no denominator yet: the walk is still
+        discovering how much there is, and the bar goes indeterminate rather
+        than guessing.
+        """
         with self._lock:
             self._progress = {"phase": phase, "done": done, "total": total}
 
@@ -288,9 +287,11 @@ class CheevoCheckService:
         return {"ok": True}
 
     def cancel(self) -> dict:
-        """Ask a running scan to stop. Returns immediately -- the thread
-        notices at its next check point, which is somewhere between instant
-        and one archive extraction away."""
+        """Ask a running scan to stop.
+
+        Returns immediately. The thread notices at its next check point, which
+        is somewhere between instant and one archive extraction away.
+        """
         with self._lock:
             running = self._running
             if running:
@@ -433,16 +434,15 @@ class CheevoCheckService:
     def _collect(self, root: Path, verifying: bool = False) -> tuple:
         """Every file worth hashing, with the consoles it might belong to.
 
-        Symlinks are followed, because roughly half a real EmuDeck ROM directory
-        is symlinks out to other drives — that's a normal advanced-user layout,
-        not an edge case. os.walk(followlinks=True) will happily spin forever on
-        a circular link, so this keeps its own visited set of (device, inode)
-        pairs instead.
+        Symlinks are followed, because roughly half a real EmuDeck ROM
+        directory is symlinks out to other drives. os.walk(followlinks=True)
+        will happily spin forever on a circular link, so this keeps its own
+        visited set of (device, inode) pairs instead.
 
         Returns two lists. The second is empty unless ``verifying``, and holds
-        the files under a console the scan has no RA number for and verification
-        does — 3DS and Switch. They ride this walk rather than getting one of
-        their own, and they never reach the hashing pass.
+        the files under a console the scan has no RA number for and
+        verification does. They ride this walk rather than getting one of their
+        own, and they never reach the hashing pass.
         """
         found = []
         verify_only = []
@@ -498,11 +498,12 @@ class CheevoCheckService:
     def _verify_only_in(self, root: Path, files: list) -> list:
         """The files under a console only verification has an answer for.
 
-        3DS and Switch are both in UNSUPPORTED_FOLDERS and stay there — the scan
+        3DS and Switch are both in UNSUPPORTED_FOLDERS and stay there: the scan
         needs an RA console number for everything it touches and RA has no sets
-        for either. Verification is asking a different question, so it gets to
-        look. Folder name only, never the extension: .cci and .xci name no
-        console on their own, and a folder called n3ds does.
+        for either. Verification asks a different question, so it gets to look.
+
+        Folder name only, never the extension. .cci and .xci name no console on
+        their own, and a folder called n3ds does.
         """
         out = []
         for path in files:
@@ -527,7 +528,8 @@ class CheevoCheckService:
 
         None is not the same as an empty sheet, and the caller has to keep them
         apart: an empty sheet claims nothing, while an unreadable one means the
-        directory's associations are unknown and the old rule has to take over.
+        directory's associations are unknown and the track-count test has to
+        take over.
         """
         try:
             with open(path, "r", encoding="utf-8", errors="replace") as handle:
@@ -572,8 +574,8 @@ class CheevoCheckService:
         """The track a CloneCD .ccd speaks for, which it never names.
 
         The format carries no filename anywhere, so the stem is the only thing
-        tying the sheet to its image. Reading the file would tell us nothing,
-        which is why this one does not open it.
+        tying the sheet to its image. Reading the file would say nothing, which
+        is why this one does not open it.
         """
         stem = path.stem.lower()
         return {stem + extension for extension in _TRACK_EXTENSIONS}
@@ -581,10 +583,10 @@ class CheevoCheckService:
     def _claimed_tracks(self, files: list, suffixes: dict):
         """Every track filename the sheets in this directory speak for.
 
-        Returns None when the answer is unknowable — an unreadable sheet, or a
-        format with no reader — which tells the caller to fall back rather than
-        act on a partial picture. A partial picture is the dangerous one: it
-        looks like an answer and quietly unskips somebody else's tracks.
+        Returns None when the answer is unknowable, meaning an unreadable sheet
+        or a format with no reader. That tells the caller to fall back rather
+        than act on a partial picture, which is the dangerous one: it looks
+        like an answer and quietly unskips somebody else's tracks.
         """
         readers = {".cue": self._claimed_by_cue, ".gdi": self._claimed_by_gdi,
                    ".ccd": self._claimed_by_ccd}
@@ -605,20 +607,16 @@ class CheevoCheckService:
     def _candidates_in(self, root: Path, files: list) -> list:
         """Turn one directory's files into scan candidates.
 
-        The track rule is the interesting part. A disc laid out loose is a cue
-        sheet plus its .bin tracks, and only track one hashes to anything — the
-        rest would show up as a row of corrupt-looking files that aren't. So when
-        a directory holds a cue sheet and more than one track file, the tracks
-        the sheets actually name are left to them. A single .bin beside its .cue
-        is left alone: both hash identically (Silent Hill does exactly this), and
-        the duplicate fold is what turns those into one row.
+        The track handling is the interesting part. A disc laid out loose is a
+        cue sheet plus its .bin tracks, and only track one hashes to anything,
+        so a directory holding a sheet and more than one track file leaves the
+        tracks the sheets name to them. A single .bin beside its .cue is left
+        alone: both hash identically, and the duplicate fold turns those into
+        one row.
 
         Which tracks get skipped is read out of the sheets rather than assumed
-        from the directory. Assuming was wrong for a bare .bin nobody named,
-        which on an EmuDeck layout is one flat folder per console and therefore
-        the common case: it was read as somebody's stray track and dropped with
-        no row in any bucket at all. The count of tracks still gates the rule, so
-        a directory holding one game as one sheet and one track is untouched.
+        from the directory. A bare .bin nobody named is a game in its own
+        right, and on a flat console folder that is the common case.
         """
         suffixes = {path: path.suffix.lower() for path in files}
         tracks = [path for path in files if suffixes[path] in _TRACK_EXTENSIONS]
@@ -653,11 +651,11 @@ class CheevoCheckService:
     def _systems_for(self, root: Path, path: Path, kind: str) -> tuple:
         """Which console(s) this file could be for, best guess first.
 
-        Folder name wins when there is one, because on a Deck it is nearly always
-        right and it is free. Falling back to the extension gives a list rather
-        than an answer — a bare .chd could be any of eight consoles — and the
-        hashing pass tries each in turn, which costs milliseconds and removes a
-        whole class of wrong "unsupported" verdicts.
+        Folder name wins when there is one, because on a Deck it is nearly
+        always right and it is free. Falling back to the extension gives a list
+        rather than an answer, since a bare .chd could be any of several
+        consoles, and the hashing pass tries each in turn. That costs
+        milliseconds and removes a whole class of wrong "unsupported" verdicts.
         """
         try:
             folder = self._system_from_folders(root, path)
@@ -679,10 +677,12 @@ class CheevoCheckService:
 
     def _system_from_folders(self, root: Path, path: Path):
         """The console this file's folders name, or None to fall back to the
-        extension. Raises Unscannable when a folder names a console RA doesn't
-        support — that's a different answer from "don't know", and guessing by
-        extension there is what produces bad-dump verdicts on perfectly good
-        CD-i and Commodore discs.
+        extension.
+
+        Raises Unscannable when a folder names a console RA does not support.
+        That is a different answer from "don't know", and guessing by extension
+        there is what produces bad-dump verdicts on perfectly good CD-i and
+        Commodore discs.
         """
         current = path.parent
         while True:
@@ -748,8 +748,8 @@ class CheevoCheckService:
     def _fetch_console(self, console_id: int, web_api_key: str):
         """One console's game list, with the rate limit handled here.
 
-        This is the only RA caller in the plugin with nothing underneath it — no
-        slot, no shared backoff — so a 429 and a dropped connection are both its
+        This is the only RA caller in the plugin with nothing underneath it: no
+        slot, no shared backoff. A 429 and a dropped connection are both its
         own problem to solve.
         """
         for attempt in range(FETCH_ATTEMPTS):
@@ -803,30 +803,24 @@ class CheevoCheckService:
         return kept
 
     def _add_console_fallbacks(self, candidates: list, stored: dict) -> list:
-        """Give every disc a queue of other consoles to try when the confident
-        one doesn't recognise it.
+        """Give every disc a queue of other consoles to try when the confident one
+        doesn't recognise it.
 
         RAHasher is handed one console and gives up the moment the disc isn't
         that console. rcheevos, which is what actually awards the achievements,
-        walks every CD format until one identifies the file — so a Neo Geo CD
-        game sitting in a saturn folder is unreadable to the first and perfectly
-        ordinary to the second. Magical Drop 2 was exactly that, and it reported
-        as a bad dump.
+        walks every CD format until one identifies the file, so a Neo Geo CD
+        game sitting in a saturn folder is unreadable to the first and
+        perfectly ordinary to the second.
 
-        Deliberately limited to consoles this scan already fetched: the retry
-        reuses hash lists that are on disk either way, so it costs no API calls
-        and the fetch set stays as small as the folder names made it. That
-        matters because the fetch pacing is what earns this scan its exemption
-        from _ra_slot(). The trade is a misfiled disc whose console appears
-        nowhere else in the library, which stays unreadable.
+        Limited to consoles this scan already fetched. The retry reuses hash
+        lists that are on disk either way, so it costs no API calls and the
+        fetch set stays as small as the folder names made it. The trade is a
+        misfiled disc whose console appears nowhere else in the library, which
+        stays unreadable.
 
-        Only plain files get this. A retry happens solely when a hash *fails*,
+        Only plain files get this. A retry happens solely when a hash fails,
         and cartridge hashing is an MD5 of the file that doesn't fail, so in
-        practice this reaches nothing but discs.
-
-        Runs for online and offline scans alike, which is why it sits here rather
-        than inside _drop_unknown_consoles — that one is the offline branch's
-        filter and an online scan never calls it.
+        practice it reaches nothing but discs.
         """
         out = []
         for candidate in candidates:
@@ -899,28 +893,25 @@ class CheevoCheckService:
     def _arcade_scan(self, candidate):
         """An arcade set's row, without ever hashing its contents.
 
-        RA's arcade hash is md5 of the filename with the extension taken off, so
-        identification here is free and says nothing whatsoever about the bytes.
-        That is a weaker claim than any other system makes, and left alone it
-        would put a green Supported row — and a badge on Steam's own library
-        page — against a zip that is empty, truncated, or not a zip at all.
+        RA's arcade hash is md5 of the filename with the extension taken off,
+        so identification here is free and says nothing whatsoever about the
+        bytes. Left alone that would put a green Supported row, and a badge on
+        Steam's own library page, against a zip that is empty, truncated, or
+        not a zip at all.
 
-        So the name has to be backed by the container opening. That is a central
-        directory read on a zip and a `7z l` on the two extractable formats,
-        which is the cheapest thing that separates a real set from a failed
-        download: 745 sets came out in 0.05 seconds. It says nothing about the
-        chips inside — that is verification's job and it has its own path below —
-        but it does mean a file has to be an archive before it may claim to be a
+        So the name has to be backed by the container opening: a central
+        directory read on a zip, a `7z l` on the two extractable formats. That
+        says nothing about the chips inside, which is verification's job, but
+        it does mean a file has to be an archive before it may claim to be a
         game.
 
-        A GD-ROM board is the same idea with the name a level up: the directory is
-        the machine and the disc inside it is unnamed, so the gate becomes the CHD
-        header rather than a central directory. Same contract either way — prove
-        the container is what it claims before crediting the name.
+        A GD-ROM board is the same idea with the name a level up. The directory
+        is the machine and the disc inside it is unnamed, so the gate becomes
+        the CHD header rather than a central directory. Same contract either
+        way: prove the container is what it claims before crediting the name.
 
-        Deliberately not cached. The whole thing is a fraction of a millisecond a
-        file, and an entry keyed on size and mtime would buy nothing but the
-        right to skip the one read that is doing the work.
+        Deliberately not cached. The whole thing is a fraction of a millisecond
+        a file.
         """
         path = candidate["path"]
         system = candidate["systems"][0]
@@ -933,9 +924,9 @@ class CheevoCheckService:
     def _arcade_container_opens(self, path: Path, kind: str, is_disc: bool) -> bool:
         """The gate that stops a name being credited to a file that isn't one.
 
-        Cheap by design and it has to stay that way — it runs on every arcade
-        file in the library. A zip is a central directory read, a 7z is a listing,
-        and a disc image is eight bytes off the front.
+        Cheap by design and it has to stay that way, since it runs on every
+        arcade file in the library. A zip is a central directory read, a 7z is
+        a listing, and a disc image is eight bytes off the front.
 
         The CHD check is the magic and nothing more. chdman would say far more,
         but that is verification's job and it costs a minute a disc; here the
@@ -1054,9 +1045,9 @@ class CheevoCheckService:
         """Last chance for a disc, once every console has turned it down.
 
         Two containers get one, for opposite reasons: a CHD RAHasher read the
-        wrong sector out of, and a .cdi it declined to open at all. Both end the
-        same way — the tracks written out plainly for it to read — so both wait
-        until here, where the file has no verdict left to lose.
+        wrong sector out of, and a .cdi it declined to open at all. Both end
+        the same way, with the tracks written out plainly for it to read, so
+        both wait until here, where the file has no verdict left to lose.
         """
         path = candidate["path"]
         give_up = {**candidate, "system": candidate["systems"][0], "hash": None}
@@ -1070,12 +1061,11 @@ class CheevoCheckService:
     def _recover_chd(self, candidate, cache, give_up):
         """A CHD whose boot sector RAHasher looked for in the wrong place.
 
-        Some CHDs declare a pregap their track doesn't actually contain — the
+        Some CHDs declare a pregap their track doesn't actually contain: the
         gap is described in the metadata and simply isn't in the file. RAHasher
         believes the description, skips a couple of hundred sectors that were
-        never written, lands past the boot signature and reports the disc as not
-        being the console it plainly is. Eight discs in a four thousand file
-        library, every one of them a supported game with achievements.
+        never written, lands past the boot signature and reports the disc as
+        not being the console it plainly is.
 
         Handing it the same track as a plain cue+bin drops the declaration and
         the question with it. Only this shape of file gets here, and only after
@@ -1145,7 +1135,7 @@ class CheevoCheckService:
     def _recover_cdi(self, candidate, cache, give_up):
         """A DiscJuggler image, which RAHasher will only read as cue+bin.
 
-        Nothing is wrong with these — the container just isn't one the hasher
+        Nothing is wrong with these. The container just isn't one the hasher
         opens, so it says "Could not open track" and the disc reads as a dump
         nobody has ever seen. The tracks are all in there uncompressed, so
         writing them back out under a cue answers it. Bare .cdi is one of the
@@ -1194,19 +1184,19 @@ class CheevoCheckService:
             self._remove_scratch(scratch)
 
     def _write_cdi_cue(self, cdi, scratch: Path):
-        """One bin per track plus the cue over them, or None if we were stopped.
+        """One bin per track plus the cue over them, or None if the scan was
+        stopped.
 
         Every track lands on the disc address the descriptor gives it, and the
         gaps between them are written out as silence. That padding is the whole
         reason this works on a Dreamcast disc: the filesystem inside the data
-        track addresses itself in absolute sectors, so a track sitting at 452
-        because that's where stacking the files put it sends the hasher looking
-        for a boot executable eleven thousand sectors short of where it is.
-        Jaguar CD reads the top of a track and doesn't care either way.
+        track addresses itself in absolute sectors, so a track sitting where
+        stacking the files put it sends the hasher looking for a boot
+        executable thousands of sectors short of where it is. Jaguar CD reads
+        the top of a track and doesn't care either way.
 
         Track files are numbered rather than named after the image, because the
-        name would have to survive being quoted into a cue sheet and half this
-        library is called things like "Alice's Mom's Rescue (World)".
+        name would have to survive being quoted into a cue sheet.
         """
         lines = []
         session = 0
@@ -1245,14 +1235,15 @@ class CheevoCheckService:
     def _run_hasher(self, console_id: int, paths: list) -> list:
         """Hash a list of files, returning one entry per input in the same order.
 
-        Two behaviours drive the shape of this. The output columns change with
-        the argument count — one file prints a bare hash with no filename, two or
-        more print "<hash> <filename>" — and a file RAHasher can't open aborts
-        everything after it in the same invocation, silently. So the batch is
-        re-issued from just past the failure point until the list is exhausted,
-        and the file at that point is recorded as unreadable. A naive
-        implementation loses the tail of every batch containing one bad file and
-        reports those ROMs as never scanned.
+        Two RAHasher behaviours drive the shape of this. Its output columns
+        change with the argument count: one file prints a bare hash with no
+        filename, two or more print "<hash> <filename>". And a file it can't
+        open aborts everything after it in the same invocation, silently. So
+        the batch is re-issued from just past the failure point until the list
+        is exhausted, and the file at that point is recorded as unreadable.
+
+        A naive implementation loses the tail of every batch holding one bad
+        file, and reports those ROMs as never scanned.
         """
         digests = []
         remaining = list(paths)
@@ -1302,15 +1293,16 @@ class CheevoCheckService:
         """Deal with a zip before RAHasher gets a chance to be confident about it.
 
         Handed a zip with more than one entry, RAHasher prints a note to stderr
-        and then hashes the *whole zip* with rc=0 — a plausible hash, no error,
-        wrong answer. Wrecking Crew '98 ships with a CDRomance.url next to the
-        .sfc and reports as unsupported because of it, which is the feature
-        producing exactly the wrong verdict for exactly its purpose.
+        and then hashes the whole zip with rc=0: a plausible hash, no error,
+        wrong answer. A ROM that ships with a stray .url beside it reports as
+        unsupported because of that, which is the feature producing exactly the
+        wrong verdict for exactly its purpose.
 
-        A single-entry zip goes straight through: RAHasher reads it natively and
-        hashes it identically to the raw ROM, and that's faster than unpacking it.
-        Anything else answers here, including the failures — falling back to
-        handing the zip over is precisely the mistake this exists to stop.
+        A single-entry zip goes straight through. RAHasher reads it natively
+        and hashes it identically to the raw ROM, which is faster than
+        unpacking. Anything else answers here, including the failures: falling
+        back to handing the zip over is precisely the mistake this exists to
+        stop.
         """
         path = candidate["path"]
         try:
@@ -1351,10 +1343,10 @@ class CheevoCheckService:
     def _hash_archive(self, candidate, cache):
         """Extract one .7z or .rar, hash what's inside it, and delete it again.
 
-        One archive on disk at a time, always. A user with a nearly-full drive is
-        exactly who this has to work for, so peak scratch usage is one archive's
-        uncompressed size rather than the library's — which rules out expanding
-        several and hashing them together.
+        One archive on disk at a time, always. A user with a nearly-full drive
+        is exactly who this has to work for, so peak scratch usage is one
+        archive's uncompressed size rather than the library's. That rules out
+        expanding several and hashing them together.
         """
         path = candidate["path"]
         system = candidate["systems"][0]
@@ -1472,13 +1464,14 @@ class CheevoCheckService:
     def _pick_rom_entry(self, names: list, console_id=None, peek=None):
         """Which entry in an archive is the game, or None if it's a coin toss.
 
-        Archive-site junk (.url, .txt, .nfo) is ignored rather than treated as a
-        reason to skip the archive. A cue sheet wins outright when there is one,
-        since a multi-track disc is several ROM-shaped files that are all one game.
+        Archive-site junk (.url, .txt, .nfo) is ignored rather than treated as
+        a reason to skip the archive. A cue sheet wins outright when there is
+        one, since a multi-track disc is several ROM-shaped files that are all
+        one game.
 
-        console_id is the console we're hashing under, and it's absent on the one
-        path that calls this to *work out* the console — nothing to tie-break
-        with there, so that caller keeps the conservative answer.
+        console_id is the console being hashed under. It is absent on the one
+        path that calls this to work out the console, which has nothing to
+        tie-break with and so keeps the conservative answer.
         """
         roms = [name for name in names if Path(name).suffix.lower() in systems.ROM_EXTENSIONS]
         sheets = [name for name in roms if Path(name).suffix.lower() in _CUE_EXTENSIONS]
@@ -1509,10 +1502,7 @@ class CheevoCheckService:
 
         A multi-disk game packed into one archive is several ROM-shaped files
         with nothing to choose between them, and the playlist sitting alongside
-        is the only thing that says which one is disk 1. Reading it turned 51 of
-        141 Apple II archives from files that resolved to no console at all —
-        dropped during the walk, absent from every bucket, not even counted as
-        unscannable — into the supported games they are.
+        is the only thing that says which one is disk 1.
 
         Only inside an archive. A folder of loose disks is better off with the
         playlist ignored, which is what happens there: each disk hashes on its
@@ -1542,14 +1532,14 @@ class CheevoCheckService:
         return None
 
     def _archive_peek(self, path: Path, kind: str):
-        """A reader for one entry, for the callers that have to look inside
-        before deciding anything.
+        """A reader for one entry, for the callers that have to look inside before
+        deciding anything.
 
-        Zip only. 7z has to spawn a process per entry, and the walk asks this of
-        every archive in the library — a cost worth paying for a disc image is
-        not one worth paying to find out which disk of a set comes first. Disc
-        images are what .7z gets used for anyway; the multi-disk archives that
-        need this are zips.
+        Zip only. 7z has to spawn a process per entry, and the walk asks this
+        of every archive in the library, which is a cost worth paying for a
+        disc image and not one worth paying to find out which disk of a set
+        comes first. Disc images are what .7z gets used for anyway; the
+        multi-disk archives that need this are zips.
         """
         if kind != "zip":
             return None
@@ -1568,10 +1558,9 @@ class CheevoCheckService:
 
         RAM only when the user asked for it and the thing genuinely fits, and
         the fallback to disk is the entire reason this isn't a plain path swap.
-        A disc image inside an archive is gigabytes — a zipped PS2 ISO is 4.7,
-        a .7z of a dual-layer Wii disc more — and tmpfs is system memory, so
-        the toggle must never be able to turn a game that scans fine into a
-        "not enough free space" row.
+        A disc image inside an archive is gigabytes, and tmpfs is system
+        memory, so the toggle must never be able to turn a game that scans fine
+        into a "not enough free space" row.
         """
         if self._extract_to_ram_enabled() and self._has_room_in(self._ram_scratch_dir, needed):
             return self._ram_scratch_dir
@@ -1637,15 +1626,15 @@ class CheevoCheckService:
     def _dolphin_hash(self, path: Path):
         """Hash a GameCube or Wii image through Dolphin's own tool.
 
-        RAHasher handles raw discs and nothing else — no .rvz, .wbfs, .gcz, .wia
-        or .nkit — and those are precisely how GC and Wii libraries are stored,
+        RAHasher handles raw discs and nothing else: no .rvz, .wbfs, .gcz, .wia
+        or .nkit. Those are precisely how GC and Wii libraries are stored,
         because a raw ISO is 4.7 GB. dolphin-tool reads every format Dolphin
-        reads, so one path covers the lot instead of a per-extension routing table
-        that would need updating whenever a new container appears.
+        reads, so one path covers the lot instead of a per-extension routing
+        table.
 
-        It has to go through `flatpak run`: the flatpak's own binary won't exec
-        directly, and its path embeds a commit hash that changes on every Dolphin
-        update, so it must never be hardcoded.
+        It has to go through `flatpak run`. The flatpak's own binary won't exec
+        directly, and its path embeds a commit hash that changes on every
+        Dolphin update, so it must never be hardcoded.
         """
         if not self._dolphin_available():
             return None
@@ -1690,13 +1679,14 @@ class CheevoCheckService:
         """The stored hash for this file, under whichever console produced it.
 
         A file whose folder didn't name its console carries several candidates,
-        and the hashing pass keeps whichever one actually matched — which is
-        often not the first. Looking up only systems[0] meant those hashes were
-        written under a key nothing ever read back, so an ambiguous .chd paid
-        full price on every scan for the life of the cache.
+        and the hashing pass keeps whichever one actually matched, which is
+        often not the first. Looking up only systems[0] writes hashes under a
+        key nothing ever reads back, so an ambiguous .chd pays full price on
+        every scan for the life of the cache.
 
-        Walked in candidate order, the same order the hashing pass tries, so the
-        console this returns is the one that pass would have arrived at anyway.
+        Walked in candidate order, the same order the hashing pass tries, so
+        the console this returns is the one that pass would have arrived at
+        anyway.
         """
         path = candidate["path"]
         for system in candidate["systems"]:
@@ -1745,7 +1735,7 @@ class CheevoCheckService:
         or folder already suggested, then everything else the scan fetched. Two
         consoles claiming the same hash means a game RA lists under both, and
         picking one on a coin toss would put it under a system the user doesn't
-        even have a folder for — so that case is left alone.
+        even have a folder for, so that case is left alone.
         """
         ordered = [s.console_id for s in item["systems"]]
         ordered += [int(key) for key in stored if key.isdigit() and int(key) not in ordered]
@@ -1772,43 +1762,31 @@ class CheevoCheckService:
     def _inner_rom_name(self, item):
         """The ROM inside an archive, when it isn't called what the archive is.
 
-        Answered here rather than carried out of the hashing pass on purpose:
-        _prepare_zip only runs on a cache miss, so a second scan would have left
-        this blank on every file the first one had already hashed. A central
-        directory read is the same handful of milliseconds either way — 506 NES
-        zips came out in 0.62 seconds — and it gives the same answer every run.
-
-        .7z and .rar are in here too. They used to be skipped outright, which is
-        why a 7z named one thing and holding another never reached Archive Name
-        Mismatches however plainly it qualified. Listing one costs a `7z l`
-        subprocess where a zip costs a header read, so this is dearer than it
-        looks on a cached re-scan where nothing else opens the archive at all —
-        but .7z is what disc images get packed in, so a library holds dozens of
-        them rather than the thousands it holds of zips.
-
         None when there is nothing to say, which is the ordinary case: a loose
         ROM, or an archive whose entry is named after it.
 
+        Answered here rather than carried out of the hashing pass, because
+        _prepare_zip only runs on a cache miss and a second scan would
+        otherwise leave this blank on every file the first one had already
+        hashed. Reading the archive again gives the same answer every run.
+
+        .7z and .rar are included. Listing one costs a `7z l` subprocess where
+        a zip costs a header read, so this is dearer than it looks on a cached
+        re-scan where nothing else opens the archive at all.
+
         The comparison goes through the catalogue's own normaliser rather than
         matching the stems literally, because a great many archives differ from
-        what they hold only in punctuation — "Arkistas Ring.zip" holding
-        "Arkista's Ring.nes" is a filesystem being careful, not a finding. On
-        one library that distinction is the difference between 329 rows and the
-        handful anyone would want to read.
+        what they hold only in punctuation. "Arkistas Ring.zip" holding
+        "Arkista's Ring.nes" is a filesystem being careful, not a finding.
 
         The entry is picked with the same console and the same peek the hashing
-        pass used, which it wasn't before: calling _pick_rom_entry bare meant
-        every tie it can only break with those came back None here while the
-        hasher resolved it fine. A translation patch shipping a README.md beside
-        its ROM is the documented case — .md is Mega Drive, so the archive reads
-        as two games — and those simply went missing from this list. It can only
-        find entries the bare call missed; nothing it already answered changes.
+        pass used, so a tie that only those can break resolves here the way it
+        resolved there.
 
-        Arcade is out. A MAME set holds a dozen or more chip dumps and not one of
-        them is "the ROM", so _pick_rom_entry would either come back empty or
-        name a chip — and either way the answer would be reported as an archive
-        holding something other than what it is called, which for arcade is the
-        normal and correct state of affairs.
+        Arcade is out. A MAME set holds a dozen or more chip dumps and not one
+        of them is "the ROM", so the answer would be an archive holding
+        something other than what it is called, which for arcade is the normal
+        and correct state of affairs.
         """
         kind = item.get("kind")
         if kind not in ("zip", "archive"):
@@ -1958,21 +1936,18 @@ class CheevoCheckService:
         return VERIFY_SPEED_FACTORS.get(setting, VERIFY_SPEED_FACTORS["gentle"])
 
     def _indexes_for(self, system):
-        """This system's catalogue first, then the ones its folder gets confused with.
+        """This system's catalogue first, then the ones its folder gets confused
+        with.
 
-        Same problem _console_for_hash solves for RetroAchievements, and it needs
-        solving twice because the two lookups are separate: `dolphin` is a folder
-        name for both GameCube and Wii, EmuDeck files DSi games under nds/, and
-        people put Game Boy games in gbc/ on purpose. Both halves of the pair
-        measured here — Animal Crossing (USA) sitting in wii/ and Animal Crossing
-        City Folk sitting in gc/ — matched the *other* console's catalogue
-        exactly and read as unrecognised dumps until this went in.
+        Same problem _console_for_hash solves for RetroAchievements, and it
+        needs solving twice because the two lookups are separate: `dolphin` is
+        a folder name for both GameCube and Wii, EmuDeck files DSi games under
+        nds/, and people put Game Boy games in gbc/ on purpose.
 
-        Deliberately limited to the pairs the systems table already names rather
-        than searching every catalogue. A bare "does this CRC exist anywhere"
-        lookup attributes files to whichever system happens to own an identical
-        hash, and disc systems really do share content — the investigation found
-        one game's audio tracks matching another game's entry outright.
+        Limited to the pairs the systems table already names rather than
+        searching every catalogue. A bare "does this CRC exist anywhere" lookup
+        attributes files to whichever system happens to own an identical hash,
+        and disc systems really do share content.
         """
         found = []
         for console_id in (system.console_id, *systems.related_console_ids(system.console_id)):
@@ -2003,16 +1978,17 @@ class CheevoCheckService:
     def _verify_all(self, root: Path, scanned: list, verify_only: list, stored: dict):
         """Check every file against the published catalogues.
 
-        Deduplicated on realpath before anything else. _collect follows symlinks
-        deliberately, and a Deck library routinely has gamecube/ pointing at gc/
-        pointing at another drive — without this the GameCube library is verified
-        twice, at roughly fifty minutes a pass.
+        Deduplicated on realpath before anything else. _collect follows
+        symlinks deliberately, and a Deck library routinely has gamecube/
+        pointing at gc/ pointing at another drive, so without this the GameCube
+        library is verified twice.
 
-        Sorted smallest-first, which is the cheap half of making the progress bar
-        honest. Verification is not uniform per file the way hashing is: a zip's
-        CRC comes out of the central directory in microseconds and a 2 GB CHD
-        takes over a minute. Ordering by size makes the bar start fast and slow
-        down, which reads as progress, where the other order reads as a hang.
+        Sorted smallest-first, which is the cheap half of making the progress
+        bar honest. Verification is not uniform per file the way hashing is: a
+        zip's CRC comes out of the central directory in microseconds and a 2 GB
+        CHD takes over a minute. Ordering by size makes the bar start fast and
+        slow down, which reads as progress where the other order reads as a
+        hang.
         """
         seen_paths = set()
         items = []
@@ -2046,19 +2022,18 @@ class CheevoCheckService:
     def _verify_one(self, item, stored: dict) -> dict:
         """One file's verdict, as a row the page can show.
 
-        The order of the rules is the whole feature and §5.3 of the recipe spells
-        out why. Rule 2 — same name, same exact size, different contents — runs
-        BEFORE RetroAchievements recognition, not after. Get that backwards and
-        the best findings in a real library vanish silently into the RA bucket:
-        two DS ROMs that pass RA's check while differing from both No-Intro and
-        the owner's own known-good copies simply stop appearing, with no error
-        anywhere.
+        The order the questions are asked in is the whole feature. A catalogue
+        CRC match comes first and is the only unqualified good news here.
+        RetroAchievements recognition answers next: somebody registered this
+        exact file, which on a system RA hashes whole leaves nothing for a
+        catalogue to be right about. Only then comes the name-and-size
+        mismatch, so a patch that keeps the original size is not called a bad
+        dump while RA is vouching for every byte of it.
 
-        Trimming answers below RA recognition, not above it. An earlier build had
-        that the other way round on the strength of one line in §4.4, and it put
-        ten of one library's seventeen trimmed DS cards — RA-recognised, one of
-        them the patched build RA distributes itself — into Can't Verify. The
-        trimming is still reported; it rides the row and the note leads with it.
+        Trimming answers after recognition for the same reason. A trimmed
+        cartridge RA knows well, including the patched builds RA distributes
+        itself, belongs in the RA bucket rather than in Can't Verify. The
+        trimming still rides the row and the card leads with it.
         """
         path = item["path"]
         system = item.get("system") or item["systems"][0]
@@ -2145,15 +2120,15 @@ class CheevoCheckService:
 
         Gated by the cart toggle like every other big cart image, and read here
         rather than in _verify_read because a system with no catalogue never
-        reaches that function — the toggle would have had no effect on the one
-        library where it matters most.
+        reaches that function, so the toggle would have had no effect on the
+        one library where it matters most.
 
-        A pass is Verified. It is not a catalogue match and the row says so, but
-        it is the strongest statement anyone can make about a Switch file: every
-        content byte hashes to the name Nintendo's own packaging gave it.
+        A pass is Verified. It is not a catalogue match and the row says so,
+        but it is the strongest statement anyone can make about a Switch file:
+        every content byte hashes to the name Nintendo's own packaging gave it.
 
-        A failure is a mismatch in the most literal sense the feature has — the
-        NCA's name *is* its hash, so content that hashes differently does not
+        A failure is a mismatch in the most literal sense the feature has. The
+        NCA's name is its hash, so content that hashes differently does not
         match its name.
         """
         path = item["path"]
@@ -2170,35 +2145,31 @@ class CheevoCheckService:
     def _arcade_row(self, item, row: dict) -> dict:
         """An arcade set's verdict, from the CRCs the archive stores about itself.
 
-        Same shape as _switch_row and for the same reason: no catalogue ships for
-        arcade, but the file does not need one to be checked. A zip records the
-        CRC32 of every entry in its own central directory, so decompressing each
-        chip and comparing it against the number the archive already claims for
-        it catches corruption, truncation and bit rot without a reference of any
-        kind. A whole 8.5 GB arcade library came out in 46 seconds, which is
-        cheaper than one disc.
+        Same shape as _switch_row and for the same reason: no catalogue ships
+        for arcade, but the file does not need one to be checked. A zip records
+        the CRC32 of every entry in its own central directory, so decompressing
+        each chip and comparing it against the number the archive already
+        claims catches corruption, truncation and bit rot without a reference
+        of any kind.
 
-        What it cannot say is whether the set is *right* — complete, and the
-        chips MAME expects for that machine. That needs MAME's own DAT, with
-        parent and clone inheritance on top, and none is bundled. So a pass is
-        Verified with the row saying it was a self-check, exactly as Switch does:
-        every byte in here is the byte this archive says it should be.
+        What it cannot say is whether the set is right, meaning complete and
+        holding the chips MAME expects for that machine. That needs MAME's own
+        DAT with parent and clone inheritance on top, and none is bundled. So a
+        pass is Verified with the row saying it was a self-check, exactly as
+        Switch does: every byte in here is the byte this archive says it should
+        be.
 
         A GD-ROM board is a disc, so it goes through chdman the way every other
-        CHD does — and it is gated by the disc toggle, which the zip half is not.
-        Getting that branch wrong is not a near miss: handing a .chd to the zip
-        reader raises BadZipFile, which this function reads as a CRC mismatch,
-        and every GD-ROM set in the library would have been reported as damaged.
-
-        The zip half is gated by neither toggle. A MAME set is not a disc image
-        and not a big cartridge dump, and at a median 12 MB it is not what either
-        was added to make optional.
+        CHD does, and it is gated by the disc toggle, which the zip half is
+        not. Getting that branch wrong is not a near miss: handing a .chd to
+        the zip reader raises BadZipFile, which this function reads as a CRC
+        mismatch, and every GD-ROM set in the library would be reported as
+        damaged.
 
         A .7z or .rar set says nothing rather than something wrong. Both store
         their own checksums and 7z could be asked to test them, but that is a
-        subprocess per file for a shape no real arcade collection uses — RA
-        distributes zips. What matters is that they do not reach the zip reader,
-        for exactly the reason the paragraph above gives.
+        subprocess per file for a shape no real arcade collection uses. What
+        matters is that they do not reach the zip reader.
         """
         path = item["path"]
         suffix = path.suffix.lower()
@@ -2225,15 +2196,15 @@ class CheevoCheckService:
     def _ra_row(self, row: dict, system, inner_size=None, reason=None) -> dict:
         """The answer for a file RetroAchievements knows and no catalogue claims.
 
-        Which of the two buckets it lands in is a question about the file rather
-        than about its system: SNES is hashed whole unless a copier header is on
-        the front, and a header is exactly the kind of thing one library has and
-        the next does not.
+        Which of the two buckets it lands in is a question about the file
+        rather than about its system. SNES is hashed whole unless a copier
+        header is on the front, and a header is exactly the kind of thing one
+        library has and the next does not.
 
-        A reason arrives when the read itself failed or was skipped. It rides the
-        row rather than deciding it — the bucket is still the better answer, and
-        the card needs the reason to say why we could not add our own check to
-        RetroAchievements'.
+        A reason arrives when the read itself failed or was skipped. It rides
+        the row rather than deciding it: the bucket is still the better answer,
+        and the card needs the reason to say why nothing could be added to
+        RetroAchievements' own check.
         """
         whole = systems.ra_covers_whole_file(system, inner_size)
         out = {**row, "bucket": "raFull" if whole else "raPartial"}
@@ -2338,8 +2309,8 @@ class CheevoCheckService:
 
         A range rather than a whole file because the thing being hashed lives
         inside a container: an NCA is a slice of an NSP, at an offset the
-        partition table gives us. Paced the same way _file_crc is, so Gentle
-        means the same thing here as everywhere else.
+        partition table gives. Paced the same way _file_crc is, so Gentle means
+        the same thing here as everywhere else.
         """
         digest = hashlib.sha256()
         remaining = length
@@ -2366,15 +2337,14 @@ class CheevoCheckService:
     def _verify_switch(self, path: Path, row, speed: float):
         """Check a Switch dump against itself.
 
-        The one system here that needs no reference data at all. Every NCA in an
-        NSP or XCI is named after the first sixteen bytes of its own SHA-256, so
-        hashing the content and comparing it to the name it is filed under is a
-        complete answer — no catalogue, no keys, nothing to download. Measured
-        on a real library before this shipped: 475 NCAs across four files, all
-        matching.
+        The one system here that needs no reference data at all. Every NCA in
+        an NSP or XCI is named after the first sixteen bytes of its own
+        SHA-256, so hashing the content and comparing it to the name it is
+        filed under is a complete answer: no catalogue, no keys, nothing to
+        download.
 
         Returns True when every NCA agreed, False when one didn't, or a reason
-        string when we couldn't get far enough to say.
+        string when it could not get far enough to say.
         """
         entries = switch_container.content_entries(path)
         if entries is None:
@@ -2401,11 +2371,10 @@ class CheevoCheckService:
     def _verify_zip(self, path: Path):
         """A zip needs no decompressing at all.
 
-        The central directory already stores the CRC32 of every entry, so this is
-        a header read whatever the archive weighs — 506 NES zips came out in
-        0.62 seconds. _pick_rom_entry decides which entry is the game, the same
-        one the hashing pass uses, so the two paths can't disagree about what
-        they are talking about.
+        The central directory already stores the CRC32 of every entry, so this
+        is a header read whatever the archive weighs. _pick_rom_entry decides
+        which entry is the game, the same one the hashing pass uses, so the two
+        paths can't disagree about what they are talking about.
         """
         try:
             with zipfile.ZipFile(path) as archive:
@@ -2435,18 +2404,17 @@ class CheevoCheckService:
     def _verify_zip_contents(self, path: Path, row, speed: float):
         """True if every entry decompresses to the CRC32 the zip claims for it.
 
-        The one verification in the feature that needs no reference at all. A zip
-        stores each entry's CRC in its own central directory, so reading the
-        entries back and checking them against those numbers is a complete answer
-        to "are these bytes intact" — self-contained, and the only kind of check
+        The one verification in the feature that needs no reference at all. A
+        zip stores each entry's CRC in its own central directory, so reading
+        the entries back and checking them against those numbers is a complete
+        answer to "are these bytes intact", and the only kind of check
         available for a format nobody publishes a dump list for.
 
         zipfile already does the comparison on read and raises BadZipFile on a
-        mismatch, so this reads rather than hashes; the point of the loop is the
-        throttle and the cancel check, not the arithmetic. Chunked for the same
-        reason everything else here is: a set decompressing in one gulp would
-        ignore the speed setting entirely and there is no reason for a background
-        check to be the thing that makes a game stutter.
+        mismatch, so this reads rather than hashes; the point of the loop is
+        the throttle and the cancel check, not the arithmetic. Chunked for the
+        same reason everything else here is, so that a set decompressing in one
+        gulp cannot ignore the speed setting.
 
         A reason string when the archive can't be read at all, which is a
         different answer from its contents being wrong.
@@ -2478,10 +2446,10 @@ class CheevoCheckService:
     def _verify_dolphin(self, path: Path, row):
         """GameCube, Wii and WAD, through Dolphin's own tool.
 
-        Plain `verify` rather than `-a sha1`, and that choice buys two things at
-        once: it prints CRC32 and SHA1 together, and CRC32 is what the catalogue
-        indexes are keyed on — and it hands back the integrity problem list,
-        which is the only way to say anything at all about a WAD.
+        Plain `verify` rather than `-a sha1`, which buys two things at once. It
+        prints CRC32 and SHA1 together, and CRC32 is what the catalogue indexes
+        are keyed on. And it hands back the integrity problem list, which is
+        the only way to say anything at all about a WAD.
         """
         if path.suffix.lower() == ".wad" and not _is_wii_wad(path):
             return VERIFY_NO_REFERENCE
@@ -2535,17 +2503,22 @@ class CheevoCheckService:
 
         **The extract command comes from the CHD's own metadata, never from the
         console.** chdman has three of them and picking the wrong one does not
-        fail — it exits 0 and hands back a different number of bytes, which then
-        fails the comparison and reports a perfectly good disc as not matching.
-        "PlayStation 2 means DVD" is wrong for 24 of one library's 297 PS2 discs.
-        There is no error to catch and trial-and-error cannot resolve it, so the
-        tag is read up front and dispatched on.
+            fail: it
+        exits 0 and hands back a different number of bytes, which then fails
+            the
+        comparison and reports a perfectly good disc as not matching.
+            "PlayStation 2
+        means DVD" is wrong for a good many PS2 discs. There is no error to
+            catch and
+        trial-and-error cannot resolve it, so the tag is read up front and
+            dispatched on.
 
-        **A disc that does not match proves nothing.** CHDs do not always rebuild
-        byte-for-byte: a disc that is genuinely in the catalogue came back 175
-        sectors short during the investigation, with the correct command. So a
-        miss here goes to Can't Verify and never to the review list, and only
-        chdman actually failing is a fault.
+        **A disc that does not match proves nothing.** CHDs do not always
+            rebuild
+        byte-for-byte, even with the correct command. So a miss here goes to
+            Can't Verify
+        and never to the review list, and only chdman actually failing is a
+            fault.
         """
         if not self._chdman_path.exists():
             return VERIFY_NO_TOOL
@@ -2616,13 +2589,13 @@ class CheevoCheckService:
     def _chd_self_check(self, path: Path, row):
         """Re-derive the CHD's own whole-image SHA-1, or None if it holds up.
 
-        Returns a reason when it does not, which is one of the two things §2
-        allows us to state as fact: the container failed to read. Everything
-        else this feature reports is a suspicion with a reason attached, and
-        this is deliberately not that.
+        Returns a reason when it does not, which is one of the two things this
+        feature is allowed to state as fact: the container failed to read.
+        Everything else it reports is a suspicion with a reason attached, and
+        this deliberately is not that.
 
-        The row carries the outcome either way, so a disc that came through this
-        can say so rather than only saying whether one track matched.
+        The row carries the outcome either way, so a disc that came through
+        this can say so rather than only saying whether one track matched.
         """
         try:
             size = path.stat().st_size
@@ -2655,17 +2628,17 @@ class CheevoCheckService:
     def _chd_extracted_image(self, scratch: Path, command: str, tags, tracks):
         """Which file chdman produced, and how much of it the catalogue covers.
 
-        A DVD comes out as one image and the catalogue describes the whole thing.
-        A CD comes out as one concatenated bin holding every track, and the
-        catalogue describes track one — libretro's Redump mirror keeps that track
-        and drops the rest — so the comparison is against exactly the first
-        track's worth of bytes. Track one's length comes off the CHD's own track
-        table at 2352 bytes a frame, not out of the catalogue, so it is right even
-        for a disc the catalogue has never heard of.
+        A DVD comes out as one image and the catalogue describes the whole
+        thing. A CD comes out as one concatenated bin holding every track, and
+        the catalogue describes track one, so the comparison is against exactly
+        the first track's worth of bytes. Track one's length comes off the
+        CHD's own track table at 2352 bytes a frame rather than out of the
+        catalogue, so it is right even for a disc the catalogue has never heard
+        of.
 
-        A GD-ROM is the exception that needs no arithmetic: chdman writes it as
-        separate per-track files rather than one concatenation, so the first one
-        is already the whole of track one.
+        A GD-ROM needs no arithmetic: chdman writes it as separate per-track
+        files rather than one concatenation, so the biggest of them is already
+        the whole of the track the catalogue keeps.
         """
         if command == "extractdvd":
             image = scratch / "disc.iso"
@@ -2712,9 +2685,9 @@ class CheevoCheckService:
 
         Keyed on the path throughout, and never deduplicated by game the way
         _classify collapses its own buckets. Disc 3 of a four-disc set can fail
-        while the other three pass, and "Final Fantasy VIII (Disc 3) doesn't
-        match" is exactly the finding this feature exists to surface — folding it
-        into one row per game would delete it.
+        while the other three pass, and naming that disc is exactly the finding
+        this feature exists to surface; folding it into one row per game would
+        delete it.
         """
         buckets = {name: [] for name in VERIFY_BUCKETS}
         for row in rows:
@@ -2787,24 +2760,22 @@ class CheevoCheckService:
         """path -> the four fields the library badge needs, built off the scan.
 
         Four fields and nothing else. load_results hands back the whole parsed
-        file, which is megabytes on a real library, and holding that between page
-        visits is the only thing here that could genuinely matter for memory — so
-        the blob is projected and dropped in the same breath.
+        file, which is megabytes on a real library, and holding that between
+        page visits is the only thing here that could genuinely matter for
+        memory, so the blob is projected and dropped in the same breath.
 
         Keyed on the results file's own stat, which moves whenever a scan
-        replaces it. That makes a stale entry impossible rather than something to
-        sweep up, so there is no cleanup pass and none should be written.
+        replaces it. That makes a stale entry impossible rather than something
+        to sweep up, so there is no cleanup pass and none should be written.
 
-        The stat is load-bearing and this used to key on completedAt instead,
-        which meant reading and parsing the entire file on every single call just
-        to look at one timestamp — the cache saved the index build and none of
-        the cost. Measured on a 15,000 game library: 5 MB parsed and 17 ms burnt
-        per page view, against 8 us for the stat. Do not move the cheap check
-        back below the load.
+        The stat is load-bearing. Keying on completedAt instead means reading
+        and parsing the entire file on every call just to look at one
+        timestamp, so the cache saves the index build and none of the cost. Do
+        not move the cheap check back below the load.
 
         Read through the store rather than the file: its accessors unwrap the
-        envelope and check schemaVersion, and hand-parsing skips both and reads a
-        stale schema as valid.
+        envelope and check schemaVersion, and hand-parsing skips both and reads
+        a stale schema as valid.
         """
         stamp = self._store.results_fingerprint()
         cached = self._identity_cache
@@ -2854,8 +2825,8 @@ class CheevoCheckService:
     def identify(self, candidates) -> dict:
         """Which RA game these candidate ROM paths are, or an empty answer.
 
-        Exact path first, then the filename on its own — and only where that name
-        belongs to one game across the whole scan. Two copies of a ROM in
+        Exact path first, then the filename on its own, and only where that
+        name belongs to one game across the whole scan. Two copies of a ROM in
         different folders is a real thing, and a badge naming the wrong game on
         Steam's own page is worse than no badge, because the user has no
         CheevoDeck context there to doubt it.
@@ -2882,14 +2853,13 @@ class CheevoCheckService:
 def _arcade_set_directory(path: Path):
     """The directory this arcade set is named after, or None when the file is.
 
-    GD-ROM arcade boards dump as a directory named after the machine holding one
-    disc image, and RetroAchievements hashes the directory — md5("cvs2"), never
-    md5("gdl-0008"). Everything else in arcade is a container named after itself.
+    GD-ROM arcade boards dump as a directory named after the machine holding
+    one disc image, and RetroAchievements hashes the directory: md5("cvs2"),
+    never md5("gdl-0008"). Everything else in arcade is a container named after
+    itself.
 
-    Called from both the discovery pass and the hashing pass, because the two
-    have to agree about which name is the game. Working it out twice from the
-    path is cheaper than threading a flag through the candidate dict, and it
-    cannot go stale.
+    Called from both the discovery pass and the hashing pass, which have to
+    agree about which name is the game.
     """
     if path.suffix.lower() not in _ARCADE_SET_DISC_EXTENSIONS:
         return None
@@ -2901,12 +2871,11 @@ def _is_wii_wad(path: Path) -> bool:
     """Whether a .wad is a Wii title rather than something else's asset file.
 
     A Wii WAD opens with its header size as a big-endian word, and that size is
-    always 0x20. Checked against a real library: all 14 Wii WADs start
-    00000020, and 465 PlayStation 3 asset files sharing the extension start with
-    whatever their own format felt like.
+    always 0x20. Plenty of other formats share the extension and start with
+    whatever they felt like.
 
-    Unreadable answers False. Refusing to call something a Wii title is the safe
-    direction — the alternative is telling somebody their file is damaged.
+    Unreadable answers False. Refusing to call something a Wii title is the
+    safe direction; the alternative is telling somebody their file is damaged.
     """
     try:
         with open(path, "rb") as handle:
@@ -2947,9 +2916,9 @@ def _looks_like_a_rom(data) -> bool:
 
     Only asked when two entries in one archive share the console's extension,
     which in practice means a Mega Drive ROM sitting next to a README. A NUL in
-    the first few kilobytes settles it — a 68000 vector table is full of them
-    and prose has none — and anything that isn't valid UTF-8 isn't prose either.
-    Reading nothing at all is not evidence, so that answers no.
+    the first few kilobytes settles it, since a 68000 vector table is full of
+    them and prose has none, and anything that isn't valid UTF-8 isn't prose
+    either. Reading nothing at all is not evidence, so that answers no.
     """
     if not data:
         return False

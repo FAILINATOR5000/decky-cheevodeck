@@ -23,18 +23,18 @@ class GenerationFence:
 class TickServiceBase:
     """Shared skeleton for the background tick daemons.
 
-    The trickle, friends-roster, comments, and players-near-you services are
-    all the same daemon at the lifecycle level: one daemon thread guarded by a
+    The trickle, friends-roster, comments and players-near-you services are all
+    the same daemon at the lifecycle level: one daemon thread guarded by a
     generation fence, a stop event, a shared-attr lock, a rate-limit backoff
     window, and the same debug-log gate. That common slice lives here so the
-    services themselves only carry the part that actually differs -- their
-    domain deps, their tick cadence, and how they park between ticks.
+    services themselves only carry the part that actually differs: their domain
+    deps, their tick cadence, and how they park between ticks.
 
-    A subclass calls super().__init__() with its own thread name, log label,
-    and backoff tuning, then sets its domain deps below the super call. What
-    stays per-service on purpose: stop(), the run loop, the between-ticks wait,
-    the wake mechanism, and the tick body. Those are the three genuinely
-    different cadences a maintainer opens the file to read.
+    A subclass calls super().__init__() with its own thread name, log label and
+    backoff tuning, then sets its domain deps below the super call. What stays
+    per-service on purpose: stop(), the run loop, the between-ticks wait, the
+    wake mechanism, and the tick body. Those are the genuinely different
+    cadences a maintainer opens the file to read.
     """
 
     def __init__(self, *, settings_store, plugin, thread_name, log_label,

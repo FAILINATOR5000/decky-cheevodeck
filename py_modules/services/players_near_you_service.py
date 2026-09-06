@@ -77,14 +77,13 @@ def _passed_ids(ordered):
     """Ids of the rows the player has provably gone past.
 
     Unearned, and the region immediately after them has been cleared to at
-    least the player's own overall completion rate. See the PNY_PASSED_*
-    constants for why the test is shaped this way; it is the most-revised rule
-    in the feature and every revision was forced by a real save.
+    least the player's own overall completion rate. The PNY_PASSED_* constants
+    carry the thresholds and say why the test is shaped the way it is.
 
-    Type-agnostic on purpose. A non-missable you walked past seventy-five
-    achievements ago is exactly as gone as a missable, and restricting this to
-    missables cost forty-seven positions of accuracy on the one save that has a
-    real unlock history behind it.
+    Type-agnostic on purpose. A non-missable the player walked past
+    seventy-five achievements ago is exactly as gone as a missable, and
+    restricting this to missables cost forty-seven positions of accuracy on the
+    one save with a real unlock history behind it.
     """
     total = len(ordered)
     if not total:
@@ -111,13 +110,14 @@ def _passed_ids(ordered):
 def _last_unlock_index(ordered):
     """Position of the single most recent unlock, or None if there are none.
 
-    Not a median of the last few: on a real save the recent unlocks were item
+    Not a median of the last few. On a real save the recent unlocks were item
     series earnable anywhere in the game, and averaging them landed the anchor
     twenty positions past where the player actually was.
 
     Ties break toward the furthest position, which is what makes a first sync
-    against an existing save — forty unlocks carrying one identical timestamp
-    — come out at the end of the run rather than somewhere in the middle of it.
+    against an existing save, where forty unlocks carry one identical
+    timestamp, come out at the end of the run rather than somewhere in the
+    middle of it.
     """
     best = None
     for index, row in enumerate(ordered):
@@ -144,14 +144,16 @@ def _first_locked_index(ordered, skip, start=0):
 class PlayersNearYouService(TickServiceBase):
     """Background thread that fills the Players Near You feed.
 
-    Each tick reads the current game off the cached payload, works out the
-    "up next" window of achievements around the first unearned one, and walks
-    that window asking RA who recently unlocked each. The strangers (and
-    incidentally friends) it finds get pooled, sorted newest-first, deduped by
-    (ulid, achievement), and capped at twelve. A near-clone of
-    SocialActivityTrickleService -- same daemon/generation/backoff skeleton --
-    but the per-tick walk is its own shape: one RA slot for the whole window,
-    sequential calls inside it, no friend roster involved.
+    Each tick reads the current game off the cached payload, works out the "up
+    next" window of achievements around the first unearned one, and walks that
+    window asking RA who recently unlocked each. The strangers, and
+    incidentally friends, that it finds get pooled, sorted newest-first,
+    deduped by (ulid, achievement), and capped at twelve.
+
+    A near-clone of SocialActivityTrickleService, sharing the same daemon,
+    generation and backoff skeleton, but the per-tick walk is its own shape:
+    one RA slot for the whole window, sequential calls inside it, and no friend
+    roster involved.
     """
 
     def __init__(self, *, ra, cache_store, settings_store, players_near_you_store, plugin=None, notifications_store=None):
@@ -391,28 +393,34 @@ class PlayersNearYouService(TickServiceBase):
         )
 
     def _compute_window(self, achievements, cfg, mode=PLAYERS_NEAR_YOU_DEFAULT_MODE):
-        """Pick the lookbehind + anchor + lookahead rows around wherever this
+        """Pick the lookbehind, anchor and lookahead rows around wherever this
         game's Playstyle says the player is.
 
-        Returns the windowed achievement dicts (already trimmed to the game's
-        real bounds), or an empty list only when the game has no achievements
-        at all. The cached payload sorts locked-before-earned rather than by
-        displayOrder, so we re-sort here on (displayOrder, id) to find the true
-        up-next position.
+        Returns the windowed achievement dicts, already trimmed to the game's
+        real bounds, or an empty list only when the game has no achievements at
+        all. The cached payload sorts locked-before-earned rather than by
+        displayOrder, so it is re-sorted here on (displayOrder, id) to find the
+        true up-next position.
 
-        The three modes differ only in where the anchor lands — the lookahead
-        walk and the mastered tail are the same in all of them:
+        The modes differ only in where the anchor lands. The lookahead walk and
+        the mastered tail are the same in all of them:
 
         classic   the first unearned row, which is the top of the user's Up
-                  Next list. Nothing is skipped.
+            Next list.
+                  Nothing is skipped.
         enhanced  the first unearned row the player hasn't provably walked
-                  past. Degrades to classic whenever nothing reads as passed,
-                  which is most of a first playthrough.
+            past. Degrades
+                  to classic whenever nothing reads as passed, which is most of
+                      a first
+                  playthrough.
         recent    the first unearned row at or after their last unlock.
         off       no window at all. The tick returns before it gets here, but
-                  the answer is the same either way: a game sitting out has
-                  nothing to canvass, and saying so beats quietly behaving
-                  like classic for anyone who calls this directly.
+            the answer
+                  is the same either way: a game sitting out has nothing to
+                      canvass, and
+                  saying so beats quietly behaving like classic for anyone who
+                      calls this
+                  directly.
         """
         if not achievements or mode == "off":
             return []
@@ -616,16 +624,16 @@ class PlayersNearYouService(TickServiceBase):
 
         Builds an item per (unlocker, achievement), keyed on the ulid so a
         rename can't split one person into two rows. Existing items keep their
-        original discoveredAt -- it's "when we first saw it", and the relative
-        time on the row reads off dateAwarded anyway. Returns the items that
-        were genuinely new this tick (for the notification pass).
+        original discoveredAt, which is when it was first seen, and the
+        relative time on the row reads off dateAwarded anyway. Returns the
+        items that were genuinely new this tick, for the notification pass.
 
-        The signed-in account is dropped here -- RA's recent-unlockers list
-        includes you, but you're not a player "near" yourself. Filtering at this
-        one spot keeps you out of both the feed (cache["items"]) and the
-        notification pass (the returned new_items), since both come off this
-        merge. self_ulid/self_name are the active account's identity, matched
-        ulid-first with a name fallback for the rare ulid-less row.
+        The signed-in account is dropped here. RA's recent-unlockers list
+        includes you, but you are not a player near yourself. Filtering at this
+        one spot keeps you out of both the feed and the notification pass,
+        since both come off this merge. self_ulid and self_name are the active
+        account's identity, matched ulid-first with a name fallback for the
+        rare ulid-less row.
         """
         items = cache.get("items")
         if not isinstance(items, list):
@@ -689,30 +697,30 @@ class PlayersNearYouService(TickServiceBase):
     def _pick_notification_unlock(self, cache, new_unlocks):
         """Advance the watermarks and pick the one unlock worth pinging about.
 
-        Returns the freshest genuinely-new unlock, or None when nothing
-        qualifies. Only that one becomes a notification, the same one the
-        toast fires on -- a tick that finds several still lands them all in the
-        feed, but the notification list gets a single "latest near you" ping
-        rather than one row per unlock. That keeps it in step with the social
-        unlock notification (one freshest pick per pass) and stops a popular
-        achievement from flooding the list in a burst.
+        Returns the freshest genuinely new unlock, or None when nothing
+        qualifies. Only that one becomes a notification, the same one the toast
+        fires on. A tick that finds several still lands them all in the feed,
+        but the notification list gets a single "latest near you" ping rather
+        than one row per unlock. That keeps it in step with the social unlock
+        notification and stops a popular achievement from flooding the list in
+        a burst.
 
-        A game with no watermark yet -- a cold start, e.g. one you just
-        switched into -- runs the same rules as a warm one: every unlock counts
+        A game with no watermark yet, meaning a cold start such as one just
+        switched into, is treated the same as a warm one: every unlock counts
         as new and goes through the freshness gate like any other tick. That
         keeps a game switch feeling responsive instead of burning a silent
         seed-only tick first. The freshness gate is what keeps a stale backlog
         from firing, not a blanket cold-start mute, so an old feed still stays
         quiet while a freshly switched active game surfaces its fresh unlock
-        right away. The watermark still advances past everything seen (whether
-        or not it notifies), so nothing re-fires the next tick.
+        right away. The watermark still advances past everything seen, whether
+        or not it notifies, so nothing re-fires on the next tick.
 
-        Watermarks are mutated in place on the passed-in cache dict -- they
-        live in the same file as the feed, so the one end-of-tick save persists
-        the advance alongside the items. Deliberately no appending or toasting
+        Watermarks are mutated in place on the passed-in cache dict. They live
+        in the same file as the feed, so the one end-of-tick save persists the
+        advance alongside the items. Deliberately no appending or toasting
         here: the caller saves the cache first and notifies off the returned
         pick after, so the watermark is on disk before anyone hears about the
-        unlock (the duplicate-after-restart fix).
+        unlock.
         """
         watermarks = cache.get("watermarkByAchievement")
         if not isinstance(watermarks, dict):

@@ -12,33 +12,38 @@ BASELINES_FILENAME = "comment_baselines.json"
 
 
 class CommentBaselinesStore:
-    """Per-section "what had we already seen" watermarks for the Comments Service.
+    """Per-section watermarks recording what the Comments Service has already
+    seen.
 
-    The Comments Service polls a handful of followed comment threads (and the
-    user's own wall) every few minutes and needs to know which comments it has
-    already notified about. That's all this holds: one watermark per section,
-    keyed the same way the subscriptions store keys a thread ("<kind>:<id>")
-    plus a single "wall:<ulid>" key for the wall pass. ULID, not username:
-    keying the wall on a name meant a self-rename pointed at a fresh key with
-    no watermark. Name is still the fallback for a legacy account with no ULID
-    stored, so both shapes can appear in an old file.
+    That service polls a handful of followed comment threads, and the user's
+    own wall, every few minutes, and needs to know which comments it has
+    already notified about. That is all this holds: one watermark per section,
+    keyed the same way the subscriptions store keys a thread, "<kind>:<id>",
+    plus a single "wall:<ulid>" key for the wall pass. ULID rather than
+    username, because keying the wall on a name means a self-rename points at a
+    fresh key with no watermark. Name is still the fallback for a legacy
+    account with no ULID stored, so both shapes can appear in an old file.
 
-    Each watermark is:
-      - ts            -- the newest comment timestamp seen on that section.
-                         RA hands these back as "YYYY-MM-DD HH:MM:SS" (UTC);
-                         we store the canonical form as-is.
-      - fingerprints  -- the "(user, text)" identities of every comment
-                         sitting at exactly ts. Comments can share a second,
-                         so the timestamp alone can't tell a brand-new
-                         same-second post from one we already counted; the
-                         fingerprint set is the tie-breaker.
+    Each watermark carries:
 
-    Deliberately NOT shoehorned into CacheStore: that store is typed (named
-    load_*/save_* methods, no generic key-value), so a free-form watermark map
-    doesn't belong there. This is its own little JSON file under the runtime
+        ``ts``
+            The newest comment timestamp seen on that section. RA hands these
+                back as
+            "YYYY-MM-DD HH:MM:SS" in UTC, and the canonical form is stored
+                as-is.
+        ``fingerprints``
+            The (user, text) identities of every comment sitting at exactly ts.
+                Comments
+            can share a second, so the timestamp alone can't tell a brand-new
+                same-second
+            post from one already counted; the fingerprint set is the
+                tie-breaker.
+
+    Deliberately not shoehorned into CacheStore, which is typed with named load
+    and save methods rather than generic key-value, so a free-form watermark
+    map doesn't belong there. This is its own small JSON file under the runtime
     dir, exactly like subscriptions.json, guarded by one lock for the whole
-    read-modify-write -- same threading.Lock reasoning the subscriptions and
-    tracked-sets stores use, since the service writes from its own thread.
+    read-modify-write, since the service writes from its own thread.
     """
 
     def __init__(self, *, base_dir: Path):

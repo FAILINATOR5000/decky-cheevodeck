@@ -16,47 +16,57 @@ MAX_SUPPORTED_ROWS = 25000
 
 
 class CheevoCheckStore:
-    """Everything Cheevo Check keeps on disk, which is three separate things.
+    """Everything Cheevo Check keeps on disk, which is four separate files.
 
-    Deliberately isolated from the rest of the plugin: its own directory, its own
-    RA data, its own idea of freshness. It does not share games_list_cache_store,
-    and that's a decision rather than an oversight — the set picker's list is
-    filtered to games that *have* achievements, which is exactly the distinction
-    this feature exists to draw.
+    Deliberately isolated from the rest of the plugin: its own directory, its
+    own RA data, its own idea of freshness. It does not share
+    games_list_cache_store, which is a decision rather than an oversight,
+    because the set picker's list is filtered to games that have achievements
+    and that is exactly the distinction this feature exists to draw.
 
-    Global rather than per-account, so the directory sits at the runtime_dir root
-    and never repoints: none of the three files below depend on who is signed in.
-    ra_data.json is RA's public hash list, identical for everyone, and the other
-    two describe the user's own files on their own drive.
-
-    The three files, and why they're separate:
+    Global rather than per-account, so the directory sits at the runtime_dir
+    root and never repoints. None of the files depend on who is signed in:
+    ra_data.json is RA's public hash list, identical for everyone, and the rest
+    describe the user's own files on their own drive.
 
     ``results.json``
-        The last scan's verdict. Written once, at the end, as a replacement — an
+        The last scan's verdict. Written once, at the end, as a replacement, so
+            an
         interrupted scan leaves the previous results whole rather than a
-        truncated list that looks complete.
+            truncated
+        list that looks complete.
 
     ``ra_data.json``
         Every hash RetroAchievements knows, for the consoles the last Scan
-        touched. One file rather than one per console, because the all-or-nothing
-        property is what Offline Scan's enable rule rests on: presence means
-        complete, and a single atomic replace is the only way that's true rather
-        than assumed.
+            touched.
+        One file rather than one per console, because the all-or-nothing
+            property is
+        what Offline Scan's availability rests on: presence means complete, and
+            a
+        single atomic replace is the only way that is true rather than assumed.
 
     ``hashes.json``
-        What we computed for the user's own files, behind the Cache Local Hashes
-        toggle. Keyed on (console, realpath, size, mtime_ns) — the mtime is what
+        The hashes computed for the user's own files, behind the Cache Local
+            Hashes
+        toggle. Keyed on (console, realpath, size, mtime_ns), and the mtime is
+            what
         makes a swapped-in different dump of the same size re-hash instead of
-        silently returning the old answer.
+            silently
+        returning the old answer.
 
     ``verify_results.json``
         What the full-hash check made of those same files, when the Verify Full
-        Hashes toggle was on. A fourth file rather than more keys in results.json,
-        and the reason is one-directional: save_results runs at the end of *every*
-        scan, so verification living in there would mean a single Scan with the
-        toggle off silently destroying an hour of work. Separate file, but the
-        same lifetime — clear_results drops both, because these rows describe the
-        files that scan found and mean nothing once it is gone.
+            Hashes
+        toggle was on. A separate file rather than more keys in results.json,
+            and the
+        reason is one-directional: save_results runs at the end of every scan,
+            so
+        verification living in there would mean a single Scan with the toggle
+            off
+        silently destroying an hour of work. Separate file, same lifetime:
+        clear_results drops both, because these rows describe the files that
+            scan
+        found and mean nothing once it is gone.
     """
 
     def __init__(self, *, base_dir: Path):
@@ -89,13 +99,13 @@ class CheevoCheckStore:
         """What identifies the current results file, without reading it.
 
         The library badge asks on every game page a user opens, and on a big
-        library results.json is megabytes — so parsing the whole thing to read
+        library results.json is megabytes, so parsing the whole thing to read
         one timestamp is the wrong shape entirely. A stat is microseconds and
-        moves whenever save_results replaces the file, which is the only way the
-        contents ever change.
+        moves whenever save_results replaces the file, which is the only way
+        the contents ever change.
 
-        None when there is no file, which is the same answer an empty scan gives
-        and needs no special case at the caller.
+        None when there is no file, which is the same answer an empty scan
+        gives and needs no special case at the caller.
         """
         try:
             stat = self._results_path().stat()
@@ -107,10 +117,10 @@ class CheevoCheckStore:
         """The last scan's verdict, with every list field guaranteed present.
 
         The filling-in is the point. A results file written before a section
-        existed passes the version check and comes back missing that key, and the
-        page then reads .length off undefined and takes the whole plugin down with
-        it — which is exactly what supportedGames did. Sections get added; a read
-        of an older file has to heal rather than half-answer.
+        existed passes the version check and comes back missing that key, and
+        the page then reads .length off undefined and takes the whole plugin
+        down with it. Sections get added; a read of an older file has to heal
+        rather than half-answer.
         """
         raw = load_json_file(self._results_path(), None)
         if not isinstance(raw, dict):
@@ -215,12 +225,12 @@ class CheevoCheckStore:
         """Replace the whole database with what this fetch produced.
 
         Blank slate, every time. Nothing merges with what was there, so a
-        console's entry can never be part old and part new, and there's one build
-        date for the lot instead of a patchwork. save_json_file writes through a
-        sibling .tmp and renames, which is what makes the replacement atomic —
-        an interrupted Scan leaves the *previous* database intact rather than a
-        half-built one that would pass the presence check and classify against
-        missing consoles.
+        console's entry can never be part old and part new, and there is one
+        build date for the lot instead of a patchwork. save_json_file writes
+        through a sibling .tmp and renames, which is what makes the replacement
+        atomic: an interrupted Scan leaves the previous database intact rather
+        than a half-built one that would pass the presence check and classify
+        against missing consoles.
         """
         ensure_dir(self._dir())
         save_json_file(

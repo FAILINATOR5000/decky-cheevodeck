@@ -6,25 +6,24 @@ from utils import ensure_dir, load_json_file, norm_game_id, save_json_file
 
 
 class GameActivityHistoryStore:
-    """Per-game storage for the Now Playing -> Activity friend feed, one JSON
-    file per game.
+    """Per-game storage for the Now Playing Activity friend feed, one JSON file
+    per game.
 
     Storage layout: ``<store_dir>/<gameid>.json``. Each file holds that one
-    game's history: ``{events, lastWriteAt}``. The feed used to live in a
-    single flat per-user file (``game_activity_history.json``) keyed by gameId
-    inside, so every write loaded and rewrote the whole multi-game blob. One
-    small file per game keeps a write scoped to the game it touches and lets
-    the read pull only the current game.
+    game's history, ``{events, lastWriteAt}``. One small file per game keeps a
+    write scoped to the game it touches and lets the read pull only the current
+    game, where a single flat per-user blob would have every write load and
+    rewrite every game.
 
-    Threading mirrors NotesStore / PlayersNearYouStore, with one deliberate
+    Threading mirrors NotesStore and PlayersNearYouStore, with one deliberate
     difference: the per-game locks are RLocks. This feed has two write paths
-    that can land on the same game from different threads at once -- the
-    trickle daemon's ``record_event`` and the Now Playing tab's
-    ``snapshot_for_game`` (which runs on the asyncio loop when the RPC fires).
-    The service has to hold one game's lock across a whole read-modify-write so
-    the later writer can't clobber events the earlier one just appended. It
-    does that with ``lock_for_game``, and the self-guarding ``load_for_game`` /
-    ``save_for_game`` it calls inside that block re-acquire the same lock --
+    that can land on the same game from different threads at once, the trickle
+    daemon's ``record_event`` and the Now Playing tab's ``snapshot_for_game``,
+    which runs on the asyncio loop when the RPC fires. The service has to hold
+    one game's lock across a whole read-modify-write so the later writer can't
+    clobber events the earlier one just appended. It does that with
+    ``lock_for_game``, and the self-guarding ``load_for_game`` and
+    ``save_for_game`` it calls inside that block re-acquire the same lock,
     hence RLock rather than a plain Lock. The master lock still only guards the
     lock dict and is never held alongside a per-game lock.
     """

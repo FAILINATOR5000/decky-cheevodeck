@@ -100,13 +100,13 @@ class SmbSharesMixin(PluginContext):
     async def list_smb_shares(self, probe: bool = True, rehydrate: bool = True):
         """The list plus live status for each row.
 
-        Two flags because a poller tick is a much smaller question than a page
-        load. `probe` decides whether we ask the server anything at all, and its
-        own cache keeps that down to one socket every twenty seconds. `rehydrate`
-        is the expensive half: a scan of /etc, a glob of the unit directory and
-        the reconcile that follows. That answers "did something change out
-        there", which is a page-load question, not something worth re-asking
-        every five seconds.
+        Two flags, because a poller tick is a much smaller question than a page
+        load. `probe` decides whether the server is asked anything at all, and
+        its own cache keeps that down to one socket every twenty seconds.
+        `rehydrate` is the expensive half: a scan of /etc, a glob of the unit
+        directory and the reconcile that follows. That answers "did something
+        change out there", which is a page-load question rather than something
+        worth re-asking every five seconds.
         """
         if rehydrate:
             await self._rehydrate_smb_shares()
@@ -129,21 +129,17 @@ class SmbSharesMixin(PluginContext):
     async def test_smb_share(self, payload, share_id=None):
         """Try the whole thing without saving any of it.
 
-        This used to be a bare port-445 probe, which meant it answered
-        "Connection Successful" to a completely wrong username: something was
-        listening, and that was all it ever asked. So the highest-value
-        affordance in the modal was quietly the most misleading thing on it.
-
-        It now goes as far as it can without touching root: reachable, then the
-        share opens with these credentials. Only the mount itself is left, and
-        that needs the kernel.
+        Goes as far as it can without touching root: reachable, then the share
+        opens with these credentials. Only the mount itself is left, and that
+        needs the kernel. A bare port-445 probe is not enough on its own, since
+        something listening answers "Connection Successful" to a completely
+        wrong username.
 
         `share_id` is what makes Test work on the Edit screen. The password
         field there is deliberately blank when one is already saved, so a test
-        that only read the payload was testing an empty password against a
-        share that has one, and reported the credentials wrong every single
-        time. It has to fall back to the saved secret exactly the way saving
-        does.
+        that only read the payload would test an empty password against a share
+        that has one and report the credentials wrong every time. It has to
+        fall back to the saved secret exactly the way saving does.
         """
         if not isinstance(payload, dict):
             return {"ok": False, "error": "invalid_payload"}

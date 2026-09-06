@@ -2,26 +2,29 @@
 
 Trimming is cutting the blank padding off the end of a dump to save space. The
 game data is untouched, so an emulator and RetroAchievements both read a trimmed
-file exactly as they read a full one — but every published catalogue hashes the
-*full* cart dump, so a trimmed file can never match one. Saying "doesn't match"
+file exactly as they read a full one, but every published catalogue hashes the
+full cart dump, so a trimmed file can never match one. Saying "doesn't match"
 about those without saying why would be the feature's single biggest source of
 false alarm.
 
 Nothing here guesses. All three formats state their own full size in a header
-field, so the answer is a comparison rather than a heuristic:
+field, so the answer is a comparison rather than a heuristic.
 
-* **Nintendo DS** — cart size at 0x14 as a shift, used bytes at 0x80.
-* **Nintendo 3DS** — NCSD magic at 0x100, media size at 0x104 in 0x200 units.
-* **Switch XCI** — HEAD magic at 0x100, valid-data end at 0x118 in 0x200 pages.
+* **Nintendo DS** puts its cart size at 0x14, as a shift, and its used bytes
+  at 0x80.
+* **Nintendo 3DS** carries NCSD magic at 0x100, with the media size sitting at
+  0x104 in 0x200 units.
+* **Switch XCI** carries HEAD magic at 0x100, with the end of valid data at
+  0x118 in 0x200 pages.
 
-Test on the CART size, never on the used size. Both trimmed DS files this was
-built against sit a little above their used figure — one carries 320 KB of
-padding past its data — so "file size equals used size" misses them and
-"file size is under the cart size" does not.
+Test on the cart size, never on the used size. Both trimmed DS files this was
+built against sit a little above their used figure, one of them carrying 320 KB
+of padding past its data, so "file size equals used size" misses them and "file
+size is under the cart size" does not.
 
 Same discipline as `chd_reader`: stdlib only, no decky import, no logging, so it
 stays drivable from a terminal. Every read is bounds-checked and every failure is
-None, which the caller reads as "we could not tell" rather than as a fault.
+None, which the caller reads as "could not tell" rather than as a fault.
 """
 
 import struct
@@ -83,9 +86,9 @@ def ncsd_full_size(data):
 def xci_full_size(data):
     """The end of an XCI's real data, in bytes, or None.
 
-    Unlike the other two this is not the cart size — it is where the data stops.
-    A trimmed XCI ends exactly here; an untrimmed one carries padding out to the
-    nominal 4 GB or 8 GB cart size beyond it.
+    Unlike the other two this is not the cart size, it is where the data stops.
+    A trimmed XCI ends exactly here; an untrimmed one carries padding out to
+    the nominal 4 GB or 8 GB cart size beyond it.
     """
     if data is None or len(data) < _XCI_VALID_END_OFFSET + 4:
         return None
@@ -96,10 +99,12 @@ def xci_full_size(data):
 
 
 def is_trimmed(path, suffix, size):
-    """Whether this image had its padding cut off, or None when we cannot tell.
+    """Whether this image had its padding cut off, or None when there is no
+    telling.
 
-    None is a real answer and separate from False: a file whose header we cannot
-    read has not been shown to be full, and §2's rule points both ways.
+    None is a real answer and separate from False: a file whose header cannot
+    be read has not been shown to be full, and the caller has to keep the two
+    apart.
     """
     suffix = str(suffix or "").lower()
     if suffix not in (".nds", ".srl", ".3ds", ".cci", ".xci"):

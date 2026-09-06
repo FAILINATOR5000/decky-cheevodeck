@@ -27,26 +27,24 @@ class NotesReminderService:
     One tick every REMINDER_TICK_SECONDS:
       1. Read the current game id from the cache_store payload.
       2. Load that game's notes file.
-      3. For every note with a non-off reminder that's due, append it
-         to the per-game unacked dict and stamp last-fired on disk.
+      3. For every note with a non-off reminder that is due, append it to the
+         per-game unacked dict and stamp last-fired on disk.
 
-    Reminders sit in an in-memory dict, keyed by game id, until the
-    frontend calls get_pending_reminders() and then ack_reminders().
-    Peek + ack semantics mean a panel that crashes mid-display gets
-    to re-read the same reminder on the next open instead of losing
-    it forever.
+    Reminders sit in an in-memory dict, keyed by game id, until the frontend
+    calls get_pending_reminders() and then ack_reminders(). Peek-then-ack means
+    a panel that crashes mid-display gets to re-read the same reminder on the
+    next open instead of losing it forever.
 
-    Sleep-from-Deck robustness: when reminderLastFiredAt is way in
-    the past (Deck slept for hours), we fire exactly once and stamp
-    last-fired to now, not to "last + interval". The next firing is
-    one full interval after the wake-up, which is what we want -- no
-    burst of catch-up reminders.
+    When reminderLastFiredAt is a long way in the past, because the Deck slept
+    for hours, the reminder fires exactly once and last-fired is stamped to now
+    rather than to "last plus interval". The next firing is one full interval
+    after the wake-up, so there is no burst of catch-up reminders.
 
-    Threading: the tick runs on its own OS thread; RPC handlers
-    calling in from the asyncio loop hit the unacked dict under
-    _state_lock. NotesStore does its own per-game locking, so the
-    load+stamp pair inside the tick is safe even if a user happens
-    to edit the same note from the modal at the same moment.
+    Threading: the tick runs on its own OS thread, while RPC handlers calling
+    in from the asyncio loop hit the unacked dict under _state_lock. NotesStore
+    does its own per-game locking, so the load-and-stamp pair inside the tick
+    is safe even if the user edits the same note from the modal at the same
+    moment.
     """
 
     def __init__(self, *, notes_store, cache_store, settings_store, notifications_store=None, plugin=None):
@@ -342,11 +340,10 @@ class NotesReminderService:
         return _LEADING_TAG_PATTERN.sub("", body, count=1).strip()
 
     def get_pending(self, game_id):
-        """Return (without clearing) all unacked reminders for a game.
+        """Return, without clearing, all unacked reminders for a game.
 
-        Returns an empty list if the game id is unknown or there's
-        nothing pending. Safe to call from the event loop -- the lock
-        is held for microseconds.
+        An empty list if the game id is unknown or there is nothing pending.
+        Safe to call from the event loop: the lock is held for microseconds.
         """
         normalised = self._normalise_game_id(game_id)
         if normalised is None:
@@ -361,8 +358,8 @@ class NotesReminderService:
     def ack(self, game_id, note_ids):
         """Drop the named reminders from the pending list for a game.
 
-        Unknown ids are silently skipped -- it's normal for a stale
-        ack to arrive after a re-fire has already replaced the entry.
+        Unknown ids are silently skipped. It is normal for a stale ack to
+        arrive after a re-fire has already replaced the entry.
         """
         normalised = self._normalise_game_id(game_id)
         if normalised is None:
@@ -393,14 +390,14 @@ class NotesReminderService:
         return {"ok": True, "removed": removed}
 
     def reset_pending(self):
-        """Drop every pending reminder we're holding in RAM.
+        """Drop every pending reminder being held in RAM.
 
-        Called when the account switches. _pending_by_game is the one bit
-        of reminder state that never hits disk, so re-pointing the notes
-        store doesn't touch it -- left alone, the daemon would keep handing
-        the panel the previous account's due reminders until its next tick
-        re-derived them. Clearing the dict is the whole fix; the next tick
-        rebuilds from the re-pointed notes store.
+        Called when the account switches. _pending_by_game is the one bit of
+        reminder state that never hits disk, so re-pointing the notes store
+        doesn't touch it. Left alone, the daemon would keep handing the panel
+        the previous account's due reminders until its next tick re-derived
+        them. Clearing the dict is the whole fix; the next tick rebuilds from
+        the re-pointed notes store.
         """
         with self._state_lock:
             self._pending_by_game.clear()

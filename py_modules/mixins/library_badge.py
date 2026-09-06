@@ -27,11 +27,11 @@ class LibraryBadgeMixin(PluginContext):
     async def get_library_badge_identity(self, app_id):
         """Which RA game this non-Steam shortcut is, from disk alone.
 
-        No _ra_slot(). Adding one looks like consistency with the rest of the
-        plugin and is a regression: this reads local files only, and taking a
-        slot would queue the badge behind whatever RA work is in flight — a
-        running Cheevo Check scan's fetches included — for a question that never
-        touches the network.
+        No _ra_slot(). Adding one looks like consistency with the rest of the plugin
+        and is really a regression. This reads local files and nothing else, so a slot
+        would only queue the badge behind whatever RA work happens to be in flight,
+        a running Cheevo Check scan's fetches included, to answer a question that
+        never touches the network.
         """
         return await asyncio.to_thread(self._library_badge_identity_sync, app_id)
 
@@ -53,16 +53,15 @@ class LibraryBadgeMixin(PluginContext):
     async def get_library_badge_progress(self, game_id):
         """How far through that set the signed-in user is.
 
-        No _ra_slot(), deliberately, against the usual rule — Jameson's call,
-        2026-09-03. Adding one back looks like consistency and is what breaks it.
+        No _ra_slot() here either, and adding one back looks like consistency
+        while being what breaks it. Players Near You holds a slot for around
+        fifteen seconds at a time, so a badge queued behind it misses any sane
+        deadline and shows a bare count instead of a fraction, which reads as
+        the feature being broken. wait_for_game_check=False would not have
+        helped; the block is the semaphore, not the gate in front of it.
 
-        Players Near You holds a slot for ~15s at a time, so a badge queued behind
-        it misses any sane deadline and shows a bare count instead of a fraction,
-        which reads as the feature being broken. wait_for_game_check=False would
-        not have helped; the block is the semaphore, not the gate in front of it.
-
-        The rate is what makes it safe: one call per page view, and a page view is
-        somebody physically opening a game, so it cannot burst.
+        The rate is what makes it safe: one call per page view, and a page view
+        is somebody physically opening a game, so it cannot burst.
         """
         return await asyncio.to_thread(self._library_badge_progress_sync, game_id)
 

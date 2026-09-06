@@ -260,22 +260,20 @@ class CacheStore:
     def clear_pending_game_ticker_event(self):
         """Drop the pending game ticker slot. Leaves the watermarks alone.
 
-        Called by current_game_service on a genuine game change — last
-        session's armed nudge is for the wrong game now and shouldn't get a
-        chance to fire if the user swings back, so we null the slot.
+        Called by current_game_service on a genuine game change: last session's
+        armed nudge is for the wrong game now and shouldn't get a chance to
+        fire if the user swings back, so the slot is nulled.
 
-        We deliberately do NOT touch lastShownGameTickerTimestampByGame.
-        It's the per-game record of what we've already shown the user, and
-        each game keeps its own. The old version wiped it here, which
-        re-opened the already-shown guard and re-flashed a friend's unlock
-        every time the user reloaded that game (Issue 9). Now a return visit
+        lastShownGameTickerTimestampByGame is deliberately untouched. It is the
+        per-game record of what has already been shown, and each game keeps its
+        own. Wiping it here re-opens the already-shown guard and re-flashes a
+        friend's unlock every time the user reloads that game. A return visit
         stays suppressed, while a brand-new game has no key yet so its fresh
-        activity still surfaces. Doesn't touch events, friendState, or
-        anything else in the file.
+        activity still surfaces. Nothing else in the file is touched.
 
-        Holds the social_activity lock for the load-modify-save so a
-        concurrent trickle tick or frontend clear can't interleave with
-        this and lose one of the writes.
+        Holds the social_activity lock for the load-modify-save so a concurrent
+        trickle tick or frontend clear can't interleave with this and lose one
+        of the writes.
         """
         with self._social_activity_lock:
             raw = load_json_file(self._social_activity_cache_file, {})
@@ -475,10 +473,10 @@ class CacheStore:
         return self._new_sets_lock
 
     def _delete_files(self, paths) -> list:
-        """Helper for the clear_* methods. Walks the given paths, unlinks
-        each one that exists, and returns the names that actually went
-        away. Missing files are silently skipped — same behaviour the old
-        clear_all had inline.
+        """Unlink each of these paths that exists, and return the names that went
+        away.
+
+                Missing files are silently skipped.
         """
         cleared = []
         for path in paths:
@@ -491,19 +489,20 @@ class CacheStore:
         return cleared
 
     def _delete_keyed_cache_dir(self, cache_dir, lock_for_stem) -> list:
-        """Shared wipe for the per-key file caches (game bundles, user
-        avatars, award icons, friend games, friend game payloads). Returns
-        each removed file's name, same shape as _delete_files.
+        """Shared wipe for the per-key file caches.
 
-        Only real "<stem>.json" files go -- skipping everything else leaves
-        a writer's in-flight "<stem>.json.tmp" alone, since deleting that
-        out from under save_json_file's tempfile+rename would make the
-        rename throw. Each file is unlinked under its own per-stem lock (the
-        same lock a write takes, handed in as lock_for_stem), so a delete
-        can't land mid load -> mutate -> save and get undone by the save
-        re-creating it. Only one lock is held at a time, so there's no
-        lock-ordering deadlock. A missing dir just means there's nothing to
-        clear.
+        Game bundles, user avatars, award icons, friend games and friend game
+        payloads all go through here. Returns each removed file's name, the
+        same shape as _delete_files.
+
+        Only real "<stem>.json" files go. Skipping everything else leaves a
+        writer's in-flight "<stem>.json.tmp" alone, since deleting that out
+        from under save_json_file's tempfile-and-rename would make the rename
+        throw. Each file is unlinked under its own per-stem lock, the same lock
+        a write takes, handed in as lock_for_stem, so a delete can't land mid
+        load-mutate-save and get undone by the save re-creating it. Only one
+        lock is held at a time, so there is no lock-ordering deadlock. A
+        missing directory means there is nothing to clear.
         """
         cleared = []
         if not cache_dir.exists():
@@ -520,35 +519,38 @@ class CacheStore:
         return cleared
 
     def _delete_game_bundles(self) -> list:
-        """Wipe every per-game icon bundle under the gameicons dir. The dir
-        is left in place -- the next save_game_bundle mkdirs it anyway, but
-        keeping it means a quick `ls gameicons/` confirms the wipe worked."""
+        """Wipe every per-game icon bundle under the gameicons dir.
+
+        The directory is left in place. The next save_game_bundle mkdirs it
+        anyway, and keeping it means a quick `ls gameicons/` confirms the wipe
+        worked.
+        """
         return self._delete_keyed_cache_dir(
             self._game_icons_dir, self.game_bundle_lock,
         )
 
     def _delete_user_avatars(self) -> list:
-        """Wipe every per-user avatar file under the user_avatars dir."""
         return self._delete_keyed_cache_dir(
             self._user_avatars_dir, self.user_avatar_lock,
         )
 
     def _delete_award_icons(self) -> list:
-        """Wipe every per-award badge-art file under the award_icons dir."""
         return self._delete_keyed_cache_dir(
             self._award_icons_dir, self.award_icon_lock,
         )
 
     def _delete_friend_games(self) -> list:
-        """Wipe every per-friend game file under the friend_games dir."""
         return self._delete_keyed_cache_dir(
             self._friend_games_dir, self.friend_game_lock,
         )
 
     def _delete_friend_game_payloads(self) -> list:
-        """Wipe every per-(user, game) payload file. Goes wherever
-        _delete_friend_games goes — these hold the same RA progress data,
-        so a clear that leaves them behind would serve a wiped account."""
+        """Wipe every per-(user, game) payload file.
+
+        Goes wherever _delete_friend_games goes: these hold the same RA
+        progress data, so a clear that leaves them behind would serve a wiped
+        account.
+        """
         return self._delete_keyed_cache_dir(
             self._friend_game_payloads_dir, self.friend_game_payload_lock,
         )
@@ -577,23 +579,19 @@ class CacheStore:
             ))
 
     def clear_images(self) -> list:
-        """Both image caches in one go: the per-game icon bundles (game
-        icon, title/ingame/boxart images, achievement badges) and the
-        separate leaderboard-icons file. Splitting these further isn't
-        useful — when a user wants to bust an icon it's almost always
-        all of them.
+        """Both image caches in one go.
 
-        The AOTW cache file goes too. That used to be because the payload
-        carried the achievement badge as a data URI inside its own blob,
-        which this button would otherwise have left standing; the badge
-        moved to lazy resolution on the frontend and the field went with
-        it (see aotw_service._cache_has_phase75_fields), so the reason now
-        is the weaker one: the payload still carries the game's imageIcon,
-        and dropping it alongside the bundles keeps "clear the images" from
-        meaning two different things depending on which surface you're on.
+        The per-game icon bundles (game icon, title, ingame and boxart images,
+        achievement badges) and the separate leaderboard-icons file. Splitting
+        these further isn't useful: when a user wants to bust an icon it is
+        almost always all of them.
 
-        Non-friend user avatars get wiped here as well -- they're
-        image data caching the same way the rest is.
+        The AOTW cache file goes too. Its payload carries the game's imageIcon,
+        so dropping it alongside the bundles keeps "clear the images" from
+        meaning two different things depending on which surface you are on.
+
+        Non-friend user avatars get wiped here as well. They are image data,
+        caching the same way the rest is.
         """
         cleared = self._delete_game_bundles()
         cleared.extend(self._delete_user_avatars())
@@ -607,22 +605,26 @@ class CacheStore:
 
     def clear_social_activity(self) -> list:
         """Just the rolling global activity feed shown in the Social Hub.
-        Leaves the per-game activity history alone — useful when you
-        want to force the trickle to refill the global feed without
-        also losing the long-lived per-game snapshots."""
+
+        Leaves the per-game activity history alone, which is useful for forcing
+        the trickle to refill the global feed without also losing the
+        long-lived per-game snapshots.
+        """
         with self._social_activity_lock:
             return self._delete_files((
                 self._social_activity_cache_file,
             ))
 
     def clear_sets_list_cache(self) -> list:
-        """Just the tracked-sets add-game catalog: the cached console list
-        and every per-console game list. This is the game-LOOKUP data, not
-        the user's saved sets -- wiping it only means the picker re-fetches
-        console/game lists fresh on next use. The user's tracked_sets.json
-        is a separate store and is untouched here. Backs the "Clear Sets
-        List Cache" button, which is deliberately kept distinct from the
-        destructive "Delete All Mastery Goals" action."""
+        """Just the tracked-sets add-game catalog: the cached console list and
+        every per-console game list.
+
+        This is the game-lookup data, not the user's saved sets. Wiping it only
+        means the picker re-fetches console and game lists fresh on next use,
+        and tracked_sets.json is a separate store that is untouched here. Backs
+        the "Clear Sets List Cache" button, which is deliberately kept distinct
+        from the destructive "Delete All Mastery Goals" action.
+        """
         with self._sets_list_lock:
             return self._delete_files((
                 self._sets_list_cache_file,
@@ -638,47 +640,50 @@ class CacheStore:
             ))
 
     def clear_friend_game_payloads(self) -> list:
-        """Just the per-(user, game) achievement payloads another player's
-        Game Overview paints from. Its own button as well as riding along in
-        the game-data group, because this is the one cache that answers "why
-        am I looking at yesterday's progress for this person" — your own
-        current game is never in here, and every entry rebuilds from
-        RetroAchievements the next time the page opens. The per-pair wipe
-        guards itself per-key inside the helper, so there's no flat lock."""
+        """Just the per-(user, game) achievement payloads another player's Game
+        Overview paints from.
+
+        Its own button as well as riding along in the game-data group, because
+        this is the one cache that answers "why am I looking at yesterday's
+        progress for this person". The active account's own current game is
+        never in here, and every entry rebuilds from RetroAchievements the next
+        time the page opens. The per-pair wipe guards itself per-key inside the
+        helper, so there is no flat lock.
+        """
         return self._delete_friend_game_payloads()
 
     def clear_award_icons(self) -> list:
-        """Just the cached badge art for site / event awards. Backs the
-        dedicated "Clear Other Icons" button (the Badges "Other" filter is
-        where these awards live). Kept out of clear_images on purpose -- a
-        user busting game icons rarely means to drop their award art too, and
-        Jameson wanted these on their own button. The per-award wipe guards
-        itself per-key inside the helper, so there's no flat lock to take
-        here."""
+        """Just the cached badge art for site and event awards.
+
+        Backs the dedicated "Clear Other Icons" button, the Badges "Other"
+        filter being where these awards live. Kept out of clear_images on
+        purpose: a user busting game icons rarely means to drop their award art
+        too. The per-award wipe guards itself per-key inside the helper, so
+        there is no flat lock to take here.
+        """
         return self._delete_award_icons()
 
     def repoint_user_scope(self, base_dir: Path) -> None:
         """Re-point only the per-account cache files onto a new per-user base.
 
-        A switch hands us the incoming account's dir; we move the
-        account-specific files over to it. Each swap is done under the same
-        lock that guards writes to that file, so a CurrentGameService payload
-        save or a trickle feed write can't straddle the swap and land the
-        outgoing account's bytes under the incoming account's path.
+        A switch supplies the incoming account's directory and the
+        account-specific files move over to it. Each swap is done under the
+        same lock that guards writes to that file, so a CurrentGameService
+        payload save or a trickle feed write can't straddle the swap and land
+        the outgoing account's bytes under the incoming account's path.
 
         Friends belongs in this set: a follow list differs per account, so
         leaving it global let a fresh trickle tick read the outgoing account's
         roster right after a switch and fire a feed notification for a friend
-        the new account doesn't even have. Swapping it here means the new
-        account's roster (or an empty one) is the only thing a post-switch
-        tick can see.
+        the new account doesn't have. Swapping it here means the new account's
+        roster, or an empty one, is the only thing a post-switch tick can see.
 
-        The genuinely-global caches (friend-games, icons, avatars, award icons,
-        news, aotw, new-sets, sets-list, leaderboard icons) stay put -- they're
-        identical across accounts or get rebuilt by the roster refresh that runs
-        right after a switch. There's no in-memory cache to flush here either: every
-        getter loads on demand off these fields, so swapping the field is the
-        whole job.
+        The genuinely global caches (friend-games, icons, avatars, award icons,
+        news, aotw, new-sets, sets-list, leaderboard icons) stay put. They are
+        identical across accounts or get rebuilt by the roster refresh that
+        runs right after a switch. There is no in-memory cache to flush either:
+        every getter loads on demand off these fields, so swapping the field is
+        the whole job.
         """
         ensure_dir(base_dir)
         with self._payload_lock:
@@ -693,18 +698,18 @@ class CacheStore:
     def clear_all(self) -> list:
         """Delete every cache file that currently exists on disk.
 
-        Returns the list of filenames that were actually removed so the
-        caller can report back to the frontend.
+        Returns the list of filenames that were actually removed, so the caller
+        can report back to the frontend.
 
-        Each file is deleted while holding its own cache lock, so a clear
-        can't land in the middle of an in-flight load -> mutate -> save and
-        get undone by the save re-creating the file right after. We take
-        one lock at a time and release it before the next, so there's no
-        lock-ordering deadlock no matter what a writer is doing. Writes
-        are atomic (tempfile + rename), so the lock is about that stale
-        resurrection, never a half-written file. The per-file dirs (game-icon
-        bundles, user avatars, award icons, friend games) come last and guard
-        themselves per-key inside their own delete helpers.
+        Each file is deleted while holding its own cache lock, so a clear can't
+        land in the middle of an in-flight load-mutate-save and get undone by
+        the save re-creating the file right after. One lock is taken at a time
+        and released before the next, so there is no lock-ordering deadlock no
+        matter what a writer is doing. Writes are atomic, tempfile and rename,
+        so the lock is about that stale resurrection rather than a half-written
+        file. The per-file directories (game-icon bundles, user avatars, award
+        icons, friend games) come last and guard themselves per-key inside
+        their own delete helpers.
         """
         cleared = []
         guarded = (

@@ -10,36 +10,36 @@ MAX_EVENTS_PER_GAME = 500
 class GameActivityHistoryService:
     """Per-game activity history that outlives the rolling global feed.
 
-    The global activity cache (``social_activity_cache.json``) is a rolling
-    window — old events get purged once the file passes its size/age caps.
-    For the Now Playing tab's Activity sub-tab we want a longer history,
-    so this service keeps a separate per-game history that holds events
-    indefinitely (until the user clears it).
+    The global activity cache, ``social_activity_cache.json``, is a rolling
+    window: old events get purged once the file passes its size and age caps.
+    The Now Playing tab's Activity sub-tab wants a longer history, so this
+    service keeps a separate per-game history that holds events indefinitely,
+    until the user clears it.
 
-    Storage is one file per game, owned by ``GameActivityHistoryStore``
-    (``<ULID>/game_activity_history/<gameId>.json``). It used to be a single
-    flat per-user file keyed by gameId inside; the per-game split means a
-    write only touches the game it's for and a read only pulls the current
-    game.
+    Storage is one file per game, owned by ``GameActivityHistoryStore`` at
+    ``<ULID>/game_activity_history/<gameId>.json``. Per-game rather than one
+    flat per-user file, so a write only touches the game it is for and a read
+    only pulls the current game.
 
     Two write paths feed it:
-      * ``record_event`` — called by the trickle service for events from
-        starred friends, regardless of whether the user has opened the
-        Now Playing tab for that game. This is what makes the history
-        "continuous" for starred friends.
-      * ``snapshot_for_game`` — called when the user opens the Now Playing
-        tab for a game. Pulls every event currently in the global cache
-        for that game (any friend, starred or not) and merges them in.
-        This is the "on-demand" path for non-starred friends, and also
-        catches up any starred-friend events that landed before this
-        history existed.
 
-    The read path (``get_events_for_game``) returns the per-game list
-    sorted newest-first, capped at MAX_EVENTS_PER_GAME.
+    * ``record_event``, called by the trickle service for events from starred
+      friends, whether or not the user has opened the Now Playing tab for that
+          game.
+      This is what makes the history continuous for starred friends.
+    * ``snapshot_for_game``, called when the user opens the Now Playing tab for
+        a
+      game. It pulls every event currently in the global cache for that game,
+          from
+      any friend, and merges them in. That is the on-demand path for
+          non-starred
+      friends, and it also catches up starred-friend events that landed before
+          this
+      history existed.
 
-    The per-game files are wiped by ``GameActivityHistoryStore.clear_all_games``
-    — reached through the ``gameActivity`` clear group and folded into the
-    Clear-All sweep in main.py.
+    The read path, ``get_events_for_game``, returns the per-game list sorted
+    newest-first and capped at MAX_EVENTS_PER_GAME. The files are wiped by
+    ``GameActivityHistoryStore.clear_all_games``.
     """
 
     def __init__(self, *, store):
@@ -116,11 +116,12 @@ class GameActivityHistoryService:
         return str(normalised)
 
     def record_event(self, event):
-        """Add a single event (typically from a starred friend) to its game's file.
+        """Add a single event, typically from a starred friend, to its game's
+        file.
 
-        Silently drops events that don't have a usable gameId or id —
-        the trickle hands us well-formed events, but defensive parsing
-        keeps a malformed event from poisoning the file.
+        Silently drops events without a usable gameId or id. The trickle hands
+        over well-formed events, but defensive parsing keeps a malformed one
+        from poisoning the file.
         """
         if not isinstance(event, dict):
             return

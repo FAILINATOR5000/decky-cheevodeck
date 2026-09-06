@@ -11,17 +11,16 @@ from utils import frontend_error
 class NewsService:
     """Fetches and caches the RetroAchievements news feed.
 
-    Source is the public RSS feed at /rss-news. We pull a small fixed
-    number of entries (the feed itself returns 20), normalise the
-    fields the frontend cares about, and keep a 1-hour TTL on disk so
-    the News tab feels instant the second time it's opened. The news
-    feed is blog-cadence -- new posts arrive infrequently -- so an
-    hour-long cache window doesn't really make stale content visible.
+    The source is the public RSS feed at /rss-news. A small fixed number of
+    entries comes back, the feed itself returning 20, and the fields the
+    frontend cares about are normalised and kept with a 1-hour TTL on disk so
+    the News tab feels instant the second time it is opened. The feed is
+    blog-cadence, with new posts arriving infrequently, so an hour-long cache
+    window doesn't really make stale content visible.
 
-    No thumbnails: the RSS feed doesn't carry them. Each news card
-    on the frontend uses a static newspaper SVG instead. Clicking a
-    card sends the user to the article on retroachievements.org
-    where the real images live.
+    No thumbnails: the RSS feed doesn't carry them. Each news card on the
+    frontend uses a static newspaper SVG instead. Clicking a card sends the
+    user to the article on retroachievements.org, where the real images live.
     """
 
     _RSS_URL = "https://retroachievements.org/rss-news"
@@ -111,11 +110,11 @@ class NewsService:
         return (int(time.time()) - refreshed_at) < self._CACHE_TTL_SECONDS
 
     def get_news_feed(self) -> dict:
-        """Return the news feed, hitting cache when it's still fresh.
+        """Return the news feed, hitting cache when it is still fresh.
 
-        Returns {"payload": [...], "fromCache": bool} on success,
-        or a dict with an "error" key (and stale payload if we have
-        one) on network failure.
+        Returns {"payload": [...], "fromCache": bool} on success, or a dict
+        with an "error" key, and the stale payload where there is one, on
+        network failure.
         """
         cached_wrapper = self._cache_store.load_news()
         cached_payload = cached_wrapper.get("payload")

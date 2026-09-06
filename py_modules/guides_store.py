@@ -46,7 +46,7 @@ _GAME_URL_PATTERN = re.compile(r"^/[a-z0-9_-]+/\d+-", re.IGNORECASE)
 
 class GuidesStore:
     """Per-account GameFAQs guide data: the resolved game mapping, bookmarks,
-    reading positions, plus a regenerable page/list cache.
+    reading positions, plus a regenerable page and list cache.
 
     Storage layout (under ``<guides_dir>``, which is ``<ulid>/guides``)::
 
@@ -56,13 +56,13 @@ class GuidesStore:
             <gameId>_faqlist.json          # cached guide-list metadata
 
     Threading mirrors NotesStore exactly: one master lock guards the per-game
-    lock dict (held only long enough to look up or create an entry), and each
+    lock dict, held only long enough to look up or create an entry, and each
     game's file is touched under that game's own lock. The state file and the
     cache get their own locks so they don't contend on a game's lock.
 
-    Everything writes through ``save_json_file`` / ``ensure_dir`` (or the
-    text saver below), so the chown-back to the data owner rides every write
-    for free -- the backend runs as root and would otherwise self-lock-out.
+    Everything writes through ``save_json_file`` and ``ensure_dir``, or the
+    text saver below, so the chown back to the data owner rides every write.
+    The backend runs as root and would otherwise lock itself out.
     """
 
     def __init__(self, *, guides_dir: Path):
@@ -500,16 +500,15 @@ class GuidesStore:
         """Which of the guide's pages are on disk. Ask with real section slugs,
         get real section slugs back.
 
-        This used to take nothing and answer with the page TOKENS off the
-        filenames. Tokens read like slugs and aren't: _page_token sanitises one
-        way, so Update Guide handed "_page_1_Materials_Checklist" to GameFAQs
-        as a section, GameFAQs served the base page, and that got written over
-        every section the user had read.
+        Never answer with the page tokens off the filenames. _page_token
+        sanitises one way, so a token handed back to GameFAQs as a section gets
+        the base page served instead, and that overwrites every section the
+        user had read.
 
         Update Guide re-fetches exactly what comes back and no more: a page
         never opened has nothing cached to compare against, so pulling it now
         would be a download the user didn't ask for. A classic guide has the
-        one page ("0"); a formatted one has that plus a file per section read.
+        one page, "0"; a formatted one has that plus a file per section read.
         """
         key = self._game_key(game_id)
         faq = self._clean_faq_id(faq_id)
@@ -523,14 +522,14 @@ class GuidesStore:
         return {"ok": True, "pages": held}
 
     def offline_guides(self, game_id) -> dict:
-        """Guides this device is holding on its own: a record entry with page
-        HTML still in the cache, stamped to the game we're currently mapped to.
+        """Guides this device is holding on its own: a record entry with page HTML
+        still in the cache, stamped to the game currently mapped.
 
         This is what lets a guide GameFAQs has since deleted keep a row in the
-        list. The record already carries the title, author and type we copied
-        off the row when it was opened, so a card can be drawn from it without
-        the live list knowing the guide exists. Anything without cached HTML is
-        left out -- a row that opens onto an error is worse than no row.
+        list. The record already carries the title, author and type copied off
+        the row when it was opened, so a card can be drawn from it without the
+        live list knowing the guide exists. Anything without cached HTML is
+        left out: a row that opens onto an error is worse than no row.
         """
         key = self._game_key(game_id)
         if key is None:
@@ -646,8 +645,8 @@ class GuidesStore:
         """Land a background revalidate: write the page, or stamp the failure.
 
         An empty html is the fetch saying it came back with nothing. Anything
-        else is written whether or not it differs from what was on disk —
-        matching byte for byte is the common case and still worth the write,
+        else is written whether or not it differs from what was on disk.
+        Matching byte for byte is the common case and still worth the write,
         because it resets the file's thirty-day clock.
         """
         key = self._game_key(game_id)
@@ -701,18 +700,18 @@ class GuidesStore:
         """Drop cached files for this guide that are not in `pages`.
 
         The healing half of Update Guide, and the order it runs in is the whole
-        of its safety. Update Guide fetches everything first and only calls this
-        once every page has landed, so a guide is never left with less than it
-        started with. Clearing first and fetching after would look tidier and
-        would turn a Cloudflare wall into a guide the user no longer has —
-        which, with Offline Guides on, is the one thing they were promised
+        of its safety. Update Guide fetches everything first and only calls
+        this once every page has landed, so a guide is never left with less
+        than it started with. Clearing first and fetching after would look
+        tidier and would turn a Cloudflare wall into a guide the user no longer
+        has, which with Offline Guides on is the one thing they were promised
         wouldn't happen.
 
-        What this actually reclaims is sections GameFAQs no longer lists.
-        Update Guide re-fetches what it holds, so a section deleted upstream is
-        never refreshed and never removed: it sits there forever, unreachable
-        because it is not in the contents any more, quietly wrong if anything
-        ever does reach it.
+        What this reclaims is sections GameFAQs no longer lists. Update Guide
+        re-fetches what it holds, so a section deleted upstream is never
+        refreshed and never removed: it sits there forever, unreachable because
+        it is not in the contents any more, and quietly wrong if anything ever
+        does reach it.
         """
         key = self._game_key(game_id)
         faq = self._clean_faq_id(faq_id)
@@ -743,22 +742,21 @@ class GuidesStore:
         return {"ok": True, "removed": len(removed)}
 
     def _shape_moved(self, key: str, faq: str, section_slugs) -> bool:
-        """Did the guide's contents list change since we last saw it?
+        """Whether the guide's contents list changed since it was last seen.
 
-        This is the whole of the "has this guide been edited" test, and it is
-        deliberately the ONLY one. Comparing the page's bytes against the copy
-        being replaced was the obvious alternative and it was worse twice over:
-        it cost a read of the old file — 1.2MB for the biggest guide measured,
-        off an SD card — and what it answered was the wrong question. One
-        section's text changing is poor evidence that the OTHER sections
-        changed, so an author fixing a typo would have sent every other section
-        off to re-fetch itself for nothing.
+        This is the whole of the "has this guide been edited" test, and
+        deliberately the only one. Comparing the page's bytes against the copy
+        being replaced costs a read of the old file, which for a big guide off
+        an SD card is megabytes, and it answers the wrong question: one
+        section's text changing is poor evidence that the other sections
+        changed, so an author fixing a typo would send every other section off
+        to re-fetch itself for nothing.
 
         A contents list that moved means sections were added, removed, renamed
         or reordered, which is exactly when the sections already on disk start
         describing a document that no longer exists. That is the case worth
-        acting on, and the list is a handful of short strings on a record we
-        are already opening.
+        acting on, and the list is a handful of short strings on a record
+        already being opened.
         """
         incoming = self._clean_section_slugs(section_slugs)
         if not incoming:
@@ -775,14 +773,14 @@ class GuidesStore:
         return moved
 
     def _nudge_siblings_stale(self, key: str, faq: str, keep_token: str) -> int:
-        """The guide moved, so put its OTHER cached sections back on the stale
+        """The guide moved, so put its other cached sections back on the stale
         side of the line.
 
         A formatted guide is a file per section and only the section being read
         is ever re-checked, so a guide that gets edited ends up part new and
-        part old — sections you read tracking upstream while the ones you don't
-        sit at whatever version they were saved at. Nothing noticed, because
-        there is no version to compare and the sections are cached
+        part old: sections the user reads track upstream while the ones they
+        don't sit at whatever version they were saved at. Nothing notices,
+        because there is no version to compare and the sections are cached
         independently.
 
         Backdating rather than deleting is the whole point. A deleted section
@@ -881,17 +879,17 @@ class GuidesStore:
     def touch_cache(self) -> dict:
         """Stamp every cached file to now.
 
-        For the moment Truly Offline Guides is switched back OFF. Nothing
-        rewrites an mtime while the freeze is on — no expiry, no re-scrape, no
-        revalidate — so the whole cache ages in place, and six months of that
-        means the next startup sweep is entitled to delete every guide the user
-        has in one pass. Restarting the clock here gives them a clean thirty
-        days of normal policy, during which whatever they actually read gets
-        refreshed and only what they don't gets reclaimed.
+        For the moment Truly Offline Guides is switched back off. Nothing
+        rewrites an mtime while the freeze is on, so no expiry, no re-scrape
+        and no revalidate, and the whole cache ages in place. Six months of
+        that means the next startup sweep is entitled to delete every guide the
+        user has in one pass. Restarting the clock here gives them a clean
+        thirty days of normal policy, during which whatever they actually read
+        gets refreshed and only what they don't gets reclaimed.
 
-        The alternative — exempting the sweep for a while after the untoggle —
-        would be state about a transition rather than about the files, and it
-        would have to be persisted and reasoned about forever after.
+        Exempting the sweep for a while after the untoggle would be state about
+        a transition rather than about the files, and it would have to be
+        persisted and reasoned about forever after.
         """
         touched = 0
         now = time.time()

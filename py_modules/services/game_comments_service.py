@@ -7,40 +7,33 @@ _RA_MAX_PER_PAGE = 100
 
 
 class GameCommentsService:
-    """Fetches the comment wall for an arbitrary game OR achievement, paginated.
+    """Fetches the comment wall for an arbitrary game or achievement, paginated.
 
-    Unlike AOTW (which slices a fixed window of comments into its
-    main payload) Game Overview lets the user scroll through the
-    full comment thread. We support offset/count pagination, with
-    each call doing as many RA hits as it takes to assemble the
-    requested page of *real* user comments. RA's comments endpoint
-    mixes audit-log entries ("badge promoted", "type changed", etc.)
-    authored by a system user named "Server" in with real user
-    comments. We filter those out -- but the filter happens after
-    the fetch, so a 10-row request can come back with fewer than
-    10 real comments. The loop in _fetch_filtered_page keeps pulling
-    until we have the requested count or RA runs dry. One slot per
-    IPC still holds (handoff 5.1) -- the loop runs inside the
-    caller's _ra_slot.
+    Unlike AOTW, which slices a fixed window of comments into its main payload,
+    Game Overview lets the user scroll through the full thread. Offset and
+    count pagination are supported, with each call doing as many RA hits as it
+    takes to assemble the requested page of real user comments. RA's comments
+    endpoint mixes audit-log entries, such as "badge promoted" and "type
+    changed", authored by a system user named "Server", in with real user
+    comments. Those are filtered out after the fetch, so a ten-row request can
+    come back with fewer than ten real comments. The loop in
+    _fetch_filtered_page keeps pulling until it has the requested count or RA
+    runs dry, and it runs inside the caller's _ra_slot, so one slot per IPC
+    still holds.
 
-    The achievement-comments variant is the same shape pointed at
-    a different RA endpoint kind ("achievement" instead of "game").
-    It's a method on this class rather than a sibling service
-    because the two share every line of logic except which int the
-    backend passes for `t`. Keeping them together avoids a near-
-    duplicate file.
+    The achievement-comments variant is the same shape pointed at a different
+    RA endpoint kind, "achievement" instead of "game". It is a method on this
+    class rather than a sibling service because the two share every line of
+    logic except which int the backend passes for `t`.
 
-    Avatars are NOT resolved here. Each <CommentCard> on the
-    frontend mounts its own <UserAvatar> which lazy-loads after
-    paint -- pre-resolving them inside this IPC's slot used to
-    block "load more" for 2-5s on every page because each per-
-    username CDN fetch sat behind Cloudflare's cold latency.
+    Avatars are not resolved here. Each <CommentCard> on the frontend mounts
+    its own <UserAvatar> which lazy-loads after paint; pre-resolving them
+    inside this IPC's slot blocks "load more" for seconds on every page,
+    because each per-username CDN fetch sits behind Cloudflare's cold latency.
 
-    There is intentionally NO on-disk cache here. Comments are a
-    fresh-fetch surface -- caching them would risk showing stale
-    comment trees, and the user generally paginates within a
-    session and leaves. If we ever want a TTL'd recent-page cache
-    we can add one later without changing the IPC shape.
+    There is intentionally no on-disk cache. Comments are a fresh-fetch
+    surface, and caching them would risk showing stale comment trees when the
+    user generally paginates within a session and leaves.
     """
 
     def __init__(self, *, ra, icon_service):

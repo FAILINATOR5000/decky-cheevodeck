@@ -1,19 +1,19 @@
 """Starter Dolphin controller mappings.
 
 Seeded into DolphinMappingsStore the first time the user opens the Dolphin
-Mapper page (gated by the global dolphinMappingsSeeded flag). The point is to
+Mapper page, gated by the global dolphinMappingsSeeded flag. The point is to
 hand the user a full, ready-to-apply library instead of an empty page: every
 supported controller gets the same battery of GameCube and Wii layouts, grouped
 under its own [Tag] headline, plus a handful of mixed-controller multiplayer
 setups, and a tag of its own for the real Wii Remote, which shares none of that
-battery. The two built-in pads are the other exception — see
+battery. The two built-in pads are the other exception, see
 _BUILT_IN_CONTROLLERS.
 
-These dicts are intentionally partial — no id, no timestamps. The store's
-_clean_mapping mints those and normalizes every field, so what we build here is
-exactly the shape the modal hands to save_dolphin_mapping: name, body, system,
-optional wiiStyle, and a players list of newSlot-shaped slots. Edit this table
-and the seed changes; nothing else has to move.
+These dicts are intentionally partial, with no id and no timestamps. The
+store's _clean_mapping mints those and normalizes every field, so what is built
+here is exactly the shape the modal hands to save_dolphin_mapping: name, body,
+system, an optional wiiStyle, and a players list of newSlot-shaped slots. Edit
+this table and the seed changes; nothing else has to move.
 """
 
 from dolphin_ini import (

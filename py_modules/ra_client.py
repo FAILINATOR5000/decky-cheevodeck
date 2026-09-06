@@ -1,15 +1,13 @@
-"""
-HTTP client for the RetroAchievements public API.
+"""HTTP client for the RetroAchievements public API.
 
-This started out as RetroAchievementsApiMixin, but the methods here don't
-share any state with the rest of the plugin, they just need an SSL context.
-A plain client class makes that dependency obvious and lets each feature
-module call self.ra.get_user_profile(...) instead of reaching into an
-inherited mixin.
+A plain client class rather than a mixin, because none of these methods share
+state with the rest of the plugin; they only need an SSL context. That makes
+the dependency obvious and lets each feature module call
+self.ra.get_user_profile(...) instead of reaching into an inherited mixin.
 
-Every method is synchronous and can raise urllib.error.URLError (or one of
-its subclasses) when the network is down. Callers catch that and turn it
-into a friendly message through friendly_network_error.
+Every method is synchronous and can raise urllib.error.URLError, or one of its
+subclasses, when the network is down. Callers catch that and turn it into a
+friendly message through friendly_network_error.
 """
 
 import json
@@ -82,10 +80,10 @@ class RetroAchievementsClient:
     def get_rss_text(self, url: str) -> str:
         """Fetch an RSS feed as a decoded UTF-8 string.
 
-        Separate from _get_json because the news feed is XML, not JSON, and
-        separate from get_image_bytes because we want text out, not bytes.
-        Same SSL context and User-Agent as the rest of our outgoing traffic,
-        so RA sees one consistent caller.
+        Separate from _get_json because the news feed is XML rather than JSON,
+        and separate from get_image_bytes because the caller wants text out,
+        not bytes. Same SSL context and User-Agent as the rest of the outgoing
+        traffic, so RA sees one consistent caller.
         """
         req = urllib.request.Request(
             url,
@@ -380,24 +378,22 @@ class RetroAchievementsClient:
         )
 
     def fetch_connect_token(self, username: str, password: str) -> str:
-        """Mint a RetroAchievements Connect token from a username + password.
+        """Mint a RetroAchievements Connect token from a username and password.
 
-        Returns the raw token string on success. The password rides in the
-        POST body, never the query string, so it can't leak into any URL that
-        gets logged, and nothing here holds onto it past the call.
+        Returns the raw token string on success. The password rides in the POST
+        body, never the query string, so it can't leak into any URL that gets
+        logged, and nothing here holds onto it past the call.
 
         Takes no RA semaphore slot of its own. This is one user-initiated RA
         call, so the caller in main.py wraps the whole task in a single
-        _ra_slot() the same way add_user's validation does; taking a slot
-        here too would double-count it.
+        _ra_slot() the same way add_user's validation does; taking a slot here
+        too would double-count it.
 
-        A rejected login comes back as HTTP 200 with
-        {"Success": false, "Error": "..."}, and we raise RuntimeError carrying
-        RA's own Error text so the modal can show the user exactly why. A real
-        network failure surfaces as the urllib error it already is, which
-        is_network_error then tells apart from a credential rejection at the
-        callable boundary, the same split friendly_network_error relies on
-        elsewhere.
+        A rejected login comes back as HTTP 200 with {"Success": false,
+        "Error": "..."}, and this raises RuntimeError carrying RA's own Error
+        text so the modal can show the user exactly why. A real network failure
+        surfaces as the urllib error it already is, which is_network_error then
+        tells apart from a credential rejection at the callable boundary.
         """
         body = urllib.parse.urlencode(
             {

@@ -10,23 +10,20 @@ from utils import frontend_error, to_int
 class NewSetsService:
     """Fetches and caches the completed-claims feed split into two buckets.
 
-    The upstream endpoint (API_GetClaims with k=1) returns up to 1000
-    completed claims. The ordering is unreliable -- it's mostly recent-
-    first but not strictly DoneTime-desc, so we sort each bucket
-    ourselves after the split. We bucket by SetType (0 = new set,
-    1 = revision) at fetch time and cache both in one file -- one API
-    call, one TTL, two buckets ready to serve depending on which
-    toggle the frontend has selected.
+    The upstream endpoint, API_GetClaims with k=1, returns up to 1000 completed
+    claims. The ordering is unreliable, mostly recent-first but not strictly
+    DoneTime-desc, so each bucket is sorted here after the split. Bucketing is
+    by SetType, 0 for a new set and 1 for a revision, done at fetch time, and
+    both go in one file: one API call, one TTL, two buckets ready to serve
+    depending on which toggle the frontend has selected.
 
-    The frontend asks for one bucket at a time via the ``filter``
-    parameter. Both buckets are cached in one file, so toggling the
-    filter is a free hit against an already-populated cache. We hand
-    back the top 50 of the bucket; the frontend dynamic-mounts that
-    list in batches as the user scrolls. Per-row game icons and
-    author avatars lazy-load on the frontend side via the existing
-    cached IPCs -- the response itself is text-only, so the page
-    paints immediately and images fill in over the next second or
-    two.
+    The frontend asks for one bucket at a time via the ``filter`` parameter.
+    Both are cached in one file, so toggling the filter is a free hit against
+    an already-populated cache. The top 50 of the bucket comes back, and the
+    frontend dynamic-mounts that list in batches as the user scrolls. Per-row
+    game icons and author avatars lazy-load on the frontend through the
+    existing cached IPCs, so the response itself is text-only and the page
+    paints immediately.
     """
 
     _CACHE_TTL_SECONDS = 60 * 60
@@ -128,19 +125,17 @@ class NewSetsService:
     def get_new_sets_and_revisions(self, web_api_key: str, filter_key: str = "new") -> dict:
         """Return the top 50 of the requested bucket.
 
-        Returns {"payload": [...], "fromCache": bool, "filter": ...}
-        on success, or a dict with an "error" key (and stale payload
-        if we have one) on network failure.
+        Returns {"payload": [...], "fromCache": bool, "filter": ...} on
+        success, or a dict with an "error" key, and the stale payload where
+        there is one, on network failure.
 
-        Note on icons + avatars: we do NOT pre-resolve them here. Each
-        NewSetCard lazy-loads its own game icon via getGameIconCached
-        and its own author avatar via <UserAvatar> after the row
-        mounts, same as AotwHeader and every other surface in the
-        plugin. Folding CDN image fetches into this one IPC slot
-        front-loaded all the cold-cache work into a single multi-
-        second response -- the lazy path is much friendlier even if
-        the total network traffic is similar, because the page
-        actually paints text immediately.
+        Icons and avatars are not pre-resolved here. Each NewSetCard lazy-loads
+        its own game icon via getGameIconCached and its own author avatar via
+        <UserAvatar> after the row mounts, the same as every other surface in
+        the plugin. Folding CDN image fetches into this one IPC slot
+        front-loads all the cold-cache work into a single multi-second
+        response; the lazy path is much friendlier even at similar total
+        traffic, because the page actually paints text immediately.
         """
         normalized_filter = "revision" if filter_key == "revision" else "new"
 

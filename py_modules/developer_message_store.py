@@ -12,35 +12,42 @@ DEVELOPER_MESSAGE_FILENAME = "developer_message.json"
 class DeveloperMessageStore:
     """What this device knows about the developer's broadcast message.
 
-    The message itself lives on the GitHub repo and is polled; this is
-    where the answer is remembered between ticks. Four things:
+    The message itself lives on the GitHub repo and is polled; this is where
+    the answer is remembered between ticks. Four things:
 
-      - messageId  — the id parsed from the file, which is what "is this
-                     new?" compares on. Either the token from the `#id`
-                     line or a hash of the body when there isn't one.
-      - body       — what the current message says. Nothing reads it back:
-                     the card carries its own copy, so an archived card
-                     keeps the message that was archived rather than
-                     whatever is current. Kept because it is the honest
-                     record of the cached message, and because reading
-                     this file is how you find out on device what the
-                     plugin currently thinks the message is.
-      - seeded     — has this install ever completed a fetch? The first
-                     one records and stays quiet, so a new install is
-                     never greeted by a message that has been sitting on
-                     the repo for months.
-      - lastCheckedAt — the poll gate.
+    ``messageId``
+        The id parsed from the file, which is what "is this new?" compares on.
+            Either
+        the token from the `#id` line, or a hash of the body when there isn't
+            one.
+    ``body``
+        What the current message says. Nothing reads it back, since the card
+            carries
+        its own copy so an archived card keeps the message that was archived
+            rather
+        than whatever is current. It is kept because it is the honest record of
+            the
+        cached message, and because reading this file is how you find out on
+            device
+        what the plugin currently thinks the message is.
+    ``seeded``
+        Has this install ever completed a fetch. The first one records and
+            stays
+        quiet, so a new install is never greeted by a message that has been
+            sitting on
+        the repo for months.
+    ``lastCheckedAt``
+        The poll gate.
 
-    Global rather than per-account: the directory sits at the runtime_dir
-    root and never repoints, so there is deliberately no repoint() here
-    for _apply_user_scope to call. A message from the developer is
-    addressed to the person holding the device, not to an RA account.
+    Global rather than per-account: the directory sits at the runtime_dir root
+    and never repoints, so there is deliberately no repoint() here for
+    _apply_user_scope to call. A message from the developer is addressed to the
+    person holding the device, not to an RA account.
 
-    Re-reads from disk on every call rather than holding the file in
-    memory. That is what lets it survive a factory reset mid-session:
-    the reset empties runtime_dir, and the next read simply finds
-    nothing and returns the empty file rather than serving a stale
-    handle.
+    Re-reads from disk on every call rather than holding the file in memory.
+    That is what lets it survive a factory reset mid-session: the reset empties
+    runtime_dir, and the next read simply finds nothing and returns the empty
+    file rather than serving a stale handle.
     """
 
     def __init__(self, *, base_dir: Path):

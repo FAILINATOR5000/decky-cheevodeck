@@ -157,23 +157,22 @@ def push_debug_notification(*, store, settings_store, event_loop, title, body, t
 class NotificationsStore:
     """The notification list and a single last-seen timestamp.
 
-    Passive on purpose: no tick loop, no RA calls, no _ra_semaphore. The
-    things that detect events are the services (the reminder service to
-    start with); they append from their own OS threads and the store just
-    records. The frontend reads a snapshot when the modal opens and bumps
-    last-seen when it closes.
+    Passive on purpose: no tick loop, no RA calls, no _ra_semaphore. The things
+    that detect events are the services, and they append from their own OS
+    threads while the store just records. The frontend reads a snapshot when
+    the modal opens and bumps last-seen when it closes.
 
-    Threading: one lock guards the in-memory deque, the last-seen value,
-    and the on-disk write together. threading.Lock (not asyncio.Lock) for
-    the same reason the notes and tracked-sets stores use one -- appends
-    arrive from producer threads while reads come off the asyncio side,
-    and we want them to serialize cleanly against each other.
+    Threading: one lock guards the in-memory deque, the last-seen value, and
+    the on-disk write together. threading.Lock rather than asyncio.Lock, for
+    the same reason the notes and tracked-sets stores use one: appends arrive
+    from producer threads while reads come off the asyncio side, and the two
+    have to serialize cleanly against each other.
 
-    Why in-memory and not load-modify-save per call like the other stores:
-    appends are frequent and tiny, and re-reading the whole file on every
-    one would be wasteful. We hold the list in a deque, persist on each
-    mutation, and load once at construction (before any producer thread is
-    running, so that load is single-threaded).
+    In memory rather than load-modify-save per call, unlike the other stores,
+    because appends are frequent and tiny and re-reading the whole file on
+    every one would be wasteful. The list lives in a deque, persists on each
+    mutation, and loads once at construction, before any producer thread is
+    running, so that load is single-threaded.
     """
 
     def __init__(self, *, base_dir: Path):
@@ -267,20 +266,21 @@ class NotificationsStore:
 class NotificationsArchiveStore:
     """The per-account archive of starred notifications.
 
-    Sibling to NotificationsStore, kept as its own store because the two have
-    opposite retention rules: the notifications list rotates (a deque that
-    drops the oldest past 500), while the archive is a user-curated keep-pile
-    that never drops on its own and is capped by refusal instead (2000).
+    Sibling to NotificationsStore, kept as its own store because the two keep
+    things for opposite reasons: the notifications list rotates, as a deque
+    that drops the oldest past 500, while the archive is a user-curated
+    keep-pile that never drops on its own and is capped by refusal instead, at
+    2000.
 
-    Each archived record is a full standalone copy of the notification the
-    user starred, plus an `archivedAt` stamp — a copy, not a reference, so it
+    Each archived record is a full standalone copy of the notification the user
+    starred, plus an `archivedAt` stamp. A copy rather than a reference, so it
     survives the original aging out of the rotating list. The frontend hands
-    us the whole notification dict on archive; we don't reach back into the
-    notifications deque to find it, so an item can be kept even if it's on the
-    verge of dropping out of the main list.
+    over the whole notification dict on archive; nothing here reaches back into
+    the notifications deque to find it, so an item can be kept even when it is
+    on the verge of dropping out of the main list.
 
     Threading mirrors NotificationsStore: one threading.Lock guards the list
-    and the on-disk write, since archive/unarchive calls arrive off the
+    and the on-disk write, since archive and unarchive calls arrive off the
     asyncio side while the file write happens under the same lock.
     """
 

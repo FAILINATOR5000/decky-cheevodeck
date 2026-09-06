@@ -272,52 +272,32 @@ _MISSING = _Marker("_MISSING")
 class Knob:
     """One setting, declared once.
 
-    settings.json used to be described in four hand-maintained lists that all
-    had to agree: the load_config defaults, the reset baseline, the response
-    payload and the display normaliser. Nothing checked that they did, and they
-    didn't — nine live knobs were missing from the baseline, so Reset Settings
-    quietly skipped them for the project's whole life. All four now derive from
-    this one tuple, so a new knob is one row instead of four edits in four
-    places 3,000 lines apart.
+    Every knob is one row in _KNOBS. The four things that need to agree about a
+    setting all derive from that row: the load_config default, the reset
+    baseline, the settings_response payload and the display normaliser.
 
-    Fields, all of them read by one of the four derivations:
+    Fields:
 
     ``default``
-        The factory value. ``factory`` instead for the three defaults that are
-        mutable (a list or dict shared out of a module-level tuple is the
-        classic Python footgun), and ``from_attr`` for the three the constructor
-        injects, which a module-level tuple can't see.
+        The factory value. Use ``factory`` instead when the default is mutable,
+        and ``from_attr`` when the constructor supplies it.
     ``reset``
-        Whether Reset Settings stamps it. True is the default and the burden is
-        on justifying an exemption: eight rows opt out, and the count used to
-        read five because it left two of them out. Three are credentials, three
-        are has-this-happened-yet flags, and two are preferences -- language and
-        libraryBadge, both of which the onboarding profile commit would
-        otherwise revert seconds after the user set them. Each of the two says
-        so on its own row. This is the rule that used to live in
-        _write_baseline_settings' hand-written list, which is how nine knobs
-        went missing from it.
+        Whether Reset Settings puts it back to the default. True unless the
+        value is a credential, a has-this-happened-yet flag, or a preference the
+        user would not expect to lose. Rows that opt out say why.
     ``ship``
-        Whether it rides along in settings_response to the frontend. Three rows
-        opt out.
+        Whether it is sent to the frontend in settings_response.
     ``normalize``
-        Whether ensure_display_settings runs it on the way in and out. Opt-in on
-        purpose, and deliberately not symmetric with the rest: _update_config
-        calls the normaliser twice per write, so 50 knobs that ride through
-        untouched today have to keep riding through. Either True (run the row's
-        reader), PIN_DEFAULT, IF_ABSENT, or the name of a different method for
-        the one knob whose two reads genuinely differ.
+        Whether ensure_display_settings cleans it on the way in and out. Opt in
+        rather than default, because the normaliser runs twice per write. Either
+        True, PIN_DEFAULT, IF_ABSENT, or the name of a method to use instead.
     ``read``
-        How the value gets read, by both settings_response and the normaliser.
-        None means the convention, ``get_`` plus the snake_case key. A string
-        names a different method, and READ_BOOL means there is no helper to
-        call.
+        How the value is read. None uses the convention, ``get_`` plus the
+        snake_case key. A string names a different method. READ_BOOL means
+        there is no helper and the value is read straight off the dict.
 
-    Not here on purpose: no kind or type field, since no derivation reads one;
-    no allowlist, since the 17 _ALLOWED_* tuples already work and are audited
-    clean; and no generated setters or getters. The 180 update_* and 182 get_*
-    methods stay hand-written. That's the layer with the real exceptions, and
-    the layer 181 mixin call sites depend on.
+    Setters and getters are not generated. The update_* and get_* methods are
+    hand-written, and mixin call sites depend on them by name.
     """
 
     __slots__ = ("default", "factory", "from_attr", "key", "normalize", "read", "reset", "ship")
@@ -579,32 +559,31 @@ _SETUP_PROFILE_KEYS = (
 )
 
 class SettingsStore:
-    """Owns config file I/O and all the getter/normaliser helpers.
+    """Owns config file I/O and all the getter and normaliser helpers.
 
-    The async save_* RPC methods stay on SettingsMixin; their bodies
-    become thin delegations into this store.
+    The async save_* RPC methods stay on SettingsMixin; their bodies are thin
+    delegations into this store.
 
     Threading: every public method that mutates settings.json holds
-    ``_config_lock`` for the load-modify-save sequence. It's an RLock
-    rather than a plain Lock so a mutator that re-enters its own load
-    path mid-update can't self-deadlock -- belt and suspenders, kept in
-    step with the tracked-file locking below and NotesStore's notes
-    locking so all three JSON stores follow the same rule. Pure read
-    paths that call ``load_config`` once and don't write are not locked;
-    an atomic rename means the worst they see is the old or new file in
-    its entirety, never a half-written file.
+    ``_config_lock`` for the load-modify-save sequence. It is an RLock rather
+    than a plain Lock so a mutator that re-enters its own load path mid-update
+    can't self-deadlock, kept in step with the tracked-file locking below and
+    NotesStore's notes locking so all three JSON stores behave the same way.
+    Pure read paths that call ``load_config`` once and don't write are not
+    locked; an atomic rename means the worst they see is the old or the new
+    file in its entirety, never a half-written one.
 
-    Favorited friends are the one bit of account state that no longer
-    rides the config: they live in their own per-user ``favorites.json``
-    (re-pointed on a switch like the other per-user files) under
-    ``_favorites_lock``, a leaf lock that's never held together with
-    ``_config_lock`` and so adds no new ordering edge.
+    Favorited friends are the one bit of account state that no longer rides the
+    config: they live in their own per-user ``favorites.json``, re-pointed on a
+    switch like the other per-user files, under ``_favorites_lock``. That is a
+    leaf lock, never held together with ``_config_lock``, so it adds no new
+    ordering edge.
 
-    Lock-ordering rule across the three locks in this class plus
-    NotesStore: ``_config_lock`` -> ``_tracked_master_lock`` ->
-    ``_tracked_game_locks[...]`` -> NotesStore's locks. No current code
-    path mixes them, but writing the rule down so we don't paint a
-    corner if something ever does.
+    Lock ordering across the three locks in this class plus NotesStore is
+    ``_config_lock`` -> ``_tracked_master_lock`` ->
+    ``_tracked_game_locks[...]`` -> NotesStore's locks. No current code path
+    mixes them; it is written down so nothing paints itself into a corner if
+    one ever does.
     """
 
     def __init__(
@@ -2785,21 +2764,23 @@ class SettingsStore:
 
         ``action`` is one of:
 
-        - ``"track"``   add every id in ``achievement_ids`` that isn't
-                        already tracked. Existing tracked ids stay where
-                        they are; new ids land at the end of the manual
-                        order in the order they were passed.
+        - ``"track"``   add every id in ``achievement_ids`` that isn't already
+            tracked.
+                        Existing tracked ids stay where they are; new ids land
+                            at the end
+                        of the manual order in the order they were passed.
         - ``"untrack"`` remove every id in ``achievement_ids`` that is
-                        currently tracked. Ids not present in the
-                        tracked list are no-ops.
+            currently tracked.
+                        Ids not present in the tracked list are no-ops.
         - ``"set"``     replace the entire tracked list with
-                        ``achievement_ids``, in the given order.
-                        ``_save_tracked_for_game_locked`` will de-dupe.
+            ``achievement_ids``, in the
+                        given order. ``_save_tracked_for_game_locked``
+                            de-dupes.
 
-        The point of this method is to do one load, one mutation across
-        every id, and one save. The single-toggle path is a thin wrapper
-        on top of this -- it figures out from current state whether it
-        wants to track or untrack the single id and then routes here.
+        The point of this method is one load, one mutation across every id, and
+        one save. The single-toggle path is a thin wrapper on top of it: it
+        works out from current state whether it wants to track or untrack the
+        single id and then routes here.
 
         Returns the same shape as _save_tracked_for_game_locked's return, plus
         a ``changed`` count showing how many ids actually moved.

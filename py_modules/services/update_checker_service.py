@@ -73,11 +73,11 @@ _generation_fence = GenerationFence()
 def display_version(raw):
     """Strip a tag down to the bare number for anything the user reads.
 
-    The installed version comes from package.json, which has no "v" on it, so
-    a v-prefixed tag printed raw gives you "Version v0.9.0 available." sitting
-    directly under "Version 0.8.0" — the same number written two ways, in two
-    lines that are meant to be compared. Tag however you like; the "v" stops
-    at the display boundary.
+    The installed version comes from package.json, which has no "v" on it, so a
+    v-prefixed tag printed raw gives "Version v0.9.0 available." sitting
+    directly under "Version 0.8.0": the same number written two ways, in two
+    lines meant to be compared. Tag however you like; the "v" stops at the
+    display boundary.
     """
     text = str(raw or "").strip()
     if text[:1] in ("v", "V"):
@@ -88,10 +88,10 @@ def display_version(raw):
 def parse_version(raw):
     """Turn "v0.5.0" into (0, 5, 0), or None if it isn't a plain number tag.
 
-    Deliberately unforgiving about anything that isn't digits-and-dots: a tag
-    we can't read comes back None, and every caller reads None as "not newer".
-    That's what keeps a hand-cut tag ("nightly", "0.5.0-rc1") from painting a
-    phantom update banner.
+    Deliberately unforgiving about anything that isn't digits and dots. An
+    unreadable tag comes back None, and every caller reads None as "not newer".
+    That is what keeps a hand-cut tag such as "nightly" or "0.5.0-rc1" from
+    painting a phantom update banner.
     """
     text = display_version(raw)
     if not text:
@@ -126,15 +126,15 @@ def release_asset_name(tag):
 def release_install_url(tag):
     """Where that zip lives, pinned to its own release rather than to latest.
 
-    /releases/latest/download/<asset> would be shorter, and it used to be what
-    this was, but it points at whatever is newest at the moment it's followed:
-    copy the link, wait for the next release, paste it, and you quietly install
-    a version you never asked for. The per-release path can only ever hand back
-    the build the About page was talking about.
+    /releases/latest/download/<asset> would be shorter, and it points at
+    whatever is newest at the moment it is followed: copy the link, wait for
+    the next release, paste it, and you quietly install a version you never
+    asked for. The per-release path can only ever hand back the build the About
+    page was talking about.
 
     Built here rather than read off the API's browser_download_url so the URL
-    stays one of ours. It also survives a round trip through the settings
-    store, which keeps only the tag, the page URL and the timestamp.
+    stays one this code controls. It also survives a round trip through the
+    settings store, which keeps only the tag, the page URL and the timestamp.
 
     Safe to interpolate without escaping: parse_version accepts nothing but an
     optional v and digits and dots, so a tag that reaches this line has no
@@ -167,11 +167,11 @@ class UpdateCheckerService:
     """Background daemon that watches GitHub for a newer CheevoDeck release.
 
     One tick every TICK_SECONDS, and each tick asks the same question the
-    "Check now" button on the About page asks -- has enough time passed, and
-    if so, what does GitHub say. When a release lands that's newer than what's
-    installed, and that we haven't already interrupted the user about, we push
-    a "system" notification and cache the release so the About page can offer
-    the install link and the patch notes.
+    "Check now" button on the About page asks: has enough time passed, and if
+    so, what does GitHub say. When a release lands that is newer than what is
+    installed, and that the user has not already been interrupted about, it
+    pushes a "system" notification and caches the release so the About page can
+    offer the install link and the patch notes.
 
     Nothing here touches RetroAchievements, so nothing here takes an RA
     semaphore slot. Taking one would mean a version check could block a
@@ -180,14 +180,14 @@ class UpdateCheckerService:
     Threading: the tick runs on its own OS thread and the "Check now" RPC
     arrives on the asyncio loop, so main.py bounces it off-loop with
     asyncio.to_thread and every caller ends up on the thread side. One
-    threading.Lock guards the whole check-and-write section -- the gate test
-    and the last-checked stamp have to be in the same held section, or two
-    ticks can both read "yes, it's been 12 hours" before either stamps.
+    threading.Lock guards the whole check-and-write section, because the gate
+    test and the last-checked stamp have to be in the same held section or two
+    ticks can both read "yes, it has been 12 hours" before either stamps.
 
     Install stays manual by design. The user copies the release zip URL and
     pastes it into Decky's Install from URL. Reaching into Decky's own
-    install_plugin is an undocumented API on an independently-updating
-    project, with a self-overwrite wrinkle on top.
+    install_plugin is an undocumented API on an independently-updating project,
+    with a self-overwrite wrinkle on top.
     """
 
     def __init__(self, *, settings_store, ssl_context, user_home, notifications_store=None):
@@ -334,16 +334,16 @@ class UpdateCheckerService:
         """Save the release zip into the folder the user picked.
 
         The second of the two install routes the About page offers. The first
-        one hands Decky the URL and lets it do the fetching; this one puts the
-        file on disk so the user can install it from the ZIP picker instead,
-        keep a copy to go back to, or carry it to a second device.
+        hands Decky the URL and lets it do the fetching; this one puts the file
+        on disk so the user can install it from the ZIP picker instead, keep a
+        copy to go back to, or carry it to a second device.
 
-        Runs as root against a path that came out of the file picker, so the
-        same posture as the patch downloader: the URL is ours, built here from
-        the tag rather than taken off the API response, the
-        redirect it lands on is re-checked against RELEASE_DOWNLOAD_HOSTS, the
-        read is bounded, and the file gets chowned back afterwards or the user
-        can't touch what we just wrote for them.
+        Runs as root against a path that came out of the file picker, so it
+        takes the same posture as the patch downloader: the URL is built here
+        from the tag rather than taken off the API response, the redirect it
+        lands on is re-checked against RELEASE_DOWNLOAD_HOSTS, the read is
+        bounded, and the file is chowned back afterwards or the user can't
+        touch what was just written for them.
         """
         folder = Path(str(dest_dir or "").strip())
         if not folder.is_dir():
@@ -413,15 +413,14 @@ class UpdateCheckerService:
         """Put the new label on a launcher that was placed before the rename.
 
         RepairService calls this on every start. A launcher is written once,
-        when the user asks for it, and nothing goes back to it afterwards — so
+        when the user asks for it, and nothing goes back to it afterwards, so
         somebody who added the updater under the old name keeps the truncated
-        label forever unless something reaches in and corrects it. This is that
-        something.
+        label forever unless something reaches in and corrects it.
 
-        Only ever touches the one file we placed, at the one path we place it
-        at. A stray launcher the user built or copied themselves is theirs, and
-        a plugin that tidies up files it does not recognise eventually removes
-        the wrong one.
+        Only ever touches the one file this code placed, at the one path it
+        places it at. A stray launcher the user built or copied themselves is
+        theirs, and a plugin that tidies up files it does not recognise
+        eventually removes the wrong one.
 
         Returns True only when it actually fixed something, so a boot with
         nothing to do stays silent in the log.

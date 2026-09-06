@@ -42,24 +42,22 @@ class TrackedSetsStore:
     """Whole-game completion goals, grouped into user-created sets.
 
     Storage layout: one user-level file, ``<base_dir>/tracked_sets.json``,
-    holding every set and the game cards inside each. This is metadata
-    only -- no images live here; the box art comes from the existing
-    image cache keyed on the RA image URL. The file is small and loads
-    in one read.
+    holding every set and the game cards inside each. Metadata only, with no
+    images: the box art comes from the existing image cache keyed on the RA
+    image URL. The file is small and loads in one read.
 
-    Why one file and not per-set files: a set is just an in-file key,
-    not a thing that needs its own atomic write surface. The page only
-    ever renders one set's cards at a time, so "one file" never turns
-    into "paint a thousand cards" -- that's a render choice handled on
-    the frontend, not a storage problem. Keeping it one file means a
-    reorder or a completion check is a single atomic read-modify-write.
+    One file rather than one per set, because a set is an in-file key rather
+    than something that needs its own atomic write surface. The page only ever
+    renders one set's cards at a time, so one file never turns into painting a
+    thousand cards; that is a render choice handled on the frontend rather than
+    a storage problem. Keeping it one file means a reorder or a completion
+    check is a single atomic read-modify-write.
 
-    Threading: a single master lock guards the whole read-modify-write.
-    Unlike the notes store there's no per-game lock dict -- there's only
-    one file, so one lock is the whole story. Same threading.Lock (not
-    asyncio.Lock) reasoning as the notes store: the auto-check path and
-    the RPC handlers can come from different places and we want them to
-    serialize against each other cleanly.
+    Threading: a single master lock guards the whole read-modify-write. Unlike
+    the notes store there is no per-game lock dict, because there is only one
+    file. Same threading.Lock rather than asyncio.Lock reasoning as the notes
+    store: the auto-check path and the RPC handlers can come from different
+    places and have to serialize against each other cleanly.
     """
 
     def __init__(self, *, base_dir: Path):

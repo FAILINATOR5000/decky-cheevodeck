@@ -33,39 +33,41 @@ _generation_fence = GenerationFence()
 
 
 class TrackedSetsMonitorService:
-    """Event-driven daemon that fires a one-time notification when a tracked set completes.
+    """Event-driven daemon that fires a one-time notification when a tracked set
+    completes.
 
     The companion piece to current_game_service: every time an own-unlock is
-    validated there, it hands this service a baton (request_check) naming the
+    validated there, it hands this service a baton, request_check, naming the
     game that moved. The service collapses a burst of batons into one walk,
     checks locally whether any of those games even sit in a tracked set that
     isn't already 100%, and only then spends a single RA slot on the user-wide
     completion endpoint. If that walk tips a set from incomplete into complete,
-    it posts the "set completed" row and/or pops the toast.
+    it posts the "set completed" row and pops the toast.
 
-    One walk = one IPC, one slot. The paginated completion fetch runs inside a
-    single run_ra_call_for_trickle slot (the one-slot rule), held under the
-    shared trickle lock so it serializes against the roster / activity /
-    comments daemons. A 429 or 503 arms a backoff and the walk bails.
+    One walk is one IPC and one slot. The paginated completion fetch runs
+    inside a single run_ra_call_for_trickle slot, held under the shared trickle
+    lock so it serializes against the roster, activity and comments daemons. A
+    429 or 503 arms a backoff and the walk bails.
 
     Dedupe is the cache itself. apply_completion_results_with_transitions only
-    reports a set as "just completed" when it was incomplete in the old cache
-    and complete in the new one, so once a flip is written the next walk reads
-    done-before and stays silent. There's no "congratulated" flag to keep.
+    reports a set as just-completed when it was incomplete in the old cache and
+    complete in the new one, so once a flip is written the next walk reads
+    done-before and stays silent. There is no "congratulated" flag to keep.
 
-    The loop wakes two ways: a baton sets the wake event (an own-unlock burst),
-    and the refresh interval lapsing wakes it on a timer (the periodic tick that
-    catches a set finished on the website, where no Deck unlock ever fires). The
-    baton path is game-scoped (walk only if a moved game sits in an unfinished
-    set); the tick is set-wide (walk only if some set still reads incomplete).
-    The master toggle gates both -- off, the service is inert.
+    The loop wakes two ways: a baton sets the wake event on an own-unlock
+    burst, and the refresh interval lapsing wakes it on a timer, which is the
+    periodic tick that catches a set finished on the website where no Deck
+    unlock ever fires. The baton path is game-scoped, walking only if a moved
+    game sits in an unfinished set; the tick is set-wide, walking only if some
+    set still reads incomplete. The master toggle gates both, and with it off
+    the service is inert.
 
     Threading: the loop runs on its own daemon thread. request_check is called
-    from current_game_service's worker thread; it only touches the pending set
-    (under _pending_lock) and pokes the wake event, so it's cheap and safe to
-    call from anywhere. The walk itself never touches RA directly -- it bridges
-    onto the plugin's asyncio loop via run_coroutine_threadsafe, the same way
-    the other trickle daemons take a real slot from off-loop.
+    from current_game_service's worker thread and only touches the pending set,
+    under _pending_lock, before poking the wake event, so it is cheap and safe
+    to call from anywhere. The walk never touches RA directly: it bridges onto
+    the plugin's asyncio loop via run_coroutine_threadsafe, the same way the
+    other trickle daemons take a real slot from off-loop.
     """
 
     def __init__(self, *, tracked_sets_store, settings_store, notifications_store=None, plugin=None):

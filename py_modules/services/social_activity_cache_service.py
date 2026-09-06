@@ -11,11 +11,13 @@ MAX_ACTIVITY_EVENTS = 500
 class SocialActivityCacheService:
     """Cache-first social activity feed.
 
-    The trickle service (``SocialActivityTrickleService``) is what actually
-    keeps the cache warm in the background. This class owns the cache shape,
-    the helpers the trickle reuses, and the cache-only read used by the
-    Activity page. It does no network work of its own anymore — opening
-    the page never triggers a refresh.
+    ``SocialActivityTrickleService`` is what actually keeps the cache warm in
+        the
+    background. This class owns the cache shape, the helpers the trickle
+        reuses, and
+    the cache-only read the Activity page makes. It does no network work of its
+        own,
+    so opening the page never triggers a refresh.
     """
 
     def __init__(self, *, ra, cache_store, settings_store):
@@ -208,26 +210,25 @@ class SocialActivityCacheService:
         }
 
     def _advance_game_ticker_watermark(self, cache, pending):
-        """Mark the game in `pending` as shown, in two places (Issue 9).
+        """Mark the game in `pending` as shown, in two places.
 
-        Per-game watermark: lastShownGameTickerTimestampByGame is keyed by
-        gameId, so advancing it only suppresses re-showing the nudge for
-        THAT game -- a different game keeps its own memory and a return
-        visit to this one stays quiet. Strictly-newer guard so an
-        out-of-order or clock-skewed clear can't walk a game's watermark
-        backwards.
+        The per-game watermark, lastShownGameTickerTimestampByGame, is keyed by
+        gameId, so advancing it only suppresses re-showing the nudge for that
+        game. A different game keeps its own memory and a return visit to this
+        one stays quiet. Strictly-newer guard, so an out-of-order or
+        clock-skewed clear can't walk a game's watermark backwards.
 
-        Hub coupling (Option A): a current-game unlock only ever advances
-        the game watermark, never the hub's. Without this step, the moment
-        the user switches away from the game that same unlock becomes an
-        "other game" event and the hub pass re-surfaces it as a second
-        nudge. Dragging the global hub watermark forward to the shown point
-        (never backwards) closes that re-fire. This moves only the hub's
-        already-shown marker; it does not touch either activity feed.
+        The hub watermark moves too. A current-game unlock only ever advances
+        the game watermark, and without this step the moment the user switches
+        away from that game the same unlock becomes an "other game" event and
+        the hub pass re-surfaces it as a second nudge. Dragging the global hub
+        watermark forward to the shown point, never backwards, closes that
+        re-fire. This moves only the hub's already-shown marker; it does not
+        touch either activity feed.
 
         Caller holds the social_activity lock and has already normalised
-        `cache`, so the map is guaranteed to be a dict here. Mutates
-        `cache` in place; the caller does the save.
+        `cache`, so the map is guaranteed to be a dict here. Mutates `cache` in
+        place; the caller does the save.
         """
         game_id = pending.get("gameId")
         occurred_at = pending.get("occurredAt")
@@ -248,27 +249,26 @@ class SocialActivityCacheService:
     def consume_pending_game_ticker_event(self):
         """Return the pending game-ticker event for display and mark it shown.
 
-        "Mark shown" means advancing this game's entry in
+        Marking it shown means advancing this game's entry in
         lastShownGameTickerTimestampByGame to the event's occurredAt right
-        here, at the moment we hand it to the
-        frontend -- not waiting on the frontend's clear call. The clear is
-        fire-and-forget and can be dropped under cold-boot IPC contention;
-        when it is, the slot stays populated and the same nudge re-shows on
-        the next visit (the frontend remounts on every navigation, so it has
-        no in-memory record that it already showed the line). Advancing the
-        watermark at hand-off is the durable shown-point: the next read sees
-        the slot is at-or-behind the watermark and suppresses it, and the
-        trickle's arming pass won't re-arm it either, both for free, whether
-        or not the clear ever lands. The clear stays as belt-and-suspenders
-        cleanup (it nulls the slot).
+        here, at the moment it is handed to the frontend, rather than waiting
+        on the frontend's clear call. That clear is fire-and-forget and can be
+        dropped under cold-boot IPC contention; when it is, the slot stays
+        populated and the same nudge re-shows on the next visit, since the
+        frontend remounts on every navigation and has no in-memory record that
+        it already showed the line. Advancing the watermark at hand-off is the
+        durable shown-point: the next read sees the slot is at or behind the
+        watermark and suppresses it, and the trickle's arming pass won't re-arm
+        it either. The clear stays as belt-and-braces cleanup, nulling the
+        slot.
 
-        Suppresses any pending event already at or behind the watermark
-        (already shown). Fails open: if either timestamp won't parse we hand
-        the event over rather than risk swallowing a real nudge on a parse
-        miss. Holds the social_activity lock for the read-modify-save so a
-        trickle tick can't interleave between our read and our watermark
-        write; the trickle always re-reads the watermark from disk before its
-        own save, so it won't roll our advance back.
+        Suppresses any pending event already at or behind the watermark. Fails
+        open: if either timestamp won't parse the event is handed over rather
+        than risking swallowing a real nudge on a parse miss. Holds the
+        social_activity lock for the read-modify-save so a trickle tick can't
+        interleave between the read and the watermark write; the trickle always
+        re-reads the watermark from disk before its own save, so it won't roll
+        the advance back.
         """
         with self._cache_store.social_activity_lock():
             cache = self._normalise_cache(self._cache_store.load_social_activity())
@@ -293,18 +293,18 @@ class SocialActivityCacheService:
     def clear_pending_game_ticker_event(self):
         """Clear the pending nudge and advance the "last shown" watermark.
 
-        The watermark is per-game now (Issue 9): we record the cleared
-        event's unlock time under its own gameId. The trickle's arming pass
-        reads that per-game and only re-considers events strictly newer for
-        the same game, so a user who already saw achievement A in game X
-        doesn't see it again on a return visit to X just because it's still
-        in the events cache. The advance also drags the global Social Hub
-        watermark up to match (see _advance_game_ticker_watermark) so the
-        same unlock can't re-fire on the hub line after a game switch.
+        The watermark is per-game: the cleared event's unlock time is recorded
+        under its own gameId. The trickle's arming pass reads that per-game and
+        only re-considers events strictly newer for the same game, so a user
+        who already saw achievement A in game X doesn't see it again on a
+        return visit to X just because it is still in the events cache. The
+        advance also drags the global Social Hub watermark up to match, see
+        _advance_game_ticker_watermark, so the same unlock can't re-fire on the
+        hub line after a game switch.
 
-        Holds the social_activity lock for the whole load-modify-save so
-        a trickle tick can't interleave a save in the middle and lose
-        either our cleared slot or the trickle's freshly-armed nudge.
+        Holds the social_activity lock for the whole load-modify-save so a
+        trickle tick can't interleave a save in the middle and lose either the
+        cleared slot or the trickle's freshly armed nudge.
         """
         with self._cache_store.social_activity_lock():
             cache = self._normalise_cache(self._cache_store.load_social_activity())
@@ -318,12 +318,13 @@ class SocialActivityCacheService:
             self._cache_store.save_social_activity(cache)
 
     def consume_pending_social_hub_ticker_event(self):
-        """Return the pending Social Hub ticker event for display, mark it shown.
+        """Return the pending Social Hub ticker event for display, and mark it
+        shown.
 
-        Sibling of consume_pending_game_ticker_event -- see that method for
-        why we advance the watermark at hand-off instead of leaning on the
-        frontend's fire-and-forget clear. The Social Hub watermark is
-        independent from the game ticker's; they don't talk to each other.
+        Sibling of consume_pending_game_ticker_event; see that method for why
+        the watermark advances at hand-off instead of leaning on the frontend's
+        fire-and-forget clear. The Social Hub watermark is independent from the
+        game ticker's and the two don't talk to each other.
         """
         with self._cache_store.social_activity_lock():
             cache = self._normalise_cache(self._cache_store.load_social_activity())
@@ -346,10 +347,10 @@ class SocialActivityCacheService:
     def clear_pending_social_hub_ticker_event(self):
         """Clear the pending Social Hub nudge and advance its watermark.
 
-        Same shape as clear_pending_game_ticker_event — see that method
-        for the reasoning behind the "strictly newer" watermark guard.
-        The Social Hub watermark is independent from the game ticker
-        watermark; they don't talk to each other.
+        Same shape as clear_pending_game_ticker_event; see that method for the
+        reasoning behind the strictly-newer watermark guard. The Social Hub
+        watermark is independent from the game ticker watermark and the two
+        don't talk to each other.
         """
         with self._cache_store.social_activity_lock():
             cache = self._normalise_cache(self._cache_store.load_social_activity())

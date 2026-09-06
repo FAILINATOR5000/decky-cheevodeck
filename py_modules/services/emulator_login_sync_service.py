@@ -1,6 +1,5 @@
-"""
-Writes a RetroAchievements login straight into the emulators' own config
-files, so the user doesn't have to sign into each one by hand after switching
+"""Writes a RetroAchievements login straight into the emulators' own config files,
+so the user doesn't have to sign into each one by hand after switching
 accounts.
 
 There are two jobs here, both synchronous and both local file I/O.
@@ -8,34 +7,34 @@ There are two jobs here, both synchronous and both local file I/O.
 detect_running_emulators scans /proc and reports which supported emulators are
 up right now. The switch path calls it before it flips anything, because
 writing a login into a config that a running emulator has already read does
-nothing useful; the emulator has to be closed for the new credentials to take
+nothing useful: the emulator has to be closed for the new credentials to take
 on its next launch.
 
 inject writes the login (username, token, the RA master-enable flag, and the
 account's hardcore preference) into every supported emulator config that
 resolves on disk.
 
-Supported emulators are RetroArch, Dolphin, and PCSX2, the ones that keep the
-RA token in their config as-is. DuckStation is deliberately not here: it
-encrypts the token locally before storing it (see achievements.cpp), so a raw
-token written into its settings.ini decrypts to garbage and gets rejected as
-invalid. Reproducing its cipher would be fragile, and impossible if the key is
-machine-derived, so DuckStation stays a manual one-time login, the same call
-we made for PPSSPP.
+Supported emulators are RetroArch, Dolphin and PCSX2, the ones that keep the RA
+token in their config as-is. DuckStation is deliberately not here: it encrypts
+the token locally before storing it, so a raw token written into its
+settings.ini decrypts to garbage and gets rejected as invalid. Reproducing its
+cipher would be fragile, and impossible if the key is machine-derived, so
+DuckStation stays a manual one-time login, as does PPSSPP.
 
 Nothing here touches RetroAchievements, so nothing takes an RA semaphore slot.
-Callers serialise us instead: inject runs inside the switch commit's trickle
+Callers serialise it instead: inject runs inside the switch commit's trickle
 lock, and the self-reinject path runs one at a time, so the service keeps no
 lock of its own.
 
-The rule that matters more than any other: every write is surgical. We touch
-only the managed keys for a given emulator and leave every other byte of the
-file exactly as we found it. These files hold controller binds, GPU settings,
-sound config, and duplicate keys within a single section that a dict-backed INI
-parser would silently collapse. So we never parse and reserialise, we edit
-lines in place, and every write is diffed against the pre-write bytes to prove
-only the managed lines moved. If that proof fails we raise and leave the file
-untouched rather than risk corrupting someone's emulator setup.
+What matters more than anything else here: every write is surgical. Only the
+managed keys for a given emulator are touched, and every other byte of the file
+is left exactly as it was found. These files hold controller binds, GPU
+settings, sound config, and duplicate keys within a single section that a
+dict-backed INI parser would silently collapse. So nothing is ever parsed and
+reserialised: lines are edited in place, and every write is diffed against the
+pre-write bytes to prove only the managed lines moved. If that proof fails the
+write is abandoned and the file left untouched rather than risk corrupting
+somebody's emulator setup.
 """
 
 import os
@@ -57,14 +56,14 @@ _RETROARCH_OVERRIDE_STRIP_KEYS = ("cheevos_token", "cheevos_password")
 
 
 class _Adapter:
-    """Static description of one emulator's config: where it lives, what shape
-    it's in, and which keys we're allowed to touch.
+    """Static description of one emulator's config: where it lives, what shape it
+    is in, and which keys may be touched.
 
-    It's a plain object rather than a dataclass to match the rest of the
-    backend, which doesn't use dataclasses anywhere. The two emulators with
-    genuinely special write logic (PCSX2's two-file split, RetroArch's flat
-    format plus override sweep) carry a fmt the service branches on; the two
-    ordinary sectioned-INI emulators share one writer.
+    A plain object rather than a dataclass, to match the rest of the backend.
+    The two emulators with genuinely special write logic, PCSX2's two-file
+    split and RetroArch's flat format plus override sweep, carry a fmt the
+    service branches on; the two ordinary sectioned-INI emulators share one
+    writer.
     """
 
     def __init__(
@@ -98,7 +97,6 @@ class _Adapter:
         self.create_defaults = create_defaults
 
     def managed_ini_keys(self):
-        """The four keys this INI adapter is allowed to change, as a set."""
         return {self.key_username, self.key_token, self.key_enable, self.key_hardcore}
 
 
@@ -167,8 +165,8 @@ def _flat_key_of(line):
     """The key on a flat-cfg line (key = "value"), or "" if it isn't one.
 
     Whole-key, so anchoring on cheevos_enable never matches inside
-    cheevos_leaderboards_enable: we compare the full text left of the first =,
-    stripped, against the target key.
+    cheevos_leaderboards_enable: the full text left of the first =, stripped,
+    is what gets compared against the target key.
     """
     if "=" not in line:
         return ""
@@ -251,7 +249,6 @@ def _set_ini_value(text, section, key, value):
 
 
 def _ini_section_has_key(text, section, key):
-    """True if key already appears as a line under section."""
     lines = text.split("\n")
     in_section = False
     for line in lines:
@@ -274,10 +271,10 @@ def _assert_only_allowed_lines_changed(before_text, after_text, is_managed_line)
     """Prove after_text differs from before_text only in lines that
     is_managed_line(line) accepts.
 
-    The comparison is multiset-based rather than positional, so an inserted key
-    (which shifts every line after it) doesn't read as a hundred spurious
+    The comparison is multiset-based rather than positional, so an inserted
+    key, which shifts every line after it, doesn't read as a hundred spurious
     changes. Every line that was added and every line that was removed has to
-    be a managed line, or we raise and abandon the write.
+    be a managed line, or this raises and the write is abandoned.
     """
     before = Counter(before_text.split("\n"))
     after = Counter(after_text.split("\n"))
@@ -369,12 +366,12 @@ class EmulatorLoginSyncService:
             _chown_best_effort(path.parent, owner)
 
     def detect_running_emulators(self):
-        """Return the display names of every supported emulator with a live
-        process, by substring-matching /proc/<pid>/cmdline.
+        """The display names of every supported emulator with a live process, by
+        substring-matching /proc/<pid>/cmdline.
 
         Dependency-free on purpose, since pgrep isn't guaranteed on PATH in the
-        Decky runtime. A pid that vanishes mid-scan, or a cmdline we can't
-        read, is just skipped.
+        Decky runtime. A pid that vanishes mid-scan, or a cmdline that won't
+        read, is skipped.
         """
         running = []
         proc = Path("/proc")
@@ -592,13 +589,13 @@ class EmulatorLoginSyncService:
         return detail
 
     def _sweep_retroarch_overrides(self, main_cfg_path):
-        """Strip cheevos_token/cheevos_password out of any per-core or per-game
-        override cfg so a stale value there can't shadow the main cfg. Returns
-        how many override files were changed.
+        """Strip cheevos_token and cheevos_password out of any per-core or
+        per-game override cfg so a stale value there can't shadow the main cfg.
 
-        Overrides live under <config_root>/config/**/*.cfg next to the main
-        retroarch.cfg. We only rewrite a file that actually carries one of the
-        two keys, and we remove only those lines.
+        Returns how many override files were changed. Overrides live under
+        <config_root>/config/**/*.cfg next to the main retroarch.cfg. Only a
+        file that actually carries one of the two keys is rewritten, and only
+        those lines are removed.
         """
         overrides_root = main_cfg_path.parent / "config"
         if not overrides_root.is_dir():

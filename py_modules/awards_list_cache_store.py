@@ -11,21 +11,22 @@ _ULID_RE = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
 
 
 class AwardsListCacheStore:
-    """Global cache of a user's awards/badges payload, one JSON file per ULID.
+    """Global cache of a user's awards and badges payload, one JSON file per ULID.
 
-    Storage layout: ``<store_dir>/<ULID>.json``, each holding
-    ``{schema, payload, cachedAt}``. Same shape and rationale as
-    GamesListCacheStore: a player's awards are theirs, not the viewer's, so the
-    dir is shared across every plugin account and never moves -- two of our
-    accounts that both open the same person's badges reuse one warm file across
-    an account switch. That's why there's no ``repoint`` and it's left off
+    Storage layout: ``<store_dir>/<ULID>.json``, each holding ``{schema,
+    payload, cachedAt}``. Same shape and reasoning as GamesListCacheStore: a
+    player's awards are theirs rather than the viewer's, so the directory is
+    shared across every plugin account and never moves, and two accounts that
+    both open the same person's badges reuse one warm file across an account
+    switch. That is why there is no ``repoint`` and it is left off
     ``_apply_user_scope``.
 
-    Threading mirrors GamesListCacheStore: every method that touches a file takes
-    that ULID's lock; the master lock only guards the lock dict (and the clear
-    walk + generation). ``_generation`` is the monotonic counter bumped on every
-    clear so a clear that lands mid-fetch is honoured -- ``save`` drops the write
-    if the generation moved while the awards call was in flight.
+    Threading mirrors GamesListCacheStore: every method that touches a file
+    takes that ULID's lock, and the master lock only guards the lock dict, the
+    clear walk and the generation. ``_generation`` is the monotonic counter
+    bumped on every clear so a clear that lands mid-fetch is honoured: ``save``
+    drops the write if the generation moved while the awards call was in
+    flight.
     """
 
     def __init__(self, *, store_dir: Path):

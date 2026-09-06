@@ -1,12 +1,11 @@
-"""
-Everything File Watcher keeps on disk, which is two files with very different
+"""Everything File Watcher keeps on disk, which is two files with very different
 shapes.
 
 ``file_watcher.json``
     The configuration: watched roots, their exclusions, the schedule, the
     blackout window, and the two clocks. Small, rewritten whole on every edit,
-    and read exactly once per plugin load — the tick holds what it needs in
-    memory precisely so it never comes back here.
+    and read exactly once per plugin load. The tick holds what it needs in memory
+    precisely so it never comes back here.
 
 ``file_watcher.db``
     SQLite. The map of every file and its hash, the work list for the pass in
@@ -16,11 +15,11 @@ shapes.
 
 Global rather than per-account, so both files sit at the runtime_dir root and
 never repoint: whether a file on disk rotted has nothing to do with which
-RetroAchievements account is signed in. Your ROMs are your ROMs. There is
-deliberately no repoint() here for _apply_user_scope to call.
+RetroAchievements account is signed in. There is deliberately no repoint() here
+for _apply_user_scope to call.
 
-``weekday`` is 0=Monday through 6=Sunday, matching ``datetime.weekday()``. The
-frontend agrees; nothing anywhere in this feature uses any other ordering.
+``weekday`` is 0=Monday through 6=Sunday, matching ``datetime.weekday()``.
+Nothing anywhere in this feature uses any other ordering.
 """
 
 from pathlib import Path
@@ -182,15 +181,16 @@ def excluding_rule(rel_path: str, patterns):
     """Which rule excludes this path, relative to its root, or None.
 
     Every component is tested as well as the whole path, which is what makes a
-    bare directory name like ``@eaDir`` exclude everything underneath it without
-    the caller having to write ``@eaDir/*``. It also means the walk's directory
-    prune and the map prune that runs when exclusions are edited agree by
-    construction: a file whose parent got pruned would have matched here too.
+    bare directory name like ``@eaDir`` exclude everything underneath it
+    without the caller having to write ``@eaDir/*``. It also means the walk's
+    directory prune and the map prune that runs when exclusions are edited
+    agree by construction: a file whose parent got pruned would have matched
+    here too.
 
-    First match in list order wins, so the rule the walk reports is the rule the
-    walk acted on. Two rules covering one path is normal — ".*" and ".stfolder"
-    both cover a Syncthing marker — and picking the first keeps that answer
-    stable between passes.
+    First match in list order wins, so the rule the walk reports is the rule
+    the walk acted on. Two rules covering one path is normal, since ".*" and
+    ".stfolder" both cover a Syncthing marker, and picking the first keeps that
+    answer stable between passes.
     """
     if not patterns:
         return None
@@ -236,15 +236,14 @@ MAX_OVERLAP_PROBE_DIRS = 20000
 def reachable_dir_ids(path: str, cap: int = MAX_OVERLAP_PROBE_DIRS) -> set:
     """Every directory reachable from here, identified by (st_dev, st_ino).
 
-    Follows symlinks, because that's what the walk does — and identity is the
+    Follows symlinks, because that is what the walk does, and identity is the
     inode rather than the path for the same reason the walk's loop guard uses
     it: two paths reaching one directory are one directory.
 
-    This exists for the EmuDeck layout, which is the common case on this
-    hardware and which a path-prefix check cannot see. ``~/Emulation/roms`` is a
-    real directory whose console folders are each a symlink to the SD card, so
-    watching it and watching the SD path are string-wise unrelated and
-    file-wise identical.
+    This exists for the EmuDeck layout, which a path-prefix check cannot see.
+    ``~/Emulation/roms`` is a real directory whose console folders are each a
+    symlink to the SD card, so watching it and watching the SD path are
+    string-wise unrelated and file-wise identical.
     """
     found = set()
     for dirpath, dirnames, _ in os.walk(path, followlinks=True):
@@ -291,11 +290,11 @@ class FileWatcherStore:
     def _chown_db_files(self) -> None:
         """Hand the database and both WAL sidecars back to the data owner.
 
-        Every other store gets this free — ensure_dir chowns the directory and
-        save_json_file chowns the file — but SQLite creates the .db, -wal and
-        -shm itself, as root, at moments we don't control. The sidecars in
-        particular are recreated every time a connection opens, so a one-time
-        chown at creation is not enough and this runs on every open.
+        Every other store gets this free, since ensure_dir chowns the directory
+        and save_json_file chowns the file, but SQLite creates the .db, -wal
+        and -shm itself, as root, at moments nothing here controls. The
+        sidecars in particular are recreated every time a connection opens, so
+        a one-time chown at creation is not enough and this runs on every open.
 
         Best-effort three times over, like the helper itself: an exFAT SD card
         carries no Unix ownership and failing there is the expected answer.
@@ -334,13 +333,14 @@ class FileWatcherStore:
 
         Nothing here tries to repair it. Recovery is Remove File Watcher Data
         in Options, which unlinks the files rather than going through SQL and
-        so still works when every other call in this module doesn't — and
-        rebuilding automatically would mean deciding, from one failed read, that
-        somebody's recorded hashes should go. This only makes sure the reason is
-        in the log rather than left as a feature that quietly stopped working.
+        so still works when every other call in this module doesn't. Rebuilding
+        automatically would mean deciding, from one failed read, that
+        somebody's recorded hashes should go. This only makes sure the reason
+        is in the log rather than left as a feature that quietly stopped
+        working.
 
         Once per store. Every read would otherwise repeat it, and the pass
-        thread never starts in this state, so one line is the whole story.
+        thread never starts in this state.
         """
         if self._corruption_logged:
             return
@@ -474,10 +474,10 @@ class FileWatcherStore:
     def add_root(self, path: str, label: str = "") -> dict:
         """Adopt a directory, rejecting duplicates and overlaps.
 
-        The caller is expected to have resolved the realpath already — the
-        picker can hand back a symlink into a directory that's watched under its
-        real name, and both checks below only mean anything against resolved
-        paths.
+        The caller is expected to have resolved the realpath already. The
+        picker can hand back a symlink into a directory that is watched under
+        its real name, and both checks below only mean anything against
+        resolved paths.
         """
         resolved = str(path or "").strip().rstrip("/")
         if not resolved:
@@ -523,24 +523,24 @@ class FileWatcherStore:
     def _mint_root_id(self, data) -> int:
         """The next id to hand out, floored by what the map has already spent.
 
-        root_id is the only thing tying the roots list to the map — a row in
-        files records no path — and the counter that mints it lives in the JSON
-        while the map lives in the database. So any reset of that one file drops
-        the counter back to 1 with every map row still sitting there, and the
-        next directory added inherits a dead root's hashes: the old root's files
-        report Missing, and any name the two folders happen to share reports
-        Replaced.
+        root_id is the only thing tying the roots list to the map, since a row
+        in files records no path, and the counter that mints it lives in the
+        JSON while the map lives in the database. So any reset of that one file
+        drops the counter back to 1 with every map row still sitting there, and
+        the next directory added inherits a dead root's hashes: the old root's
+        files report Missing, and any name the two folders happen to share
+        reports Replaced.
 
-        The reset that matters isn't corruption, it's a version bump.
+        The reset that matters isn't corruption, it is a version bump.
         _load_locked falls back to an empty config whenever the stored version
         doesn't match CURRENT_SCHEMA_VERSION, and bumping that constant is a
-        one-line change that looks entirely safe on a pre-1.0 project where
-        migrations are free.
+        one-line change that looks entirely safe.
 
         Reading the floor out of the map is what closes it, because the map is
-        the thing that survives. Ids only ever go up, nothing is deleted, and the
-        rows an old root leaves behind are inert — sweep_missing only runs for
-        roots in the current list, so they are never walked and never reported.
+        the thing that survives. Ids only ever go up, nothing is deleted, and
+        the rows an old root leaves behind are inert: sweep_missing only runs
+        for roots in the current list, so they are never walked and never
+        reported.
         """
         with self._db() as conn:
             spent = conn.execute("SELECT MAX(root_id) FROM files").fetchone()[0]
@@ -700,16 +700,16 @@ class FileWatcherStore:
     def set_clocks(self, *, last_completed_at=None, last_scheduled_at=None, next_due_at=None) -> dict:
         """Move any of the three clocks.
 
-        They're separate because they answer different questions. A cancel
+        They are separate because they answer different questions. A cancel
         advances nextDueAt so the consumed slot doesn't retry immediately, and
         leaves lastCompletedAt alone so the page keeps reporting the older,
-        honest verification date — a cancel must never buy false confidence.
+        honest verification date. A cancel must never buy false confidence.
+
         lastScheduledAt is the third because only a scheduled run is allowed to
         suppress the next scheduled run; a manual Verify Now moving it would
         make the schedule unpredictable, which is the one thing a schedule has
-        to be. It holds when that run *began*, not when it finished — a slow
-        pass would otherwise push the guard past its own next slot and halve the
-        cadence. See _finish in the service.
+        to be. It holds when that run began, not when it finished, or a slow
+        pass would push the guard past its own next slot and halve the cadence.
         """
         with self._lock:
             data = self._load_locked()
@@ -742,8 +742,9 @@ class FileWatcherStore:
     def bucket_counts(self) -> dict:
         """One row per bucket that has anything in it, plus the skipped roots.
 
-        A GROUP BY rather than seven counts, and never a list — Added can hold
-        forty thousand rows on a first run and the page only wants the number.
+        A GROUP BY rather than a count per bucket, and never a list: Added can
+        hold forty thousand rows on a first run and the page only wants the
+        number.
         """
         counts = {bucket: 0 for bucket in FINDING_BUCKETS}
         with self._db() as conn:
@@ -818,13 +819,13 @@ class FileWatcherStore:
         """One page of rows, seeked to rather than counted to.
 
         Paged because Added really can be forty thousand rows. Keyset rather
-        than OFFSET, for two reasons. Dismissing a row deletes it out from under
-        an in-flight page walk, and every later offset then shifts by one — so
-        the next page silently skips a row. And the seek rides the
-        (bucket, root_id, rel_path) index straight to the right place instead of
-        walking and discarding everything before it, which is what OFFSET does.
+        than OFFSET, for two reasons. Dismissing a row deletes it out from
+        under an in-flight page walk and every later offset then shifts by one,
+        so the next page silently skips a row. And the seek rides the (bucket,
+        root_id, rel_path) index straight to the right place instead of walking
+        and discarding everything before it, which is what OFFSET does.
 
-        The ordering is load-bearing rather than cosmetic: without it SQLite is
+        The ordering is load-bearing rather than cosmetic. Without it SQLite is
         free to hand back a different order per query, and rows would appear
         twice or not at all as the user scrolled.
         """
@@ -847,16 +848,15 @@ class FileWatcherStore:
     def dismiss_finding(self, root_id, rel_path: str, action: str) -> dict:
         """Apply one row's action and re-file the row, in one transaction.
 
-        Immediate rather than deferred so the bucket counts behind the modal are
-        right the moment the user backs out of it, and so a QAM close and reopen
-        can't resurrect what they just dealt with.
+        Immediate rather than deferred, so the bucket counts behind the modal
+        are right the moment the user backs out of it, and so a QAM close and
+        reopen can't resurrect what they just dealt with.
 
-        Accepting doesn't drop the row, it moves it to Verified. The new hash is
-        now the known-good one, which is exactly what a Verified row says, and a
-        row that vanished from every bucket read as the dismissal having missed —
-        the user had to run a whole pass to see it land somewhere. Forgetting
-        does drop it: the file is gone or has stopped being watched, so there is
-        nothing left to have a verdict about.
+        Accepting doesn't drop the row, it moves it to Verified. The new hash
+        is now the known-good one, which is exactly what a Verified row says,
+        and a row that vanished from every bucket read as the dismissal having
+        missed. Forgetting does drop it: the file is gone or has stopped being
+        watched, so there is nothing left to have a verdict about.
         """
         wanted = to_int(root_id, 0)
         path = str(rel_path or "")
@@ -921,15 +921,15 @@ class FileWatcherStore:
         """Clear anything a previous attempt left behind and open a new pass.
 
         Returns the pass's stamp, which is what every map row it verifies gets
-        written with — so "verified by this pass" is an equality test rather
-        than a range, and complete_pass can derive the Verified bucket from the
+        written with, so "verified by this pass" is an equality test rather
+        than a range and complete_pass can derive the Verified bucket from the
         map exactly.
 
         The stamp is a wall-clock second forced to be strictly greater than any
-        already in the map. Two passes really can begin inside one second (finish
-        one, press Verify Now), and a plain timestamp would then make the
-        previous pass's rows indistinguishable from this one's — which reads as
-        the whole library verifying when it didn't.
+        already in the map. Two passes really can begin inside one second, by
+        finishing one and pressing Verify Now, and a plain timestamp would then
+        make the previous pass's rows indistinguishable from this one's, which
+        reads as the whole library verifying when it didn't.
         """
         now = int(time.time())
         with self._db() as conn:
@@ -1013,10 +1013,10 @@ class FileWatcherStore:
         """Swap one root's pending rows into the live list.
 
         Per root at walk completion rather than per pass, unlike findings. The
-        ignored list is settled the moment the walk of that root finishes — it
-        has nothing to do with hashing — so waiting for complete_pass() would
-        mean cancelling a long pass threw away an answer that was already
-        correct. That is the case this whole feature exists to serve.
+        ignored list is settled the moment the walk of that root finishes,
+        since it has nothing to do with hashing, so waiting for complete_pass()
+        would mean cancelling a long pass threw away an answer that was already
+        correct.
         """
         wanted = to_int(root_id, 0)
         with self._db() as conn:
@@ -1163,8 +1163,8 @@ class FileWatcherStore:
 
         The caller holds this for the whole pass so the compare costs nothing
         per file. Forty thousand rows is a few megabytes, which is a far better
-        trade than a SELECT per file on an SD card — or than re-reading the
-        whole map once per chunk, which is what it used to do.
+        trade than a SELECT per file on an SD card, or than re-reading the
+        whole map once per chunk.
         """
         mapped = {}
         with self._db() as conn:
@@ -1183,11 +1183,13 @@ class FileWatcherStore:
         asking about. A power cut costs whatever hasn't been checkpointed yet,
         which is bounded by the caller at a few seconds of hashing.
 
-        ``mapped`` carries the two verdicts that earn a place in the map — a
-        file that verified, and a file that was adopted as Added. Corrupted,
-        Replaced and Unreadable deliberately leave their existing row alone,
-        stamp and all: nothing about them was verified, and moving last_verified
-        would say otherwise.
+        ``mapped`` carries the two verdicts that earn a place in the map,
+            meaning a file
+        that verified and a file that was adopted as Added. Corrupted, Replaced
+            and
+        Unreadable deliberately leave their existing row alone, stamp and all:
+            nothing
+        about them was verified, and moving last_verified would say otherwise.
         """
         if not mapped and not findings and not done_keys and not done_bytes:
             return
@@ -1226,17 +1228,17 @@ class FileWatcherStore:
         """Park a root the pass couldn't reach, and undo what it already said.
 
         The rollback is the part that gets forgotten. A NAS that drops mid-pass
-        fails its first few reads before anything notices the mount is gone, and
-        those already landed as Unreadable — the loudest bucket in the feature,
-        and the one with no way to dismiss a row. Twenty thousand "hard media
-        failure" rows because an access point rebooted is the worst thing this
-        feature could do.
+        fails its first few reads before anything notices the mount is gone,
+        and those already landed as Unreadable, the loudest bucket in the
+        feature and the one with no way to dismiss a row. Twenty thousand "hard
+        media failure" rows because an access point rebooted is the worst thing
+        this feature could do.
 
         Missing comes back too, and for the same reason: an unmounted share
         answers ENOENT for every file under it, so the reads that fail before
-        the guard trips look exactly like deletions. sweep_missing runs later,
-        in _finish, and skips these roots entirely — so anything sitting in this
-        bucket for this root right now came from the hash phase and is wrong.
+        the guard trips look exactly like deletions. sweep_missing runs later
+        and skips these roots entirely, so anything sitting in this bucket for
+        this root right now came from the hash phase and is wrong.
         """
         wanted = to_int(root_id, 0)
         with self._db() as conn:
@@ -1288,18 +1290,17 @@ class FileWatcherStore:
 
         This swap is what makes an interrupted pass leave the previous report
         whole rather than a truncated list that looks complete. A cancel never
-        reaches here, so findings_pending is simply dropped and the older answer
-        survives — and the work isn't lost either, since every verified row was
-        already committed into the map with a fresh stamp as the pass went.
+        reaches here, so findings_pending is simply dropped and the older
+        answer survives. The work isn't lost either, since every verified row
+        was already committed into the map with a fresh stamp as the pass went.
 
         The Verified rows are built here rather than carried through the pass.
         A verified file is definitionally one this pass stamped and had nothing
         else to say about, so it can be derived from the map at the end instead
         of written into findings_pending inside every checkpoint, copied across
-        here, and deleted again. That mattered: a Verified row is the fattest
-        one in the schema (it carries a hash twice) and on a healthy library it
-        is nearly every row, so it was the single biggest thing riding along in
-        each fsync'd commit — to say that nothing was wrong.
+        here, and deleted again. That matters because a Verified row is the
+        fattest one in the schema, carrying a hash twice, and on a healthy
+        library it is nearly every row.
         """
         with self._db() as conn:
             row = conn.execute("SELECT started_at FROM pass_state WHERE id = 1").fetchone()

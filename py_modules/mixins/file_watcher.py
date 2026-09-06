@@ -19,9 +19,9 @@ class FileWatcherMixin(PluginContext):
     Thin like the SMB and Cheevo Check mixins: the store owns persistence and
     validation, the service owns the schedule and the pass, and this only
     sequences the two and stays off the event loop. Every call here touches
-    either a JSON file or SQLite, so they all go through asyncio.to_thread —
-    a findings query against a database on a cold SD card is not something to
-    do on the loop.
+    either a JSON file or SQLite, so they all go through asyncio.to_thread. A
+    findings query against a database on a cold SD card is not something to do
+    on the loop.
 
     No _ra_slot() anywhere. This feature makes no RetroAchievements calls at
     all, so there is nothing to be polite about and nothing to serialize
@@ -125,15 +125,15 @@ class FileWatcherMixin(PluginContext):
         return payload
 
     async def clear_file_watcher_run_times(self):
-        """Forget when the watcher last ran — both clocks and the next-run time.
+        """Forget when the watcher last ran: both clocks and the next-run time.
 
         Lives in Options rather than on the page because of what the second
-        clock does. Only a *scheduled* pass arms the half-period guard in
-        next_due_after, and while it's armed no slot inside half a cycle is
-        taken — three and a half days on the weekly setting. That is correct for
-        a real library and miserable for anyone trying the schedule twice in one
-        evening, and there was no way to clear it short of editing the config
-        by hand.
+        clock does. Only a scheduled pass arms the half-period guard in
+        next_due_after, and while that is armed no slot inside half a cycle is
+        taken, which is three and a half days on the weekly setting. Correct
+        for a real library and miserable for anyone trying the schedule twice
+        in one evening, with no way to clear it short of editing the config by
+        hand.
         """
         if self.file_watcher_service.pass_owns_data():
             return {"ok": False, "error": "pass_running"}

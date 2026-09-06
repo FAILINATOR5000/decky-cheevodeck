@@ -1,27 +1,24 @@
-"""
-The File Watcher daemon: one thread that wakes every minute, decides whether a
+"""The File Watcher daemon: one thread that wakes every minute, decides whether a
 pass is owed, and runs it inline when it is.
 
 Deliberately not a TickServiceBase subclass. That base exists for the RA
 daemons and carries a rate-limit backoff, a Retry-After parser and the shared
-trickle lock, none of which apply here — this service never talks to
+trickle lock, none of which apply here: this service never talks to
 RetroAchievements and never takes an _ra_slot(). Its parking behaviour is its
-own too: it doesn't sleep between ticks so much as return to the loop, which is
-what makes pausing a six-hour pass free. Cheevo Check declines the base class
-for related reasons and says so in its docstring; same here.
+own too. It doesn't sleep between ticks so much as return to the loop, which is
+what makes pausing a six-hour pass free.
 
 One thread rather than two. The tick loop runs the pass in its own body, so
 pausing is literally returning to the loop and cancelling is a flag checked in
 the hash loop. That collapses an entire category of thread-coordination bugs at
 the cost of a tick that occasionally takes six hours to come back around.
 
-**The tick must never touch disk.** With nothing configured it is an integer
-test against None; with a schedule set and not due it is an integer compare.
-1,440 wakes a day, none of them a syscall beyond the timer. That is a hard
-requirement rather than an optimisation: people run this on SD cards and slow
-external drives, where a background service that reads a file every minute
-forever is a real cost. Disk is touched in exactly three places — plugin load,
-a UI edit that writes through, and a running pass.
+**The tick must never touch disk.** With nothing configured it is an integer test
+against None; with a schedule set and not due it is an integer compare. That is a
+hard requirement rather than an optimisation: people run this on SD cards and slow
+external drives, where a background service that reads a file every minute forever
+is a real cost. Disk is touched at plugin load, on a UI edit that writes through,
+and inside a running pass, and nowhere else.
 """
 
 from collections import deque
@@ -94,12 +91,12 @@ def steam_game_running() -> bool:
 
     Every Steam launch on Linux goes through the reaper wrapper with a
     SteamLaunch argument, which is the one signal available to a backend that
-    isn't inside the Steam session — and this one has to work in Desktop Mode,
-    where there is no QAM to ask. Reading comm first keeps this to one small
-    read per process for all but the handful that match.
+    isn't inside the Steam session, and this has to work in Desktop Mode where
+    there is no QAM to ask. Reading comm first keeps it to one small read per
+    process for all but the handful that match.
 
     It does not see an emulator launched straight from the desktop, which is
-    accepted: Gentle-by-default is what covers that case, and it's another
+    accepted. Gentle-by-default is what covers that case, and it is another
     reason not to default the speed knob to Full.
     """
     try:
@@ -124,13 +121,13 @@ def steam_game_running() -> bool:
 def booted_recently() -> bool:
     """Whether this plugin load looks like a machine boot rather than a reload.
 
-    /proc/uptime's first field runs off boottime, so a Deck that spent the night
-    suspended reads as having been up all night — which is right, because that
-    is a device somebody is already using rather than one still finding its feet.
+    /proc/uptime's first field runs off boottime, so a Deck that spent the
+    night suspended reads as having been up all night. That is right: it is a
+    device somebody is already using rather than one still finding its feet.
 
-    Unreadable means no: the cost of guessing wrong that way is a resumed manual
-    pass starting a couple of minutes early, against holding every resume behind
-    the grace on a box whose /proc doesn't look like Linux's.
+    Unreadable means no. The cost of guessing wrong that way is a resumed
+    manual pass starting a couple of minutes early, against holding every
+    resume behind the grace on a box whose /proc doesn't look like Linux's.
     """
     try:
         with open("/proc/uptime", "r") as handle:
@@ -163,23 +160,26 @@ def slot_timestamp(*, anchor_at: int, weekday: int, hour: int, minute: int,
 def next_due_after(now: float, schedule: dict, last_scheduled_at: int) -> int:
     """The smallest slot strictly after ``now`` that the guards allow.
 
-    Two rules ride along, and both exist to stop a catch-up run turning into
-    two runs:
+    Two guards ride along, and both exist to stop a catch-up run turning into
+    two runs.
 
-    Missed slots coalesce, because this only ever returns the *next* one — a
+    Missed slots coalesce, because this only ever returns the next one. A
     device off for three weeks runs once on the next boot rather than four
     times.
 
-    And a slot inside half a period of where the last *scheduled* pass began is
-    skipped. A catch-up pass starting Saturday evening on a weekly schedule
-    would otherwise be followed by the real Sunday 01:00 slot hours later. A
-    manual Verify Now deliberately doesn't arm this: the schedule has to stay
+    And a slot inside half a period of where the last scheduled pass began is
+    skipped, or a catch-up pass starting Saturday evening on a weekly schedule
+    would be followed by the real Sunday 01:00 slot hours later. A manual
+    Verify Now deliberately doesn't arm this: the schedule has to stay
     predictable.
 
-    ``last_scheduled_at`` is when that pass *started*, never when it finished —
-    see _finish. Measured from the finish, a pass slower than half a period
-    pushed the guard past the next slot and halved the cadence, so a weekly scan
-    that took four days quietly became fortnightly.
+    ``last_scheduled_at`` is when that pass started, never when it finished.
+        Measured
+    from the finish, a pass slower than half a period pushes the guard past the
+        next
+    slot and halves the cadence, so a weekly scan that took four days quietly
+        becomes
+    fortnightly.
     """
     if not schedule.get("enabled"):
         return 0
@@ -399,12 +399,12 @@ class FileWatcherService:
     def pass_owns_data(self) -> bool:
         """Whether a pass has hold of the roots list and the database yet.
 
-        A different question to pass_in_flight, and the difference is a lockout.
-        A scheduled pass that has come due behind a gate has a record so the page
-        can say so and nothing else — no queue, no pass row, no walk reading the
-        roots. Refusing edits for that one would mean an evening of playing
-        something locks the directory list, to protect against a race with a pass
-        that hasn't started.
+        A different question to pass_in_flight, and the difference is a
+        lockout. A scheduled pass that has come due behind a gate has a record
+        so the page can say so, and nothing else: no queue, no pass row, no
+        walk reading the roots. Refusing edits for that one would mean an
+        evening of playing something locks the directory list, to protect
+        against a race with a pass that hasn't started.
         """
         with self._lock:
             return self._pass is not None and not self._due_unstarted
@@ -412,9 +412,9 @@ class FileWatcherService:
     def note_gates_changed(self) -> None:
         """A gate knob changed; re-decide now rather than at the next tick.
 
-        A parked pass isn't inside the read loop, so nothing there notices — it
-        would sit there for up to a minute waiting on the tick, which reads as
-        the switch not working. Waking clears that; dropping the caches is what
+        A parked pass isn't inside the read loop, so nothing there notices. It
+        would sit for up to a minute waiting on the tick, which reads as the
+        switch not working. Waking clears that, and dropping the caches is what
         stops the tick answering out of a reading taken before the change.
 
         Written from the IPC thread where the tick usually owns these, which is
@@ -430,12 +430,12 @@ class FileWatcherService:
     def note_schedule_changed(self, config: dict) -> None:
         """Write-through from a UI edit, so the tick never reads back.
 
-        Recomputing the due time here rather than at the next tick is what keeps
-        the page's "Next run" honest the moment the picker closes.
+        Recomputing the due time here rather than at the next tick is what
+        keeps the page's "Next run" honest the moment the picker closes.
 
         A pass that is already owed stays owed. Recomputing unconditionally
         would mean opening the schedule picker and pressing Save quietly ate a
-        run the device had been waiting to do — and the blackout window is a
+        run the device had been waiting to do, and the blackout window is a
         gate rather than a schedule, so saving one has no business moving the
         clock at all. Only a disabled schedule overrides that, since there is
         then nothing to be owed.
@@ -537,9 +537,8 @@ class FileWatcherService:
 
         The grace is a whole number of ticks, so the tick that should notice it
         expiring lands on the same instant it expires and it is a coin flip
-        which happens first. Lose, and a pass resumed after a restart sat
-        parked for a whole extra tick — measured at three minutes against a
-        two-minute grace before this. Waking on the boundary costs one early
+        which happens first. Lose, and a pass resumed after a restart sits
+        parked for a whole extra tick. Waking on the boundary costs one early
         wake per plugin load, into an idle path that is two integer tests
         against values already in memory.
         """
@@ -599,14 +598,14 @@ class FileWatcherService:
         """Which gate, if any, is holding a due pass back.
 
         Being due is not permission to start. A blocked pass stays due and
-        begins the moment the gate clears, which is the anacron model applied to
-        gates as well as to the schedule.
+        begins the moment the gate clears, which is the anacron model applied
+        to gates as well as to the schedule.
 
         The window is the one gate a press gets past. It says when the schedule
-        may let itself in, and the archivalist setup the feature is built around
-        blacks out the whole waking day — so applying it to Verify Now meant
+        may let itself in, and the archival setup this feature is built around
+        blacks out the whole waking day, so applying it to Verify Now meant
         somebody who set "overnight only" could never check a file during the
-        day, and the button they pressed parked on the spot. Battery Saver and
+        day and the button they pressed parked on the spot. Battery Saver and
         the game gate still apply to everything: those two are about what else
         the device is doing, not about when a scan is welcome.
         """
@@ -644,15 +643,13 @@ class FileWatcherService:
     def _gate_wants_park(self, now: float) -> bool:
         """Whether a gate has closed since the last look, checked mid-file.
 
-        The checkpoint is the natural place for this and it isn't enough on its
-        own: checkpoints only fire between files, so launching a game — or
-        turning Run during games off — while a 20 GB disc image is being read
-        did nothing at all until that image finished. Minutes of a switch that
-        looks broken.
+        A checkpoint is the natural place to ask, and on its own it is not enough.
+        Checkpoints fire between files, so launching a game while a 20 GB disc image
+        is being read, or switching Run during games off at that moment, did nothing
+        whatever until the image finished. Minutes of a control that looks broken.
 
-        Rate-limited to the same two seconds _blocked_by's own caches use, so
-        this costs one settings read and one /proc walk per two seconds of
-        hashing, which is what a checkpoint on a fast drive was already doing.
+        Rate-limited to the same two seconds _blocked_by's own caches use, which puts
+        the cost at one settings read and one /proc walk per two seconds of hashing.
         """
         if now - self._gate_checked_at < GATE_CACHE_SECONDS:
             return self._park_reason is not None
@@ -678,9 +675,9 @@ class FileWatcherService:
         """Whether the user asked for this one, either just now or earlier.
 
         One that has already started still counts, and so does one picked back
-        up off disk after a reload — it is the same scan the user asked for,
-        interrupted. What it buys is the blackout window: that is a preference
-        about when the *schedule* may run, and a press is not the schedule.
+        up off disk after a reload: it is the same scan the user asked for,
+        interrupted. What it buys is the blackout window, which is a preference
+        about when the schedule may run, and a press is not the schedule.
         """
         with self._lock:
             if self._start_requested:
@@ -696,11 +693,11 @@ class FileWatcherService:
 
         A manual pass adopted off disk is the awkward one, and the answer turns
         on what kind of load it was. A plugin reload mid-scan must not hand the
-        pass back to the grace that same reload just armed — that is a Deploy in
-        the middle of a six-hour run on a device that has been up for hours. A
-        cold boot is the opposite case wearing the same clothes: Steam is still
-        coming up, and picking a scan straight back up is exactly what the grace
-        is for.
+        pass back to the grace that same reload just armed, which is a redeploy
+        in the middle of a six-hour run on a device that has been up for hours.
+        A cold boot is the opposite case wearing the same clothes: Steam is
+        still coming up, and picking a scan straight back up is exactly what
+        the grace is for.
         """
         with self._lock:
             if self._start_requested:
@@ -713,14 +710,13 @@ class FileWatcherService:
 
         Before the gate check rather than after it, which is the whole point.
         _park has nothing to write a reason into while the pass is still a due
-        time and an intention, so a slot that came up behind a running game used
-        to wait in complete silence — the panel read idle and the next-run line
-        sat in the past, with nothing anywhere admitting a scan was owed. A game
-        gets played for hours; that is a long time to look broken.
+        time and an intention, so a slot that came up behind a running game
+        used to wait in complete silence: the panel read idle and the next-run
+        line sat in the past, with nothing anywhere admitting a scan was owed.
 
         Memory only. The row goes on disk when it actually starts, so a reload
-        while it waits leaves an owed due time to re-derive rather than an orphan
-        of a pass that never ran.
+        while it waits leaves an owed due time to re-derive rather than an
+        orphan of a pass that never ran.
         """
         with self._lock:
             if self._pass is not None:
@@ -741,11 +737,11 @@ class FileWatcherService:
     def _nothing_to_scan(self) -> None:
         """A slot came due with no directories left to watch.
 
-        The roots list can be emptied while the schedule stays on — someone
-        reorganising a library, or a trashcan press that was meant to be the
+        The roots list can be emptied while the schedule stays on, by someone
+        reorganising a library or by a trashcan press that was meant to be the
         first of two. The pass that followed ran to completion over nothing and
-        claimed it: "Last verified" moved to today, the catch-up guard armed, and
-        the toast said everything checked out. Nothing had been checked.
+        claimed it: "Last verified" moved to today, the catch-up guard armed,
+        and the toast said everything checked out. Nothing had been checked.
 
         Consuming the slot is still right, or the tick finds it due again a
         minute later and says so forever. Neither clock moves, no report is
@@ -824,10 +820,9 @@ class FileWatcherService:
     def _enumerate(self, roots) -> str:
         """Phase one: walk every root, stat only, and write the work list.
 
-        This is not the rejected quick-pass/deep-pass split wearing a disguise.
-        It produces no verdict and no report — it only builds a list. Two things
-        fall out of it for free: a resume becomes exact (hash the rows still
-        marked not-done rather than re-walking), and the progress bar has a real
+        It produces no verdict and no report; it only builds a list. Two things
+        fall out of that for free: a resume becomes exact, since the rows still
+        marked not-done are the work left, and the progress bar has a real
         denominator from the first second instead of a total that grows as it
         goes.
         """
@@ -1085,7 +1080,7 @@ class FileWatcherService:
         Getting this backwards is the worst outcome the feature has. Wi-Fi
         drops, or a suspend leaves a stale SMB mount behind, every read after
         that errors, and a naive implementation writes twenty thousand "hard
-        media failure" rows because the access point rebooted — in the one
+        media failure" rows because the access point rebooted, in the one
         bucket with no dismissal action and the loudest meaning.
 
         So an I/O error re-probes the root before it is allowed to become a
@@ -1093,7 +1088,7 @@ class FileWatcherService:
         mount even when the re-probe somehow answers.
 
         Past that, a path that simply isn't there is Missing rather than
-        Unreadable — see below for why the order matters.
+        Unreadable. That test sits below the mount guard and has to stay there.
         """
         root_id = root["id"]
         count = failures.get(root_id, 0) + 1
@@ -1136,21 +1131,20 @@ class FileWatcherService:
         """Hash a file, stat'ing it on both sides of the read.
 
         The second stat is what keeps a file somebody was saving out of
-        Corrupted. Corrupted means the contents changed and *nothing wrote to
-        it*, and that verdict rests entirely on the size and mtime being
-        untouched — so a stat taken before a write and a hash taken after
-        produces exactly that signature for a perfectly ordinary save. Rare on a
-        ROM, routine on anything sitting beside one, and Corrupted is the one
+        Corrupted. Corrupted means the contents changed and nothing wrote to
+        the file, and that verdict rests entirely on the size and mtime being
+        untouched, so a stat taken before a write and a hash taken after
+        produces exactly that signature for a perfectly ordinary save. Rare on
+        a ROM, routine on anything sitting beside one, and Corrupted is the one
         verdict this feature cannot afford to be casual about.
 
         fstat on the open handle rather than stat on the path, which also means
-        the file we measured is provably the file we read.
+        the file that was measured is provably the file that was read.
 
-        Bytes are reported from inside the loop, not credited to the file when
-        it finishes. Checkpoints only fire between files, so a single 20 GB disc
-        image used to freeze the bar, the file count and the ETA for its whole
-        read — several minutes of a page that looks hung, and an estimate stuck
-        on whatever it said before the big file started.
+        Bytes are reported from inside the loop rather than credited to the
+        file when it finishes. Checkpoints only fire between files, so a single
+        20 GB disc image would otherwise freeze the bar, the file count and the
+        ETA for its whole read.
         """
         digest = hashlib.sha256()
         unreported = 0
@@ -1199,11 +1193,10 @@ class FileWatcherService:
     def _add_files(self, count: int) -> None:
         """Credit files as they finish, not as they commit.
 
-        Both numbers used to move only at a checkpoint, which is every 256
-        files or five seconds — so a shelf of PS1 discs jumped the count in
-        steps of a couple of hundred, and a shelf of Wii images left it a whole
-        file behind whatever the path underneath it said. Neither reads as a
-        count of what is happening.
+        Both numbers used to move only at a checkpoint, so a shelf of PS1 discs
+        jumped the count in steps of a couple of hundred, and a shelf of Wii
+        images left it a whole file behind whatever the path underneath it
+        said. Neither reads as a count of what is happening.
         """
         with self._lock:
             if self._pass is not None:
@@ -1262,7 +1255,7 @@ class FileWatcherService:
         """Drop the pass in flight, keeping the previous report whole.
 
         The clocks move apart here, and that's the point. lastCompletedAt never
-        moves, so the page keeps showing the older, honest verification date — a
+        moves, so the page keeps showing the older, honest verification date. A
         cancel must never buy false confidence.
 
         nextDueAt only moves for a scheduled pass, which falls back to the next
@@ -1270,8 +1263,8 @@ class FileWatcherService:
         The slot really was consumed and retrying it two minutes later would be
         nagging. A manual pass has no slot to consume, and advancing anyway ate
         whatever the schedule still owed: boot on a Tuesday morning with the
-        03:00 run outstanding, press Verify Now, think better of it, and Tuesday
-        quietly became next Tuesday.
+        03:00 run outstanding, press Verify Now, think better of it, and
+        Tuesday quietly became next Tuesday.
         """
         with self._lock:
             origin = self._pass["origin"] if self._pass is not None else ""
@@ -1294,7 +1287,7 @@ class FileWatcherService:
         "everything is fine" is the reassurance the feature exists to provide.
 
         Nobody sees the toast when a scheduled pass runs in Desktop Mode, since
-        there is no QAM there. That's exactly why the row is not optional — it
+        there is no QAM there. That is exactly why the row is not optional; it
         is waiting on the way back into Gaming Mode.
         """
         title = "File Watcher"
@@ -1336,17 +1329,14 @@ class FileWatcherService:
 def _toast_verdict(counts: dict) -> str:
     """Which of the four things a finished pass has to say.
 
-    It used to be two, and the middle was missing: a pass that found twelve
-    files gone and four hundred replaced toasted "Everything checks out",
-    because only Corrupted and Unreadable counted as bad. Those two still get
-    the loud line — they are the ones that mean the hardware is dying — but
-    everything else that moved deserves a look, and saying so is not the same
-    as crying media failure.
+    Corrupted and Unreadable get the loud line, because those are the ones that
+    mean the hardware is dying. Everything else that moved still deserves a
+    look, and saying so is not the same as crying media failure.
 
     The first-run rung matters most. Nothing was verified because there was
     nothing to verify against, and "Everything checks out" there claims a
-    confidence the pass did not earn — which is the one rule this whole feature
-    is built around.
+    confidence the pass did not earn, which is the thing this whole feature is
+    built around not doing.
     """
     if counts.get(BUCKET_CORRUPTED, 0) or counts.get(BUCKET_UNREADABLE, 0):
         return "Problems found"
@@ -1378,15 +1368,15 @@ def _join_rel(rel_dir: str, name: str) -> str:
 def default_start_dir(user_home: Path, roots, remembered: str = "") -> str:
     """Where the folder picker should open.
 
-    Wherever the user was last, first — stored rather than derived, so it
-    survives an add that got refused for overlapping and a root that has since
-    been removed. Then the last-added root's parent, since someone adding
+    Wherever the user was last, first. That is stored rather than derived, so
+    it survives an add that got refused for overlapping and a root that has
+    since been removed. Then the last-added root's parent, since someone adding
     /roms/ps2 right after /roms/wii should not have to walk the tree again.
 
     Then the same EmuDeck-then-home ladder Cheevo Check's picker falls back to.
-    Every rung is checked for still existing: an SD card that has been ejected,
-    or a machine that never had EmuDeck on it, has to land somewhere real, and
-    the home directory is the one path that is always there.
+    Every rung is checked for still existing: an ejected SD card, or a machine
+    that never had EmuDeck on it, has to land somewhere real, and the home
+    directory is the one path that is always there.
     """
     if remembered and os.path.isdir(remembered):
         return remembered
