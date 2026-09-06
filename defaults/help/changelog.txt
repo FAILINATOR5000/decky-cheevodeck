@@ -1,17 +1,17 @@
 CheevoDeck {{VERSION}}
 
-This one is mostly repairs and refinements for Cheevo Check and the Steam library badges feature.
+This focuses mainly on making Cheevo Check much easier to get started with, improving the help text as well as decluttering the area around the <b>Scan</b> button. Also, first-timers are now able to turn on Steam library badges at the setup page.
 
 <b>What's New</b>
 
-- The <b>About</b> button in the Quick Menu now shows a small, glowing dot when an update is available.
+- The <b>Steam Library Badge</b> can be switched on right from the setup page now.
+
+- The <b>Guide</b> has moved out of the Scan section and into its own <b>Help</b> section, further down the Cheevo Check page. It just seemed weird that I had it up there.
 
 <b>What's Fixed</b>
 
-- Cheevo Check recognizes the rest of EmuDeck's ROM folder names now, including the regional ones. This allows full coverage and integration with libraries for users who use EmuDeck.
+- The help text across Cheevo Check has been drastically improved. Less jargon, more meaningful explaining! The result explanations in particular were doing a lot of explaining about why a thing happened. What you probably want to know is whether your game is supported or not! I do have whys, but not unnecessary ones.
 
-- For Cheevo Check, cue sheets are read properly now, instead of using the old educated guess algorithm. Single .bin games were sometimes ignored, but not anymore!
+- The <b>Scan</b> and <b>Offline Scan</b> buttons now tell you what they actually do, including the part where EmuDeck and ES-DE libraries are already named correctly, so you are completely fine with folder naming if you use either.
 
-- The library badge waits a little longer for RetroAchievements before it gives up, so a slow connection is more likely to show your progress, instead of the fallback achievement count.
-
-- The library badge no longer flashes the previous game's progress for a moment when you go straight from one game page to another.
+- The desktop updater is called <b>Update CheevoDeck</b> now. The old name was too long and got cut off, and anyone who already has the old one will have it renamed automatically the next time CheevoDeck starts.
