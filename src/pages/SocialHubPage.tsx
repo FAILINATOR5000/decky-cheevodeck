@@ -84,6 +84,7 @@ type SocialTab = {
     focusKey: string;
 };
 
+// Icons
 // Font Awesome Free icon path, CC BY 4.0. See ATTRIBUTIONS.md.
 function FriendsIcon({ size = 18 }: TabIconProps) {
     return (
@@ -172,6 +173,7 @@ function NewspaperIcon({ size = 18 }: TabIconProps) {
     );
 }
 
+// Tabs and constants
 const SOCIAL_TABS: SocialTab[] = [
     { view: "friends", Icon: FriendsIcon, labelKey: "Friends", focusKey: "social:tab:friends" },
     { view: "favorites", Icon: StarIcon, labelKey: "Favorites", focusKey: "social:tab:favorites" },
@@ -204,6 +206,7 @@ const NEW_SETS_FILTER_TABS: { value: NewSetsFilter; labelKey: string; focusKey: 
     { value: "revision", labelKey: "Revisions", focusKey: "newsets:filter:revision" }
 ];
 
+// Page props
 type NewsEventsProps = {
     subView: NewsEventsSubView;
     onChangeSubView: (subView: NewsEventsSubView) => void;
@@ -316,6 +319,8 @@ type SocialHubPageProps = {
 };
 
 function SocialHubPage(props: SocialHubPageProps) {
+
+    // Page state
     const activityLoadMoreMarkerRef = useRef<HTMLDivElement | null>(null);
     const newSetsLoadMoreMarkerRef = useRef<HTMLDivElement | null>(null);
     const dynamicFriendLoading = props.dynamicFriendLoading ?? true;
@@ -388,6 +393,7 @@ function SocialHubPage(props: SocialHubPageProps) {
     const [armedSubKey, setArmedSubKey] = useState<string | null>(null);
     const subscriptionsLoadRunIdRef = useRef(0);
 
+    // Derived rows
     const favoriteFriendKeys = useMemo(() => {
         return new Set(props.favoriteFriends.map((ulid) => String(ulid || "").trim()).filter(Boolean));
     }, [props.favoriteFriends]);
@@ -452,6 +458,7 @@ function SocialHubPage(props: SocialHubPageProps) {
         resetKey: socialView
     });
 
+    // Friend rows
     const friendClickRef = useRef(props.onFriendClick);
     friendClickRef.current = props.onFriendClick;
     const friendFocusRef = useRef(props.onFriendFocus);
@@ -562,6 +569,7 @@ function SocialHubPage(props: SocialHubPageProps) {
         return achievementUiMetrics(props.uiSize);
     }, [props.uiSize]);
 
+    // Activity rows
     const activityClickRef = useRef(props.onActivityCardClick);
     activityClickRef.current = props.onActivityCardClick;
     const activitySecondaryRef = useRef(props.onActivityCardSecondary);
@@ -588,6 +596,7 @@ function SocialHubPage(props: SocialHubPageProps) {
             : undefined
     }), [props.language, props.showIcons, rowMetrics, gamepadCardActions]);
 
+    // Loading and effects
     const loadMoreActivity = useCallback(() => {
         if (!dynamicActivityFeed) {
             return;
@@ -869,6 +878,7 @@ function SocialHubPage(props: SocialHubPageProps) {
         };
     }, [subscriptions, props.showIcons]);
 
+    // Subscriptions
     const handleSubscriptionOpen = useCallback((subscription: Subscription) => {
         if (props.onOpenSubscription) {
             void props.onOpenSubscription(subscription);
@@ -908,6 +918,7 @@ function SocialHubPage(props: SocialHubPageProps) {
         })();
     };
 
+    // Saved comments
     const [armedSavedId, setArmedSavedId] = useState<string | null>(null);
 
     const savedSubTabActive = socialView === "subscribedDiscussions" && props.savedComments.subTab === "savedComments";
@@ -987,6 +998,7 @@ function SocialHubPage(props: SocialHubPageProps) {
 
 
 
+    // Tab handlers
     function handleSocialTabClick(nextView: SocialView) {
         setSocialView(nextView);
         setFocusedSocialView(null);
@@ -1053,6 +1065,7 @@ function SocialHubPage(props: SocialHubPageProps) {
         && (aotwCardClaim?.token ?? 0) > 0
         && !aotwCardClaim?.armed;
 
+    // Render
     const page = (
         <React.Fragment key={`social:view:${props.focusScopeResetToken}`}>
             <style>{FADE_IN_KEYFRAMES}</style>
@@ -1879,6 +1892,7 @@ function SocialHubPage(props: SocialHubPageProps) {
     );
 }
 
+// Sub-components
 function ClaimedRow(props: { claim: FocusClaimController; slotIndex: number; children: ReactNode }) {
     const { claim, spend } = props.claim;
     const mine = claim && claim.slotIndex === props.slotIndex ? claim : null;
