@@ -152,6 +152,7 @@ import type {
     ShortcutButton
 } from "./types";
 
+// Settings and accounts
 export const getSettings = callable<[], SettingsResponse>("get_settings");
 export const saveSettings = callable<[string, string], OkResult & SettingsResponse>(
     "save_settings"
@@ -240,6 +241,8 @@ export const saveLastOptionsTab = callable<[OptionsTab], { ok: boolean; lastOpti
 export const saveLastTrackedTab = callable<[TrackedTab], { ok: boolean; lastTrackedTab: TrackedTab }>(
     "save_last_tracked_tab"
 );
+
+// Display and scale
 export const saveUiSize = callable<[UiSize], { ok: boolean; uiSize: UiSize }>("save_ui_size");
 export const saveAchievementTextScale = callable<[ScaleStep], { ok: boolean; achievementTextScale: ScaleStep }>("save_achievement_text_scale");
 export const touchSavedCommentOpened = callable<[string], { ok: boolean; id?: string; error?: string }>(
@@ -329,6 +332,8 @@ export const saveTrackedSetAButtonMode = callable<
     [TrackedSetAButtonMode],
     { ok: boolean; trackedSetAButtonMode: TrackedSetAButtonMode }
 >("save_tracked_set_a_button_mode");
+
+// Dolphin mapper
 export const saveDolphinMapperMode = callable<
     [DolphinMapperMode],
     { ok: boolean; dolphinMapperMode: DolphinMapperMode }
@@ -357,6 +362,8 @@ export const resetDolphinMappings = callable<[], OkResult>("reset_dolphin_mappin
 export const clearDolphinMappings = callable<[], OkResult>("clear_dolphin_mappings");
 export const reorderDolphinMappings = callable<[string[]], ReorderDolphinMappingsResponse>("reorder_dolphin_mappings");
 export const applyDolphinMapping = callable<[string], ApplyDolphinMappingResponse>("apply_dolphin_mapping");
+
+// SMB shares
 export const listSmbShares = callable<[boolean, boolean], { shares: SmbShare[] }>("list_smb_shares");
 export const addSmbShare = callable<
     [SmbSharePayload],
@@ -382,6 +389,7 @@ export const linkSmbMountsToDesktop = callable<[], { ok: boolean; linked?: numbe
     "link_smb_mounts_to_desktop"
 );
 
+// Cheevo Check
 export const getCheevoCheckState = callable<[], CheevoCheckState>("get_cheevo_check_state");
 export const cancelCheevoCheckScan = callable<[], { ok: boolean; running: boolean }>(
     "cancel_cheevo_check_scan"
@@ -475,6 +483,7 @@ export const saveCheevoCheckLastSystemId = callable<[number], { ok: boolean; che
     "save_cheevo_check_last_system_id"
 );
 
+// File Watcher
 export const getFileWatcherState = callable<[], FileWatcherState>("get_file_watcher_state");
 export const getFileWatcherPassStatus = callable<[], { pass: FileWatcherPass | null }>(
     "get_file_watcher_pass_status"
@@ -630,6 +639,8 @@ export const saveBatterySaverDisablesPlayersNearYou = callable<[boolean], { ok: 
 export const saveBatterySaverDisablesTrackedSets = callable<[boolean], { ok: boolean; batterySaverDisablesTrackedSets: boolean }>(
     "save_battery_saver_disables_tracked_sets"
 );
+
+// Notifications
 export const NOTIFICATION_EVENT = "cheevodeck_notification";
 export const getNotifications = callable<[], NotificationsPayload>("get_notifications");
 export const markNotificationsSeen = callable<[], { ok: boolean; lastSeenAt: number }>(
@@ -871,6 +882,8 @@ const logCardCornerDebugEvent = callable<[string, string, string], { ok: boolean
 const logNotificationsDebugEvent = callable<[string, string, string], { ok: boolean }>(
     "log_notifications_debug"
 );
+
+// Dynamic loading
 export const saveBigListThreshold = callable<[number], { ok: boolean; bigListThreshold: number }>(
     "save_big_list_threshold"
 );
@@ -982,6 +995,8 @@ export const saveDynamicBadges = callable<[boolean], { ok: boolean; dynamicBadge
 export const saveDynamicFollowedRanking = callable<[boolean], { ok: boolean; dynamicFollowedRanking: boolean }>(
     "save_dynamic_followed_ranking"
 );
+
+// Reset and maintenance
 export const resetOptionSettings = callable<[], OkResult & SettingsResponse>("reset_option_settings");
 export const applySetupProfile = callable<[string, boolean], OkResult & SettingsResponse>("apply_setup_profile");
 export const markIntroViewed = callable<[], { ok: boolean; viewedIntro: boolean }>("mark_intro_viewed");
@@ -1017,6 +1032,8 @@ export const placeDesktopUpdater = callable<
     [],
     { ok: boolean; error?: string; name?: string; path?: string }
 >("place_desktop_updater");
+
+// Social feeds
 export const getCachedFriends = callable<[], CachedFriendsResponse>("get_cached_friends");
 export const getSocialActivity = callable<[], SocialActivityResponse>("get_social_activity");
 export const getPlayersNearYou = callable<[number | null | undefined], PlayersNearYouResponse>("get_players_near_you");
@@ -1032,6 +1049,8 @@ export const getAchievementOfTheWeek = callable<[], AchievementOfTheWeekResponse
 export const getNewSetsAndRevisions = callable<[NewSetsFilter], NewSetsAndRevisionsResponse>(
     "get_new_sets_and_revisions"
 );
+
+// Comments
 export const getGameComments = callable<
     [number | null | undefined, "newest" | "oldest", number, number],
     GameCommentsResponse
@@ -1063,6 +1082,8 @@ export const getGameHashes = callable<
     [number | null | undefined],
     GameHashesResponse
 >("get_game_hashes");
+
+// Game and friend data
 export const refreshCurrentGame = callable<[boolean?], RefreshResponse>("refresh_current_game");
 export const refreshFriends = callable<[boolean?], FriendsRefreshResponse>("refresh_friends");
 export const manualRefreshFriends = callable<[], FriendsRefreshResponse>("manual_refresh_friends");
@@ -1086,6 +1107,8 @@ export const getUserGamePayload = callable<[string, number | null | undefined, b
 export const getRecentUnlockHistory = callable<[number | null | undefined], UnlockHistoryResponse>(
     "get_recent_unlock_history"
 );
+
+// Achievement icons
 export const getAchievementIcons = callable<[number | null | undefined, string[]], { icons: Record<string, string> }>(
     "get_achievement_icons"
 );
@@ -1234,6 +1257,7 @@ let GAME_ICON_CACHE_LIMIT = 1024;
 const gameIconMemoryCache = new Map<number, string>();
 const gameIconCacheOrder: number[] = [];
 
+// Game icons
 export function getCachedGameIconDataUri(gameId: number | null | undefined): string | null {
     if (gameId == null) {
         return null;
@@ -1439,6 +1463,7 @@ const AWARD_ICON_CACHE_LIMIT = 1024;
 const awardIconMemoryCache = new Map<string, string>();
 const awardIconCacheOrder: string[] = [];
 
+// Award icons
 export function getCachedAwardIconDataUri(url: string | null | undefined): string | null {
     if (!url) {
         return null;
@@ -1620,6 +1645,7 @@ export async function prefetchTabGameIcons(
     }
 }
 
+// Game artwork
 export type GameImageKind = "icon" | "ingame" | "title" | "boxart";
 
 const getGameImage = callable<
@@ -1733,6 +1759,7 @@ function cleanAvatarName(username: string | null | undefined): string | null {
     return text || null;
 }
 
+// User avatars
 export function getCachedUserAvatarDataUri(username: string | null | undefined): string | null {
     const key = normaliseAvatarKey(username);
     if (!key) {
@@ -1946,6 +1973,7 @@ export function clearUserAvatarMemoryCache() {
 
 let accurateAvatarDebug = false;
 
+// Debug logging
 export function setAccurateAvatarDebug(on: boolean) {
     accurateAvatarDebug = Boolean(on);
 }
@@ -2031,6 +2059,7 @@ export function logCardCornerDebug(stage: string, key: string, extra?: string) {
     void logCardCornerDebugEvent(stage, key, extra || "").catch(() => { });
 }
 
+// Leaderboards
 export const getGameLeaderboards = callable<[number | null | undefined, boolean?], GameLeaderboardsResponse>(
     "get_game_leaderboards"
 );
@@ -2084,6 +2113,8 @@ export const saveShowTrackedNotesMain = callable<[boolean], { ok: boolean; showT
 export const saveShowRetroPoints = callable<[boolean], { ok: boolean; showRetroPoints: boolean }>(
     "save_show_retro_points"
 );
+
+// Tracked achievements
 export const getTrackedAchievements = callable<[number | null | undefined], TrackedAchievementsResponse>(
     "get_tracked_achievements"
 );
@@ -2122,6 +2153,7 @@ export const getTotalTrackedCount = callable<[], TotalTrackedCountResponse>("get
 export const getAllTrackedGames = callable<[], AllTrackedGamesResponse>("get_all_tracked_games");
 export const getRecentTagsForGame = callable<[number | null], RecentTagsResponse>("get_recent_tags_for_game");
 
+// Game notes
 export const loadGameNotes = callable<[number | null], GameNotesPayload>("load_game_notes");
 
 export const createGameNote = callable<
@@ -2186,6 +2218,7 @@ export const markGameNoteCompleted = callable<
 
 export const deleteAllNotes = callable<[], { ok: boolean; deletedNotes: number }>("delete_all_notes");
 
+// Guides
 export const loadGameGuides = callable<[number | null], GameGuidesRecord>("load_game_guides");
 
 export const saveGuideMapping = callable<
@@ -2473,6 +2506,7 @@ export const getResumeState = callable<[], ResumeStateResponse>("get_resume_stat
 export const saveResumeState = callable<[ResumeState | null | undefined], ResumeStateResponse>("save_resume_state");
 export const clearResumeState = callable<[], { ok: boolean }>("clear_resume_state");
 
+// Tracked sets
 export const loadTrackedSets = callable<[], LoadTrackedSetsResponse>("load_tracked_sets");
 export const createTrackedSet = callable<[string], TrackedSetResponse>("create_tracked_set");
 export const renameTrackedSet = callable<[string, string], TrackedSetResponse>("rename_tracked_set");
