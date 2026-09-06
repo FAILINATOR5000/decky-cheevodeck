@@ -289,10 +289,14 @@ class Knob:
         injects, which a module-level tuple can't see.
     ``reset``
         Whether Reset Settings stamps it. True is the default and the burden is
-        on justifying an exemption: five rows opt out, and all five are either a
-        credential or a has-this-happened-yet flag rather than a preference.
-        This is the rule that used to live in _write_baseline_settings' hand-
-        written list, which is how nine knobs went missing from it.
+        on justifying an exemption: eight rows opt out, and the count used to
+        read five because it left two of them out. Three are credentials, three
+        are has-this-happened-yet flags, and two are preferences -- language and
+        libraryBadge, both of which the onboarding profile commit would
+        otherwise revert seconds after the user set them. Each of the two says
+        so on its own row. This is the rule that used to live in
+        _write_baseline_settings' hand-written list, which is how nine knobs
+        went missing from it.
     ``ship``
         Whether it rides along in settings_response to the frontend. Three rows
         opt out.
@@ -409,7 +413,7 @@ _KNOBS = (
     Knob("cheevoCheckOptionsCollapsed", default=False, normalize=True, read=READ_BOOL),
     Knob("cheevoCheckSkipDiscVerify", default=False, normalize=True, read=READ_BOOL),
     Knob("cheevoCheckSkipCartVerify", default=False, normalize=True, read=READ_BOOL),
-    Knob("libraryBadge", default=False, normalize=True, read=READ_BOOL),
+    Knob("libraryBadge", default=False, reset=False, normalize=True, read=READ_BOOL),
     Knob("fileWatcherSpeed", default="gentle", normalize=True),
     Knob("fileWatcherRunDuringGames", default=True, normalize=True, read=READ_BOOL),
     Knob("trackedSetAButtonMode", default="editNote", normalize=True),

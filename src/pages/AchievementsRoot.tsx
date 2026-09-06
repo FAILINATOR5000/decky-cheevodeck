@@ -3955,6 +3955,8 @@ function AchievementsRoot() {
                 onClearApiKey={onClearApiKey}
                 putUpdaterOnDesktop={optionsState.putUpdaterOnDesktop}
                 onTogglePutUpdaterOnDesktop={optionsActions.onTogglePutUpdaterOnDesktop}
+                libraryBadge={optionsState.libraryBadge}
+                onToggleLibraryBadge={optionsActions.onToggleLibraryBadge}
             />
         );
     }
