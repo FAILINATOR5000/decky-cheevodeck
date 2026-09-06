@@ -97,8 +97,17 @@ class LibraryBadgeMixin(PluginContext):
         if not isinstance(game, dict):
             return {}
 
+        earned = to_int(game.get("NumAwardedToUser", game.get("numAwardedToUser", 0)), 0)
+        earned_hardcore = to_int(
+            game.get("NumAwardedToUserHardcore", game.get("numAwardedToUserHardcore", 0)), 0
+        )
+        total = to_int(game.get("NumAchievements", game.get("numAchievements", 0)), 0)
+
         return {
             "gameId": wanted,
-            "earned": to_int(game.get("NumAwardedToUser", game.get("numAwardedToUser", 0)), 0),
-            "total": to_int(game.get("NumAchievements", game.get("numAchievements", 0)), 0),
+            "earned": earned,
+            "total": total,
+            "highestAwardKind": self.current_game_service.highest_award_from_counts(
+                earned, earned_hardcore, total
+            ),
         }

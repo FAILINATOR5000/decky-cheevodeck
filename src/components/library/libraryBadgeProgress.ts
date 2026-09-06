@@ -3,6 +3,7 @@ import { getLibraryBadgeProgress } from "../../api";
 export type LibraryBadgeProgress = {
     earned: number;
     total: number;
+    highestAwardKind: string | null;
 };
 
 type Entry = {
@@ -90,7 +91,11 @@ export async function loadProgress(activeUlid: string, gameId: number) {
                 remember(key, null);
                 return null;
             }
-            const value = { earned: Number(result.earned ?? 0), total };
+            const value = {
+                earned: Number(result.earned ?? 0),
+                total,
+                highestAwardKind: result.highestAwardKind ?? null
+            };
             remember(key, value);
             return value;
         } catch {

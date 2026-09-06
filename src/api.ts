@@ -435,7 +435,7 @@ export const getLibraryBadgeIdentity = callable<
 >("get_library_badge_identity");
 export const getLibraryBadgeProgress = callable<
     [number],
-    { gameId?: number; earned?: number; total?: number }
+    { gameId?: number; earned?: number; total?: number; highestAwardKind?: string | null }
 >("get_library_badge_progress");
 export const saveLibraryBadge = callable<
     [boolean],

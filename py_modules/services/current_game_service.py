@@ -185,7 +185,7 @@ class CurrentGameService:
         achievements[:] = [*locked, *earned]
         return achievements
 
-    def _highest_award_from_counts(self, num_awarded, num_awarded_hardcore, num_achievements):
+    def highest_award_from_counts(self, num_awarded, num_awarded_hardcore, num_achievements):
         if num_achievements <= 0:
             return None
         if num_awarded_hardcore >= num_achievements:
@@ -243,7 +243,7 @@ class CurrentGameService:
             "numAchievements": num_achievements,
             "numAwardedToUser": num_awarded,
             "numAwardedToUserHardcore": num_awarded_hardcore,
-            "highestAwardKind": self._highest_award_from_counts(num_awarded, num_awarded_hardcore, num_achievements),
+            "highestAwardKind": self.highest_award_from_counts(num_awarded, num_awarded_hardcore, num_achievements),
             "userCompletion": user_completion,
             "userCompletionHardcore": user_completion_hardcore,
             "numDistinctPlayers": to_int(game.get("NumDistinctPlayers", game.get("numDistinctPlayers", 0)), 0),
@@ -338,7 +338,7 @@ class CurrentGameService:
         new_payload["achievements"] = new_achievements
         new_payload["numAwardedToUser"] = num_awarded
         new_payload["numAwardedToUserHardcore"] = num_awarded_hardcore
-        new_payload["highestAwardKind"] = self._highest_award_from_counts(num_awarded, num_awarded_hardcore, total_achievements)
+        new_payload["highestAwardKind"] = self.highest_award_from_counts(num_awarded, num_awarded_hardcore, total_achievements)
         new_payload["userCompletion"] = format_completion_percent(num_awarded, total_achievements)
         new_payload["userCompletionHardcore"] = format_completion_percent(num_awarded_hardcore, total_achievements)
         return new_payload

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { getLibraryBadgeIdentity } from "../../api";
 import { ensureLanguageLoaded, getCurrentLanguage, t } from "../../locales";
 import { textSize } from "../../utils/scale";
+import { highestAwardLabel } from "../../pages/AllGamesPage";
 import { FADE_IN_KEYFRAMES } from "../../utils/style";
 import { loadProgress, readCachedProgress } from "./libraryBadgeProgress";
 import { openGameOverviewForGame } from "./openGameOverview";
@@ -53,15 +54,19 @@ export function LibraryBadge({ appId }: LibraryBadgeProps) {
                     return;
                 }
                 const language = getCurrentLanguage();
+                const award = String(progress?.highestAwardKind || "").trim().toLowerCase();
+                const fraction = progress
+                    ? t(language, "{{earned}} / {{total}} Unlocked", {
+                        earned: progress.earned,
+                        total: progress.total
+                    })
+                    : t(language, "{{count}} achievements", { count: total });
                 setSettled({
                     appId,
                     gameId,
-                    label: progress
-                        ? t(language, "{{earned}} / {{total}} Unlocked", {
-                            earned: progress.earned,
-                            total: progress.total
-                        })
-                        : t(language, "{{count}} achievements", { count: total })
+                    label: award === "mastered" || award === "completed"
+                        ? highestAwardLabel(award, language)
+                        : fraction
                 });
             })
             .catch(() => {
