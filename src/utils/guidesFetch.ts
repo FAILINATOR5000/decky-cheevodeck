@@ -45,6 +45,7 @@ async function gameFaqsReachable(): Promise<boolean | null> {
     return Promise.race([probe, delay(6000).then(() => null)]);
 }
 
+// Public shapes
 export type GuideFetchFailure = "challenge" | "offline" | "no-view" | "stalled" | "empty" | "timeout";
 
 export type GuideReaderError = GuideFetchFailure | "unknown";
@@ -114,6 +115,7 @@ interface CdpTab {
     id?: string;
 }
 
+// URL builders
 function guideListUrl(gameUrl: string): string {
     return GAMEFAQS_BASE + gameUrl + "/faqs";
 }
@@ -124,6 +126,9 @@ function guidePageUrl(gameUrl: string, faqId: string, sectionSlug?: string): str
 }
 
 function searchUrl(term: string): string {
+    // encodeURIComponent leaves apostrophes alone, the CDP tab list reports
+    // them as %27. Take the replace out and any title with an apostrophe
+    // stops matching its own tab.
     return GAMEFAQS_BASE + "/ajax/home_game_search?term=" + encodeURIComponent(term).replace(/'/g, "%27");
 }
 
@@ -134,6 +139,7 @@ export function absoluteGameFaqsUrl(pathOrUrl: string): string {
     return GAMEFAQS_BASE + "/" + pathOrUrl;
 }
 
+// CDP plumbing
 function cdpEvaluate(wsUrl: string, expression: string, timeoutMs = 9000): Promise<any> {
     return new Promise((resolve, reject) => {
         let socket: WebSocket;
@@ -211,10 +217,13 @@ function logSnippet(value: any): string {
     }
 }
 
+// Browser session
 export class GuidesBrowserSession {
     private view: SteamBrowserView | null = null;
     private destroyed = false;
     private onChallenge: ((active: boolean) => void) | null;
+    // Keep the trailing dash. The sweep matches by substring, and a bare
+    // "-s1" also matches "-s19", so session 1 would close session 19's page.
     private readonly tag = "-s" + (++sessionCounter) + "-";
     private readonly parkUrl = `data:text/html,<body data-${PARK_MARKER}${this.tag}></body>`;
 
@@ -247,6 +256,10 @@ export class GuidesBrowserSession {
         }
         try {
             const bv = inst.CreateBrowserView("CheevoDeck Guides");
+            // A fresh browser view is already offscreen, so don't reach for
+            // SetVisible(false) to hide it. Chromium throttles timers in views
+            // it thinks are hidden, and the Cloudflare challenge runs on those
+            // timers, so hiding it can stall the page for the whole deadline.
             this.view = bv;
             logGuidesDebug("create", "ok");
             return bv;
@@ -257,6 +270,7 @@ export class GuidesBrowserSession {
         }
     }
 
+    // The poll loop
     private async loadAndScrape(
         url: string,
         scrapeJs: string,
@@ -366,6 +380,9 @@ export class GuidesBrowserSession {
             try {
                 const res = await fetchNoCors(CDP_TAB_LIST);
                 const tabs: CdpTab[] = JSON.parse(await res.text());
+                // Whole url, or a prefix of it, and nothing looser. GameFAQs
+                // pages carry ad iframes whose own targets contain this url
+                // as a substring, and an includes() here scrapes one of those.
                 let tab = tabs.find(
                     (t) =>
                         t.type === "page" &&
@@ -415,6 +432,10 @@ export class GuidesBrowserSession {
                 return { value: null, failure: null };
             }
 
+            // Don't attach the debugger while a challenge is up. The anti-bot
+            // script spots it and then the challenge never clears. The tab
+            // title already says when it's done, and reading that needs no
+            // attach at all.
             if (/just a moment|attention required/i.test(matchedTitle)) {
                 announceCf(true);
                 cfEverSeen = true;
@@ -564,6 +585,7 @@ export class GuidesBrowserSession {
         return this.ensureView();
     }
 
+    // Fetch entry points
     async searchGames(term: string): Promise<GuideSearchResult[] | null> {
         const { value } = await this.loadAndScrape(searchUrl(term), SEARCH_SCRAPER, "search:" + term);
         if (!value || typeof value.text !== "string") return null;
@@ -595,6 +617,7 @@ export class GuidesBrowserSession {
         };
     }
 
+    // Teardown
     async destroy(): Promise<void> {
         if (this.destroyed) return;
         this.destroyed = true;
@@ -619,6 +642,8 @@ export class GuidesBrowserSession {
                 logGuidesDebug("teardown", "destroy", "throw " + String(e));
             }
         }
+        // Destroy doesn't close the view's page target. Without this sweep
+        // every session leaves a ~90MB renderer behind until Steam restarts.
         await this.sweep(view !== null);
     }
 
@@ -711,23 +736,24 @@ function parseSearchJson(text: string): GuideSearchResult[] {
     return out;
 }
 
+// Injected scrapers
 const CF_CHALLENGE_CHECK = `const cfChallenge =
         document.querySelector("#challenge-form, #cf-wrapper, #challenge-running, #challenge-stage") !== null ||
         /just a moment|attention required/i.test(document.title || "");
-    // Definitive verdicts (terminal / genuinely-empty) additionally require
-    // actually standing on a GameFAQs document -- never the parked blank
-    // page or anything else a navigation race could hand us.
+    // A definitive verdict only counts while standing on a real GameFAQs
+    // document. The parked blank page does not qualify, and neither does
+    // whatever else a navigation race turns up.
     const onGameFaqs = (location.hostname || "").indexOf("gamefaqs") !== -1;
     const settled = document.readyState !== "loading" && !cfChallenge && onGameFaqs;
-    // A failed navigation parks the tab on Chromium's own error document
-    // (documentURI chrome-error://...) while the tab list keeps reporting the
-    // url we asked for. That document never becomes the page -- terminal.
+    // A failed navigation leaves the tab on Chromium's own error document
+    // (documentURI chrome-error://...) even though the tab list still
+    // advertises the requested url. It never turns into the page. Terminal.
     if ((document.documentURI || "").indexOf("chrome-error://") === 0) {
         return { ready: false, terminal: true, why: "nav-error" };
     }
-    // Rode along on every not-ready answer: which gate is actually holding
-    // (still parsing? challenge? never left the initial blank document?).
-    // This is the observability the Pokemon Yellow stall didn't have.
+    // Attached to every not-ready answer so the log can say which gate is
+    // holding: still parsing, a challenge, or a navigation that never
+    // committed. Without it the three are indistinguishable from out here.
     const diag = {
         state: document.readyState,
         host: location.hostname || "",
@@ -750,23 +776,22 @@ const GUIDE_LIST_SCRAPER = `(() => {
     ${CF_CHALLENGE_CHECK}
     const links = Array.from(document.querySelectorAll('a[href*="/faqs/"]'));
     if (!links.length) {
-        // Guide rows are server-rendered, so once the DOM is parsed and this
-        // is not an interstitial, zero guide links IS the answer: report a
-        // real empty list now rather than polling out the clock. This is what
-        // used to make a guideless game look like a ~77s network failure.
+        // Guide rows are server-rendered, so on a parsed page that is not an
+        // interstitial, zero links IS the answer. Report the empty list now;
+        // waiting on rows that are never coming just spins out the deadline
+        // and looks like a network failure from the outside.
         if (settled) {
             return { ready: true, entries: [] };
         }
         return { ready: false, entries: [], diag: diag };
     }
 
-    // Same hole the content scraper had: finding SOME guide rows is not
-    // finding ALL of them. A poll landing while the page is still streaming
-    // returned however many had parsed by then, and that short list was cached
-    // and shown as if it were the whole thing — a game quietly missing half
-    // its guides, with nothing to say so. The headings that give each row its
-    // type are read the same way, so a partial parse mislabels as well as
-    // truncates.
+    // Finding SOME guide rows is not finding ALL of them. A poll landing
+    // mid-stream returns whatever has parsed so far, and the caller caches
+    // that as the complete list, so the game ends up quietly short a few
+    // guides with nothing to say so. Headings are read the same way, so a
+    // partial parse mislabels the rows it does find as well as dropping the
+    // ones it doesn't.
     if (!settled) {
         return { ready: false, entries: [], diag: diag };
     }
@@ -832,21 +857,15 @@ const GUIDE_CONTENT_SCRAPER = `(() => {
         return { ready: false, diag: diag };
     }
 
-    // A guide body that EXISTS is not a guide body that is FINISHED, and until
-    // now this was the only thing being asked. #faqwrap appears as soon as the
-    // parser reaches the opening tag, so a poll landing mid-stream serialized a
-    // half-parsed DOM — and serializing one auto-closes whatever is still
-    // open, which is why the result looked like a whole document. Measured on
-    // device: the same guide cached on two accounts, byte-identical for
-    // 339,101 characters and then one copy simply stopping with
-    // </pre></div></div>. Six percent of a 340KB guide, gone, with no error and
-    // nothing in the log.
+    // A guide body that EXISTS is not a guide body that is FINISHED. #faqwrap
+    // appears the moment the parser reaches the opening tag, so a poll landing
+    // mid-stream serializes a half-parsed DOM, and serializing one auto-closes
+    // every tag still open — which is why a truncated read still comes back
+    // looking like a whole document. Nothing downstream can tell, so it gets
+    // cached that way, with no error and nothing in the log.
     //
-    // readyState leaves "loading" when the HTML is parsed, NOT when images and
+    // readyState leaves "loading" once the HTML is parsed, not when images and
     // subresources finish, so this costs nothing on a page that has arrived.
-    // The list scraper below had the same hole for the same reason: settled was
-    // computed inside the not-found branch, where the success path could not
-    // reach it.
     if (!settled) {
         return { ready: false, diag: diag };
     }
@@ -867,8 +886,8 @@ const GUIDE_CONTENT_SCRAPER = `(() => {
         });
     }
 
-    // Clone so we strip defensively without touching the live page. Drop
-    // scripts/styles, our-own-TOC's .ftoc block, and any on* handlers.
+    // Strip a clone, never the live page: scripts, styles, the .ftoc block
+    // already read into toc above, and every on* handler.
     const clone = wrap.cloneNode(true);
     Array.from(clone.querySelectorAll("script, style, .ftoc")).forEach((n) => n.remove());
     Array.from(clone.querySelectorAll("*")).forEach((el) => {
