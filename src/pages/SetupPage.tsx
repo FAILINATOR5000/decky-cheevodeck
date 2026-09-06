@@ -84,7 +84,7 @@ function SetupPage(props: SetupPageProps) {
             />
             <OptionToggle
                 outerStyle={regularButtonSpacingStyle(buttonSpacing)}
-                label={t(language, "Steam Library Badge")}
+                label={t(language, "Steam Library Badges")}
                 value={libraryBadge}
                 onChange={onToggleLibraryBadge}
                 disabled={saving}

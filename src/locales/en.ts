@@ -287,7 +287,7 @@ export const EN: LocaleTable = {
     "help_legacy_achievement_links": "Off (default): tapping an achievement anywhere in the plugin opens the in-app Achievement Overview page. On: opens the achievement on retroachievements.org in your browser instead.",
     "help_legacy_game_links": "Off (default): tapping a game anywhere in the plugin opens the in-app Game Overview page. On: opens the game on retroachievements.org in your browser instead.",
     "help_auto_purge_service": "On (default): on plugin load, trims old cached game icons and non-friend avatars down to a reasonable cap, and drops downloaded guide pages you haven't opened in 30 days, so the cache directory doesn't grow forever. Your guide favorites and bookmarks are never touched. Off: nothing is auto-pruned; you'd manage cache size manually via the Clear buttons.",
-    "Steam Library Badge": "Steam Library Badge",
+    "Steam Library Badges": "Steam Library Badges",
     "help_library_badge": "Your achievement progress can show up right on the game pages in your Steam library, on anything you've added as a non-Steam shortcut with Steam ROM Manager. Press up from the Play button to select the badge, then press A to open the full game info for it. For it to work, you will need to run a Cheevo Check scan on your library, as this feature depends on knowing which games are RA compatible. Rescan if you add new games.",
     "Don't forget to run a Cheevo Check Scan to map your pages to your supported games here:": "Don't forget to run a Cheevo Check Scan to map your pages to your supported games here:",
     "Quick Menu → Cheevo Check → Scan": "Quick Menu → Cheevo Check → Scan",

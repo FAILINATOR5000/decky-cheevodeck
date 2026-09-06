@@ -652,7 +652,7 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                     </PanelSectionRow>
                     <PanelSectionRow>
                         <ToggleRow
-                            label={t(language, "Steam Library Badge")}
+                            label={t(language, "Steam Library Badges")}
                             value={settings.libraryBadge}
                             onChange={settings.saveLibraryBadge}
                             outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}

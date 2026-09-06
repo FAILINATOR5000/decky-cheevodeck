@@ -287,7 +287,7 @@ const JA: LocaleTable = {
     "help_legacy_achievement_links": "オフ（標準）: プラグイン内のどこで実績をタップしても、内蔵の実績概要ページが開きます。オン: 代わりにブラウザで retroachievements.org を開きます。",
     "help_legacy_game_links": "オフ（標準）: プラグイン内のどこでゲームをタップしても、内蔵のゲーム概要ページが開きます。オン: 代わりにブラウザで retroachievements.org を開きます。",
     "help_auto_purge_service": "オン（標準）: プラグインの読み込み時に、古いゲームアイコンとフレンド以外のアバターを適当な上限まで削り、30日間開いていないダウンロード済みのガイドページを削除して、キャッシュフォルダが際限なく増えないようにします。ガイドのお気に入りとしおりには一切手を付けません。オフ: 自動では削らないので、削除ボタンで自分で管理することになります。",
-    "Steam Library Badge": "Steamライブラリバッジ",
+    "Steam Library Badges": "Steamライブラリバッジ",
     "help_library_badge": "実績の進捗を、Steam ライブラリのゲームページに直接表示できます。対象は Steam ROM Manager で非 Steam ショートカットとして追加したものです。プレイボタンから上を押すとバッジを選択でき、A を押すとゲーム情報の全体が開きます。これを使うには、ライブラリに対して Cheevo Check のスキャンを実行する必要があります。どのゲームが RA に対応しているかが分からないと、この機能は動かないためです。新しいゲームを追加したら、もう一度スキャンしてください。",
     "Don't forget to run a Cheevo Check Scan to map your pages to your supported games here:": "ページを対応ゲームに紐づけるため、Cheevo Check のスキャンを忘れずに実行してください:",
     "Quick Menu → Cheevo Check → Scan": "クイックメニュー → Cheevo Check → スキャン",

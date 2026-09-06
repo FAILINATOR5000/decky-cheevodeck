@@ -834,7 +834,7 @@ function SystemTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
-                label={t(state.language, "Steam Library Badge")}
+                label={t(state.language, "Steam Library Badges")}
                 value={state.libraryBadge}
                 onChange={actions.onToggleLibraryBadge}
                 disabled={disabled}
