@@ -1122,6 +1122,7 @@ export function useOptionsController({
     onClearSavedComments
 }: UseOptionsControllerArgs) {
 
+    // Reset and setup
     const applyResetResult = (result: any) => {
         setAutoRefresh(Boolean(result.autoRefresh));
         setShowIcons(Boolean(result.showIcons));
@@ -1357,6 +1358,7 @@ export function useOptionsController({
         }
     };
 
+    // Notifications
     const onToggleShowBellDot = (nextValue: boolean) =>
         saveSettingWithRollback<boolean>({
             nextValue,
@@ -1546,6 +1548,7 @@ export function useOptionsController({
             getSavedValue: (result, fallbackValue) => Boolean(result.notifyDebugToast ?? fallbackValue),
         });
 
+    // Notes
     const onToggleShowReminderTicker = (nextValue: boolean) =>
         saveSettingWithRollback<boolean>({
             nextValue,
@@ -1578,6 +1581,7 @@ export function useOptionsController({
         });
     };
 
+    // Main achievements
     const onToggleShowAllToggleMain = (nextValue: boolean) =>
         saveSettingWithRollback<boolean>({
             nextValue,
@@ -1665,6 +1669,7 @@ export function useOptionsController({
             getSavedValue: (result, fallbackValue) => Boolean(result.showAButtonMode ?? fallbackValue),
         });
 
+    // Tracked achievements
     const onToggleShowTrackedNotesMain = (nextValue: boolean) =>
         saveSettingWithRollback<boolean>({
             nextValue,
@@ -1695,6 +1700,7 @@ export function useOptionsController({
             getSavedValue: (result, fallbackValue) => Boolean(result.showAButtonModeTracked ?? fallbackValue),
         });
 
+    // Tracked sets
     const onToggleTrackedSetsAutoCheck = (nextValue: boolean) =>
         saveSettingWithRollback<boolean>({
             nextValue,
@@ -1725,6 +1731,7 @@ export function useOptionsController({
         });
     };
 
+    // Comments
     const onCycleCommentsServiceTickMinutes = () => {
         const previousValue = commentsServiceTickMinutes;
         const nextValue = nextCommentsCheckFrequencyMinutes(commentsServiceTickMinutes);
@@ -1758,6 +1765,7 @@ export function useOptionsController({
             getSavedValue: (result, fallbackValue) => Boolean(result.commentsServiceWallCheck ?? fallbackValue),
         });
 
+    // Friends and social
     const onCycleFriendRefreshDelay = () => {
         const previousValue = friendRefreshDelayMs;
         const nextValue = nextFriendRefreshDelayMs(friendRefreshDelayMs);
@@ -1920,6 +1928,7 @@ export function useOptionsController({
             getSavedValue: (result, fallbackValue) => Boolean(result.showAllToggleFriend ?? fallbackValue),
         });
 
+    // Players Near You
     const onTogglePlayersNearYouEnabled = (nextValue: boolean) =>
         saveSettingWithRollback<boolean>({
             nextValue,
@@ -1977,6 +1986,7 @@ export function useOptionsController({
         });
     };
 
+    // Language and night mode
     const onSelectLanguage = async (code: LanguageCode) => {
         if (code === language) {
             return;
@@ -2007,6 +2017,7 @@ export function useOptionsController({
         });
     };
 
+    // Battery saver
     const onToggleBatterySaverDisablesSocialActivity = (nextValue: boolean) =>
         saveSettingWithRollback<boolean>({
             nextValue,
@@ -2061,6 +2072,7 @@ export function useOptionsController({
             getSavedValue: (result, fallbackValue) => Boolean(result.batterySaverDisablesFileWatcher ?? fallbackValue),
         });
 
+    // Developer and diagnostics
     const onToggleShowDeveloperOptions = (nextValue: boolean) =>
         saveSettingWithRollback<boolean>({
             nextValue,
@@ -2121,6 +2133,7 @@ export function useOptionsController({
             getSavedValue: (result, fallbackValue) => Boolean(result.legacyGameLinks ?? fallbackValue),
         });
 
+    // Developer and test hooks
     const onFireTestNotification = async () => {
         setError(null);
         try {
@@ -2212,6 +2225,7 @@ export function useOptionsController({
         }
     };
 
+    // Performance tuning
     const onToggleLargeViewportBonusEnabled = (nextValue: boolean) =>
         saveSettingWithRollback<boolean>({
             nextValue,
@@ -2407,6 +2421,7 @@ export function useOptionsController({
         });
     };
 
+    // Dynamic loading
     const onToggleDynamicLoading = (nextValue: boolean) =>
         saveSettingWithRollback<boolean>({
             nextValue,
@@ -2770,6 +2785,7 @@ export function useOptionsController({
             getSavedValue: (result, fallbackValue) => Boolean(result.dynamicFollowedRanking ?? fallbackValue),
         });
 
+    // Display and scale
     const onCycleUiSize = () => {
         const previousValue = uiSize;
         const nextValue = nextScaleStep(uiSize);
@@ -3016,6 +3032,7 @@ export function useOptionsController({
         });
     };
 
+    // Visibility and navigation
     const onToggleAutoRefresh = (nextValue: boolean) =>
         saveSettingWithRollback<boolean>({
             nextValue,
@@ -3162,6 +3179,7 @@ export function useOptionsController({
             getSavedValue: (result, fallbackValue) => Boolean(result.showIcons ?? fallbackValue),
         });
 
+    // Social hub routing
     const onCycleSocialEntryDefault = () => {
         const previousValue = socialEntryDefault;
         const nextValue = nextSocialEntryDefault(socialEntryDefault);
@@ -3210,6 +3228,7 @@ export function useOptionsController({
         });
     };
 
+    // Returned state
     const optionsState = {
         focusScopeResetToken,
         activeOptionsTab,
@@ -3395,6 +3414,7 @@ export function useOptionsController({
         error
     };
 
+    // Returned actions
     const optionsActions = {
         onBack,
         onGoToAbout,
