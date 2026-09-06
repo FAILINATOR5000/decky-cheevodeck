@@ -69,6 +69,7 @@ import { NOTES_DOT_KEYFRAMES, regularButtonSpacingStyle, smallTextStyle, bodyTex
 import { headerSize } from "../utils/scale";
 import { consoleInlineName } from "../utils/consoles";
 
+// Layout constants
 const GAME_TICKER_FRESHNESS_MS = 60 * 60 * 1000;
 
 const FIRST_FOCUSABLE_SCROLL_MARGIN_PX = 24;
@@ -102,6 +103,7 @@ type QuickAction = {
     focusKey: string;
 };
 
+// Icons
 // Font Awesome Free icon path, CC BY 4.0. See ATTRIBUTIONS.md.
 function NotesIcon(props: { size?: number }) {
     const size = props.size ?? 18;
@@ -438,6 +440,7 @@ function BookmarkIcon(props: { size?: number }) {
     );
 }
 
+// Quick menu definitions
 const QUICK_ACTIONS: QuickAction[] = [
     { id: "tracked", Icon: FaThumbtack, labelKey: "View Tracked", focusKey: "quick:tab:tracked" },
     { id: "notes", Icon: NotesIcon, labelKey: "Notes", focusKey: "quick:tab:notes" },
@@ -515,6 +518,7 @@ const QUICK_MENU_SEARCH_STYLES = `
 }
 `;
 
+// Page props
 type MainAchievementsPageProps = {
     state: {
         view: ViewKey;
@@ -632,6 +636,7 @@ type MainAchievementsPageProps = {
     };
 };
 
+// Ticker helpers
 function tickerEventKey(event: GameTickerEvent) {
     return [
         String(event.username || ""),
@@ -942,6 +947,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
         }
     } = props;
 
+    // Navigation handlers
     function handleGoToTracked() {
         void goToTracked();
     }
@@ -983,6 +989,8 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
     const effectiveShowAll = showAllToggleMain ? showAllAchievements : true;
     const shouldDeferList =
         alwaysStaggerMounting || (effectiveShowAll && initialAchievementCount > bigListThreshold);
+
+    // Page state
     const [listMounted, setListMounted] = useState<boolean>(!shouldDeferList);
     const [, setResumeMountReadyToken] = useState(0);
     const lastResumeTokenRef = useRef(achievementsResumeToken);
@@ -1028,6 +1036,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
     const waitingForResumePaint =
         returnStaggerFrames > 0 && achievementsResumeToken !== lastResumeTokenRef.current;
 
+    // Quick action handlers
     function handleQuickActionClick(id: QuickActionId) {
         if (id === "tracked") {
             handleGoToTracked();
@@ -1144,6 +1153,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
             ? t(language, focusedShortcut.labelKey)
             : (focusedBottomRowEntry ? t(language, focusedBottomRowEntry.labelKey) : "");
 
+    // Quick menu rendering
     function renderQuickMenuCaption(label: string, marginTop: string) {
         return (
             <div
@@ -1401,6 +1411,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
         );
     }
 
+    // Mount timing helpers
     function waitFrames(frameCount: number, callback: () => void): () => void {
         let cancelled = false;
         let frameId = 0;
@@ -1449,6 +1460,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
         });
     }
 
+    // Effects
     useEffect(() => {
         return () => {
             releaseHeldBodyHeightRef.current?.();
@@ -1722,6 +1734,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
 
     const buttonOuterStyle = regularButtonSpacingStyle(buttonSpacing);
 
+    // Ticker handlers
     function syntheticTickerEvent(event: SocialHubTickerEvent): SocialActivityEvent {
         return {
             id: `ticker:${event.username}:${event.achievementId ?? "noach"}`,
@@ -1787,6 +1800,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
 
     const tickerVisible = showReminderInTicker || Boolean(socialHubTickerEvent);
 
+    // Header buttons
     const profileButton = (
         <div
             data-focus-key="action:profilestrip"
@@ -1954,6 +1968,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
         </QuickGuideColumn>
     ) : iconRow;
 
+    // Render
     const restoreCurtainClaim = nowPlayingBody.commentsCardClaim ?? nowPlayingBody.commentsPostClaim;
     const restoreCurtainArmed = nowPlayingBody.restorePending && mainTab === "comments";
     const restoreCurtainSettled = !nowPlayingBody.holdCommentsBody
