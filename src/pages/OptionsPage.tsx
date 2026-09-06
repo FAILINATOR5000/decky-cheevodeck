@@ -82,6 +82,7 @@ type OptionsTabDef = {
     focusKey: string;
 };
 
+// Tab icons
 // Font Awesome Free icon path, CC BY 4.0. See ATTRIBUTIONS.md.
 function GearIcon({ size = 18 }: TabIconProps) {
     return (
@@ -161,6 +162,7 @@ const OPTIONS_TABS: OptionsTabDef[] = [
     { id: "advanced", Icon: SlidersIcon, labelKey: "tab_advanced", focusKey: "options:tab:advanced" }
 ];
 
+// Page shapes
 type OptionsPageState = {
     focusScopeResetToken: number;
     activeOptionsTab: OptionsTab;
@@ -563,6 +565,7 @@ function OptionsPage(props: OptionsPageProps) {
     const clearCacheDisabled = disabled || state.clearingCache;
     const buttonOuterStyle = regularButtonSpacingStyle(state.buttonSpacing);
 
+    // Tab strip state
     const [focusedTab, setFocusedTab] = useState<OptionsTab | null>(null);
     const [hoveredTab, setHoveredTab] = useState<OptionsTab | null>(null);
 
@@ -745,6 +748,8 @@ function OptionsPage(props: OptionsPageProps) {
         </>
     );
 }
+
+// Tab content components
 
 type TabContentProps = {
     state: OptionsPageState;
