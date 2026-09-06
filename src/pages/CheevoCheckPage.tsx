@@ -329,17 +329,6 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                         </div>
                     </PanelSectionRow>
 
-                    <PanelSectionRow>
-                        <FocusableItem
-                            focusKey="cheevocheck:guide"
-                            outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
-                            onClick={openGuide}
-                            bottomSeparator="standard"
-                        >
-                            {t(language, "Guide")}
-                        </FocusableItem>
-                    </PanelSectionRow>
-
                     {!results && (
                         <PanelSectionRow>
                             <div style={{ ...bodyTextStyle(), marginTop: "12px" }}>
@@ -627,6 +616,19 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
 
                     {
 }
+                    <SectionTitle label={t(language, "Help")} />
+                    <PanelSectionRow>
+                        <FocusableItem
+                            focusKey="cheevocheck:guide"
+                            outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                            onClick={openGuide}
+                            bottomSeparator="standard"
+                            help={t(language, "help_cheevo_check_guide")}
+                        >
+                            {t(language, "Guide")}
+                        </FocusableItem>
+                    </PanelSectionRow>
+
                     <SectionTitle label={t(language, "Options")} />
                     <SectionCollapseToggle
                         collapsed={settings.optionsCollapsed}
