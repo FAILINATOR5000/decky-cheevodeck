@@ -151,7 +151,7 @@ An example of Steam library badges in action.
 
 ## Getting Started
 
-1. When you first start CheevoDeck, the only button you will see is the **Enter Credentials** button. Select the button to begin the setup process.
+1. When you first start CheevoDeck, first review if you want to **Add Updater to Desktop** and if you want to enable **Steam Library Badges**. You can also select your **Language** here. Once that is done, select the **Enter Credentials** button.
 
 2. You will be taken to the **RetroAchievements Credentials** dialog where it will ask for your RetroAchievements account username and API key. You can find your API key at [https://retroachievements.org/settings](https://retroachievements.org/settings) under the **Applications** tab.
 
