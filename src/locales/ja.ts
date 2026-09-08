@@ -1530,7 +1530,6 @@ const JA: LocaleTable = {
     "help_cheevo_check_unverifiable": "これらは良し悪しのどちらとも確認できませんでした。ファイルごとに理由が書かれています。詰め物の削除、その機種向けに公開されたものがない、ディスクを再構築できなかった、などです。本当に問題かもしれないものは上に並びます。",
     "help_cheevo_check_verify_hashes": "RetroAchievements だけでなく、公開されているダンプ一覧（No-Intro・Redump・TOSEC）とも全ファイルを照合します。ディスクや DS カードでは RA がファイルの一部しかハッシュ化しないため、RA の検査では見えない破損を検出できます。スキャンに数分ほど上乗せされ、ディスクが多い場合はそれ以上かかります。",
     "help_cheevo_check_verify_speed": "照合がドライブにかける負荷です。ひかえめなら実行中もゲームは普通に遊べます。全速力なら早く終わる代わりにドライブに負荷がかかります。",
-    "help_cheevo_check_verify_ram": "ディスクではオフのままにしておくのが無難です。展開に数ギガバイト必要になることがあり、メモリ上だとその分がプレイ中のゲームから直接削られます。入りきらないものは自動的にドライブへ回るので、どちらにしてもスキップはされません。",
     "help_update_cheevo_check_reference_data": "照合に使う No-Intro・Redump・TOSEC のデータは CheevoDeck に最初から同梱されているので、これは任意です。より新しいものを取得するだけで、ダウンロードに失敗しても手元のものはそのまま残ります。",
     "This file wouldn't read. That's a real fault rather than a mismatch.": "このファイルは読み込めませんでした。単なる不一致ではなく、実際の異常です。",
     "This disc wouldn't unpack. Usually damage, but some discs are built in a way the tool can't read, so it's worth trying another one before concluding anything.": "このディスクは展開できませんでした。たいていは破損ですが、ツールが読めない作りのディスクもあるため、結論を出す前に別のディスクを試す価値があります。",

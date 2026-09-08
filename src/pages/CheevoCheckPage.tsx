@@ -701,11 +701,9 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                             />
                             <VerifyControls
                                 language={language}
-                                extractToRam={settings.extractToRam}
                                 skipDiscVerify={settings.skipDiscVerify}
                                 skipCartVerify={settings.skipCartVerify}
                                 buttonSpacing={state.buttonSpacing}
-                                onToggleExtractToRam={settings.saveExtractToRam}
                                 onToggleSkipDiscVerify={settings.saveSkipDiscVerify}
                                 onToggleSkipCartVerify={settings.saveSkipCartVerify}
                             />
@@ -770,11 +768,9 @@ function VerifySpeedSlider(props: {
 
 function VerifyControls(props: {
     language: LanguageCode;
-    extractToRam: boolean;
     skipDiscVerify: boolean;
     skipCartVerify: boolean;
     buttonSpacing: ButtonSpacing;
-    onToggleExtractToRam: (value: boolean) => void | Promise<void>;
     onToggleSkipDiscVerify: (value: boolean) => void | Promise<void>;
     onToggleSkipCartVerify: (value: boolean) => void | Promise<void>;
 }) {
@@ -799,16 +795,6 @@ function VerifyControls(props: {
                     outerStyle={regularButtonSpacingStyle(props.buttonSpacing)}
                     bottomSeparator="standard"
                     help={t(language, "help_cheevo_check_skip_cart_verify")}
-                />
-            </PanelSectionRow>
-            <PanelSectionRow>
-                <ToggleRow
-                    label={t(language, "Extract to RAM")}
-                    value={props.extractToRam}
-                    onChange={props.onToggleExtractToRam}
-                    outerStyle={regularButtonSpacingStyle(props.buttonSpacing)}
-                    bottomSeparator="standard"
-                    help={t(language, "help_cheevo_check_verify_ram")}
                 />
             </PanelSectionRow>
         </>
