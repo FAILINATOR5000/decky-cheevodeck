@@ -1,3 +1,4 @@
+// Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
 import { FaUnlock } from "react-icons/fa";
 
 export function UnlockStamp(props: { date: string }) {

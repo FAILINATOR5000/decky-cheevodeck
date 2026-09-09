@@ -1,5 +1,6 @@
 import { DialogButton, Focusable, PanelSection, PanelSectionRow } from "@decky/ui";
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
+// Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
 import { FaClipboardCheck, FaClock, FaCompressArrowsAlt, FaExpandAlt, FaFileAlt, FaGamepad, FaHistory, FaNetworkWired, FaSyncAlt, FaThumbtack, FaTrophy } from "react-icons/fa";
 import { AchievementList } from "../components/achievements/AchievementList";
 import { ButtonHints } from "../components/ui/ButtonHints";

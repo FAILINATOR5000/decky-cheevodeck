@@ -1,5 +1,6 @@
 import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
+// Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
 import { FaSyncAlt } from "react-icons/fa";
 
 import { BackButton } from "../ui/BackButton";

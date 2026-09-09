@@ -1,4 +1,5 @@
 import { definePlugin, addEventListener, removeEventListener, toaster } from "@decky/api";
+// Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
 import { FaTrophy } from "react-icons/fa";
 import AchievementsRoot from "./pages/AchievementsRoot";
 import { getSettings, refreshHealedUserAvatar } from "./api";

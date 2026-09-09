@@ -1,4 +1,5 @@
 import React from "react";
+// Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
 import { FaTrophy } from "react-icons/fa";
 import { FadeImage } from "../ui/FadeImage";
 import { FocusableItem } from "../ui/FocusableItem";

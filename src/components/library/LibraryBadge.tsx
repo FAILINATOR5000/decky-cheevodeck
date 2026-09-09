@@ -1,4 +1,5 @@
 import { Focusable } from "@decky/ui";
+// Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
 import { FaTrophy } from "react-icons/fa";
 import { useEffect, useRef, useState } from "react";
 import { getLibraryBadgeIdentity } from "../../api";
