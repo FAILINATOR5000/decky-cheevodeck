@@ -67,6 +67,7 @@ const RU: LocaleTable = {
     "View in Notifications": "Открыть в уведомлениях",
     "CheevoDeck Update Available": "Доступно обновление CheevoDeck",
     "Version {{version}} available.": "Доступна версия {{version}}.",
+    "Press A for install options.": "Нажми A, чтобы посмотреть способы установки.",
     "Paste this link into Decky → Settings → Developer → Install from URL.": "Вставь эту ссылку в Decky → Настройки → Разработчик → Установить по URL.",
     "Copy Install Link": "Скопировать ссылку установки",
     "Add Updater to Desktop": "Добавить обновление на рабочий стол",

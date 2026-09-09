@@ -497,6 +497,12 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
 
     const achievementTitle = metaString(notification, "achievementTitle");
     const gameTitle = metaString(notification, "gameTitle");
+    const isUpdateRow =
+        notification.type === "system"
+        && !isCheevoCheckScan(notification)
+        && !isFileWatcherPass(notification)
+        && !isChangelogRow(notification)
+        && !isDeveloperMessage(notification);
     const templatedBody: ReactNode | null =
         notification.type === "tracked" && achievementTitle
             ? templateParts(language, "Unlocked {{achievement}} in {{game}}", {
@@ -525,7 +531,7 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                                     ? null
                                     : isDeveloperMessage(notification)
                                         ? null
-                                        : notification.type === "system"
+                                        : isUpdateRow
                                             ? t(language, "Version {{version}} available.", {
                                                   version: metaString(notification, "version")
                                               })
@@ -871,6 +877,19 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                             }}
                         >
                             {t(language, "Press A to view more")}
+                        </div>
+                    )}
+                    {isUpdateRow && (
+                        <div
+                            style={{
+                                ...smallTextStyle(),
+                                fontSize: `${metrics.pointsFontSize}px`,
+                                lineHeight: metrics.pointsLineHeight,
+                                opacity: 0.9,
+                                fontWeight: 800
+                            }}
+                        >
+                            {t(language, "Press A for install options.")}
                         </div>
                     )}
                     {statsLine && (

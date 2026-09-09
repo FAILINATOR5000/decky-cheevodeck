@@ -67,6 +67,7 @@ const JA: LocaleTable = {
     "View in Notifications": "通知で表示",
     "CheevoDeck Update Available": "CheevoDeck の更新があります",
     "Version {{version}} available.": "バージョン {{version}} が利用できます。",
+    "Press A for install options.": "A でインストール方法を見る",
     "Paste this link into Decky → Settings → Developer → Install from URL.": "このリンクを Decky →「設定」→「開発者」→「URL からインストール」に貼り付けてください。",
     "Copy Install Link": "インストール用リンクをコピー",
     "Add Updater to Desktop": "アップデーターをデスクトップに追加",

@@ -67,6 +67,7 @@ export const EN: LocaleTable = {
     "View in Notifications": "View in Notifications",
     "CheevoDeck Update Available": "CheevoDeck Update Available",
     "Version {{version}} available.": "Version {{version}} available.",
+    "Press A for install options.": "Press A for install options.",
     "Paste this link into Decky → Settings → Developer → Install from URL.": "Paste this link into Decky → Settings → Developer → Install from URL.",
     "Copy Install Link": "Copy Install Link",
     "Add Updater to Desktop": "Add Updater to Desktop",
