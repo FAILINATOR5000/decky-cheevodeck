@@ -1,6 +1,8 @@
 import asyncio
 import os
 
+import decky
+
 from mixins._context import PluginContext
 from utils import to_int
 
@@ -72,7 +74,8 @@ class FileBrowserMixin(PluginContext):
 
         try:
             resolved = os.path.realpath(asked)
-        except OSError:
+        except OSError as exc:
+            decky.logger.error("picker: couldn't resolve %s (%s: %s)", asked, type(exc).__name__, exc)
             return self._listing_error("unknown", walked, walked)
 
         wanted = self._wanted_extensions(extensions)
@@ -90,7 +93,8 @@ class FileBrowserMixin(PluginContext):
             return self._listing_error("not_found", walked, resolved)
         except PermissionError:
             return self._listing_error("permission_denied", walked, resolved)
-        except OSError:
+        except OSError as exc:
+            decky.logger.error("picker: couldn't open %s (%s: %s)", resolved, type(exc).__name__, exc)
             return self._listing_error("unknown", walked, resolved)
 
         self._sort_rows(rows, sort)
