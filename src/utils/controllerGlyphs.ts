@@ -91,9 +91,7 @@ function activeController(): SteamControllerRecord | null {
         return null;
     }
 
-    const preferred = controllers.find((c) => c.nControllerIndex === store?.MostRecentlyActiveControllerIndex);
-
-    return preferred ?? controllers[controllers.length - 1];
+    return controllers[controllers.length - 1];
 }
 
 function liveSwapFaces(): boolean | null {
