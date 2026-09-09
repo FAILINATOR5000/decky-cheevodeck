@@ -38,7 +38,7 @@ export function ButtonPrompt(props: ButtonPromptProps) {
                         <ButtonGlyph
                             button={button}
                             style={resolved}
-                            size={Math.round(fontSize * 1.5)}
+                            size={Math.round(fontSize * 1.2)}
                         />
                     )}
                 </Fragment>
