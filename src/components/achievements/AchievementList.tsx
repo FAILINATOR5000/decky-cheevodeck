@@ -468,25 +468,23 @@ export function AchievementList(props: {
     }, [props.payload?.gameId, props.showIcons, mountedAchievements, iconMap]);
 
     const emptyMessage = props.emptyMessageOverride ??
-        (currentMode === "tracked"
-            ? t(props.language, "No tracked achievements for this game. Press A on an achievement you'd like to add to this list.")
-            : currentMode === "friend" && effectiveFriendFilter === "locked"
-                ? t(props.language, "No locked achievements remaining.")
-                : currentMode === "friend" && effectiveFriendFilter === "unlocked-hardcore"
-                    ? t(props.language, "No hardcore unlocks for this game yet.")
-                    : currentMode === "friend" && effectiveFriendFilter === "unlocked-softcore"
-                        ? t(props.language, "No softcore unlocks for this game yet.")
-                        : currentMode === "friend" && effectiveFriendFilter === "missable"
-                            ? t(props.language, "No missable achievements for this game.")
-                            : (currentMode === "main" || currentMode === "overview") && effectiveMainFilter === "locked"
-                                ? t(props.language, "No locked achievements remaining.")
-                                : (currentMode === "main" || currentMode === "overview") && effectiveMainFilter === "unlocked-hardcore"
-                                    ? t(props.language, "No hardcore unlocks for this game yet.")
-                                    : (currentMode === "main" || currentMode === "overview") && effectiveMainFilter === "unlocked-softcore"
-                                        ? t(props.language, "No softcore unlocks for this game yet.")
-                                        : (currentMode === "main" || currentMode === "overview") && effectiveMainFilter === "missable"
-                                            ? t(props.language, "No missable achievements for this game.")
-                                            : t(props.language, "No achievements were returned for this game."));
+        (currentMode === "friend" && effectiveFriendFilter === "locked"
+            ? t(props.language, "No locked achievements remaining.")
+            : currentMode === "friend" && effectiveFriendFilter === "unlocked-hardcore"
+                ? t(props.language, "No hardcore unlocks for this game yet.")
+                : currentMode === "friend" && effectiveFriendFilter === "unlocked-softcore"
+                    ? t(props.language, "No softcore unlocks for this game yet.")
+                    : currentMode === "friend" && effectiveFriendFilter === "missable"
+                        ? t(props.language, "No missable achievements for this game.")
+                        : (currentMode === "main" || currentMode === "overview") && effectiveMainFilter === "locked"
+                            ? t(props.language, "No locked achievements remaining.")
+                            : (currentMode === "main" || currentMode === "overview") && effectiveMainFilter === "unlocked-hardcore"
+                                ? t(props.language, "No hardcore unlocks for this game yet.")
+                                : (currentMode === "main" || currentMode === "overview") && effectiveMainFilter === "unlocked-softcore"
+                                    ? t(props.language, "No softcore unlocks for this game yet.")
+                                    : (currentMode === "main" || currentMode === "overview") && effectiveMainFilter === "missable"
+                                        ? t(props.language, "No missable achievements for this game.")
+                                        : t(props.language, "No achievements were returned for this game."));
 
     const resolvedTitle =
         props.titleOverride ??
