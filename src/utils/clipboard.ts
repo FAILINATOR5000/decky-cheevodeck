@@ -8,6 +8,7 @@ export function copyTextToClipboard(text: string, from: Element | null): boolean
 
     const win = view.top ?? view;
     const doc = win.document;
+    const wasFocused = from?.ownerDocument?.activeElement as HTMLElement | null;
     const box = doc.createElement("textarea");
     box.textContent = text;
     box.style.position = "fixed";
@@ -23,5 +24,6 @@ export function copyTextToClipboard(text: string, from: Element | null): boolean
     }
     finally {
         doc.body.removeChild(box);
+        wasFocused?.focus?.();
     }
 }
