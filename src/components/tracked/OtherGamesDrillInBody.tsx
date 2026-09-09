@@ -276,8 +276,6 @@ export function OtherGamesDrillInBody(props: OtherGamesDrillInBodyProps) {
                     )}
                 </PanelSection>
             )}
-            {
-}
             {gameTitle && (
                 <PanelSectionRow>
                     <div

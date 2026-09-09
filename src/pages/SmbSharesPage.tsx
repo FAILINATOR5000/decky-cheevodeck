@@ -217,8 +217,6 @@ function SmbSharesPage(props: SmbSharesPageProps) {
                                     {smbStatusLabel(share.status, language, share.statusError)}
                                 </div>
                             )}
-                        {
-}
                         {error && (
                             <ErrorText>
                                 {error.code === "busy"
@@ -314,8 +312,6 @@ function SmbSharesPage(props: SmbSharesPageProps) {
                 </PanelSectionRow>
             )}
 
-            {
-}
             <Focusable key={`addclaim:${addClaimToken}`} autoFocus={addClaimToken > 0}>
                 <PanelSectionRow>
                     <FocusableItem
@@ -337,8 +333,6 @@ function SmbSharesPage(props: SmbSharesPageProps) {
                 </PanelSectionRow>
             )}
 
-            {
-}
             {loaded && shares.length === 0 && (
                 <PanelSectionRow>
                     <div style={{ ...bodyTextStyle(), marginTop: "12px" }}>

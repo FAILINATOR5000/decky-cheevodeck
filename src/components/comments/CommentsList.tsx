@@ -178,10 +178,6 @@ export function CommentsList(props: CommentsListProps) {
                     <ErrorText>{localizeRuntimeText(language, error)}</ErrorText>
                 </PanelSectionRow>
             )}
-            {
-}
-            {
-}
             <div ref={spacerRef} data-comment-spacer="" style={{ width: "100%", height: `${spacerPx}px` }} />
             {showUpMarker && (
                 <div ref={setUpMarker} style={{ width: "100%", height: "1px" }} />
@@ -218,8 +214,6 @@ export function CommentsList(props: CommentsListProps) {
 
                 return card;
             })}
-            {
-}
             {showDownMarker && (
                 <div ref={setDownMarker} style={{ width: "100%", height: "1px" }} />
             )}
@@ -228,8 +222,6 @@ export function CommentsList(props: CommentsListProps) {
                     <InlineSpinner label={t(language, "Loading more comments...")} />
                 </PanelSectionRow>
             )}
-            {
-}
             {showPageMarker && (
                 <div ref={setPageMarker} style={{ width: "100%", height: "1px" }} />
             )}

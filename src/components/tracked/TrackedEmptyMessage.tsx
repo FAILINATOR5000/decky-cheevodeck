@@ -33,8 +33,6 @@ export function TrackedEmptyMessage(props: TrackedEmptyMessageProps) {
             {pieces.map((piece, index) => (
                 <Fragment key={index}>
                     {piece}
-                    {
-}
                     {index < pieces.length - 1 && (
                         <ButtonGlyph
                             button="x"

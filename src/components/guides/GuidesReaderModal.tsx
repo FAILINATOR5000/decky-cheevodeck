@@ -591,8 +591,6 @@ export function GuidesReaderModal(props: GuidesReaderModalProps) {
                                     </DialogButton>
                                 </>
                             )}
-                            {
-}
                             <DialogButton
                                 onClick={() => bookmarkHere(
                                     lineRef.current ?? restoreLineRef.current ?? 0,
@@ -743,8 +741,6 @@ export function GuidesReaderModal(props: GuidesReaderModalProps) {
                         <div style={{ flexShrink: 0, opacity: 0.75, display: "flex" }}>
                             <SearchIcon size={modalSize(15)} />
                         </div>
-                        {
-}
                         <div ref={searchBoxRef} style={{ flex: 1, minWidth: 0 }}>
                             <TextField
                                 value={searchTerm}

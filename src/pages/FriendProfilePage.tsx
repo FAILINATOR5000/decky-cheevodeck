@@ -730,8 +730,6 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                         </div>
                     </PanelSectionRow>
                 )}
-                {
-}
                 {selectedFriend && mottoText && (
                     <PanelSectionRow>
                         <ProfileMotto text={mottoText} />
@@ -824,15 +822,11 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                         </div>
                     </PanelSectionRow>
                 )}
-                {
-}
                 {wantToPlayError && (
                     <PanelSectionRow>
                         <ErrorText>{localizeRuntimeText(language, wantToPlayError)}</ErrorText>
                     </PanelSectionRow>
                 )}
-                {
-}
                 {selectedFriend && (
                     <PanelSectionRow>
                         <FocusableItem
@@ -907,8 +901,6 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                         </div>
                     </PanelSectionRow>
                 )}
-                {
-}
                 <Focusable
                     flow-children="row"
                     style={{
@@ -984,8 +976,6 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                                         }}
                                     />
                                 )}
-                                {
-}
                                 <div
                                     data-focus-key="friendgame:open-on-ra"
                                     style={{
@@ -1283,8 +1273,6 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                             </PanelSection>
                         </>
                     )}
-                    {
-}
                     <PanelSection title={t(language, "Wall Comments")}>
                         {wallRestricted ? (
                             <PanelSectionRow>

@@ -256,8 +256,6 @@ export function NotificationsModal(props: NotificationsModalProps) {
                 </>
             )}
 
-            {
-}
             {isArchivedTab ? (
                 <NotificationScrollList
                     onMenuButton={closeOnMenu}

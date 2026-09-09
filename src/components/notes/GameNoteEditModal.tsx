@@ -595,8 +595,6 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
                         </>
                     )}
 
-                    {
-}
                     {showResetRow && (
                         <Focusable
                             style={{
@@ -649,8 +647,6 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
                             {t(language, "Delete")}
                         </DialogButton>
                     )}
-                    {
-}
                     {existing !== null && toggleCompleted !== null && (
                         <DialogButton onClick={handleToggleCompletedClick} disabled={saving}>
                             {isCompleted

@@ -4365,8 +4365,6 @@ function AchievementsRoot() {
                             : loadingText}
                     />
 
-                    {
-}
                     <div
                         data-cheevodeck-dim="true"
                         style={{

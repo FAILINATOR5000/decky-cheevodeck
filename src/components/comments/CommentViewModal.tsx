@@ -328,8 +328,6 @@ export function CommentViewModal(props: CommentViewModalProps) {
                         )}
                     </Focusable>
                 )}
-                {
-}
                 <div
                     style={{
                         display: "flex",
@@ -500,8 +498,6 @@ export function CommentViewModal(props: CommentViewModalProps) {
                     </Focusable>
                 )}
 
-                {
-}
                 <div
                     style={{
                         display: "flex",

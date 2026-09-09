@@ -737,8 +737,6 @@ export function GameNotesPage(props: GameNotesPageProps) {
                         />
                     </PanelSectionRow>
                 )}
-                {
-}
                 {reorderStripEnabled && notesReady && (
                     <div style={{ marginTop: "8px" }}>
                         <ReorderStrip

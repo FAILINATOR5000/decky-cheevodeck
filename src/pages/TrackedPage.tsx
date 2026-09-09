@@ -632,8 +632,6 @@ function TrackedPage(props: TrackedPageProps) {
                         outerStyle={regularButtonSpacingStyle(buttonSpacing)}
                     />
                 )}
-                {
-}
                 {activeTrackedTab === "thisGame" && payload && (
                     <LabeledRow
                         focusKey="tracked:sort"

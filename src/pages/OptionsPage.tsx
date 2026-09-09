@@ -733,8 +733,6 @@ function OptionsPage(props: OptionsPageProps) {
                 {state.activeOptionsTab === "advanced" && (
                     <AdvancedTab state={state} actions={actions} buttonOuterStyle={buttonOuterStyle} disabled={disabled} />
                 )}
-                {
-}
                 <BottomFocusAnchor
                     focusKey="options:bottom:anchor"
                     onClick={() => {

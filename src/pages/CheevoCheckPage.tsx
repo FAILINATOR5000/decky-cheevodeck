@@ -266,8 +266,6 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                 </PanelSectionRow>
             )}
 
-            {
-}
             {busy && (
                 <>
                     <SectionTitle label={t(language, "Options")} />
@@ -282,8 +280,6 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                 </>
             )}
 
-            {
-}
             {running && (
                 <PanelSectionRow>
                     <FocusableItem
@@ -298,8 +294,6 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                 </PanelSectionRow>
             )}
 
-            {
-}
             {!loaded && showLoading && (
                 <PanelSectionRow>
                     <InlineSpinner label={t(language, "Loading...")} />
@@ -364,8 +358,6 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                                     </InfoText>
                                 </PanelSectionRow>
                             )}
-                            {
-}
                             {results.skippedDolphin > 0 && (
                                 <PanelSectionRow>
                                     <InfoText>
@@ -378,8 +370,6 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                         </>
                     )}
 
-                    {
-}
                     <PanelSectionRow>
                         <FocusableItem
                             focusKey="cheevocheck:scan"
@@ -516,8 +506,6 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                                 </>
                             )}
 
-                            {
-}
                             {archiveMismatches.length > 0 && (
                                 <>
                                     <PanelSectionRow>
@@ -537,8 +525,6 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                             </>
                             )}
 
-                            {
-}
                             {verify && (
                                 <>
                                     <SectionTitle label={t(language, "Dump Verification")} />
@@ -597,8 +583,6 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                                         );
                                     })}
 
-                                    {
-}
                                     {results.completedAt > verify.verifiedAt && (
                                         <PanelSectionRow>
                                             <InfoText>
@@ -614,8 +598,6 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                         </>
                     )}
 
-                    {
-}
                     <SectionTitle label={t(language, "Help")} />
                     <PanelSectionRow>
                         <FocusableItem
@@ -710,8 +692,6 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                         </>
                     )}
 
-                    {
-}
                     <PanelSectionRow>
                         <ConfirmRow
                             focusKey="cheevocheck:clear-cache"
@@ -728,8 +708,6 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                     </>
                     )}
 
-                    {
-}
                     <BottomFocusAnchor focusKey="cheevocheck:bottom:anchor" />
                 </>
             )}

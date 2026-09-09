@@ -500,8 +500,6 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
                         </>
                     )}
 
-                    {
-}
                     <PanelSectionRow>
                         <ToggleRow
                             label={t(language, "Bluetooth Passthrough")}
@@ -581,8 +579,6 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
                 />
             )}
 
-            {
-}
             {gamepadCardActions && mappings.length > 0 && (
                 <PanelSectionRow>
                     <ButtonHints
@@ -618,16 +614,12 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
                 </PanelSectionRow>
             )}
 
-            {
-}
             {loaded && mappings.length > 0 && visibleMappings.length === 0 && !reordering && (
                 <PanelSectionRow>
                     <InfoText>{t(language, "No mappings for this filter.")}</InfoText>
                 </PanelSectionRow>
             )}
 
-            {
-}
             {reordering
                 ? mappings.map((mapping, index) => renderCard(mapping, index, NO_CLAIM_SLOT))
                 : groups.map((group) => {
@@ -766,8 +758,6 @@ const MappingCard = React.memo(function MappingCard(props: MappingCardProps) {
                 {applyBlocked && (
                     <div style={{ ...bodyTextStyle(), opacity: 1, color: "#ff6a6a" }}>{t(language, "Close Dolphin to apply this mapping.")}</div>
                 )}
-                {
-}
                 <div style={{ display: "flex", flexDirection: "row", justifyContent: "center", gap: "4px", marginTop: "4px" }}>
                     {Array.from({ length: MAX_CONTROLLER_SLOTS }, (_, slot) => (
                         <span

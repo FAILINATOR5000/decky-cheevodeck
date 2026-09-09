@@ -271,8 +271,6 @@ function FileWatcherPage(props: FileWatcherPageProps) {
                                             : t(language, "Estimating time left...")}
                                     </div>
                                 )}
-                                {
-}
                                 {activePass && activePass.phase === "enumerate" && (
                                     <div style={bodyTextStyle()}>{t(language, "Finding your files...")}</div>
                                 )}
@@ -318,8 +316,6 @@ function FileWatcherPage(props: FileWatcherPageProps) {
                     </>
                 )}
 
-                {
-}
                 {!loaded && showLoading && (
                     <PanelSectionRow>
                         <InlineSpinner label={t(language, "Loading...")} />
@@ -336,8 +332,6 @@ function FileWatcherPage(props: FileWatcherPageProps) {
                             </PanelSectionRow>
                         )}
 
-                        {
-}
                         {Boolean(watcher?.lastCompletedAt) && (
                             <PanelSectionRow>
                                 <div style={{ ...bodyTextStyle(), marginTop: "12px" }}>
@@ -413,8 +407,6 @@ function FileWatcherPage(props: FileWatcherPageProps) {
                             </>
                         )}
 
-                        {
-}
                         {(watcher?.roots ?? []).length > 0
                             && ((watcher?.excludedTotal ?? 0) > 0 || (watcher?.hasReport && counts)) && (
                             <>
@@ -498,8 +490,6 @@ function FileWatcherPage(props: FileWatcherPageProps) {
                             </>
                         )}
 
-                        {
-}
                         <BottomFocusAnchor focusKey="fileWatcher:bottom:anchor" />
                     </>
                 )}

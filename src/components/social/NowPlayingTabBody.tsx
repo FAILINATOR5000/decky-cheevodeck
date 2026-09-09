@@ -900,8 +900,6 @@ export function NowPlayingTabBody(props: NowPlayingTabBodyProps) {
                                     <ErrorText>{localizeRuntimeText(language, subscribeError)}</ErrorText>
                                 </PanelSectionRow>
                             ) : null}
-                            {
-}
                             <FocusClaim
                                 token={commentsPostClaim?.token ?? 0}
                                 armed={commentsPostClaim?.armed ?? false}

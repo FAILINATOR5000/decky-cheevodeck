@@ -332,7 +332,6 @@ export function DolphinMappingModal(props: DolphinMappingModalProps) {
                                 />
                             )}
 
-                            {}
                             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                                 <div style={{ fontSize: `${modalSize(13)}px`, fontWeight: 700, opacity: 0.7 }}>
                                     {t(language, "Notes:")}
@@ -415,8 +414,6 @@ export function DolphinMappingModal(props: DolphinMappingModalProps) {
                                                     onChange={(v) => updatePlayer(index, { triggerSwap: v })}
                                                 />
                                             )}
-                                            {
-}
                                             {slotShowsSidewaysDirections({ system, wiiStyle }) && (
                                                 <LabeledRow
                                                     focusKey={`dmapform:slot:${index}:directions`}
@@ -428,8 +425,6 @@ export function DolphinMappingModal(props: DolphinMappingModalProps) {
                                                     })}
                                                 />
                                             )}
-                                            {
-}
                                             {slotShowsLeftDeadzone({ system, wiiStyle }) && (
                                                 <div data-focus-key={`dmapform:slot:${index}:deadzone-left`}>
                                                     <SliderField
@@ -462,8 +457,6 @@ export function DolphinMappingModal(props: DolphinMappingModalProps) {
                                                     />
                                                 </div>
                                             )}
-                                            {
-}
                                             {slotShowsPointer({ system, wiiStyle }) && (
                                                 <>
                                                     <div data-focus-key={`dmapform:slot:${index}:ir-deadzone`}>
@@ -545,8 +538,6 @@ export function DolphinMappingModal(props: DolphinMappingModalProps) {
                                                     />
                                                 </>
                                             )}
-                                            {
-}
                                             <div data-focus-key={`dmapform:slot:${index}:rumble`}>
                                                 <SliderField
                                                     label={t(language, "Rumble")}

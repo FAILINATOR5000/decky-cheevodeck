@@ -37,8 +37,6 @@ export function RecentConsoleSection(props: { language: LanguageCode; children: 
                 {t(props.language, "Recent")}
             </div>
             {props.children}
-            {
-}
             <div
                 style={{
                     height: "3px",

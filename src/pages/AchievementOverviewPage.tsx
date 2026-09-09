@@ -396,8 +396,6 @@ function AchievementOverviewPage(props: AchievementOverviewPageProps) {
                                 <ErrorText>{localizeRuntimeText(language, subscribeError)}</ErrorText>
                             </PanelSectionRow>
                         ) : null}
-                        {
-}
                         <FocusClaim
                             token={commentsPostClaim?.token ?? 0}
                             armed={commentsPostClaim?.armed ?? false}

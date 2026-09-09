@@ -249,8 +249,6 @@ function AboutPage(props: AboutPageProps) {
                 </PanelSectionRow>
             )}
 
-            {
-}
             <FocusableItem
                 outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
                 focusKey="about:banner"

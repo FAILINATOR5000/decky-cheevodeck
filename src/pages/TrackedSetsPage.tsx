@@ -520,8 +520,6 @@ function TrackedSetsPage(props: TrackedSetsPageProps) {
                     </PanelSectionRow>
                 )}
 
-                {
-}
                 {showingSelector && !openSetResolving && (
                     <PanelSectionRow>
                         <FocusableItem
@@ -749,8 +747,6 @@ function SelectorView(props: SelectorViewProps) {
                             value={trackedSetSelectorSortLabel(selectorSort, language)}
                         />
                     )}
-                    {
-}
                     {(sets.length > 1 || selectorFilter !== "all") && (
                         <LabeledRow
                             outerStyle={buttonOuterStyle}
@@ -763,8 +759,6 @@ function SelectorView(props: SelectorViewProps) {
                 </PanelSection>
             )}
 
-            {
-}
             {sets.length === 0 && (
                 <PanelSection>
                     {setsLoading ? (
@@ -784,8 +778,6 @@ function SelectorView(props: SelectorViewProps) {
                 </PanelSection>
             )}
 
-            {
-}
             {sets.length > 0 && (
                 <PanelSection title={t(language, "Your Goals ({{count}})", { count: sets.length })}>
                     {!setsLoading && orderedSets.length === 0 && (
@@ -1352,8 +1344,6 @@ function OpenSetView(props: OpenSetViewProps) {
                 </PanelSectionRow>
             )}
 
-            {
-}
             <LabeledRow
                 outerStyle={buttonOuterStyle}
                 focusKey="trackedset:open:viewmode"
@@ -1386,8 +1376,6 @@ function OpenSetView(props: OpenSetViewProps) {
                 />
             )}
 
-            {
-}
             {gamepadCardActions && (
                 <PanelSectionRow>
                     <ButtonHints
@@ -1403,8 +1391,6 @@ function OpenSetView(props: OpenSetViewProps) {
                 </PanelSectionRow>
             )}
 
-            {
-}
             {reorderMode && (
                 <ReorderStrip
                     targetId={reorderTargetId}
@@ -1454,8 +1440,6 @@ function OpenSetView(props: OpenSetViewProps) {
                             )}
                         </Fragment>
                     ))}
-                {
-}
                 {warmBand.length < visualOrder.length && (
                     <div ref={warmBandMarkerRef} style={{ width: "100%", height: "1px" }} />
                 )}
@@ -1676,8 +1660,6 @@ const GameCard = React.memo(function GameCard(props: GameCardProps) {
                                 {game.note}
                             </div>
                         )}
-                        {
-}
                         <div
                             style={{
                                 ...smallTextStyle(),

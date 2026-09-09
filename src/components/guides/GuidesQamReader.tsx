@@ -396,8 +396,6 @@ export function GuidesQamReader(props: GuidesQamReaderProps) {
                             />
                         </>
                     )}
-                    {
-}
                     <DialogButton
                         onClick={() => bookmarkHere(
                             lineRef.current ?? g.restoreLine ?? 0,
@@ -469,8 +467,6 @@ export function GuidesQamReader(props: GuidesQamReaderProps) {
                 </PanelSectionRow>
             )}
 
-            {
-}
             {savedSections !== null && (
                 <PanelSectionRow>
                     <div style={{ ...bodyTextStyle(), textAlign: "center", opacity: 0.7 }}>
@@ -515,8 +511,6 @@ export function GuidesQamReader(props: GuidesQamReaderProps) {
 
             {readerChrome}
 
-            {
-}
             <PanelSectionRow>
                 <GuidesReaderBody
                     key={`qam-${g.openFaqId ?? ""}`}

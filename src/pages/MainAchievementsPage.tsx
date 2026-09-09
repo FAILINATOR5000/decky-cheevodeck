@@ -2089,8 +2089,6 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                     {t(language, "Features disabled to save power")}
                                 </InfoText>
                             )}
-                            {
-}
                             {renderQuickMenuCaption(topRowMenuLabel, "3px")}
                             <Focusable
                                 flow-children="grid"
@@ -2106,8 +2104,6 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                             >
                                 {QUICK_MENU_TOP_ROW.map((entry) => renderQuickMenuTile(entry))}
                                 {QUICK_MENU_BOTTOM_ROW.map((entry) => renderQuickMenuTile(entry, QUICK_MENU_ROW_GAP))}
-                                {
-}
                                 <div
                                     data-focus-key="action:refresh"
                                     onMouseEnter={() => hoverStripButton("refresh")}
@@ -2257,7 +2253,6 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                         bottomSeparator="none"
                     />
                 )}
-                {}
                 {showOptionsButton && (
                     <LabeledRow
                         outerStyle={buttonOuterStyle}
@@ -2342,8 +2337,6 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                             }}
                                         />
                                     )}
-                                    {
-}
                                     {payload?.gameId != null && (
                                         <div
                                             data-focus-key="main:currentgame:overview"
@@ -2411,8 +2404,6 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                     {renderGameTickerLine(language, tickerEvent, tickerVariant)}
                                 </div>
                             )}
-                            {
-}
                             {payload?.gameId && (
                                 <div
                                     style={{
@@ -2575,8 +2566,6 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                 </PanelSection>
             )}
 
-            {
-}
             <div
                 ref={tabBodyRef}
                 style={{ minHeight: heldBodyHeight === null ? undefined : `${heldBodyHeight}px` }}
@@ -2600,8 +2589,6 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                     bottomSeparator="none"
                                 />
                             )}
-                            {
-}
                             <LabeledRow
                                 outerStyle={buttonOuterStyle}
                                 focusKey="achievements:sort"
@@ -2686,8 +2673,6 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                     </>
                 )}
 
-                {
-}
                 {payload?.gameId && mainTab !== "achievements" && (
                     <NowPlayingTabBody
                         {...nowPlayingBody}

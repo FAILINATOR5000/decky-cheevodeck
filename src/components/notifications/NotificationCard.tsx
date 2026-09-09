@@ -195,8 +195,6 @@ function cheevoCheckScanBody(notification: CheevoNotification, language: Languag
                         <span>{t(language, textKey, { count: metaNumber(notification, metaKey) })}</span>
                     </div>
                 ))}
-                {
-}
                 {verified && verifyBuckets.map(([metaKey, textKey]) => (
                     <div key={metaKey} style={{ display: "flex", gap: "6px" }}>
                         <span>•</span>

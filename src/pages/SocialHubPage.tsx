@@ -1630,8 +1630,6 @@ function SocialHubPage(props: SocialHubPageProps) {
                                                             <ErrorText>{localizeRuntimeText(props.language, aotwSubscription.subscribeError)}</ErrorText>
                                                         </PanelSectionRow>
                                                     ) : null}
-                                                    {
-}
                                                     <FocusClaim
                                                         token={props.newsEvents.aotwCommentsPostClaim?.token ?? 0}
                                                         armed={props.newsEvents.aotwCommentsPostClaim?.armed ?? false}
@@ -1766,8 +1764,6 @@ function SocialHubPage(props: SocialHubPageProps) {
                                                     onOpen={(gameId) => props.newsEvents.onOpenNewSetGame(gameId)}
                                                 />
                                             ))}
-                                            {
-}
                                             {dynamicNewSets && newSetsMountedCount < allRows.length && (
                                                 <div
                                                     ref={newSetsLoadMoreMarkerRef}

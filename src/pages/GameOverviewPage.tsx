@@ -658,8 +658,6 @@ function GameOverviewPage(props: GameOverviewPageProps) {
                     </PanelSectionRow>
                 )}
 
-                {
-}
                 {(loadedPayload || boxArtDataUri) && (
                     <PanelSectionRow>
                         <div
@@ -883,8 +881,6 @@ function GameOverviewPage(props: GameOverviewPageProps) {
                     </PanelSectionRow>
                 )}
 
-                {
-}
                 <PanelSectionRow>
                     <FocusableItem
                         focusKey="gameoverview:searchmore"
@@ -968,8 +964,6 @@ function GameOverviewPage(props: GameOverviewPageProps) {
                     </PanelSectionRow>
                 )}
 
-                {
-}
                 <Focusable
                     flow-children="row"
                     style={{
@@ -1093,8 +1087,6 @@ function GameOverviewPage(props: GameOverviewPageProps) {
                                 <ErrorText>{localizeRuntimeText(language, subscribeError)}</ErrorText>
                             </PanelSectionRow>
                         ) : null}
-                        {
-}
                         <FocusClaim
                             token={commentsPostClaim?.token ?? 0}
                             armed={commentsPostClaim?.armed ?? false}

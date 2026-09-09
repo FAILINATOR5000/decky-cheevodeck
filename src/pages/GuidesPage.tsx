@@ -364,8 +364,6 @@ export function GuidesPage(props: GuidesPageProps) {
                     </PanelSectionRow>
                 )}
 
-                {
-}
                 {(g.status === "noguides" || g.status === "error") && (
                     <>
                         <PanelSectionRow>

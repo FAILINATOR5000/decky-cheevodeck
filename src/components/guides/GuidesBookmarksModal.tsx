@@ -160,8 +160,6 @@ export function GuidesBookmarksModal(props: GuidesBookmarksModalProps) {
                         onClick={() => setSort((current) => SORTS[(SORTS.indexOf(current) + 1) % SORTS.length])}
                     />
                 )}
-                {
-}
                 <Focusable style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "60vh", overflowY: "auto" }}>
                     {sorted.map(({ bookmark, label }) => (
                         <Focusable

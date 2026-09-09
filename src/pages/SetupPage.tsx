@@ -132,8 +132,6 @@ function SetupPage(props: SetupPageProps) {
                 </PanelSectionRow>
             )}
 
-            {
-}
             <BottomFocusAnchor focusKey="setup:bottom:anchor" />
         </PanelSection>
     );
