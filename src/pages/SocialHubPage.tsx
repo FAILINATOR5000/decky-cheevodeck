@@ -50,6 +50,7 @@ import type {
     ViewKey
 } from "../types";
 import type { LanguageCode } from "../locales";
+import { ButtonPrompt } from "../components/ui/ButtonPrompt";
 import type { RestoredCommentsWindow } from "../hooks/useCommentsWindow";
 
 import {
@@ -2170,9 +2171,15 @@ function SubscriptionCard(props: SubscriptionCardProps) {
     const fallbackLetter = (subscription.title.trim().charAt(0) || "?").toUpperCase();
     const cardTitle = t(language, "{{title}} Comments", { title: subscription.title });
     const bodyContext = isGame ? subscription.console : subscription.gameTitle;
-    const bodyText = t(language, "{{context}} · Press A to view comments", {
-        context: bodyContext || subscription.title
-    });
+    const bodyText = (
+        <ButtonPrompt
+            language={language}
+            textKey="{{context}} · Press {{button}} to view comments"
+            button="a"
+            fontSize={metrics.bodyFontSize}
+            vars={{ context: bodyContext || subscription.title }}
+        />
+    );
 
     function handleCardClick() {
         onOpen(subscription);

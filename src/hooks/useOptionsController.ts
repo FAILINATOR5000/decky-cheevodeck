@@ -285,7 +285,7 @@ import {
     GUIDE_MODAL_ZOOM_DEFAULT,
     TEXT_VIEWER_ZOOM_DEFAULT
 } from "../utils/scale";
-import { setCurrentColoredGlyphs } from "../utils/controllerGlyphs";
+import { setCurrentColoredGlyphs, setCurrentControllerGlyphStyle } from "../utils/controllerGlyphs";
 
 type SaveSettingWithRollback = <T>(options: {
     nextValue: T;
@@ -1165,6 +1165,7 @@ export function useOptionsController({
         setButtonSpacing(result.buttonSpacing ?? "verysmall");
         setMouseKeyboardMode(Boolean(result.mouseKeyboardMode ?? false));
         setControllerGlyphStyle(result.controllerGlyphStyle ?? "auto");
+        setCurrentControllerGlyphStyle(result.controllerGlyphStyle ?? "auto");
         setColoredGlyphs(Boolean(result.coloredGlyphs ?? true));
         setCurrentColoredGlyphs(Boolean(result.coloredGlyphs ?? true));
         setShowAButtonMode(Boolean(result.showAButtonMode ?? true));
@@ -1642,7 +1643,10 @@ export function useOptionsController({
         return saveSettingWithRollback<ControllerGlyphStyle>({
             nextValue,
             previousValue,
-            applyValue: setControllerGlyphStyle,
+            applyValue: (value) => {
+                setControllerGlyphStyle(value);
+                setCurrentControllerGlyphStyle(value);
+            },
             saveCall: saveControllerGlyphStyle,
             getSavedValue: (result, fallbackValue) => result.controllerGlyphStyle ?? fallbackValue,
         });

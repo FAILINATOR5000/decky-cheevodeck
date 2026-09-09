@@ -57,7 +57,7 @@ import {
     GUIDE_ZOOM_DEFAULT,
     GUIDE_MODAL_ZOOM_DEFAULT
 } from "../utils/scale";
-import { setCurrentColoredGlyphs } from "../utils/controllerGlyphs";
+import { setCurrentColoredGlyphs, setCurrentControllerGlyphStyle } from "../utils/controllerGlyphs";
 import {
     applyGameArtCacheCap,
     applyAvatarCacheCap,
@@ -374,6 +374,7 @@ export function useSettingsController({
         setButtonSpacing(source.buttonSpacing);
         setMouseKeyboardMode(source.mouseKeyboardMode);
         setControllerGlyphStyle(source.controllerGlyphStyle);
+        setCurrentControllerGlyphStyle(source.controllerGlyphStyle);
         setColoredGlyphs(source.coloredGlyphs);
         setCurrentColoredGlyphs(source.coloredGlyphs);
         setShowAButtonMode(source.showAButtonMode);

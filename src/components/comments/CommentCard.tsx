@@ -2,6 +2,7 @@ import React, { type CSSProperties } from "react";
 import type { AotwComment, GameComment } from "../../types";
 import type { LanguageCode } from "../../locales";
 import { t } from "../../locales";
+import { ButtonPrompt } from "../ui/ButtonPrompt";
 import { FocusableItem } from "../ui/FocusableItem";
 import { UserAvatar } from "../ui/UserAvatar";
 import { formatUnlockDate } from "../../utils/achievements";
@@ -111,7 +112,12 @@ export const CommentCard = React.memo(function CommentCard(props: CommentCardPro
                                 fontWeight: 800
                             }}
                         >
-                            {t(language, "Press A to view more")}
+                            <ButtonPrompt
+                                language={language}
+                                textKey="Press {{button}} to view more"
+                                button="a"
+                                fontSize={commentsTextSize(metrics.pointsFontSize)}
+                            />
                         </div>
                     )}
                     {dateText && (

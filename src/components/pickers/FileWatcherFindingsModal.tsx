@@ -7,6 +7,7 @@ import {
     getFileWatcherFindingRoots,
     getFileWatcherFindings
 } from "../../api";
+import { ButtonPrompt } from "../ui/ButtonPrompt";
 import { FocusableItem } from "../ui/FocusableItem";
 import { t, type LanguageCode } from "../../locales";
 import type {
@@ -21,7 +22,7 @@ import {
     bucketAction,
     bucketConfirm,
     bucketLabel,
-    bucketPrompt,
+    bucketPromptKey,
     skipReasonLabel,
     verifiedAgoLabel
 } from "../../utils/fileWatcher";
@@ -461,9 +462,14 @@ const FindingRow = React.memo(function FindingRow(props: FindingRowProps) {
     const { bucket, language } = list;
     const name = row.relPath.split("/").pop() || row.relPath;
     const fullPath = rootPath ? `${rootPath}/${row.relPath}` : row.relPath;
-    const prompt = "rule" in row
+    const promptKey = "rule" in row || armed ? "" : bucketPromptKey(bucket);
+    const prompt: React.ReactNode = "rule" in row
         ? excludedRowNote(row, language)
-        : (armed ? bucketConfirm(bucket, language) : bucketPrompt(bucket, language));
+        : armed
+            ? bucketConfirm(bucket, language)
+            : (promptKey
+                ? <ButtonPrompt language={language} textKey={promptKey} button="a" fontSize={12} />
+                : null);
 
     function handlePress() {
         list.onPress(row);

@@ -29,6 +29,7 @@ import { playToggleSound } from "../../utils/navSound";
 import { smallTextStyle, achievementGreen, warnAmber, skyBlue } from "../../utils/style";
 import { modalSize, getCurrentModalScale, getDeviceIsSteamMachine, getCurrentLargeViewportBonusEnabled, getCurrentLargeViewportBonus } from "../../utils/scale";
 import type { CardChrome } from "../../utils/cardChrome";
+import { ButtonPrompt } from "../ui/ButtonPrompt";
 
 const ICON_APPLY_PER_FRAME = 4;
 const iconApplyQueue: Array<() => void> = [];
@@ -876,7 +877,12 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                                 fontWeight: 800
                             }}
                         >
-                            {t(language, "Press A to view more")}
+                            <ButtonPrompt
+                                language={language}
+                                textKey="Press {{button}} to view more"
+                                button="a"
+                                fontSize={metrics.pointsFontSize}
+                            />
                         </div>
                     )}
                     {isUpdateRow && (
@@ -889,7 +895,12 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                                 fontWeight: 800
                             }}
                         >
-                            {t(language, "Press A for install options.")}
+                            <ButtonPrompt
+                                language={language}
+                                textKey="Press {{button}} for install options."
+                                button="a"
+                                fontSize={metrics.pointsFontSize}
+                            />
                         </div>
                     )}
                     {statsLine && (

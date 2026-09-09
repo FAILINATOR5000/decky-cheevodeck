@@ -58,6 +58,16 @@ export function setCurrentColoredGlyphs(value: boolean): void {
     currentColoredGlyphs = value;
 }
 
+let currentControllerGlyphStyle: ControllerGlyphStyle = "auto";
+
+export function setCurrentControllerGlyphStyle(value: ControllerGlyphStyle): void {
+    currentControllerGlyphStyle = value;
+}
+
+export function getCurrentControllerGlyphStyle(): ControllerGlyphStyle {
+    return currentControllerGlyphStyle;
+}
+
 const SONY_VENDOR_ID = 0x054c;
 
 const VALVE_VENDOR_ID = 0x28de;

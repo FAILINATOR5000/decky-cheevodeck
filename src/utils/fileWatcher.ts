@@ -77,18 +77,18 @@ export function bucketAction(bucket: FileWatcherBucket): "accept" | "forget" | n
     return null;
 }
 
-export function bucketPrompt(bucket: FileWatcherBucket, language: LanguageCode): string {
+export function bucketPromptKey(bucket: FileWatcherBucket): string {
     if (bucket === "corrupted") {
-        return t(language, "Press A to confirm this file is fine");
+        return "Press {{button}} to confirm this file is fine";
     }
     if (bucket === "replaced") {
-        return t(language, "Press A to accept this file as correct");
+        return "Press {{button}} to accept this file as correct";
     }
     if (bucket === "missing") {
-        return t(language, "Press A to confirm you deleted this file");
+        return "Press {{button}} to confirm you deleted this file";
     }
     if (bucket === "unreadable") {
-        return t(language, "Press A to stop watching this file");
+        return "Press {{button}} to stop watching this file";
     }
     return "";
 }
