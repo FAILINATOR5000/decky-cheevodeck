@@ -1,9 +1,13 @@
 CheevoDeck {{VERSION}}
 
-This update is a small one, but includes something I've been meaning to add to <b>Steam Library Badges</b>. In addition to showing your achievement progress, if completed or mastered, it will now show that status.
+The folder chooser is the headline this time with a huge QOL update. CheevoDeck had been using Decky's chooser for <b>Cheevo Check</b>, <b>File Watcher</b>, patch downloads and update downloads for quite some time. I've written my own to replace it everywhere, which includes many user-friendly additions, such as better focus, prompt text support, and easily accessible buttons.
 
 <b>What's New</b>
 
-- The <b>Steam Library Badges</b> now show <b>Completed</b> and <b>Mastered</b> status.
+- A more user-friendly folder chooser has been swapped in.
 
-- Added info text that shows in the intermediary loading window if connection to RA is weak.
+- The button prompts for comments, notifications, and a few other utilities that were hardcoded are now dynamic based on which controller you are using, and now show the proper glyph based on this. This now makes it consistent with the rest of CheevoDeck.
+
+- The update notification now includes a select prompt for download/install options.
+
+- Further made <b>Cheevo Check</b> more user-friendly.
