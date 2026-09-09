@@ -1,7 +1,8 @@
-import { FileSelectionType, openFilePicker, toaster } from "@decky/api";
+import { toaster } from "@decky/api";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ButtonSpacing, UpdateStatusResponse } from "../types";
 import { t, type LanguageCode } from "../locales";
+import { openPathPicker } from "../components/pickers/FilePickerModal";
 import { checkForUpdateNow, downloadUpdateZip, getPluginVersion, getUpdateStatus, placeDesktopUpdater } from "../api";
 import { copyTextToClipboard } from "../utils/clipboard";
 import { openExternalUrl } from "../utils/navigation";
@@ -144,13 +145,14 @@ export function useAboutController({
         void (async () => {
             let folder: string | undefined;
             try {
-                const picked = await openFilePicker(
-                    FileSelectionType.FOLDER,
-                    DEFAULT_SAVE_DIR,
-                    false,
-                    true
-                );
-                folder = picked?.realpath || picked?.path;
+                const picked = await openPathPicker({
+                    language,
+                    prompt: t(language, "Choose where to save the update download."),
+                    startPath: DEFAULT_SAVE_DIR,
+                    includeFiles: false,
+                    includeFolders: true
+                });
+                folder = picked.realpath || picked.path;
             }
             catch {
                 return;

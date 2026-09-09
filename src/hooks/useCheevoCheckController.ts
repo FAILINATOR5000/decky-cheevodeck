@@ -1,4 +1,4 @@
-import { FileSelectionType, openFilePicker, toaster } from "@decky/api";
+import { toaster } from "@decky/api";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -12,6 +12,7 @@ import {
 import { t, type LanguageCode } from "../locales";
 import type { CheevoCheckState } from "../types";
 import { logError } from "../utils/errors";
+import { openPathPicker } from "../components/pickers/FilePickerModal";
 
 type UseCheevoCheckControllerArgs = {
     isActive: boolean;
@@ -112,13 +113,14 @@ export function useCheevoCheckController({ isActive, language }: UseCheevoCheckC
     const startScan = useCallback(async (offline: boolean) => {
         setStarting(true);
         try {
-            const picked = await openFilePicker(
-                FileSelectionType.FOLDER,
-                state?.startDir ?? "/home/deck",
-                false,
-                true
-            );
-            const root = picked?.realpath || picked?.path;
+            const picked = await openPathPicker({
+                language,
+                prompt: t(language, "Choose your ROMs collection folder"),
+                startPath: state?.startDir ?? "/home/deck",
+                includeFiles: false,
+                includeFolders: true
+            });
+            const root = picked.realpath || picked.path;
             if (!root) {
                 return;
             }
@@ -130,18 +132,19 @@ export function useCheevoCheckController({ isActive, language }: UseCheevoCheckC
         finally {
             setStarting(false);
         }
-    }, [reload, state?.startDir]);
+    }, [language, reload, state?.startDir]);
 
     const saveReport = useCallback(async (report: string) => {
         let folder: string | undefined;
         try {
-            const picked = await openFilePicker(
-                FileSelectionType.FOLDER,
-                "/home/deck/Downloads",
-                false,
-                true
-            );
-            folder = picked?.realpath || picked?.path;
+            const picked = await openPathPicker({
+                language,
+                prompt: t(language, "Choose where to save the report."),
+                startPath: "/home/deck/Downloads",
+                includeFiles: false,
+                includeFolders: true
+            });
+            folder = picked.realpath || picked.path;
         }
         catch {
             return;

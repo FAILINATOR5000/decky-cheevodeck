@@ -74,6 +74,7 @@ from mixins.dolphin_mapper import DolphinMapperMixin
 from mixins.smb_shares import SmbSharesMixin
 from mixins.cheevo_check import CheevoCheckMixin
 from mixins.file_watcher import FileWatcherMixin
+from mixins.file_browser import FileBrowserMixin
 from mixins.guides import GuidesMixin
 from mixins.library_badge import LibraryBadgeMixin
 
@@ -125,6 +126,7 @@ class Plugin(
     SmbSharesMixin,
     CheevoCheckMixin,
     FileWatcherMixin,
+    FileBrowserMixin,
     GuidesMixin,
     LibraryBadgeMixin,
 ):

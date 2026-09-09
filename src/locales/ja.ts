@@ -233,6 +233,7 @@ const JA: LocaleTable = {
     "Next": "次へ",
     "Not Set": "未設定",
     "Page Up": "先頭へ",
+    "Page Down": "末尾へ",
     "Home": "ホーム",
     "View Current Guide": "現在のガイドを見る",
     "View Profile": "プロフィールを見る",
@@ -1760,6 +1761,23 @@ const JA: LocaleTable = {
     "Files recorded": "ファイルを記録しました",
     "Changes to review": "確認したい変更あり",
     "Nothing to scan": "確認するものがありません",
+
+    "Choose your ROMs collection folder": "ROM コレクションのフォルダーを選んでね",
+    "Choose where to save the report.": "レポートの保存先を選んでね。",
+    "Choose where to save the patch file.": "パッチファイルの保存先を選んでね。",
+    "Choose where to save the update download.": "ダウンロードの保存先を選んでね。",
+    "Choose a folder to add to File Watcher": "File Watcher に追加するフォルダーを選んでね",
+    "Choose This Folder": "このフォルダーを選択",
+    "Up": "上へ",
+    "Hidden": "隠し",
+    "On": "オン",
+    "Name (A-Z)": "名前 (A-Z)",
+    "Name (Z-A)": "名前 (Z-A)",
+    "This folder is empty": "このフォルダーは空です",
+    "That folder isn't there anymore.": "そのフォルダーはもうありません。",
+    "You don't have permission to open that folder.": "そのフォルダーを開く権限がありません。",
+    "Couldn't open that folder.": "そのフォルダーを開けませんでした。",
+    "Show More": "もっと見る",
 };
 
 export default JA;

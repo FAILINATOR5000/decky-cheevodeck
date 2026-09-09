@@ -158,4 +158,12 @@ declare module "react-icons/fa" {
     export const FaFileAlt: any;
     export const FaGamepad: any;
     export const FaNetworkWired: any;
+    export const FaFolder: any;
+    export const FaFile: any;
+    export const FaFileArchive: any;
+    export const FaCompactDisc: any;
+    export const FaImage: any;
+    export const FaMusic: any;
+    export const FaVideo: any;
+    export const FaArrowUp: any;
 }

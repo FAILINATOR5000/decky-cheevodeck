@@ -233,6 +233,7 @@ const ES: LocaleTable = {
     "Next": "Siguiente",
     "Not Set": "Sin asignar",
     "Page Up": "Ir arriba",
+    "Page Down": "Ir abajo",
     "Home": "Inicio",
     "View Current Guide": "Ver la guía actual",
     "View Profile": "Ver perfil",
@@ -1833,6 +1834,23 @@ const ES: LocaleTable = {
     "Files recorded": "Archivos registrados",
     "Changes to review": "Cambios que revisar",
     "Nothing to scan": "Nada que revisar",
+
+    "Choose your ROMs collection folder": "Elige la carpeta de tu colección de ROMs",
+    "Choose where to save the report.": "Elige dónde guardar el informe.",
+    "Choose where to save the patch file.": "Elige dónde guardar el archivo del parche.",
+    "Choose where to save the update download.": "Elige dónde guardar la descarga.",
+    "Choose a folder to add to File Watcher": "Elige una carpeta para añadir a File Watcher",
+    "Choose This Folder": "Elegir esta carpeta",
+    "Up": "Subir",
+    "Hidden": "Ocultos",
+    "On": "Activado",
+    "Name (A-Z)": "Nombre (A-Z)",
+    "Name (Z-A)": "Nombre (Z-A)",
+    "This folder is empty": "Esta carpeta está vacía",
+    "That folder isn't there anymore.": "Esa carpeta ya no existe.",
+    "You don't have permission to open that folder.": "No tienes permiso para abrir esa carpeta.",
+    "Couldn't open that folder.": "No se pudo abrir esa carpeta.",
+    "Show More": "Mostrar más",
 };
 
 export default ES;

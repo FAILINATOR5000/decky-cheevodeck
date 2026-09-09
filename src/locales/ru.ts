@@ -233,6 +233,7 @@ const RU: LocaleTable = {
     "Next": "Вперёд",
     "Not Set": "Не назначено",
     "Page Up": "В начало",
+    "Page Down": "В конец",
     "Home": "Главная",
     "View Current Guide": "Открыть текущий гайд",
     "View Profile": "Открыть профиль",
@@ -1845,6 +1846,23 @@ const RU: LocaleTable = {
     "Files recorded": "Файлы записаны",
     "Changes to review": "Есть изменения — стоит глянуть",
     "Nothing to scan": "Проверять нечего",
+
+    "Choose your ROMs collection folder": "Выбери папку с коллекцией ROM-ов",
+    "Choose where to save the report.": "Выбери, куда сохранить отчёт.",
+    "Choose where to save the patch file.": "Выбери, куда сохранить файл патча.",
+    "Choose where to save the update download.": "Выбери, куда сохранить загрузку.",
+    "Choose a folder to add to File Watcher": "Выбери папку для добавления в File Watcher",
+    "Choose This Folder": "Выбрать эту папку",
+    "Up": "Вверх",
+    "Hidden": "Скрытые",
+    "On": "Вкл.",
+    "Name (A-Z)": "Имя (A-Z)",
+    "Name (Z-A)": "Имя (Z-A)",
+    "This folder is empty": "Эта папка пуста",
+    "That folder isn't there anymore.": "Этой папки больше нет.",
+    "You don't have permission to open that folder.": "У тебя нет прав на открытие этой папки.",
+    "Couldn't open that folder.": "Не удалось открыть эту папку.",
+    "Show More": "Показать ещё",
 };
 
 export default RU;

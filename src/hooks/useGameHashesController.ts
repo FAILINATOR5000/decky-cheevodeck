@@ -1,7 +1,8 @@
-import { FileSelectionType, openFilePicker, toaster } from "@decky/api";
+import { toaster } from "@decky/api";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { downloadGamePatch, getGameHashes, type GameHashRow } from "../api";
 import { t, type LanguageCode } from "../locales";
+import { openPathPicker } from "../components/pickers/FilePickerModal";
 import { logError } from "../utils/errors";
 
 export type UseGameHashesControllerOptions = {
@@ -100,13 +101,14 @@ export function useGameHashesController(options: UseGameHashesControllerOptions)
         }
         let folder: string | undefined;
         try {
-            const picked = await openFilePicker(
-                FileSelectionType.FOLDER,
-                "/home/deck/Downloads",
-                false,
-                true
-            );
-            folder = picked?.realpath || picked?.path;
+            const picked = await openPathPicker({
+                language,
+                prompt: t(language, "Choose where to save the patch file."),
+                startPath: "/home/deck/Downloads",
+                includeFiles: false,
+                includeFolders: true
+            });
+            folder = picked.realpath || picked.path;
         }
         catch {
             return;

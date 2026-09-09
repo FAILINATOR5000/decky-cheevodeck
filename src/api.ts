@@ -84,6 +84,8 @@ import type {
     SmbShareStatus,
     CheevoCheckScanProgress,
     CheevoCheckState,
+    DirectoryListing,
+    DirectorySort,
     FileWatcherBucket,
     FileWatcherExcludedRow,
     FileWatcherFinding,
@@ -482,6 +484,20 @@ export const getCheevoCheckLastSystemId = callable<[], { ok: boolean; cheevoChec
 export const saveCheevoCheckLastSystemId = callable<[number], { ok: boolean; cheevoCheckLastSystemId: number }>(
     "save_cheevo_check_last_system_id"
 );
+
+// Path picker
+export const listDirectory = callable<
+    [
+        path: string,
+        includeFiles: boolean,
+        includeFolders: boolean,
+        extensions: string[] | null,
+        showHidden: boolean,
+        sort: DirectorySort,
+        page: number
+    ],
+    DirectoryListing
+>("list_directory");
 
 // File Watcher
 export const getFileWatcherState = callable<[], FileWatcherState>("get_file_watcher_state");

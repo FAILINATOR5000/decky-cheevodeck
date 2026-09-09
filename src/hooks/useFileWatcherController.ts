@@ -1,4 +1,3 @@
-import { FileSelectionType, openFilePicker } from "@decky/api";
 import { toaster } from "@decky/api";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -20,6 +19,7 @@ import {
     updateFileWatcherWindow
 } from "../api";
 import { t, type LanguageCode } from "../locales";
+import { openPathPicker } from "../components/pickers/FilePickerModal";
 import type { FileWatcherBucket, FileWatcherFinding, FileWatcherSpeed, FileWatcherState } from "../types";
 import { logError } from "../utils/errors";
 import { REPORTED_BUCKETS, buildFileWatcherReport } from "../utils/fileWatcher";
@@ -154,13 +154,14 @@ export function useFileWatcherController({ isActive, language }: UseFileWatcherC
         setError(null);
         let picked: string | undefined;
         try {
-            const chosen = await openFilePicker(
-                FileSelectionType.FOLDER,
-                state?.startDir ?? "/home/deck",
-                false,
-                true
-            );
-            picked = chosen?.realpath || chosen?.path;
+            const chosen = await openPathPicker({
+                language,
+                prompt: t(language, "Choose a folder to add to File Watcher"),
+                startPath: state?.startDir ?? "/home/deck",
+                includeFiles: false,
+                includeFolders: true
+            });
+            picked = chosen.realpath || chosen.path;
         }
         catch {
             return;
@@ -180,7 +181,7 @@ export function useFileWatcherController({ isActive, language }: UseFileWatcherC
             setError("failed");
         }
         await reload();
-    }, [reload, state?.startDir]);
+    }, [language, reload, state?.startDir]);
 
     const removeRoot = useCallback(async (rootId: number) => {
         setError(null);
@@ -301,13 +302,14 @@ export function useFileWatcherController({ isActive, language }: UseFileWatcherC
         }
         let folder: string | undefined;
         try {
-            const picked = await openFilePicker(
-                FileSelectionType.FOLDER,
-                "/home/deck/Downloads",
-                false,
-                true
-            );
-            folder = picked?.realpath || picked?.path;
+            const picked = await openPathPicker({
+                language,
+                prompt: t(language, "Choose where to save the report."),
+                startPath: "/home/deck/Downloads",
+                includeFiles: false,
+                includeFolders: true
+            });
+            folder = picked.realpath || picked.path;
         }
         catch {
             return;

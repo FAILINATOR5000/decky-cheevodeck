@@ -232,6 +232,28 @@ export type CheevoCheckState = {
     startDir: string;
 };
 
+// Path picker
+export type DirectorySort = "name_asc" | "name_desc" | "modified_desc" | "modified_asc";
+
+export type DirectoryEntry = {
+    name: string;
+    realpath: string;
+    isDir: boolean;
+    isHidden: boolean;
+    size: number;
+    modified: number;
+};
+
+export type DirectoryListing = {
+    ok: boolean;
+    error?: string;
+    path: string;
+    realpath: string;
+    parent: string | null;
+    entries: DirectoryEntry[];
+    total: number;
+};
+
 // File Watcher
 export type FileWatcherSpeed = "full" | "balanced" | "gentle";
 
