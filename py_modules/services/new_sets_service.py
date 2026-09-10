@@ -1,6 +1,6 @@
 import re
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 import decky
 
@@ -51,7 +51,7 @@ class NewSetsService:
         if not text:
             return 0
         try:
-            dt = datetime.strptime(text, "%Y-%m-%d %H:%M:%S")
+            dt = datetime.strptime(text, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
             return int(dt.timestamp())
         except (ValueError, TypeError):
             return 0
