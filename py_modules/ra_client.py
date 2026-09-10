@@ -105,6 +105,28 @@ class RetroAchievementsClient:
                 },
             )
 
+    def get_user_summary(self, username: str, web_api_key: str) -> Any:
+        """Fetch a user's summary, the only endpoint carrying RichPresenceMsgDate.
+
+        Returns everything API_GetUserProfile.php returns plus
+        RichPresenceMsgDate, the UTC timestamp of the user's last rich presence
+        ping. Status and LastActivity are unusable: Status is a constant string
+        and LastActivity comes back empty.
+
+        g and a are zero to drop the recent games and achievements blocks.
+        Shares the profile lock with get_user_profile.
+        """
+        with self._profile_call_lock:
+            return self._get_json(
+                "API_GetUserSummary.php",
+                {
+                    "u": username,
+                    "y": web_api_key,
+                    "g": 0,
+                    "a": 0,
+                },
+            )
+
     def get_users_i_follow(
         self,
         web_api_key: str,

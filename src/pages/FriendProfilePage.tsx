@@ -53,8 +53,8 @@ import {
     payloadAchievementSummaryLabel
 } from "../utils/achievements";
 import { UserAvatar } from "../components/ui/UserAvatar";
-import { smallTextStyle, bodyTextStyle, regularButtonSpacingStyle, FADE_IN_KEYFRAMES } from "../utils/style";
-import { headerSize } from "../utils/scale";
+import { smallTextStyle, bodyTextStyle, regularButtonSpacingStyle, FADE_IN_KEYFRAMES, ONLINE_DOT_KEYFRAMES } from "../utils/style";
+import { headerSize, textSize } from "../utils/scale";
 import { consoleInlineName } from "../utils/consoles";
 import { localizeRuntimeText, t } from "../locales";
 import { formatRatio, formatInteger, formatMemberSince } from "../utils/format";
@@ -389,6 +389,10 @@ function FriendProfilePage(props: FriendProfilePageProps) {
     const memberSinceLabel = formatMemberSince(friendGamePayload?.memberSince, language);
     const mottoText = String(friendGamePayload?.motto || "").trim();
 
+    const showOnlineDot = Boolean(selectedFriend?.isSelf || friendGamePayload?.isOnline);
+    const onlineDotPx = Math.max(6, Math.round(textSize(8)));
+    const onlineDotGapPx = Math.max(4, Math.round(textSize(5)));
+
     const wallIsEmpty = wallCommentsLoaded && !wallRestricted && !wallCommentsLoading && wallComments.length === 0;
 
     function handleFilterClick() {
@@ -685,6 +689,23 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                                     </div>
                                 )}
                                 <div style={bodyTextStyle()}>
+                                    {showOnlineDot && <style>{ONLINE_DOT_KEYFRAMES}</style>}
+                                    {showOnlineDot && (
+                                        <span
+                                            className="da-online-dot"
+                                            style={{
+                                                display: "inline-block",
+                                                width: `${onlineDotPx}px`,
+                                                height: `${onlineDotPx}px`,
+                                                marginRight: `${onlineDotGapPx}px`,
+                                                borderRadius: "50%",
+                                                background: "#4ade80",
+                                                boxShadow: "0 0 0 1px rgba(0,0,0,0.4)",
+                                                animation: "da-online-dot-pulse 3.2s ease-in-out infinite",
+                                                verticalAlign: "middle"
+                                            }}
+                                        />
+                                    )}
                                     {friendGamePayload?.statusText ||
                                         friendGamePayload?.richPresence ||
                                         selectedFriend.statusText ||

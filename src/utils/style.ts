@@ -69,6 +69,19 @@ export const NOTES_DOT_KEYFRAMES = `
 }
 `;
 
+export const ONLINE_DOT_KEYFRAMES = `
+@keyframes da-online-dot-pulse {
+    0%, 100% { background: #15803d; }
+    50% { background: #4ade80; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .da-online-dot {
+        animation: none !important;
+        background: #22c55e !important;
+    }
+}
+`;
+
 export const FADE_IN_KEYFRAMES = `
 @keyframes da-fade-in {
     from { opacity: 0; }

@@ -1,6 +1,7 @@
 import re
 import time
 import urllib.error
+from datetime import datetime, timezone
 
 import decky
 
@@ -11,6 +12,28 @@ _ULID_RE = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
 
 
 MAX_FOLLOW_PAGES = 50
+
+
+ONLINE_WINDOW_SECONDS = 15 * 60
+
+
+def _parse_ra_utc_timestamp(value):
+    """Turn RA's "YYYY-MM-DD HH:MM:SS" timestamps into epoch seconds.
+
+    RA serves these as UTC with no offset, so the timezone is attached before
+    converting. Parsing them naively resolves them against the local clock and
+    lands the result hours off.
+
+    Returns None for anything empty or unparseable, which is not the same as 0.
+    """
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        parsed = datetime.strptime(text, "%Y-%m-%d %H:%M:%S")
+    except (ValueError, TypeError):
+        return None
+    return int(parsed.replace(tzinfo=timezone.utc).timestamp())
 
 
 class FriendsService:
@@ -296,7 +319,7 @@ class FriendsService:
             "refreshedAt": refreshed_at,
         }
 
-    def _build_friend_game_payload(self, friend_username, selected_game_id, recent_games, payload, rich_presence=None, status_text=None, profile_points=None, ulid=None, member_since=None, motto=None):
+    def _build_friend_game_payload(self, friend_username, selected_game_id, recent_games, payload, rich_presence=None, status_text=None, profile_points=None, ulid=None, member_since=None, motto=None, is_online=False):
         selected_game_title = None
         for item in recent_games:
             if item.get("gameId") == selected_game_id:
@@ -320,6 +343,7 @@ class FriendsService:
             "totalTruePoints": profile_points.get("totalTruePoints"),
             "memberSince": member_since or None,
             "motto": motto or None,
+            "isOnline": bool(is_online),
             "payload": payload,
             "refreshedAt": int(time.time()),
         }
@@ -757,11 +781,16 @@ class FriendsService:
             return {"needsSettings": False, "payload": friend_cache, "changed": False}
 
         try:
-            profile = self._ra.get_user_profile(user, web_api_key)
+            profile = self._ra.get_user_summary(user, web_api_key)
             display_name = str(profile.get("User") or profile.get("user") or user).strip()
             profile_ulid = profile.get("ULID", profile.get("ulid"))
             rich_presence = str(profile.get("RichPresenceMsg", profile.get("richPresenceMsg")) or "").strip()
             status_text = rich_presence or "No rich presence"
+
+            presence_at = _parse_ra_utc_timestamp(
+                profile.get("RichPresenceMsgDate", profile.get("richPresenceMsgDate"))
+            )
+            is_online = presence_at is not None and 0 <= (now - presence_at) <= ONLINE_WINDOW_SECONDS
 
             profile_points = {
                 "points": to_int(profile.get("TotalPoints", profile.get("totalPoints", 0)), 0),
@@ -797,6 +826,7 @@ class FriendsService:
                 ulid=profile_ulid,
                 member_since=member_since,
                 motto=motto,
+                is_online=is_online,
             )
 
             write_key = self._friend_game_key(profile_ulid, display_name)
