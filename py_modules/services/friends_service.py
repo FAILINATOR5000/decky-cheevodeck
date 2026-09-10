@@ -770,6 +770,36 @@ class FriendsService:
         self._save_friend_game_payload(user, selected_game_id, payload)
         return {"payload": payload}
 
+    def _fetch_profile_for_view(self, user, web_api_key):
+        """Fetch a user's profile, preferring the summary endpoint.
+
+        Falls back to API_GetUserProfile.php on 404 or 410, or when the summary
+        answers with something that is not a profile. That response has no
+        RichPresenceMsgDate.
+
+        A 429 or a network failure is raised rather than retried on the other
+        endpoint.
+        """
+        try:
+            profile = self._ra.get_user_summary(user, web_api_key)
+        except urllib.error.HTTPError as exc:
+            if exc.code not in (404, 410):
+                raise
+            decky.logger.warning(
+                "friend profile: summary endpoint returned HTTP %s, falling back to profile",
+                exc.code,
+            )
+            return self._ra.get_user_profile(user, web_api_key)
+
+        if isinstance(profile, dict) and (profile.get("User") or profile.get("user")):
+            return profile
+
+        decky.logger.warning(
+            "friend profile: summary response was not a profile (keys=%s), falling back",
+            sorted(profile.keys()) if isinstance(profile, dict) else type(profile).__name__,
+        )
+        return self._ra.get_user_profile(user, web_api_key)
+
     def get_friend_game_progress(self, web_api_key: str, user: str, game_id=None, force: bool = False) -> dict:
         selected_game_id = norm_game_id(game_id)
         friend_cache = self._resolve_friend_game_entry(user) or {}
@@ -781,7 +811,7 @@ class FriendsService:
             return {"needsSettings": False, "payload": friend_cache, "changed": False}
 
         try:
-            profile = self._ra.get_user_summary(user, web_api_key)
+            profile = self._fetch_profile_for_view(user, web_api_key)
             display_name = str(profile.get("User") or profile.get("user") or user).strip()
             profile_ulid = profile.get("ULID", profile.get("ulid"))
             rich_presence = str(profile.get("RichPresenceMsg", profile.get("richPresenceMsg")) or "").strip()
