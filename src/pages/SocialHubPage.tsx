@@ -932,7 +932,11 @@ function SocialHubPage(props: SocialHubPageProps) {
         ),
         [allSavedComments, props.savedComments.sort, props.savedComments.filter]
     );
-    const { mountedItems: visibleSavedComments, markerRef: savedListMarkerRef } = useWindowedList({
+    const {
+        mountedItems: visibleSavedComments,
+        markerRef: savedListMarkerRef,
+        onItemFocus: maybeLoadMoreSavedFromFocus
+    } = useWindowedList({
         items: facetedSavedComments,
         dynamicLoading: true,
         initialRows: SAVED_COMMENTS_INITIAL_ROWS,
@@ -981,6 +985,8 @@ function SocialHubPage(props: SocialHubPageProps) {
     savedTrashPressRef.current = handleSavedCommentTrashPress;
     const savedTrashBlurRef = useRef(handleSavedCommentTrashBlur);
     savedTrashBlurRef.current = handleSavedCommentTrashBlur;
+    const savedRowFocusRef = useRef(maybeLoadMoreSavedFromFocus);
+    savedRowFocusRef.current = maybeLoadMoreSavedFromFocus;
 
     const savedCommentList = useMemo<SavedCommentListProps>(() => ({
         language: props.language,
@@ -994,6 +1000,9 @@ function SocialHubPage(props: SocialHubPageProps) {
         },
         onTrashBlur: (comment) => {
             savedTrashBlurRef.current(comment);
+        },
+        onRowFocus: (index) => {
+            savedRowFocusRef.current(index);
         }
     }), [props.language, rowMetrics, props.showIcons]);
 
@@ -1390,6 +1399,7 @@ function SocialHubPage(props: SocialHubPageProps) {
                                                     >
                                                         <SavedCommentCard
                                                             comment={comment}
+                                                            index={index}
                                                             armed={armedSavedId === comment.id}
                                                             list={savedCommentList}
                                                         />
@@ -2066,14 +2076,16 @@ type SavedCommentListProps = {
     onOpen: (comment: SavedComment) => void;
     onTrashPress: (comment: SavedComment) => void;
     onTrashBlur: (comment: SavedComment) => void;
+    onRowFocus: (index: number) => void;
 };
 
 const SavedCommentCard = React.memo(function SavedCommentCard(props: {
     comment: SavedComment;
+    index: number;
     armed: boolean;
     list: SavedCommentListProps;
 }) {
-    const { comment, armed, list } = props;
+    const { comment, index, armed, list } = props;
     const { language, metrics, showIcons } = list;
 
     const [focused, setFocused] = useState(false);
@@ -2097,6 +2109,8 @@ const SavedCommentCard = React.memo(function SavedCommentCard(props: {
                         showIcons={showIcons}
                         focusKey={`savedcomment:card:${comment.id}`}
                         onClick={() => list.onOpen(comment)}
+                        index={index}
+                        onGamepadFocusIndex={list.onRowFocus}
                         outerStyle={{ width: "100%", minWidth: 0 }}
                         contentPaddingRight={30}
                     />
@@ -2114,7 +2128,10 @@ const SavedCommentCard = React.memo(function SavedCommentCard(props: {
                     >
                         <DialogButton
                             onClick={() => list.onTrashPress(comment)}
-                            onGamepadFocus={() => setFocused(true)}
+                            onGamepadFocus={() => {
+                                setFocused(true);
+                                list.onRowFocus(index);
+                            }}
                             onGamepadBlur={() => {
                                 setFocused(false);
                                 list.onTrashBlur(comment);
