@@ -59,6 +59,7 @@ export function AchievementList(props: {
     onAchievementClick?: (achievement: AchievementRow) => void | Promise<void>;
     reorderTargetId?: number | null;
     reorderViaSwap?: boolean;
+    seedRows?: number;
     claimedRow?: {
         slotIndex: number;
         token: number;
@@ -369,7 +370,8 @@ export function AchievementList(props: {
         rowStep: dynamicRowStep,
         prefetchDistance: dynamicPrefetchDistance,
         sentinelRootMargin: dynamicSentinelRootMargin,
-        resetKey: `${props.payload?.gameId}|${props.filterScopeKey}|${props.showAll}|${props.resetToken}|${currentMode}|${effectiveFriendFilter}|${effectiveMainFilter}|${activeSort}`
+        resetKey: `${props.payload?.gameId}|${props.filterScopeKey}|${props.showAll}|${props.resetToken}|${currentMode}|${effectiveFriendFilter}|${effectiveMainFilter}|${activeSort}`,
+        seedRows: props.seedRows
     });
 
     const mountedIcons = useMemo(() => {

@@ -4,6 +4,7 @@ import { ReorderStrip } from "../ui/ReorderStrip";
 import { TrackedButtonHints } from "./TrackedButtonHints";
 import { TrackedEmptyMessage } from "./TrackedEmptyMessage";
 import { groupIdsForTrackedTarget, largestTrackedGroupSize, TrackedListBody } from "./TrackedListBody";
+import type { FocusClaimController } from "../../hooks/useFocusClaim";
 import { ErrorText } from "../ui/ErrorText";
 import { InfoText } from "../ui/InfoText";
 import type { LanguageCode } from "../../locales";
@@ -67,6 +68,8 @@ type OtherGamesDrillInBodyProps = {
     onAchievementClick: (achievement: AchievementRow, trackedAchievements: AchievementRow[]) => void | Promise<void>;
     onUntrack: (achievement: AchievementRow) => void | Promise<void>;
     onEditNote: (achievement: AchievementRow) => void;
+    rowClaim?: FocusClaimController;
+    restoreSeedAchievementId?: number | null;
     onReorderPick: (achievementId: number, allowSwap: boolean) => void | Promise<void>;
     onReorderMove: (direction: ReorderDirection, groupIds?: number[] | null) => void | Promise<void>;
 };
@@ -110,6 +113,8 @@ export function OtherGamesDrillInBody(props: OtherGamesDrillInBodyProps) {
         onAchievementClick,
         onUntrack,
         onEditNote,
+        rowClaim,
+        restoreSeedAchievementId,
         onReorderPick,
         onReorderMove
     } = props;
@@ -230,6 +235,8 @@ export function OtherGamesDrillInBody(props: OtherGamesDrillInBodyProps) {
                     showRetroPoints={showRetroPoints}
                     reorderTargetId={reorderTargetId}
                     reorderViaSwap={reorderViaSwap}
+                    rowClaim={rowClaim}
+                    restoreSeedAchievementId={restoreSeedAchievementId}
                     onAchievementClick={onAchievementClick}
                     onAchievementTrackToggle={gamepadRowActions ? handleRowUntrack : undefined}
                     onAchievementNote={gamepadRowActions ? handleRowEditNote : undefined}

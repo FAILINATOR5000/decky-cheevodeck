@@ -43,6 +43,7 @@ type TrackedListBodyProps = {
     reorderTargetId?: number | null;
     reorderViaSwap?: boolean;
     rowClaim?: FocusClaimController;
+    restoreSeedAchievementId?: number | null;
     onAchievementClick: (achievement: AchievementRow, trackedAchievements: AchievementRow[]) => void | Promise<void>;
     onAchievementTrackToggle?: (achievement: AchievementRow) => void;
     onAchievementNote?: (achievement: AchievementRow) => void;
@@ -139,6 +140,7 @@ export function TrackedListBody(props: TrackedListBodyProps) {
         reorderTargetId,
         reorderViaSwap,
         rowClaim,
+        restoreSeedAchievementId,
         onAchievementClick,
         onAchievementTrackToggle,
         onAchievementNote,
@@ -236,6 +238,10 @@ export function TrackedListBody(props: TrackedListBodyProps) {
                         onSpent: claimSpend
                     }
                     : undefined;
+                const seedIndex = restoreSeedAchievementId == null
+                    ? -1
+                    : group.achievementIds.indexOf(restoreSeedAchievementId);
+                const seedRows = seedIndex >= 0 ? seedIndex + 1 : 0;
                 return (
                     <AchievementList
                         key={listKey}
@@ -268,6 +274,7 @@ export function TrackedListBody(props: TrackedListBodyProps) {
                         reorderTargetId={reorderTargetId}
                         reorderViaSwap={reorderViaSwap}
                         claimedRow={claimedRow}
+                        seedRows={seedRows}
                         onAchievementClick={async (achievement) => {
                             if (trackedValidating || busy) {
                                 return;

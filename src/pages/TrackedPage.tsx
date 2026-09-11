@@ -1,6 +1,6 @@
-import { Fragment, useEffect, useState, type ComponentType } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import { DialogButton, Focusable, PanelSection, PanelSectionRow } from "@decky/ui";
-import { getCachedTrackedCount } from "../api";
+import { getCachedTrackedCount, logFocusDebug } from "../api";
 import { BackButton } from "../components/ui/BackButton";
 import { ConfirmRow } from "../components/ui/ConfirmRow";
 import { ErrorText } from "../components/ui/ErrorText";
@@ -13,8 +13,15 @@ import { PageNavStrip } from "../components/ui/PageNavStrip";
 import { ReorderStrip } from "../components/ui/ReorderStrip";
 import { TrackedButtonHints } from "../components/tracked/TrackedButtonHints";
 import { TrackedEmptyMessage } from "../components/tracked/TrackedEmptyMessage";
-import { groupIdsForTrackedTarget, largestTrackedGroupSize, TrackedListBody } from "../components/tracked/TrackedListBody";
-import type { FocusClaimController } from "../hooks/useFocusClaim";
+import {
+    flattenTrackedVisualOrder,
+    groupIdsForTrackedTarget,
+    largestTrackedGroupSize,
+    trackedRowGroupSlot,
+    TrackedListBody
+} from "../components/tracked/TrackedListBody";
+import { RestoreCurtain } from "../components/ui/RestoreCurtain";
+import { useFocusClaim, type FocusClaimController } from "../hooks/useFocusClaim";
 import type { LanguageCode } from "../locales";
 import type {
     AchievementRow,
@@ -174,8 +181,14 @@ type TrackedPageProps = {
     onReorderMove: (direction: ReorderDirection, groupIds?: number[] | null) => void | Promise<void>;
     backClaimToken: number;
     rowClaim: FocusClaimController;
+    restorePending: boolean;
+    restoreAchievementId: number | null;
+    panelOverlayVisible: boolean;
+    onRequestFocus: (focusKey: string) => void;
     onHome: () => void | Promise<void>;
 };
+
+const TRACKED_RESTORE_SEED_CEILING = 300;
 
 function TrackedPage(props: TrackedPageProps) {
     const {
@@ -235,6 +248,10 @@ function TrackedPage(props: TrackedPageProps) {
         onReorderMove,
         backClaimToken,
         rowClaim,
+        restorePending,
+        restoreAchievementId,
+        panelOverlayVisible,
+        onRequestFocus,
         onHome,
     } = props;
 
@@ -312,6 +329,100 @@ function TrackedPage(props: TrackedPageProps) {
             });
         }
     }, [activeTrackedTab, payload?.gameId, payload?.title, trackedSelectedGameId, drillIn.payload?.title]);
+
+    const drillInRowClaim = useFocusClaim();
+
+    const restoringDrillIn = activeTrackedTab === "otherGames";
+    const restoreClaim = restoringDrillIn ? drillInRowClaim : rowClaim;
+    const restoreAchievements = restoringDrillIn ? drillIn.trackedAchievements : trackedAchievements;
+    const restoreNotes = restoringDrillIn ? drillIn.notesByAchievementId : notesByAchievementId;
+
+    const restoreListReady = restoringDrillIn
+        ? trackedSelectedGameId !== null && drillIn.trackedReady
+        : payload !== null && trackedIdsLoadedForGameId === (payload.gameId ?? null);
+
+    const [restoreAbandoned, setRestoreAbandoned] = useState(false);
+    const [restoreFired, setRestoreFired] = useState(false);
+
+    const restoreClaimSpent = restoreFired
+        && (restoreClaim.claim?.token ?? 0) > 0
+        && !restoreClaim.claim?.armed;
+
+    const restoreSettledRef = useRef(false);
+    if (restoreAbandoned || restoreClaimSpent) {
+        restoreSettledRef.current = true;
+    }
+    const restoreSettled = restoreSettledRef.current;
+
+    const restoreOutstanding = restorePending && !restoreSettled;
+
+    const restoreSlot = useMemo(() => {
+        if (!restoreOutstanding || restoreAchievementId === null) {
+            return null;
+        }
+        const flatIndex = flattenTrackedVisualOrder(restoreAchievements, restoreNotes, language)
+            .findIndex((row) => row.id === restoreAchievementId);
+        if (flatIndex < 0) {
+            return null;
+        }
+        const grouped = trackedRowGroupSlot(restoreAchievements, restoreNotes, restoreAchievementId);
+        return { flatIndex, indexInGroup: grouped ? grouped.indexInGroup : flatIndex };
+    }, [restoreOutstanding, restoreAchievementId, restoreAchievements, restoreNotes, language]);
+
+    const restoreFiredRef = useRef(false);
+
+    useEffect(function landRestoredCursor() {
+        if (view !== "tracked" || !restorePending || restoreFiredRef.current) {
+            return;
+        }
+        if (activeTrackedTab !== "clear" && !restoreListReady) {
+            return;
+        }
+
+        restoreFiredRef.current = true;
+        setRestoreFired(true);
+
+        const reachable = activeTrackedTab !== "clear"
+            && restoreSlot !== null
+            && restoreSlot.indexInGroup < TRACKED_RESTORE_SEED_CEILING;
+
+        if (!reachable) {
+            setRestoreAbandoned(true);
+            logFocusDebug(
+                "tracked-restore",
+                restoreAchievementId === null ? "(none)" : String(restoreAchievementId),
+                restoreSlot === null
+                    ? `tab=${activeTrackedTab} gone from the list`
+                    : `tab=${activeTrackedTab} inGroup=${restoreSlot.indexInGroup}`
+                        + ` ceiling=${TRACKED_RESTORE_SEED_CEILING} past the ceiling`
+            );
+            onRequestFocus("tracked:back");
+            return;
+        }
+
+        logFocusDebug(
+            "tracked-restore",
+            String(restoreAchievementId),
+            `tab=${activeTrackedTab} slot=${restoreSlot.flatIndex} inGroup=${restoreSlot.indexInGroup}`
+                + ` total=${restoreAchievements.length}`
+        );
+        restoreClaim.claimSlot(restoreSlot.flatIndex);
+        onRequestFocus(`achievement:${restoreAchievementId}`);
+    }, [
+        view,
+        restorePending,
+        restoreListReady,
+        activeTrackedTab,
+        restoreSlot,
+        restoreAchievementId,
+        restoreAchievements.length,
+        restoreClaim.claimSlot,
+        onRequestFocus
+    ]);
+
+    const restoreSeedAchievementId = restoreOutstanding && restoreSlot !== null
+        ? restoreAchievementId
+        : null;
 
     if (view !== "tracked") {
         return null;
@@ -492,6 +603,7 @@ function TrackedPage(props: TrackedPageProps) {
                     reorderTargetId={reorderTargetId}
                     reorderViaSwap={reorderViaSwap}
                     rowClaim={rowClaim}
+                    restoreSeedAchievementId={restoringDrillIn ? null : restoreSeedAchievementId}
                     onAchievementClick={onAchievementClick}
                     onAchievementTrackToggle={gamepadRowActions ? handleRowUntrack : undefined}
                     onAchievementNote={gamepadRowActions ? handleRowEditNote : undefined}
@@ -502,7 +614,7 @@ function TrackedPage(props: TrackedPageProps) {
         );
     }
 
-    return (
+    const page = (
         <>
             <PanelSection>
                 <PageNavStrip
@@ -516,7 +628,7 @@ function TrackedPage(props: TrackedPageProps) {
                     focusKey="tracked:back"
                     buttonSpacing={buttonSpacing}
                     onClick={backFromTracked}
-                    navAutoFocus
+                    navAutoFocus={!restorePending}
                 />
 
                 <PanelSectionRow>
@@ -703,6 +815,8 @@ function TrackedPage(props: TrackedPageProps) {
                             showRetroPoints={showRetroPoints}
                             trackedAchievementAction={trackedAchievementAction}
                             onTrackedAchievementActionChange={onTrackedAchievementActionChange}
+                            rowClaim={drillInRowClaim}
+                            restoreSeedAchievementId={restoringDrillIn ? restoreSeedAchievementId : null}
                             onSelectGame={onSelectTrackedGame}
                         />
                     </Focusable>
@@ -719,6 +833,16 @@ function TrackedPage(props: TrackedPageProps) {
                 )}
             </div>
         </>
+    );
+
+    return (
+        <RestoreCurtain
+            armed={restorePending}
+            settled={restoreSettled}
+            covered={panelOverlayVisible}
+        >
+            {page}
+        </RestoreCurtain>
     );
 }
 
@@ -820,6 +944,8 @@ type OtherGamesTabBodyProps = {
     showRetroPoints: boolean;
     trackedAchievementAction: TrackedAchievementAction;
     onTrackedAchievementActionChange: (nextValue: TrackedAchievementAction) => void | Promise<void>;
+    rowClaim: FocusClaimController;
+    restoreSeedAchievementId: number | null;
     onSelectGame: (gameId: number | null) => void;
 };
 
@@ -853,6 +979,8 @@ function OtherGamesTabBody(props: OtherGamesTabBodyProps) {
         showRetroPoints,
         trackedAchievementAction,
         onTrackedAchievementActionChange,
+        rowClaim,
+        restoreSeedAchievementId,
         onSelectGame
     } = props;
 
@@ -916,6 +1044,8 @@ function OtherGamesTabBody(props: OtherGamesTabBodyProps) {
             onAchievementClick={drillIn.onAchievementClick}
             onUntrack={drillIn.onUntrack}
             onEditNote={drillIn.onEditNote}
+            rowClaim={rowClaim}
+            restoreSeedAchievementId={restoreSeedAchievementId}
             onReorderPick={drillIn.onReorderPick}
             onReorderMove={drillIn.onReorderMove}
         />

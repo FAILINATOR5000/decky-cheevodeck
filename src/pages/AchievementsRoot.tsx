@@ -223,6 +223,7 @@ import {
 } from "../utils/commentsSnapshot";
 import { clearCheevoCheckFocusReturn, takeCheevoCheckFocusReturn } from "../utils/cheevoCheckFocusReturn";
 import { armNoteFocusReturn, takeNoteFocusReturn } from "../utils/noteFocusReturn";
+import { armTrackedFocusReturn, takeTrackedFocusReturn } from "../utils/trackedFocusReturn";
 import { measureCommentWindow } from "../utils/commentGeometry";
 import { currentQuickGuideVisible, setQuickGuide } from "../utils/quickGuide";
 import { guideBelongsToMapping } from "../utils/guidesResolve";
@@ -1598,6 +1599,7 @@ function AchievementsRoot() {
             saveNote: SaveTrackedNoteFn
         ) => {
             markNextValidationSkipped();
+            armTrackedFocusReturn(achievement.id, activeUlid);
             showManagedModal((close) => (
                 <NoteEditModal
                     gameId={gameId}
@@ -1612,7 +1614,7 @@ function AchievementsRoot() {
                 />
             ));
         },
-        [language, defaultNoteColor, setDefaultNoteColor]
+        [language, defaultNoteColor, setDefaultNoteColor, activeUlid]
     );
 
     const trackedController = useTrackedController({
@@ -2352,6 +2354,21 @@ function AchievementsRoot() {
         && noteFocusReturn.gameId === notesRestoreGameId
         && noteFocusReturn.ulid === activeUlid
             ? noteFocusReturn.noteId
+            : null;
+
+    const [trackedFocusReturn] = useState(takeTrackedFocusReturn);
+
+    const trackedRestoreArmedRef = useRef(trackedFocusReturn !== null);
+    const trackedWasOpenRef = useRef(false);
+    if (trackedWasOpenRef.current && view !== "tracked") {
+        trackedRestoreArmedRef.current = false;
+    }
+    trackedWasOpenRef.current = view === "tracked";
+    const trackedRestorePending = trackedRestoreArmedRef.current;
+
+    const trackedRestoreAchievementId =
+        trackedFocusReturn && activeUlid && trackedFocusReturn.ulid === activeUlid
+            ? trackedFocusReturn.achievementId
             : null;
 
     const [cheevoCheckFocusReturn] = useState(takeCheevoCheckFocusReturn);
@@ -4620,6 +4637,10 @@ function AchievementsRoot() {
                                 onReorderMove={onReorderMove}
                                 backClaimToken={trackedBackClaimToken}
                                 rowClaim={trackedRowClaim}
+                                restorePending={trackedRestorePending}
+                                restoreAchievementId={trackedRestoreAchievementId}
+                                panelOverlayVisible={panelOverlayVisible}
+                                onRequestFocus={setPendingFocusKey}
                             />
 
                             {view === "options" && <OptionsPage state={{ ...optionsState, mouseKeyboardMode }} actions={{ ...optionsActions, onHome: goToAchievements }} />}
