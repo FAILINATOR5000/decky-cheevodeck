@@ -59,6 +59,7 @@ export const DirectoryCard = React.memo(function DirectoryCard(props: DirectoryC
 
     function handleTrashFocus() {
         setTrashFocused(true);
+        list.onCardFocus(props.index);
     }
 
     function handleTrashBlur() {
@@ -81,6 +82,7 @@ export const DirectoryCard = React.memo(function DirectoryCard(props: DirectoryC
                 focusKey={`filewatcher:card:${root.id}`}
                 onClick={handleOpen}
                 onFocus={handleFocus}
+                onGamepadFocus={handleFocus}
                 outerStyle={{ width: "100%", minWidth: 0 }}
             >
                 <div
