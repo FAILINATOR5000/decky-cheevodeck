@@ -59,11 +59,13 @@ import {
     getCachedAchievementIcons,
     getSocialActivity,
     getSubscriptions,
+    logFocusDebug,
     prefetchGameIcons,
     prefetchUserAvatars,
     removeSubscription
 } from "../api";
 import { filterAndSortSavedComments } from "../utils/savedComments";
+import { armSavedCommentFocusReturn } from "../utils/savedCommentFocusReturn";
 import { useFocusClaim, type FocusClaimController } from "../hooks/useFocusClaim";
 import { useGameIcon } from "../hooks/useGameIcon";
 import { useThreadSubscription } from "../hooks/useThreadSubscription";
@@ -197,6 +199,12 @@ const COMMUNITY_SUB_TABS: { value: CommunitySubTab; labelKey: string; focusKey: 
 const SAVED_COMMENTS_INITIAL_ROWS = 30;
 const SAVED_COMMENTS_ROW_STEP = 50;
 
+const SAVED_COMMENT_RESTORE_SEED_CEILING = 200;
+
+const SAVED_COMMENT_CARD_FOCUS_PREFIX = "savedcomment:card:";
+
+const SAVED_COMMENT_FACET_CLAIM_SLOT = -2;
+
 const AOTW_SUB_TABS: { value: AotwSubView; labelKey: string; focusKey: string }[] = [
     { value: "unlocks", labelKey: "Unlocks", focusKey: "aotw:subtab:unlocks" },
     { value: "comments", labelKey: "Comments", focusKey: "aotw:subtab:comments" }
@@ -268,6 +276,8 @@ type SavedCommentsPanelProps = {
     games: SavedCommentGame[];
     onCycleSort: () => void;
     onOpenFilterPicker: () => void;
+    restoreFocusKey: string | null;
+    restorePending: boolean;
 };
 
 type SocialHubPageProps = {
@@ -299,6 +309,7 @@ type SocialHubPageProps = {
     favoriteFriends: string[];
     newsEvents: NewsEventsProps;
     savedComments: SavedCommentsPanelProps;
+    onRequestFocus: (focusKey: string) => void;
     onBack: () => void | Promise<void>;
     onHome: () => void | Promise<void>;
     onFriendClick: (friend: FriendRow) => void | Promise<void>;
@@ -932,6 +943,41 @@ function SocialHubPage(props: SocialHubPageProps) {
         ),
         [allSavedComments, props.savedComments.sort, props.savedComments.filter]
     );
+
+    const savedRestorePending = props.savedComments.restorePending;
+    const savedRestoreFocusKey = props.savedComments.restoreFocusKey;
+
+    const savedIndexById = useMemo(() => {
+        const byId = new Map<string, number>();
+        facetedSavedComments.forEach((comment, index) => byId.set(comment.id, index));
+        return byId;
+    }, [facetedSavedComments]);
+
+    const savedRestoreCardId = savedRestorePending
+        && savedRestoreFocusKey !== null
+        && savedRestoreFocusKey.startsWith(SAVED_COMMENT_CARD_FOCUS_PREFIX)
+        ? savedRestoreFocusKey.slice(SAVED_COMMENT_CARD_FOCUS_PREFIX.length)
+        : null;
+
+    const savedRestoreSlot = savedRestoreCardId === null
+        ? -1
+        : savedIndexById.get(savedRestoreCardId) ?? -1;
+
+    const savedRestoreInReach = savedRestoreSlot >= 0
+        && savedRestoreSlot < SAVED_COMMENT_RESTORE_SEED_CEILING;
+
+    const savedRestoreFiredRef = useRef(false);
+    const savedRestoreSettledRef = useRef(false);
+    const [savedRestoreAbandoned, setSavedRestoreAbandoned] = useState(false);
+
+    const savedRestoreClaimSpent = savedRestoreFiredRef.current
+        && (savedCommentRowClaim.claim?.token ?? 0) > 0
+        && !savedCommentRowClaim.claim?.armed;
+
+    const savedRestoreSeedRows = savedRestoreClaimSpent || !savedRestoreInReach
+        ? 0
+        : savedRestoreSlot + 1;
+
     const {
         mountedItems: visibleSavedComments,
         markerRef: savedListMarkerRef,
@@ -943,6 +989,7 @@ function SocialHubPage(props: SocialHubPageProps) {
         rowStep: SAVED_COMMENTS_ROW_STEP,
         prefetchDistance: 12,
         sentinelRootMargin: "300px",
+        seedRows: savedRestoreSeedRows,
         resetKey: `${props.savedComments.subTab}:${props.savedComments.filter}:${props.savedComments.sort}`
     });
 
@@ -955,6 +1002,84 @@ function SocialHubPage(props: SocialHubPageProps) {
             void prefetchUserAvatars(names);
         }
     }, [savedSubTabActive, props.showIcons, visibleSavedComments]);
+
+    useEffect(function landRestoredSavedCursor() {
+        if (props.view !== "social" || !savedRestorePending || savedRestoreFiredRef.current) {
+            return;
+        }
+        if (savedRestoreFocusKey === null) {
+            savedRestoreFiredRef.current = true;
+            setSavedRestoreAbandoned(true);
+            logFocusDebug("savedcomment-restore", "(none)", "nothing armed");
+            props.onRequestFocus("social:back");
+            return;
+        }
+        if (!savedSubTabActive) {
+            savedRestoreFiredRef.current = true;
+            setSavedRestoreAbandoned(true);
+            logFocusDebug("savedcomment-restore", savedRestoreFocusKey, "the saved list is not the tab on screen");
+            props.onRequestFocus("social:back");
+            return;
+        }
+        if (!props.savedComments.loaded) {
+            if (props.savedComments.error === null) {
+                return;
+            }
+            savedRestoreFiredRef.current = true;
+            setSavedRestoreAbandoned(true);
+            logFocusDebug("savedcomment-restore", savedRestoreFocusKey, "the list would not load");
+            props.onRequestFocus("social:back");
+            return;
+        }
+        if (savedRestoreCardId === null) {
+            savedRestoreFiredRef.current = true;
+            if (allSavedComments.length === 0) {
+                setSavedRestoreAbandoned(true);
+                logFocusDebug("savedcomment-restore", savedRestoreFocusKey, "the facet bar is gone with the list");
+                props.onRequestFocus("social:back");
+                return;
+            }
+            logFocusDebug("savedcomment-restore", savedRestoreFocusKey, "claiming the facet row");
+            savedCommentRowClaim.claimSlot(SAVED_COMMENT_FACET_CLAIM_SLOT);
+            props.onRequestFocus(savedRestoreFocusKey);
+            return;
+        }
+        savedRestoreFiredRef.current = true;
+        if (!savedRestoreInReach) {
+            setSavedRestoreAbandoned(true);
+            logFocusDebug(
+                "savedcomment-restore",
+                savedRestoreFocusKey,
+                `slot=${savedRestoreSlot} total=${facetedSavedComments.length}`
+                + ` ceiling=${SAVED_COMMENT_RESTORE_SEED_CEILING}`
+                + ` ${savedRestoreSlot < 0 ? "gone from the list" : "past the ceiling"}`
+            );
+            props.onRequestFocus("social:back");
+            return;
+        }
+        logFocusDebug(
+            "savedcomment-restore",
+            savedRestoreFocusKey,
+            `slot=${savedRestoreSlot} of ${facetedSavedComments.length} seeded=${savedRestoreSeedRows}`
+        );
+        savedCommentRowClaim.claimSlot(savedRestoreSlot);
+        props.onRequestFocus(savedRestoreFocusKey);
+    }, [
+        props.view,
+        savedRestorePending,
+        savedRestoreFocusKey,
+        savedSubTabActive,
+        props.savedComments.loaded,
+        props.savedComments.error,
+        savedRestoreCardId,
+        savedRestoreSlot,
+        savedRestoreInReach,
+        savedRestoreSeedRows,
+        allSavedComments.length,
+        facetedSavedComments.length,
+        savedCommentRowClaim.claimSlot,
+        props.onRequestFocus
+    ]);
 
     const handleSavedCommentTrashBlur = (comment: SavedComment) => {
         setArmedSavedId((armed) => (armed === comment.id ? null : armed));
@@ -993,6 +1118,7 @@ function SocialHubPage(props: SocialHubPageProps) {
         metrics: rowMetrics,
         showIcons: props.showIcons,
         onOpen: (comment) => {
+            armSavedCommentFocusReturn(`${SAVED_COMMENT_CARD_FOCUS_PREFIX}${comment.id}`);
             void savedOpenRef.current(comment);
         },
         onTrashPress: (comment) => {
@@ -1070,10 +1196,18 @@ function SocialHubPage(props: SocialHubPageProps) {
 
     const aotwCardClaim = props.newsEvents.aotwCommentsCardClaim
         ?? props.newsEvents.aotwCommentsPostClaim;
-    const restoreCurtainArmed = props.newsEvents.aotwRestorePending;
-    const restoreCurtainSettled = !props.newsEvents.aotwHoldCommentsBody
+    if (savedRestoreFiredRef.current
+        && (savedCommentRowClaim.claim?.token ?? 0) > 0
+        && !savedCommentRowClaim.claim?.armed) {
+        savedRestoreSettledRef.current = true;
+    }
+    const savedRestoreSettled = savedRestoreAbandoned || savedRestoreSettledRef.current;
+    const restoreCurtainArmed = props.newsEvents.aotwRestorePending || savedRestorePending;
+    const aotwRestoreSettled = !props.newsEvents.aotwHoldCommentsBody
         && (aotwCardClaim?.token ?? 0) > 0
         && !aotwCardClaim?.armed;
+    const restoreCurtainSettled = (!props.newsEvents.aotwRestorePending || aotwRestoreSettled)
+        && (!savedRestorePending || savedRestoreSettled);
 
     // Render
     const page = (
@@ -1090,7 +1224,10 @@ function SocialHubPage(props: SocialHubPageProps) {
                     key={`back:${backClaimToken}`}
                     label={t(props.language, "← Back to Main")}
                     focusKey="social:back"
-                    navAutoFocus={!props.newsEvents.aotwRestorePending || backClaimToken > 0}
+                    navAutoFocus={
+                        (!props.newsEvents.aotwRestorePending && !savedRestorePending)
+                        || backClaimToken > 0
+                    }
                     buttonSpacing={props.buttonSpacing}
                     onClick={props.onBack}
                 />
@@ -1369,6 +1506,7 @@ function SocialHubPage(props: SocialHubPageProps) {
                                             panel={props.savedComments}
                                             language={props.language}
                                             showIcons={props.showIcons}
+                                            claim={savedCommentRowClaim}
                                         />
                                         {facetedSavedComments.length === 0 ? (
                                             <PanelSectionRow>
@@ -1984,23 +2122,29 @@ function SavedCommentsFacetBar(props: {
     panel: SavedCommentsPanelProps;
     language: LanguageCode;
     showIcons: boolean;
+    claim: FocusClaimController;
 }) {
     const { panel, language, showIcons } = props;
     return (
         <>
-            <LabeledRow
-                focusKey="savedcomment:facet:filter"
-                label={t(language, "Filter")}
-                value={(
-                    <SavedCommentsFilterValue
-                        games={panel.games}
-                        filter={panel.filter}
-                        showIcons={showIcons}
-                        language={language}
-                    />
-                )}
-                onClick={panel.onOpenFilterPicker}
-            />
+            <ClaimedRow claim={props.claim} slotIndex={SAVED_COMMENT_FACET_CLAIM_SLOT}>
+                <LabeledRow
+                    focusKey="savedcomment:facet:filter"
+                    label={t(language, "Filter")}
+                    value={(
+                        <SavedCommentsFilterValue
+                            games={panel.games}
+                            filter={panel.filter}
+                            showIcons={showIcons}
+                            language={language}
+                        />
+                    )}
+                    onClick={() => {
+                        armSavedCommentFocusReturn("savedcomment:facet:filter");
+                        panel.onOpenFilterPicker();
+                    }}
+                />
+            </ClaimedRow>
             <LabeledRow
                 focusKey="savedcomment:facet:sort"
                 label={t(language, "Sort")}

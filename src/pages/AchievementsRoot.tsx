@@ -226,6 +226,7 @@ import { armNoteFocusReturn, takeNoteFocusReturn } from "../utils/noteFocusRetur
 import { takeTrackedSetFocusReturn } from "../utils/trackedSetFocusReturn";
 import { armTrackedFocusReturn, takeTrackedFocusReturn } from "../utils/trackedFocusReturn";
 import { takeDolphinFocusReturn } from "../utils/dolphinFocusReturn";
+import { takeSavedCommentFocusReturn } from "../utils/savedCommentFocusReturn";
 import { notePanelMount, notePanelUnmount, samplePanelEntryFrames } from "../utils/panelLifecycle";
 import { measureCommentWindow } from "../utils/commentGeometry";
 import { currentQuickGuideVisible, setQuickGuide } from "../utils/quickGuide";
@@ -2394,6 +2395,16 @@ function AchievementsRoot() {
     }
     dolphinWasOpenRef.current = view === "dolphinMapper";
     const dolphinRestorePending = dolphinRestoreArmedRef.current;
+
+    const [savedCommentFocusReturn] = useState(takeSavedCommentFocusReturn);
+
+    const savedCommentRestoreArmedRef = useRef(savedCommentFocusReturn !== null);
+    const savedCommentWasOpenRef = useRef(false);
+    if (savedCommentWasOpenRef.current && view !== "social") {
+        savedCommentRestoreArmedRef.current = false;
+    }
+    savedCommentWasOpenRef.current = view === "social";
+    const savedCommentRestorePending = savedCommentRestoreArmedRef.current;
 
     const [trackedSetFocusReturn] = useState(takeTrackedSetFocusReturn);
 
@@ -4917,7 +4928,9 @@ function AchievementsRoot() {
                                     filter: savedCommentsFilter,
                                     games: savedCommentsController.savedGames,
                                     onCycleSort: () => updateSavedCommentsPrefs({ sort: nextSavedSort(savedCommentsSort) }),
-                                    onOpenFilterPicker: openSavedFilterPicker
+                                    onOpenFilterPicker: openSavedFilterPicker,
+                                    restoreFocusKey: savedCommentFocusReturn,
+                                    restorePending: savedCommentRestorePending
                                 }}
                                 friendsPayload={friendsPayload}
                                 friendsError={friendsError}
@@ -5026,6 +5039,7 @@ function AchievementsRoot() {
                                         goToGameOverview(gameId, "newsEvents", null, null);
                                     }
                                 }}
+                                onRequestFocus={setPendingFocusKey}
                                 onBack={goToAchievements}
                                 onHome={goToAchievements}
                                 onFriendFocus={scheduleFriendPauseRefresh}
