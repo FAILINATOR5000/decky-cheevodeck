@@ -11,6 +11,7 @@ import {
 } from "../api";
 import { t, type LanguageCode } from "../locales";
 import type { CheevoCheckState } from "../types";
+import { clearCheevoCheckFocusReturn } from "../utils/cheevoCheckFocusReturn";
 import { logError } from "../utils/errors";
 import { openPathPicker } from "../components/pickers/FilePickerModal";
 
@@ -124,6 +125,7 @@ export function useCheevoCheckController({ isActive, language }: UseCheevoCheckC
             if (!root) {
                 return;
             }
+            clearCheevoCheckFocusReturn();
             await startCheevoCheckScan(root, offline);
             await reload();
         }

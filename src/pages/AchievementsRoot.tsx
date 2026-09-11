@@ -221,6 +221,7 @@ import {
     putCommentsSnapshot,
     setCommentsSnapshotUser
 } from "../utils/commentsSnapshot";
+import { clearCheevoCheckFocusReturn, takeCheevoCheckFocusReturn } from "../utils/cheevoCheckFocusReturn";
 import { armNoteFocusReturn, takeNoteFocusReturn } from "../utils/noteFocusReturn";
 import { measureCommentWindow } from "../utils/commentGeometry";
 import { currentQuickGuideVisible, setQuickGuide } from "../utils/quickGuide";
@@ -1643,6 +1644,7 @@ function AchievementsRoot() {
                 kind={kind}
                 rows={rows}
                 onPick={(gameId) => {
+                    clearCheevoCheckFocusReturn();
                     pendingCheevoCheckGameId = gameId;
                     close();
                     goToGameOverview(gameId, "cheevoCheck", null, null);
@@ -2350,6 +2352,16 @@ function AchievementsRoot() {
         && noteFocusReturn.ulid === activeUlid
             ? noteFocusReturn.noteId
             : null;
+
+    const [cheevoCheckFocusReturn] = useState(takeCheevoCheckFocusReturn);
+
+    const cheevoCheckRestoreArmedRef = useRef(cheevoCheckFocusReturn !== null);
+    const cheevoCheckWasOpenRef = useRef(false);
+    if (cheevoCheckWasOpenRef.current && view !== "cheevoCheck") {
+        cheevoCheckRestoreArmedRef.current = false;
+    }
+    cheevoCheckWasOpenRef.current = view === "cheevoCheck";
+    const cheevoCheckRestorePending = cheevoCheckRestoreArmedRef.current;
 
     const { state: unlockHistoryState, actions: unlockHistoryActions } = unlockHistoryController;
     const { state: aboutState, actions: aboutActions } = aboutController;
@@ -4725,13 +4737,17 @@ function AchievementsRoot() {
                                     language,
                                     buttonSpacing,
                                     batterySaver,
-                                    mouseKeyboardMode
+                                    mouseKeyboardMode,
+                                    restoreFocusKey: cheevoCheckFocusReturn,
+                                    restorePending: cheevoCheckRestorePending,
+                                    panelOverlayVisible
                                 }}
                                 actions={{
                                     onBack: backFromUtilityTool,
                                     onHome: goToAchievements,
                                     onToggleBatterySaver: toggleBatterySaver,
-                                    onBrowse: openCheevoCheckBrowseModal
+                                    onBrowse: openCheevoCheckBrowseModal,
+                                    onRequestFocus: setPendingFocusKey
                                 }}
                             />
 

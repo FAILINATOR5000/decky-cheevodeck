@@ -1,19 +1,24 @@
 import { DialogButton, PanelSection, PanelSectionRow, SliderField } from "@decky/ui";
-import { Fragment, useEffect, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 
+import { logFocusDebug } from "../api";
 import { BackButton } from "../components/ui/BackButton";
 import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
 import { CollapseChevron } from "../components/ui/CollapseChevron";
 import { ConfirmRow } from "../components/ui/ConfirmRow";
+import { FocusClaim } from "../components/ui/FocusClaim";
 import { FocusableItem } from "../components/ui/FocusableItem";
 import { InfoText, helpDescription } from "../components/ui/InfoText";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
 import { PageNavStrip } from "../components/ui/PageNavStrip";
 import { ProgressBar } from "../components/ui/ProgressBar";
+import { RestoreCurtain } from "../components/ui/RestoreCurtain";
 import { SectionTitle } from "../components/ui/SectionTitle";
 import { TextViewerModal } from "../components/ui/TextViewerModal";
 import { ToggleRow } from "../components/ui/ToggleRow";
+import { useFocusClaim } from "../hooks/useFocusClaim";
 import { showManagedModal } from "../utils/modalRegistry";
+import { armCheevoCheckFocusReturn } from "../utils/cheevoCheckFocusReturn";
 import { fileWatcherSpeedLabel } from "../utils/fileWatcher";
 import { DarkenScreenRow } from "../components/darken/DarkenScreenRow";
 import { useCheevoCheck } from "../components/cheevocheck/CheevoCheckContext";
@@ -94,6 +99,9 @@ type CheevoCheckPageState = {
 
     batterySaver: boolean;
     mouseKeyboardMode: boolean;
+    restoreFocusKey: string | null;
+    restorePending: boolean;
+    panelOverlayVisible: boolean;
 };
 
 type CheevoCheckPageActions = {
@@ -101,6 +109,7 @@ type CheevoCheckPageActions = {
     onHome: () => void | Promise<void>;
     onToggleBatterySaver: (next: boolean) => void | Promise<void>;
     onBrowse: (kind: CheevoCheckListKind, rows: CheevoCheckBrowseRow[]) => void;
+    onRequestFocus: (focusKey: string) => void;
 };
 
 type CheevoCheckPageProps = {
@@ -135,8 +144,49 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
         return () => window.clearTimeout(timer);
     }, [loaded]);
 
+    const { restoreFocusKey, restorePending } = state;
+
+    const restoreClaim = useFocusClaim();
+    const restoreFiredRef = useRef(false);
+    const [restoreAbandoned, setRestoreAbandoned] = useState(false);
+    const claimedKeyRef = useRef<string | null>(null);
+
+    const scanRunning = Boolean(cheevo?.running) || starting;
+
+    useEffect(function landRestoredCursor() {
+        if (state.view !== "cheevoCheck" || !restorePending || restoreFiredRef.current) {
+            return;
+        }
+        if (!loaded) {
+            return;
+        }
+        restoreFiredRef.current = true;
+        if (restoreFocusKey === null || scanRunning) {
+            setRestoreAbandoned(true);
+            logFocusDebug("cheevocheck-restore", restoreFocusKey ?? "(none)", scanRunning ? "a scan is running" : "nothing armed");
+            actions.onRequestFocus("cheevocheck:back");
+            return;
+        }
+        logFocusDebug("cheevocheck-restore", restoreFocusKey, "claiming");
+        claimedKeyRef.current = restoreFocusKey;
+        restoreClaim.claimSlot(0);
+        actions.onRequestFocus(restoreFocusKey);
+    }, [state.view, restorePending, restoreFocusKey, loaded, scanRunning, restoreClaim.claimSlot, actions.onRequestFocus]);
+
     if (state.view !== "cheevoCheck") {
         return null;
+    }
+
+    function claimTarget(control: ReactElement<{ focusKey?: string }>): ReactNode {
+        const claim = restoreClaim.claim;
+        if (!claim || control.props.focusKey !== claimedKeyRef.current) {
+            return control;
+        }
+        return (
+            <FocusClaim token={claim.token} armed={claim.armed} onSpent={restoreClaim.spend}>
+                {control}
+            </FocusClaim>
+        );
     }
 
     const running = Boolean(cheevo?.running);
@@ -236,7 +286,10 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
 
     const scopeKey = `cheevoCheck:view:${busy ? "scan" : "idle"}:${state.focusScopeResetToken}`;
 
-    return (
+    const restoreSettled = restoreAbandoned
+        || ((restoreClaim.claim?.token ?? 0) > 0 && !restoreClaim.claim?.armed);
+
+    const page = (
         <PanelSection key={scopeKey}>
             <PageNavStrip
                 title={t(language, "Cheevo Check")}
@@ -247,7 +300,7 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
             <BackButton
                 label={t(language, "Back")}
                 focusKey="cheevocheck:back"
-                navAutoFocus
+                navAutoFocus={!restorePending}
                 buttonSpacing={state.buttonSpacing}
                 onClick={actions.onBack}
                 scrollMarginTop={BACK_BUTTON_SCROLL_MARGIN_PX}
@@ -371,41 +424,56 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                     )}
 
                     <PanelSectionRow>
-                        <FocusableItem
-                            focusKey="cheevocheck:scan"
-                            outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
-                            onClick={() => startScan(false)}
-                            bottomSeparator="standard"
-                            help={t(language, "help_cheevo_check_scan")}
-                        >
-                            {t(language, "Scan")}
-                        </FocusableItem>
+                        {claimTarget(
+                            <FocusableItem
+                                focusKey="cheevocheck:scan"
+                                outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                                onClick={() => {
+                                    armCheevoCheckFocusReturn("cheevocheck:scan");
+                                    void startScan(false);
+                                }}
+                                bottomSeparator="standard"
+                                help={t(language, "help_cheevo_check_scan")}
+                            >
+                                {t(language, "Scan")}
+                            </FocusableItem>
+                        )}
                     </PanelSectionRow>
                     <PanelSectionRow>
-                        <FocusableItem
-                            focusKey="cheevocheck:offline-scan"
-                            outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
-                            disabled={!canScanOffline}
-                            onClick={() => startScan(true)}
-                            bottomSeparator="standard"
-                            help={t(language, "help_cheevo_check_offline_scan")}
-                        >
-                            {t(language, "Offline Scan")}
-                        </FocusableItem>
+                        {claimTarget(
+                            <FocusableItem
+                                focusKey="cheevocheck:offline-scan"
+                                outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                                disabled={!canScanOffline}
+                                onClick={() => {
+                                    armCheevoCheckFocusReturn("cheevocheck:offline-scan");
+                                    void startScan(true);
+                                }}
+                                bottomSeparator="standard"
+                                help={t(language, "help_cheevo_check_offline_scan")}
+                            >
+                                {t(language, "Offline Scan")}
+                            </FocusableItem>
+                        )}
                     </PanelSectionRow>
                     {results && results.scanned > 0 && (
                         <>
                             <PanelSectionRow>
-                                <FocusableItem
-                                    focusKey="cheevocheck:save-report"
-                                    outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
-                                    disabled={savingReport}
-                                    onClick={() => void saveReport(buildReport(results, verify, archiveMismatches, language))}
-                                    bottomSeparator="standard"
-                                    help={t(language, "help_cheevo_check_save_report")}
-                                >
-                                    {t(language, savingReport ? "Saving report..." : "Save Report")}
-                                </FocusableItem>
+                                {claimTarget(
+                                    <FocusableItem
+                                        focusKey="cheevocheck:save-report"
+                                        outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                                        disabled={savingReport}
+                                        onClick={() => {
+                                            armCheevoCheckFocusReturn("cheevocheck:save-report");
+                                            void saveReport(buildReport(results, verify, archiveMismatches, language));
+                                        }}
+                                        bottomSeparator="standard"
+                                        help={t(language, "help_cheevo_check_save_report")}
+                                    >
+                                        {t(language, savingReport ? "Saving report..." : "Save Report")}
+                                    </FocusableItem>
+                                )}
                             </PanelSectionRow>
                         </>
                     )}
@@ -455,53 +523,73 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                             </PanelSectionRow>
 
                             <PanelSectionRow>
-                                <FocusableItem
-                                    focusKey="cheevocheck:supported"
-                                    outerStyle={{ ...regularButtonSpacingStyle(state.buttonSpacing), marginTop: "10px" }}
-                                    disabled={supportedGames.length === 0}
-                                    onClick={() => browseGames("supported", supportedGames)}
-                                    bottomSeparator="standard"
-                                    help={t(language, "help_cheevo_check_supported")}
-                                >
-                                    {t(language, "Supported Games ({{count}})", { count: supportedGames.length })}
-                                </FocusableItem>
+                                {claimTarget(
+                                    <FocusableItem
+                                        focusKey="cheevocheck:supported"
+                                        outerStyle={{ ...regularButtonSpacingStyle(state.buttonSpacing), marginTop: "10px" }}
+                                        disabled={supportedGames.length === 0}
+                                        onClick={() => {
+                                            armCheevoCheckFocusReturn("cheevocheck:supported");
+                                            browseGames("supported", supportedGames);
+                                        }}
+                                        bottomSeparator="standard"
+                                        help={t(language, "help_cheevo_check_supported")}
+                                    >
+                                        {t(language, "Supported Games ({{count}})", { count: supportedGames.length })}
+                                    </FocusableItem>
+                                )}
                             </PanelSectionRow>
                             <PanelSectionRow>
-                                <FocusableItem
-                                    focusKey="cheevocheck:unsupported"
-                                    outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
-                                    disabled={unsupportedRows.length === 0}
-                                    onClick={() => browseRows("unsupported", unsupportedRows)}
-                                    bottomSeparator="standard"
-                                    help={t(language, "help_cheevo_check_unsupported")}
-                                >
-                                    {t(language, "Unsupported Files ({{count}})", { count: unsupportedRows.length })}
-                                </FocusableItem>
+                                {claimTarget(
+                                    <FocusableItem
+                                        focusKey="cheevocheck:unsupported"
+                                        outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                                        disabled={unsupportedRows.length === 0}
+                                        onClick={() => {
+                                            armCheevoCheckFocusReturn("cheevocheck:unsupported");
+                                            browseRows("unsupported", unsupportedRows);
+                                        }}
+                                        bottomSeparator="standard"
+                                        help={t(language, "help_cheevo_check_unsupported")}
+                                    >
+                                        {t(language, "Unsupported Files ({{count}})", { count: unsupportedRows.length })}
+                                    </FocusableItem>
+                                )}
                             </PanelSectionRow>
                             <PanelSectionRow>
-                                <FocusableItem
-                                    focusKey="cheevocheck:noachievements"
-                                    outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
-                                    disabled={noAchievementRows.length === 0}
-                                    onClick={() => browseRows("noAchievements", noAchievementRows)}
-                                    bottomSeparator="standard"
-                                    help={t(language, "help_cheevo_check_no_achievements")}
-                                >
-                                    {t(language, "No Achievements ({{count}})", { count: noAchievementRows.length })}
-                                </FocusableItem>
+                                {claimTarget(
+                                    <FocusableItem
+                                        focusKey="cheevocheck:noachievements"
+                                        outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                                        disabled={noAchievementRows.length === 0}
+                                        onClick={() => {
+                                            armCheevoCheckFocusReturn("cheevocheck:noachievements");
+                                            browseRows("noAchievements", noAchievementRows);
+                                        }}
+                                        bottomSeparator="standard"
+                                        help={t(language, "help_cheevo_check_no_achievements")}
+                                    >
+                                        {t(language, "No Achievements ({{count}})", { count: noAchievementRows.length })}
+                                    </FocusableItem>
+                                )}
                             </PanelSectionRow>
                             {failedRows.length > 0 && (
                                 <>
                                     <PanelSectionRow>
-                                        <FocusableItem
-                                            focusKey="cheevocheck:failed"
-                                            outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
-                                            onClick={() => browseRows("failed", failedRows)}
-                                            bottomSeparator="standard"
-                                            help={t(language, "help_cheevo_check_failed")}
-                                        >
-                                            {t(language, "Couldn't Scan ({{count}})", { count: failedRows.length })}
-                                        </FocusableItem>
+                                        {claimTarget(
+                                            <FocusableItem
+                                                focusKey="cheevocheck:failed"
+                                                outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                                                onClick={() => {
+                                                    armCheevoCheckFocusReturn("cheevocheck:failed");
+                                                    browseRows("failed", failedRows);
+                                                }}
+                                                bottomSeparator="standard"
+                                                help={t(language, "help_cheevo_check_failed")}
+                                            >
+                                                {t(language, "Couldn't Scan ({{count}})", { count: failedRows.length })}
+                                            </FocusableItem>
+                                        )}
                                     </PanelSectionRow>
                                 </>
                             )}
@@ -509,15 +597,20 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                             {archiveMismatches.length > 0 && (
                                 <>
                                     <PanelSectionRow>
-                                        <FocusableItem
-                                            focusKey="cheevocheck:archivemismatch"
-                                            outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
-                                            onClick={() => browseRows("archiveMismatch", archiveMismatches)}
-                                            bottomSeparator="standard"
-                                            help={t(language, "help_cheevo_check_archive_mismatch")}
-                                        >
-                                            {t(language, "Archive Name Mismatches ({{count}})", { count: archiveMismatches.length })}
-                                        </FocusableItem>
+                                        {claimTarget(
+                                            <FocusableItem
+                                                focusKey="cheevocheck:archivemismatch"
+                                                outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                                                onClick={() => {
+                                                    armCheevoCheckFocusReturn("cheevocheck:archivemismatch");
+                                                    browseRows("archiveMismatch", archiveMismatches);
+                                                }}
+                                                bottomSeparator="standard"
+                                                help={t(language, "help_cheevo_check_archive_mismatch")}
+                                            >
+                                                {t(language, "Archive Name Mismatches ({{count}})", { count: archiveMismatches.length })}
+                                            </FocusableItem>
+                                        )}
                                     </PanelSectionRow>
                                 </>
                             )}
@@ -563,21 +656,26 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                                         return (
                                             <Fragment key={entry.bucket}>
                                                 <PanelSectionRow>
-                                                    <FocusableItem
-                                                        focusKey={`cheevocheck:verify:${entry.bucket}`}
-                                                        outerStyle={index === 0
-                                                            ? { ...regularButtonSpacingStyle(state.buttonSpacing), marginTop: "10px" }
-                                                            : regularButtonSpacingStyle(state.buttonSpacing)}
-                                                        disabled={rows.length === 0}
-                                                        onClick={() => browseVerify(entry.bucket, rows)}
-                                                        bottomSeparator="standard"
-                                                        help={t(language, entry.help)}
-                                                    >
-                                                        {t(language, "{{label}} ({{count}})", {
-                                                            label: t(language, entry.label),
-                                                            count: rows.length
-                                                        })}
-                                                    </FocusableItem>
+                                                    {claimTarget(
+                                                        <FocusableItem
+                                                            focusKey={`cheevocheck:verify:${entry.bucket}`}
+                                                            outerStyle={index === 0
+                                                                ? { ...regularButtonSpacingStyle(state.buttonSpacing), marginTop: "10px" }
+                                                                : regularButtonSpacingStyle(state.buttonSpacing)}
+                                                            disabled={rows.length === 0}
+                                                            onClick={() => {
+                                                                armCheevoCheckFocusReturn(`cheevocheck:verify:${entry.bucket}`);
+                                                                browseVerify(entry.bucket, rows);
+                                                            }}
+                                                            bottomSeparator="standard"
+                                                            help={t(language, entry.help)}
+                                                        >
+                                                            {t(language, "{{label}} ({{count}})", {
+                                                                label: t(language, entry.label),
+                                                                count: rows.length
+                                                            })}
+                                                        </FocusableItem>
+                                                    )}
                                                 </PanelSectionRow>
                                             </Fragment>
                                         );
@@ -600,15 +698,20 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
 
                     <SectionTitle label={t(language, "Help")} />
                     <PanelSectionRow>
-                        <FocusableItem
-                            focusKey="cheevocheck:guide"
-                            outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
-                            onClick={openGuide}
-                            bottomSeparator="standard"
-                            help={t(language, "help_cheevo_check_guide")}
-                        >
-                            {t(language, "Guide")}
-                        </FocusableItem>
+                        {claimTarget(
+                            <FocusableItem
+                                focusKey="cheevocheck:guide"
+                                outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                                onClick={() => {
+                                    armCheevoCheckFocusReturn("cheevocheck:guide");
+                                    openGuide();
+                                }}
+                                bottomSeparator="standard"
+                                help={t(language, "help_cheevo_check_guide")}
+                            >
+                                {t(language, "Guide")}
+                            </FocusableItem>
+                        )}
                     </PanelSectionRow>
 
                     <SectionTitle label={t(language, "Options")} />
@@ -712,6 +815,16 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                 </>
             )}
         </PanelSection>
+    );
+
+    return (
+        <RestoreCurtain
+            armed={restorePending}
+            settled={restoreSettled}
+            covered={state.panelOverlayVisible}
+        >
+            {page}
+        </RestoreCurtain>
     );
 }
 
