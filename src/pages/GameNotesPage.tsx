@@ -188,7 +188,11 @@ type NoteSection = {
     isCompleted?: boolean;
 };
 
-function buildNoteSections(notes: GameNote[], sortMode: GameNoteSortMode): NoteSection[] {
+function buildNoteSections(
+    notes: GameNote[],
+    sortMode: GameNoteSortMode,
+    language: LanguageCode
+): NoteSection[] {
     const byKey = new Map<string, NoteSection>();
     const untagged: NoteSection = {
         tag: null,
@@ -246,23 +250,12 @@ function buildNoteSections(notes: GameNote[], sortMode: GameNoteSortMode): NoteS
         return bAt - aAt;
     });
 
-    function sectionRank(section: NoteSection): number {
-        if (section.orderedNotes.length === 0) {
-            return Number.POSITIVE_INFINITY;
-        }
-        if (sortMode === "manual") {
-            return section.orderedNotes[0].manualOrder;
-        }
-        if (sortMode === "oldest") {
-            return section.orderedNotes[0].createdAt;
-        }
-        return -section.orderedNotes[0].createdAt;
-    }
-
     const taggedSections = Array.from(byKey.values()).filter(
         (s) => s.orderedNotes.length > 0
     );
-    taggedSections.sort((a, b) => sectionRank(a) - sectionRank(b));
+    taggedSections.sort((a, b) =>
+        (a.tag ?? "").localeCompare(b.tag ?? "", language, { numeric: true })
+    );
 
     const ordered: NoteSection[] = taggedSections;
     if (untagged.orderedNotes.length > 0) {
@@ -331,8 +324,8 @@ export function GameNotesPage(props: GameNotesPageProps) {
     const gameId = gameNotesGameId ?? payload?.gameId ?? null;
 
     const sections = useMemo(
-        () => buildNoteSections(notes, sortMode),
-        [notes, sortMode]
+        () => buildNoteSections(notes, sortMode, language),
+        [notes, sortMode, language]
     );
 
     const flatOrderedIds = useMemo(() => {
