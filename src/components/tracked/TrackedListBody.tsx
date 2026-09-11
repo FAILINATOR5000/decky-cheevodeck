@@ -99,6 +99,18 @@ function groupTrackedAchievements(
     return ordered;
 }
 
+function visualTrackedGroups(
+    achievements: AchievementRow[],
+    notesByAchievementId: TrackedNotes,
+    language: LanguageCode
+): TrackedGroup[] {
+    const groups = groupTrackedAchievements(achievements, notesByAchievementId);
+    const tagged = groups.filter((group) => group.tagKey !== null);
+    const untagged = groups.filter((group) => group.tagKey === null);
+    tagged.sort((a, b) => (a.tag ?? "").localeCompare(b.tag ?? "", language, { numeric: true }));
+    return [...tagged, ...untagged];
+}
+
 export function TrackedListBody(props: TrackedListBodyProps) {
     const {
         language,
@@ -136,8 +148,8 @@ export function TrackedListBody(props: TrackedListBodyProps) {
     } = props;
 
     const groups = useMemo(
-        () => groupTrackedAchievements(trackedAchievements, notesByAchievementId),
-        [trackedAchievements, notesByAchievementId]
+        () => visualTrackedGroups(trackedAchievements, notesByAchievementId, language),
+        [trackedAchievements, notesByAchievementId, language]
     );
 
     if (!trackedReady) {
@@ -275,9 +287,10 @@ export function TrackedListBody(props: TrackedListBodyProps) {
 
 export function flattenTrackedVisualOrder(
     trackedAchievements: AchievementRow[],
-    notesByAchievementId: TrackedNotes
+    notesByAchievementId: TrackedNotes,
+    language: LanguageCode
 ): AchievementRow[] {
-    const groups = groupTrackedAchievements(trackedAchievements, notesByAchievementId);
+    const groups = visualTrackedGroups(trackedAchievements, notesByAchievementId, language);
     const ordered: AchievementRow[] = [];
     for (const group of groups) {
         for (const achievement of group.achievements) {

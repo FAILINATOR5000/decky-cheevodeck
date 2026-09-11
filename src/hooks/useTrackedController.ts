@@ -30,6 +30,7 @@ import {
 } from "../api";
 import type { AchievementRow, AOSource, NoteColor, OkResult, Payload, ReorderDirection, TrackedAchievementAction, TrackedAchievementSort, TrackedNotes, TrackedNotesColor, TrackedTab, ViewKey } from "../types";
 import { earned, isMissable, metricSortComparator } from "../utils/achievements";
+import type { LanguageCode } from "../locales";
 import { logError } from "../utils/errors";
 import { openExternalUrl, raAchievementUrl } from "../utils/navigation";
 import { flattenTrackedVisualOrder, groupIdsForTrackedTarget, trackedRowGroupSlot } from "../components/tracked/TrackedListBody";
@@ -43,6 +44,7 @@ type TrackedWriteResult = {
 
 type UseTrackedControllerArgs = {
     payload: Payload | null;
+    language: LanguageCode;
     mountedRef: RefObject<boolean>;
     showAButtonModeTracked: boolean;
     mouseKeyboardMode: boolean;
@@ -71,6 +73,7 @@ type UseTrackedControllerArgs = {
 
 export function useTrackedController({
     payload,
+    language,
     mountedRef,
     showAButtonModeTracked,
     mouseKeyboardMode,
@@ -321,7 +324,7 @@ export function useTrackedController({
 
     const restoreFocusAfterTrackedRemoval = useCallback(
         (removedAchievementId: number, currentTrackedAchievements: AchievementRow[]) => {
-            const visualOrder = flattenTrackedVisualOrder(currentTrackedAchievements, notesByAchievementId);
+            const visualOrder = flattenTrackedVisualOrder(currentTrackedAchievements, notesByAchievementId, language);
             const removedIndex = visualOrder.findIndex(
                 (item: AchievementRow) => item.id === removedAchievementId
             );

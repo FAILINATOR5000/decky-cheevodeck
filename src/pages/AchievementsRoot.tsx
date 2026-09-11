@@ -1617,6 +1617,7 @@ function AchievementsRoot() {
 
     const trackedController = useTrackedController({
         payload,
+        language,
         mountedRef,
         showAButtonModeTracked,
         mouseKeyboardMode,
