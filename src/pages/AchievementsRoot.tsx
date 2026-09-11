@@ -221,6 +221,7 @@ import {
     putCommentsSnapshot,
     setCommentsSnapshotUser
 } from "../utils/commentsSnapshot";
+import { armNoteFocusReturn, takeNoteFocusReturn } from "../utils/noteFocusReturn";
 import { measureCommentWindow } from "../utils/commentGeometry";
 import { currentQuickGuideVisible, setQuickGuide } from "../utils/quickGuide";
 import { guideBelongsToMapping } from "../utils/guidesResolve";
@@ -2327,8 +2328,28 @@ function AchievementsRoot() {
         mountedRef,
         setError,
         aButtonMode: gameNotesAButtonMode,
-        refreshToken: achievementsResumeToken + notesRefreshToken
+        refreshToken: achievementsResumeToken + notesRefreshToken,
+        activeUlid
     });
+
+    const [noteFocusReturn] = useState(takeNoteFocusReturn);
+
+    const notesRestoreArmedRef = useRef(noteFocusReturn !== null);
+    const notesWasOpenRef = useRef(false);
+    if (notesWasOpenRef.current && view !== "gameNotes") {
+        notesRestoreArmedRef.current = false;
+    }
+    notesWasOpenRef.current = view === "gameNotes";
+    const notesRestorePending = notesRestoreArmedRef.current;
+
+    const notesRestoreGameId = gameNotesGameId ?? payload?.gameId ?? null;
+    const notesRestoreNoteId =
+        noteFocusReturn
+        && notesRestoreGameId !== null
+        && noteFocusReturn.gameId === notesRestoreGameId
+        && noteFocusReturn.ulid === activeUlid
+            ? noteFocusReturn.noteId
+            : null;
 
     const { state: unlockHistoryState, actions: unlockHistoryActions } = unlockHistoryController;
     const { state: aboutState, actions: aboutActions } = aboutController;
@@ -2650,6 +2671,11 @@ function AchievementsRoot() {
 
     const openGameNoteModal = (existing: GameNote | null) => {
         markNextValidationSkipped();
+
+        const notesGameId = gameNotesGameId ?? payload?.gameId ?? null;
+        if (existing !== null && notesGameId !== null) {
+            armNoteFocusReturn(notesGameId, existing.id, activeUlid);
+        }
 
         const saveNote = (input: {
             title: string;
@@ -3479,8 +3505,11 @@ function AchievementsRoot() {
         ));
     }
     const notificationNav: NotificationNav = {
-        openGameNotes: (gameId, _noteId) => {
+        openGameNotes: (gameId, noteId) => {
             pendingNoteReminderGameId = gameId;
+            if (noteId) {
+                armNoteFocusReturn(gameId, noteId, activeUlid);
+            }
             setGameNotesGameId(gameId);
             setView("gameNotes");
             setPendingFocusKey("gn:back");
@@ -4753,11 +4782,15 @@ function AchievementsRoot() {
                                         : gameIconColdRef.current,
                                     showIcons,
                                     mouseKeyboardMode,
-                                    controllerGlyphStyle
+                                    controllerGlyphStyle,
+                                    restoreNoteId: notesRestoreNoteId,
+                                    restorePending: notesRestorePending,
+                                    panelOverlayVisible
                                 }}
                                 actions={{
                                     onBack: backFromGameNotes,
                                     onHome: goToAchievements,
+                                    onRequestFocus: setPendingFocusKey,
                                     onAddNote: () => {
                                         gameNotesActions.clearReorderSelection();
                                         openGameNoteModal(null);

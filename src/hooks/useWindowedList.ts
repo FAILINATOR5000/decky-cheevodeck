@@ -8,6 +8,7 @@ export interface WindowedListOptions<T> {
     prefetchDistance: number;
     sentinelRootMargin: string;
     resetKey: string;
+    seedRows?: number;
 }
 
 export interface WindowedList<T> {
@@ -17,16 +18,28 @@ export interface WindowedList<T> {
 }
 
 export function useWindowedList<T>(options: WindowedListOptions<T>): WindowedList<T> {
-    const { items, dynamicLoading, initialRows, rowStep, prefetchDistance, sentinelRootMargin, resetKey } = options;
+    const { items, dynamicLoading, initialRows, rowStep, prefetchDistance, sentinelRootMargin, resetKey, seedRows } = options;
 
     const markerRef = useRef<HTMLDivElement | null>(null);
+
+    const requestedFloor = Math.max(initialRows, seedRows ?? 0);
+    const floorRef = useRef(requestedFloor);
+    const floorResetKeyRef = useRef(resetKey);
+    if (floorResetKeyRef.current !== resetKey) {
+        floorResetKeyRef.current = resetKey;
+        floorRef.current = requestedFloor;
+    }
+    else if (floorRef.current < requestedFloor) {
+        floorRef.current = requestedFloor;
+    }
+    const floorRows = floorRef.current;
 
     const [mountedCount, setMountedCount] = useState(function getInitialMountedCount() {
         if (!dynamicLoading) {
             return items.length;
         }
 
-        return Math.min(initialRows, items.length);
+        return Math.min(floorRows, items.length);
     });
 
     useEffect(function resetMountedRows() {
@@ -35,8 +48,8 @@ export function useWindowedList<T>(options: WindowedListOptions<T>): WindowedLis
             return;
         }
 
-        setMountedCount(Math.min(initialRows, items.length));
-    }, [resetKey, initialRows, dynamicLoading]);
+        setMountedCount(Math.min(floorRows, items.length));
+    }, [resetKey, floorRows, dynamicLoading]);
 
     useEffect(function clampMountedRows() {
         if (!dynamicLoading) {
@@ -49,14 +62,14 @@ export function useWindowedList<T>(options: WindowedListOptions<T>): WindowedLis
                 return 0;
             }
             if (current === 0) {
-                return Math.min(initialRows, items.length);
+                return Math.min(floorRows, items.length);
             }
             if (current > items.length) {
                 return items.length;
             }
             return current;
         });
-    }, [items.length, initialRows, dynamicLoading]);
+    }, [items.length, floorRows, dynamicLoading]);
 
     const growthPendingRef = useRef(false);
 

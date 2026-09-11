@@ -28,6 +28,7 @@ import type {
     ReorderDirection
 } from "../types";
 import { logError } from "../utils/errors";
+import { armNoteFocusReturn, clearNoteFocusReturn } from "../utils/noteFocusReturn";
 
 type UseGameNotesControllerArgs = {
     payload: Payload | null;
@@ -36,6 +37,7 @@ type UseGameNotesControllerArgs = {
     setError: Dispatch<SetStateAction<string | null>>;
     aButtonMode: GameNoteAButtonMode;
     refreshToken?: number;
+    activeUlid: string;
 };
 
 function replaceNoteInList(notes: GameNote[], updated: GameNote): GameNote[] {
@@ -59,7 +61,8 @@ export function useGameNotesController({
     mountedRef,
     setError,
     aButtonMode,
-    refreshToken
+    refreshToken,
+    activeUlid
 }: UseGameNotesControllerArgs) {
     const targetGameId = gameNotesGameId ?? payload?.gameId ?? null;
     const [notes, setNotes] = useState<GameNote[]>([]);
@@ -168,6 +171,10 @@ export function useGameNotesController({
             const message = String(e?.message || e || "Couldn't save note.");
             setError(message);
             return { ok: false as const, error: message };
+        }
+
+        if (result?.ok && result.note) {
+            armNoteFocusReturn(gameId, result.note.id, activeUlid);
         }
 
         if (!mountedRef.current) {
@@ -301,6 +308,10 @@ export function useGameNotesController({
             const message = String(e?.message || e || "Couldn't delete note.");
             setError(message);
             return { ok: false as const, error: message };
+        }
+
+        if (result?.ok) {
+            clearNoteFocusReturn();
         }
 
         if (!mountedRef.current) {
@@ -586,6 +597,10 @@ export function useGameNotesController({
             const message = String(e?.message || e || "Couldn't update note.");
             setError(message);
             return { ok: false, error: message };
+        }
+
+        if (result?.ok && completed) {
+            clearNoteFocusReturn();
         }
 
         if (!mountedRef.current) {
