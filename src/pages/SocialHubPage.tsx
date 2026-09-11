@@ -1081,7 +1081,7 @@ function SocialHubPage(props: SocialHubPageProps) {
                     key={`back:${backClaimToken}`}
                     label={t(props.language, "← Back to Main")}
                     focusKey="social:back"
-                    navAutoFocus={!props.newsEvents.aotwRestorePending}
+                    navAutoFocus={!props.newsEvents.aotwRestorePending || backClaimToken > 0}
                     buttonSpacing={props.buttonSpacing}
                     onClick={props.onBack}
                 />
