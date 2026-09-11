@@ -851,6 +851,7 @@ const TrackedSetRow = React.memo(function TrackedSetRow(props: TrackedSetRowProp
             focusKey={`trackedset:${set.id}`}
             onClick={handleClick}
             onFocus={handleFocus}
+            onGamepadFocus={handleFocus}
         >
             <SetMosaicBanner entries={mosaicEntries} mosaicSize={list.mosaicSize}>
                 <span style={{ fontWeight: 800 }}>{set.name}</span>
