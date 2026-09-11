@@ -1181,6 +1181,7 @@ function OpenSetView(props: OpenSetViewProps) {
         const focused = focusedStripKey === key;
         return (
             <div
+                data-focus-key={`trackedsetopen:strip:${key}`}
                 style={{ display: "flex", flex: 1, minWidth: 0 }}
             >
                 <DialogButton
