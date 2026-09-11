@@ -67,6 +67,7 @@ export function useGameDataController({
     buildResumeState
 }: UseGameDataControllerArgs) {
     const refreshBusyRef = useRef(false);
+    const resumeWritableRef = useRef(false);
 
     useEffect(() => {
         payloadRef.current = payload;
@@ -218,6 +219,7 @@ export function useGameDataController({
                 if (!state.username.trim() || !state.hasApiKey) {
                     return;
                 }
+                resumeWritableRef.current = true;
                 if (state.payload) {
                     void checkForCurrentGameChange(state.payload, {
                         username: state.username,
@@ -241,11 +243,13 @@ export function useGameDataController({
         })();
 
         return () => {
-            if (rememberLastPageRef.current) {
-                void saveResumeState(buildResumeState());
-            }
-            else {
-                void clearResumeState();
+            if (resumeWritableRef.current) {
+                if (rememberLastPageRef.current) {
+                    void saveResumeState(buildResumeState());
+                }
+                else {
+                    void clearResumeState();
+                }
             }
             mountedRef.current = false;
         };
