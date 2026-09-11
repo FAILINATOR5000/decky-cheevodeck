@@ -1,4 +1,5 @@
 import { MutableRefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { logFocusDebug } from "../api";
 
 export interface WindowedListOptions<T> {
     items: T[];
@@ -9,6 +10,7 @@ export interface WindowedListOptions<T> {
     sentinelRootMargin: string;
     resetKey: string;
     seedRows?: number;
+    debugLabel?: string;
 }
 
 export interface WindowedList<T> {
@@ -18,7 +20,7 @@ export interface WindowedList<T> {
 }
 
 export function useWindowedList<T>(options: WindowedListOptions<T>): WindowedList<T> {
-    const { items, dynamicLoading, initialRows, rowStep, prefetchDistance, sentinelRootMargin, resetKey, seedRows } = options;
+    const { items, dynamicLoading, initialRows, rowStep, prefetchDistance, sentinelRootMargin, resetKey, seedRows, debugLabel } = options;
 
     const markerRef = useRef<HTMLDivElement | null>(null);
 
@@ -138,6 +140,17 @@ export function useWindowedList<T>(options: WindowedListOptions<T>): WindowedLis
             observer.disconnect();
         };
     }, [mountedCount, items.length, loadMore, dynamicLoading, sentinelRootMargin]);
+
+    useEffect(function reportWindow() {
+        if (!debugLabel) {
+            return;
+        }
+        logFocusDebug(
+            "window",
+            debugLabel,
+            `mounted=${mountedCount} items=${items.length} floor=${floorRows} step=${rowStep}`
+        );
+    }, [debugLabel, mountedCount, items.length, floorRows, rowStep]);
 
     const mountedItems = useMemo(() => {
         if (!dynamicLoading) {

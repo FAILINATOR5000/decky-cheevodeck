@@ -371,7 +371,8 @@ export function AchievementList(props: {
         prefetchDistance: dynamicPrefetchDistance,
         sentinelRootMargin: dynamicSentinelRootMargin,
         resetKey: `${props.payload?.gameId}|${props.filterScopeKey}|${props.showAll}|${props.resetToken}|${currentMode}|${effectiveFriendFilter}|${effectiveMainFilter}|${activeSort}`,
-        seedRows: props.seedRows
+        seedRows: props.seedRows,
+        debugLabel: currentMode === "tracked" ? `tracked:${props.titleOverride || "list"}` : undefined
     });
 
     const mountedIcons = useMemo(() => {

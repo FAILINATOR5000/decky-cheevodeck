@@ -224,6 +224,7 @@ import {
 import { clearCheevoCheckFocusReturn, takeCheevoCheckFocusReturn } from "../utils/cheevoCheckFocusReturn";
 import { armNoteFocusReturn, takeNoteFocusReturn } from "../utils/noteFocusReturn";
 import { armTrackedFocusReturn, takeTrackedFocusReturn } from "../utils/trackedFocusReturn";
+import { notePanelMount, notePanelUnmount, samplePanelEntryFrames } from "../utils/panelLifecycle";
 import { measureCommentWindow } from "../utils/commentGeometry";
 import { currentQuickGuideVisible, setQuickGuide } from "../utils/quickGuide";
 import { guideBelongsToMapping } from "../utils/guidesResolve";
@@ -2593,11 +2594,21 @@ function AchievementsRoot() {
         };
     }, [cardClaimToken, cardClaimSlot]);
 
+    useEffect(function probePanelLifecycle() {
+        notePanelMount();
+        const stopSampling = samplePanelEntryFrames();
+        return () => {
+            stopSampling();
+            notePanelUnmount();
+        };
+    }, []);
+
     useEffect(() => {
         const orphans = drainOpenModals();
         if (orphans.length === 0) {
             return;
         }
+        logFocusDebug("panel-life", `reap#${orphans.length}`, `delay=${MODAL_REAP_DELAY_MS}ms`);
         const timer = window.setTimeout(() => {
             for (const entry of orphans) {
                 entry.close();
