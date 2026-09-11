@@ -227,6 +227,7 @@ import { takeTrackedSetFocusReturn } from "../utils/trackedSetFocusReturn";
 import { armTrackedFocusReturn, takeTrackedFocusReturn } from "../utils/trackedFocusReturn";
 import { takeDolphinFocusReturn } from "../utils/dolphinFocusReturn";
 import { takeSavedCommentFocusReturn } from "../utils/savedCommentFocusReturn";
+import { takeSmbFocusReturn } from "../utils/smbFocusReturn";
 import { notePanelMount, notePanelUnmount, samplePanelEntryFrames } from "../utils/panelLifecycle";
 import { measureCommentWindow } from "../utils/commentGeometry";
 import { currentQuickGuideVisible, setQuickGuide } from "../utils/quickGuide";
@@ -2405,6 +2406,16 @@ function AchievementsRoot() {
     }
     savedCommentWasOpenRef.current = view === "social";
     const savedCommentRestorePending = savedCommentRestoreArmedRef.current;
+
+    const [smbFocusReturn] = useState(takeSmbFocusReturn);
+
+    const smbRestoreArmedRef = useRef(smbFocusReturn !== null);
+    const smbWasOpenRef = useRef(false);
+    if (smbWasOpenRef.current && view !== "smbShares") {
+        smbRestoreArmedRef.current = false;
+    }
+    smbWasOpenRef.current = view === "smbShares";
+    const smbRestorePending = smbRestoreArmedRef.current;
 
     const [trackedSetFocusReturn] = useState(takeTrackedSetFocusReturn);
 
@@ -4796,11 +4807,15 @@ function AchievementsRoot() {
                                     view,
                                     focusScopeResetToken,
                                     language,
-                                    buttonSpacing
+                                    buttonSpacing,
+                                    panelOverlayVisible,
+                                    restoreFocusKey: smbFocusReturn,
+                                    restorePending: smbRestorePending
                                 }}
                                 actions={{
                                     onBack: backFromUtilityTool,
-                                    onHome: goToAchievements
+                                    onHome: goToAchievements,
+                                    onRequestFocus: setPendingFocusKey
                                 }}
                             />
 
