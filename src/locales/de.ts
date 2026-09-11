@@ -898,6 +898,8 @@ const DE: LocaleTable = {
     "Map": "Anwenden",
     "Mapping applied to Dolphin": "Zuordnung auf Dolphin angewendet",
     "Mappings ({{count}})": "Zuordnungen ({{count}})",
+    "Notes ({{count}})": "Notizen ({{count}})",
+    "Completed ({{count}})": "Erledigt ({{count}})",
     "Name:": "Name:",
     "New Mapping": "Neue Zuordnung",
     "No mappings yet. Add one to get started.": "Noch keine Zuordnungen. Füge eine hinzu, um zu starten.",

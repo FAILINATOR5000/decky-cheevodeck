@@ -898,6 +898,8 @@ const RU: LocaleTable = {
     "Map": "Назначить",
     "Mapping applied to Dolphin": "Раскладка применена в Dolphin",
     "Mappings ({{count}})": "Раскладки ({{count}})",
+    "Notes ({{count}})": "Заметки ({{count}})",
+    "Completed ({{count}})": "Завершённые ({{count}})",
     "Name:": "Название:",
     "New Mapping": "Новая раскладка",
     "No mappings yet. Add one to get started.": "Раскладок пока нет. Добавь первую, чтобы начать.",

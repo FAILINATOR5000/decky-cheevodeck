@@ -898,6 +898,8 @@ const JA: LocaleTable = {
     "Map": "割り当て",
     "Mapping applied to Dolphin": "Dolphin に設定を適用しました",
     "Mappings ({{count}})": "設定（{{count}}）",
+    "Notes ({{count}})": "メモ（{{count}}）",
+    "Completed ({{count}})": "完了（{{count}}）",
     "Name:": "名前:",
     "New Mapping": "新しい設定",
     "No mappings yet. Add one to get started.": "設定はまだありません。追加してみてください。",

@@ -898,6 +898,8 @@ export const EN: LocaleTable = {
     "Map": "Map",
     "Mapping applied to Dolphin": "Mapping applied to Dolphin",
     "Mappings ({{count}})": "Mappings ({{count}})",
+    "Notes ({{count}})": "Notes ({{count}})",
+    "Completed ({{count}})": "Completed ({{count}})",
     "Name:": "Name:",
     "New Mapping": "New Mapping",
     "No mappings yet. Add one to get started.": "No mappings yet. Add one to get started.",

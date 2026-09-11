@@ -923,6 +923,8 @@ const PL: LocaleTable = {
     "Map": "Zastosuj",
     "Mapping applied to Dolphin": "Mapowanie zastosowane w Dolphinie",
     "Mappings ({{count}})": "Mapowania ({{count}})",
+    "Notes ({{count}})": "Notatki ({{count}})",
+    "Completed ({{count}})": "Ukończone ({{count}})",
     "Name:": "Nazwa:",
     "New Mapping": "Nowe mapowanie",
     "No mappings yet. Add one to get started.": "Nie ma jeszcze mapowań. Dodaj pierwsze, aby zacząć.",

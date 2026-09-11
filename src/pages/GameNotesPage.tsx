@@ -547,11 +547,12 @@ export function GameNotesPage(props: GameNotesPageProps) {
                     const sectionKey = section.isCompleted
                         ? "_completed_"
                         : (section.tagKey ?? "_untagged_");
+                    const sectionCount = section.orderedNotes.length;
                     const sectionTitle = section.isCompleted
-                        ? t(language, "Completed")
+                        ? t(language, "Completed ({{count}})", { count: sectionCount })
                         : section.tagKey === null
-                            ? t(language, "Notes")
-                            : (section.tag ?? "");
+                            ? t(language, "Notes ({{count}})", { count: sectionCount })
+                            : `${section.tag ?? ""} (${sectionCount})`;
 
                     return (
                         <PanelSection key={`gn:section:${sectionKey}`} title={sectionTitle}>
