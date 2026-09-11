@@ -64,6 +64,7 @@ type GameNotesPageActions = {
     onSortModeChange: (next: GameNoteSortMode) => void | Promise<unknown>;
     onAButtonModeChange: (next: GameNoteAButtonMode) => void | Promise<unknown>;
     onReorderSwap: (pressedId: string, sectionIds: string[] | null, allowSwap?: boolean) => void | Promise<unknown>;
+    onReorderToward: (landedNoteId: string, sectionIds: string[] | null) => void;
     onReorderMove: (direction: ReorderDirection, sectionIds?: string[] | null) => void | Promise<unknown>;
     onCardFocused: (noteId: string) => void | Promise<unknown>;
     onHome: () => void | Promise<void>;
@@ -398,14 +399,14 @@ export function GameNotesPage(props: GameNotesPageProps) {
     cardClickRef.current = handleCardClick;
     const cardFocusedRef = useRef(actions.onCardFocused);
     cardFocusedRef.current = actions.onCardFocused;
+    const cardFollowRef = useRef(handleReorderFollow);
+    cardFollowRef.current = handleReorderFollow;
     const cardFocusIndexRef = useRef(onNoteCardFocusIndex);
     cardFocusIndexRef.current = onNoteCardFocusIndex;
     const cardNewNoteRef = useRef(actions.onAddNote);
     cardNewNoteRef.current = actions.onAddNote;
     const cardReorderPickRef = useRef(handleCardReorderPick);
     cardReorderPickRef.current = handleCardReorderPick;
-    const cardReorderNudgeRef = useRef(handleStripMove);
-    cardReorderNudgeRef.current = handleStripMove;
 
     const notesReady = gameId !== null && loadedForGameId === gameId;
     const reorderAvailable = sortMode === "manual" && largestReorderableSection(sections) >= 2;
@@ -423,6 +424,9 @@ export function GameNotesPage(props: GameNotesPageProps) {
         onCardFocused: (noteId) => {
             void cardFocusedRef.current(noteId);
         },
+        onCardGamepadFocused: (noteId) => {
+            cardFollowRef.current(noteId);
+        },
         onFocusIndex: (index) => {
             cardFocusIndexRef.current(index);
         },
@@ -436,11 +440,6 @@ export function GameNotesPage(props: GameNotesPageProps) {
                 cardReorderPickRef.current(note);
             }
             : undefined,
-        onReorderNudge: gamepadCardActions && reorderAvailable
-            ? (direction) => {
-                cardReorderNudgeRef.current(direction);
-            }
-            : undefined
     }), [language, uiSize, gameIconDataUri, gameIconCold, showIcons, gamepadCardActions, reorderAvailable]);
 
     const cardListRef = useRef<HTMLDivElement | null>(null);
@@ -568,6 +567,13 @@ export function GameNotesPage(props: GameNotesPageProps) {
             return;
         }
         actions.onEditNote(note);
+    }
+
+    function handleReorderFollow(landedNoteId: string) {
+        if (reorderTargetId === null) {
+            return;
+        }
+        actions.onReorderToward(landedNoteId, sectionIdsForReorderTarget(sections, reorderTargetId));
     }
 
     function handleStripMove(direction: ReorderDirection) {

@@ -47,6 +47,7 @@ export function useTrackedSetsController(args: UseTrackedSetsControllerArgs) {
     const loadRunIdRef = useRef(0);
     const checkRunIdRef = useRef(0);
     const allCheckRunIdRef = useRef(0);
+    const reorderRunIdRef = useRef(0);
 
     const [fullCheckArmed, setFullCheckArmed] = useState(false);
 
@@ -244,8 +245,13 @@ export function useTrackedSetsController(args: UseTrackedSetsControllerArgs) {
     };
 
     const reorderGames = async (setId: string, orderedIds: (string | number)[], order: TrackedSetViewMode) => {
+        const runId = reorderRunIdRef.current + 1;
+        reorderRunIdRef.current = runId;
         try {
             const result = await reorderSetGames(setId, orderedIds, order);
+            if (reorderRunIdRef.current !== runId) {
+                return true;
+            }
             if (result.ok && result.set) {
                 spliceSet(result.set);
                 return true;
@@ -345,6 +351,7 @@ export function useTrackedSetsController(args: UseTrackedSetsControllerArgs) {
         state: {
             sets,
             setsLoading,
+            setsLoaded,
             setsError,
             openSetId,
             openSet: openSet_,

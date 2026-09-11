@@ -1,11 +1,12 @@
 import { Focusable } from "@decky/ui";
-import { type ReactNode, useEffect } from "react";
+import React, { type ReactNode, useEffect } from "react";
 import { logFocusDebug } from "../../api";
 
 type FocusClaimProps = {
     token: number;
     armed: boolean;
     onSpent: () => void;
+    style?: React.CSSProperties;
     children: ReactNode;
 };
 
@@ -26,7 +27,7 @@ export function FocusClaim(props: FocusClaimProps) {
     }
 
     return (
-        <Focusable key={`claim:${token}`} autoFocus={armed}>
+        <Focusable key={`claim:${token}`} autoFocus={armed} style={props.style}>
             {props.children}
         </Focusable>
     );

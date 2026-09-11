@@ -57,7 +57,6 @@ import type {
     OptionsTab,
     RefreshResponse,
     RecentTagsResponse,
-    ReorderDirection,
     ResumeState,
     ResumeStateResponse,
     SaveDefaultNoteColorResponse,
@@ -2407,89 +2406,6 @@ export function clearTrackedCountMemoryCache() {
     lastKnownTrackedIdsByGame.clear();
     lastKnownTrackedNotesByGame.clear();
     lastKnownTrackedNotesColorByGame.clear();
-}
-
-export async function moveTrackedAchievement(
-    gameId: number | null,
-    achievementId: number,
-    direction: ReorderDirection,
-    title: string | null,
-    consoleName: string | null,
-    imageIcon: string | null,
-    groupIds?: number[] | null,
-): Promise<BulkToggleTrackedResponse> {
-    const current = getCachedTrackedIds(gameId) ?? [];
-    const idx = current.indexOf(achievementId);
-    if (idx < 0) {
-        return {
-            ok: false,
-            achievementIds: current,
-            notes: {},
-            notesColor: {},
-            sort: "manual",
-            changed: 0
-        };
-    }
-
-    const workingIds = groupIds && groupIds.length > 0 ? groupIds.slice() : current.slice();
-    const workingIdx = workingIds.indexOf(achievementId);
-    if (workingIdx < 0) {
-        return {
-            ok: false,
-            achievementIds: current,
-            notes: getCachedTrackedNotes(gameId) ?? {},
-            notesColor: getCachedTrackedNotesColor(gameId) ?? {},
-            sort: "manual",
-            changed: 0
-        };
-    }
-
-    const rearranged = workingIds.slice();
-    rearranged.splice(workingIdx, 1);
-
-    let insertAt: number;
-    if (direction === "top") {
-        insertAt = 0;
-    }
-    else if (direction === "bottom") {
-        insertAt = rearranged.length;
-    }
-    else if (direction === "up") {
-        insertAt = Math.max(0, workingIdx - 1);
-    }
-    else {
-        insertAt = Math.min(rearranged.length, workingIdx + 1);
-    }
-    rearranged.splice(insertAt, 0, achievementId);
-
-    if (insertAt === workingIdx) {
-        return {
-            ok: true,
-            achievementIds: current,
-            notes: getCachedTrackedNotes(gameId) ?? {},
-            notesColor: getCachedTrackedNotesColor(gameId) ?? {},
-            sort: "manual",
-            changed: 0
-        };
-    }
-
-    let next: number[];
-    if (groupIds && groupIds.length > 0) {
-        const groupMembership = new Set(groupIds);
-        const rearrangedIter = rearranged[Symbol.iterator]();
-        next = current.map((id) => {
-            if (!groupMembership.has(id)) {
-                return id;
-            }
-            const nextFromGroup = rearrangedIter.next();
-            return nextFromGroup.done ? id : nextFromGroup.value;
-        });
-    }
-    else {
-        next = rearranged;
-    }
-
-    return bulkToggleTracked(gameId, next, "set", title, consoleName, imageIcon);
 }
 
 let nextValidationSkipped = false;

@@ -72,6 +72,7 @@ type OtherGamesDrillInBodyProps = {
     restoreSeedAchievementId?: number | null;
     onReorderPick: (achievementId: number, allowSwap: boolean) => void | Promise<void>;
     onReorderMove: (direction: ReorderDirection, groupIds?: number[] | null) => void | Promise<void>;
+    onReorderToward: (landedAchievementId: number, groupIds?: number[] | null) => void;
 };
 
 export function OtherGamesDrillInBody(props: OtherGamesDrillInBodyProps) {
@@ -116,7 +117,8 @@ export function OtherGamesDrillInBody(props: OtherGamesDrillInBodyProps) {
         rowClaim,
         restoreSeedAchievementId,
         onReorderPick,
-        onReorderMove
+        onReorderMove,
+        onReorderToward
     } = props;
 
     const sectionTitle = t(language, "Tracked ({{count}})", { count: trackedAchievements.length });
@@ -138,6 +140,16 @@ export function OtherGamesDrillInBody(props: OtherGamesDrillInBodyProps) {
 
     function handleSortClick() {
         void onSortChange(nextTrackedAchievementSort(sort));
+    }
+
+    function handleRowFollow(landedAchievementId: number) {
+        if (reorderTargetId === null) {
+            return;
+        }
+        onReorderToward(
+            landedAchievementId,
+            groupIdsForTrackedTarget(trackedAchievements, notesByAchievementId, reorderTargetId)
+        );
     }
 
     function handleStripMove(direction: ReorderDirection) {
@@ -241,7 +253,7 @@ export function OtherGamesDrillInBody(props: OtherGamesDrillInBodyProps) {
                     onAchievementTrackToggle={gamepadRowActions ? handleRowUntrack : undefined}
                     onAchievementNote={gamepadRowActions ? handleRowEditNote : undefined}
                     onAchievementReorderPick={gamepadRowActions && reorderAvailable ? handleRowReorderPick : undefined}
-                    onAchievementReorderNudge={gamepadRowActions && reorderAvailable ? handleStripMove : undefined}
+                    onAchievementReorderToward={gamepadRowActions && reorderAvailable ? handleRowFollow : undefined}
                 />
             </>
         );

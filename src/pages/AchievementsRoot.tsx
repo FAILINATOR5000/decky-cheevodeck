@@ -223,6 +223,7 @@ import {
 } from "../utils/commentsSnapshot";
 import { clearCheevoCheckFocusReturn, takeCheevoCheckFocusReturn } from "../utils/cheevoCheckFocusReturn";
 import { armNoteFocusReturn, takeNoteFocusReturn } from "../utils/noteFocusReturn";
+import { takeTrackedSetFocusReturn } from "../utils/trackedSetFocusReturn";
 import { armTrackedFocusReturn, takeTrackedFocusReturn } from "../utils/trackedFocusReturn";
 import { notePanelMount, notePanelUnmount, samplePanelEntryFrames } from "../utils/panelLifecycle";
 import { measureCommentWindow } from "../utils/commentGeometry";
@@ -1682,7 +1683,8 @@ function AchievementsRoot() {
             onClearAllTracked,
             onAddAllMissable,
             refreshTotalTrackedCount,
-            onReorderMove
+            onReorderMove,
+            onReorderToward
         }
     } = trackedController;
 
@@ -2381,6 +2383,18 @@ function AchievementsRoot() {
     }
     cheevoCheckWasOpenRef.current = view === "cheevoCheck";
     const cheevoCheckRestorePending = cheevoCheckRestoreArmedRef.current;
+
+    const [trackedSetFocusReturn] = useState(takeTrackedSetFocusReturn);
+
+    const trackedSetsRestoreArmedRef = useRef(trackedSetFocusReturn !== null);
+    const trackedSetsWasOpenRef = useRef(false);
+    const trackedSetsArmedView = trackedSetFocusReturn?.view ?? null;
+    if (trackedSetsWasOpenRef.current && view !== trackedSetsArmedView) {
+        trackedSetsRestoreArmedRef.current = false;
+    }
+    trackedSetsWasOpenRef.current = trackedSetsArmedView !== null && view === trackedSetsArmedView;
+    const trackedSetsRestorePending = trackedSetsRestoreArmedRef.current;
+
 
     const { state: unlockHistoryState, actions: unlockHistoryActions } = unlockHistoryController;
     const { state: aboutState, actions: aboutActions } = aboutController;
@@ -4646,6 +4660,7 @@ function AchievementsRoot() {
                                 reorderTargetId={reorderTargetId}
                                 reorderViaSwap={reorderViaSwap}
                                 onReorderMove={onReorderMove}
+                                onReorderToward={onReorderToward}
                                 backClaimToken={trackedBackClaimToken}
                                 rowClaim={trackedRowClaim}
                                 restorePending={trackedRestorePending}
@@ -4858,6 +4873,8 @@ function AchievementsRoot() {
                                         optionsActions.onSaveGameNotesAButtonMode(next),
                                     onReorderSwap: (pressedId, sectionIds, allowSwap) =>
                                         gameNotesActions.onReorderSwap(pressedId, sectionIds, allowSwap),
+                                    onReorderToward: (landedNoteId, sectionIds) =>
+                                        gameNotesActions.onReorderToward(landedNoteId, sectionIds),
                                     onReorderMove: (direction, sectionIds) =>
                                         gameNotesActions.onReorderMove(direction, sectionIds ?? null),
                                     onCardFocused: gameNotesActions.onCardFocused
@@ -5225,6 +5242,9 @@ function AchievementsRoot() {
                                 mouseKeyboardMode={mouseKeyboardMode}
                                 controllerGlyphStyle={controllerGlyphStyle}
                                 onRequestFocus={setPendingFocusKey}
+                                restorePending={trackedSetsRestorePending}
+                                restoreTarget={trackedSetFocusReturn}
+                                panelOverlayVisible={panelOverlayVisible}
                                 onOpenSet={(setId) => {
                                     void trackedSetsActions.openSet(setId);
                                     setView("trackedSetOpen");

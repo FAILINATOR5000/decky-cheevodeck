@@ -1,6 +1,7 @@
 import {
     useCallback,
     useEffect,
+    useRef,
     useState,
     type Dispatch,
     type RefObject,
@@ -28,6 +29,8 @@ import type {
     ReorderDirection
 } from "../types";
 import { logError } from "../utils/errors";
+
+const ORDER_WRITE_SETTLE_MS = 250;
 import { armNoteFocusReturn, clearNoteFocusReturn } from "../utils/noteFocusReturn";
 
 type UseGameNotesControllerArgs = {
@@ -71,6 +74,10 @@ export function useGameNotesController({
     const [loadedForGameId, setLoadedForGameId] = useState<number | null>(null);
     const [validating, setValidating] = useState(false);
     const [reorderInFlight, setReorderInFlight] = useState(false);
+
+    const pendingFlatRef = useRef<string[] | null>(null);
+
+    const orderWriteTimerRef = useRef(0);
     const [reorderTargetId, setReorderTargetId] = useState<string | null>(null);
     const [reorderViaSwap, setReorderViaSwap] = useState(false);
 
@@ -328,13 +335,86 @@ export function useGameNotesController({
         return { ok: true as const };
     };
 
+    const currentFlat = useCallback((): string[] => {
+        const live = notes.map((n) => n.id);
+        const pending = pendingFlatRef.current;
+        if (pending === null || pending.length !== live.length) {
+            return live;
+        }
+        const held = new Set(pending);
+        return live.every((id) => held.has(id)) ? pending.slice() : live;
+    }, [notes]);
+
+    const flushOrderWrite = useCallback(async (gameId: number) => {
+        const ids = pendingFlatRef.current;
+        if (ids === null) {
+            return;
+        }
+        setReorderInFlight(true);
+        try {
+            const result = await reorderGameNotes(gameId, ids);
+            if (pendingFlatRef.current === ids) {
+                pendingFlatRef.current = null;
+            }
+            if (!mountedRef.current) {
+                return;
+            }
+            if (!result.ok) {
+                setError(result.error ? `Couldn't reorder notes: ${result.error}` : "Couldn't reorder notes.");
+                try {
+                    const reloaded = await loadGameNotes(gameId);
+                    if (mountedRef.current) {
+                        setNotes(reloaded.notes ?? []);
+                    }
+                } catch (reloadErr) {
+                    logError("reorderGameNotes-reload", reloadErr);
+                }
+            }
+        } catch (e: any) {
+            logError("reorderGameNotes", e);
+            if (mountedRef.current) {
+                setError(String(e?.message || e || "Couldn't reorder notes."));
+            }
+        } finally {
+            if (mountedRef.current) {
+                setReorderInFlight(false);
+            }
+        }
+    }, [mountedRef, setError]);
+
+    const scheduleOrderWrite = useCallback((gameId: number) => {
+        if (orderWriteTimerRef.current !== 0) {
+            window.clearTimeout(orderWriteTimerRef.current);
+        }
+        orderWriteTimerRef.current = window.setTimeout(() => {
+            orderWriteTimerRef.current = 0;
+            void flushOrderWrite(gameId);
+        }, ORDER_WRITE_SETTLE_MS);
+    }, [flushOrderWrite]);
+
+    const pendingWriteGameIdRef = useRef<number | null>(null);
+    pendingWriteGameIdRef.current = targetGameId;
+
+    useEffect(function writeAnyUnsettledOrderOnTheWayOut() {
+        return () => {
+            if (orderWriteTimerRef.current === 0) {
+                return;
+            }
+            window.clearTimeout(orderWriteTimerRef.current);
+            orderWriteTimerRef.current = 0;
+            const ids = pendingFlatRef.current;
+            const gameId = pendingWriteGameIdRef.current;
+            if (ids === null || gameId === null) {
+                return;
+            }
+            void reorderGameNotes(gameId, ids).catch((e) => logError("reorderGameNotes (on the way out)", e));
+        };
+    }, []);
+
     const onReorderNotes = useCallback(
         async (orderedIds: string[]) => {
             const gameId = targetGameId;
             if (!gameId) {
-                return { ok: false as const };
-            }
-            if (reorderInFlight) {
                 return { ok: false as const };
             }
 
@@ -357,39 +437,11 @@ export function useGameNotesController({
                 return next;
             });
 
-            setReorderInFlight(true);
-            try {
-                const result = await reorderGameNotes(gameId, orderedIds);
-                if (!mountedRef.current) {
-                    return { ok: false as const };
-                }
-                if (!result.ok) {
-                    setError(result.error ? `Couldn't reorder notes: ${result.error}` : "Couldn't reorder notes.");
-                    try {
-                        const reloaded = await loadGameNotes(gameId);
-                        if (mountedRef.current) {
-                            setNotes(reloaded.notes ?? []);
-                        }
-                    } catch (reloadErr) {
-                        logError("reorderGameNotes-reload", reloadErr);
-                    }
-                    return { ok: false as const };
-                }
-                return { ok: true as const };
-            } catch (e: any) {
-                logError("reorderGameNotes", e);
-                if (!mountedRef.current) {
-                    return { ok: false as const };
-                }
-                setError(String(e?.message || e || "Couldn't reorder notes."));
-                return { ok: false as const };
-            } finally {
-                if (mountedRef.current) {
-                    setReorderInFlight(false);
-                }
-            }
+            pendingFlatRef.current = orderedIds.slice();
+            scheduleOrderWrite(gameId);
+            return { ok: true as const };
         },
-        [targetGameId, reorderInFlight, mountedRef, setError]
+        [targetGameId, scheduleOrderWrite]
     );
 
     const onReorderMove = useCallback(
@@ -404,13 +456,10 @@ export function useGameNotesController({
             if (reorderTargetId === null) {
                 return { ok: false as const };
             }
-            if (reorderInFlight) {
-                return { ok: false as const };
-            }
 
             setReorderViaSwap(false);
 
-            const flat = notes.map((n) => n.id);
+            const flat = currentFlat();
             const targetId = reorderTargetId;
             if (!flat.includes(targetId)) {
                 return { ok: false as const };
@@ -457,7 +506,47 @@ export function useGameNotesController({
 
             return onReorderNotes(newFlat);
         },
-        [notes, onReorderNotes, targetGameId, reorderInFlight, reorderTargetId, sortMode]
+        [currentFlat, onReorderNotes, targetGameId, reorderTargetId, sortMode]
+    );
+
+    const onReorderToward = useCallback(
+        (landedNoteId: string, sectionIds: string[] | null) => {
+            if (sortMode !== "manual" || reorderTargetId === null) {
+                return;
+            }
+            if (landedNoteId === reorderTargetId) {
+                return;
+            }
+            const flat = currentFlat();
+            const neighbours = sectionIds && sectionIds.length > 0
+                ? sectionIds.filter((id) => flat.includes(id))
+                : flat.slice();
+            const from = neighbours.indexOf(reorderTargetId);
+            const to = neighbours.indexOf(landedNoteId);
+            if (from < 0 || to < 0) {
+                return;
+            }
+
+            const nextNeighbours = neighbours.slice();
+            nextNeighbours.splice(from, 1);
+            nextNeighbours.splice(to, 0, reorderTargetId);
+
+            const neighbourSet = new Set(neighbours);
+            const newFlat: string[] = [];
+            let cursor = 0;
+            for (const id of flat) {
+                if (neighbourSet.has(id)) {
+                    newFlat.push(nextNeighbours[cursor]);
+                    cursor++;
+                    continue;
+                }
+                newFlat.push(id);
+            }
+
+            setReorderViaSwap(true);
+            void onReorderNotes(newFlat);
+        },
+        [currentFlat, onReorderNotes, reorderTargetId, sortMode]
     );
 
     const onReorderSwap = useCallback(
@@ -483,11 +572,7 @@ export function useGameNotesController({
                 return;
             }
 
-            if (reorderInFlight) {
-                return;
-            }
-
-            const flat = notes.map((n) => n.id);
+            const flat = currentFlat();
             const fromIndex = flat.indexOf(reorderTargetId);
             const toIndex = flat.indexOf(pressedId);
             if (fromIndex < 0 || toIndex < 0) {
@@ -502,7 +587,7 @@ export function useGameNotesController({
             setReorderViaSwap(true);
             await onReorderNotes(swapped);
         },
-        [notes, onReorderNotes, reorderInFlight, reorderTargetId, sortMode]
+        [currentFlat, onReorderNotes, reorderTargetId, sortMode]
     );
 
     const clearReorderSelection = () => {
@@ -672,6 +757,7 @@ export function useGameNotesController({
             onDeleteGameNote,
             onReorderMove,
             onReorderSwap,
+            onReorderToward,
             onSortModeChange,
             onCardFocused,
             onToggleCompleted,

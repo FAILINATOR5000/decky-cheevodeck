@@ -1871,6 +1871,7 @@ export type TrackedDrillInState = {
     onReorderPick: (achievementId: number, allowSwap: boolean) => void | Promise<void>;
     onSortChange: (nextSort: TrackedAchievementSort) => void | Promise<void>;
     onReorderMove: (direction: ReorderDirection, groupIds?: number[] | null) => void | Promise<void>;
+    onReorderToward: (landedAchievementId: number, groupIds?: number[] | null) => void;
 };
 
 // News and AotW

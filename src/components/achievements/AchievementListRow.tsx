@@ -3,12 +3,10 @@ import { FocusableItem } from "../ui/FocusableItem";
 import { HardcoreBadge } from "./HardcoreBadge";
 import { PointsLabel } from "./PointsLabel";
 import { t, type LanguageCode } from "../../locales";
-import type { AchievementListMode, AchievementRow, AchievementStyle, ReorderDirection } from "../../types";
+import type { AchievementListMode, AchievementRow, AchievementStyle } from "../../types";
 import { earned, isMissable } from "../../utils/achievements";
 import {
     BUTTON_BUMPER_RIGHT,
-    BUTTON_DIR_DOWN,
-    BUTTON_DIR_UP,
     BUTTON_OPTIONS,
     BUTTON_SECONDARY
 } from "../../utils/gamepadButtons";
@@ -39,7 +37,7 @@ export type AchievementRowListProps = {
     onAchievementTrackToggle?: (achievement: AchievementRow) => void;
     onAchievementNote?: (achievement: AchievementRow) => void;
     onAchievementReorderPick?: (achievement: AchievementRow) => void;
-    onAchievementReorderNudge?: (direction: ReorderDirection) => void;
+    onAchievementReorderToward?: (landedAchievementId: number) => void;
 };
 
 export const AchievementListRow = React.memo(function AchievementListRow(props: {
@@ -70,6 +68,11 @@ export const AchievementListRow = React.memo(function AchievementListRow(props: 
         list.onAchievementFocus(props.index);
     }
 
+    function handleGamepadFocus() {
+        list.onAchievementReorderToward?.(props.achievement.id);
+        handleFocus();
+    }
+
     function handleButtonDown(evt: { detail?: { button?: number } }) {
         const button = evt?.detail?.button;
 
@@ -93,14 +96,6 @@ export const AchievementListRow = React.memo(function AchievementListRow(props: 
             return;
         }
 
-        if (props.isReorderTarget && list.onAchievementReorderNudge) {
-            if (button === BUTTON_DIR_UP) {
-                list.onAchievementReorderNudge("up");
-            }
-            else if (button === BUTTON_DIR_DOWN) {
-                list.onAchievementReorderNudge("down");
-            }
-        }
     }
 
     function renderNoteLine() {
@@ -199,7 +194,7 @@ export const AchievementListRow = React.memo(function AchievementListRow(props: 
             outerStyle={reorderOuterStyle}
             onClick={handleClick}
             onFocus={handleFocus}
-            onGamepadFocus={handleFocus}
+            onGamepadFocus={handleGamepadFocus}
             onButtonDown={handleButtonDown}
         >
             {list.showIcons ? (

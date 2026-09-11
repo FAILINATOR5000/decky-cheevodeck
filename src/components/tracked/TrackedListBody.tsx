@@ -9,7 +9,6 @@ import type {
     AchievementRow,
     AchievementStyle,
     Payload,
-    ReorderDirection,
     TrackedNotes,
     TrackedNotesColor,
     UiSize
@@ -48,7 +47,7 @@ type TrackedListBodyProps = {
     onAchievementTrackToggle?: (achievement: AchievementRow) => void;
     onAchievementNote?: (achievement: AchievementRow) => void;
     onAchievementReorderPick?: (achievement: AchievementRow) => void;
-    onAchievementReorderNudge?: (direction: ReorderDirection) => void;
+    onAchievementReorderToward?: (landedAchievementId: number) => void;
     emptyMessage: ReactNode;
 };
 
@@ -145,7 +144,7 @@ export function TrackedListBody(props: TrackedListBodyProps) {
         onAchievementTrackToggle,
         onAchievementNote,
         onAchievementReorderPick,
-        onAchievementReorderNudge,
+        onAchievementReorderToward,
         emptyMessage
     } = props;
 
@@ -207,7 +206,7 @@ export function TrackedListBody(props: TrackedListBodyProps) {
                 onAchievementTrackToggle={onAchievementTrackToggle}
                 onAchievementNote={onAchievementNote}
                 onAchievementReorderPick={onAchievementReorderPick}
-                onAchievementReorderNudge={onAchievementReorderNudge}
+                onAchievementReorderToward={onAchievementReorderToward}
             />
         );
     }
@@ -284,7 +283,7 @@ export function TrackedListBody(props: TrackedListBodyProps) {
                         onAchievementTrackToggle={onAchievementTrackToggle}
                         onAchievementNote={onAchievementNote}
                         onAchievementReorderPick={onAchievementReorderPick}
-                        onAchievementReorderNudge={onAchievementReorderNudge}
+                        onAchievementReorderToward={onAchievementReorderToward}
                     />
                 );
             })}

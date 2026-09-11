@@ -3,11 +3,9 @@ import { FadeImage } from "../ui/FadeImage";
 import { FocusableItem } from "../ui/FocusableItem";
 import { gameNoteReminderLabel } from "../../utils/reminders";
 import { t, type LanguageCode } from "../../locales";
-import type { GameNote, ReorderDirection } from "../../types";
+import type { GameNote } from "../../types";
 import {
     BUTTON_BUMPER_RIGHT,
-    BUTTON_DIR_DOWN,
-    BUTTON_DIR_UP,
     BUTTON_OPTIONS
 } from "../../utils/gamepadButtons";
 import { playOkSound } from "../../utils/navSound";
@@ -41,10 +39,10 @@ export type NoteCardListProps = {
     showIcons: boolean;
     onClick: (note: GameNote) => void;
     onCardFocused: (noteId: string) => void;
+    onCardGamepadFocused?: (noteId: string) => void;
     onFocusIndex: (index: number) => void;
     onNewNote?: () => void;
     onReorderPick?: (note: GameNote) => void;
-    onReorderNudge?: (direction: ReorderDirection) => void;
 };
 
 export type NoteCardProps = {
@@ -69,6 +67,11 @@ export const NoteCard = React.memo(function NoteCard(props: NoteCardProps) {
         list.onFocusIndex(flatIndex);
     }
 
+    function handleCardGamepadFocused() {
+        list.onCardGamepadFocused?.(note.id);
+        handleCardFocused();
+    }
+
     function handleButtonDown(evt: { detail?: { button?: number } }) {
         const button = evt?.detail?.button;
 
@@ -84,14 +87,6 @@ export const NoteCard = React.memo(function NoteCard(props: NoteCardProps) {
             return;
         }
 
-        if (isReorderTarget && list.onReorderNudge) {
-            if (button === BUTTON_DIR_UP) {
-                list.onReorderNudge("up");
-            }
-            else if (button === BUTTON_DIR_DOWN) {
-                list.onReorderNudge("down");
-            }
-        }
     }
 
     const bodyColor = noteBodyColor(note.color);
@@ -212,7 +207,7 @@ export const NoteCard = React.memo(function NoteCard(props: NoteCardProps) {
             focusKey={focusKey}
             onClick={handleClick}
             onFocus={handleCardFocused}
-            onGamepadFocus={handleCardFocused}
+            onGamepadFocus={handleCardGamepadFocused}
             onMouseEnter={handleCardFocused}
             onButtonDown={handleButtonDown}
             outerStyle={outerStyle}

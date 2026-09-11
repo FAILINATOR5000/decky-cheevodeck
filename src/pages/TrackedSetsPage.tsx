@@ -1,4 +1,4 @@
-import React, { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { Fragment, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
     DialogButton,
     Focusable,
@@ -15,6 +15,7 @@ import {
     saveTrackedSetsSelectorSort
 } from "../api";
 import { useGameIcon } from "../hooks/useGameIcon";
+import { useFocusClaim } from "../hooks/useFocusClaim";
 import { useWindowedList } from "../hooks/useWindowedList";
 import { AddGameToSetModal } from "../components/pickers/AddGameToSetModal";
 import { ButtonHints } from "../components/ui/ButtonHints";
@@ -23,9 +24,11 @@ import { FadeImage } from "../components/ui/FadeImage";
 import { BackButton } from "../components/ui/BackButton";
 import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
 import { FocusableItem } from "../components/ui/FocusableItem";
+import { FocusClaim } from "../components/ui/FocusClaim";
 import { LabeledRow } from "../components/ui/LabeledRow";
 import { PageNavStrip } from "../components/ui/PageNavStrip";
 import { ReorderStrip } from "../components/ui/ReorderStrip";
+import { RestoreCurtain } from "../components/ui/RestoreCurtain";
 import { SetGameNoteEditModal } from "../components/notes/SetGameNoteEditModal";
 import { SetMosaicBanner, type SetMosaicEntry } from "../components/mastery/SetMosaicBanner";
 import { SystemHeader } from "../components/mastery/SystemHeader";
@@ -66,14 +69,13 @@ import {
 import { compareConsolesByName, compareConsolesByYear } from "../utils/consoles";
 import {
     BUTTON_BUMPER_RIGHT,
-    BUTTON_DIR_DOWN,
-    BUTTON_DIR_UP,
     BUTTON_OPTIONS
 } from "../utils/gamepadButtons";
 import { showManagedModal } from "../utils/modalRegistry";
 import { playOkSound } from "../utils/navSound";
 import { achievementUiMetrics, type AchievementUiMetrics, regularButtonSpacingStyle, smallTextStyle, bodyTextStyle, achievementGreen, FADE_IN_KEYFRAMES } from "../utils/style";
 import { modalSize } from "../utils/scale";
+import { armTrackedSetFocusReturn, type TrackedSetFocusReturn } from "../utils/trackedSetFocusReturn";
 import { SaveOnStart } from "../components/ui/SaveOnStart";
 import { SnapshotHotkey } from "../components/ui/SnapshotHotkey";
 
@@ -111,6 +113,7 @@ type TrackedSetsPageProps = {
     dynamicTrackedSetsListSentinelRootMargin: number;
     sets: TrackedSet[];
     setsLoading: boolean;
+    setsLoaded: boolean;
     setsError: string | null;
     openSet: TrackedSet | null;
     openSetId: string | null;
@@ -125,6 +128,9 @@ type TrackedSetsPageProps = {
     mouseKeyboardMode: boolean;
     controllerGlyphStyle: ControllerGlyphStyle;
     onRequestFocus: (focusKey: string) => void;
+    restorePending: boolean;
+    restoreTarget: TrackedSetFocusReturn | null;
+    panelOverlayVisible: boolean;
     onOpenSet: (setId: string) => void | Promise<void>;
     onCloseSet: () => void;
     onChangeGameFilter: (setId: string, filter: TrackedSetFilter) => Promise<boolean>;
@@ -250,6 +256,39 @@ function gamesInSameGroup(set: TrackedSet, gameId: number): TrackedSetGame[] {
     return orderGamesByField(sameConsole, set.gameSort, field);
 }
 
+function withPendingOrder(set: TrackedSet, ids: number[]): TrackedSet {
+    const field = orderFieldForView(set.viewMode);
+    const position = new Map<number, number>();
+    for (const id of ids) {
+        if (!position.has(id)) {
+            position.set(id, position.size);
+        }
+    }
+    return {
+        ...set,
+        games: set.games.map((game) => {
+            const value = position.get(game.gameId);
+            if (value === undefined || game[field] === value) {
+                return game;
+            }
+            return { ...game, [field]: value };
+        })
+    };
+}
+
+function visualOrderOf(set: TrackedSet, ids: number[]): number[] {
+    const wanted = new Set(ids);
+    return orderGamesByField(
+        set.games.filter((game) => wanted.has(game.gameId)),
+        set.gameSort,
+        orderFieldForView(set.viewMode)
+    ).map((game) => game.gameId);
+}
+
+const TRACKED_SET_RESTORE_SEED_CEILING = 300;
+
+const ORDER_WRITE_SETTLE_MS = 250;
+
 const MOSAIC_TILE_COUNT = 4;
 
 function firstGamesForMosaic(set: TrackedSet): TrackedSetGame[] {
@@ -287,6 +326,7 @@ function TrackedSetsPage(props: TrackedSetsPageProps) {
         dynamicTrackedSetsListSentinelRootMargin,
         sets,
         setsLoading,
+        setsLoaded,
         setsError,
         openSet,
         openSetId,
@@ -301,6 +341,9 @@ function TrackedSetsPage(props: TrackedSetsPageProps) {
         mouseKeyboardMode,
         controllerGlyphStyle,
         onRequestFocus,
+        restorePending,
+        restoreTarget,
+        panelOverlayVisible,
         onOpenSet,
         onCloseSet,
         onChangeGameFilter,
@@ -327,9 +370,65 @@ function TrackedSetsPage(props: TrackedSetsPageProps) {
 
     const [reorderTargetId, setReorderTargetId] = useState<number | null>(null);
 
+    const [pendingOrder, setPendingOrder] = useState<{ setId: string; ids: number[] } | null>(null);
+
+    const pendingOrderRef = useRef<{ setId: string; ids: number[] } | null>(null);
+
+    const orderWriteTimerRef = useRef(0);
+
+    const openSetViewModeRef = useRef<TrackedSetViewMode>("all");
+
+    const reorderGamesRef = useRef(onReorderGames);
+    reorderGamesRef.current = onReorderGames;
+
     const [reorderViaSwap, setReorderViaSwap] = useState(false);
 
     const showingSelector = props.view === "trackedSets" || openSet === null;
+
+    openSetViewModeRef.current = openSet?.viewMode ?? openSetViewModeRef.current;
+
+    const effectiveOpenSet = useMemo(() => {
+        if (openSet === null || pendingOrder === null || pendingOrder.setId !== openSet.id) {
+            return openSet;
+        }
+        return withPendingOrder(openSet, pendingOrder.ids);
+    }, [openSet, pendingOrder]);
+
+    useEffect(function writeAnyUnsettledOrderOnTheWayOut() {
+        return () => {
+            if (orderWriteTimerRef.current === 0) {
+                return;
+            }
+            window.clearTimeout(orderWriteTimerRef.current);
+            orderWriteTimerRef.current = 0;
+            const pending = pendingOrderRef.current;
+            if (pending === null) {
+                return;
+            }
+            void reorderGamesRef.current(pending.setId, pending.ids, openSetViewModeRef.current);
+        };
+    }, []);
+
+    useEffect(function dropPendingOrderOnceTheStoreAgrees() {
+        if (pendingOrder === null) {
+            return;
+        }
+        if (openSet === null || openSet.id !== pendingOrder.setId) {
+            pendingOrderRef.current = null;
+            setPendingOrder(null);
+            return;
+        }
+        const live = visualOrderOf(openSet, pendingOrder.ids);
+        if (live.length !== pendingOrder.ids.length) {
+            pendingOrderRef.current = null;
+            setPendingOrder(null);
+            return;
+        }
+        if (live.every((id, index) => id === pendingOrder.ids[index])) {
+            pendingOrderRef.current = null;
+            setPendingOrder(null);
+        }
+    }, [openSet, pendingOrder]);
 
     const openSetResolving =
         props.view === "trackedSetOpen" && openSet === null && openSetId !== null && setsLoading;
@@ -341,6 +440,81 @@ function TrackedSetsPage(props: TrackedSetsPageProps) {
             `view=${props.view} openSetId=${openSetId ?? "(none)"} hasSet=${openSet !== null} setsLoading=${setsLoading}`
         );
     }, [openSetResolving, props.view, openSetId, openSet, setsLoading]);
+
+    const selectorRestoreClaim = useFocusClaim();
+    const restoreFiredRef = useRef(false);
+    const [restoreSettled, setRestoreSettled] = useState(false);
+
+    const settleRestore = useCallback(() => {
+        setRestoreSettled(true);
+    }, []);
+
+    const restoreForOpenSet = restoreTarget !== null && restoreTarget.view === "trackedSetOpen";
+
+    const openSetRestoreTarget =
+        restorePending && restoreForOpenSet && openSet !== null && openSet.id === restoreTarget.setId
+            ? restoreTarget
+            : null;
+
+    useEffect(function landRestoredCursor() {
+        if (!restorePending || restoreFiredRef.current) {
+            return;
+        }
+
+        const backKey = props.view === "trackedSets" ? "trackedsets:back" : "trackedsetopen:back";
+
+        if (restoreTarget === null || restoreTarget.view !== props.view) {
+            restoreFiredRef.current = true;
+            settleRestore();
+            logFocusDebug("trackedset-restore", restoreTarget?.focusKey ?? "(none)", "not armed for this view");
+            onRequestFocus(backKey);
+            return;
+        }
+
+        if (restoreForOpenSet) {
+            if (openSetRestoreTarget !== null) {
+                return;
+            }
+            if (!setsLoaded && setsError === null) {
+                return;
+            }
+            restoreFiredRef.current = true;
+            settleRestore();
+            logFocusDebug(
+                "trackedset-restore",
+                restoreTarget.focusKey,
+                setsLoaded ? "that goal is no longer open" : "the goals could not be read"
+            );
+            onRequestFocus(backKey);
+            return;
+        }
+
+        restoreFiredRef.current = true;
+        logFocusDebug("trackedset-restore", restoreTarget.focusKey, "claiming");
+        selectorRestoreClaim.claimSlot(0);
+        onRequestFocus(restoreTarget.focusKey);
+    }, [
+        restorePending,
+        restoreTarget,
+        restoreForOpenSet,
+        openSetRestoreTarget,
+        setsLoaded,
+        setsError,
+        props.view,
+        settleRestore,
+        selectorRestoreClaim.claimSlot,
+        onRequestFocus
+    ]);
+
+    const selectorClaimSpent =
+        (selectorRestoreClaim.claim?.token ?? 0) > 0 && !selectorRestoreClaim.claim?.armed;
+
+    useEffect(function settleWhenTheSelectorClaimLands() {
+        if (!selectorClaimSpent) {
+            return;
+        }
+        settleRestore();
+    }, [selectorClaimSpent, settleRestore]);
 
     function handleCycleSelectorSort() {
         const next = nextTrackedSetSelectorSort(selectorSort);
@@ -357,6 +531,12 @@ function TrackedSetsPage(props: TrackedSetsPageProps) {
     }
 
     function openCreateSetModal() {
+        armTrackedSetFocusReturn({
+            view: "trackedSets",
+            setId: "",
+            focusKey: "trackedsets:addset",
+            gameId: null
+        });
         showManagedModal((close) => (
             <NameSetModal
                 title={t(language, "New Goal")}
@@ -372,6 +552,12 @@ function TrackedSetsPage(props: TrackedSetsPageProps) {
     }
 
     function openRenameModal(set: TrackedSet) {
+        armTrackedSetFocusReturn({
+            view: "trackedSetOpen",
+            setId: set.id,
+            focusKey: "trackedsetopen:strip:rename",
+            gameId: null
+        });
         showManagedModal((close) => (
             <NameSetModal
                 title={t(language, "Rename Goal")}
@@ -384,6 +570,12 @@ function TrackedSetsPage(props: TrackedSetsPageProps) {
     }
 
     function openAddGameModal(set: TrackedSet) {
+        armTrackedSetFocusReturn({
+            view: "trackedSetOpen",
+            setId: set.id,
+            focusKey: "trackedsetopen:strip:addgame",
+            gameId: null
+        });
         showManagedModal((close) => (
             <AddGameToSetModal
                 setName={set.name}
@@ -396,6 +588,12 @@ function TrackedSetsPage(props: TrackedSetsPageProps) {
     }
 
     function openNoteModal(set: TrackedSet, game: TrackedSetGame) {
+        armTrackedSetFocusReturn({
+            view: "trackedSetOpen",
+            setId: set.id,
+            focusKey: `trackedsetgame:${game.gameId}`,
+            gameId: game.gameId
+        });
         showManagedModal((close) => (
             <SetGameNoteEditModal
                 gameTitle={game.title}
@@ -415,11 +613,15 @@ function TrackedSetsPage(props: TrackedSetsPageProps) {
         if (next !== "manual") {
             setReorderTargetId(null);
         }
+        pendingOrderRef.current = null;
+        setPendingOrder(null);
         void onChangeGameSort(set.id, next);
     }
 
     function handleChangeViewMode(set: TrackedSet) {
         setReorderTargetId(null);
+        pendingOrderRef.current = null;
+        setPendingOrder(null);
         void onChangeViewMode(set.id, nextTrackedSetViewMode(set.viewMode));
     }
 
@@ -450,7 +652,7 @@ function TrackedSetsPage(props: TrackedSetsPageProps) {
             setReorderTargetId(gameId);
             return;
         }
-        const ordered = gamesInSameGroup(set, reorderTargetId).map((g) => g.gameId);
+        const ordered = currentGroupOrder(set, reorderTargetId);
         const from = ordered.indexOf(reorderTargetId);
         const to = ordered.indexOf(gameId);
         if (from < 0 || to < 0) {
@@ -463,14 +665,14 @@ function TrackedSetsPage(props: TrackedSetsPageProps) {
         swapped[to] = movedId;
         setReorderViaSwap(true);
         setReorderTargetId(movedId);
-        void onReorderGames(set.id, swapped, set.viewMode);
+        commitOrder(set, swapped);
     }
 
     function handleReorderMove(set: TrackedSet, direction: ReorderDirection) {
         if (reorderTargetId === null) {
             return;
         }
-        const ordered = gamesInSameGroup(set, reorderTargetId).map((g) => g.gameId);
+        const ordered = currentGroupOrder(set, reorderTargetId);
         const from = ordered.indexOf(reorderTargetId);
         if (from < 0) {
             return;
@@ -491,10 +693,75 @@ function TrackedSetsPage(props: TrackedSetsPageProps) {
         ordered.splice(from, 1);
         ordered.splice(to, 0, reorderTargetId);
         setReorderViaSwap(false);
-        void onReorderGames(set.id, ordered, set.viewMode);
+        commitOrder(set, ordered);
     }
 
-    return (
+    function commitOrder(set: TrackedSet, ids: number[]) {
+        pendingOrderRef.current = { setId: set.id, ids };
+        setPendingOrder({ setId: set.id, ids });
+        scheduleOrderWrite(set);
+    }
+
+    function scheduleOrderWrite(set: TrackedSet) {
+        if (orderWriteTimerRef.current !== 0) {
+            window.clearTimeout(orderWriteTimerRef.current);
+        }
+        orderWriteTimerRef.current = window.setTimeout(() => {
+            orderWriteTimerRef.current = 0;
+            flushOrderWrite(set);
+        }, ORDER_WRITE_SETTLE_MS);
+    }
+
+    function flushOrderWrite(set: TrackedSet) {
+        const pending = pendingOrderRef.current;
+        if (pending === null || pending.setId !== set.id) {
+            return;
+        }
+        void onReorderGames(set.id, pending.ids, set.viewMode).then((ok) => {
+            if (!ok) {
+                pendingOrderRef.current = null;
+                setPendingOrder(null);
+            }
+        });
+    }
+
+    function currentGroupOrder(set: TrackedSet, targetId: number): number[] {
+        const pending = pendingOrderRef.current;
+        if (pending !== null && pending.setId === set.id && pending.ids.includes(targetId)) {
+            return pending.ids.slice();
+        }
+        return gamesInSameGroup(set, targetId).map((game) => game.gameId);
+    }
+
+    function handleReorderToward(set: TrackedSet, landedGameId: number) {
+        if (reorderTargetId === null || landedGameId === reorderTargetId) {
+            return;
+        }
+        const ordered = currentGroupOrder(set, reorderTargetId);
+        const from = ordered.indexOf(reorderTargetId);
+        const to = ordered.indexOf(landedGameId);
+        if (from < 0 || to < 0) {
+            return;
+        }
+        ordered.splice(from, 1);
+        ordered.splice(to, 0, reorderTargetId);
+        setReorderViaSwap(true);
+        commitOrder(set, ordered);
+    }
+
+    function claimNewGoal(control: ReactNode): ReactNode {
+        const claim = selectorRestoreClaim.claim;
+        if (claim === null) {
+            return control;
+        }
+        return (
+            <FocusClaim token={claim.token} armed={claim.armed} onSpent={selectorRestoreClaim.spend}>
+                {control}
+            </FocusClaim>
+        );
+    }
+
+    const page = (
         <>
             <style>{FADE_IN_KEYFRAMES}</style>
             <PanelSection>
@@ -509,7 +776,7 @@ function TrackedSetsPage(props: TrackedSetsPageProps) {
                         ? t(language, props.backToMain ? "← Back to Main" : "← Back to Profile")
                         : t(language, "← Back to Goals")}
                     focusKey={props.view === "trackedSets" ? "trackedsets:back" : "trackedsetopen:back"}
-                    navAutoFocus
+                    navAutoFocus={!restorePending || backClaimToken > 0}
                     buttonSpacing={buttonSpacing}
                     onClick={props.view === "trackedSets" ? onBack : onCloseSet}
                 />
@@ -522,13 +789,15 @@ function TrackedSetsPage(props: TrackedSetsPageProps) {
 
                 {showingSelector && !openSetResolving && (
                     <PanelSectionRow>
-                        <FocusableItem
-                            outerStyle={buttonOuterStyle}
-                            focusKey="trackedsets:addset"
-                            onClick={openCreateSetModal}
-                        >
-                            {t(language, "New Goal")}
-                        </FocusableItem>
+                        {claimNewGoal(
+                            <FocusableItem
+                                outerStyle={buttonOuterStyle}
+                                focusKey="trackedsets:addset"
+                                onClick={openCreateSetModal}
+                            >
+                                {t(language, "New Goal")}
+                            </FocusableItem>
+                        )}
                     </PanelSectionRow>
                 )}
 
@@ -540,7 +809,7 @@ function TrackedSetsPage(props: TrackedSetsPageProps) {
 
                 {!openSetResolving && !showingSelector && (
                     <OpenSetView
-                        set={openSet as TrackedSet}
+                        set={effectiveOpenSet as TrackedSet}
                         aButtonMode={aButtonMode}
                         checkLoading={checkLoading}
                         checkError={checkError}
@@ -557,6 +826,9 @@ function TrackedSetsPage(props: TrackedSetsPageProps) {
                         dynamicRowStep={dynamicTrackedSetsListRowStep}
                         dynamicPrefetchDistance={dynamicTrackedSetsListPrefetchDistance}
                         dynamicSentinelRootMargin={dynamicTrackedSetsListSentinelRootMargin}
+                        restoreTarget={openSetRestoreTarget}
+                        onRestoreSettled={settleRestore}
+                        onRequestFocus={onRequestFocus}
                         onClaimBack={() => {
                             setBackClaimToken((token) => token + 1);
                             onRequestFocus("trackedsetopen:back");
@@ -571,6 +843,7 @@ function TrackedSetsPage(props: TrackedSetsPageProps) {
                         onCycleAButtonMode={handleCycleAButtonMode}
                         onPickOrSwap={handlePickOrSwap}
                         onReorderMove={handleReorderMove}
+                        onReorderToward={handleReorderToward}
                         onEditNote={openNoteModal}
                         onOpenGameOverview={onOpenGameOverview}
                         onRemoveGame={onRemoveGame}
@@ -599,6 +872,16 @@ function TrackedSetsPage(props: TrackedSetsPageProps) {
                 />
             )}
         </>
+    );
+
+    return (
+        <RestoreCurtain
+            armed={restorePending}
+            settled={restoreSettled}
+            covered={panelOverlayVisible}
+        >
+            {page}
+        </RestoreCurtain>
     );
 }
 
@@ -880,6 +1163,9 @@ type OpenSetViewProps = {
     dynamicRowStep: number;
     dynamicPrefetchDistance: number;
     dynamicSentinelRootMargin: number;
+    restoreTarget: TrackedSetFocusReturn | null;
+    onRestoreSettled: () => void;
+    onRequestFocus: (focusKey: string) => void;
     onClaimBack: () => void;
     onChangeGameFilter: (set: TrackedSet) => void;
     onRunCheck: () => void;
@@ -891,6 +1177,7 @@ type OpenSetViewProps = {
     onCycleAButtonMode: (set: TrackedSet) => void;
     onPickOrSwap: (set: TrackedSet, gameId: number, allowSwap?: boolean) => void;
     onReorderMove: (set: TrackedSet, direction: ReorderDirection) => void;
+    onReorderToward: (set: TrackedSet, landedGameId: number) => void;
     onEditNote: (set: TrackedSet, game: TrackedSetGame) => void;
     onOpenGameOverview: (gameId: number) => void;
     onRemoveGame: (setId: string, gameId: number) => Promise<boolean>;
@@ -951,6 +1238,9 @@ function OpenSetView(props: OpenSetViewProps) {
         dynamicRowStep,
         dynamicPrefetchDistance,
         dynamicSentinelRootMargin,
+        restoreTarget,
+        onRestoreSettled,
+        onRequestFocus,
         onClaimBack,
         onChangeGameFilter,
         onRunCheck,
@@ -962,6 +1252,7 @@ function OpenSetView(props: OpenSetViewProps) {
         onCycleAButtonMode,
         onPickOrSwap,
         onReorderMove,
+        onReorderToward,
         onEditNote,
         onOpenGameOverview,
         onRemoveGame
@@ -1083,28 +1374,109 @@ function OpenSetView(props: OpenSetViewProps) {
 
     const listRef = useRef<HTMLDivElement | null>(null);
 
+    const restoreClaim = useFocusClaim();
+
+    const restoreClaimSpent = (restoreClaim.claim?.token ?? 0) > 0 && !restoreClaim.claim?.armed;
+
+    const restoreSlot = !restoreClaimSpent && restoreTarget !== null && restoreTarget.gameId !== null
+        ? flatIndexById.get(restoreTarget.gameId) ?? null
+        : null;
+
+    const reorderSlot = reorderTargetId !== null
+        ? flatIndexById.get(reorderTargetId) ?? null
+        : null;
+
+    const rowStep = Math.max(1, dynamicRowStep ?? 10);
+
+    const seedRows = Math.max(
+        restoreSlot !== null && restoreSlot < TRACKED_SET_RESTORE_SEED_CEILING
+            ? restoreSlot + 1 + rowStep
+            : 0,
+        reorderSlot !== null ? reorderSlot + 2 : 0
+    );
+
     const {
-        mountedItems: warmBand,
-        markerRef: warmBandMarkerRef,
-        onItemFocus: warmMoreFromFocus
+        mountedItems: mountedGames,
+        markerRef: growMarkerRef,
+        onItemFocus: growFromCardFocus
     } = useWindowedList({
         items: visualOrder,
         dynamicLoading,
         initialRows: Math.max(1, dynamicInitialRows ?? 10),
-        rowStep: Math.max(1, dynamicRowStep ?? 10),
+        rowStep,
         prefetchDistance: Math.max(1, dynamicPrefetchDistance ?? 12),
         sentinelRootMargin: `${Math.max(0, dynamicSentinelRootMargin ?? 600)}px 0px`,
-        resetKey: `${set.id}|${set.viewMode}|${set.gameSort}|${filter}`
+        seedRows,
+        resetKey: `${set.id}|${set.viewMode}|${set.gameSort}|${filter}`,
+        debugLabel: `trackedset:${set.id}`
     });
 
+    const mountedCount = mountedGames.length;
+
     useEffect(function prefetchSetIcons() {
-        if (!showIcons || warmBand.length === 0) {
+        if (!showIcons || mountedGames.length === 0) {
             return;
         }
         void prefetchGameIcons(
-            warmBand.map((game) => ({ gameId: game.gameId, imageIcon: game.imageIcon }))
+            mountedGames.map((game) => ({ gameId: game.gameId, imageIcon: game.imageIcon }))
         );
-    }, [warmBand, showIcons]);
+    }, [mountedGames, showIcons]);
+
+    const restoreFiredRef = useRef(false);
+    const restoreSlotRef = useRef<number | null>(null);
+    const restoreStripKeyRef = useRef<string | null>(null);
+
+    useEffect(function landRestoredCursor() {
+        if (restoreTarget === null || restoreFiredRef.current) {
+            return;
+        }
+        restoreFiredRef.current = true;
+
+        if (restoreTarget.gameId === null) {
+            restoreStripKeyRef.current = restoreTarget.focusKey;
+            logFocusDebug("trackedset-restore", restoreTarget.focusKey, "claiming a strip button");
+            restoreClaim.claimSlot(0);
+            onRequestFocus(restoreTarget.focusKey);
+            return;
+        }
+
+        if (restoreSlot === null || restoreSlot >= TRACKED_SET_RESTORE_SEED_CEILING) {
+            onRestoreSettled();
+            logFocusDebug(
+                "trackedset-restore",
+                restoreTarget.focusKey,
+                restoreSlot === null
+                    ? "that game is not in this view"
+                    : `slot=${restoreSlot} ceiling=${TRACKED_SET_RESTORE_SEED_CEILING} past the ceiling`
+            );
+            onRequestFocus("trackedsetopen:back");
+            return;
+        }
+
+        restoreSlotRef.current = restoreSlot;
+        logFocusDebug(
+            "trackedset-restore",
+            restoreTarget.focusKey,
+            `slot=${restoreSlot} of ${visualOrder.length} mounted=${mountedCount}`
+        );
+        restoreClaim.claimSlot(restoreSlot);
+        onRequestFocus(restoreTarget.focusKey);
+    }, [
+        restoreTarget,
+        restoreSlot,
+        visualOrder.length,
+        mountedCount,
+        restoreClaim.claimSlot,
+        onRestoreSettled,
+        onRequestFocus
+    ]);
+
+    useEffect(function settleWhenTheClaimLands() {
+        if (!restoreClaimSpent) {
+            return;
+        }
+        onRestoreSettled();
+    }, [restoreClaimSpent, onRestoreSettled]);
 
     useEffect(() => {
         logFocusDebug(
@@ -1172,43 +1544,56 @@ function OpenSetView(props: OpenSetViewProps) {
         }, 0);
     }
 
-    function handleCardReorderNudge(direction: ReorderDirection) {
-        setReorderNudgeSeq((seq) => seq + 1);
-        onReorderMove(set, direction);
-    }
-
     function renderStripButton(key: StripButtonKey, label: string, onClick: () => void, disabled: boolean) {
         const focused = focusedStripKey === key;
-        return (
+        const stripFocusKey = `trackedsetopen:strip:${key}`;
+        const claim = restoreStripKeyRef.current === stripFocusKey ? restoreClaim.claim : null;
+        const button = (
+            <DialogButton
+                onClick={onClick}
+                onGamepadFocus={() => setFocusedStripKey(key)}
+                onGamepadBlur={() => {
+                    setFocusedStripKey((current) => (current === key ? null : current));
+                    if (key === "delete") {
+                        setDeleteArmed(false);
+                    }
+                }}
+                disabled={disabled}
+                style={{
+                    minWidth: 0,
+                    width: "100%",
+                    padding: "8px 4px",
+                    fontWeight: 700,
+                    textAlign: "center",
+                    opacity: disabled ? 0.5 : focused ? 1 : 0.82,
+                    boxShadow: focused
+                        ? "0 0 0 2px rgba(120, 200, 255, 0.85), 0 2px 8px rgba(0,0,0,0.35)"
+                        : undefined
+                }}
+            >
+                <FitText text={label} maxFontSize={12} minFontSize={9} />
+            </DialogButton>
+        );
+        const cell = (
             <div
-                data-focus-key={`trackedsetopen:strip:${key}`}
+                data-focus-key={stripFocusKey}
                 style={{ display: "flex", flex: 1, minWidth: 0 }}
             >
-                <DialogButton
-                    onClick={onClick}
-                    onGamepadFocus={() => setFocusedStripKey(key)}
-                    onGamepadBlur={() => {
-                        setFocusedStripKey((current) => (current === key ? null : current));
-                        if (key === "delete") {
-                            setDeleteArmed(false);
-                        }
-                    }}
-                    disabled={disabled}
-                    style={{
-                        minWidth: 0,
-                        width: "100%",
-                        padding: "8px 4px",
-                        fontWeight: 700,
-                        textAlign: "center",
-                        opacity: disabled ? 0.5 : focused ? 1 : 0.82,
-                        boxShadow: focused
-                            ? "0 0 0 2px rgba(120, 200, 255, 0.85), 0 2px 8px rgba(0,0,0,0.35)"
-                            : undefined
-                    }}
-                >
-                    <FitText text={label} maxFontSize={12} minFontSize={9} />
-                </DialogButton>
+                {button}
             </div>
+        );
+        if (claim === null) {
+            return cell;
+        }
+        return (
+            <FocusClaim
+                token={claim.token}
+                armed={claim.armed}
+                onSpent={restoreClaim.spend}
+                style={{ display: "flex", flex: 1, minWidth: 0 }}
+            >
+                {cell}
+            </FocusClaim>
         );
     }
 
@@ -1224,10 +1609,10 @@ function OpenSetView(props: OpenSetViewProps) {
     trashPressRef.current = handleTrashPress;
     const trashBlurRef = useRef(handleTrashBlur);
     trashBlurRef.current = handleTrashBlur;
-    const reorderNudgeRef = useRef(handleCardReorderNudge);
-    reorderNudgeRef.current = handleCardReorderNudge;
-    const warmFocusRef = useRef(warmMoreFromFocus);
-    warmFocusRef.current = warmMoreFromFocus;
+    const reorderFollowRef = useRef(onReorderToward);
+    reorderFollowRef.current = onReorderToward;
+    const growFocusRef = useRef(growFromCardFocus);
+    growFocusRef.current = growFromCardFocus;
 
     const cardList = useMemo<GameCardListProps>(() => ({
         aButtonMode: effectiveAButtonMode,
@@ -1251,8 +1636,9 @@ function OpenSetView(props: OpenSetViewProps) {
         onTrashBlur: (gameId) => {
             trashBlurRef.current(gameId);
         },
-        onCardFocus: (slotIndex) => {
-            warmFocusRef.current(slotIndex);
+        onCardFocus: (slotIndex, gameId) => {
+            reorderFollowRef.current(openSetSetRef.current, gameId);
+            growFocusRef.current(slotIndex);
         },
         onCardNote: gamepadCardActions
             ? (game: TrackedSetGame) => {
@@ -1262,11 +1648,6 @@ function OpenSetView(props: OpenSetViewProps) {
         onCardReorderPick: gamepadReorderAvailable
             ? (gameId: number) => {
                 pickOrSwapRef.current(openSetSetRef.current, gameId, false);
-            }
-            : undefined,
-        onCardReorderNudge: gamepadReorderAvailable
-            ? (direction: ReorderDirection) => {
-                reorderNudgeRef.current(direction);
             }
             : undefined
     }), [
@@ -1281,9 +1662,8 @@ function OpenSetView(props: OpenSetViewProps) {
     ]);
 
     function renderCard(game: TrackedSetGame, slotIndex: number) {
-        return (
+        const card = (
             <GameCard
-                key={`trackedsetslot:${slotIndex}`}
                 game={game}
                 done={isGameDone(game)}
                 slotIndex={slotIndex}
@@ -1292,6 +1672,21 @@ function OpenSetView(props: OpenSetViewProps) {
                 claimToken={cardClaim?.slotIndex === slotIndex ? cardClaim.token : 0}
                 list={cardList}
             />
+        );
+
+        const claim = restoreSlotRef.current === slotIndex ? restoreClaim.claim : null;
+        if (claim === null) {
+            return <Fragment key={`trackedsetslot:${slotIndex}`}>{card}</Fragment>;
+        }
+        return (
+            <FocusClaim
+                key={`trackedsetslot:${slotIndex}`}
+                token={claim.token}
+                armed={claim.armed}
+                onSpent={restoreClaim.spend}
+            >
+                {card}
+            </FocusClaim>
         );
     }
 
@@ -1425,25 +1820,33 @@ function OpenSetView(props: OpenSetViewProps) {
 
             <div ref={listRef}>
                 {set.viewMode === "all"
-                    ? visibleGames.map((game, index) => renderCard(game, index))
-                    : visibleGroups.map((group) => (
-                        <Fragment key={`trackedsetgroup:${group.consoleName}`}>
-                            <SystemHeader
-                                viewMode={set.viewMode}
-                                consoleName={group.consoleName}
-                                count={group.games.length}
-                                iconUrl={consoleIconFor(group.consoleName)}
-                                language={language}
-                                showIcons={showIcons}
-                                metrics={cardList.metrics}
-                            />
-                            {group.games.map((game) =>
-                                renderCard(game, flatIndexById.get(game.gameId) ?? 0)
-                            )}
-                        </Fragment>
-                    ))}
-                {warmBand.length < visualOrder.length && (
-                    <div ref={warmBandMarkerRef} style={{ width: "100%", height: "1px" }} />
+                    ? mountedGames.map((game, index) => renderCard(game, index))
+                    : visibleGroups.map((group) => {
+                        const mounted = group.games.filter(
+                            (game) => (flatIndexById.get(game.gameId) ?? 0) < mountedCount
+                        );
+                        if (mounted.length === 0) {
+                            return null;
+                        }
+                        return (
+                            <Fragment key={`trackedsetgroup:${group.consoleName}`}>
+                                <SystemHeader
+                                    viewMode={set.viewMode}
+                                    consoleName={group.consoleName}
+                                    count={group.games.length}
+                                    iconUrl={consoleIconFor(group.consoleName)}
+                                    language={language}
+                                    showIcons={showIcons}
+                                    metrics={cardList.metrics}
+                                />
+                                {mounted.map((game) =>
+                                    renderCard(game, flatIndexById.get(game.gameId) ?? 0)
+                                )}
+                            </Fragment>
+                        );
+                    })}
+                {mountedCount < visualOrder.length && (
+                    <div ref={growMarkerRef} style={{ width: "100%", height: "1px" }} />
                 )}
             </div>
         </>
@@ -1463,10 +1866,9 @@ type GameCardListProps = {
     onOpenGameOverview: (gameId: number) => void;
     onTrashPress: (gameId: number) => void;
     onTrashBlur: (gameId: number) => void;
-    onCardFocus: (slotIndex: number) => void;
+    onCardFocus: (slotIndex: number, gameId: number) => void;
     onCardNote?: (game: TrackedSetGame) => void;
     onCardReorderPick?: (gameId: number) => void;
-    onCardReorderNudge?: (direction: ReorderDirection) => void;
 };
 
 type GameCardProps = {
@@ -1515,14 +1917,6 @@ const GameCard = React.memo(function GameCard(props: GameCardProps) {
             return;
         }
 
-        if (isReorderTarget && list.onCardReorderNudge) {
-            if (button === BUTTON_DIR_UP) {
-                list.onCardReorderNudge("up");
-            }
-            else if (button === BUTTON_DIR_DOWN) {
-                list.onCardReorderNudge("down");
-            }
-        }
     }
 
     const progressText = game.numAwarded !== null && game.maxPossible !== null
@@ -1579,7 +1973,7 @@ const GameCard = React.memo(function GameCard(props: GameCardProps) {
                 }}
                 focusKey={`trackedsetgame:${game.gameId}`}
                 onClick={handleCardClick}
-                onGamepadFocus={() => list.onCardFocus(slotIndex)}
+                onGamepadFocus={() => list.onCardFocus(slotIndex, game.gameId)}
                 onButtonDown={handleButtonDown}
             >
                 <div

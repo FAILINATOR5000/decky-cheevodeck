@@ -2,6 +2,7 @@ import {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
     type Dispatch,
     type RefObject,
@@ -18,7 +19,6 @@ import {
     getCachedTrackedNotesColor,
     getGamePayload,
     getTrackedAchievements,
-    moveTrackedAchievement,
     saveTrackedNote,
     saveTrackedSortForGame,
     toggleTrackedAchievement
@@ -37,6 +37,9 @@ import type {
 } from "../types";
 import { earned, metricSortComparator } from "../utils/achievements";
 import { logError } from "../utils/errors";
+import { landOn, liveOrder, orderAfterGroupMove, stepTo } from "../utils/reorderOrder";
+
+const ORDER_WRITE_SETTLE_MS = 250;
 import { openExternalUrl, raAchievementUrl } from "../utils/navigation";
 import { groupIdsForTrackedTarget } from "../components/tracked/TrackedListBody";
 
@@ -85,6 +88,18 @@ export function useTrackedForGameController({
     const [sort, setSort] = useState<TrackedAchievementSort>(trackedAchievementSort);
     const [reorderTargetId, setReorderTargetId] = useState<number | null>(null);
     const [reorderInFlight, setReorderInFlight] = useState(false);
+
+    const pendingOrderRef = useRef<{
+        gameId: number;
+        ids: number[];
+        title: string | null;
+        consoleName: string | null;
+        imageIcon: string | null;
+    } | null>(null);
+    const orderWriteTimerRef = useRef(0);
+
+    const payloadRef = useRef(payload);
+    payloadRef.current = payload;
     const [reorderViaSwap, setReorderViaSwap] = useState(false);
 
     useEffect(() => {
@@ -565,66 +580,144 @@ export function useTrackedForGameController({
         ]
     );
 
-    const onReorderMove = useCallback(
-        async (direction: ReorderDirection, groupIds?: number[] | null) => {
-            if (selectedGameId === null) {
-                return;
-            }
-            if (!payload) {
-                return;
-            }
-            if (sort !== "manual") {
-                return;
-            }
-            if (reorderTargetId === null) {
-                return;
-            }
-            if (reorderInFlight) {
-                return;
-            }
+    const visibleOrder = useCallback(
+        () => liveOrder(pendingOrderRef.current?.ids ?? null, trackedIds),
+        [trackedIds]
+    );
 
-            setReorderInFlight(true);
-            setError(null);
-            try {
-                const result = await moveTrackedAchievement(
-                    selectedGameId,
-                    reorderTargetId,
-                    direction,
-                    payload.title ?? null,
-                    payload.consoleName ?? null,
-                    payload.imageIcon ?? null,
-                    groupIds ?? null
-                );
-                if (!mountedRef.current) {
-                    return;
-                }
-                const achievementIds = result.achievementIds ?? [];
-                const notes = result.notes ?? {};
-                const notesColor = result.notesColor ?? {};
-                cacheTrackedCount(selectedGameId, achievementIds.length);
-                cacheTrackedIds(selectedGameId, achievementIds);
-                cacheTrackedNotes(selectedGameId, notes);
-                cacheTrackedNotesColor(selectedGameId, notesColor);
-                setTrackedIds(achievementIds);
-                setNotesByAchievementId(notes);
-                setNotesColorByAchievementId(notesColor);
-                if (result.sort) {
-                    setSort(result.sort);
-                }
-                setReorderViaSwap(false);
-            } catch (e: any) {
-                logError("onReorderMove (drill-in)", e);
-                if (!mountedRef.current) {
-                    return;
-                }
-                setError(String(e?.message || e || "Couldn't reorder tracked achievements."));
-            } finally {
-                if (mountedRef.current) {
-                    setReorderInFlight(false);
-                }
+    const flushOrderWrite = useCallback(async () => {
+        const pending = pendingOrderRef.current;
+        if (pending === null) {
+            return;
+        }
+        const gameId = pending.gameId;
+        setReorderInFlight(true);
+        try {
+            const result = await bulkToggleTracked(
+                gameId,
+                pending.ids,
+                "set",
+                pending.title,
+                pending.consoleName,
+                pending.imageIcon
+            );
+            if (pendingOrderRef.current === pending) {
+                pendingOrderRef.current = null;
             }
+            if (!mountedRef.current) {
+                return;
+            }
+            const achievementIds = result.achievementIds ?? [];
+            const notes = result.notes ?? {};
+            const notesColor = result.notesColor ?? {};
+            cacheTrackedCount(gameId, achievementIds.length);
+            cacheTrackedIds(gameId, achievementIds);
+            cacheTrackedNotes(gameId, notes);
+            cacheTrackedNotesColor(gameId, notesColor);
+            setTrackedIds(achievementIds);
+            setNotesByAchievementId(notes);
+            setNotesColorByAchievementId(notesColor);
+            if (result.sort) {
+                setSort(result.sort);
+            }
+        } catch (e: any) {
+            logError("onReorderMove (drill-in)", e);
+            if (!mountedRef.current) {
+                return;
+            }
+            setError(String(e?.message || e || "Couldn't reorder tracked achievements."));
+        } finally {
+            if (mountedRef.current) {
+                setReorderInFlight(false);
+            }
+        }
+    }, [mountedRef, setError]);
+
+    const applyOrder = useCallback((gameId: number, next: number[]) => {
+        const payloadNow = payloadRef.current;
+        pendingOrderRef.current = {
+            gameId,
+            ids: next,
+            title: payloadNow?.title ?? null,
+            consoleName: payloadNow?.consoleName ?? null,
+            imageIcon: payloadNow?.imageIcon ?? null
+        };
+        setTrackedIds(next);
+        cacheTrackedIds(gameId, next);
+        if (orderWriteTimerRef.current !== 0) {
+            window.clearTimeout(orderWriteTimerRef.current);
+        }
+        orderWriteTimerRef.current = window.setTimeout(() => {
+            orderWriteTimerRef.current = 0;
+            void flushOrderWrite();
+        }, ORDER_WRITE_SETTLE_MS);
+    }, [flushOrderWrite]);
+
+    useEffect(function writeAnyUnsettledOrderOnTheWayOut() {
+        return () => {
+            if (orderWriteTimerRef.current === 0) {
+                return;
+            }
+            window.clearTimeout(orderWriteTimerRef.current);
+            orderWriteTimerRef.current = 0;
+            const pending = pendingOrderRef.current;
+            if (pending === null) {
+                return;
+            }
+            void bulkToggleTracked(
+                pending.gameId,
+                pending.ids,
+                "set",
+                pending.title,
+                pending.consoleName,
+                pending.imageIcon
+            ).catch((e) => logError("bulkToggleTracked (on the way out, drill-in)", e));
+        };
+    }, []);
+
+    const onReorderMove = useCallback(
+        (direction: ReorderDirection, groupIds?: number[] | null) => {
+            if (selectedGameId === null || !payload || sort !== "manual" || reorderTargetId === null) {
+                return;
+            }
+            const next = orderAfterGroupMove(
+                visibleOrder(),
+                groupIds ?? null,
+                reorderTargetId,
+                stepTo(direction)
+            );
+            if (next === null) {
+                return;
+            }
+            setError(null);
+            setReorderViaSwap(false);
+            applyOrder(selectedGameId, next);
         },
-        [mountedRef, payload, reorderInFlight, reorderTargetId, selectedGameId, setError, sort]
+        [applyOrder, payload, reorderTargetId, selectedGameId, setError, sort, visibleOrder]
+    );
+
+    const onReorderToward = useCallback(
+        (landedAchievementId: number, groupIds?: number[] | null) => {
+            if (selectedGameId === null || sort !== "manual" || reorderTargetId === null) {
+                return;
+            }
+            if (landedAchievementId === reorderTargetId) {
+                return;
+            }
+            const next = orderAfterGroupMove(
+                visibleOrder(),
+                groupIds ?? null,
+                reorderTargetId,
+                landOn(landedAchievementId)
+            );
+            if (next === null) {
+                return;
+            }
+            setError(null);
+            setReorderViaSwap(true);
+            applyOrder(selectedGameId, next);
+        },
+        [applyOrder, reorderTargetId, selectedGameId, setError, sort, visibleOrder]
     );
 
     return {
@@ -648,7 +741,8 @@ export function useTrackedForGameController({
             onReorderSwap,
             onSaveTrackedNote,
             onSortChange,
-            onReorderMove
+            onReorderMove,
+            onReorderToward
         }
     };
 }

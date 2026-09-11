@@ -179,6 +179,7 @@ type TrackedPageProps = {
     reorderTargetId: number | null;
     reorderViaSwap?: boolean;
     onReorderMove: (direction: ReorderDirection, groupIds?: number[] | null) => void | Promise<void>;
+    onReorderToward: (landedAchievementId: number, groupIds?: number[] | null) => void;
     backClaimToken: number;
     rowClaim: FocusClaimController;
     restorePending: boolean;
@@ -246,6 +247,7 @@ function TrackedPage(props: TrackedPageProps) {
         reorderTargetId,
         reorderViaSwap,
         onReorderMove,
+        onReorderToward,
         backClaimToken,
         rowClaim,
         restorePending,
@@ -518,6 +520,16 @@ function TrackedPage(props: TrackedPageProps) {
         void onReorderMove(direction, groupIds);
     }
 
+    function handleRowFollow(landedAchievementId: number) {
+        if (reorderTargetId === null) {
+            return;
+        }
+        onReorderToward(
+            landedAchievementId,
+            groupIdsForTrackedTarget(trackedAchievements, notesByAchievementId, reorderTargetId)
+        );
+    }
+
     function handleRowUntrack(achievement: AchievementRow) {
         if (trackedValidating || checkingGame) {
             return;
@@ -608,7 +620,7 @@ function TrackedPage(props: TrackedPageProps) {
                     onAchievementTrackToggle={gamepadRowActions ? handleRowUntrack : undefined}
                     onAchievementNote={gamepadRowActions ? handleRowEditNote : undefined}
                     onAchievementReorderPick={gamepadRowActions && reorderAvailable ? handleRowReorderPick : undefined}
-                    onAchievementReorderNudge={gamepadRowActions && reorderAvailable ? handleStripMove : undefined}
+                    onAchievementReorderToward={gamepadRowActions && reorderAvailable ? handleRowFollow : undefined}
                 />
             </>
         );
@@ -628,7 +640,7 @@ function TrackedPage(props: TrackedPageProps) {
                     focusKey="tracked:back"
                     buttonSpacing={buttonSpacing}
                     onClick={backFromTracked}
-                    navAutoFocus={!restorePending}
+                    navAutoFocus={!restorePending || backClaimToken > 0}
                 />
 
                 <PanelSectionRow>
@@ -1048,6 +1060,7 @@ function OtherGamesTabBody(props: OtherGamesTabBodyProps) {
             restoreSeedAchievementId={restoreSeedAchievementId}
             onReorderPick={drillIn.onReorderPick}
             onReorderMove={drillIn.onReorderMove}
+            onReorderToward={drillIn.onReorderToward}
         />
     );
 }

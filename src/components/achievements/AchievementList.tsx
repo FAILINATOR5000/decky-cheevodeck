@@ -17,7 +17,6 @@ import type {
     FriendAchievementFilter,
     MainAchievementFilter,
     Payload,
-    ReorderDirection,
     TrackedColor,
     TrackedNotes,
     TrackedNotesColor,
@@ -72,7 +71,7 @@ export function AchievementList(props: {
     onAchievementTrackToggle?: (achievement: AchievementRow) => void;
     onAchievementNote?: (achievement: AchievementRow) => void;
     onAchievementReorderPick?: (achievement: AchievementRow) => void;
-    onAchievementReorderNudge?: (direction: ReorderDirection) => void;
+    onAchievementReorderToward?: (landedAchievementId: number) => void;
     dynamicLoading?: boolean;
     dynamicInitialRows?: number;
     dynamicRowStep?: number;
@@ -530,8 +529,8 @@ export function AchievementList(props: {
     noteRef.current = props.onAchievementNote;
     const reorderPickRef = useRef(props.onAchievementReorderPick);
     reorderPickRef.current = props.onAchievementReorderPick;
-    const reorderNudgeRef = useRef(props.onAchievementReorderNudge);
-    reorderNudgeRef.current = props.onAchievementReorderNudge;
+    const reorderTowardRef = useRef(props.onAchievementReorderToward);
+    reorderTowardRef.current = props.onAchievementReorderToward;
 
     const rowList = useMemo<AchievementRowListProps>(() => ({
         metrics,
@@ -563,9 +562,9 @@ export function AchievementList(props: {
                 reorderPickRef.current?.(achievement);
             }
             : undefined,
-        onAchievementReorderNudge: props.onAchievementReorderNudge
-            ? (direction: ReorderDirection) => {
-                reorderNudgeRef.current?.(direction);
+        onAchievementReorderToward: props.onAchievementReorderToward
+            ? (landedAchievementId: number) => {
+                reorderTowardRef.current?.(landedAchievementId);
             }
             : undefined
     }), [
@@ -580,7 +579,7 @@ export function AchievementList(props: {
         props.onAchievementTrackToggle,
         props.onAchievementNote,
         props.onAchievementReorderPick,
-        props.onAchievementReorderNudge
+        props.onAchievementReorderToward
     ]);
 
     return (
