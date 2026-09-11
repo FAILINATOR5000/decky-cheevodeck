@@ -41,6 +41,7 @@ type GameNotesPageState = {
     dynamicLoading: boolean;
     dynamicInitialRows: number;
     dynamicRowStep: number;
+    dynamicPrefetchDistance: number;
     dynamicSentinelRootMargin: number;
     gameIconDataUri: string | null;
     gameIconCold: boolean;
@@ -318,6 +319,7 @@ export function GameNotesPage(props: GameNotesPageProps) {
         dynamicLoading,
         dynamicInitialRows,
         dynamicRowStep,
+        dynamicPrefetchDistance,
         dynamicSentinelRootMargin,
         gameIconDataUri,
         gameIconCold,
@@ -345,15 +347,22 @@ export function GameNotesPage(props: GameNotesPageProps) {
 
     const sentinelRootMargin = `${Math.max(0, dynamicSentinelRootMargin)}px 0px`;
 
+    const flatIndexById = useMemo(() => {
+        const byId = new Map<string, number>();
+        flatOrderedIds.forEach((id, index) => byId.set(id, index));
+        return byId;
+    }, [flatOrderedIds]);
+
     const {
         mountedItems: mountedNoteIds,
-        markerRef: loadMoreMarkerRef
+        markerRef: loadMoreMarkerRef,
+        onItemFocus: onNoteCardFocusIndex
     } = useWindowedList({
         items: flatOrderedIds,
         dynamicLoading,
         initialRows: dynamicInitialRows,
         rowStep: dynamicRowStep,
-        prefetchDistance: 0,
+        prefetchDistance: dynamicPrefetchDistance,
         sentinelRootMargin,
         resetKey: `${gameId}|${sortMode}`
     });
@@ -369,6 +378,8 @@ export function GameNotesPage(props: GameNotesPageProps) {
     cardClickRef.current = handleCardClick;
     const cardFocusedRef = useRef(actions.onCardFocused);
     cardFocusedRef.current = actions.onCardFocused;
+    const cardFocusIndexRef = useRef(onNoteCardFocusIndex);
+    cardFocusIndexRef.current = onNoteCardFocusIndex;
     const cardNewNoteRef = useRef(actions.onAddNote);
     cardNewNoteRef.current = actions.onAddNote;
     const cardReorderPickRef = useRef(handleCardReorderPick);
@@ -391,6 +402,9 @@ export function GameNotesPage(props: GameNotesPageProps) {
         },
         onCardFocused: (noteId) => {
             void cardFocusedRef.current(noteId);
+        },
+        onFocusIndex: (index) => {
+            cardFocusIndexRef.current(index);
         },
         onNewNote: gamepadCardActions
             ? () => {
@@ -552,6 +566,7 @@ export function GameNotesPage(props: GameNotesPageProps) {
                                 <NoteCard
                                     key={index}
                                     note={note}
+                                    flatIndex={flatIndexById.get(note.id) ?? 0}
                                     focusKey={`gn:card:${note.id}`}
                                     isReorderTarget={reorderTargetId === note.id}
                                     firing={note.showFiredDot}

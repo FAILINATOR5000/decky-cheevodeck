@@ -616,6 +616,7 @@ function AchievementsRoot() {
         dynamicGameNotesLoading,
         dynamicGameNotesInitialRows,
         dynamicGameNotesRowStep,
+        dynamicGameNotesPrefetchDistance,
         dynamicGameNotesSentinelRootMargin,
         dynamicComments,
         dynamicCommentsInitialRows,
@@ -4742,6 +4743,7 @@ function AchievementsRoot() {
                                     dynamicLoading: dynamicGameNotesLoading,
                                     dynamicInitialRows: dynamicGameNotesInitialRows,
                                     dynamicRowStep: dynamicGameNotesRowStep,
+                                    dynamicPrefetchDistance: dynamicGameNotesPrefetchDistance,
                                     dynamicSentinelRootMargin: dynamicGameNotesSentinelRootMargin,
                                     gameIconDataUri: gameNotesGameId != null
                                         ? (notesGameIconDataUri ?? getCachedGameIconDataUri(gameNotesGameId))

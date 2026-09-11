@@ -76,6 +76,7 @@ export function useWindowedList<T>(options: WindowedListOptions<T>): WindowedLis
         growthPendingRef.current = true;
         setMountedCount(function updateMountedCount(current) {
             if (current >= items.length) {
+                growthPendingRef.current = false;
                 return current;
             }
 
