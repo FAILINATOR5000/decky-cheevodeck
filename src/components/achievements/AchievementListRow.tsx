@@ -199,6 +199,7 @@ export const AchievementListRow = React.memo(function AchievementListRow(props: 
             outerStyle={reorderOuterStyle}
             onClick={handleClick}
             onFocus={handleFocus}
+            onGamepadFocus={handleFocus}
             onButtonDown={handleButtonDown}
         >
             {list.showIcons ? (
