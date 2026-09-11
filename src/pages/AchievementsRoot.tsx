@@ -226,6 +226,7 @@ import { armNoteFocusReturn, takeNoteFocusReturn } from "../utils/noteFocusRetur
 import { takeTrackedSetFocusReturn } from "../utils/trackedSetFocusReturn";
 import { armTrackedFocusReturn, takeTrackedFocusReturn } from "../utils/trackedFocusReturn";
 import { takeDolphinFocusReturn } from "../utils/dolphinFocusReturn";
+import { takeFileWatcherFocusReturn } from "../utils/fileWatcherFocusReturn";
 import { takeSavedCommentFocusReturn } from "../utils/savedCommentFocusReturn";
 import { takeSmbFocusReturn } from "../utils/smbFocusReturn";
 import { notePanelMount, notePanelUnmount, samplePanelEntryFrames } from "../utils/panelLifecycle";
@@ -2406,6 +2407,16 @@ function AchievementsRoot() {
     }
     savedCommentWasOpenRef.current = view === "social";
     const savedCommentRestorePending = savedCommentRestoreArmedRef.current;
+
+    const [fileWatcherFocusReturn] = useState(takeFileWatcherFocusReturn);
+
+    const fileWatcherRestoreArmedRef = useRef(fileWatcherFocusReturn !== null);
+    const fileWatcherWasOpenRef = useRef(false);
+    if (fileWatcherWasOpenRef.current && view !== "fileWatcher") {
+        fileWatcherRestoreArmedRef.current = false;
+    }
+    fileWatcherWasOpenRef.current = view === "fileWatcher";
+    const fileWatcherRestorePending = fileWatcherRestoreArmedRef.current;
 
     const [smbFocusReturn] = useState(takeSmbFocusReturn);
 
@@ -4850,11 +4861,15 @@ function AchievementsRoot() {
                                     dynamicInitialRows,
                                     dynamicRowStep,
                                     dynamicPrefetchDistance,
-                                    dynamicSentinelRootMargin
+                                    dynamicSentinelRootMargin,
+                                    panelOverlayVisible,
+                                    restoreFocusKey: fileWatcherFocusReturn,
+                                    restorePending: fileWatcherRestorePending
                                 }}
                                 actions={{
                                     onBack: backFromUtilityTool,
-                                    onHome: goToAchievements
+                                    onHome: goToAchievements,
+                                    onRequestFocus: setPendingFocusKey
                                 }}
                             />
 
