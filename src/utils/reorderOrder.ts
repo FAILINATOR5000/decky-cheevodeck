@@ -1,8 +1,8 @@
 import type { ReorderDirection } from "../types";
 
-export type ReorderDestination = (groupOrder: number[], fromIndex: number) => number;
+export type ReorderDestination<Id> = (groupOrder: Id[], fromIndex: number) => number;
 
-export function stepTo(direction: ReorderDirection): ReorderDestination {
+export function stepTo<Id>(direction: ReorderDirection): ReorderDestination<Id> {
     return (groupOrder, fromIndex) => {
         if (direction === "top") {
             return 0;
@@ -17,16 +17,16 @@ export function stepTo(direction: ReorderDirection): ReorderDestination {
     };
 }
 
-export function landOn(landedId: number): ReorderDestination {
+export function landOn<Id>(landedId: Id): ReorderDestination<Id> {
     return (groupOrder) => groupOrder.indexOf(landedId);
 }
 
-export function orderAfterGroupMove(
-    current: number[],
-    groupIds: number[] | null,
-    targetId: number,
-    destination: ReorderDestination
-): number[] | null {
+export function orderAfterGroupMove<Id>(
+    current: Id[],
+    groupIds: Id[] | null,
+    targetId: Id,
+    destination: ReorderDestination<Id>
+): Id[] | null {
     const grouped = groupIds !== null && groupIds.length > 0;
     const working = grouped ? groupIds.slice() : current.slice();
 
@@ -59,7 +59,7 @@ export function orderAfterGroupMove(
     });
 }
 
-export function liveOrder(pending: number[] | null, live: number[]): number[] {
+export function liveOrder<Id>(pending: Id[] | null, live: Id[]): Id[] {
     if (pending === null || pending.length !== live.length) {
         return live;
     }

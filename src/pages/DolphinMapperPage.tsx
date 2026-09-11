@@ -1,5 +1,5 @@
 import { DialogButton, PanelSection, PanelSectionRow } from "@decky/ui";
-import React, { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import React, { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactElement, type ReactNode } from "react";
 import { BackButton } from "../components/ui/BackButton";
 import { ButtonHints } from "../components/ui/ButtonHints";
 import { FocusClaim } from "../components/ui/FocusClaim";
@@ -14,15 +14,16 @@ import { TextViewerModal } from "../components/ui/TextViewerModal";
 import { ErrorText } from "../components/ui/ErrorText";
 import { CollapseChevron } from "../components/ui/CollapseChevron";
 import { ExternalLink } from "../components/ui/ExternalLink";
+import { RestoreCurtain } from "../components/ui/RestoreCurtain";
 import { t, type LanguageCode } from "../locales";
 import type {
     ButtonSpacing,
     ControllerGlyphStyle,
     DolphinMapperMode,
     DolphinMapping,
+    DolphinMappingInput,
     DolphinSystemFilter,
     OkResult,
-    ReorderDirection,
     ViewKey
 } from "../types";
 import { parseNoteTag } from "../utils/achievements";
@@ -36,8 +37,6 @@ import {
 } from "../utils/dolphin";
 import {
     BUTTON_BUMPER_RIGHT,
-    BUTTON_DIR_DOWN,
-    BUTTON_DIR_UP,
     BUTTON_OPTIONS,
     BUTTON_SECONDARY
 } from "../utils/gamepadButtons";
@@ -48,8 +47,9 @@ import { textSize } from "../utils/scale";
 import { useFocusClaim } from "../hooks/useFocusClaim";
 import { useDolphinMapper } from "../components/mapping/DolphinMapperContext";
 import { DolphinMappingModal } from "../components/mapping/DolphinMappingModal";
-import { markNextValidationSkipped } from "../api";
+import { logFocusDebug, markNextValidationSkipped } from "../api";
 import { showManagedModal } from "../utils/modalRegistry";
+import { armDolphinFocusReturn } from "../utils/dolphinFocusReturn";
 
 type DeleteFocusPlan =
     | { kind: "none" }
@@ -59,6 +59,10 @@ type DeleteFocusPlan =
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
 const NO_CLAIM_SLOT = -1;
+
+const STATIC_CLAIM_SLOT = -2;
+
+const CARD_FOCUS_PREFIX = "dmapcard:";
 
 const APPLY_ERROR_SETTLE_MS = 250;
 
@@ -108,8 +112,13 @@ type DolphinMapperPageProps = {
     advancedCollapsed: boolean;
     onAdvancedCollapsedChange: (collapsed: boolean) => void;
 
+    restoreFocusKey: string | null;
+    restorePending: boolean;
+    panelOverlayVisible: boolean;
+
     onBack: () => void | Promise<void>;
     onHome: () => void | Promise<void>;
+    onRequestFocus: (focusKey: string) => void;
 };
 
 function DolphinMapperPage(props: DolphinMapperPageProps) {
@@ -132,13 +141,18 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
         onBalanceBoardChange,
         advancedCollapsed,
         onAdvancedCollapsedChange,
+        restoreFocusKey,
+        restorePending,
+        panelOverlayVisible,
         onBack,
         onHome,
+        onRequestFocus,
     } = props;
 
     const {
         mappings,
         loaded,
+        loadFailed,
         collapsedTags,
         toggleCollapsedTag,
         deckControllerStatus,
@@ -146,24 +160,35 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
         reorderTargetId,
         onReorderSwap,
         onReorderMove,
+        onReorderToward,
         saveMapping,
         applyMapping,
         deleteMapping
     } = useDolphinMapper();
 
+    const saveMappingAndAim = async (input: DolphinMappingInput) => {
+        const result = await saveMapping(input);
+        if (result?.ok && result.mapping) {
+            armDolphinFocusReturn(`${CARD_FOCUS_PREFIX}${result.mapping.id}`);
+        }
+        return result;
+    };
+
     const openMappingModal = (existing: DolphinMapping | null) => {
+        armDolphinFocusReturn(existing ? `${CARD_FOCUS_PREFIX}${existing.id}` : "dolphinMapper:add");
         markNextValidationSkipped();
         showManagedModal((close) => (
             <DolphinMappingModal
                 existing={existing}
                 language={language}
-                saveMapping={saveMapping}
+                saveMapping={saveMappingAndAim}
                 close={close}
             />
         ));
     };
 
     const openHelp = () => {
+        armDolphinFocusReturn("dolphinMapper:help");
         showManagedModal((close) => (
             <TextViewerModal
                 language={language}
@@ -181,6 +206,7 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
     const [realHardwareBlocked, setRealHardwareBlocked] = useState(false);
     const rowClaim = useFocusClaim();
     const [backClaimToken, setBackClaimToken] = useState(0);
+    const backClaimed = backClaimToken > 0;
     const applyErrorTimeoutRef = useRef<number | null>(null);
     useEffect(() => {
         return () => {
@@ -192,6 +218,112 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
 
     const collapsedSet = useMemo(() => new Set(collapsedTags), [collapsedTags]);
 
+    const visibleMappings = useMemo(
+        () => (dolphinSystemFilter === "all"
+            ? mappings
+            : mappings.filter((mapping) => mapping.system === dolphinSystemFilter)),
+        [mappings, dolphinSystemFilter]
+    );
+
+    const groups = useMemo(
+        () => groupMappingsByTag(visibleMappings, language),
+        [visibleMappings, language]
+    );
+
+    const visualOrder = useMemo(() => {
+        const painted: DolphinMapping[] = [];
+        for (const group of groups) {
+            if (collapsedSet.has(group.key)) {
+                continue;
+            }
+            for (const mapping of group.mappings) {
+                painted.push(mapping);
+            }
+        }
+        return painted;
+    }, [groups, collapsedSet]);
+
+    const slotIndexById = useMemo(() => {
+        const byId = new Map<string, number>();
+        visualOrder.forEach((mapping, index) => {
+            byId.set(mapping.id, index);
+        });
+        return byId;
+    }, [visualOrder]);
+
+    const restoreFiredRef = useRef(false);
+    const claimedKeyRef = useRef<string | null>(null);
+    const restoreSettledRef = useRef(false);
+    const restoreUnfoldedRef = useRef(false);
+    const [restoreAbandoned, setRestoreAbandoned] = useState(false);
+
+    useEffect(function landRestoredCursor() {
+        if (view !== "dolphinMapper" || !restorePending || restoreFiredRef.current) {
+            return;
+        }
+        if (!loaded && !loadFailed) {
+            return;
+        }
+        if (restoreFocusKey === null) {
+            restoreFiredRef.current = true;
+            setRestoreAbandoned(true);
+            logFocusDebug("dolphin-restore", "(none)", "nothing armed");
+            onRequestFocus("dolphinMapper:back");
+            return;
+        }
+        if (!restoreFocusKey.startsWith(CARD_FOCUS_PREFIX)) {
+            restoreFiredRef.current = true;
+            claimedKeyRef.current = restoreFocusKey;
+            logFocusDebug("dolphin-restore", restoreFocusKey, "claiming");
+            rowClaim.claimSlot(STATIC_CLAIM_SLOT);
+            onRequestFocus(restoreFocusKey);
+            return;
+        }
+
+        const mappingId = restoreFocusKey.slice(CARD_FOCUS_PREFIX.length);
+        const group = groups.find((entry) => entry.mappings.some((mapping) => mapping.id === mappingId));
+        if (group === undefined) {
+            restoreFiredRef.current = true;
+            setRestoreAbandoned(true);
+            logFocusDebug("dolphin-restore", restoreFocusKey, "deleted, or the system filter hides it");
+            onRequestFocus("dolphinMapper:back");
+            return;
+        }
+        if (collapsedSet.has(group.key)) {
+            if (!restoreUnfoldedRef.current) {
+                restoreUnfoldedRef.current = true;
+                logFocusDebug("dolphin-restore", restoreFocusKey, `unfolding ${group.key}`);
+                toggleCollapsedTag(group.key);
+                return;
+            }
+            restoreFiredRef.current = true;
+            setRestoreAbandoned(true);
+            logFocusDebug("dolphin-restore", restoreFocusKey, `${group.key} would not unfold`);
+            onRequestFocus("dolphinMapper:back");
+            return;
+        }
+
+        const slotIndex = slotIndexById.get(mappingId) ?? NO_CLAIM_SLOT;
+        restoreFiredRef.current = true;
+        claimedKeyRef.current = restoreFocusKey;
+        logFocusDebug("dolphin-restore", restoreFocusKey, `slot=${slotIndex} of ${visualOrder.length}`);
+        rowClaim.claimSlot(slotIndex);
+        onRequestFocus(restoreFocusKey);
+    }, [
+        view,
+        restorePending,
+        restoreFocusKey,
+        loaded,
+        loadFailed,
+        groups,
+        collapsedSet,
+        slotIndexById,
+        visualOrder,
+        toggleCollapsedTag,
+        rowClaim.claimSlot,
+        onRequestFocus
+    ]);
+
     if (view !== "dolphinMapper") {
         return null;
     }
@@ -199,27 +331,6 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
     const belowDisabled = dolphinBluetoothPassthrough;
     const mode = mouseKeyboardMode ? dolphinMapperMode : "map";
     const reordering = mode === "reorder";
-
-    const visibleMappings = dolphinSystemFilter === "all"
-        ? mappings
-        : mappings.filter((mapping) => mapping.system === dolphinSystemFilter);
-
-    const groups = groupMappingsByTag(visibleMappings, language);
-
-    const visualOrder: DolphinMapping[] = [];
-    for (const group of groups) {
-        if (collapsedSet.has(group.key)) {
-            continue;
-        }
-        for (const mapping of group.mappings) {
-            visualOrder.push(mapping);
-        }
-    }
-
-    const slotIndexById = new Map<string, number>();
-    visualOrder.forEach((mapping, index) => {
-        slotIndexById.set(mapping.id, index);
-    });
 
 
     const gamepadCardActions = !mouseKeyboardMode && !belowDisabled;
@@ -316,9 +427,16 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
         onReorderSwap(mappingId, false);
     }
 
-    function handleCardReorderNudge(direction: ReorderDirection) {
+    function reorderGroupIds(): string[] | null {
         const group = groups.find((entry) => entry.mappings.some((mapping) => mapping.id === reorderTargetId));
-        onReorderMove(direction, group ? group.mappings.map((mapping) => mapping.id) : null);
+        return group ? group.mappings.map((mapping) => mapping.id) : null;
+    }
+
+    function handleCardReorderFollow(landedId: string) {
+        if (reorderTargetId === null) {
+            return;
+        }
+        onReorderToward(landedId, reorderGroupIds());
     }
 
     function handleModeClick() {
@@ -375,8 +493,8 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
     cardEditRef.current = openMappingModal;
     const cardReorderPickRef = useRef(handleCardReorderPick);
     cardReorderPickRef.current = handleCardReorderPick;
-    const cardReorderNudgeRef = useRef(handleCardReorderNudge);
-    cardReorderNudgeRef.current = handleCardReorderNudge;
+    const cardReorderFollowRef = useRef(handleCardReorderFollow);
+    cardReorderFollowRef.current = handleCardReorderFollow;
 
     const cardList = useMemo<MappingCardListProps>(() => ({
         language,
@@ -403,9 +521,9 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
                 cardReorderPickRef.current(mappingId);
             }
             : undefined,
-        onCardReorderNudge: gamepadReorderAvailable
-            ? (direction: ReorderDirection) => {
-                cardReorderNudgeRef.current(direction);
+        onCardReorderFollow: gamepadReorderAvailable
+            ? (landedId: string) => {
+                cardReorderFollowRef.current(landedId);
             }
             : undefined
     }), [language, belowDisabled, buttonSpacing, gamepadCardActions, gamepadReorderAvailable]);
@@ -438,7 +556,24 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
         );
     }
 
-    return (
+    function claimTarget(control: ReactElement<{ focusKey?: string }>): ReactNode {
+        const claim = rowClaim.claim;
+        if (!claim || claim.slotIndex !== STATIC_CLAIM_SLOT || control.props.focusKey !== claimedKeyRef.current) {
+            return control;
+        }
+        return (
+            <FocusClaim token={claim.token} armed={claim.armed} onSpent={rowClaim.spend}>
+                {control}
+            </FocusClaim>
+        );
+    }
+
+    if (restoreFiredRef.current && (rowClaim.claim?.token ?? 0) > 0 && !rowClaim.claim?.armed) {
+        restoreSettledRef.current = true;
+    }
+    const restoreSettled = restoreAbandoned || restoreSettledRef.current;
+
+    const page = (
         <PanelSection key={`dolphinMapper:view:${focusScopeResetToken}`}>
             <PageNavStrip
                 title={t(language, "Dolphin Mapper")}
@@ -450,21 +585,23 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
                 key={`back:${backClaimToken}`}
                 label={t(language, "Back")}
                 focusKey="dolphinMapper:back"
-                navAutoFocus
+                navAutoFocus={!restorePending || backClaimed}
                 buttonSpacing={buttonSpacing}
                 onClick={onBack}
                 scrollMarginTop={BACK_BUTTON_SCROLL_MARGIN_PX}
             />
 
             <PanelSectionRow>
-                <FocusableItem
-                    focusKey="dolphinMapper:help"
-                    outerStyle={regularButtonSpacingStyle(buttonSpacing)}
-                    onClick={openHelp}
-                    bottomSeparator="standard"
-                >
-                    {t(language, "Help")}
-                </FocusableItem>
+                {claimTarget(
+                    <FocusableItem
+                        focusKey="dolphinMapper:help"
+                        outerStyle={regularButtonSpacingStyle(buttonSpacing)}
+                        onClick={openHelp}
+                        bottomSeparator="standard"
+                    >
+                        {t(language, "Help")}
+                    </FocusableItem>
+                )}
             </PanelSectionRow>
 
             <PanelSectionRow>
@@ -547,14 +684,16 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
             )}
 
             <PanelSectionRow>
-                <FocusableItem
-                    focusKey="dolphinMapper:add"
-                    outerStyle={regularButtonSpacingStyle(buttonSpacing)}
-                    disabled={belowDisabled}
-                    onClick={() => openMappingModal(null)}
-                >
-                    {t(language, "Add Mapping")}
-                </FocusableItem>
+                {claimTarget(
+                    <FocusableItem
+                        focusKey="dolphinMapper:add"
+                        outerStyle={regularButtonSpacingStyle(buttonSpacing)}
+                        disabled={belowDisabled}
+                        onClick={() => openMappingModal(null)}
+                    >
+                        {t(language, "Add Mapping")}
+                    </FocusableItem>
+                )}
             </PanelSectionRow>
 
             {mouseKeyboardMode && mappings.length > 0 && (
@@ -661,6 +800,16 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
                 })}
         </PanelSection>
     );
+
+    return (
+        <RestoreCurtain
+            armed={restorePending}
+            settled={restoreSettled}
+            covered={panelOverlayVisible}
+        >
+            {page}
+        </RestoreCurtain>
+    );
 }
 
 type MappingCardListProps = {
@@ -672,7 +821,7 @@ type MappingCardListProps = {
     onCardDelete?: (mapping: DolphinMapping) => void;
     onCardEdit?: (mapping: DolphinMapping) => void;
     onCardReorderPick?: (mappingId: string) => void;
-    onCardReorderNudge?: (direction: ReorderDirection) => void;
+    onCardReorderFollow?: (mappingId: string) => void;
 };
 
 type MappingCardProps = {
@@ -703,6 +852,10 @@ const MappingCard = React.memo(function MappingCard(props: MappingCardProps) {
         list.onCardBlur(mapping.id);
     }
 
+    function handleGamepadFocus() {
+        list.onCardReorderFollow?.(mapping.id);
+    }
+
     function handleButtonDown(evt: { detail?: { button?: number } }) {
         const button = evt?.detail?.button;
 
@@ -723,24 +876,16 @@ const MappingCard = React.memo(function MappingCard(props: MappingCardProps) {
             list.onCardReorderPick(mapping.id);
             return;
         }
-
-        if (isReorderTarget && list.onCardReorderNudge) {
-            if (button === BUTTON_DIR_UP) {
-                list.onCardReorderNudge("up");
-            }
-            else if (button === BUTTON_DIR_DOWN) {
-                list.onCardReorderNudge("down");
-            }
-        }
     }
 
     return (
         <FocusableItem
-            focusKey={`dmapcard:${mapping.id}`}
+            focusKey={`${CARD_FOCUS_PREFIX}${mapping.id}`}
             outerStyle={outerStyle}
             disabled={belowDisabled}
             onClick={handleClick}
             onBlur={handleBlur}
+            onGamepadFocus={handleGamepadFocus}
             onGamepadBlur={handleBlur}
             onButtonDown={handleButtonDown}
         >

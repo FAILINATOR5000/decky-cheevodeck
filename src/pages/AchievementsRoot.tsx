@@ -225,6 +225,7 @@ import { clearCheevoCheckFocusReturn, takeCheevoCheckFocusReturn } from "../util
 import { armNoteFocusReturn, takeNoteFocusReturn } from "../utils/noteFocusReturn";
 import { takeTrackedSetFocusReturn } from "../utils/trackedSetFocusReturn";
 import { armTrackedFocusReturn, takeTrackedFocusReturn } from "../utils/trackedFocusReturn";
+import { takeDolphinFocusReturn } from "../utils/dolphinFocusReturn";
 import { notePanelMount, notePanelUnmount, samplePanelEntryFrames } from "../utils/panelLifecycle";
 import { measureCommentWindow } from "../utils/commentGeometry";
 import { currentQuickGuideVisible, setQuickGuide } from "../utils/quickGuide";
@@ -2383,6 +2384,16 @@ function AchievementsRoot() {
     }
     cheevoCheckWasOpenRef.current = view === "cheevoCheck";
     const cheevoCheckRestorePending = cheevoCheckRestoreArmedRef.current;
+
+    const [dolphinFocusReturn] = useState(takeDolphinFocusReturn);
+
+    const dolphinRestoreArmedRef = useRef(dolphinFocusReturn !== null);
+    const dolphinWasOpenRef = useRef(false);
+    if (dolphinWasOpenRef.current && view !== "dolphinMapper") {
+        dolphinRestoreArmedRef.current = false;
+    }
+    dolphinWasOpenRef.current = view === "dolphinMapper";
+    const dolphinRestorePending = dolphinRestoreArmedRef.current;
 
     const [trackedSetFocusReturn] = useState(takeTrackedSetFocusReturn);
 
@@ -4761,8 +4772,12 @@ function AchievementsRoot() {
                                 onAdvancedCollapsedChange={handleDolphinAdvancedCollapsedChange}
                                 dolphinSystemFilter={dolphinSystemFilter}
                                 onSystemFilterChange={handleDolphinSystemFilterChange}
+                                restoreFocusKey={dolphinFocusReturn}
+                                restorePending={dolphinRestorePending}
+                                panelOverlayVisible={panelOverlayVisible}
                                 onBack={backFromUtilityTool}
                                 onHome={goToAchievements}
+                                onRequestFocus={setPendingFocusKey}
                             />
 
                             <SmbSharesPage

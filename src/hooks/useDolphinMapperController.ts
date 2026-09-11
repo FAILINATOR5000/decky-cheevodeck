@@ -21,6 +21,10 @@ import type {
     ReorderDirection
 } from "../types";
 import { logError } from "../utils/errors";
+import { landOn, liveOrder, orderAfterGroupMove, stepTo } from "../utils/reorderOrder";
+
+
+const ORDER_WRITE_SETTLE_MS = 250;
 
 
 type UseDolphinMapperControllerArgs = {
@@ -32,15 +36,37 @@ export function useDolphinMapperController({ isActive, language }: UseDolphinMap
     const [mappings, setMappings] = useState<DolphinMapping[]>([]);
     const [collapsedTags, setCollapsedTags] = useState<string[]>([]);
     const [loaded, setLoaded] = useState(false);
+    const [loadFailed, setLoadFailed] = useState(false);
     const [loading, setLoading] = useState(false);
     const [reorderTargetId, setReorderTargetId] = useState<string | null>(null);
     const [reorderViaSwap, setReorderViaSwap] = useState(false);
     const [deckControllerStatus, setDeckControllerStatus] = useState<DeckControllerStatus | null>(null);
 
-    const reorderInFlightRef = useRef(false);
+    const pendingOrderRef = useRef<string[] | null>(null);
+    const orderWriteTimerRef = useRef(0);
+
+    const flushOrderWrite = useCallback(async () => {
+        if (orderWriteTimerRef.current !== 0) {
+            window.clearTimeout(orderWriteTimerRef.current);
+            orderWriteTimerRef.current = 0;
+        }
+        const ids = pendingOrderRef.current;
+        if (ids === null) {
+            return;
+        }
+        pendingOrderRef.current = null;
+        try {
+            await reorderDolphinMappings(ids);
+        }
+        catch (e) {
+            logError("reorderDolphinMappings", e);
+        }
+    }, []);
 
     const reload = useCallback(async () => {
+        await flushOrderWrite();
         setLoading(true);
+        setLoadFailed(false);
         try {
             const result = await loadDolphinMappings();
             setMappings(result?.mappings ?? []);
@@ -49,11 +75,12 @@ export function useDolphinMapperController({ isActive, language }: UseDolphinMap
         }
         catch (e) {
             logError("loadDolphinMappings", e);
+            setLoadFailed(true);
         }
         finally {
             setLoading(false);
         }
-    }, []);
+    }, [flushOrderWrite]);
 
     useEffect(() => {
         if (!isActive) {
@@ -63,6 +90,24 @@ export function useDolphinMapperController({ isActive, language }: UseDolphinMap
         setReorderViaSwap(false);
         void reload();
     }, [isActive, reload]);
+
+    useEffect(function writeAnyUnsettledOrderOnTheWayOut() {
+        return () => {
+            if (orderWriteTimerRef.current === 0) {
+                return;
+            }
+            window.clearTimeout(orderWriteTimerRef.current);
+            orderWriteTimerRef.current = 0;
+            const ids = pendingOrderRef.current;
+            if (ids === null) {
+                return;
+            }
+            pendingOrderRef.current = null;
+            void reorderDolphinMappings(ids).catch((e) => {
+                logError("reorderDolphinMappings (on the way out)", e);
+            });
+        };
+    }, []);
 
     const refreshDeckControllerStatus = useCallback(async () => {
         try {
@@ -160,11 +205,38 @@ export function useDolphinMapperController({ isActive, language }: UseDolphinMap
         [language]
     );
 
-    const persistOrder = useCallback((ordered: DolphinMapping[]) => {
-        void reorderDolphinMappings(ordered.map((m) => m.id)).catch((e) => {
-            logError("reorderDolphinMappings", e);
+    const currentOrder = useCallback(
+        () => liveOrder(pendingOrderRef.current, mappings.map((m) => m.id)),
+        [mappings]
+    );
+
+    const applyOrder = useCallback((orderedIds: string[]) => {
+        pendingOrderRef.current = orderedIds.slice();
+        setMappings((prev) => {
+            const byId = new Map(prev.map((m) => [m.id, m]));
+            const next: DolphinMapping[] = [];
+            for (const id of orderedIds) {
+                const mapping = byId.get(id);
+                if (mapping) {
+                    byId.delete(id);
+                    next.push(mapping);
+                }
+            }
+            for (const mapping of prev) {
+                if (byId.has(mapping.id)) {
+                    next.push(mapping);
+                }
+            }
+            return next;
         });
-    }, []);
+        if (orderWriteTimerRef.current !== 0) {
+            window.clearTimeout(orderWriteTimerRef.current);
+        }
+        orderWriteTimerRef.current = window.setTimeout(() => {
+            orderWriteTimerRef.current = 0;
+            void flushOrderWrite();
+        }, ORDER_WRITE_SETTLE_MS);
+    }, [flushOrderWrite]);
 
     const onReorderSwap = useCallback(
         (pressedId: string, allowSwap = true) => {
@@ -183,81 +255,61 @@ export function useDolphinMapperController({ isActive, language }: UseDolphinMap
                 setReorderTargetId(pressedId);
                 return;
             }
-            if (reorderInFlightRef.current) {
+
+            const order = currentOrder();
+            const fromIndex = order.indexOf(reorderTargetId);
+            const toIndex = order.indexOf(pressedId);
+            if (fromIndex < 0 || toIndex < 0) {
                 return;
             }
-
-            setMappings((prev) => {
-                const fromIndex = prev.findIndex((m) => m.id === reorderTargetId);
-                const toIndex = prev.findIndex((m) => m.id === pressedId);
-                if (fromIndex < 0 || toIndex < 0) {
-                    return prev;
-                }
-                const next = prev.slice();
-                const held = next[fromIndex];
-                next[fromIndex] = next[toIndex];
-                next[toIndex] = held;
-                reorderInFlightRef.current = true;
-                persistOrder(next);
-                reorderInFlightRef.current = false;
-                return next;
-            });
+            const next = order.slice();
+            next[fromIndex] = order[toIndex];
+            next[toIndex] = order[fromIndex];
+            applyOrder(next);
             setReorderViaSwap(true);
         },
-        [reorderTargetId, persistOrder]
+        [reorderTargetId, currentOrder, applyOrder]
     );
 
-    const onReorderMove = (direction: ReorderDirection, groupIds?: string[] | null) => {
-        setMappings((prev) => {
+    const onReorderMove = useCallback(
+        (direction: ReorderDirection, groupIds?: string[] | null) => {
             if (reorderTargetId === null) {
-                return prev;
+                return;
             }
-            const working = groupIds && groupIds.length > 0 ? groupIds.slice() : prev.map((m) => m.id);
-            const i = working.indexOf(reorderTargetId);
-            if (i < 0) {
-                return prev;
+            const next = orderAfterGroupMove(
+                currentOrder(),
+                groupIds ?? null,
+                reorderTargetId,
+                stepTo(direction)
+            );
+            if (next === null) {
+                return;
             }
-            let j = i;
-            if (direction === "up") {
-                j = Math.max(0, i - 1);
-            }
-            else if (direction === "down") {
-                j = Math.min(working.length - 1, i + 1);
-            }
-            else if (direction === "top") {
-                j = 0;
-            }
-            else if (direction === "bottom") {
-                j = working.length - 1;
-            }
-            if (j === i) {
-                return prev;
-            }
-            const rearranged = working.slice();
-            const [movedId] = rearranged.splice(i, 1);
-            rearranged.splice(j, 0, movedId);
+            setReorderViaSwap(false);
+            applyOrder(next);
+        },
+        [reorderTargetId, currentOrder, applyOrder]
+    );
 
-            const byId = new Map(prev.map((m) => [m.id, m]));
-            let next: DolphinMapping[];
-            if (groupIds && groupIds.length > 0) {
-                const membership = new Set(groupIds);
-                const rearrangedIter = rearranged[Symbol.iterator]();
-                next = prev.map((mapping) => {
-                    if (!membership.has(mapping.id)) {
-                        return mapping;
-                    }
-                    const fromGroup = rearrangedIter.next();
-                    return fromGroup.done ? mapping : (byId.get(fromGroup.value) ?? mapping);
-                });
+    const onReorderToward = useCallback(
+        (landedId: string, groupIds?: string[] | null) => {
+            if (reorderTargetId === null || landedId === reorderTargetId) {
+                return;
             }
-            else {
-                next = rearranged.map((id) => byId.get(id)).filter((m): m is DolphinMapping => m !== undefined);
+            const next = orderAfterGroupMove(
+                currentOrder(),
+                groupIds ?? null,
+                reorderTargetId,
+                landOn(landedId)
+            );
+            if (next === null) {
+                return;
             }
-            persistOrder(next);
-            return next;
-        });
-        setReorderViaSwap(false);
-    };
+            setReorderViaSwap(true);
+            applyOrder(next);
+        },
+        [reorderTargetId, currentOrder, applyOrder]
+    );
 
     const resetReorder = () => {
         setReorderTargetId(null);
@@ -281,6 +333,7 @@ export function useDolphinMapperController({ isActive, language }: UseDolphinMap
         collapsedTags,
         toggleCollapsedTag,
         loaded,
+        loadFailed,
         loading,
         reorderTargetId,
         reorderViaSwap,
@@ -290,6 +343,7 @@ export function useDolphinMapperController({ isActive, language }: UseDolphinMap
         applyMapping,
         onReorderSwap,
         onReorderMove,
+        onReorderToward,
         setReorderTargetId,
         resetReorder,
         deckControllerStatus,
