@@ -13,6 +13,7 @@ import {
     loadGameNotes,
     reorderGameNotes,
     setGameNotesSortMode,
+    saveGameNotesCollapsedTags,
     updateGameNote,
     clearNoteFiredDot,
     markGameNoteCompleted
@@ -29,6 +30,8 @@ import type {
     ReorderDirection
 } from "../types";
 import { logError } from "../utils/errors";
+import { noteRemovalLanding } from "../utils/noteSections";
+import type { LanguageCode } from "../locales";
 
 const ORDER_WRITE_SETTLE_MS = 250;
 import { armNoteFocusReturn, clearNoteFocusReturn } from "../utils/noteFocusReturn";
@@ -41,6 +44,7 @@ type UseGameNotesControllerArgs = {
     aButtonMode: GameNoteAButtonMode;
     refreshToken?: number;
     activeUlid: string;
+    language: LanguageCode;
 };
 
 function replaceNoteInList(notes: GameNote[], updated: GameNote): GameNote[] {
@@ -65,13 +69,15 @@ export function useGameNotesController({
     setError,
     aButtonMode,
     refreshToken,
-    activeUlid
+    activeUlid,
+    language
 }: UseGameNotesControllerArgs) {
     const targetGameId = gameNotesGameId ?? payload?.gameId ?? null;
     const [notes, setNotes] = useState<GameNote[]>([]);
     const [tagVocabulary, setTagVocabulary] = useState<string[]>([]);
     const [sortMode, setSortMode] = useState<GameNoteSortMode>("newest");
     const [loadedForGameId, setLoadedForGameId] = useState<number | null>(null);
+    const [collapsedTags, setCollapsedTags] = useState<string[]>([]);
     const [validating, setValidating] = useState(false);
     const [reorderInFlight, setReorderInFlight] = useState(false);
 
@@ -87,6 +93,7 @@ export function useGameNotesController({
             setNotes([]);
             setTagVocabulary([]);
             setSortMode("newest");
+            setCollapsedTags([]);
             setLoadedForGameId(null);
             setReorderTargetId(null);
             return;
@@ -103,6 +110,7 @@ export function useGameNotesController({
                 setNotes(response.notes ?? []);
                 setTagVocabulary(response.tagVocabulary ?? []);
                 setSortMode(response.sortMode ?? "newest");
+                setCollapsedTags(response.collapsedTags ?? []);
                 setLoadedForGameId(gameId);
             } catch (e: any) {
                 logError("loadGameNotes", e);
@@ -268,6 +276,10 @@ export function useGameNotesController({
             return { ok: false as const, error: message };
         }
 
+        if (result?.ok && !result.note) {
+            armRemovalLanding(gameId, noteId);
+        }
+
         if (!mountedRef.current) {
             return { ok: true as const };
         }
@@ -296,6 +308,21 @@ export function useGameNotesController({
         return { ok: true as const, deleted: true };
     };
 
+    const armRemovalLanding = (gameId: number, removedNoteId: string) => {
+        const landingId = noteRemovalLanding(
+            notes,
+            sortMode,
+            language,
+            new Set(collapsedTags),
+            removedNoteId
+        );
+        if (landingId === null) {
+            clearNoteFocusReturn();
+            return;
+        }
+        armNoteFocusReturn(gameId, landingId, activeUlid);
+    };
+
     const onDeleteNote = async (noteId: string) => {
         const gameId = targetGameId;
         if (!gameId) {
@@ -318,7 +345,7 @@ export function useGameNotesController({
         }
 
         if (result?.ok) {
-            clearNoteFocusReturn();
+            armRemovalLanding(gameId, noteId);
         }
 
         if (!mountedRef.current) {
@@ -590,6 +617,22 @@ export function useGameNotesController({
         [currentFlat, onReorderNotes, reorderTargetId, sortMode]
     );
 
+    const onToggleCollapsedTag = useCallback((key: string) => {
+        const gameId = targetGameId;
+        if (!gameId) {
+            return;
+        }
+        setCollapsedTags((previous) => {
+            const next = previous.includes(key)
+                ? previous.filter((entry) => entry !== key)
+                : [...previous, key];
+            void saveGameNotesCollapsedTags(gameId, next).catch((e) => {
+                logError("saveGameNotesCollapsedTags", e);
+            });
+            return next;
+        });
+    }, [targetGameId]);
+
     const clearReorderSelection = () => {
         setReorderTargetId(null);
         setReorderViaSwap(false);
@@ -685,7 +728,7 @@ export function useGameNotesController({
         }
 
         if (result?.ok && completed) {
-            clearNoteFocusReturn();
+            armRemovalLanding(gameId, noteId);
         }
 
         if (!mountedRef.current) {
@@ -745,6 +788,7 @@ export function useGameNotesController({
             notes,
             tagVocabulary,
             sortMode,
+            collapsedTags,
             loadedForGameId,
             validating,
             reorderInFlight,
@@ -761,6 +805,7 @@ export function useGameNotesController({
             onSortModeChange,
             onCardFocused,
             onToggleCompleted,
+            onToggleCollapsedTag,
             clearReorderSelection
         }
     };

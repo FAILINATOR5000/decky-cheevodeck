@@ -4,10 +4,10 @@ import { BackButton } from "../components/ui/BackButton";
 import { PageNavStrip } from "../components/ui/PageNavStrip";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
 import { InfoText } from "../components/ui/InfoText";
-import { NoteCard, type NoteCardListProps } from "../components/notes/NoteCard";
+import { type NoteCardListProps } from "../components/notes/NoteCard";
+import { NoteSectionBody } from "../components/notes/NoteSectionBody";
 import { ReorderStrip } from "../components/ui/ReorderStrip";
 import { ButtonHints } from "../components/ui/ButtonHints";
-import { FocusClaim } from "../components/ui/FocusClaim";
 import { RestoreCurtain } from "../components/ui/RestoreCurtain";
 import { useFocusClaim } from "../hooks/useFocusClaim";
 import { logFocusDebug } from "../api";
@@ -23,9 +23,12 @@ import type {
     UiSize,
     ViewKey
 } from "../types";
-import { parseNoteTag } from "../utils/achievements";
+import {
+    buildNoteSections,
+    noteSectionCollapseKey,
+    type NoteSection
+} from "../utils/noteSections";
 import { achievementUiMetrics, smallTextStyle, bodyTextStyle } from "../utils/style";
-import { useWindowedList } from "../hooks/useWindowedList";
 
 type GameNotesPageState = {
     view: ViewKey;
@@ -55,6 +58,7 @@ type GameNotesPageState = {
     restoreNoteId: string | null;
     restorePending: boolean;
     panelOverlayVisible: boolean;
+    collapsedTags: string[];
 };
 
 type GameNotesPageActions = {
@@ -69,6 +73,7 @@ type GameNotesPageActions = {
     onCardFocused: (noteId: string) => void | Promise<unknown>;
     onHome: () => void | Promise<void>;
     onRequestFocus: (focusKey: string) => void;
+    onToggleCollapsedTag: (key: string) => void;
 };
 
 export type GameNotesPageProps = {
@@ -192,92 +197,6 @@ const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
 const NOTE_RESTORE_SEED_CEILING = 300;
 
-type NoteSection = {
-    tag: string | null;
-    tagKey: string | null;
-    orderedNotes: GameNote[];
-    isCompleted?: boolean;
-};
-
-function buildNoteSections(
-    notes: GameNote[],
-    sortMode: GameNoteSortMode,
-    language: LanguageCode
-): NoteSection[] {
-    const byKey = new Map<string, NoteSection>();
-    const untagged: NoteSection = {
-        tag: null,
-        tagKey: null,
-        orderedNotes: []
-    };
-    const completed: NoteSection = {
-        tag: null,
-        tagKey: null,
-        orderedNotes: [],
-        isCompleted: true
-    };
-
-    for (const note of notes) {
-        if (note.completedAt !== null) {
-            completed.orderedNotes.push(note);
-            continue;
-        }
-        const parsed = parseNoteTag(note.body);
-        if (parsed.tagKey === null) {
-            untagged.orderedNotes.push(note);
-            continue;
-        }
-        let section = byKey.get(parsed.tagKey);
-        if (!section) {
-            section = {
-                tag: parsed.tag,
-                tagKey: parsed.tagKey,
-                orderedNotes: []
-            };
-            byKey.set(parsed.tagKey, section);
-        }
-        section.orderedNotes.push(note);
-    }
-
-    function sortWithin(list: GameNote[]) {
-        if (sortMode === "manual") {
-            list.sort((a, b) => a.manualOrder - b.manualOrder);
-            return;
-        }
-        if (sortMode === "oldest") {
-            list.sort((a, b) => a.createdAt - b.createdAt);
-            return;
-        }
-        list.sort((a, b) => b.createdAt - a.createdAt);
-    }
-
-    sortWithin(untagged.orderedNotes);
-    for (const section of byKey.values()) {
-        sortWithin(section.orderedNotes);
-    }
-    completed.orderedNotes.sort((a, b) => {
-        const aAt = a.completedAt ?? 0;
-        const bAt = b.completedAt ?? 0;
-        return bAt - aAt;
-    });
-
-    const taggedSections = Array.from(byKey.values()).filter(
-        (s) => s.orderedNotes.length > 0
-    );
-    taggedSections.sort((a, b) =>
-        (a.tag ?? "").localeCompare(b.tag ?? "", language, { numeric: true })
-    );
-
-    const ordered: NoteSection[] = taggedSections;
-    if (untagged.orderedNotes.length > 0) {
-        ordered.push(untagged);
-    }
-    if (completed.orderedNotes.length > 0) {
-        ordered.push(completed);
-    }
-    return ordered;
-}
-
 function sectionIdsForReorderTarget(sections: NoteSection[], targetId: string | null): string[] | null {
     if (targetId === null) {
         return null;
@@ -332,7 +251,8 @@ export function GameNotesPage(props: GameNotesPageProps) {
         controllerGlyphStyle,
         restoreNoteId,
         restorePending,
-        panelOverlayVisible
+        panelOverlayVisible,
+        collapsedTags
     } = state;
 
     const gameId = gameNotesGameId ?? payload?.gameId ?? null;
@@ -342,58 +262,32 @@ export function GameNotesPage(props: GameNotesPageProps) {
         [notes, sortMode, language]
     );
 
-    const flatOrderedIds = useMemo(() => {
-        const ids: string[] = [];
-        for (const section of sections) {
-            for (const note of section.orderedNotes) {
-                ids.push(note.id);
-            }
-        }
-        return ids;
-    }, [sections]);
+    const collapsedSet = useMemo(() => new Set(collapsedTags), [collapsedTags]);
 
     const sentinelRootMargin = `${Math.max(0, dynamicSentinelRootMargin)}px 0px`;
 
     const restoreClaim = useFocusClaim();
 
-    const flatIndexById = useMemo(() => {
-        const byId = new Map<string, number>();
-        flatOrderedIds.forEach((id, index) => byId.set(id, index));
-        return byId;
-    }, [flatOrderedIds]);
+    const restoreSlot = useMemo(() => {
+        if (restoreNoteId === null) {
+            return null;
+        }
+        for (const section of sections) {
+            const indexInSection = section.orderedNotes.findIndex((note) => note.id === restoreNoteId);
+            if (indexInSection >= 0) {
+                return { collapseKey: noteSectionCollapseKey(section), indexInSection };
+            }
+        }
+        return null;
+    }, [restoreNoteId, sections]);
 
-    const restoreIndex = restoreNoteId === null
-        ? -1
-        : (flatIndexById.get(restoreNoteId) ?? -1);
-
-    const restoreInReach = restoreIndex >= 0 && restoreIndex < NOTE_RESTORE_SEED_CEILING;
+    const restoreInReach = restoreSlot !== null
+        && restoreSlot.indexInSection < NOTE_RESTORE_SEED_CEILING;
 
     const restoreClaimSpent =
         (restoreClaim.claim?.token ?? 0) > 0 && !restoreClaim.claim?.armed;
 
-    const restoreSeedRows = restoreClaimSpent || !restoreInReach ? 0 : restoreIndex + 1;
-
-    const {
-        mountedItems: mountedNoteIds,
-        markerRef: loadMoreMarkerRef,
-        onItemFocus: onNoteCardFocusIndex
-    } = useWindowedList({
-        items: flatOrderedIds,
-        dynamicLoading,
-        initialRows: dynamicInitialRows,
-        rowStep: dynamicRowStep,
-        prefetchDistance: dynamicPrefetchDistance,
-        sentinelRootMargin,
-        resetKey: `${gameId}|${sortMode}`,
-        seedRows: restoreSeedRows
-    });
-
-    const mountedIdSet = useMemo(() => {
-        if (!dynamicLoading) {
-            return null;
-        }
-        return new Set(mountedNoteIds);
-    }, [dynamicLoading, mountedNoteIds]);
+    const restoreSeedNoteId = restoreClaimSpent || !restoreInReach ? null : restoreNoteId;
 
     const cardClickRef = useRef(handleCardClick);
     cardClickRef.current = handleCardClick;
@@ -401,8 +295,6 @@ export function GameNotesPage(props: GameNotesPageProps) {
     cardFocusedRef.current = actions.onCardFocused;
     const cardFollowRef = useRef(handleReorderFollow);
     cardFollowRef.current = handleReorderFollow;
-    const cardFocusIndexRef = useRef(onNoteCardFocusIndex);
-    cardFocusIndexRef.current = onNoteCardFocusIndex;
     const cardNewNoteRef = useRef(actions.onAddNote);
     cardNewNoteRef.current = actions.onAddNote;
     const cardReorderPickRef = useRef(handleCardReorderPick);
@@ -412,7 +304,7 @@ export function GameNotesPage(props: GameNotesPageProps) {
     const reorderAvailable = sortMode === "manual" && largestReorderableSection(sections) >= 2;
     const gamepadCardActions = !mouseKeyboardMode && notesReady;
 
-    const cardList = useMemo<NoteCardListProps>(() => ({
+    const cardList = useMemo<Omit<NoteCardListProps, "onFocusIndex">>(() => ({
         language,
         metrics: achievementUiMetrics(uiSize),
         gameIconDataUri,
@@ -426,9 +318,6 @@ export function GameNotesPage(props: GameNotesPageProps) {
         },
         onCardGamepadFocused: (noteId) => {
             cardFollowRef.current(noteId);
-        },
-        onFocusIndex: (index) => {
-            cardFocusIndexRef.current(index);
         },
         onNewNote: gamepadCardActions
             ? () => {
@@ -472,7 +361,9 @@ export function GameNotesPage(props: GameNotesPageProps) {
 
     const restoreFiredRef = useRef(false);
 
-    const claimSlotRef = useRef(-1);
+    const claimSlotRef = useRef<{ collapseKey: string; indexInSection: number } | null>(null);
+
+    const restoreUnfoldedRef = useRef(false);
 
     const entryAtRef = useRef(performance.now());
 
@@ -498,32 +389,65 @@ export function GameNotesPage(props: GameNotesPageProps) {
         if (!notesReady) {
             return;
         }
-        restoreFiredRef.current = true;
-        if (!restoreInReach) {
+        if (restoreSlot === null || !restoreInReach) {
+            restoreFiredRef.current = true;
             setRestoreAbandoned(true);
             logFocusDebug(
                 "note-restore",
                 restoreNoteId,
-                `index=${restoreIndex} total=${flatOrderedIds.length} ceiling=${NOTE_RESTORE_SEED_CEILING}`
-                + ` -- ${restoreIndex < 0 ? "gone from the list" : "past the ceiling"}`
+                `inSection=${restoreSlot === null ? -1 : restoreSlot.indexInSection}`
+                + ` total=${notes.length} ceiling=${NOTE_RESTORE_SEED_CEILING}`
+                + ` -- ${restoreSlot === null ? "gone from the list" : "past the ceiling"}`
             );
             actions.onRequestFocus("gn:back");
             return;
         }
+        if (collapsedSet.has(restoreSlot.collapseKey)) {
+            if (!restoreUnfoldedRef.current) {
+                restoreUnfoldedRef.current = true;
+                logFocusDebug("note-restore", restoreNoteId, `unfolding ${restoreSlot.collapseKey}`);
+                actions.onToggleCollapsedTag(restoreSlot.collapseKey);
+                return;
+            }
+            restoreFiredRef.current = true;
+            setRestoreAbandoned(true);
+            logFocusDebug(
+                "note-restore",
+                restoreNoteId,
+                `${restoreSlot.collapseKey} would not unfold`
+            );
+            actions.onRequestFocus("gn:back");
+            return;
+        }
+        restoreFiredRef.current = true;
         const mountStartedAt = performance.now();
         window.requestAnimationFrame(() => {
             logFocusDebug(
                 "note-restore",
                 restoreNoteId,
-                `index=${restoreIndex} seeded=${restoreSeedRows} total=${flatOrderedIds.length}`
+                `section=${restoreSlot.collapseKey} inSection=${restoreSlot.indexInSection}`
+                + ` total=${notes.length}`
                 + ` notes=${Math.round(performance.now() - entryAtRef.current)}ms`
                 + ` mount=${Math.round(performance.now() - mountStartedAt)}ms`
             );
         });
-        claimSlotRef.current = restoreIndex;
-        restoreClaim.claimSlot(restoreIndex);
+        claimSlotRef.current = restoreSlot;
+        restoreClaim.claimSlot(restoreSlot.indexInSection);
         actions.onRequestFocus(`gn:card:${restoreNoteId}`);
-    }, [state.view, restorePending, restoreNoteId, gameId, notesReady, restoreInReach, restoreIndex, restoreClaim.claimSlot, actions.onRequestFocus]);
+    }, [
+        state.view,
+        restorePending,
+        restoreNoteId,
+        gameId,
+        notesReady,
+        restoreInReach,
+        restoreSlot,
+        collapsedSet,
+        notes.length,
+        restoreClaim.claimSlot,
+        actions.onRequestFocus,
+        actions.onToggleCollapsedTag
+    ]);
 
     if (state.view !== "gameNotes") {
         return null;
@@ -622,22 +546,13 @@ export function GameNotesPage(props: GameNotesPageProps) {
             );
         }
 
-        let flatSlot = 0;
         const claimSlot = claimSlotRef.current;
+        const claimedToken = restoreClaim.claim?.token ?? 0;
 
         return (
             <div ref={cardListRef}>
                 {sections.map((section) => {
-                    const cards = mountedIdSet
-                        ? section.orderedNotes.filter((n) => mountedIdSet.has(n.id))
-                        : section.orderedNotes;
-                    if (cards.length === 0) {
-                        return null;
-                    }
-
-                    const sectionKey = section.isCompleted
-                        ? "_completed_"
-                        : (section.tagKey ?? "_untagged_");
+                    const collapseKey = noteSectionCollapseKey(section);
                     const sectionCount = section.orderedNotes.length;
                     const sectionTitle = section.isCompleted
                         ? t(language, "Completed ({{count}})", { count: sectionCount })
@@ -645,42 +560,39 @@ export function GameNotesPage(props: GameNotesPageProps) {
                             ? t(language, "Notes ({{count}})", { count: sectionCount })
                             : `${section.tag ?? ""} (${sectionCount})`;
 
+                    const claimedRow = claimSlot !== null
+                        && claimSlot.collapseKey === collapseKey
+                        && claimSlot.indexInSection < sectionCount
+                        ? {
+                            slotIndex: claimSlot.indexInSection,
+                            token: claimedToken,
+                            armed: Boolean(restoreClaim.claim?.armed),
+                            onSpent: restoreClaim.spend
+                        }
+                        : undefined;
+
                     return (
-                        <PanelSection key={`gn:section:${sectionKey}`} title={sectionTitle}>
-                            {cards.map((note, index) => {
-                                const card = (
-                                    <NoteCard
-                                        key={index}
-                                        note={note}
-                                        flatIndex={flatIndexById.get(note.id) ?? 0}
-                                        focusKey={`gn:card:${note.id}`}
-                                        isReorderTarget={reorderTargetId === note.id}
-                                        firing={note.showFiredDot}
-                                        list={cardList}
-                                    />
-                                );
-
-                                if (claimSlot !== flatSlot++) {
-                                    return card;
-                                }
-
-                                return (
-                                    <FocusClaim
-                                        key={index}
-                                        token={restoreClaim.claim?.token ?? 0}
-                                        armed={Boolean(restoreClaim.claim?.armed)}
-                                        onSpent={restoreClaim.spend}
-                                    >
-                                        {card}
-                                    </FocusClaim>
-                                );
-                            })}
-                        </PanelSection>
+                        <NoteSectionBody
+                            key={`gn:section:${collapseKey}`}
+                            title={sectionTitle}
+                            collapseKey={collapseKey}
+                            collapsed={collapsedSet.has(collapseKey)}
+                            collapseDisabled={reorderTargetId !== null}
+                            onToggleCollapsed={actions.onToggleCollapsedTag}
+                            notes={section.orderedNotes}
+                            cardList={cardList}
+                            reorderTargetId={reorderTargetId}
+                            dynamicLoading={dynamicLoading}
+                            dynamicInitialRows={dynamicInitialRows}
+                            dynamicRowStep={dynamicRowStep}
+                            dynamicPrefetchDistance={dynamicPrefetchDistance}
+                            sentinelRootMargin={sentinelRootMargin}
+                            resetKey={`${gameId}|${sortMode}|${collapseKey}`}
+                            restoreSeedNoteId={restoreSeedNoteId}
+                            claimedRow={claimedRow}
+                        />
                     );
                 })}
-                {dynamicLoading && mountedNoteIds.length < flatOrderedIds.length && (
-                    <div ref={loadMoreMarkerRef} style={{ height: "1px" }} />
-                )}
             </div>
         );
     }

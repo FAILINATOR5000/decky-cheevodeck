@@ -47,7 +47,7 @@ export type NoteCardListProps = {
 
 export type NoteCardProps = {
     note: GameNote;
-    flatIndex: number;
+    rowIndex: number;
     focusKey: string;
     isReorderTarget: boolean;
     firing: boolean;
@@ -55,7 +55,7 @@ export type NoteCardProps = {
 };
 
 export const NoteCard = React.memo(function NoteCard(props: NoteCardProps) {
-    const { note, flatIndex, focusKey, isReorderTarget, firing, list } = props;
+    const { note, rowIndex, focusKey, isReorderTarget, firing, list } = props;
     const { language, metrics, gameIconDataUri, gameIconCold, showIcons } = list;
 
     function handleClick() {
@@ -64,7 +64,7 @@ export const NoteCard = React.memo(function NoteCard(props: NoteCardProps) {
 
     function handleCardFocused() {
         list.onCardFocused(note.id);
-        list.onFocusIndex(flatIndex);
+        list.onFocusIndex(rowIndex);
     }
 
     function handleCardGamepadFocused() {

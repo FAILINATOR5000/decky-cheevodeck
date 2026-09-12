@@ -2346,7 +2346,8 @@ function AchievementsRoot() {
         setError,
         aButtonMode: gameNotesAButtonMode,
         refreshToken: achievementsResumeToken + notesRefreshToken,
-        activeUlid
+        activeUlid,
+        language
     });
 
     const [noteFocusReturn] = useState(takeNoteFocusReturn);
@@ -4912,7 +4913,8 @@ function AchievementsRoot() {
                                     controllerGlyphStyle,
                                     restoreNoteId: notesRestoreNoteId,
                                     restorePending: notesRestorePending,
-                                    panelOverlayVisible
+                                    panelOverlayVisible,
+                                    collapsedTags: gameNotesState.collapsedTags
                                 }}
                                 actions={{
                                     onBack: backFromGameNotes,
@@ -4940,7 +4942,8 @@ function AchievementsRoot() {
                                         gameNotesActions.onReorderToward(landedNoteId, sectionIds),
                                     onReorderMove: (direction, sectionIds) =>
                                         gameNotesActions.onReorderMove(direction, sectionIds ?? null),
-                                    onCardFocused: gameNotesActions.onCardFocused
+                                    onCardFocused: gameNotesActions.onCardFocused,
+                                    onToggleCollapsedTag: gameNotesActions.onToggleCollapsedTag
                                 }}
                             />
 
