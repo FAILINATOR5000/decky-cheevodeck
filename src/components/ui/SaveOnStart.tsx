@@ -6,11 +6,24 @@ type SaveOnStartProps = {
     canSave: boolean;
     label: string;
     onSave: () => void;
+    onSecondaryButton?: () => void;
+    onSecondaryActionDescription?: string;
+    onOptionsButton?: () => void;
+    onOptionsActionDescription?: string;
     children: ReactNode;
 };
 
 export function SaveOnStart(props: SaveOnStartProps) {
-    const { canSave, label, onSave, children } = props;
+    const {
+        canSave,
+        label,
+        onSave,
+        onSecondaryButton,
+        onSecondaryActionDescription,
+        onOptionsButton,
+        onOptionsActionDescription,
+        children
+    } = props;
 
     function handleMenu() {
         playOkSound();
@@ -21,6 +34,10 @@ export function SaveOnStart(props: SaveOnStartProps) {
         <Focusable
             onMenuButton={canSave ? handleMenu : undefined}
             onMenuActionDescription={canSave ? label : undefined}
+            onSecondaryButton={onSecondaryButton}
+            onSecondaryActionDescription={onSecondaryActionDescription}
+            onOptionsButton={onOptionsButton}
+            onOptionsActionDescription={onOptionsActionDescription}
         >
             {children}
         </Focusable>

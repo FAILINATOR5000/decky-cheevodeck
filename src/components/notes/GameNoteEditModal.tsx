@@ -9,11 +9,17 @@ import { applyTagToNoteBody, parseNoteTag } from "../../utils/achievements";
 import { modalSize } from "../../utils/scale";
 import { achievementGreen, errorRed, compactButtonStyle } from "../../utils/style";
 import { REMINDER_PRESETS, matchingPreset, parseCustomMinutes, type ReminderUnit, type ReminderPreset } from "../../utils/reminders";
+import { playOkSound } from "../../utils/navSound";
 import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 
 const GAME_NOTE_TITLE_MAX_LEN = 80;
 const GAME_NOTE_BODY_MAX_LEN = 500;
+
+const DELETE_ARMED_CSS = `
+.cheevo-note-delete-armed.DialogContent, .cheevo-note-delete-armed {
+    box-shadow: inset 0 0 0 2px ${errorRed};
+}`;
 
 const SUGGESTION_COUNT = 6;
 const TAG_SEEDS: ReadonlyArray<{ key: string; tag: string }> = [
@@ -86,6 +92,7 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
     const [bodyText, setBodyText] = useState(existing?.body ?? "");
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [deleteArmed, setDeleteArmed] = useState(false);
 
     const initialColor: NoteColor =
         existing?.color ?? (defaultNoteColor ?? "default");
@@ -124,6 +131,8 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
         && reminderMode !== "off";
 
     const isCompleted = existing !== null && existing.completedAt !== null;
+    const canDelete = existing !== null && deleteNote !== null;
+    const canMarkCompleted = existing !== null && toggleCompleted !== null;
     const reminderControlsDisabled = saving || isCompleted;
 
     async function handleSave() {
@@ -206,6 +215,26 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
         }
         setSaving(false);
         setError(result.error ?? t(language, "Couldn't update your note."));
+    }
+
+    const deleteReady = canDelete && !saving;
+    const markReady = canMarkCompleted && !saving;
+    const deleteArmedNow = deleteArmed && !saving;
+
+    function handleDeletePress() {
+        playOkSound();
+        if (!deleteArmedNow) {
+            setDeleteArmed(true);
+            return;
+        }
+        setDeleteArmed(false);
+        void handleDelete();
+    }
+
+    function handleMarkPress() {
+        playOkSound();
+        setDeleteArmed(false);
+        void handleToggleCompletedClick();
     }
 
     function handleCycleReminderMode() {
@@ -317,12 +346,29 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
         : t(language, "Edit Note");
 
     return (
-        <ModalRoot onCancel={close} onEscKeypress={close}>
+        <ModalRoot
+            onCancel={close}
+            onEscKeypress={close}
+            className={deleteArmedNow ? "cheevo-note-delete-armed" : undefined}
+        >
+            <style>{DELETE_ARMED_CSS}</style>
             <SnapshotHotkey language={language} />
             <SaveOnStart
                 canSave={!saving && !bodyOverLimit && !titleOverLimit && !bodyEmpty && !cadenceInvalid}
                 label={t(language, "Save")}
                 onSave={handleSave}
+                onSecondaryButton={deleteReady ? handleDeletePress : undefined}
+                onSecondaryActionDescription={deleteReady
+                    ? (deleteArmedNow
+                        ? t(language, "gn_footer_delete_armed")
+                        : t(language, "gn_footer_delete"))
+                    : undefined}
+                onOptionsButton={markReady ? handleMarkPress : undefined}
+                onOptionsActionDescription={markReady
+                    ? (isCompleted
+                        ? t(language, "gn_footer_active")
+                        : t(language, "gn_footer_completed"))
+                    : undefined}
             >
                 <div style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700, marginBottom: "12px" }}>
                     {modalTitle}
