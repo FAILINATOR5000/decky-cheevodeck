@@ -14,7 +14,6 @@ import { CommentActionStrip } from "../comments/CommentActionStrip";
 import { CommentsList } from "../comments/CommentsList";
 import { InlineSpinner } from "../ui/InlineSpinner";
 import { LabeledRow } from "../ui/LabeledRow";
-import { CollapseChevron } from "../ui/CollapseChevron";
 import { NowPlayingActivityCard, type NowPlayingActivityListProps } from "./NowPlayingActivityStrip";
 import { PlayersNearYouRow } from "./PlayersNearYouRow";
 import { isFriendAvatarStale } from "../../utils/friends";
@@ -53,6 +52,7 @@ import {
     playersNearYouTapModeLabel
 } from "../../utils/options";
 import { ButtonHints } from "../ui/ButtonHints";
+import { CollapsibleTitle } from "../ui/CollapsibleTitle";
 import { beginGuardedRun } from "../../utils/runGuard";
 
 const COMMENTS_STRIP_TOP_MARGIN = "10px";
@@ -700,29 +700,16 @@ export function NowPlayingTabBody(props: NowPlayingTabBodyProps) {
                     {activitySettled && (
                     <>
                     {playersNearYouEnabled && (
-                        <PanelSection title={t(language, "Players Near You")}>
-                            <PanelSectionRow>
-                                <div
-                                    data-focus-key="nowplaying:pny:collapse"
-                                    style={{ display: "flex", width: "100%", marginTop: "8px" }}
-                                >
-                                    <DialogButton
-                                        onClick={() => onChangePlayersNearYouCollapsed(!playersNearYouCollapsed)}
-                                        style={{
-                                            minWidth: 0,
-                                            minHeight: 0,
-                                            width: "100%",
-                                            height: "16px",
-                                            padding: "0",
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center"
-                                        }}
-                                    >
-                                        <CollapseChevron collapsed={playersNearYouCollapsed} />
-                                    </DialogButton>
-                                </div>
-                            </PanelSectionRow>
+                        <PanelSection
+                            title={
+                                <CollapsibleTitle
+                                    label={t(language, "Players Near You")}
+                                    collapsed={playersNearYouCollapsed}
+                                    focusKey="nowplaying:pny:collapse"
+                                    onToggle={() => onChangePlayersNearYouCollapsed(!playersNearYouCollapsed)}
+                                />
+                            }
+                        >
                             {!playersNearYouCollapsed && (
                                 <>
                                     <LabeledRow
