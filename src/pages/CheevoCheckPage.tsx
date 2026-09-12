@@ -1,10 +1,10 @@
-import { DialogButton, PanelSection, PanelSectionRow, SliderField } from "@decky/ui";
+import { PanelSection, PanelSectionRow, SliderField } from "@decky/ui";
 import { Fragment, useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 
 import { logFocusDebug } from "../api";
 import { BackButton } from "../components/ui/BackButton";
 import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
-import { CollapseChevron } from "../components/ui/CollapseChevron";
+import { CollapseToggleButton } from "../components/ui/CollapseToggleButton";
 import { ConfirmRow } from "../components/ui/ConfirmRow";
 import { FocusClaim } from "../components/ui/FocusClaim";
 import { FocusableItem } from "../components/ui/FocusableItem";
@@ -63,32 +63,26 @@ const VERIFY_BUCKETS: Array<{
     { bucket: "unverifiable", label: "Can't Verify", help: "help_cheevo_check_unverifiable", colour: faultViolet }
 ];
 
-function SectionCollapseToggle(props: {
-    collapsed: boolean;
-    focusKey: string;
-    onToggle: (next: boolean) => void;
-}) {
-    return (
-        <PanelSectionRow>
-            <div data-focus-key={props.focusKey} style={{ display: "flex", width: "100%", marginTop: "8px" }}>
-                <DialogButton
-                    onClick={() => props.onToggle(!props.collapsed)}
-                    style={{
-                        minWidth: 0,
-                        minHeight: 0,
-                        width: "100%",
-                        height: "16px",
-                        padding: "0",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center"
-                    }}
-                >
-                    <CollapseChevron collapsed={props.collapsed} />
-                </DialogButton>
-            </div>
-        </PanelSectionRow>
-    );
+type FoldableSection = "scan" | "results" | "verify" | "help" | "options";
+
+const SECTION_BY_RESTORE_TARGET: Record<string, FoldableSection> = {
+    "cheevocheck:scan": "scan",
+    "cheevocheck:offline-scan": "scan",
+    "cheevocheck:save-report": "scan",
+    "cheevocheck:supported": "results",
+    "cheevocheck:unsupported": "results",
+    "cheevocheck:noachievements": "results",
+    "cheevocheck:failed": "results",
+    "cheevocheck:archivemismatch": "results",
+    "cheevocheck:guide": "help",
+    "cheevocheck:clear-cache": "options"
+};
+
+function sectionForRestoreTarget(focusKey: string): FoldableSection | null {
+    if (VERIFY_BUCKETS.some((entry) => `cheevocheck:verify:${entry.bucket}` === focusKey)) {
+        return "verify";
+    }
+    return SECTION_BY_RESTORE_TARGET[focusKey] ?? null;
 }
 
 type CheevoCheckPageState = {
@@ -148,10 +142,26 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
 
     const restoreClaim = useFocusClaim();
     const restoreFiredRef = useRef(false);
+    const restoreUnfoldedRef = useRef(false);
     const [restoreAbandoned, setRestoreAbandoned] = useState(false);
     const claimedKeyRef = useRef<string | null>(null);
 
     const scanRunning = Boolean(cheevo?.running) || starting;
+
+    function foldForRestoreTarget(section: FoldableSection): { collapsed: boolean; unfold: () => void } {
+        switch (section) {
+            case "scan":
+                return { collapsed: settings.scanCollapsed, unfold: () => settings.saveScanCollapsed(false) };
+            case "results":
+                return { collapsed: settings.resultsCollapsed, unfold: () => settings.saveResultsCollapsed(false) };
+            case "verify":
+                return { collapsed: settings.verifyCollapsed, unfold: () => settings.saveVerifyCollapsed(false) };
+            case "help":
+                return { collapsed: settings.helpCollapsed, unfold: () => settings.saveHelpCollapsed(false) };
+            case "options":
+                return { collapsed: settings.optionsCollapsed, unfold: () => settings.saveOptionsCollapsed(false) };
+        }
+    }
 
     useEffect(function landRestoredCursor() {
         if (state.view !== "cheevoCheck" || !restorePending || restoreFiredRef.current) {
@@ -160,18 +170,49 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
         if (!loaded) {
             return;
         }
-        restoreFiredRef.current = true;
         if (restoreFocusKey === null || scanRunning) {
+            restoreFiredRef.current = true;
             setRestoreAbandoned(true);
             logFocusDebug("cheevocheck-restore", restoreFocusKey ?? "(none)", scanRunning ? "a scan is running" : "nothing armed");
             actions.onRequestFocus("cheevocheck:back");
             return;
         }
+        const section = sectionForRestoreTarget(restoreFocusKey);
+        if (section !== null) {
+            const fold = foldForRestoreTarget(section);
+            if (fold.collapsed) {
+                if (!restoreUnfoldedRef.current) {
+                    restoreUnfoldedRef.current = true;
+                    logFocusDebug("cheevocheck-restore", restoreFocusKey, `unfolding ${section}`);
+                    fold.unfold();
+                    return;
+                }
+                restoreFiredRef.current = true;
+                setRestoreAbandoned(true);
+                logFocusDebug("cheevocheck-restore", restoreFocusKey, `${section} would not unfold`);
+                actions.onRequestFocus("cheevocheck:back");
+                return;
+            }
+        }
+        restoreFiredRef.current = true;
         logFocusDebug("cheevocheck-restore", restoreFocusKey, "claiming");
         claimedKeyRef.current = restoreFocusKey;
         restoreClaim.claimSlot(0);
         actions.onRequestFocus(restoreFocusKey);
-    }, [state.view, restorePending, restoreFocusKey, loaded, scanRunning, restoreClaim.claimSlot, actions.onRequestFocus]);
+    }, [
+        state.view,
+        restorePending,
+        restoreFocusKey,
+        loaded,
+        scanRunning,
+        settings.scanCollapsed,
+        settings.resultsCollapsed,
+        settings.verifyCollapsed,
+        settings.helpCollapsed,
+        settings.optionsCollapsed,
+        restoreClaim.claimSlot,
+        actions.onRequestFocus
+    ]);
 
     if (state.view !== "cheevoCheck") {
         return null;
@@ -355,11 +396,17 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
 
             {!busy && loaded && (
                 <>
-                    <SectionTitle label={t(language, "Scan")} />
-                    <SectionCollapseToggle
-                        collapsed={settings.scanCollapsed}
-                        focusKey="cheevocheck:scan:collapse"
-                        onToggle={settings.saveScanCollapsed}
+                    <SectionTitle
+                        label={t(language, "Scan")}
+                        align="start"
+                        scaled={false}
+                        action={
+                            <CollapseToggleButton
+                                collapsed={settings.scanCollapsed}
+                                focusKey="cheevocheck:scan:collapse"
+                                onToggle={() => settings.saveScanCollapsed(!settings.scanCollapsed)}
+                            />
+                        }
                     />
                     {!settings.scanCollapsed && (
                     <>
@@ -483,11 +530,17 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
 
                     {results && (
                         <>
-                            <SectionTitle label={t(language, "RA Match Results")} />
-                            <SectionCollapseToggle
-                                collapsed={settings.resultsCollapsed}
-                                focusKey="cheevocheck:results:collapse"
-                                onToggle={settings.saveResultsCollapsed}
+                            <SectionTitle
+                                label={t(language, "RA Match Results")}
+                                align="start"
+                                scaled={false}
+                                action={
+                                    <CollapseToggleButton
+                                        collapsed={settings.resultsCollapsed}
+                                        focusKey="cheevocheck:results:collapse"
+                                        onToggle={() => settings.saveResultsCollapsed(!settings.resultsCollapsed)}
+                                    />
+                                }
                             />
                             {!settings.resultsCollapsed && (
                             <>
@@ -620,11 +673,17 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
 
                             {verify && (
                                 <>
-                                    <SectionTitle label={t(language, "Dump Verification")} />
-                                    <SectionCollapseToggle
-                                        collapsed={settings.verifyCollapsed}
-                                        focusKey="cheevocheck:verify:collapse"
-                                        onToggle={settings.saveVerifyCollapsed}
+                                    <SectionTitle
+                                        label={t(language, "Dump Verification")}
+                                        align="start"
+                                        scaled={false}
+                                        action={
+                                            <CollapseToggleButton
+                                                collapsed={settings.verifyCollapsed}
+                                                focusKey="cheevocheck:verify:collapse"
+                                                onToggle={() => settings.saveVerifyCollapsed(!settings.verifyCollapsed)}
+                                            />
+                                        }
                                     />
                                     {!settings.verifyCollapsed && (
                                     <>
@@ -696,7 +755,19 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                         </>
                     )}
 
-                    <SectionTitle label={t(language, "Help")} />
+                    <SectionTitle
+                        label={t(language, "Help")}
+                        align="start"
+                        scaled={false}
+                        action={
+                            <CollapseToggleButton
+                                collapsed={settings.helpCollapsed}
+                                focusKey="cheevocheck:help:collapse"
+                                onToggle={() => settings.saveHelpCollapsed(!settings.helpCollapsed)}
+                            />
+                        }
+                    />
+                    {!settings.helpCollapsed && (
                     <PanelSectionRow>
                         {claimTarget(
                             <FocusableItem
@@ -713,12 +784,19 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                             </FocusableItem>
                         )}
                     </PanelSectionRow>
+                    )}
 
-                    <SectionTitle label={t(language, "Options")} />
-                    <SectionCollapseToggle
-                        collapsed={settings.optionsCollapsed}
-                        focusKey="cheevocheck:options:collapse"
-                        onToggle={settings.saveOptionsCollapsed}
+                    <SectionTitle
+                        label={t(language, "Options")}
+                        align="start"
+                        scaled={false}
+                        action={
+                            <CollapseToggleButton
+                                collapsed={settings.optionsCollapsed}
+                                focusKey="cheevocheck:options:collapse"
+                                onToggle={() => settings.saveOptionsCollapsed(!settings.optionsCollapsed)}
+                            />
+                        }
                     />
                     {!settings.optionsCollapsed && (
                     <>

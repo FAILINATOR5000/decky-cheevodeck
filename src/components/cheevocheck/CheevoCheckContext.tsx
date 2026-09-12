@@ -2,6 +2,7 @@ import { createContext, useContext, type ReactNode } from "react";
 import {
     saveCheevoCheckCacheHashes,
     saveCheevoCheckExtractToRam,
+    saveCheevoCheckHelpCollapsed,
     saveCheevoCheckOptionsCollapsed,
     saveCheevoCheckResultsCollapsed,
     saveCheevoCheckScanCollapsed,
@@ -34,6 +35,7 @@ function cheevoCheckSettings(controller: SettingsController) {
         scanCollapsed: state.cheevoCheckScanCollapsed,
         resultsCollapsed: state.cheevoCheckResultsCollapsed,
         verifyCollapsed: state.cheevoCheckVerifyCollapsed,
+        helpCollapsed: state.cheevoCheckHelpCollapsed,
         optionsCollapsed: state.cheevoCheckOptionsCollapsed,
         skipDiscVerify: state.cheevoCheckSkipDiscVerify,
         skipCartVerify: state.cheevoCheckSkipCartVerify,
@@ -119,6 +121,11 @@ function cheevoCheckSettings(controller: SettingsController) {
         saveVerifyCollapsed: (next: boolean) => {
             state.setCheevoCheckVerifyCollapsed(next);
             void saveCheevoCheckVerifyCollapsed(next);
+        },
+
+        saveHelpCollapsed: (next: boolean) => {
+            state.setCheevoCheckHelpCollapsed(next);
+            void saveCheevoCheckHelpCollapsed(next);
         },
 
         saveOptionsCollapsed: (next: boolean) => {

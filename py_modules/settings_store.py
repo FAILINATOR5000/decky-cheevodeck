@@ -397,6 +397,7 @@ _KNOBS = (
     Knob("cheevoCheckScanCollapsed", default=False, normalize=True, read=READ_BOOL),
     Knob("cheevoCheckResultsCollapsed", default=False, normalize=True, read=READ_BOOL),
     Knob("cheevoCheckVerifyCollapsed", default=False, normalize=True, read=READ_BOOL),
+    Knob("cheevoCheckHelpCollapsed", default=False, normalize=True, read=READ_BOOL),
     Knob("cheevoCheckOptionsCollapsed", default=False, normalize=True, read=READ_BOOL),
     Knob("cheevoCheckSkipDiscVerify", default=False, normalize=True, read=READ_BOOL),
     Knob("cheevoCheckSkipCartVerify", default=False, normalize=True, read=READ_BOOL),
@@ -1267,6 +1268,11 @@ class SettingsStore:
         cfg = self._update_config("cheevoCheckVerifyCollapsed", bool(value))
 
         return self.get_cheevo_check_verify_collapsed(cfg)
+
+    def update_cheevo_check_help_collapsed(self, value: bool) -> bool:
+        cfg = self._update_config("cheevoCheckHelpCollapsed", bool(value))
+
+        return self.get_cheevo_check_help_collapsed(cfg)
 
     def update_cheevo_check_options_collapsed(self, value: bool) -> bool:
         cfg = self._update_config("cheevoCheckOptionsCollapsed", bool(value))
@@ -3756,6 +3762,9 @@ class SettingsStore:
 
     def get_cheevo_check_verify_collapsed(self, cfg: dict) -> bool:
         return bool(cfg.get("cheevoCheckVerifyCollapsed", False))
+
+    def get_cheevo_check_help_collapsed(self, cfg: dict) -> bool:
+        return bool(cfg.get("cheevoCheckHelpCollapsed", False))
 
     def get_cheevo_check_options_collapsed(self, cfg: dict) -> bool:
         return bool(cfg.get("cheevoCheckOptionsCollapsed", False))

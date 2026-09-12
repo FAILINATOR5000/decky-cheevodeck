@@ -202,6 +202,12 @@ class CheevoCheckMixin(PluginContext):
             "cheevoCheckVerifyCollapsed": self.settings_store.update_cheevo_check_verify_collapsed(value),
         }
 
+    async def save_cheevo_check_help_collapsed(self, value: bool):
+        return {
+            "ok": True,
+            "cheevoCheckHelpCollapsed": self.settings_store.update_cheevo_check_help_collapsed(value),
+        }
+
     async def save_cheevo_check_options_collapsed(self, value: bool):
         return {
             "ok": True,

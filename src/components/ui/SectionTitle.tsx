@@ -6,6 +6,8 @@ export type SectionTitleProps = {
     label: string;
     dimmed?: boolean;
     action?: ReactNode;
+    align?: "center" | "start";
+    scaled?: boolean;
 };
 
 export function SectionTitle(props: SectionTitleProps) {
@@ -25,9 +27,11 @@ export function SectionTitle(props: SectionTitleProps) {
                         flex: 1,
                         minWidth: 0,
                         overflowWrap: "break-word",
-                        fontSize: `${scaleMultiplier(getCurrentTitleScale())}em`,
+                        fontSize: props.scaled === false
+                            ? "1em"
+                            : `${scaleMultiplier(getCurrentTitleScale())}em`,
                         fontWeight: 700,
-                        textAlign: "center",
+                        textAlign: props.align ?? "center",
                         opacity: props.dimmed ? 0.6 : 1
                     }}
                 >

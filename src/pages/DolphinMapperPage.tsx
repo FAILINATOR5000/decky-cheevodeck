@@ -749,6 +749,8 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
                         <div key={group.key}>
                             <SectionTitle
                                 label={group.header}
+                                align="start"
+                                scaled={false}
                                 dimmed={belowDisabled}
                                 action={
                                     <CollapseToggleButton

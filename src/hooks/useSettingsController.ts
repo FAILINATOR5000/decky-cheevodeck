@@ -145,6 +145,7 @@ export function useSettingsController({
     const [cheevoCheckScanCollapsed, setCheevoCheckScanCollapsed] = useState(false);
     const [cheevoCheckResultsCollapsed, setCheevoCheckResultsCollapsed] = useState(false);
     const [cheevoCheckVerifyCollapsed, setCheevoCheckVerifyCollapsed] = useState(false);
+    const [cheevoCheckHelpCollapsed, setCheevoCheckHelpCollapsed] = useState(false);
     const [cheevoCheckOptionsCollapsed, setCheevoCheckOptionsCollapsed] = useState(false);
     const [cheevoCheckSkipDiscVerify, setCheevoCheckSkipDiscVerify] = useState(false);
     const [cheevoCheckSkipCartVerify, setCheevoCheckSkipCartVerify] = useState(false);
@@ -415,6 +416,7 @@ export function useSettingsController({
         setCheevoCheckScanCollapsed(source.cheevoCheckScanCollapsed);
         setCheevoCheckResultsCollapsed(source.cheevoCheckResultsCollapsed);
         setCheevoCheckVerifyCollapsed(source.cheevoCheckVerifyCollapsed);
+        setCheevoCheckHelpCollapsed(source.cheevoCheckHelpCollapsed);
         setCheevoCheckOptionsCollapsed(source.cheevoCheckOptionsCollapsed);
         setCheevoCheckSkipDiscVerify(source.cheevoCheckSkipDiscVerify);
         setCheevoCheckSkipCartVerify(source.cheevoCheckSkipCartVerify);
@@ -675,6 +677,8 @@ export function useSettingsController({
         setCheevoCheckResultsCollapsed,
         cheevoCheckVerifyCollapsed,
         setCheevoCheckVerifyCollapsed,
+        cheevoCheckHelpCollapsed,
+        setCheevoCheckHelpCollapsed,
         cheevoCheckOptionsCollapsed,
         setCheevoCheckOptionsCollapsed,
         cheevoCheckSkipDiscVerify,
