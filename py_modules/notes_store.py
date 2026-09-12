@@ -28,7 +28,36 @@ REMINDER_MAX_MINUTES = 60 * 24 * 365
 
 _TAG_CLEAN_PATTERN = re.compile(r"[\[\]\n\r\t]")
 
+UNTAGGED_COLLAPSE_KEY = "__UNTAGGED__"
+COMPLETED_COLLAPSE_KEY = "__COMPLETED__"
+
+COLLAPSE_KEY_MAX_LEN = 64
+MAX_COLLAPSED_KEYS = 400
+
+_TAG_PREFIX_PATTERN = re.compile(r"^\s*\[([^\]\n]{1,24})\]\s*")
+
 CURRENT_SCHEMA_VERSION = 1
+
+
+def _collapse_key(note) -> str:
+    if not isinstance(note, dict):
+        return UNTAGGED_COLLAPSE_KEY
+    if note.get("completedAt") is not None:
+        return COMPLETED_COLLAPSE_KEY
+    body = note.get("body")
+    if not isinstance(body, str):
+        return UNTAGGED_COLLAPSE_KEY
+    match = _TAG_PREFIX_PATTERN.match(body)
+    if not match:
+        return UNTAGGED_COLLAPSE_KEY
+    key = match.group(1).strip().lower()
+    if not key or key in _RESERVED_TAG_KEYS:
+        return UNTAGGED_COLLAPSE_KEY
+    return key
+
+
+def _live_collapse_keys(notes) -> set:
+    return {_collapse_key(note) for note in notes}
 
 
 class NotesStore:
@@ -95,6 +124,10 @@ class NotesStore:
 
     def _save_raw(self, key: str, entry: dict) -> None:
         path = self._path_for_game_key(key)
+        entry["collapsedTags"] = self._sanitize_collapsed(
+            entry.get("collapsedTags") or [],
+            _live_collapse_keys(entry.get("notes") or []),
+        )
         ensure_dir(self._notes_dir)
         save_json_file(path, entry, compact=True)
 
@@ -104,6 +137,7 @@ class NotesStore:
             "schemaVersion": CURRENT_SCHEMA_VERSION,
             "sortMode": "newest",
             "tagVocabulary": [],
+            "collapsedTags": [],
             "notes": [],
         }
 
@@ -231,8 +265,39 @@ class NotesStore:
             "schemaVersion": CURRENT_SCHEMA_VERSION,
             "sortMode": self._clean_sort_mode(raw.get("sortMode")),
             "tagVocabulary": tag_vocab,
+            "collapsedTags": self._sanitize_collapsed(
+                raw.get("collapsedTags"),
+                _live_collapse_keys(notes),
+            ),
             "notes": notes,
         }
+
+    def _sanitize_collapsed(self, raw, live_keys: set) -> list:
+        """Filter a persisted collapsed-section list down to keys that still
+        have notes under them.
+
+        Takes whatever was on disk or came in over IPC plus the set of keys
+        the page would render right now, and returns the keys present in
+        both, deduped and capped. Non-strings and overlong keys are dropped.
+        """
+        if not isinstance(raw, list):
+            return []
+
+        out = []
+        seen = set()
+        for entry in raw:
+            if not isinstance(entry, str):
+                continue
+            key = entry.strip()
+            if not key or len(key) > COLLAPSE_KEY_MAX_LEN or key in seen:
+                continue
+            if key not in live_keys:
+                continue
+            seen.add(key)
+            out.append(key)
+            if len(out) >= MAX_COLLAPSED_KEYS:
+                break
+        return out
 
     def _add_tag_to_vocab(self, entry: dict, tag) -> None:
         if tag is None:
@@ -462,6 +527,31 @@ class NotesStore:
             self._save_raw(key, entry)
 
         return {"ok": True}
+
+    def set_collapsed_tags(self, game_id, tags) -> dict:
+        """Replace the per-game list of collapsed section keys.
+
+        Absolute rather than a per-key toggle, so the last write wins and a
+        dropped intermediate costs nothing. Keys with no notes under them are
+        discarded, which is what keeps a re-created tag expanded.
+        """
+        key = self._game_key(game_id)
+        if key is None:
+            return {"ok": False, "error": "invalid_game_id"}
+        if not isinstance(tags, list):
+            tags = []
+
+        lock = self._lock_for_game(key)
+        with lock:
+            entry = self._load_raw(key)
+            entry["collapsedTags"] = self._sanitize_collapsed(
+                tags,
+                _live_collapse_keys(entry["notes"]),
+            )
+            self._save_raw(key, entry)
+            collapsed = list(entry["collapsedTags"])
+
+        return {"ok": True, "collapsedTags": collapsed}
 
     def set_sort_mode(self, game_id, mode: str) -> dict:
         key = self._game_key(game_id)

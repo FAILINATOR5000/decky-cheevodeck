@@ -97,6 +97,11 @@ class NotesMixin(PluginContext):
     async def set_game_notes_sort_mode(self, game_id=None, mode: str = "newest"):
         return self.notes_store.set_sort_mode(game_id, mode)
 
+    async def save_game_notes_collapsed_tags(self, game_id=None, tags=None):
+        if tags is None:
+            tags = []
+        return self.notes_store.set_collapsed_tags(game_id, tags)
+
     async def get_pending_game_note_reminders(self, game_id=None):
         items = self.notes_reminder_service.get_pending(game_id)
         return {"ok": True, "reminders": items}

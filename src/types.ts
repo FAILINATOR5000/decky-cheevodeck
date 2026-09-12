@@ -1724,6 +1724,12 @@ export type SaveTrackedCollapsedTagsResponse = {
     collapsedTags: string[];
 };
 
+export type SaveGameNotesCollapsedTagsResponse = {
+    ok: boolean;
+    error?: string;
+    collapsedTags?: string[];
+};
+
 export type ClearTrackedResponse = {
     ok: boolean;
     gameId: number | null;
@@ -1768,6 +1774,7 @@ export type GameNotesPayload = {
     schemaVersion: number;
     sortMode: GameNoteSortMode;
     tagVocabulary: string[];
+    collapsedTags: string[];
     notes: GameNote[];
     pendingReminderBadge: boolean;
 };

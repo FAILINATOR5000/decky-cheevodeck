@@ -62,6 +62,7 @@ import type {
     SaveDefaultNoteColorResponse,
     SaveTrackedNoteResponse,
     SaveTrackedCollapsedTagsResponse,
+    SaveGameNotesCollapsedTagsResponse,
     SaveTrackedSortForGameResponse,
     InjectResult,
     SavedUser,
@@ -2215,6 +2216,11 @@ export const reorderGameNotes = callable<[number | null, string[]], OkResult>("r
 export const setGameNotesSortMode = callable<[number | null, GameNoteSortMode], GameNoteSortResponse>(
     "set_game_notes_sort_mode"
 );
+
+export const saveGameNotesCollapsedTags = callable<
+    [number | null, string[]],
+    SaveGameNotesCollapsedTagsResponse
+>("save_game_notes_collapsed_tags");
 
 export const getPendingGameNoteReminders = callable<
     [number | null],
