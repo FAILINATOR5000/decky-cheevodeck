@@ -47,6 +47,7 @@ class TrackedAchievementsMixin(PluginContext):
             "notes": dict(tracked.get("notes", {}) or {}),
             "notesColor": dict(tracked.get("notesColor", {}) or {}),
             "sort": str(tracked.get("sort", "upNext")),
+            "collapsedTags": list(tracked.get("collapsedTags", [])),
         }
 
     async def toggle_tracked_achievement(self, game_id=None, achievement_id=None,
@@ -74,6 +75,9 @@ class TrackedAchievementsMixin(PluginContext):
 
     async def save_tracked_sort_for_game(self, game_id=None, sort: str = "upNext"):
         return self.settings_store.save_tracked_sort_for_game(game_id, sort)
+
+    async def save_tracked_collapsed_tags(self, game_id=None, tags=None):
+        return self.settings_store.save_tracked_collapsed_tags(game_id, tags or [])
 
     async def clear_tracked_achievements(self, game_id=None):
         game_id_int = norm_game_id(game_id)

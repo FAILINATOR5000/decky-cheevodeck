@@ -1674,6 +1674,7 @@ export type TrackedAchievementsResponse = {
     notes: TrackedNotes;
     notesColor: TrackedNotesColor;
     sort: TrackedAchievementSort;
+    collapsedTags: string[];
 };
 
 export type ToggleTrackedResponse = {
@@ -1714,6 +1715,12 @@ export type SaveTrackedSortForGameResponse = {
     achievementIds: number[];
     notes: TrackedNotes;
     notesColor: TrackedNotesColor;
+};
+
+export type SaveTrackedCollapsedTagsResponse = {
+    ok: boolean;
+    gameId: number | null;
+    collapsedTags: string[];
 };
 
 export type ClearTrackedResponse = {

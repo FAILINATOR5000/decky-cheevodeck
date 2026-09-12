@@ -78,6 +78,13 @@ _TAG_PREFIX_PATTERN = re.compile(r"^\s*\[([^\]\n]{1,24})\]\s*")
 
 _TAG_VOCAB_LIMIT = 20
 
+TRACKED_UNTAGGED_COLLAPSE_KEY = "__UNTAGGED__"
+
+_RESERVED_TAG_KEYS = frozenset({"completed"})
+
+_COLLAPSE_KEY_MAX_LEN = 64
+_MAX_COLLAPSED_TAGS = 400
+
 _MAX_RESUME_NAV_DEPTH = 12
 
 _ALLOWED_RESUME_VIEWS = {
@@ -3020,6 +3027,26 @@ class SettingsStore:
             "notesColor": dict(saved.get("notesColor", {}) or {}),
         }
 
+    def save_tracked_collapsed_tags(self, game_id, tags) -> dict:
+        game_id_int = norm_game_id(game_id)
+        key = self._game_key(game_id_int)
+        if not key:
+            return {"ok": False, "gameId": game_id_int, "collapsedTags": []}
+        if not isinstance(tags, list):
+            tags = []
+        with self._lock_for_game(key):
+            entry = self._load_tracked_for_game_key(key)
+            saved = self._save_tracked_for_game_locked(
+                key,
+                entry.get("achievementIds", []),
+                collapsed_tags=tags,
+            )
+        return {
+            "ok": bool(saved.get("ok", False)),
+            "gameId": game_id_int,
+            "collapsedTags": list(saved.get("collapsedTags", [])),
+        }
+
     def _game_key(self, game_id):
         game_id_int = norm_game_id(game_id)
         return str(game_id_int) if game_id_int is not None else None
@@ -3036,6 +3063,7 @@ class SettingsStore:
                 "title": None, "consoleName": None, "imageIcon": None,
                 "sort": global_sort,
                 "tagVocabulary": [],
+                "collapsedTags": [],
             }
         entry = self._load_tracked_for_game_key(key)
         achievement_ids = []
@@ -3056,6 +3084,10 @@ class SettingsStore:
             tag_vocabulary = self._sanitize_tag_vocab(entry.get("tagVocabulary"))
         else:
             tag_vocabulary = self._seed_tag_vocab_from_notes(notes, notes_last_edited_at)
+        collapsed_tags = self._sanitize_collapsed_tags(
+            entry.get("collapsedTags"),
+            self._live_tracked_collapse_keys(achievement_ids, notes),
+        )
         return {
             "viewOpen": bool(entry.get("viewOpen", False)),
             "achievementIds": achievement_ids,
@@ -3068,6 +3100,7 @@ class SettingsStore:
             "imageIcon": self._coerce_optional_str(entry.get("imageIcon")),
             "sort": sort_value,
             "tagVocabulary": tag_vocabulary,
+            "collapsedTags": collapsed_tags,
         }
 
     def _sanitize_notes_dict(self, raw) -> dict:
@@ -3171,6 +3204,42 @@ class SettingsStore:
         seed_pairs.sort(key=lambda pair: pair[0], reverse=True)
         return self._sanitize_tag_vocab([tag for _, tag in seed_pairs])
 
+    def _tracked_collapse_key(self, note) -> str:
+        if not isinstance(note, str):
+            return TRACKED_UNTAGGED_COLLAPSE_KEY
+        match = _TAG_PREFIX_PATTERN.match(note)
+        if not match:
+            return TRACKED_UNTAGGED_COLLAPSE_KEY
+        key = match.group(1).strip().lower()
+        if not key or key in _RESERVED_TAG_KEYS:
+            return TRACKED_UNTAGGED_COLLAPSE_KEY
+        return key
+
+    def _live_tracked_collapse_keys(self, achievement_ids, notes) -> set:
+        return {
+            self._tracked_collapse_key((notes or {}).get(str(ach_id), ""))
+            for ach_id in achievement_ids or []
+        }
+
+    def _sanitize_collapsed_tags(self, raw, live_keys: set) -> list:
+        if not isinstance(raw, list):
+            return []
+        cleaned = []
+        seen = set()
+        for entry in raw:
+            if not isinstance(entry, str):
+                continue
+            key = entry.strip()
+            if not key or len(key) > _COLLAPSE_KEY_MAX_LEN or key in seen:
+                continue
+            if key not in live_keys:
+                continue
+            seen.add(key)
+            cleaned.append(key)
+            if len(cleaned) >= _MAX_COLLAPSED_TAGS:
+                break
+        return cleaned
+
     def _coerce_optional_str(self, raw):
         if raw is None:
             return None
@@ -3183,7 +3252,8 @@ class SettingsStore:
 
     def _save_tracked_for_game_locked(self, key, achievement_ids, view_open=None, notes=None,
                                       title=None, console_name=None, image_icon=None, sort=None, notes_color=None,
-                                      notes_last_edited_at=None, tag_vocabulary=None) -> dict:
+                                      notes_last_edited_at=None, tag_vocabulary=None,
+                                      collapsed_tags=None) -> dict:
         cfg = self.load_config()
         existing = self._load_tracked_for_game_key(key)
 
@@ -3247,6 +3317,16 @@ class SettingsStore:
                 next_notes, next_notes_last_edited_at
             )
 
+        live_collapse_keys = self._live_tracked_collapse_keys(deduped, next_notes)
+        if collapsed_tags is not None:
+            next_collapsed_tags = self._sanitize_collapsed_tags(collapsed_tags, live_collapse_keys)
+        elif "collapsedTags" in existing:
+            next_collapsed_tags = self._sanitize_collapsed_tags(
+                existing.get("collapsedTags"), live_collapse_keys
+            )
+        else:
+            next_collapsed_tags = []
+
         entry = {
             "viewOpen": next_view_open,
             "achievementIds": deduped,
@@ -3258,6 +3338,7 @@ class SettingsStore:
             "imageIcon": next_image_icon,
             "sort": next_sort,
             "tagVocabulary": next_tag_vocabulary,
+            "collapsedTags": next_collapsed_tags,
         }
         self._save_tracked_for_game_key(key, entry)
         return {
@@ -3268,6 +3349,7 @@ class SettingsStore:
             "notesColor": next_notes_color,
             "notesLastEditedAt": next_notes_last_edited_at,
             "sort": next_sort,
+            "collapsedTags": next_collapsed_tags,
         }
 
     def clear_tracked_for_game(self, game_id) -> dict:
@@ -3282,6 +3364,7 @@ class SettingsStore:
             existing["notesColor"] = {}
             existing["notesLastEditedAt"] = {}
             existing["viewOpen"] = False
+            existing["collapsedTags"] = []
             self._save_tracked_for_game_key(key, existing)
         return {"ok": True, "cleared": cleared}
 

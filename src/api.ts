@@ -61,6 +61,7 @@ import type {
     ResumeStateResponse,
     SaveDefaultNoteColorResponse,
     SaveTrackedNoteResponse,
+    SaveTrackedCollapsedTagsResponse,
     SaveTrackedSortForGameResponse,
     InjectResult,
     SavedUser,
@@ -2160,6 +2161,10 @@ export const saveTrackedSortForGame = callable<
     [number | null | undefined, TrackedAchievementSort],
     SaveTrackedSortForGameResponse
 >("save_tracked_sort_for_game");
+export const saveTrackedCollapsedTags = callable<
+    [number | null | undefined, string[]],
+    SaveTrackedCollapsedTagsResponse
+>("save_tracked_collapsed_tags");
 export const clearTrackedAchievements = callable<[number | null | undefined], ClearTrackedResponse>(
     "clear_tracked_achievements"
 );
