@@ -1668,7 +1668,7 @@ function AchievementsRoot() {
     };
 
     const {
-        state: { trackedValidating, trackedIds, trackedIdsLoadedForGameId, trackedAchievements, notesByAchievementId, notesColorByAchievementId, sort: perGameTrackedSort, reorderTargetId, reorderViaSwap, backClaimToken: trackedBackClaimToken, rowClaim: trackedRowClaim },
+        state: { trackedValidating, trackedIds, trackedIdsLoadedForGameId, trackedAchievements, notesByAchievementId, notesColorByAchievementId, sort: perGameTrackedSort, collapsedTags: trackedCollapsedTags, reorderTargetId, reorderViaSwap, backClaimToken: trackedBackClaimToken, rowClaim: trackedRowClaim },
         actions: {
             setTrackedValidating,
             setTrackedIds,
@@ -1681,6 +1681,7 @@ function AchievementsRoot() {
             onTrackedUntrack,
             onTrackedEditNote,
             onReorderSwap: onTrackedReorderPick,
+            onToggleCollapsedTag: onTrackedToggleCollapsedTag,
             onTrackedSortChange,
             onClearTracked,
             onClearTrackedForGame,
@@ -4662,6 +4663,8 @@ function AchievementsRoot() {
                                 showRetroPoints={showRetroPoints}
                                 trackedAchievementAction={trackedAchievementAction}
                                 trackedAchievementSort={perGameTrackedSort}
+                                collapsedTags={trackedCollapsedTags}
+                                onToggleCollapsedTag={onTrackedToggleCollapsedTag}
                                 showIcons={showIcons}
                                 achievementStyle={achievementStyle}
                                 uiSize={uiSize}

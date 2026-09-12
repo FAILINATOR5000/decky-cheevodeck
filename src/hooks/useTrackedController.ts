@@ -25,6 +25,7 @@ import {
     getTrackedAchievements,
     saveLastTrackedTab,
     saveTrackedNote,
+    saveTrackedCollapsedTags,
     saveTrackedSortForGame,
     toggleTrackedAchievement
 } from "../api";
@@ -36,7 +37,14 @@ import { landOn, liveOrder, orderAfterGroupMove, stepTo } from "../utils/reorder
 
 const ORDER_WRITE_SETTLE_MS = 250;
 import { openExternalUrl, raAchievementUrl } from "../utils/navigation";
-import { flattenTrackedVisualOrder, groupIdsForTrackedTarget, trackedRowGroupSlot } from "../components/tracked/TrackedListBody";
+import {
+    flattenTrackedVisualOrder,
+    groupIdsForTrackedTarget,
+    TRACKED_UNTAGGED_COLLAPSE_KEY,
+    trackedCollapseKeyForAchievement,
+    trackedGroupCollapseKeys,
+    trackedRowGroupSlot
+} from "../components/tracked/TrackedListBody";
 import { useFocusClaim } from "./useFocusClaim";
 
 type TrackedWriteResult = {
@@ -105,6 +113,9 @@ export function useTrackedController({
     const [reorderTargetId, setReorderTargetId] = useState<number | null>(null);
     const [reorderInFlight, setReorderInFlight] = useState(false);
 
+    const [collapsedTags, setCollapsedTags] = useState<string[]>([]);
+    const collapsedTagSet = useMemo(() => new Set(collapsedTags), [collapsedTags]);
+
     const pendingOrderRef = useRef<{
         gameId: number;
         ids: number[];
@@ -145,6 +156,7 @@ export function useTrackedController({
             setLastKnownTrackedCount(null);
             setNotesByAchievementId({});
             setNotesColorByAchievementId({});
+            setCollapsedTags([]);
             return;
         }
 
@@ -170,6 +182,7 @@ export function useTrackedController({
                 }
                 applyTrackedResult(gameId, result);
                 setSort(result.sort ?? trackedAchievementSort);
+                setCollapsedTags(result.collapsedTags ?? []);
                 setTrackedIdsLoadedForGameId(gameId);
             } catch (e) {
                 logError("getTrackedAchievements", e);
@@ -179,6 +192,7 @@ export function useTrackedController({
                 setTrackedIds([]);
                 setNotesByAchievementId({});
                 setNotesColorByAchievementId({});
+                setCollapsedTags([]);
                 setTrackedIdsLoadedForGameId(gameId);
             }
         })();
@@ -338,9 +352,43 @@ export function useTrackedController({
         }
     }, [mountedRef, setPendingFocusKey]);
 
+    const applyCollapsedTags = useCallback((update: (previous: string[]) => string[]) => {
+        const gameId = payload?.gameId;
+        if (!gameId) {
+            return;
+        }
+        setCollapsedTags((previous) => {
+            const next = update(previous);
+            if (next === previous) {
+                return previous;
+            }
+            void saveTrackedCollapsedTags(gameId, next).catch((e) => {
+                logError("saveTrackedCollapsedTags", e);
+            });
+            return next;
+        });
+    }, [payload?.gameId]);
+
+    const onToggleCollapsedTag = useCallback((key: string) => {
+        applyCollapsedTags((previous) => (previous.includes(key)
+            ? previous.filter((entry) => entry !== key)
+            : [...previous, key]));
+    }, [applyCollapsedTags]);
+
+    const expandCollapsedTag = useCallback((key: string) => {
+        applyCollapsedTags((previous) => (previous.includes(key)
+            ? previous.filter((entry) => entry !== key)
+            : previous));
+    }, [applyCollapsedTags]);
+
     const restoreFocusAfterTrackedRemoval = useCallback(
         (removedAchievementId: number, currentTrackedAchievements: AchievementRow[]) => {
-            const visualOrder = flattenTrackedVisualOrder(currentTrackedAchievements, notesByAchievementId, language);
+            const visualOrder = flattenTrackedVisualOrder(
+                currentTrackedAchievements,
+                notesByAchievementId,
+                language,
+                collapsedTagSet
+            );
             const removedIndex = visualOrder.findIndex(
                 (item: AchievementRow) => item.id === removedAchievementId
             );
@@ -349,27 +397,60 @@ export function useTrackedController({
             );
 
             if (remainingTrackedAchievements.length <= 0) {
+                const survivors = currentTrackedAchievements.filter(
+                    (item: AchievementRow) => item.id !== removedAchievementId
+                );
+                const groupKeys = trackedGroupCollapseKeys(survivors, notesByAchievementId, language);
+                const removedKey = trackedCollapseKeyForAchievement(
+                    currentTrackedAchievements,
+                    notesByAchievementId,
+                    removedAchievementId
+                );
+                const landing = removedKey !== null && groupKeys.includes(removedKey)
+                    ? removedKey
+                    : groupKeys[0];
+                if (landing !== undefined) {
+                    restorePendingFocusNextTick(`tracked:group:${landing}`);
+                    return;
+                }
                 setBackClaimToken((token) => token + 1);
                 restorePendingFocusNextTick("tracked:back");
                 return;
             }
 
             const safeIndex = removedIndex >= 0 ? Math.min(removedIndex, remainingTrackedAchievements.length - 1) : 0;
-            const nextFocusedAchievement = remainingTrackedAchievements[safeIndex];
+
+            const removedSlot = trackedRowGroupSlot(
+                currentTrackedAchievements,
+                notesByAchievementId,
+                removedAchievementId
+            );
+            const removedGroupKey = trackedCollapseKeyForAchievement(
+                currentTrackedAchievements,
+                notesByAchievementId,
+                removedAchievementId
+            );
+            const wouldLeaveTheGroup = safeIndex > 0
+                && removedSlot !== null
+                && removedSlot.groupSize > 1
+                && remainingTrackedAchievements[safeIndex] !== undefined
+                && trackedCollapseKeyForAchievement(
+                    currentTrackedAchievements,
+                    notesByAchievementId,
+                    remainingTrackedAchievements[safeIndex].id
+                ) !== removedGroupKey;
+            const landingIndex = wouldLeaveTheGroup ? safeIndex - 1 : safeIndex;
+
+            const nextFocusedAchievement = remainingTrackedAchievements[landingIndex];
             if (nextFocusedAchievement) {
                 restorePendingFocusNextTick(`achievement:${nextFocusedAchievement.id}`);
 
-                const removedSlot = trackedRowGroupSlot(
-                    currentTrackedAchievements,
-                    notesByAchievementId,
-                    removedAchievementId
-                );
                 if (removedSlot && removedSlot.indexInGroup === removedSlot.groupSize - 1) {
-                    rowClaim.claimSlot(safeIndex);
+                    rowClaim.claimSlot(landingIndex);
                 }
             }
         },
-        [notesByAchievementId, restorePendingFocusNextTick, rowClaim.claimSlot]
+        [notesByAchievementId, collapsedTagSet, language, restorePendingFocusNextTick, rowClaim.claimSlot]
     );
 
     const onSaveTrackedNote = useCallback(
@@ -812,6 +893,7 @@ export function useTrackedController({
             setTrackedIds([]);
             setNotesByAchievementId({});
             setNotesColorByAchievementId({});
+            setCollapsedTags([]);
             setTotalTrackedCount(result.totalTrackedCount);
         } catch (e: any) {
             logError("onClearTracked", e);
@@ -869,6 +951,7 @@ export function useTrackedController({
             if (result.sort) {
                 setSort(result.sort);
             }
+            expandCollapsedTag(TRACKED_UNTAGGED_COLLAPSE_KEY);
             setTotalTrackedCount((current) => (current === null ? null : current + result.changed));
         } catch (e: any) {
             logError("onAddAllMissable", e);
@@ -879,7 +962,7 @@ export function useTrackedController({
         } finally {
             restorePendingFocusNextTick(restoredFocusKey);
         }
-    }, [mountedRef, payload, trackedIds, setError, restorePendingFocusNextTick]);
+    }, [mountedRef, payload, trackedIds, setError, restorePendingFocusNextTick, expandCollapsedTag]);
 
     const onClearTrackedForGame = useCallback(
         async (targetGameId: number, focusKeyAfter?: string) => {
@@ -904,6 +987,7 @@ export function useTrackedController({
                     setTrackedIds([]);
                     setNotesByAchievementId({});
                     setNotesColorByAchievementId({});
+                    setCollapsedTags([]);
                 }
                 setTotalTrackedCount(result.totalTrackedCount);
             } catch (e: any) {
@@ -933,6 +1017,7 @@ export function useTrackedController({
             setTrackedIds([]);
             setNotesByAchievementId({});
             setNotesColorByAchievementId({});
+            setCollapsedTags([]);
             setTotalTrackedCount(result.totalTrackedCount);
         } catch (e: any) {
             logError("onClearAllTracked", e);
@@ -956,6 +1041,7 @@ export function useTrackedController({
             lastKnownTrackedCount,
             totalTrackedCount,
             sort,
+            collapsedTags,
             reorderTargetId,
             reorderViaSwap,
             backClaimToken,
@@ -975,6 +1061,7 @@ export function useTrackedController({
             onTrackedUntrack,
             onTrackedEditNote,
             onReorderSwap,
+            onToggleCollapsedTag,
             onSaveTrackedNote,
             onTrackedSortChange,
             onClearTracked,

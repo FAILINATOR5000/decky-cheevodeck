@@ -33,6 +33,8 @@ import { POINTS_LABEL_STYLES } from "./PointsLabel";
 import { PanelSection, PanelSectionRow } from "@decky/ui";
 import React, { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
+const NO_ROWS: AchievementRow[] = [];
+
 export function AchievementList(props: {
     payload: Payload;
     language: LanguageCode;
@@ -66,6 +68,8 @@ export function AchievementList(props: {
         onSpent: () => void;
     };
     titleOverride?: string;
+    titleNode?: ReactNode;
+    collapsed?: boolean;
     resetToken?: number;
     preRows?: React.ReactNode;
     onAchievementTrackToggle?: (achievement: AchievementRow) => void;
@@ -374,9 +378,11 @@ export function AchievementList(props: {
         debugLabel: currentMode === "tracked" ? `tracked:${props.titleOverride || "list"}` : undefined
     });
 
+    const bodyAchievements = props.collapsed ? NO_ROWS : mountedAchievements;
+
     const mountedIcons = useMemo(() => {
         const missingBadgeNames: string[] = [];
-        for (const achievement of mountedAchievements) {
+        for (const achievement of bodyAchievements) {
             const badgeName = String(achievement.badgeName || "").trim();
             if (badgeName && !iconMap[badgeName]) {
                 missingBadgeNames.push(badgeName);
@@ -387,7 +393,7 @@ export function AchievementList(props: {
         }
 
         return { ...iconMap, ...getCachedAchievementIcons(props.payload?.gameId ?? null, missingBadgeNames) };
-    }, [mountedAchievements, iconMap, props.payload?.gameId]);
+    }, [bodyAchievements, iconMap, props.payload?.gameId]);
 
     useEffect(function scrollReorderTargetIntoView() {
         if (currentMode !== "tracked") {
@@ -418,7 +424,7 @@ export function AchievementList(props: {
         const gameId = props.payload?.gameId ?? null;
         const badgeNames = Array.from(
             new Set(
-                mountedAchievements.map((achievement) => String(achievement.badgeName || "").trim()).filter(Boolean)
+                bodyAchievements.map((achievement) => String(achievement.badgeName || "").trim()).filter(Boolean)
             )
         );
 
@@ -467,7 +473,7 @@ export function AchievementList(props: {
         return () => {
             cancelled = true;
         };
-    }, [props.payload?.gameId, props.showIcons, mountedAchievements, iconMap]);
+    }, [props.payload?.gameId, props.showIcons, bodyAchievements, iconMap]);
 
     const emptyMessage = props.emptyMessageOverride ??
         (currentMode === "friend" && effectiveFriendFilter === "locked"
@@ -494,7 +500,7 @@ export function AchievementList(props: {
             earned: props.payload.numAwardedToUser,
             total: props.payload.numAchievements
         });
-    const panelTitle = resolvedTitle.trim() ? resolvedTitle : undefined;
+    const panelTitle = props.titleNode ?? (resolvedTitle.trim() ? resolvedTitle : undefined);
 
     function rowNote(achievement: AchievementRow) {
         if (currentMode === "main") {
@@ -611,7 +617,7 @@ export function AchievementList(props: {
                     </>
                 ) : (
                     <>
-                        {mountedAchievements.map((achievement, index) => {
+                        {bodyAchievements.map((achievement, index) => {
                             const badgeName = String(achievement.badgeName || "").trim();
                             const labels = rowLabels.get(achievement.id);
                             const note = rowNote(achievement);
@@ -654,7 +660,7 @@ export function AchievementList(props: {
 
                             return row;
                         })}
-                        {dynamicLoading && mountedAchievements.length < visibleAchievements.length && (
+                        {dynamicLoading && !props.collapsed && mountedAchievements.length < visibleAchievements.length && (
                             <div ref={loadMoreMarkerRef} style={{ height: "1px" }} />
                         )}
                     </>

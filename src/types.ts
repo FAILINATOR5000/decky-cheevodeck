@@ -1867,6 +1867,7 @@ export type TrackedDrillInState = {
     notesByAchievementId: TrackedNotes;
     notesColorByAchievementId: TrackedNotesColor;
     sort: TrackedAchievementSort;
+    collapsedTags: string[];
     reorderTargetId: number | null;
     reorderViaSwap?: boolean;
     onAchievementClick: (
@@ -1875,6 +1876,7 @@ export type TrackedDrillInState = {
     ) => void | Promise<void>;
     onUntrack: (achievement: AchievementRow) => void | Promise<void>;
     onEditNote: (achievement: AchievementRow) => void;
+    onToggleCollapsedTag: (key: string) => void;
     onReorderPick: (achievementId: number, allowSwap: boolean) => void | Promise<void>;
     onSortChange: (nextSort: TrackedAchievementSort) => void | Promise<void>;
     onReorderMove: (direction: ReorderDirection, groupIds?: number[] | null) => void | Promise<void>;

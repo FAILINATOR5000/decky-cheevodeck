@@ -1,6 +1,7 @@
 import { useMemo, type ReactNode } from "react";
 import { PanelSection, PanelSectionRow } from "@decky/ui";
 import { AchievementList } from "../achievements/AchievementList";
+import { CollapsibleTitle } from "../ui/CollapsibleTitle";
 import { InlineSpinner } from "../ui/InlineSpinner";
 import type { FocusClaimController } from "../../hooks/useFocusClaim";
 import type { LanguageCode } from "../../locales";
@@ -43,6 +44,9 @@ type TrackedListBodyProps = {
     reorderViaSwap?: boolean;
     rowClaim?: FocusClaimController;
     restoreSeedAchievementId?: number | null;
+    collapsedKeys: ReadonlySet<string>;
+    onToggleCollapsed: (key: string) => void;
+    collapseDisabled?: boolean;
     onAchievementClick: (achievement: AchievementRow, trackedAchievements: AchievementRow[]) => void | Promise<void>;
     onAchievementTrackToggle?: (achievement: AchievementRow) => void;
     onAchievementNote?: (achievement: AchievementRow) => void;
@@ -99,6 +103,12 @@ function groupTrackedAchievements(
     return ordered;
 }
 
+export const TRACKED_UNTAGGED_COLLAPSE_KEY = "__UNTAGGED__";
+
+function collapseKeyForGroup(group: TrackedGroup): string {
+    return group.tagKey ?? TRACKED_UNTAGGED_COLLAPSE_KEY;
+}
+
 function visualTrackedGroups(
     achievements: AchievementRow[],
     notesByAchievementId: TrackedNotes,
@@ -140,6 +150,9 @@ export function TrackedListBody(props: TrackedListBodyProps) {
         reorderViaSwap,
         rowClaim,
         restoreSeedAchievementId,
+        collapsedKeys,
+        onToggleCollapsed,
+        collapseDisabled,
         onAchievementClick,
         onAchievementTrackToggle,
         onAchievementNote,
@@ -216,7 +229,9 @@ export function TrackedListBody(props: TrackedListBodyProps) {
     let flatStart = 0;
     const groupStarts = groups.map((group) => {
         const start = flatStart;
-        flatStart += group.achievements.length;
+        if (!collapsedKeys.has(collapseKeyForGroup(group))) {
+            flatStart += group.achievements.length;
+        }
         return start;
     });
 
@@ -228,8 +243,11 @@ export function TrackedListBody(props: TrackedListBodyProps) {
                     : `${group.tag} (${group.achievements.length})`;
                 const groupKey = group.tagKey === null ? "_untagged_" : group.tagKey;
                 const listKey = `tracked:${payload.gameId ?? "none"}:${groupKey}:${listResetToken}:${focusScopeResetToken}`;
+                const collapseKey = collapseKeyForGroup(group);
+                const collapsed = collapsedKeys.has(collapseKey);
+                const visibleRows = collapsed ? 0 : group.achievements.length;
                 const slotInGroup = claimedSlot ? claimedSlot.slotIndex - groupStarts[index] : -1;
-                const claimedRow = claimedSlot && claimSpend && slotInGroup >= 0 && slotInGroup < group.achievements.length
+                const claimedRow = claimedSlot && claimSpend && slotInGroup >= 0 && slotInGroup < visibleRows
                     ? {
                         slotIndex: slotInGroup,
                         token: claimedSlot.token,
@@ -240,7 +258,7 @@ export function TrackedListBody(props: TrackedListBodyProps) {
                 const seedIndex = restoreSeedAchievementId == null
                     ? -1
                     : group.achievementIds.indexOf(restoreSeedAchievementId);
-                const seedRows = seedIndex >= 0 ? seedIndex + 1 : 0;
+                const seedRows = collapsed || seedIndex < 0 ? 0 : seedIndex + 1;
                 return (
                     <AchievementList
                         key={listKey}
@@ -263,6 +281,16 @@ export function TrackedListBody(props: TrackedListBodyProps) {
                         notesByAchievementId={notesByAchievementId}
                         notesColorByAchievementId={notesColorByAchievementId}
                         titleOverride={sectionTitle}
+                        titleNode={
+                            <CollapsibleTitle
+                                label={sectionTitle}
+                                collapsed={collapsed}
+                                focusKey={`tracked:group:${collapseKey}`}
+                                disabled={collapseDisabled}
+                                onToggle={() => onToggleCollapsed(collapseKey)}
+                            />
+                        }
+                        collapsed={collapsed}
                         resetToken={listResetToken}
                         dynamicLoading={dynamicLoading}
                         dynamicInitialRows={dynamicInitialRows}
@@ -294,16 +322,39 @@ export function TrackedListBody(props: TrackedListBodyProps) {
 export function flattenTrackedVisualOrder(
     trackedAchievements: AchievementRow[],
     notesByAchievementId: TrackedNotes,
-    language: LanguageCode
+    language: LanguageCode,
+    collapsedKeys: ReadonlySet<string>
 ): AchievementRow[] {
     const groups = visualTrackedGroups(trackedAchievements, notesByAchievementId, language);
     const ordered: AchievementRow[] = [];
     for (const group of groups) {
+        if (collapsedKeys.has(collapseKeyForGroup(group))) {
+            continue;
+        }
         for (const achievement of group.achievements) {
             ordered.push(achievement);
         }
     }
     return ordered;
+}
+
+export function trackedCollapseKeyForAchievement(
+    trackedAchievements: AchievementRow[],
+    notesByAchievementId: TrackedNotes,
+    achievementId: number
+): string | null {
+    const groups = groupTrackedAchievements(trackedAchievements, notesByAchievementId);
+    const match = groups.find((group) => group.achievementIds.includes(achievementId));
+    return match ? collapseKeyForGroup(match) : null;
+}
+
+export function trackedGroupCollapseKeys(
+    trackedAchievements: AchievementRow[],
+    notesByAchievementId: TrackedNotes,
+    language: LanguageCode
+): string[] {
+    return visualTrackedGroups(trackedAchievements, notesByAchievementId, language)
+        .map(collapseKeyForGroup);
 }
 
 export function trackedRowGroupSlot(

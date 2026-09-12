@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { PanelSection, PanelSectionRow } from "@decky/ui";
 import { LabeledRow } from "../ui/LabeledRow";
 import { ReorderStrip } from "../ui/ReorderStrip";
@@ -70,6 +71,8 @@ type OtherGamesDrillInBodyProps = {
     onEditNote: (achievement: AchievementRow) => void;
     rowClaim?: FocusClaimController;
     restoreSeedAchievementId?: number | null;
+    collapsedTags: string[];
+    onToggleCollapsedTag: (key: string) => void;
     onReorderPick: (achievementId: number, allowSwap: boolean) => void | Promise<void>;
     onReorderMove: (direction: ReorderDirection, groupIds?: number[] | null) => void | Promise<void>;
     onReorderToward: (landedAchievementId: number, groupIds?: number[] | null) => void;
@@ -116,11 +119,14 @@ export function OtherGamesDrillInBody(props: OtherGamesDrillInBodyProps) {
         onEditNote,
         rowClaim,
         restoreSeedAchievementId,
+        collapsedTags,
+        onToggleCollapsedTag,
         onReorderPick,
         onReorderMove,
         onReorderToward
     } = props;
 
+    const collapsedSet = useMemo(() => new Set(collapsedTags), [collapsedTags]);
     const sectionTitle = t(language, "Tracked ({{count}})", { count: trackedAchievements.length });
     const gameTitle = payload?.title?.trim() || "";
 
@@ -249,6 +255,9 @@ export function OtherGamesDrillInBody(props: OtherGamesDrillInBodyProps) {
                     reorderViaSwap={reorderViaSwap}
                     rowClaim={rowClaim}
                     restoreSeedAchievementId={restoreSeedAchievementId}
+                    collapsedKeys={collapsedSet}
+                    onToggleCollapsed={onToggleCollapsedTag}
+                    collapseDisabled={reorderTargetId !== null}
                     onAchievementClick={onAchievementClick}
                     onAchievementTrackToggle={gamepadRowActions ? handleRowUntrack : undefined}
                     onAchievementNote={gamepadRowActions ? handleRowEditNote : undefined}

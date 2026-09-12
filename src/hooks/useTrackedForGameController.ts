@@ -20,6 +20,7 @@ import {
     getGamePayload,
     getTrackedAchievements,
     saveTrackedNote,
+    saveTrackedCollapsedTags,
     saveTrackedSortForGame,
     toggleTrackedAchievement
 } from "../api";
@@ -86,6 +87,7 @@ export function useTrackedForGameController({
     const [notesByAchievementId, setNotesByAchievementId] = useState<TrackedNotes>({});
     const [notesColorByAchievementId, setNotesColorByAchievementId] = useState<TrackedNotesColor>({});
     const [sort, setSort] = useState<TrackedAchievementSort>(trackedAchievementSort);
+    const [collapsedTags, setCollapsedTags] = useState<string[]>([]);
     const [reorderTargetId, setReorderTargetId] = useState<number | null>(null);
     const [reorderInFlight, setReorderInFlight] = useState(false);
 
@@ -112,6 +114,7 @@ export function useTrackedForGameController({
             setNotesByAchievementId({});
             setNotesColorByAchievementId({});
             setSort(trackedAchievementSort);
+            setCollapsedTags([]);
             return;
         }
 
@@ -179,6 +182,7 @@ export function useTrackedForGameController({
                 setNotesByAchievementId(notes);
                 setNotesColorByAchievementId(notesColor);
                 setSort(result.sort ?? trackedAchievementSort);
+                setCollapsedTags(result.collapsedTags ?? []);
                 setTrackedIdsLoadedForGameId(selectedGameId);
             } catch (e) {
                 logError("getTrackedAchievements (drill-in)", e);
@@ -188,6 +192,7 @@ export function useTrackedForGameController({
                 setTrackedIds([]);
                 setNotesByAchievementId({});
                 setNotesColorByAchievementId({});
+                setCollapsedTags([]);
                 setTrackedIdsLoadedForGameId(selectedGameId);
             }
         })();
@@ -296,6 +301,21 @@ export function useTrackedForGameController({
         selectedGameId !== null
             && payload !== null
             && trackedIdsLoadedForGameId === selectedGameId;
+
+    const onToggleCollapsedTag = useCallback((key: string) => {
+        if (selectedGameId === null) {
+            return;
+        }
+        setCollapsedTags((previous) => {
+            const next = previous.includes(key)
+                ? previous.filter((entry) => entry !== key)
+                : [...previous, key];
+            void saveTrackedCollapsedTags(selectedGameId, next).catch((e) => {
+                logError("saveTrackedCollapsedTags (drill-in)", e);
+            });
+            return next;
+        });
+    }, [selectedGameId]);
 
     const onSaveTrackedNote = useCallback(
         async (achievementId: number, note: string, color: NoteColor): Promise<OkResult> => {
@@ -731,6 +751,7 @@ export function useTrackedForGameController({
             notesByAchievementId,
             notesColorByAchievementId,
             sort,
+            collapsedTags,
             reorderTargetId,
             reorderViaSwap
         },
@@ -739,6 +760,7 @@ export function useTrackedForGameController({
             onUntrack,
             onEditNote,
             onReorderSwap,
+            onToggleCollapsedTag,
             onSaveTrackedNote,
             onSortChange,
             onReorderMove,

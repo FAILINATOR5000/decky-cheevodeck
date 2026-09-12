@@ -17,6 +17,7 @@ import {
     flattenTrackedVisualOrder,
     groupIdsForTrackedTarget,
     largestTrackedGroupSize,
+    trackedCollapseKeyForAchievement,
     trackedRowGroupSlot,
     TrackedListBody
 } from "../components/tracked/TrackedListBody";
@@ -162,6 +163,8 @@ type TrackedPageProps = {
     checkingGame: boolean;
     activeTrackedTab: TrackedTab;
     trackedSelectedGameId: number | null;
+    collapsedTags: string[];
+    onToggleCollapsedTag: (key: string) => void;
     drillIn: TrackedDrillInState;
     currentGameTrackedCount: number;
     backFromTracked: () => void | Promise<void>;
@@ -230,6 +233,8 @@ function TrackedPage(props: TrackedPageProps) {
         checkingGame,
         activeTrackedTab,
         trackedSelectedGameId,
+        collapsedTags,
+        onToggleCollapsedTag,
         drillIn,
         currentGameTrackedCount,
         backFromTracked,
@@ -338,6 +343,10 @@ function TrackedPage(props: TrackedPageProps) {
     const restoreClaim = restoringDrillIn ? drillInRowClaim : rowClaim;
     const restoreAchievements = restoringDrillIn ? drillIn.trackedAchievements : trackedAchievements;
     const restoreNotes = restoringDrillIn ? drillIn.notesByAchievementId : notesByAchievementId;
+    const collapsedSet = useMemo(() => new Set(collapsedTags), [collapsedTags]);
+    const drillInCollapsedSet = useMemo(() => new Set(drillIn.collapsedTags), [drillIn.collapsedTags]);
+    const restoreCollapsedSet = restoringDrillIn ? drillInCollapsedSet : collapsedSet;
+    const restoreToggleCollapsed = restoringDrillIn ? drillIn.onToggleCollapsedTag : onToggleCollapsedTag;
 
     const restoreListReady = restoringDrillIn
         ? trackedSelectedGameId !== null && drillIn.trackedReady
@@ -362,15 +371,27 @@ function TrackedPage(props: TrackedPageProps) {
         if (!restoreOutstanding || restoreAchievementId === null) {
             return null;
         }
-        const flatIndex = flattenTrackedVisualOrder(restoreAchievements, restoreNotes, language)
-            .findIndex((row) => row.id === restoreAchievementId);
+        const flatIndex = flattenTrackedVisualOrder(
+            restoreAchievements,
+            restoreNotes,
+            language,
+            restoreCollapsedSet
+        ).findIndex((row) => row.id === restoreAchievementId);
         if (flatIndex < 0) {
             return null;
         }
         const grouped = trackedRowGroupSlot(restoreAchievements, restoreNotes, restoreAchievementId);
         return { flatIndex, indexInGroup: grouped ? grouped.indexInGroup : flatIndex };
-    }, [restoreOutstanding, restoreAchievementId, restoreAchievements, restoreNotes, language]);
+    }, [restoreOutstanding, restoreAchievementId, restoreAchievements, restoreNotes, language, restoreCollapsedSet]);
 
+    const restoreTargetCollapseKey = useMemo(() => {
+        if (!restoreOutstanding || restoreAchievementId === null || activeTrackedTab === "clear") {
+            return null;
+        }
+        return trackedCollapseKeyForAchievement(restoreAchievements, restoreNotes, restoreAchievementId);
+    }, [restoreOutstanding, restoreAchievementId, activeTrackedTab, restoreAchievements, restoreNotes]);
+
+    const restoreUnfoldedRef = useRef(false);
     const restoreFiredRef = useRef(false);
 
     useEffect(function landRestoredCursor() {
@@ -378,6 +399,29 @@ function TrackedPage(props: TrackedPageProps) {
             return;
         }
         if (activeTrackedTab !== "clear" && !restoreListReady) {
+            return;
+        }
+
+        if (restoreTargetCollapseKey !== null && restoreCollapsedSet.has(restoreTargetCollapseKey)) {
+            if (!restoreUnfoldedRef.current) {
+                restoreUnfoldedRef.current = true;
+                logFocusDebug(
+                    "tracked-restore",
+                    String(restoreAchievementId),
+                    `unfolding ${restoreTargetCollapseKey}`
+                );
+                restoreToggleCollapsed(restoreTargetCollapseKey);
+                return;
+            }
+            restoreFiredRef.current = true;
+            setRestoreFired(true);
+            setRestoreAbandoned(true);
+            logFocusDebug(
+                "tracked-restore",
+                String(restoreAchievementId),
+                `${restoreTargetCollapseKey} would not unfold`
+            );
+            onRequestFocus("tracked:back");
             return;
         }
 
@@ -418,6 +462,9 @@ function TrackedPage(props: TrackedPageProps) {
         restoreSlot,
         restoreAchievementId,
         restoreAchievements.length,
+        restoreTargetCollapseKey,
+        restoreCollapsedSet,
+        restoreToggleCollapsed,
         restoreClaim.claimSlot,
         onRequestFocus
     ]);
@@ -616,6 +663,9 @@ function TrackedPage(props: TrackedPageProps) {
                     reorderViaSwap={reorderViaSwap}
                     rowClaim={rowClaim}
                     restoreSeedAchievementId={restoringDrillIn ? null : restoreSeedAchievementId}
+                    collapsedKeys={collapsedSet}
+                    onToggleCollapsed={onToggleCollapsedTag}
+                    collapseDisabled={reorderTargetId !== null}
                     onAchievementClick={onAchievementClick}
                     onAchievementTrackToggle={gamepadRowActions ? handleRowUntrack : undefined}
                     onAchievementNote={gamepadRowActions ? handleRowEditNote : undefined}
@@ -1058,6 +1108,8 @@ function OtherGamesTabBody(props: OtherGamesTabBodyProps) {
             onEditNote={drillIn.onEditNote}
             rowClaim={rowClaim}
             restoreSeedAchievementId={restoreSeedAchievementId}
+            collapsedTags={drillIn.collapsedTags}
+            onToggleCollapsedTag={drillIn.onToggleCollapsedTag}
             onReorderPick={drillIn.onReorderPick}
             onReorderMove={drillIn.onReorderMove}
             onReorderToward={drillIn.onReorderToward}
