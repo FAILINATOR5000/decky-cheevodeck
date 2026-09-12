@@ -348,13 +348,62 @@ export function trackedCollapseKeyForAchievement(
     return match ? collapseKeyForGroup(match) : null;
 }
 
-export function trackedGroupCollapseKeys(
+export type TrackedRemovalLanding = {
+    focusKey: string;
+    claimSlot: number | null;
+    claimBack: boolean;
+};
+
+export function trackedRemovalLanding(
     trackedAchievements: AchievementRow[],
     notesByAchievementId: TrackedNotes,
-    language: LanguageCode
-): string[] {
-    return visualTrackedGroups(trackedAchievements, notesByAchievementId, language)
-        .map(collapseKeyForGroup);
+    language: LanguageCode,
+    collapsedKeys: ReadonlySet<string>,
+    removedAchievementId: number
+): TrackedRemovalLanding {
+    const visualOrder = flattenTrackedVisualOrder(
+        trackedAchievements,
+        notesByAchievementId,
+        language,
+        collapsedKeys
+    );
+    const removedIndex = visualOrder.findIndex((row) => row.id === removedAchievementId);
+    const remaining = visualOrder.filter((row) => row.id !== removedAchievementId);
+
+    if (remaining.length <= 0) {
+        return { focusKey: "tracked:back", claimSlot: null, claimBack: true };
+    }
+
+    const safeIndex = removedIndex >= 0 ? Math.min(removedIndex, remaining.length - 1) : 0;
+    const removedSlot = trackedRowGroupSlot(
+        trackedAchievements,
+        notesByAchievementId,
+        removedAchievementId
+    );
+    const removedGroupKey = trackedCollapseKeyForAchievement(
+        trackedAchievements,
+        notesByAchievementId,
+        removedAchievementId
+    );
+
+    const wouldLeaveTheGroup = safeIndex > 0
+        && removedSlot !== null
+        && removedSlot.groupSize > 1
+        && remaining[safeIndex] !== undefined
+        && trackedCollapseKeyForAchievement(
+            trackedAchievements,
+            notesByAchievementId,
+            remaining[safeIndex].id
+        ) !== removedGroupKey;
+    const landingIndex = wouldLeaveTheGroup ? safeIndex - 1 : safeIndex;
+
+    return {
+        focusKey: `achievement:${remaining[landingIndex].id}`,
+        claimSlot: removedSlot !== null && removedSlot.indexInGroup === removedSlot.groupSize - 1
+            ? landingIndex
+            : null,
+        claimBack: false
+    };
 }
 
 export function trackedRowGroupSlot(

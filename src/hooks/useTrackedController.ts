@@ -38,12 +38,9 @@ import { landOn, liveOrder, orderAfterGroupMove, stepTo } from "../utils/reorder
 const ORDER_WRITE_SETTLE_MS = 250;
 import { openExternalUrl, raAchievementUrl } from "../utils/navigation";
 import {
-    flattenTrackedVisualOrder,
     groupIdsForTrackedTarget,
-    TRACKED_UNTAGGED_COLLAPSE_KEY,
-    trackedCollapseKeyForAchievement,
-    trackedGroupCollapseKeys,
-    trackedRowGroupSlot
+    trackedRemovalLanding,
+    TRACKED_UNTAGGED_COLLAPSE_KEY
 } from "../components/tracked/TrackedListBody";
 import { useFocusClaim } from "./useFocusClaim";
 
@@ -381,73 +378,30 @@ export function useTrackedController({
             : previous));
     }, [applyCollapsedTags]);
 
+    const claimBackButton = useCallback(() => {
+        setBackClaimToken((token) => token + 1);
+    }, []);
+
     const restoreFocusAfterTrackedRemoval = useCallback(
         (removedAchievementId: number, currentTrackedAchievements: AchievementRow[]) => {
-            const visualOrder = flattenTrackedVisualOrder(
+            const landing = trackedRemovalLanding(
                 currentTrackedAchievements,
                 notesByAchievementId,
                 language,
-                collapsedTagSet
-            );
-            const removedIndex = visualOrder.findIndex(
-                (item: AchievementRow) => item.id === removedAchievementId
-            );
-            const remainingTrackedAchievements = visualOrder.filter(
-                (item: AchievementRow) => item.id !== removedAchievementId
+                collapsedTagSet,
+                removedAchievementId
             );
 
-            if (remainingTrackedAchievements.length <= 0) {
-                const survivors = currentTrackedAchievements.filter(
-                    (item: AchievementRow) => item.id !== removedAchievementId
-                );
-                const groupKeys = trackedGroupCollapseKeys(survivors, notesByAchievementId, language);
-                const removedKey = trackedCollapseKeyForAchievement(
-                    currentTrackedAchievements,
-                    notesByAchievementId,
-                    removedAchievementId
-                );
-                const landing = removedKey !== null && groupKeys.includes(removedKey)
-                    ? removedKey
-                    : groupKeys[0];
-                if (landing !== undefined) {
-                    restorePendingFocusNextTick(`tracked:group:${landing}`);
-                    return;
-                }
+            if (landing.claimBack) {
                 setBackClaimToken((token) => token + 1);
-                restorePendingFocusNextTick("tracked:back");
+                restorePendingFocusNextTick(landing.focusKey);
                 return;
             }
 
-            const safeIndex = removedIndex >= 0 ? Math.min(removedIndex, remainingTrackedAchievements.length - 1) : 0;
+            restorePendingFocusNextTick(landing.focusKey);
 
-            const removedSlot = trackedRowGroupSlot(
-                currentTrackedAchievements,
-                notesByAchievementId,
-                removedAchievementId
-            );
-            const removedGroupKey = trackedCollapseKeyForAchievement(
-                currentTrackedAchievements,
-                notesByAchievementId,
-                removedAchievementId
-            );
-            const wouldLeaveTheGroup = safeIndex > 0
-                && removedSlot !== null
-                && removedSlot.groupSize > 1
-                && remainingTrackedAchievements[safeIndex] !== undefined
-                && trackedCollapseKeyForAchievement(
-                    currentTrackedAchievements,
-                    notesByAchievementId,
-                    remainingTrackedAchievements[safeIndex].id
-                ) !== removedGroupKey;
-            const landingIndex = wouldLeaveTheGroup ? safeIndex - 1 : safeIndex;
-
-            const nextFocusedAchievement = remainingTrackedAchievements[landingIndex];
-            if (nextFocusedAchievement) {
-                restorePendingFocusNextTick(`achievement:${nextFocusedAchievement.id}`);
-
-                if (removedSlot && removedSlot.indexInGroup === removedSlot.groupSize - 1) {
-                    rowClaim.claimSlot(landingIndex);
-                }
+            if (landing.claimSlot !== null) {
+                rowClaim.claimSlot(landing.claimSlot);
             }
         },
         [notesByAchievementId, collapsedTagSet, language, restorePendingFocusNextTick, rowClaim.claimSlot]
@@ -1062,6 +1016,7 @@ export function useTrackedController({
             onTrackedEditNote,
             onReorderSwap,
             onToggleCollapsedTag,
+            claimBackButton,
             onSaveTrackedNote,
             onTrackedSortChange,
             onClearTracked,

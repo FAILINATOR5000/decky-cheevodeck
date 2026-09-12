@@ -22,7 +22,7 @@ import {
     TrackedListBody
 } from "../components/tracked/TrackedListBody";
 import { RestoreCurtain } from "../components/ui/RestoreCurtain";
-import { useFocusClaim, type FocusClaimController } from "../hooks/useFocusClaim";
+import type { FocusClaimController } from "../hooks/useFocusClaim";
 import type { LanguageCode } from "../locales";
 import type {
     AchievementRow,
@@ -337,7 +337,7 @@ function TrackedPage(props: TrackedPageProps) {
         }
     }, [activeTrackedTab, payload?.gameId, payload?.title, trackedSelectedGameId, drillIn.payload?.title]);
 
-    const drillInRowClaim = useFocusClaim();
+    const drillInRowClaim = drillIn.rowClaim;
 
     const restoringDrillIn = activeTrackedTab === "otherGames";
     const restoreClaim = restoringDrillIn ? drillInRowClaim : rowClaim;

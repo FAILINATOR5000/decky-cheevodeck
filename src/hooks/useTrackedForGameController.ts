@@ -36,17 +36,22 @@ import type {
     TrackedNotes,
     TrackedNotesColor
 } from "../types";
+import type { LanguageCode } from "../locales";
 import { earned, metricSortComparator } from "../utils/achievements";
 import { logError } from "../utils/errors";
 import { landOn, liveOrder, orderAfterGroupMove, stepTo } from "../utils/reorderOrder";
 
 const ORDER_WRITE_SETTLE_MS = 250;
 import { openExternalUrl, raAchievementUrl } from "../utils/navigation";
-import { groupIdsForTrackedTarget } from "../components/tracked/TrackedListBody";
+import { groupIdsForTrackedTarget, trackedRemovalLanding } from "../components/tracked/TrackedListBody";
+import { useFocusClaim } from "./useFocusClaim";
 
 type UseTrackedForGameControllerArgs = {
     selectedGameId: number | null;
     mountedRef: RefObject<boolean>;
+    language: LanguageCode;
+    setPendingFocusKey: (key: string | null) => void;
+    claimBackButton: () => void;
     showAButtonModeTracked: boolean;
     mouseKeyboardMode: boolean;
     trackedAchievementAction: TrackedAchievementAction;
@@ -69,6 +74,9 @@ type UseTrackedForGameControllerArgs = {
 export function useTrackedForGameController({
     selectedGameId,
     mountedRef,
+    language,
+    setPendingFocusKey,
+    claimBackButton,
     showAButtonModeTracked,
     mouseKeyboardMode,
     trackedAchievementAction,
@@ -103,6 +111,43 @@ export function useTrackedForGameController({
     const payloadRef = useRef(payload);
     payloadRef.current = payload;
     const [reorderViaSwap, setReorderViaSwap] = useState(false);
+
+    const rowClaim = useFocusClaim();
+    const collapsedTagSet = useMemo(() => new Set(collapsedTags), [collapsedTags]);
+
+    const restorePendingFocusNextTick = useCallback((key: string) => {
+        if (mountedRef.current) {
+            window.setTimeout(() => {
+                if (!mountedRef.current) {
+                    return;
+                }
+                setPendingFocusKey(key);
+            }, 0);
+        }
+    }, [mountedRef, setPendingFocusKey]);
+
+    const restoreFocusAfterRemoval = useCallback(
+        (removedAchievementId: number, currentTrackedAchievements: AchievementRow[]) => {
+            const landing = trackedRemovalLanding(
+                currentTrackedAchievements,
+                notesByAchievementId,
+                language,
+                collapsedTagSet,
+                removedAchievementId
+            );
+            if (landing.claimBack) {
+                claimBackButton();
+                restorePendingFocusNextTick(landing.focusKey);
+                return;
+            }
+            restorePendingFocusNextTick(landing.focusKey);
+            if (landing.claimSlot !== null) {
+                rowClaim.claimSlot(landing.claimSlot);
+            }
+        },
+        [notesByAchievementId, collapsedTagSet, language, claimBackButton,
+            restorePendingFocusNextTick, rowClaim.claimSlot]
+    );
 
     useEffect(() => {
         if (selectedGameId === null) {
@@ -556,6 +601,7 @@ export function useTrackedForGameController({
                 if (result.sort) {
                     setSort(result.sort);
                 }
+                restoreFocusAfterRemoval(achievement.id, trackedAchievements);
             } catch (e: any) {
                 logError("onUntrack (drill-in)", e);
                 if (!mountedRef.current) {
@@ -564,7 +610,7 @@ export function useTrackedForGameController({
                 setError(String(e?.message || e || "Couldn't update tracked achievements."));
             }
         },
-        [mountedRef, payload, selectedGameId, setError]
+        [mountedRef, payload, selectedGameId, setError, trackedAchievements, restoreFocusAfterRemoval]
     );
 
     const onAchievementClick = useCallback(
@@ -753,7 +799,8 @@ export function useTrackedForGameController({
             sort,
             collapsedTags,
             reorderTargetId,
-            reorderViaSwap
+            reorderViaSwap,
+            rowClaim
         },
         actions: {
             onAchievementClick,

@@ -1,3 +1,4 @@
+import type { FocusClaimController } from "./hooks/useFocusClaim";
 import type { LanguageCode } from "./locales";
 
 type RaPayloadResponse<T> = {
@@ -1869,6 +1870,7 @@ export type TrackedDrillInState = {
     sort: TrackedAchievementSort;
     collapsedTags: string[];
     reorderTargetId: number | null;
+    rowClaim: FocusClaimController;
     reorderViaSwap?: boolean;
     onAchievementClick: (
         achievement: AchievementRow,

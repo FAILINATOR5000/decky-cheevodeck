@@ -1682,6 +1682,7 @@ function AchievementsRoot() {
             onTrackedEditNote,
             onReorderSwap: onTrackedReorderPick,
             onToggleCollapsedTag: onTrackedToggleCollapsedTag,
+            claimBackButton: claimTrackedBackButton,
             onTrackedSortChange,
             onClearTracked,
             onClearTrackedForGame,
@@ -1697,6 +1698,9 @@ function AchievementsRoot() {
     const trackedForGameController = useTrackedForGameController({
         selectedGameId: trackedSelectedGameId,
         mountedRef,
+        language,
+        setPendingFocusKey,
+        claimBackButton: claimTrackedBackButton,
         showAButtonModeTracked,
         mouseKeyboardMode,
         trackedAchievementAction,
