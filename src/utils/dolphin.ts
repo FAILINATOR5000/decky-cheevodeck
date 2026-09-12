@@ -271,3 +271,38 @@ export function groupMappingsByTag(mappings: DolphinMapping[], language: Languag
 
     return groups.filter((group) => group.mappings.length > 0 || group.tag !== null);
 }
+
+
+type DeleteFocusPlan =
+    | { kind: "none" }
+    | { kind: "claim"; slotIndex: number }
+    | { kind: "back" };
+
+export function dolphinDeleteFocusPlan(
+    groups: MappingGroup[],
+    visualOrder: DolphinMapping[],
+    mappingId: string
+): DeleteFocusPlan {
+    const removedIndex = visualOrder.findIndex((mapping) => mapping.id === mappingId);
+    const group = groups.find((entry) => entry.mappings.some((mapping) => mapping.id === mappingId));
+    if (group === undefined || removedIndex < 0) {
+        return { kind: "none" };
+    }
+
+    const remaining = visualOrder.filter((mapping) => mapping.id !== mappingId);
+    if (remaining.length === 0) {
+        return { kind: "back" };
+    }
+    if (group.mappings[group.mappings.length - 1]?.id !== mappingId) {
+        return { kind: "none" };
+    }
+
+    const safeIndex = Math.min(removedIndex, remaining.length - 1);
+    const heirGroup = groups.find(
+        (entry) => entry.mappings.some((mapping) => mapping.id === remaining[safeIndex].id)
+    );
+    const wouldLeaveTheGroup = safeIndex > 0
+        && group.mappings.length > 1
+        && heirGroup?.key !== group.key;
+    return { kind: "claim", slotIndex: wouldLeaveTheGroup ? safeIndex - 1 : safeIndex };
+}

@@ -29,6 +29,7 @@ import type {
 } from "../types";
 import { parseNoteTag } from "../utils/achievements";
 import {
+    dolphinDeleteFocusPlan,
     dolphinMapperModeLabel,
     dolphinSystemFilterLabel,
     groupMappingsByTag,
@@ -51,11 +52,6 @@ import { DolphinMappingModal } from "../components/mapping/DolphinMappingModal";
 import { logFocusDebug, markNextValidationSkipped } from "../api";
 import { showManagedModal } from "../utils/modalRegistry";
 import { armDolphinFocusReturn } from "../utils/dolphinFocusReturn";
-
-type DeleteFocusPlan =
-    | { kind: "none" }
-    | { kind: "claim"; slotIndex: number }
-    | { kind: "back" };
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
@@ -383,21 +379,6 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
         }
     }
 
-    function deleteFocusPlan(mappingId: string): DeleteFocusPlan {
-        const removedIndex = visualOrder.findIndex((mapping) => mapping.id === mappingId);
-        const group = groups.find((entry) => entry.mappings.some((mapping) => mapping.id === mappingId));
-        if (group === undefined || removedIndex < 0) {
-            return { kind: "none" };
-        }
-        if (group.mappings.length <= 1) {
-            return { kind: "back" };
-        }
-        if (group.mappings[group.mappings.length - 1]?.id !== mappingId) {
-            return { kind: "none" };
-        }
-        return { kind: "claim", slotIndex: removedIndex - 1 };
-    }
-
     function handleDeletePress(mapping: DolphinMapping) {
         clearApplyBlocked();
         if (pendingDeleteId !== mapping.id) {
@@ -409,7 +390,7 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
     }
 
     async function commitDelete(mappingId: string) {
-        const plan = deleteFocusPlan(mappingId);
+        const plan = dolphinDeleteFocusPlan(groups, visualOrder, mappingId);
         const result = await deleteMapping(mappingId);
         if (result && !result.ok) {
             return;
