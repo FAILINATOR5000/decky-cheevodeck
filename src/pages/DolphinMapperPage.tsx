@@ -1,4 +1,4 @@
-import { DialogButton, PanelSection, PanelSectionRow } from "@decky/ui";
+import { PanelSection, PanelSectionRow } from "@decky/ui";
 import React, { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactElement, type ReactNode } from "react";
 import { BackButton } from "../components/ui/BackButton";
 import { ButtonHints } from "../components/ui/ButtonHints";
@@ -13,6 +13,7 @@ import { InfoText } from "../components/ui/InfoText";
 import { TextViewerModal } from "../components/ui/TextViewerModal";
 import { ErrorText } from "../components/ui/ErrorText";
 import { CollapseChevron } from "../components/ui/CollapseChevron";
+import { CollapseToggleButton } from "../components/ui/CollapseToggleButton";
 import { ExternalLink } from "../components/ui/ExternalLink";
 import { RestoreCurtain } from "../components/ui/RestoreCurtain";
 import { t, type LanguageCode } from "../locales";
@@ -765,31 +766,18 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
                     const collapsed = collapsedSet.has(group.key);
                     return (
                         <div key={group.key}>
-                            <SectionTitle label={group.header} dimmed={belowDisabled} />
-                            <PanelSectionRow>
-                                <div
-                                    data-focus-key={`dmapgroup:${group.key}`}
-                                    style={{ display: "flex", width: "100%", marginTop: "4px" }}
-                                >
-                                    <DialogButton
-                                        onClick={() => toggleGroupCollapsed(group.key)}
-                                        disabled={belowDisabled}
-                                        style={{
-                                            minWidth: 0,
-                                            minHeight: 0,
-                                            width: "100%",
-                                            height: "16px",
-                                            padding: "0",
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            ...(belowDisabled ? { opacity: 0.6 } : {})
-                                        }}
-                                    >
-                                        <CollapseChevron collapsed={collapsed} />
-                                    </DialogButton>
-                                </div>
-                            </PanelSectionRow>
+                            <SectionTitle
+                                label={group.header}
+                                dimmed={belowDisabled}
+                                action={
+                                    <CollapseToggleButton
+                                        collapsed={collapsed}
+                                        focusKey={`dolphinMapper:group:${group.key}`}
+                                        disabled={belowDisabled || reorderTargetId !== null}
+                                        onToggle={() => toggleGroupCollapsed(group.key)}
+                                    />
+                                }
+                            />
                             {!collapsed && group.mappings.map((mapping, index) => renderCard(
                                 mapping,
                                 index,

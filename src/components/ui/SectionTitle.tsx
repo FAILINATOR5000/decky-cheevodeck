@@ -1,9 +1,11 @@
 import { PanelSectionRow } from "@decky/ui";
+import type { ReactNode } from "react";
 import { getCurrentTitleScale, scaleMultiplier } from "../../utils/scale";
 
 export type SectionTitleProps = {
     label: string;
     dimmed?: boolean;
+    action?: ReactNode;
 };
 
 export function SectionTitle(props: SectionTitleProps) {
@@ -11,14 +13,27 @@ export function SectionTitle(props: SectionTitleProps) {
         <PanelSectionRow>
             <div
                 style={{
-                    fontSize: `${scaleMultiplier(getCurrentTitleScale())}em`,
-                    fontWeight: 700,
-                    textAlign: "center",
-                    padding: "8px 0 4px",
-                    opacity: props.dimmed ? 0.6 : 1
+                    display: "flex",
+                    width: "100%",
+                    alignItems: "center",
+                    gap: "8px",
+                    padding: "8px 0 4px"
                 }}
             >
-                {props.label}
+                <div
+                    style={{
+                        flex: 1,
+                        minWidth: 0,
+                        overflowWrap: "break-word",
+                        fontSize: `${scaleMultiplier(getCurrentTitleScale())}em`,
+                        fontWeight: 700,
+                        textAlign: "center",
+                        opacity: props.dimmed ? 0.6 : 1
+                    }}
+                >
+                    {props.label}
+                </div>
+                {props.action}
             </div>
         </PanelSectionRow>
     );
