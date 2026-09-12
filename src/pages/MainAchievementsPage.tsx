@@ -450,6 +450,8 @@ const QUICK_ACTIONS: QuickAction[] = [
     { id: "leaderboards", Icon: LeaderboardIcon, labelKey: "Leaderboards", focusKey: "quick:tab:leaderboards" }
 ];
 
+const TAB_STRIP_END_RADIUS = "6px";
+
 const MAIN_TABS: { value: MainAchievementsTab; focusKey: string; icon: SubTabIconKind }[] = [
     { value: "achievements", focusKey: "main:tab:achievements", icon: "trophy" },
     { value: "comments", focusKey: "main:tab:comments", icon: "comment" },
@@ -2524,8 +2526,10 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                 gap: "1px"
                             }}
                         >
-                            {MAIN_TABS.map((tab) => {
+                            {MAIN_TABS.map((tab, index) => {
                                 const selected = mainTab === tab.value;
+                                const startRadius = index === 0 ? TAB_STRIP_END_RADIUS : 0;
+                                const endRadius = index === MAIN_TABS.length - 1 ? TAB_STRIP_END_RADIUS : 0;
                                 return (
                                     <div
                                         key={tab.value}
@@ -2533,6 +2537,8 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                         style={{
                                             display: "flex",
                                             flex: 1,
+                                            borderBottomLeftRadius: startRadius,
+                                            borderBottomRightRadius: endRadius,
                                             borderBottom: selected
                                                 ? "2px solid #1a9fff"
                                                 : "2px solid rgba(255, 255, 255, 0.14)"
@@ -2553,7 +2559,10 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                                 display: "flex",
                                                 alignItems: "center",
                                                 justifyContent: "center",
-                                                borderRadius: 0,
+                                                borderTopLeftRadius: startRadius,
+                                                borderBottomLeftRadius: startRadius,
+                                                borderTopRightRadius: endRadius,
+                                                borderBottomRightRadius: endRadius,
                                                 opacity: selected ? 1 : 0.6
                                             }}
                                         >
