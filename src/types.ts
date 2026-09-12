@@ -925,6 +925,8 @@ export type SettingsResponse = {
     trackedColor: TrackedColor;
     mainAchievementFilter: MainAchievementFilter;
     mainAchievementSort: AchievementSort;
+    gameOverviewAchievementFilter: MainAchievementFilter;
+    gameOverviewAchievementSort: AchievementSort;
     mainAchievementAction: MainAchievementAction;
     trackedAchievementAction: TrackedAchievementAction;
     dolphinMapperMode: DolphinMapperMode;

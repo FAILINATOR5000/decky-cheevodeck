@@ -129,6 +129,8 @@ export function useSettingsController({
     const [trackedColor, setTrackedColor] = useState<TrackedColor>("default");
     const [mainAchievementFilter, setMainAchievementFilter] = useState<MainAchievementFilter>("all");
     const [mainAchievementSort, setMainAchievementSort] = useState<AchievementSort>("upNext");
+    const [gameOverviewAchievementFilter, setGameOverviewAchievementFilter] = useState<MainAchievementFilter>("all");
+    const [gameOverviewAchievementSort, setGameOverviewAchievementSort] = useState<AchievementSort>("absolute");
     const [mainAchievementAction, setMainAchievementAction] = useState<MainAchievementAction>("track");
     const [trackedAchievementAction, setTrackedAchievementAction] = useState<TrackedAchievementAction>("untrack");
     const [dolphinMapperMode, setDolphinMapperMode] = useState<DolphinMapperMode>("map");
@@ -397,6 +399,8 @@ export function useSettingsController({
         setTrackedColor(source.trackedColor);
         setMainAchievementFilter(source.mainAchievementFilter);
         setMainAchievementSort(source.mainAchievementSort);
+        setGameOverviewAchievementFilter(source.gameOverviewAchievementFilter);
+        setGameOverviewAchievementSort(source.gameOverviewAchievementSort);
         setMainAchievementAction(source.mainAchievementAction);
         setTrackedAchievementAction(source.trackedAchievementAction);
         setDolphinMapperMode(source.dolphinMapperMode);
@@ -652,6 +656,8 @@ export function useSettingsController({
         trackedColor,
         mainAchievementFilter,
         mainAchievementSort,
+        gameOverviewAchievementFilter,
+        gameOverviewAchievementSort,
         mainAchievementAction,
         trackedAchievementAction,
         dolphinMapperMode,
@@ -875,6 +881,8 @@ export function useSettingsController({
         setTrackedColor,
         setMainAchievementFilter,
         setMainAchievementSort,
+        setGameOverviewAchievementFilter,
+        setGameOverviewAchievementSort,
         setMainAchievementAction,
         setTrackedAchievementAction,
         setDolphinMapperMode,

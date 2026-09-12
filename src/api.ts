@@ -311,6 +311,14 @@ export const saveMainAchievementSort = callable<
     [AchievementSort],
     { ok: boolean; mainAchievementSort: AchievementSort }
 >("save_main_achievement_sort");
+export const saveGameOverviewAchievementFilter = callable<
+    [MainAchievementFilter],
+    { ok: boolean; gameOverviewAchievementFilter: MainAchievementFilter }
+>("save_game_overview_achievement_filter");
+export const saveGameOverviewAchievementSort = callable<
+    [AchievementSort],
+    { ok: boolean; gameOverviewAchievementSort: AchievementSort }
+>("save_game_overview_achievement_sort");
 export const saveFriendAchievementFilter = callable<
     [FriendAchievementFilter],
     { ok: boolean; friendAchievementFilter: FriendAchievementFilter }

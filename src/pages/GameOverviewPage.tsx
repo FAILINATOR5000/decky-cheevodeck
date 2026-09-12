@@ -236,6 +236,8 @@ type GameOverviewPageProps = {
     commentsError: string | null;
     commentsHasMore: boolean;
     commentsSort: CommentsSort;
+    achievementFilter: MainAchievementFilter;
+    achievementSort: AchievementSort;
     commentsLoaded: boolean;
     commentsCardClaim?: {
         slotIndex: number;
@@ -258,6 +260,8 @@ type GameOverviewPageProps = {
     hashesDownloadingMd5: string | null;
 
     onChangeCommentsSort: (next: CommentsSort) => void;
+    onChangeAchievementFilter: (next: MainAchievementFilter) => void;
+    onChangeAchievementSort: (next: AchievementSort) => void;
     onLoadMoreComments: () => void | Promise<void>;
     onDownloadHashPatch: (row: GameHashRow) => void;
     onCommentClick: (comment: AotwComment | GameComment) => void | Promise<void>;
@@ -300,6 +304,8 @@ function GameOverviewPage(props: GameOverviewPageProps) {
         commentsError,
         commentsHasMore,
         commentsSort,
+        achievementFilter,
+        achievementSort,
         commentsLoaded,
         commentsCardClaim,
         onSpendCommentsCardClaim,
@@ -314,6 +320,8 @@ function GameOverviewPage(props: GameOverviewPageProps) {
         hashesError,
         hashesDownloadingMd5,
         onChangeCommentsSort,
+        onChangeAchievementFilter,
+        onChangeAchievementSort,
         onLoadMoreComments,
         onDownloadHashPatch,
         onCommentClick,
@@ -376,9 +384,6 @@ function GameOverviewPage(props: GameOverviewPageProps) {
     };
 
     const commentsEmpty = commentsLoaded && comments.length === 0 && !commentsLoading && !commentsError;
-
-    const [localSort, setLocalSort] = useState<AchievementSort>("absolute");
-    const [localFilter, setLocalFilter] = useState<MainAchievementFilter>("all");
 
     const [boxArtDataUri, setBoxArtDataUri] = useState<string | null>(() =>
         getCachedGameImageDataUri(gameId, "boxart")
@@ -502,11 +507,11 @@ function GameOverviewPage(props: GameOverviewPageProps) {
     }
 
     function handleSortCycle() {
-        setLocalSort(nextAchievementSort(localSort));
+        onChangeAchievementSort(nextAchievementSort(achievementSort));
     }
 
     function handleFilterCycle() {
-        setLocalFilter(nextMainAchievementFilter(localFilter));
+        onChangeAchievementFilter(nextMainAchievementFilter(achievementFilter));
     }
 
     function handleCommentsSortCycle() {
@@ -993,14 +998,14 @@ function GameOverviewPage(props: GameOverviewPageProps) {
                             focusKey="gameoverview:achievements:sort"
                             onClick={handleSortCycle}
                             label={t(language, "Sort")}
-                            value={achievementSortLabel(localSort, language)}
+                            value={achievementSortLabel(achievementSort, language)}
                         />
                         <LabeledOptionRow
                             outerStyle={buttonOuterStyle}
                             focusKey="gameoverview:achievements:filter"
                             onClick={handleFilterCycle}
                             label={t(language, "Filter")}
-                            value={mainAchievementFilterLabel(localFilter, language)}
+                            value={mainAchievementFilterLabel(achievementFilter, language)}
                         />
                     </PanelSection>
                     {loadedPayload && (
@@ -1016,8 +1021,8 @@ function GameOverviewPage(props: GameOverviewPageProps) {
                             showAll={true}
                             mode="overview"
                             trackedIds={[]}
-                            mainFilter={localFilter}
-                            mainSort={localSort}
+                            mainFilter={achievementFilter}
+                            mainSort={achievementSort}
                             showRetroPoints={showRetroPoints}
                             onAchievementClick={onAchievementClick}
                         />

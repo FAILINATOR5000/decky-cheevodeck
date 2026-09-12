@@ -407,6 +407,8 @@ _KNOBS = (
     Knob("trackedAchievementSort", default="upNext", normalize=True),
     Knob("friendAchievementFilter", default="all", normalize=True),
     Knob("friendAchievementSort", default="upNext", normalize=True),
+    Knob("gameOverviewAchievementFilter", default="all", normalize=True),
+    Knob("gameOverviewAchievementSort", default="absolute", normalize=True),
     Knob("friendShowAllAchievements", default=True, normalize=True),
     Knob("language", from_attr="_default_language", reset=False, normalize=True),
     Knob("friendRefreshDelayMs", default=1000, normalize=True),
@@ -1416,6 +1418,18 @@ class SettingsStore:
         cfg = self._update_config("friendAchievementSort", value)
 
         return self.get_friend_achievement_sort(cfg)
+
+    def update_game_overview_achievement_filter(self, value: str) -> str:
+        value = str(value or "all").strip().lower()
+        cfg = self._update_config("gameOverviewAchievementFilter", value)
+
+        return self.get_game_overview_achievement_filter(cfg)
+
+    def update_game_overview_achievement_sort(self, value: str) -> str:
+        value = str(value or "absolute").strip()
+        cfg = self._update_config("gameOverviewAchievementSort", value)
+
+        return self.get_game_overview_achievement_sort(cfg)
 
     def update_friend_show_all_achievements(self, value: bool) -> bool:
         cfg = self._update_config("friendShowAllAchievements", bool(value))
@@ -3693,6 +3707,14 @@ class SettingsStore:
     def get_friend_achievement_sort(self, cfg: dict) -> str:
         value = str(cfg.get("friendAchievementSort", "upNext") or "upNext").strip()
         return value if value in _ALLOWED_ACHIEVEMENT_SORTS else "upNext"
+
+    def get_game_overview_achievement_filter(self, cfg: dict) -> str:
+        value = str(cfg.get("gameOverviewAchievementFilter", "all") or "all").strip().lower()
+        return value if value in {"all", "locked", "unlocked-hardcore", "unlocked-softcore", "missable"} else "all"
+
+    def get_game_overview_achievement_sort(self, cfg: dict) -> str:
+        value = str(cfg.get("gameOverviewAchievementSort", "absolute") or "absolute").strip()
+        return value if value in _ALLOWED_ACHIEVEMENT_SORTS else "absolute"
 
     def get_friend_show_all_achievements(self, cfg: dict) -> bool:
         return bool(cfg.get("friendShowAllAchievements", True))

@@ -44,6 +44,8 @@ import {
     saveDolphinBalanceBoard,
     updateCheevoCheckReferenceData,
     saveFriendAchievementFilter,
+    saveGameOverviewAchievementFilter,
+    saveGameOverviewAchievementSort,
     saveFriendAchievementSort,
     saveFriendShowAllAchievements,
     savePlayersNearYouTapMode,
@@ -160,6 +162,7 @@ import type {
     CheevoCheckListKind,
     FollowedRankingMetric,
     FriendAchievementFilter,
+    MainAchievementFilter,
     FriendGameSource,
     FriendProfileSubView,
     GuidesSubView,
@@ -578,6 +581,8 @@ function AchievementsRoot() {
         trackedAchievementSort,
         friendAchievementFilter,
         friendAchievementSort,
+        gameOverviewAchievementFilter,
+        gameOverviewAchievementSort,
         friendShowAllAchievements,
         trackedSetsAutoCheck,
         trackedSetsSelectorSort,
@@ -669,6 +674,8 @@ function AchievementsRoot() {
         setTrackedSetAButtonMode,
         setFriendAchievementFilter,
         setFriendAchievementSort,
+        setGameOverviewAchievementFilter,
+        setGameOverviewAchievementSort,
         setFriendShowAllAchievements,
         setTrackedSetsSelectorSort,
         setTrackedSetsSelectorFilter,
@@ -1534,6 +1541,24 @@ function AchievementsRoot() {
     }, [settingsLoaded, pinLatestGuides, payload?.gameId, view, pressQuickGuide]);
 
     // Row and modal handlers
+    const onGameOverviewAchievementFilterChange = (nextValue: MainAchievementFilter) =>
+        saveSettingWithRollback<MainAchievementFilter>({
+            nextValue,
+            previousValue: gameOverviewAchievementFilter,
+            applyValue: setGameOverviewAchievementFilter,
+            saveCall: saveGameOverviewAchievementFilter,
+            getSavedValue: (result, fallbackValue) => result.gameOverviewAchievementFilter ?? fallbackValue,
+        });
+
+    const onGameOverviewAchievementSortChange = (nextValue: AchievementSort) =>
+        saveSettingWithRollback<AchievementSort>({
+            nextValue,
+            previousValue: gameOverviewAchievementSort,
+            applyValue: setGameOverviewAchievementSort,
+            saveCall: saveGameOverviewAchievementSort,
+            getSavedValue: (result, fallbackValue) => result.gameOverviewAchievementSort ?? fallbackValue,
+        });
+
     const onFriendAchievementFilterChange = (nextValue: FriendAchievementFilter) =>
         saveSettingWithRollback<FriendAchievementFilter>({
             nextValue,
@@ -5649,6 +5674,10 @@ function AchievementsRoot() {
                                     restorePending={gameOverviewRestorePending}
                                     holdCommentsBody={gameOverviewHoldCommentsBody}
                                     panelOverlayVisible={panelOverlayVisible}
+                                    achievementFilter={gameOverviewAchievementFilter}
+                                    achievementSort={gameOverviewAchievementSort}
+                                    onChangeAchievementFilter={onGameOverviewAchievementFilterChange}
+                                    onChangeAchievementSort={onGameOverviewAchievementSortChange}
                                     onChangeCommentsSort={goActions.setCommentsSort}
                                     onLoadMoreComments={goActions.loadMoreComments}
                                     onDownloadHashPatch={goActions.downloadHashPatch}

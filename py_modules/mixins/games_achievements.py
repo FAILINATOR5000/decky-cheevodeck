@@ -46,6 +46,22 @@ class GamesAchievementsMixin(PluginContext):
             "mainAchievementSort": value,
         }
 
+    async def save_game_overview_achievement_filter(self, game_overview_achievement_filter: str):
+        value = self.settings_store.update_game_overview_achievement_filter(game_overview_achievement_filter)
+
+        return {
+            "ok": True,
+            "gameOverviewAchievementFilter": value,
+        }
+
+    async def save_game_overview_achievement_sort(self, game_overview_achievement_sort: str):
+        value = self.settings_store.update_game_overview_achievement_sort(game_overview_achievement_sort)
+
+        return {
+            "ok": True,
+            "gameOverviewAchievementSort": value,
+        }
+
     async def save_unlock_lookback_minutes(self, unlock_lookback_minutes: int):
         value = self.settings_store.update_unlock_lookback_minutes(unlock_lookback_minutes)
 
