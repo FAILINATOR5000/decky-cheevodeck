@@ -29,6 +29,8 @@ import {
     type NoteSection
 } from "../utils/noteSections";
 import { achievementUiMetrics, smallTextStyle, bodyTextStyle } from "../utils/style";
+import { BUTTON_OPTIONS } from "../utils/gamepadButtons";
+import { playOkSound } from "../utils/navSound";
 
 type GameNotesPageState = {
     view: ViewKey;
@@ -295,8 +297,6 @@ export function GameNotesPage(props: GameNotesPageProps) {
     cardFocusedRef.current = actions.onCardFocused;
     const cardFollowRef = useRef(handleReorderFollow);
     cardFollowRef.current = handleReorderFollow;
-    const cardNewNoteRef = useRef(actions.onAddNote);
-    cardNewNoteRef.current = actions.onAddNote;
     const cardReorderPickRef = useRef(handleCardReorderPick);
     cardReorderPickRef.current = handleCardReorderPick;
 
@@ -319,11 +319,6 @@ export function GameNotesPage(props: GameNotesPageProps) {
         onCardGamepadFocused: (noteId) => {
             cardFollowRef.current(noteId);
         },
-        onNewNote: gamepadCardActions
-            ? () => {
-                cardNewNoteRef.current();
-            }
-            : undefined,
         onReorderPick: gamepadCardActions && reorderAvailable
             ? (note) => {
                 cardReorderPickRef.current(note);
@@ -505,6 +500,14 @@ export function GameNotesPage(props: GameNotesPageProps) {
         void actions.onReorderMove(direction, sectionIds);
     }
 
+    function handlePageButtonDown(evt: { detail?: { button?: number } }) {
+        if (evt?.detail?.button !== BUTTON_OPTIONS || !gamepadCardActions) {
+            return;
+        }
+        playOkSound();
+        actions.onAddNote();
+    }
+
     function handleCardReorderPick(note: GameNote) {
         if (note.completedAt !== null) {
             return;
@@ -631,7 +634,7 @@ export function GameNotesPage(props: GameNotesPageProps) {
     const restoreSettled = restoreAbandoned
         || ((restoreClaim.claim?.token ?? 0) > 0 && !restoreClaim.claim?.armed);
     const page = (
-        <>
+        <Focusable onButtonDown={handlePageButtonDown}>
             <PanelSection
                 key={`game-notes:view:${focusScopeResetToken}`}
             >
@@ -754,12 +757,14 @@ export function GameNotesPage(props: GameNotesPageProps) {
                         </div>
                     </div>
                 </PanelSectionRow>
-                {gamepadCardActions && sections.length > 0 && (
+                {gamepadCardActions && (
                     <PanelSectionRow>
                         <ButtonHints
                             style={controllerGlyphStyle}
                             hints={[
-                                { button: "a", label: t(language, "gn_strip_edit") },
+                                ...(sections.length > 0
+                                    ? [{ button: "a" as const, label: t(language, "gn_strip_edit") }]
+                                    : []),
                                 { button: "y", label: t(language, "gn_new_note") },
                                 ...(reorderAvailable
                                     ? [{ button: "r1" as const, label: t(language, "Reorder") }]
@@ -782,7 +787,7 @@ export function GameNotesPage(props: GameNotesPageProps) {
                 )}
             </PanelSection>
             {renderBody()}
-        </>
+        </Focusable>
     );
 
     return (

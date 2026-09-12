@@ -4,10 +4,7 @@ import { FocusableItem } from "../ui/FocusableItem";
 import { gameNoteReminderLabel } from "../../utils/reminders";
 import { t, type LanguageCode } from "../../locales";
 import type { GameNote } from "../../types";
-import {
-    BUTTON_BUMPER_RIGHT,
-    BUTTON_OPTIONS
-} from "../../utils/gamepadButtons";
+import { BUTTON_BUMPER_RIGHT } from "../../utils/gamepadButtons";
 import { playOkSound } from "../../utils/navSound";
 import { noteBodyColor, parseNoteTag } from "../../utils/achievements";
 import { type AchievementUiMetrics, achievementGreen, warnAmber } from "../../utils/style";
@@ -41,7 +38,6 @@ export type NoteCardListProps = {
     onCardFocused: (noteId: string) => void;
     onCardGamepadFocused?: (noteId: string) => void;
     onFocusIndex: (index: number) => void;
-    onNewNote?: () => void;
     onReorderPick?: (note: GameNote) => void;
 };
 
@@ -74,12 +70,6 @@ export const NoteCard = React.memo(function NoteCard(props: NoteCardProps) {
 
     function handleButtonDown(evt: { detail?: { button?: number } }) {
         const button = evt?.detail?.button;
-
-        if (button === BUTTON_OPTIONS && list.onNewNote) {
-            playOkSound();
-            list.onNewNote();
-            return;
-        }
 
         if (button === BUTTON_BUMPER_RIGHT && list.onReorderPick) {
             playOkSound();
