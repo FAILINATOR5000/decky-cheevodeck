@@ -702,7 +702,9 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                                                 background: "#4ade80",
                                                 boxShadow: "0 0 0 1px rgba(0,0,0,0.4)",
                                                 animation: "da-online-dot-pulse 3.2s ease-in-out infinite",
-                                                verticalAlign: "middle"
+                                                verticalAlign: "middle",
+                                                position: "relative",
+                                                top: "-0.045em"
                                             }}
                                         />
                                     )}
