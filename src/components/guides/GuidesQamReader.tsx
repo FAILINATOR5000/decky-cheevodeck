@@ -323,11 +323,11 @@ export function GuidesQamReader(props: GuidesQamReaderProps) {
                 hints={[
                     { button: "a" as const, label: t(lang, "legend_expand") },
                     { button: "y" as const, label: t(lang, "Bookmark") },
-                    { button: "x" as const, label: t(lang, "Exit Text") },
+                    { button: ["l2", "r2"] as const, label: t(lang, "legend_zoom") },
                     ...(wholeGuide
                         ? []
                         : [{ button: ["l1", "r1"] as const, label: t(lang, "legend_page") }]),
-                    { button: ["l2", "r2"] as const, label: t(lang, "legend_zoom") }
+                    { button: "x" as const, label: t(lang, "Exit Text") }
                 ]}
             />
         </PanelSectionRow>
