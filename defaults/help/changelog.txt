@@ -1,13 +1,60 @@
 CheevoDeck {{VERSION}}
 
-The folder chooser is the headline this time with a huge QOL update. CheevoDeck had been using Decky's chooser for <b>Cheevo Check</b>, <b>File Watcher</b>, patch downloads and update downloads for quite some time. I've written my own to replace it everywhere, which includes many user-friendly additions, such as better focus, prompt text support, and easily accessible buttons.
+This is the biggest one yet! And it's all quality of life improvements across the board. Phew, where do I even begin? The most notable improvements are traversal. Now when you edit something, such as tracked notes, when you come back from the edit, you now land right back on the thing you edited; no more starting at the top of the page regardless.
 
-<b>What's New</b>
+<b>Tracked Page</b>
 
-- A more user-friendly folder chooser has been swapped in.
+-Custom tagged categories now sort alphabetically.
+-Added the ability to expand and collapse tagged categories.
+-Editing notes now lands you right back on the note you were editing in the list instead of moving you to the top of the page.
+-Fixed an issue where reordering caused strange behaviors with the cursor.
 
-- The button prompts for comments, notifications, and a few other utilities that were hardcoded are now dynamic based on which controller you are using, and now show the proper glyph based on this. This now makes it consistent with the rest of CheevoDeck.
+<b>Game Notes Page</b>
 
-- The update notification now includes a select prompt for download/install options.
+-Custom tagged categories now sort alphabetically.
+-Added the ability to expand and collapse tagged categories.
+-Category headers now show how many notes there are.
+-Editing notes now lands you right back on the note you were editing in the list instead of moving you to the top of the page.
+-Adding a new note will now select it once added to the list.
+-Fixed an issue where reordering caused strange behaviors with the cursor.
+-Added a button shortcut in the note editor to instantly mark the note as complete.
+-Added a button shortcut in the note editor to delete the note; requires double-press.
 
-- Further made <b>Cheevo Check</b> more user-friendly.
+<b>Dolphin Mapper</b>
+
+-Modified the expand/collapse buttons to be consistent with that of Tracked and Notes pages to declutter the UI.
+-Editing mappings now puts you exactly where you left off before editing it; not at the top of the page.
+-Adding a new mapping will now select the new mapping once added to the list. No more warping to the top of the page.
+-Selecting the help button now lands you back on the help button when coming back from the help dialog.
+-Fixed an issue where reordering caused strange behaviors with the cursor.
+
+<b>File Watcher, SMB Shares, and Cheevo Check</b>
+
+-Improvements to traversal by remembering the last button when going from the page to a modal dialog.
+
+<b>Guide Page</b>
+
+-Moved the exit button prompt and glyph to last, above the viewer. Since it wraps to the second row, this ensures people can see it.
+
+<b>Main Menu</b>
+
+-Improved the aesthetics of the tabbed pane.
+-Modified the collapsible control for Players Near You to be consistent with the changes above.
+
+<b>Profile Page</b>
+
+-A green dot now shows next to your friend's status if they are online, based on if they were active within 15 minutes.
+
+<b>Game Info Page</b>
+
+-Achievement Sort and Filter toggles now persist and remember your last settings.
+
+<b>Miscellaneous Fixes</b>
+
+-Fixed lists that could stop growing while you scrolled.
+-Fixed a small window where if A was pressed quickly after exiting a modal to a page, it would trigger odd behavior.
+-Fixed issues where deleting a category's last mapping had undesired behavior.
+-Fixed UTC dating anomalies.
+-Fixed overly large button glyphs, specifically in notifications and comments.
+
+This should really enhance your achievement hunting experience. Have at it, fellow cheevo hunters!
