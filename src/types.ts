@@ -1153,6 +1153,8 @@ export type FriendGamePayload = {
     memberSince?: string | null;
     motto?: string | null;
     isOnline?: boolean | null;
+    presenceAt?: number | null;
+    lastUnlockAt?: number | null;
     payload: Payload | null;
     refreshedAt?: number | null;
 };

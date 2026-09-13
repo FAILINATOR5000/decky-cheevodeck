@@ -36,6 +36,67 @@ def _parse_ra_utc_timestamp(value):
     return int(parsed.replace(tzinfo=timezone.utc).timestamp())
 
 
+def _online_within_window(stamp, now):
+    """True when an epoch-seconds stamp sits inside the online window.
+
+    A stamp in the future reads as False rather than as very recent, so a
+    clock skew on either end cannot pin the dot on.
+    """
+    return stamp is not None and 0 <= (now - stamp) <= ONLINE_WINDOW_SECONDS
+
+
+def _stored_stamp(value):
+    """Read one of the payload's stored stamps back, or None if it is absent.
+
+    Zero counts as absent. A payload written before these stamps existed has
+    neither, and that has to stay distinguishable from a real epoch 0.
+    """
+    stamp = to_int(value, 0)
+    return stamp if stamp > 0 else None
+
+
+def _recomputed_online(entry, now):
+    """A copy of a cached friend-game payload with isOnline re-derived.
+
+    The stored flag froze at the moment of its fetch, so on a cache hit it can
+    claim someone is online well past the window. The stamps it was derived
+    from are absolute, so re-deriving needs no network.
+
+    Returns the entry untouched when it carries neither stamp, which is what a
+    payload written before they existed looks like: the old flag is left alone
+    rather than cleared on a guess.
+    """
+    presence_at = _stored_stamp(entry.get("presenceAt"))
+    unlock_at = _stored_stamp(entry.get("lastUnlockAt"))
+    if presence_at is None and unlock_at is None:
+        return entry
+    updated = dict(entry)
+    updated["isOnline"] = _online_within_window(presence_at, now) or _online_within_window(unlock_at, now)
+    return updated
+
+
+def _latest_unlock_at(payload):
+    """Newest unlock time in a game payload, as epoch seconds, or None.
+
+    Reads dateEarned and dateEarnedHardcore off every achievement and returns
+    the largest of them. Both are read because an achievement earned in softcore
+    and later in hardcore carries a different stamp in each, and the hardcore
+    one is the later of the two.
+
+    Returns None when the payload has nothing earned, which is not the same as
+    a zero.
+    """
+    latest = None
+    for achievement in (payload or {}).get("achievements") or []:
+        if not isinstance(achievement, dict):
+            continue
+        for key in ("dateEarned", "dateEarnedHardcore"):
+            stamp = _parse_ra_utc_timestamp(achievement.get(key))
+            if stamp is not None and (latest is None or stamp > latest):
+                latest = stamp
+    return latest
+
+
 class FriendsService:
     """Fetches, normalises, and caches friends list and friend-game data."""
 
@@ -319,7 +380,7 @@ class FriendsService:
             "refreshedAt": refreshed_at,
         }
 
-    def _build_friend_game_payload(self, friend_username, selected_game_id, recent_games, payload, rich_presence=None, status_text=None, profile_points=None, ulid=None, member_since=None, motto=None, is_online=False):
+    def _build_friend_game_payload(self, friend_username, selected_game_id, recent_games, payload, rich_presence=None, status_text=None, profile_points=None, ulid=None, member_since=None, motto=None, is_online=False, presence_at=None, last_unlock_at=None):
         selected_game_title = None
         for item in recent_games:
             if item.get("gameId") == selected_game_id:
@@ -344,6 +405,8 @@ class FriendsService:
             "memberSince": member_since or None,
             "motto": motto or None,
             "isOnline": bool(is_online),
+            "presenceAt": presence_at,
+            "lastUnlockAt": last_unlock_at,
             "payload": payload,
             "refreshedAt": int(time.time()),
         }
@@ -808,7 +871,7 @@ class FriendsService:
         cached_selected_id = norm_game_id(friend_cache.get("selectedGameId"))
         cached_refreshed_at = to_int(friend_cache.get("refreshedAt"), 0)
         if not force and friend_cache and cached_selected_id == selected_game_id and (now - cached_refreshed_at) < self._friend_game_cache_max_age_seconds:
-            return {"needsSettings": False, "payload": friend_cache, "changed": False}
+            return {"needsSettings": False, "payload": _recomputed_online(friend_cache, now), "changed": False}
 
         try:
             profile = self._fetch_profile_for_view(user, web_api_key)
@@ -820,8 +883,6 @@ class FriendsService:
             presence_at = _parse_ra_utc_timestamp(
                 profile.get("RichPresenceMsgDate", profile.get("richPresenceMsgDate"))
             )
-            is_online = presence_at is not None and 0 <= (now - presence_at) <= ONLINE_WINDOW_SECONDS
-
             profile_points = {
                 "points": to_int(profile.get("TotalPoints", profile.get("totalPoints", 0)), 0),
                 "pointsSoftcore": to_int(profile.get("TotalSoftcorePoints", profile.get("totalSoftcorePoints", 0)), 0),
@@ -831,19 +892,27 @@ class FriendsService:
             member_since = str(profile.get("MemberSince", profile.get("memberSince", "")) or "").strip()
             motto = str(profile.get("Motto", profile.get("motto", "")) or "").strip()
 
+            last_game_id = norm_game_id(profile.get("LastGameID", profile.get("lastGameId")))
             if selected_game_id is None:
-                selected_game_id = norm_game_id(profile.get("LastGameID", profile.get("lastGameId")))
+                selected_game_id = last_game_id
 
             recent_games_raw = self._ra.get_user_recently_played_games(user, web_api_key, count=self._recent_games_count)
             recent_games = self._normalize_recent_games(recent_games_raw)
 
             if not selected_game_id and recent_games:
                 selected_game_id = norm_game_id(recent_games[0].get("gameId"))
+            if not last_game_id and recent_games:
+                last_game_id = norm_game_id(recent_games[0].get("gameId"))
 
             payload = None
             if selected_game_id:
                 game = self._ra.get_game_info_and_user_progress(user, selected_game_id, web_api_key)
                 payload = self._current_game_service.normalize_game_payload(game, fallback_game_id=selected_game_id)
+
+            unlock_at = None
+            if payload is not None and last_game_id is not None and selected_game_id == last_game_id:
+                unlock_at = _latest_unlock_at(payload)
+            is_online = _online_within_window(presence_at, now) or _online_within_window(unlock_at, now)
 
             response_payload = self._build_friend_game_payload(
                 display_name,
@@ -857,6 +926,8 @@ class FriendsService:
                 member_since=member_since,
                 motto=motto,
                 is_online=is_online,
+                presence_at=presence_at,
+                last_unlock_at=unlock_at,
             )
 
             write_key = self._friend_game_key(profile_ulid, display_name)
