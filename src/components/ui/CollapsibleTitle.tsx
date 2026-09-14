@@ -5,13 +5,21 @@ export type CollapsibleTitleProps = {
     collapsed: boolean;
     focusKey: string;
     disabled?: boolean;
+    preserveCase?: boolean;
     onToggle: () => void;
 };
 
 export function CollapsibleTitle(props: CollapsibleTitleProps) {
     return (
         <div style={{ display: "flex", width: "100%", alignItems: "center", gap: "8px" }}>
-            <div style={{ flex: 1, minWidth: 0, overflowWrap: "break-word" }}>
+            <div
+                style={{
+                    flex: 1,
+                    minWidth: 0,
+                    overflowWrap: "break-word",
+                    textTransform: props.preserveCase ? "none" : "uppercase"
+                }}
+            >
                 {props.label}
             </div>
             <CollapseToggleButton

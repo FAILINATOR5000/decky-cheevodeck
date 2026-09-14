@@ -14,7 +14,7 @@ import type { LanguageCode } from "../../locales";
 import { t } from "../../locales";
 import { formatInteger } from "../../utils/format";
 import { formatUnlockDate } from "../../utils/achievements";
-import { achievementUiMetrics, smallTextStyle, achievementGreen, skyBlue } from "../../utils/style";
+import { achievementGreen, achievementUiMetrics, headerCase, skyBlue, smallTextStyle } from "../../utils/style";
 import { logError } from "../../utils/errors";
 
 export type AotwHeaderProps = {
@@ -193,7 +193,7 @@ export function AotwHeader(props: AotwHeaderProps) {
                                 lineHeight: metrics.pointsLineHeight,
                                 opacity: 0.85,
                                 fontWeight: 700,
-                                textTransform: "uppercase",
+                                textTransform: headerCase(),
                                 letterSpacing: "0.04em"
                             }}
                         >

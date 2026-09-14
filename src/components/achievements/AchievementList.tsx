@@ -30,7 +30,8 @@ import { logError } from "../../utils/errors";
 import { useWindowedList } from "../../hooks/useWindowedList";
 import { UnlockStamp } from "./UnlockStamp";
 import { POINTS_LABEL_STYLES } from "./PointsLabel";
-import { PanelSection, PanelSectionRow } from "@decky/ui";
+import { PanelSectionRow } from "@decky/ui";
+import { PanelSection } from "../ui/PanelSection";
 import React, { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 const NO_ROWS: AchievementRow[] = [];

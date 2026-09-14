@@ -1,5 +1,6 @@
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { DialogButton, Focusable, PanelSection, PanelSectionRow } from "@decky/ui";
+import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
+import { PanelSection } from "../ui/PanelSection";
 import {
     getNowPlayingActivity,
     prefetchUserAvatars
@@ -41,7 +42,7 @@ import type {
 import { UserAvatar } from "../ui/UserAvatar";
 import { earned } from "../../utils/achievements";
 import { logError } from "../../utils/errors";
-import { achievementUiMetrics, bodyTextStyle, smallTextStyle } from "../../utils/style";
+import { achievementUiMetrics, bodyTextStyle, headerCase, smallTextStyle } from "../../utils/style";
 import { textSize } from "../../utils/scale";
 import {
     activityCardActionLabel,
@@ -706,6 +707,7 @@ export function NowPlayingTabBody(props: NowPlayingTabBodyProps) {
                                     label={t(language, "Players Near You")}
                                     collapsed={playersNearYouCollapsed}
                                     focusKey="nowplaying:pny:collapse"
+                                    preserveCase={headerCase() === "none"}
                                     onToggle={() => onChangePlayersNearYouCollapsed(!playersNearYouCollapsed)}
                                 />
                             }

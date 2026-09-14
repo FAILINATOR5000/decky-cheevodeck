@@ -1,5 +1,6 @@
 import { useMemo, type ReactNode } from "react";
-import { PanelSection, PanelSectionRow } from "@decky/ui";
+import { PanelSectionRow } from "@decky/ui";
+import { PanelSection } from "../ui/PanelSection";
 import { AchievementList } from "../achievements/AchievementList";
 import { CollapsibleTitle } from "../ui/CollapsibleTitle";
 import { InlineSpinner } from "../ui/InlineSpinner";
@@ -8,6 +9,7 @@ import type { LanguageCode } from "../../locales";
 import { t } from "../../locales";
 import type {
     AchievementRow,
+    HeaderStyle,
     AchievementStyle,
     Payload,
     TrackedNotes,
@@ -47,6 +49,7 @@ type TrackedListBodyProps = {
     collapsedKeys: ReadonlySet<string>;
     onToggleCollapsed: (key: string) => void;
     collapseDisabled?: boolean;
+    headerStyle: HeaderStyle;
     onAchievementClick: (achievement: AchievementRow, trackedAchievements: AchievementRow[]) => void | Promise<void>;
     onAchievementTrackToggle?: (achievement: AchievementRow) => void;
     onAchievementNote?: (achievement: AchievementRow) => void;
@@ -153,6 +156,7 @@ export function TrackedListBody(props: TrackedListBodyProps) {
         collapsedKeys,
         onToggleCollapsed,
         collapseDisabled,
+        headerStyle,
         onAchievementClick,
         onAchievementTrackToggle,
         onAchievementNote,
@@ -287,6 +291,7 @@ export function TrackedListBody(props: TrackedListBodyProps) {
                                 collapsed={collapsed}
                                 focusKey={`tracked:group:${collapseKey}`}
                                 disabled={collapseDisabled}
+                                preserveCase={headerStyle === "typed"}
                                 onToggle={() => onToggleCollapsed(collapseKey)}
                             />
                         }

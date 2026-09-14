@@ -1,5 +1,6 @@
 import { useEffect, useState, type CSSProperties } from "react";
-import { PanelSection, PanelSectionRow } from "@decky/ui";
+import { PanelSectionRow } from "@decky/ui";
+import { PanelSection } from "../components/ui/PanelSection";
 import { AchievementList } from "../components/achievements/AchievementList";
 import { BackButton } from "../components/ui/BackButton";
 import { CommentsList } from "../components/comments/CommentsList";

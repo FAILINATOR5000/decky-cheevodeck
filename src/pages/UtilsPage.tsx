@@ -1,4 +1,5 @@
-import { PanelSection, PanelSectionRow } from "@decky/ui";
+import { PanelSectionRow } from "@decky/ui";
+import { PanelSection } from "../components/ui/PanelSection";
 import { BackButton } from "../components/ui/BackButton";
 import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
 import { PageNavStrip } from "../components/ui/PageNavStrip";

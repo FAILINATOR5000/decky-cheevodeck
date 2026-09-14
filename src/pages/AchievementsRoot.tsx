@@ -1,4 +1,5 @@
-import { Focusable, PanelSection, PanelSectionRow } from "@decky/ui";
+import { Focusable, PanelSectionRow } from "@decky/ui";
+import { PanelSection } from "../components/ui/PanelSection";
 import { addEventListener, removeEventListener } from "@decky/api";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
@@ -567,6 +568,8 @@ function AchievementsRoot() {
         showTrackedNotesMain,
         showRetroPoints,
         achievementStyle,
+        trackedHeaderStyle,
+        notesHeaderStyle,
         trackedColor,
         mainAchievementFilter,
         mainAchievementSort,
@@ -4697,6 +4700,7 @@ function AchievementsRoot() {
                                 onToggleCollapsedTag={onTrackedToggleCollapsedTag}
                                 showIcons={showIcons}
                                 achievementStyle={achievementStyle}
+                                trackedHeaderStyle={trackedHeaderStyle}
                                 uiSize={uiSize}
                                 topPadding={topPadding}
                                 blockPadding={blockPadding}
@@ -4912,6 +4916,7 @@ function AchievementsRoot() {
                                     language,
                                     buttonSpacing,
                                     uiSize,
+                                    notesHeaderStyle,
                                     focusScopeResetToken,
                                     payload,
                                     gameNotesGameId,

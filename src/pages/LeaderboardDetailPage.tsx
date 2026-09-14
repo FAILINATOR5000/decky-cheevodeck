@@ -1,4 +1,5 @@
-import { PanelSection, PanelSectionRow } from "@decky/ui";
+import { PanelSectionRow } from "@decky/ui";
+import { PanelSection } from "../components/ui/PanelSection";
 import React, { useEffect, useMemo, useRef } from "react";
 import { prefetchUserAvatars } from "../api";
 import { BackButton } from "../components/ui/BackButton";

@@ -1,4 +1,5 @@
-import { PanelSection, PanelSectionRow } from "@decky/ui";
+import { PanelSectionRow } from "@decky/ui";
+import { PanelSection } from "../components/ui/PanelSection";
 import { ErrorText } from "../components/ui/ErrorText";
 import { FocusableItem } from "../components/ui/FocusableItem";
 import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";

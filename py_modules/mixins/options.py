@@ -22,6 +22,14 @@ class OptionsMixin(PluginContext):
             "language": value,
         }
 
+    async def save_general_header_style(self, general_header_style: str):
+        value = self.settings_store.update_general_header_style(general_header_style)
+
+        return {
+            "ok": True,
+            "generalHeaderStyle": value,
+        }
+
     async def save_night_mode(self, night_mode: bool):
         value = self.settings_store.update_night_mode(night_mode)
 

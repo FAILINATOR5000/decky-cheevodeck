@@ -569,6 +569,8 @@ export type AchievementOverviewSnapshot = {
 // Display enums
 export type AchievementStyle = "centered" | "left";
 
+export type HeaderStyle = "typed" | "capitalized";
+
 export type ControllerGlyphStyle = "auto" | "deck" | "steamcontroller" | "xbox" | "playstation" | "nintendo" | "universal";
 
 export type BadgeFilter = "all" | "mastered" | "beaten" | "event" | "other";
@@ -923,6 +925,9 @@ export type SettingsResponse = {
     showRetroPoints: boolean;
     achievementStyle: AchievementStyle;
     trackedColor: TrackedColor;
+    trackedHeaderStyle: HeaderStyle;
+    notesHeaderStyle: HeaderStyle;
+    generalHeaderStyle: HeaderStyle;
     mainAchievementFilter: MainAchievementFilter;
     mainAchievementSort: AchievementSort;
     gameOverviewAchievementFilter: MainAchievementFilter;

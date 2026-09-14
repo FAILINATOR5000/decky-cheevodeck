@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
-import { DialogButton, Focusable, PanelSection, PanelSectionRow } from "@decky/ui";
+import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
+import { PanelSection } from "../components/ui/PanelSection";
 import { BackButton } from "../components/ui/BackButton";
 import { PageNavStrip } from "../components/ui/PageNavStrip";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
@@ -18,6 +19,7 @@ import type {
     GameNote,
     GameNoteAButtonMode,
     GameNoteSortMode,
+    HeaderStyle,
     Payload,
     ReorderDirection,
     UiSize,
@@ -37,6 +39,7 @@ type GameNotesPageState = {
     language: LanguageCode;
     buttonSpacing: ButtonSpacing;
     uiSize: UiSize;
+    notesHeaderStyle: HeaderStyle;
     focusScopeResetToken: number;
     payload: Payload | null;
     gameNotesGameId?: number | null;
@@ -231,6 +234,7 @@ export function GameNotesPage(props: GameNotesPageProps) {
         language,
         buttonSpacing,
         uiSize,
+        notesHeaderStyle,
         focusScopeResetToken,
         payload,
         gameNotesGameId,
@@ -581,6 +585,7 @@ export function GameNotesPage(props: GameNotesPageProps) {
                             collapseKey={collapseKey}
                             collapsed={collapsedSet.has(collapseKey)}
                             collapseDisabled={reorderTargetId !== null}
+                            headerStyle={notesHeaderStyle}
                             onToggleCollapsed={actions.onToggleCollapsedTag}
                             notes={section.orderedNotes}
                             cardList={cardList}

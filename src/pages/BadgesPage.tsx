@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
-import { DialogButton, Focusable, PanelSection, PanelSectionRow } from "@decky/ui";
+import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
+import { PanelSection } from "../components/ui/PanelSection";
 import { BackButton } from "../components/ui/BackButton";
 import { FocusableItem } from "../components/ui/FocusableItem";
 import { FadeImage } from "../components/ui/FadeImage";

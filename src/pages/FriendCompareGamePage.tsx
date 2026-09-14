@@ -1,5 +1,6 @@
 import React, { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { DialogButton, Focusable, PanelSection, PanelSectionRow } from "@decky/ui";
+import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
+import { PanelSection } from "../components/ui/PanelSection";
 import { CompareAchievementRow, compareBorderFor, type CompareRowListProps } from "../components/achievements/CompareAchievementRow";
 import { POINTS_LABEL_STYLES } from "../components/achievements/PointsLabel";
 import { CompareHeader } from "../components/achievements/CompareHeader";

@@ -19,6 +19,14 @@ class NotesMixin(PluginContext):
             "showNotesDot": value,
         }
 
+    async def save_notes_header_style(self, notes_header_style: str):
+        value = self.settings_store.update_notes_header_style(notes_header_style)
+
+        return {
+            "ok": True,
+            "notesHeaderStyle": value,
+        }
+
     async def save_game_notes_a_button_mode(self, game_notes_a_button_mode: str):
         value = self.settings_store.update_game_notes_a_button_mode(game_notes_a_button_mode)
 

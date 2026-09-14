@@ -1,6 +1,6 @@
 import React from "react";
 import { DialogButton, Focusable } from "@decky/ui";
-import { NOTES_DOT_KEYFRAMES, regularButtonSpacingStyle, warnAmber } from "../../utils/style";
+import { NOTES_DOT_KEYFRAMES, headerCase, regularButtonSpacingStyle, warnAmber } from "../../utils/style";
 import { QuickGuideColumn, QuickGuidePin } from "../guides/QuickGuidePin";
 import { useQuickGuide } from "../../utils/quickGuide";
 import { useNotificationsChrome } from "../notifications/NotificationsContext";
@@ -130,7 +130,7 @@ export function PageNavStrip(props: PageNavStripProps) {
             <div
                 style={{
                     fontSize: `${scaleMultiplier(getCurrentTitleScale())}em`,
-                    textTransform: "uppercase",
+                    textTransform: headerCase(),
                     fontWeight: 700,
                     color: "#ffffff",
                     letterSpacing: "0.5px",

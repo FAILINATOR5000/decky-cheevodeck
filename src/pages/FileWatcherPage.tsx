@@ -1,4 +1,5 @@
-import { Focusable, PanelSection, PanelSectionRow, SliderField } from "@decky/ui";
+import { Focusable, PanelSectionRow, SliderField } from "@decky/ui";
+import { PanelSection } from "../components/ui/PanelSection";
 import { useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from "react";
 
 import { BackButton } from "../components/ui/BackButton";

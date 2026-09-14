@@ -6,6 +6,7 @@ import { logError } from "./utils/errors";
 import type {
     AchievementSort,
     AchievementStyle,
+    HeaderStyle,
     ActivityCardAction,
     AllTrackedGamesResponse,
     ControllerGlyphStyle,
@@ -299,6 +300,18 @@ export const saveAchievementStyle = callable<
     [AchievementStyle],
     { ok: boolean; achievementStyle: AchievementStyle }
 >("save_achievement_style");
+export const saveTrackedHeaderStyle = callable<
+    [HeaderStyle],
+    { ok: boolean; trackedHeaderStyle: HeaderStyle }
+>("save_tracked_header_style");
+export const saveNotesHeaderStyle = callable<
+    [HeaderStyle],
+    { ok: boolean; notesHeaderStyle: HeaderStyle }
+>("save_notes_header_style");
+export const saveGeneralHeaderStyle = callable<
+    [HeaderStyle],
+    { ok: boolean; generalHeaderStyle: HeaderStyle }
+>("save_general_header_style");
 export const saveTrackedColor = callable<
     [TrackedColor],
     { ok: boolean; trackedColor: TrackedColor }

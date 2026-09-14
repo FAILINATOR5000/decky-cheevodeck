@@ -1,12 +1,6 @@
 import React, { Fragment, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import {
-    DialogButton,
-    Focusable,
-    ModalRoot,
-    PanelSection,
-    PanelSectionRow,
-    TextField
-} from "@decky/ui";
+import { DialogButton, Focusable, ModalRoot, PanelSectionRow, TextField } from "@decky/ui";
+import { PanelSection } from "../components/ui/PanelSection";
 import {
     getSetConsoleList,
     logFocusDebug,

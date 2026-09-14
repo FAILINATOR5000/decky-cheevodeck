@@ -1,16 +1,17 @@
 import { useMemo, useRef } from "react";
-import { PanelSection } from "@decky/ui";
+import { PanelSection } from "../ui/PanelSection";
 import { CollapsibleTitle } from "../ui/CollapsibleTitle";
 import { FocusClaim } from "../ui/FocusClaim";
 import { NoteCard, type NoteCardListProps } from "./NoteCard";
 import { useWindowedList } from "../../hooks/useWindowedList";
-import type { GameNote } from "../../types";
+import type { GameNote, HeaderStyle } from "../../types";
 
 export type NoteSectionBodyProps = {
     title: string;
     collapseKey: string;
     collapsed: boolean;
     collapseDisabled?: boolean;
+    headerStyle: HeaderStyle;
     onToggleCollapsed: (key: string) => void;
     notes: GameNote[];
     cardList: Omit<NoteCardListProps, "onFocusIndex">;
@@ -79,6 +80,7 @@ export function NoteSectionBody(props: NoteSectionBodyProps) {
                     collapsed={collapsed}
                     focusKey={`gn:section:${props.collapseKey}`}
                     disabled={props.collapseDisabled}
+                    preserveCase={props.headerStyle === "typed"}
                     onToggle={() => props.onToggleCollapsed(props.collapseKey)}
                 />
             }

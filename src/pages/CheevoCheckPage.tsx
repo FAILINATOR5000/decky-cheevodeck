@@ -1,4 +1,5 @@
-import { PanelSection, PanelSectionRow, SliderField } from "@decky/ui";
+import { PanelSectionRow, SliderField } from "@decky/ui";
+import { PanelSection } from "../components/ui/PanelSection";
 import { Fragment, useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 
 import { logFocusDebug } from "../api";

@@ -1,4 +1,5 @@
-import { PanelSection, PanelSectionRow } from "@decky/ui";
+import { PanelSectionRow } from "@decky/ui";
+import { PanelSection } from "../components/ui/PanelSection";
 import React, { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactElement, type ReactNode } from "react";
 import { BackButton } from "../components/ui/BackButton";
 import { ButtonHints } from "../components/ui/ButtonHints";

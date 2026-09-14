@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
-import { DialogButton, Focusable, PanelSection, PanelSectionRow } from "@decky/ui";
+import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
+import { PanelSection } from "../components/ui/PanelSection";
 import { getCachedTrackedCount, logFocusDebug } from "../api";
 import { BackButton } from "../components/ui/BackButton";
 import { ConfirmRow } from "../components/ui/ConfirmRow";
@@ -28,6 +29,7 @@ import type {
     AchievementRow,
     AchievementStyle,
     ButtonSpacing,
+    HeaderStyle,
     ControllerGlyphStyle,
     Payload,
     ReorderDirection,
@@ -145,6 +147,7 @@ type TrackedPageProps = {
     showIcons: boolean;
     showRetroPoints: boolean;
     achievementStyle: AchievementStyle;
+    trackedHeaderStyle: HeaderStyle;
     uiSize: UiSize;
     topPadding: number;
     blockPadding: number;
@@ -215,6 +218,7 @@ function TrackedPage(props: TrackedPageProps) {
         trackedAchievementSort,
         showIcons,
         achievementStyle,
+        trackedHeaderStyle,
         uiSize,
         topPadding,
         blockPadding,
@@ -666,6 +670,7 @@ function TrackedPage(props: TrackedPageProps) {
                     collapsedKeys={collapsedSet}
                     onToggleCollapsed={onToggleCollapsedTag}
                     collapseDisabled={reorderTargetId !== null}
+                    headerStyle={trackedHeaderStyle}
                     onAchievementClick={onAchievementClick}
                     onAchievementTrackToggle={gamepadRowActions ? handleRowUntrack : undefined}
                     onAchievementNote={gamepadRowActions ? handleRowEditNote : undefined}
@@ -855,6 +860,7 @@ function TrackedPage(props: TrackedPageProps) {
                             controllerGlyphStyle={controllerGlyphStyle}
                             showIcons={showIcons}
                             achievementStyle={achievementStyle}
+                            trackedHeaderStyle={trackedHeaderStyle}
                             uiSize={uiSize}
                             topPadding={topPadding}
                             blockPadding={blockPadding}
@@ -984,6 +990,7 @@ type OtherGamesTabBodyProps = {
     controllerGlyphStyle: ControllerGlyphStyle;
     showIcons: boolean;
     achievementStyle: AchievementStyle;
+    trackedHeaderStyle: HeaderStyle;
     uiSize: UiSize;
     topPadding: number;
     blockPadding: number;
@@ -1019,6 +1026,7 @@ function OtherGamesTabBody(props: OtherGamesTabBodyProps) {
         controllerGlyphStyle,
         showIcons,
         achievementStyle,
+        trackedHeaderStyle,
         uiSize,
         topPadding,
         blockPadding,
@@ -1084,6 +1092,7 @@ function OtherGamesTabBody(props: OtherGamesTabBodyProps) {
             sort={drillIn.sort}
             showIcons={showIcons}
             achievementStyle={achievementStyle}
+            trackedHeaderStyle={trackedHeaderStyle}
             uiSize={uiSize}
             topPadding={topPadding}
             blockPadding={blockPadding}

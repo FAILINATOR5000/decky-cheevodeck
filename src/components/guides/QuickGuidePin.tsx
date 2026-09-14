@@ -1,4 +1,5 @@
 import { DialogButton, Focusable } from "@decky/ui";
+import { headerCase } from "../../utils/style";
 import type { ComponentProps, FC, ReactNode } from "react";
 import { CollapseChevron } from "../ui/CollapseChevron";
 import { getCurrentLanguage, t } from "../../locales";
@@ -47,7 +48,7 @@ export function QuickGuidePin(props: QuickGuidePinProps) {
                 lineHeight: "18px",
                 fontSize: "10px",
                 letterSpacing: "0.5px",
-                textTransform: "uppercase",
+                textTransform: headerCase(),
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",

@@ -4,7 +4,7 @@ import { t } from "../../locales";
 import { InlineSpinner } from "../ui/InlineSpinner";
 import { formatInteger } from "../../utils/format";
 import { earned } from "../../utils/achievements";
-import { achievementUiMetrics, smallTextStyle } from "../../utils/style";
+import { achievementUiMetrics, headerCase, smallTextStyle } from "../../utils/style";
 
 type CompareHeaderProps = {
     language: LanguageCode;
@@ -251,7 +251,7 @@ export function CompareHeader(props: CompareHeaderProps) {
                     gap: "8px",
                     fontWeight: 800,
                     letterSpacing: "0.02em",
-                    textTransform: "uppercase",
+                    textTransform: headerCase(),
                     opacity: 0.92,
                     padding: "2px 0 4px 0",
                     borderBottom: "1px solid rgba(255,255,255,0.06)"

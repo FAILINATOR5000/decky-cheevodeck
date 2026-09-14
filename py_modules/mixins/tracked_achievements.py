@@ -21,6 +21,14 @@ class TrackedAchievementsMixin(PluginContext):
             "trackedColor": value,
         }
 
+    async def save_tracked_header_style(self, tracked_header_style: str):
+        value = self.settings_store.update_tracked_header_style(tracked_header_style)
+
+        return {
+            "ok": True,
+            "trackedHeaderStyle": value,
+        }
+
     async def save_show_a_button_mode_tracked(self, show_a_button_mode_tracked: bool):
         value = self.settings_store.update_show_a_button_mode_tracked(show_a_button_mode_tracked)
 

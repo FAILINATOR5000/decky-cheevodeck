@@ -1,6 +1,6 @@
 import type React from "react";
 import type { ButtonSpacing, UiSize } from "../types";
-import { modalSize, textSize } from "./scale";
+import { getCurrentGeneralHeaderStyle, modalSize, textSize } from "./scale";
 
 export const achievementGreen = "#22c55e";
 export const errorRed = "#ff5f5f";
@@ -9,6 +9,10 @@ export const skyBlue = "#0ea5e9";
 export const confirmAmber = "#ffb070";
 export const faultViolet = "#a78bfa";
 export const helpTextBlue = "#9fd3ff";
+
+export function headerCase(): "none" | "uppercase" {
+    return getCurrentGeneralHeaderStyle() === "typed" ? "none" : "uppercase";
+}
 
 export function smallTextStyle(): React.CSSProperties {
     return {

@@ -1,4 +1,5 @@
-import { DialogButton, Focusable, PanelSection, PanelSectionRow } from "@decky/ui";
+import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
+import { PanelSection } from "../components/ui/PanelSection";
 import { Fragment, useState, type ComponentType } from "react";
 import { BackButton } from "../components/ui/BackButton";
 import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
@@ -21,9 +22,10 @@ import {
     t,
     type LanguageCode
 } from "../locales";
-import type { AchievementStyle, ActivityCardAction, ButtonSpacing, ControllerGlyphStyle, OptionsTab, Payload, QuickMenuShortcut, SavedUser, ScalePreset, ScaleStep, ShortcutAction, ShortcutButton, SocialEntryDefault, TrackedColor, UiSize } from "../types";
+import type { AchievementStyle, ActivityCardAction, ButtonSpacing, ControllerGlyphStyle, HeaderStyle, OptionsTab, Payload, QuickMenuShortcut, SavedUser, ScalePreset, ScaleStep, ShortcutAction, ShortcutButton, SocialEntryDefault, TrackedColor, UiSize } from "../types";
 import {
     achievementStyleLabel,
+    headerStyleLabel,
     controllerGlyphStyleLabel,
     activityCacheMinutesLabel,
     activityCardActionLabel,
@@ -337,6 +339,9 @@ type OptionsPageState = {
     showTrackedNotesMain: boolean;
     showRetroPoints: boolean;
     achievementStyle: AchievementStyle;
+    trackedHeaderStyle: HeaderStyle;
+    notesHeaderStyle: HeaderStyle;
+    generalHeaderStyle: HeaderStyle;
     trackedColor: TrackedColor;
     socialEntryDefault: SocialEntryDefault;
     activityCardAction: ActivityCardAction;
@@ -519,6 +524,9 @@ type OptionsPageActions = {
     onCycleBlockPadding: () => void | Promise<void>;
     onCycleButtonSpacing: () => void | Promise<void>;
     onCycleAchievementStyle: () => void | Promise<void>;
+    onCycleTrackedHeaderStyle: () => void | Promise<void>;
+    onCycleNotesHeaderStyle: () => void | Promise<void>;
+    onCycleGeneralHeaderStyle: () => void | Promise<void>;
     onCycleTrackedColor: () => void | Promise<void>;
     onCycleSocialEntryDefault: () => void | Promise<void>;
     onCycleActivityCardAction: () => void | Promise<void>;
@@ -1215,6 +1223,35 @@ function GuiTab(props: TabContentProps) {
                 label={t(state.language, "Unlock History")}
                 value={unlockHistoryDaysLabel(state.unlockHistoryDays, state.language)}
                 help={t(state.language, "help_unlock_history")}
+                separator
+            />
+            <SectionTitle label={t(state.language, "Formatting")} />
+            <OptionValueRow
+                outerStyle={buttonOuterStyle}
+                focusKey="options:tracked-header-style"
+                onClick={actions.onCycleTrackedHeaderStyle}
+                disabled={disabled}
+                label={t(state.language, "Tracked Header Style")}
+                value={headerStyleLabel(state.trackedHeaderStyle, state.language)}
+                help={t(state.language, "help_tracked_header_style")}
+            />
+            <OptionValueRow
+                outerStyle={buttonOuterStyle}
+                focusKey="options:notes-header-style"
+                onClick={actions.onCycleNotesHeaderStyle}
+                disabled={disabled}
+                label={t(state.language, "Notes Header Style")}
+                value={headerStyleLabel(state.notesHeaderStyle, state.language)}
+                help={t(state.language, "help_notes_header_style")}
+            />
+            <OptionValueRow
+                outerStyle={buttonOuterStyle}
+                focusKey="options:general-header-style"
+                onClick={actions.onCycleGeneralHeaderStyle}
+                disabled={disabled}
+                label={t(state.language, "General Header Style")}
+                value={headerStyleLabel(state.generalHeaderStyle, state.language)}
+                help={t(state.language, "help_general_header_style")}
                 separator
             />
             <SectionTitle label={t(state.language, "Main Menu / Profile")} />

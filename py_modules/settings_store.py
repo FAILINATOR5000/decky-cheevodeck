@@ -381,6 +381,9 @@ _KNOBS = (
     Knob("showRetroPoints", default=False, normalize=True),
     Knob("achievementStyle", default="left", normalize=True),
     Knob("trackedColor", default="default", normalize=True),
+    Knob("trackedHeaderStyle", default="typed", normalize=True),
+    Knob("notesHeaderStyle", default="typed", normalize=True),
+    Knob("generalHeaderStyle", default="capitalized", normalize=True),
     Knob("mainAchievementFilter", default="all", normalize=True),
     Knob("mainAchievementSort", default="upNext", normalize=True),
     Knob("mainAchievementAction", default="track", normalize=True),
@@ -1121,6 +1124,24 @@ class SettingsStore:
         cfg = self._update_config("achievementStyle", value)
 
         return self.get_achievement_style(cfg)
+
+    def update_tracked_header_style(self, value: str) -> str:
+        value = str(value or "typed").strip().lower()
+        cfg = self._update_config("trackedHeaderStyle", value)
+
+        return self.get_tracked_header_style(cfg)
+
+    def update_notes_header_style(self, value: str) -> str:
+        value = str(value or "typed").strip().lower()
+        cfg = self._update_config("notesHeaderStyle", value)
+
+        return self.get_notes_header_style(cfg)
+
+    def update_general_header_style(self, value: str) -> str:
+        value = str(value or "capitalized").strip().lower()
+        cfg = self._update_config("generalHeaderStyle", value)
+
+        return self.get_general_header_style(cfg)
 
     def update_main_achievement_filter(self, value: str) -> str:
         value = str(value or "all").strip().lower()
@@ -3681,6 +3702,18 @@ class SettingsStore:
     def get_achievement_style(self, cfg: dict) -> str:
         value = str(cfg.get("achievementStyle", "left") or "left").strip().lower()
         return value if value in {"centered", "left"} else "left"
+
+    def get_tracked_header_style(self, cfg: dict) -> str:
+        value = str(cfg.get("trackedHeaderStyle", "typed") or "typed").strip().lower()
+        return value if value in {"typed", "capitalized"} else "typed"
+
+    def get_notes_header_style(self, cfg: dict) -> str:
+        value = str(cfg.get("notesHeaderStyle", "typed") or "typed").strip().lower()
+        return value if value in {"typed", "capitalized"} else "typed"
+
+    def get_general_header_style(self, cfg: dict) -> str:
+        value = str(cfg.get("generalHeaderStyle", "capitalized") or "capitalized").strip().lower()
+        return value if value in {"typed", "capitalized"} else "capitalized"
 
     def get_controller_glyph_style(self, cfg: dict) -> str:
         value = str(cfg.get("controllerGlyphStyle", "auto") or "auto").strip().lower()

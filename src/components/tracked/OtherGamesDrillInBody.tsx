@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { PanelSection, PanelSectionRow } from "@decky/ui";
+import { PanelSectionRow } from "@decky/ui";
+import { PanelSection } from "../ui/PanelSection";
 import { LabeledRow } from "../ui/LabeledRow";
 import { ReorderStrip } from "../ui/ReorderStrip";
 import { TrackedButtonHints } from "./TrackedButtonHints";
@@ -13,6 +14,7 @@ import { localizeRuntimeText, t } from "../../locales";
 import type {
     AchievementRow,
     AchievementStyle,
+    HeaderStyle,
     ButtonSpacing,
     ControllerGlyphStyle,
     Payload,
@@ -47,6 +49,7 @@ type OtherGamesDrillInBodyProps = {
     sort: TrackedAchievementSort;
     showIcons: boolean;
     achievementStyle: AchievementStyle;
+    trackedHeaderStyle: HeaderStyle;
     uiSize: UiSize;
     topPadding: number;
     blockPadding: number;
@@ -95,6 +98,7 @@ export function OtherGamesDrillInBody(props: OtherGamesDrillInBodyProps) {
         sort,
         showIcons,
         achievementStyle,
+        trackedHeaderStyle,
         uiSize,
         topPadding,
         blockPadding,
@@ -258,6 +262,7 @@ export function OtherGamesDrillInBody(props: OtherGamesDrillInBodyProps) {
                     collapsedKeys={collapsedSet}
                     onToggleCollapsed={onToggleCollapsedTag}
                     collapseDisabled={reorderTargetId !== null}
+                    headerStyle={trackedHeaderStyle}
                     onAchievementClick={onAchievementClick}
                     onAchievementTrackToggle={gamepadRowActions ? handleRowUntrack : undefined}
                     onAchievementNote={gamepadRowActions ? handleRowEditNote : undefined}

@@ -3,6 +3,7 @@ import { DEFAULT_LANGUAGE, ensureLanguageLoaded, setCurrentLanguage, type Langua
 import type {
     AchievementSort,
     AchievementStyle,
+    HeaderStyle,
     ActivityCardAction,
     ButtonSpacing,
     ControllerGlyphStyle,
@@ -43,6 +44,7 @@ import { setSnapshotHotkey } from "../utils/snapshotHotkey";
 import {
     setCurrentTextScale,
     setCurrentTitleScale,
+    setCurrentGeneralHeaderStyle,
     setCurrentHeaderScale,
     setCurrentBannerScale,
     setCurrentModalScale,
@@ -126,6 +128,9 @@ export function useSettingsController({
     const [showTrackedNotesMain, setShowTrackedNotesMain] = useState(false);
     const [showRetroPoints, setShowRetroPoints] = useState(false);
     const [achievementStyle, setAchievementStyle] = useState<AchievementStyle>("left");
+    const [trackedHeaderStyle, setTrackedHeaderStyle] = useState<HeaderStyle>("typed");
+    const [notesHeaderStyle, setNotesHeaderStyle] = useState<HeaderStyle>("typed");
+    const [generalHeaderStyle, setGeneralHeaderStyle] = useState<HeaderStyle>("capitalized");
     const [trackedColor, setTrackedColor] = useState<TrackedColor>("default");
     const [mainAchievementFilter, setMainAchievementFilter] = useState<MainAchievementFilter>("all");
     const [mainAchievementSort, setMainAchievementSort] = useState<AchievementSort>("upNext");
@@ -397,6 +402,10 @@ export function useSettingsController({
         }
         setShowRetroPoints(source.showRetroPoints);
         setAchievementStyle(source.achievementStyle);
+        setTrackedHeaderStyle(source.trackedHeaderStyle);
+        setNotesHeaderStyle(source.notesHeaderStyle);
+        setGeneralHeaderStyle(source.generalHeaderStyle);
+        setCurrentGeneralHeaderStyle(source.generalHeaderStyle);
         setTrackedColor(source.trackedColor);
         setMainAchievementFilter(source.mainAchievementFilter);
         setMainAchievementSort(source.mainAchievementSort);
@@ -655,6 +664,9 @@ export function useSettingsController({
         showTrackedNotesMain,
         showRetroPoints,
         achievementStyle,
+        trackedHeaderStyle,
+        notesHeaderStyle,
+        generalHeaderStyle,
         trackedColor,
         mainAchievementFilter,
         mainAchievementSort,
@@ -882,6 +894,9 @@ export function useSettingsController({
         setShowTrackedNotesMain,
         setShowRetroPoints,
         setAchievementStyle,
+        setTrackedHeaderStyle,
+        setNotesHeaderStyle,
+        setGeneralHeaderStyle,
         setTrackedColor,
         setMainAchievementFilter,
         setMainAchievementSort,

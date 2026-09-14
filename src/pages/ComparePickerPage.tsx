@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef } from "react";
-import { Focusable, PanelSection, PanelSectionRow } from "@decky/ui";
+import { Focusable, PanelSectionRow } from "@decky/ui";
+import { PanelSection } from "../components/ui/PanelSection";
 import { BackButton } from "../components/ui/BackButton";
 import { ErrorText } from "../components/ui/ErrorText";
 import { FocusableItem } from "../components/ui/FocusableItem";
@@ -13,7 +14,7 @@ import type { ButtonSpacing, FriendRow, ViewKey } from "../types";
 import { isFriendAvatarStale, sortFriendRowsForDisplay } from "../utils/friends";
 import { logError } from "../utils/errors";
 import { titleSize } from "../utils/scale";
-import { regularButtonSpacingStyle, smallTextStyle, bodyTextStyle } from "../utils/style";
+import { bodyTextStyle, headerCase, regularButtonSpacingStyle, smallTextStyle } from "../utils/style";
 
 type ComparePickerPageState = {
     view: ViewKey;
@@ -289,7 +290,7 @@ function ComparePickerPage(props: ComparePickerPageProps) {
                                         ...smallTextStyle(),
                                         fontSize: `${titleSize(12)}px`,
                                         fontWeight: 800,
-                                        textTransform: "uppercase",
+                                        textTransform: headerCase(),
                                         letterSpacing: "0.02em",
                                         opacity: 0.92,
                                         margin: "6px 0 2px 0"
@@ -315,7 +316,7 @@ function ComparePickerPage(props: ComparePickerPageProps) {
                                         ...smallTextStyle(),
                                         fontSize: `${titleSize(12)}px`,
                                         fontWeight: 800,
-                                        textTransform: "uppercase",
+                                        textTransform: headerCase(),
                                         letterSpacing: "0.02em",
                                         opacity: 0.92,
                                         margin: "8px 0 2px 0"

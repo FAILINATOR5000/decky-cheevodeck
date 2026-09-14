@@ -1,5 +1,5 @@
 import { DEFAULT_LANGUAGE, type LanguageCode, t } from "../locales";
-import type { AchievementStyle, ActivityCardAction, ButtonSpacing, ControllerGlyphStyle, PlayersNearYouMode, PlayersNearYouTapMode, QuickMenuShortcut, ScalePreset, ScaleStep, ShortcutAction, ShortcutButton, SocialEntryDefault } from "../types";
+import type { AchievementStyle, ActivityCardAction, ButtonSpacing, ControllerGlyphStyle, HeaderStyle, PlayersNearYouMode, PlayersNearYouTapMode, QuickMenuShortcut, ScalePreset, ScaleStep, ShortcutAction, ShortcutButton, SocialEntryDefault } from "../types";
 
 
 const UNLOCK_LOOKBACK_OPTIONS = [60, 120, 360, 720, 1440];
@@ -11,6 +11,7 @@ const ACTIVITY_FRIENDS_PER_TICK_OPTIONS = [3, 4, 5] as const;
 const SCALE_STEPS: ScaleStep[] = ["normal", "large", "xlarge", "xxlarge", "xxxlarge"];
 const BUTTON_SPACING_OPTIONS: ButtonSpacing[] = ["verysmall", "small", "medium", "large", "xlarge"];
 const ACHIEVEMENT_STYLE_OPTIONS: AchievementStyle[] = ["left", "centered"];
+const HEADER_STYLE_OPTIONS: HeaderStyle[] = ["typed", "capitalized"];
 const CONTROLLER_GLYPH_STYLE_OPTIONS: ControllerGlyphStyle[] = ["auto", "universal", "deck", "steamcontroller", "xbox", "playstation", "nintendo"];
 const SOCIAL_ENTRY_DEFAULT_OPTIONS: SocialEntryDefault[] = [
     "friends",
@@ -386,6 +387,19 @@ export function achievementStyleLabel(value: AchievementStyle, language: Languag
         return t(language, "Classic");
     }
     return t(language, "Balanced");
+}
+
+export function headerStyleLabel(value: HeaderStyle, language: LanguageCode = DEFAULT_LANGUAGE) {
+    if (value === "capitalized") {
+        return t(language, "Capitalized");
+    }
+    return t(language, "Typed");
+}
+
+export function nextHeaderStyle(current: HeaderStyle) {
+    const currentIndex = HEADER_STYLE_OPTIONS.indexOf(current);
+
+    return HEADER_STYLE_OPTIONS[(currentIndex + 1) % HEADER_STYLE_OPTIONS.length];
 }
 
 export function nextAchievementStyle(current: AchievementStyle) {

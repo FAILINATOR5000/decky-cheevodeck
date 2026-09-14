@@ -1,4 +1,5 @@
-import { PanelSection, PanelSectionRow } from "@decky/ui";
+import { PanelSectionRow } from "@decky/ui";
+import { PanelSection } from "../components/ui/PanelSection";
 import { BackButton } from "../components/ui/BackButton";
 import { ErrorText } from "../components/ui/ErrorText";
 import { InlineSpinner } from "../components/ui/InlineSpinner";

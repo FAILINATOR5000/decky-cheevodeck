@@ -1,4 +1,5 @@
-import { PanelSection, PanelSectionRow } from "@decky/ui";
+import { PanelSectionRow } from "@decky/ui";
+import { PanelSection } from "../components/ui/PanelSection";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getRecentUnlockHistory } from "../api";
 import { AchievementList } from "../components/achievements/AchievementList";

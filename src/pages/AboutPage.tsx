@@ -1,4 +1,5 @@
-import { Focusable, PanelSection, PanelSectionRow } from "@decky/ui";
+import { Focusable, PanelSectionRow } from "@decky/ui";
+import { PanelSection } from "../components/ui/PanelSection";
 import React, { useRef, useState, type ReactNode } from "react";
 import { BackButton } from "../components/ui/BackButton";
 import { PageNavStrip } from "../components/ui/PageNavStrip";

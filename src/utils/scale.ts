@@ -1,4 +1,14 @@
-import type { ScaleStep } from "../types";
+import type { HeaderStyle, ScaleStep } from "../types";
+
+let currentGeneralHeaderStyle: HeaderStyle = "capitalized";
+
+export function setCurrentGeneralHeaderStyle(style: HeaderStyle): void {
+    currentGeneralHeaderStyle = style;
+}
+
+export function getCurrentGeneralHeaderStyle(): HeaderStyle {
+    return currentGeneralHeaderStyle;
+}
 
 let currentTextScale: ScaleStep = "normal";
 let currentTitleScale: ScaleStep = "normal";

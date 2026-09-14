@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
-import { DialogButton, Focusable, PanelSection, PanelSectionRow } from "@decky/ui";
+import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
+import { PanelSection } from "../components/ui/PanelSection";
 import { BackButton } from "../components/ui/BackButton";
 import { ButtonHints } from "../components/ui/ButtonHints";
 import { FocusableItem } from "../components/ui/FocusableItem";
@@ -74,7 +75,7 @@ import { UserAvatar } from "../components/ui/UserAvatar";
 import { FriendListRow, type FriendRowListProps } from "../components/social/FriendListRow";
 import { ActivityFeedRow, type ActivityRowListProps } from "../components/social/ActivityFeedRow";
 import { localizeRuntimeText, t } from "../locales";
-import { achievementUiMetrics, type AchievementUiMetrics, smallTextStyle, bodyTextStyle, FADE_IN_KEYFRAMES } from "../utils/style";
+import { FADE_IN_KEYFRAMES, achievementUiMetrics, bodyTextStyle, headerCase, smallTextStyle, type AchievementUiMetrics } from "../utils/style";
 import { bannerSize, textSize } from "../utils/scale";
 import { beginGuardedRun } from "../utils/runGuard";
 
@@ -1318,7 +1319,7 @@ function SocialHubPage(props: SocialHubPageProps) {
                         fontWeight: 800,
                         letterSpacing: "0.02em",
                         lineHeight: 1.15,
-                        textTransform: "uppercase",
+                        textTransform: headerCase(),
                         margin: "6px 0 5px 0"
                     }}
                 >

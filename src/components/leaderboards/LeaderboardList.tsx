@@ -1,4 +1,5 @@
-import { PanelSection, PanelSectionRow } from "@decky/ui";
+import { PanelSectionRow } from "@decky/ui";
+import { PanelSection } from "../ui/PanelSection";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getLeaderboardIcons } from "../../api";
 import { logError } from "../../utils/errors";

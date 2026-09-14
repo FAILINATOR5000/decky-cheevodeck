@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { t, type LanguageCode } from "../../locales";
-import { smallTextStyle } from "../../utils/style";
+import { headerCase, smallTextStyle } from "../../utils/style";
 
 export function resolveRecentConsole<T extends { id: number }>(
     consoles: T[],
@@ -29,7 +29,7 @@ export function RecentConsoleSection(props: { language: LanguageCode; children: 
                 style={{
                     ...smallTextStyle(),
                     fontWeight: 700,
-                    textTransform: "uppercase",
+                    textTransform: headerCase(),
                     letterSpacing: "0.5px",
                     opacity: 0.75
                 }}

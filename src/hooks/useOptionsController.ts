@@ -125,6 +125,9 @@ import {
     saveWantToPlayCacheMinutes,
     setAccurateAvatarDebug,
     saveAchievementStyle,
+    saveTrackedHeaderStyle,
+    saveNotesHeaderStyle,
+    saveGeneralHeaderStyle,
     saveTrackedColor,
     saveShowIcons,
     saveDeferModalCleanup,
@@ -173,6 +176,7 @@ import { DEFAULT_LANGUAGE, ensureLanguageLoaded, setCurrentLanguage, type Langua
 import type {
     ButtonSpacing,
     AchievementStyle,
+    HeaderStyle,
     ActivityCardAction,
     ControllerGlyphStyle,
     GameNoteAButtonMode,
@@ -200,6 +204,7 @@ import { logError } from "../utils/errors";
 import {
     nextActivityCacheMinutes,
     nextAchievementStyle,
+    nextHeaderStyle,
     nextControllerGlyphStyle,
     nextTrickleLookbackHours,
     nextActivityFriendsPerTick,
@@ -271,6 +276,7 @@ import { nextTrackedColor } from "../utils/achievements";
 import {
     setCurrentTextScale,
     setCurrentTitleScale,
+    setCurrentGeneralHeaderStyle,
     setCurrentHeaderScale,
     setCurrentBannerScale,
     setCurrentModalScale,
@@ -470,6 +476,9 @@ type UseOptionsControllerArgs = {
     showTrackedNotesMain: boolean;
     showRetroPoints: boolean;
     achievementStyle: AchievementStyle;
+    trackedHeaderStyle: HeaderStyle;
+    notesHeaderStyle: HeaderStyle;
+    generalHeaderStyle: HeaderStyle;
     trackedColor: TrackedColor;
     socialEntryDefault: SocialEntryDefault;
     activityCardAction: ActivityCardAction;
@@ -532,6 +541,9 @@ type UseOptionsControllerArgs = {
     setShowTrackedNotesMain: Dispatch<SetStateAction<boolean>>;
     setShowRetroPoints: Dispatch<SetStateAction<boolean>>;
     setAchievementStyle: Dispatch<SetStateAction<AchievementStyle>>;
+    setTrackedHeaderStyle: Dispatch<SetStateAction<HeaderStyle>>;
+    setNotesHeaderStyle: Dispatch<SetStateAction<HeaderStyle>>;
+    setGeneralHeaderStyle: Dispatch<SetStateAction<HeaderStyle>>;
     setTrackedColor: Dispatch<SetStateAction<TrackedColor>>;
     setSocialEntryDefault: Dispatch<SetStateAction<SocialEntryDefault>>;
     setActivityCardAction: Dispatch<SetStateAction<ActivityCardAction>>;
@@ -883,6 +895,9 @@ export function useOptionsController({
     showTrackedNotesMain,
     showRetroPoints,
     achievementStyle,
+    trackedHeaderStyle,
+    notesHeaderStyle,
+    generalHeaderStyle,
     trackedColor,
     socialEntryDefault,
     activityCardAction,
@@ -945,6 +960,9 @@ export function useOptionsController({
     setShowTrackedNotesMain,
     setShowRetroPoints,
     setAchievementStyle,
+    setTrackedHeaderStyle,
+    setNotesHeaderStyle,
+    setGeneralHeaderStyle,
     setTrackedColor,
     setSocialEntryDefault,
     setActivityCardAction,
@@ -1182,6 +1200,10 @@ export function useOptionsController({
         setShowTrackedNotesMain(Boolean(result.showTrackedNotesMain ?? false));
         setShowRetroPoints(Boolean(result.showRetroPoints ?? false));
         setAchievementStyle(result.achievementStyle ?? "left");
+        setTrackedHeaderStyle(result.trackedHeaderStyle ?? "typed");
+        setNotesHeaderStyle(result.notesHeaderStyle ?? "typed");
+        setGeneralHeaderStyle(result.generalHeaderStyle ?? "capitalized");
+        setCurrentGeneralHeaderStyle(result.generalHeaderStyle ?? "capitalized");
         setTrackedColor(result.trackedColor ?? "default");
         setSocialEntryDefault(result.socialEntryDefault ?? "friends");
         setActivityCardAction(result.activityCardAction ?? "achievement");
@@ -1610,6 +1632,45 @@ export function useOptionsController({
             applyValue: setAchievementStyle,
             saveCall: saveAchievementStyle,
             getSavedValue: (result, fallbackValue) => result.achievementStyle ?? fallbackValue,
+        });
+    };
+
+    const onCycleTrackedHeaderStyle = () => {
+        const previousValue = trackedHeaderStyle;
+        const nextValue = nextHeaderStyle(trackedHeaderStyle);
+        return saveSettingWithRollback<HeaderStyle>({
+            nextValue,
+            previousValue,
+            applyValue: setTrackedHeaderStyle,
+            saveCall: saveTrackedHeaderStyle,
+            getSavedValue: (result, fallbackValue) => result.trackedHeaderStyle ?? fallbackValue,
+        });
+    };
+
+    const onCycleNotesHeaderStyle = () => {
+        const previousValue = notesHeaderStyle;
+        const nextValue = nextHeaderStyle(notesHeaderStyle);
+        return saveSettingWithRollback<HeaderStyle>({
+            nextValue,
+            previousValue,
+            applyValue: setNotesHeaderStyle,
+            saveCall: saveNotesHeaderStyle,
+            getSavedValue: (result, fallbackValue) => result.notesHeaderStyle ?? fallbackValue,
+        });
+    };
+
+    const onCycleGeneralHeaderStyle = () => {
+        const previousValue = generalHeaderStyle;
+        const nextValue = nextHeaderStyle(generalHeaderStyle);
+        return saveSettingWithRollback<HeaderStyle>({
+            nextValue,
+            previousValue,
+            applyValue: (value) => {
+                setGeneralHeaderStyle(value);
+                setCurrentGeneralHeaderStyle(value);
+            },
+            saveCall: saveGeneralHeaderStyle,
+            getSavedValue: (result, fallbackValue) => result.generalHeaderStyle ?? fallbackValue,
         });
     };
 
@@ -3409,6 +3470,9 @@ export function useOptionsController({
         showTrackedNotesMain,
         showRetroPoints,
         achievementStyle,
+        trackedHeaderStyle,
+        notesHeaderStyle,
+        generalHeaderStyle,
         trackedColor,
         socialEntryDefault,
         activityCardAction,
@@ -3586,6 +3650,9 @@ export function useOptionsController({
         onCycleBlockPadding,
         onCycleButtonSpacing,
         onCycleAchievementStyle,
+        onCycleTrackedHeaderStyle,
+        onCycleNotesHeaderStyle,
+        onCycleGeneralHeaderStyle,
         onCycleTrackedColor,
         onCycleSocialEntryDefault,
         onCycleActivityCardAction,

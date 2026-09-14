@@ -1,4 +1,5 @@
-import { DialogButton, Focusable, PanelSection, PanelSectionRow } from "@decky/ui";
+import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
+import { PanelSection } from "../components/ui/PanelSection";
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
 // Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
 import { FaClipboardCheck, FaClock, FaCompressArrowsAlt, FaExpandAlt, FaFileAlt, FaGamepad, FaHistory, FaNetworkWired, FaSyncAlt, FaThumbtack, FaTrophy } from "react-icons/fa";
@@ -53,7 +54,7 @@ import type {
     ViewKey
 } from "../types";
 
-import { achievementUiMetrics } from "../utils/style";
+import { achievementUiMetrics, headerCase } from "../utils/style";
 import { useQuickGuide } from "../utils/quickGuide";
 import { localizeRuntimeText, t } from "../locales";
 import { QUICK_MENU_SHORTCUTS, type MainUiPreset } from "../utils/options";
@@ -1992,7 +1993,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                 >
                     <div
                         style={{
-                            textTransform: "uppercase",
+                            textTransform: headerCase(),
                             fontWeight: 700,
                             color: "#ffffff",
                             letterSpacing: "0.5px",

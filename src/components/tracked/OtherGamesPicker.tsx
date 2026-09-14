@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { PanelSection, PanelSectionRow } from "@decky/ui";
+import { PanelSectionRow } from "@decky/ui";
+import { PanelSection } from "../ui/PanelSection";
 import { getAllTrackedGames, getCachedGameIconDataUri, prefetchTabGameIcons, subscribeToGameIcon } from "../../api";
 import { ErrorText } from "../ui/ErrorText";
 import { FadeImage } from "../ui/FadeImage";

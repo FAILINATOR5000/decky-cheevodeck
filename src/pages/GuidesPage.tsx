@@ -1,4 +1,5 @@
-import { Focusable, PanelSection, PanelSectionRow, TextField } from "@decky/ui";
+import { Focusable, PanelSectionRow, TextField } from "@decky/ui";
+import { PanelSection } from "../components/ui/PanelSection";
 import React, { useMemo, useRef } from "react";
 
 import { BackButton } from "../components/ui/BackButton";

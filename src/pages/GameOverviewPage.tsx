@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { DialogButton, Focusable, PanelSection, PanelSectionRow } from "@decky/ui";
+import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
+import { PanelSection } from "../components/ui/PanelSection";
 import { AchievementList } from "../components/achievements/AchievementList";
 import { AwardStatusBadge } from "../components/achievements/AwardStatusBadge";
 import { BackButton } from "../components/ui/BackButton";
