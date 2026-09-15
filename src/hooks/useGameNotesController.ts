@@ -148,6 +148,12 @@ export function useGameNotesController({
         }
     }, [reorderTargetId, notes]);
 
+    const adoptCollapsedTags = (result: { collapsedTags?: string[] } | null | undefined) => {
+        if (result && Array.isArray(result.collapsedTags)) {
+            setCollapsedTags(result.collapsedTags);
+        }
+    };
+
     const onCreateNote = async (input: {
         title: string;
         body: string;
@@ -191,6 +197,8 @@ export function useGameNotesController({
         if (result?.ok && result.note) {
             armNoteFocusReturn(gameId, result.note.id, activeUlid);
         }
+
+        adoptCollapsedTags(result);
 
         if (!mountedRef.current) {
             return { ok: true as const };
@@ -280,6 +288,8 @@ export function useGameNotesController({
             armRemovalLanding(gameId, noteId);
         }
 
+        adoptCollapsedTags(result);
+
         if (!mountedRef.current) {
             return { ok: true as const };
         }
@@ -347,6 +357,8 @@ export function useGameNotesController({
         if (result?.ok) {
             armRemovalLanding(gameId, noteId);
         }
+
+        adoptCollapsedTags(result);
 
         if (!mountedRef.current) {
             return { ok: true as const };
@@ -726,6 +738,8 @@ export function useGameNotesController({
             setError(message);
             return { ok: false, error: message };
         }
+
+        adoptCollapsedTags(result);
 
         if (result?.ok && completed) {
             armRemovalLanding(gameId, noteId);

@@ -48,6 +48,7 @@ type TrackedWriteResult = {
     achievementIds: number[];
     notes: TrackedNotes;
     notesColor: TrackedNotesColor;
+    collapsedTags?: string[];
 };
 
 type UseTrackedControllerArgs = {
@@ -143,6 +144,9 @@ export function useTrackedController({
         setTrackedIds(achievementIds);
         setNotesByAchievementId(notes);
         setNotesColorByAchievementId(notesColor);
+        if (Array.isArray(result.collapsedTags)) {
+            setCollapsedTags(result.collapsedTags);
+        }
     };
 
     useEffect(() => {
@@ -426,6 +430,9 @@ export function useTrackedController({
                 cacheTrackedNotesColor(payload.gameId, nextNotesColor);
                 setNotesByAchievementId(nextNotes);
                 setNotesColorByAchievementId(nextNotesColor);
+                if (Array.isArray(result.collapsedTags)) {
+                    setCollapsedTags(result.collapsedTags);
+                }
                 return { ok: true };
             } catch (e: any) {
                 logError("onSaveTrackedNote", e);

@@ -340,6 +340,8 @@ export function parseNoteTag(note: string | null | undefined): ParsedNote {
     };
 }
 
+export const TRACKED_NOTE_MAX_LEN = 500;
+
 export function applyTagToNoteBody(body: string, tag: string | null): string {
     const parsed = parseNoteTag(body);
     if (tag === null) {

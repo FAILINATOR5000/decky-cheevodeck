@@ -5,14 +5,13 @@ import { ErrorText } from "../ui/ErrorText";
 import { NoteColorPicker } from "./NoteColorPicker";
 import { localizeRuntimeText, t, type LanguageCode } from "../../locales";
 import type { AchievementRow, NoteColor, OkResult } from "../../types";
-import { applyTagToNoteBody, parseNoteTag } from "../../utils/achievements";
+import { applyTagToNoteBody, parseNoteTag, TRACKED_NOTE_MAX_LEN } from "../../utils/achievements";
 import { logError } from "../../utils/errors";
 import { modalSize } from "../../utils/scale";
 import { achievementGreen, errorRed, compactButtonStyle } from "../../utils/style";
 import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 
-const TRACKED_NOTE_MAX_LEN = 500;
 
 const SUGGESTION_COUNT = 6;
 const TAG_SEEDS: ReadonlyArray<{ key: string; tag: string }> = [

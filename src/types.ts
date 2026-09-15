@@ -1695,6 +1695,7 @@ export type ToggleTrackedResponse = {
     notes: TrackedNotes;
     notesColor: TrackedNotesColor;
     sort: TrackedAchievementSort;
+    collapsedTags: string[];
 };
 
 export type BulkToggleTrackedAction = "track" | "untrack" | "set";
@@ -1705,6 +1706,7 @@ export type BulkToggleTrackedResponse = {
     notes: TrackedNotes;
     notesColor: TrackedNotesColor;
     sort: TrackedAchievementSort;
+    collapsedTags: string[];
     changed: number;
 };
 
@@ -1712,6 +1714,7 @@ export type SaveTrackedNoteResponse = {
     ok: boolean;
     notes: TrackedNotes;
     notesColor: TrackedNotesColor;
+    collapsedTags: string[];
 };
 
 export type SaveDefaultNoteColorResponse = {
@@ -1793,12 +1796,14 @@ export type GameNoteSingleResponse = {
     ok: boolean;
     note?: GameNote;
     error?: string;
+    collapsedTags?: string[];
 };
 
 export type GameNoteDeleteResponse = {
     ok: boolean;
     deletedId?: string;
     error?: string;
+    collapsedTags?: string[];
 };
 
 

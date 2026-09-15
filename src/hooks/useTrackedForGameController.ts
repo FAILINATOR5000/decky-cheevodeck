@@ -381,6 +381,9 @@ export function useTrackedForGameController({
                 cacheTrackedNotesColor(selectedGameId, nextNotesColor);
                 setNotesByAchievementId(nextNotes);
                 setNotesColorByAchievementId(nextNotesColor);
+                if (Array.isArray(result.collapsedTags)) {
+                    setCollapsedTags(result.collapsedTags);
+                }
                 return { ok: true };
             } catch (e: any) {
                 logError("onSaveTrackedNote (drill-in)", e);
@@ -600,6 +603,9 @@ export function useTrackedForGameController({
                 setNotesColorByAchievementId(notesColor);
                 if (result.sort) {
                     setSort(result.sort);
+                }
+                if (Array.isArray(result.collapsedTags)) {
+                    setCollapsedTags(result.collapsedTags);
                 }
                 restoreFocusAfterRemoval(achievement.id, trackedAchievements);
             } catch (e: any) {

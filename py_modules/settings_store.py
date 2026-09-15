@@ -65,7 +65,7 @@ PLAYERS_NEAR_YOU_LOOKAHEAD_OPTIONS = {2, 4, 6, 8, 10, 12}
 PLAYERS_NEAR_YOU_TICK_MINUTES_OPTIONS = {1, 2, 3, 5, 10, 15, 30, 60}
 GAMES_LIST_CACHE_MINUTE_VALUES = {1, 5, 10, 15, 20, 30, 60, 120, 180, 720, 1440, 10080}
 
-TRACKED_NOTE_MAX_LEN = 300
+TRACKED_NOTE_MAX_LEN = 500
 
 _NOTE_COLOR_OPTIONS = (
     "default", "green", "amber", "orange", "red", "pink", "purple",
@@ -2939,6 +2939,7 @@ class SettingsStore:
             "notes": dict(saved.get("notes", {}) or {}),
             "notesColor": dict(saved.get("notesColor", {}) or {}),
             "sort": str(saved.get("sort", self.get_tracked_achievement_sort(self.load_config()))),
+            "collapsedTags": list(saved.get("collapsedTags", [])),
             "changed": changed,
         }
 
@@ -2977,6 +2978,7 @@ class SettingsStore:
             "notes": saved.get("notes", {}),
             "notesColor": saved.get("notesColor", {}),
             "sort": saved.get("sort", self.get_tracked_achievement_sort(self.load_config())),
+            "collapsedTags": list(saved.get("collapsedTags", [])),
         }
 
     def save_tracked_note(self, game_id, achievement_id, note, color=None) -> dict:
@@ -3038,6 +3040,7 @@ class SettingsStore:
             "ok": bool(saved.get("ok", False)),
             "notes": saved.get("notes", {}),
             "notesColor": saved.get("notesColor", {}),
+            "collapsedTags": list(saved.get("collapsedTags", [])),
         }
 
     def save_tracked_sort_for_game(self, game_id, sort: str) -> dict:
@@ -3216,6 +3219,8 @@ class SettingsStore:
             if not trimmed:
                 continue
             lower = trimmed.lower()
+            if lower in _RESERVED_TAG_KEYS:
+                continue
             if lower in seen:
                 continue
             seen.add(lower)

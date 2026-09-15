@@ -394,8 +394,9 @@ class NotesStore:
             entry["notes"].insert(0, new_note)
             self._add_tag_to_vocab(entry, clean_tag)
             self._save_raw(key, entry)
+            collapsed = list(entry["collapsedTags"])
 
-        return {"ok": True, "note": new_note}
+        return {"ok": True, "note": new_note, "collapsedTags": collapsed}
 
     def update_note(
         self,
@@ -466,8 +467,9 @@ class NotesStore:
 
             self._add_tag_to_vocab(entry, clean_tag)
             self._save_raw(key, entry)
+            collapsed = list(entry["collapsedTags"])
 
-        return {"ok": True, "note": target}
+        return {"ok": True, "note": target, "collapsedTags": collapsed}
 
     def delete_note(self, game_id, note_id: str) -> dict:
         key = self._game_key(game_id)
@@ -488,8 +490,9 @@ class NotesStore:
                 note["manualOrder"] = index
 
             self._save_raw(key, entry)
+            collapsed = list(entry["collapsedTags"])
 
-        return {"ok": True, "deletedId": note_id}
+        return {"ok": True, "deletedId": note_id, "collapsedTags": collapsed}
 
     def reorder_notes(self, game_id, ordered_ids) -> dict:
         key = self._game_key(game_id)
@@ -653,8 +656,9 @@ class NotesStore:
                     target["reminderLastFiredAt"] = now
 
             self._save_raw(key, entry)
+            collapsed = list(entry["collapsedTags"])
 
-        return {"ok": True, "note": target}
+        return {"ok": True, "note": target, "collapsedTags": collapsed}
 
     def delete_all_notes(self) -> dict:
         with self._notes_master_lock:
