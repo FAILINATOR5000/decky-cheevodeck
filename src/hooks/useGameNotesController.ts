@@ -34,6 +34,7 @@ import { noteRemovalLanding } from "../utils/noteSections";
 import type { LanguageCode } from "../locales";
 
 const ORDER_WRITE_SETTLE_MS = 250;
+import { parseNoteTag } from "../utils/achievements";
 import { armNoteFocusReturn, clearNoteFocusReturn } from "../utils/noteFocusReturn";
 
 type UseGameNotesControllerArgs = {
@@ -259,6 +260,10 @@ export function useGameNotesController({
 
         setError(null);
 
+        const sectionBefore = parseNoteTag(
+            notes.find((note) => note.id === noteId)?.body ?? ""
+        ).tagKey;
+
         let result;
         try {
             result = await updateGameNote(
@@ -286,6 +291,19 @@ export function useGameNotesController({
 
         if (result?.ok && !result.note) {
             armRemovalLanding(gameId, noteId);
+        }
+
+        if (result?.ok && result.note && parseNoteTag(result.note.body).tagKey !== sectionBefore) {
+            const landingId = noteRemovalLanding(
+                notes,
+                sortMode,
+                language,
+                new Set(collapsedTags),
+                noteId
+            );
+            if (landingId !== null) {
+                armNoteFocusReturn(gameId, landingId, activeUlid);
+            }
         }
 
         adoptCollapsedTags(result);

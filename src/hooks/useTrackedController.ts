@@ -30,7 +30,7 @@ import {
     toggleTrackedAchievement
 } from "../api";
 import type { AchievementRow, AOSource, NoteColor, OkResult, Payload, ReorderDirection, TrackedAchievementAction, TrackedAchievementSort, TrackedNotes, TrackedNotesColor, TrackedTab, ViewKey } from "../types";
-import { earned, isMissable, metricSortComparator } from "../utils/achievements";
+import { earned, isMissable, metricSortComparator, parseNoteTag } from "../utils/achievements";
 import type { LanguageCode } from "../locales";
 import { logError } from "../utils/errors";
 import { landOn, liveOrder, orderAfterGroupMove, stepTo } from "../utils/reorderOrder";
@@ -42,6 +42,7 @@ import {
     trackedRemovalLanding,
     TRACKED_UNTAGGED_COLLAPSE_KEY
 } from "../components/tracked/TrackedListBody";
+import { retargetTrackedFocusReturn } from "../utils/trackedFocusReturn";
 import { useFocusClaim } from "./useFocusClaim";
 
 type TrackedWriteResult = {
@@ -411,13 +412,32 @@ export function useTrackedController({
         [notesByAchievementId, collapsedTagSet, language, restorePendingFocusNextTick, rowClaim.claimSlot]
     );
 
+    const landingInputsRef = useRef({ trackedAchievements, notesByAchievementId, collapsedTagSet, language });
+    landingInputsRef.current = { trackedAchievements, notesByAchievementId, collapsedTagSet, language };
+
     const onSaveTrackedNote = useCallback(
         async (achievementId: number, note: string, color: NoteColor): Promise<OkResult> => {
             if (!payload?.gameId) {
                 return { ok: false, error: "No current game loaded." };
             }
+            const inputs = landingInputsRef.current;
+            const previousNote = inputs.notesByAchievementId[String(achievementId)] ?? "";
+            const leavesItsSection = parseNoteTag(previousNote).tagKey !== parseNoteTag(note).tagKey;
+            const landing = leavesItsSection
+                ? trackedRemovalLanding(
+                    inputs.trackedAchievements,
+                    inputs.notesByAchievementId,
+                    inputs.language,
+                    inputs.collapsedTagSet,
+                    achievementId
+                )
+                : null;
+
             try {
                 const result = await saveTrackedNote(payload.gameId, achievementId, note, color);
+                if (landing !== null && landing.landingId !== null) {
+                    retargetTrackedFocusReturn(landing.landingId);
+                }
                 if (!mountedRef.current) {
                     return { ok: true };
                 }

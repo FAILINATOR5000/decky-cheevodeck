@@ -15,6 +15,14 @@ export function armTrackedFocusReturn(achievementId: number, ulid: string): void
     pending = { achievementId, ulid };
 }
 
+export function retargetTrackedFocusReturn(achievementId: number): void {
+    if (pending === null || !achievementId) {
+        return;
+    }
+    logFocusDebug("tracked-return-retarget", String(achievementId), `was ${pending.achievementId}`);
+    pending = { ...pending, achievementId };
+}
+
 export function takeTrackedFocusReturn(): TrackedFocusReturn | null {
     const held = pending;
     pending = null;

@@ -393,6 +393,7 @@ export function trackedCollapseKeyForAchievement(
 }
 
 export type TrackedRemovalLanding = {
+    landingId: number | null;
     focusKey: string;
     claimSlot: number | null;
     claimBack: boolean;
@@ -415,7 +416,7 @@ export function trackedRemovalLanding(
     const remaining = visualOrder.filter((row) => row.id !== removedAchievementId);
 
     if (remaining.length <= 0) {
-        return { focusKey: "tracked:back", claimSlot: null, claimBack: true };
+        return { landingId: null, focusKey: "tracked:back", claimSlot: null, claimBack: true };
     }
 
     const safeIndex = removedIndex >= 0 ? Math.min(removedIndex, remaining.length - 1) : 0;
@@ -442,6 +443,7 @@ export function trackedRemovalLanding(
     const landingIndex = wouldLeaveTheGroup ? safeIndex - 1 : safeIndex;
 
     return {
+        landingId: remaining[landingIndex].id,
         focusKey: `achievement:${remaining[landingIndex].id}`,
         claimSlot: removedSlot !== null && removedSlot.indexInGroup === removedSlot.groupSize - 1
             ? landingIndex
