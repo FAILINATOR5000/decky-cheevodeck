@@ -62,6 +62,8 @@ export function AchievementList(props: {
     reorderTargetId?: number | null;
     reorderViaSwap?: boolean;
     seedRows?: number;
+    mountedRowCount?: number;
+    onRowFocus?: (index: number) => void;
     claimedRow?: {
         slotIndex: number;
         token: number;
@@ -379,7 +381,11 @@ export function AchievementList(props: {
         debugLabel: currentMode === "tracked" ? `tracked:${props.titleOverride || "list"}` : undefined
     });
 
-    const bodyAchievements = props.collapsed ? NO_ROWS : mountedAchievements;
+    const bodyAchievements = props.collapsed
+        ? NO_ROWS
+        : props.mountedRowCount === undefined
+            ? mountedAchievements
+            : mountedAchievements.slice(0, props.mountedRowCount);
 
     const mountedIcons = useMemo(() => {
         const missingBadgeNames: string[] = [];
@@ -529,6 +535,8 @@ export function AchievementList(props: {
     clickRef.current = props.onAchievementClick;
     const focusRef = useRef(handleAchievementFocus);
     focusRef.current = handleAchievementFocus;
+    const rowFocusRef = useRef(props.onRowFocus);
+    rowFocusRef.current = props.onRowFocus;
 
     const trackToggleRef = useRef(props.onAchievementTrackToggle);
     trackToggleRef.current = props.onAchievementTrackToggle;
@@ -553,6 +561,7 @@ export function AchievementList(props: {
         },
         onAchievementFocus: (index: number) => {
             focusRef.current(index);
+            rowFocusRef.current?.(index);
         },
         onAchievementTrackToggle: props.onAchievementTrackToggle
             ? (achievement: AchievementRow) => {

@@ -434,7 +434,7 @@ function TrackedPage(props: TrackedPageProps) {
 
         const reachable = activeTrackedTab !== "clear"
             && restoreSlot !== null
-            && restoreSlot.indexInGroup < TRACKED_RESTORE_SEED_CEILING;
+            && restoreSlot.flatIndex < TRACKED_RESTORE_SEED_CEILING;
 
         if (!reachable) {
             setRestoreAbandoned(true);
@@ -443,7 +443,7 @@ function TrackedPage(props: TrackedPageProps) {
                 restoreAchievementId === null ? "(none)" : String(restoreAchievementId),
                 restoreSlot === null
                     ? `tab=${activeTrackedTab} gone from the list`
-                    : `tab=${activeTrackedTab} inGroup=${restoreSlot.indexInGroup}`
+                    : `tab=${activeTrackedTab} slot=${restoreSlot.flatIndex}`
                         + ` ceiling=${TRACKED_RESTORE_SEED_CEILING} past the ceiling`
             );
             onRequestFocus("tracked:back");

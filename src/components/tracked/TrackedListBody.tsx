@@ -5,6 +5,7 @@ import { AchievementList } from "../achievements/AchievementList";
 import { CollapsibleTitle } from "../ui/CollapsibleTitle";
 import { InlineSpinner } from "../ui/InlineSpinner";
 import type { FocusClaimController } from "../../hooks/useFocusClaim";
+import { useWindowedList } from "../../hooks/useWindowedList";
 import type { LanguageCode } from "../../locales";
 import { t } from "../../locales";
 import type {
@@ -170,6 +171,40 @@ export function TrackedListBody(props: TrackedListBodyProps) {
         [trackedAchievements, notesByAchievementId, language]
     );
 
+    const flatRows = useMemo(() => {
+        const rows: AchievementRow[] = [];
+        for (const group of groups) {
+            if (collapsedKeys.has(collapseKeyForGroup(group))) {
+                continue;
+            }
+            for (const achievement of group.achievements) {
+                rows.push(achievement);
+            }
+        }
+        return rows;
+    }, [groups, collapsedKeys]);
+
+    const seedIndex = restoreSeedAchievementId == null
+        ? -1
+        : flatRows.findIndex((row) => row.id === restoreSeedAchievementId);
+
+    const {
+        mountedItems: mountedRows,
+        markerRef: loadMoreMarkerRef,
+        onItemFocus
+    } = useWindowedList({
+        items: flatRows,
+        dynamicLoading,
+        initialRows: dynamicInitialRows,
+        rowStep: dynamicRowStep,
+        prefetchDistance: dynamicPrefetchDistance,
+        sentinelRootMargin: `${Math.max(0, dynamicSentinelRootMargin)}px 0px`,
+        resetKey: `tracked:${payload.gameId ?? "none"}:${listResetToken}:${focusScopeResetToken}`,
+        seedRows: seedIndex < 0 ? 0 : seedIndex + 1,
+        debugLabel: "tracked:flat"
+    });
+    const mountedCount = mountedRows.length;
+
     if (!trackedReady) {
         return (
             <PanelSection title={t(language, "Tracked")}>
@@ -231,12 +266,16 @@ export function TrackedListBody(props: TrackedListBodyProps) {
     const claimedSlot = rowClaim?.claim ?? null;
     const claimSpend = rowClaim?.spend;
     let flatStart = 0;
-    const groupStarts = groups.map((group) => {
+    const groupSlices = groups.map((group) => {
+        const collapsed = collapsedKeys.has(collapseKeyForGroup(group));
         const start = flatStart;
-        if (!collapsedKeys.has(collapseKeyForGroup(group))) {
+        if (!collapsed) {
             flatStart += group.achievements.length;
         }
-        return start;
+        const reach = collapsed
+            ? 0
+            : Math.max(0, Math.min(group.achievements.length, mountedCount - start));
+        return { start, collapsed, reach };
     });
 
     return (
@@ -248,10 +287,10 @@ export function TrackedListBody(props: TrackedListBodyProps) {
                 const groupKey = group.tagKey === null ? "_untagged_" : group.tagKey;
                 const listKey = `tracked:${payload.gameId ?? "none"}:${groupKey}:${listResetToken}:${focusScopeResetToken}`;
                 const collapseKey = collapseKeyForGroup(group);
-                const collapsed = collapsedKeys.has(collapseKey);
-                const visibleRows = collapsed ? 0 : group.achievements.length;
-                const slotInGroup = claimedSlot ? claimedSlot.slotIndex - groupStarts[index] : -1;
-                const claimedRow = claimedSlot && claimSpend && slotInGroup >= 0 && slotInGroup < visibleRows
+                const slice = groupSlices[index];
+                const collapsed = slice.collapsed;
+                const slotInGroup = claimedSlot ? claimedSlot.slotIndex - slice.start : -1;
+                const claimedRow = claimedSlot && claimSpend && slotInGroup >= 0 && slotInGroup < slice.reach
                     ? {
                         slotIndex: slotInGroup,
                         token: claimedSlot.token,
@@ -259,10 +298,6 @@ export function TrackedListBody(props: TrackedListBodyProps) {
                         onSpent: claimSpend
                     }
                     : undefined;
-                const seedIndex = restoreSeedAchievementId == null
-                    ? -1
-                    : group.achievementIds.indexOf(restoreSeedAchievementId);
-                const seedRows = collapsed || seedIndex < 0 ? 0 : seedIndex + 1;
                 return (
                     <AchievementList
                         key={listKey}
@@ -297,7 +332,7 @@ export function TrackedListBody(props: TrackedListBodyProps) {
                         }
                         collapsed={collapsed}
                         resetToken={listResetToken}
-                        dynamicLoading={dynamicLoading}
+                        dynamicLoading={false}
                         dynamicInitialRows={dynamicInitialRows}
                         dynamicRowStep={dynamicRowStep}
                         dynamicPrefetchDistance={dynamicPrefetchDistance}
@@ -306,7 +341,8 @@ export function TrackedListBody(props: TrackedListBodyProps) {
                         reorderTargetId={reorderTargetId}
                         reorderViaSwap={reorderViaSwap}
                         claimedRow={claimedRow}
-                        seedRows={seedRows}
+                        mountedRowCount={slice.reach}
+                        onRowFocus={(rowIndex) => onItemFocus(slice.start + rowIndex)}
                         onAchievementClick={async (achievement) => {
                             if (trackedValidating || busy) {
                                 return;
@@ -320,6 +356,9 @@ export function TrackedListBody(props: TrackedListBodyProps) {
                     />
                 );
             })}
+            {dynamicLoading && mountedCount < flatRows.length && (
+                <div ref={loadMoreMarkerRef} style={{ height: "1px" }} />
+            )}
         </>
     );
 }
