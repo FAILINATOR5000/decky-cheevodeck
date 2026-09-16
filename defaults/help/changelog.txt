@@ -1,60 +1,26 @@
 CheevoDeck {{VERSION}}
 
-This is the biggest one yet! And it's all quality of life improvements across the board. Phew, where do I even begin? The most notable improvements are traversal. Now when you edit something, such as tracked notes, when you come back from the edit, you now land right back on the thing you edited; no more starting at the top of the page regardless.
+This one is a follow-up to the quality of life improvements in 0.9.0 and aims to iron out those pesky bugs! Both Tracked and Notes pages had some strange behavior going on, but no worries, the infrastructure has improved drastically. I also added some very minor quality of life improvements as well, such as changing the formatting of Tracked and Game Notes categories. Now, by default, it no longer is in all caps and now matches whatever case you type. If you liked the old style, you are able to change it back in options. See below for more!
 
 <b>Tracked Page</b>
 
--Custom tagged categories now sort alphabetically.
--Added the ability to expand and collapse tagged categories.
--Editing notes now lands you right back on the note you were editing in the list instead of moving you to the top of the page.
--Fixed an issue where reordering caused strange behaviors with the cursor.
+-Fixed the cursor vanishing after editing a note.
+-Changing an item's tag now leaves the cursor in the category you were already in, instead of following the item over to its new one. If you're tagging a lot of items in one go, this saves you walking back to your place every time.
+-Fixed the page shifting under you while you scroll up through categories.
+-Notes are no longer cut off at 300 characters. The editor always let you type 500, so now it reflects that.
+-The Completed tag no longer shows up in your tag suggestions.
 
 <b>Game Notes Page</b>
 
--Custom tagged categories now sort alphabetically.
--Added the ability to expand and collapse tagged categories.
--Category headers now show how many notes there are.
--Editing notes now lands you right back on the note you were editing in the list instead of moving you to the top of the page.
--Adding a new note will now select it once added to the list.
--Fixed an issue where reordering caused strange behaviors with the cursor.
--Added a button shortcut in the note editor to instantly mark the note as complete.
--Added a button shortcut in the note editor to delete the note; requires double-press.
+-The same cursor and page-shifting fixes as Tracked above.
+-Changing a note's tag also leaves the cursor where you were instead of following the note.
 
-<b>Dolphin Mapper</b>
+<b>Options</b>
 
--Modified the expand/collapse buttons to be consistent with that of Tracked and Notes pages to declutter the UI.
--Editing mappings now puts you exactly where you left off before editing it; not at the top of the page.
--Adding a new mapping will now select the new mapping once added to the list. No more warping to the top of the page.
--Selecting the help button now lands you back on the help button when coming back from the help dialog.
--Fixed an issue where reordering caused strange behaviors with the cursor.
-
-<b>File Watcher, SMB Shares, and Cheevo Check</b>
-
--Improvements to traversal by remembering the last button when going from the page to a modal dialog.
-
-<b>Guide Page</b>
-
--Moved the exit button prompt and glyph to last, above the viewer. Since it wraps to the second row, this ensures people can see it.
-
-<b>Main Menu</b>
-
--Improved the aesthetics of the tabbed pane.
--Modified the collapsible control for Players Near You to be consistent with the changes above.
-
-<b>Profile Page</b>
-
--A green dot now shows next to your friend's status if they are online, based on if they were active within 15 minutes.
-
-<b>Game Info Page</b>
-
--Achievement Sort and Filter toggles now persist and remember your last settings.
+-Added Formatting settings for header case. <b>Tracked Header Style</b> and <b>Notes Header Style</b> control your tag categories on those two pages, where Typed shows the tag exactly as you typed it. Capitalized shows the Steam default capitalized headers. Also, <b>General Header Style</b> covers every other header. View them in <b>Quick Menu</b> > <b>Options</b> > <b>Display & Notifications</b> tab under <b>Formatting</b>.
 
 <b>Miscellaneous Fixes</b>
 
--Fixed lists that could stop growing while you scrolled.
--Fixed a small window where if A was pressed quickly after exiting a modal to a page, it would trigger odd behavior.
--Fixed issues where deleting a category's last mapping had undesired behavior.
--Fixed UTC dating anomalies.
--Fixed overly large button glyphs, specifically in notifications and comments.
+-Fixed categories coming back collapsed when they should have been open. It only sorted itself out if you closed and reopened the panel, and it could happen on Tracked, Other Games, Game Notes and Dolphin Mapper.
 
-This should really enhance your achievement hunting experience. Have at it, fellow cheevo hunters!
+Alright, I hope this helps improve your achievement hunting journey even more! I'm working on a very special new feature that will most likely be included in the next update. See you around!
