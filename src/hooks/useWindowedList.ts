@@ -63,11 +63,12 @@ export function useWindowedList<T>(options: WindowedListOptions<T>): WindowedLis
             if (items.length === 0) {
                 return 0;
             }
-            if (current === 0) {
-                return Math.min(floorRows, items.length);
-            }
             if (current > items.length) {
                 return items.length;
+            }
+            const floor = Math.min(floorRows, items.length);
+            if (current < floor) {
+                return floor;
             }
             return current;
         });
