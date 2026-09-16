@@ -98,6 +98,22 @@ export function buildNoteSections(
     return ordered;
 }
 
+export function flattenNoteVisualOrder(
+    sections: NoteSection[],
+    collapsedKeys: ReadonlySet<string>
+): GameNote[] {
+    const ordered: GameNote[] = [];
+    for (const section of sections) {
+        if (collapsedKeys.has(noteSectionCollapseKey(section))) {
+            continue;
+        }
+        for (const note of section.orderedNotes) {
+            ordered.push(note);
+        }
+    }
+    return ordered;
+}
+
 export function noteRemovalLanding(
     notes: GameNote[],
     sortMode: GameNoteSortMode,

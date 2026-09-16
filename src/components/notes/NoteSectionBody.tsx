@@ -3,7 +3,6 @@ import { PanelSection } from "../ui/PanelSection";
 import { CollapsibleTitle } from "../ui/CollapsibleTitle";
 import { FocusClaim } from "../ui/FocusClaim";
 import { NoteCard, type NoteCardListProps } from "./NoteCard";
-import { useWindowedList } from "../../hooks/useWindowedList";
 import type { GameNote, HeaderStyle } from "../../types";
 
 export type NoteSectionBodyProps = {
@@ -16,13 +15,7 @@ export type NoteSectionBodyProps = {
     notes: GameNote[];
     cardList: Omit<NoteCardListProps, "onFocusIndex">;
     reorderTargetId: string | null;
-    dynamicLoading: boolean;
-    dynamicInitialRows: number;
-    dynamicRowStep: number;
-    dynamicPrefetchDistance: number;
-    sentinelRootMargin: string;
-    resetKey: string;
-    restoreSeedNoteId: string | null;
+    onRowFocus: (index: number) => void;
     claimedRow?: {
         slotIndex: number;
         token: number;
@@ -33,35 +26,11 @@ export type NoteSectionBodyProps = {
 
 const NO_NOTES: GameNote[] = [];
 
-function seedRowsFor(notes: GameNote[], restoreSeedNoteId: string | null): number {
-    if (restoreSeedNoteId === null) {
-        return 0;
-    }
-    const index = notes.findIndex((note) => note.id === restoreSeedNoteId);
-    return index < 0 ? 0 : index + 1;
-}
-
 export function NoteSectionBody(props: NoteSectionBodyProps) {
     const { notes, cardList, collapsed } = props;
 
-    const {
-        mountedItems: mountedNotes,
-        markerRef: loadMoreMarkerRef,
-        onItemFocus
-    } = useWindowedList({
-        items: notes,
-        dynamicLoading: props.dynamicLoading,
-        initialRows: props.dynamicInitialRows,
-        rowStep: props.dynamicRowStep,
-        prefetchDistance: props.dynamicPrefetchDistance,
-        sentinelRootMargin: props.sentinelRootMargin,
-        resetKey: props.resetKey,
-        seedRows: seedRowsFor(notes, props.restoreSeedNoteId),
-        debugLabel: `notes:${props.collapseKey}`
-    });
-
-    const itemFocusRef = useRef(onItemFocus);
-    itemFocusRef.current = onItemFocus;
+    const itemFocusRef = useRef(props.onRowFocus);
+    itemFocusRef.current = props.onRowFocus;
 
     const sectionCardList = useMemo<NoteCardListProps>(() => ({
         ...cardList,
@@ -70,7 +39,7 @@ export function NoteSectionBody(props: NoteSectionBodyProps) {
         }
     }), [cardList]);
 
-    const bodyNotes = collapsed ? NO_NOTES : mountedNotes;
+    const bodyNotes = collapsed ? NO_NOTES : notes;
 
     return (
         <PanelSection
@@ -114,9 +83,6 @@ export function NoteSectionBody(props: NoteSectionBodyProps) {
 
                 return card;
             })}
-            {props.dynamicLoading && !collapsed && mountedNotes.length < notes.length && (
-                <div ref={loadMoreMarkerRef} style={{ height: "1px" }} />
-            )}
         </PanelSection>
     );
 }
