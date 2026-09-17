@@ -137,6 +137,7 @@ type MemoriesPageState = {
     language: LanguageCode;
     buttonSpacing: ButtonSpacing;
     glyphStyle: ControllerGlyphStyle;
+    mouseKeyboardMode: boolean;
     showIcons: boolean;
     showRetroPoints: boolean;
     panelOverlayVisible: boolean;
@@ -171,6 +172,7 @@ function MemoriesPage(props: MemoriesPageProps) {
         language,
         buttonSpacing,
         glyphStyle,
+        mouseKeyboardMode,
         showIcons,
         showRetroPoints,
         panelOverlayVisible,
@@ -341,6 +343,7 @@ function MemoriesPage(props: MemoriesPageProps) {
                 gameId={memory.gameId}
                 thumbDataUri={memories.thumbs[memory.path] ?? null}
                 language={language}
+                mouseKeyboardMode={mouseKeyboardMode}
                 showRetroPoints={showRetroPoints}
                 tagVocabulary={memories.tagVocabulary}
                 allTags={memories.allTags}

@@ -13,6 +13,7 @@ import { armMemoriesFocusKey, armMemoriesFocusReturn } from "../../utils/memorie
 import { FadeImage } from "../ui/FadeImage";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { PencilIcon } from "../ui/PencilIcon";
+import { TrashIcon } from "../ui/TrashIcon";
 import { AwardStamp } from "../achievements/AwardStamp";
 import { HardcoreBadge } from "../achievements/HardcoreBadge";
 import { POINTS_LABEL_STYLES, PointsLabel } from "../achievements/PointsLabel";
@@ -77,6 +78,7 @@ export type MemoryViewerModalProps = {
     thumbDataUri: string | null;
     language: LanguageCode;
     showRetroPoints: boolean;
+    mouseKeyboardMode: boolean;
     tagVocabulary: string[];
     allTags: string[];
     activeUlid: string;
@@ -86,7 +88,7 @@ export type MemoryViewerModalProps = {
 };
 
 export function MemoryViewerModal(props: MemoryViewerModalProps) {
-    const { memory, gameId, thumbDataUri, language, showRetroPoints, tagVocabulary, allTags, activeUlid, tagFilter, removalLandingId, close } = props;
+    const { memory, gameId, thumbDataUri, language, showRetroPoints, mouseKeyboardMode, tagVocabulary, allTags, activeUlid, tagFilter, removalLandingId, close } = props;
 
     const [caption, setCaption] = useState(memory.caption);
     const [tag, setTag] = useState(memory.tag);
@@ -403,6 +405,24 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                                 >
                                     <PencilIcon size={modalSize(16)} />
                                 </DialogButton>
+                                {mouseKeyboardMode && (
+                                    <DialogButton
+                                        onClick={pressDelete}
+                                        style={{
+                                            minWidth: 0,
+                                            width: `${modalSize(34)}px`,
+                                            height: `${modalSize(34)}px`,
+                                            padding: "4px",
+                                            marginLeft: "6px",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            color: armedDelete ? errorRed : undefined
+                                        }}
+                                    >
+                                        <TrashIcon size={modalSize(16)} />
+                                    </DialogButton>
+                                )}
                             </Focusable>
                         </div>
 

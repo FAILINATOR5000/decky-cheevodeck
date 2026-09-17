@@ -4965,6 +4965,7 @@ function AchievementsRoot() {
                                     language,
                                     buttonSpacing,
                                     glyphStyle: controllerGlyphStyle,
+                                    mouseKeyboardMode,
                                     showIcons,
                                     showRetroPoints,
                                     panelOverlayVisible,
