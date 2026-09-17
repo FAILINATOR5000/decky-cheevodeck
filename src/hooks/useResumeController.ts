@@ -272,6 +272,7 @@ export function useResumeController({
                 bootView === "dolphinMapper" ||
                 bootView === "smbShares" ||
                 bootView === "cheevoCheck" ||
+                bootView === "memories" ||
                 bootView === "unlockHistory" ||
                 bootView === "about" ||
                 bootView === "social" ||

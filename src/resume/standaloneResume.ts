@@ -3,6 +3,7 @@ import { getAboutResumeFocusKey } from "./aboutResume";
 import { getCheevoCheckResumeFocusKey } from "./cheevoCheckResume";
 import { getDolphinMapperResumeFocusKey } from "./dolphinMapperResume";
 import { getFileWatcherResumeFocusKey } from "./fileWatcherResume";
+import { getMemoriesResumeFocusKey } from "./memoriesResume";
 import { getSavedGameNotesGameId } from "./gameNotesResume";
 import { getSavedGuidesSubView } from "./guidesResume";
 import { getNowPlayingResumeFocusKey } from "./nowPlayingResume";
@@ -61,6 +62,15 @@ export function restoreStandaloneView(savedState: ResumeState, savedView: ViewKe
         ctx.setView("fileWatcher");
         ctx.setPendingPrimaryViewRestoreGameId(undefined);
         ctx.setPendingFocusKey(getFileWatcherResumeFocusKey(savedView) ?? "fileWatcher:back");
+        ctx.markResumeApplied();
+        return true;
+    }
+
+    if (savedView === "memories") {
+        ctx.setRecentGamesExpanded(false);
+        ctx.setView("memories");
+        ctx.setPendingPrimaryViewRestoreGameId(undefined);
+        ctx.setPendingFocusKey(getMemoriesResumeFocusKey(savedView) ?? "memories:back");
         ctx.markResumeApplied();
         return true;
     }

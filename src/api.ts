@@ -22,6 +22,12 @@ import type {
     CacheClearGroup,
     CheckCurrentGameResponse,
     CheevoNotification,
+    MemoriesResponse,
+    MemoryDateOrder,
+    MemoryGameRow,
+    MemoryRecord,
+    MemoryTagSort,
+    MemoryViewPrefs,
     ArchivedNotification,
     ClearAllTrackedResponse,
     ClearTrackedResponse,
@@ -465,6 +471,60 @@ export const saveLibraryBadge = callable<
     [boolean],
     { ok: boolean; libraryBadge: boolean }
 >("save_library_badge");
+export const saveMemoriesAutoCapture = callable<
+    [boolean],
+    { ok: boolean; memoriesAutoCapture: boolean }
+>("save_memories_auto_capture");
+export const saveMemoriesDeleteSource = callable<
+    [boolean],
+    { ok: boolean; memoriesDeleteSource: boolean }
+>("save_memories_delete_source");
+export const saveMemoriesPerPage = callable<
+    [number],
+    { ok: boolean; memoriesPerPage: number }
+>("save_memories_per_page");
+export const adoptScreenshot = callable<
+    [string, number, number, string],
+    { ok: boolean; error?: string; gameId?: number; memory?: MemoryRecord; deleteSource?: boolean }
+>("adopt_screenshot");
+export const loadMemories = callable<[number], MemoriesResponse>("load_memories");
+export const loadMemoryGames = callable<
+    [],
+    { ok: boolean; games: MemoryGameRow[] }
+>("load_memory_games");
+export const loadMemoryThumbs = callable<
+    [{ gameId: number; path: string }[]],
+    { ok: boolean; thumbs: Record<string, string | null> }
+>("load_memory_thumbs");
+export const loadMemoryFull = callable<
+    [number, string],
+    { ok: boolean; downscaled?: boolean; dataUri: string | null }
+>("load_memory_full");
+export const updateMemory = callable<
+    [number, string, string | null, string | null, string | null],
+    { ok: boolean; error?: string; memory?: MemoryRecord; tagVocabulary?: string[] }
+>("update_memory");
+export const deleteMemory = callable<
+    [number, string],
+    { ok: boolean; error?: string; deletedId?: string; remaining?: number }
+>("delete_memory");
+export const deleteAllMemories = callable<
+    [],
+    { ok: boolean; removed: number }
+>("delete_all_memories");
+export const loadMemoryViewPrefs = callable<[], MemoryViewPrefs>("load_memory_view_prefs");
+export const saveMemoryViewPrefs = callable<
+    [
+        number | null,
+        MemoryDateOrder | null,
+        number | null,
+        number | null,
+        string | null,
+        string | null,
+        MemoryTagSort | null
+    ],
+    MemoryViewPrefs
+>("save_memory_view_prefs");
 export const saveCheevoCheckVerifySpeed = callable<
     [string],
     { ok: boolean; cheevoCheckVerifySpeed: string }
@@ -568,6 +628,10 @@ export const saveBatterySaverDisablesFileWatcher = callable<
     [boolean],
     { ok: boolean; batterySaverDisablesFileWatcher: boolean }
 >("save_battery_saver_disables_file_watcher");
+export const saveBatterySaverDisablesMemories = callable<
+    [boolean],
+    { ok: boolean; batterySaverDisablesMemories: boolean }
+>("save_battery_saver_disables_memories");
 export const saveFileWatcherSpeed = callable<
     [FileWatcherSpeed],
     { ok: boolean; fileWatcherSpeed: FileWatcherSpeed }

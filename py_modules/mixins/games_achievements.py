@@ -104,7 +104,10 @@ class GamesAchievementsMixin(PluginContext):
 
     async def check_current_game(self):
         async with self._game_check_slot():
-            return await asyncio.to_thread(self._check_current_game_sync)
+            result = await asyncio.to_thread(self._check_current_game_sync)
+
+        await self.resolve_pending_memories(result.get("currentGameId"))
+        return result
 
     def _check_current_game_sync(self):
         cfg = self.settings_store.load_config()

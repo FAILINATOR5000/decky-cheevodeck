@@ -28,6 +28,7 @@ from services.comments_service import CommentsService
 from services.new_sets_service import NewSetsService
 from services.tracked_sets_monitor_service import TrackedSetsMonitorService
 from guides_store import GuidesStore
+from memories_store import MemoriesStore
 from notes_store import NotesStore
 from players_near_you_store import PlayersNearYouStore
 from games_list_cache_store import GamesListCacheStore
@@ -55,6 +56,7 @@ class PluginContext:
     comment_baselines_store: CommentBaselinesStore
     games_list_cache_store: GamesListCacheStore
     guides_store: GuidesStore
+    memories_store: MemoriesStore
     notes_store: NotesStore
     notifications_store: NotificationsStore
     players_near_you_store: PlayersNearYouStore
@@ -96,11 +98,15 @@ class PluginContext:
     _comments_cache_lock: threading.Lock
     _debug_logging: bool
     _friend_fetch_lock: asyncio.Lock
+    _memories_adopt_lock: asyncio.Lock
     _ipc_slow_threshold_ms: int
     _validate_friends_roster: bool
+    _memories_last_resolve_at: float
+    _memories_deferred_resolve: asyncio.Task | None
 
     def _ra_slot(self, wait_for_game_check: bool = True) -> AbstractAsyncContextManager[None]: ...
     def _image_slot(self) -> AbstractAsyncContextManager[None]: ...
     def _game_check_slot(self) -> AbstractAsyncContextManager[None]: ...
     def _active_ra_user(self, cfg: dict) -> str: ...
     def _run_clear_under_trickle_lock(self, clear_fn): ...
+    def _spawn_background_task(self, coro) -> asyncio.Task: ...

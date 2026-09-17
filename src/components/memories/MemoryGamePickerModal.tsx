@@ -1,18 +1,18 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { DialogButton, Focusable, ModalRoot, TextField } from "@decky/ui";
-import type { SavedCommentGame, SavedCommentsFilter } from "../../types";
-import type { LanguageCode } from "../../locales";
-import { t } from "../../locales";
 import { FocusableItem } from "../ui/FocusableItem";
 import { FadeImage } from "../ui/FadeImage";
+import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { useGameIcon } from "../../hooks/useGameIcon";
 import { useWindowedList } from "../../hooks/useWindowedList";
 import { prefetchGameIcons } from "../../api";
+import { t, type LanguageCode } from "../../locales";
 import { modalSize } from "../../utils/scale";
 import { FADE_IN_KEYFRAMES } from "../../utils/style";
-import { SnapshotHotkey } from "../ui/SnapshotHotkey";
+import { ALL_GAMES_ID, MISC_GAME_ID } from "../../utils/memories";
 import { searchKey } from "../../utils/searchText";
 import { consoleInlineName, consoleSearchName } from "../../utils/consoles";
+import type { MemoryGameRow } from "../../types";
 
 const GAMES_INITIAL_ROWS = 30;
 const GAMES_ROW_STEP = 50;
@@ -20,37 +20,14 @@ const GAMES_SENTINEL_ROOT_MARGIN = "300px";
 
 const SEARCH_THRESHOLD = 12;
 
-export type SavedCommentsFilterModalProps = {
-    games: SavedCommentGame[];
-    selected: SavedCommentsFilter;
+export type MemoryGamePickerModalProps = {
+    games: MemoryGameRow[];
+    selected: number | null;
     language: LanguageCode;
     showIcons: boolean;
-    onSelect: (filter: SavedCommentsFilter) => void;
+    onSelect: (gameId: number) => void;
     close: () => void;
 };
-
-function OptionRow(props: {
-    label: string;
-    focusKey: string;
-    selected: boolean;
-    onSelect: () => void;
-}) {
-    const { label, focusKey, selected, onSelect } = props;
-    return (
-        <FocusableItem focusKey={focusKey} onClick={onSelect}>
-            <div
-                style={{
-                    width: "100%",
-                    padding: "6px 0",
-                    fontSize: `${modalSize(15)}px`,
-                    fontWeight: selected ? 800 : 600
-                }}
-            >
-                {label}
-            </div>
-        </FocusableItem>
-    );
-}
 
 type GameRowListProps = {
     language: LanguageCode;
@@ -60,38 +37,32 @@ type GameRowListProps = {
     onRowFocus: (index: number) => void;
 };
 
-type GameRowProps = {
-    game: SavedCommentGame;
+const GameRow = React.memo(function GameRow(props: {
+    game: MemoryGameRow;
     index: number;
     selected: boolean;
     list: GameRowListProps;
-};
-
-const GameRow = React.memo(function GameRow(props: GameRowProps) {
+}) {
     const { game, index, selected, list } = props;
-    const { language, showIcons } = list;
-    const { iconDataUri, cold } = useGameIcon(
-        showIcons ? game.gameId : null,
-        game.imageIcon || null,
-        "SavedCommentsFilterModal useGameIcon"
-    );
+    const iconGameId = list.showIcons && game.gameId !== MISC_GAME_ID ? game.gameId : null;
+    const { iconDataUri, cold } = useGameIcon(iconGameId, game.imageIcon || null, "MemoryGamePickerModal useGameIcon");
     const size = list.iconSize;
 
-    const system = consoleInlineName(game.consoleName || "");
+    const title = game.gameId === MISC_GAME_ID
+        ? t(list.language, "Uncategorized")
+        : (game.gameTitle || t(list.language, "Unknown game"));
 
-    function handleSelect() {
-        list.onSelect(game.gameId);
-    }
+    const system = game.gameId === MISC_GAME_ID ? "" : consoleInlineName(game.consoleName || "");
 
     return (
         <FocusableItem
-            focusKey={`savedfilter:game:${game.gameId}`}
-            onClick={handleSelect}
+            focusKey={`memories:game:${game.gameId}`}
+            onClick={() => list.onSelect(game.gameId)}
             onFocus={() => list.onRowFocus(index)}
             onGamepadFocus={() => list.onRowFocus(index)}
         >
             <div style={{ width: "100%", display: "flex", alignItems: "center", gap: "10px", padding: "4px 0" }}>
-                {showIcons && (
+                {list.showIcons && (
                     <div
                         style={{
                             width: `${size}px`,
@@ -100,10 +71,7 @@ const GameRow = React.memo(function GameRow(props: GameRowProps) {
                             overflow: "hidden",
                             flexShrink: 0,
                             background: "rgba(255,255,255,0.10)",
-                            border: "1px solid rgba(255,255,255,0.12)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center"
+                            border: "1px solid rgba(255,255,255,0.12)"
                         }}
                     >
                         {iconDataUri ? (
@@ -123,10 +91,16 @@ const GameRow = React.memo(function GameRow(props: GameRowProps) {
                             wordBreak: "break-word"
                         }}
                     >
-                        {game.title || t(language, "Unknown game")}
+                        {title}
                     </span>
                     {system ? (
-                        <span style={{ fontSize: `${modalSize(12)}px`, opacity: 0.7, wordBreak: "break-word" }}>
+                        <span
+                            style={{
+                                fontSize: `${modalSize(12)}px`,
+                                opacity: 0.7,
+                                wordBreak: "break-word"
+                            }}
+                        >
                             {system}
                         </span>
                     ) : null}
@@ -139,18 +113,19 @@ const GameRow = React.memo(function GameRow(props: GameRowProps) {
     );
 });
 
-export function SavedCommentsFilterModal(props: SavedCommentsFilterModalProps) {
+export function MemoryGamePickerModal(props: MemoryGamePickerModalProps) {
     const { games, selected, language, showIcons, onSelect, close } = props;
 
     const [query, setQuery] = useState("");
 
     const searchShown = games.length > SEARCH_THRESHOLD;
 
-    const gameKeys = useMemo(
+    const titleKeys = useMemo(
         () => games.map((game) => searchKey(
-            (game.title || "") + " " + consoleSearchName(game.consoleName || "")
+            (game.gameId === MISC_GAME_ID ? t(language, "Uncategorized") : game.gameTitle)
+            + " " + consoleSearchName(game.consoleName || "")
         )),
-        [games]
+        [games, language]
     );
 
     const filteredGames = useMemo(() => {
@@ -158,28 +133,32 @@ export function SavedCommentsFilterModal(props: SavedCommentsFilterModalProps) {
         if (!wanted) {
             return games;
         }
-        return games.filter((_game, index) => gameKeys[index].includes(wanted));
-    }, [games, gameKeys, query]);
+        return games.filter((_game, index) => titleKeys[index].includes(wanted));
+    }, [games, titleKeys, query]);
 
-    const { mountedItems: visibleGames, markerRef: gamesMarkerRef, onItemFocus } = useWindowedList({
+    const { mountedItems: visibleGames, markerRef, onItemFocus } = useWindowedList({
         items: filteredGames,
         dynamicLoading: true,
         initialRows: GAMES_INITIAL_ROWS,
         rowStep: GAMES_ROW_STEP,
         prefetchDistance: 8,
         sentinelRootMargin: GAMES_SENTINEL_ROOT_MARGIN,
-        resetKey: `savedfilter:${query}`
+        resetKey: `memoriesgame:${query}`
     });
 
     useEffect(() => {
         if (!showIcons || visibleGames.length === 0) {
             return;
         }
-        void prefetchGameIcons(visibleGames.map((game) => ({ gameId: game.gameId, imageIcon: game.imageIcon || null })));
+        void prefetchGameIcons(
+            visibleGames
+                .filter((game) => game.gameId !== MISC_GAME_ID)
+                .map((game) => ({ gameId: game.gameId, imageIcon: game.imageIcon || null }))
+        );
     }, [visibleGames, showIcons]);
 
-    function pick(filter: SavedCommentsFilter) {
-        onSelect(filter);
+    function pick(gameId: number) {
+        onSelect(gameId);
         close();
     }
 
@@ -206,49 +185,41 @@ export function SavedCommentsFilterModal(props: SavedCommentsFilterModalProps) {
             <SnapshotHotkey language={language} />
             <style>{FADE_IN_KEYFRAMES}</style>
             <div style={{ fontSize: `${modalSize(18)}px`, fontWeight: 800, marginBottom: "12px" }}>
-                {t(language, "Filter")}
+                {t(language, "Game")}
             </div>
+            {searchShown && (
+                <Focusable style={{ marginBottom: "10px" }} autoFocus>
+                    <TextField
+                        value={query}
+                        placeholder={t(language, "Search")}
+                        onChange={(e: { target: { value: string } }) => setQuery(e.target.value)}
+                    />
+                </Focusable>
+            )}
             <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                <OptionRow
-                    label={t(language, "All")}
-                    focusKey="savedfilter:all"
-                    selected={selected === "all"}
-                    onSelect={() => pick("all")}
-                />
-                <OptionRow
-                    label={t(language, "Achievement")}
-                    focusKey="savedfilter:achievement"
-                    selected={selected === "achievement"}
-                    onSelect={() => pick("achievement")}
-                />
-                <OptionRow
-                    label={t(language, "Wall Posts")}
-                    focusKey="savedfilter:wall"
-                    selected={selected === "wall"}
-                    onSelect={() => pick("wall")}
-                />
-                {searchShown && (
-                    <div style={{ margin: "8px 0 2px" }}>
-                        <TextField
-                            value={query}
-                            placeholder={t(language, "Search")}
-                            onChange={(e: { target: { value: string } }) => setQuery(e.target.value)}
-                        />
+                <FocusableItem
+                    focusKey="memories:game:all"
+                    onClick={() => pick(ALL_GAMES_ID)}
+                    autoFocus={!searchShown}
+                >
+                    <div
+                        style={{
+                            width: "100%",
+                            padding: "6px 0",
+                            fontSize: `${modalSize(15)}px`,
+                            fontWeight: selected === ALL_GAMES_ID ? 800 : 600
+                        }}
+                    >
+                        {t(language, "All Games")}
                     </div>
+                </FocusableItem>
+                {filteredGames.length > 0 && (
+                    <div style={{ height: "1px", background: "rgba(255,255,255,0.14)", margin: "6px 0" }} />
                 )}
                 {query && filteredGames.length === 0 && (
                     <div style={{ padding: "8px 0", fontSize: `${modalSize(13)}px`, opacity: 0.75 }}>
                         {t(language, "No games match that search.")}
                     </div>
-                )}
-                {filteredGames.length > 0 && (
-                    <div
-                        style={{
-                            height: "1px",
-                            background: "rgba(255,255,255,0.14)",
-                            margin: "6px 0"
-                        }}
-                    />
                 )}
                 {visibleGames.map((game, index) => (
                     <GameRow
@@ -260,7 +231,7 @@ export function SavedCommentsFilterModal(props: SavedCommentsFilterModalProps) {
                     />
                 ))}
                 {visibleGames.length < filteredGames.length && (
-                    <div ref={gamesMarkerRef} style={{ height: "1px" }} />
+                    <div ref={markerRef} style={{ height: "1px" }} />
                 )}
             </div>
             <Focusable style={{ display: "flex", marginTop: "14px" }}>
@@ -271,4 +242,3 @@ export function SavedCommentsFilterModal(props: SavedCommentsFilterModalProps) {
         </ModalRoot>
     );
 }
-

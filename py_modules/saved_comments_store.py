@@ -145,6 +145,7 @@ class SavedCommentsStore:
             "gameId": game_id,
             "gameTitle": _clean_text(raw.get("gameTitle")),
             "gameImageIcon": _clean_text(raw.get("gameImageIcon")),
+            "gameConsoleName": _clean_text(raw.get("gameConsoleName")),
             "achievementId": ach_id,
             "achievementTitle": _clean_text(raw.get("achievementTitle")),
             "achievementImageIcon": _clean_text(raw.get("achievementImageIcon")),

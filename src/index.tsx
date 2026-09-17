@@ -9,6 +9,8 @@ import { logError } from "./utils/errors";
 import { quickAccessMenuClasses } from "@decky/ui";
 import { disableLibraryBadge, enableLibraryBadge } from "./components/library/libraryBadgePatch";
 import { registerScreenDarken, unregisterScreenDarken } from "./components/darken/screenDarken";
+import { registerMemoryCapture, unregisterMemoryCapture } from "./components/memories/memoryCapture";
+import { registerMemoryFullscreen, unregisterMemoryFullscreen } from "./components/memories/memoryFullscreen";
 
 const NOTIFICATION_EVENT = "cheevodeck_notification";
 
@@ -62,6 +64,8 @@ export default definePlugin(() => {
     addEventListener(AVATAR_HEALED_EVENT, onAvatarHealed);
 
     registerScreenDarken();
+    registerMemoryCapture();
+    registerMemoryFullscreen();
 
     return {
         name: "CheevoDeck",
@@ -73,6 +77,8 @@ export default definePlugin(() => {
             removeEventListener(AVATAR_HEALED_EVENT, onAvatarHealed);
             disableLibraryBadge();
             unregisterScreenDarken();
+            unregisterMemoryCapture();
+            unregisterMemoryFullscreen();
         }
     };
 });

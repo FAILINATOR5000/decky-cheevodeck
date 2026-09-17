@@ -132,6 +132,9 @@ import {
     saveShowIcons,
     saveDeferModalCleanup,
     saveLibraryBadge,
+    saveMemoriesAutoCapture,
+    saveMemoriesDeleteSource,
+    saveMemoriesPerPage,
     saveLegacyCommentsLoading,
     saveBatterySaverDisablesSocialActivity,
     saveBatterySaverDisablesComments,
@@ -139,6 +142,7 @@ import {
     saveBatterySaverDisablesPlayersNearYou,
     saveBatterySaverDisablesTrackedSets,
     saveBatterySaverDisablesFileWatcher,
+    saveBatterySaverDisablesMemories,
     saveDoNotDisturbDisablesDot,
     saveDoNotDisturbDisablesToast,
     saveNightModeBrightness,
@@ -243,6 +247,7 @@ import {
     nextGameArtCacheCap,
     nextAvatarCacheCap,
     nextAchievementIconCacheGames,
+    nextMemoriesPerPage,
     nextFisTickFrequencyMinutes,
     nextCommentsCheckFrequencyMinutes,
     nextTrackedSetRefreshMinutes,
@@ -447,6 +452,10 @@ type UseOptionsControllerArgs = {
     showIcons: boolean;
     deferModalCleanup: boolean;
     libraryBadge: boolean;
+    memoriesAutoCapture: boolean;
+    memoriesDeleteSource: boolean;
+    memoriesPerPage: number;
+    batterySaverDisablesMemories: boolean;
     legacyCommentsLoading: boolean;
     batterySaverDisablesSocialActivity: boolean;
     batterySaverDisablesComments: boolean;
@@ -497,6 +506,9 @@ type UseOptionsControllerArgs = {
     setShowIcons: Dispatch<SetStateAction<boolean>>;
     setDeferModalCleanup: Dispatch<SetStateAction<boolean>>;
     setLibraryBadge: Dispatch<SetStateAction<boolean>>;
+    setMemoriesAutoCapture: Dispatch<SetStateAction<boolean>>;
+    setMemoriesDeleteSource: Dispatch<SetStateAction<boolean>>;
+    setMemoriesPerPage: Dispatch<SetStateAction<number>>;
     setLegacyCommentsLoading: Dispatch<SetStateAction<boolean>>;
     setBatterySaverDisablesSocialActivity: Dispatch<SetStateAction<boolean>>;
     setBatterySaverDisablesComments: Dispatch<SetStateAction<boolean>>;
@@ -504,6 +516,7 @@ type UseOptionsControllerArgs = {
     setBatterySaverDisablesPlayersNearYou: Dispatch<SetStateAction<boolean>>;
     setBatterySaverDisablesTrackedSets: Dispatch<SetStateAction<boolean>>;
     setBatterySaverDisablesFileWatcher: Dispatch<SetStateAction<boolean>>;
+    setBatterySaverDisablesMemories: Dispatch<SetStateAction<boolean>>;
     setFileWatcherSpeed: Dispatch<SetStateAction<FileWatcherSpeed>>;
     setFileWatcherRunDuringGames: Dispatch<SetStateAction<boolean>>;
     setDoNotDisturbDisablesDot: Dispatch<SetStateAction<boolean>>;
@@ -713,6 +726,8 @@ type UseOptionsControllerArgs = {
     onUpdateCheevoCheckReferenceData: () => void | Promise<void>;
     onFactoryReset: () => void | Promise<void>;
     onDeleteAllNotes: () => void | Promise<void>;
+    onDeleteAllMemories: () => void | Promise<void>;
+    memoriesCount: number;
     onClearGuideCache: () => void | Promise<void>;
     onToggleKeepGuidesOffline: (value: boolean) => void | Promise<void>;
     onDeleteAllGuideData: () => void | Promise<void>;
@@ -866,6 +881,10 @@ export function useOptionsController({
     showIcons,
     deferModalCleanup,
     libraryBadge,
+    memoriesAutoCapture,
+    memoriesDeleteSource,
+    memoriesPerPage,
+    batterySaverDisablesMemories,
     legacyCommentsLoading,
     batterySaverDisablesSocialActivity,
     batterySaverDisablesComments,
@@ -916,6 +935,10 @@ export function useOptionsController({
     setShowIcons,
     setDeferModalCleanup,
     setLibraryBadge,
+    setMemoriesAutoCapture,
+    setMemoriesDeleteSource,
+    setMemoriesPerPage,
+    setBatterySaverDisablesMemories,
     setLegacyCommentsLoading,
     setBatterySaverDisablesSocialActivity,
     setBatterySaverDisablesComments,
@@ -1132,6 +1155,8 @@ export function useOptionsController({
     onUpdateCheevoCheckReferenceData,
     onFactoryReset,
     onDeleteAllNotes,
+    onDeleteAllMemories,
+    memoriesCount,
     onClearGuideCache,
     onToggleKeepGuidesOffline,
     onDeleteAllGuideData,
@@ -3119,6 +3144,45 @@ export function useOptionsController({
             getSavedValue: (result, fallbackValue) => Boolean(result.libraryBadge ?? fallbackValue),
         });
 
+    const onToggleMemoriesAutoCapture = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: memoriesAutoCapture,
+            applyValue: setMemoriesAutoCapture,
+            saveCall: saveMemoriesAutoCapture,
+            getSavedValue: (result, fallbackValue) => Boolean(result.memoriesAutoCapture ?? fallbackValue),
+        });
+
+    const onToggleMemoriesDeleteSource = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: memoriesDeleteSource,
+            applyValue: setMemoriesDeleteSource,
+            saveCall: saveMemoriesDeleteSource,
+            getSavedValue: (result, fallbackValue) => Boolean(result.memoriesDeleteSource ?? fallbackValue),
+        });
+
+    const onCycleMemoriesPerPage = () => {
+        const previousValue = memoriesPerPage;
+        const nextValue = nextMemoriesPerPage(memoriesPerPage);
+        return saveSettingWithRollback<number>({
+            nextValue,
+            previousValue,
+            applyValue: setMemoriesPerPage,
+            saveCall: saveMemoriesPerPage,
+            getSavedValue: (result, fallbackValue) => result.memoriesPerPage ?? fallbackValue,
+        });
+    };
+
+    const onToggleBatterySaverDisablesMemories = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: batterySaverDisablesMemories,
+            applyValue: setBatterySaverDisablesMemories,
+            saveCall: saveBatterySaverDisablesMemories,
+            getSavedValue: (result, fallbackValue) => Boolean(result.batterySaverDisablesMemories ?? fallbackValue),
+        });
+
     const onToggleDeferModalCleanup = (nextValue: boolean) =>
         saveSettingWithRollback<boolean>({
             nextValue,
@@ -3442,6 +3506,11 @@ export function useOptionsController({
         showIcons,
         deferModalCleanup,
         libraryBadge,
+        memoriesAutoCapture,
+        memoriesDeleteSource,
+        memoriesPerPage,
+        memoriesCount,
+        batterySaverDisablesMemories,
         legacyCommentsLoading,
         batterySaverDisablesSocialActivity,
         batterySaverDisablesComments,
@@ -3531,6 +3600,7 @@ export function useOptionsController({
         onUpdateCheevoCheckReferenceData,
         onFactoryReset,
         onDeleteAllNotes,
+        onDeleteAllMemories,
         onClearGuideCache,
         onToggleKeepGuidesOffline,
         onDeleteAllGuideData,
@@ -3676,6 +3746,10 @@ export function useOptionsController({
         onToggleShowIcons,
         onToggleDeferModalCleanup,
         onToggleLibraryBadge,
+        onToggleMemoriesAutoCapture,
+        onToggleMemoriesDeleteSource,
+        onCycleMemoriesPerPage,
+        onToggleBatterySaverDisablesMemories,
         onToggleLegacyCommentsLoading,
         onToggleBatterySaverDisablesSocialActivity,
         onToggleBatterySaverDisablesComments,

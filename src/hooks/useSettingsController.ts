@@ -155,6 +155,9 @@ export function useSettingsController({
     const [cheevoCheckSkipDiscVerify, setCheevoCheckSkipDiscVerify] = useState(false);
     const [cheevoCheckSkipCartVerify, setCheevoCheckSkipCartVerify] = useState(false);
     const [libraryBadge, setLibraryBadge] = useState(false);
+    const [memoriesAutoCapture, setMemoriesAutoCapture] = useState(false);
+    const [memoriesDeleteSource, setMemoriesDeleteSource] = useState(false);
+    const [memoriesPerPage, setMemoriesPerPage] = useState(32);
     const [fileWatcherSpeed, setFileWatcherSpeed] = useState<FileWatcherSpeed>("gentle");
     const [fileWatcherRunDuringGames, setFileWatcherRunDuringGames] = useState(true);
     const [trackedSetAButtonMode, setTrackedSetAButtonMode] = useState<TrackedSetAButtonMode>("editNote");
@@ -193,6 +196,7 @@ export function useSettingsController({
     const [batterySaverDisablesPlayersNearYou, setBatterySaverDisablesPlayersNearYou] = useState(true);
     const [batterySaverDisablesTrackedSets, setBatterySaverDisablesTrackedSets] = useState(true);
     const [batterySaverDisablesFileWatcher, setBatterySaverDisablesFileWatcher] = useState(true);
+    const [batterySaverDisablesMemories, setBatterySaverDisablesMemories] = useState(false);
     const [notifyNoteReminderEnabled, setNotifyNoteReminderEnabled] = useState(true);
     const [notifyNoteReminderToast, setNotifyNoteReminderToast] = useState(true);
     const [notifyTrackedSetEnabled, setNotifyTrackedSetEnabled] = useState(true);
@@ -430,6 +434,9 @@ export function useSettingsController({
         setCheevoCheckSkipDiscVerify(source.cheevoCheckSkipDiscVerify);
         setCheevoCheckSkipCartVerify(source.cheevoCheckSkipCartVerify);
         setLibraryBadge(source.libraryBadge);
+        setMemoriesAutoCapture(source.memoriesAutoCapture);
+        setMemoriesDeleteSource(source.memoriesDeleteSource);
+        setMemoriesPerPage(source.memoriesPerPage);
         setFileWatcherSpeed(source.fileWatcherSpeed);
         setFileWatcherRunDuringGames(source.fileWatcherRunDuringGames);
         setTrackedSetAButtonMode(source.trackedSetAButtonMode);
@@ -474,6 +481,7 @@ export function useSettingsController({
         setBatterySaverDisablesPlayersNearYou(source.batterySaverDisablesPlayersNearYou);
         setBatterySaverDisablesTrackedSets(source.batterySaverDisablesTrackedSets);
         setBatterySaverDisablesFileWatcher(source.batterySaverDisablesFileWatcher);
+        setBatterySaverDisablesMemories(source.batterySaverDisablesMemories);
         setNotifyNoteReminderEnabled(source.notifyNoteReminderEnabled);
         setNotifyNoteReminderToast(source.notifyNoteReminderToast);
         setNotifyTrackedSetEnabled(source.notifyTrackedSetEnabled);
@@ -696,6 +704,9 @@ export function useSettingsController({
         cheevoCheckSkipDiscVerify,
         cheevoCheckSkipCartVerify,
         libraryBadge,
+        memoriesAutoCapture,
+        memoriesDeleteSource,
+        memoriesPerPage,
         fileWatcherSpeed,
         fileWatcherRunDuringGames,
         trackedSetAButtonMode,
@@ -733,6 +744,7 @@ export function useSettingsController({
         batterySaverDisablesPlayersNearYou,
         batterySaverDisablesTrackedSets,
         batterySaverDisablesFileWatcher,
+        batterySaverDisablesMemories,
         notifyNoteReminderEnabled,
         notifyNoteReminderToast,
         notifyTrackedSetEnabled,
@@ -916,6 +928,10 @@ export function useSettingsController({
         setCheevoCheckSkipDiscVerify,
         setCheevoCheckSkipCartVerify,
         setLibraryBadge,
+        setMemoriesAutoCapture,
+        setMemoriesDeleteSource,
+        setMemoriesPerPage,
+        setBatterySaverDisablesMemories,
         setFileWatcherSpeed,
         setFileWatcherRunDuringGames,
         setTrackedSetAButtonMode,

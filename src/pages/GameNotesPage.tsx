@@ -10,6 +10,8 @@ import { NoteSectionBody } from "../components/notes/NoteSectionBody";
 import { ReorderStrip } from "../components/ui/ReorderStrip";
 import { ButtonHints } from "../components/ui/ButtonHints";
 import { RestoreCurtain } from "../components/ui/RestoreCurtain";
+import { PencilIcon } from "../components/ui/PencilIcon";
+import { ArrowDownWideShortIcon, ArrowUpShortWideIcon } from "../components/ui/SortOrderIcons";
 import { useFocusClaim } from "../hooks/useFocusClaim";
 import { useWindowedList } from "../hooks/useWindowedList";
 import { logFocusDebug } from "../api";
@@ -105,20 +107,6 @@ function PlusIcon({ size = 18 }: StripIconProps) {
     );
 }
 
-function PencilIcon({ size = 18 }: StripIconProps) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 512 512"
-            width={size}
-            height={size}
-            fill="currentColor"
-        >
-            <path d="M362.7 19.3L314.3 67.7 444.3 197.7l48.4-48.4c25-25 25-65.5 0-90.5L453.3 19.3c-25-25-65.5-25-90.5 0zm-71 71L58.6 323.5c-10.4 10.4-18 23.3-22.2 37.4L1 481.2C-1.5 489.7 .8 498.8 7 505s15.3 8.5 23.7 6.1l120.3-35.4c14.1-4.2 27-11.8 37.4-22.2L421.7 220.3 291.7 90.3z" />
-        </svg>
-    );
-}
-
 function ArrowsUpDownIcon({ size = 18 }: StripIconProps) {
     return (
         <svg
@@ -143,34 +131,6 @@ function HandPointerIcon({ size = 18 }: StripIconProps) {
             fill="currentColor"
         >
             <path d="M160 64c0-8.8 7.2-16 16-16s16 7.2 16 16V200c0 10.3 6.6 19.5 16.4 22.8s20.6-.1 26.8-8.3c3-3.9 7.6-6.5 13-6.5c8.8 0 16 7.2 16 16v40c0 10.3 6.6 19.5 16.4 22.8s20.6-.1 26.8-8.3c3-3.9 7.6-6.5 13-6.5c7.8 0 14.3 5.6 15.7 13c1.6 8.2 7.3 15.1 15.1 18s16.7 1.6 23.3-3.6c2.7-2.1 6.1-3.4 9.9-3.4c8.8 0 16 7.2 16 16V400c0 44.2-35.8 80-80 80H272 211.6c-32.5 0-63.5-13.2-86-36.5L18.6 330.5C7 318.4 0 302.2 0 285.4C0 250.3 28.3 222 63.4 222h1.5c11.6 0 23 3.1 33 9.1L160 268.3V64zm16-64C140.7 0 112 28.7 112 64V194.9l-21.5-12.9c-17.4-10.4-37.4-16-57.7-16C14.7 166 0 180.7 0 198.8H0c0-12.9 5.1-25.3 14.3-34.4L97.2 81.5C108.2 70.5 124 64 140.5 64H176z" />
-        </svg>
-    );
-}
-
-function ArrowDownWideShortIcon({ size = 18 }: StripIconProps) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 576 512"
-            width={size}
-            height={size}
-            fill="currentColor"
-        >
-            <path d="M151.6 469.6c-4.2 4.2-10 6.6-16 6.6s-11.8-2.4-16-6.6l-128-128c-8.8-8.8-8.8-23.2 0-32s23.2-8.8 32 0L112 397.3V64c0-12.5 10.7-23 23.2-23s23.2 10.5 23.2 23l1.4 333.4 88.4-87.8c8.8-8.8 23.2-8.8 32 0s8.8 23.2 0 32l-128 128zM320 480c-17.7 0-32-14.3-32-32s14.3-32 32-32h32c17.7 0 32 14.3 32 32s-14.3 32-32 32H320zm0-128c-17.7 0-32-14.3-32-32s14.3-32 32-32H448c17.7 0 32 14.3 32 32s-14.3 32-32 32H320zm0-128c-17.7 0-32-14.3-32-32s14.3-32 32-32h96c17.7 0 32 14.3 32 32s-14.3 32-32 32H320zm0-128c-17.7 0-32-14.3-32-32s14.3-32 32-32h64c17.7 0 32 14.3 32 32s-14.3 32-32 32H320z" />
-        </svg>
-    );
-}
-
-function ArrowUpShortWideIcon({ size = 18 }: StripIconProps) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 576 512"
-            width={size}
-            height={size}
-            fill="currentColor"
-        >
-            <path d="M151.6 42.4c-4.2-4.2-10-6.6-16-6.6s-11.8 2.4-16 6.6l-128 128c-8.8 8.8-8.8 23.2 0 32s23.2 8.8 32 0L112 114.5V448c0 12.5 10.7 23 23.2 23s23.2-10.5 23.2-23l1.4-333.4 88.4 87.8c8.8 8.8 23.2 8.8 32 0s8.8-23.2 0-32l-128-128zM320 96c-17.7 0-32-14.3-32-32s14.3-32 32-32h32c17.7 0 32 14.3 32 32s-14.3 32-32 32H320zm0 128c-17.7 0-32-14.3-32-32s14.3-32 32-32h96c17.7 0 32 14.3 32 32s-14.3 32-32 32H320zm0 128c-17.7 0-32-14.3-32-32s14.3-32 32-32H448c17.7 0 32 14.3 32 32s-14.3 32-32 32H320zm0 128c-17.7 0-32-14.3-32-32s14.3-32 32-32h64c17.7 0 32 14.3 32 32s-14.3 32-32 32H320z" />
         </svg>
     );
 }

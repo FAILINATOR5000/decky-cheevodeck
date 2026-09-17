@@ -4,7 +4,7 @@ import type { NoteColor } from "../../types";
 import { NOTE_COLOR_OPTIONS, noteBodyColor, noteColorIsTransparent } from "../../utils/achievements";
 
 export type NoteColorPickerProps = {
-    selectedColor: NoteColor;
+    selectedColor: NoteColor | null;
     disabled: boolean;
     onChange: (color: NoteColor) => void;
 };

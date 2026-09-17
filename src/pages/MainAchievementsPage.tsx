@@ -2,7 +2,7 @@ import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
 // Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
-import { FaClipboardCheck, FaClock, FaCompressArrowsAlt, FaExpandAlt, FaFileAlt, FaGamepad, FaHistory, FaNetworkWired, FaSyncAlt, FaThumbtack, FaTrophy } from "react-icons/fa";
+import { FaClipboardCheck, FaClock, FaCompressArrowsAlt, FaExpandAlt, FaFileAlt, FaGamepad, FaHistory, FaImage, FaNetworkWired, FaSyncAlt, FaThumbtack, FaTrophy } from "react-icons/fa";
 import { AchievementList } from "../components/achievements/AchievementList";
 import { ButtonHints } from "../components/ui/ButtonHints";
 import { playOkSound } from "../utils/navSound";
@@ -83,7 +83,8 @@ const TAB_UNDER_QUICK_ACTION: Record<QuickActionId, MainAchievementsTab> = {
     notes: "comments",
     guides: "comments",
     history: "activity",
-    leaderboards: "compare"
+    leaderboards: "compare",
+    memories: "compare"
 };
 const QUICK_ACTION_ABOVE_TAB: Record<MainAchievementsTab, QuickActionId> = {
     achievements: "tracked",
@@ -96,7 +97,7 @@ const NAV_ENTER_MAINTAIN_X = 2;
 const QUICK_MENU_ROW_GAP = "6px";
 
 
-type QuickActionId = "tracked" | "notes" | "guides" | "history" | "leaderboards";
+type QuickActionId = "tracked" | "notes" | "guides" | "history" | "leaderboards" | "memories";
 
 type QuickAction = {
     id: QuickActionId;
@@ -448,7 +449,8 @@ const QUICK_ACTIONS: QuickAction[] = [
     { id: "notes", Icon: NotesIcon, labelKey: "Notes", focusKey: "quick:tab:notes" },
     { id: "guides", Icon: GuidesIcon, labelKey: "Guides", focusKey: "quick:tab:guides" },
     { id: "history", Icon: FaHistory, labelKey: "Unlock History", focusKey: "quick:tab:history" },
-    { id: "leaderboards", Icon: LeaderboardIcon, labelKey: "Leaderboards", focusKey: "quick:tab:leaderboards" }
+    { id: "leaderboards", Icon: LeaderboardIcon, labelKey: "Leaderboards", focusKey: "quick:tab:leaderboards" },
+    { id: "memories", Icon: FaImage, labelKey: "Memories", focusKey: "quick:tab:memories" }
 ];
 
 const TAB_STRIP_END_RADIUS = "6px";
@@ -498,6 +500,7 @@ const QUICK_MENU_SHORTCUT_ICONS: Record<QuickMenuShortcut, ComponentType<{ size?
     cheevoCheck: FaClipboardCheck,
     smbShares: FaNetworkWired,
     fileWatcher: FaFileAlt,
+    memories: FaImage,
     socialActivity: FaClock,
     visitRa: FaTrophy,
     uiDefault: FaExpandAlt,
@@ -617,6 +620,7 @@ type MainAchievementsPageProps = {
         openCheevoCheck: () => void | Promise<void>;
         openSmbShares: () => void | Promise<void>;
         openFileWatcher: () => void | Promise<void>;
+        openMemories: () => void | Promise<void>;
         openRaSite: () => void | Promise<void>;
         onApplyMainUiPreset: (preset: MainUiPreset) => void | Promise<void>;
         goToGameNotes: (focusKeyAfter?: string) => void | Promise<void>;
@@ -928,6 +932,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
             openCheevoCheck,
             openSmbShares,
             openFileWatcher,
+            openMemories,
             openRaSite,
             onApplyMainUiPreset,
             goToGameNotes,
@@ -1064,6 +1069,11 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
 
         if (id === "leaderboards") {
             handleGoToLeaderboards();
+            return;
+        }
+
+        if (id === "memories") {
+            void openMemories();
             return;
         }
     }
@@ -1247,6 +1257,10 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
         }
         if (id === "fileWatcher") {
             void openFileWatcher();
+            return;
+        }
+        if (id === "memories") {
+            void openMemories();
             return;
         }
         if (id === "socialActivity") {

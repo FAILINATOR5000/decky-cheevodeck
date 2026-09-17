@@ -22,8 +22,9 @@ class RepairService:
     housekeeping that takes the panel down with it is worse than the mess.
     """
 
-    def __init__(self, *, update_checker_service):
+    def __init__(self, *, update_checker_service, memories_store):
         self._update_checker_service = update_checker_service
+        self._memories_store = memories_store
 
     def run_startup_repairs(self) -> dict:
         """Run every repair in turn and report which ones did anything.
@@ -39,6 +40,15 @@ class RepairService:
         except Exception as e:
             decky.logger.warning(
                 "repair: desktop launcher refresh failed: %s",
+                type(e).__name__,
+            )
+
+        try:
+            if self._memories_store.rebuild_games_index():
+                fixed.append("memories_games_index")
+        except Exception as e:
+            decky.logger.warning(
+                "repair: memories games index rebuild failed: %s",
                 type(e).__name__,
             )
 

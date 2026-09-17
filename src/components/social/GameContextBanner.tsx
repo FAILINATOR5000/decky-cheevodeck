@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { consoleInlineName } from "../../utils/consoles";
 import { PanelSectionRow } from "@decky/ui";
 import {
     getCachedGameIconDataUri,
@@ -14,6 +15,7 @@ import { FADE_IN_KEYFRAMES } from "../../utils/style";
 export type GameContextBannerProps = {
     gameId: number | null;
     title: string | null | undefined;
+    consoleName?: string | null;
     imageIcon: string | null | undefined;
     showIcons: boolean;
 };
@@ -26,9 +28,10 @@ function bannerMetrics(): { iconSize: number; labelSize: number } {
 }
 
 export function GameContextBanner(props: GameContextBannerProps) {
-    const { gameId, title, imageIcon, showIcons } = props;
+    const { gameId, title, consoleName, imageIcon, showIcons } = props;
 
     const trimmedTitle = String(title || "").trim();
+    const system = consoleInlineName(String(consoleName || "").trim());
 
     const [iconDataUri, setIconDataUri] = useState<string | null>(() =>
         getCachedGameIconDataUri(gameId)
@@ -75,8 +78,8 @@ export function GameContextBanner(props: GameContextBannerProps) {
         });
 
         const cached = getCachedGameIconDataUri(gameId);
+        setIconDataUri(cached);
         if (cached) {
-            setIconDataUri(cached);
             return () => {
                 cancelled = true;
                 unsubscribe();
@@ -157,7 +160,12 @@ export function GameContextBanner(props: GameContextBannerProps) {
                         ) : null}
                     </div>
                 ) : null}
-                <span style={labelStyle}>{trimmedTitle}</span>
+                <span style={labelStyle}>
+                    {trimmedTitle}
+                    {system ? (
+                        <span style={{ opacity: 0.65 }}>{` \u00b7 ${system}`}</span>
+                    ) : null}
+                </span>
             </div>
         </PanelSectionRow>
     );

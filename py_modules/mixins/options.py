@@ -95,6 +95,14 @@ class OptionsMixin(PluginContext):
             "batterySaverDisablesTrackedSets": value,
         }
 
+    async def save_battery_saver_disables_memories(self, value: bool):
+        value = self.settings_store.update_battery_saver_disables_memories(value)
+
+        return {
+            "ok": True,
+            "batterySaverDisablesMemories": value,
+        }
+
     async def save_battery_saver_disables_file_watcher(self, value: bool):
         value = self.settings_store.update_battery_saver_disables_file_watcher(value)
 

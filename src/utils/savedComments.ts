@@ -50,13 +50,15 @@ export function matchKeyForComment(
 export function gameCommentSource(
     gameId: number | null,
     gameTitle: string | null | undefined,
-    gameImageIcon: string | null | undefined
+    gameImageIcon: string | null | undefined,
+    gameConsoleName?: string | null
 ): SavedCommentSourceInput {
     return {
         kind: "game",
         gameId,
         gameTitle: (gameTitle || "").trim(),
         gameImageIcon: (gameImageIcon || "").trim(),
+        gameConsoleName: (gameConsoleName || "").trim(),
         achievementId: null,
         achievementTitle: "",
         achievementImageIcon: "",
@@ -72,13 +74,15 @@ export function achievementCommentSource(
     achievementBadgeName: string | null | undefined,
     gameId: number | null,
     gameTitle: string | null | undefined,
-    gameImageIcon: string | null | undefined
+    gameImageIcon: string | null | undefined,
+    gameConsoleName?: string | null
 ): SavedCommentSourceInput {
     return {
         kind: "achievement",
         gameId,
         gameTitle: (gameTitle || "").trim(),
         gameImageIcon: (gameImageIcon || "").trim(),
+        gameConsoleName: (gameConsoleName || "").trim(),
         achievementId,
         achievementTitle: (achievementTitle || "").trim(),
         achievementImageIcon: (achievementImageIcon || "").trim(),
@@ -93,6 +97,7 @@ export function wallCommentSource(wallUser: string | null | undefined): SavedCom
         gameId: null,
         gameTitle: "",
         gameImageIcon: "",
+        gameConsoleName: "",
         achievementId: null,
         achievementTitle: "",
         achievementImageIcon: "",
@@ -165,12 +170,16 @@ export function distinctSavedGames(comments: SavedComment[]): SavedCommentGame[]
             if (!existing.imageIcon && entry.source.gameImageIcon) {
                 existing.imageIcon = entry.source.gameImageIcon;
             }
+            if (!existing.consoleName && entry.source.gameConsoleName) {
+                existing.consoleName = entry.source.gameConsoleName;
+            }
         }
         else {
             byId.set(gameId, {
                 gameId,
                 title: entry.source.gameTitle,
                 imageIcon: entry.source.gameImageIcon,
+                consoleName: entry.source.gameConsoleName || "",
                 count: 1
             });
         }

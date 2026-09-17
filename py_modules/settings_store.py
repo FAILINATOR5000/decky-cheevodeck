@@ -78,6 +78,8 @@ _TAG_PREFIX_PATTERN = re.compile(r"^\s*\[([^\]\n]{1,24})\]\s*")
 
 _TAG_VOCAB_LIMIT = 20
 
+_MEMORIES_PER_PAGE_OPTIONS = (8, 12, 16, 24, 32, 48, 64)
+
 TRACKED_UNTAGGED_COLLAPSE_KEY = "__UNTAGGED__"
 
 _RESERVED_TAG_KEYS = frozenset({"completed"})
@@ -113,6 +115,7 @@ _ALLOWED_RESUME_VIEWS = {
     "smbShares",
     "cheevoCheck",
     "fileWatcher",
+    "memories",
     "guides",
 }
 
@@ -184,6 +187,7 @@ _ALLOWED_QUICK_MENU_SHORTCUTS = (
     "cheevoCheck",
     "smbShares",
     "fileWatcher",
+    "memories",
     "socialActivity",
     "visitRa",
     "uiDefault",
@@ -219,6 +223,7 @@ _ALLOWED_SHORTCUT_ACTIONS = (
     "cheevoCheck",
     "smbShares",
     "fileWatcher",
+    "memories",
     "socialActivity",
     "visitRa",
     "snapshot",
@@ -405,6 +410,9 @@ _KNOBS = (
     Knob("cheevoCheckSkipDiscVerify", default=False, normalize=True, read=READ_BOOL),
     Knob("cheevoCheckSkipCartVerify", default=False, normalize=True, read=READ_BOOL),
     Knob("libraryBadge", default=False, reset=False, normalize=True, read=READ_BOOL),
+    Knob("memoriesAutoCapture", default=False, reset=False, normalize=True, read=READ_BOOL),
+    Knob("memoriesDeleteSource", default=False, normalize=True, read=READ_BOOL),
+    Knob("memoriesPerPage", default=32, normalize=True),
     Knob("fileWatcherSpeed", default="gentle", normalize=True),
     Knob("fileWatcherRunDuringGames", default=True, normalize=True, read=READ_BOOL),
     Knob("trackedSetAButtonMode", default="editNote", normalize=True),
@@ -439,6 +447,7 @@ _KNOBS = (
     Knob("batterySaverDisablesPlayersNearYou", default=True, normalize=True),
     Knob("batterySaverDisablesTrackedSets", default=True, normalize=True),
     Knob("batterySaverDisablesFileWatcher", default=True, normalize=True),
+    Knob("batterySaverDisablesMemories", default=False, normalize=True),
     Knob("notifyNoteReminderEnabled", default=True),
     Knob("notifyNoteReminderToast", default=True),
     Knob("notifyTrackedSetEnabled", default=True),
@@ -1275,6 +1284,21 @@ class SettingsStore:
 
         return self.get_library_badge(cfg)
 
+    def update_memories_auto_capture(self, value: bool) -> bool:
+        cfg = self._update_config("memoriesAutoCapture", bool(value))
+
+        return self.get_memories_auto_capture(cfg)
+
+    def update_memories_delete_source(self, value: bool) -> bool:
+        cfg = self._update_config("memoriesDeleteSource", bool(value))
+
+        return self.get_memories_delete_source(cfg)
+
+    def update_memories_per_page(self, value) -> int:
+        cfg = self._update_config("memoriesPerPage", to_int(value, 32))
+
+        return self.get_memories_per_page(cfg)
+
     def update_cheevo_check_scan_collapsed(self, value: bool) -> bool:
         cfg = self._update_config("cheevoCheckScanCollapsed", bool(value))
 
@@ -1564,6 +1588,11 @@ class SettingsStore:
         cfg = self._update_config("batterySaverDisablesTrackedSets", bool(value))
 
         return self.get_battery_saver_disables_tracked_sets(cfg)
+
+    def update_battery_saver_disables_memories(self, value: bool) -> bool:
+        cfg = self._update_config("batterySaverDisablesMemories", bool(value))
+
+        return self.get_battery_saver_disables_memories(cfg)
 
     def update_battery_saver_disables_file_watcher(self, value: bool) -> bool:
         cfg = self._update_config("batterySaverDisablesFileWatcher", bool(value))
@@ -3816,6 +3845,16 @@ class SettingsStore:
     def get_library_badge(self, cfg: dict) -> bool:
         return bool(cfg.get("libraryBadge", False))
 
+    def get_memories_auto_capture(self, cfg: dict) -> bool:
+        return bool(cfg.get("memoriesAutoCapture", False))
+
+    def get_memories_delete_source(self, cfg: dict) -> bool:
+        return bool(cfg.get("memoriesDeleteSource", False))
+
+    def get_memories_per_page(self, cfg: dict) -> int:
+        value = to_int(cfg.get("memoriesPerPage", 32), 32)
+        return value if value in _MEMORIES_PER_PAGE_OPTIONS else 32
+
     def get_cheevo_check_verify_speed(self, cfg: dict) -> str:
         value = str(cfg.get("cheevoCheckVerifySpeed", "full") or "full").strip()
         return value if value in {"full", "balanced", "gentle"} else "full"
@@ -3912,6 +3951,9 @@ class SettingsStore:
 
     def get_battery_saver_disables_file_watcher(self, cfg: dict) -> bool:
         return bool(cfg.get("batterySaverDisablesFileWatcher", True))
+
+    def get_battery_saver_disables_memories(self, cfg: dict) -> bool:
+        return bool(cfg.get("batterySaverDisablesMemories", False))
 
     def get_file_watcher_run_during_games(self, cfg: dict) -> bool:
         return bool(cfg.get("fileWatcherRunDuringGames", True))

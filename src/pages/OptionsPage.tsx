@@ -45,6 +45,7 @@ import {
     gameArtCacheCapLabel,
     avatarCacheCapLabel,
     achievementIconCacheGamesLabel,
+    memoriesPerPageLabel,
     fisTickFrequencyMinutesLabel,
     commentsCheckFrequencyLabel,
     trackedSetRefreshFrequencyLabel,
@@ -233,6 +234,10 @@ type OptionsPageState = {
     debugLogging: boolean;
     deferModalCleanup: boolean;
     libraryBadge: boolean;
+    memoriesAutoCapture: boolean;
+    memoriesDeleteSource: boolean;
+    memoriesPerPage: number;
+    memoriesCount: number;
     legacyCommentsLoading: boolean;
     batterySaverDisablesSocialActivity: boolean;
     batterySaverDisablesComments: boolean;
@@ -240,6 +245,7 @@ type OptionsPageState = {
     batterySaverDisablesPlayersNearYou: boolean;
     batterySaverDisablesTrackedSets: boolean;
     batterySaverDisablesFileWatcher: boolean;
+    batterySaverDisablesMemories: boolean;
     doNotDisturbDisablesDot: boolean;
     doNotDisturbDisablesToast: boolean;
     nightModeBrightness: number;
@@ -357,6 +363,11 @@ type OptionsPageActions = {
     onAddUser: () => void | Promise<void>;
     onSwitchUser: () => void | Promise<void>;
     onResetSettings: () => void | Promise<void>;
+    onToggleMemoriesAutoCapture: (next: boolean) => void | Promise<void>;
+    onToggleMemoriesDeleteSource: (next: boolean) => void | Promise<void>;
+    onCycleMemoriesPerPage: () => void | Promise<void>;
+    onToggleBatterySaverDisablesMemories: (next: boolean) => void | Promise<void>;
+    onDeleteAllMemories: () => void | Promise<void>;
     onSelectOptionsTab: (tab: OptionsTab) => void;
     onClearGameData: () => void | Promise<void>;
     onClearFriendsCache: () => void | Promise<void>;
@@ -855,6 +866,32 @@ function SystemTab(props: TabContentProps) {
                 help={t(state.language, "help_reset_settings")}
                 separator
             />
+            <SectionTitle label={t(state.language, "Memories")} />
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                label={t(state.language, "Save Screenshots as Memories")}
+                value={state.memoriesAutoCapture}
+                onChange={actions.onToggleMemoriesAutoCapture}
+                disabled={disabled}
+                help={t(state.language, "help_memories_auto_capture")}
+            />
+            <OptionValueRow
+                outerStyle={buttonOuterStyle}
+                focusKey="options:memories-per-page"
+                onClick={actions.onCycleMemoriesPerPage}
+                disabled={disabled}
+                label={t(state.language, "Memories Per Page")}
+                value={memoriesPerPageLabel(state.memoriesPerPage)}
+                help={t(state.language, "help_memories_per_page")}
+            />
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                label={t(state.language, "Delete Steam's Copy")}
+                value={state.memoriesDeleteSource}
+                onChange={actions.onToggleMemoriesDeleteSource}
+                disabled={disabled}
+                help={t(state.language, "help_memories_delete_source")}
+            />
             <SectionTitle label={t(state.language, "Mastery Goals")} />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
@@ -956,6 +993,14 @@ function SystemTab(props: TabContentProps) {
                 onChange={actions.onToggleBatterySaverDisablesFileWatcher}
                 disabled={disabled}
                 help={t(state.language, "help_battery_saver_file_watcher")}
+            />
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                label={t(state.language, "Memories")}
+                value={state.batterySaverDisablesMemories}
+                onChange={actions.onToggleBatterySaverDisablesMemories}
+                disabled={disabled}
+                help={t(state.language, "help_battery_saver_memories")}
                 separator
             />
             <SectionTitle label={t(state.language, "Mapped Shortcuts")} />
@@ -2083,6 +2128,16 @@ function CacheTab(props: CacheTabProps) {
                 help={t(state.language, "help_cleanup_directory")}
             />
             <SectionTitle label={t(state.language, "Reset")} />
+            <OptionTripleConfirm
+                buttonSpacing={state.buttonSpacing}
+                focusKey="options:delete-all-memories"
+                idleLabel={t(state.language, "Delete All Memories ({{count}})", { count: state.memoriesCount })}
+                armedLabel2={t(state.language, "Press again -- this deletes the pictures")}
+                armedLabel3={t(state.language, "Last chance: press to erase every memory and picture")}
+                onConfirm={actions.onDeleteAllMemories}
+                disabled={disabled}
+                help={t(state.language, "help_delete_all_memories")}
+            />
             <OptionTripleConfirm
                 buttonSpacing={state.buttonSpacing}
                 focusKey="options:factory-reset"

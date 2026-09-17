@@ -1,10 +1,9 @@
 import { routerHook } from "@decky/api";
-import { findModuleExport } from "@decky/ui";
 import { useEffect, useState } from "react";
 
-const GLOBAL_COMPONENT = "CheevoDeckScreenDarken";
+import { CompositionHold, hasCompositionHold } from "../ui/compositionHold";
 
-const OVERLAY_COMPOSITION = 2;
+const GLOBAL_COMPONENT = "CheevoDeckScreenDarken";
 
 const BLACKOUT_Z_INDEX = 65001;
 
@@ -12,36 +11,6 @@ const BLACKOUT_Z_INDEX = 65001;
 let darkened = false;
 
 const listeners = new Set<(on: boolean) => void>();
-
-type CompositionHold = (state: number, owner: string) => unknown;
-
-const COMPOSITION_HOOK_MARKERS = [
-    "AddMinimumCompositionStateRequest",
-    "RemoveMinimumCompositionStateRequest",
-    ".useEffect(",
-    ".useRef("
-];
-
-let compositionHold: CompositionHold | null | undefined;
-
-function findCompositionHold(): CompositionHold | null {
-    if (compositionHold !== undefined) {
-        return compositionHold;
-    }
-    try {
-        compositionHold = findModuleExport((e: any) => {
-            if (typeof e !== "function") {
-                return false;
-            }
-            const source = String(e);
-            return COMPOSITION_HOOK_MARKERS.every((marker) => source.includes(marker));
-        }) ?? null;
-    }
-    catch {
-        compositionHold = null;
-    }
-    return compositionHold ?? null;
-}
 
 function setDarkened(on: boolean) {
     if (darkened === on) {
@@ -65,11 +34,6 @@ function useDarkened(): boolean {
     return on;
 }
 
-function CompositionHold() {
-    findCompositionHold()?.(OVERLAY_COMPOSITION, GLOBAL_COMPONENT);
-    return null;
-}
-
 function ScreenDarken() {
     const on = useDarkened();
 
@@ -79,7 +43,7 @@ function ScreenDarken() {
 
     return (
         <>
-            {findCompositionHold() && <CompositionHold />}
+            {hasCompositionHold() && <CompositionHold owner={GLOBAL_COMPONENT} />}
             <div
                 style={{
                     position: "fixed",

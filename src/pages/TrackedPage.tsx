@@ -7,6 +7,7 @@ import { ConfirmRow } from "../components/ui/ConfirmRow";
 import { ErrorText } from "../components/ui/ErrorText";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
 import { InfoText } from "../components/ui/InfoText";
+import { GridIcon } from "../components/ui/GridIcon";
 import { LabeledRow } from "../components/ui/LabeledRow";
 import { OtherGamesDrillInBody } from "../components/tracked/OtherGamesDrillInBody";
 import { OtherGamesPicker } from "../components/tracked/OtherGamesPicker";
@@ -65,20 +66,6 @@ function CrosshairIcon({ size = 18 }: TabIconProps) {
             fill="currentColor"
         >
             <path d="M256 0c17.7 0 32 14.3 32 32V66.7C368.4 80.1 431.9 143.6 445.3 224H480c17.7 0 32 14.3 32 32s-14.3 32-32 32H445.3C431.9 368.4 368.4 431.9 288 445.3V480c0 17.7-14.3 32-32 32s-32-14.3-32-32V445.3C143.6 431.9 80.1 368.4 66.7 288H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H66.7C80.1 143.6 143.6 80.1 224 66.7V32c0-17.7 14.3-32 32-32zM128 256a128 128 0 1 0 256 0 128 128 0 1 0 -256 0zm128-80a80 80 0 1 1 0 160 80 80 0 1 1 0-160z" />
-        </svg>
-    );
-}
-
-function GridIcon({ size = 18 }: TabIconProps) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 512 512"
-            width={size}
-            height={size}
-            fill="currentColor"
-        >
-            <path d="M0 96C0 78.3 14.3 64 32 64H224c17.7 0 32 14.3 32 32V288c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32V96zM0 416c0-17.7 14.3-32 32-32H224c17.7 0 32 14.3 32 32v64c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32V416zM320 96c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32v64c0 17.7-14.3 32-32 32H352c-17.7 0-32-14.3-32-32V96zM320 288c0-17.7 14.3-32 32-32H480c17.7 0 32 14.3 32 32V480c0 17.7-14.3 32-32 32H352c-17.7 0-32-14.3-32-32V288z" />
         </svg>
     );
 }

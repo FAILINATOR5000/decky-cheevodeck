@@ -2102,7 +2102,7 @@ function SavedCommentsFilterValue(props: {
         return <>{t(language, "All")}</>;
     }
     return (
-        <span style={{ display: "inline-flex", alignItems: "flex-start", gap: "8px", minWidth: 0 }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
             {showIcons && iconDataUri && (
                 <span style={{ width: "22px", height: "22px", borderRadius: "5px", overflow: "hidden", flexShrink: 0, display: "inline-flex" }}>
                     <FadeImage
@@ -2168,6 +2168,7 @@ function SavedCommentContextBanner(props: {
             <GameContextBanner
                 gameId={source.gameId}
                 title={source.gameTitle}
+                consoleName={source.gameConsoleName}
                 imageIcon={source.gameImageIcon}
                 showIcons={showIcons}
             />

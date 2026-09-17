@@ -37,6 +37,7 @@ const NIGHT_MODE_BRIGHTNESS_OPTIONS = [0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.7
 const GAME_ART_CACHE_CAP_OPTIONS = [512, 1024, 2048, 4096] as const;
 const AVATAR_CACHE_CAP_OPTIONS = [512, 1024, 2048, 4096] as const;
 const ACHIEVEMENT_ICON_CACHE_GAMES_OPTIONS = [8, 16, 24, 32, 64] as const;
+const MEMORIES_PER_PAGE_OPTIONS = [8, 12, 16, 24, 32, 48, 64] as const;
 const FIS_TICK_FREQUENCY_MINUTES_OPTIONS = [1, 2, 3, 4, 5, 10, 15, 30, 60] as const;
 const COMMENTS_CHECK_FREQUENCY_MINUTES_OPTIONS = [1, 2, 3, 4, 5, 10, 15, 30, 60, 120, 180] as const;
 const COMMENTS_SERVICE_FETCH_AMOUNT_OPTIONS = [5, 10, 15, 20, 25, 30] as const;
@@ -241,6 +242,7 @@ export const QUICK_MENU_SHORTCUTS: { id: QuickMenuShortcut; labelKey: string; he
     { id: "cheevoCheck", labelKey: "Cheevo Check", helpKey: "help_quick_shortcut_cheevo_check" },
     { id: "smbShares", labelKey: "SMB Shares", helpKey: "help_quick_shortcut_smb_shares" },
     { id: "fileWatcher", labelKey: "File Watcher", helpKey: "help_quick_shortcut_file_watcher" },
+    { id: "memories", labelKey: "Memories", helpKey: "help_quick_shortcut_memories" },
     { id: "socialActivity", labelKey: "Social Activity Feed", helpKey: "help_quick_shortcut_social_activity" },
     { id: "visitRa", labelKey: "Visit RA", helpKey: "help_quick_shortcut_visit_ra" },
     { id: "uiDefault", labelKey: "UI: Default View", helpKey: "help_quick_shortcut_ui_default" },
@@ -284,9 +286,10 @@ const SHORTCUT_ACTIONS: { id: ShortcutAction; labelKey: string }[] = [
     { id: "cheevoCheck", labelKey: "Cheevo Check" },
     { id: "smbShares", labelKey: "SMB Shares" },
     { id: "fileWatcher", labelKey: "File Watcher" },
+    { id: "memories", labelKey: "Memories" },
     { id: "socialActivity", labelKey: "Social Activity Feed" },
     { id: "visitRa", labelKey: "Visit RA" },
-    { id: "snapshot", labelKey: "Snapshot" },
+    { id: "snapshot", labelKey: "Snapshot (Debug)" },
     { id: "nightMode", labelKey: "Night Mode" },
     { id: "doNotDisturb", labelKey: "Do Not Disturb" },
     { id: "mouseKeyboardMode", labelKey: "Mouse & Keyboard Mode" },
@@ -611,6 +614,17 @@ export function nextAchievementIconCacheGames(current: number) {
     const currentIndex = ACHIEVEMENT_ICON_CACHE_GAMES_OPTIONS.indexOf(normalized as any);
 
     return ACHIEVEMENT_ICON_CACHE_GAMES_OPTIONS[(currentIndex + 1) % ACHIEVEMENT_ICON_CACHE_GAMES_OPTIONS.length];
+}
+
+export function memoriesPerPageLabel(value: number) {
+    return `${value}`;
+}
+
+export function nextMemoriesPerPage(current: number) {
+    const normalized = MEMORIES_PER_PAGE_OPTIONS.includes(current as any) ? current : 32;
+    const currentIndex = MEMORIES_PER_PAGE_OPTIONS.indexOf(normalized as any);
+
+    return MEMORIES_PER_PAGE_OPTIONS[(currentIndex + 1) % MEMORIES_PER_PAGE_OPTIONS.length];
 }
 
 export function fisTickFrequencyMinutesLabel(minutes: number, language: LanguageCode = DEFAULT_LANGUAGE) {

@@ -258,6 +258,7 @@ export function useFocusController({
         const isFastPathKey =
             pendingFocusKey.startsWith("achievement:") ||
             pendingFocusKey.startsWith("tracked:tab:") ||
+            pendingFocusKey.startsWith("memories:tile:") ||
             pendingFocusKey === "gameoverview:back" ||
             pendingFocusKey === "ao:back" ||
             pendingFocusKey === "badges:back" ||
@@ -271,6 +272,7 @@ export function useFocusController({
             pendingFocusKey === "dolphinMapper:back" ||
             pendingFocusKey === "cheevocheck:back" ||
             pendingFocusKey === "fileWatcher:back" ||
+            pendingFocusKey === "memories:back" ||
             pendingFocusKey === "guides:back" ||
             pendingFocusKey === "comparepicker:back";
         if (!isFastPathKey) {

@@ -59,6 +59,7 @@ import {
     setAccurateAvatarDebug,
     logCommentsDebug,
     logFocusDebug,
+    deleteAllMemories,
     logNavDebug,
     setFriendFavorite
 } from "../api";
@@ -89,6 +90,7 @@ import DolphinMapperPage from "./DolphinMapperPage";
 import SmbSharesPage from "./SmbSharesPage";
 import CheevoCheckPage from "./CheevoCheckPage";
 import FileWatcherPage from "./FileWatcherPage";
+import MemoriesPage from "./MemoriesPage";
 import { CheevoCheckGamesModal } from "../components/pickers/CheevoCheckGamesModal";
 import { CommentViewModal, type CommentSaveControl } from "../components/comments/CommentViewModal";
 import { GameNoteEditModal } from "../components/notes/GameNoteEditModal";
@@ -231,6 +233,8 @@ import { takeTrackedSetFocusReturn } from "../utils/trackedSetFocusReturn";
 import { armTrackedFocusReturn, takeTrackedFocusReturn } from "../utils/trackedFocusReturn";
 import { takeDolphinFocusReturn } from "../utils/dolphinFocusReturn";
 import { takeFileWatcherFocusReturn } from "../utils/fileWatcherFocusReturn";
+import { takeMemoriesFocusReturn } from "../utils/memoriesFocusReturn";
+import { useMemoriesController } from "../hooks/useMemoriesController";
 import { takeSavedCommentFocusReturn } from "../utils/savedCommentFocusReturn";
 import { takeSmbFocusReturn } from "../utils/smbFocusReturn";
 import { notePanelMount, notePanelUnmount, samplePanelEntryFrames } from "../utils/panelLifecycle";
@@ -603,6 +607,8 @@ function AchievementsRoot() {
         nightMode,
         nightModeBrightness,
         batterySaver,
+        memoriesAutoCapture,
+        memoriesPerPage,
         legacyAchievementLinks,
         legacyGameLinks,
         pinLatestGuides,
@@ -2177,6 +2183,18 @@ function AchievementsRoot() {
 
     const clearingCache = clearingAnyCache || switchingUser;
 
+    const { state: memoriesState, actions: memoriesActions } = useMemoriesController({
+        isActive: view === "memories",
+        payloadGameId: payload?.gameId ?? null,
+        payloadGameTitle: payload?.title ?? "",
+        payloadConsoleName: payload?.consoleName ?? "",
+        payloadImageIcon: payload?.imageIcon ?? "",
+        perPage: memoriesPerPage,
+        activeUlid
+    });
+
+    const memoriesCount = memoriesState.games.reduce((total, row) => total + row.count, 0);
+
     const optionsController = useOptionsController({
         ...settingsState,
         ...settingsActions,
@@ -2266,6 +2284,8 @@ function AchievementsRoot() {
         onUpdateCheevoCheckReferenceData,
         onFactoryReset,
         onDeleteAllNotes,
+        onDeleteAllMemories,
+        memoriesCount,
         onToggleKeepGuidesOffline,
         onClearGuideCache,
         onDeleteAllGuideData,
@@ -2441,6 +2461,16 @@ function AchievementsRoot() {
     }
     savedCommentWasOpenRef.current = view === "social";
     const savedCommentRestorePending = savedCommentRestoreArmedRef.current;
+
+    const [memoriesFocusReturn] = useState(takeMemoriesFocusReturn);
+
+    const memoriesRestoreArmedRef = useRef(memoriesFocusReturn !== null);
+    const memoriesWasOpenRef = useRef(false);
+    if (memoriesWasOpenRef.current && view !== "memories") {
+        memoriesRestoreArmedRef.current = false;
+    }
+    memoriesWasOpenRef.current = view === "memories";
+    const memoriesRestorePending = memoriesRestoreArmedRef.current;
 
     const [fileWatcherFocusReturn] = useState(takeFileWatcherFocusReturn);
 
@@ -2767,6 +2797,7 @@ function AchievementsRoot() {
             gameId: record.source.gameId,
             gameTitle: record.source.gameTitle,
             gameImageIcon: record.source.gameImageIcon,
+            gameConsoleName: record.source.gameConsoleName,
             achievementId: record.source.achievementId,
             achievementTitle: record.source.achievementTitle,
             achievementImageIcon: record.source.achievementImageIcon,
@@ -3218,6 +3249,18 @@ function AchievementsRoot() {
         );
     }
 
+    async function onDeleteAllMemories() {
+        await runDestructiveAction(
+            "options:delete-all-memories",
+            "onDeleteAllMemories",
+            "Couldn't delete memories.",
+            async () => {
+                await deleteAllMemories();
+                await memoriesActions.refresh();
+            }
+        );
+    }
+
     async function onDeleteAllNotifications() {
         await runDestructiveAction(
             "options:delete-all-notifications",
@@ -3550,6 +3593,26 @@ function AchievementsRoot() {
         friendGameSessionRefreshKeysRef.current = new Set();
         setView("fileWatcher");
         setPendingFocusKey("fileWatcher:back");
+    }
+
+    function goToMemories() {
+        friendGameSessionRefreshKeysRef.current = new Set();
+        setView("memories");
+        setPendingFocusKey("memories:back");
+    }
+
+    function backFromMemories() {
+        navIntentRef.current = "back";
+        const from = previousView(nav.stack);
+        if (from === "utils") {
+            goToUtils();
+            return;
+        }
+        if (from === "achievements") {
+            goToAchievements("quick:tab:memories");
+            return;
+        }
+        goToAchievements();
     }
 
     function backFromUtilityTool() {
@@ -4222,7 +4285,7 @@ function AchievementsRoot() {
                 );
                 clearCommentsSnapshot();
             }
-            openCommentModal(comment, url, gameCommentSource(gid, payload?.title, payload?.imageIcon));
+            openCommentModal(comment, url, gameCommentSource(gid, payload?.title, payload?.imageIcon, payload?.consoleName));
         },
         onPostComment: async () => {
             const gid = payload?.gameId ?? null;
@@ -4348,7 +4411,8 @@ function AchievementsRoot() {
             backFromTrackedSets,
             closeTrackedSetToSelector,
             backFromUtils,
-            backFromUtilityTool
+            backFromUtilityTool,
+            backFromMemories
         };
         return () => {
             playOkSound();
@@ -4495,6 +4559,10 @@ function AchievementsRoot() {
         }
         if (action === "fileWatcher") {
             void goToFileWatcher();
+            return;
+        }
+        if (action === "memories") {
+            void goToMemories();
             return;
         }
         if (action === "socialActivity") {
@@ -4654,6 +4722,7 @@ function AchievementsRoot() {
                                     openCheevoCheck: goToCheevoCheck,
                                     openSmbShares: goToSmbShares,
                                     openFileWatcher: goToFileWatcher,
+                                    openMemories: goToMemories,
                                     openRaSite: () => { void openExternalUrl(raHomeUrl()); },
                                     onApplyMainUiPreset: optionsActions.onApplyMainUiPreset,
                                     goToGameNotes,
@@ -4819,7 +4888,8 @@ function AchievementsRoot() {
                                     onOpenDolphinMapper: goToDolphinMapper,
                                     onOpenSmbShares: goToSmbShares,
                                     onOpenCheevoCheck: goToCheevoCheck,
-                                    onOpenFileWatcher: goToFileWatcher
+                                    onOpenFileWatcher: goToFileWatcher,
+                                    onOpenMemories: goToMemories
                                 }}
                             />
 
@@ -4885,6 +4955,34 @@ function AchievementsRoot() {
                                     onToggleBatterySaver: toggleBatterySaver,
                                     onBrowse: openCheevoCheckBrowseModal,
                                     onRequestFocus: setPendingFocusKey
+                                }}
+                            />
+
+                            <MemoriesPage
+                                state={{
+                                    view,
+                                    focusScopeResetToken,
+                                    language,
+                                    buttonSpacing,
+                                    glyphStyle: controllerGlyphStyle,
+                                    showIcons,
+                                    showRetroPoints,
+                                    panelOverlayVisible,
+                                    autoCapture: memoriesAutoCapture,
+                                    activeUlid,
+                                    restoreMemoryId: memoriesFocusReturn?.memoryId ?? null,
+                                    restoreFocusKey: memoriesFocusReturn?.focusKey ?? null,
+                                    restoreGameId: memoriesFocusReturn?.gameId ?? null,
+                                    restoreUlid: memoriesFocusReturn?.ulid ?? null,
+                                    restorePending: memoriesRestorePending,
+                                    memories: memoriesState
+                                }}
+                                actions={{
+                                    onBack: backFromMemories,
+                                    onHome: goToAchievements,
+                                    onRequestFocus: setPendingFocusKey,
+                                    onEnableCapture: optionsActions.onToggleMemoriesAutoCapture,
+                                    memories: memoriesActions
                                 }}
                             />
 
@@ -5717,7 +5815,7 @@ function AchievementsRoot() {
                                             );
                                             clearCommentsSnapshot();
                                         }
-                                        openCommentModal(comment, url, gameCommentSource(gid, goState.loadedPayload?.title, goState.loadedPayload?.imageIcon));
+                                        openCommentModal(comment, url, gameCommentSource(gid, goState.loadedPayload?.title, goState.loadedPayload?.imageIcon, goState.loadedPayload?.consoleName));
                                     }}
                                     onPostComment={async () => {
                                         const gid = gameOverviewGameIdRef.current ?? gameOverviewGameId;
@@ -5816,7 +5914,8 @@ function AchievementsRoot() {
                                             aoSnapshot?.badgeName,
                                             aoGameIdRef.current ?? aoGameId,
                                             aoState.loadedPayload?.title,
-                                            aoState.loadedPayload?.imageIcon
+                                            aoState.loadedPayload?.imageIcon,
+                                            aoState.loadedPayload?.consoleName
                                         ));
                                     }}
                                     onPostComment={async () => {

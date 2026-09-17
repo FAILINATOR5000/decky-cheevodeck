@@ -42,6 +42,7 @@ export function computeBootView(resumeState: ResumeState | null, payload: Payloa
     const shouldBootDirectlyToSmbShares = resumeState?.view === "smbShares";
     const shouldBootDirectlyToCheevoCheck = resumeState?.view === "cheevoCheck";
     const shouldBootDirectlyToFileWatcher = resumeState?.view === "fileWatcher";
+    const shouldBootDirectlyToMemories = resumeState?.view === "memories";
     const shouldBootDirectlyToGuides = resumeState?.view === "guides";
     return shouldBootDirectlyToFriendGame ? "friendGame" :
             shouldBootDirectlyToFriendAllGames ? "friendAllGames" :
@@ -65,6 +66,7 @@ export function computeBootView(resumeState: ResumeState | null, payload: Payloa
                                                                 shouldBootDirectlyToSmbShares ? "smbShares" :
                                                                 shouldBootDirectlyToCheevoCheck ? "cheevoCheck" :
                                                                 shouldBootDirectlyToFileWatcher ? "fileWatcher" :
+                                                                shouldBootDirectlyToMemories ? "memories" :
                                                                 shouldBootDirectlyToUtils ? "utils" :
                                                                 shouldBootDirectlyToGuides ? "guides" :
                                                                 shouldBootDirectlyToTracked ? "tracked" :

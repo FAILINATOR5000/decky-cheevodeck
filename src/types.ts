@@ -449,6 +449,7 @@ export type ViewKey =
     | "smbShares"
     | "cheevoCheck"
     | "fileWatcher"
+    | "memories"
     | "guides";
 
 // Guides
@@ -619,6 +620,7 @@ export type QuickMenuShortcut =
     | "cheevoCheck"
     | "smbShares"
     | "fileWatcher"
+    | "memories"
     | "socialActivity"
     | "visitRa"
     | "uiDefault"
@@ -650,6 +652,7 @@ export type ShortcutAction =
     | "cheevoCheck"
     | "smbShares"
     | "fileWatcher"
+    | "memories"
     | "socialActivity"
     | "visitRa"
     | "snapshot"
@@ -784,6 +787,7 @@ export type SettingsResponse = {
     batterySaverDisablesPlayersNearYou: boolean;
     batterySaverDisablesTrackedSets: boolean;
     batterySaverDisablesFileWatcher: boolean;
+    batterySaverDisablesMemories: boolean;
     notifyNoteReminderEnabled: boolean;
     notifyNoteReminderToast: boolean;
     notifyTrackedSetEnabled: boolean;
@@ -951,6 +955,9 @@ export type SettingsResponse = {
     cheevoCheckSkipDiscVerify: boolean;
     cheevoCheckSkipCartVerify: boolean;
     libraryBadge: boolean;
+    memoriesAutoCapture: boolean;
+    memoriesDeleteSource: boolean;
+    memoriesPerPage: number;
     fileWatcherSpeed: FileWatcherSpeed;
     fileWatcherRunDuringGames: boolean;
     trackedSetAButtonMode: TrackedSetAButtonMode;
@@ -1419,6 +1426,80 @@ export type NoteColor =
     | "gold"
     | "steel";
 
+type MemoryContextState = "pending" | "resolved";
+
+type MemoryProgress = {
+    unlocked: number;
+    total: number;
+    points: number;
+};
+
+type MemoryAchievementCard = {
+    id: number;
+    title: string;
+    description: string;
+    hardcore: boolean;
+    trueRatio: number;
+    badgeName: string;
+    points: number;
+    numAwarded: number;
+    type: string;
+    unlockedAt: number | null;
+};
+
+export type MemoryRecord = {
+    id: string;
+    gameId: number;
+    path: string;
+    capturedAt: number;
+    appid: number;
+    gameTitle: string;
+    source: string;
+    caption: string;
+    tag: string | null;
+    color: NoteColor;
+    contextState: MemoryContextState;
+    progress: MemoryProgress | null;
+    achievements: MemoryAchievementCard[];
+    achievementCount: number;
+};
+
+export type MemoryGameRow = {
+    gameId: number;
+    gameTitle: string;
+    consoleName: string;
+    imageIcon: string;
+    count: number;
+};
+
+export type MemoryTagRow = {
+    tag: string;
+    count: number;
+    lastUsed: number;
+};
+
+export type MemoryDateOrder = "desc" | "asc";
+
+export type MemoryTagSort = "recent" | "alpha";
+
+export type MemoryViewPrefs = {
+    gridColumns: number;
+    dateOrder: MemoryDateOrder;
+    lastGameId: number | null;
+    seededForGameId: number | null;
+    lastTagFilter: string;
+    lastColorFilter: string;
+    tagSort: MemoryTagSort;
+};
+
+export type MemoriesResponse = {
+    ok: boolean;
+    gameId?: number;
+    gameTitle?: string;
+    memories: MemoryRecord[];
+    tagVocabulary: string[];
+};
+
 export type TrackedNotesColor = Record<string, NoteColor>;
 
 export type TrackedSetGameSort = "manual" | "recent" | "oldest";
@@ -1595,6 +1676,7 @@ export type SavedCommentSource = {
     gameId: number | null;
     gameTitle: string;
     gameImageIcon: string;
+    gameConsoleName: string;
     achievementId: number | null;
     achievementTitle: string;
     achievementImageIcon: string;
@@ -1667,6 +1749,7 @@ export type SavedCommentGame = {
     gameId: number;
     title: string;
     imageIcon: string;
+    consoleName: string;
     count: number;
 };
 

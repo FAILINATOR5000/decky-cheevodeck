@@ -36,6 +36,7 @@ from services.update_checker_service import UpdateCheckerService, installed_vers
 from services.developer_message_service import DeveloperMessageService
 from services.repair_service import RepairService
 from services.emulator_login_sync_service import EmulatorLoginSyncService
+from memories_store import MemoriesStore
 from notes_store import NotesStore
 from guides_store import GuidesStore
 from players_near_you_store import PlayersNearYouStore
@@ -58,6 +59,7 @@ from notifications import NotificationsStore, NotificationsArchiveStore, NOTIFIC
 from utils import chown_to_data_owner, ensure_dir, init_data_owner, is_network_error, ssl_context
 
 from mixins.notifications import NotificationsMixin
+from mixins.memories import MemoriesMixin
 from mixins.notes import NotesMixin
 from mixins.tracked_achievements import TrackedAchievementsMixin
 from mixins.tracked_sets import TrackedSetsMixin
@@ -111,6 +113,7 @@ class CredentialError(Exception):
 class Plugin(
     NotificationsMixin,
     NotesMixin,
+    MemoriesMixin,
     TrackedAchievementsMixin,
     TrackedSetsMixin,
     CommentsMixin,
@@ -186,6 +189,8 @@ class Plugin(
         self.tracked_dir = self.runtime_dir / "tracked"
         self.favorites_file = self.runtime_dir / "favorites.json"
         self.notes_dir = self.runtime_dir / "notes"
+        self.memories_dir = self.runtime_dir / "memories"
+        self.memory_thumbs_dir = self.runtime_dir / "memory_thumbs"
         self.guides_dir = self.runtime_dir / "guides"
         self.tracked_sets_dir = self.runtime_dir
         self.dolphin_mappings_dir = self.runtime_dir
@@ -263,6 +268,11 @@ class Plugin(
         )
         self.notes_store = NotesStore(
             notes_dir=self.notes_dir,
+        )
+        self.memories_store = MemoriesStore(
+            memories_dir=self.memories_dir,
+            thumbs_dir=self.memory_thumbs_dir,
+            pictures_dir=self.user_home / "Pictures" / "CheevoDeck",
         )
         self.guides_store = GuidesStore(
             guides_dir=self.guides_dir,
@@ -421,6 +431,7 @@ class Plugin(
         )
         self.repair_service = RepairService(
             update_checker_service=self.update_checker_service,
+            memories_store=self.memories_store,
         )
         self.developer_message_service = DeveloperMessageService(
             settings_store=self.settings_store,
@@ -565,6 +576,8 @@ class Plugin(
 
         self._friend_fetch_lock = asyncio.Lock()
 
+        self._memories_adopt_lock = asyncio.Lock()
+
         self._game_check_gate = asyncio.Event()
         self._game_check_gate.set()
 
@@ -579,6 +592,9 @@ class Plugin(
         self._asyncio_loop = None
 
         self._background_tasks = set()
+
+        self._memories_last_resolve_at = 0.0
+        self._memories_deferred_resolve = None
 
     @contextlib.asynccontextmanager
     async def _ra_slot(self, wait_for_game_check=True):
@@ -873,6 +889,7 @@ class Plugin(
             self.settings_store.set_tracked_dir(base / "tracked")
             self.settings_store.set_favorites_file(base / "favorites.json")
             self.notes_store.repoint(base / "notes")
+            self.memories_store.repoint(base / "memories", base / "memory_thumbs", user_key)
             self.guides_store.repoint(base / "guides")
             self.players_near_you_store.repoint(base / "players_near_you")
             self.game_activity_history_store.repoint(base / "game_activity_history")
@@ -892,6 +909,14 @@ class Plugin(
                 base,
             )
             raise
+
+        try:
+            self.memories_store.rebuild_games_index()
+        except Exception as e:
+            decky.logger.warning(
+                "memories: games index rebuild on account scope failed: %s",
+                type(e).__name__,
+            )
 
     async def get_settings(self):
         cfg = self.settings_store.load_config()
@@ -1388,6 +1413,7 @@ class Plugin(
         "cheevoCheckResults",
         "cheevoCheckHashes",
         "cheevoCheckRaData",
+        "memoryThumbs",
     ))
 
     async def clear_cache_group(self, group=None):
@@ -1409,6 +1435,7 @@ class Plugin(
             "cheevoCheckResults": self.cheevo_check_store.clear_results,
             "cheevoCheckHashes": self.cheevo_check_store.clear_hash_cache,
             "cheevoCheckRaData": self.cheevo_check_store.clear_ra_data,
+            "memoryThumbs": self.memories_store.clear_thumbs,
         }
         clear_fn = dispatch.get(group_key)
         if clear_fn is None:

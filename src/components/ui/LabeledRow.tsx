@@ -13,6 +13,7 @@ export type LabeledRowProps = {
     outerStyle?: React.CSSProperties;
     gap?: number;
     accentColor?: string;
+    underlineColor?: string;
     scrollMarginTop?: number;
     bottomSeparator?: "standard" | "thick" | "none";
     labelStyle?: React.CSSProperties;
@@ -34,6 +35,7 @@ export function LabeledRow(props: LabeledRowProps) {
         outerStyle,
         gap = 8,
         accentColor,
+        underlineColor,
         scrollMarginTop,
         bottomSeparator = "standard",
         labelStyle,
@@ -56,10 +58,12 @@ export function LabeledRow(props: LabeledRowProps) {
             help={help}
             modalHelp={modalHelp}
         >
+            <div style={{ width: "100%" }}>
             <div
                 style={{
                     width: "100%",
                     display: "flex",
+                    alignItems: "center",
                     justifyContent: "space-between",
                     gap: `${gap}px`,
                     borderLeft: accentColor ? `3px solid ${accentColor}` : undefined,
@@ -89,6 +93,17 @@ export function LabeledRow(props: LabeledRowProps) {
                 >
                     {value}
                 </span>
+            </div>
+            {underlineColor ? (
+                <div
+                    style={{
+                        height: "2px",
+                        borderRadius: "1px",
+                        marginTop: "4px",
+                        background: underlineColor
+                    }}
+                />
+            ) : null}
             </div>
         </FocusableItem>
     );
