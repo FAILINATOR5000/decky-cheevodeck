@@ -244,6 +244,7 @@ export function useAccountActions({
 
     async function onToggleInject(next: boolean) {
         const result = await saveInjectEmulatorLogin(next);
+        injectEnabledRef.current = result.injectEmulatorLogin;
         if (mountedRef.current) {
             setInjectEmulatorLogin(result.injectEmulatorLogin);
         }
