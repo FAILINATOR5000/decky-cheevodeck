@@ -1447,11 +1447,22 @@ type MemoryAchievementCard = {
     unlockedAt: number | null;
 };
 
+type MemoryVideo = {
+    clipId: string;
+    sessionId: string;
+    path: string;
+    startMs: number;
+    durationMs: number;
+    sizeBytes: number;
+};
+
 export type MemoryRecord = {
     id: string;
     gameId: number;
     path: string;
+    video: MemoryVideo | null;
     capturedAt: number;
+    updatedAt: number;
     appid: number;
     gameTitle: string;
     source: string;
@@ -1489,6 +1500,7 @@ export type MemoryViewPrefs = {
     seededForGameId: number | null;
     lastTagFilter: string;
     lastColorFilter: string;
+    lastMediaFilter: string;
     tagSort: MemoryTagSort;
 };
 

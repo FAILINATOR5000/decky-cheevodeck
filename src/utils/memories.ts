@@ -38,6 +38,24 @@ export function memoryMatchesColor(memory: MemoryRecord, color: string): boolean
     return ((memory.color || "default") as NoteColor) === color;
 }
 
+export const MEDIA_FILTER_CHOICES: ReadonlyArray<{ value: string; key: string }> = [
+    { value: "", key: "All" },
+    { value: "picture", key: "Screenshot" },
+    { value: "video", key: "Video" }
+];
+
+export function mediaFilterKey(media: string): string {
+    const found = MEDIA_FILTER_CHOICES.find((choice) => choice.value === media);
+    return found && found.value ? found.key : "";
+}
+
+export function memoryMatchesMedia(memory: MemoryRecord, media: string): boolean {
+    if (!media) {
+        return true;
+    }
+    return media === "video" ? Boolean(memory.video) : !memory.video;
+}
+
 export function sortMemories(memories: MemoryRecord[], order: "desc" | "asc"): MemoryRecord[] {
     const sorted = [...memories];
     sorted.sort((left, right) => (
@@ -54,6 +72,17 @@ export function memoryRemovalLanding(list: MemoryRecord[], removedId: string): s
         return null;
     }
     return list[index + 1]?.id ?? list[index - 1]?.id ?? null;
+}
+
+export function formatClipLength(seconds: number): string {
+    const whole = Math.max(Math.round(seconds), 0);
+    const minutes = Math.floor((whole % 3600) / 60);
+    const rest = String(whole % 60).padStart(2, "0");
+    const hours = Math.floor(whole / 3600);
+    if (hours > 0) {
+        return `${hours}:${String(minutes).padStart(2, "0")}:${rest}`;
+    }
+    return `${minutes}:${rest}`;
 }
 
 export function pageCount(total: number, perPage: number): number {

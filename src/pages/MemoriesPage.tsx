@@ -25,7 +25,7 @@ import { showManagedModal } from "../utils/modalRegistry";
 import { armMemoriesFocusKey, armMemoriesFocusReturn } from "../utils/memoriesFocusReturn";
 import { playOkSound } from "../utils/navSound";
 import { logFocusDebug } from "../api";
-import { ALL_GAMES_ID, MISC_GAME_ID, memoryRemovalLanding } from "../utils/memories";
+import { ALL_GAMES_ID, MISC_GAME_ID, mediaFilterKey, memoryRemovalLanding } from "../utils/memories";
 import { noteBodyColor } from "../utils/achievements";
 import { bodyTextStyle, regularButtonSpacingStyle } from "../utils/style";
 import { textSize } from "../utils/scale";
@@ -294,6 +294,10 @@ function MemoriesPage(props: MemoriesPageProps) {
         ? (noteBodyColor(memories.colorFilter as NoteColor) ?? "rgba(255, 255, 255, 0.45)")
         : undefined;
 
+    const mediaKey = mediaFilterKey(memories.mediaFilter);
+    const filterParts = [memories.tagFilter, mediaKey ? t(language, mediaKey) : ""];
+    const filterValue = filterParts.filter(Boolean).join(" \u00b7 ") || t(language, "All");
+
     function openGamePicker() {
         armFocusKey("memories:game");
         showManagedModal((close) => (
@@ -315,10 +319,12 @@ function MemoriesPage(props: MemoriesPageProps) {
                 tags={memories.tags}
                 selected={memories.tagFilter}
                 selectedColor={memories.colorFilter}
+                selectedMedia={memories.mediaFilter}
                 sort={memories.tagSort}
                 language={language}
                 onSelect={actions.memories.selectTag}
                 onSelectColor={actions.memories.selectColor}
+                onSelectMedia={actions.memories.selectMedia}
                 onChangeSort={actions.memories.selectTagSort}
                 close={close}
             />
@@ -653,7 +659,7 @@ function MemoriesPage(props: MemoriesPageProps) {
                             outerStyle={regularButtonSpacingStyle(buttonSpacing)}
                             focusKey="memories:filter"
                             label={t(language, "Filter")}
-                            value={memories.tagFilter || t(language, "All")}
+                            value={filterValue}
                             underlineColor={filterRuleColor}
                             onClick={openTagFilter}
                             bottomSeparator="none"

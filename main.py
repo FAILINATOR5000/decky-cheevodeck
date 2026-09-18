@@ -273,6 +273,7 @@ class Plugin(
             memories_dir=self.memories_dir,
             thumbs_dir=self.memory_thumbs_dir,
             pictures_dir=self.user_home / "Pictures" / "CheevoDeck",
+            videos_dir=self.user_home / "Videos" / "CheevoDeck",
         )
         self.guides_store = GuidesStore(
             guides_dir=self.guides_dir,

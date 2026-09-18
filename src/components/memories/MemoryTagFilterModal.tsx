@@ -3,6 +3,7 @@ import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
 import { LabeledRow } from "../ui/LabeledRow";
 import { NoteColorPicker } from "../notes/NoteColorPicker";
 import { useWindowedList } from "../../hooks/useWindowedList";
+import { MEDIA_FILTER_CHOICES } from "../../utils/memories";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { t, type LanguageCode } from "../../locales";
 import { modalSize } from "../../utils/scale";
@@ -24,13 +25,16 @@ export type MemoryTagFilterModalProps = {
     tags: MemoryTagRow[];
     selected: string;
     selectedColor: string;
+    selectedMedia: string;
     sort: MemoryTagSort;
     language: LanguageCode;
     onSelect: (tag: string) => void;
     onSelectColor: (color: string) => void;
+    onSelectMedia: (media: string) => void;
     onChangeSort: (sort: MemoryTagSort) => void;
     close: () => void;
 };
+
 
 function TagChip(props: {
     label: string;
@@ -62,9 +66,11 @@ function TagChip(props: {
 }
 
 export function MemoryTagFilterModal(props: MemoryTagFilterModalProps) {
-    const { tags, selected, language, onSelect, onSelectColor, onChangeSort, close } = props;
+    const { tags, selected, language, onSelect, onSelectColor, onSelectMedia, onChangeSort, close } = props;
 
     const [color, setColor] = useState(props.selectedColor);
+
+    const [media, setMedia] = useState(props.selectedMedia);
 
     const [sort, setSort] = useState<MemoryTagSort>(props.sort);
 
@@ -108,6 +114,11 @@ export function MemoryTagFilterModal(props: MemoryTagFilterModalProps) {
         const settled = next === "default" ? "" : next;
         setColor(settled);
         onSelectColor(settled);
+    }
+
+    function pickMedia(next: string) {
+        setMedia(next);
+        onSelectMedia(next);
     }
 
     return (
@@ -170,6 +181,31 @@ export function MemoryTagFilterModal(props: MemoryTagFilterModalProps) {
                 disabled={false}
                 onChange={(next) => pickColor(next)}
             />
+            <div style={SECTION_HEADING_STYLE}>
+                {t(language, "Media Type")}
+            </div>
+            <Focusable
+                flow-children="grid"
+                style={{
+                    display: "flex",
+                    flexDirection: "row",
+                    gap: "8px",
+                    flexWrap: "wrap",
+                    alignItems: "center"
+                }}
+            >
+                {MEDIA_FILTER_CHOICES.map((choice) => (
+                    <TagChip
+                        key={choice.key}
+                        label={t(language, choice.key)}
+                        count={null}
+                        focusKey={`memories:media:${choice.value || "all"}`}
+                        selected={media === choice.value}
+                        preferred={false}
+                        onSelect={() => pickMedia(choice.value)}
+                    />
+                ))}
+            </Focusable>
             <Focusable style={{ display: "flex", marginTop: "16px" }}>
                 <DialogButton onClick={close} style={{ width: "100%" }}>
                     {t(language, "Close")}

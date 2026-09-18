@@ -3,8 +3,13 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 import { CompositionHold, hasCompositionHold } from "../ui/compositionHold";
 import { FadeImage } from "../ui/FadeImage";
+import { ButtonPrompt } from "../ui/ButtonPrompt";
+import { playClip, type ClipPlayback, type ClipPlaybackState, type ClipSource } from "./clipPlayer";
+import { formatClipLength } from "../../utils/memories";
 import { logFocusDebug } from "../../api";
 import { logError } from "../../utils/errors";
+import { modalSize } from "../../utils/scale";
+import type { LanguageCode } from "../../locales";
 
 const GLOBAL_COMPONENT = "CheevoDeckMemoryFullscreen";
 
@@ -19,12 +24,25 @@ const LAYER_STYLE: CSSProperties = {
     display: "block"
 };
 
+const TRANSPORT_VISIBLE_MS = 2500;
+
 type FullscreenPicture = {
     thumb: string | null;
     full: string | null;
+    clip: ClipSource | null;
+    language: LanguageCode;
 };
 
 let shown: FullscreenPicture | null = null;
+
+let playback: ClipPlayback | null = null;
+
+const transportNudges = new Set<() => void>();
+
+
+function nudgeTransport() {
+    transportNudges.forEach((listener) => listener());
+}
 
 let shownToken = 0;
 
@@ -34,8 +52,26 @@ function samePicture(a: FullscreenPicture | null, b: FullscreenPicture | null) {
     if (a === b) {
         return true;
     }
-    return Boolean(a && b && a.thumb === b.thumb && a.full === b.full);
+    return Boolean(
+        a && b
+        && a.thumb === b.thumb
+        && a.full === b.full
+        && a.language === b.language
+        && a.clip?.clipId === b.clip?.clipId
+        && a.clip?.sessionId === b.clip?.sessionId
+        && a.clip?.startMs === b.clip?.startMs
+        && a.clip?.durationMs === b.clip?.durationMs
+    );
 }
+
+function playKey(state: ClipPlaybackState): string {
+    if (state.ended) {
+        return "{{button}} Restart";
+    }
+    return state.paused ? "{{button}} Play" : "{{button}} Pause";
+}
+
+
 
 function setShown(picture: FullscreenPicture | null) {
     if (samePicture(shown, picture)) {
@@ -59,10 +95,123 @@ function useShown(): FullscreenPicture | null {
     return picture;
 }
 
+function ClipLayer(props: { clip: ClipSource; language: LanguageCode }) {
+    const { clip, language } = props;
+    const videoRef = useRef<HTMLVideoElement | null>(null);
+    const [state, setState] = useState<ClipPlaybackState>({
+        position: 0,
+        duration: clip.durationMs / 1000,
+        paused: true,
+        ended: false,
+        scanning: false,
+        ready: false
+    });
+    const [visible, setVisible] = useState(true);
+    const [reveal, setReveal] = useState(0);
+
+    // Teardown lives here rather than in the dialog's cleanup. This component is
+    // registered at the router and outlives the panel, so closing the QAM
+    // unmounts nothing out here and a decoder left running is battery as well as
+    // memory.
+    useEffect(() => {
+        const element = videoRef.current;
+        if (!element) {
+            return;
+        }
+        const handle = playClip(element, clip);
+        playback = handle;
+        const unsubscribe = handle.subscribe(setState);
+        return () => {
+            unsubscribe();
+            handle.destroy();
+            if (playback === handle) {
+                playback = null;
+            }
+        };
+    }, [clip]);
+
+    useEffect(() => {
+        const bump = () => setReveal((count) => count + 1);
+        transportNudges.add(bump);
+        return () => {
+            transportNudges.delete(bump);
+        };
+    }, []);
+
+    useEffect(() => {
+        setVisible(true);
+        const timer = setTimeout(() => setVisible(false), TRANSPORT_VISIBLE_MS);
+        return () => clearTimeout(timer);
+    }, [reveal]);
+
+    const showing = visible || state.ended || state.scanning;
+    const fraction = state.duration > 0 ? Math.min(state.position / state.duration, 1) : 0;
+
+    return (
+        <>
+            <video
+                ref={videoRef}
+                playsInline
+                style={{ ...LAYER_STYLE, background: "#000000" }}
+            />
+            <div
+                style={{
+                    position: "absolute",
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    padding: "16px 24px 20px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px",
+                    background: "linear-gradient(to top, rgba(0,0,0,0.78), rgba(0,0,0,0))",
+                    opacity: showing ? 1 : 0,
+                    transition: "opacity 220ms ease"
+                }}
+            >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <div
+                        style={{
+                            flex: 1,
+                            height: "4px",
+                            borderRadius: "2px",
+                            background: "rgba(255,255,255,0.28)",
+                            overflow: "hidden"
+                        }}
+                    >
+                        <div
+                            style={{
+                                width: `${fraction * 100}%`,
+                                height: "100%",
+                                background: "#ffffff"
+                            }}
+                        />
+                    </div>
+                    <span style={{ fontVariantNumeric: "tabular-nums", fontSize: `${modalSize(14)}px` }}>
+                        {`${formatClipLength(Math.floor(state.position))} / ${formatClipLength(state.duration)}`}
+                    </span>
+                </div>
+                <div style={{ display: "flex", gap: "18px", fontSize: `${modalSize(14)}px`, opacity: 0.9 }}>
+                    <ButtonPrompt
+                        language={language}
+                        textKey={playKey(state)}
+                        button="a"
+                        fontSize={modalSize(14)}
+                    />
+                    <ButtonPrompt language={language} textKey="{{button}} Rewind" button="l2" fontSize={modalSize(14)} />
+                    <ButtonPrompt language={language} textKey="{{button}} Forward" button="r2" fontSize={modalSize(14)} />
+                    <ButtonPrompt language={language} textKey="{{button}} Back" button="b" fontSize={modalSize(14)} />
+                </div>
+            </div>
+        </>
+    );
+}
+
 function MemoryFullscreen() {
     const picture = useShown();
     const fullBoxRef = useRef<HTMLDivElement | null>(null);
-    const full = picture?.full ?? null;
+    const clip = picture?.clip ?? null;
+    const full = clip ? null : (picture?.full ?? null);
 
     useEffect(() => {
         const box = fullBoxRef.current;
@@ -143,6 +292,7 @@ function MemoryFullscreen() {
                         />
                     </div>
                 ) : null}
+                {clip ? <ClipLayer clip={clip} language={picture!.language} /> : null}
             </div>
         </>
     );
@@ -158,13 +308,48 @@ export function unregisterMemoryFullscreen() {
 }
 
 // Shows the picture full screen and returns the call that takes it back down.
-export function showMemoryFullscreen(thumb: string | null, full: string | null): () => void {
+export function showMemoryFullscreen(
+    thumb: string | null,
+    full: string | null,
+    language: LanguageCode,
+    clip: ClipSource | null = null
+): () => void {
     shownToken += 1;
     const token = shownToken;
-    setShown({ thumb, full });
+    setShown({ thumb, full, clip, language });
     return () => {
         if (shownToken === token) {
             setShown(null);
         }
     };
+}
+
+export function nudgeMemoryTransport(): void {
+    nudgeTransport();
+}
+
+export function toggleMemoryPlayback(): void {
+    if (!playback) {
+        return;
+    }
+    playback.togglePause();
+    nudgeTransport();
+}
+
+// A press steps once and then scans if the trigger is still held, so a scan
+// only ends when endMemorySeek sees the release or the watchdog fires.
+export function beginMemorySeek(direction: 1 | -1): void {
+    if (!playback) {
+        return;
+    }
+    playback.beginSeek(direction);
+    nudgeTransport();
+}
+
+export function endMemorySeek(): void {
+    if (!playback) {
+        return;
+    }
+    playback.endSeek();
+    nudgeTransport();
 }

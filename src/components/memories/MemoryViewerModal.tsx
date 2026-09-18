@@ -19,10 +19,19 @@ import { HardcoreBadge } from "../achievements/HardcoreBadge";
 import { POINTS_LABEL_STYLES, PointsLabel } from "../achievements/PointsLabel";
 import { UnlockStamp } from "../achievements/UnlockStamp";
 import { MemoryEditorModal } from "./MemoryEditorModal";
-import { showMemoryFullscreen } from "./memoryFullscreen";
+import {
+    beginMemorySeek,
+    endMemorySeek,
+    nudgeMemoryTransport,
+    showMemoryFullscreen,
+    toggleMemoryPlayback
+} from "./memoryFullscreen";
+import type { ClipSource } from "./clipPlayer";
+import { BUTTON_TRIGGER_LEFT, BUTTON_TRIGGER_RIGHT } from "../../utils/gamepadButtons";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { logError } from "../../utils/errors";
 import { formatUnlockDate, noteBodyColor } from "../../utils/achievements";
+import { formatClipLength } from "../../utils/memories";
 import { getDeviceIsSteamMachine, modalSize } from "../../utils/scale";
 import { errorRed } from "../../utils/style";
 import { t, type LanguageCode } from "../../locales";
@@ -104,6 +113,21 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
     const [armedDelete, setArmedDelete] = useState(false);
 
     const blobUrlRef = useRef<string | null>(null);
+    const imageBoxRef = useRef<HTMLDivElement | null>(null);
+    const [posterRatio, setPosterRatio] = useState(0);
+
+    const clipSource = useMemo<ClipSource | null>(() => {
+        const video = memory.video;
+        if (!video || !video.clipId || !video.sessionId) {
+            return null;
+        }
+        return {
+            clipId: video.clipId,
+            sessionId: video.sessionId,
+            startMs: video.startMs,
+            durationMs: video.durationMs
+        };
+    }, [memory.video]);
 
     useEffect(() => {
         let cancelled = false;
@@ -137,6 +161,31 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
             }
         };
     }, [gameId, memory.path]);
+
+    useEffect(() => {
+        const box = imageBoxRef.current;
+        if (!box) {
+            return;
+        }
+        const image = box.querySelector("img");
+        if (!image) {
+            return;
+        }
+        function measure() {
+            if (!image || !image.naturalHeight) {
+                return;
+            }
+            setPosterRatio(image.naturalWidth / image.naturalHeight);
+        }
+        if (image.complete) {
+            measure();
+            return;
+        }
+        image.addEventListener("load", measure);
+        return () => {
+            image.removeEventListener("load", measure);
+        };
+    }, [thumbDataUri, fullSrc]);
 
     useEffect(() => {
         const names = memory.achievements.map((card) => card.badgeName).filter(Boolean);
@@ -174,8 +223,8 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
         if (!fullSrc && !thumbDataUri) {
             return;
         }
-        return showMemoryFullscreen(thumbDataUri, fullSrc);
-    }, [fullscreen, fullSrc, thumbDataUri]);
+        return showMemoryFullscreen(thumbDataUri, fullSrc, language, clipSource);
+    }, [fullscreen, fullSrc, thumbDataUri, language, clipSource]);
 
     const handleCancel = useCallback(() => {
         if (fullscreen) {
@@ -263,8 +312,36 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                 <SnapshotHotkey language={language} />
                 <style>{MEMORY_DIALOG_CSS}</style>
                 <Focusable
-                    onActivate={() => setFullscreen(false)}
-                    onOKActionDescription={t(language, "Shrink")}
+                    onActivate={clipSource
+                        ? () => toggleMemoryPlayback()
+                        : () => setFullscreen(false)}
+                    onOKActionDescription={clipSource
+                        ? t(language, "Pause")
+                        : t(language, "Shrink")}
+                    onButtonDown={clipSource
+                        ? (event: { detail?: { button?: number; is_repeat?: boolean } }) => {
+                            const button = event?.detail?.button;
+                            nudgeMemoryTransport();
+                            if (button !== BUTTON_TRIGGER_LEFT && button !== BUTTON_TRIGGER_RIGHT) {
+                                return;
+                            }
+                            if (event?.detail?.is_repeat) {
+                                return;
+                            }
+                            beginMemorySeek(button === BUTTON_TRIGGER_RIGHT ? 1 : -1);
+                        }
+                        : undefined}
+                    onButtonUp={clipSource
+                        ? () => {
+                            endMemorySeek();
+                        }
+                        : undefined}
+                    actionDescriptionMap={clipSource
+                        ? {
+                            [BUTTON_TRIGGER_LEFT]: t(language, "Rewind"),
+                            [BUTTON_TRIGGER_RIGHT]: t(language, "Forward")
+                        }
+                        : undefined}
                     style={{ display: "block", width: "100%" }}
                 >
                     <FadeImage
@@ -343,10 +420,13 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                     <div style={{ flex: 1, minWidth: 0 }}>
                         <Focusable
                             onActivate={() => setFullscreen((current) => !current)}
-                            onOKActionDescription={t(language, "Fullscreen")}
+                            onOKActionDescription={clipSource
+                                ? t(language, "Play")
+                                : t(language, "Fullscreen")}
                             style={{ display: "block" }}
                         >
                             <div
+                                ref={imageBoxRef}
                                 style={{
                                     position: "relative",
                                     width: "100%",
@@ -372,6 +452,73 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                                         decoding="async"
                                         style={IMAGE_LAYER_STYLE}
                                     />
+                                ) : null}
+                                {clipSource ? (
+                                    <div
+                                        style={{
+                                            position: "absolute",
+                                            inset: 0,
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            pointerEvents: "none"
+                                        }}
+                                    >
+                                        <div
+                                            style={{
+                                                position: "relative",
+                                                width: posterRatio > 0 ? "auto" : "100%",
+                                                height: "100%",
+                                                aspectRatio: posterRatio > 0 ? `${posterRatio}` : undefined,
+                                                maxWidth: "100%",
+                                                maxHeight: "100%"
+                                            }}
+                                        >
+                                            <div
+                                                style={{
+                                                    position: "absolute",
+                                                    bottom: `${modalSize(6)}px`,
+                                                    right: `${modalSize(6)}px`,
+                                                    padding: `${modalSize(1)}px ${modalSize(5)}px`,
+                                                    borderRadius: "3px",
+                                                    background: "rgba(0, 0, 0, 0.35)",
+                                                    color: "rgba(255, 255, 255, 0.88)",
+                                                    fontSize: `${modalSize(12)}px`,
+                                                    fontWeight: 600,
+                                                    fontVariantNumeric: "tabular-nums"
+                                                }}
+                                            >
+                                                {formatClipLength(clipSource.durationMs / 1000)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : null}
+                                {clipSource ? (
+                                    <div
+                                        style={{
+                                            position: "absolute",
+                                            left: "50%",
+                                            top: "50%",
+                                            transform: "translate(-50%, -50%)",
+                                            width: "16%",
+                                            aspectRatio: "1 / 1",
+                                            borderRadius: "50%",
+                                            background: "rgba(0, 0, 0, 0.45)",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center"
+                                        }}
+                                    >
+                                        <svg
+                                            viewBox="0 0 100 100"
+                                            style={{ width: "42%", height: "42%", display: "block" }}
+                                        >
+                                            <polygon
+                                                points="20,8 88,50 20,92"
+                                                fill="rgba(255, 255, 255, 0.92)"
+                                            />
+                                        </svg>
+                                    </div>
                                 ) : null}
                             </div>
                         </Focusable>

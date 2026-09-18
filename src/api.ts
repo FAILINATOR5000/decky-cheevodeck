@@ -487,6 +487,10 @@ export const adoptScreenshot = callable<
     [string, number, number, string],
     { ok: boolean; error?: string; gameId?: number; memory?: MemoryRecord; deleteSource?: boolean }
 >("adopt_screenshot");
+export const adoptClip = callable<
+    [string, string, number, number, number, number],
+    { ok: boolean; error?: string; gameId?: number; memory?: MemoryRecord }
+>("adopt_clip");
 export const loadMemories = callable<[number], MemoriesResponse>("load_memories");
 export const loadMemoryGames = callable<
     [],
@@ -519,6 +523,7 @@ export const saveMemoryViewPrefs = callable<
         MemoryDateOrder | null,
         number | null,
         number | null,
+        string | null,
         string | null,
         string | null,
         MemoryTagSort | null

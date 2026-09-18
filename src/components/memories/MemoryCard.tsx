@@ -2,12 +2,18 @@ import React from "react";
 import { Focusable } from "@decky/ui";
 import { FadeImage } from "../ui/FadeImage";
 import { noteBodyColor } from "../../utils/achievements";
+import { formatClipLength } from "../../utils/memories";
 import { textSize } from "../../utils/scale";
 import type { MemoryRecord } from "../../types";
 
 const DENSE_COLUMN_THRESHOLD = 3;
 
 const ARMED_BORDER_COLOR = "#ef4444";
+
+const CLIP_LENGTH_SIZE_BY_COLUMNS: Record<number, number> = { 1: 13, 2: 11, 3: 9 };
+
+const CLIP_MARK_BACKDROP = "rgba(0, 0, 0, 0.35)";
+const CLIP_MARK_COLOR = "rgba(255, 255, 255, 0.88)";
 
 const FOCUS_RING = "0 0 0 2px rgba(120, 200, 255, 0.85), 0 2px 8px rgba(0, 0, 0, 0.35)";
 
@@ -69,6 +75,7 @@ export const MemoryCard = React.memo(function MemoryCard(props: MemoryCardProps)
                 </div>
                 <div
                     style={{
+                        position: "relative",
                         width: "100%",
                         aspectRatio: "16 / 10",
                         borderRadius: "4px",
@@ -86,6 +93,25 @@ export const MemoryCard = React.memo(function MemoryCard(props: MemoryCardProps)
                             decoding="async"
                             style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
                         />
+                    ) : null}
+                    {memory.video ? (
+                        <div
+                            style={{
+                                position: "absolute",
+                                bottom: "3px",
+                                right: "3px",
+                                padding: "1px 4px",
+                                borderRadius: "3px",
+                                background: CLIP_MARK_BACKDROP,
+                                color: CLIP_MARK_COLOR,
+                                fontSize: `${textSize(CLIP_LENGTH_SIZE_BY_COLUMNS[list.columns] ?? 11)}px`,
+                                fontWeight: 600,
+                                fontVariantNumeric: "tabular-nums",
+                                lineHeight: 1.3
+                            }}
+                        >
+                            {formatClipLength(memory.video.durationMs / 1000)}
+                        </div>
                     ) : null}
                 </div>
                 {rule ? (

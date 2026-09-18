@@ -40,6 +40,8 @@ MAX_ACHIEVEMENT_DESCRIPTION_LEN = 200
 
 _ALLOWED_ACHIEVEMENT_TYPES = {"", "missable", "progression", "win_condition"}
 
+_ALLOWED_MEDIA_FILTERS = {"", "picture", "video"}
+
 _ALLOWED_DATE_ORDERS = {"desc", "asc"}
 _ALLOWED_TAG_SORTS = {"recent", "alpha"}
 
@@ -49,6 +51,8 @@ DEFAULT_GRID_COLUMNS = 2
 _GAME_KEY_PATTERN = re.compile(r"^-?\d+$")
 
 _TAG_CLEAN_PATTERN = re.compile(r"[\[\]\n\r\t]")
+
+_CLIP_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,120}$")
 
 _FOLDER_CLEAN_PATTERN = re.compile(r"[\x00-\x1f/\\]")
 
@@ -77,6 +81,39 @@ def _clean_relative_path(raw):
     return path
 
 
+def _clean_video(raw):
+    """The video source on a record, or ``None`` when there is not one.
+
+    A source is owned when it carries a relative path under the video root and
+    referenced when it carries a Steam clip id. Both keys are always present so
+    a caller tests one for emptiness rather than testing the record for a
+    missing key, and a source with neither reads back as no video at all.
+    """
+    if not isinstance(raw, dict):
+        return None
+
+    clip_id = raw.get("clipId")
+    if not isinstance(clip_id, str) or not _CLIP_ID_PATTERN.match(clip_id):
+        clip_id = ""
+
+    session_id = raw.get("sessionId")
+    if not isinstance(session_id, str) or not _CLIP_ID_PATTERN.match(session_id):
+        session_id = ""
+
+    path = _clean_relative_path(raw.get("path")) or ""
+    if not clip_id and not path:
+        return None
+
+    return {
+        "clipId": clip_id,
+        "sessionId": session_id,
+        "path": path,
+        "startMs": max(to_int(raw.get("startMs"), 0), 0),
+        "durationMs": max(to_int(raw.get("durationMs"), 0), 0),
+        "sizeBytes": max(to_int(raw.get("sizeBytes"), 0), 0),
+    }
+
+
 class MemoriesStore:
     """Screenshots the user kept, one JSON file per game, per account.
 
@@ -102,10 +139,11 @@ class MemoriesStore:
     resolve pass run on worker threads.
     """
 
-    def __init__(self, *, memories_dir: Path, thumbs_dir: Path, pictures_dir: Path):
+    def __init__(self, *, memories_dir: Path, thumbs_dir: Path, pictures_dir: Path, videos_dir: Path):
         self._memories_dir = memories_dir
         self._thumbs_dir = thumbs_dir
         self._pictures_dir = pictures_dir
+        self._videos_dir = videos_dir
         self._account_key = ""
 
         self._master_lock = threading.Lock()
@@ -152,6 +190,14 @@ class MemoriesStore:
     def picture_path(self, relative: str) -> Path:
         """Absolute path of a picture from the relative path on its record."""
         return self._pictures_dir / relative
+
+    def videos_root(self) -> Path:
+        """The folder an owned video's relative path is measured from."""
+        return self._videos_dir
+
+    def video_path(self, relative: str) -> Path:
+        """Absolute path of an owned video from the path on its record."""
+        return self._videos_dir / relative
 
     def thumb_path(self, game_id, relative: str) -> Path:
         """Where the thumbnail for a picture goes.
@@ -406,6 +452,10 @@ class MemoriesStore:
         if last_color not in _NOTE_COLOR_OPTIONS:
             last_color = ""
 
+        last_media = raw.get("lastMediaFilter")
+        if last_media not in _ALLOWED_MEDIA_FILTERS:
+            last_media = ""
+
         return {
             "ok": True,
             "gridColumns": columns,
@@ -414,6 +464,7 @@ class MemoriesStore:
             "seededForGameId": norm_game_id(raw.get("seededForGameId")),
             "lastTagFilter": last_tag[:MEMORY_TAG_MAX_LEN],
             "lastColorFilter": last_color,
+            "lastMediaFilter": last_media,
             "tagSort": tag_sort,
         }
 
@@ -426,6 +477,7 @@ class MemoriesStore:
         seeded_for_game_id=None,
         last_tag_filter=None,
         last_color_filter=None,
+        last_media_filter=None,
         tag_sort=None,
     ) -> dict:
         """Merge whatever was passed into the stored preferences.
@@ -451,6 +503,10 @@ class MemoriesStore:
             if isinstance(last_color_filter, str):
                 current["lastColorFilter"] = (
                     last_color_filter if last_color_filter in _NOTE_COLOR_OPTIONS else ""
+                )
+            if isinstance(last_media_filter, str):
+                current["lastMediaFilter"] = (
+                    last_media_filter if last_media_filter in _ALLOWED_MEDIA_FILTERS else ""
                 )
 
             payload = dict(current)
@@ -546,11 +602,14 @@ class MemoriesStore:
             source = "steam"
 
         achievements = self._clean_achievements(raw.get("achievements"))
+        captured = to_int(raw.get("capturedAt"), 0)
         return {
             "id": memory_id,
             "gameId": game_id,
             "path": path,
-            "capturedAt": to_int(raw.get("capturedAt"), 0),
+            "video": _clean_video(raw.get("video")),
+            "capturedAt": captured,
+            "updatedAt": to_int(raw.get("updatedAt"), 0) or captured,
             "appid": to_int(raw.get("appid"), 0),
             "gameTitle": raw.get("gameTitle") if isinstance(raw.get("gameTitle"), str) else "",
             "consoleName": raw.get("consoleName") if isinstance(raw.get("consoleName"), str) else "",
@@ -747,12 +806,14 @@ class MemoriesStore:
         console_name: str = "",
         image_icon: str = "",
         source: str = "steam",
+        video=None,
     ) -> dict:
-        """Record one adopted screenshot.
+        """Record one adopted capture.
 
         ``path`` is relative to the pictures root, never absolute: the home
         directory is resolved fresh on every read, so a relative path survives a
-        restored backup and a different ``$HOME``.
+        restored backup and a different ``$HOME``. ``video`` names the clip
+        behind a poster image and is left out for a screenshot.
         """
         key = self._game_key(game_id)
         if key is None:
@@ -770,7 +831,9 @@ class MemoriesStore:
             "id": self._new_memory_id(),
             "gameId": int(key),
             "path": relative,
+            "video": _clean_video(video),
             "capturedAt": stamp,
+            "updatedAt": stamp,
             "appid": to_int(app_id, 0),
             "gameTitle": game_title if isinstance(game_title, str) else "",
             "consoleName": console_name if isinstance(console_name, str) else "",
@@ -807,7 +870,8 @@ class MemoriesStore:
         """Change a memory's caption, tag or color.
 
         Each field is optional and None leaves it alone. Clearing a tag is
-        passing an empty string, which cleans to None.
+        passing an empty string, which cleans to None. Anything that lands moves
+        ``updatedAt``, which is what tells two copies of one record apart.
         """
         key = self._game_key(game_id)
         if key is None:
@@ -826,13 +890,19 @@ class MemoriesStore:
             if target is None:
                 return {"ok": False, "error": "not_found"}
 
+            changed = False
             if caption is not None:
                 target["caption"] = self._clean_caption(caption)
+                changed = True
             if tag is not None:
                 target["tag"] = self._clean_tag(tag)
                 self._add_tag_to_vocab(entry, target["tag"])
+                changed = True
             if color is not None:
                 target["color"] = self._clean_color(color)
+                changed = True
+            if changed:
+                target["updatedAt"] = int(time.time())
 
             if tag is not None:
                 self._prune_tag_vocab(entry)
@@ -879,7 +949,11 @@ class MemoriesStore:
         return {"ok": True, "updated": updated}
 
     def _unlink_memory_files(self, game_id, memory: dict) -> None:
-        for target in (self.thumb_path(game_id, memory["path"]), self.picture_path(memory["path"])):
+        targets = [self.thumb_path(game_id, memory["path"]), self.picture_path(memory["path"])]
+        owned = (memory.get("video") or {}).get("path")
+        if owned:
+            targets.append(self.video_path(owned))
+        for target in targets:
             try:
                 target.unlink()
             except OSError:
@@ -888,7 +962,11 @@ class MemoriesStore:
     def _prune_empty_dirs(self, game_id, memory: dict) -> None:
         picture_dir = self.picture_path(memory["path"]).parent
         thumb_dir = self.thumb_path(game_id, memory["path"]).parent
-        for folder in (thumb_dir, picture_dir):
+        folders = [thumb_dir, picture_dir]
+        owned = (memory.get("video") or {}).get("path")
+        if owned:
+            folders.append(self.video_path(owned).parent)
+        for folder in folders:
             try:
                 folder.rmdir()
             except OSError:
@@ -932,8 +1010,8 @@ class MemoriesStore:
         """Remove every memory for this account, pictures included.
 
         The only bulk destructive path in the feature. Scope is the active
-        account: this account's metadata, its thumbnails and its folder under
-        the pictures root, and nothing belonging to another one.
+        account: this account's metadata, its thumbnails, and its folders under
+        the pictures and video roots, and nothing belonging to another one.
         """
         try:
             keys = [p.stem for p in self._memories_dir.glob("*.json") if _GAME_KEY_PATTERN.match(p.stem)]
@@ -941,8 +1019,14 @@ class MemoriesStore:
             keys = []
 
         removed = 0
-        picture_dirs = set()
+        media_dirs = set()
         account_dirs = set()
+
+        def note_dirs(root: Path, relative: str) -> None:
+            media_dirs.add((root / relative).parent)
+            segments = relative.split("/")
+            if len(segments) >= 3:
+                account_dirs.add(root / segments[0])
 
         for key in keys:
             lock = self._lock_for_game(key)
@@ -950,15 +1034,15 @@ class MemoriesStore:
                 entry = self._load_raw(key)
                 for memory in entry["memories"]:
                     self._unlink_memory_files(key, memory)
-                    picture_dirs.add(self.picture_path(memory["path"]).parent)
-                    segments = memory["path"].split("/")
-                    if len(segments) >= 3:
-                        account_dirs.add(self._pictures_dir / segments[0])
+                    note_dirs(self._pictures_dir, memory["path"])
+                    owned = (memory.get("video") or {}).get("path")
+                    if owned:
+                        note_dirs(self._videos_dir, owned)
                 removed += len(entry["memories"])
                 entry["memories"] = []
                 self._save_raw(key, entry)
 
-        for folder in sorted(picture_dirs) + sorted(account_dirs):
+        for folder in sorted(media_dirs) + sorted(account_dirs):
             try:
                 folder.rmdir()
             except OSError:

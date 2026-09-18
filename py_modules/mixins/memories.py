@@ -4,6 +4,7 @@ from pathlib import Path
 
 import decky
 import memories_capture
+import memories_clips
 import memories_resolver
 import memories_thumbs
 
@@ -170,6 +171,7 @@ class MemoriesMixin(PluginContext):
         seeded_for_game_id=None,
         last_tag_filter=None,
         last_color_filter=None,
+        last_media_filter=None,
         tag_sort=None,
     ):
         return await asyncio.to_thread(
@@ -180,6 +182,7 @@ class MemoriesMixin(PluginContext):
             seeded_for_game_id,
             last_tag_filter,
             last_color_filter,
+            last_media_filter,
             tag_sort,
         )
 
@@ -191,6 +194,7 @@ class MemoriesMixin(PluginContext):
         seeded_for_game_id,
         last_tag_filter,
         last_color_filter,
+        last_media_filter,
         tag_sort,
     ):
         return self.memories_store.save_view_prefs(
@@ -200,6 +204,7 @@ class MemoriesMixin(PluginContext):
             seeded_for_game_id=seeded_for_game_id,
             last_tag_filter=last_tag_filter,
             last_color_filter=last_color_filter,
+            last_media_filter=last_media_filter,
             tag_sort=tag_sort,
         )
 
@@ -227,7 +232,40 @@ class MemoriesMixin(PluginContext):
             self._schedule_memory_resolve(result.get("gameId"))
         return result
 
-    def _schedule_memory_resolve(self, game_id) -> None:
+    async def adopt_clip(
+        self,
+        clip_id: str = "",
+        game_id: str = "",
+        recorded_at=0,
+        duration_ms=0,
+        start_offset_ms=0,
+        file_size=0,
+    ):
+        """File one of Steam's saved clips as a memory.
+
+        Called from the clip notification with the summary it carried.
+        ``game_id`` is Steam's packed CGameID, ``recorded_at`` is the clip's own
+        first frame and ``start_offset_ms`` is an offset into the timeline it
+        was cut from, not into the video.
+
+        The video is never copied. What lands on disk is one poster frame in the
+        pictures tree, and the record points at Steam's own clip for playback.
+
+        Returns ``{"ok": False, "error": ...}`` for every decline, which the
+        caller treats as "no memory" rather than as a failure.
+        """
+        async with self._memories_adopt_lock:
+            result = await asyncio.to_thread(
+                self._adopt_clip_sync, clip_id, game_id, recorded_at,
+                duration_ms, start_offset_ms, file_size,
+            )
+        if result.get("ok"):
+            self._schedule_memory_resolve(
+                result.get("gameId"), forward_seconds=to_int(duration_ms, 0) // 1000
+            )
+        return result
+
+    def _schedule_memory_resolve(self, game_id, forward_seconds: int = 0) -> None:
         """Ask for the context behind a fresh capture, twice over.
 
         A forced game check runs straight away unless one just did, because the
@@ -249,11 +287,16 @@ class MemoriesMixin(PluginContext):
         if pending is not None and not pending.done():
             pending.cancel()
         self._memories_deferred_resolve = self._spawn_background_task(
-            self._memories_deferred_check(game_id)
+            self._memories_deferred_check(game_id, forward_seconds)
         )
 
-    async def _memories_deferred_check(self, game_id) -> None:
-        delay = memories_resolver.FORWARD_SKEW_SECONDS + memories_resolver.SETTLE_SLACK_SECONDS + 1
+    async def _memories_deferred_check(self, game_id, forward_seconds: int = 0) -> None:
+        delay = (
+            memories_resolver.FORWARD_SKEW_SECONDS
+            + memories_resolver.SETTLE_SLACK_SECONDS
+            + max(int(forward_seconds or 0), 0)
+            + 1
+        )
         try:
             await asyncio.sleep(delay)
         except asyncio.CancelledError:
@@ -297,13 +340,29 @@ class MemoriesMixin(PluginContext):
         achievements = payload.get("achievements") or []
         now = int(time.time())
         resolved = {
-            memory["id"]: memories_resolver.resolve(achievements, memory["capturedAt"], now=now)
+            memory["id"]: memories_resolver.resolve(
+                achievements,
+                memory["capturedAt"],
+                now=now,
+                forward=self._memory_forward_window(memory),
+            )
             for memory in pending
         }
 
         if not resolved:
             return {"ok": True, "updated": 0}
         return self.memories_store.apply_resolution(wanted, resolved)
+
+    def _memory_forward_window(self, memory) -> int:
+        """How far past its own moment a memory still binds an unlock.
+
+        A screenshot is one instant and gets the skew alone. A clip runs for its
+        whole length, so an achievement popping in the middle of it belongs to
+        it just as much as one popping on the first frame.
+        """
+        video = memory.get("video") or {}
+        span = to_int(video.get("durationMs"), 0) // 1000
+        return memories_resolver.FORWARD_SKEW_SECONDS + max(span, 0)
 
     def _adopt_screenshot_sync(self, path: str, app_id, created_at, screenshot_game_id=""):
         cfg = self.settings_store.load_config()
@@ -387,6 +446,84 @@ class MemoriesMixin(PluginContext):
             "memory": memory,
             "deleteSource": delete_source,
         }
+
+    def _adopt_clip_sync(self, clip_id, game_id, recorded_at, duration_ms, start_offset_ms, file_size):
+        cfg = self.settings_store.load_config()
+        if not self.settings_store.get_memories_auto_capture(cfg):
+            return {"ok": False, "error": "disabled"}
+        if (self.settings_store.get_battery_saver(cfg)
+                and self.settings_store.get_battery_saver_disables_memories(cfg)):
+            return {"ok": False, "error": "battery_saver"}
+
+        running = memories_clips.appid_from_game_id(game_id)
+        if not running:
+            return {"ok": False, "error": "no_app"}
+        if not memories_capture.is_non_steam_shortcut(running, self.user_home):
+            return {"ok": False, "error": "steam_game"}
+
+        clip_path = memories_clips.clip_dir(clip_id, self.user_home)
+        if clip_path is None:
+            decky.logger.warning("memories: clip %s is not under any recording folder", clip_id)
+            return {"ok": False, "error": "no_source"}
+
+        session = memories_clips.session_dir(clip_path)
+        if session is None:
+            return {"ok": False, "error": "no_source"}
+
+        period_start_ms, _presentation_ms = memories_clips.manifest_timing(session)
+        span_ms = to_int(duration_ms, 0)
+        start_ms = memories_clips.in_point_ms(period_start_ms, start_offset_ms, span_ms)
+
+        payload = (self.cache_store.load_payload() or {}).get("payload") or {}
+        ra_game_id = norm_game_id(payload.get("gameId"))
+        title = memories_capture.resolve_title(running, payload.get("title"), self.user_home)
+        console_name = str(payload.get("consoleName") or "").strip()
+        image_icon = str(payload.get("imageIcon") or "").strip()
+        if ra_game_id is None:
+            ra_game_id = MISC_GAME_ID
+
+        try:
+            folder = self.memories_store.ensure_picture_dir(ra_game_id, title)
+        except OSError as e:
+            decky.logger.error("memories: couldn't prepare the picture folder (%s)", type(e).__name__)
+            return {"ok": False, "error": "write_failed"}
+
+        destination = memories_capture.unique_destination(folder, memories_clips.poster_name(clip_id))
+        if not memories_clips.make_poster(session, start_ms, span_ms, destination):
+            return {"ok": False, "error": "no_poster"}
+
+        root = self.memories_store.pictures_root()
+        try:
+            relative = str(destination.relative_to(root))
+        except ValueError:
+            return {"ok": False, "error": "write_failed"}
+
+        added = self.memories_store.add_memory(
+            ra_game_id,
+            path=relative,
+            captured_at=to_int(recorded_at, 0),
+            app_id=running,
+            game_title=title,
+            console_name=console_name,
+            image_icon=image_icon,
+            source="steam",
+            video={
+                "clipId": clip_id,
+                "sessionId": session.name,
+                "path": "",
+                "startMs": start_ms,
+                "durationMs": span_ms,
+                "sizeBytes": to_int(file_size, 0),
+            },
+        )
+        if not added.get("ok"):
+            return added
+
+        memory = added["memory"]
+        self._thumbnail_for(ra_game_id, memory["path"], destination)
+
+        decky.logger.info("memories: filed clip %s under game %s", clip_id, ra_game_id)
+        return {"ok": True, "gameId": ra_game_id, "memory": memory}
 
     def _transcode_if_png(self, destination: Path) -> Path:
         """Re-encode a freshly copied PNG as lossless WebP, or leave it alone.

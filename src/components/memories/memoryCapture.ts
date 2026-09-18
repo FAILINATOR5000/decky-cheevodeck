@@ -1,16 +1,33 @@
-import { adoptScreenshot } from "../../api";
+import { findModuleExport } from "@decky/ui";
+
+import { adoptClip, adoptScreenshot } from "../../api";
 import { logError } from "../../utils/errors";
 
 let runningAppId = 0;
 
 let lifetimeHandle: { unregister?: () => void } | null = null;
 let screenshotHandle: { unregister?: () => void } | null = null;
+let clipHandle: { unregister?: () => void } | null = null;
 
 const STEAM_CALL_TIMEOUT_MS = 4000;
 
 type AppLifetimeEvent = {
     unAppID?: number;
     bRunning?: boolean;
+};
+
+type ClipSummary = {
+    clip_id?: string;
+    game_id?: string;
+    duration_ms?: string;
+    date_recorded?: number;
+    start_offset_ms?: string;
+    file_size?: string;
+    temporary?: boolean;
+};
+
+type ClipMessage = {
+    Body?: () => { toObject?: () => { summary?: ClipSummary } };
 };
 
 type ScreenshotEvent = {
@@ -77,6 +94,56 @@ async function onScreenshot(event: ScreenshotEvent) {
     }
 }
 
+function gameRecording(): any {
+    try {
+        return findModuleExport((e: any) =>
+            e && typeof e === "object" && typeof e.RegisterForNotifyClipCreated === "function");
+    }
+    catch (e) {
+        logError("memories: couldn't find Steam's recording module", e);
+        return null;
+    }
+}
+
+function summaryOf(message: ClipMessage): ClipSummary | null {
+    const decoded = message?.Body?.()?.toObject?.();
+    const summary = decoded?.summary;
+    return summary && typeof summary === "object" ? summary : null;
+}
+
+async function onClipCreated(message: ClipMessage) {
+    const summary = summaryOf(message);
+    if (!summary) {
+        return;
+    }
+    // Saving a clip out of a background recording notifies twice: once for a
+    // provisional record while Steam is still writing it, and again when it is
+    // done. The first carries no date_clipped and a duration of 2^64-1.
+    if (summary.temporary !== false) {
+        return;
+    }
+
+    const clipId = String(summary.clip_id ?? "");
+    const gameId = String(summary.game_id ?? "");
+    const durationMs = Number(summary.duration_ms ?? 0);
+    if (!clipId || !gameId || !Number.isFinite(durationMs) || durationMs <= 0) {
+        return;
+    }
+
+    // date_recorded is the clip's first frame. date_clipped is when the save
+    // finished, which is the same moment for a clip cut as it happens and a
+    // quarter of an hour later for one cut out of an old recording.
+    const recordedAt = Number(summary.date_recorded ?? 0);
+    await adoptClip(
+        clipId,
+        gameId,
+        recordedAt,
+        durationMs,
+        Number(summary.start_offset_ms ?? 0) || 0,
+        Number(summary.file_size ?? 0) || 0
+    );
+}
+
 function onAppLifetime(event: AppLifetimeEvent) {
     const appId = event?.unAppID;
     if (typeof appId !== "number") {
@@ -101,10 +168,25 @@ export function registerMemoryCapture() {
     catch (e) {
         logError("memories: couldn't register for screenshot notifications", e);
     }
+
+    const recording = gameRecording();
+    if (!recording) {
+        return;
+    }
+    try {
+        clipHandle = recording.RegisterForNotifyClipCreated((message: ClipMessage) => {
+            void onClipCreated(message).catch((e) => {
+                logError("memories: adopting a clip failed", e);
+            });
+        }) ?? null;
+    }
+    catch (e) {
+        logError("memories: couldn't register for clip notifications", e);
+    }
 }
 
 export function unregisterMemoryCapture() {
-    for (const handle of [lifetimeHandle, screenshotHandle]) {
+    for (const handle of [lifetimeHandle, screenshotHandle, clipHandle]) {
         try {
             handle?.unregister?.();
         }
@@ -114,5 +196,6 @@ export function unregisterMemoryCapture() {
     }
     lifetimeHandle = null;
     screenshotHandle = null;
+    clipHandle = null;
     runningAppId = 0;
 }

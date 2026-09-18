@@ -16,6 +16,7 @@ import {
     REVEAL_PER_FRAME,
     THUMB_CHUNK_SIZE,
     memoryMatchesColor,
+    memoryMatchesMedia,
     memoryMatchesTag,
     pageCount,
     sortMemories
@@ -50,6 +51,7 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
     const [gameId, setGameId] = useState<number | null>(null);
     const [tagFilter, setTagFilter] = useState("");
     const [colorFilter, setColorFilter] = useState("");
+    const [mediaFilter, setMediaFilter] = useState("");
     const [gridColumns, setGridColumns] = useState(2);
     const [dateOrder, setDateOrder] = useState<MemoryDateOrder>("desc");
     const [tagSort, setTagSort] = useState<MemoryTagSort>("recent");
@@ -108,6 +110,7 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
                 setTagSort(prefs.tagSort);
                 setTagFilter(prefs.lastTagFilter);
                 setColorFilter(prefs.lastColorFilter);
+                setMediaFilter(prefs.lastMediaFilter);
                 setGameId(prefs.lastGameId);
                 seededForRef.current = prefs.seededForGameId;
             } catch (error) {
@@ -162,11 +165,13 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
         setGameId(payloadGameId);
         setTagFilter("");
         setColorFilter("");
+        setMediaFilter("");
         void saveMemoryViewPrefs(
             null,
             null,
             payloadGameId,
             payloadGameId,
+            "",
             "",
             "",
             null
@@ -248,11 +253,13 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
     const visible = useMemo(
         () => sortMemories(
             memories.filter((memory) => (
-                memoryMatchesTag(memory, tagFilter) && memoryMatchesColor(memory, colorFilter)
+                memoryMatchesTag(memory, tagFilter)
+                && memoryMatchesColor(memory, colorFilter)
+                && memoryMatchesMedia(memory, mediaFilter)
             )),
             dateOrder
         ),
-        [memories, tagFilter, colorFilter, dateOrder]
+        [memories, tagFilter, colorFilter, mediaFilter, dateOrder]
     );
 
     const totalPages = pageCount(visible.length, perPage);
@@ -405,9 +412,10 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
         lastGameId: number | null,
         lastTag: string | null,
         lastColor: string | null,
+        lastMedia: string | null,
         sort: MemoryTagSort | null
     ) => {
-        void saveMemoryViewPrefs(columns, order, lastGameId, null, lastTag, lastColor, sort)
+        void saveMemoryViewPrefs(columns, order, lastGameId, null, lastTag, lastColor, lastMedia, sort)
             .catch((error) => logError("memories: couldn't save the view preferences", error));
     }, []);
 
@@ -415,39 +423,46 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
         setGameId(next);
         setPageIndex(0);
         setArmedDeleteId(null);
-        persist(null, null, next, null, null, null);
+        persist(null, null, next, null, null, null, null);
     }, [persist]);
 
     const selectTag = useCallback((next: string) => {
         setTagFilter(next);
         setPageIndex(0);
         setArmedDeleteId(null);
-        persist(null, null, null, next, null, null);
+        persist(null, null, null, next, null, null, null);
     }, [persist]);
 
     const selectColor = useCallback((next: string) => {
         setColorFilter(next);
         setPageIndex(0);
         setArmedDeleteId(null);
-        persist(null, null, null, null, next, null);
+        persist(null, null, null, null, next, null, null);
+    }, [persist]);
+
+    const selectMedia = useCallback((next: string) => {
+        setMediaFilter(next);
+        setPageIndex(0);
+        setArmedDeleteId(null);
+        persist(null, null, null, null, null, next, null);
     }, [persist]);
 
     const selectColumns = useCallback((next: number) => {
         setGridColumns(next);
         setPageIndex(0);
-        persist(next, null, null, null, null, null);
+        persist(next, null, null, null, null, null, null);
     }, [persist]);
 
     const toggleDateOrder = useCallback(() => {
         const next: MemoryDateOrder = dateOrder === "desc" ? "asc" : "desc";
         setDateOrder(next);
         setPageIndex(0);
-        persist(null, next, null, null, null, null);
+        persist(null, next, null, null, null, null, null);
     }, [dateOrder, persist]);
 
     const selectTagSort = useCallback((next: MemoryTagSort) => {
         setTagSort(next);
-        persist(null, null, null, null, null, next);
+        persist(null, null, null, null, null, null, next);
     }, [persist]);
 
     const firstIdOnPage = useCallback((index: number) => (
@@ -569,6 +584,7 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
             gameId: effectiveGameId,
             tagFilter,
             colorFilter,
+            mediaFilter,
             gridColumns,
             dateOrder,
             tagSort,
@@ -586,6 +602,7 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
             selectGame,
             selectTag,
             selectColor,
+            selectMedia,
             selectColumns,
             selectTagSort,
             toggleDateOrder,
