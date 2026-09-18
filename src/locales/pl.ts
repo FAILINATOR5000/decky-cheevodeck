@@ -1949,6 +1949,8 @@ const PL: LocaleTable = {
     "Rewind": "Do tyłu",
     "Forward": "Do przodu",
     "{{button}} Restart": "{{button}} Od nowa",
+    "This clip's video is missing": "Brakuje wideo tego klipu",
+    "The picture, caption and achievements are safe.": "Obraz, podpis i osiągnięcia są bezpieczne.",
     "{{button}} Play": "{{button}} Odtwórz",
     "{{button}} Pause": "{{button}} Pauza",
     "{{button}} Rewind": "{{button}} Do tyłu",

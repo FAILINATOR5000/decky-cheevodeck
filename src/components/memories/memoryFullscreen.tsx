@@ -9,7 +9,7 @@ import { formatClipLength } from "../../utils/memories";
 import { logFocusDebug } from "../../api";
 import { logError } from "../../utils/errors";
 import { modalSize } from "../../utils/scale";
-import type { LanguageCode } from "../../locales";
+import { t, type LanguageCode } from "../../locales";
 
 const GLOBAL_COMPONENT = "CheevoDeckMemoryFullscreen";
 
@@ -103,6 +103,7 @@ function ClipLayer(props: { clip: ClipSource; language: LanguageCode }) {
         duration: clip.durationMs / 1000,
         paused: true,
         ended: false,
+        unavailable: false,
         scanning: false,
         ready: false
     });
@@ -149,11 +150,34 @@ function ClipLayer(props: { clip: ClipSource; language: LanguageCode }) {
 
     return (
         <>
-            <video
-                ref={videoRef}
-                playsInline
-                style={{ ...LAYER_STYLE, background: "#000000" }}
-            />
+            <video ref={videoRef} playsInline style={LAYER_STYLE} />
+            {state.unavailable ? (
+                <div
+                    style={{
+                        position: "absolute",
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        padding: "16px 24px 20px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "6px",
+                        alignItems: "center",
+                        background: "linear-gradient(to top, rgba(0,0,0,0.78), rgba(0,0,0,0))"
+                    }}
+                >
+                    <div style={{ fontSize: `${modalSize(16)}px`, fontWeight: 700 }}>
+                        {t(language, "This clip's video is missing")}
+                    </div>
+                    <div style={{ fontSize: `${modalSize(13)}px`, opacity: 0.85 }}>
+                        {t(language, "The picture, caption and achievements are safe.")}
+                    </div>
+                    <div style={{ fontSize: `${modalSize(14)}px`, opacity: 0.9, marginTop: "4px" }}>
+                        <ButtonPrompt language={language} textKey="{{button}} Back" button="b"
+                            fontSize={modalSize(14)} />
+                    </div>
+                </div>
+            ) : (
             <div
                 style={{
                     position: "absolute",
@@ -203,6 +227,7 @@ function ClipLayer(props: { clip: ClipSource; language: LanguageCode }) {
                     <ButtonPrompt language={language} textKey="{{button}} Back" button="b" fontSize={modalSize(14)} />
                 </div>
             </div>
+            )}
         </>
     );
 }

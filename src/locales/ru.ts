@@ -1914,6 +1914,8 @@ const RU: LocaleTable = {
     "Rewind": "Перемотка назад",
     "Forward": "Перемотка вперёд",
     "{{button}} Restart": "{{button}} Сначала",
+    "This clip's video is missing": "Видео этого клипа отсутствует",
+    "The picture, caption and achievements are safe.": "Изображение, подпись и достижения сохранены.",
     "{{button}} Play": "{{button}} Воспроизвести",
     "{{button}} Pause": "{{button}} Пауза",
     "{{button}} Rewind": "{{button}} Назад",

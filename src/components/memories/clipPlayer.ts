@@ -31,6 +31,7 @@ export type ClipPlaybackState = {
     duration: number;
     paused: boolean;
     ended: boolean;
+    unavailable: boolean;
     scanning: boolean;
     ready: boolean;
 };
@@ -173,6 +174,7 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
     let nextSegment = 0;
     let exhausted = false;
     let pumping = false;
+    let unavailable = false;
 
     let holdTimer: ReturnType<typeof setTimeout> | null = null;
     let scanTimer: ReturnType<typeof setInterval> | null = null;
@@ -196,10 +198,20 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
             duration: span,
             paused: scanning ? !resumeAfterScan : video.paused,
             ended: !scanning && isEnded(),
+            unavailable,
             scanning,
             ready: video.readyState >= 2
         };
         listeners.forEach((listener) => listener(state));
+    }
+
+    function unreachable(why: string) {
+        if (destroyed || unavailable) {
+            return;
+        }
+        unavailable = true;
+        logError("memories: a clip's video is not reachable", why);
+        publish();
     }
 
     async function fetchPart(name: string): Promise<ArrayBuffer | null> {
@@ -422,11 +434,15 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         try {
             const answer = await fetch(`${base}/session.mpd`, { signal: aborter.signal });
             if (!answer.ok) {
-                logError("memories: a clip's manifest is missing", `${base}/session.mpd`);
+                unreachable(`${base}/session.mpd`);
                 return;
             }
             plan = parseManifest(await answer.text());
-            if (!plan || destroyed) {
+            if (destroyed) {
+                return;
+            }
+            if (!plan) {
+                unreachable("the manifest names no segments");
                 return;
             }
 
@@ -451,6 +467,9 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
 
             nextSegment = plan.startNumber;
             if (!await appendSegment(nextSegment)) {
+                if (!destroyed) {
+                    unreachable("the first segment would not load");
+                }
                 return;
             }
             nextSegment += 1;
@@ -469,6 +488,7 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         catch (error) {
             if (!destroyed) {
                 logError("memories: setting up clip playback failed", error);
+                unreachable("playback could not be set up");
             }
         }
     })();

@@ -1885,6 +1885,8 @@ export const EN: LocaleTable = {
     "Rewind": "Rewind",
     "Forward": "Forward",
     "{{button}} Restart": "{{button}} Restart",
+    "This clip's video is missing": "This clip's video is missing",
+    "The picture, caption and achievements are safe.": "The picture, caption and achievements are safe.",
     "{{button}} Play": "{{button}} Play",
     "{{button}} Pause": "{{button}} Pause",
     "{{button}} Rewind": "{{button}} Rewind",

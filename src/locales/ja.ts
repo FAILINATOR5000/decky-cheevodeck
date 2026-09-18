@@ -1829,6 +1829,8 @@ const JA: LocaleTable = {
     "Rewind": "巻き戻し",
     "Forward": "早送り",
     "{{button}} Restart": "{{button}} 最初から",
+    "This clip's video is missing": "このクリップの動画が見つかりません",
+    "The picture, caption and achievements are safe.": "画像、キャプション、実績は無事です。",
     "{{button}} Play": "{{button}} 再生",
     "{{button}} Pause": "{{button}} 一時停止",
     "{{button}} Rewind": "{{button}} 巻き戻し",
