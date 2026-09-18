@@ -21,7 +21,6 @@ type ClipSummary = {
     game_id?: string;
     duration_ms?: string;
     date_recorded?: number;
-    start_offset_ms?: string;
     file_size?: string;
     temporary?: boolean;
 };
@@ -105,6 +104,15 @@ function gameRecording(): any {
     }
 }
 
+async function deleteSteamClip(clipId: string) {
+    const api = gameRecording();
+    if (typeof api?.DeleteClip !== "function") {
+        logError("memories: Steam's recording module has no DeleteClip", null);
+        return;
+    }
+    await withTimeout(api.DeleteClip({ clip_id: clipId }));
+}
+
 function summaryOf(message: ClipMessage): ClipSummary | null {
     const decoded = message?.Body?.()?.toObject?.();
     const summary = decoded?.summary;
@@ -134,14 +142,16 @@ async function onClipCreated(message: ClipMessage) {
     // finished, which is the same moment for a clip cut as it happens and a
     // quarter of an hour later for one cut out of an old recording.
     const recordedAt = Number(summary.date_recorded ?? 0);
-    await adoptClip(
+    const result = await adoptClip(
         clipId,
         gameId,
         recordedAt,
         durationMs,
-        Number(summary.start_offset_ms ?? 0) || 0,
         Number(summary.file_size ?? 0) || 0
     );
+    if (result?.ok && result.deleteClip) {
+        await deleteSteamClip(clipId);
+    }
 }
 
 function onAppLifetime(event: AppLifetimeEvent) {

@@ -1,9 +1,12 @@
+import { logFocusDebug, readMemoryClipPart } from "../../api";
 import { logError } from "../../utils/errors";
 
 const CLIP_BASE = "https://steamloopback.host/gamerecordings/clips";
 
-const AHEAD_SECONDS = 30;
+const AHEAD_SECONDS = 12;
 const BEHIND_SECONDS = 10;
+
+const PRIME_SECONDS = 1;
 
 const SEEK_STEPS_PER_CLIP = 10;
 const MIN_SEEK_STEP_SECONDS = 0.5;
@@ -24,6 +27,9 @@ export type ClipSource = {
     sessionId: string;
     startMs: number;
     durationMs: number;
+    gameId: number;
+    memoryId: string;
+    owned: boolean;
 };
 
 export type ClipPlaybackState = {
@@ -127,6 +133,15 @@ function appendOnce(buffer: SourceBuffer, bytes: ArrayBuffer): Promise<void> {
     });
 }
 
+function decodeBase64(raw: string): ArrayBuffer {
+    const binary = atob(raw);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+        bytes[index] = binary.charCodeAt(index);
+    }
+    return bytes.buffer;
+}
+
 function settled(buffer: SourceBuffer): Promise<void> {
     if (!buffer.updating) {
         return Promise.resolve();
@@ -175,6 +190,7 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
     let exhausted = false;
     let pumping = false;
     let unavailable = false;
+    let driveMissing = false;
 
     let holdTimer: ReturnType<typeof setTimeout> | null = null;
     let scanTimer: ReturnType<typeof setInterval> | null = null;
@@ -215,6 +231,22 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
     }
 
     async function fetchPart(name: string): Promise<ArrayBuffer | null> {
+        if (source.owned) {
+            const asked = performance.now();
+            const answer = await readMemoryClipPart(source.gameId, source.memoryId, name);
+            const arrived = performance.now();
+            if (!answer.ok || answer.data === undefined) {
+                if (answer.rootAvailable === false) {
+                    driveMissing = true;
+                }
+                return null;
+            }
+            const bytes = decodeBase64(answer.data);
+            logFocusDebug("clip-part", name,
+                `${(bytes.byteLength / 1e6).toFixed(1)}MB ipc=${Math.round(arrived - asked)}ms `
+                + `decode=${Math.round(performance.now() - arrived)}ms`);
+            return bytes;
+        }
         const answer = await fetch(`${base}/${name}`, { signal: aborter.signal });
         if (!answer.ok) {
             return null;
@@ -253,15 +285,15 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         return true;
     }
 
-    async function pump() {
+    async function pump(ahead: number = AHEAD_SECONDS, from?: number) {
         if (pumping || destroyed || !plan) {
             return;
         }
         pumping = true;
         try {
             while (!destroyed && !exhausted) {
-                const at = video.currentTime;
-                if (bufferedEnd(video, at) - at >= AHEAD_SECONDS) {
+                const at = from ?? video.currentTime;
+                if (bufferedHolds(video, at) && bufferedEnd(video, at) - at >= ahead) {
                     break;
                 }
                 if (!await appendSegment(nextSegment)) {
@@ -430,14 +462,15 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
     video.addEventListener("loadedmetadata", onStateChange);
     video.addEventListener("ended", onStateChange);
 
+    const opened = performance.now();
     void (async () => {
         try {
-            const answer = await fetch(`${base}/session.mpd`, { signal: aborter.signal });
-            if (!answer.ok) {
-                unreachable(`${base}/session.mpd`);
+            const manifest = await fetchPart("session.mpd");
+            if (manifest === null) {
+                unreachable(driveMissing ? "the drive holding it is not connected" : `${base}/session.mpd`);
                 return;
             }
-            plan = parseManifest(await answer.text());
+            plan = parseManifest(new TextDecoder().decode(manifest));
             if (destroyed) {
                 return;
             }
@@ -475,15 +508,24 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
             nextSegment += 1;
             firstSegmentStart = video.buffered.length > 0 ? video.buffered.start(0) : 0;
 
-            video.currentTime = Math.max(inPoint, firstSegmentStart);
-            await pump();
+            const startAt = Math.max(inPoint, firstSegmentStart);
+            video.currentTime = startAt;
+            await pump(PRIME_SECONDS, startAt);
             if (destroyed) {
                 return;
             }
+            video.addEventListener("playing", () => {
+                logFocusDebug("clip-playing", source.clipId,
+                    `${Math.round(performance.now() - opened)}ms after open`);
+            }, { once: true });
+            logFocusDebug("clip-start", source.clipId,
+                `primed=${Math.round(performance.now() - opened)}ms at=${startAt.toFixed(3)} `
+                + `buffered=${(bufferedEnd(video, startAt) - startAt).toFixed(2)}s`);
             await video.play().catch((error) => {
                 logError("memories: a clip would not start", error);
             });
             publish();
+            void pump();
         }
         catch (error) {
             if (!destroyed) {

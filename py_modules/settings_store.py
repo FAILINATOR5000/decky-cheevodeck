@@ -80,6 +80,24 @@ _TAG_VOCAB_LIMIT = 20
 
 _MEMORIES_PER_PAGE_OPTIONS = (8, 12, 16, 24, 32, 48, 64)
 
+_VIDEO_PATH_MAX_LEN = 4096
+
+
+def _clean_video_path(raw) -> str:
+    """An absolute directory path, or an empty string for the default root.
+
+    Relative paths read as empty. The backend's working directory is not the
+    user's, so a relative one would resolve somewhere nobody chose.
+    """
+    if not isinstance(raw, str):
+        return ""
+    value = raw.strip()
+    if not value or len(value) > _VIDEO_PATH_MAX_LEN:
+        return ""
+    if not value.startswith("/"):
+        return ""
+    return str(Path(value))
+
 TRACKED_UNTAGGED_COLLAPSE_KEY = "__UNTAGGED__"
 
 _RESERVED_TAG_KEYS = frozenset({"completed"})
@@ -413,6 +431,9 @@ _KNOBS = (
     Knob("memoriesAutoCapture", default=False, reset=False, normalize=True, read=READ_BOOL),
     Knob("memoriesDeleteSource", default=False, normalize=True, read=READ_BOOL),
     Knob("memoriesPerPage", default=32, normalize=True),
+    Knob("memoriesVideo", default=True, normalize=True, read=READ_BOOL),
+    Knob("memoriesVideoPath", default="", normalize=True),
+    Knob("memoriesDeleteSteamClip", default=False, normalize=True, read=READ_BOOL),
     Knob("fileWatcherSpeed", default="gentle", normalize=True),
     Knob("fileWatcherRunDuringGames", default=True, normalize=True, read=READ_BOOL),
     Knob("trackedSetAButtonMode", default="editNote", normalize=True),
@@ -1298,6 +1319,21 @@ class SettingsStore:
         cfg = self._update_config("memoriesPerPage", to_int(value, 32))
 
         return self.get_memories_per_page(cfg)
+
+    def update_memories_video(self, value: bool) -> bool:
+        cfg = self._update_config("memoriesVideo", bool(value))
+
+        return self.get_memories_video(cfg)
+
+    def update_memories_video_path(self, value) -> str:
+        cfg = self._update_config("memoriesVideoPath", _clean_video_path(value))
+
+        return self.get_memories_video_path(cfg)
+
+    def update_memories_delete_steam_clip(self, value: bool) -> bool:
+        cfg = self._update_config("memoriesDeleteSteamClip", bool(value))
+
+        return self.get_memories_delete_steam_clip(cfg)
 
     def update_cheevo_check_scan_collapsed(self, value: bool) -> bool:
         cfg = self._update_config("cheevoCheckScanCollapsed", bool(value))
@@ -3854,6 +3890,21 @@ class SettingsStore:
     def get_memories_per_page(self, cfg: dict) -> int:
         value = to_int(cfg.get("memoriesPerPage", 32), 32)
         return value if value in _MEMORIES_PER_PAGE_OPTIONS else 32
+
+    def get_memories_video(self, cfg: dict) -> bool:
+        return bool(cfg.get("memoriesVideo", True))
+
+    def get_memories_video_path(self, cfg: dict) -> str:
+        """The configured video root, or an empty string for the default one.
+
+        Anything that is not an absolute path reads as empty, so a half-written
+        setting falls back rather than pointing the copies at a relative
+        directory whose meaning depends on the backend's working directory.
+        """
+        return _clean_video_path(cfg.get("memoriesVideoPath", ""))
+
+    def get_memories_delete_steam_clip(self, cfg: dict) -> bool:
+        return bool(cfg.get("memoriesDeleteSteamClip", False))
 
     def get_cheevo_check_verify_speed(self, cfg: dict) -> str:
         value = str(cfg.get("cheevoCheckVerifySpeed", "full") or "full").strip()

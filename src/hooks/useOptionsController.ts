@@ -135,6 +135,8 @@ import {
     saveMemoriesAutoCapture,
     saveMemoriesDeleteSource,
     saveMemoriesPerPage,
+    saveMemoriesVideo,
+    saveMemoriesDeleteSteamClip,
     saveLegacyCommentsLoading,
     saveBatterySaverDisablesSocialActivity,
     saveBatterySaverDisablesComments,
@@ -455,6 +457,9 @@ type UseOptionsControllerArgs = {
     memoriesAutoCapture: boolean;
     memoriesDeleteSource: boolean;
     memoriesPerPage: number;
+    memoriesVideo: boolean;
+    memoriesVideoPath: string;
+    memoriesDeleteSteamClip: boolean;
     batterySaverDisablesMemories: boolean;
     legacyCommentsLoading: boolean;
     batterySaverDisablesSocialActivity: boolean;
@@ -509,6 +514,8 @@ type UseOptionsControllerArgs = {
     setMemoriesAutoCapture: Dispatch<SetStateAction<boolean>>;
     setMemoriesDeleteSource: Dispatch<SetStateAction<boolean>>;
     setMemoriesPerPage: Dispatch<SetStateAction<number>>;
+    setMemoriesVideo: Dispatch<SetStateAction<boolean>>;
+    setMemoriesDeleteSteamClip: Dispatch<SetStateAction<boolean>>;
     setLegacyCommentsLoading: Dispatch<SetStateAction<boolean>>;
     setBatterySaverDisablesSocialActivity: Dispatch<SetStateAction<boolean>>;
     setBatterySaverDisablesComments: Dispatch<SetStateAction<boolean>>;
@@ -884,6 +891,9 @@ export function useOptionsController({
     memoriesAutoCapture,
     memoriesDeleteSource,
     memoriesPerPage,
+    memoriesVideo,
+    memoriesVideoPath,
+    memoriesDeleteSteamClip,
     batterySaverDisablesMemories,
     legacyCommentsLoading,
     batterySaverDisablesSocialActivity,
@@ -938,6 +948,8 @@ export function useOptionsController({
     setMemoriesAutoCapture,
     setMemoriesDeleteSource,
     setMemoriesPerPage,
+    setMemoriesVideo,
+    setMemoriesDeleteSteamClip,
     setBatterySaverDisablesMemories,
     setLegacyCommentsLoading,
     setBatterySaverDisablesSocialActivity,
@@ -3174,6 +3186,24 @@ export function useOptionsController({
         });
     };
 
+    const onToggleMemoriesVideo = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: memoriesVideo,
+            applyValue: setMemoriesVideo,
+            saveCall: saveMemoriesVideo,
+            getSavedValue: (result, fallbackValue) => Boolean(result.memoriesVideo ?? fallbackValue),
+        });
+
+    const onToggleMemoriesDeleteSteamClip = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: memoriesDeleteSteamClip,
+            applyValue: setMemoriesDeleteSteamClip,
+            saveCall: saveMemoriesDeleteSteamClip,
+            getSavedValue: (result, fallbackValue) => Boolean(result.memoriesDeleteSteamClip ?? fallbackValue),
+        });
+
     const onToggleBatterySaverDisablesMemories = (nextValue: boolean) =>
         saveSettingWithRollback<boolean>({
             nextValue,
@@ -3509,6 +3539,9 @@ export function useOptionsController({
         memoriesAutoCapture,
         memoriesDeleteSource,
         memoriesPerPage,
+        memoriesVideo,
+        memoriesVideoPath,
+        memoriesDeleteSteamClip,
         memoriesCount,
         batterySaverDisablesMemories,
         legacyCommentsLoading,
@@ -3748,6 +3781,8 @@ export function useOptionsController({
         onToggleLibraryBadge,
         onToggleMemoriesAutoCapture,
         onToggleMemoriesDeleteSource,
+        onToggleMemoriesVideo,
+        onToggleMemoriesDeleteSteamClip,
         onCycleMemoriesPerPage,
         onToggleBatterySaverDisablesMemories,
         onToggleLegacyCommentsLoading,

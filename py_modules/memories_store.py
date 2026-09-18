@@ -158,6 +158,17 @@ class MemoriesStore:
             self._thumbs_dir = thumbs_dir
             self._account_key = account_key or ""
 
+    def set_videos_root(self, videos_dir: Path) -> None:
+        """Point owned videos at a different directory.
+
+        Separate from repoint because the two change for different reasons: the
+        account switches on sign-in, the video root only when the user picks a
+        new one. Records carry a path relative to whichever root is current, so
+        moving the files and calling this have to happen together.
+        """
+        with self._master_lock:
+            self._videos_dir = videos_dir
+
     def _game_key(self, game_id):
         normalized = norm_game_id(game_id)
         if normalized is None:
@@ -238,6 +249,26 @@ class MemoriesStore:
             account_root = account_root / self._account_key
             ensure_dir(account_root)
         folder = account_root / self.folder_for_game(game_id)
+        ensure_dir(folder)
+        return folder
+
+    def ensure_video_dir(self, game_id, clip_id: str) -> Path:
+        """Create the directory one clip's copy goes in, chowning every level.
+
+        One directory per clip rather than one file, because a copy is the
+        manifest and its segments rather than a single video. Same level-by-
+        level walk ensure_picture_dir does, and for the same reason.
+        """
+        if not _CLIP_ID_PATTERN.match(str(clip_id or "")):
+            raise ValueError(f"invalid clip id: {clip_id!r}")
+        ensure_dir(self._videos_dir)
+        account_root = self._videos_dir
+        if self._account_key:
+            account_root = account_root / self._account_key
+            ensure_dir(account_root)
+        game_root = account_root / self.folder_for_game(game_id)
+        ensure_dir(game_root)
+        folder = game_root / clip_id
         ensure_dir(folder)
         return folder
 
@@ -754,6 +785,29 @@ class MemoriesStore:
             entry = self._load_raw(key)
         return [dict(m) for m in entry["memories"] if m["contextState"] == "pending"]
 
+    def video_source_for(self, game_id, memory_id: str):
+        """The directory holding one memory's owned clip, or None.
+
+        Returns None for a screenshot, for a record whose video was never
+        copied, and for a memory that is not there. The caller gets a directory
+        rather than a file because a copy is a manifest and its segments.
+        """
+        key = self._game_key(game_id)
+        if key is None:
+            return None
+        lock = self._lock_for_game(key)
+        with lock:
+            try:
+                entry = self._load_raw(key)
+            except ValueError:
+                return None
+        for memory in entry["memories"]:
+            if memory["id"] != memory_id:
+                continue
+            relative = (memory.get("video") or {}).get("path") or ""
+            return self.video_path(relative) if relative else None
+        return None
+
     def add_memory(
         self,
         game_id,
@@ -906,12 +960,16 @@ class MemoriesStore:
 
     def _unlink_memory_files(self, game_id, memory: dict) -> None:
         targets = [self.thumb_path(game_id, memory["path"]), self.picture_path(memory["path"])]
-        owned = (memory.get("video") or {}).get("path")
-        if owned:
-            targets.append(self.video_path(owned))
         for target in targets:
             try:
                 target.unlink()
+            except OSError:
+                pass
+
+        owned = (memory.get("video") or {}).get("path")
+        if owned:
+            try:
+                shutil.rmtree(self.video_path(owned))
             except OSError:
                 pass
 

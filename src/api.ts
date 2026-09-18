@@ -23,6 +23,7 @@ import type {
     CheckCurrentGameResponse,
     CheevoNotification,
     MemoriesResponse,
+    MemoriesVideoMoveStatus,
     MemoryDateOrder,
     MemoryGameRow,
     MemoryRecord,
@@ -483,13 +484,33 @@ export const saveMemoriesPerPage = callable<
     [number],
     { ok: boolean; memoriesPerPage: number }
 >("save_memories_per_page");
+export const saveMemoriesVideo = callable<
+    [boolean],
+    { ok: boolean; memoriesVideo: boolean }
+>("save_memories_video");
+export const saveMemoriesDeleteSteamClip = callable<
+    [boolean],
+    { ok: boolean; memoriesDeleteSteamClip: boolean }
+>("save_memories_delete_steam_clip");
+export const startMemoriesVideoMove = callable<
+    [string],
+    { ok: boolean; error?: string }
+>("start_memories_video_move");
+export const getMemoriesVideoMoveStatus = callable<
+    [],
+    MemoriesVideoMoveStatus
+>("memories_video_move_status");
+export const readMemoryClipPart = callable<
+    [number, string, string],
+    { ok: boolean; error?: string; rootAvailable?: boolean; data?: string }
+>("read_memory_clip_part");
 export const adoptScreenshot = callable<
     [string, number, number, string],
     { ok: boolean; error?: string; gameId?: number; memory?: MemoryRecord; deleteSource?: boolean }
 >("adopt_screenshot");
 export const adoptClip = callable<
-    [string, string, number, number, number, number],
-    { ok: boolean; error?: string; gameId?: number; memory?: MemoryRecord }
+    [string, string, number, number, number],
+    { ok: boolean; error?: string; gameId?: number; memory?: MemoryRecord; deleteClip?: boolean }
 >("adopt_clip");
 export const loadMemories = callable<[number], MemoriesResponse>("load_memories");
 export const loadMemoryGames = callable<

@@ -628,7 +628,7 @@ function MemoriesPage(props: MemoriesPageProps) {
                 {firstRun ? (
                     <PanelSectionRow>
                         <ToggleRow
-                            label={t(language, "Save Screenshots as Memories")}
+                            label={t(language, "Enable Memories")}
                             value={autoCapture}
                             onChange={(next) => void actions.onEnableCapture(next)}
                             help={t(language, "help_memories_first_run")}

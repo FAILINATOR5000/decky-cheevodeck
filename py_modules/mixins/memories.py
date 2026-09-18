@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import time
 from pathlib import Path
 
@@ -7,6 +8,8 @@ import memories_capture
 import memories_clips
 import memories_resolver
 import memories_thumbs
+
+from services import memories_video_service
 
 from memories_store import ALL_GAMES_ID, MISC_GAME_ID
 from mixins._context import PluginContext
@@ -41,6 +44,86 @@ class MemoriesMixin(PluginContext):
             "ok": True,
             "memoriesPerPage": self.settings_store.update_memories_per_page(value),
         }
+
+    async def save_memories_video(self, value: bool):
+        return {
+            "ok": True,
+            "memoriesVideo": self.settings_store.update_memories_video(value),
+        }
+
+    async def save_memories_delete_steam_clip(self, value: bool):
+        return {
+            "ok": True,
+            "memoriesDeleteSteamClip": self.settings_store.update_memories_delete_steam_clip(value),
+        }
+
+    async def start_memories_video_move(self, value):
+        """Move the clip copies to a directory the user picked.
+
+        The setting is not written here. It is flipped by the service once every
+        file has landed and been checked, so a move that fails leaves both the
+        old files and the old setting exactly as they were. An empty value moves
+        them back to the default location, which is the same journey in reverse
+        rather than a separate path.
+        """
+        picked = str(value or "").strip()
+
+        def settled(root):
+            self.settings_store.update_memories_video_path(picked)
+            self.memories_store.set_videos_root(root)
+
+        current = self.settings_store.get_memories_video_path(self.settings_store.load_config())
+        return self.memories_video_service.start(
+            self.memories_store.videos_root(), current != "", picked, settled
+        )
+
+    async def memories_video_move_status(self):
+        """How far the move has got, and where the copies live now.
+
+        The location travels with the progress because the move flips the
+        setting itself, so this is the only thing that can tell the panel the
+        files have landed somewhere new. ``rootAvailable`` is false when the
+        drive holding them is not mounted, which is not the same as the videos
+        being gone.
+        """
+        picked = self.settings_store.get_memories_video_path(self.settings_store.load_config())
+        root = self.memories_store.videos_root()
+        return {
+            **self.memories_video_service.status(),
+            "picked": picked,
+            "rootAvailable": memories_video_service.root_available(root, picked != ""),
+        }
+
+    async def read_memory_clip_part(self, game_id, memory_id: str, name: str):
+        """One file out of a memory's own copy of a clip, base64 encoded.
+
+        The panel cannot open a local path and nothing serves this tree over
+        HTTP, so playback of an owned clip goes through here a segment at a
+        time. That is the same three seconds of video the player already asks
+        Steam for, so the cost per call does not depend on how long the clip is.
+        """
+        if not memories_clips.is_segment_name(name):
+            return {"ok": False, "error": "bad_name"}
+
+        folder = await asyncio.to_thread(
+            self.memories_store.video_source_for, game_id, str(memory_id or "")
+        )
+        if folder is None:
+            return {"ok": False, "error": "not_found", "rootAvailable": True}
+
+        try:
+            raw = await asyncio.to_thread((folder / name).read_bytes)
+        except OSError as e:
+            decky.logger.warning(
+                "memories: couldn't read %s for memory %s (%s)", name, memory_id, type(e).__name__
+            )
+            picked = self.settings_store.get_memories_video_path(self.settings_store.load_config())
+            available = memories_video_service.root_available(
+                self.memories_store.videos_root(), picked != ""
+            )
+            return {"ok": False, "error": "unreadable", "rootAvailable": available}
+
+        return {"ok": True, "data": base64.b64encode(raw).decode("ascii")}
 
     async def load_memories(self, game_id=None):
         """Every memory for one game, newest first.
@@ -238,18 +321,17 @@ class MemoriesMixin(PluginContext):
         game_id: str = "",
         recorded_at=0,
         duration_ms=0,
-        start_offset_ms=0,
         file_size=0,
     ):
         """File one of Steam's saved clips as a memory.
 
         Called from the clip notification with the summary it carried.
-        ``game_id`` is Steam's packed CGameID, ``recorded_at`` is the clip's own
-        first frame and ``start_offset_ms`` is an offset into the timeline it
-        was cut from, not into the video.
+        ``game_id`` is Steam's packed CGameID and ``recorded_at`` is the clip's
+        own first frame.
 
-        The video is never copied. What lands on disk is one poster frame in the
-        pictures tree, and the record points at Steam's own clip for playback.
+        Two things land on disk: one poster frame in the pictures tree, and a
+        copy of the clip's manifest and segments in the video tree. The record
+        points at the copy, so it keeps working after Steam loses its own.
 
         Returns ``{"ok": False, "error": ...}`` for every decline, which the
         caller treats as "no memory" rather than as a failure.
@@ -257,7 +339,7 @@ class MemoriesMixin(PluginContext):
         async with self._memories_adopt_lock:
             result = await asyncio.to_thread(
                 self._adopt_clip_sync, clip_id, game_id, recorded_at,
-                duration_ms, start_offset_ms, file_size,
+                duration_ms, file_size,
             )
         if result.get("ok"):
             self._schedule_memory_resolve(
@@ -447,10 +529,12 @@ class MemoriesMixin(PluginContext):
             "deleteSource": delete_source,
         }
 
-    def _adopt_clip_sync(self, clip_id, game_id, recorded_at, duration_ms, start_offset_ms, file_size):
+    def _adopt_clip_sync(self, clip_id, game_id, recorded_at, duration_ms, file_size):
         cfg = self.settings_store.load_config()
         if not self.settings_store.get_memories_auto_capture(cfg):
             return {"ok": False, "error": "disabled"}
+        if not self.settings_store.get_memories_video(cfg):
+            return {"ok": False, "error": "video_disabled"}
         if (self.settings_store.get_battery_saver(cfg)
                 and self.settings_store.get_battery_saver_disables_memories(cfg)):
             return {"ok": False, "error": "battery_saver"}
@@ -472,7 +556,7 @@ class MemoriesMixin(PluginContext):
 
         period_start_ms, _presentation_ms = memories_clips.manifest_timing(session)
         span_ms = to_int(duration_ms, 0)
-        start_ms = memories_clips.in_point_ms(period_start_ms, start_offset_ms, span_ms)
+        start_ms = memories_clips.in_point_ms(period_start_ms)
 
         payload = (self.cache_store.load_payload() or {}).get("payload") or {}
         ra_game_id = norm_game_id(payload.get("gameId"))
@@ -498,6 +582,14 @@ class MemoriesMixin(PluginContext):
         except ValueError:
             return {"ok": False, "error": "write_failed"}
 
+        owned = self._copy_clip_sync(ra_game_id, clip_id, session)
+        if not owned["ok"]:
+            try:
+                destination.unlink()
+            except OSError:
+                pass
+            return {"ok": False, "error": "copy_failed"}
+
         added = self.memories_store.add_memory(
             ra_game_id,
             path=relative,
@@ -510,20 +602,56 @@ class MemoriesMixin(PluginContext):
             video={
                 "clipId": clip_id,
                 "sessionId": session.name,
-                "path": "",
+                "path": owned["path"],
                 "startMs": start_ms,
                 "durationMs": span_ms,
-                "sizeBytes": to_int(file_size, 0),
+                "sizeBytes": owned["bytes"] or to_int(file_size, 0),
             },
         )
         if not added.get("ok"):
+            memories_clips.discard_copy(owned["folder"])
             return added
 
         memory = added["memory"]
         self._thumbnail_for(ra_game_id, memory["path"], destination)
 
-        decky.logger.info("memories: filed clip %s under game %s", clip_id, ra_game_id)
-        return {"ok": True, "gameId": ra_game_id, "memory": memory}
+        decky.logger.info(
+            "memories: filed clip %s under game %s, %s MB copied",
+            clip_id, ra_game_id, round(owned["bytes"] / (1024 * 1024), 1),
+        )
+        return {
+            "ok": True,
+            "gameId": ra_game_id,
+            "memory": memory,
+            "deleteClip": self.settings_store.get_memories_delete_steam_clip(cfg),
+        }
+
+    def _copy_clip_sync(self, game_id, clip_id: str, session: Path) -> dict:
+        """Copy one clip's manifest and segments into this account's video tree.
+
+        Returns ``{"ok", "path", "folder", "bytes"}``, where ``path`` is what
+        the record carries: relative to the video root, so the files move with
+        the root rather than being pinned to the home directory they were
+        written under.
+        """
+        try:
+            folder = self.memories_store.ensure_video_dir(game_id, clip_id)
+        except (OSError, ValueError) as e:
+            decky.logger.error("memories: couldn't prepare the video folder (%s)", type(e).__name__)
+            return {"ok": False, "path": "", "folder": None, "bytes": 0}
+
+        result = memories_clips.copy_session(session, folder)
+        if not result["ok"]:
+            return {"ok": False, "path": "", "folder": folder, "bytes": 0}
+
+        try:
+            relative = str(folder.relative_to(self.memories_store.videos_root()))
+        except ValueError:
+            memories_clips.discard_copy(folder)
+            decky.logger.error("memories: the clip copy landed outside the video root")
+            return {"ok": False, "path": "", "folder": folder, "bytes": 0}
+
+        return {"ok": True, "path": relative, "folder": folder, "bytes": result["bytes"]}
 
     def _transcode_if_png(self, destination: Path) -> Path:
         """Re-encode a freshly copied PNG as lossless WebP, or leave it alone.

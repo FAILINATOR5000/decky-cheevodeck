@@ -158,6 +158,9 @@ export function useSettingsController({
     const [memoriesAutoCapture, setMemoriesAutoCapture] = useState(false);
     const [memoriesDeleteSource, setMemoriesDeleteSource] = useState(false);
     const [memoriesPerPage, setMemoriesPerPage] = useState(32);
+    const [memoriesVideo, setMemoriesVideo] = useState(true);
+    const [memoriesVideoPath, setMemoriesVideoPath] = useState("");
+    const [memoriesDeleteSteamClip, setMemoriesDeleteSteamClip] = useState(false);
     const [fileWatcherSpeed, setFileWatcherSpeed] = useState<FileWatcherSpeed>("gentle");
     const [fileWatcherRunDuringGames, setFileWatcherRunDuringGames] = useState(true);
     const [trackedSetAButtonMode, setTrackedSetAButtonMode] = useState<TrackedSetAButtonMode>("editNote");
@@ -437,6 +440,9 @@ export function useSettingsController({
         setMemoriesAutoCapture(source.memoriesAutoCapture);
         setMemoriesDeleteSource(source.memoriesDeleteSource);
         setMemoriesPerPage(source.memoriesPerPage);
+        setMemoriesVideo(source.memoriesVideo);
+        setMemoriesVideoPath(source.memoriesVideoPath);
+        setMemoriesDeleteSteamClip(source.memoriesDeleteSteamClip);
         setFileWatcherSpeed(source.fileWatcherSpeed);
         setFileWatcherRunDuringGames(source.fileWatcherRunDuringGames);
         setTrackedSetAButtonMode(source.trackedSetAButtonMode);
@@ -707,6 +713,9 @@ export function useSettingsController({
         memoriesAutoCapture,
         memoriesDeleteSource,
         memoriesPerPage,
+        memoriesVideo,
+        memoriesVideoPath,
+        memoriesDeleteSteamClip,
         fileWatcherSpeed,
         fileWatcherRunDuringGames,
         trackedSetAButtonMode,
@@ -931,6 +940,9 @@ export function useSettingsController({
         setMemoriesAutoCapture,
         setMemoriesDeleteSource,
         setMemoriesPerPage,
+        setMemoriesVideo,
+        setMemoriesVideoPath,
+        setMemoriesDeleteSteamClip,
         setBatterySaverDisablesMemories,
         setFileWatcherSpeed,
         setFileWatcherRunDuringGames,

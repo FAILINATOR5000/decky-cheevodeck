@@ -6,17 +6,19 @@ near the network.
 
 A clip is MPEG-DASH on disk rather than a video file: a session.mpd, an
 init segment and three-second chunks, inside a bg_ or fg_ directory named after
-the recording session it came out of. Nothing here ever writes a copy of the
-video; the only file it produces is one still frame.
+the recording session it came out of. A copy is those same files, carried across
+unchanged: no remux, no transcode, and the player reads the copy exactly the way
+it reads Steam's.
 """
 
 import re
+import shutil
 from pathlib import Path
 
 import decky
 import subprocess_util
 
-from utils import chown_to_data_owner
+from utils import chown_to_data_owner, ensure_dir
 
 
 FFMPEG = "/usr/bin/ffmpeg"
@@ -42,6 +44,8 @@ _PRESENTATION_PATTERN = re.compile(r"\bmediaPresentationDuration=\"([^\"]*)\"")
 _ISO_DURATION_PATTERN = re.compile(r"^PT(?:(\d+)H)?(?:(\d+)M)?([\d.]+)S$")
 
 _RECORD_PATH_PATTERN = re.compile(r'"BackgroundRecordPath"\s+"([^"]*)"')
+
+_SEGMENT_NAME_PATTERN = re.compile(r"^(?:session\.mpd|init-stream\d{1,2}\.m4s|chunk-stream\d{1,2}-\d{1,9}\.m4s)$")
 
 
 def _iso_duration_ms(raw):
@@ -154,22 +158,21 @@ def manifest_timing(session_path: Path):
     )
 
 
-def in_point_ms(period_start_ms, start_offset_ms, duration_ms) -> int:
+def in_point_ms(period_start_ms) -> int:
     """Where the clip begins, in the media's own milliseconds.
 
-    ``start_offset_ms`` is an offset into the timeline the clip was cut from.
-    That is the media clock for a clip taken out of a background session and is
-    not for one recorded on demand, where it points well past the end of a file
-    beginning at zero. The lead-in tells them apart: a fraction of a second
-    means both clocks agree, anything longer than the clip means they do not.
+    The manifest's Period start, which is the only figure measured in the same
+    clock as the segments. Steam writes it alongside a presentation duration
+    equal to the clip's own length, so the two together describe exactly the
+    footage that was cut.
+
+    The summary's ``start_offset_ms`` looks like the same number and is not: it
+    counts from the start of the timeline rather than the session, and the two
+    begin within a second or so of each other. Measured 808 ms apart on one clip
+    and 409 ms on another, which is the length of the opening that goes missing
+    if it is used here.
     """
-    period = max(int(period_start_ms or 0), 0)
-    offset = max(int(start_offset_ms or 0), 0)
-    span = max(int(duration_ms or 0), 0)
-    lead_in = offset - period
-    if 0 <= lead_in <= span:
-        return offset
-    return period
+    return max(int(period_start_ms or 0), 0)
 
 
 def poster_name(clip_id: str) -> str:
@@ -196,6 +199,76 @@ def segment_source(session_path: Path, stream: int = 0) -> str:
     if not chunks:
         return ""
     return "concat:" + "|".join([str(init)] + [str(chunk) for chunk in chunks])
+
+
+def session_files(session_path: Path) -> list:
+    """Every file that makes up one clip: the manifest, the inits, the chunks.
+
+    Sorted, so a copy and a verify walk them in the same order. Returns an empty
+    list when the manifest is missing, which is the one file the player cannot
+    do without.
+    """
+    try:
+        if not (session_path / "session.mpd").is_file():
+            return []
+        found = [p for p in session_path.iterdir() if p.is_file() and p.suffix in (".mpd", ".m4s")]
+    except OSError:
+        return []
+    return sorted(found, key=lambda p: p.name)
+
+
+def copy_session(session_path: Path, destination: Path) -> dict:
+    """Copy one clip's manifest and segments into ``destination``.
+
+    Returns ``{"ok", "bytes", "files"}``. A partial copy is removed before
+    returning, so the destination either holds a whole clip or nothing: a
+    half-copied session plays for a few seconds and then stops, which reads as a
+    corrupt memory rather than a failed copy.
+
+    Every file is compared by size afterwards. That catches a full disk, which
+    is the failure this actually has to survive, and it is what the caller must
+    see succeed before it is allowed to touch Steam's own copy.
+    """
+    sources = session_files(session_path)
+    if not sources:
+        decky.logger.warning("memories: %s holds no clip files to copy", session_path.name)
+        return {"ok": False, "bytes": 0, "files": 0}
+
+    copied = 0
+    total = 0
+    try:
+        ensure_dir(destination)
+        for source in sources:
+            target = destination / source.name
+            shutil.copyfile(source, target)
+            chown_to_data_owner(target)
+            size = source.stat().st_size
+            if target.stat().st_size != size:
+                raise OSError(f"{source.name} came out short")
+            copied += 1
+            total += size
+    except OSError as e:
+        decky.logger.error(
+            "memories: copying %s failed after %s of %s files (%s)",
+            session_path.name, copied, len(sources), type(e).__name__,
+        )
+        discard_copy(destination)
+        return {"ok": False, "bytes": 0, "files": 0}
+
+    return {"ok": True, "bytes": total, "files": copied}
+
+
+def discard_copy(destination: Path) -> None:
+    """Remove a copy directory and whatever is in it, best effort."""
+    try:
+        shutil.rmtree(destination)
+    except OSError:
+        pass
+
+
+def is_segment_name(name) -> bool:
+    """Whether ``name`` is one of the files a clip directory legitimately holds."""
+    return isinstance(name, str) and bool(_SEGMENT_NAME_PATTERN.match(name))
 
 
 def _tools_available() -> bool:

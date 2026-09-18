@@ -28,6 +28,7 @@ from services.news_service import NewsService
 from services.aotw_service import AotwService
 from services.game_comments_service import GameCommentsService
 from services.game_hashes_service import GameHashesService
+from services.memories_video_service import MemoriesVideoService, root_for as memories_video_root
 from services.smb_mount_service import SmbMountService
 from services.comments_service import CommentsService
 from services.new_sets_service import NewSetsService
@@ -273,7 +274,10 @@ class Plugin(
             memories_dir=self.memories_dir,
             thumbs_dir=self.memory_thumbs_dir,
             pictures_dir=self.user_home / "Pictures" / "CheevoDeck",
-            videos_dir=self.user_home / "Videos" / "CheevoDeck",
+            videos_dir=memories_video_root(
+                self.settings_store.get_memories_video_path(self.settings_store.load_config()),
+                self.user_home,
+            ),
         )
         self.guides_store = GuidesStore(
             guides_dir=self.guides_dir,
@@ -489,6 +493,9 @@ class Plugin(
         )
         self.game_hashes_service = GameHashesService(
             ra=self.ra,
+        )
+        self.memories_video_service = MemoriesVideoService(
+            home=self.user_home,
         )
         self.smb_mount_service = SmbMountService(
             debug_logging=lambda: getattr(self, "_debug_logging", False),

@@ -125,9 +125,12 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
             clipId: video.clipId,
             sessionId: video.sessionId,
             startMs: video.startMs,
-            durationMs: video.durationMs
+            durationMs: video.durationMs,
+            gameId: memory.gameId,
+            memoryId: memory.id,
+            owned: video.path !== ""
         };
-    }, [memory.video]);
+    }, [memory.video, memory.gameId, memory.id]);
 
     useEffect(() => {
         let cancelled = false;

@@ -24,6 +24,7 @@ from services.news_service import NewsService
 from services.aotw_service import AotwService
 from services.game_comments_service import GameCommentsService
 from services.game_hashes_service import GameHashesService
+from services.memories_video_service import MemoriesVideoService
 from services.comments_service import CommentsService
 from services.new_sets_service import NewSetsService
 from services.tracked_sets_monitor_service import TrackedSetsMonitorService
@@ -83,6 +84,7 @@ class PluginContext:
     game_activity_history_service: GameActivityHistoryService
     game_comments_service: GameCommentsService
     game_hashes_service: GameHashesService
+    memories_video_service: MemoriesVideoService
     icon_service: IconService
     leaderboards_service: LeaderboardsService
     new_sets_service: NewSetsService

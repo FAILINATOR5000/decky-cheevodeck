@@ -234,7 +234,9 @@ import { armTrackedFocusReturn, takeTrackedFocusReturn } from "../utils/trackedF
 import { takeDolphinFocusReturn } from "../utils/dolphinFocusReturn";
 import { takeFileWatcherFocusReturn } from "../utils/fileWatcherFocusReturn";
 import { takeMemoriesFocusReturn } from "../utils/memoriesFocusReturn";
+import { takeOptionsFocusReturn } from "../utils/optionsFocusReturn";
 import { useMemoriesController } from "../hooks/useMemoriesController";
+import { useMemoriesVideoController } from "../hooks/useMemoriesVideoController";
 import { takeSavedCommentFocusReturn } from "../utils/savedCommentFocusReturn";
 import { takeSmbFocusReturn } from "../utils/smbFocusReturn";
 import { notePanelMount, notePanelUnmount, samplePanelEntryFrames } from "../utils/panelLifecycle";
@@ -2296,6 +2298,12 @@ function AchievementsRoot() {
 
     const { state: optionsState, actions: optionsActions } = optionsController;
 
+    const memoriesVideo = useMemoriesVideoController({
+        isActive: view === "options",
+        language,
+        onPathChanged: settingsActions.setMemoriesVideoPath
+    });
+
     // Unlock history and guides
     const isFriendUnlockHistory = unlockHistorySource === "friendGame";
     const unlockHistoryPayload = isFriendUnlockHistory
@@ -2471,6 +2479,16 @@ function AchievementsRoot() {
     }
     memoriesWasOpenRef.current = view === "memories";
     const memoriesRestorePending = memoriesRestoreArmedRef.current;
+
+    const [optionsFocusReturn] = useState(takeOptionsFocusReturn);
+
+    const optionsRestoreArmedRef = useRef(optionsFocusReturn !== null);
+    const optionsWasOpenRef = useRef(false);
+    if (optionsWasOpenRef.current && view !== "options") {
+        optionsRestoreArmedRef.current = false;
+    }
+    optionsWasOpenRef.current = view === "options";
+    const optionsRestorePending = optionsRestoreArmedRef.current;
 
     const [fileWatcherFocusReturn] = useState(takeFileWatcherFocusReturn);
 
@@ -4819,7 +4837,26 @@ function AchievementsRoot() {
                                 onRequestFocus={setPendingFocusKey}
                             />
 
-                            {view === "options" && <OptionsPage state={{ ...optionsState, mouseKeyboardMode }} actions={{ ...optionsActions, onHome: goToAchievements }} />}
+                            {view === "options" && (
+                                <OptionsPage
+                                    state={{
+                                        ...optionsState,
+                                        mouseKeyboardMode,
+                                        memoriesVideoMove: memoriesVideo.status,
+                                        memoriesVideoBusy: memoriesVideo.busy,
+                                        restoreFocusKey: optionsFocusReturn,
+                                        restorePending: optionsRestorePending,
+                                        panelOverlayVisible
+                                    }}
+                                    actions={{
+                                        ...optionsActions,
+                                        onHome: goToAchievements,
+                                        onPickMemoriesVideoPath: memoriesVideo.pickLocation,
+                                        onUseDefaultMemoriesVideoPath: memoriesVideo.useDefaultLocation,
+                                        onRequestFocus: setPendingFocusKey
+                                    }}
+                                />
+                            )}
 
                             <UnlockHistoryPage
                                 state={{

@@ -1,7 +1,10 @@
 import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
-import { Fragment, useState, type ComponentType } from "react";
+import { Fragment, useEffect, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from "react";
 import { BackButton } from "../components/ui/BackButton";
+import { FocusClaim } from "../components/ui/FocusClaim";
+import { RestoreCurtain } from "../components/ui/RestoreCurtain";
+import { useFocusClaim } from "../hooks/useFocusClaim";
 import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
 import { PageNavStrip } from "../components/ui/PageNavStrip";
 import { ErrorText } from "../components/ui/ErrorText";
@@ -22,7 +25,7 @@ import {
     t,
     type LanguageCode
 } from "../locales";
-import type { AchievementStyle, ActivityCardAction, ButtonSpacing, ControllerGlyphStyle, HeaderStyle, OptionsTab, Payload, QuickMenuShortcut, SavedUser, ScalePreset, ScaleStep, ShortcutAction, ShortcutButton, SocialEntryDefault, TrackedColor, UiSize } from "../types";
+import type { AchievementStyle, ActivityCardAction, ButtonSpacing, ControllerGlyphStyle, HeaderStyle, MemoriesVideoMoveStatus, OptionsTab, Payload, QuickMenuShortcut, SavedUser, ScalePreset, ScaleStep, ShortcutAction, ShortcutButton, SocialEntryDefault, TrackedColor, UiSize } from "../types";
 import {
     achievementStyleLabel,
     headerStyleLabel,
@@ -237,7 +240,15 @@ type OptionsPageState = {
     memoriesAutoCapture: boolean;
     memoriesDeleteSource: boolean;
     memoriesPerPage: number;
+    memoriesVideo: boolean;
+    memoriesVideoPath: string;
+    memoriesDeleteSteamClip: boolean;
+    memoriesVideoMove: MemoriesVideoMoveStatus;
+    memoriesVideoBusy: boolean;
     memoriesCount: number;
+    restoreFocusKey: string | null;
+    restorePending: boolean;
+    panelOverlayVisible: boolean;
     legacyCommentsLoading: boolean;
     batterySaverDisablesSocialActivity: boolean;
     batterySaverDisablesComments: boolean;
@@ -365,6 +376,11 @@ type OptionsPageActions = {
     onResetSettings: () => void | Promise<void>;
     onToggleMemoriesAutoCapture: (next: boolean) => void | Promise<void>;
     onToggleMemoriesDeleteSource: (next: boolean) => void | Promise<void>;
+    onToggleMemoriesVideo: (next: boolean) => void | Promise<void>;
+    onToggleMemoriesDeleteSteamClip: (next: boolean) => void | Promise<void>;
+    onPickMemoriesVideoPath: () => void | Promise<void>;
+    onUseDefaultMemoriesVideoPath: () => void | Promise<void>;
+    onRequestFocus: (focusKey: string) => void;
     onCycleMemoriesPerPage: () => void | Promise<void>;
     onToggleBatterySaverDisablesMemories: (next: boolean) => void | Promise<void>;
     onDeleteAllMemories: () => void | Promise<void>;
@@ -584,6 +600,33 @@ function OptionsPage(props: OptionsPageProps) {
     const clearCacheDisabled = disabled || state.clearingCache;
     const buttonOuterStyle = regularButtonSpacingStyle(state.buttonSpacing);
 
+    // Coming back from a modal
+    const { restoreFocusKey, restorePending } = state;
+    const restoreClaim = useFocusClaim();
+    const restoreFiredRef = useRef(false);
+    const claimedKeyRef = useRef<string | null>(null);
+    const [restoreAbandoned, setRestoreAbandoned] = useState(false);
+
+    useEffect(function landRestoredCursor() {
+        if (!restorePending || restoreFiredRef.current) {
+            return;
+        }
+        restoreFiredRef.current = true;
+        if (restoreFocusKey === null) {
+            setRestoreAbandoned(true);
+            logFocusDebug("options-restore", "(none)", "nothing armed");
+            actions.onRequestFocus("options:back");
+            return;
+        }
+        logFocusDebug("options-restore", restoreFocusKey, "claiming");
+        claimedKeyRef.current = restoreFocusKey;
+        restoreClaim.claimSlot(0);
+        actions.onRequestFocus(restoreFocusKey);
+    }, [restorePending, restoreFocusKey, restoreClaim.claimSlot, actions.onRequestFocus]);
+
+    const restoreSettled = restoreAbandoned
+        || (restoreClaim.claim?.token ?? 0) > 0 && !restoreClaim.claim?.armed;
+
     // Tab strip state
     const [focusedTab, setFocusedTab] = useState<OptionsTab | null>(null);
     const [hoveredTab, setHoveredTab] = useState<OptionsTab | null>(null);
@@ -633,7 +676,20 @@ function OptionsPage(props: OptionsPageProps) {
     const previewedTab = OPTIONS_TABS.find((entry) => entry.id === previewedOrActive);
     const previewLabel = previewedTab ? t(state.language, previewedTab.labelKey) : "";
 
-    return (
+    function claimTarget(control: ReactElement<{ focusKey?: string }>): ReactNode {
+        const claim = restoreClaim.claim;
+        if (!claim || control.props.focusKey !== claimedKeyRef.current) {
+            return control;
+        }
+
+        return (
+            <FocusClaim token={claim.token} armed={claim.armed} onSpent={restoreClaim.spend}>
+                {control}
+            </FocusClaim>
+        );
+    }
+
+    const page = (
         <>
         <PanelSection>
             <PageNavStrip
@@ -644,7 +700,7 @@ function OptionsPage(props: OptionsPageProps) {
             <BackButton
                 label={t(state.language, "← Back to Main")}
                 focusKey="options:back"
-                navAutoFocus
+                navAutoFocus={!state.restorePending}
                 buttonSpacing={state.buttonSpacing}
                 onClick={actions.onBack}
                 disabled={state.loading || state.saving}
@@ -732,7 +788,7 @@ function OptionsPage(props: OptionsPageProps) {
 
             <div key={`options:tab:${state.activeOptionsTab}:${state.focusScopeResetToken}`}>
                 {state.activeOptionsTab === "system" && (
-                    <SystemTab state={state} actions={actions} buttonOuterStyle={buttonOuterStyle} disabled={disabled} />
+                    <SystemTab state={state} actions={actions} buttonOuterStyle={buttonOuterStyle} disabled={disabled} claimTarget={claimTarget} />
                 )}
                 {state.activeOptionsTab === "gui" && (
                     <GuiTab state={state} actions={actions} buttonOuterStyle={buttonOuterStyle} disabled={disabled} />
@@ -764,6 +820,16 @@ function OptionsPage(props: OptionsPageProps) {
         </PanelSection>
         </>
     );
+
+    return (
+        <RestoreCurtain
+            armed={state.restorePending}
+            settled={restoreSettled}
+            covered={state.panelOverlayVisible}
+        >
+            {page}
+        </RestoreCurtain>
+    );
 }
 
 // Tab content components
@@ -775,8 +841,32 @@ type TabContentProps = {
     disabled: boolean;
 };
 
-function SystemTab(props: TabContentProps) {
-    const { state, actions, buttonOuterStyle, disabled } = props;
+function videoLocationValue(state: OptionsPageState): string {
+    const move = state.memoriesVideoMove;
+    if (move.state === "copying" && move.files > 0) {
+        return t(state.language, "Copying {{done}} of {{total}}", { done: move.copied, total: move.files });
+    }
+    if (move.state === "checking") {
+        return t(state.language, "Checking space");
+    }
+    if (move.state === "verifying" || move.state === "finishing") {
+        return t(state.language, "Checking the copy");
+    }
+    if (!move.rootAvailable) {
+        return t(state.language, "Drive not connected");
+    }
+    if (move.state === "failed") {
+        return t(state.language, move.error === "no_space" ? "Not enough room" : "Move failed");
+    }
+    return move.picked || t(state.language, "Default");
+}
+
+type SystemTabProps = TabContentProps & {
+    claimTarget: (control: ReactElement<{ focusKey?: string }>) => ReactNode;
+};
+
+function SystemTab(props: SystemTabProps) {
+    const { state, actions, buttonOuterStyle, disabled, claimTarget } = props;
     const glyphStyle = resolveGlyphStyle(state.controllerGlyphStyle);
 
     return (
@@ -869,7 +959,7 @@ function SystemTab(props: TabContentProps) {
             <SectionTitle label={t(state.language, "Memories")} />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
-                label={t(state.language, "Save Screenshots as Memories")}
+                label={t(state.language, "Enable Memories")}
                 value={state.memoriesAutoCapture}
                 onChange={actions.onToggleMemoriesAutoCapture}
                 disabled={disabled}
@@ -886,11 +976,48 @@ function SystemTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
-                label={t(state.language, "Delete Steam's Copy")}
+                label={t(state.language, "Delete Source Screenshot")}
                 value={state.memoriesDeleteSource}
                 onChange={actions.onToggleMemoriesDeleteSource}
                 disabled={disabled}
                 help={t(state.language, "help_memories_delete_source")}
+            />
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                label={t(state.language, "Save Clips as Memories")}
+                value={state.memoriesVideo}
+                onChange={actions.onToggleMemoriesVideo}
+                disabled={disabled || state.memoriesVideoBusy}
+                help={t(state.language, "help_memories_video")}
+            />
+            {claimTarget(
+                <OptionValueRow
+                    outerStyle={buttonOuterStyle}
+                    focusKey="options:memories-video-path"
+                    onClick={actions.onPickMemoriesVideoPath}
+                    disabled={disabled || state.memoriesVideoBusy || !state.memoriesVideoMove.rootAvailable}
+                    label={t(state.language, "Video Clip Location")}
+                    value={videoLocationValue(state)}
+                    help={t(state.language, "help_memories_video_path")}
+                />
+            )}
+            {state.memoriesVideoPath !== "" && (
+                <OptionButton
+                    outerStyle={buttonOuterStyle}
+                    focusKey="options:memories-video-default"
+                    onClick={actions.onUseDefaultMemoriesVideoPath}
+                    disabled={disabled || state.memoriesVideoBusy || !state.memoriesVideoMove.rootAvailable}
+                    label={t(state.language, "Use the Default Video Location")}
+                    help={t(state.language, "help_memories_video_default")}
+                />
+            )}
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                label={t(state.language, "Delete Source Clip")}
+                value={state.memoriesDeleteSteamClip}
+                onChange={actions.onToggleMemoriesDeleteSteamClip}
+                disabled={disabled || state.memoriesVideoBusy}
+                help={t(state.language, "help_memories_delete_steam_clip")}
             />
             <SectionTitle label={t(state.language, "Mastery Goals")} />
             <OptionToggle

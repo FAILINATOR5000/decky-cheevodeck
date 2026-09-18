@@ -958,6 +958,9 @@ export type SettingsResponse = {
     memoriesAutoCapture: boolean;
     memoriesDeleteSource: boolean;
     memoriesPerPage: number;
+    memoriesVideo: boolean;
+    memoriesVideoPath: string;
+    memoriesDeleteSteamClip: boolean;
     fileWatcherSpeed: FileWatcherSpeed;
     fileWatcherRunDuringGames: boolean;
     trackedSetAButtonMode: TrackedSetAButtonMode;
@@ -1445,6 +1448,28 @@ type MemoryAchievementCard = {
     numAwarded: number;
     type: string;
     unlockedAt: number | null;
+};
+
+type MemoriesVideoMoveState =
+    | "idle"
+    | "checking"
+    | "copying"
+    | "verifying"
+    | "finishing"
+    | "done"
+    | "failed";
+
+export type MemoriesVideoMoveStatus = {
+    ok: boolean;
+    state: MemoriesVideoMoveState;
+    error: string;
+    copied: number;
+    files: number;
+    bytes: number;
+    totalBytes: number;
+    target: string;
+    picked: string;
+    rootAvailable: boolean;
 };
 
 type MemoryVideo = {
