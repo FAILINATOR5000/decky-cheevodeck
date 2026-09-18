@@ -558,7 +558,7 @@ function MemoriesPage(props: MemoriesPageProps) {
                     <div style={bodyTextStyle()}>
                         {memories.tagFilter
                             ? t(language, "No memories with that tag.")
-                            : t(language, "No memories yet. Press the default Steam screenshot button combo (usually Steam + R1) to take some pictures.")}
+                            : t(language, "No memories yet. Press the default Steam screenshot or record button combo to either take pictures or record a clip. When recording be sure to press it again when done.")}
                     </div>
                 </PanelSectionRow>
             );

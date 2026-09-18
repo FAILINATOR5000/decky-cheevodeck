@@ -2097,6 +2097,18 @@ function CacheTab(props: CacheTabProps) {
                 help={t(state.language, "help_reset_dolphin_mappings")}
                 separator
             />
+            <SectionTitle label={t(state.language, "Memories Data")} />
+            <OptionTripleConfirm
+                buttonSpacing={state.buttonSpacing}
+                focusKey="options:delete-all-memories"
+                idleLabel={t(state.language, "Delete All Memories ({{count}})", { count: state.memoriesCount })}
+                armedLabel2={t(state.language, "Press again to delete everything")}
+                armedLabel3={t(state.language, "Last chance: This erases everything")}
+                onConfirm={actions.onDeleteAllMemories}
+                disabled={disabled}
+                help={t(state.language, "help_delete_all_memories")}
+                separator
+            />
             <SectionTitle label={t(state.language, "Maintenance")} />
             <OptionButton
                 outerStyle={buttonOuterStyle}
@@ -2128,16 +2140,6 @@ function CacheTab(props: CacheTabProps) {
                 help={t(state.language, "help_cleanup_directory")}
             />
             <SectionTitle label={t(state.language, "Reset")} />
-            <OptionTripleConfirm
-                buttonSpacing={state.buttonSpacing}
-                focusKey="options:delete-all-memories"
-                idleLabel={t(state.language, "Delete All Memories ({{count}})", { count: state.memoriesCount })}
-                armedLabel2={t(state.language, "Press again -- this deletes the pictures")}
-                armedLabel3={t(state.language, "Last chance: press to erase every memory and picture")}
-                onConfirm={actions.onDeleteAllMemories}
-                disabled={disabled}
-                help={t(state.language, "help_delete_all_memories")}
-            />
             <OptionTripleConfirm
                 buttonSpacing={state.buttonSpacing}
                 focusKey="options:factory-reset"
