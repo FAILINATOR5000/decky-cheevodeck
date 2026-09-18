@@ -18,8 +18,6 @@ MEMORY_TAG_MAX_LEN = 24
 
 TAG_VOCAB_LIMIT = 20
 
-FOLDER_NAME_MAX_LEN = 100
-
 MISC_GAME_ID = -1
 
 ALL_GAMES_ID = 0
@@ -53,10 +51,6 @@ _GAME_KEY_PATTERN = re.compile(r"^-?\d+$")
 _TAG_CLEAN_PATTERN = re.compile(r"[\[\]\n\r\t]")
 
 _CLIP_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,120}$")
-
-_FOLDER_CLEAN_PATTERN = re.compile(r"[\x00-\x1f/\\]")
-
-_WHITESPACE_RUN_PATTERN = re.compile(r"\s+")
 
 GAMES_INDEX_NAME = "_games.json"
 VIEW_PREFS_NAME = "_index.json"
@@ -220,44 +214,18 @@ class MemoriesStore:
         ensure_dir(folder)
         return folder
 
-    def _sanitize_folder(self, title, game_id) -> str:
-        if not isinstance(title, str):
-            title = ""
-        cleaned = _WHITESPACE_RUN_PATTERN.sub(" ", title)
-        cleaned = _FOLDER_CLEAN_PATTERN.sub("-", cleaned).strip()
-        cleaned = cleaned[:FOLDER_NAME_MAX_LEN].rstrip(" .")
-        if not cleaned:
-            return str(game_id)
-        return cleaned
-
-    def folder_for_game(self, game_id, game_title) -> str:
+    def folder_for_game(self, game_id) -> str:
         """The directory name under the pictures root for one game.
 
-        A game that already has memories keeps the folder it was created with,
-        so a title changing on RetroAchievements renames nothing. A new game
-        whose sanitized title is already taken by a different game gets its id
-        appended.
+        The RetroAchievements game id. A capture taken while RA has no game
+        loaded goes to a shared folder instead.
         """
         normalized = norm_game_id(game_id)
-        if normalized is None:
-            normalized = MISC_GAME_ID
-        if normalized == MISC_GAME_ID:
+        if normalized is None or normalized == MISC_GAME_ID:
             return MISC_FOLDER_NAME
+        return str(normalized)
 
-        with self._index_lock:
-            index = self._load_games_index()
-            rows = index["games"]
-            for row in rows:
-                if row["gameId"] == normalized:
-                    return row["folder"]
-
-            candidate = self._sanitize_folder(game_title, normalized)
-            taken = {row["folder"] for row in rows}
-            if candidate in taken or candidate == MISC_FOLDER_NAME:
-                candidate = f"{candidate} ({normalized})"
-            return candidate
-
-    def ensure_picture_dir(self, game_id, game_title) -> Path:
+    def ensure_picture_dir(self, game_id) -> Path:
         """Create the per-game picture folder, chowning every level on the way.
 
         Each level goes through ensure_dir separately: mkdir(parents=True) only
@@ -269,7 +237,7 @@ class MemoriesStore:
         if self._account_key:
             account_root = account_root / self._account_key
             ensure_dir(account_root)
-        folder = account_root / self.folder_for_game(game_id, game_title)
+        folder = account_root / self.folder_for_game(game_id)
         ensure_dir(folder)
         return folder
 
@@ -286,15 +254,11 @@ class MemoriesStore:
                 game_id = norm_game_id(row.get("gameId"))
                 if game_id is None:
                     continue
-                folder = row.get("folder")
-                if not isinstance(folder, str) or not folder:
-                    continue
                 games.append({
                     "gameId": game_id,
                     "gameTitle": row.get("gameTitle") if isinstance(row.get("gameTitle"), str) else "",
                     "consoleName": row.get("consoleName") if isinstance(row.get("consoleName"), str) else "",
                     "imageIcon": row.get("imageIcon") if isinstance(row.get("imageIcon"), str) else "",
-                    "folder": folder,
                     "count": to_int(row.get("count"), 0),
                 })
         return {"schemaVersion": CURRENT_SCHEMA_VERSION, "games": games}
@@ -309,7 +273,6 @@ class MemoriesStore:
             "gameTitle": entry["gameTitle"],
             "consoleName": entry["consoleName"],
             "imageIcon": entry["imageIcon"],
-            "folder": entry["folder"],
             "count": len(entry["memories"]),
         }
 
@@ -631,7 +594,6 @@ class MemoriesStore:
             "gameTitle": "",
             "consoleName": "",
             "imageIcon": "",
-            "folder": MISC_FOLDER_NAME if game_id == MISC_GAME_ID else str(game_id),
             "tagVocabulary": [],
             "memories": [],
         }
@@ -666,13 +628,10 @@ class MemoriesStore:
 
         title = raw.get("gameTitle")
         console = raw.get("consoleName")
-        folder = raw.get("folder")
         entry["gameTitle"] = title if isinstance(title, str) else ""
         entry["consoleName"] = console if isinstance(console, str) else ""
         icon = raw.get("imageIcon")
         entry["imageIcon"] = icon if isinstance(icon, str) else ""
-        if isinstance(folder, str) and folder:
-            entry["folder"] = folder
         entry["tagVocabulary"] = vocab
         entry["memories"] = memories
         return entry
@@ -857,9 +816,6 @@ class MemoriesStore:
                 entry["consoleName"] = memory["consoleName"]
             if memory["imageIcon"]:
                 entry["imageIcon"] = memory["imageIcon"]
-            segments = relative.split("/")
-            if len(segments) >= 2:
-                entry["folder"] = segments[-2]
             entry["memories"].insert(0, memory)
             entry["memories"].sort(key=lambda m: m["capturedAt"], reverse=True)
             self._save_raw(key, entry)

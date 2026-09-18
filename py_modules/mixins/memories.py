@@ -394,7 +394,7 @@ class MemoriesMixin(PluginContext):
             game_id = MISC_GAME_ID
 
         try:
-            folder = self.memories_store.ensure_picture_dir(game_id, title)
+            folder = self.memories_store.ensure_picture_dir(game_id)
         except OSError as e:
             decky.logger.error("memories: couldn't prepare the picture folder (%s)", type(e).__name__)
             return {"ok": False, "error": "write_failed"}
@@ -483,7 +483,7 @@ class MemoriesMixin(PluginContext):
             ra_game_id = MISC_GAME_ID
 
         try:
-            folder = self.memories_store.ensure_picture_dir(ra_game_id, title)
+            folder = self.memories_store.ensure_picture_dir(ra_game_id)
         except OSError as e:
             decky.logger.error("memories: couldn't prepare the picture folder (%s)", type(e).__name__)
             return {"ok": False, "error": "write_failed"}
