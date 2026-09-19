@@ -1,6 +1,7 @@
 import { Focusable } from "@decky/ui";
 import type { ReactNode } from "react";
 import { playOkSound } from "../../utils/navSound";
+import { snapshotOwnsButton } from "../../utils/snapshotHotkey";
 
 type SaveOnStartProps = {
     canSave: boolean;
@@ -25,6 +26,8 @@ export function SaveOnStart(props: SaveOnStartProps) {
         children
     } = props;
 
+    const yieldedToSnapshot = snapshotOwnsButton("menu");
+
     function handleMenu() {
         playOkSound();
         onSave();
@@ -32,8 +35,8 @@ export function SaveOnStart(props: SaveOnStartProps) {
 
     return (
         <Focusable
-            onMenuButton={canSave ? handleMenu : undefined}
-            onMenuActionDescription={canSave ? label : undefined}
+            onMenuButton={canSave && !yieldedToSnapshot ? handleMenu : undefined}
+            onMenuActionDescription={canSave && !yieldedToSnapshot ? label : undefined}
             onSecondaryButton={onSecondaryButton}
             onSecondaryActionDescription={onSecondaryActionDescription}
             onOptionsButton={onOptionsButton}

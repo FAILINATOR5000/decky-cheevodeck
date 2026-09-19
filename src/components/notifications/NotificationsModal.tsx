@@ -3,6 +3,7 @@ import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
 
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { playOkSound } from "../../utils/navSound";
+import { snapshotOwnsButton } from "../../utils/snapshotHotkey";
 import { addEventListener, removeEventListener } from "@decky/api";
 import {
     NOTIFICATION_EVENT,
@@ -161,6 +162,9 @@ export function NotificationsModal(props: NotificationsModalProps) {
         : t(language, "Nothing archived in this filter.");
 
     function closeOnMenu() {
+        if (snapshotOwnsButton("menu")) {
+            return;
+        }
         playOkSound();
         close();
     }

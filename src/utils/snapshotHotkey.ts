@@ -13,6 +13,10 @@ export function setSnapshotHotkey(bindings: Record<ShortcutButton, ShortcutActio
     }
 }
 
+export function snapshotOwnsButton(button: ShortcutButton): boolean {
+    return boundButton === button;
+}
+
 export function isSnapshotPress(code: number): boolean {
     return boundButton !== null && SHORTCUT_BUTTON_BY_CODE[code] === boundButton;
 }
