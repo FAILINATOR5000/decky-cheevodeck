@@ -432,7 +432,7 @@ _KNOBS = (
     Knob("memoriesDeleteSource", default=False, normalize=True, read=READ_BOOL),
     Knob("memoriesPerPage", default=32, normalize=True),
     Knob("memoriesVideo", default=True, normalize=True, read=READ_BOOL),
-    Knob("memoriesVideoPath", default="", normalize=True),
+    Knob("memoriesVideoPath", default="", reset=False, normalize=True),
     Knob("memoriesDeleteSteamClip", default=False, normalize=True, read=READ_BOOL),
     Knob("memoriesRemux", default=True, normalize=True, read=READ_BOOL),
     Knob("fileWatcherSpeed", default="gentle", normalize=True),

@@ -1194,6 +1194,12 @@ export function useOptionsController({
         setBatterySaverDisablesPlayersNearYou(Boolean(result.batterySaverDisablesPlayersNearYou ?? true));
         setBatterySaverDisablesTrackedSets(Boolean(result.batterySaverDisablesTrackedSets ?? true));
         setBatterySaverDisablesFileWatcher(Boolean(result.batterySaverDisablesFileWatcher ?? true));
+        setBatterySaverDisablesMemories(Boolean(result.batterySaverDisablesMemories ?? true));
+        setMemoriesPerPage(result.memoriesPerPage ?? 32);
+        setMemoriesDeleteSource(Boolean(result.memoriesDeleteSource));
+        setMemoriesVideo(Boolean(result.memoriesVideo ?? true));
+        setMemoriesRemux(Boolean(result.memoriesRemux ?? true));
+        setMemoriesDeleteSteamClip(Boolean(result.memoriesDeleteSteamClip));
         setFileWatcherSpeed(result.fileWatcherSpeed ?? "gentle");
         setFileWatcherRunDuringGames(Boolean(result.fileWatcherRunDuringGames ?? true));
         setDoNotDisturbDisablesDot(Boolean(result.doNotDisturbDisablesDot ?? true));
