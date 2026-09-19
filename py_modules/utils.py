@@ -25,12 +25,22 @@ class WalkYieldedForClear(Exception):
 
 
 def load_json_file(path: Path, default: Any) -> Any:
-    """Read a JSON file, returning ``default`` on any failure."""
+    """Read a JSON file, returning ``default`` on any failure.
+
+    A file that is there and will not read is worth a line, because the caller
+    cannot tell that answer apart from a file that was never written: both come
+    back as the default. Settings go through here, so the difference is every
+    knob quietly back at its factory value.
+    """
     if not path.exists():
         return default
     try:
         return json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
+    except Exception as e:
+        decky.logger.error(
+            "%s is there but would not read (%s), falling back to defaults",
+            path.name, type(e).__name__,
+        )
         return default
 
 

@@ -270,14 +270,19 @@ class Plugin(
         self.notes_store = NotesStore(
             notes_dir=self.notes_dir,
         )
+        picked_video_path = self.settings_store.get_memories_video_path(
+            self.settings_store.load_config()
+        )
         self.memories_store = MemoriesStore(
             memories_dir=self.memories_dir,
             thumbs_dir=self.memory_thumbs_dir,
             pictures_dir=self.user_home / "Pictures" / "CheevoDeck",
-            videos_dir=memories_video_root(
-                self.settings_store.get_memories_video_path(self.settings_store.load_config()),
-                self.user_home,
-            ),
+            videos_dir=memories_video_root(picked_video_path, self.user_home),
+        )
+        decky.logger.info(
+            "memories: clips are read from %s (setting %s)",
+            self.memories_store.videos_root(),
+            picked_video_path or "the default location",
         )
         self.guides_store = GuidesStore(
             guides_dir=self.guides_dir,

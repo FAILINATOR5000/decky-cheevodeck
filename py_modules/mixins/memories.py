@@ -90,6 +90,10 @@ class MemoriesMixin(PluginContext):
         def settled(root):
             self.settings_store.update_memories_video_path(picked)
             self.memories_store.set_videos_root(root)
+            decky.logger.info(
+                "memories: the video root is now %s",
+                picked or "the default location",
+            )
 
         current = self.settings_store.get_memories_video_path(self.settings_store.load_config())
         return self.memories_video_service.start(
