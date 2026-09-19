@@ -77,7 +77,7 @@ import { trackedColorHex, trackedColorLabelKey } from "../utils/achievements";
 import { resolveGlyphStyle } from "../utils/controllerGlyphs";
 import { BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT } from "../utils/gamepadButtons";
 import { playOkSound } from "../utils/navSound";
-import { regularButtonSpacingStyle, smallTextStyle } from "../utils/style";
+import { bodyTextStyle, regularButtonSpacingStyle, smallTextStyle } from "../utils/style";
 
 type TabIconProps = { size?: number };
 
@@ -245,7 +245,6 @@ type OptionsPageState = {
     memoriesRemux: boolean;
     memoriesDeleteSteamClip: boolean;
     memoriesVideoMove: MemoriesVideoMoveStatus;
-    memoriesVideoBusy: boolean;
     memoriesCount: number;
     restoreFocusKey: string | null;
     restorePending: boolean;
@@ -860,7 +859,7 @@ function videoLocationValue(state: OptionsPageState): string {
     if (move.state === "failed") {
         return t(state.language, move.error === "no_space" ? "Not enough room" : "Move failed");
     }
-    return move.picked || t(state.language, "Default");
+    return t(state.language, move.picked ? "Custom" : "Default");
 }
 
 type SystemTabProps = TabContentProps & {
@@ -989,7 +988,7 @@ function SystemTab(props: SystemTabProps) {
                 label={t(state.language, "Save Clips as Memories")}
                 value={state.memoriesVideo}
                 onChange={actions.onToggleMemoriesVideo}
-                disabled={disabled || state.memoriesVideoBusy}
+                disabled={disabled}
                 help={t(state.language, "help_memories_video")}
             />
             {claimTarget(
@@ -997,18 +996,25 @@ function SystemTab(props: SystemTabProps) {
                     outerStyle={buttonOuterStyle}
                     focusKey="options:memories-video-path"
                     onClick={actions.onPickMemoriesVideoPath}
-                    disabled={disabled || state.memoriesVideoBusy || !state.memoriesVideoMove.rootAvailable}
+                    disabled={disabled || !state.memoriesVideoMove.rootAvailable}
                     label={t(state.language, "Video Clip Location")}
                     value={videoLocationValue(state)}
                     help={t(state.language, "help_memories_video_path")}
                 />
             )}
-            {state.memoriesVideoPath !== "" && (
+            {state.memoriesVideoMove.root !== "" && (
+                <PanelSectionRow>
+                    <div style={{ ...bodyTextStyle(), wordBreak: "break-word" }}>
+                        {state.memoriesVideoMove.root}
+                    </div>
+                </PanelSectionRow>
+            )}
+            {state.memoriesVideoPath !== "" && claimTarget(
                 <OptionButton
                     outerStyle={buttonOuterStyle}
                     focusKey="options:memories-video-default"
                     onClick={actions.onUseDefaultMemoriesVideoPath}
-                    disabled={disabled || state.memoriesVideoBusy || !state.memoriesVideoMove.rootAvailable}
+                    disabled={disabled || !state.memoriesVideoMove.rootAvailable}
                     label={t(state.language, "Use the Default Video Location")}
                     help={t(state.language, "help_memories_video_default")}
                 />
@@ -1018,7 +1024,7 @@ function SystemTab(props: SystemTabProps) {
                 label={t(state.language, "Delete Source Clip")}
                 value={state.memoriesDeleteSteamClip}
                 onChange={actions.onToggleMemoriesDeleteSteamClip}
-                disabled={disabled || state.memoriesVideoBusy}
+                disabled={disabled}
                 help={t(state.language, "help_memories_delete_steam_clip")}
             />
             <OptionToggle

@@ -4,6 +4,7 @@ import { t, type LanguageCode } from "../locales";
 import type { MemoriesVideoMoveStatus } from "../types";
 import { logError } from "../utils/errors";
 import { openPathPicker } from "../components/pickers/FilePickerModal";
+import { openMemoriesVideoMoveModal } from "../components/memories/MemoriesVideoMoveModal";
 import { armOptionsFocusKey } from "../utils/optionsFocusReturn";
 
 const POLL_INTERVAL_MS = 900;
@@ -18,6 +19,7 @@ const IDLE: MemoriesVideoMoveStatus = {
     totalBytes: 0,
     target: "",
     picked: "",
+    root: "",
     rootAvailable: true
 };
 
@@ -35,7 +37,6 @@ export function useMemoriesVideoController(options: UseMemoriesVideoControllerOp
     const { isActive, language, onPathChanged } = options;
 
     const [status, setStatus] = useState<MemoriesVideoMoveStatus>(IDLE);
-    const [starting, setStarting] = useState(false);
     const [runs, setRuns] = useState(0);
     const pollingRef = useRef(false);
     const settledPathRef = useRef<string | null>(null);
@@ -85,27 +86,36 @@ export function useMemoriesVideoController(options: UseMemoriesVideoControllerOp
         };
     }, [isActive, runs, readStatus, onPathChanged]);
 
-    const moveTo = useCallback(async (picked: string) => {
-        setStarting(true);
+    const moveTo = useCallback(async (picked: string): Promise<boolean> => {
         try {
             const started = await startMemoriesVideoMove(picked);
             if (!started.ok) {
-                setStatus({ ...IDLE, state: "failed", error: started.error ?? "failed" });
-                return;
+                if (started.error !== "same_place") {
+                    setStatus({ ...IDLE, state: "failed", error: started.error ?? "failed" });
+                }
+                return false;
             }
             await readStatus();
             setRuns((count) => count + 1);
+            return true;
         }
         catch (e) {
             logError("startMemoriesVideoMove", e);
             setStatus({ ...IDLE, state: "failed", error: "failed" });
-        }
-        finally {
-            setStarting(false);
+            return false;
         }
     }, [readStatus]);
 
+    const watchMove = useCallback((focusKey: string) => {
+        armOptionsFocusKey(focusKey);
+        openMemoriesVideoMoveModal(language);
+    }, [language]);
+
     const pickLocation = useCallback(async () => {
+        if (isRunning(status.state)) {
+            watchMove("options:memories-video-path");
+            return;
+        }
         armOptionsFocusKey("options:memories-video-path");
         let picked: string | undefined;
         try {
@@ -124,16 +134,23 @@ export function useMemoriesVideoController(options: UseMemoriesVideoControllerOp
         if (!picked) {
             return;
         }
-        await moveTo(picked);
-    }, [language, moveTo]);
+        if (await moveTo(picked)) {
+            watchMove("options:memories-video-path");
+        }
+    }, [language, moveTo, status.state, watchMove]);
 
     const useDefaultLocation = useCallback(async () => {
-        await moveTo("");
-    }, [moveTo]);
+        if (isRunning(status.state)) {
+            watchMove("options:memories-video-default");
+            return;
+        }
+        if (await moveTo("")) {
+            watchMove("options:memories-video-default");
+        }
+    }, [moveTo, status.state, watchMove]);
 
     return {
         status,
-        busy: starting || isRunning(status.state),
         pickLocation,
         useDefaultLocation
     };

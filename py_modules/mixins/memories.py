@@ -110,8 +110,17 @@ class MemoriesMixin(PluginContext):
         return {
             **self.memories_video_service.status(),
             "picked": picked,
+            "root": str(root),
             "rootAvailable": memories_video_service.root_available(root, picked != ""),
         }
+
+    async def cancel_memories_video_move(self):
+        """Stop a move in flight and put back whatever it had copied.
+
+        The setting and the original files are untouched by a cancel, so the
+        answer to one is the state the user was already in.
+        """
+        return self.memories_video_service.cancel()
 
     async def read_memory_clip_part(self, game_id, memory_id: str, name: str, offset=0, limit=0):
         """Part of one file out of a memory's own copy of a clip, base64 encoded.

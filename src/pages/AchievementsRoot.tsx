@@ -4843,7 +4843,6 @@ function AchievementsRoot() {
                                         ...optionsState,
                                         mouseKeyboardMode,
                                         memoriesVideoMove: memoriesVideo.status,
-                                        memoriesVideoBusy: memoriesVideo.busy,
                                         restoreFocusKey: optionsFocusReturn,
                                         restorePending: optionsRestorePending,
                                         panelOverlayVisible

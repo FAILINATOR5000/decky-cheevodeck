@@ -1458,6 +1458,7 @@ type MemoriesVideoMoveState =
     | "verifying"
     | "finishing"
     | "done"
+    | "canceled"
     | "failed";
 
 export type MemoriesVideoMoveStatus = {
@@ -1470,6 +1471,7 @@ export type MemoriesVideoMoveStatus = {
     totalBytes: number;
     target: string;
     picked: string;
+    root: string;
     rootAvailable: boolean;
 };
 

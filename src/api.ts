@@ -500,6 +500,10 @@ export const startMemoriesVideoMove = callable<
     [string],
     { ok: boolean; error?: string }
 >("start_memories_video_move");
+export const cancelMemoriesVideoMove = callable<
+    [],
+    { ok: boolean; error?: string }
+>("cancel_memories_video_move");
 export const getMemoriesVideoMoveStatus = callable<
     [],
     MemoriesVideoMoveStatus

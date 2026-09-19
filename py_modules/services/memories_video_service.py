@@ -27,7 +27,10 @@ ROOT_DIR_NAME = "CheevoDeck"
 
 FREE_SPACE_MARGIN_BYTES = 256 * 1024 * 1024
 
+_COPY_CHUNK_BYTES = 4 * 1024 * 1024
+
 ERROR_BUSY = "busy"
+ERROR_NOT_RUNNING = "not_running"
 ERROR_BAD_TARGET = "bad_target"
 ERROR_SAME_PLACE = "same_place"
 ERROR_NO_SPACE = "no_space"
@@ -120,6 +123,7 @@ class MemoriesVideoService:
         self._bytes = 0
         self._total_bytes = 0
         self._target = ""
+        self._stop = threading.Event()
 
     def status(self) -> dict:
         with self._lock:
@@ -133,6 +137,20 @@ class MemoriesVideoService:
                 "totalBytes": self._total_bytes,
                 "target": self._target,
             }
+
+    def cancel(self) -> dict:
+        """Ask a move in flight to stop and take its partial copy back with it.
+
+        Returns whether there was one to stop. The move does not end here: the
+        thread notices between files and unwinds what it has written, so a
+        cancel and a finish that happen at the same moment leave the finish
+        standing rather than half of each.
+        """
+        if not self.running():
+            return {"ok": False, "error": ERROR_NOT_RUNNING}
+        self._stop.set()
+        decky.logger.info("memories: the video move was canceled")
+        return {"ok": True}
 
     def running(self) -> bool:
         with self._lock:
@@ -162,6 +180,7 @@ class MemoriesVideoService:
         if target_root == current_root:
             return {"ok": False, "error": ERROR_SAME_PLACE}
 
+        self._stop.clear()
         with self._lock:
             self._state = "checking"
             self._error = ""
@@ -178,6 +197,36 @@ class MemoriesVideoService:
             )
             self._thread.start()
         return {"ok": True}
+
+    def _copy_file(self, source: Path, destination: Path) -> bool:
+        """Copy one file a few megabytes at a time, counting as it goes.
+
+        Returns False when a cancel landed part way through, leaving the partial
+        file in place for the unwind to remove. The chunking is what makes the
+        progress figures move inside a single large file and what lets a cancel
+        be answered during one rather than after it.
+        """
+        with source.open("rb") as reader, destination.open("wb") as writer:
+            while True:
+                block = reader.read(_COPY_CHUNK_BYTES)
+                if not block:
+                    return True
+                writer.write(block)
+                with self._lock:
+                    self._bytes += len(block)
+                if self._stop.is_set():
+                    return False
+
+    def _stopped(self, written: list, target_root: Path) -> bool:
+        """Whether a cancel has landed, and if it has, undo the copy so far."""
+        if not self._stop.is_set():
+            return False
+        self._unwind(written, target_root)
+        with self._lock:
+            self._state = "canceled"
+            self._error = ""
+        decky.logger.info("memories: the video move stopped and put %s files back", len(written))
+        return True
 
     def _fail(self, code: str) -> None:
         with self._lock:
@@ -228,15 +277,18 @@ class MemoriesVideoService:
         written = []
         try:
             for source, size in files:
+                if self._stopped(written, target_root):
+                    return
                 relative = source.relative_to(source_root)
                 destination = target_root / relative
                 ensure_dir(destination.parent)
-                shutil.copyfile(source, destination)
-                chown_to_data_owner(destination)
                 written.append((destination, size))
+                if not self._copy_file(source, destination):
+                    self._stopped(written, target_root)
+                    return
+                chown_to_data_owner(destination)
                 with self._lock:
                     self._copied += 1
-                    self._bytes += size
         except OSError as e:
             decky.logger.error("memories: the video copy stopped (%s)", type(e).__name__)
             self._unwind(written, target_root)
@@ -256,6 +308,9 @@ class MemoriesVideoService:
                 self._unwind(written, target_root)
                 self._fail(ERROR_VERIFY_FAILED)
                 return
+
+        if self._stopped(written, target_root):
+            return
 
         with self._lock:
             self._state = "finishing"
