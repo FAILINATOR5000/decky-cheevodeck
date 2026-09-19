@@ -36,6 +36,7 @@ export function useMemoriesVideoController(options: UseMemoriesVideoControllerOp
 
     const [status, setStatus] = useState<MemoriesVideoMoveStatus>(IDLE);
     const [starting, setStarting] = useState(false);
+    const [runs, setRuns] = useState(0);
     const pollingRef = useRef(false);
     const settledPathRef = useRef<string | null>(null);
 
@@ -82,7 +83,7 @@ export function useMemoriesVideoController(options: UseMemoriesVideoControllerOp
                 clearTimeout(timer);
             }
         };
-    }, [isActive, readStatus, onPathChanged]);
+    }, [isActive, runs, readStatus, onPathChanged]);
 
     const moveTo = useCallback(async (picked: string) => {
         setStarting(true);
@@ -93,6 +94,7 @@ export function useMemoriesVideoController(options: UseMemoriesVideoControllerOp
                 return;
             }
             await readStatus();
+            setRuns((count) => count + 1);
         }
         catch (e) {
             logError("startMemoriesVideoMove", e);

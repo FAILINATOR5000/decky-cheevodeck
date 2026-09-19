@@ -186,6 +186,22 @@ class MemoriesVideoService:
         decky.logger.error("memories: moving the videos failed (%s)", code)
 
     def _run(self, source_root: Path, target_root: Path, on_settled) -> None:
+        """The thread's entry point, and the only place a move can end badly.
+
+        Every exit from _move leaves a state the panel can act on. Anything that
+        escapes it would not: a thread that dies part way through leaves the
+        state it was last in, the panel reads that as a move still running, and
+        the rows it disables while one is in flight never come back.
+        """
+        try:
+            self._move(source_root, target_root, on_settled)
+        except Exception as e:
+            decky.logger.exception(
+                "memories: the video move thread stopped (%s: %s)", type(e).__name__, e
+            )
+            self._fail(ERROR_COPY_FAILED)
+
+    def _move(self, source_root: Path, target_root: Path, on_settled) -> None:
         files, total = _tree_size(source_root)
         with self._lock:
             self._files = len(files)
