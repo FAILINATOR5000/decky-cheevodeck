@@ -1,4 +1,4 @@
-import { logFocusDebug, readMemoryClipPart } from "../../api";
+import { debugLoggingEnabled, logFocusDebug, readMemoryClipPart } from "../../api";
 import { logError } from "../../utils/errors";
 
 const CLIP_BASE = "https://steamloopback.host/gamerecordings/clips";
@@ -223,6 +223,13 @@ function bufferedHolds(video: HTMLVideoElement, at: number): boolean {
     return false;
 }
 
+function clipDebug(stage: string, key: string, build: () => string) {
+    if (!debugLoggingEnabled()) {
+        return;
+    }
+    logFocusDebug(stage, key, build());
+}
+
 export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayback {
     const base = `${CLIP_BASE}/${source.clipId}/video/${source.sessionId}`;
     const aborter = new AbortController();
@@ -289,7 +296,7 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         }
         unavailable = true;
         logError("memories: a clip's video is not reachable", why);
-        logFocusDebug("clip-unreachable", source.clipId, why);
+        clipDebug("clip-unreachable", source.clipId, () => why);
         publish();
     }
 
@@ -305,8 +312,8 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
                 return null;
             }
             const bytes = decodeBase64(answer.data);
-            logFocusDebug("clip-part", name,
-                `+${(offset / 1e6).toFixed(1)} ${(bytes.byteLength / 1e6).toFixed(1)}MB `
+            clipDebug("clip-part", name,
+                () => `+${(offset / 1e6).toFixed(1)} ${(bytes.byteLength / 1e6).toFixed(1)}MB `
                 + `ipc=${Math.round(arrived - asked)}ms decode=${Math.round(performance.now() - arrived)}ms`);
             return { bytes, size: answer.size ?? bytes.byteLength };
         }
@@ -389,8 +396,8 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
             return true;
         }
         nextOffset += piece.bytes.byteLength;
-        logFocusDebug("clip-round", CLIP_NAME,
-            `${(nextOffset / 1e6).toFixed(1)}MB in, buffered ${coverage()}`);
+        clipDebug("clip-round", CLIP_NAME,
+            () => `${(nextOffset / 1e6).toFixed(1)}MB in, buffered ${coverage()}`);
         return true;
     }
 
@@ -482,8 +489,8 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
             offsets[index] += piece.bytes.byteLength;
             finished[index] = offsets[index] >= piece.size;
         }
-        logFocusDebug("clip-round", `segment ${number}`,
-            `${(offsets[0] / 1e6).toFixed(1)}MB in, buffered ${coverage()}`);
+        clipDebug("clip-round", `segment ${number}`,
+            () => `${(offsets[0] / 1e6).toFixed(1)}MB in, buffered ${coverage()}`);
         return true;
     }
 
@@ -503,8 +510,8 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
                 const target = aimFor(edge);
                 if (cursorTime() > edge + CURSOR_DRIFT_SECONDS && target !== aimedFrom) {
                     aimedFrom = target;
-                    logFocusDebug("clip-aim", source.clipId,
-                        `playhead ${at.toFixed(1)}s, reading at ${cursorTime().toFixed(1)}s, `
+                    clipDebug("clip-aim", source.clipId,
+                        () => `playhead ${at.toFixed(1)}s, reading at ${cursorTime().toFixed(1)}s, `
                         + `back to ${edge.toFixed(1)}s, holding ${coverage()}`);
                     aimCursor(edge);
                 }
@@ -529,7 +536,7 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         catch (error) {
             if (!destroyed) {
                 logError("memories: reading a clip segment failed", error);
-                logFocusDebug("clip-failed", source.clipId, String(error));
+                clipDebug("clip-failed", source.clipId, () => String(error));
             }
         }
         finally {
@@ -593,8 +600,8 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         }
         if (ahead && era === generation) {
             const edge = bufferedEnd(video, video.currentTime);
-            logFocusDebug("clip-drop", source.clipId,
-                `at ${at.toFixed(1)}s, holding ${coverage()}, reading from ${edge.toFixed(1)}s`);
+            clipDebug("clip-drop", source.clipId,
+                () => `at ${at.toFixed(1)}s, holding ${coverage()}, reading from ${edge.toFixed(1)}s`);
             exhausted = false;
             aimCursor(edge);
         }
@@ -703,8 +710,8 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         }
         clearInterval(scanTimer);
         scanTimer = null;
-        logFocusDebug("clip-scan", source.clipId,
-            `stop on ${why} at ${video.currentTime.toFixed(1)}s, holding ${coverage()}`);
+        clipDebug("clip-scan", source.clipId,
+            () => `stop on ${why} at ${video.currentTime.toFixed(1)}s, holding ${coverage()}`);
         if (!bufferedHolds(video, video.currentTime)) {
             requestFrom(video.currentTime);
         }
@@ -756,8 +763,8 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         if (destroyed) {
             return;
         }
-        logFocusDebug("clip-starved", source.clipId,
-            `at ${video.currentTime.toFixed(1)}s ready=${video.readyState} `
+        clipDebug("clip-starved", source.clipId,
+            () => `at ${video.currentTime.toFixed(1)}s ready=${video.readyState} `
             + `holding ${coverage()} exhausted=${exhausted} pumping=${pumping} started=${started}`);
     }
 
@@ -864,12 +871,14 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
                 return;
             }
             started = true;
-            video.addEventListener("playing", () => {
-                logFocusDebug("clip-playing", source.clipId,
-                    `${Math.round(performance.now() - opened)}ms after open`);
-            }, { once: true });
-            logFocusDebug("clip-start", source.clipId,
-                `primed=${Math.round(performance.now() - opened)}ms at=${startAt.toFixed(3)} `
+            if (debugLoggingEnabled()) {
+                video.addEventListener("playing", () => {
+                    clipDebug("clip-playing", source.clipId,
+                        () => `${Math.round(performance.now() - opened)}ms after open`);
+                }, { once: true });
+            }
+            clipDebug("clip-start", source.clipId,
+                () => `primed=${Math.round(performance.now() - opened)}ms at=${startAt.toFixed(3)} `
                 + `buffered=${(bufferedEnd(video, startAt) - startAt).toFixed(2)}s`);
             await video.play().catch((error) => {
                 logError("memories: a clip would not start", error);
@@ -880,7 +889,7 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         catch (error) {
             if (!destroyed) {
                 logError("memories: setting up clip playback failed", error);
-                logFocusDebug("clip-setup-failed", source.clipId, String(error));
+                clipDebug("clip-setup-failed", source.clipId, () => String(error));
                 unreachable("playback could not be set up");
             }
         }
@@ -956,8 +965,8 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
             if (destroyed) {
                 return;
             }
-            logFocusDebug("clip-seek", source.clipId,
-                `${direction > 0 ? "forward" : "back"} scan `
+            clipDebug("clip-seek", source.clipId,
+                () => `${direction > 0 ? "forward" : "back"} scan `
                 + `from ${video.currentTime.toFixed(1)}s scanning=${scanTimer !== null}`);
             stopScan();
             scanDirection = direction;
@@ -969,16 +978,16 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
                 return;
             }
             const moved = skipSeconds();
-            logFocusDebug("clip-seek", source.clipId,
-                `skip ${direction > 0 ? "forward" : "back"} ${moved.toFixed(1)}s `
+            clipDebug("clip-seek", source.clipId,
+                () => `skip ${direction > 0 ? "forward" : "back"} ${moved.toFixed(1)}s `
                 + `from ${video.currentTime.toFixed(1)}s scanning=${scanTimer !== null}`);
             stopScan();
             seekTo(video.currentTime + direction * moved);
         },
 
         endSeek() {
-            logFocusDebug("clip-seek", source.clipId,
-                `release at ${video.currentTime.toFixed(1)}s scanning=${scanTimer !== null}`);
+            clipDebug("clip-seek", source.clipId,
+                () => `release at ${video.currentTime.toFixed(1)}s scanning=${scanTimer !== null}`);
             stopScan();
         },
 
