@@ -123,6 +123,8 @@ const BOTTOM_HEADROOM_PX = 80;
 
 const GRID_COLUMN_CHOICES = [1, 2, 3];
 
+type PageStripPlace = "top" | "bottom";
+
 const NAV_ENTER_FIRST = 0;
 
 const GAME_CLAIM_SLOT = -2;
@@ -465,13 +467,16 @@ function MemoriesPage(props: MemoriesPageProps) {
         actions.onRequestFocus("memories:back");
     }
 
-    function turnPage(delta: number) {
+    function turnPage(delta: number, place: PageStripPlace) {
         const nextIndex = memories.pageIndex + delta;
         if (nextIndex < 0 || nextIndex >= memories.totalPages) {
             return;
         }
         playOkSound();
         actions.memories.turnPage(delta);
+        if (place === "bottom") {
+            actions.onRequestFocus(delta < 0 ? "memories:page:prev" : "memories:page:next");
+        }
     }
 
 
@@ -510,12 +515,14 @@ function MemoriesPage(props: MemoriesPageProps) {
         );
     }
 
-    function renderPageArrow(key: string, delta: number) {
-        const focusKey = `memories:page:${key}`;
+    function renderPageArrow(place: PageStripPlace, key: string, delta: number) {
+        const focusKey = place === "top"
+            ? `memories:page:${key}`
+            : `memories:page:bottom:${key}`;
         return (
             <div data-focus-key={focusKey} style={{ display: "flex" }}>
                 <DialogButton
-                    onClick={() => turnPage(delta)}
+                    onClick={() => turnPage(delta, place)}
                     onGamepadFocus={() => {
                         forgetNavAxisMemory(gridNavRef);
                         setFocusedToggleKey(focusKey);
@@ -545,6 +552,29 @@ function MemoriesPage(props: MemoriesPageProps) {
         );
     }
 
+    function pageStripContent(place: PageStripPlace) {
+        return (
+            <>
+                {renderPageArrow(place, "prev", -1)}
+                <span
+                    style={{
+                        fontSize: `${textSize(11)}px`,
+                        opacity: 0.8,
+                        whiteSpace: "nowrap",
+                        minWidth: "52px",
+                        textAlign: "center"
+                    }}
+                >
+                    {`${memories.pageIndex + 1} / ${memories.totalPages}`}
+                </span>
+                {renderPageArrow(place, "next", 1)}
+            </>
+        );
+    }
+
+    const bottomStripShown = memories.totalPages > 1
+        && memories.pageMemories.length >= memories.perPage;
+
     function renderPageStrip() {
         if (memories.totalPages <= 1) {
             return null;
@@ -555,19 +585,7 @@ function MemoriesPage(props: MemoriesPageProps) {
                     flow-children="row"
                     style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px" }}
                 >
-                    {renderPageArrow("prev", -1)}
-                    <span
-                        style={{
-                            fontSize: `${textSize(11)}px`,
-                            opacity: 0.8,
-                            whiteSpace: "nowrap",
-                            minWidth: "52px",
-                            textAlign: "center"
-                        }}
-                    >
-                        {`${memories.pageIndex + 1} / ${memories.totalPages}`}
-                    </span>
-                    {renderPageArrow("next", 1)}
+                    {pageStripContent("top")}
                 </Focusable>
             </PanelSectionRow>
         );
@@ -633,6 +651,20 @@ function MemoriesPage(props: MemoriesPageProps) {
                             </FocusClaim>
                         );
                     })}
+                    {bottomStripShown && (
+                        <div
+                            style={{
+                                gridColumn: "1 / -1",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: "10px",
+                                marginTop: "4px"
+                            }}
+                        >
+                            {pageStripContent("bottom")}
+                        </div>
+                    )}
                 </Focusable>
             </PanelSectionRow>
         );
