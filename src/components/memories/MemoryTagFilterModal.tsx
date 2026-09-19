@@ -4,6 +4,7 @@ import { LabeledRow } from "../ui/LabeledRow";
 import { NoteColorPicker } from "../notes/NoteColorPicker";
 import { useWindowedList } from "../../hooks/useWindowedList";
 import { MEDIA_FILTER_CHOICES } from "../../utils/memories";
+import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { t, type LanguageCode } from "../../locales";
 import { modalSize } from "../../utils/scale";
@@ -68,6 +69,8 @@ function TagChip(props: {
 export function MemoryTagFilterModal(props: MemoryTagFilterModalProps) {
     const { tags, selected, language, onSelect, onSelectColor, onSelectMedia, onChangeSort, close } = props;
 
+    const [tag, setTag] = useState(props.selected);
+
     const [color, setColor] = useState(props.selectedColor);
 
     const [media, setMedia] = useState(props.selectedMedia);
@@ -105,9 +108,9 @@ export function MemoryTagFilterModal(props: MemoryTagFilterModalProps) {
         onChangeSort(next);
     }
 
-    function pick(tag: string) {
-        onSelect(tag);
-        close();
+    function pick(next: string) {
+        setTag(next);
+        onSelect(next);
     }
 
     function pickColor(next: string) {
@@ -123,94 +126,96 @@ export function MemoryTagFilterModal(props: MemoryTagFilterModalProps) {
 
     return (
         <ModalRoot onCancel={close} onEscKeypress={close}>
-            <SnapshotHotkey language={language} />
-            <div style={{ fontSize: `${modalSize(18)}px`, fontWeight: 800, marginBottom: "4px" }}>
-                {t(language, "Filter")}
-            </div>
-            <LabeledRow
-                focusKey="memories:tagsort"
-                label={t(language, "Sort")}
-                value={sort === "recent"
-                    ? t(language, "Recently Used")
-                    : t(language, "Alphabetical")}
-                onClick={toggleSort}
-                bottomSeparator="none"
-            />
-            <div style={SECTION_HEADING_STYLE}>
-                {t(language, "Tag Filter")}
-            </div>
-            <Focusable
-                flow-children="grid"
-                style={{
-                    display: "flex",
-                    flexDirection: "row",
-                    gap: "8px",
-                    flexWrap: "wrap",
-                    alignItems: "center"
-                }}
-            >
-                <TagChip
-                    label={t(language, "All")}
-                    count={null}
-                    focusKey="memories:tag:all"
-                    selected={selected === ""}
-                    preferred={preferredTag === ""}
-                    onSelect={() => pick("")}
+            <SaveOnStart canSave label={t(language, "Close")} onSave={close}>
+                <SnapshotHotkey language={language} />
+                <div style={{ fontSize: `${modalSize(18)}px`, fontWeight: 800, marginBottom: "4px" }}>
+                    {t(language, "Filter")}
+                </div>
+                <LabeledRow
+                    focusKey="memories:tagsort"
+                    label={t(language, "Sort")}
+                    value={sort === "recent"
+                        ? t(language, "Recently Used")
+                        : t(language, "Alphabetical")}
+                    onClick={toggleSort}
+                    bottomSeparator="none"
                 />
-                {visibleTags.map((row, index) => (
+                <div style={SECTION_HEADING_STYLE}>
+                    {t(language, "Tag Filter")}
+                </div>
+                <Focusable
+                    flow-children="grid"
+                    style={{
+                        display: "flex",
+                        flexDirection: "row",
+                        gap: "8px",
+                        flexWrap: "wrap",
+                        alignItems: "center"
+                    }}
+                >
                     <TagChip
-                        key={row.tag}
-                        label={row.tag}
-                        count={row.count}
-                        focusKey={`memories:tag:${row.tag}`}
-                        selected={selected === row.tag}
-                        preferred={preferredTag === row.tag}
-                        onSelect={() => pick(row.tag)}
-                        onFocus={() => focusRef.current(index)}
-                    />
-                ))}
-                {visibleTags.length < rows.length && (
-                    <div ref={markerRef} style={{ width: "1px", height: "1px" }} />
-                )}
-            </Focusable>
-            <div style={SECTION_HEADING_STYLE}>
-                {t(language, "Color Filter")}
-            </div>
-            <NoteColorPicker
-                selectedColor={color === "" ? "default" : (color as NoteColor)}
-                disabled={false}
-                onChange={(next) => pickColor(next)}
-            />
-            <div style={SECTION_HEADING_STYLE}>
-                {t(language, "Media Type")}
-            </div>
-            <Focusable
-                flow-children="grid"
-                style={{
-                    display: "flex",
-                    flexDirection: "row",
-                    gap: "8px",
-                    flexWrap: "wrap",
-                    alignItems: "center"
-                }}
-            >
-                {MEDIA_FILTER_CHOICES.map((choice) => (
-                    <TagChip
-                        key={choice.key}
-                        label={t(language, choice.key)}
+                        label={t(language, "All")}
                         count={null}
-                        focusKey={`memories:media:${choice.value || "all"}`}
-                        selected={media === choice.value}
-                        preferred={false}
-                        onSelect={() => pickMedia(choice.value)}
+                        focusKey="memories:tag:all"
+                        selected={tag === ""}
+                        preferred={preferredTag === ""}
+                        onSelect={() => pick("")}
                     />
-                ))}
-            </Focusable>
-            <Focusable style={{ display: "flex", marginTop: "16px" }}>
-                <DialogButton onClick={close} style={{ width: "100%" }}>
-                    {t(language, "Close")}
-                </DialogButton>
-            </Focusable>
+                    {visibleTags.map((row, index) => (
+                        <TagChip
+                            key={row.tag}
+                            label={row.tag}
+                            count={row.count}
+                            focusKey={`memories:tag:${row.tag}`}
+                            selected={tag === row.tag}
+                            preferred={preferredTag === row.tag}
+                            onSelect={() => pick(row.tag)}
+                            onFocus={() => focusRef.current(index)}
+                        />
+                    ))}
+                    {visibleTags.length < rows.length && (
+                        <div ref={markerRef} style={{ width: "1px", height: "1px" }} />
+                    )}
+                </Focusable>
+                <div style={SECTION_HEADING_STYLE}>
+                    {t(language, "Color Filter")}
+                </div>
+                <NoteColorPicker
+                    selectedColor={color === "" ? "default" : (color as NoteColor)}
+                    disabled={false}
+                    onChange={(next) => pickColor(next)}
+                />
+                <div style={SECTION_HEADING_STYLE}>
+                    {t(language, "Media Type")}
+                </div>
+                <Focusable
+                    flow-children="grid"
+                    style={{
+                        display: "flex",
+                        flexDirection: "row",
+                        gap: "8px",
+                        flexWrap: "wrap",
+                        alignItems: "center"
+                    }}
+                >
+                    {MEDIA_FILTER_CHOICES.map((choice) => (
+                        <TagChip
+                            key={choice.key}
+                            label={t(language, choice.key)}
+                            count={null}
+                            focusKey={`memories:media:${choice.value || "all"}`}
+                            selected={media === choice.value}
+                            preferred={false}
+                            onSelect={() => pickMedia(choice.value)}
+                        />
+                    ))}
+                </Focusable>
+                <Focusable style={{ display: "flex", marginTop: "16px" }}>
+                    <DialogButton onClick={close} style={{ width: "100%" }}>
+                        {t(language, "Close")}
+                    </DialogButton>
+                </Focusable>
+            </SaveOnStart>
         </ModalRoot>
     );
 }
