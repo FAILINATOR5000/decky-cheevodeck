@@ -8,6 +8,8 @@ const BEHIND_SECONDS = 10;
 
 const PRIME_SECONDS = 1;
 
+const PIECE_BYTES = 2 * 1024 * 1024;
+
 const SEEK_STEPS_PER_CLIP = 10;
 const MIN_SEEK_STEP_SECONDS = 0.5;
 const MAX_SEEK_STEP_SECONDS = 30;
@@ -22,6 +24,9 @@ const SCAN_WATCHDOG_MS = 15000;
 const SCAN_HOLD_DELAY_MS = 350;
 
 
+const CLIP_NAME = "clip.mp4";
+const CLIP_INDEX_NAME = "clip.json";
+
 export type ClipSource = {
     clipId: string;
     sessionId: string;
@@ -30,6 +35,7 @@ export type ClipSource = {
     gameId: number;
     memoryId: string;
     owned: boolean;
+    remuxed: boolean;
 };
 
 export type ClipPlaybackState = {
@@ -53,6 +59,19 @@ export type ClipPlayback = {
 type StreamPlan = {
     id: string;
     type: string;
+};
+
+type Piece = {
+    bytes: ArrayBuffer;
+    size: number;
+};
+
+type ClipIndex = {
+    mime: string;
+    init: number;
+    mediaEnd: number;
+    size: number;
+    fragments: [number, number, boolean][];
 };
 
 type ManifestPlan = {
@@ -104,6 +123,32 @@ function parseManifest(text: string): ManifestPlan | null {
         startNumber: Number(attribute(template[1], "startNumber")) || 1,
         initTemplate: attribute(template[1], "initialization"),
         mediaTemplate: attribute(template[1], "media")
+    };
+}
+
+function parseIndex(text: string): ClipIndex | null {
+    let raw: Partial<ClipIndex>;
+    try {
+        raw = JSON.parse(text) as Partial<ClipIndex>;
+    }
+    catch {
+        return null;
+    }
+    if (typeof raw.mime !== "string" || raw.mime === "") {
+        return null;
+    }
+    if (typeof raw.init !== "number" || typeof raw.mediaEnd !== "number") {
+        return null;
+    }
+    if (!Array.isArray(raw.fragments) || raw.fragments.length === 0) {
+        return null;
+    }
+    return {
+        mime: raw.mime,
+        init: raw.init,
+        mediaEnd: raw.mediaEnd,
+        size: typeof raw.size === "number" ? raw.size : raw.mediaEnd,
+        fragments: raw.fragments
     };
 }
 
@@ -181,12 +226,17 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
     let objectUrl: string | null = null;
     let buffers: SourceBuffer[] = [];
     let plan: ManifestPlan | null = null;
+    let index: ClipIndex | null = null;
+    let nextOffset = 0;
 
     // Learned rather than computed. The manifest's period start is not the first
     // segment's own timestamp: they differ by a fraction of a second on a clip
     // cut from a background session, and every seek here is in media time.
     let firstSegmentStart = 0;
     let nextSegment = 0;
+    let offsets: number[] = [];
+    let finished: boolean[] = [];
+    let generation = 0;
     let exhausted = false;
     let pumping = false;
     let unavailable = false;
@@ -230,10 +280,10 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         publish();
     }
 
-    async function fetchPart(name: string): Promise<ArrayBuffer | null> {
+    async function fetchPart(name: string, offset = 0, limit = 0): Promise<Piece | null> {
         if (source.owned) {
             const asked = performance.now();
-            const answer = await readMemoryClipPart(source.gameId, source.memoryId, name);
+            const answer = await readMemoryClipPart(source.gameId, source.memoryId, name, offset, limit);
             const arrived = performance.now();
             if (!answer.ok || answer.data === undefined) {
                 if (answer.rootAvailable === false) {
@@ -243,15 +293,16 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
             }
             const bytes = decodeBase64(answer.data);
             logFocusDebug("clip-part", name,
-                `${(bytes.byteLength / 1e6).toFixed(1)}MB ipc=${Math.round(arrived - asked)}ms `
-                + `decode=${Math.round(performance.now() - arrived)}ms`);
-            return bytes;
+                `+${(offset / 1e6).toFixed(1)} ${(bytes.byteLength / 1e6).toFixed(1)}MB `
+                + `ipc=${Math.round(arrived - asked)}ms decode=${Math.round(performance.now() - arrived)}ms`);
+            return { bytes, size: answer.size ?? bytes.byteLength };
         }
         const answer = await fetch(`${base}/${name}`, { signal: aborter.signal });
         if (!answer.ok) {
             return null;
         }
-        return answer.arrayBuffer();
+        const bytes = await answer.arrayBuffer();
+        return { bytes, size: bytes.byteLength };
     }
 
     function segmentFor(at: number): number {
@@ -262,45 +313,160 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         return plan.startNumber + Math.floor(offset / plan.segmentSeconds);
     }
 
-    async function appendSegment(number: number): Promise<boolean> {
+    function pieceEndFor(from: number): number {
+        if (!index) {
+            return from;
+        }
+        const limit = from + PIECE_BYTES;
+        let next = index.mediaEnd;
+        let best = 0;
+        for (const [, offset] of index.fragments) {
+            if (offset <= from) {
+                continue;
+            }
+            if (offset <= limit) {
+                best = offset;
+                continue;
+            }
+            next = offset;
+            break;
+        }
+        return best > 0 ? best : Math.min(next, index.mediaEnd);
+    }
+
+    function syncOffsetFor(at: number): number {
+        if (!index) {
+            return 0;
+        }
+        const wanted = Math.max(at, 0) * 1000;
+        let chosen = index.init;
+        for (const [time, offset, sync] of index.fragments) {
+            if (!sync) {
+                continue;
+            }
+            if (time > wanted) {
+                break;
+            }
+            chosen = offset;
+        }
+        return chosen;
+    }
+
+    async function appendFragments(era: number): Promise<boolean> {
+        if (!index || destroyed || buffers.length === 0 || nextOffset >= index.mediaEnd) {
+            return false;
+        }
+        const end = pieceEndFor(nextOffset);
+        const piece = await fetchPart(CLIP_NAME, nextOffset, end - nextOffset);
+        if (destroyed) {
+            return false;
+        }
+        if (era !== generation) {
+            return true;
+        }
+        if (!piece || piece.bytes.byteLength === 0) {
+            return false;
+        }
+        await settled(buffers[0]);
+        if (destroyed || era !== generation) {
+            return true;
+        }
+        await appendOnce(buffers[0], piece.bytes);
+        if (era !== generation) {
+            return true;
+        }
+        nextOffset += piece.bytes.byteLength;
+        logFocusDebug("clip-round", CLIP_NAME,
+            `${(nextOffset / 1e6).toFixed(1)}MB in, buffered ${coverage()}`);
+        return true;
+    }
+
+    function coverage(): string {
+        const ranges = video.buffered;
+        if (ranges.length === 0) {
+            return "nothing";
+        }
+        return `${ranges.start(0).toFixed(2)}-${ranges.end(ranges.length - 1).toFixed(2)}s`;
+    }
+
+    function startSegment(number: number) {
+        nextSegment = number;
+        offsets = plan ? plan.streams.map(() => 0) : [];
+        finished = plan ? plan.streams.map(() => false) : [];
+    }
+
+    function segmentDone(): boolean {
+        return finished.every(Boolean);
+    }
+
+    async function appendRound(number: number, era: number): Promise<boolean> {
         if (!plan || destroyed) {
             return false;
         }
-        const parts = await Promise.all(plan.streams.map((stream) =>
-            fetchPart(fillTemplate(plan!.mediaTemplate, stream.id, number))));
-        if (destroyed || !parts[0]) {
+        const asking = plan.streams.map((_stream, index) => !finished[index]);
+        const pieces = await Promise.all(plan.streams.map((stream, index) =>
+            asking[index]
+                ? fetchPart(fillTemplate(plan!.mediaTemplate, stream.id, number), offsets[index], PIECE_BYTES)
+                : Promise.resolve(null)));
+        if (destroyed) {
+            return false;
+        }
+        if (era !== generation) {
+            return true;
+        }
+        if (asking[0] && !pieces[0]) {
             return false;
         }
         for (let index = 0; index < buffers.length; index += 1) {
-            const bytes = parts[index];
-            if (!bytes || destroyed) {
+            const piece = pieces[index];
+            if (!asking[index]) {
+                continue;
+            }
+            if (!piece || piece.bytes.byteLength === 0) {
+                finished[index] = true;
                 continue;
             }
             await settled(buffers[index]);
-            if (destroyed) {
-                return false;
+            if (destroyed || era !== generation) {
+                return true;
             }
-            await appendOnce(buffers[index], bytes);
+            await appendOnce(buffers[index], piece.bytes);
+            if (era !== generation) {
+                return true;
+            }
+            offsets[index] += piece.bytes.byteLength;
+            finished[index] = offsets[index] >= piece.size;
         }
+        logFocusDebug("clip-round", `segment ${number}`,
+            `${(offsets[0] / 1e6).toFixed(1)}MB in, buffered ${coverage()}`);
         return true;
     }
 
     async function pump(ahead: number = AHEAD_SECONDS, from?: number) {
-        if (pumping || destroyed || !plan) {
+        if (pumping || destroyed || (!plan && !index)) {
             return;
         }
         pumping = true;
+        const era = generation;
         try {
-            while (!destroyed && !exhausted) {
+            while (!destroyed && !exhausted && era === generation) {
                 const at = from ?? video.currentTime;
                 if (bufferedHolds(video, at) && bufferedEnd(video, at) - at >= ahead) {
                     break;
                 }
-                if (!await appendSegment(nextSegment)) {
+                const more = index
+                    ? await appendFragments(era)
+                    : await appendRound(nextSegment, era);
+                if (era !== generation) {
+                    break;
+                }
+                if (!more) {
                     exhausted = true;
                     break;
                 }
-                nextSegment += 1;
+                if (!index && segmentDone()) {
+                    startSegment(nextSegment + 1);
+                }
             }
             if (exhausted) {
                 closeStream();
@@ -314,6 +480,9 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         }
         finally {
             pumping = false;
+        }
+        if (era !== generation && !destroyed) {
+            void pump();
         }
     }
 
@@ -353,7 +522,7 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
     }
 
     function refill(from: number) {
-        if (destroyed || !plan) {
+        if (destroyed || (!plan && !index)) {
             return;
         }
         for (const buffer of buffers) {
@@ -365,7 +534,13 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
                 }
             }
         }
-        nextSegment = segmentFor(from);
+        generation += 1;
+        if (index) {
+            nextOffset = syncOffsetFor(from);
+        }
+        else {
+            startSegment(segmentFor(from));
+        }
         exhausted = false;
         void pump();
     }
@@ -465,18 +640,37 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
     const opened = performance.now();
     void (async () => {
         try {
-            const manifest = await fetchPart("session.mpd");
-            if (manifest === null) {
-                unreachable(driveMissing ? "the drive holding it is not connected" : `${base}/session.mpd`);
-                return;
+            if (source.remuxed) {
+                const written = await fetchPart(CLIP_INDEX_NAME);
+                if (written === null) {
+                    unreachable(driveMissing
+                        ? "the drive holding it is not connected"
+                        : "the clip's index is not there");
+                    return;
+                }
+                index = parseIndex(new TextDecoder().decode(written.bytes));
+                if (destroyed) {
+                    return;
+                }
+                if (!index) {
+                    unreachable("the clip's index does not describe a clip");
+                    return;
+                }
             }
-            plan = parseManifest(new TextDecoder().decode(manifest));
-            if (destroyed) {
-                return;
-            }
-            if (!plan) {
-                unreachable("the manifest names no segments");
-                return;
+            else {
+                const manifest = await fetchPart("session.mpd");
+                if (manifest === null) {
+                    unreachable(driveMissing ? "the drive holding it is not connected" : `${base}/session.mpd`);
+                    return;
+                }
+                plan = parseManifest(new TextDecoder().decode(manifest.bytes));
+                if (destroyed) {
+                    return;
+                }
+                if (!plan) {
+                    unreachable("the manifest names no segments");
+                    return;
+                }
             }
 
             mediaSource = new MediaSource();
@@ -489,23 +683,45 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
                 return;
             }
 
-            buffers = plan.streams.map((stream) => mediaSource!.addSourceBuffer(stream.type));
-            for (let index = 0; index < plan.streams.length; index += 1) {
-                const init = await fetchPart(fillTemplate(plan.initTemplate, plan.streams[index].id, 0));
-                if (!init || destroyed) {
-                    continue;
+            if (index) {
+                buffers = [mediaSource.addSourceBuffer(index.mime)];
+                const header = await fetchPart(CLIP_NAME, 0, index.init);
+                if (!header || destroyed) {
+                    if (!destroyed) {
+                        unreachable("the clip's header would not load");
+                    }
+                    return;
                 }
-                await appendOnce(buffers[index], init);
+                await appendOnce(buffers[0], header.bytes);
+                nextOffset = syncOffsetFor(inPoint);
+                if (!await appendFragments(generation)) {
+                    if (!destroyed) {
+                        unreachable("the first fragment would not load");
+                    }
+                    return;
+                }
             }
+            else if (plan) {
+                buffers = plan.streams.map((stream) => mediaSource!.addSourceBuffer(stream.type));
+                for (let slot = 0; slot < plan.streams.length; slot += 1) {
+                    const init = await fetchPart(fillTemplate(plan.initTemplate, plan.streams[slot].id, 0));
+                    if (!init || destroyed) {
+                        continue;
+                    }
+                    await appendOnce(buffers[slot], init.bytes);
+                }
 
-            nextSegment = plan.startNumber;
-            if (!await appendSegment(nextSegment)) {
-                if (!destroyed) {
-                    unreachable("the first segment would not load");
+                startSegment(plan.startNumber);
+                if (!await appendRound(nextSegment, generation)) {
+                    if (!destroyed) {
+                        unreachable("the first segment would not load");
+                    }
+                    return;
                 }
-                return;
+                if (segmentDone()) {
+                    startSegment(nextSegment + 1);
+                }
             }
-            nextSegment += 1;
             firstSegmentStart = video.buffered.length > 0 ? video.buffered.start(0) : 0;
 
             const startAt = Math.max(inPoint, firstSegmentStart);
@@ -580,6 +796,7 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
             }
             mediaSource = null;
             plan = null;
+            index = null;
             listeners.clear();
         },
 

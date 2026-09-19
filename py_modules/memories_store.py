@@ -82,6 +82,11 @@ def _clean_video(raw):
     referenced when it carries a Steam clip id. Both keys are always present so
     a caller tests one for emptiness rather than testing the record for a
     missing key, and a source with neither reads back as no video at all.
+
+    ``kind`` says how an owned copy is laid out on disk: ``mp4`` is one
+    fragmented file with an index beside it, ``dash`` is Steam's own manifest
+    and segments carried across. A record written before the remux existed says
+    neither, and reads back as dash, which is what it is.
     """
     if not isinstance(raw, dict):
         return None
@@ -98,10 +103,15 @@ def _clean_video(raw):
     if not clip_id and not path:
         return None
 
+    kind = raw.get("kind")
+    if kind not in ("mp4", "dash"):
+        kind = "dash"
+
     return {
         "clipId": clip_id,
         "sessionId": session_id,
         "path": path,
+        "kind": kind,
         "startMs": max(to_int(raw.get("startMs"), 0), 0),
         "durationMs": max(to_int(raw.get("durationMs"), 0), 0),
         "sizeBytes": max(to_int(raw.get("sizeBytes"), 0), 0),

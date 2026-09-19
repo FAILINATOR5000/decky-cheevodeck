@@ -960,6 +960,7 @@ export type SettingsResponse = {
     memoriesPerPage: number;
     memoriesVideo: boolean;
     memoriesVideoPath: string;
+    memoriesRemux: boolean;
     memoriesDeleteSteamClip: boolean;
     fileWatcherSpeed: FileWatcherSpeed;
     fileWatcherRunDuringGames: boolean;
@@ -1479,6 +1480,7 @@ type MemoryVideo = {
     startMs: number;
     durationMs: number;
     sizeBytes: number;
+    kind: "mp4" | "dash";
 };
 
 export type MemoryRecord = {

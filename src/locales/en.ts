@@ -1915,6 +1915,8 @@ export const EN: LocaleTable = {
     "help_memories_video": "Saved Steam clips become memories alongside your screenshots. CheevoDeck keeps its own copy of the video, because Steam's recordings go away on their own: a recording folder on a RAM disk empties at every restart, clearing clips in Steam takes the files, and a clip whose shortcut has gone can be swept up with it. Turn this off and clips are ignored completely.",
     "help_memories_video_path": "This is the location where your video clips are located. If you'd rather store it elsewhere, feel free to choose. Useful if you want to store them on the SD card instead of internal storage.",
     "help_memories_video_default": "Moves the clip videos back to ~/Videos/CheevoDeck. It works the same way as picking a location: copy, check, then remove the old copies.",
+    "Remux Clips": "Remux Clips",
+    "help_memories_remux": "Rewrites a saved clip into one video file as it is filed, with an index of where each second starts. Playback then reads only the part it needs, so a 4K clip reaches its first frame in a fraction of the time. The picture and sound are carried across untouched, frame for frame. Turn this off to keep Steam's own files exactly as they are; clips still become memories either way, they just take longer to start.",
     "help_memories_delete_steam_clip": "Once a clip has become a memory, removes Steam's own copy from its Media library. Only ever happens after CheevoDeck's copy is on disk and has been checked. Useful if you just want to save space or just want your media collection here only.",
     "help_battery_saver_memories": "Stops new screenshots and clips becoming memories while Battery Saver is on.",
     "Memories Data": "Memories Data",

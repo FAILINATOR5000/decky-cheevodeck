@@ -11,8 +11,10 @@ unchanged: no remux, no transcode, and the player reads the copy exactly the way
 it reads Steam's.
 """
 
+import json
 import re
 import shutil
+import struct
 from pathlib import Path
 
 import decky
@@ -31,6 +33,17 @@ POSTER_CANDIDATE_FRAMES = 100
 _PROBE_TIMEOUT_SECONDS = 20
 _POSTER_TIMEOUT_SECONDS = 120
 
+_REMUX_TIMEOUT_SECONDS = 300
+
+CLIP_NAME = "clip.mp4"
+CLIP_INDEX_NAME = "clip.json"
+
+_FRAGMENT_MICROSECONDS = 1000000
+
+_NON_SYNC_SAMPLE = 0x00010000
+
+_TFHD_DEFAULT_BASE_IS_MOOF = 0x020000
+
 USERDATA_RELATIVE = ".local/share/Steam/userdata"
 
 RECORDINGS_DIR_NAME = "gamerecordings"
@@ -41,11 +54,14 @@ _ID_SAFE_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,120}$")
 # way the RSS in news_service is.
 _PERIOD_START_PATTERN = re.compile(r"<Period\b[^>]*?\bstart=\"([^\"]*)\"")
 _PRESENTATION_PATTERN = re.compile(r"\bmediaPresentationDuration=\"([^\"]*)\"")
+_CODECS_PATTERN = re.compile(r"\bcodecs=\"([^\"]*)\"")
 _ISO_DURATION_PATTERN = re.compile(r"^PT(?:(\d+)H)?(?:(\d+)M)?([\d.]+)S$")
 
 _RECORD_PATH_PATTERN = re.compile(r'"BackgroundRecordPath"\s+"([^"]*)"')
 
-_SEGMENT_NAME_PATTERN = re.compile(r"^(?:session\.mpd|init-stream\d{1,2}\.m4s|chunk-stream\d{1,2}-\d{1,9}\.m4s)$")
+_SEGMENT_NAME_PATTERN = re.compile(
+    r"^(?:clip\.mp4|clip\.json|session\.mpd|init-stream\d{1,2}\.m4s|chunk-stream\d{1,2}-\d{1,9}\.m4s)$"
+)
 
 
 def _iso_duration_ms(raw):
@@ -199,6 +215,340 @@ def segment_source(session_path: Path, stream: int = 0) -> str:
     if not chunks:
         return ""
     return "concat:" + "|".join([str(init)] + [str(chunk) for chunk in chunks])
+
+
+def _boxes(raw: bytes, start: int, end: int):
+    """Walk one level of the MP4 box tree, yielding ``(offset, size, kind, body)``.
+
+    Stops rather than raising on a length that cannot be right, so a truncated
+    or unexpected file ends the walk instead of taking the caller down with it.
+    """
+    offset = start
+    while offset + 8 <= end:
+        size = struct.unpack_from(">I", raw, offset)[0]
+        kind = raw[offset + 4:offset + 8].decode("latin-1")
+        header = 8
+        if size == 1:
+            if offset + 16 > end:
+                return
+            size = struct.unpack_from(">Q", raw, offset + 8)[0]
+            header = 16
+        if size < header or offset + size > end:
+            return
+        yield (offset, size, kind, offset + header)
+        offset += size
+
+
+def _decode_time(raw: bytes, body: int) -> int:
+    """The baseMediaDecodeTime out of a tfdt box, either width."""
+    version = raw[body]
+    if version == 1:
+        return struct.unpack_from(">Q", raw, body + 4)[0]
+    return struct.unpack_from(">I", raw, body + 4)[0]
+
+
+def _opens_on_keyframe(raw: bytes, start: int, end: int) -> bool:
+    """Whether a track fragment's first sample is one playback can start on.
+
+    The flags can arrive in either of two places: trun carries them for the
+    first sample when it wants to say something different from the default, and
+    tfhd carries the default for everything else. Later wins, which is the order
+    they appear in.
+    """
+    flags = None
+    for _offset, _size, kind, body in _boxes(raw, start, end):
+        if kind == "tfhd":
+            present = struct.unpack_from(">I", raw, body)[0] & 0xFFFFFF
+            cursor = body + 8
+            for bit, width in ((0x000001, 8), (0x000002, 4), (0x000008, 4), (0x000010, 4)):
+                if present & bit:
+                    cursor += width
+            if present & 0x000020:
+                flags = struct.unpack_from(">I", raw, cursor)[0]
+        elif kind == "trun":
+            present = struct.unpack_from(">I", raw, body)[0] & 0xFFFFFF
+            cursor = body + 8
+            if present & 0x000001:
+                cursor += 4
+            if present & 0x000004:
+                flags = struct.unpack_from(">I", raw, cursor)[0]
+    return flags is not None and (flags & _NON_SYNC_SAMPLE) == 0
+
+
+def _video_timescale(raw: bytes, moov: tuple) -> int:
+    """The first track's timescale, which is the one the fragment times use."""
+    offset, size, _kind, body = moov
+    for toff, tsize, tkind, tbody in _boxes(raw, body, offset + size):
+        if tkind != "trak":
+            continue
+        for moff, msize, mkind, mbody in _boxes(raw, tbody, toff + tsize):
+            if mkind != "mdia":
+                continue
+            for _hoff, _hsize, hkind, hbody in _boxes(raw, mbody, moff + msize):
+                if hkind == "mdhd":
+                    version = raw[hbody]
+                    return struct.unpack_from(">I", raw, hbody + (20 if version == 1 else 12))[0]
+    return 0
+
+
+def _top_level_boxes(handle, total: int):
+    """Walk a file's outermost boxes, reading headers rather than contents.
+
+    Yields ``(offset, size, kind, header length)``. A fragmented 4K recording
+    runs to gigabytes, so nothing here holds more than sixteen bytes of it at a
+    time and the caller reads only the boxes it actually needs.
+    """
+    offset = 0
+    while offset + 8 <= total:
+        handle.seek(offset)
+        head = handle.read(8)
+        if len(head) < 8:
+            return
+        size = struct.unpack(">I", head[:4])[0]
+        kind = head[4:8].decode("latin-1")
+        header = 8
+        if size == 1:
+            wide = handle.read(8)
+            if len(wide) < 8:
+                return
+            size = struct.unpack(">Q", wide)[0]
+            header = 16
+        if size < header or offset + size > total:
+            return
+        yield (offset, size, kind, header)
+        offset += size
+
+
+def _read_box(handle, offset: int, size: int) -> bytes:
+    handle.seek(offset)
+    return handle.read(size)
+
+
+def _moof_relative(raw: bytes, start: int, end: int) -> bool:
+    """Whether a track fragment's samples are addressed from its own header."""
+    for _offset, _size, kind, body in _boxes(raw, start, end):
+        if kind == "tfhd":
+            return bool(struct.unpack_from(">I", raw, body)[0] & _TFHD_DEFAULT_BASE_IS_MOOF)
+    return False
+
+
+def build_clip_index(path: Path, mime: str) -> dict:
+    """Map a fragmented MP4's timeline onto its byte ranges.
+
+    Returns the header length, where the media data stops, and one row per
+    fragment of ``[start in ms, byte offset, opens on a keyframe]``. That is
+    what lets the player ask for the second it wants instead of reading from the
+    beginning, and what lets every range it asks for end on a fragment boundary
+    so the decoder is never handed half of one.
+
+    Only the headers are ever read. The moov and each moof are a few hundred
+    bytes and the sample data between them is skipped over, so indexing a three
+    gigabyte recording costs about as much as indexing a small one.
+
+    A fragment whose header still carries an absolute offset into the file is
+    rejected on arrival by the decoder, so that is checked here rather than
+    discovered at playback: an index is only returned for a file whose fragments
+    can be read one at a time.
+
+    Returns an empty dict when the file is not shaped like one, which is the
+    signal to keep the plain copy instead.
+    """
+    fragments = []
+    relocatable = True
+    with path.open("rb") as handle:
+        total = handle.seek(0, 2)
+        media_end = total
+        init_bytes = 0
+        timescale = 0
+
+        for offset, size, kind, header in _top_level_boxes(handle, total):
+            if kind == "moov":
+                raw = _read_box(handle, offset, size)
+                timescale = _video_timescale(raw, (0, size, kind, header))
+                init_bytes = offset + size
+                continue
+            if kind == "mfra":
+                media_end = min(media_end, offset)
+                continue
+            if kind != "moof":
+                continue
+
+            raw = _read_box(handle, offset, size)
+            trafs = [box for box in _boxes(raw, header, size) if box[2] == "traf"]
+            if not trafs:
+                continue
+            toff, tsize, _tkind, tbody = trafs[0]
+            if not _moof_relative(raw, tbody, toff + tsize):
+                relocatable = False
+                break
+            start = 0
+            for _aoff, _asize, akind, abody in _boxes(raw, tbody, toff + tsize):
+                if akind == "tfdt":
+                    start = _decode_time(raw, abody)
+            fragments.append([
+                round(start * 1000 / timescale) if timescale > 0 else 0,
+                offset,
+                _opens_on_keyframe(raw, tbody, toff + tsize),
+            ])
+
+    if timescale <= 0 or init_bytes <= 0 or not fragments or not relocatable:
+        if not relocatable:
+            decky.logger.warning(
+                "memories: %s addresses its samples from the start of the file, so it "
+                "cannot be played a fragment at a time", path.name
+            )
+        return {}
+    return {
+        "mime": mime,
+        "init": init_bytes,
+        "mediaEnd": media_end,
+        "size": total,
+        "fragments": fragments,
+    }
+
+
+def media_start_ms(session_path: Path) -> int:
+    """When the copied footage begins, in the clock the manifest's Period uses.
+
+    A remux rebases its output to zero, so this is what the in-point has to be
+    measured against afterwards. Read out of the first video chunk's own
+    baseMediaDecodeTime rather than probed, which costs nothing.
+    """
+    try:
+        chunks = sorted(session_path.glob("chunk-stream0-*.m4s"))
+        if not chunks:
+            return 0
+
+        timescale = 0
+        with (session_path / "init-stream0.m4s").open("rb") as handle:
+            total = handle.seek(0, 2)
+            for offset, size, kind, header in _top_level_boxes(handle, total):
+                if kind == "moov":
+                    raw = _read_box(handle, offset, size)
+                    timescale = _video_timescale(raw, (0, size, kind, header))
+                    break
+        if timescale <= 0:
+            return 0
+
+        with chunks[0].open("rb") as handle:
+            total = handle.seek(0, 2)
+            for offset, size, kind, header in _top_level_boxes(handle, total):
+                if kind != "moof":
+                    continue
+                raw = _read_box(handle, offset, size)
+                for toff, tsize, tkind, tbody in _boxes(raw, header, size):
+                    if tkind != "traf":
+                        continue
+                    for _aoff, _asize, akind, abody in _boxes(raw, tbody, toff + tsize):
+                        if akind == "tfdt":
+                            return round(_decode_time(raw, abody) * 1000 / timescale)
+    except OSError:
+        return 0
+    return 0
+
+
+def manifest_mime(session_path: Path) -> str:
+    """The MSE type string for a clip, built from what the manifest declares.
+
+    Both tracks land in one file after a remux, so they are named in one string
+    and the player opens a single SourceBuffer for the pair.
+    """
+    try:
+        text = (session_path / "session.mpd").read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return ""
+    codecs = _CODECS_PATTERN.findall(text)
+    if not codecs:
+        return ""
+    return 'video/mp4; codecs="' + ",".join(codecs) + '"'
+
+
+def remux_session(session_path: Path, destination: Path) -> dict:
+    """Rewrite one clip's segments as a single fragmented MP4 with an index.
+
+    Returns ``{"ok", "bytes", "mediaStartMs"}``. The audio and video are passed
+    through untouched, frame for frame: the work is rewriting box headers, which
+    runs at about a gigabyte a second and cannot change a pixel or a sample.
+
+    What it buys is addressing. Steam writes three-second segments, and reading
+    one costs half a second at 2160p60 before anything can be shown; the output
+    carries a fragment per second and an index saying where each one starts, so
+    playback asks for the part it needs.
+
+    Every failure leaves nothing behind and returns not ok, and the caller falls
+    back to copying the segments as they are.
+    """
+    if not _tools_available():
+        return {"ok": False, "bytes": 0, "mediaStartMs": 0}
+
+    video = segment_source(session_path, 0)
+    audio = segment_source(session_path, 1)
+    mime = manifest_mime(session_path)
+    if not video or not mime:
+        return {"ok": False, "bytes": 0, "mediaStartMs": 0}
+
+    target = destination / CLIP_NAME
+    command = [FFMPEG, "-y", "-v", "error", "-copyts", "-i", video]
+    if audio:
+        command += ["-i", audio, "-map", "0:v:0", "-map", "1:a:0"]
+    command += [
+        "-c", "copy",
+        "-movflags", "frag_keyframe+empty_moov+default_base_moof",
+        "-frag_duration", str(_FRAGMENT_MICROSECONDS),
+        str(target),
+    ]
+
+    try:
+        ensure_dir(destination)
+        code, stdout, stderr = subprocess_util.run_command(
+            command, timeout=_REMUX_TIMEOUT_SECONDS
+        )
+    except OSError as e:
+        decky.logger.warning("memories: the remux could not run (%s)", type(e).__name__)
+        return {"ok": False, "bytes": 0, "mediaStartMs": 0}
+
+    if code != 0:
+        decky.logger.warning(
+            "memories: remuxing %s failed (rc=%s): %s",
+            session_path.name, code, f"{stdout}{stderr}".strip()[:300],
+        )
+        _discard_remux(destination)
+        return {"ok": False, "bytes": 0, "mediaStartMs": 0}
+
+    try:
+        index = build_clip_index(target, mime)
+    except (OSError, struct.error, IndexError) as e:
+        decky.logger.warning("memories: the remux could not be indexed (%s)", type(e).__name__)
+        index = {}
+    if not index:
+        _discard_remux(destination)
+        return {"ok": False, "bytes": 0, "mediaStartMs": 0}
+
+    try:
+        (destination / CLIP_INDEX_NAME).write_text(
+            json.dumps(index, separators=(",", ":")), encoding="utf-8"
+        )
+        chown_to_data_owner(destination / CLIP_INDEX_NAME)
+        chown_to_data_owner(target)
+    except OSError as e:
+        decky.logger.warning("memories: the clip index could not be written (%s)", type(e).__name__)
+        _discard_remux(destination)
+        return {"ok": False, "bytes": 0, "mediaStartMs": 0}
+
+    decky.logger.info(
+        "memories: remuxed %s into %s fragments, %s MB",
+        session_path.name, len(index["fragments"]), round(index["size"] / (1024 * 1024), 1),
+    )
+    return {"ok": True, "bytes": index["size"], "mediaStartMs": media_start_ms(session_path)}
+
+
+def _discard_remux(destination: Path) -> None:
+    """Remove a half-made remux so the fallback copy starts from nothing."""
+    for name in (CLIP_NAME, CLIP_INDEX_NAME):
+        try:
+            (destination / name).unlink()
+        except OSError:
+            pass
 
 
 def session_files(session_path: Path) -> list:

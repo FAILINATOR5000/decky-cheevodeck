@@ -128,7 +128,8 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
             durationMs: video.durationMs,
             gameId: memory.gameId,
             memoryId: memory.id,
-            owned: video.path !== ""
+            owned: video.path !== "",
+            remuxed: video.path !== "" && video.kind === "mp4"
         };
     }, [memory.video, memory.gameId, memory.id]);
 

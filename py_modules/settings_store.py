@@ -434,6 +434,7 @@ _KNOBS = (
     Knob("memoriesVideo", default=True, normalize=True, read=READ_BOOL),
     Knob("memoriesVideoPath", default="", normalize=True),
     Knob("memoriesDeleteSteamClip", default=False, normalize=True, read=READ_BOOL),
+    Knob("memoriesRemux", default=True, normalize=True, read=READ_BOOL),
     Knob("fileWatcherSpeed", default="gentle", normalize=True),
     Knob("fileWatcherRunDuringGames", default=True, normalize=True, read=READ_BOOL),
     Knob("trackedSetAButtonMode", default="editNote", normalize=True),
@@ -1324,6 +1325,11 @@ class SettingsStore:
         cfg = self._update_config("memoriesVideo", bool(value))
 
         return self.get_memories_video(cfg)
+
+    def update_memories_remux(self, value: bool) -> bool:
+        cfg = self._update_config("memoriesRemux", bool(value))
+
+        return self.get_memories_remux(cfg)
 
     def update_memories_video_path(self, value) -> str:
         cfg = self._update_config("memoriesVideoPath", _clean_video_path(value))
@@ -3893,6 +3899,16 @@ class SettingsStore:
 
     def get_memories_video(self, cfg: dict) -> bool:
         return bool(cfg.get("memoriesVideo", True))
+
+    def get_memories_remux(self, cfg: dict) -> bool:
+        """Whether a captured clip is rewritten as one indexed file.
+
+        On, which is the default, playback can ask for the second it needs
+        instead of reading whole three-second segments. Off copies Steam's own
+        files across unchanged, which is also what happens on its own whenever
+        the rewrite cannot run.
+        """
+        return bool(cfg.get("memoriesRemux", True))
 
     def get_memories_video_path(self, cfg: dict) -> str:
         """The configured video root, or an empty string for the default one.

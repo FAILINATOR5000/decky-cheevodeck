@@ -136,6 +136,7 @@ import {
     saveMemoriesDeleteSource,
     saveMemoriesPerPage,
     saveMemoriesVideo,
+    saveMemoriesRemux,
     saveMemoriesDeleteSteamClip,
     saveLegacyCommentsLoading,
     saveBatterySaverDisablesSocialActivity,
@@ -459,6 +460,7 @@ type UseOptionsControllerArgs = {
     memoriesPerPage: number;
     memoriesVideo: boolean;
     memoriesVideoPath: string;
+    memoriesRemux: boolean;
     memoriesDeleteSteamClip: boolean;
     batterySaverDisablesMemories: boolean;
     legacyCommentsLoading: boolean;
@@ -515,6 +517,7 @@ type UseOptionsControllerArgs = {
     setMemoriesDeleteSource: Dispatch<SetStateAction<boolean>>;
     setMemoriesPerPage: Dispatch<SetStateAction<number>>;
     setMemoriesVideo: Dispatch<SetStateAction<boolean>>;
+    setMemoriesRemux: Dispatch<SetStateAction<boolean>>;
     setMemoriesDeleteSteamClip: Dispatch<SetStateAction<boolean>>;
     setLegacyCommentsLoading: Dispatch<SetStateAction<boolean>>;
     setBatterySaverDisablesSocialActivity: Dispatch<SetStateAction<boolean>>;
@@ -893,6 +896,7 @@ export function useOptionsController({
     memoriesPerPage,
     memoriesVideo,
     memoriesVideoPath,
+    memoriesRemux,
     memoriesDeleteSteamClip,
     batterySaverDisablesMemories,
     legacyCommentsLoading,
@@ -949,6 +953,7 @@ export function useOptionsController({
     setMemoriesDeleteSource,
     setMemoriesPerPage,
     setMemoriesVideo,
+    setMemoriesRemux,
     setMemoriesDeleteSteamClip,
     setBatterySaverDisablesMemories,
     setLegacyCommentsLoading,
@@ -3195,6 +3200,15 @@ export function useOptionsController({
             getSavedValue: (result, fallbackValue) => Boolean(result.memoriesVideo ?? fallbackValue),
         });
 
+    const onToggleMemoriesRemux = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: memoriesRemux,
+            applyValue: setMemoriesRemux,
+            saveCall: saveMemoriesRemux,
+            getSavedValue: (result, fallbackValue) => Boolean(result.memoriesRemux ?? fallbackValue),
+        });
+
     const onToggleMemoriesDeleteSteamClip = (nextValue: boolean) =>
         saveSettingWithRollback<boolean>({
             nextValue,
@@ -3541,6 +3555,7 @@ export function useOptionsController({
         memoriesPerPage,
         memoriesVideo,
         memoriesVideoPath,
+        memoriesRemux,
         memoriesDeleteSteamClip,
         memoriesCount,
         batterySaverDisablesMemories,
@@ -3782,6 +3797,7 @@ export function useOptionsController({
         onToggleMemoriesAutoCapture,
         onToggleMemoriesDeleteSource,
         onToggleMemoriesVideo,
+        onToggleMemoriesRemux,
         onToggleMemoriesDeleteSteamClip,
         onCycleMemoriesPerPage,
         onToggleBatterySaverDisablesMemories,

@@ -242,6 +242,7 @@ type OptionsPageState = {
     memoriesPerPage: number;
     memoriesVideo: boolean;
     memoriesVideoPath: string;
+    memoriesRemux: boolean;
     memoriesDeleteSteamClip: boolean;
     memoriesVideoMove: MemoriesVideoMoveStatus;
     memoriesVideoBusy: boolean;
@@ -377,6 +378,7 @@ type OptionsPageActions = {
     onToggleMemoriesAutoCapture: (next: boolean) => void | Promise<void>;
     onToggleMemoriesDeleteSource: (next: boolean) => void | Promise<void>;
     onToggleMemoriesVideo: (next: boolean) => void | Promise<void>;
+    onToggleMemoriesRemux: (next: boolean) => void | Promise<void>;
     onToggleMemoriesDeleteSteamClip: (next: boolean) => void | Promise<void>;
     onPickMemoriesVideoPath: () => void | Promise<void>;
     onUseDefaultMemoriesVideoPath: () => void | Promise<void>;
@@ -1018,6 +1020,14 @@ function SystemTab(props: SystemTabProps) {
                 onChange={actions.onToggleMemoriesDeleteSteamClip}
                 disabled={disabled || state.memoriesVideoBusy}
                 help={t(state.language, "help_memories_delete_steam_clip")}
+            />
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                label={t(state.language, "Remux Clips")}
+                value={state.memoriesRemux}
+                onChange={actions.onToggleMemoriesRemux}
+                disabled={disabled}
+                help={t(state.language, "help_memories_remux")}
             />
             <SectionTitle label={t(state.language, "Mastery Goals")} />
             <OptionToggle

@@ -1979,6 +1979,8 @@ const PL: LocaleTable = {
     "help_memories_video": "Zapisane klipy Steam stają się wspomnieniami tak samo jak zrzuty ekranu. CheevoDeck trzyma własną kopię pliku wideo, bo nagrania Steam znikają same: folder nagrań na dysku RAM pustoszeje po każdym restarcie, wyczyszczenie klipów w Steam zabiera pliki, a klip, którego skrót zniknął, może zostać usunięty razem z nim. Po wyłączeniu klipy są całkowicie pomijane.",
     "help_memories_video_path": "Tutaj znajdują się twoje klipy wideo. Jeśli wolisz trzymać je gdzie indziej, wybierz dowolne miejsce. Przydatne, gdy chcesz mieć je na karcie SD zamiast w pamięci wewnętrznej.",
     "help_memories_video_default": "Przenosi pliki wideo klipów z powrotem do ~/Videos/CheevoDeck. Działa tak samo jak wybór lokalizacji: kopiuje, sprawdza, a potem usuwa stare kopie.",
+    "Remux Clips": "Przepakuj klipy",
+    "help_memories_remux": "Przy zapisie przepisuje klip do jednego pliku wideo wraz ze spisem, gdzie zaczyna się każda sekunda. Odtwarzanie czyta wtedy tylko potrzebny fragment, więc klip w 4K pokazuje pierwszą klatkę w ułamku czasu. Obraz i dźwięk przechodzą nietknięte, klatka po klatce. Po wyłączeniu pliki Steama zostają dokładnie takie, jakie są; klipy i tak stają się wspomnieniami, tylko dłużej się uruchamiają.",
     "help_memories_delete_steam_clip": "Gdy klip stanie się wspomnieniem, usuwa własną kopię Steam z jego biblioteki multimediów. Dzieje się to dopiero wtedy, gdy kopia CheevoDeck jest na dysku i została sprawdzona. Przydatne, gdy chcesz po prostu zaoszczędzić miejsce albo trzymać swoją kolekcję tylko tutaj.",
     "help_battery_saver_memories": "Wstrzymuje zamianę nowych zrzutów ekranu i klipów na wspomnienia, gdy działa oszczędzanie baterii.",
     "Memories Data": "Dane Wspomnień",

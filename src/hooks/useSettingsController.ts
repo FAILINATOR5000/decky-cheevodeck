@@ -160,6 +160,7 @@ export function useSettingsController({
     const [memoriesPerPage, setMemoriesPerPage] = useState(32);
     const [memoriesVideo, setMemoriesVideo] = useState(true);
     const [memoriesVideoPath, setMemoriesVideoPath] = useState("");
+    const [memoriesRemux, setMemoriesRemux] = useState(true);
     const [memoriesDeleteSteamClip, setMemoriesDeleteSteamClip] = useState(false);
     const [fileWatcherSpeed, setFileWatcherSpeed] = useState<FileWatcherSpeed>("gentle");
     const [fileWatcherRunDuringGames, setFileWatcherRunDuringGames] = useState(true);
@@ -442,6 +443,7 @@ export function useSettingsController({
         setMemoriesPerPage(source.memoriesPerPage);
         setMemoriesVideo(source.memoriesVideo);
         setMemoriesVideoPath(source.memoriesVideoPath);
+        setMemoriesRemux(source.memoriesRemux);
         setMemoriesDeleteSteamClip(source.memoriesDeleteSteamClip);
         setFileWatcherSpeed(source.fileWatcherSpeed);
         setFileWatcherRunDuringGames(source.fileWatcherRunDuringGames);
@@ -715,6 +717,7 @@ export function useSettingsController({
         memoriesPerPage,
         memoriesVideo,
         memoriesVideoPath,
+        memoriesRemux,
         memoriesDeleteSteamClip,
         fileWatcherSpeed,
         fileWatcherRunDuringGames,
@@ -942,6 +945,7 @@ export function useSettingsController({
         setMemoriesPerPage,
         setMemoriesVideo,
         setMemoriesVideoPath,
+        setMemoriesRemux,
         setMemoriesDeleteSteamClip,
         setBatterySaverDisablesMemories,
         setFileWatcherSpeed,

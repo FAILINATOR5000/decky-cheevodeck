@@ -21,6 +21,19 @@ _RESOLVE_COOLDOWN_SECONDS = 5
 FULL_IMAGE_MAX_BYTES = 6 * 1024 * 1024
 
 
+def _read_slice(path: Path, offset: int, limit: int):
+    """Bytes ``offset`` onwards from ``path``, at most ``limit`` of them.
+
+    Returns the bytes and the file's whole size, so a caller reading in pieces
+    knows when it has them all without a second call. A limit of zero reads to
+    the end.
+    """
+    with path.open("rb") as handle:
+        size = handle.seek(0, 2)
+        handle.seek(offset)
+        return handle.read(limit) if limit > 0 else handle.read(), size
+
+
 def _boot_seconds() -> float:
     return time.clock_gettime(time.CLOCK_BOOTTIME)
 
@@ -49,6 +62,12 @@ class MemoriesMixin(PluginContext):
         return {
             "ok": True,
             "memoriesVideo": self.settings_store.update_memories_video(value),
+        }
+
+    async def save_memories_remux(self, value: bool):
+        return {
+            "ok": True,
+            "memoriesRemux": self.settings_store.update_memories_remux(value),
         }
 
     async def save_memories_delete_steam_clip(self, value: bool):
@@ -94,13 +113,20 @@ class MemoriesMixin(PluginContext):
             "rootAvailable": memories_video_service.root_available(root, picked != ""),
         }
 
-    async def read_memory_clip_part(self, game_id, memory_id: str, name: str):
-        """One file out of a memory's own copy of a clip, base64 encoded.
+    async def read_memory_clip_part(self, game_id, memory_id: str, name: str, offset=0, limit=0):
+        """Part of one file out of a memory's own copy of a clip, base64 encoded.
 
         The panel cannot open a local path and nothing serves this tree over
-        HTTP, so playback of an owned clip goes through here a segment at a
-        time. That is the same three seconds of video the player already asks
-        Steam for, so the cost per call does not depend on how long the clip is.
+        HTTP, so playback of an owned clip goes through here. ``offset`` and
+        ``limit`` cut a piece out of the middle of a segment; a limit of zero
+        reads the whole file, which is what the manifest and the init segments
+        want. The reply always carries ``size``, the length of the whole file,
+        because the player uses it to tell a piece that ends a segment from one
+        that has more behind it.
+
+        This route carries about twenty megabytes a second, so a 4K segment is
+        half a second on its own. That is the reason for the pieces: the player
+        can start on the first of them rather than on all ten megabytes.
         """
         if not memories_clips.is_segment_name(name):
             return {"ok": False, "error": "bad_name"}
@@ -111,8 +137,10 @@ class MemoriesMixin(PluginContext):
         if folder is None:
             return {"ok": False, "error": "not_found", "rootAvailable": True}
 
+        start = max(to_int(offset, 0), 0)
+        span = max(to_int(limit, 0), 0)
         try:
-            raw = await asyncio.to_thread((folder / name).read_bytes)
+            raw, size = await asyncio.to_thread(_read_slice, folder / name, start, span)
         except OSError as e:
             decky.logger.warning(
                 "memories: couldn't read %s for memory %s (%s)", name, memory_id, type(e).__name__
@@ -123,7 +151,7 @@ class MemoriesMixin(PluginContext):
             )
             return {"ok": False, "error": "unreadable", "rootAvailable": available}
 
-        return {"ok": True, "data": base64.b64encode(raw).decode("ascii")}
+        return {"ok": True, "data": base64.b64encode(raw).decode("ascii"), "size": size}
 
     async def load_memories(self, game_id=None):
         """Every memory for one game, newest first.
@@ -582,13 +610,19 @@ class MemoriesMixin(PluginContext):
         except ValueError:
             return {"ok": False, "error": "write_failed"}
 
-        owned = self._copy_clip_sync(ra_game_id, clip_id, session)
+        owned = self._copy_clip_sync(
+            ra_game_id, clip_id, session, self.settings_store.get_memories_remux(cfg)
+        )
         if not owned["ok"]:
             try:
                 destination.unlink()
             except OSError:
                 pass
             return {"ok": False, "error": "copy_failed"}
+
+        video_start_ms = start_ms
+        if owned["kind"] == "mp4":
+            video_start_ms = max(start_ms - owned["mediaStartMs"], 0)
 
         added = self.memories_store.add_memory(
             ra_game_id,
@@ -603,9 +637,10 @@ class MemoriesMixin(PluginContext):
                 "clipId": clip_id,
                 "sessionId": session.name,
                 "path": owned["path"],
-                "startMs": start_ms,
+                "startMs": video_start_ms,
                 "durationMs": span_ms,
                 "sizeBytes": owned["bytes"] or to_int(file_size, 0),
+                "kind": owned["kind"],
             },
         )
         if not added.get("ok"):
@@ -626,32 +661,54 @@ class MemoriesMixin(PluginContext):
             "deleteClip": self.settings_store.get_memories_delete_steam_clip(cfg),
         }
 
-    def _copy_clip_sync(self, game_id, clip_id: str, session: Path) -> dict:
-        """Copy one clip's manifest and segments into this account's video tree.
+    def _copy_clip_sync(self, game_id, clip_id: str, session: Path, remux: bool = True) -> dict:
+        """Take a clip into this account's video tree, remuxing it if it can.
 
-        Returns ``{"ok", "path", "folder", "bytes"}``, where ``path`` is what
-        the record carries: relative to the video root, so the files move with
-        the root rather than being pinned to the home directory they were
-        written under.
+        Returns ``{"ok", "path", "folder", "bytes", "kind", "mediaStartMs"}``.
+        ``path`` is relative to the video root, so the files travel with the
+        root rather than being pinned to the home directory they were written
+        under, and ``kind`` says which of the two shapes landed.
+
+        The remux is one fragmented MP4 with an index, which is what lets
+        playback ask for a second of video rather than a whole segment. It moves
+        no pixels and no samples, so the only thing at stake is addressing, and
+        anything at all going wrong falls back to copying Steam's own files
+        across unchanged. A clip is never lost to a remux that would not run.
+
+        ``remux`` False takes that same fallback deliberately, which is what the
+        setting is for: both shapes play, so turning it off costs startup time
+        rather than the clip.
         """
         try:
             folder = self.memories_store.ensure_video_dir(game_id, clip_id)
         except (OSError, ValueError) as e:
             decky.logger.error("memories: couldn't prepare the video folder (%s)", type(e).__name__)
-            return {"ok": False, "path": "", "folder": None, "bytes": 0}
+            return {"ok": False, "path": "", "folder": None, "bytes": 0, "kind": "", "mediaStartMs": 0}
 
-        result = memories_clips.copy_session(session, folder)
+        remuxed = (
+            memories_clips.remux_session(session, folder)
+            if remux
+            else {"ok": False, "bytes": 0, "mediaStartMs": 0}
+        )
+        result = remuxed if remuxed["ok"] else memories_clips.copy_session(session, folder)
         if not result["ok"]:
-            return {"ok": False, "path": "", "folder": folder, "bytes": 0}
+            return {"ok": False, "path": "", "folder": folder, "bytes": 0, "kind": "", "mediaStartMs": 0}
 
         try:
             relative = str(folder.relative_to(self.memories_store.videos_root()))
         except ValueError:
             memories_clips.discard_copy(folder)
             decky.logger.error("memories: the clip copy landed outside the video root")
-            return {"ok": False, "path": "", "folder": folder, "bytes": 0}
+            return {"ok": False, "path": "", "folder": folder, "bytes": 0, "kind": "", "mediaStartMs": 0}
 
-        return {"ok": True, "path": relative, "folder": folder, "bytes": result["bytes"]}
+        return {
+            "ok": True,
+            "path": relative,
+            "folder": folder,
+            "bytes": result["bytes"],
+            "kind": "mp4" if remuxed["ok"] else "dash",
+            "mediaStartMs": result.get("mediaStartMs", 0),
+        }
 
     def _transcode_if_png(self, destination: Path) -> Path:
         """Re-encode a freshly copied PNG as lossless WebP, or leave it alone.

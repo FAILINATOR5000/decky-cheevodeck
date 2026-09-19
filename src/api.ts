@@ -488,6 +488,10 @@ export const saveMemoriesVideo = callable<
     [boolean],
     { ok: boolean; memoriesVideo: boolean }
 >("save_memories_video");
+export const saveMemoriesRemux = callable<
+    [boolean],
+    { ok: boolean; memoriesRemux: boolean }
+>("save_memories_remux");
 export const saveMemoriesDeleteSteamClip = callable<
     [boolean],
     { ok: boolean; memoriesDeleteSteamClip: boolean }
@@ -501,8 +505,8 @@ export const getMemoriesVideoMoveStatus = callable<
     MemoriesVideoMoveStatus
 >("memories_video_move_status");
 export const readMemoryClipPart = callable<
-    [number, string, string],
-    { ok: boolean; error?: string; rootAvailable?: boolean; data?: string }
+    [number, string, string, number, number],
+    { ok: boolean; error?: string; rootAvailable?: boolean; data?: string; size?: number }
 >("read_memory_clip_part");
 export const adoptScreenshot = callable<
     [string, number, number, string],
