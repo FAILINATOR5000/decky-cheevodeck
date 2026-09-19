@@ -308,7 +308,9 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
     const rule = noteBodyColor(color);
     const imageMaxVh = getDeviceIsSteamMachine() ? 70 : 55;
 
-    const railCards = memory.achievements.slice(0, RAIL_CARD_LIMIT);
+    const railCards = useMemo(() => [...memory.achievements]
+        .sort((first, second) => (first.unlockedAt ?? Infinity) - (second.unlockedAt ?? Infinity))
+        .slice(0, RAIL_CARD_LIMIT), [memory.achievements]);
     const overflow = Math.max(0, memory.achievementCount - railCards.length);
 
     if (fullscreen) {

@@ -100,14 +100,17 @@ def progress_at(achievements, captured_at) -> dict:
 
 
 def unlocks_near(achievements, captured_at, *, back=BACK_SECONDS, forward=FORWARD_SKEW_SECONDS) -> list:
-    """Every unlock inside the window around the capture, rarest first.
+    """Every unlock inside the window around the capture, earliest first.
 
     The window is the whole rule: an unlock in it is bound, one outside it is
     not. An earlier design clustered the unlocks by how far apart they were and
     bound only the cluster nearest the capture, which split an ordinary run of
     four into four events and bound one of them.
 
-    Rarest first, so the three the viewer shows are the three worth showing.
+    Earliest first, so a viewer showing only the first few shows the ones that
+    led to the capture. Unlocks landing in the same second are ordered rarest
+    first, which is common: RetroAchievements stamps to the second and a pair
+    can share one.
     """
     in_window = []
     for achievement in achievements or []:
@@ -117,7 +120,7 @@ def unlocks_near(achievements, captured_at, *, back=BACK_SECONDS, forward=FORWAR
         if captured_at - back <= stamp <= captured_at + forward:
             in_window.append((stamp, achievement))
 
-    in_window.sort(key=lambda row: (row[1].get("numAwarded") or 0, row[0]))
+    in_window.sort(key=lambda row: (row[0], row[1].get("numAwarded") or 0))
     return [_card(achievement, stamp) for stamp, achievement in in_window]
 
 
