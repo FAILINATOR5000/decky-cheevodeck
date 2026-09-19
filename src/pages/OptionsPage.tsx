@@ -1085,7 +1085,7 @@ function SystemTab(props: SystemTabProps) {
                 help={t(state.language, "help_night_mode_intensity")}
                 separator
             />
-            <SectionTitle label={t(state.language, "Battery Saver Disabled Services")} />
+            <SectionTitle label={t(state.language, "Standby Disabled Services")} />
             <PanelSectionRow>
                 <InfoText>{t(state.language, "help_battery_saver_disabled_services")}</InfoText>
             </PanelSectionRow>

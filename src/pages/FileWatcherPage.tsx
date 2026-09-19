@@ -706,7 +706,7 @@ function pausedLine(
         return t(language, "Paused at {{percent}}% — a game is running", { percent });
     }
     if (activePass.waitingFor === "batterySaver") {
-        return t(language, "Paused at {{percent}}% — Battery Saver is on", { percent });
+        return t(language, "Paused at {{percent}}% — Standby is on", { percent });
     }
     if (activePass.waitingFor === "startup") {
         return t(language, "Resuming Soon — {{percent}}%", { percent });

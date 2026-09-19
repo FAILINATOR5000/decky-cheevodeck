@@ -258,16 +258,16 @@ function MoonIcon(props: { size?: number }) {
 }
 
 // Font Awesome Free icon path, CC BY 4.0. See ATTRIBUTIONS.md.
-function BatteryHalfIcon(props: { size?: number }) {
+function StandbyIcon(props: { size?: number }) {
     const size = props.size ?? 18;
     return (
         <svg
-            viewBox="0 0 640 512"
+            viewBox="0 0 512 512"
             width={size}
             height={size}
             fill="currentColor"
         >
-            <path d="M544 160v64h32v64h-32v64H64V160h480m16-64H48c-26.51 0-48 21.49-48 48v224c0 26.51 21.49 48 48 48h512c26.51 0 48-21.49 48-48v-16h8c13.255 0 24-10.745 24-24V184c0-13.255-10.745-24-24-24h-8v-16c0-26.51-21.49-48-48-48zm-256 96H96v128h208V192z" />
+            <path d="M400 54.1c63 45 104 118.6 104 201.9 0 136.8-110.8 247.7-247.5 248C120 504.3 8.2 393 8 256.4 7.9 173.1 48.9 99.3 111.8 54.2c11.7-8.3 28-4.8 35 7.7L162.6 90c5.9 10.5 3.1 23.8-6.6 31.5C112.8 156.5 84 209.9 84 270.6c0 94.4 76.5 170.9 170.9 170.9S425.8 365 425.8 270.6c0-60.7-28.8-114.1-72-149.1-9.7-7.7-12.5-21-6.6-31.5l15.8-28.1c7-12.4 23.3-16 35-7.8zM296 264V24c0-13.3-10.7-24-24-24h-32c-13.3 0-24 10.7-24 24v240c0 13.3 10.7 24 24 24h32c13.3 0 24-10.7 24-24z" />
         </svg>
     );
 }
@@ -1155,7 +1155,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
 
     const pillLabelKey = previewStripButton === "dnd" ? "Do Not Disturb"
         : previewStripButton === "nightmode" ? "Night Mode"
-            : previewStripButton === "batterysaver" ? "Battery Saver"
+            : previewStripButton === "batterysaver" ? "Standby"
                 : previewStripButton === "mkmode" ? "Mouse & Keyboard Mode"
                     : null;
     const topRowMenuLabel = pillLabelKey
@@ -2099,12 +2099,12 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                             >
                                 {renderStatePill("dnd", <BellSlashIcon size={18} />, doNotDisturb, onToggleDoNotDisturb)}
                                 {renderStatePill("nightmode", <MoonIcon size={18} />, nightMode, onToggleNightMode)}
-                                {renderStatePill("batterysaver", <BatteryHalfIcon size={18} />, batterySaver, onToggleBatterySaver)}
+                                {renderStatePill("batterysaver", <StandbyIcon size={18} />, batterySaver, onToggleBatterySaver)}
                                 {renderStatePill("mkmode", <KeyboardIcon size={18} />, mouseKeyboardMode, onToggleMouseKeyboardMode)}
                             </Focusable>
                             {batterySaver && (
                                 <InfoText centered>
-                                    {t(language, "Features disabled to save power")}
+                                    {t(language, "Background services paused")}
                                 </InfoText>
                             )}
                             {renderQuickMenuCaption(topRowMenuLabel, "3px")}

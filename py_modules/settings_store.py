@@ -469,7 +469,7 @@ _KNOBS = (
     Knob("batterySaverDisablesPlayersNearYou", default=True, normalize=True),
     Knob("batterySaverDisablesTrackedSets", default=True, normalize=True),
     Knob("batterySaverDisablesFileWatcher", default=True, normalize=True),
-    Knob("batterySaverDisablesMemories", default=False, normalize=True),
+    Knob("batterySaverDisablesMemories", default=True, normalize=True),
     Knob("notifyNoteReminderEnabled", default=True),
     Knob("notifyNoteReminderToast", default=True),
     Knob("notifyTrackedSetEnabled", default=True),
