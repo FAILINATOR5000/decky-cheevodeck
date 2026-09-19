@@ -14,9 +14,13 @@ const PRIME_SECONDS = 1;
 
 const PIECE_BYTES = 2 * 1024 * 1024;
 
-const SEEK_STEPS_PER_CLIP = 10;
-const MIN_SEEK_STEP_SECONDS = 0.5;
-const MAX_SEEK_STEP_SECONDS = 30;
+const SKIP_LADDER: [number, number][] = [
+    [10, 2],
+    [30, 5],
+    [60, 10],
+    [120, 15]
+];
+const LONG_SKIP_SECONDS = 30;
 
 const SCAN_SECONDS_PER_CLIP = 5;
 const MIN_SCAN_RATE = 1;
@@ -24,8 +28,6 @@ const MAX_SCAN_RATE = 30;
 const SCAN_TICK_MS = 100;
 
 const SCAN_WATCHDOG_MS = 15000;
-
-const SCAN_HOLD_DELAY_MS = 350;
 
 
 const CLIP_NAME = "clip.mp4";
@@ -57,6 +59,7 @@ export type ClipPlayback = {
     togglePause: () => void;
     beginSeek: (direction: 1 | -1) => void;
     endSeek: () => void;
+    skip: (direction: 1 | -1) => void;
     subscribe: (listener: (state: ClipPlaybackState) => void) => () => void;
 };
 
@@ -250,7 +253,6 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
     let unavailable = false;
     let driveMissing = false;
 
-    let holdTimer: ReturnType<typeof setTimeout> | null = null;
     let scanTimer: ReturnType<typeof setInterval> | null = null;
     let watchdog: ReturnType<typeof setTimeout> | null = null;
     let scanDirection: 1 | -1 = 1;
@@ -678,8 +680,13 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         return clamped;
     }
 
-    function stepSeconds(): number {
-        return Math.min(Math.max(span / SEEK_STEPS_PER_CLIP, MIN_SEEK_STEP_SECONDS), MAX_SEEK_STEP_SECONDS);
+    function skipSeconds(): number {
+        for (const [upTo, seconds] of SKIP_LADDER) {
+            if (span <= upTo) {
+                return seconds;
+            }
+        }
+        return LONG_SKIP_SECONDS;
     }
 
     function scanRate(): number {
@@ -687,10 +694,6 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
     }
 
     function stopScan(why = "release") {
-        if (holdTimer !== null) {
-            clearTimeout(holdTimer);
-            holdTimer = null;
-        }
         if (watchdog !== null) {
             clearTimeout(watchdog);
             watchdog = null;
@@ -954,15 +957,23 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
                 return;
             }
             logFocusDebug("clip-seek", source.clipId,
-                `${direction > 0 ? "forward" : "back"} ${stepSeconds().toFixed(1)}s `
+                `${direction > 0 ? "forward" : "back"} scan `
                 + `from ${video.currentTime.toFixed(1)}s scanning=${scanTimer !== null}`);
             stopScan();
             scanDirection = direction;
-            seekTo(video.currentTime + direction * stepSeconds());
-            holdTimer = setTimeout(() => {
-                holdTimer = null;
-                startScan();
-            }, SCAN_HOLD_DELAY_MS);
+            startScan();
+        },
+
+        skip(direction: 1 | -1) {
+            if (destroyed) {
+                return;
+            }
+            const moved = skipSeconds();
+            logFocusDebug("clip-seek", source.clipId,
+                `skip ${direction > 0 ? "forward" : "back"} ${moved.toFixed(1)}s `
+                + `from ${video.currentTime.toFixed(1)}s scanning=${scanTimer !== null}`);
+            stopScan();
+            seekTo(video.currentTime + direction * moved);
         },
 
         endSeek() {

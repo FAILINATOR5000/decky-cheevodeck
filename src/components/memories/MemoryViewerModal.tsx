@@ -24,10 +24,16 @@ import {
     endMemorySeek,
     nudgeMemoryTransport,
     showMemoryFullscreen,
+    skipMemoryPlayback,
     toggleMemoryPlayback
 } from "./memoryFullscreen";
 import type { ClipSource } from "./clipPlayer";
-import { BUTTON_TRIGGER_LEFT, BUTTON_TRIGGER_RIGHT } from "../../utils/gamepadButtons";
+import {
+    BUTTON_BUMPER_LEFT,
+    BUTTON_BUMPER_RIGHT,
+    BUTTON_TRIGGER_LEFT,
+    BUTTON_TRIGGER_RIGHT
+} from "../../utils/gamepadButtons";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { logError } from "../../utils/errors";
 import { formatUnlockDate, noteBodyColor } from "../../utils/achievements";
@@ -326,24 +332,35 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                         ? (event: { detail?: { button?: number; is_repeat?: boolean } }) => {
                             const button = event?.detail?.button;
                             nudgeMemoryTransport();
-                            if (button !== BUTTON_TRIGGER_LEFT && button !== BUTTON_TRIGGER_RIGHT) {
+                            const seeking = button === BUTTON_TRIGGER_LEFT || button === BUTTON_TRIGGER_RIGHT;
+                            const skipping = button === BUTTON_BUMPER_LEFT || button === BUTTON_BUMPER_RIGHT;
+                            if (!seeking && !skipping) {
                                 return;
                             }
                             if (event?.detail?.is_repeat) {
+                                return;
+                            }
+                            if (skipping) {
+                                skipMemoryPlayback(button === BUTTON_BUMPER_RIGHT ? 1 : -1);
                                 return;
                             }
                             beginMemorySeek(button === BUTTON_TRIGGER_RIGHT ? 1 : -1);
                         }
                         : undefined}
                     onButtonUp={clipSource
-                        ? () => {
-                            endMemorySeek();
+                        ? (event: { detail?: { button?: number } }) => {
+                            const button = event?.detail?.button;
+                            if (button === BUTTON_TRIGGER_LEFT || button === BUTTON_TRIGGER_RIGHT) {
+                                endMemorySeek();
+                            }
                         }
                         : undefined}
                     actionDescriptionMap={clipSource
                         ? {
                             [BUTTON_TRIGGER_LEFT]: t(language, "Rewind"),
-                            [BUTTON_TRIGGER_RIGHT]: t(language, "Forward")
+                            [BUTTON_TRIGGER_RIGHT]: t(language, "Forward"),
+                            [BUTTON_BUMPER_LEFT]: t(language, "Skip Back"),
+                            [BUTTON_BUMPER_RIGHT]: t(language, "Skip Forward")
                         }
                         : undefined}
                     style={{ display: "block", width: "100%" }}

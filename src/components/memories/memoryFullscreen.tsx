@@ -215,7 +215,13 @@ function ClipLayer(props: { clip: ClipSource; language: LanguageCode }) {
                         {`${formatClipLength(state.ended ? state.duration : Math.floor(state.position))} / ${formatClipLength(state.duration)}`}
                     </span>
                 </div>
-                <div style={{ display: "flex", gap: "18px", fontSize: `${modalSize(14)}px`, opacity: 0.9 }}>
+                <div style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: "6px 18px",
+                    fontSize: `${modalSize(14)}px`,
+                    opacity: 0.9
+                }}>
                     <ButtonPrompt
                         language={language}
                         textKey={playKey(state)}
@@ -224,6 +230,8 @@ function ClipLayer(props: { clip: ClipSource; language: LanguageCode }) {
                     />
                     <ButtonPrompt language={language} textKey="{{button}} Rewind" button="l2" fontSize={modalSize(14)} />
                     <ButtonPrompt language={language} textKey="{{button}} Forward" button="r2" fontSize={modalSize(14)} />
+                    <ButtonPrompt language={language} textKey="{{button}} Skip" button={["l1", "r1"]}
+                        fontSize={modalSize(14)} />
                     <ButtonPrompt language={language} textKey="{{button}} Back" button="b" fontSize={modalSize(14)} />
                 </div>
             </div>
@@ -361,8 +369,8 @@ export function toggleMemoryPlayback(): void {
     nudgeTransport();
 }
 
-// A press steps once and then scans if the trigger is still held, so a scan
-// only ends when endMemorySeek sees the release or the watchdog fires.
+// A press scans for as long as the trigger is held, so a scan only ends when
+// endMemorySeek sees the release or the watchdog fires.
 export function beginMemorySeek(direction: 1 | -1): void {
     if (!playback) {
         return;
@@ -376,5 +384,13 @@ export function endMemorySeek(): void {
         return;
     }
     playback.endSeek();
+    nudgeTransport();
+}
+
+export function skipMemoryPlayback(direction: 1 | -1): void {
+    if (!playback) {
+        return;
+    }
+    playback.skip(direction);
     nudgeTransport();
 }
