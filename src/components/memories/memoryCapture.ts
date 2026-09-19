@@ -1,4 +1,4 @@
-import { findModuleExport } from "@decky/ui";
+import { findModuleExport, Router } from "@decky/ui";
 
 import { adoptClip, adoptScreenshot } from "../../api";
 import { logError } from "../../utils/errors";
@@ -87,7 +87,7 @@ async function onScreenshot(event: ScreenshotEvent) {
     }
 
     const capturedAt = details?.nCreated || Math.floor(Date.now() / 1000);
-    const result = await adoptScreenshot(path, runningAppId, capturedAt, gameId);
+    const result = await adoptScreenshot(path, currentAppId(), capturedAt, gameId);
     if (result?.ok && result.deleteSource) {
         await deleteSteamCopy(gameId, handle, path);
     }
@@ -152,6 +152,14 @@ async function onClipCreated(message: ClipMessage) {
     if (result?.ok && result.deleteClip) {
         await deleteSteamClip(clipId);
     }
+}
+
+function currentAppId(): number {
+    if (runningAppId) {
+        return runningAppId;
+    }
+    const running = Number(Router.MainRunningApp?.appid ?? 0);
+    return Number.isFinite(running) && running > 0 ? running : 0;
 }
 
 function onAppLifetime(event: AppLifetimeEvent) {

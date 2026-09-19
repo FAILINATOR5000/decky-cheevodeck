@@ -502,6 +502,9 @@ class MemoriesMixin(PluginContext):
 
         running = to_int(app_id, 0)
         if not running:
+            decky.logger.warning(
+                "memories: a screenshot arrived with no running appid, so there is nothing to file it under"
+            )
             return {"ok": False, "error": "no_app"}
         if not memories_capture.is_non_steam_shortcut(running, self.user_home):
             return {"ok": False, "error": "steam_game"}

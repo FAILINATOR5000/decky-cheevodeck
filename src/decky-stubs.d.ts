@@ -143,6 +143,10 @@ declare module "@decky/ui" {
 
     export const appDetailsClasses: { InnerContainer: string };
 
+    export const Router: {
+        MainRunningApp?: { appid: string };
+    };
+
 }
 declare module "react-icons/fa" {
     export const FaTrophy: any;
