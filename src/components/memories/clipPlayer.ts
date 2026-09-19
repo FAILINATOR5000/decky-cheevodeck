@@ -6,6 +6,10 @@ const CLIP_BASE = "https://steamloopback.host/gamerecordings/clips";
 const AHEAD_SECONDS = 12;
 const BEHIND_SECONDS = 10;
 
+const DROP_AHEAD_SECONDS = 30;
+
+const CURSOR_DRIFT_SECONDS = 4;
+
 const PRIME_SECONDS = 1;
 
 const PIECE_BYTES = 2 * 1024 * 1024;
@@ -238,7 +242,11 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
     let finished: boolean[] = [];
     let generation = 0;
     let exhausted = false;
+    let mediaEnd: number | null = null;
     let pumping = false;
+    let pendingRefill: number | null = null;
+    let aimedFrom: number | null = null;
+    let started = false;
     let unavailable = false;
     let driveMissing = false;
 
@@ -279,6 +287,7 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         }
         unavailable = true;
         logError("memories: a clip's video is not reachable", why);
+        logFocusDebug("clip-unreachable", source.clipId, why);
         publish();
     }
 
@@ -388,7 +397,39 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         if (ranges.length === 0) {
             return "nothing";
         }
-        return `${ranges.start(0).toFixed(2)}-${ranges.end(ranges.length - 1).toFixed(2)}s`;
+        const stretches = [];
+        for (let slot = 0; slot < ranges.length; slot += 1) {
+            stretches.push(`${ranges.start(slot).toFixed(2)}-${ranges.end(slot).toFixed(2)}`);
+        }
+        return `${ranges.length}x ${stretches.join(" ")}`;
+    }
+
+    function cursorTime(): number {
+        if (index) {
+            for (const [time, offset] of index.fragments) {
+                if (offset >= nextOffset) {
+                    return time / 1000;
+                }
+            }
+            return Infinity;
+        }
+        if (!plan) {
+            return 0;
+        }
+        return firstSegmentStart + (nextSegment - plan.startNumber) * plan.segmentSeconds;
+    }
+
+    function aimFor(at: number): number {
+        return index ? syncOffsetFor(at) : segmentFor(at);
+    }
+
+    function aimCursor(at: number) {
+        if (index) {
+            nextOffset = aimFor(at);
+        }
+        else {
+            startSegment(aimFor(at));
+        }
     }
 
     function startSegment(number: number) {
@@ -451,10 +492,19 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         pumping = true;
         const era = generation;
         try {
-            while (!destroyed && !exhausted && era === generation) {
+            while (!destroyed && !exhausted && era === generation && pendingRefill === null) {
                 const at = from ?? video.currentTime;
                 if (bufferedHolds(video, at) && bufferedEnd(video, at) - at >= ahead) {
                     break;
+                }
+                const edge = bufferedHolds(video, at) ? bufferedEnd(video, at) : at;
+                const target = aimFor(edge);
+                if (cursorTime() > edge + CURSOR_DRIFT_SECONDS && target !== aimedFrom) {
+                    aimedFrom = target;
+                    logFocusDebug("clip-aim", source.clipId,
+                        `playhead ${at.toFixed(1)}s, reading at ${cursorTime().toFixed(1)}s, `
+                        + `back to ${edge.toFixed(1)}s, holding ${coverage()}`);
+                    aimCursor(edge);
                 }
                 const more = index
                     ? await appendFragments(era)
@@ -464,26 +514,43 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
                 }
                 if (!more) {
                     exhausted = true;
+                    if (video.buffered.length > 0) {
+                        mediaEnd = Math.max(mediaEnd ?? 0, video.buffered.end(video.buffered.length - 1));
+                    }
                     break;
                 }
                 if (!index && segmentDone()) {
                     startSegment(nextSegment + 1);
                 }
             }
-            if (exhausted) {
-                closeStream();
-            }
-            evict();
         }
         catch (error) {
             if (!destroyed) {
                 logError("memories: reading a clip segment failed", error);
+                logFocusDebug("clip-failed", source.clipId, String(error));
             }
         }
         finally {
+            try {
+                await evict(era);
+                if (exhausted) {
+                    closeStream();
+                }
+            }
+            catch {
+            }
             pumping = false;
         }
-        if (era !== generation && !destroyed) {
+        if (destroyed) {
+            return;
+        }
+        if (pendingRefill !== null) {
+            const waiting = pendingRefill;
+            pendingRefill = null;
+            refill(waiting);
+            return;
+        }
+        if (era !== generation) {
             void pump();
         }
     }
@@ -502,31 +569,64 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         }
     }
 
-    function evict() {
-        const cutoff = video.currentTime - BEHIND_SECONDS;
-        if (destroyed || cutoff <= 0) {
+    async function evict(era: number) {
+        if (destroyed || buffers.length === 0) {
             return;
         }
+        const at = video.currentTime;
+        let dropped = false;
+        let ahead = false;
         for (const buffer of buffers) {
-            if (buffer.updating) {
-                continue;
+            if (await dropRange(buffer, 0, at - BEHIND_SECONDS)) {
+                dropped = true;
             }
-            const ranges = buffer.buffered;
-            if (ranges.length === 0 || ranges.start(0) >= cutoff) {
-                continue;
+            if (await dropRange(buffer, at + DROP_AHEAD_SECONDS, Infinity)) {
+                dropped = true;
+                ahead = true;
             }
-            try {
-                buffer.remove(0, cutoff);
-            }
-            catch {
-            }
+        }
+        if (dropped && !destroyed && !bufferedHolds(video, video.currentTime)) {
+            refill(video.currentTime);
+            return;
+        }
+        if (ahead && era === generation) {
+            const edge = bufferedEnd(video, video.currentTime);
+            logFocusDebug("clip-drop", source.clipId,
+                `at ${at.toFixed(1)}s, holding ${coverage()}, reading from ${edge.toFixed(1)}s`);
+            exhausted = false;
+            aimCursor(edge);
         }
     }
 
+    async function dropRange(buffer: SourceBuffer, from: number, to: number): Promise<boolean> {
+        if (destroyed || to <= from) {
+            return false;
+        }
+        await settled(buffer);
+        const ranges = buffer.buffered;
+        if (destroyed || ranges.length === 0) {
+            return false;
+        }
+        const start = Math.max(from, ranges.start(0));
+        const end = Math.min(to, ranges.end(ranges.length - 1));
+        if (end <= start) {
+            return false;
+        }
+        try {
+            buffer.remove(start, end);
+        }
+        catch {
+            return false;
+        }
+        await settled(buffer);
+        return true;
+    }
+
     function refill(from: number) {
-        if (destroyed || (!plan && !index)) {
+        if (destroyed || buffers.length === 0 || (!plan && !index)) {
             return;
         }
+        pendingRefill = null;
         for (const buffer of buffers) {
             if (buffer.updating) {
                 try {
@@ -537,21 +637,27 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
             }
         }
         generation += 1;
-        if (index) {
-            nextOffset = syncOffsetFor(from);
-        }
-        else {
-            startSegment(segmentFor(from));
-        }
+        aimCursor(from);
+        aimedFrom = null;
         exhausted = false;
+        mediaEnd = null;
         void pump();
     }
 
-    function endTarget(): number {
-        if (exhausted && video.buffered.length > 0) {
-            return Math.min(outPoint, video.buffered.end(video.buffered.length - 1));
+    function requestFrom(at: number) {
+        if (!started) {
+            return;
         }
-        return outPoint;
+        if (pumping) {
+            pendingRefill = at;
+        }
+        else {
+            refill(at);
+        }
+    }
+
+    function endTarget(): number {
+        return mediaEnd === null ? outPoint : Math.min(outPoint, mediaEnd);
     }
 
     function isEnded(): boolean {
@@ -561,11 +667,12 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
     function seekTo(target: number) {
         const clamped = Math.min(Math.max(target, inPoint), endTarget());
         video.currentTime = clamped;
-        if (!bufferedHolds(video, clamped)) {
-            refill(clamped);
+        if (bufferedHolds(video, clamped)) {
+            pendingRefill = null;
+            void pump();
         }
         else {
-            void pump();
+            requestFrom(clamped);
         }
         publish();
         return clamped;
@@ -579,7 +686,7 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         return Math.min(Math.max(span / SCAN_SECONDS_PER_CLIP, MIN_SCAN_RATE), MAX_SCAN_RATE);
     }
 
-    function stopScan() {
+    function stopScan(why = "release") {
         if (holdTimer !== null) {
             clearTimeout(holdTimer);
             holdTimer = null;
@@ -593,6 +700,11 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         }
         clearInterval(scanTimer);
         scanTimer = null;
+        logFocusDebug("clip-scan", source.clipId,
+            `stop on ${why} at ${video.currentTime.toFixed(1)}s, holding ${coverage()}`);
+        if (!bufferedHolds(video, video.currentTime)) {
+            requestFrom(video.currentTime);
+        }
         if (resumeAfterScan && !isEnded()) {
             void video.play().catch(() => publish());
         }
@@ -606,14 +718,19 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         }
         resumeAfterScan = !video.paused;
         video.pause();
-        const perTick = scanRate() * (SCAN_TICK_MS / 1000);
+        const rate = scanRate();
+        let stepped = performance.now();
         scanTimer = setInterval(() => {
-            const landed = seekTo(video.currentTime + scanDirection * perTick);
+            const now = performance.now();
+            const elapsed = Math.min(now - stepped, SCAN_TICK_MS * 4);
+            const moved = rate * (elapsed / 1000);
+            stepped = now;
+            const landed = seekTo(video.currentTime + scanDirection * moved);
             if (landed <= inPoint || landed >= endTarget()) {
-                stopScan();
+                stopScan("edge");
             }
         }, SCAN_TICK_MS);
-        watchdog = setTimeout(stopScan, SCAN_WATCHDOG_MS);
+        watchdog = setTimeout(() => stopScan("watchdog"), SCAN_WATCHDOG_MS);
         publish();
     }
 
@@ -632,7 +749,18 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         publish();
     }
 
+    function onStarved() {
+        if (destroyed) {
+            return;
+        }
+        logFocusDebug("clip-starved", source.clipId,
+            `at ${video.currentTime.toFixed(1)}s ready=${video.readyState} `
+            + `holding ${coverage()} exhausted=${exhausted} pumping=${pumping} started=${started}`);
+    }
+
     video.addEventListener("timeupdate", onTimeUpdate);
+    video.addEventListener("waiting", onStarved);
+    video.addEventListener("stalled", onStarved);
     video.addEventListener("play", onStateChange);
     video.addEventListener("pause", onStateChange);
     video.addEventListener("seeked", onStateChange);
@@ -732,6 +860,7 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
             if (destroyed) {
                 return;
             }
+            started = true;
             video.addEventListener("playing", () => {
                 logFocusDebug("clip-playing", source.clipId,
                     `${Math.round(performance.now() - opened)}ms after open`);
@@ -748,6 +877,7 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         catch (error) {
             if (!destroyed) {
                 logError("memories: setting up clip playback failed", error);
+                logFocusDebug("clip-setup-failed", source.clipId, String(error));
                 unreachable("playback could not be set up");
             }
         }
@@ -771,6 +901,8 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
             }
             aborter.abort();
             video.removeEventListener("timeupdate", onTimeUpdate);
+            video.removeEventListener("waiting", onStarved);
+            video.removeEventListener("stalled", onStarved);
             video.removeEventListener("play", onStateChange);
             video.removeEventListener("pause", onStateChange);
             video.removeEventListener("seeked", onStateChange);
@@ -821,6 +953,9 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
             if (destroyed) {
                 return;
             }
+            logFocusDebug("clip-seek", source.clipId,
+                `${direction > 0 ? "forward" : "back"} ${stepSeconds().toFixed(1)}s `
+                + `from ${video.currentTime.toFixed(1)}s scanning=${scanTimer !== null}`);
             stopScan();
             scanDirection = direction;
             seekTo(video.currentTime + direction * stepSeconds());
@@ -831,6 +966,8 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         },
 
         endSeek() {
+            logFocusDebug("clip-seek", source.clipId,
+                `release at ${video.currentTime.toFixed(1)}s scanning=${scanTimer !== null}`);
             stopScan();
         },
 
