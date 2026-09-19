@@ -71,6 +71,7 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
     const thumbsRef = useRef<Record<string, string | null>>({});
 
     const seededForRef = useRef<number | null>(null);
+    const persistedPageRef = useRef(0);
     const prefsLoadedForRef = useRef<string | null>(null);
     const indexLoadedForRef = useRef<string | null>(null);
     const accountRef = useRef(activeUlid);
@@ -112,6 +113,8 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
                 setColorFilter(prefs.lastColorFilter);
                 setMediaFilter(prefs.lastMediaFilter);
                 setGameId(prefs.lastGameId);
+                setPageIndex(prefs.lastPageIndex);
+                persistedPageRef.current = prefs.lastPageIndex;
                 seededForRef.current = prefs.seededForGameId;
             } catch (error) {
                 logError("memories: couldn't read the view preferences", error);
@@ -174,7 +177,8 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
             "",
             "",
             "",
-            null
+            null,
+            0
         ).catch((error) => logError("memories: couldn't save the seed", error));
     }, [isActive, ready, payloadGameId]);
 
@@ -413,56 +417,83 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
         lastTag: string | null,
         lastColor: string | null,
         lastMedia: string | null,
-        sort: MemoryTagSort | null
+        sort: MemoryTagSort | null,
+        page: number | null
     ) => {
-        void saveMemoryViewPrefs(columns, order, lastGameId, null, lastTag, lastColor, lastMedia, sort)
+        void saveMemoryViewPrefs(columns, order, lastGameId, null, lastTag, lastColor, lastMedia, sort, page)
             .catch((error) => logError("memories: couldn't save the view preferences", error));
     }, []);
+
+    const wasActiveRef = useRef(false);
+    useEffect(function forgetPageOnLeave() {
+        if (isActive) {
+            wasActiveRef.current = true;
+            return;
+        }
+        if (!wasActiveRef.current) {
+            return;
+        }
+        wasActiveRef.current = false;
+        setPageIndex(0);
+        persistedPageRef.current = 0;
+        persist(null, null, null, null, null, null, null, 0);
+    }, [isActive, persist]);
+
+    useEffect(function rememberPage() {
+        if (!isActive || !ready) {
+            return;
+        }
+        if (persistedPageRef.current === pageIndex) {
+            return;
+        }
+        persistedPageRef.current = pageIndex;
+        persist(null, null, null, null, null, null, null, pageIndex);
+    }, [isActive, ready, pageIndex, persist]);
 
     const selectGame = useCallback((next: number | null) => {
         setGameId(next);
         setPageIndex(0);
         setArmedDeleteId(null);
-        persist(null, null, next, null, null, null, null);
+        persist(null, null, next, null, null, null, null, null);
     }, [persist]);
 
     const selectTag = useCallback((next: string) => {
         setTagFilter(next);
         setPageIndex(0);
         setArmedDeleteId(null);
-        persist(null, null, null, next, null, null, null);
+        persist(null, null, null, next, null, null, null, null);
     }, [persist]);
 
     const selectColor = useCallback((next: string) => {
         setColorFilter(next);
         setPageIndex(0);
         setArmedDeleteId(null);
-        persist(null, null, null, null, next, null, null);
+        persist(null, null, null, null, next, null, null, null);
     }, [persist]);
 
     const selectMedia = useCallback((next: string) => {
         setMediaFilter(next);
         setPageIndex(0);
         setArmedDeleteId(null);
-        persist(null, null, null, null, null, next, null);
+        persist(null, null, null, null, null, next, null, null);
     }, [persist]);
 
     const selectColumns = useCallback((next: number) => {
         setGridColumns(next);
         setPageIndex(0);
-        persist(next, null, null, null, null, null, null);
+        persist(next, null, null, null, null, null, null, null);
     }, [persist]);
 
     const toggleDateOrder = useCallback(() => {
         const next: MemoryDateOrder = dateOrder === "desc" ? "asc" : "desc";
         setDateOrder(next);
         setPageIndex(0);
-        persist(null, next, null, null, null, null, null);
+        persist(null, next, null, null, null, null, null, null);
     }, [dateOrder, persist]);
 
     const selectTagSort = useCallback((next: MemoryTagSort) => {
         setTagSort(next);
-        persist(null, null, null, null, null, null, next);
+        persist(null, null, null, null, null, null, next, null);
     }, [persist]);
 
     const firstIdOnPage = useCallback((index: number) => (

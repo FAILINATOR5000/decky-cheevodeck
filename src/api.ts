@@ -555,7 +555,8 @@ export const saveMemoryViewPrefs = callable<
         string | null,
         string | null,
         string | null,
-        MemoryTagSort | null
+        MemoryTagSort | null,
+        number | null
     ],
     MemoryViewPrefs
 >("save_memory_view_prefs");

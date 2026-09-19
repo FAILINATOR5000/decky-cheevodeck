@@ -1531,6 +1531,7 @@ export type MemoryViewPrefs = {
     lastColorFilter: string;
     lastMediaFilter: string;
     tagSort: MemoryTagSort;
+    lastPageIndex: number;
 };
 
 export type MemoriesResponse = {

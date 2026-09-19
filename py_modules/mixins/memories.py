@@ -295,6 +295,7 @@ class MemoriesMixin(PluginContext):
         last_color_filter=None,
         last_media_filter=None,
         tag_sort=None,
+        last_page_index=None,
     ):
         return await asyncio.to_thread(
             self._save_view_prefs_sync,
@@ -306,6 +307,7 @@ class MemoriesMixin(PluginContext):
             last_color_filter,
             last_media_filter,
             tag_sort,
+            last_page_index,
         )
 
     def _save_view_prefs_sync(
@@ -318,6 +320,7 @@ class MemoriesMixin(PluginContext):
         last_color_filter,
         last_media_filter,
         tag_sort,
+        last_page_index,
     ):
         return self.memories_store.save_view_prefs(
             grid_columns=grid_columns,
@@ -328,6 +331,7 @@ class MemoriesMixin(PluginContext):
             last_color_filter=last_color_filter,
             last_media_filter=last_media_filter,
             tag_sort=tag_sort,
+            last_page_index=last_page_index,
         )
 
     async def adopt_screenshot(self, path: str = "", app_id=0, created_at=0, screenshot_game_id: str = ""):

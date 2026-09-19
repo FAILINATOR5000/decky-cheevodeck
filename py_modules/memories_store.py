@@ -460,12 +460,17 @@ class MemoriesStore:
         if last_media not in _ALLOWED_MEDIA_FILTERS:
             last_media = ""
 
+        page_index = to_int(raw.get("lastPageIndex"), 0)
+        if page_index < 0:
+            page_index = 0
+
         return {
             "ok": True,
             "gridColumns": columns,
             "dateOrder": date_order,
             "lastGameId": norm_game_id(raw.get("lastGameId")),
             "seededForGameId": norm_game_id(raw.get("seededForGameId")),
+            "lastPageIndex": page_index,
             "lastTagFilter": last_tag[:MEMORY_TAG_MAX_LEN],
             "lastColorFilter": last_color,
             "lastMediaFilter": last_media,
@@ -483,6 +488,7 @@ class MemoriesStore:
         last_color_filter=None,
         last_media_filter=None,
         tag_sort=None,
+        last_page_index=None,
     ) -> dict:
         """Merge whatever was passed into the stored preferences.
 
@@ -512,6 +518,8 @@ class MemoriesStore:
                 current["lastMediaFilter"] = (
                     last_media_filter if last_media_filter in _ALLOWED_MEDIA_FILTERS else ""
                 )
+            if last_page_index is not None:
+                current["lastPageIndex"] = max(to_int(last_page_index, 0), 0)
 
             payload = dict(current)
             payload.pop("ok", None)
