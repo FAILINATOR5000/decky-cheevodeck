@@ -435,6 +435,7 @@ _KNOBS = (
     Knob("memoriesVideoPath", default="", reset=False, normalize=True),
     Knob("memoriesDeleteSteamClip", default=False, normalize=True, read=READ_BOOL),
     Knob("memoriesRemux", default=True, normalize=True, read=READ_BOOL),
+    Knob("memoriesMuted", default=False, normalize=True, read=READ_BOOL),
     Knob("fileWatcherSpeed", default="gentle", normalize=True),
     Knob("fileWatcherRunDuringGames", default=True, normalize=True, read=READ_BOOL),
     Knob("trackedSetAButtonMode", default="editNote", normalize=True),
@@ -1330,6 +1331,11 @@ class SettingsStore:
         cfg = self._update_config("memoriesRemux", bool(value))
 
         return self.get_memories_remux(cfg)
+
+    def update_memories_muted(self, value: bool) -> bool:
+        cfg = self._update_config("memoriesMuted", bool(value))
+
+        return self.get_memories_muted(cfg)
 
     def update_memories_video_path(self, value) -> str:
         cfg = self._update_config("memoriesVideoPath", _clean_video_path(value))
@@ -3909,6 +3915,9 @@ class SettingsStore:
         the rewrite cannot run.
         """
         return bool(cfg.get("memoriesRemux", True))
+
+    def get_memories_muted(self, cfg: dict) -> bool:
+        return bool(cfg.get("memoriesMuted", False))
 
     def get_memories_video_path(self, cfg: dict) -> str:
         """The configured video root, or an empty string for the default one.

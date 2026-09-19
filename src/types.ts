@@ -961,6 +961,7 @@ export type SettingsResponse = {
     memoriesVideo: boolean;
     memoriesVideoPath: string;
     memoriesRemux: boolean;
+    memoriesMuted: boolean;
     memoriesDeleteSteamClip: boolean;
     fileWatcherSpeed: FileWatcherSpeed;
     fileWatcherRunDuringGames: boolean;

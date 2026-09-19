@@ -11,6 +11,7 @@ import { disableLibraryBadge, enableLibraryBadge } from "./components/library/li
 import { registerScreenDarken, unregisterScreenDarken } from "./components/darken/screenDarken";
 import { registerMemoryCapture, unregisterMemoryCapture } from "./components/memories/memoryCapture";
 import { registerMemoryFullscreen, unregisterMemoryFullscreen } from "./components/memories/memoryFullscreen";
+import { setClipMuted } from "./components/memories/clipMute";
 
 const NOTIFICATION_EVENT = "cheevodeck_notification";
 
@@ -46,6 +47,7 @@ export default definePlugin(() => {
                 setCurrentLanguage(settings.language);
             }
             setDeviceIsSteamMachine(settings?.isSteamMachine ?? false);
+            setClipMuted(Boolean(settings?.memoriesMuted ?? false));
             if (settings?.libraryBadge) {
                 enableLibraryBadge();
             }

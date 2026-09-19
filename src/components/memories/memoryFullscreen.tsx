@@ -5,8 +5,9 @@ import { CompositionHold, hasCompositionHold } from "../ui/compositionHold";
 import { FadeImage } from "../ui/FadeImage";
 import { ButtonPrompt } from "../ui/ButtonPrompt";
 import { playClip, type ClipPlayback, type ClipPlaybackState, type ClipSource } from "./clipPlayer";
+import { useClipMuted } from "./clipMute";
 import { formatClipLength } from "../../utils/memories";
-import { logFocusDebug } from "../../api";
+import { debugLoggingEnabled, logFocusDebug } from "../../api";
 import { logError } from "../../utils/errors";
 import { modalSize } from "../../utils/scale";
 import { t, type LanguageCode } from "../../locales";
@@ -109,6 +110,7 @@ function ClipLayer(props: { clip: ClipSource; language: LanguageCode }) {
     });
     const [visible, setVisible] = useState(true);
     const [reveal, setReveal] = useState(0);
+    const muted = useClipMuted();
 
     // Teardown lives here rather than in the dialog's cleanup. This component is
     // registered at the router and outlives the panel, so closing the QAM
@@ -130,6 +132,13 @@ function ClipLayer(props: { clip: ClipSource; language: LanguageCode }) {
             }
         };
     }, [clip]);
+
+    useEffect(() => {
+        const element = videoRef.current;
+        if (element) {
+            element.muted = muted;
+        }
+    }, [muted]);
 
     useEffect(() => {
         const bump = () => setReveal((count) => count + 1);
@@ -232,6 +241,12 @@ function ClipLayer(props: { clip: ClipSource; language: LanguageCode }) {
                     <ButtonPrompt language={language} textKey="{{button}} Forward" button="r2" fontSize={modalSize(14)} />
                     <ButtonPrompt language={language} textKey="{{button}} Skip" button={["l1", "r1"]}
                         fontSize={modalSize(14)} />
+                    <ButtonPrompt
+                        language={language}
+                        textKey={muted ? "{{button}} Unmute" : "{{button}} Mute"}
+                        button="view"
+                        fontSize={modalSize(14)}
+                    />
                     <ButtonPrompt language={language} textKey="{{button}} Back" button="b" fontSize={modalSize(14)} />
                 </div>
             </div>
@@ -263,6 +278,9 @@ function MemoryFullscreen() {
             reported = true;
             if (image.naturalWidth === 0) {
                 logError("memories: the fullscreen overlay couldn't load the picture", full);
+                return;
+            }
+            if (!debugLoggingEnabled()) {
                 return;
             }
             const rect = image.getBoundingClientRect();

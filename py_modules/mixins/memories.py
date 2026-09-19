@@ -70,6 +70,12 @@ class MemoriesMixin(PluginContext):
             "memoriesRemux": self.settings_store.update_memories_remux(value),
         }
 
+    async def save_memories_muted(self, value: bool):
+        return {
+            "ok": True,
+            "memoriesMuted": self.settings_store.update_memories_muted(value),
+        }
+
     async def save_memories_delete_steam_clip(self, value: bool):
         return {
             "ok": True,

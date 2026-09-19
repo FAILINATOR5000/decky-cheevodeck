@@ -300,6 +300,7 @@ import {
     TEXT_VIEWER_ZOOM_DEFAULT
 } from "../utils/scale";
 import { setCurrentColoredGlyphs, setCurrentControllerGlyphStyle } from "../utils/controllerGlyphs";
+import { setClipMuted } from "../components/memories/clipMute";
 
 type SaveSettingWithRollback = <T>(options: {
     nextValue: T;
@@ -1199,6 +1200,7 @@ export function useOptionsController({
         setMemoriesDeleteSource(Boolean(result.memoriesDeleteSource));
         setMemoriesVideo(Boolean(result.memoriesVideo ?? true));
         setMemoriesRemux(Boolean(result.memoriesRemux ?? true));
+        setClipMuted(Boolean(result.memoriesMuted ?? false));
         setMemoriesDeleteSteamClip(Boolean(result.memoriesDeleteSteamClip));
         setFileWatcherSpeed(result.fileWatcherSpeed ?? "gentle");
         setFileWatcherRunDuringGames(Boolean(result.fileWatcherRunDuringGames ?? true));

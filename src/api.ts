@@ -492,6 +492,10 @@ export const saveMemoriesRemux = callable<
     [boolean],
     { ok: boolean; memoriesRemux: boolean }
 >("save_memories_remux");
+export const saveMemoriesMuted = callable<
+    [boolean],
+    { ok: boolean; memoriesMuted: boolean }
+>("save_memories_muted");
 export const saveMemoriesDeleteSteamClip = callable<
     [boolean],
     { ok: boolean; memoriesDeleteSteamClip: boolean }

@@ -7,7 +7,8 @@ import {
     deleteMemory,
     getAchievementIcons,
     getCachedAchievementIcons,
-    loadMemoryFull
+    loadMemoryFull,
+    saveMemoriesMuted
 } from "../../api";
 import { armMemoriesFocusKey, armMemoriesFocusReturn } from "../../utils/memoriesFocusReturn";
 import { FadeImage } from "../ui/FadeImage";
@@ -27,10 +28,12 @@ import {
     skipMemoryPlayback,
     toggleMemoryPlayback
 } from "./memoryFullscreen";
-import type { ClipSource } from "./clipPlayer";
+import { playClip, type ClipPlayback, type ClipPlaybackState, type ClipSource } from "./clipPlayer";
+import { getClipMuted, setClipMuted, useClipMuted } from "./clipMute";
 import {
     BUTTON_BUMPER_LEFT,
     BUTTON_BUMPER_RIGHT,
+    BUTTON_SELECT,
     BUTTON_TRIGGER_LEFT,
     BUTTON_TRIGGER_RIGHT
 } from "../../utils/gamepadButtons";
@@ -78,6 +81,50 @@ const MEMORY_DIALOG_CSS = `
 
 const RAIL_CARD_LIMIT = 3;
 
+const RAIL_SCROLL_MARGIN = 0.5;
+
+const RAIL_EDGE_WIDTH = 3;
+
+const RAIL_LIT_EDGE = "rgba(255, 215, 100, 1)";
+const RAIL_LIT_GLOW = "inset 14px 0 20px -12px rgba(255, 215, 100, 0.95), "
+    + "inset 0 0 10px 0 rgba(245, 200, 50, 0.22)";
+
+function timelineOffsets(cards: MemoryRecord["achievements"], capturedAt: number): (number | null)[] {
+    return cards.map((card) => (card.unlockedAt === null ? null : card.unlockedAt - capturedAt));
+}
+
+function litIndices(offsets: (number | null)[], position: number): number[] {
+    let best: number | null = null;
+    for (const offset of offsets) {
+        if (offset === null || offset > position) {
+            continue;
+        }
+        if (best === null || offset > best) {
+            best = offset;
+        }
+    }
+    if (best === null) {
+        return [];
+    }
+    const lit: number[] = [];
+    offsets.forEach((offset, index) => {
+        if (offset === best) {
+            lit.push(index);
+        }
+    });
+    return lit;
+}
+
+function MutedIcon(props: { size: number }) {
+    return (
+        <svg viewBox="0 0 100 100" style={{ width: `${props.size}px`, height: `${props.size}px`, display: "block" }}>
+            <polygon points="10,38 30,38 52,18 52,82 30,62 10,62" fill="currentColor" />
+            <line x1="62" y1="34" x2="90" y2="66" stroke="currentColor" strokeWidth="8" strokeLinecap="round" />
+            <line x1="90" y1="34" x2="62" y2="66" stroke="currentColor" strokeWidth="8" strokeLinecap="round" />
+        </svg>
+    );
+}
+
 const IMAGE_LAYER_STYLE: CSSProperties = {
     position: "absolute",
     inset: 0,
@@ -118,8 +165,18 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
     const [badges, setBadges] = useState<Record<string, string>>({});
     const [armedDelete, setArmedDelete] = useState(false);
 
+    const [timeline, setTimeline] = useState(false);
+    const [clipState, setClipState] = useState<ClipPlaybackState | null>(null);
+    const [videoMissing, setVideoMissing] = useState(false);
+    const muted = useClipMuted();
+
     const blobUrlRef = useRef<string | null>(null);
     const imageBoxRef = useRef<HTMLDivElement | null>(null);
+    const videoRef = useRef<HTMLVideoElement | null>(null);
+    const playbackRef = useRef<ClipPlayback | null>(null);
+    const railRef = useRef<HTMLDivElement | null>(null);
+    const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+    const alignedRef = useRef(false);
     const [posterRatio, setPosterRatio] = useState(0);
 
     const clipSource = useMemo<ClipSource | null>(() => {
@@ -236,6 +293,37 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
         return showMemoryFullscreen(thumbDataUri, fullSrc, language, clipSource);
     }, [fullscreen, fullSrc, thumbDataUri, language, clipSource]);
 
+    useEffect(() => {
+        const element = videoRef.current;
+        if (!timeline || !clipSource || !element) {
+            return;
+        }
+        const handle = playClip(element, clipSource);
+        playbackRef.current = handle;
+        const unsubscribe = handle.subscribe(setClipState);
+        return () => {
+            unsubscribe();
+            handle.destroy();
+            playbackRef.current = null;
+            setClipState(null);
+        };
+    }, [timeline, clipSource]);
+
+    useEffect(() => {
+        const element = videoRef.current;
+        if (element) {
+            element.muted = muted;
+        }
+    }, [muted, timeline]);
+
+    useEffect(() => {
+        if (!clipState?.unavailable) {
+            return;
+        }
+        setVideoMissing(true);
+        setTimeline(false);
+    }, [clipState?.unavailable]);
+
     const handleCancel = useCallback(() => {
         if (fullscreen) {
             setFullscreen(false);
@@ -244,8 +332,40 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
         close();
     }, [fullscreen, close]);
 
+    function pressTimeline() {
+        if (!timelineOffered) {
+            return;
+        }
+        if (!timeline) {
+            setVideoMissing(false);
+            setTimeline(true);
+            return;
+        }
+        if (clipState?.ended) {
+            alignedRef.current = false;
+            railRef.current?.scrollTo({ top: 0, behavior: "auto" });
+            playbackRef.current?.togglePause();
+            return;
+        }
+        setTimeline(false);
+    }
+
+    function pressMute() {
+        const next = !getClipMuted();
+        setClipMuted(next);
+        void saveMemoriesMuted(next).catch((e) => {
+            logError("memories: couldn't save the clip mute setting", e);
+        });
+    }
+
+    function pressFullscreen() {
+        setTimeline(false);
+        setFullscreen((current) => !current);
+    }
+
     function pressDelete() {
         if (!armedDelete) {
+            setTimeline(false);
             setArmedDelete(true);
             return;
         }
@@ -261,6 +381,7 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
     }
 
     function openEditor() {
+        setTimeline(false);
         showManagedModal((closeEditor) => (
             <MemoryEditorModal
                 memory={{ ...memory, caption, tag, color }}
@@ -308,10 +429,72 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
     const rule = noteBodyColor(color);
     const imageMaxVh = getDeviceIsSteamMachine() ? 70 : 55;
 
-    const railCards = useMemo(() => [...memory.achievements]
-        .sort((first, second) => (first.unlockedAt ?? Infinity) - (second.unlockedAt ?? Infinity))
-        .slice(0, RAIL_CARD_LIMIT), [memory.achievements]);
+    const sortedCards = useMemo(() => [...memory.achievements]
+        .sort((first, second) => (first.unlockedAt ?? Infinity) - (second.unlockedAt ?? Infinity)),
+        [memory.achievements]);
+    const railCards = timeline ? sortedCards : sortedCards.slice(0, RAIL_CARD_LIMIT);
     const overflow = Math.max(0, memory.achievementCount - railCards.length);
+
+    const offsets = useMemo(
+        () => timelineOffsets(sortedCards, memory.capturedAt),
+        [sortedCards, memory.capturedAt]
+    );
+
+    const clipSeconds = clipSource ? clipSource.durationMs / 1000 : 0;
+    const timelineOffered = Boolean(clipSource)
+        && offsets.some((offset) => offset !== null && offset >= 0 && offset <= clipSeconds);
+
+    const position = clipState?.position ?? 0;
+    const lit = useMemo(
+        () => (timeline ? litIndices(offsets, position) : []),
+        [timeline, offsets, position]
+    );
+    const litSet = useMemo(() => new Set(lit), [lit]);
+    const litKey = lit.join(",");
+
+    useEffect(() => {
+        if (!timeline) {
+            alignedRef.current = false;
+            railRef.current?.scrollTo({ top: 0, behavior: "auto" });
+            return;
+        }
+        const rail = railRef.current;
+        const first = cardRefs.current[lit[0] ?? -1];
+        const last = cardRefs.current[lit[lit.length - 1] ?? -1];
+        if (!rail || !first || !last) {
+            return;
+        }
+        if (!alignedRef.current) {
+            alignedRef.current = true;
+            rail.scrollTop = first.offsetTop;
+            return;
+        }
+        const margin = last.offsetHeight * RAIL_SCROLL_MARGIN;
+        const bottom = last.offsetTop + last.offsetHeight;
+        if (bottom + margin > rail.scrollTop + rail.clientHeight) {
+            rail.scrollTop = bottom + margin - rail.clientHeight;
+            return;
+        }
+        if (first.offsetTop < rail.scrollTop) {
+            rail.scrollTop = first.offsetTop;
+        }
+    }, [timeline, litKey]);
+
+    const framedButtons: Record<number, string> = {};
+    if (clipSource) {
+        framedButtons[BUTTON_SELECT] = muted ? t(language, "Unmute") : t(language, "Mute");
+    }
+    if (timelineOffered) {
+        if (timeline && clipState?.ended) {
+            framedButtons[BUTTON_BUMPER_RIGHT] = t(language, "Restart");
+        }
+        else if (timeline) {
+            framedButtons[BUTTON_BUMPER_RIGHT] = t(language, "Stop");
+        }
+        else {
+            framedButtons[BUTTON_BUMPER_RIGHT] = t(language, "Timeline Play");
+        }
+    }
 
     if (fullscreen) {
         return (
@@ -321,7 +504,7 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                 className="cheevo-memory-full"
                 modalClassName="cheevo-memory-fullpos"
             >
-                <SnapshotHotkey language={language} />
+                <SnapshotHotkey language={language} reservedButtons={clipSource ? ["view"] : undefined} />
                 <style>{MEMORY_DIALOG_CSS}</style>
                 <Focusable
                     onActivate={clipSource
@@ -334,6 +517,10 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                         ? (event: { detail?: { button?: number; is_repeat?: boolean } }) => {
                             const button = event?.detail?.button;
                             nudgeMemoryTransport();
+                            if (button === BUTTON_SELECT && !event?.detail?.is_repeat) {
+                                pressMute();
+                                return;
+                            }
                             const seeking = button === BUTTON_TRIGGER_LEFT || button === BUTTON_TRIGGER_RIGHT;
                             const skipping = button === BUTTON_BUMPER_LEFT || button === BUTTON_BUMPER_RIGHT;
                             if (!seeking && !skipping) {
@@ -394,8 +581,39 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                 onSecondaryActionDescription={t(language, "Delete")}
                 onOptionsButton={openEditor}
                 onOptionsActionDescription={t(language, "Edit")}
+                onButtonDown={clipSource
+                    ? (event: { detail?: { button?: number; is_repeat?: boolean } }) => {
+                        const button = event?.detail?.button;
+                        if (event?.detail?.is_repeat) {
+                            return;
+                        }
+                        if (button === BUTTON_SELECT) {
+                            pressMute();
+                            return;
+                        }
+                        if (button === BUTTON_BUMPER_RIGHT) {
+                            pressTimeline();
+                            return;
+                        }
+                        if (!timeline) {
+                            return;
+                        }
+                        if (button === BUTTON_TRIGGER_LEFT || button === BUTTON_TRIGGER_RIGHT) {
+                            playbackRef.current?.beginSeek(button === BUTTON_TRIGGER_RIGHT ? 1 : -1);
+                        }
+                    }
+                    : undefined}
+                onButtonUp={clipSource
+                    ? (event: { detail?: { button?: number } }) => {
+                        const button = event?.detail?.button;
+                        if (button === BUTTON_TRIGGER_LEFT || button === BUTTON_TRIGGER_RIGHT) {
+                            playbackRef.current?.endSeek();
+                        }
+                    }
+                    : undefined}
+                actionDescriptionMap={clipSource ? framedButtons : undefined}
             >
-                <SnapshotHotkey language={language} />
+                <SnapshotHotkey language={language} reservedButtons={clipSource ? ["view"] : undefined} />
                 <style>{MEMORY_DIALOG_CSS}</style>
                 <style>{POINTS_LABEL_STYLES}</style>
 
@@ -442,7 +660,7 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                 <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                         <Focusable
-                            onActivate={() => setFullscreen((current) => !current)}
+                            onActivate={pressFullscreen}
                             onOKActionDescription={clipSource
                                 ? t(language, "Play")
                                 : t(language, "Fullscreen")}
@@ -477,6 +695,9 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                                         style={IMAGE_LAYER_STYLE}
                                     />
                                 ) : null}
+                                {timeline ? (
+                                    <video ref={videoRef} playsInline style={IMAGE_LAYER_STYLE} />
+                                ) : null}
                                 {clipSource ? (
                                     <div
                                         style={{
@@ -498,6 +719,23 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                                                 maxHeight: "100%"
                                             }}
                                         >
+                                            {muted ? (
+                                                <div
+                                                    style={{
+                                                        position: "absolute",
+                                                        bottom: `${modalSize(6)}px`,
+                                                        left: `${modalSize(6)}px`,
+                                                        padding: `${modalSize(2)}px ${modalSize(4)}px`,
+                                                        borderRadius: "3px",
+                                                        background: "rgba(0, 0, 0, 0.35)",
+                                                        color: "rgba(255, 255, 255, 0.88)",
+                                                        display: "flex",
+                                                        alignItems: "center"
+                                                    }}
+                                                >
+                                                    <MutedIcon size={modalSize(17)} />
+                                                </div>
+                                            ) : null}
                                             <div
                                                 style={{
                                                     position: "absolute",
@@ -512,12 +750,36 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                                                     fontVariantNumeric: "tabular-nums"
                                                 }}
                                             >
-                                                {formatClipLength(clipSource.durationMs / 1000)}
+                                                {timeline
+                                                    ? `${formatClipLength(Math.floor(position))} / ${formatClipLength(clipSeconds)}`
+                                                    : formatClipLength(clipSeconds)}
                                             </div>
+                                            {timeline ? (
+                                                <div
+                                                    style={{
+                                                        position: "absolute",
+                                                        left: 0,
+                                                        right: 0,
+                                                        bottom: 0,
+                                                        height: "2px",
+                                                        background: "rgba(255, 255, 255, 0.28)"
+                                                    }}
+                                                >
+                                                    <div
+                                                        style={{
+                                                            width: `${clipSeconds > 0
+                                                                ? Math.min(position / clipSeconds, 1) * 100
+                                                                : 0}%`,
+                                                            height: "100%",
+                                                            background: "#ffffff"
+                                                        }}
+                                                    />
+                                                </div>
+                                            ) : null}
                                         </div>
                                     </div>
                                 ) : null}
-                                {clipSource ? (
+                                {clipSource && !timeline ? (
                                     <div
                                         style={{
                                             position: "absolute",
@@ -542,6 +804,29 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                                                 fill="rgba(255, 255, 255, 0.92)"
                                             />
                                         </svg>
+                                    </div>
+                                ) : null}
+                                {videoMissing ? (
+                                    <div
+                                        style={{
+                                            position: "absolute",
+                                            left: 0,
+                                            right: 0,
+                                            bottom: 0,
+                                            padding: `${modalSize(10)}px ${modalSize(14)}px`,
+                                            display: "flex",
+                                            flexDirection: "column",
+                                            gap: "4px",
+                                            alignItems: "center",
+                                            background: "linear-gradient(to top, rgba(0,0,0,0.78), rgba(0,0,0,0))"
+                                        }}
+                                    >
+                                        <div style={{ fontSize: `${modalSize(14)}px`, fontWeight: 700 }}>
+                                            {t(language, "This clip's video is missing")}
+                                        </div>
+                                        <div style={{ fontSize: `${modalSize(12)}px`, opacity: 0.85 }}>
+                                            {t(language, "The picture, caption and achievements are safe.")}
+                                        </div>
                                     </div>
                                 ) : null}
                             </div>
@@ -605,17 +890,44 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                     </div>
 
                     {railCards.length > 0 && (
-                        <div style={{ width: `${modalSize(200)}px`, display: "flex", flexDirection: "column", gap: "6px" }}>
-                            {railCards.map((card) => (
+                        <div
+                            style={{
+                                width: `${modalSize(200)}px`,
+                                // The scroller inside is absolutely positioned, so
+                                // this has to be its containing block.
+                                position: "relative",
+                                alignSelf: timeline ? "stretch" : undefined
+                            }}
+                        >
+                        <div
+                            ref={railRef}
+                            style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "6px",
+                                position: timeline ? "absolute" : "relative",
+                                inset: timeline ? 0 : undefined,
+                                overflowY: timeline ? "auto" : undefined,
+                                scrollBehavior: "smooth"
+                            }}
+                        >
+                            {railCards.map((card, index) => (
                                 <div
                                     key={card.id}
+                                    ref={(node) => {
+                                        cardRefs.current[index] = node;
+                                    }}
                                     style={{
                                         display: "flex",
                                         gap: "8px",
                                         alignItems: "flex-start",
                                         padding: "8px",
                                         borderRadius: "6px",
-                                        background: "rgba(255,255,255,0.06)"
+                                        background: "rgba(255,255,255,0.06)",
+                                        flexShrink: 0,
+                                        borderLeft: `${RAIL_EDGE_WIDTH}px solid ${
+                                            litSet.has(index) ? RAIL_LIT_EDGE : "transparent"}`,
+                                        boxShadow: litSet.has(index) ? RAIL_LIT_GLOW : undefined
                                     }}
                                 >
                                     <div
@@ -706,6 +1018,7 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                                     {t(language, "+{{count}} more", { count: overflow })}
                                 </div>
                             )}
+                        </div>
                         </div>
                     )}
                 </div>
