@@ -122,14 +122,25 @@ def lchown_to_data_owner(path) -> None:
 
 
 def ensure_dir(path) -> None:
-    """mkdir -p that also hands the created dir back to the data-dir owner.
+    """mkdir -p that also hands the created dirs back to the data-dir owner.
 
     A root-owned directory is worse than a root-owned file: nothing running as
     the user can create anything inside it, so the lockout is total. Every store
     that builds a data dir goes through here so new stores get this for free.
+
+    Every level this call creates is handed back, not only the leaf. A caller
+    reaching three levels down in one go would otherwise leave the two above it
+    owned by root. Levels that were already there keep whoever owns them.
     """
+    made = []
+    probe = path
+    while not probe.exists() and probe.parent != probe:
+        made.append(probe)
+        probe = probe.parent
     path.mkdir(parents=True, exist_ok=True)
     chown_to_data_owner(path)
+    for level in made[1:]:
+        chown_to_data_owner(level)
 
 
 def save_json_file(path: Path, payload: Any, *, compact: bool = False) -> None:
