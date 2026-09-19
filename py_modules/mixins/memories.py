@@ -151,13 +151,15 @@ class MemoriesMixin(PluginContext):
         try:
             raw, size = await asyncio.to_thread(_read_slice, folder / name, start, span)
         except OSError as e:
-            decky.logger.warning(
-                "memories: couldn't read %s for memory %s (%s)", name, memory_id, type(e).__name__
-            )
             picked = self.settings_store.get_memories_video_path(self.settings_store.load_config())
             available = memories_video_service.root_available(
                 self.memories_store.videos_root(), picked != ""
             )
+            if not available or not isinstance(e, FileNotFoundError):
+                decky.logger.warning(
+                    "memories: couldn't read %s for memory %s (%s)",
+                    name, memory_id, type(e).__name__,
+                )
             return {"ok": False, "error": "unreadable", "rootAvailable": available}
 
         return {"ok": True, "data": base64.b64encode(raw).decode("ascii"), "size": size}
