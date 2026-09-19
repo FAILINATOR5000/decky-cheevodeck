@@ -372,9 +372,9 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
         >
             <Focusable
                 onSecondaryButton={pressDelete}
-                onSecondaryActionDescription={armedDelete
-                    ? t(language, "Delete Again to Confirm")
-                    : t(language, "Delete")}
+                onSecondaryActionDescription={t(language, "Delete")}
+                onOptionsButton={openEditor}
+                onOptionsActionDescription={t(language, "Edit")}
             >
                 <SnapshotHotkey language={language} />
                 <style>{MEMORY_DIALOG_CSS}</style>
@@ -438,7 +438,8 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                                     maxHeight: `${imageMaxVh}vh`,
                                     background: "rgba(255,255,255,0.06)",
                                     borderRadius: "6px",
-                                    overflow: "hidden"
+                                    overflow: "hidden",
+                                    boxShadow: armedDelete ? `0 0 0 2px ${errorRed}` : undefined
                                 }}
                             >
                                 {thumbDataUri ? (
