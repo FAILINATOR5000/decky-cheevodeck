@@ -259,11 +259,13 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         const scanning = scanTimer !== null;
         const playable = Math.max(endTarget() - inPoint, 0);
         const elapsed = Math.max(Math.min(video.currentTime, endTarget()) - inPoint, 0);
+        const ended = !scanning && isEnded();
+        const running = playable > 0 && span > 0 ? Math.min(elapsed / playable, 1) * span : elapsed;
         const state: ClipPlaybackState = {
-            position: playable > 0 && span > 0 ? Math.min(elapsed / playable, 1) * span : elapsed,
+            position: ended ? span : running,
             duration: span,
             paused: scanning ? !resumeAfterScan : video.paused,
-            ended: !scanning && isEnded(),
+            ended,
             unavailable,
             scanning,
             ready: video.readyState >= 2

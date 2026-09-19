@@ -212,7 +212,7 @@ function ClipLayer(props: { clip: ClipSource; language: LanguageCode }) {
                         />
                     </div>
                     <span style={{ fontVariantNumeric: "tabular-nums", fontSize: `${modalSize(14)}px` }}>
-                        {`${formatClipLength(Math.floor(state.position))} / ${formatClipLength(state.duration)}`}
+                        {`${formatClipLength(state.ended ? state.duration : Math.floor(state.position))} / ${formatClipLength(state.duration)}`}
                     </span>
                 </div>
                 <div style={{ display: "flex", gap: "18px", fontSize: `${modalSize(14)}px`, opacity: 0.9 }}>
