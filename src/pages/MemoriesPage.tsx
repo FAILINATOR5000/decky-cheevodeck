@@ -23,6 +23,8 @@ import { MemoryEditorModal } from "../components/memories/MemoryEditorModal";
 import { useFocusClaim } from "../hooks/useFocusClaim";
 import { showManagedModal } from "../utils/modalRegistry";
 import { armMemoriesFocusKey, armMemoriesFocusReturn } from "../utils/memoriesFocusReturn";
+import { requestJumpToTop } from "../utils/jumpToTop";
+import { forgetNavAxisMemory, type NavAxisRef } from "../utils/navAxisMemory";
 import { playOkSound } from "../utils/navSound";
 import { logFocusDebug } from "../api";
 import { ALL_GAMES_ID, MISC_GAME_ID, mediaFilterKey, memoryRemovalLanding } from "../utils/memories";
@@ -202,10 +204,16 @@ function MemoriesPage(props: MemoriesPageProps) {
 
     const openViewerRef = useRef<(memoryId: string) => void>(() => { });
 
+    const gridNavRef = useRef(null) as NavAxisRef;
+
     const cardList = useMemo<MemoryCardListProps>(() => ({
         columns: memories.gridColumns,
         dateFormatter,
-        onFocused: actions.memories.setFocusedMemoryId,
+        onFocused: (memoryId: string) => {
+            // Clears the column Steam imported from the toolbar above; see utils/navAxisMemory.
+            forgetNavAxisMemory(gridNavRef);
+            actions.memories.setFocusedMemoryId(memoryId);
+        },
         onBlurred: actions.memories.blurMemory,
         onOpen: (memoryId: string) => {
             openViewerRef.current(memoryId);
@@ -278,6 +286,29 @@ function MemoriesPage(props: MemoriesPageProps) {
         restoreClaim.claimSlot,
         actions.onRequestFocus
     ]);
+
+    const firstRun = memories.ready
+        && memories.indexLoaded
+        && !autoCapture
+        && memories.indexedGameCount === 0;
+
+    const sawFirstRunRef = useRef(false);
+    useEffect(function landAfterFirstRun() {
+        if (!active) {
+            sawFirstRunRef.current = false;
+            return;
+        }
+        if (firstRun) {
+            sawFirstRunRef.current = true;
+            return;
+        }
+        if (!sawFirstRunRef.current) {
+            return;
+        }
+        sawFirstRunRef.current = false;
+        requestJumpToTop();
+        actions.onRequestFocus("memories:back");
+    }, [active, firstRun, actions.onRequestFocus]);
 
     if (!active) {
         return null;
@@ -450,11 +481,6 @@ function MemoriesPage(props: MemoriesPageProps) {
     }
     const restoreSettled = restoreSettledRef.current;
 
-    const firstRun = memories.ready
-        && memories.indexLoaded
-        && !autoCapture
-        && memories.indexedGameCount === 0;
-
     function renderToggleButton(focusKey: string, icon: ReactNode, onClick: () => void) {
         return (
             <div data-focus-key={focusKey} style={{ display: "flex" }}>
@@ -490,7 +516,10 @@ function MemoriesPage(props: MemoriesPageProps) {
             <div data-focus-key={focusKey} style={{ display: "flex" }}>
                 <DialogButton
                     onClick={() => turnPage(delta)}
-                    onGamepadFocus={() => setFocusedToggleKey(focusKey)}
+                    onGamepadFocus={() => {
+                        forgetNavAxisMemory(gridNavRef);
+                        setFocusedToggleKey(focusKey);
+                    }}
                     onGamepadBlur={() => setFocusedToggleKey((current) => current === focusKey ? null : current)}
                     onMouseEnter={() => setFocusedToggleKey(focusKey)}
                     onMouseLeave={() => setFocusedToggleKey((current) => current === focusKey ? null : current)}
@@ -567,6 +596,7 @@ function MemoriesPage(props: MemoriesPageProps) {
         return (
             <PanelSectionRow>
                 <Focusable
+                    navRef={gridNavRef}
                     resetNavOnEntry
                     flow-children="grid"
                     navEntryPreferPosition={NAV_ENTER_FIRST}
