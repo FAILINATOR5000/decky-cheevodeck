@@ -243,9 +243,6 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
     let index: ClipIndex | null = null;
     let nextOffset = 0;
 
-    // Learned rather than computed. The manifest's period start is not the first
-    // segment's own timestamp: they differ by a fraction of a second on a clip
-    // cut from a background session, and every seek here is in media time.
     let firstSegmentStart = 0;
     let nextSegment = 0;
     let offsets: number[] = [];
@@ -432,13 +429,36 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         return index ? syncOffsetFor(at) : segmentFor(at);
     }
 
+    function aimingInPlace(at: number): boolean {
+        if (index || !plan) {
+            return false;
+        }
+        return segmentFor(at) === nextSegment && offsets.some((sent) => sent > 0);
+    }
+
+    function resetParsers() {
+        if (index || !mediaSource || mediaSource.readyState !== "open") {
+            return;
+        }
+        for (const buffer of buffers) {
+            try {
+                buffer.abort();
+            }
+            catch {
+            }
+        }
+    }
+
     function aimCursor(at: number) {
         if (index) {
             nextOffset = aimFor(at);
+            return;
         }
-        else {
-            startSegment(aimFor(at));
+        if (aimingInPlace(at)) {
+            return;
         }
+        startSegment(aimFor(at));
+        resetParsers();
     }
 
     function startSegment(number: number) {
@@ -636,12 +656,14 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
             return;
         }
         pendingRefill = null;
-        for (const buffer of buffers) {
-            if (buffer.updating) {
-                try {
-                    buffer.abort();
-                }
-                catch {
+        if (!aimingInPlace(from)) {
+            for (const buffer of buffers) {
+                if (buffer.updating) {
+                    try {
+                        buffer.abort();
+                    }
+                    catch {
+                    }
                 }
             }
         }
@@ -902,10 +924,6 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
             }
             destroyed = true;
             stopScan();
-            // Order matters. The decoder stops first, then the in-flight fetches
-            // are canceled so none of them can resolve into a SourceBuffer that
-            // is on its way out, and the element is reset last: dropping the
-            // reference alone leaves its decode pipeline alive.
             try {
                 video.pause();
             }
