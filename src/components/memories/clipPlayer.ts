@@ -297,6 +297,22 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         publish();
     }
 
+    function mediaFailed(): boolean {
+        const failure = video.error;
+        if (failure === null) {
+            return false;
+        }
+        if (!unavailable) {
+            exhausted = true;
+            clipDebug("clip-dead", source.clipId,
+                () => `code ${failure.code} at ${video.currentTime.toFixed(1)}s, holding ${coverage()}`);
+            unreachable(failure.message || `playback stopped on media error ${failure.code}`);
+            stopScan("error");
+            pendingRefill = null;
+        }
+        return true;
+    }
+
     async function fetchPart(name: string, offset = 0, limit = 0): Promise<Piece | null> {
         if (source.owned) {
             const asked = performance.now();
@@ -385,7 +401,7 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
             return false;
         }
         await settled(buffers[0]);
-        if (destroyed || era !== generation) {
+        if (destroyed || era !== generation || mediaFailed()) {
             return true;
         }
         await appendOnce(buffers[0], piece.bytes);
@@ -499,7 +515,7 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
                 continue;
             }
             await settled(buffers[index]);
-            if (destroyed || era !== generation) {
+            if (destroyed || era !== generation || mediaFailed()) {
                 return true;
             }
             await appendOnce(buffers[index], piece.bytes);
@@ -515,13 +531,16 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
     }
 
     async function pump(ahead: number = AHEAD_SECONDS, from?: number) {
-        if (pumping || destroyed || (!plan && !index)) {
+        if (pumping || destroyed || (!plan && !index) || mediaFailed()) {
             return;
         }
         pumping = true;
         const era = generation;
         try {
             while (!destroyed && !exhausted && era === generation && pendingRefill === null) {
+                if (mediaFailed()) {
+                    break;
+                }
                 const at = from ?? video.currentTime;
                 if (bufferedHolds(video, at) && bufferedEnd(video, at) - at >= ahead) {
                     break;
@@ -557,6 +576,7 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
             if (!destroyed) {
                 logError("memories: reading a clip segment failed", error);
                 clipDebug("clip-failed", source.clipId, () => String(error));
+                mediaFailed();
             }
         }
         finally {
@@ -652,7 +672,7 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
     }
 
     function refill(from: number) {
-        if (destroyed || buffers.length === 0 || (!plan && !index)) {
+        if (destroyed || buffers.length === 0 || (!plan && !index) || mediaFailed()) {
             return;
         }
         pendingRefill = null;
