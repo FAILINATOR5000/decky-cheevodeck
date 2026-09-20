@@ -15,6 +15,8 @@ import {
     subscribeToAchievementIcon,
     subscribeToGameIcon
 } from "../../api";
+import { transferErrorKey } from "../../utils/memoriesTransferErrors";
+import { transferSizeLabel } from "../../utils/memoriesTransferSize";
 import { ErrorText } from "../ui/ErrorText";
 import { FadeImage } from "../ui/FadeImage";
 import { FocusableItem } from "../ui/FocusableItem";
@@ -145,6 +147,10 @@ function isFileWatcherPass(notification: CheevoNotification): boolean {
     return notification.type === "system" && notification.target?.view === "fileWatcher";
 }
 
+function isMemoriesTransfer(notification: CheevoNotification): boolean {
+    return notification.type === "system" && notification.target?.view === "memoriesTransfer";
+}
+
 function isChangelogRow(notification: CheevoNotification): boolean {
     return notification.type === "system" && notification.target?.view === "changelog";
 }
@@ -206,6 +212,27 @@ function cheevoCheckScanBody(notification: CheevoNotification, language: Languag
             </div>
         </>
     );
+}
+
+function memoriesTransferBody(notification: CheevoNotification, language: LanguageCode): ReactNode {
+    const size = transferSizeLabel(metaNumber(notification, "bytes"));
+    const direction = metaString(notification, "transfer");
+    if (direction === "failed") {
+        return t(language, transferErrorKey(metaString(notification, "reason")));
+    }
+    const files = metaNumber(notification, "files");
+    const skipped = metaNumber(notification, "skipped");
+    if (direction !== "export" && files <= 0 && skipped > 0) {
+        return t(language, "Every memory in that export was already here.");
+    }
+    if (direction !== "export" && skipped > 0) {
+        return t(language, "Imported {{count}} files at around {{size}} in size. {{skipped}} were already here.",
+            { count: files, size, skipped });
+    }
+    const key = direction === "export"
+        ? "Exported {{count}} files at around {{size}} in size."
+        : "Imported {{count}} files at around {{size}} in size.";
+    return t(language, key, { count: files, size });
 }
 
 function fileWatcherPassBody(notification: CheevoNotification, language: LanguageCode): ReactNode {
@@ -503,6 +530,7 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
         notification.type === "system"
         && !isCheevoCheckScan(notification)
         && !isFileWatcherPass(notification)
+        && !isMemoriesTransfer(notification)
         && !isChangelogRow(notification)
         && !isDeveloperMessage(notification);
     const templatedBody: ReactNode | null =
@@ -529,6 +557,8 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                                 : cheevoCheckScanBody(notification, language))
                             : isFileWatcherPass(notification)
                                 ? fileWatcherPassBody(notification, language)
+                                : isMemoriesTransfer(notification)
+                                ? memoriesTransferBody(notification, language)
                                 : isChangelogRow(notification)
                                     ? null
                                     : isDeveloperMessage(notification)
@@ -602,6 +632,8 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                                     ? t(language, "Cheevo Check")
                                     : isFileWatcherPass(notification)
                                         ? t(language, "File Watcher")
+                                        : isMemoriesTransfer(notification)
+                                        ? localizeRuntimeText(language, notification.title)
                                         : isChangelogRow(notification)
                                             ? t(language, "What's New in CheevoDeck")
                                             : isDeveloperMessage(notification)

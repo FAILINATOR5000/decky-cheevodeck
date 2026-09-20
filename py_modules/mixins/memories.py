@@ -9,6 +9,8 @@ import memories_clips
 import memories_resolver
 import memories_thumbs
 
+import memories_transfer
+
 from services import memories_video_service
 
 from memories_store import ALL_GAMES_ID, MISC_GAME_ID
@@ -131,6 +133,39 @@ class MemoriesMixin(PluginContext):
         answer to one is the state the user was already in.
         """
         return self.memories_video_service.cancel()
+
+    async def memories_export_counts(self):
+        return await asyncio.to_thread(self.memories_transfer_service.counts)
+
+    async def memories_export_weight(self):
+        return await asyncio.to_thread(self.memories_transfer_service.weigh)
+
+    async def start_memories_export(self, folder: str = "", include_videos: bool = True):
+        return await asyncio.to_thread(
+            self.memories_transfer_service.start_export, folder, bool(include_videos)
+        )
+
+    async def list_memory_bundles(self, folder: str = ""):
+        return await asyncio.to_thread(
+            memories_transfer.list_bundles, Path(str(folder or "").strip())
+        )
+
+    async def start_memories_import(self, bundle: str = "", mode: str = "merge"):
+        return await asyncio.to_thread(
+            self.memories_transfer_service.start_import, bundle, str(mode or "merge")
+        )
+
+    async def memories_transfer_status(self):
+        return self.memories_transfer_service.status()
+
+    async def cancel_memories_transfer(self):
+        return self.memories_transfer_service.cancel()
+
+    async def recover_memories_restore(self):
+        return await asyncio.to_thread(self.memories_transfer_service.recover_stashed)
+
+    async def discard_memories_restore(self):
+        return await asyncio.to_thread(self.memories_transfer_service.discard_stashed)
 
     async def read_memory_clip_part(self, game_id, memory_id: str, name: str, offset=0, limit=0):
         """Part of one file out of a memory's own copy of a clip, base64 encoded.
@@ -283,11 +318,6 @@ class MemoriesMixin(PluginContext):
         return await asyncio.to_thread(self.memories_store.delete_memory, game_id, memory_id)
 
     async def delete_all_memories(self):
-        """Remove every memory for the active account, pictures included.
-
-        The only bulk destructive path in the feature, and the only thing in the
-        plugin that removes files from the user's Pictures folder in one go.
-        """
         result = await asyncio.to_thread(self.memories_store.delete_all)
         decky.logger.info("memories: deleted all %s for this account", result.get("removed", 0))
         return result

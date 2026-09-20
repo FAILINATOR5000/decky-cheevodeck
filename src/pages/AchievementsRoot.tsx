@@ -90,6 +90,7 @@ import DolphinMapperPage from "./DolphinMapperPage";
 import SmbSharesPage from "./SmbSharesPage";
 import CheevoCheckPage from "./CheevoCheckPage";
 import FileWatcherPage from "./FileWatcherPage";
+import MemoriesTransferPage from "./MemoriesTransferPage";
 import MemoriesPage from "./MemoriesPage";
 import { CheevoCheckGamesModal } from "../components/pickers/CheevoCheckGamesModal";
 import { CommentViewModal, type CommentSaveControl } from "../components/comments/CommentViewModal";
@@ -233,6 +234,7 @@ import { takeTrackedSetFocusReturn } from "../utils/trackedSetFocusReturn";
 import { armTrackedFocusReturn, takeTrackedFocusReturn } from "../utils/trackedFocusReturn";
 import { takeDolphinFocusReturn } from "../utils/dolphinFocusReturn";
 import { takeFileWatcherFocusReturn } from "../utils/fileWatcherFocusReturn";
+import { takeMemoriesTransferFocusReturn } from "../utils/memoriesTransferFocusReturn";
 import { takeMemoriesFocusReturn } from "../utils/memoriesFocusReturn";
 import { takeOptionsFocusReturn } from "../utils/optionsFocusReturn";
 import { useMemoriesController } from "../hooks/useMemoriesController";
@@ -281,6 +283,8 @@ let pendingNotificationAbout = false;
 
 let pendingNotificationCheevoCheck = false;
 let pendingNotificationFileWatcher = false;
+
+let pendingNotificationMemoriesTransfer = false;
 
 let pendingSearchGameId: number | null = null;
 
@@ -368,6 +372,15 @@ function consumePendingRouteOverrides(resumeState: ResumeState | null): ResumeSt
             ...(nextResumeState ?? ({} as ResumeState)),
             view: "fileWatcher",
             focusKey: "fileWatcher:back"
+        };
+    }
+    const tappedNotificationMemoriesTransfer = pendingNotificationMemoriesTransfer;
+    pendingNotificationMemoriesTransfer = false;
+    if (tappedNotificationMemoriesTransfer) {
+        nextResumeState = {
+            ...(nextResumeState ?? ({} as ResumeState)),
+            view: "memoriesTransfer",
+            focusKey: "memoriesTransfer:back"
         };
     }
     const tappedSearchGameId = pendingSearchGameId;
@@ -2500,6 +2513,16 @@ function AchievementsRoot() {
     fileWatcherWasOpenRef.current = view === "fileWatcher";
     const fileWatcherRestorePending = fileWatcherRestoreArmedRef.current;
 
+    const [memoriesTransferFocusReturn] = useState(takeMemoriesTransferFocusReturn);
+
+    const memoriesTransferRestoreArmedRef = useRef(memoriesTransferFocusReturn !== null);
+    const memoriesTransferWasOpenRef = useRef(false);
+    if (memoriesTransferWasOpenRef.current && view !== "memoriesTransfer") {
+        memoriesTransferRestoreArmedRef.current = false;
+    }
+    memoriesTransferWasOpenRef.current = view === "memoriesTransfer";
+    const memoriesTransferRestorePending = memoriesTransferRestoreArmedRef.current;
+
     const [smbFocusReturn] = useState(takeSmbFocusReturn);
 
     const smbRestoreArmedRef = useRef(smbFocusReturn !== null);
@@ -3619,6 +3642,12 @@ function AchievementsRoot() {
         setPendingFocusKey("memories:back");
     }
 
+    function goToMemoriesTransfer() {
+        friendGameSessionRefreshKeysRef.current = new Set();
+        setView("memoriesTransfer");
+        setPendingFocusKey("memoriesTransfer:back");
+    }
+
     function backFromMemories() {
         navIntentRef.current = "back";
         const from = previousView(nav.stack);
@@ -3763,6 +3792,11 @@ function AchievementsRoot() {
             pendingNotificationFileWatcher = true;
             navIntentRef.current = "hub";
             goToFileWatcher();
+        },
+        openMemoriesTransfer: () => {
+            pendingNotificationMemoriesTransfer = true;
+            navIntentRef.current = "hub";
+            goToMemoriesTransfer();
         },
         openMessage: (body: string) => {
             showManagedModal((close) => (
@@ -4925,6 +4959,7 @@ function AchievementsRoot() {
                                     onOpenSmbShares: goToSmbShares,
                                     onOpenCheevoCheck: goToCheevoCheck,
                                     onOpenFileWatcher: goToFileWatcher,
+                                    onOpenMemoriesTransfer: goToMemoriesTransfer,
                                     onOpenMemories: goToMemories
                                 }}
                             />
@@ -5042,6 +5077,26 @@ function AchievementsRoot() {
                                     onBack: backFromUtilityTool,
                                     onHome: goToAchievements,
                                     onRequestFocus: setPendingFocusKey
+                                }}
+                            />
+
+                            <MemoriesTransferPage
+                                state={{
+                                    view,
+                                    focusScopeResetToken,
+                                    language,
+                                    buttonSpacing,
+                                    panelOverlayVisible,
+                                    activeUlid,
+                                    memoriesCount,
+                                    restoreFocusKey: memoriesTransferFocusReturn,
+                                    restorePending: memoriesTransferRestorePending
+                                }}
+                                actions={{
+                                    onBack: backFromUtilityTool,
+                                    onHome: goToAchievements,
+                                    onRequestFocus: setPendingFocusKey,
+                                    onDeleteAllMemories
                                 }}
                             />
 

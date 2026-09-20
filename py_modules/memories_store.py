@@ -52,6 +52,8 @@ _TAG_CLEAN_PATTERN = re.compile(r"[\[\]\n\r\t]")
 
 _CLIP_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,120}$")
 
+STASHED_SUFFIX = ".previous"
+
 GAMES_INDEX_NAME = "_games.json"
 VIEW_PREFS_NAME = "_index.json"
 
@@ -197,6 +199,18 @@ class MemoriesStore:
                 lock = threading.Lock()
                 self._game_locks[key] = lock
             return lock
+
+    def account_key(self) -> str:
+        with self._master_lock:
+            return self._account_key
+
+    def account_picture_root(self) -> Path:
+        with self._master_lock:
+            return self._pictures_dir / self._account_key if self._account_key else self._pictures_dir
+
+    def account_video_root(self) -> Path:
+        with self._master_lock:
+            return self._videos_dir / self._account_key if self._account_key else self._videos_dir
 
     def pictures_root(self) -> Path:
         """The folder every record's relative path is measured from."""
@@ -793,6 +807,78 @@ class MemoriesStore:
             "truncated": dropped,
         }
 
+    def all_entries(self) -> dict:
+        with self._index_lock:
+            index = self._load_games_index()
+
+        entries = {}
+        for row in index["games"]:
+            key = str(row["gameId"])
+            lock = self._lock_for_game(key)
+            with lock:
+                try:
+                    entries[key] = self._load_raw(key)
+                except ValueError:
+                    continue
+        return entries
+
+    def memory_ids(self) -> set:
+        held = set()
+        for entry in self.all_entries().values():
+            for memory in entry["memories"]:
+                held.add(memory["id"])
+        return held
+
+    def insert_memories(self, game_id, memories, tag_vocabulary=None) -> dict:
+        key = self._game_key(game_id)
+        if key is None:
+            return {
+                "ok": False, "error": "invalid_game_id",
+                "inserted": 0, "skipped": 0, "insertedIds": [],
+            }
+
+        lock = self._lock_for_game(key)
+        with lock:
+            entry = self._load_raw(key)
+            held = {m["id"] for m in entry["memories"]}
+            inserted = 0
+            skipped = 0
+            arriving = []
+            for raw in memories or []:
+                cleaned = self._normalize_memory(raw, int(key))
+                if cleaned is None:
+                    skipped += 1
+                    continue
+                if cleaned["id"] in held:
+                    skipped += 1
+                    continue
+                held.add(cleaned["id"])
+                arriving.append(cleaned)
+                entry["memories"].append(cleaned)
+                inserted += 1
+                if cleaned["gameTitle"] and not entry["gameTitle"]:
+                    entry["gameTitle"] = cleaned["gameTitle"]
+                if cleaned["consoleName"] and not entry["consoleName"]:
+                    entry["consoleName"] = cleaned["consoleName"]
+                if cleaned["imageIcon"] and not entry["imageIcon"]:
+                    entry["imageIcon"] = cleaned["imageIcon"]
+
+            for tag in reversed(list(tag_vocabulary or [])):
+                self._add_tag_to_vocab(entry, self._clean_tag(tag))
+            for memory in arriving:
+                self._add_tag_to_vocab(entry, memory.get("tag"))
+
+            entry["memories"].sort(key=lambda m: m["capturedAt"], reverse=True)
+            if inserted:
+                self._save_raw(key, entry)
+
+        return {
+            "ok": True,
+            "inserted": inserted,
+            "skipped": skipped,
+            "insertedIds": [m["id"] for m in arriving],
+        }
+
     def pending_memories(self, game_id) -> list:
         """Every memory for a game still waiting on the context resolver."""
         key = self._game_key(game_id)
@@ -1038,13 +1124,77 @@ class MemoriesStore:
 
         return {"ok": True, "deletedId": memory_id, "remaining": remaining}
 
-    def delete_all(self) -> dict:
-        """Remove every memory for this account, pictures included.
+    def _account_trees(self) -> list:
+        with self._master_lock:
+            picture_root = self._pictures_dir / self._account_key if self._account_key else self._pictures_dir
+            video_root = self._videos_dir / self._account_key if self._account_key else self._videos_dir
+            return [self._memories_dir, picture_root, video_root]
 
-        The only bulk destructive path in the feature. Scope is the active
-        account: this account's metadata, its thumbnails, and its folders under
-        the pictures and video roots, and nothing belonging to another one.
-        """
+    def stashed_trees(self) -> list:
+        found = []
+        for tree in self._account_trees():
+            stashed = tree.with_name(tree.name + STASHED_SUFFIX)
+            if stashed.is_dir():
+                found.append([str(stashed), str(tree)])
+        return found
+
+    def stash_account_trees(self) -> dict:
+        trees = self._account_trees()
+        for tree in trees:
+            if tree.with_name(tree.name + STASHED_SUFFIX).exists():
+                return {"ok": False, "error": "stash_pending", "moved": []}
+
+        moved = []
+        for tree in trees:
+            if not tree.is_dir():
+                continue
+            stashed = tree.with_name(tree.name + STASHED_SUFFIX)
+            try:
+                tree.rename(stashed)
+            except OSError as e:
+                decky.logger.error(
+                    "memories: couldn't move %s aside (%s)", tree.name, type(e).__name__
+                )
+                self.restore_account_trees(moved)
+                return {"ok": False, "error": "stash_failed", "moved": []}
+            moved.append([str(stashed), str(tree)])
+        return {"ok": True, "moved": moved}
+
+    def restore_account_trees(self, moved) -> int:
+        restored = 0
+        for pair in moved or []:
+            stashed, original = Path(pair[0]), Path(pair[1])
+            if not stashed.is_dir():
+                continue
+            try:
+                shutil.rmtree(original)
+            except OSError:
+                pass
+            try:
+                stashed.rename(original)
+            except OSError as e:
+                decky.logger.error(
+                    "memories: couldn't put %s back (%s)", original.name, type(e).__name__
+                )
+                continue
+            restored += 1
+        return restored
+
+    def discard_stashed_trees(self, moved) -> int:
+        removed = 0
+        for pair in moved or []:
+            stashed = Path(pair[0])
+            try:
+                shutil.rmtree(stashed)
+            except OSError as e:
+                decky.logger.warning(
+                    "memories: the replaced library stayed at %s (%s)", stashed, type(e).__name__
+                )
+                continue
+            removed += 1
+        return removed
+
+    def delete_all(self) -> dict:
         try:
             keys = [p.stem for p in self._memories_dir.glob("*.json") if _GAME_KEY_PATTERN.match(p.stem)]
         except OSError:

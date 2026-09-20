@@ -450,6 +450,7 @@ export type ViewKey =
     | "cheevoCheck"
     | "fileWatcher"
     | "memories"
+    | "memoriesTransfer"
     | "guides";
 
 // Guides
@@ -684,7 +685,7 @@ export type NotificationIconSource = "game" | "achievement" | "avatar" | "setMos
 type NotificationSource = "notifications";
 
 type NotificationNavTarget = {
-    view: "gameNotes" | "trackedSetOpen" | "gameOverview" | "achievementOverview" | "cheevoCheck" | "fileWatcher" | "changelog" | "message" | "external";
+    view: "gameNotes" | "trackedSetOpen" | "gameOverview" | "achievementOverview" | "cheevoCheck" | "fileWatcher" | "memoriesTransfer" | "changelog" | "message" | "external";
     gameId?: number | null;
     achievementId?: number | null;
     noteId?: string | null;
@@ -1450,6 +1451,66 @@ type MemoryAchievementCard = {
     numAwarded: number;
     type: string;
     unlockedAt: number | null;
+};
+
+type MemoriesTransferState =
+    | "idle"
+    | "scanning"
+    | "writing"
+    | "validating"
+    | "importing"
+    | "finishing"
+    | "done"
+    | "canceled"
+    | "failed";
+
+type MemoriesTransferDirection = "" | "export" | "import";
+
+export type MemoriesTransferMode = "merge" | "replace";
+
+export type MemoriesExportCounts = {
+    ok: boolean;
+    games: number;
+    memories: number;
+};
+
+export type MemoriesExportWeight = {
+    ok: boolean;
+    games: number;
+    memories: number;
+    missingPictures: number;
+    clips: number;
+    missingClips: number;
+    bytes: number;
+    bytesNoVideos: number;
+};
+
+export type MemoriesTransferStatus = {
+    ok: boolean;
+    state: MemoriesTransferState;
+    direction: MemoriesTransferDirection;
+    mode: string;
+    error: string;
+    copied: number;
+    records: number;
+    totalRecords: number;
+    bytes: number;
+    totalBytes: number;
+    target: string;
+    stashed: boolean;
+};
+
+export type MemoryBundleRow = {
+    path: string;
+    name: string;
+    sizeBytes: number;
+    createdAt: number;
+    appVersion: string;
+    ulid: string;
+    total: number;
+    videos: number;
+    games: number;
+    includesVideo: boolean;
 };
 
 type MemoriesVideoMoveState =

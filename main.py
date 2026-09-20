@@ -29,6 +29,7 @@ from services.aotw_service import AotwService
 from services.game_comments_service import GameCommentsService
 from services.game_hashes_service import GameHashesService
 from services.memories_video_service import MemoriesVideoService, root_for as memories_video_root
+from services.memories_transfer_service import MemoriesTransferService
 from services.smb_mount_service import SmbMountService
 from services.comments_service import CommentsService
 from services.new_sets_service import NewSetsService
@@ -192,6 +193,7 @@ class Plugin(
         self.notes_dir = self.runtime_dir / "notes"
         self.memories_dir = self.runtime_dir / "memories"
         self.memory_thumbs_dir = self.runtime_dir / "memory_thumbs"
+        self.memories_transfer_scratch_dir = self.runtime_dir / "transfer-temp"
         self.guides_dir = self.runtime_dir / "guides"
         self.tracked_sets_dir = self.runtime_dir
         self.dolphin_mappings_dir = self.runtime_dir
@@ -502,6 +504,13 @@ class Plugin(
         self.memories_video_service = MemoriesVideoService(
             home=self.user_home,
         )
+        self.memories_transfer_service = MemoriesTransferService(
+            store=self.memories_store,
+            settings_store=self.settings_store,
+            notifications_store=self.notifications_store,
+            home=self.user_home,
+            scratch_dir=self.memories_transfer_scratch_dir,
+        )
         self.smb_mount_service = SmbMountService(
             debug_logging=lambda: getattr(self, "_debug_logging", False),
         )
@@ -707,6 +716,7 @@ class Plugin(
         self.developer_message_service.start()
 
         self.cheevo_check_service.set_event_loop(self._asyncio_loop)
+        self.memories_transfer_service.set_event_loop(self._asyncio_loop)
         try:
             await asyncio.to_thread(self.cheevo_check_service.prepare)
         except Exception as e:

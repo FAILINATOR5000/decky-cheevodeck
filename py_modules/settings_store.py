@@ -134,6 +134,7 @@ _ALLOWED_RESUME_VIEWS = {
     "cheevoCheck",
     "fileWatcher",
     "memories",
+    "memoriesTransfer",
     "guides",
 }
 

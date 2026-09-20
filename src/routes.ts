@@ -59,6 +59,7 @@ export const ROUTES: Record<ViewKey, RouteRow> = {
     smbShares: { focusKey: "smbShares:back", mount: "always", back: (nav) => nav.backFromUtilityTool() },
     cheevoCheck: { focusKey: "cheevocheck:back", mount: "always", back: (nav) => nav.backFromUtilityTool() },
     fileWatcher: { focusKey: "fileWatcher:back", mount: "always", back: (nav) => nav.backFromUtilityTool() },
+    memoriesTransfer: { focusKey: "memoriesTransfer:back", mount: "always", back: (nav) => nav.backFromUtilityTool() },
     memories: { focusKey: "memories:back", mount: "always", back: (nav) => nav.backFromMemories() },
     guides: { focusKey: "guides:back", mount: "always" }
 };

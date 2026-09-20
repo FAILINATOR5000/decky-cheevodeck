@@ -22,8 +22,13 @@ import type {
     CacheClearGroup,
     CheckCurrentGameResponse,
     CheevoNotification,
+    MemoriesExportCounts,
+    MemoriesExportWeight,
     MemoriesResponse,
+    MemoriesTransferMode,
+    MemoriesTransferStatus,
     MemoriesVideoMoveStatus,
+    MemoryBundleRow,
     MemoryDateOrder,
     MemoryGameRow,
     MemoryRecord,
@@ -549,6 +554,43 @@ export const deleteAllMemories = callable<
     [],
     { ok: boolean; removed: number }
 >("delete_all_memories");
+export const memoriesExportCounts = callable<
+    [],
+    MemoriesExportCounts
+>("memories_export_counts");
+export const memoriesExportWeight = callable<
+    [],
+    MemoriesExportWeight
+>("memories_export_weight");
+export const startMemoriesExport = callable<
+    [string, boolean],
+    { ok: boolean; error?: string; needed?: number; estimate?: MemoriesExportWeight }
+>("start_memories_export");
+export const listMemoryBundles = callable<
+    [string],
+    { ok: boolean; error?: string; bundles: MemoryBundleRow[]; scanned: number }
+>("list_memory_bundles");
+export const startMemoriesImport = callable<
+    [string, MemoriesTransferMode],
+    { ok: boolean; error?: string; needed?: number }
+>("start_memories_import");
+export const memoriesTransferStatus = callable<
+    [],
+    MemoriesTransferStatus
+>("memories_transfer_status");
+export const cancelMemoriesTransfer = callable<
+    [],
+    { ok: boolean; error?: string; running: boolean }
+>("cancel_memories_transfer");
+export const recoverMemoriesRestore = callable<
+    [],
+    { ok: boolean; error?: string; restored?: number }
+>("recover_memories_restore");
+export const discardMemoriesRestore = callable<
+    [],
+    { ok: boolean; error?: string; removed?: number }
+>("discard_memories_restore");
+
 export const loadMemoryViewPrefs = callable<[], MemoryViewPrefs>("load_memory_view_prefs");
 export const saveMemoryViewPrefs = callable<
     [
