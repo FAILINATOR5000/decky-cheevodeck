@@ -6,13 +6,21 @@ import time
 import re
 
 from settings_store import _NOTE_COLOR_OPTIONS
-from utils import ensure_dir, load_json_file, norm_game_id, save_json_file, to_int
+from utils import (
+    TAG_MAX_LEN,
+    TAG_PREFIX_PATTERN,
+    ensure_dir,
+    load_json_file,
+    norm_game_id,
+    save_json_file,
+    to_int,
+)
 
 
 NOTE_TITLE_MAX_LEN = 80
 NOTE_BODY_MAX_LEN = 500
 
-NOTE_TAG_MAX_LEN = 24
+NOTE_TAG_MAX_LEN = TAG_MAX_LEN
 
 TAG_VOCAB_LIMIT = 20
 
@@ -34,7 +42,7 @@ COMPLETED_COLLAPSE_KEY = "__COMPLETED__"
 COLLAPSE_KEY_MAX_LEN = 64
 MAX_COLLAPSED_KEYS = 400
 
-_TAG_PREFIX_PATTERN = re.compile(r"^\s*\[([^\]\n]{1,24})\]\s*")
+_TAG_PREFIX_PATTERN = TAG_PREFIX_PATTERN
 
 CURRENT_SCHEMA_VERSION = 1
 

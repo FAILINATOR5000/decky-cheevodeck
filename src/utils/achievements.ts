@@ -315,7 +315,9 @@ export type ParsedNote = {
     body: string;
 };
 
-const TAG_PATTERN = /^\s*\[([^\]\n]{1,24})\]\s*/;
+export const TAG_MAX_LEN = 24;
+
+const TAG_PATTERN = new RegExp(`^\\s*\\[([^\\]\\n]{1,${TAG_MAX_LEN}})\\]\\s*`);
 
 const RESERVED_TAG_KEYS: ReadonlySet<string> = new Set(["completed"]);
 

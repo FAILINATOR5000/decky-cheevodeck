@@ -9,12 +9,19 @@ import time
 import decky
 
 from settings_store import _NOTE_COLOR_OPTIONS
-from utils import ensure_dir, load_json_file, norm_game_id, save_json_file, to_int
+from utils import (
+    TAG_MAX_LEN,
+    ensure_dir,
+    load_json_file,
+    norm_game_id,
+    save_json_file,
+    to_int,
+)
 
 
 MEMORY_CAPTION_MAX_LEN = 300
 
-MEMORY_TAG_MAX_LEN = 24
+MEMORY_TAG_MAX_LEN = TAG_MAX_LEN
 
 TAG_VOCAB_LIMIT = 20
 

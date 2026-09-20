@@ -1,11 +1,10 @@
 from pathlib import Path
 
-import re
 import threading
 import time
 import uuid
 
-from utils import ensure_dir, load_json_file, save_json_file, to_int
+from utils import TAG_PREFIX_PATTERN, ensure_dir, load_json_file, save_json_file, to_int
 
 
 MAPPING_NAME_MAX_LEN = 100
@@ -49,7 +48,7 @@ UNTAGGED_COLLAPSE_KEY = "__UNTAGGED__"
 COLLAPSE_KEY_MAX_LEN = 64
 MAX_COLLAPSED_KEYS = 400
 
-_TAG_PREFIX_PATTERN = re.compile(r"^\s*\[([^\]\n]{1,24})\]\s*")
+_TAG_PREFIX_PATTERN = TAG_PREFIX_PATTERN
 _RESERVED_TAG_KEYS = frozenset({"completed"})
 
 CURRENT_SCHEMA_VERSION = 1

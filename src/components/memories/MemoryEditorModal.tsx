@@ -12,11 +12,11 @@ import { logError } from "../../utils/errors";
 import { modalSize } from "../../utils/scale";
 import { compactButtonStyle } from "../../utils/style";
 import { TAG_SEEDS } from "../../utils/memories";
+import { TAG_MAX_LEN } from "../../utils/achievements";
 import { t, type LanguageCode } from "../../locales";
 import type { MemoryRecord, NoteColor } from "../../types";
 
 const CAPTION_MAX_LEN = 300;
-const TAG_MAX_LEN = 24;
 
 const SUGGESTION_COUNT = 10;
 

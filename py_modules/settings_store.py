@@ -4,7 +4,16 @@ import re
 import threading
 import time
 
-from utils import ensure_dir, load_json_file, norm_game_id, save_json_file, to_float, to_int
+from utils import (
+    TAG_MAX_LEN,
+    TAG_PREFIX_PATTERN,
+    ensure_dir,
+    load_json_file,
+    norm_game_id,
+    save_json_file,
+    to_float,
+    to_int,
+)
 
 BIG_LIST_THRESHOLD_DISABLED = 9999
 RETURN_STAGGER_FRAME_OPTIONS = {0, 1, 2, 3, 4, 5, 6, 7, 8}
@@ -74,7 +83,7 @@ _NOTE_COLOR_OPTIONS = (
     "slate", "crimson", "mint", "coral", "gold", "steel",
 )
 
-_TAG_PREFIX_PATTERN = re.compile(r"^\s*\[([^\]\n]{1,24})\]\s*")
+_TAG_PREFIX_PATTERN = TAG_PREFIX_PATTERN
 
 _TAG_VOCAB_LIMIT = 20
 
@@ -3293,7 +3302,7 @@ class SettingsStore:
         for value in raw:
             if not isinstance(value, str):
                 continue
-            trimmed = value.strip()[:24]
+            trimmed = value.strip()[:TAG_MAX_LEN]
             if not trimmed:
                 continue
             lower = trimmed.lower()
@@ -3310,7 +3319,7 @@ class SettingsStore:
     def _tag_vocab_with(self, vocab, tag) -> list:
         if tag is None:
             return self._sanitize_tag_vocab(vocab)
-        clean_tag = str(tag).strip()[:24]
+        clean_tag = str(tag).strip()[:TAG_MAX_LEN]
         if not clean_tag:
             return self._sanitize_tag_vocab(vocab)
         lower = clean_tag.lower()

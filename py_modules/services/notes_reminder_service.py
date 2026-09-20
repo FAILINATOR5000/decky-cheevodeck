@@ -1,5 +1,4 @@
 import contextlib
-import re
 import threading
 import time
 
@@ -7,6 +6,7 @@ import decky
 
 from services._tick_common import GenerationFence
 from notifications import emit_notification, is_type_enabled
+from utils import TAG_PREFIX_PATTERN
 
 
 REMINDER_TICK_SECONDS = 30
@@ -15,7 +15,7 @@ REMINDER_STARTUP_DELAY_SECONDS = 5.0
 
 REMINDER_TOAST_BODY_MAX_LEN = 100
 
-_LEADING_TAG_PATTERN = re.compile(r"^\s*\[[^\]\n]{1,24}\]\s*")
+_LEADING_TAG_PATTERN = TAG_PREFIX_PATTERN
 
 
 _generation_fence = GenerationFence()

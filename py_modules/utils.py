@@ -8,6 +8,7 @@ import the specific helpers they use, which makes dependencies visible.
 import json
 import os
 import pwd
+import re
 import ssl
 from pathlib import Path
 from typing import Any, Optional
@@ -18,6 +19,11 @@ try:
     import certifi
 except Exception:
     certifi = None
+
+
+TAG_MAX_LEN = 24
+
+TAG_PREFIX_PATTERN = re.compile(r"^\s*\[([^\]\n]{1,%d})\]\s*" % TAG_MAX_LEN)
 
 
 class WalkYieldedForClear(Exception):
