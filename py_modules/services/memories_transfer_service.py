@@ -11,6 +11,7 @@ import memories_transfer
 from memories_store import CURRENT_SCHEMA_VERSION
 
 from notifications import emit_notification
+from services import memories_video_service
 from utils import ensure_dir, to_int
 
 
@@ -245,28 +246,44 @@ class MemoriesTransferService:
 
     def weigh(self) -> dict:
         entries = self._store.all_entries()
+        picked = self._settings_store.get_memories_video_path(self._settings_store.load_config())
+        reachable = memories_video_service.root_available(self._store.videos_root(), picked != "")
         pictures = 0
         picture_bytes = 0
+        screenshots = 0
+        screenshot_bytes = 0
         clips = 0
         clip_bytes = 0
         missing_clips = 0
+        missing_owned = 0
+        offline_clips = 0
         missing_pictures = 0
 
         for entry in entries.values():
             for memory in entry["memories"]:
                 source = self._store.picture_path(memory["path"])
                 try:
-                    picture_bytes += source.stat().st_size
+                    poster_bytes = source.stat().st_size
                 except OSError:
                     missing_pictures += 1
                     continue
                 pictures += 1
+                picture_bytes += poster_bytes
                 video = memory.get("video") or {}
                 if not video:
+                    screenshots += 1
+                    screenshot_bytes += poster_bytes
+                    continue
+                owned = bool(video.get("path"))
+                if owned and not reachable:
+                    offline_clips += 1
                     continue
                 size = self._clip_size(memory)
                 if size < 0:
-                    missing_clips += 1
+                    if owned:
+                        missing_owned += 1
+                    else:
+                        missing_clips += 1
                     continue
                 clips += 1
                 clip_bytes += size
@@ -275,11 +292,16 @@ class MemoriesTransferService:
             "ok": True,
             "games": len(entries),
             "memories": pictures,
+            "memoriesNoVideos": screenshots,
+            "clipMemories": pictures - screenshots,
             "missingPictures": missing_pictures,
             "clips": clips,
             "missingClips": missing_clips,
+            "missingOwnedClips": missing_owned,
+            "offlineClips": offline_clips,
+            "rootAvailable": reachable,
             "bytes": picture_bytes + clip_bytes,
-            "bytesNoVideos": picture_bytes,
+            "bytesNoVideos": screenshot_bytes,
         }
 
     def _clip_size(self, memory: dict) -> int:
@@ -314,7 +336,8 @@ class MemoriesTransferService:
             return {"ok": False, "error": ERROR_BAD_TARGET}
 
         estimated = self.weigh()
-        if estimated["memories"] <= 0:
+        going = estimated["memories"] if include_videos else estimated["memoriesNoVideos"]
+        if going <= 0:
             return {"ok": False, "error": ERROR_NOTHING_TO_EXPORT}
 
         needed = estimated["bytes"] if include_videos else estimated["bytesNoVideos"]
@@ -326,7 +349,7 @@ class MemoriesTransferService:
         self._reset("scanning")
         with self._lock:
             self._direction = "export"
-            self._total_records = estimated["memories"]
+            self._total_records = going
             self._total_bytes = needed
             self._target = str(destination)
             self._thread = threading.Thread(
@@ -435,6 +458,7 @@ class MemoriesTransferService:
         videos = 0
         missing_videos = 0
         missing_pictures = 0
+        left_behind = 0
 
         try:
             for key, entry in sorted(entries.items(), key=lambda pair: int(pair[0])):
@@ -445,6 +469,10 @@ class MemoriesTransferService:
 
                 bundled = []
                 for memory in entry["memories"]:
+                    if not include_videos and (memory.get("video") or {}):
+                        left_behind += 1
+                        continue
+
                     picture = self._store.picture_path(memory["path"])
                     if not picture.is_file():
                         missing_pictures += 1
@@ -468,7 +496,7 @@ class MemoriesTransferService:
                         self._copied += 1
                         self._records += 1
 
-                    landed = self._export_video(writer, memory, record, scratch, include_videos)
+                    landed = self._export_video(writer, memory, record, scratch)
                     if landed is None:
                         writer.abandon()
                         self._canceled()
@@ -530,7 +558,8 @@ class MemoriesTransferService:
             return
 
         decky.logger.info(
-            "memories: exported %s memories across %s games to %s", total, len(games), landed.name
+            "memories: exported %s memories across %s games to %s, %s clips left behind",
+            total, len(games), landed.name, left_behind,
         )
         self._settle({
             "bundle": landed.name,
@@ -540,18 +569,16 @@ class MemoriesTransferService:
             "videos": videos,
             "missingVideos": missing_videos,
             "missingPictures": missing_pictures,
+            "leftBehind": left_behind,
             "bytes": written_bytes,
         })
 
-    def _export_video(self, writer, memory: dict, record: dict, scratch: Path, include_videos: bool):
+    def _export_video(self, writer, memory: dict, record: dict, scratch: Path):
         video = record.get("video")
         if not isinstance(video, dict):
             return {"video": None, "tail": "", "missing": False}
 
-        without = {"video": {**video, "path": ""}, "tail": "", "missing": False}
         absent = {"video": {**video, "path": ""}, "tail": "", "missing": True}
-        if not include_videos:
-            return without
 
         owned = memories_transfer.safe_tail(video.get("path"))
         if owned:
@@ -644,6 +671,7 @@ class MemoriesTransferService:
 
         account = self._store.account_key()
         held = self._store.memory_ids()
+        carries_video = bool(manifest["includesVideo"])
         inserted = 0
         skipped = 0
         videos = 0
@@ -680,7 +708,7 @@ class MemoriesTransferService:
                             skipped += 1
                             self._drop_files(for_record)
                             continue
-                        if placed["missingVideo"]:
+                        if placed["missingVideo"] and carries_video:
                             missing_videos += 1
                         elif placed["video"]:
                             videos += 1
@@ -689,6 +717,7 @@ class MemoriesTransferService:
                             memory, account,
                             picture_tail=placed["picture"],
                             video_tail=placed["video"],
+                            keep_reference=carries_video,
                         )
                         arriving.append(landed)
                         media_for[landed["id"]] = for_record

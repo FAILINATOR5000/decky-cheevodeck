@@ -96,14 +96,21 @@ def portable_record(memory: dict, account_key: str) -> dict:
     return out
 
 
-def landed_record(memory: dict, account_key: str, *, picture_tail: str, video_tail: str) -> dict:
+def landed_record(
+    memory: dict,
+    account_key: str,
+    *,
+    picture_tail: str,
+    video_tail: str,
+    keep_reference: bool = True,
+) -> dict:
     out = dict(memory)
     out["path"] = account_path(picture_tail, account_key)
     out["appid"] = 0
     video = memory.get("video")
     if isinstance(video, dict):
         placed = account_path(video_tail, account_key) if video_tail else ""
-        if placed or video.get("clipId"):
+        if placed or (keep_reference and video.get("clipId")):
             out["video"] = {**video, "path": placed}
         else:
             out["video"] = None

@@ -287,6 +287,8 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
     const stashed = Boolean(status?.stashed);
     const errorCode = startError || (failed ? status?.error ?? "" : "");
     const exporting = status?.direction === "export";
+    const nothingToExport = (counts?.memories ?? 0) <= 0
+        || (!includeVideos && weight !== null && weight.memoriesNoVideos <= 0);
 
     const scopeKey = `memoriesTransfer:view:${busy ? "run" : "idle"}:${state.focusScopeResetToken}`;
 
@@ -439,9 +441,30 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
                                         )
                                     })}
                             </div>
+                            {!includeVideos && (weight?.clipMemories ?? 0) > 0 && (
+                                <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
+                                    {t(language, "{{count}} clip memories stay behind.", {
+                                        count: weight?.clipMemories ?? 0
+                                    })}
+                                </div>
+                            )}
+                            {(weight?.offlineClips ?? 0) > 0 && (
+                                <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
+                                    {t(language, "{{count}} clip videos are on a drive that isn't connected.", {
+                                        count: weight?.offlineClips ?? 0
+                                    })}
+                                </div>
+                            )}
+                            {(weight?.missingOwnedClips ?? 0) > 0 && (
+                                <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
+                                    {t(language, "{{count}} clip videos are gone from where they were saved.", {
+                                        count: weight?.missingOwnedClips ?? 0
+                                    })}
+                                </div>
+                            )}
                             {(weight?.missingClips ?? 0) > 0 && (
                                 <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
-                                    {t(language, "{{count}} clip videos are no longer in Steam.", {
+                                    {t(language, "{{count}} clip videos were left out of the import that brought them here.", {
                                         count: weight?.missingClips ?? 0
                                     })}
                                 </div>
@@ -462,7 +485,7 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
                             <FocusableItem
                                 outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
                                 focusKey="memoriesTransfer:export"
-                                disabled={(counts?.memories ?? 0) <= 0}
+                                disabled={nothingToExport}
                                 onClick={exportFromButton}
                                 help={t(language, "help_memories_transfer_export")}
                             >
@@ -571,6 +594,11 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
                                                 <div style={bodyTextStyle()}>
                                                     {dateLabel(row.createdAt, language)}
                                                 </div>
+                                                {!row.includesVideo && (
+                                                    <div style={bodyTextStyle()}>
+                                                        {t(language, "No clip videos in this bundle.")}
+                                                    </div>
+                                                )}
                                                 {row.ulid !== "" && row.ulid !== state.activeUlid && (
                                                     <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
                                                         {t(language, "From another RetroAchievements account")}

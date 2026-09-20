@@ -1988,7 +1988,7 @@ const RU: LocaleTable = {
     "{{count}} memories across {{games}} games": "Воспоминаний: {{count}} · Игр: {{games}}",
     "About {{size}} on disk": "Примерно {{size}} на диске",
     "Include Clip Videos": "Включить видео клипов",
-    "help_memories_transfer_include_videos": "Видео клипов — самая тяжёлая часть набора: скриншот весит пару сотен килобайт, а клип может весить сто мегабайт. Выключи это, чтобы собрать небольшой набор: подписи, теги и привязанные достижения всё равно уедут, а здесь останется только само видео.",
+    "help_memories_transfer_include_videos": "Выключи это, чтобы не экспортировать свои клипы: они могут быть очень большими.",
     "Choose Where to Save...": "Выбрать, куда сохранить...",
     "help_memories_transfer_export": "Выбери папку для экспорта. Он уместится в один удобный файл со всеми воспоминаниями этого аккаунта. Имя файла уникально, потому что строится из даты.",
     "Import": "Импорт",
@@ -2008,12 +2008,31 @@ const RU: LocaleTable = {
         many: "{{count}} воспоминаний, {{size}}",
         other: "{{count}} воспоминаний, {{size}}"
     },
-    "{{count}} clip videos are no longer in Steam.": {
-        one: "{{count}} видео клипа больше нет в Steam.",
-        few: "{{count}} видео клипов больше нет в Steam.",
-        many: "{{count}} видео клипов больше нет в Steam.",
-        other: "{{count}} видео клипов больше нет в Steam."
+    "{{count}} clip memories stay behind.": {
+        one: "{{count}} воспоминание с клипом остаётся здесь.",
+        few: "{{count}} воспоминания с клипами остаются здесь.",
+        many: "{{count}} воспоминаний с клипами остаётся здесь.",
+        other: "{{count}} воспоминаний с клипами остаётся здесь."
     },
+    "{{count}} clip videos are on a drive that isn't connected.": {
+        one: "{{count}} видео клипа находится на диске, который не подключён.",
+        few: "{{count}} видео клипов находятся на диске, который не подключён.",
+        many: "{{count}} видео клипов находятся на диске, который не подключён.",
+        other: "{{count}} видео клипов находятся на диске, который не подключён."
+    },
+    "{{count}} clip videos are gone from where they were saved.": {
+        one: "{{count}} видео клипа больше нет там, где оно было сохранено.",
+        few: "{{count}} видео клипов больше нет там, где они были сохранены.",
+        many: "{{count}} видео клипов больше нет там, где они были сохранены.",
+        other: "{{count}} видео клипов больше нет там, где они были сохранены."
+    },
+    "{{count}} clip videos were left out of the import that brought them here.": {
+        one: "{{count}} видео клипа не было в импорте, который принёс их сюда.",
+        few: "{{count}} видео клипов не было в импорте, который принёс их сюда.",
+        many: "{{count}} видео клипов не было в импорте, который принёс их сюда.",
+        other: "{{count}} видео клипов не было в импорте, который принёс их сюда."
+    },
+    "No clip videos in this bundle.": "В этой сборке нет видео клипов.",
     "Stopped, and nothing was left behind.": "Остановлено, ничего недоделанного не осталось.",
     "Unfinished Restore": "Незавершённое восстановление",
     "A restore stopped part way through. Your old library is still on this device, alongside whatever the import managed. Only you know which one you want.": "Восстановление остановилось на середине. Твоя прежняя коллекция всё ещё на этом устройстве, рядом с тем, что успел принести импорт. Решать, какую оставить, только тебе.",

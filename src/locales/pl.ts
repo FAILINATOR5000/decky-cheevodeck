@@ -2023,7 +2023,7 @@ const PL: LocaleTable = {
     "{{count}} memories across {{games}} games": "Wspomnienia: {{count}} · Gry: {{games}}",
     "About {{size}} on disk": "Około {{size}} na dysku",
     "Include Clip Videos": "Dołącz nagrania klipów",
-    "help_memories_transfer_include_videos": "Nagrania klipów to najcięższa część paczki: zrzut ekranu ma kilkaset kilobajtów, a klip może mieć sto megabajtów. Wyłącz to, żeby zrobić małą paczkę, która i tak zabiera każdy podpis, tag i powiązane osiągnięcie, a zostawia samo wideo.",
+    "help_memories_transfer_include_videos": "Wyłącz to, żeby nie eksportować swoich klipów, bo potrafią być bardzo duże.",
     "Choose Where to Save...": "Wybierz miejsce zapisu...",
     "help_memories_transfer_export": "Wybierz folder, w którym zapisać eksport. Wyląduje w jednym wygodnym pliku ze wszystkimi wspomnieniami tego konta. Nazwa pliku jest unikalna, bo powstaje z daty.",
     "Import": "Import",
@@ -2043,12 +2043,31 @@ const PL: LocaleTable = {
         many: "{{count}} wspomnień, {{size}}",
         other: "{{count}} wspomnień, {{size}}"
     },
-    "{{count}} clip videos are no longer in Steam.": {
-        one: "{{count}} nagrania klipu już nie ma w Steamie.",
-        few: "{{count}} nagrań klipów już nie ma w Steamie.",
-        many: "{{count}} nagrań klipów już nie ma w Steamie.",
-        other: "{{count}} nagrań klipów już nie ma w Steamie."
+    "{{count}} clip memories stay behind.": {
+        one: "{{count}} wspomnienie z klipu zostaje tutaj.",
+        few: "{{count}} wspomnienia z klipów zostają tutaj.",
+        many: "{{count}} wspomnień z klipów zostaje tutaj.",
+        other: "{{count}} wspomnień z klipów zostaje tutaj."
     },
+    "{{count}} clip videos are on a drive that isn't connected.": {
+        one: "{{count}} nagranie klipu jest na dysku, który nie jest podłączony.",
+        few: "{{count}} nagrania klipów są na dysku, który nie jest podłączony.",
+        many: "{{count}} nagrań klipów jest na dysku, który nie jest podłączony.",
+        other: "{{count}} nagrań klipów jest na dysku, który nie jest podłączony."
+    },
+    "{{count}} clip videos are gone from where they were saved.": {
+        one: "{{count}} nagrania klipu nie ma już tam, gdzie zostało zapisane.",
+        few: "{{count}} nagrań klipów nie ma już tam, gdzie zostały zapisane.",
+        many: "{{count}} nagrań klipów nie ma już tam, gdzie zostały zapisane.",
+        other: "{{count}} nagrań klipów nie ma już tam, gdzie zostały zapisane."
+    },
+    "{{count}} clip videos were left out of the import that brought them here.": {
+        one: "{{count}} nagrania klipu nie było w imporcie, który je tu przyniósł.",
+        few: "{{count}} nagrań klipów nie było w imporcie, który je tu przyniósł.",
+        many: "{{count}} nagrań klipów nie było w imporcie, który je tu przyniósł.",
+        other: "{{count}} nagrań klipów nie było w imporcie, który je tu przyniósł."
+    },
+    "No clip videos in this bundle.": "W tej paczce nie ma nagrań klipów.",
     "Stopped, and nothing was left behind.": "Zatrzymane — nic nie zostało po drodze.",
     "Unfinished Restore": "Niedokończone przywracanie",
     "A restore stopped part way through. Your old library is still on this device, alongside whatever the import managed. Only you know which one you want.": "Przywracanie zatrzymało się w połowie. Twoja stara kolekcja nadal jest na tym urządzeniu, obok tego, co udało się wczytać. Tylko ty wiesz, którą chcesz zachować.",

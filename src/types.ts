@@ -1478,9 +1478,14 @@ export type MemoriesExportWeight = {
     ok: boolean;
     games: number;
     memories: number;
+    memoriesNoVideos: number;
+    clipMemories: number;
     missingPictures: number;
     clips: number;
     missingClips: number;
+    missingOwnedClips: number;
+    offlineClips: number;
+    rootAvailable: boolean;
     bytes: number;
     bytesNoVideos: number;
 };
