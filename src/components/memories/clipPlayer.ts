@@ -8,11 +8,15 @@ const BEHIND_SECONDS = 10;
 
 const DROP_AHEAD_SECONDS = 30;
 
+
 const CURSOR_DRIFT_SECONDS = 4;
 
 const PRIME_SECONDS = 1;
 
+
 const PIECE_BYTES = 2 * 1024 * 1024;
+
+const SCAN_PIECE_BYTES = 1024 * 1024;
 
 const SKIP_LADDER: [number, number][] = [
     [10, 2],
@@ -25,7 +29,11 @@ const LONG_SKIP_SECONDS = 30;
 const SCAN_SECONDS_PER_CLIP = 5;
 const MIN_SCAN_RATE = 1;
 const MAX_SCAN_RATE = 30;
-const SCAN_TICK_MS = 100;
+const SCAN_CATCHUP_STEPS = 4;
+
+const SCAN_SLOWDOWN_LIMIT = 2;
+
+const BOUNDARY_NUDGE_SECONDS = 0.05;
 
 const SCAN_WATCHDOG_MS = 15000;
 
@@ -203,6 +211,12 @@ function settled(buffer: SourceBuffer): Promise<void> {
     });
 }
 
+function waitFor(ms: number): Promise<void> {
+    return new Promise((resolve) => {
+        setTimeout(resolve, Math.max(ms, 0));
+    });
+}
+
 function bufferedEnd(video: HTMLVideoElement, at: number): number {
     const ranges = video.buffered;
     for (let index = 0; index < ranges.length; index += 1) {
@@ -257,7 +271,11 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
     let unavailable = false;
     let driveMissing = false;
 
-    let scanTimer: ReturnType<typeof setInterval> | null = null;
+    let scanning = false;
+    let scanRun = 0;
+    let scanAim = 0;
+    let scanFrame: (() => void) | null = null;
+    let frameWhy = "";
     let watchdog: ReturnType<typeof setTimeout> | null = null;
     let scanDirection: 1 | -1 = 1;
     let resumeAfterScan = false;
@@ -270,7 +288,6 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         if (destroyed) {
             return;
         }
-        const scanning = scanTimer !== null;
         const playable = Math.max(endTarget() - inPoint, 0);
         const elapsed = Math.max(Math.min(video.currentTime, endTarget()) - inPoint, 0);
         const ended = !scanning && isEnded();
@@ -385,6 +402,35 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         return chosen;
     }
 
+    function syncTimeFor(at: number): number {
+        if (!index) {
+            return at;
+        }
+        const wanted = Math.max(at, 0) * 1000;
+        let chosen = wanted;
+        for (const [time, , sync] of index.fragments) {
+            if (!sync) {
+                continue;
+            }
+            if (time > wanted) {
+                break;
+            }
+            chosen = time;
+        }
+        return chosen / 1000;
+    }
+
+    function scanTarget(at: number): number {
+        if (index) {
+            return syncTimeFor(at) + BOUNDARY_NUDGE_SECONDS;
+        }
+        if (!plan) {
+            return at;
+        }
+        const start = firstSegmentStart + (segmentFor(at) - plan.startNumber) * plan.segmentSeconds;
+        return start + BOUNDARY_NUDGE_SECONDS;
+    }
+
     async function appendFragments(era: number): Promise<boolean> {
         if (!index || destroyed || buffers.length === 0 || nextOffset >= index.mediaEnd) {
             return false;
@@ -494,7 +540,8 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         const asking = plan.streams.map((_stream, index) => !finished[index]);
         const pieces = await Promise.all(plan.streams.map((stream, index) =>
             asking[index]
-                ? fetchPart(fillTemplate(plan!.mediaTemplate, stream.id, number), offsets[index], PIECE_BYTES)
+                ? fetchPart(fillTemplate(plan!.mediaTemplate, stream.id, number), offsets[index],
+                    scanning ? SCAN_PIECE_BYTES : PIECE_BYTES)
                 : Promise.resolve(null)));
         if (destroyed) {
             return false;
@@ -530,7 +577,27 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         return true;
     }
 
-    async function pump(ahead: number = AHEAD_SECONDS, from?: number) {
+    function readAhead(): number {
+        return scanning ? 0 : AHEAD_SECONDS;
+    }
+
+    function frameArrived(why: string) {
+        const waiting = scanFrame;
+        if (waiting === null) {
+            return;
+        }
+        scanFrame = null;
+        frameWhy = why;
+        waiting();
+    }
+
+    function awaitFrame(): Promise<void> {
+        return new Promise((resolve) => {
+            scanFrame = resolve;
+        });
+    }
+
+    async function pump(ahead: number = readAhead(), from?: number) {
         if (pumping || destroyed || (!plan && !index) || mediaFailed()) {
             return;
         }
@@ -589,6 +656,9 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
             catch {
             }
             pumping = false;
+            if (pendingRefill === null && (!video.seeking || exhausted)) {
+                frameArrived("read");
+            }
         }
         if (destroyed) {
             return;
@@ -725,8 +795,32 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         else {
             requestFrom(clamped);
         }
-        publish();
+        if (!scanning) {
+            publish();
+        }
         return clamped;
+    }
+
+    function nextPictureAfter(at: number): number {
+        if (index) {
+            const wanted = at * 1000;
+            for (const [time, , sync] of index.fragments) {
+                if (sync && time > wanted + 1) {
+                    return time / 1000;
+                }
+            }
+            return endTarget();
+        }
+        if (!plan) {
+            return endTarget();
+        }
+        return at + plan.segmentSeconds;
+    }
+
+    function secondsToNextPicture(rate: number): number {
+        const here = scanTarget(scanAim) - BOUNDARY_NUDGE_SECONDS;
+        const edge = scanDirection > 0 ? nextPictureAfter(here) : here;
+        return Math.abs(edge - scanAim) / rate;
     }
 
     function skipSeconds(): number {
@@ -747,11 +841,11 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
             clearTimeout(watchdog);
             watchdog = null;
         }
-        if (scanTimer === null) {
+        if (!scanning) {
             return;
         }
-        clearInterval(scanTimer);
-        scanTimer = null;
+        scanning = false;
+        frameArrived("stop");
         clipDebug("clip-scan", source.clipId,
             () => `stop on ${why} at ${video.currentTime.toFixed(1)}s, holding ${coverage()}`);
         if (!bufferedHolds(video, video.currentTime)) {
@@ -764,33 +858,97 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         publish();
     }
 
+    function armWatchdog() {
+        if (watchdog !== null) {
+            clearTimeout(watchdog);
+        }
+        watchdog = setTimeout(() => stopScan("watchdog"), SCAN_WATCHDOG_MS);
+    }
+
+    function sustainableRate(cost: number): number {
+        if (cost <= 0) {
+            return MAX_SCAN_RATE;
+        }
+        const here = scanTarget(scanAim) - BOUNDARY_NUDGE_SECONDS;
+        const spacing = nextPictureAfter(here) - here;
+        if (spacing <= 0) {
+            return MAX_SCAN_RATE;
+        }
+        return Math.max(spacing / (cost / 1000), MIN_SCAN_RATE);
+    }
+
     function startScan() {
-        if (destroyed || scanTimer !== null) {
+        if (destroyed || scanning || !started || unavailable) {
             return;
         }
         resumeAfterScan = !video.paused;
         video.pause();
-        const rate = scanRate();
-        let stepped = performance.now();
-        scanTimer = setInterval(() => {
-            const now = performance.now();
-            const elapsed = Math.min(now - stepped, SCAN_TICK_MS * 4);
-            const moved = rate * (elapsed / 1000);
-            stepped = now;
-            const landed = seekTo(video.currentTime + scanDirection * moved);
-            if (landed <= inPoint || landed >= endTarget()) {
-                stopScan("edge");
-            }
-        }, SCAN_TICK_MS);
-        watchdog = setTimeout(() => stopScan("watchdog"), SCAN_WATCHDOG_MS);
+        scanning = true;
+        scanRun += 1;
+        scanAim = video.currentTime;
+        armWatchdog();
+        void runScan(scanRun);
         publish();
+    }
+
+    async function runScan(era: number) {
+        const asked = scanRate();
+        let rate = asked;
+        let stepped = performance.now();
+        let cost = 0;
+        let shown: number | null = null;
+        let waited = false;
+        while (scanning && !destroyed && era === scanRun) {
+            const now = performance.now();
+            let elapsed = now - stepped;
+            if (!waited && cost > 0) {
+                elapsed = Math.min(elapsed, cost * SCAN_CATCHUP_STEPS);
+            }
+            stepped = now;
+            waited = false;
+            scanAim = Math.min(Math.max(scanAim + scanDirection * rate * (elapsed / 1000), inPoint),
+                endTarget());
+            if (scanDirection > 0 ? scanAim >= endTarget() : scanAim <= inPoint) {
+                seekTo(scanAim);
+                stopScan("edge");
+                return;
+            }
+            const target = scanTarget(scanAim);
+            if (target === shown) {
+                waited = true;
+                await waitFor(secondsToNextPicture(rate) * 1000);
+                continue;
+            }
+            shown = target;
+            const arrival = awaitFrame();
+            seekTo(target);
+            await arrival;
+            if (!scanning || destroyed || era !== scanRun) {
+                return;
+            }
+            publish();
+            armWatchdog();
+            const landed = frameWhy;
+            const took = performance.now() - now;
+            if (cost === 0) {
+                cost = took;
+            }
+            else if (took <= cost * SCAN_CATCHUP_STEPS) {
+                cost = cost * 0.7 + took * 0.3;
+            }
+            rate = Math.min(asked, Math.max(sustainableRate(cost), asked / SCAN_SLOWDOWN_LIMIT));
+            clipDebug("clip-step", source.clipId,
+                () => `${target.toFixed(2)}s via ${landed} ready=${video.readyState} `
+                + `seeking=${video.seeking} at=${video.currentTime.toFixed(2)} `
+                + `took=${Math.round(took)}ms rate=${rate.toFixed(1)} holding ${coverage()}`);
+        }
     }
 
     function onTimeUpdate() {
         if (destroyed) {
             return;
         }
-        if (scanTimer === null && isEnded()) {
+        if (!scanning && isEnded()) {
             video.pause();
         }
         void pump();
@@ -798,6 +956,13 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
     }
 
     function onStateChange() {
+        publish();
+    }
+
+    function onSeeked() {
+        if (!video.seeking) {
+            frameArrived("seeked");
+        }
         publish();
     }
 
@@ -815,7 +980,7 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
     video.addEventListener("stalled", onStarved);
     video.addEventListener("play", onStateChange);
     video.addEventListener("pause", onStateChange);
-    video.addEventListener("seeked", onStateChange);
+    video.addEventListener("seeked", onSeeked);
     video.addEventListener("loadedmetadata", onStateChange);
     video.addEventListener("ended", onStateChange);
 
@@ -963,7 +1128,7 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
             video.removeEventListener("stalled", onStarved);
             video.removeEventListener("play", onStateChange);
             video.removeEventListener("pause", onStateChange);
-            video.removeEventListener("seeked", onStateChange);
+            video.removeEventListener("seeked", onSeeked);
             video.removeEventListener("loadedmetadata", onStateChange);
             video.removeEventListener("ended", onStateChange);
             for (const buffer of buffers) {
@@ -1013,7 +1178,7 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
             }
             clipDebug("clip-seek", source.clipId,
                 () => `${direction > 0 ? "forward" : "back"} scan `
-                + `from ${video.currentTime.toFixed(1)}s scanning=${scanTimer !== null}`);
+                + `from ${video.currentTime.toFixed(1)}s scanning=${scanning}`);
             stopScan();
             scanDirection = direction;
             startScan();
@@ -1026,14 +1191,14 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
             const moved = skipSeconds();
             clipDebug("clip-seek", source.clipId,
                 () => `skip ${direction > 0 ? "forward" : "back"} ${moved.toFixed(1)}s `
-                + `from ${video.currentTime.toFixed(1)}s scanning=${scanTimer !== null}`);
+                + `from ${video.currentTime.toFixed(1)}s scanning=${scanning}`);
             stopScan();
             seekTo(video.currentTime + direction * moved);
         },
 
         endSeek() {
             clipDebug("clip-seek", source.clipId,
-                () => `release at ${video.currentTime.toFixed(1)}s scanning=${scanTimer !== null}`);
+                () => `release at ${video.currentTime.toFixed(1)}s scanning=${scanning}`);
             stopScan();
         },
 
