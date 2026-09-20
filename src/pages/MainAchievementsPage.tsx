@@ -1818,6 +1818,9 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
 
     const tickerVisible = showReminderInTicker || Boolean(socialHubTickerEvent);
 
+    const showGameArtRow = Boolean(gameIconDataUri || gameIngameDataUri)
+        || (showIcons && Boolean(payload?.imageIcon || payload?.imageIngame));
+
     // Header buttons
     const profileButton = (
         <div
@@ -2307,14 +2310,15 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                 alignItems: "flex-start"
                             }}
                         >
-                            {(gameIconDataUri || gameIngameDataUri) && (
+                            {showGameArtRow && (
                                 <div
                                     style={{
                                         display: "flex",
                                         flexDirection: "row",
                                         alignItems: "center",
                                         gap: "8px",
-                                        minWidth: 0
+                                        minWidth: 0,
+                                        minHeight: "64px"
                                     }}
                                 >
                                     {gameIconDataUri && (
