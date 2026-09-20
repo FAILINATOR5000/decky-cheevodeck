@@ -969,6 +969,7 @@ const JA: LocaleTable = {
     "Add at least one controller.": "コントローラーを1つ以上追加してください。",
     "reorder_help_notes": "動かしたいメモをクリックしてから、入れ替えたいメモをクリックするか、上の矢印で 1 つずつ動かしてください。",
     "Note:": "メモ:",
+    "Tag:": "タグ:",
     "Note Color:": "メモの色:",
     Default: "標準",
     Amber: "琥珀",

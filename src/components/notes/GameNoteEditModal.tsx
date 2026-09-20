@@ -5,7 +5,10 @@ import { ErrorText } from "../ui/ErrorText";
 import { NoteColorPicker } from "./NoteColorPicker";
 import { localizeRuntimeText, t, type LanguageCode } from "../../locales";
 import type { GameNote, GameNoteReminderMode, NoteColor, OkResult } from "../../types";
-import { applyTagToNoteBody, parseNoteTag } from "../../utils/achievements";
+import { TAG_MAX_LEN, parseNoteTag, prefixNoteTag, resolveNoteTag } from "../../utils/achievements";
+import { TagPickerModal } from "../tags/TagPickerModal";
+import { showManagedModal } from "../../utils/modalRegistry";
+import { GAME_NOTE_TAG_SEEDS, cleanTagInput } from "../../utils/tags";
 import { modalSize } from "../../utils/scale";
 import { achievementGreen, errorRed, compactButtonStyle } from "../../utils/style";
 import { REMINDER_PRESETS, matchingPreset, parseCustomMinutes, type ReminderUnit, type ReminderPreset } from "../../utils/reminders";
@@ -21,15 +24,7 @@ const DELETE_ARMED_CSS = `
     box-shadow: inset 0 0 0 2px ${errorRed};
 }`;
 
-const SUGGESTION_COUNT = 6;
-const TAG_SEEDS: ReadonlyArray<{ key: string; tag: string }> = [
-    { key: "game_note_seed_goals", tag: "Goals" },
-    { key: "game_note_seed_todo", tag: "Todo" },
-    { key: "game_note_seed_build", tag: "Build" },
-    { key: "game_note_seed_reminder", tag: "Reminder" },
-    { key: "game_note_seed_story", tag: "Story" },
-    { key: "game_note_seed_sidequest", tag: "Sidequests" }
-];
+const SUGGESTION_COUNT = 10;
 
 function sanitizeCustomMinutesDraft(raw: string): string {
     let dotSeen = false;
@@ -65,7 +60,7 @@ type ToggleCompletedFn = (completed: boolean) => Promise<OkResult>;
 
 export type GameNoteEditModalProps = {
     existing: GameNote | null;
-    tagVocabulary: string[];
+    allTags: string[];
     saveNote: SaveGameNoteFn;
     deleteNote: DeleteGameNoteFn | null;
     toggleCompleted: ToggleCompletedFn | null;
@@ -78,7 +73,7 @@ export type GameNoteEditModalProps = {
 export function GameNoteEditModal(props: GameNoteEditModalProps) {
     const {
         existing,
-        tagVocabulary,
+        allTags,
         saveNote,
         deleteNote,
         toggleCompleted,
@@ -88,8 +83,11 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
         setDefaultNoteColor
     } = props;
 
+    const stored = parseNoteTag(existing?.body ?? "");
+
     const [titleText, setTitleText] = useState(existing?.title ?? "");
-    const [bodyText, setBodyText] = useState(existing?.body ?? "");
+    const [bodyText, setBodyText] = useState(stored.body);
+    const [tagText, setTagText] = useState(stored.tag ?? "");
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [deleteArmed, setDeleteArmed] = useState(false);
@@ -114,11 +112,19 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
 
     const [resetReminderTimer, setResetReminderTimer] = useState(false);
 
+    const resolved = resolveNoteTag(tagText, bodyText, stored.body);
+    const effectiveTag = resolved.tag;
+    const composedBody = prefixNoteTag(resolved.body, effectiveTag);
+
+    const bodyBudget = effectiveTag === null
+        ? GAME_NOTE_BODY_MAX_LEN
+        : GAME_NOTE_BODY_MAX_LEN - (effectiveTag.length + 2);
+
     const titleLength = titleText.length;
-    const bodyLength = bodyText.length;
+    const bodyLength = resolved.body.length;
     const titleOverLimit = titleLength > GAME_NOTE_TITLE_MAX_LEN;
-    const bodyOverLimit = bodyLength > GAME_NOTE_BODY_MAX_LEN;
-    const bodyEmpty = bodyText.trim().length === 0;
+    const bodyOverLimit = composedBody.length > GAME_NOTE_BODY_MAX_LEN;
+    const bodyEmpty = composedBody.trim().length === 0;
 
     const cadenceMinutesIfValid = parseCustomMinutes(cadenceDraft, cadenceUnit);
     const cadenceInvalid =
@@ -158,13 +164,12 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
         }
 
         const trimmedTitle = titleText.trim();
-        const trimmedBody = bodyText.trim();
-        const parsedTag = parseNoteTag(trimmedBody).tag;
+        const trimmedBody = prefixNoteTag(resolved.body.trim(), effectiveTag);
 
         const result = await saveNote({
             title: trimmedTitle,
             body: trimmedBody,
-            tag: parsedTag,
+            tag: effectiveTag,
             color: selectedColor,
             reminderMode: reminderMode,
             reminderEveryMinutes: effectiveMinutes,
@@ -296,12 +301,12 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
     });
     const bodyCounterText = t(language, "{{count}} / {{max}} characters", {
         count: bodyLength,
-        max: GAME_NOTE_BODY_MAX_LEN
+        max: bodyBudget
     });
 
     const seenSuggestionKeys = new Set<string>();
     const suggestions: Array<{ key: string; label: string; tag: string }> = [];
-    for (const tag of tagVocabulary) {
+    for (const tag of allTags) {
         const trimmed = tag.trim();
         if (!trimmed) {
             continue;
@@ -316,7 +321,7 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
             break;
         }
     }
-    for (const seed of TAG_SEEDS) {
+    for (const seed of GAME_NOTE_TAG_SEEDS) {
         if (suggestions.length >= SUGGESTION_COUNT) {
             break;
         }
@@ -328,17 +333,40 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
         suggestions.push({ key: `seed:${lower}`, label: t(language, seed.key), tag: seed.tag });
     }
 
-    const currentBodyTag = parseNoteTag(bodyText).tag;
-
-    function applySuggestion(tag: string | null) {
+    function liftTypedTag() {
         if (saving) {
             return;
         }
-        const next = applyTagToNoteBody(bodyText, tag);
-        if (next.length > GAME_NOTE_BODY_MAX_LEN) {
+        if (resolved.body === bodyText) {
             return;
         }
-        setBodyText(next);
+        setTagText(resolved.tag ?? "");
+        setBodyText(resolved.body);
+    }
+
+    function applyTag(tag: string | null) {
+        if (saving) {
+            return;
+        }
+        setTagText(tag === null ? "" : cleanTagInput(tag, TAG_MAX_LEN));
+        setBodyText(resolved.body);
+    }
+
+    function openTagPicker() {
+        if (saving) {
+            return;
+        }
+        showManagedModal((closePicker) => (
+            <TagPickerModal
+                tags={allTags}
+                seeds={GAME_NOTE_TAG_SEEDS}
+                selected={effectiveTag ?? ""}
+                language={language}
+                focusPrefix="gn"
+                onSelect={applyTag}
+                close={closePicker}
+            />
+        ));
     }
 
     const modalTitle = existing === null
@@ -411,11 +439,13 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
                         >
                             {t(language, "Note:")}
                         </div>
-                        <TextField
-                            value={bodyText}
-                            onChange={(e: any) => setBodyText(e?.target?.value ?? "")}
-                            disabled={saving}
-                        />
+                        <div onBlurCapture={liftTypedTag}>
+                            <TextField
+                                value={bodyText}
+                                onChange={(e: any) => setBodyText(e?.target?.value ?? "")}
+                                disabled={saving}
+                            />
+                        </div>
                         <div
                             style={{
                                 fontSize: `${modalSize(13)}px`,
@@ -426,6 +456,23 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
                         >
                             {bodyCounterText}
                         </div>
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <div
+                            style={{
+                                fontSize: `${modalSize(13)}px`,
+                                fontWeight: 700,
+                                opacity: 0.7
+                            }}
+                        >
+                            {t(language, "Tag:")}
+                        </div>
+                        <TextField
+                            value={tagText}
+                            onChange={(e: any) => setTagText(cleanTagInput(e?.target?.value ?? "", TAG_MAX_LEN))}
+                            disabled={saving}
+                        />
                         <Focusable
                             style={{
                                 display: "flex",
@@ -436,25 +483,21 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
                             }}
                             flow-children="grid"
                         >
-                            {suggestions.map((entry) => {
-                                const wouldOverflow =
-                                    applyTagToNoteBody(bodyText, entry.tag).length > GAME_NOTE_BODY_MAX_LEN;
-                                return (
-                                    <div key={entry.key} data-focus-key={`gn:tagsugg:${entry.key}`}>
-                                        <DialogButton
-                                            onClick={() => applySuggestion(entry.tag)}
-                                            disabled={saving || wouldOverflow}
-                                            style={compactButtonStyle}
-                                        >
-                                            {entry.label}
-                                        </DialogButton>
-                                    </div>
-                                );
-                            })}
-                            {currentBodyTag && (
+                            {suggestions.map((entry) => (
+                                <div key={entry.key} data-focus-key={`gn:tagsugg:${entry.key}`}>
+                                    <DialogButton
+                                        onClick={() => applyTag(entry.tag)}
+                                        disabled={saving}
+                                        style={compactButtonStyle}
+                                    >
+                                        {entry.label}
+                                    </DialogButton>
+                                </div>
+                            ))}
+                            {effectiveTag !== null && (
                                 <div data-focus-key="gn:tagsugg:clear">
                                     <DialogButton
-                                        onClick={() => applySuggestion(null)}
+                                        onClick={() => applyTag(null)}
                                         disabled={saving}
                                         style={{ ...compactButtonStyle, opacity: 0.75 }}
                                     >
@@ -462,6 +505,15 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
                                     </DialogButton>
                                 </div>
                             )}
+                            <div data-focus-key="gn:tagsugg:more">
+                                <DialogButton
+                                    onClick={openTagPicker}
+                                    disabled={saving}
+                                    style={{ ...compactButtonStyle, fontWeight: 800 }}
+                                >
+                                    {"\u00bb"}
+                                </DialogButton>
+                            </div>
                         </Focusable>
                         <div
                             style={{

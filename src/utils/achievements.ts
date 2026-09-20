@@ -344,16 +344,29 @@ export function parseNoteTag(note: string | null | undefined): ParsedNote {
 
 export const TRACKED_NOTE_MAX_LEN = 500;
 
-export function applyTagToNoteBody(body: string, tag: string | null): string {
-    const parsed = parseNoteTag(body);
-    if (tag === null) {
-        return parsed.body;
+export function prefixNoteTag(body: string, tag: string | null): string {
+    const clean = (tag ?? "").trim();
+    if (!clean) {
+        return body;
     }
-    const cleanTag = tag.trim();
-    if (!cleanTag) {
-        return parsed.body;
-    }
-    return `[${cleanTag}]${parsed.body}`;
+    return `[${clean}]${body}`;
+}
+
+function tagPrefixOf(note: string): string {
+    return note.slice(0, note.length - parseNoteTag(note).body.length);
+}
+
+export function resolveNoteTag(
+    fieldTag: string,
+    body: string,
+    bodyAtOpen: string
+): { tag: string | null; body: string } {
+    const typed = parseNoteTag(body);
+    const lifted = tagPrefixOf(body) === tagPrefixOf(bodyAtOpen) ? null : typed.tag;
+    return {
+        tag: lifted ?? (fieldTag.trim() || null),
+        body: lifted === null ? body : typed.body
+    };
 }
 
 export const NOTE_COLOR_OPTIONS: readonly NoteColor[] = [

@@ -6,12 +6,12 @@ import { ErrorText } from "../ui/ErrorText";
 import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { NoteColorPicker } from "../notes/NoteColorPicker";
-import { MemoryTagPickerModal } from "./MemoryTagPickerModal";
+import { TagPickerModal } from "../tags/TagPickerModal";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { logError } from "../../utils/errors";
 import { modalSize } from "../../utils/scale";
 import { compactButtonStyle } from "../../utils/style";
-import { TAG_SEEDS } from "../../utils/memories";
+import { MEMORY_TAG_SEEDS, cleanTagInput } from "../../utils/tags";
 import { TAG_MAX_LEN } from "../../utils/achievements";
 import { t, type LanguageCode } from "../../locales";
 import type { MemoryRecord, NoteColor } from "../../types";
@@ -24,14 +24,12 @@ type MemoryEditorSaved = {
     caption: string;
     tag: string | null;
     color: NoteColor;
-    tagVocabulary: string[];
 };
 
 export type MemoryEditorModalProps = {
     memory: MemoryRecord;
     gameId: number;
     language: LanguageCode;
-    tagVocabulary: string[];
     allTags: string[];
     activeUlid: string;
     tagFilter: string;
@@ -41,7 +39,7 @@ export type MemoryEditorModalProps = {
 };
 
 export function MemoryEditorModal(props: MemoryEditorModalProps) {
-    const { memory, gameId, language, tagVocabulary, allTags, activeUlid, tagFilter, removalLandingId, onSaved, close } = props;
+    const { memory, gameId, language, allTags, activeUlid, tagFilter, removalLandingId, onSaved, close } = props;
 
     const [caption, setCaption] = useState(memory.caption);
     const [tag, setTag] = useState(memory.tag ?? "");
@@ -51,7 +49,7 @@ export function MemoryEditorModal(props: MemoryEditorModalProps) {
 
     const seen = new Set<string>();
     const suggestions: Array<{ key: string; label: string; tag: string }> = [];
-    for (const entry of tagVocabulary) {
+    for (const entry of allTags) {
         const trimmed = entry.trim();
         if (!trimmed) {
             continue;
@@ -66,7 +64,7 @@ export function MemoryEditorModal(props: MemoryEditorModalProps) {
             break;
         }
     }
-    for (const seed of TAG_SEEDS) {
+    for (const seed of MEMORY_TAG_SEEDS) {
         if (suggestions.length >= SUGGESTION_COUNT) {
             break;
         }
@@ -83,11 +81,13 @@ export function MemoryEditorModal(props: MemoryEditorModalProps) {
             return;
         }
         showManagedModal((closePicker) => (
-            <MemoryTagPickerModal
+            <TagPickerModal
                 tags={allTags}
+                seeds={MEMORY_TAG_SEEDS}
                 selected={tag}
                 language={language}
-                onSelect={(picked) => setTag(picked.slice(0, TAG_MAX_LEN))}
+                focusPrefix="memories"
+                onSelect={(picked) => setTag(cleanTagInput(picked, TAG_MAX_LEN))}
                 close={closePicker}
             />
         ));
@@ -111,8 +111,7 @@ export function MemoryEditorModal(props: MemoryEditorModalProps) {
             onSaved?.({
                 caption,
                 tag: tag.trim() || null,
-                color,
-                tagVocabulary: result.tagVocabulary ?? tagVocabulary
+                color
             });
             close();
         } catch (e) {
@@ -159,7 +158,7 @@ export function MemoryEditorModal(props: MemoryEditorModalProps) {
                     <TextField
                         value={tag}
                         disabled={saving}
-                        onChange={(e: { target: { value: string } }) => setTag(e.target.value.slice(0, TAG_MAX_LEN))}
+                        onChange={(e: { target: { value: string } }) => setTag(cleanTagInput(e.target.value, TAG_MAX_LEN))}
                     />
                     <Focusable
                         flow-children="grid"

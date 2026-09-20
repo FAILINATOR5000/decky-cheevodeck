@@ -141,7 +141,6 @@ export type MemoryViewerModalProps = {
     language: LanguageCode;
     showRetroPoints: boolean;
     mouseKeyboardMode: boolean;
-    tagVocabulary: string[];
     allTags: string[];
     activeUlid: string;
     tagFilter: string;
@@ -150,13 +149,12 @@ export type MemoryViewerModalProps = {
 };
 
 export function MemoryViewerModal(props: MemoryViewerModalProps) {
-    const { memory, gameId, thumbDataUri, language, showRetroPoints, mouseKeyboardMode, tagVocabulary, allTags, activeUlid, tagFilter, removalLandingId, close } = props;
+    const { memory, gameId, thumbDataUri, language, showRetroPoints, mouseKeyboardMode, allTags, activeUlid, tagFilter, removalLandingId, close } = props;
 
     const [caption, setCaption] = useState(memory.caption);
     const [tag, setTag] = useState(memory.tag);
     const [color, setColor] = useState(memory.color);
 
-    const [vocabulary, setVocabulary] = useState(tagVocabulary);
     const [knownTags, setKnownTags] = useState(allTags);
 
     const [fullSrc, setFullSrc] = useState<string | null>(null);
@@ -387,7 +385,6 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                 memory={{ ...memory, caption, tag, color }}
                 gameId={gameId}
                 language={language}
-                tagVocabulary={vocabulary}
                 allTags={knownTags}
                 activeUlid={activeUlid}
                 tagFilter={tagFilter}
@@ -396,19 +393,13 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                     setCaption(next.caption);
                     setTag(next.tag);
                     setColor(next.color);
-                    setVocabulary(next.tagVocabulary);
                     setKnownTags((current) => {
-                        const seen = new Set<string>();
-                        const merged: string[] = [];
-                        for (const entry of [...next.tagVocabulary, ...current]) {
-                            const trimmed = entry.trim();
-                            if (!trimmed || seen.has(trimmed.toLowerCase())) {
-                                continue;
-                            }
-                            seen.add(trimmed.toLowerCase());
-                            merged.push(trimmed);
+                        const applied = (next.tag ?? "").trim();
+                        if (!applied) {
+                            return current;
                         }
-                        return merged;
+                        const lower = applied.toLowerCase();
+                        return [applied, ...current.filter((entry) => entry.trim().toLowerCase() !== lower)];
                     });
                 }}
                 close={closeEditor}

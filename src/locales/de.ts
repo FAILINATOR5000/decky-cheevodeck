@@ -969,6 +969,7 @@ const DE: LocaleTable = {
     "Add at least one controller.": "Füge mindestens einen Controller hinzu.",
     "reorder_help_notes": "Klicke die Notiz an, die du verschieben möchtest, und klicke dann eine andere Notiz an, um die beiden zu tauschen, oder nutze die Pfeile oben, um sie Schritt für Schritt zu verschieben.",
     "Note:": "Notiz:",
+    "Tag:": "Tag:",
     "Note Color:": "Notizfarbe:",
     Default: "Standard",
     Amber: "Bernstein",

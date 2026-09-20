@@ -2905,7 +2905,7 @@ function AchievementsRoot() {
         showManagedModal((close) => (
             <GameNoteEditModal
                 existing={existing}
-                tagVocabulary={gameNotesState.tagVocabulary}
+                allTags={gameNotesState.allTags}
                 saveNote={saveNote}
                 deleteNote={deleteNote}
                 toggleCompleted={toggleCompleted}

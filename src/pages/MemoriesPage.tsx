@@ -384,7 +384,6 @@ function MemoriesPage(props: MemoriesPageProps) {
                 language={language}
                 mouseKeyboardMode={mouseKeyboardMode}
                 showRetroPoints={showRetroPoints}
-                tagVocabulary={memories.tagVocabulary}
                 allTags={memories.allTags}
                 activeUlid={activeUlid}
                 tagFilter={memories.tagFilter}
@@ -405,7 +404,6 @@ function MemoriesPage(props: MemoriesPageProps) {
                 memory={memory}
                 gameId={memory.gameId}
                 language={language}
-                tagVocabulary={memories.tagVocabulary}
                 allTags={memories.allTags}
                 activeUlid={activeUlid}
                 tagFilter={memories.tagFilter}

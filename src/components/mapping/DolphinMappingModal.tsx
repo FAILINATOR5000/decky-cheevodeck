@@ -16,7 +16,10 @@ import type {
     MappingPlayer,
     WiiStyle
 } from "../../types";
-import { applyTagToNoteBody, parseNoteTag } from "../../utils/achievements";
+import { TAG_MAX_LEN, parseNoteTag, prefixNoteTag, resolveNoteTag } from "../../utils/achievements";
+import { TagPickerModal } from "../tags/TagPickerModal";
+import { showManagedModal } from "../../utils/modalRegistry";
+import { DOLPHIN_TAG_SEEDS, cleanTagInput } from "../../utils/tags";
 import {
     controllerTypeLabel,
     aaFaceLayout,
@@ -51,19 +54,12 @@ import {
     REAL_WIIMOTE
 } from "../../utils/dolphin";
 import { modalSize } from "../../utils/scale";
-import { compactButtonStyle } from "../../utils/style";
+import { compactButtonStyle, errorRed } from "../../utils/style";
 import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 
 const MAPPING_NAME_MAX_LEN = 100;
 const MAX_PLAYERS = 4;
-
-const DOLPHIN_TAG_SEEDS: ReadonlyArray<{ key: string; tag: string }> = [
-    { key: "dolphin_tag_seed_common", tag: "Common" },
-    { key: "dolphin_tag_seed_custom", tag: "Custom" },
-    { key: "dolphin_tag_seed_singleplayer", tag: "Single Player" },
-    { key: "dolphin_tag_seed_multiplayer", tag: "Multiplayer" }
-];
 
 const SYSTEM_OPTIONS: DolphinSystem[] = ["gamecube", "wii"];
 const WII_STYLE_OPTIONS: WiiStyle[] = ["wiimote_sideways", "wiimote_nunchuk", "classic"];
@@ -77,6 +73,7 @@ type SaveMappingFn = (input: DolphinMappingInput) => Promise<DolphinMappingRespo
 
 export type DolphinMappingModalProps = {
     existing: DolphinMapping | null;
+    allTags: string[];
     language: LanguageCode;
     saveMapping: SaveMappingFn;
     close: () => void;
@@ -110,12 +107,15 @@ const RUMBLE_STEP = 5;
 const RUMBLE_NOTCH_COUNT = 21;
 
 export function DolphinMappingModal(props: DolphinMappingModalProps) {
-    const { existing, language, saveMapping, close } = props;
+    const { existing, allTags, language, saveMapping, close } = props;
 
     const [step, setStep] = useState<Step>("form");
     const [pickerIndex, setPickerIndex] = useState<number | null>(null);
 
-    const [name, setName] = useState(existing?.name ?? "");
+    const stored = parseNoteTag(existing?.name ?? "");
+
+    const [name, setName] = useState(stored.body);
+    const [tagText, setTagText] = useState(stored.tag ?? "");
     const [bodyText, setBodyText] = useState(existing?.body ?? "");
     const [system, setSystem] = useState<DolphinSystem>(existing?.system ?? "gamecube");
     const [wiiStyle, setWiiStyle] = useState<WiiStyle>(existing?.wiiStyle ?? "wiimote_sideways");
@@ -160,11 +160,50 @@ export function DolphinMappingModal(props: DolphinMappingModalProps) {
         firstRow.focus();
     }, [step, players.length]);
 
-    const currentBodyTag = parseNoteTag(name).tag;
+    const resolved = resolveNoteTag(tagText, name, stored.body);
+    const effectiveTag = resolved.tag;
+    const composedName = prefixNoteTag(resolved.body, effectiveTag);
+    const nameOverLimit = composedName.length > MAPPING_NAME_MAX_LEN;
+
+    const nameBudget = effectiveTag === null
+        ? MAPPING_NAME_MAX_LEN
+        : MAPPING_NAME_MAX_LEN - (effectiveTag.length + 2);
+    const nameCounterText = t(language, "{{count}} / {{max}} characters", {
+        count: resolved.body.length,
+        max: nameBudget
+    });
+
+    function liftTypedTag() {
+        if (saving) {
+            return;
+        }
+        if (resolved.body === name) {
+            return;
+        }
+        setTagText(resolved.tag ?? "");
+        setName(resolved.body);
+    }
 
     function applyTag(tag: string | null) {
-        const next = applyTagToNoteBody(name, tag);
-        setName(next.slice(0, MAPPING_NAME_MAX_LEN));
+        setTagText(tag === null ? "" : cleanTagInput(tag, TAG_MAX_LEN));
+        setName(resolved.body);
+    }
+
+    function openTagPicker() {
+        if (saving) {
+            return;
+        }
+        showManagedModal((closePicker) => (
+            <TagPickerModal
+                tags={allTags}
+                seeds={DOLPHIN_TAG_SEEDS}
+                selected={effectiveTag ?? ""}
+                language={language}
+                focusPrefix="dmap"
+                onSelect={applyTag}
+                close={closePicker}
+            />
+        ));
     }
 
     function updatePlayer(index: number, patch: Partial<MappingPlayer>) {
@@ -215,7 +254,7 @@ export function DolphinMappingModal(props: DolphinMappingModalProps) {
     }
 
     async function handleSave() {
-        if (saving) {
+        if (saving || nameOverLimit) {
             return;
         }
         if (players.length === 0) {
@@ -227,7 +266,7 @@ export function DolphinMappingModal(props: DolphinMappingModalProps) {
 
         const input: DolphinMappingInput = {
             id: existing?.id,
-            name: name.trim(),
+            name: prefixNoteTag(resolved.body.trim(), effectiveTag),
             body: bodyText.trim(),
             system,
             players: players.map((p) => ({ ...p }))
@@ -249,7 +288,7 @@ export function DolphinMappingModal(props: DolphinMappingModalProps) {
         <ModalRoot onCancel={close} onEscKeypress={close}>
             <SnapshotHotkey language={language} />
             <SaveOnStart
-                canSave={step === "form" && !saving && players.length > 0}
+                canSave={step === "form" && !saving && !nameOverLimit && players.length > 0}
                 label={t(language, "Save")}
                 onSave={handleSave}
             >
@@ -276,10 +315,33 @@ export function DolphinMappingModal(props: DolphinMappingModalProps) {
                                 <div style={{ fontSize: `${modalSize(13)}px`, fontWeight: 700, opacity: 0.7 }}>
                                     {t(language, "Name:")}
                                 </div>
-                                <div data-focus-key="dmapform:name">
+                                <div data-focus-key="dmapform:name" onBlurCapture={liftTypedTag}>
                                     <TextField
                                         value={name}
                                         onChange={(e: any) => setName((e?.target?.value ?? "").slice(0, MAPPING_NAME_MAX_LEN))}
+                                        disabled={saving}
+                                    />
+                                </div>
+                                <div
+                                    style={{
+                                        fontSize: `${modalSize(13)}px`,
+                                        opacity: 0.7,
+                                        color: nameOverLimit ? errorRed : undefined,
+                                        textAlign: "right"
+                                    }}
+                                >
+                                    {nameCounterText}
+                                </div>
+                            </div>
+
+                            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                                <div style={{ fontSize: `${modalSize(13)}px`, fontWeight: 700, opacity: 0.7 }}>
+                                    {t(language, "Tag:")}
+                                </div>
+                                <div data-focus-key="dmapform:tag">
+                                    <TextField
+                                        value={tagText}
+                                        onChange={(e: any) => setTagText(cleanTagInput(e?.target?.value ?? "", TAG_MAX_LEN))}
                                         disabled={saving}
                                     />
                                 </div>
@@ -298,7 +360,7 @@ export function DolphinMappingModal(props: DolphinMappingModalProps) {
                                             </DialogButton>
                                         </div>
                                     ))}
-                                    {currentBodyTag && (
+                                    {effectiveTag !== null && (
                                         <div data-focus-key="dmaptag:clear">
                                             <DialogButton
                                                 onClick={() => applyTag(null)}
@@ -309,6 +371,15 @@ export function DolphinMappingModal(props: DolphinMappingModalProps) {
                                             </DialogButton>
                                         </div>
                                     )}
+                                    <div data-focus-key="dmaptag:more">
+                                        <DialogButton
+                                            onClick={openTagPicker}
+                                            disabled={saving}
+                                            style={{ ...compactButtonStyle, fontWeight: 800 }}
+                                        >
+                                            {"\u00bb"}
+                                        </DialogButton>
+                                    </div>
                                 </Focusable>
                             </div>
 
@@ -596,7 +667,7 @@ export function DolphinMappingModal(props: DolphinMappingModalProps) {
                                 <div data-focus-key="dmapform:save">
                                     <DialogButton
                                         onClick={handleSave}
-                                        disabled={saving}
+                                        disabled={saving || nameOverLimit}
                                         style={compactButtonStyle}
                                     >
                                         {t(language, "Save")}

@@ -5,16 +5,18 @@ import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { t, type LanguageCode } from "../../locales";
 import { modalSize } from "../../utils/scale";
 import { compactButtonStyle } from "../../utils/style";
-import { unusedTagSeeds } from "../../utils/memories";
+import { unusedTagSeeds, type TagSeed } from "../../utils/tags";
 
 const TAGS_INITIAL_ROWS = 40;
 const TAGS_ROW_STEP = 60;
 const TAGS_SENTINEL_ROOT_MARGIN = "300px";
 
-export type MemoryTagPickerModalProps = {
+export type TagPickerModalProps = {
     tags: string[];
+    seeds: ReadonlyArray<TagSeed>;
     selected: string;
     language: LanguageCode;
+    focusPrefix: string;
     onSelect: (tag: string) => void;
     close: () => void;
 };
@@ -55,8 +57,8 @@ function SectionLabel(props: { text: string }) {
     );
 }
 
-export function MemoryTagPickerModal(props: MemoryTagPickerModalProps) {
-    const { tags, selected, language, onSelect, close } = props;
+export function TagPickerModal(props: TagPickerModalProps) {
+    const { tags, seeds: allSeeds, selected, language, focusPrefix, onSelect, close } = props;
 
     const { mountedItems: visibleTags, markerRef, onItemFocus } = useWindowedList({
         items: tags,
@@ -65,13 +67,13 @@ export function MemoryTagPickerModal(props: MemoryTagPickerModalProps) {
         rowStep: TAGS_ROW_STEP,
         prefetchDistance: 8,
         sentinelRootMargin: TAGS_SENTINEL_ROOT_MARGIN,
-        resetKey: "memories:alltags"
+        resetKey: "tagpicker:alltags"
     });
 
     const focusRef = useRef(onItemFocus);
     focusRef.current = onItemFocus;
 
-    const seeds = unusedTagSeeds(tags);
+    const seeds = unusedTagSeeds(allSeeds, tags);
 
     const preferredTag = visibleTags.includes(selected)
         ? selected
@@ -101,7 +103,7 @@ export function MemoryTagPickerModal(props: MemoryTagPickerModalProps) {
                             <TagChip
                                 key={tag}
                                 label={tag}
-                                focusKey={`memories:alltag:${tag}`}
+                                focusKey={`${focusPrefix}:alltag:${tag}`}
                                 selected={tag === selected}
                                 preferred={tag === preferredTag}
                                 onSelect={() => pick(tag)}
@@ -126,7 +128,7 @@ export function MemoryTagPickerModal(props: MemoryTagPickerModalProps) {
                             <TagChip
                                 key={seed.key}
                                 label={t(language, seed.key)}
-                                focusKey={`memories:seedtag:${seed.tag}`}
+                                focusKey={`${focusPrefix}:seedtag:${seed.tag}`}
                                 selected={seed.tag === selected}
                                 preferred={seed.tag === preferredSeed}
                                 onSelect={() => pick(seed.tag)}

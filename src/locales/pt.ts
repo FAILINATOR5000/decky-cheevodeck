@@ -969,6 +969,7 @@ const PT: LocaleTable = {
     "Add at least one controller.": "Adicione ao menos um controle.",
     "reorder_help_notes": "Clique na nota que você quer mover e depois clique em outra nota para trocá-las, ou use as setas acima para movê-la um passo de cada vez.",
     "Note:": "Nota:",
+    "Tag:": "Tag:",
     "Note Color:": "Cor da nota:",
     Default: "Padrão",
     Amber: "Âmbar",

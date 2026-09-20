@@ -29,6 +29,7 @@ import type {
     ViewKey
 } from "../types";
 import { parseNoteTag } from "../utils/achievements";
+import { orderedTagsByRecency } from "../utils/tags";
 import {
     dolphinDeleteFocusPlan,
     dolphinMapperModeLabel,
@@ -164,6 +165,14 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
         deleteMapping
     } = useDolphinMapper();
 
+    const allTags = useMemo(
+        () => orderedTagsByRecency(mappings.map((mapping) => ({
+            tag: parseNoteTag(mapping.name).tag,
+            at: mapping.updatedAt
+        }))),
+        [mappings]
+    );
+
     const saveMappingAndAim = async (input: DolphinMappingInput) => {
         const result = await saveMapping(input);
         if (result?.ok && result.mapping) {
@@ -178,6 +187,7 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
         showManagedModal((close) => (
             <DolphinMappingModal
                 existing={existing}
+                allTags={allTags}
                 language={language}
                 saveMapping={saveMappingAndAim}
                 close={close}

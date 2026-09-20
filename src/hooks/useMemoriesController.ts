@@ -21,6 +21,7 @@ import {
     pageCount,
     sortMemories
 } from "../utils/memories";
+import { orderedTagsByRecency } from "../utils/tags";
 import type {
     MemoryDateOrder,
     MemoryGameRow,
@@ -46,7 +47,6 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
     const [loading, setLoading] = useState(false);
     const [games, setGames] = useState<MemoryGameRow[]>([]);
     const [memories, setMemories] = useState<MemoryRecord[]>([]);
-    const [tagVocabulary, setTagVocabulary] = useState<string[]>([]);
 
     const [gameId, setGameId] = useState<number | null>(null);
     const [tagFilter, setTagFilter] = useState("");
@@ -86,7 +86,6 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
         setGames([]);
         setIndexLoaded(false);
         setMemories([]);
-        setTagVocabulary([]);
         setLoadedForGameId(null);
         setThumbs({});
         setColdPaths(new Set());
@@ -222,7 +221,6 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
         loadRunIdRef.current = runId;
         if (target === null) {
             setMemories([]);
-            setTagVocabulary([]);
             setLoadedForGameId(null);
             return;
         }
@@ -233,7 +231,6 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
                 return;
             }
             setMemories(result.memories || []);
-            setTagVocabulary(result.tagVocabulary || []);
             setLoadedForGameId(target);
         } catch (error) {
             if (loadRunIdRef.current === runId) {
@@ -575,30 +572,12 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
         return rows;
     }, [tagSort, memories]);
 
-    const allTags = useMemo(() => {
-        const seen = new Set<string>();
-        const ordered: string[] = [];
-        for (const tag of tagVocabulary) {
-            const trimmed = tag.trim();
-            if (!trimmed || seen.has(trimmed.toLowerCase())) {
-                continue;
-            }
-            seen.add(trimmed.toLowerCase());
-            ordered.push(trimmed);
-        }
-        const leftovers = new Map<string, number>();
-        for (const memory of memories) {
-            const tag = memory.tag?.trim();
-            if (!tag || seen.has(tag.toLowerCase())) {
-                continue;
-            }
-            leftovers.set(tag, Math.max(leftovers.get(tag) ?? 0, memory.capturedAt));
-        }
-        for (const [tag] of [...leftovers].sort((left, right) => right[1] - left[1])) {
-            ordered.push(tag);
-        }
-        return ordered;
-    }, [tagVocabulary, memories]);
+    const allTags = useMemo(
+        () => orderedTagsByRecency(
+            memories.map((memory) => ({ tag: memory.tag, at: memory.updatedAt }))
+        ),
+        [memories]
+    );
 
     return {
         state: {
@@ -607,7 +586,6 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
             games: listedGames,
             indexedGameCount: games.length,
             tags: sortedTags,
-            tagVocabulary,
             allTags,
             memories,
             visibleCount: visible.length,

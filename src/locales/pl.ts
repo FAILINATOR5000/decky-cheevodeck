@@ -994,6 +994,7 @@ const PL: LocaleTable = {
     "Add at least one controller.": "Dodaj przynajmniej jeden kontroler.",
     "reorder_help_notes": "Kliknij notatkę, którą chcesz przenieść, a potem kliknij inną, aby zamienić je miejscami, albo przesuwaj ją strzałkami powyżej krok po kroku.",
     "Note:": "Notatka:",
+    "Tag:": "Tag:",
     "Note Color:": "Kolor notatki:",
     Default: "Domyślny",
     Amber: "Bursztynowy",

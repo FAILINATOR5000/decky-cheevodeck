@@ -969,6 +969,7 @@ export const EN: LocaleTable = {
     "Add at least one controller.": "Add at least one controller.",
     "reorder_help_notes": "Click the note you would like to move, then either click another note to swap the two, or use the arrows above to move it a step at a time.",
     "Note:": "Note:",
+    "Tag:": "Tag:",
     "Note Color:": "Note Color:",
     Default: "Default",
     Amber: "Amber",

@@ -1,6 +1,7 @@
 import {
     useCallback,
     useEffect,
+    useMemo,
     useRef,
     useState,
     type Dispatch,
@@ -35,6 +36,7 @@ import type { LanguageCode } from "../locales";
 
 const ORDER_WRITE_SETTLE_MS = 250;
 import { parseNoteTag } from "../utils/achievements";
+import { orderedTagsByRecency } from "../utils/tags";
 import { armNoteFocusReturn, clearNoteFocusReturn } from "../utils/noteFocusReturn";
 
 type UseGameNotesControllerArgs = {
@@ -75,7 +77,6 @@ export function useGameNotesController({
 }: UseGameNotesControllerArgs) {
     const targetGameId = gameNotesGameId ?? payload?.gameId ?? null;
     const [notes, setNotes] = useState<GameNote[]>([]);
-    const [tagVocabulary, setTagVocabulary] = useState<string[]>([]);
     const [sortMode, setSortMode] = useState<GameNoteSortMode>("newest");
     const [loadedForGameId, setLoadedForGameId] = useState<number | null>(null);
     const [collapsedTags, setCollapsedTags] = useState<string[]>([]);
@@ -92,7 +93,6 @@ export function useGameNotesController({
         const gameId = targetGameId;
         if (!gameId) {
             setNotes([]);
-            setTagVocabulary([]);
             setSortMode("newest");
             setCollapsedTags([]);
             setLoadedForGameId(null);
@@ -109,7 +109,6 @@ export function useGameNotesController({
                     return;
                 }
                 setNotes(response.notes ?? []);
-                setTagVocabulary(response.tagVocabulary ?? []);
                 setSortMode(response.sortMode ?? "newest");
                 setCollapsedTags(response.collapsedTags ?? []);
                 setLoadedForGameId(gameId);
@@ -215,10 +214,6 @@ export function useGameNotesController({
         const created = result.note;
         try {
             setNotes((current) => [created, ...current]);
-            if (input.tag && !tagVocabulary.includes(input.tag)) {
-                const newTag = input.tag;
-                setTagVocabulary((current) => [...(current || []), newTag]);
-            }
         } catch (e) {
             logError("createGameNote (post-write sync)", e);
         }
@@ -230,7 +225,6 @@ export function useGameNotesController({
                     return;
                 }
                 setNotes(reloaded.notes ?? []);
-                setTagVocabulary(reloaded.tagVocabulary ?? []);
             } catch (e) {
                 logError("createGameNote (post-create reload)", e);
             }
@@ -322,10 +316,6 @@ export function useGameNotesController({
             const saved = result.note;
             try {
                 setNotes((current) => replaceNoteInList(current, saved));
-                if (input.tag && !tagVocabulary.includes(input.tag)) {
-                    const newTag = input.tag;
-                    setTagVocabulary((current) => [...(current || []), newTag]);
-                }
             } catch (e) {
                 logError("updateGameNote (post-write sync)", e);
             }
@@ -813,12 +803,20 @@ export function useGameNotesController({
         return { ok: result.ok, error: (result as any).error };
     };
 
+    const allTags = useMemo(
+        () => orderedTagsByRecency(notes.map((note) => ({
+            tag: note.tag ?? parseNoteTag(note.body).tag,
+            at: note.updatedAt || note.createdAt || 0
+        }))),
+        [notes]
+    );
+
     const pendingReminderBadge = notes.some((n) => n.showFiredDot);
 
     return {
         state: {
             notes,
-            tagVocabulary,
+            allTags,
             sortMode,
             collapsedTags,
             loadedForGameId,

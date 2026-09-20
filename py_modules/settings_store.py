@@ -3522,9 +3522,33 @@ class SettingsStore:
         return total
 
     def get_recent_tags_for_game(self, game_id) -> list:
+        """Every tag on a tracked note for this game, most recently edited first.
+
+        Uncapped and deduplicated case-insensitively, the newest occurrence
+        keeping its spelling. A tag leaves the list with the last note
+        carrying it. Callers wanting a short row have to slice it.
+        """
         tracked = self.load_tracked_for_game(game_id)
-        vocab = tracked.get("tagVocabulary", []) or []
-        return vocab[:6]
+        notes = tracked.get("notes", {}) or {}
+        edited = tracked.get("notesLastEditedAt", {}) or {}
+
+        pairs = []
+        for ach_id, body in notes.items():
+            tag = self._parse_tag_prefix(body)
+            if not tag:
+                continue
+            pairs.append((to_int(edited.get(ach_id), 0), tag[:TAG_MAX_LEN]))
+        pairs.sort(key=lambda pair: pair[0], reverse=True)
+
+        seen = set()
+        tags = []
+        for _, tag in pairs:
+            lower = tag.lower()
+            if lower in _RESERVED_TAG_KEYS or lower in seen:
+                continue
+            seen.add(lower)
+            tags.append(tag)
+        return tags
 
     def get_all_tracked_games(self) -> list:
         games = []

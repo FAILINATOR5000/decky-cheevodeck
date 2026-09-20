@@ -5,7 +5,10 @@ import { ErrorText } from "../ui/ErrorText";
 import { NoteColorPicker } from "./NoteColorPicker";
 import { localizeRuntimeText, t, type LanguageCode } from "../../locales";
 import type { AchievementRow, NoteColor, OkResult } from "../../types";
-import { applyTagToNoteBody, parseNoteTag, TRACKED_NOTE_MAX_LEN } from "../../utils/achievements";
+import { parseNoteTag, prefixNoteTag, resolveNoteTag, TAG_MAX_LEN, TRACKED_NOTE_MAX_LEN } from "../../utils/achievements";
+import { TagPickerModal } from "../tags/TagPickerModal";
+import { showManagedModal } from "../../utils/modalRegistry";
+import { TRACKED_TAG_SEEDS, cleanTagInput } from "../../utils/tags";
 import { logError } from "../../utils/errors";
 import { modalSize } from "../../utils/scale";
 import { achievementGreen, errorRed, compactButtonStyle } from "../../utils/style";
@@ -13,15 +16,7 @@ import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 
 
-const SUGGESTION_COUNT = 6;
-const TAG_SEEDS: ReadonlyArray<{ key: string; tag: string }> = [
-    { key: "tag_seed_goals", tag: "Goals" },
-    { key: "tag_seed_story", tag: "Story" },
-    { key: "tag_seed_sidequest", tag: "Sidequests" },
-    { key: "tag_seed_boss", tag: "Boss" },
-    { key: "tag_seed_missable", tag: "Missable" },
-    { key: "tag_seed_grind", tag: "Grind" }
-];
+const SUGGESTION_COUNT = 10;
 
 export type SaveTrackedNoteFn = (
     achievementId: number,
@@ -54,7 +49,10 @@ export function NoteEditModal(props: NoteEditModalProps) {
         setDefaultNoteColor
     } = props;
 
-    const [noteText, setNoteText] = useState(currentNote);
+    const stored = parseNoteTag(currentNote);
+
+    const [noteText, setNoteText] = useState(stored.body);
+    const [tagText, setTagText] = useState(stored.tag ?? "");
     const [savingNote, setSavingNote] = useState(false);
     const [noteError, setNoteError] = useState<string | null>(null);
     const [recentTags, setRecentTags] = useState<string[]>([]);
@@ -81,8 +79,16 @@ export function NoteEditModal(props: NoteEditModalProps) {
         currentColor ?? (currentNote ? "default" : (defaultNoteColor ?? "default"));
     const [selectedColor, setSelectedColor] = useState<NoteColor>(initialColor);
 
-    const trimmedLength = noteText.length;
-    const overLimit = trimmedLength > TRACKED_NOTE_MAX_LEN;
+    const resolved = resolveNoteTag(tagText, noteText, stored.body);
+    const effectiveTag = resolved.tag;
+    const composedNote = prefixNoteTag(resolved.body, effectiveTag);
+
+    const noteBudget = effectiveTag === null
+        ? TRACKED_NOTE_MAX_LEN
+        : TRACKED_NOTE_MAX_LEN - (effectiveTag.length + 2);
+
+    const trimmedLength = resolved.body.length;
+    const overLimit = composedNote.length > TRACKED_NOTE_MAX_LEN;
 
     async function handleSave() {
         if (savingNote || overLimit) {
@@ -90,7 +96,11 @@ export function NoteEditModal(props: NoteEditModalProps) {
         }
         setSavingNote(true);
         setNoteError(null);
-        const result = await saveNote(achievement.id, noteText.trim(), selectedColor);
+        const result = await saveNote(
+            achievement.id,
+            prefixNoteTag(resolved.body.trim(), effectiveTag),
+            selectedColor
+        );
         if (result.ok) {
             if (selectedColor !== defaultNoteColor) {
                 setDefaultNoteColor(selectedColor);
@@ -122,7 +132,7 @@ export function NoteEditModal(props: NoteEditModalProps) {
 
     const counterText = t(language, "{{count}} / {{max}} characters", {
         count: trimmedLength,
-        max: TRACKED_NOTE_MAX_LEN
+        max: noteBudget
     });
 
     const seenSuggestionKeys = new Set<string>();
@@ -142,7 +152,7 @@ export function NoteEditModal(props: NoteEditModalProps) {
             break;
         }
     }
-    for (const seed of TAG_SEEDS) {
+    for (const seed of TRACKED_TAG_SEEDS) {
         if (suggestions.length >= SUGGESTION_COUNT) {
             break;
         }
@@ -154,17 +164,40 @@ export function NoteEditModal(props: NoteEditModalProps) {
         suggestions.push({ key: `seed:${lower}`, label: t(language, seed.key), tag: seed.tag });
     }
 
-    const currentBodyTag = parseNoteTag(noteText).tag;
-
-    function applySuggestion(tag: string | null) {
+    function liftTypedTag() {
         if (savingNote) {
             return;
         }
-        const next = applyTagToNoteBody(noteText, tag);
-        if (next.length > TRACKED_NOTE_MAX_LEN) {
+        if (resolved.body === noteText) {
             return;
         }
-        setNoteText(next);
+        setTagText(resolved.tag ?? "");
+        setNoteText(resolved.body);
+    }
+
+    function applyTag(tag: string | null) {
+        if (savingNote) {
+            return;
+        }
+        setTagText(tag === null ? "" : cleanTagInput(tag, TAG_MAX_LEN));
+        setNoteText(resolved.body);
+    }
+
+    function openTagPicker() {
+        if (savingNote) {
+            return;
+        }
+        showManagedModal((closePicker) => (
+            <TagPickerModal
+                tags={recentTags}
+                seeds={TRACKED_TAG_SEEDS}
+                selected={effectiveTag ?? ""}
+                language={language}
+                focusPrefix="tracked"
+                onSelect={applyTag}
+                close={closePicker}
+            />
+        ));
     }
 
     return (
@@ -206,11 +239,13 @@ export function NoteEditModal(props: NoteEditModalProps) {
                         >
                             {t(language, "Note:")}
                         </div>
-                        <TextField
-                            value={noteText}
-                            onChange={(e: any) => setNoteText(e?.target?.value ?? "")}
-                            disabled={savingNote}
-                        />
+                        <div onBlurCapture={liftTypedTag}>
+                            <TextField
+                                value={noteText}
+                                onChange={(e: any) => setNoteText(e?.target?.value ?? "")}
+                                disabled={savingNote}
+                            />
+                        </div>
                         <div
                             style={{
                                 fontSize: `${modalSize(13)}px`,
@@ -221,6 +256,23 @@ export function NoteEditModal(props: NoteEditModalProps) {
                         >
                             {counterText}
                         </div>
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <div
+                            style={{
+                                fontSize: `${modalSize(13)}px`,
+                                fontWeight: 700,
+                                opacity: 0.7
+                            }}
+                        >
+                            {t(language, "Tag:")}
+                        </div>
+                        <TextField
+                            value={tagText}
+                            onChange={(e: any) => setTagText(cleanTagInput(e?.target?.value ?? "", TAG_MAX_LEN))}
+                            disabled={savingNote}
+                        />
                         <Focusable
                             style={{
                                 display: "flex",
@@ -231,25 +283,21 @@ export function NoteEditModal(props: NoteEditModalProps) {
                             }}
                             flow-children="grid"
                         >
-                            {suggestions.map((entry) => {
-                                const wouldOverflow =
-                                    applyTagToNoteBody(noteText, entry.tag).length > TRACKED_NOTE_MAX_LEN;
-                                return (
-                                    <div key={entry.key} data-focus-key={`tagsugg:${entry.key}`}>
-                                        <DialogButton
-                                            onClick={() => applySuggestion(entry.tag)}
-                                            disabled={savingNote || wouldOverflow}
-                                            style={compactButtonStyle}
-                                        >
-                                            {entry.label}
-                                        </DialogButton>
-                                    </div>
-                                );
-                            })}
-                            {currentBodyTag && (
+                            {suggestions.map((entry) => (
+                                <div key={entry.key} data-focus-key={`tagsugg:${entry.key}`}>
+                                    <DialogButton
+                                        onClick={() => applyTag(entry.tag)}
+                                        disabled={savingNote}
+                                        style={compactButtonStyle}
+                                    >
+                                        {entry.label}
+                                    </DialogButton>
+                                </div>
+                            ))}
+                            {effectiveTag !== null && (
                                 <div data-focus-key="tagsugg:clear">
                                     <DialogButton
-                                        onClick={() => applySuggestion(null)}
+                                        onClick={() => applyTag(null)}
                                         disabled={savingNote}
                                         style={{ ...compactButtonStyle, opacity: 0.75 }}
                                     >
@@ -257,6 +305,15 @@ export function NoteEditModal(props: NoteEditModalProps) {
                                     </DialogButton>
                                 </div>
                             )}
+                            <div data-focus-key="tagsugg:more">
+                                <DialogButton
+                                    onClick={openTagPicker}
+                                    disabled={savingNote}
+                                    style={{ ...compactButtonStyle, fontWeight: 800 }}
+                                >
+                                    {"\u00bb"}
+                                </DialogButton>
+                            </div>
                         </Focusable>
                         <div
                             style={{
