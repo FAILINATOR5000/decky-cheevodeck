@@ -865,6 +865,14 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
                 return;
             }
 
+            if (outPoint > 0) {
+                try {
+                    mediaSource.duration = outPoint;
+                }
+                catch {
+                }
+            }
+
             if (index) {
                 buffers = [mediaSource.addSourceBuffer(index.mime)];
                 const header = await fetchPart(CLIP_NAME, 0, index.init);
