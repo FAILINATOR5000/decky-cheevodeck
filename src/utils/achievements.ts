@@ -315,7 +315,7 @@ export type ParsedNote = {
     body: string;
 };
 
-export const TAG_MAX_LEN = 24;
+export const TAG_MAX_LEN = 32;
 
 const TAG_PATTERN = new RegExp(`^\\s*\\[([^\\]\\n]{1,${TAG_MAX_LEN}})\\]\\s*`);
 

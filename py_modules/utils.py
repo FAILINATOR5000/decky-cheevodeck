@@ -21,7 +21,7 @@ except Exception:
     certifi = None
 
 
-TAG_MAX_LEN = 24
+TAG_MAX_LEN = 32
 
 TAG_PREFIX_PATTERN = re.compile(r"^\s*\[([^\]\n]{1,%d})\]\s*" % TAG_MAX_LEN)
 
