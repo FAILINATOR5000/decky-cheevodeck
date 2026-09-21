@@ -66,6 +66,9 @@ type OtherGamesDrillInBodyProps = {
     showRetroPoints: boolean;
     trackedAchievementAction: TrackedAchievementAction;
     reorderTargetId: number | null;
+    tagMarkedIds: ReadonlySet<number>;
+    lastTag: string | null;
+    onToggleTagMark: (achievement: AchievementRow) => void;
     reorderViaSwap?: boolean;
     onTrackedAchievementActionChange: (nextValue: TrackedAchievementAction) => void | Promise<void>;
     onSortChange: (nextSort: TrackedAchievementSort) => void | Promise<void>;
@@ -115,6 +118,9 @@ export function OtherGamesDrillInBody(props: OtherGamesDrillInBodyProps) {
         showRetroPoints,
         trackedAchievementAction,
         reorderTargetId,
+        tagMarkedIds,
+        lastTag,
+        onToggleTagMark,
         reorderViaSwap,
         onTrackedAchievementActionChange,
         onSortChange,
@@ -256,6 +262,7 @@ export function OtherGamesDrillInBody(props: OtherGamesDrillInBodyProps) {
                     busy={busy}
                     showRetroPoints={showRetroPoints}
                     reorderTargetId={reorderTargetId}
+                    tagMarkedIds={tagMarkedIds}
                     reorderViaSwap={reorderViaSwap}
                     rowClaim={rowClaim}
                     restoreSeedAchievementId={restoreSeedAchievementId}
@@ -267,6 +274,7 @@ export function OtherGamesDrillInBody(props: OtherGamesDrillInBodyProps) {
                     onAchievementTrackToggle={gamepadRowActions ? handleRowUntrack : undefined}
                     onAchievementNote={gamepadRowActions ? handleRowEditNote : undefined}
                     onAchievementReorderPick={gamepadRowActions && reorderAvailable ? handleRowReorderPick : undefined}
+                    onAchievementTagMark={gamepadRowActions && lastTag ? onToggleTagMark : undefined}
                     onAchievementReorderToward={gamepadRowActions && reorderAvailable ? handleRowFollow : undefined}
                 />
             </>
@@ -305,6 +313,7 @@ export function OtherGamesDrillInBody(props: OtherGamesDrillInBodyProps) {
                             language={language}
                             style={controllerGlyphStyle}
                             reorderAvailable={reorderAvailable}
+                            lastTag={lastTag}
                         />
                     )}
                 </PanelSection>

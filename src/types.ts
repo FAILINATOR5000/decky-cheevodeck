@@ -662,7 +662,7 @@ export type ShortcutAction =
     | "mouseKeyboardMode"
     | "cycleUiScale";
 
-export type TrackedTab = "thisGame" | "otherGames" | "addAllMissable" | "clear";
+export type TrackedTab = "thisGame" | "otherGames" | "addAllMissable" | "applyTag" | "clear";
 
 export type CacheClearGroup = "gameData" | "friendGamePayloads" | "friends" | "images" | "awardIcons" | "socialActivity" | "gameActivity" | "playersNearYou" | "gamesList" | "awardsList" | "wantToPlayList" | "setsList" | "leaderboards" | "cheevoCheckResults" | "cheevoCheckHashes" | "cheevoCheckRaData";
 
@@ -1945,6 +1945,7 @@ export type ClearTrackedResponse = {
 export type RecentTagsResponse = {
     ok: boolean;
     recentTags: string[];
+    tagVocabulary?: string[];
 };
 
 // Game notes
@@ -2084,6 +2085,12 @@ export type TrackedDrillInState = {
     sort: TrackedAchievementSort;
     collapsedTags: string[];
     reorderTargetId: number | null;
+    tagMarkedIds: ReadonlySet<number>;
+    tagMarkCount: number;
+    lastTag: string | null;
+    canApplyTag: boolean;
+    onToggleTagMark: (achievement: AchievementRow) => void;
+    onApplyMarkedTag: () => void | Promise<void>;
     rowClaim: FocusClaimController;
     reorderViaSwap?: boolean;
     onAchievementClick: (

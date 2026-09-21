@@ -163,6 +163,8 @@ const DE: LocaleTable = {
     "tab_this_game": "Aktuelles Spiel",
     "tab_other_games": "Andere Spiele",
     "tab_add_all_missable": "Verpassbare hinzufügen",
+    "tab_apply_tag": "Tag anwenden",
+    "Apply {{tag}} ({{count}})": "{{tag}} anwenden ({{count}})",
     "tab_clear": "Löschen",
     "Clear": "Löschen",
     "help_about": "Plugin-Infos: Version, Credits und der Kram, den man einmal liest und nie wieder.",

@@ -163,6 +163,8 @@ const PT: LocaleTable = {
     "tab_this_game": "Jogo atual",
     "tab_other_games": "Outros jogos",
     "tab_add_all_missable": "Adicionar perdíveis",
+    "tab_apply_tag": "Aplicar etiqueta",
+    "Apply {{tag}} ({{count}})": "Aplicar {{tag}} ({{count}})",
     "tab_clear": "Limpar",
     "Clear": "Limpar",
     "help_about": "Informações do plugin -- versão, créditos e aquele tipo de coisa que você lê uma vez e nunca mais.",

@@ -3130,6 +3130,91 @@ class SettingsStore:
             "collapsedTags": list(saved.get("collapsedTags", [])),
         }
 
+    def bulk_tag_tracked(self, game_id, achievement_ids, tag) -> dict:
+        """Put one tag on several tracked notes at once, in a single write.
+
+        Each named achievement keeps its note body and gets ``tag`` in place of
+        whatever tag it carried; one with no note ends up with a note that is
+        just the tag. An empty tag, an empty id list or an id that is not
+        tracked here is skipped rather than refused.
+
+        Returns the same envelope as ``save_tracked_note``. The whole batch goes
+        under one lock and one save, so callers never have to reconcile answers
+        arriving out of order.
+        """
+        clean_tag = "" if tag is None else str(tag).strip()[:TAG_MAX_LEN]
+        key = self._game_key(game_id)
+        if not clean_tag or not key:
+            return {
+                "ok": False,
+                "notes": {},
+                "notesColor": {},
+                "collapsedTags": [],
+            }
+
+        wanted = []
+        for value in achievement_ids or []:
+            try:
+                wanted.append(int(value))
+            except (ValueError, TypeError, OverflowError):
+                continue
+
+        if not wanted:
+            return {
+                "ok": False,
+                "notes": {},
+                "notesColor": {},
+                "collapsedTags": [],
+            }
+
+        with self._lock_for_game(key):
+            entry = self._load_tracked_for_game_key(key)
+            tracked_ids = set()
+            for value in entry.get("achievementIds", []) or []:
+                try:
+                    tracked_ids.add(int(value))
+                except (ValueError, TypeError, OverflowError):
+                    continue
+            existing_notes = dict(entry.get("notes", {}) or {})
+            existing_notes_last_edited_at = dict(entry.get("notesLastEditedAt", {}) or {})
+
+            stamp = int(time.time() * 1000)
+            touched = False
+            for achievement_id in wanted:
+                if achievement_id not in tracked_ids:
+                    continue
+                note_key = str(achievement_id)
+                body = _TAG_PREFIX_PATTERN.sub("", existing_notes.get(note_key, "") or "")
+                retagged = f"[{clean_tag}]{body}"[:TRACKED_NOTE_MAX_LEN]
+                if retagged == existing_notes.get(note_key):
+                    continue
+                existing_notes[note_key] = retagged
+                existing_notes_last_edited_at[note_key] = stamp
+                touched = True
+
+            if not touched:
+                return {
+                    "ok": True,
+                    "notes": existing_notes,
+                    "notesColor": dict(entry.get("notesColor", {}) or {}),
+                    "collapsedTags": list(entry.get("collapsedTags", []) or []),
+                }
+
+            saved = self._save_tracked_for_game_locked(
+                key,
+                entry.get("achievementIds", []),
+                notes=existing_notes,
+                notes_last_edited_at=existing_notes_last_edited_at,
+                tag_vocabulary=self._tag_vocab_with(entry.get("tagVocabulary", []) or [], clean_tag),
+            )
+
+        return {
+            "ok": bool(saved.get("ok", False)),
+            "notes": saved.get("notes", {}),
+            "notesColor": saved.get("notesColor", {}),
+            "collapsedTags": list(saved.get("collapsedTags", [])),
+        }
+
     def save_tracked_sort_for_game(self, game_id, sort: str) -> dict:
         game_id_int = norm_game_id(game_id)
         key = self._game_key(game_id_int)

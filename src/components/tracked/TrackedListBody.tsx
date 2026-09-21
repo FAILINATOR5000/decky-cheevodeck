@@ -44,6 +44,7 @@ type TrackedListBodyProps = {
     busy: boolean;
     showRetroPoints: boolean;
     reorderTargetId?: number | null;
+    tagMarkedIds?: ReadonlySet<number>;
     reorderViaSwap?: boolean;
     rowClaim?: FocusClaimController;
     restoreSeedAchievementId?: number | null;
@@ -55,6 +56,7 @@ type TrackedListBodyProps = {
     onAchievementTrackToggle?: (achievement: AchievementRow) => void;
     onAchievementNote?: (achievement: AchievementRow) => void;
     onAchievementReorderPick?: (achievement: AchievementRow) => void;
+    onAchievementTagMark?: (achievement: AchievementRow) => void;
     onAchievementReorderToward?: (landedAchievementId: number) => void;
     emptyMessage: ReactNode;
 };
@@ -151,6 +153,7 @@ export function TrackedListBody(props: TrackedListBodyProps) {
         busy,
         showRetroPoints,
         reorderTargetId,
+        tagMarkedIds,
         reorderViaSwap,
         rowClaim,
         restoreSeedAchievementId,
@@ -162,6 +165,7 @@ export function TrackedListBody(props: TrackedListBodyProps) {
         onAchievementTrackToggle,
         onAchievementNote,
         onAchievementReorderPick,
+        onAchievementTagMark,
         onAchievementReorderToward,
         emptyMessage
     } = props;
@@ -248,6 +252,7 @@ export function TrackedListBody(props: TrackedListBodyProps) {
                 emptyMessageOverride={emptyMessage}
                 emptyFocusAnchorKey="tracked:empty-anchor"
                 reorderTargetId={reorderTargetId}
+                tagMarkedIds={tagMarkedIds}
                 reorderViaSwap={reorderViaSwap}
                 onAchievementClick={async (achievement) => {
                     if (trackedValidating || busy) {
@@ -258,6 +263,7 @@ export function TrackedListBody(props: TrackedListBodyProps) {
                 onAchievementTrackToggle={onAchievementTrackToggle}
                 onAchievementNote={onAchievementNote}
                 onAchievementReorderPick={onAchievementReorderPick}
+                onAchievementTagMark={onAchievementTagMark}
                 onAchievementReorderToward={onAchievementReorderToward}
             />
         );
@@ -339,6 +345,7 @@ export function TrackedListBody(props: TrackedListBodyProps) {
                         dynamicSentinelRootMargin={dynamicSentinelRootMargin}
                         showRetroPoints={showRetroPoints}
                         reorderTargetId={reorderTargetId}
+                        tagMarkedIds={tagMarkedIds}
                         reorderViaSwap={reorderViaSwap}
                         claimedRow={claimedRow}
                         mountedRowCount={slice.reach}
@@ -352,6 +359,7 @@ export function TrackedListBody(props: TrackedListBodyProps) {
                         onAchievementTrackToggle={onAchievementTrackToggle}
                         onAchievementNote={onAchievementNote}
                         onAchievementReorderPick={onAchievementReorderPick}
+                        onAchievementTagMark={onAchievementTagMark}
                         onAchievementReorderToward={onAchievementReorderToward}
                     />
                 );

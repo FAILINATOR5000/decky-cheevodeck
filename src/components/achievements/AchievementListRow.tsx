@@ -6,6 +6,7 @@ import { t, type LanguageCode } from "../../locales";
 import type { AchievementListMode, AchievementRow, AchievementStyle } from "../../types";
 import { earned, isMissable } from "../../utils/achievements";
 import {
+    BUTTON_BUMPER_LEFT,
     BUTTON_BUMPER_RIGHT,
     BUTTON_OPTIONS,
     BUTTON_SECONDARY
@@ -37,6 +38,7 @@ export type AchievementRowListProps = {
     onAchievementTrackToggle?: (achievement: AchievementRow) => void;
     onAchievementNote?: (achievement: AchievementRow) => void;
     onAchievementReorderPick?: (achievement: AchievementRow) => void;
+    onAchievementTagMark?: (achievement: AchievementRow) => void;
     onAchievementReorderToward?: (landedAchievementId: number) => void;
 };
 
@@ -48,6 +50,7 @@ export const AchievementListRow = React.memo(function AchievementListRow(props: 
     fadeOnLoad: boolean;
     isTracked: boolean;
     isReorderTarget: boolean;
+    isTagMarked: boolean;
     communityLabel: string | null;
     extraLabel: ReactNode;
     noteText?: string;
@@ -58,6 +61,14 @@ export const AchievementListRow = React.memo(function AchievementListRow(props: 
 
     const reorderOuterStyle = props.isReorderTarget
         ? { outline: `2px solid ${achievementGreen}`, borderRadius: "6px" }
+        : undefined;
+
+    const tagMarkStyle = props.isTagMarked
+        ? { background: "rgba(14, 165, 233, 0.18)", borderRadius: "6px" }
+        : undefined;
+
+    const rowOuterStyle = tagMarkStyle || reorderOuterStyle
+        ? { ...tagMarkStyle, ...reorderOuterStyle }
         : undefined;
 
     function handleClick() {
@@ -93,6 +104,12 @@ export const AchievementListRow = React.memo(function AchievementListRow(props: 
         if (button === BUTTON_BUMPER_RIGHT && list.onAchievementReorderPick) {
             playOkSound();
             list.onAchievementReorderPick(props.achievement);
+            return;
+        }
+
+        if (button === BUTTON_BUMPER_LEFT && list.onAchievementTagMark) {
+            playToggleSound(!props.isTagMarked);
+            list.onAchievementTagMark(props.achievement);
             return;
         }
 
@@ -191,7 +208,7 @@ export const AchievementListRow = React.memo(function AchievementListRow(props: 
     return (
         <FocusableItem
             focusKey={`achievement:${achievement.id}`}
-            outerStyle={reorderOuterStyle}
+            outerStyle={rowOuterStyle}
             onClick={handleClick}
             onFocus={handleFocus}
             onGamepadFocus={handleGamepadFocus}

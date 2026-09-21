@@ -2326,6 +2326,10 @@ export const saveTrackedNote = callable<
     [number | null | undefined, number, string, NoteColor | null | undefined],
     SaveTrackedNoteResponse
 >("save_tracked_note");
+export const bulkTagTracked = callable<
+    [number | null | undefined, number[], string],
+    SaveTrackedNoteResponse
+>("bulk_tag_tracked");
 export const saveDefaultNoteColor = callable<[NoteColor], SaveDefaultNoteColorResponse>(
     "save_default_note_color"
 );

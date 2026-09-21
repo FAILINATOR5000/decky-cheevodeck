@@ -39,6 +39,7 @@ import type {
 import type { LanguageCode } from "../locales";
 import { earned, metricSortComparator } from "../utils/achievements";
 import { logError } from "../utils/errors";
+import { useTagMarking } from "./useTagMarking";
 import { landOn, liveOrder, orderAfterGroupMove, stepTo } from "../utils/reorderOrder";
 
 const ORDER_WRITE_SETTLE_MS = 250;
@@ -49,6 +50,7 @@ import { useFocusClaim } from "./useFocusClaim";
 type UseTrackedForGameControllerArgs = {
     selectedGameId: number | null;
     mountedRef: RefObject<boolean>;
+    isActive: boolean;
     language: LanguageCode;
     setPendingFocusKey: (key: string | null) => void;
     claimBackButton: () => void;
@@ -74,6 +76,7 @@ type UseTrackedForGameControllerArgs = {
 export function useTrackedForGameController({
     selectedGameId,
     mountedRef,
+    isActive,
     language,
     setPendingFocusKey,
     claimBackButton,
@@ -792,6 +795,17 @@ export function useTrackedForGameController({
         [applyOrder, reorderTargetId, selectedGameId, setError, sort, visibleOrder]
     );
 
+    const tagMarking = useTagMarking({
+        selectedGameId,
+        trackedIds,
+        notesByAchievementId,
+        isActive,
+        mountedRef,
+        setNotesByAchievementId,
+        setNotesColorByAchievementId,
+        setCollapsedTags
+    });
+
     return {
         state: {
             payload,
@@ -806,9 +820,16 @@ export function useTrackedForGameController({
             collapsedTags,
             reorderTargetId,
             reorderViaSwap,
-            rowClaim
+            rowClaim,
+            tagMarkedIds: tagMarking.tagMarkedIds,
+            tagMarkCount: tagMarking.tagMarkCount,
+            lastTag: tagMarking.lastTag,
+            applyingTag: tagMarking.applyingTag,
+            canApplyTag: tagMarking.canApplyTag
         },
         actions: {
+            onToggleTagMark: tagMarking.onToggleTagMark,
+            onApplyMarkedTag: tagMarking.onApplyMarkedTag,
             onAchievementClick,
             onUntrack,
             onEditNote,

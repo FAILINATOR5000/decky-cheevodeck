@@ -107,10 +107,26 @@ type TrackedTabDef = {
     dividerAfter?: boolean;
 };
 
+// Font Awesome Free icon path, CC BY 4.0. See ATTRIBUTIONS.md.
+function TagIcon({ size = 18 }: TabIconProps) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 448 512"
+            width={size}
+            height={size}
+            fill="currentColor"
+        >
+            <path d="M0 80V229.5c0 17 6.7 33.3 18.7 45.3l176 176c25 25 65.5 25 90.5 0L418.7 317.3c25-25 25-65.5 0-90.5l-176-176c-12-12-28.3-18.7-45.3-18.7H48C21.5 32 0 53.5 0 80zm112 32a32 32 0 1 1 0 64 32 32 0 1 1 0-64z" />
+        </svg>
+    );
+}
+
 const TRACKED_TABS: TrackedTabDef[] = [
     { id: "thisGame", Icon: CrosshairIcon, labelKey: "tab_this_game", focusKey: "tracked:tab:thisGame" },
     { id: "otherGames", Icon: GridIcon, labelKey: "tab_other_games", focusKey: "tracked:tab:otherGames", dividerAfter: true },
     { id: "addAllMissable", Icon: MissableIcon, labelKey: "tab_add_all_missable", focusKey: "tracked:tab:addAllMissable" },
+    { id: "applyTag", Icon: TagIcon, labelKey: "tab_apply_tag", focusKey: "tracked:tab:applyTag" },
     { id: "clear", Icon: TrashIcon, labelKey: "tab_clear", focusKey: "tracked:tab:clear" }
 ];
 
@@ -170,6 +186,12 @@ type TrackedPageProps = {
     onRefreshTotalTrackedCount: () => void | Promise<void>;
     onAddAllMissable: () => void | Promise<void>;
     reorderTargetId: number | null;
+    tagMarkedIds: ReadonlySet<number>;
+    tagMarkCount: number;
+    lastTag: string | null;
+    canApplyTag: boolean;
+    onToggleTagMark: (achievement: AchievementRow) => void;
+    onApplyMarkedTag: () => void | Promise<void>;
     reorderViaSwap?: boolean;
     onReorderMove: (direction: ReorderDirection, groupIds?: number[] | null) => void | Promise<void>;
     onReorderToward: (landedAchievementId: number, groupIds?: number[] | null) => void;
@@ -241,6 +263,12 @@ function TrackedPage(props: TrackedPageProps) {
         onRefreshTotalTrackedCount,
         onAddAllMissable,
         reorderTargetId,
+        tagMarkedIds,
+        tagMarkCount,
+        lastTag,
+        canApplyTag,
+        onToggleTagMark,
+        onApplyMarkedTag,
         reorderViaSwap,
         onReorderMove,
         onReorderToward,
@@ -484,12 +512,26 @@ function TrackedPage(props: TrackedPageProps) {
 
     const addAllMissableDisabled = activeTrackedTab === "otherGames" || !payload;
 
+    const drilledIntoOtherGame = activeTrackedTab === "otherGames" && trackedSelectedGameId !== null;
+    const activeLastTag = drilledIntoOtherGame ? drillIn.lastTag : lastTag;
+    const activeTagMarkCount = drilledIntoOtherGame ? drillIn.tagMarkCount : tagMarkCount;
+    const activeCanApplyTag = drilledIntoOtherGame ? drillIn.canApplyTag : canApplyTag;
+    const applyActiveMarkedTag = drilledIntoOtherGame ? drillIn.onApplyMarkedTag : onApplyMarkedTag;
+
     function handleTabClick(id: TrackedTab) {
         if (id === "addAllMissable") {
             if (addAllMissableDisabled) {
                 return;
             }
             void onAddAllMissable();
+            return;
+        }
+
+        if (id === "applyTag") {
+            if (!activeCanApplyTag) {
+                return;
+            }
+            void applyActiveMarkedTag();
             return;
         }
 
@@ -510,6 +552,10 @@ function TrackedPage(props: TrackedPageProps) {
             return;
         }
 
+        if (id === "applyTag" && !activeCanApplyTag) {
+            return;
+        }
+
         setHoveredTab(id);
     }
 
@@ -526,7 +572,11 @@ function TrackedPage(props: TrackedPageProps) {
     const previewTab = hoveredTab ?? focusedTab;
     const previewedOrActive = previewTab ?? activeTrackedTab;
     const previewedTab = TRACKED_TABS.find((entry) => entry.id === previewedOrActive);
-    const previewLabel = previewedTab ? t(language, previewedTab.labelKey) : "";
+    const previewLabel = previewedTab
+        ? previewedTab.id === "applyTag" && activeCanApplyTag
+            ? t(language, "Apply {{tag}} ({{count}})", { tag: activeLastTag ?? "", count: activeTagMarkCount })
+            : t(language, previewedTab.labelKey)
+        : "";
 
     const trackedReady = payload ? trackedIdsLoadedForGameId === (payload.gameId ?? null) : false;
     const showLoading = activeTrackedTab === "thisGame" && payload !== null && (!trackedReady || trackedValidating);
@@ -662,6 +712,8 @@ function TrackedPage(props: TrackedPageProps) {
                     onAchievementTrackToggle={gamepadRowActions ? handleRowUntrack : undefined}
                     onAchievementNote={gamepadRowActions ? handleRowEditNote : undefined}
                     onAchievementReorderPick={gamepadRowActions && reorderAvailable ? handleRowReorderPick : undefined}
+                    tagMarkedIds={tagMarkedIds}
+                    onAchievementTagMark={gamepadRowActions && lastTag ? onToggleTagMark : undefined}
                     onAchievementReorderToward={gamepadRowActions && reorderAvailable ? handleRowFollow : undefined}
                 />
             </>
@@ -706,10 +758,13 @@ function TrackedPage(props: TrackedPageProps) {
                             }}
                         >
                             {TRACKED_TABS.map((tab) => {
-                                const isActionTab = tab.id === "addAllMissable";
+                                const isActionTab = tab.id === "addAllMissable" || tab.id === "applyTag";
                                 const isActive = !isActionTab && activeTrackedTab === tab.id;
                                 const isPreviewed = previewTab === tab.id;
-                                const isDisabled = isActionTab && addAllMissableDisabled;
+                                const isDimmed = tab.id === "applyTag" && !activeCanApplyTag;
+                                const isDisabled = tab.id === "applyTag"
+                                    ? false
+                                    : isActionTab && addAllMissableDisabled;
                                 const Icon = tab.Icon;
 
                                 const divider = tab.dividerAfter ? (
@@ -725,7 +780,7 @@ function TrackedPage(props: TrackedPageProps) {
                                     />
                                 ) : null;
 
-                                const buttonOpacity = isDisabled
+                                const buttonOpacity = isDisabled || isDimmed
                                     ? 0.35
                                     : isActive || isPreviewed
                                         ? 1
@@ -814,6 +869,7 @@ function TrackedPage(props: TrackedPageProps) {
                         language={language}
                         style={controllerGlyphStyle}
                         reorderAvailable={reorderAvailable}
+                        lastTag={lastTag}
                     />
                 )}
                 {showLoading && (
@@ -1096,6 +1152,9 @@ function OtherGamesTabBody(props: OtherGamesTabBodyProps) {
             showRetroPoints={showRetroPoints}
             trackedAchievementAction={trackedAchievementAction}
             reorderTargetId={drillIn.reorderTargetId}
+            tagMarkedIds={drillIn.tagMarkedIds}
+            lastTag={drillIn.lastTag}
+            onToggleTagMark={drillIn.onToggleTagMark}
             reorderViaSwap={drillIn.reorderViaSwap}
             onTrackedAchievementActionChange={onTrackedAchievementActionChange}
             onSortChange={drillIn.onSortChange}

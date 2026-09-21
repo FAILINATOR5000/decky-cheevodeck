@@ -60,6 +60,7 @@ export function AchievementList(props: {
     friendSort?: AchievementSort;
     onAchievementClick?: (achievement: AchievementRow) => void | Promise<void>;
     reorderTargetId?: number | null;
+    tagMarkedIds?: ReadonlySet<number>;
     reorderViaSwap?: boolean;
     seedRows?: number;
     mountedRowCount?: number;
@@ -78,6 +79,7 @@ export function AchievementList(props: {
     onAchievementTrackToggle?: (achievement: AchievementRow) => void;
     onAchievementNote?: (achievement: AchievementRow) => void;
     onAchievementReorderPick?: (achievement: AchievementRow) => void;
+    onAchievementTagMark?: (achievement: AchievementRow) => void;
     onAchievementReorderToward?: (landedAchievementId: number) => void;
     dynamicLoading?: boolean;
     dynamicInitialRows?: number;
@@ -546,6 +548,8 @@ export function AchievementList(props: {
     reorderPickRef.current = props.onAchievementReorderPick;
     const reorderTowardRef = useRef(props.onAchievementReorderToward);
     reorderTowardRef.current = props.onAchievementReorderToward;
+    const tagMarkRef = useRef(props.onAchievementTagMark);
+    tagMarkRef.current = props.onAchievementTagMark;
 
     const rowList = useMemo<AchievementRowListProps>(() => ({
         metrics,
@@ -582,6 +586,11 @@ export function AchievementList(props: {
             ? (landedAchievementId: number) => {
                 reorderTowardRef.current?.(landedAchievementId);
             }
+            : undefined,
+        onAchievementTagMark: props.onAchievementTagMark
+            ? (achievement: AchievementRow) => {
+                tagMarkRef.current?.(achievement);
+            }
             : undefined
     }), [
         metrics,
@@ -595,7 +604,8 @@ export function AchievementList(props: {
         props.onAchievementTrackToggle,
         props.onAchievementNote,
         props.onAchievementReorderPick,
-        props.onAchievementReorderToward
+        props.onAchievementReorderToward,
+        props.onAchievementTagMark
     ]);
 
     return (
@@ -646,6 +656,10 @@ export function AchievementList(props: {
                                         currentMode === "tracked"
                                         && props.reorderTargetId != null
                                         && props.reorderTargetId === achievement.id
+                                    }
+                                    isTagMarked={
+                                        currentMode === "tracked"
+                                        && Boolean(props.tagMarkedIds?.has(achievement.id))
                                     }
                                     communityLabel={labels?.communityLabel ?? null}
                                     extraLabel={labels?.extraLabel ?? null}

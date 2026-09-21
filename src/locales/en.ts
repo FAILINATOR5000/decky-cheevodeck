@@ -163,6 +163,8 @@ export const EN: LocaleTable = {
     "tab_this_game": "Current Game",
     "tab_other_games": "Other Games",
     "tab_add_all_missable": "Add All Missables",
+    "tab_apply_tag": "Apply Tag",
+    "Apply {{tag}} ({{count}})": "Apply {{tag}} ({{count}})",
     "tab_clear": "Clear",
     "Clear": "Clear",
     "help_about": "Plugin info — version, update checker, credits, and the kind of stuff you read once and never again.",

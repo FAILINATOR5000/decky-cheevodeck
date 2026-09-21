@@ -163,6 +163,8 @@ const FR: LocaleTable = {
     "tab_this_game": "Jeu en cours",
     "tab_other_games": "Autres jeux",
     "tab_add_all_missable": "Ajouter les ratables",
+    "tab_apply_tag": "Appliquer le tag",
+    "Apply {{tag}} ({{count}})": "Appliquer {{tag}} ({{count}})",
     "tab_clear": "Effacer",
     "Clear": "Effacer",
     "help_about": "Infos du plugin : version, crédits, et le genre de trucs qu'on lit une fois et plus jamais.",

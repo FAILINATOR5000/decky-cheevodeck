@@ -1676,6 +1676,7 @@ function AchievementsRoot() {
         payload,
         language,
         mountedRef,
+        isActive: view === "tracked",
         showAButtonModeTracked,
         mouseKeyboardMode,
         trackedAchievementAction,
@@ -1717,8 +1718,10 @@ function AchievementsRoot() {
     };
 
     const {
-        state: { trackedValidating, trackedIds, trackedIdsLoadedForGameId, trackedAchievements, notesByAchievementId, notesColorByAchievementId, sort: perGameTrackedSort, collapsedTags: trackedCollapsedTags, reorderTargetId, reorderViaSwap, backClaimToken: trackedBackClaimToken, rowClaim: trackedRowClaim },
+        state: { trackedValidating, trackedIds, trackedIdsLoadedForGameId, trackedAchievements, notesByAchievementId, notesColorByAchievementId, sort: perGameTrackedSort, collapsedTags: trackedCollapsedTags, reorderTargetId, reorderViaSwap, backClaimToken: trackedBackClaimToken, rowClaim: trackedRowClaim, tagMarkedIds: trackedTagMarkedIds, tagMarkCount: trackedTagMarkCount, lastTag: trackedLastTag, canApplyTag: trackedCanApplyTag },
         actions: {
+            onToggleTagMark: onTrackedToggleTagMark,
+            onApplyMarkedTag: onTrackedApplyMarkedTag,
             setTrackedValidating,
             setTrackedIds,
             setLastKnownTrackedCount,
@@ -1747,6 +1750,7 @@ function AchievementsRoot() {
     const trackedForGameController = useTrackedForGameController({
         selectedGameId: trackedSelectedGameId,
         mountedRef,
+        isActive: view === "tracked",
         language,
         setPendingFocusKey,
         claimBackButton: claimTrackedBackButton,
@@ -4860,6 +4864,12 @@ function AchievementsRoot() {
                                 onRefreshTotalTrackedCount={refreshTotalTrackedCount}
                                 onAddAllMissable={onAddAllMissable}
                                 reorderTargetId={reorderTargetId}
+                                tagMarkedIds={trackedTagMarkedIds}
+                                tagMarkCount={trackedTagMarkCount}
+                                lastTag={trackedLastTag}
+                                canApplyTag={trackedCanApplyTag}
+                                onToggleTagMark={onTrackedToggleTagMark}
+                                onApplyMarkedTag={onTrackedApplyMarkedTag}
                                 reorderViaSwap={reorderViaSwap}
                                 onReorderMove={onReorderMove}
                                 onReorderToward={onReorderToward}

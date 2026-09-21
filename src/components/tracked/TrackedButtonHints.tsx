@@ -8,10 +8,11 @@ type TrackedButtonHintsProps = {
     language: LanguageCode;
     style: ControllerGlyphStyle;
     reorderAvailable: boolean;
+    lastTag: string | null;
 };
 
 export function TrackedButtonHints(props: TrackedButtonHintsProps) {
-    const { language, style, reorderAvailable } = props;
+    const { language, style, reorderAvailable, lastTag } = props;
 
     return (
         <PanelSectionRow>
@@ -23,6 +24,9 @@ export function TrackedButtonHints(props: TrackedButtonHintsProps) {
                     { button: "y", label: t(language, "Note & Tag") },
                     ...(reorderAvailable
                         ? [{ button: "r1" as const, label: t(language, "Reorder") }]
+                        : []),
+                    ...(lastTag
+                        ? [{ button: "l1" as const, label: lastTag }]
                         : [])
                 ]}
             />

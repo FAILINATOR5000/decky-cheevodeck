@@ -163,6 +163,8 @@ const PL: LocaleTable = {
     "tab_this_game": "Bieżąca gra",
     "tab_other_games": "Inne gry",
     "tab_add_all_missable": "Dodaj missable",
+    "tab_apply_tag": "Zastosuj tag",
+    "Apply {{tag}} ({{count}})": "Zastosuj {{tag}} ({{count}})",
     "tab_clear": "Wyczyść",
     "Clear": "Wyczyść",
     "help_about": "Informacje o wtyczce — wersja, sprawdzanie aktualizacji, podziękowania i tego typu rzeczy, które czyta się raz i nigdy więcej.",

@@ -163,6 +163,8 @@ const JA: LocaleTable = {
     "tab_this_game": "現在のゲーム",
     "tab_other_games": "他のゲーム",
     "tab_add_all_missable": "取り逃し注意をすべて追加",
+    "tab_apply_tag": "タグを適用",
+    "Apply {{tag}} ({{count}})": "{{tag}} を適用（{{count}}）",
     "tab_clear": "削除",
     "Clear": "削除",
     "help_about": "プラグインの情報です。バージョン、更新チェック、クレジットなど、一度読んだら二度と読まない類のものが並びます。",

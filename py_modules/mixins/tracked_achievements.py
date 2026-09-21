@@ -81,6 +81,9 @@ class TrackedAchievementsMixin(PluginContext):
     async def save_tracked_note(self, game_id=None, achievement_id=None, note: str = "", color: str | None = None):
         return self.settings_store.save_tracked_note(game_id, achievement_id, note, color=color)
 
+    async def bulk_tag_tracked(self, game_id=None, achievement_ids=None, tag: str = ""):
+        return self.settings_store.bulk_tag_tracked(game_id, achievement_ids or [], tag)
+
     async def save_tracked_sort_for_game(self, game_id=None, sort: str = "upNext"):
         return self.settings_store.save_tracked_sort_for_game(game_id, sort)
 
@@ -122,7 +125,9 @@ class TrackedAchievementsMixin(PluginContext):
 
     async def get_recent_tags_for_game(self, game_id=None):
         tags = self.settings_store.get_recent_tags_for_game(game_id)
+        tracked = self.settings_store.load_tracked_for_game(game_id)
         return {
             "ok": True,
             "recentTags": tags,
+            "tagVocabulary": list(tracked.get("tagVocabulary", []) or []),
         }

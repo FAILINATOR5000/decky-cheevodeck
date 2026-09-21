@@ -33,6 +33,7 @@ import type { AchievementRow, AOSource, NoteColor, OkResult, Payload, ReorderDir
 import { earned, isMissable, metricSortComparator, parseNoteTag } from "../utils/achievements";
 import type { LanguageCode } from "../locales";
 import { logError } from "../utils/errors";
+import { useTagMarking } from "./useTagMarking";
 import { landOn, liveOrder, orderAfterGroupMove, stepTo } from "../utils/reorderOrder";
 
 const ORDER_WRITE_SETTLE_MS = 250;
@@ -56,6 +57,7 @@ type UseTrackedControllerArgs = {
     payload: Payload | null;
     language: LanguageCode;
     mountedRef: RefObject<boolean>;
+    isActive: boolean;
     showAButtonModeTracked: boolean;
     mouseKeyboardMode: boolean;
     trackedAchievementAction: TrackedAchievementAction;
@@ -85,6 +87,7 @@ export function useTrackedController({
     payload,
     language,
     mountedRef,
+    isActive,
     showAButtonModeTracked,
     mouseKeyboardMode,
     trackedAchievementAction,
@@ -1011,6 +1014,17 @@ export function useTrackedController({
         }
     }, [mountedRef, setError, restorePendingFocusNextTick]);
 
+    const tagMarking = useTagMarking({
+        selectedGameId: payload?.gameId ?? null,
+        trackedIds,
+        notesByAchievementId,
+        isActive,
+        mountedRef,
+        setNotesByAchievementId,
+        setNotesColorByAchievementId,
+        setCollapsedTags
+    });
+
     return {
         state: {
             trackedValidating,
@@ -1026,9 +1040,16 @@ export function useTrackedController({
             reorderTargetId,
             reorderViaSwap,
             backClaimToken,
-            rowClaim
+            rowClaim,
+            tagMarkedIds: tagMarking.tagMarkedIds,
+            tagMarkCount: tagMarking.tagMarkCount,
+            lastTag: tagMarking.lastTag,
+            applyingTag: tagMarking.applyingTag,
+            canApplyTag: tagMarking.canApplyTag
         },
         actions: {
+            onToggleTagMark: tagMarking.onToggleTagMark,
+            onApplyMarkedTag: tagMarking.onApplyMarkedTag,
             setTrackedValidating,
             setTrackedIds,
             setTrackedIdsLoadedForGameId,
