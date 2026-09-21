@@ -103,6 +103,8 @@ function newSlot(controllerType: ControllerType): MappingPlayer {
     };
 }
 
+const SUGGESTION_COUNT = 10;
+
 const RUMBLE_STEP = 5;
 const RUMBLE_NOTCH_COUNT = 21;
 
@@ -204,6 +206,35 @@ export function DolphinMappingModal(props: DolphinMappingModalProps) {
                 close={closePicker}
             />
         ));
+    }
+
+    const seenSuggestionKeys = new Set<string>();
+    const suggestions: Array<{ key: string; label: string; tag: string }> = [];
+    for (const tag of allTags) {
+        const trimmed = tag.trim();
+        if (!trimmed) {
+            continue;
+        }
+        const lower = trimmed.toLowerCase();
+        if (seenSuggestionKeys.has(lower)) {
+            continue;
+        }
+        seenSuggestionKeys.add(lower);
+        suggestions.push({ key: `recent:${lower}`, label: trimmed, tag: trimmed });
+        if (suggestions.length >= SUGGESTION_COUNT) {
+            break;
+        }
+    }
+    for (const seed of DOLPHIN_TAG_SEEDS) {
+        if (suggestions.length >= SUGGESTION_COUNT) {
+            break;
+        }
+        const lower = seed.tag.toLowerCase();
+        if (seenSuggestionKeys.has(lower)) {
+            continue;
+        }
+        seenSuggestionKeys.add(lower);
+        suggestions.push({ key: `seed:${lower}`, label: t(language, seed.key), tag: seed.tag });
     }
 
     function updatePlayer(index: number, patch: Partial<MappingPlayer>) {
@@ -349,14 +380,14 @@ export function DolphinMappingModal(props: DolphinMappingModalProps) {
                                     style={{ display: "flex", flexDirection: "row", gap: "8px", flexWrap: "wrap", alignItems: "center" }}
                                     flow-children="grid"
                                 >
-                                    {DOLPHIN_TAG_SEEDS.map((seed) => (
-                                        <div key={seed.key} data-focus-key={`dmaptag:${seed.key}`}>
+                                    {suggestions.map((suggestion) => (
+                                        <div key={suggestion.key} data-focus-key={`dmaptag:${suggestion.key}`}>
                                             <DialogButton
-                                                onClick={() => applyTag(seed.tag)}
+                                                onClick={() => applyTag(suggestion.tag)}
                                                 disabled={saving}
                                                 style={compactButtonStyle}
                                             >
-                                                {t(language, seed.key)}
+                                                {suggestion.label}
                                             </DialogButton>
                                         </div>
                                     ))}
