@@ -402,59 +402,63 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
                     {modalTitle}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        <div
-                            style={{
-                                fontSize: `${modalSize(13)}px`,
-                                fontWeight: 700,
-                                opacity: 0.7
-                            }}
-                        >
-                            {t(language, "Title (optional):")}
-                        </div>
-                        <TextField
-                            value={titleText}
-                            onChange={(e: any) => setTitleText(e?.target?.value ?? "")}
-                            disabled={saving}
-                        />
-                        <div
-                            style={{
-                                fontSize: `${modalSize(13)}px`,
-                                opacity: 0.7,
-                                color: titleOverLimit ? errorRed : undefined,
-                                textAlign: "right"
-                            }}
-                        >
-                            {titleCounterText}
-                        </div>
-                    </div>
-
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        <div
-                            style={{
-                                fontSize: `${modalSize(13)}px`,
-                                fontWeight: 700,
-                                opacity: 0.7
-                            }}
-                        >
-                            {t(language, "Note:")}
-                        </div>
-                        <div onBlurCapture={liftTypedTag}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                            <div
+                                style={{
+                                    fontSize: `${modalSize(13)}px`,
+                                    fontWeight: 700,
+                                    opacity: 0.7
+                                }}
+                            >
+                                {t(language, "Title (optional):")}
+                            </div>
                             <TextField
-                                value={bodyText}
-                                onChange={(e: any) => setBodyText(e?.target?.value ?? "")}
+                                value={titleText}
+                                onChange={(e: any) => setTitleText(e?.target?.value ?? "")}
                                 disabled={saving}
                             />
+                            <div
+                                style={{
+                                    fontSize: `${modalSize(13)}px`,
+                                    lineHeight: 1,
+                                    opacity: 0.7,
+                                    color: titleOverLimit ? errorRed : undefined,
+                                    textAlign: "right"
+                                }}
+                            >
+                                {titleCounterText}
+                            </div>
                         </div>
-                        <div
-                            style={{
-                                fontSize: `${modalSize(13)}px`,
-                                opacity: 0.7,
-                                color: bodyOverLimit ? errorRed : undefined,
-                                textAlign: "right"
-                            }}
-                        >
-                            {bodyCounterText}
+
+                        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                            <div
+                                style={{
+                                    fontSize: `${modalSize(13)}px`,
+                                    fontWeight: 700,
+                                    opacity: 0.7
+                                }}
+                            >
+                                {t(language, "Note:")}
+                            </div>
+                            <div onBlurCapture={liftTypedTag}>
+                                <TextField
+                                    value={bodyText}
+                                    onChange={(e: any) => setBodyText(e?.target?.value ?? "")}
+                                    disabled={saving}
+                                />
+                            </div>
+                            <div
+                                style={{
+                                    fontSize: `${modalSize(13)}px`,
+                                    lineHeight: 1,
+                                    opacity: 0.7,
+                                    color: bodyOverLimit ? errorRed : undefined,
+                                    textAlign: "right"
+                                }}
+                            >
+                                {bodyCounterText}
+                            </div>
                         </div>
                     </div>
 
@@ -521,7 +525,7 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
                                 opacity: 0.7
                             }}
                         >
-                            {t(language, "Tip: start your note with [Category] to group it on the Notes page — tap a suggestion above, or type your own.")}
+                            {t(language, "Tip: organize your note by category by giving it a tag. Simply enter a tag you'd like to organize it by or select from the recent or recommendation tiles above.")}
                         </div>
                     </div>
 

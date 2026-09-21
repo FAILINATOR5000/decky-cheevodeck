@@ -211,7 +211,7 @@ export function NoteEditModal(props: NoteEditModalProps) {
                 <div style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700, marginBottom: "12px" }}>
                     {(() => {
                         const TOKEN = "__NOTE_MODAL_TITLE__";
-                        const rendered = t(language, "Edit note for {{title}}", { title: TOKEN });
+                        const rendered = t(language, "Edit note/tag for {{title}}", { title: TOKEN });
                         const parts = rendered.split(TOKEN);
                         return parts.map((piece, index) => {
                             if (index === parts.length - 1) {
@@ -321,7 +321,7 @@ export function NoteEditModal(props: NoteEditModalProps) {
                                 opacity: 0.7
                             }}
                         >
-                            {t(language, "Tip: start your note with [Category] to group it on the Tracked page — tap a suggestion above, or type your own. The note text itself is optional; a tag on its own works too.")}
+                            {t(language, "Tip: organize your achievement by category by giving it a tag. Simply enter a tag you'd like to organize it by or select from the recent or recommendation tiles above.")}
                         </div>
                     </div>
                     <div

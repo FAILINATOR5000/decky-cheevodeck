@@ -974,6 +974,9 @@ const ES: LocaleTable = {
     "reorder_help_notes": "Haz clic en la nota que quieres mover y luego haz clic en otra nota para intercambiarlas, o usa las flechas de arriba para moverla paso a paso.",
     "Note:": "Nota:",
     "Tag:": "Etiqueta:",
+    "Tip: organize your achievement by category by giving it a tag. Simply enter a tag you'd like to organize it by or select from the recent or recommendation tiles above.": "Consejo: organiza tu logro por categoría asignándole una etiqueta. Simplemente escribe la etiqueta que quieras o elige uno de los recuadros de etiquetas recientes o sugerencias de arriba.",
+    "Tip: organize your note by category by giving it a tag. Simply enter a tag you'd like to organize it by or select from the recent or recommendation tiles above.": "Consejo: organiza tu nota por categoría asignándole una etiqueta. Simplemente escribe la etiqueta que quieras o elige uno de los recuadros de etiquetas recientes o sugerencias de arriba.",
+    "Tip: organize your mapping by category by giving it a tag. Simply enter a tag you'd like to organize it by or select from the recent or recommendation tiles above.": "Consejo: organiza tu asignación por categoría asignándole una etiqueta. Simplemente escribe la etiqueta que quieras o elige uno de los recuadros de etiquetas recientes o sugerencias de arriba.",
     "Note Color:": "Color de la nota:",
     Default: "Predeterminado",
     Amber: "Ámbar",
@@ -985,8 +988,7 @@ const ES: LocaleTable = {
     Green: "Verde",
     Teal: "Turquesa",
     White: "Blanco",
-    "Edit note for {{title}}": "Editar nota para {{title}}",
-    "Tip: start your note with [Category] to group it on the Tracked page — tap a suggestion above, or type your own. The note text itself is optional; a tag on its own works too.": "Consejo: empieza tu nota con [Categoría] para agruparla en la página Seguidos: toca una sugerencia de arriba o escribe la tuya. El texto de la nota es opcional; basta con una etiqueta.",
+    "Edit note/tag for {{title}}": "Editar nota/etiqueta para {{title}}",
     "Clear tag": "Quitar etiqueta",
     "All Tags": "Todas las etiquetas",
     "Latest Tags": "Etiquetas recientes",
@@ -1098,8 +1100,6 @@ const ES: LocaleTable = {
     "No notes yet. Tap Add Note above to start.":
         "Aún no hay notas. Toca Añadir Nota arriba para empezar.",
     "Couldn't delete your note.": "No se pudo eliminar tu nota.",
-    "Tip: start your note with [Category] to group it on the Notes page — tap a suggestion above, or type your own.":
-        "Consejo: empieza tu nota con [Categoría] para agruparla en la página de Notas — toca una sugerencia arriba, o escribe la tuya.",
 
     "Off": "Desactivado",
     "Once": "Una vez",

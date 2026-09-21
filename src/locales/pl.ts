@@ -997,6 +997,9 @@ const PL: LocaleTable = {
     "reorder_help_notes": "Kliknij notatkę, którą chcesz przenieść, a potem kliknij inną, aby zamienić je miejscami, albo przesuwaj ją strzałkami powyżej krok po kroku.",
     "Note:": "Notatka:",
     "Tag:": "Tag:",
+    "Tip: organize your achievement by category by giving it a tag. Simply enter a tag you'd like to organize it by or select from the recent or recommendation tiles above.": "Wskazówka: uporządkuj swoje osiągnięcie według kategorii, nadając mu tag. Po prostu wpisz wybrany tag lub wybierz jeden z kafelków z najnowszymi tagami albo propozycjami powyżej.",
+    "Tip: organize your note by category by giving it a tag. Simply enter a tag you'd like to organize it by or select from the recent or recommendation tiles above.": "Wskazówka: uporządkuj swoją notatkę według kategorii, nadając jej tag. Po prostu wpisz wybrany tag lub wybierz jeden z kafelków z najnowszymi tagami albo propozycjami powyżej.",
+    "Tip: organize your mapping by category by giving it a tag. Simply enter a tag you'd like to organize it by or select from the recent or recommendation tiles above.": "Wskazówka: uporządkuj swoje mapowanie według kategorii, nadając mu tag. Po prostu wpisz wybrany tag lub wybierz jeden z kafelków z najnowszymi tagami albo propozycjami powyżej.",
     "Note Color:": "Kolor notatki:",
     Default: "Domyślny",
     Amber: "Bursztynowy",
@@ -1008,8 +1011,7 @@ const PL: LocaleTable = {
     Green: "Zielony",
     Teal: "Morski",
     White: "Biały",
-    "Edit note for {{title}}": "Edytuj notatkę do {{title}}",
-    "Tip: start your note with [Category] to group it on the Tracked page — tap a suggestion above, or type your own. The note text itself is optional; a tag on its own works too.": "Wskazówka: zacznij notatkę od [Kategorii], aby pogrupować ją na stronie przypiętych — dotknij podpowiedzi powyżej albo wpisz własną. Sama treść notatki jest opcjonalna; wystarczy nawet goły tag.",
+    "Edit note/tag for {{title}}": "Edytuj notatkę/tag do {{title}}",
     "Clear tag": "Usuń tag",
     "All Tags": "Wszystkie tagi",
     "Latest Tags": "Najnowsze tagi",
@@ -1109,8 +1111,6 @@ const PL: LocaleTable = {
     "No current game. Open a game to write notes here.": "Brak bieżącej gry. Otwórz grę, aby pisać tu notatki.",
     "No notes yet. Tap Add Note above to start.": "Nie ma jeszcze notatek. Dotknij „Dodaj notatkę” powyżej, aby zacząć.",
     "Couldn't delete your note.": "Nie udało się usunąć notatki.",
-    "Tip: start your note with [Category] to group it on the Notes page — tap a suggestion above, or type your own.":
-        "Wskazówka: zacznij notatkę od [Kategorii], aby pogrupować ją na stronie notatek — dotknij podpowiedzi powyżej albo wpisz własną.",
 
     "Off": "Wył.",
     "Once": "Raz",

@@ -412,6 +412,14 @@ export function DolphinMappingModal(props: DolphinMappingModalProps) {
                                         </DialogButton>
                                     </div>
                                 </Focusable>
+                                <div
+                                    style={{
+                                        fontSize: `${modalSize(13)}px`,
+                                        opacity: 0.7
+                                    }}
+                                >
+                                    {t(language, "Tip: organize your mapping by category by giving it a tag. Simply enter a tag you'd like to organize it by or select from the recent or recommendation tiles above.")}
+                                </div>
                             </div>
 
                             <LabeledRow

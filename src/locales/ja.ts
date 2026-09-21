@@ -972,6 +972,9 @@ const JA: LocaleTable = {
     "reorder_help_notes": "動かしたいメモをクリックしてから、入れ替えたいメモをクリックするか、上の矢印で 1 つずつ動かしてください。",
     "Note:": "メモ:",
     "Tag:": "タグ:",
+    "Tip: organize your achievement by category by giving it a tag. Simply enter a tag you'd like to organize it by or select from the recent or recommendation tiles above.": "ヒント: タグを付けると、実績をカテゴリごとに整理できます。使いたいタグを入力するか、上にある最近のタグや候補のタイルから選んでください。",
+    "Tip: organize your note by category by giving it a tag. Simply enter a tag you'd like to organize it by or select from the recent or recommendation tiles above.": "ヒント: タグを付けると、メモをカテゴリごとに整理できます。使いたいタグを入力するか、上にある最近のタグや候補のタイルから選んでください。",
+    "Tip: organize your mapping by category by giving it a tag. Simply enter a tag you'd like to organize it by or select from the recent or recommendation tiles above.": "ヒント: タグを付けると、設定をカテゴリごとに整理できます。使いたいタグを入力するか、上にある最近のタグや候補のタイルから選んでください。",
     "Note Color:": "メモの色:",
     Default: "標準",
     Amber: "琥珀",
@@ -983,8 +986,7 @@ const JA: LocaleTable = {
     Green: "緑",
     Teal: "ティール",
     White: "白",
-    "Edit note for {{title}}": "「{{title}}」のメモを編集",
-    "Tip: start your note with [Category] to group it on the Tracked page — tap a suggestion above, or type your own. The note text itself is optional; a tag on its own works too.": "ヒント: メモを [カテゴリ] で書き始めると、追跡ページでまとめられます。上の候補を選ぶか、自分で入力してください。本文はなくてもよく、タグだけでも使えます。",
+    "Edit note/tag for {{title}}": "「{{title}}」のメモ/タグを編集",
     "Clear tag": "タグを消す",
     "All Tags": "すべてのタグ",
     "Latest Tags": "最近のタグ",
@@ -1080,8 +1082,6 @@ const JA: LocaleTable = {
     "No current game. Open a game to write notes here.": "プレイ中のゲームがありません。ゲームを起動すると、ここにメモを書けます。",
     "No notes yet. Tap Add Note above to start.": "メモはまだありません。上の「メモを追加」から始めてください。",
     "Couldn't delete your note.": "メモを削除できませんでした。",
-    "Tip: start your note with [Category] to group it on the Notes page — tap a suggestion above, or type your own.":
-        "ヒント: メモを [カテゴリ] で書き始めると、メモページでまとめられます。上の候補を選ぶか、自分で入力してください。",
 
     "Off": "オフ",
     "Once": "1回",

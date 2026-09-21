@@ -972,6 +972,9 @@ const RU: LocaleTable = {
     "reorder_help_notes": "Нажми на заметку, которую хочешь переместить, а затем либо нажми на другую, чтобы поменять их местами, либо передвигай её стрелками выше по одному шагу.",
     "Note:": "Заметка:",
     "Tag:": "Тег:",
+    "Tip: organize your achievement by category by giving it a tag. Simply enter a tag you'd like to organize it by or select from the recent or recommendation tiles above.": "Совет: распределите достижение по категориям, добавив тег. Просто введите нужный тег или выберите одну из плиток с последними тегами или предложениями выше.",
+    "Tip: organize your note by category by giving it a tag. Simply enter a tag you'd like to organize it by or select from the recent or recommendation tiles above.": "Совет: распределите заметку по категориям, добавив тег. Просто введите нужный тег или выберите одну из плиток с последними тегами или предложениями выше.",
+    "Tip: organize your mapping by category by giving it a tag. Simply enter a tag you'd like to organize it by or select from the recent or recommendation tiles above.": "Совет: распределите раскладку по категориям, добавив тег. Просто введите нужный тег или выберите одну из плиток с последними тегами или предложениями выше.",
     "Note Color:": "Цвет заметки:",
     Default: "По умолчанию",
     Amber: "Янтарный",
@@ -983,8 +986,7 @@ const RU: LocaleTable = {
     Green: "Зелёный",
     Teal: "Бирюзовый",
     White: "Белый",
-    "Edit note for {{title}}": "Заметка к «{{title}}»",
-    "Tip: start your note with [Category] to group it on the Tracked page — tap a suggestion above, or type your own. The note text itself is optional; a tag on its own works too.": "Совет: начни заметку с [Категории], чтобы сгруппировать её на странице отслеживаемых — выбери подсказку выше или напиши свою. Сам текст заметки необязателен: один тег тоже работает.",
+    "Edit note/tag for {{title}}": "Заметка/тег к «{{title}}»",
     "Clear tag": "Убрать тег",
     "All Tags": "Все теги",
     "Latest Tags": "Последние теги",
@@ -1085,8 +1087,6 @@ const RU: LocaleTable = {
     "No current game. Open a game to write notes here.": "Текущей игры нет. Запусти игру, чтобы писать заметки здесь.",
     "No notes yet. Tap Add Note above to start.": "Заметок пока нет. Нажми «Добавить заметку» выше, чтобы начать.",
     "Couldn't delete your note.": "Не удалось удалить заметку.",
-    "Tip: start your note with [Category] to group it on the Notes page — tap a suggestion above, or type your own.":
-        "Совет: начни заметку с [Категории], чтобы сгруппировать её на странице заметок — выбери подсказку выше или напиши свою.",
 
     "Off": "Выкл.",
     "Once": "Один раз",

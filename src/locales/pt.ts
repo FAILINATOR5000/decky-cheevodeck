@@ -972,6 +972,9 @@ const PT: LocaleTable = {
     "reorder_help_notes": "Clique na nota que você quer mover e depois clique em outra nota para trocá-las, ou use as setas acima para movê-la um passo de cada vez.",
     "Note:": "Nota:",
     "Tag:": "Tag:",
+    "Tip: organize your achievement by category by giving it a tag. Simply enter a tag you'd like to organize it by or select from the recent or recommendation tiles above.": "Dica: organize a sua conquista por categoria atribuindo-lhe uma tag. Basta escrever a tag que quiser ou selecionar um dos blocos de tags recentes ou sugestões acima.",
+    "Tip: organize your note by category by giving it a tag. Simply enter a tag you'd like to organize it by or select from the recent or recommendation tiles above.": "Dica: organize a sua nota por categoria atribuindo-lhe uma tag. Basta escrever a tag que quiser ou selecionar um dos blocos de tags recentes ou sugestões acima.",
+    "Tip: organize your mapping by category by giving it a tag. Simply enter a tag you'd like to organize it by or select from the recent or recommendation tiles above.": "Dica: organize o seu mapeamento por categoria atribuindo-lhe uma tag. Basta escrever a tag que quiser ou selecionar um dos blocos de tags recentes ou sugestões acima.",
     "Note Color:": "Cor da nota:",
     Default: "Padrão",
     Amber: "Âmbar",
@@ -983,8 +986,7 @@ const PT: LocaleTable = {
     Green: "Verde",
     Teal: "Turquesa",
     White: "Branco",
-    "Edit note for {{title}}": "Editar nota de {{title}}",
-    "Tip: start your note with [Category] to group it on the Tracked page — tap a suggestion above, or type your own. The note text itself is optional; a tag on its own works too.": "Dica: comece sua nota com [Categoria] para agrupá-la na página Seguidos -- toque numa sugestão acima, ou digite a sua. O texto da nota é opcional; uma tag sozinha também funciona.",
+    "Edit note/tag for {{title}}": "Editar nota/tag de {{title}}",
     "Clear tag": "Limpar tag",
     "All Tags": "Todas as tags",
     "Latest Tags": "Tags recentes",
@@ -1087,8 +1089,6 @@ const PT: LocaleTable = {
     "No current game. Open a game to write notes here.": "Nenhum jogo atual. Abra um jogo para escrever notas aqui.",
     "No notes yet. Tap Add Note above to start.": "Ainda não há notas. Toque em Adicionar nota acima para começar.",
     "Couldn't delete your note.": "Não foi possível apagar sua nota.",
-    "Tip: start your note with [Category] to group it on the Notes page — tap a suggestion above, or type your own.":
-        "Dica: comece sua nota com [Categoria] para agrupá-la na página de Notas -- toque numa sugestão acima, ou digite a sua.",
 
     "Off": "Desligado",
     "Once": "Uma vez",

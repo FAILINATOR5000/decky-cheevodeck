@@ -972,6 +972,9 @@ export const EN: LocaleTable = {
     "reorder_help_notes": "Click the note you would like to move, then either click another note to swap the two, or use the arrows above to move it a step at a time.",
     "Note:": "Note:",
     "Tag:": "Tag:",
+    "Tip: organize your achievement by category by giving it a tag. Simply enter a tag you'd like to organize it by or select from the recent or recommendation tiles above.": "Tip: organize your achievement by category by giving it a tag. Simply enter a tag you'd like to organize it by or select from the recent or recommendation tiles above.",
+    "Tip: organize your note by category by giving it a tag. Simply enter a tag you'd like to organize it by or select from the recent or recommendation tiles above.": "Tip: organize your note by category by giving it a tag. Simply enter a tag you'd like to organize it by or select from the recent or recommendation tiles above.",
+    "Tip: organize your mapping by category by giving it a tag. Simply enter a tag you'd like to organize it by or select from the recent or recommendation tiles above.": "Tip: organize your mapping by category by giving it a tag. Simply enter a tag you'd like to organize it by or select from the recent or recommendation tiles above.",
     "Note Color:": "Note Color:",
     Default: "Default",
     Amber: "Amber",
@@ -983,8 +986,7 @@ export const EN: LocaleTable = {
     Green: "Green",
     Teal: "Teal",
     White: "White",
-    "Edit note for {{title}}": "Edit note for {{title}}",
-    "Tip: start your note with [Category] to group it on the Tracked page — tap a suggestion above, or type your own. The note text itself is optional; a tag on its own works too.": "Tip: start your note with [Category] to group it on the Tracked page — tap a suggestion above, or type your own. The note text itself is optional; a tag on its own works too.",
+    "Edit note/tag for {{title}}": "Edit note/tag for {{title}}",
     "Clear tag": "Clear tag",
     "All Tags": "All Tags",
     "Latest Tags": "Latest Tags",
@@ -1081,8 +1083,6 @@ export const EN: LocaleTable = {
     "No current game. Open a game to write notes here.": "No current game. Open a game to write notes here.",
     "No notes yet. Tap Add Note above to start.": "No notes yet. Tap Add Note above to start.",
     "Couldn't delete your note.": "Couldn't delete your note.",
-    "Tip: start your note with [Category] to group it on the Notes page — tap a suggestion above, or type your own.":
-        "Tip: start your note with [Category] to group it on the Notes page — tap a suggestion above, or type your own.",
 
     "Off": "Off",
     "Once": "Once",
