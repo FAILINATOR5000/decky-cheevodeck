@@ -2041,6 +2041,16 @@ const ES: LocaleTable = {
     "Every memory was already here": "Todos los recuerdos ya estaban aquí",
     "Every memory in that export was already here.": "Todos los recuerdos de esa exportación ya estaban aquí.",
     "Imported {{count}} files at around {{size}} in size. {{skipped}} were already here.": "Se han importado {{count}} archivos, unos {{size}} en total. {{skipped}} ya estaban aquí.",
+    "Calculator": "Calculadora",
+    "help_utils_calculator": "La herramienta definitiva para toda caza de logros seria... una calculadora.",
+    "help_quick_shortcut_calculator": "Abre la calculadora.",
+    "History": "Historial",
+    "No history yet.": "Aún no hay historial.",
+    "Can't work that out": "No se puede calcular",
+    "Clear History": "Borrar historial",
+    "Press Again to Clear History": "Pulsa otra vez para borrar el historial",
+    "Calculate": "Calcular",
+    "Backspace": "Retroceso",
 };
 
 export default ES;

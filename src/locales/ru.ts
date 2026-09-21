@@ -2098,6 +2098,16 @@ const RU: LocaleTable = {
         many: "Импортировано {{count}} файлов размером примерно {{size}}. {{skipped}} уже было здесь.",
         other: "Импортировано {{count}} файлов размером примерно {{size}}. {{skipped}} уже было здесь."
     },
+    "Calculator": "Калькулятор",
+    "help_utils_calculator": "Идеальный инструмент для серьёзной охоты за достижениями... калькулятор.",
+    "help_quick_shortcut_calculator": "Открывает калькулятор.",
+    "History": "История",
+    "No history yet.": "Истории пока нет.",
+    "Can't work that out": "Не удаётся посчитать",
+    "Clear History": "Очистить историю",
+    "Press Again to Clear History": "Нажмите ещё раз, чтобы очистить историю",
+    "Calculate": "Вычислить",
+    "Backspace": "Удалить знак",
 };
 
 export default RU;

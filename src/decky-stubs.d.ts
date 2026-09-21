@@ -155,6 +155,7 @@ declare module "react-icons/fa" {
     export const FaSyncAlt: any;
     export const FaUnlock: any;
     export const FaRegCalendar: any;
+    export const FaCalculator: any;
     export const FaClipboardCheck: any;
     export const FaClock: any;
     export const FaCompressArrowsAlt: any;

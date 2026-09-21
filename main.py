@@ -53,6 +53,7 @@ from comment_baselines_store import CommentBaselinesStore
 from resolved_avatar_store import ResolvedAvatarStore
 from developer_message_store import DeveloperMessageStore
 from cheevo_check_store import CheevoCheckStore
+from calculator_store import CalculatorStore
 from file_watcher_store import FileWatcherStore
 from dolphin_mappings_store import DolphinMappingsStore
 from smb_shares_store import SmbSharesStore
@@ -81,6 +82,7 @@ from mixins.file_watcher import FileWatcherMixin
 from mixins.file_browser import FileBrowserMixin
 from mixins.guides import GuidesMixin
 from mixins.library_badge import LibraryBadgeMixin
+from mixins.calculator import CalculatorMixin
 
 
 DEFAULT_IPC_SLOW_THRESHOLD_MS = 250
@@ -134,6 +136,7 @@ class Plugin(
     FileBrowserMixin,
     GuidesMixin,
     LibraryBadgeMixin,
+    CalculatorMixin,
 ):
     DEFAULT_LANGUAGE = "en"
     RECENT_UNLOCK_LOOKBACK_MINUTES = 1440
@@ -320,6 +323,9 @@ class Plugin(
             base_dir=self.file_watcher_dir,
         )
         self.subscriptions_store = SubscriptionsStore(
+            base_dir=self.runtime_dir,
+        )
+        self.calculator_store = CalculatorStore(
             base_dir=self.runtime_dir,
         )
         self.saved_comments_store = SavedCommentsStore(
@@ -918,6 +924,7 @@ class Plugin(
             self.game_activity_history_store.repoint(base / "game_activity_history")
             self.tracked_sets_store.repoint(base)
             self.subscriptions_store.repoint(base)
+            self.calculator_store.repoint(base)
             self.saved_comments_store.repoint(base)
             self.comment_baselines_store.repoint(base)
             self.notifications_store.repoint(base)

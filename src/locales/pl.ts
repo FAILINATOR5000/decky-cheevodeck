@@ -2133,6 +2133,16 @@ const PL: LocaleTable = {
         many: "Zaimportowano {{count}} plików o rozmiarze około {{size}}. {{skipped}} już tu było.",
         other: "Zaimportowano {{count}} plików o rozmiarze około {{size}}. {{skipped}} już tu było."
     },
+    "Calculator": "Kalkulator",
+    "help_utils_calculator": "Najlepsze narzędzie do każdego poważnego polowania na osiągnięcia... kalkulator.",
+    "help_quick_shortcut_calculator": "Otwiera kalkulator.",
+    "History": "Historia",
+    "No history yet.": "Brak historii.",
+    "Can't work that out": "Nie da się tego obliczyć",
+    "Clear History": "Wyczyść historię",
+    "Press Again to Clear History": "Naciśnij ponownie, aby wyczyścić historię",
+    "Calculate": "Oblicz",
+    "Backspace": "Cofnij znak",
 };
 
 export default PL;

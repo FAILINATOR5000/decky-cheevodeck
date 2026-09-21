@@ -622,6 +622,7 @@ export type QuickMenuShortcut =
     | "smbShares"
     | "fileWatcher"
     | "memories"
+    | "calculator"
     | "socialActivity"
     | "visitRa"
     | "uiDefault"
@@ -654,6 +655,7 @@ export type ShortcutAction =
     | "smbShares"
     | "fileWatcher"
     | "memories"
+    | "calculator"
     | "socialActivity"
     | "visitRa"
     | "snapshot"
@@ -1819,6 +1821,18 @@ type SavedCommentKey = {
 
 export type SavedCommentKeysResponse = {
     keys: SavedCommentKey[];
+};
+
+export type CalculatorHistoryEntry = {
+    id: string;
+    expression: string;
+    result: string;
+    createdAt: number;
+};
+
+export type CalculatorHistoryResponse = {
+    ok: boolean;
+    entries: CalculatorHistoryEntry[];
 };
 
 export type SavedCommentsResponse = {

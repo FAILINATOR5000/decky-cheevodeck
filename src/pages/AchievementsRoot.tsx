@@ -150,6 +150,7 @@ import { getSavedMainAchievementsTab } from "../resume/achievementsResume";
 import { getSavedGuidesSubView } from "../resume/guidesResume";
 import { computeBootView, getSavedNavStack } from "../resume/bootView";
 import { PanelProviders } from "../components/panel/PanelProviders";
+import { openCalculatorModal } from "../components/calculator/CalculatorModal";
 import { describeStack, initialNav, previousView, rehydrateNav, settleNav, type NavIntent } from "../nav";
 import { ROUTES, type RouteBackActions } from "../routes";
 import type {
@@ -4544,6 +4545,10 @@ function AchievementsRoot() {
         }
         if (action === "visitRa") {
             void openExternalUrl(raHomeUrl());
+            return;
+        }
+        if (action === "calculator") {
+            openCalculatorModal(language);
             return;
         }
 

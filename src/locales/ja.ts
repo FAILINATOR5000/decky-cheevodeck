@@ -1968,6 +1968,16 @@ const JA: LocaleTable = {
     "Every memory was already here": "どの思い出もすでにありました",
     "Every memory in that export was already here.": "このエクスポートに入っていた思い出は、すべてすでにありました。",
     "Imported {{count}} files at around {{size}} in size. {{skipped}} were already here.": "ファイル {{count}} 件、約 {{size}} を取り込みました。{{skipped}} 件はすでにありました。",
+    "Calculator": "電卓",
+    "help_utils_calculator": "本気で実績を狙うための究極のツール... 電卓です。",
+    "help_quick_shortcut_calculator": "電卓を開きます。",
+    "History": "履歴",
+    "No history yet.": "履歴はまだありません。",
+    "Can't work that out": "計算できません",
+    "Clear History": "履歴を消去",
+    "Press Again to Clear History": "もう一度押すと履歴を消去します",
+    "Calculate": "計算する",
+    "Backspace": "1文字削除",
 };
 
 export default JA;

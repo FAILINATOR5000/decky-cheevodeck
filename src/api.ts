@@ -159,6 +159,7 @@ import type {
     SaveCommentResponse,
     UnsaveCommentResponse,
     ClearSavedCommentsResponse,
+    CalculatorHistoryResponse,
     OkResult,
     SocialView,
     BadgesSortOrder,
@@ -2675,3 +2676,10 @@ export const getSavedComments = callable<[], SavedCommentsResponse>("get_saved_c
 export const saveComment = callable<[SaveCommentPayload], SaveCommentResponse>("save_comment");
 export const unsaveComment = callable<[commentId: string], UnsaveCommentResponse>("unsave_comment");
 export const clearSavedComments = callable<[], ClearSavedCommentsResponse>("clear_saved_comments");
+
+export const getCalculatorHistory = callable<[], CalculatorHistoryResponse>("get_calculator_history");
+export const addCalculatorHistoryEntry = callable<
+    [expression: string, result: string],
+    CalculatorHistoryResponse
+>("add_calculator_history_entry");
+export const clearCalculatorHistory = callable<[], CalculatorHistoryResponse>("clear_calculator_history");

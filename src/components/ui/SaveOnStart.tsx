@@ -7,6 +7,7 @@ type SaveOnStartProps = {
     canSave: boolean;
     label: string;
     onSave: () => void;
+    claimMenuButton?: boolean;
     onSecondaryButton?: () => void;
     onSecondaryActionDescription?: string;
     onOptionsButton?: () => void;
@@ -19,6 +20,7 @@ export function SaveOnStart(props: SaveOnStartProps) {
         canSave,
         label,
         onSave,
+        claimMenuButton,
         onSecondaryButton,
         onSecondaryActionDescription,
         onOptionsButton,
@@ -26,7 +28,7 @@ export function SaveOnStart(props: SaveOnStartProps) {
         children
     } = props;
 
-    const yieldedToSnapshot = snapshotOwnsButton("menu");
+    const yieldedToSnapshot = !claimMenuButton && snapshotOwnsButton("menu");
 
     function handleMenu() {
         playOkSound();

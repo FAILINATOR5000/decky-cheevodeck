@@ -41,6 +41,7 @@ from saved_comments_store import SavedCommentsStore
 from comment_baselines_store import CommentBaselinesStore
 from resolved_avatar_store import ResolvedAvatarStore
 from cheevo_check_store import CheevoCheckStore
+from calculator_store import CalculatorStore
 from file_watcher_store import FileWatcherStore
 from dolphin_mappings_store import DolphinMappingsStore
 from smb_shares_store import SmbSharesStore
@@ -51,6 +52,7 @@ from notifications import NotificationsStore
 class PluginContext:
     ra: RetroAchievementsClient
     awards_list_cache_store: AwardsListCacheStore
+    calculator_store: CalculatorStore
     cache_store: CacheStore
     cheevo_check_store: CheevoCheckStore
     file_watcher_store: FileWatcherStore
