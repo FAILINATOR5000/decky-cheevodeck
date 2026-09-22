@@ -1,5 +1,7 @@
 import time
 
+import decky
+
 from utils import format_completion_percent, frontend_error, norm_game_id, to_int
 from notifications import emit_notification, is_type_enabled
 
@@ -7,11 +9,12 @@ from notifications import emit_notification, is_type_enabled
 class CurrentGameService:
     """Fetches, normalises, and caches the user's current game payload."""
 
-    def __init__(self, *, ra, cache_store, settings_store, icon_service, notifications_store=None):
+    def __init__(self, *, ra, cache_store, settings_store, icon_service, notifications_store=None, memories_store=None):
         self._ra = ra
         self._cache_store = cache_store
         self._settings_store = settings_store
         self._icon_service = icon_service
+        self._memories_store = memories_store
 
         self._notifications = notifications_store
 
@@ -27,6 +30,18 @@ class CurrentGameService:
         if monitor is None:
             return
         monitor.request_check(game_id)
+
+    def _forget_memories_seed(self):
+        store = self._memories_store
+        if store is None:
+            return
+        try:
+            store.forget_seeded_game()
+        except Exception as e:
+            decky.logger.warning(
+                "memories: couldn't re-arm the seed on the game change: %s",
+                type(e).__name__,
+            )
 
     def set_event_loop(self, loop):
         self._event_loop = loop
@@ -514,6 +529,7 @@ class CurrentGameService:
 
             if cached_game_id is not None and cached_game_id != current_game_id:
                 self._cache_store.clear_pending_game_ticker_event()
+                self._forget_memories_seed()
 
             if not current_game_id:
                 payload = self._empty_game_payload()

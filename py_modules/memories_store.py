@@ -542,12 +542,29 @@ class MemoriesStore:
             if last_page_index is not None:
                 current["lastPageIndex"] = max(to_int(last_page_index, 0), 0)
 
-            payload = dict(current)
-            payload.pop("ok", None)
-            ensure_dir(self._memories_dir)
-            save_json_file(self._view_prefs_path(), payload, compact=True)
+            self._write_view_prefs(current)
 
         return current
+
+    def forget_seeded_game(self) -> None:
+        """Forget which game the Memories page last seeded its filter to.
+
+        The page seeds itself once per game id, so a game loaded again after
+        the user picked a different game never pulls the filter back until
+        this runs.
+        """
+        with self._index_lock:
+            current = self.load_view_prefs()
+            if current.get("seededForGameId") is None:
+                return
+            current["seededForGameId"] = None
+            self._write_view_prefs(current)
+
+    def _write_view_prefs(self, current: dict) -> None:
+        payload = dict(current)
+        payload.pop("ok", None)
+        ensure_dir(self._memories_dir)
+        save_json_file(self._view_prefs_path(), payload, compact=True)
 
     def _clean_caption(self, raw) -> str:
         if not isinstance(raw, str):

@@ -403,6 +403,7 @@ class Plugin(
             settings_store=self.settings_store,
             icon_service=self.icon_service,
             notifications_store=self.notifications_store,
+            memories_store=self.memories_store,
         )
         self.tracked_sets_monitor_service = TrackedSetsMonitorService(
             tracked_sets_store=self.tracked_sets_store,
