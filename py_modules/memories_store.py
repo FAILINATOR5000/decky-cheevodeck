@@ -1101,6 +1101,85 @@ class MemoriesStore:
             except OSError:
                 pass
 
+    def _unlink_thumb(self, game_id, memory: dict) -> None:
+        # Deliberately not _unlink_memory_files, which also takes the picture
+        try:
+            self.thumb_path(game_id, memory["path"]).unlink()
+        except OSError:
+            pass
+
+    def move_memory(
+        self,
+        source_game_id,
+        memory_id: str,
+        destination_game_id,
+        *,
+        game_title: str = "",
+        console_name: str = "",
+        image_icon: str = "",
+    ) -> dict:
+        """Re-file one memory under a different game.
+
+        Rewrites only the four fields that say which game a memory belongs to
+        and leaves everything else on the record alone, the id included. The
+        media does not move: ``path`` is relative to the pictures root and does
+        not have to sit under its own game's folder.
+
+        Returns ``{"ok": True, "gameId": <destination>}``, or ok False with
+        ``error`` one of invalid_game_id, invalid_memory_id, same_game,
+        not_found.
+        """
+        source_key = self._game_key(source_game_id)
+        destination_key = self._game_key(destination_game_id)
+        if source_key is None or destination_key is None:
+            return {"ok": False, "error": "invalid_game_id"}
+        if not isinstance(memory_id, str) or not memory_id:
+            return {"ok": False, "error": "invalid_memory_id"}
+        if source_key == destination_key:
+            return {"ok": False, "error": "same_game"}
+
+        first_key, second_key = sorted((source_key, destination_key))
+        with self._lock_for_game(first_key), self._lock_for_game(second_key):
+            source_entry = self._load_raw(source_key)
+            target = None
+            for memory in source_entry["memories"]:
+                if memory["id"] == memory_id:
+                    target = memory
+                    break
+            if target is None:
+                return {"ok": False, "error": "not_found"}
+
+            moved = dict(target)
+            moved["gameId"] = to_int(destination_game_id, 0)
+            moved["gameTitle"] = str(game_title or "")
+            moved["consoleName"] = str(console_name or "")
+            moved["imageIcon"] = str(image_icon or "")
+
+            destination_entry = self._load_raw(destination_key)
+            if moved["gameTitle"]:
+                destination_entry["gameTitle"] = moved["gameTitle"]
+            if moved["consoleName"]:
+                destination_entry["consoleName"] = moved["consoleName"]
+            if moved["imageIcon"]:
+                destination_entry["imageIcon"] = moved["imageIcon"]
+            destination_entry["memories"] = [
+                m for m in destination_entry["memories"] if m["id"] != memory_id
+            ]
+            destination_entry["memories"].append(moved)
+            destination_entry["memories"].sort(key=lambda m: m["capturedAt"], reverse=True)
+            self._add_tag_to_vocab(destination_entry, moved.get("tag"))
+            self._save_raw(destination_key, destination_entry)
+
+            source_entry["memories"] = [
+                m for m in source_entry["memories"] if m["id"] != memory_id
+            ]
+            self._prune_tag_vocab(source_entry)
+            self._save_raw(source_key, source_entry)
+
+            self._unlink_thumb(source_key, target)
+
+        return {"ok": True, "gameId": to_int(destination_game_id, 0)}
+
     def _prune_empty_dirs(self, game_id, memory: dict) -> None:
         picture_dir = self.picture_path(memory["path"]).parent
         thumb_dir = self.thumb_path(game_id, memory["path"]).parent

@@ -621,6 +621,11 @@ def is_segment_name(name) -> bool:
     return isinstance(name, str) and bool(_SEGMENT_NAME_PATTERN.match(name))
 
 
+def tools_available() -> bool:
+    """Whether the ffmpeg and ffprobe this module shells out to are installed."""
+    return _tools_available()
+
+
 def _tools_available() -> bool:
     try:
         return Path(FFMPEG).is_file() and Path(FFPROBE).is_file()

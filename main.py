@@ -197,6 +197,7 @@ class Plugin(
         self.memories_dir = self.runtime_dir / "memories"
         self.memory_thumbs_dir = self.runtime_dir / "memory_thumbs"
         self.memories_transfer_scratch_dir = self.runtime_dir / "transfer-temp"
+        self.memories_save_scratch_dir = self.runtime_dir / "save-temp"
         self.guides_dir = self.runtime_dir / "guides"
         self.tracked_sets_dir = self.runtime_dir
         self.dolphin_mappings_dir = self.runtime_dir

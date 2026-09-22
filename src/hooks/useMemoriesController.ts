@@ -591,6 +591,7 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
             visibleCount: visible.length,
             pageMemories,
             gameId: effectiveGameId,
+            loadedGameId: payloadGameId,
             tagFilter,
             colorFilter,
             mediaFilter,

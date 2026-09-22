@@ -555,6 +555,14 @@ export const deleteAllMemories = callable<
     [],
     { ok: boolean; removed: number }
 >("delete_all_memories");
+export const moveMemory = callable<
+    [number, string, number, string, string, string],
+    { ok: boolean; error?: string; gameId?: number }
+>("move_memory");
+export const saveMemoryMedia = callable<
+    [number, string, string],
+    { ok: boolean; error?: string; name?: string }
+>("save_memory_media");
 export const memoriesExportCounts = callable<
     [],
     MemoriesExportCounts

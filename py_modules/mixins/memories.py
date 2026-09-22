@@ -6,6 +6,7 @@ from pathlib import Path
 import decky
 import memories_capture
 import memories_clips
+import memories_export
 import memories_resolver
 import memories_thumbs
 
@@ -316,6 +317,114 @@ class MemoriesMixin(PluginContext):
 
     async def delete_memory(self, game_id=None, memory_id: str = ""):
         return await asyncio.to_thread(self.memories_store.delete_memory, game_id, memory_id)
+
+    async def move_memory(
+        self,
+        game_id=None,
+        memory_id: str = "",
+        destination_game_id=None,
+        game_title: str = "",
+        console_name: str = "",
+        image_icon: str = "",
+    ):
+        """Re-file one memory under a different game.
+
+        The three identity strings come from whichever picker the user chose
+        from, so the destination game gets a name and an icon even when it had
+        no memories before this one.
+        """
+        return await asyncio.to_thread(
+            self.memories_store.move_memory,
+            game_id,
+            memory_id,
+            destination_game_id,
+            game_title=game_title,
+            console_name=console_name,
+            image_icon=image_icon,
+        )
+
+    async def save_memory_media(self, game_id=None, memory_id: str = "", folder: str = ""):
+        """Write one memory's picture or clip into a folder the user picked.
+
+        Returns ``{"ok": True, "name": <filename>}``, or ok False with ``error``
+        one of not_found, bad_target, no_source, no_tools, remux_failed,
+        write_failed. The caller owns the sentence the user reads.
+        """
+        return await asyncio.to_thread(self._save_memory_media_sync, game_id, memory_id, folder)
+
+    def _find_memory(self, game_id, memory_id: str):
+        for memory in self.memories_store.load_for_game(game_id).get("memories", []):
+            if memory.get("id") == memory_id:
+                return memory
+        return None
+
+    def _save_memory_media_sync(self, game_id, memory_id: str, folder: str):
+        destination_dir = Path(str(folder or "").strip())
+        if not destination_dir.is_dir():
+            return {"ok": False, "error": "bad_target"}
+
+        memory = self._find_memory(game_id, memory_id)
+        if memory is None:
+            return {"ok": False, "error": "not_found"}
+
+        video = memory.get("video") or {}
+        if video.get("clipId") or video.get("path"):
+            return self._save_memory_clip(memory, video, destination_dir)
+        return self._save_memory_picture(memory, destination_dir)
+
+    def _save_memory_picture(self, memory, destination_dir: Path):
+        source = self.memories_store.picture_path(memory["path"])
+        if not source.is_file():
+            return {"ok": False, "error": "no_source"}
+
+        name = memories_export.export_name(
+            memory.get("gameTitle"), memory.get("capturedAt"), source.suffix or ".jpg"
+        )
+        target = memories_capture.unique_destination(destination_dir, name)
+        placed = memories_export.place(source, target)
+        if not placed["ok"]:
+            return {"ok": False, "error": "write_failed"}
+        return {"ok": True, "name": target.name}
+
+    def _save_memory_clip(self, memory, video, destination_dir: Path):
+        name = memories_export.export_name(
+            memory.get("gameTitle"), memory.get("capturedAt"), ".mp4"
+        )
+        target = memories_capture.unique_destination(destination_dir, name)
+
+        owned = str(video.get("path") or "")
+        if owned and video.get("kind") == "mp4":
+            source = self.memories_store.video_path(owned) / memories_clips.CLIP_NAME
+            if not source.is_file():
+                return {"ok": False, "error": "no_source"}
+            placed = memories_export.place(source, target)
+            return {"ok": True, "name": target.name} if placed["ok"] else {"ok": False, "error": "write_failed"}
+
+        if owned:
+            session = self.memories_store.video_path(owned)
+        else:
+            clip_folder = memories_clips.clip_dir(str(video.get("clipId") or ""), self.user_home)
+            session = memories_clips.session_dir(clip_folder) if clip_folder is not None else None
+        if session is None or not session.is_dir():
+            return {"ok": False, "error": "no_source"}
+
+        if not memories_clips.tools_available():
+            return {"ok": False, "error": "no_tools"}
+
+        scratch = self.memories_save_scratch_dir / f"save-{memory['id']}"
+        memories_clips.discard_copy(scratch)
+        try:
+            built = memories_clips.remux_session(session, scratch)
+            if not built["ok"]:
+                # A folder of segments is not something anybody can upload, so a
+                return {"ok": False, "error": "remux_failed"}
+            placed = memories_export.place(scratch / memories_clips.CLIP_NAME, target)
+        finally:
+            memories_clips.discard_copy(scratch)
+
+        if not placed["ok"]:
+            return {"ok": False, "error": "write_failed"}
+        return {"ok": True, "name": target.name}
 
     async def delete_all_memories(self):
         result = await asyncio.to_thread(self.memories_store.delete_all)

@@ -6,7 +6,7 @@ import { PageNavStrip } from "../components/ui/PageNavStrip";
 import { SectionTitle } from "../components/ui/SectionTitle";
 import { LabeledRow } from "../components/ui/LabeledRow";
 import { FadeImage } from "../components/ui/FadeImage";
-import { useGameIcon } from "../hooks/useGameIcon";
+import { useResilientGameIcon } from "../hooks/useResilientGameIcon";
 import { ButtonHints } from "../components/ui/ButtonHints";
 import { ToggleRow } from "../components/ui/ToggleRow";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
@@ -20,10 +20,12 @@ import { MemoryGamePickerModal } from "../components/memories/MemoryGamePickerMo
 import { MemoryTagFilterModal } from "../components/memories/MemoryTagFilterModal";
 import { MemoryViewerModal } from "../components/memories/MemoryViewerModal";
 import { MemoryEditorModal } from "../components/memories/MemoryEditorModal";
+import { MemoryMoveModal } from "../components/memories/MemoryMoveModal";
 import { useFocusClaim } from "../hooks/useFocusClaim";
 import { showManagedModal } from "../utils/modalRegistry";
 import { armMemoriesFocusKey, armMemoriesFocusReturn } from "../utils/memoriesFocusReturn";
 import { requestJumpToTop } from "../utils/jumpToTop";
+import { saveMemoryToFolder } from "../utils/saveMemoryMedia";
 import { forgetNavAxisMemory, type NavAxisRef } from "../utils/navAxisMemory";
 import { playOkSound } from "../utils/navSound";
 import { logFocusDebug } from "../api";
@@ -31,7 +33,7 @@ import { ALL_GAMES_ID, MISC_GAME_ID, mediaFilterKey, memoryRemovalLanding } from
 import { noteBodyColor } from "../utils/achievements";
 import { bodyTextStyle, regularButtonSpacingStyle } from "../utils/style";
 import { textSize } from "../utils/scale";
-import { BUTTON_SECONDARY, BUTTON_OPTIONS } from "../utils/gamepadButtons";
+import { BUTTON_SECONDARY, BUTTON_OPTIONS, BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT } from "../utils/gamepadButtons";
 import { t, type LanguageCode } from "../locales";
 import type { MemoriesControllerActions, MemoriesControllerState } from "../hooks/useMemoriesController";
 import type { ButtonSpacing, ControllerGlyphStyle, NoteColor, ViewKey } from "../types";
@@ -39,10 +41,10 @@ import type { ButtonSpacing, ControllerGlyphStyle, NoteColor, ViewKey } from "..
 function MemoryGameValue(props: { gameId: number | null; label: string; imageIcon: string; showIcons: boolean }) {
     const { gameId, label, imageIcon, showIcons } = props;
     const realGame = gameId !== null && gameId !== ALL_GAMES_ID && gameId !== MISC_GAME_ID;
-    const { iconDataUri } = useGameIcon(
+    const { iconDataUri } = useResilientGameIcon(
         realGame && showIcons ? gameId : null,
         imageIcon || null,
-        "MemoryGameValue useGameIcon"
+        "MemoryGameValue getGameIconCached"
     );
 
     if (!iconDataUri) {
@@ -430,7 +432,47 @@ function MemoriesPage(props: MemoriesPageProps) {
         if (evt?.detail?.button === BUTTON_OPTIONS) {
             playOkSound();
             openEditor(focused);
+            return;
         }
+        if (evt?.detail?.button === BUTTON_BUMPER_LEFT) {
+            playOkSound();
+            openMove(focused);
+            return;
+        }
+        if (evt?.detail?.button === BUTTON_BUMPER_RIGHT) {
+            playOkSound();
+            saveMedia(focused);
+        }
+    }
+
+    function openMove(memoryId: string) {
+        const memory = memories.pageMemories.find((row) => row.id === memoryId);
+        if (!memory) {
+            return;
+        }
+        armMemoriesFocusReturn(memory.gameId, memoryId, activeUlid);
+        showManagedModal((close) => (
+            <MemoryMoveModal
+                memory={memory}
+                gameId={memory.gameId}
+                games={memories.games}
+                loadedGameId={memories.loadedGameId}
+                language={language}
+                showIcons={showIcons}
+                activeUlid={activeUlid}
+                removalLandingId={memoryRemovalLanding(memories.pageMemories, memoryId)}
+                close={close}
+            />
+        ));
+    }
+
+    function saveMedia(memoryId: string) {
+        const memory = memories.pageMemories.find((row) => row.id === memoryId);
+        if (!memory) {
+            return;
+        }
+        armMemoriesFocusReturn(memory.gameId, memoryId, activeUlid);
+        void saveMemoryToFolder(memory.gameId, memoryId, language);
     }
 
     function handleDelete(memoryId: string) {
@@ -732,7 +774,9 @@ function MemoriesPage(props: MemoriesPageProps) {
                                 hints={[
                                     { button: "a", label: t(language, "View") },
                                     { button: "y", label: t(language, "Edit") },
-                                    { button: "x", label: t(language, "Delete") }
+                                    { button: "x", label: t(language, "Delete") },
+                                    { button: "l1", label: t(language, "Move") },
+                                    { button: "r1", label: t(language, "Save Media") }
                                 ]}
                             />
                         )}
