@@ -421,12 +421,11 @@ class FriendsRosterService(TickServiceBase):
 
         if has_real_friends:
             try:
-                dropped_verdicts, dropped_routes = self._resolved_avatars.prune(live_friends)
-                if dropped_verdicts or dropped_routes:
+                dropped_verdicts = self._resolved_avatars.prune(live_friends)
+                if dropped_verdicts:
                     self._debug_log(
-                        "friends roster service: pruned %d verdict(s) and %d route(s) for unfollowed friends",
+                        "friends roster service: pruned %d verdict(s) for unfollowed friends",
                         dropped_verdicts,
-                        dropped_routes,
                     )
             except Exception as exc:
                 decky.logger.warning(
@@ -445,6 +444,17 @@ class FriendsRosterService(TickServiceBase):
                     type(exc).__name__,
                 )
 
+        try:
+            known_routes = self._resolved_avatars.get_user_pics_for_usernames(
+                [str(row.get("username") or "") for row in friends if isinstance(row, dict)]
+            )
+        except Exception as exc:
+            self._debug_log(
+                "friends roster service: route index read failed, treating as none: %s",
+                type(exc).__name__,
+            )
+            known_routes = {}
+
         now = int(time.time())
         pending = []
         for row in friends:
@@ -454,11 +464,13 @@ class FriendsRosterService(TickServiceBase):
             name = str(row.get("username") or "").strip()
             if not ulid or not name:
                 continue
-            accurate = verify_all or (verify_favorites and ulid in favorite_ulids)
             verdict = self._resolved_avatars.get(ulid)
+            renamed_before = bool(known_routes.get(name.lower())) or bool(verdict and verdict["userPic"])
+            toggle_accurate = verify_all or (verify_favorites and ulid in favorite_ulids)
             if verdict and (now - verdict["checkedAt"]) < VERDICT_TTL_SECONDS:
-                if not accurate or verdict["mode"] == "accurate":
+                if not toggle_accurate or verdict["mode"] == "accurate":
                     continue
+            accurate = toggle_accurate or renamed_before
             pending.append((ulid, name, accurate))
 
         accurate_first = [entry for entry in pending if entry[2]]
@@ -600,7 +612,7 @@ class FriendsRosterService(TickServiceBase):
         convention_is_default = self._is_default_avatar(raw)
 
         if not convention_is_default and not accurate:
-            self._resolved_avatars.set(ulid, "", int(time.time()), username=name, mode=mode)
+            self._resolved_avatars.set(ulid, "", int(time.time()), username=name, mode=mode, drop_route=False)
             self._keep_convention_bytes(name, convention_url, raw, content_type, from_cdn, force=force)
             return False
 

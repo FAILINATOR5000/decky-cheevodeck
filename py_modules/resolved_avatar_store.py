@@ -147,7 +147,7 @@ class ResolvedAvatarStore:
             "mode": mode,
         }
 
-    def set(self, ulid: str, user_pic: str, checked_at: int, username: str = "", mode: str = "fast") -> None:
+    def set(self, ulid: str, user_pic: str, checked_at: int, username: str = "", mode: str = "fast", drop_route: bool = True) -> None:
         key = str(ulid or "")
         if not key:
             return
@@ -163,37 +163,29 @@ class ResolvedAvatarStore:
             }
             if name_key and pic:
                 data["names"][name_key] = pic
-            elif name_key:
+            elif name_key and drop_route:
                 data["names"].pop(name_key, None)
             save_json_file(self._path(), data, compact=True)
 
-    def prune(self, live_friends) -> tuple:
+    def prune(self, live_friends) -> int:
         live_ulids = set()
-        live_names = set()
-        for ulid, username in live_friends:
+        for ulid, _username in live_friends:
             key = str(ulid or "").strip()
             if key:
                 live_ulids.add(key)
-            name_key = str(username or "").strip().lower()
-            if name_key:
-                live_names.add(name_key)
 
         with self._lock:
             data = self._load_raw()
             verdicts = data["verdicts"]
-            names = data["names"]
 
             dead_ulids = [u for u in verdicts if u not in live_ulids]
-            dead_names = [n for n in names if n not in live_names]
-            if not dead_ulids and not dead_names:
-                return (0, 0)
+            if not dead_ulids:
+                return 0
 
             for u in dead_ulids:
                 del verdicts[u]
-            for n in dead_names:
-                del names[n]
             save_json_file(self._path(), data, compact=True)
-            return (len(dead_ulids), len(dead_names))
+            return len(dead_ulids)
 
     def clear(self) -> dict:
         with self._lock:
