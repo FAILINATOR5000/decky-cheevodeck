@@ -319,11 +319,14 @@ function MemoriesPage(props: MemoriesPageProps) {
     }
 
     const selectedGame = memories.games.find((row) => row.gameId === memories.gameId) ?? null;
-    const gameLabel = memories.gameId === ALL_GAMES_ID || selectedGame === null
-        ? t(language, "All Games")
-        : (selectedGame.gameId === MISC_GAME_ID
-            ? t(language, "Uncategorized")
-            : (selectedGame.gameTitle || t(language, "Unknown game")));
+    let gameLabel = "";
+    if (memories.ready) {
+        gameLabel = memories.gameId === ALL_GAMES_ID || selectedGame === null
+            ? t(language, "All Games")
+            : (selectedGame.gameId === MISC_GAME_ID
+                ? t(language, "Uncategorized")
+                : (selectedGame.gameTitle || t(language, "Unknown game")));
+    }
 
     const filterRuleColor = memories.colorFilter
         ? (noteBodyColor(memories.colorFilter as NoteColor) ?? "rgba(255, 255, 255, 0.45)")
@@ -331,7 +334,10 @@ function MemoriesPage(props: MemoriesPageProps) {
 
     const mediaKey = mediaFilterKey(memories.mediaFilter);
     const filterParts = [memories.tagFilter, mediaKey ? t(language, mediaKey) : ""];
-    const filterValue = filterParts.filter(Boolean).join(" \u00b7 ") || t(language, "All");
+    let filterValue = "";
+    if (memories.ready) {
+        filterValue = filterParts.filter(Boolean).join(" \u00b7 ") || t(language, "All");
+    }
 
     function openGamePicker() {
         armFocusKey("memories:game");

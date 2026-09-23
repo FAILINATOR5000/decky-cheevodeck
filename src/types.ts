@@ -1554,6 +1554,13 @@ type MemoryVideo = {
     kind: "mp4" | "dash";
 };
 
+export type MemoryBookmark = {
+    id: string;
+    mediaTime: number;
+    name: string;
+    createdAt: number;
+};
+
 export type MemoryRecord = {
     id: string;
     gameId: number;
@@ -1571,6 +1578,7 @@ export type MemoryRecord = {
     progress: MemoryProgress | null;
     achievements: MemoryAchievementCard[];
     achievementCount: number;
+    bookmarks: MemoryBookmark[];
 };
 
 export type MemoryGameRow = {

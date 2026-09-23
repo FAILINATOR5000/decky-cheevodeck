@@ -1,5 +1,6 @@
-import { Fragment } from "react";
+import { Fragment, type CSSProperties } from "react";
 import { ButtonGlyph } from "./ButtonGlyph";
+import { legendGlyph } from "./legendGlyph";
 import {
     getCurrentControllerGlyphStyle,
     glyphAsset,
@@ -18,6 +19,7 @@ type ButtonPromptProps = {
     button: GlyphButton | GlyphButton[];
     fontSize: number;
     vars?: Record<string, string | number>;
+    mark?: string;
 };
 
 function trimTowardGlyph(piece: string, glyphBefore: boolean, glyphAfter: boolean): string {
@@ -32,7 +34,7 @@ function trimTowardGlyph(piece: string, glyphBefore: boolean, glyphAfter: boolea
 }
 
 export function ButtonPrompt(props: ButtonPromptProps) {
-    const { language, textKey, button, fontSize, vars } = props;
+    const { language, textKey, button, fontSize, vars, mark } = props;
     const buttons = Array.isArray(button) ? button : [button];
 
     const resolved = resolveGlyphStyle(getCurrentControllerGlyphStyle());
@@ -43,30 +45,41 @@ export function ButtonPrompt(props: ButtonPromptProps) {
 
     const pieces = t(language, textKey, vars).split("{{button}}");
     const size = Math.round(fontSize * 1.2);
+    const row: CSSProperties = {
+        display: "inline-flex",
+        alignItems: "center",
+        flexWrap: "wrap",
+        flexShrink: 0,
+        gap: "0.3em",
+        verticalAlign: "middle"
+    };
+    const glyphs = (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: "0.15em" }}>
+            {buttons.map((one) => (
+                <ButtonGlyph key={one} button={one} style={resolved} size={size} />
+            ))}
+        </span>
+    );
+
+    if (mark !== undefined) {
+        return (
+            <span style={row}>
+                {glyphs}
+                <span style={{ display: "inline-block", minWidth: "1.1em", textAlign: "center" }}>
+                    {legendGlyph(mark)}
+                </span>
+            </span>
+        );
+    }
 
     return (
-        <span
-            style={{
-                display: "inline-flex",
-                alignItems: "center",
-                flexWrap: "wrap",
-                flexShrink: 0,
-                gap: "0.3em",
-                verticalAlign: "middle"
-            }}
-        >
+        <span style={row}>
             {pieces.map((piece, index) => {
                 const glyphAfter = index < pieces.length - 1;
                 return (
                     <Fragment key={index}>
                         {trimTowardGlyph(piece, index > 0, glyphAfter)}
-                        {glyphAfter && (
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: "0.15em" }}>
-                                {buttons.map((one) => (
-                                    <ButtonGlyph key={one} button={one} style={resolved} size={size} />
-                                ))}
-                            </span>
-                        )}
+                        {glyphAfter && glyphs}
                     </Fragment>
                 );
             })}

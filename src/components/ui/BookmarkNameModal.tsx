@@ -4,10 +4,10 @@ import { useState } from "react";
 import { FADE_IN_KEYFRAMES } from "../../utils/style";
 import { t, type LanguageCode } from "../../locales";
 import { modalSize } from "../../utils/scale";
-import { SaveOnStart } from "../ui/SaveOnStart";
-import { SnapshotHotkey } from "../ui/SnapshotHotkey";
+import { SaveOnStart } from "./SaveOnStart";
+import { SnapshotHotkey } from "./SnapshotHotkey";
 
-type GuidesBookmarkModalProps = {
+type BookmarkNameModalProps = {
     language: LanguageCode;
     initialName?: string;
     onSubmit: (name: string) => void;
@@ -16,7 +16,7 @@ type GuidesBookmarkModalProps = {
 
 const BOOKMARK_NAME_MAX = 20;
 
-export function GuidesBookmarkModal(props: GuidesBookmarkModalProps) {
+export function BookmarkNameModal(props: BookmarkNameModalProps) {
     const { language, initialName, onSubmit, close } = props;
     const [name, setName] = useState(initialName ?? "");
 

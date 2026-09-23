@@ -5,7 +5,7 @@ import { FADE_IN_KEYFRAMES, errorRed } from "../../utils/style";
 import { t, type LanguageCode } from "../../locales";
 import { modalSize } from "../../utils/scale";
 import { LabeledRow } from "../ui/LabeledRow";
-import { GuidesBookmarkModal } from "./GuidesBookmarkModal";
+import { BookmarkNameModal } from "../ui/BookmarkNameModal";
 import { showManagedModal } from "../../utils/modalRegistry";
 import type { GuideSpot } from "../../utils/guidesChunk";
 import type { GuideBookmark } from "../../types";
@@ -77,7 +77,7 @@ export function GuidesBookmarksModal(props: GuidesBookmarksModalProps) {
             return;
         }
         showManagedModal((closeName) => (
-            <GuidesBookmarkModal
+            <BookmarkNameModal
                 language={language}
                 onSubmit={(name) => {
                     void onSave(name).then((bookmark) => {

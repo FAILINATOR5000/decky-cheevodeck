@@ -542,6 +542,71 @@ def remux_session(session_path: Path, destination: Path) -> dict:
     return {"ok": True, "bytes": index["size"], "mediaStartMs": media_start_ms(session_path)}
 
 
+def trim_clip(video: str, audio: str, target: Path, start_seconds: float, span_seconds: float) -> dict:
+    if not _tools_available() or not video or span_seconds <= 0:
+        return {"ok": False, "bytes": 0}
+
+    # -ss is measured from the container's own start time, and a clip cut out
+    # of a background session carries that session's clock rather than starting
+    # at zero. Each input is measured on its own so the two stay in step.
+    base = _media_start_seconds(video)
+    if base is None:
+        return {"ok": False, "bytes": 0}
+
+    command = [FFMPEG, "-y", "-v", "error"]
+    command += ["-noaccurate_seek", "-ss", f"{max(start_seconds - base, 0.0):.3f}", "-i", video]
+    if audio:
+        audio_base = _media_start_seconds(audio)
+        if audio_base is None:
+            return {"ok": False, "bytes": 0}
+        command += [
+            "-noaccurate_seek", "-ss", f"{max(start_seconds - audio_base, 0.0):.3f}", "-i", audio,
+            "-map", "0:v:0", "-map", "1:a:0",
+        ]
+    command += [
+        "-t", f"{span_seconds:.3f}",
+        "-c", "copy",
+        "-movflags", "+faststart",
+        str(target),
+    ]
+
+    try:
+        ensure_dir(target.parent)
+        code, stdout, stderr = subprocess_util.run_command(
+            command, timeout=_REMUX_TIMEOUT_SECONDS
+        )
+    except OSError as e:
+        decky.logger.warning("memories: the snippet could not be cut (%s)", type(e).__name__)
+        return {"ok": False, "bytes": 0}
+
+    if code != 0:
+        decky.logger.warning(
+            "memories: cutting a snippet failed (rc=%s): %s",
+            code, f"{stdout}{stderr}".strip()[:300],
+        )
+        _discard_file(target)
+        return {"ok": False, "bytes": 0}
+
+    try:
+        written = target.stat().st_size
+    except OSError:
+        written = 0
+    if written <= 0:
+        decky.logger.warning("memories: the snippet came out empty")
+        _discard_file(target)
+        return {"ok": False, "bytes": 0}
+
+    chown_to_data_owner(target)
+    return {"ok": True, "bytes": written}
+
+
+def _discard_file(path: Path) -> None:
+    try:
+        path.unlink()
+    except OSError:
+        pass
+
+
 def _discard_remux(destination: Path) -> None:
     """Remove a half-made remux so the fallback copy starts from nothing."""
     for name in (CLIP_NAME, CLIP_INDEX_NAME):

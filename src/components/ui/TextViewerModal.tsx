@@ -7,7 +7,8 @@ import { loadHelpDocument, saveTextViewerZoom } from "../../api";
 import { logError } from "../../utils/errors";
 import { t, type LanguageCode } from "../../locales";
 import { BUTTON_TRIGGER_LEFT, BUTTON_TRIGGER_RIGHT } from "../../utils/gamepadButtons";
-import { legendGlyph, PROGRESS_MARK_PX, PROGRESS_TRACK_PX } from "../guides/GuidesReaderBody";
+import { PROGRESS_MARK_PX, PROGRESS_TRACK_PX } from "../guides/GuidesReaderBody";
+import { legendGlyph } from "./legendGlyph";
 import { findScroller } from "../../utils/guidesAnchors";
 import { FADE_IN_KEYFRAMES } from "../../utils/style";
 import {

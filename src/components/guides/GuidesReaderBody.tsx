@@ -1,4 +1,5 @@
 import { DialogButton, Focusable, ScrollPanelGroup } from "@decky/ui";
+import { legendGlyph } from "../ui/legendGlyph";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { t, type LanguageCode } from "../../locales";
@@ -70,10 +71,6 @@ export const BUMPER_LEFT = 5;
 export const BUMPER_RIGHT = 6;
 
 const INVERT_FILTER = "invert(1) hue-rotate(180deg)";
-
-export function legendGlyph(mark: string) {
-    return <span style={{ fontSize: "1.6em", lineHeight: 1 }}>{mark}</span>;
-}
 
 const HIGHLIGHT_MATCH = "cheevo-guide-search";
 const HIGHLIGHT_CURRENT = "cheevo-guide-search-current";

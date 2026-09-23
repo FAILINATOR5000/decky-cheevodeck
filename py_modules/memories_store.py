@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import math
 import re
 import secrets
 import shutil
@@ -39,11 +40,15 @@ _ALLOWED_SOURCES = {"steam", "cheevodeck"}
 
 _ALLOWED_CONTEXT_STATES = {"pending", "resolved"}
 
-MAX_BOUND_ACHIEVEMENTS = 6
+MAX_BOUND_ACHIEVEMENTS = 1000
 
 MAX_ACHIEVEMENT_DESCRIPTION_LEN = 200
 
 _ALLOWED_ACHIEVEMENT_TYPES = {"", "missable", "progression", "win_condition"}
+
+MEMORY_BOOKMARK_NAME_MAX_LEN = 20
+
+MAX_BOOKMARKS_PER_MEMORY = 500
 
 _ALLOWED_MEDIA_FILTERS = {"", "picture", "video"}
 
@@ -631,6 +636,48 @@ class MemoriesStore:
                 break
         return out
 
+    def _clean_bookmark_name(self, raw) -> str:
+        if not isinstance(raw, str):
+            return ""
+        return raw.strip()[:MEMORY_BOOKMARK_NAME_MAX_LEN]
+
+    def _clean_bookmark(self, raw, first: float, last: float):
+        if not isinstance(raw, dict):
+            return None
+        bookmark_id = raw.get("id")
+        if not isinstance(bookmark_id, str) or not bookmark_id:
+            return None
+        try:
+            media_time = float(raw.get("mediaTime"))
+        except (TypeError, ValueError):
+            return None
+        if not math.isfinite(media_time):
+            return None
+        return {
+            "id": bookmark_id,
+            "mediaTime": min(max(media_time, first), last),
+            "name": self._clean_bookmark_name(raw.get("name")),
+            "createdAt": to_int(raw.get("createdAt"), 0),
+        }
+
+    def _bookmark_window(self, video) -> tuple:
+        first = max(to_int(video.get("startMs"), 0), 0) / 1000.0
+        return (first, first + max(to_int(video.get("durationMs"), 0), 0) / 1000.0)
+
+    def _clean_bookmarks(self, raw, video) -> list:
+        if not isinstance(raw, list) or not video:
+            return []
+        first, last = self._bookmark_window(video)
+        bookmarks = []
+        for item in raw:
+            cleaned = self._clean_bookmark(item, first, last)
+            if cleaned is not None:
+                bookmarks.append(cleaned)
+            if len(bookmarks) >= MAX_BOOKMARKS_PER_MEMORY:
+                break
+        bookmarks.sort(key=lambda bookmark: bookmark["mediaTime"])
+        return bookmarks
+
     def _normalize_memory(self, raw, game_id: int):
         if not isinstance(raw, dict):
             return None
@@ -652,12 +699,13 @@ class MemoriesStore:
             source = "steam"
 
         achievements = self._clean_achievements(raw.get("achievements"))
+        video = _clean_video(raw.get("video"))
         captured = to_int(raw.get("capturedAt"), 0)
         return {
             "id": memory_id,
             "gameId": game_id,
             "path": path,
-            "video": _clean_video(raw.get("video")),
+            "video": video,
             "capturedAt": captured,
             "updatedAt": to_int(raw.get("updatedAt"), 0) or captured,
             "appid": to_int(raw.get("appid"), 0),
@@ -672,6 +720,7 @@ class MemoriesStore:
             "progress": self._clean_progress(raw.get("progress")),
             "achievements": achievements,
             "achievementCount": max(to_int(raw.get("achievementCount"), 0), len(achievements)),
+            "bookmarks": self._clean_bookmarks(raw.get("bookmarks"), video),
         }
 
     def _empty_entry(self, game_id: int) -> dict:
@@ -757,6 +806,9 @@ class MemoriesStore:
 
     def _new_memory_id(self) -> str:
         return f"mem_{secrets.token_urlsafe(8)}"
+
+    def _new_bookmark_id(self) -> str:
+        return f"bm_{secrets.token_urlsafe(8)}"
 
     def load_for_game(self, game_id) -> dict:
         """One game's memories, newest first, with its tag vocabulary.
@@ -987,6 +1039,7 @@ class MemoriesStore:
             "progress": None,
             "achievements": [],
             "achievementCount": 0,
+            "bookmarks": [],
         }
 
         lock = self._lock_for_game(key)
@@ -1049,6 +1102,102 @@ class MemoriesStore:
             vocabulary = list(entry["tagVocabulary"])
 
         return {"ok": True, "memory": result, "tagVocabulary": vocabulary}
+
+    def _find_in_entry(self, entry: dict, memory_id) -> dict | None:
+        if not isinstance(memory_id, str) or not memory_id:
+            return None
+        for memory in entry["memories"]:
+            if memory["id"] == memory_id:
+                return memory
+        return None
+
+    def add_bookmark(self, game_id, memory_id: str, media_time) -> dict:
+        key = self._game_key(game_id)
+        if key is None:
+            return {"ok": False, "error": "invalid_game_id"}
+
+        lock = self._lock_for_game(key)
+        with lock:
+            entry = self._load_raw(key)
+            target = self._find_in_entry(entry, memory_id)
+            if target is None:
+                return {"ok": False, "error": "not_found"}
+            if not target["video"]:
+                return {"ok": False, "error": "no_video"}
+            if len(target["bookmarks"]) >= MAX_BOOKMARKS_PER_MEMORY:
+                return {"ok": False, "error": "too_many"}
+
+            first, last = self._bookmark_window(target["video"])
+            bookmark = self._clean_bookmark(
+                {
+                    "id": self._new_bookmark_id(),
+                    "mediaTime": media_time,
+                    "name": "",
+                    "createdAt": int(time.time()),
+                },
+                first,
+                last,
+            )
+            if bookmark is None:
+                return {"ok": False, "error": "invalid_time"}
+
+            target["bookmarks"].append(bookmark)
+            target["bookmarks"].sort(key=lambda row: row["mediaTime"])
+            target["updatedAt"] = int(time.time())
+            self._save_raw(key, entry)
+
+        return {"ok": True, "bookmark": dict(bookmark)}
+
+    def rename_bookmark(self, game_id, memory_id: str, bookmark_id: str, name: str) -> dict:
+        key = self._game_key(game_id)
+        if key is None:
+            return {"ok": False, "error": "invalid_game_id"}
+        if not isinstance(bookmark_id, str) or not bookmark_id:
+            return {"ok": False, "error": "invalid_bookmark_id"}
+
+        lock = self._lock_for_game(key)
+        with lock:
+            entry = self._load_raw(key)
+            target = self._find_in_entry(entry, memory_id)
+            if target is None:
+                return {"ok": False, "error": "not_found"}
+            bookmark = None
+            for row in target["bookmarks"]:
+                if row["id"] == bookmark_id:
+                    bookmark = row
+                    break
+            if bookmark is None:
+                return {"ok": False, "error": "not_found"}
+
+            bookmark["name"] = self._clean_bookmark_name(name)
+            target["updatedAt"] = int(time.time())
+            self._save_raw(key, entry)
+            result = dict(bookmark)
+
+        return {"ok": True, "bookmark": result}
+
+    def remove_bookmark(self, game_id, memory_id: str, bookmark_id: str) -> dict:
+        key = self._game_key(game_id)
+        if key is None:
+            return {"ok": False, "error": "invalid_game_id"}
+        if not isinstance(bookmark_id, str) or not bookmark_id:
+            return {"ok": False, "error": "invalid_bookmark_id"}
+
+        lock = self._lock_for_game(key)
+        with lock:
+            entry = self._load_raw(key)
+            target = self._find_in_entry(entry, memory_id)
+            if target is None:
+                return {"ok": False, "error": "not_found"}
+            remaining = [row for row in target["bookmarks"] if row["id"] != bookmark_id]
+            if len(remaining) == len(target["bookmarks"]):
+                return {"ok": False, "error": "not_found"}
+
+            target["bookmarks"] = remaining
+            target["updatedAt"] = int(time.time())
+            self._save_raw(key, entry)
+
+        return {"ok": True, "deletedId": bookmark_id}
 
     def apply_resolution(self, game_id, resolved) -> dict:
         """Write the resolver's progress and bound achievements onto memories.

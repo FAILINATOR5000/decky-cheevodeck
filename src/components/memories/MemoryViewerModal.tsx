@@ -1,17 +1,26 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { transportLabel } from "./transportLabel";
+import { toaster } from "@decky/api";
 import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
 // Font Awesome Free icon, CC BY 4.0. See ATTRIBUTIONS.md.
 import { FaTrophy } from "react-icons/fa";
 import {
+    addMemoryBookmark,
     cacheAchievementIcons,
     deleteMemory,
     getAchievementIcons,
     getCachedAchievementIcons,
     loadMemoryFull,
+    removeMemoryBookmark,
+    renameMemoryBookmark,
     saveMemoriesMuted
 } from "../../api";
 import { armMemoriesFocusKey, armMemoriesFocusReturn } from "../../utils/memoriesFocusReturn";
+import { ActionLink } from "../ui/ActionLink";
+import { BookmarkNameModal } from "../ui/BookmarkNameModal";
+import { ColumnsIcon } from "../ui/ColumnsIcon";
 import { FadeImage } from "../ui/FadeImage";
+import { ScissorsIcon } from "../ui/ScissorsIcon";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { PencilIcon } from "../ui/PencilIcon";
 import { TrashIcon } from "../ui/TrashIcon";
@@ -21,9 +30,12 @@ import { POINTS_LABEL_STYLES, PointsLabel } from "../achievements/PointsLabel";
 import { UnlockStamp } from "../achievements/UnlockStamp";
 import { MemoryEditorModal } from "./MemoryEditorModal";
 import {
+    announceMemoryBookmark,
     beginMemorySeek,
     endMemorySeek,
+    memoryPlaybackMediaTime,
     nudgeMemoryTransport,
+    seekMemoryPlayback,
     showMemoryFullscreen,
     skipMemoryPlayback,
     toggleMemoryPlayback
@@ -40,11 +52,17 @@ import {
 import { showManagedModal } from "../../utils/modalRegistry";
 import { logError } from "../../utils/errors";
 import { formatUnlockDate, noteBodyColor } from "../../utils/achievements";
-import { formatClipLength } from "../../utils/memories";
+import { BOOKMARK_FLASH_MS, formatClipLength } from "../../utils/memories";
+import { playCaptureSound } from "../../utils/navSound";
+import { saveBookmarkSnippetToFolder } from "../../utils/saveMemoryMedia";
 import { getDeviceIsSteamMachine, modalSize } from "../../utils/scale";
 import { errorRed } from "../../utils/style";
 import { t, type LanguageCode } from "../../locales";
-import type { AchievementRow, MemoryRecord } from "../../types";
+import type { AchievementRow, MemoryBookmark, MemoryRecord, ShortcutButton } from "../../types";
+
+const BOOKMARK_TOAST_MS = 3000;
+
+const BOOKMARK_STEP_SECONDS = 0.25;
 
 const MEMORY_DIALOG_CSS = `
 .cheevo-memory-dialog.DialogContent, .cheevo-memory-dialog {
@@ -84,6 +102,18 @@ const RAIL_CARD_LIMIT = 3;
 const RAIL_SCROLL_MARGIN = 0.5;
 
 const RAIL_EDGE_WIDTH = 3;
+
+const RAIL_EDGE_COLOR = "rgba(255, 255, 255, 0.35)";
+
+const RAIL_BOTTOM_CLEARANCE = 72;
+
+const RAIL_CARD_GAP = 6;
+
+const RAIL_FILLER_LIMIT = 40;
+
+const RAIL_FILLER_MIN = 10;
+
+const RAIL_INNER_PAD = 2;
 
 const RAIL_LIT_EDGE = "rgba(255, 215, 100, 1)";
 const RAIL_LIT_GLOW = "inset 14px 0 20px -12px rgba(255, 215, 100, 0.95), "
@@ -157,6 +187,12 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
 
     const [knownTags, setKnownTags] = useState(allTags);
 
+    const [bookmarks, setBookmarks] = useState<MemoryBookmark[]>(memory.bookmarks);
+    const [armedBookmark, setArmedBookmark] = useState<string | null>(null);
+    const [flash, setFlash] = useState<{ name: string; token: number } | null>(null);
+    const [flashOn, setFlashOn] = useState(false);
+    const rowNavs = useRef(new Map<string, { current: any }>());
+
     const [fullSrc, setFullSrc] = useState<string | null>(null);
     const [downscaled, setDownscaled] = useState(false);
     const [fullscreen, setFullscreen] = useState(false);
@@ -172,10 +208,19 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
     const imageBoxRef = useRef<HTMLDivElement | null>(null);
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const playbackRef = useRef<ClipPlayback | null>(null);
+    const pendingSeekRef = useRef<number | null>(null);
+    const hasRunRef = useRef(false);
+    const pictureTopRef = useRef(0);
+    const pictureNavRef = useRef<any>(null);
+    const captionNavRef = useRef<any>(null);
+    const bookmarkCountRef = useRef(memory.bookmarks.length);
+    const pictureFocusedRef = useRef(false);
     const railRef = useRef<HTMLDivElement | null>(null);
     const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
     const alignedRef = useRef(false);
     const [posterRatio, setPosterRatio] = useState(0);
+    const [railCap, setRailCap] = useState(0);
+    const [railFiller, setRailFiller] = useState({ count: 0, height: 0, tail: 0 });
 
     const clipSource = useMemo<ClipSource | null>(() => {
         const video = memory.video;
@@ -253,6 +298,25 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
     }, [thumbDataUri, fullSrc]);
 
     useEffect(() => {
+        const box = imageBoxRef.current;
+        const view = box?.ownerDocument.defaultView;
+        if (!box || !view) {
+            return;
+        }
+        const measure = () => {
+            const top = box.getBoundingClientRect().top;
+            pictureTopRef.current = top;
+            setRailCap(Math.max(view.innerHeight - top - RAIL_BOTTOM_CLEARANCE, 0));
+        };
+        measure();
+        const observer = new view.ResizeObserver(measure);
+        observer.observe(box);
+        return () => {
+            observer.disconnect();
+        };
+    }, [fullscreen, timeline, bookmarks.length]);
+
+    useEffect(() => {
         const names = memory.achievements.map((card) => card.badgeName).filter(Boolean);
         if (names.length === 0) {
             return;
@@ -288,7 +352,9 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
         if (!fullSrc && !thumbDataUri) {
             return;
         }
-        return showMemoryFullscreen(thumbDataUri, fullSrc, language, clipSource);
+        const startAt = pendingSeekRef.current;
+        pendingSeekRef.current = null;
+        return showMemoryFullscreen(thumbDataUri, fullSrc, language, clipSource, startAt);
     }, [fullscreen, fullSrc, thumbDataUri, language, clipSource]);
 
     useEffect(() => {
@@ -298,7 +364,20 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
         }
         const handle = playClip(element, clipSource);
         playbackRef.current = handle;
-        const unsubscribe = handle.subscribe(setClipState);
+        hasRunRef.current = false;
+        const target = pendingSeekRef.current;
+        pendingSeekRef.current = null;
+        let landed = target === null;
+        const unsubscribe = handle.subscribe((next) => {
+            if (!next.paused) {
+                hasRunRef.current = true;
+            }
+            if (!landed && !next.paused) {
+                landed = true;
+                handle.seekTo(target as number);
+            }
+            setClipState(next);
+        });
         return () => {
             unsubscribe();
             handle.destroy();
@@ -321,6 +400,57 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
         setVideoMissing(true);
         setTimeline(false);
     }, [clipState?.unavailable]);
+
+    useEffect(() => {
+        const box = imageBoxRef.current;
+        const win = box?.ownerDocument.defaultView;
+        if (!box || !win || bookmarkCountRef.current === bookmarks.length) {
+            return;
+        }
+        bookmarkCountRef.current = bookmarks.length;
+        if (!pictureFocusedRef.current) {
+            return;
+        }
+        const frame = win.requestAnimationFrame(() => {
+            const top = box.getBoundingClientRect().top;
+            const moved = Math.abs(top - pictureTopRef.current) > 0.5;
+            pictureTopRef.current = top;
+            if (moved) {
+                pictureNavRef.current?.TakeFocus(true);
+            }
+        });
+        return () => {
+            win.cancelAnimationFrame(frame);
+        };
+    }, [bookmarks.length]);
+
+    useEffect(() => {
+        if (!flash) {
+            return;
+        }
+        setFlashOn(true);
+        const hold = setTimeout(() => setFlashOn(false), BOOKMARK_FLASH_MS);
+        return () => clearTimeout(hold);
+    }, [flash]);
+
+    function rowNav(id: string) {
+        const held = rowNavs.current;
+        if (!held.has(id)) {
+            held.set(id, { current: null });
+        }
+        return held.get(id) as { current: any };
+    }
+
+    function focusBookmarkRow(id: string | null) {
+        const win = imageBoxRef.current?.ownerDocument.defaultView;
+        if (!win) {
+            return;
+        }
+        win.requestAnimationFrame(() => {
+            const nav = id === null ? captionNavRef : rowNavs.current.get(id);
+            nav?.current?.TakeFocus(true);
+        });
+    }
 
     const handleCancel = useCallback(() => {
         if (fullscreen) {
@@ -348,6 +478,14 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
         setTimeline(false);
     }
 
+    function pressPicture() {
+        if (timeline && !clipState?.ended) {
+            playbackRef.current?.togglePause();
+            return;
+        }
+        pressFullscreen();
+    }
+
     function pressMute() {
         const next = !getClipMuted();
         setClipMuted(next);
@@ -359,6 +497,162 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
     function pressFullscreen() {
         setTimeline(false);
         setFullscreen((current) => !current);
+    }
+
+    function momentOnScreen(): number {
+        if (fullscreen) {
+            const live = memoryPlaybackMediaTime();
+            if (live !== null) {
+                return live;
+            }
+        }
+        else if (clipState) {
+            return clipState.mediaTime;
+        }
+        return clipSource ? clipSource.startMs / 1000 : 0;
+    }
+
+    function captureBookmark() {
+        if (!clipSource) {
+            return;
+        }
+        void addMemoryBookmark(gameId, memory.id, momentOnScreen()).then((result) => {
+            if (!result.ok || !result.bookmark) {
+                toaster.toast({
+                    title: t(language, "Couldn't Add Bookmark"),
+                    body: result.error === "too_many"
+                        ? t(language, "This clip is holding as many bookmarks as it can.")
+                        : "",
+                    duration: BOOKMARK_TOAST_MS
+                });
+                return;
+            }
+            const added = result.bookmark;
+            setBookmarks((current) => [...current, added]
+                .sort((first, second) => first.mediaTime - second.mediaTime));
+            playCaptureSound();
+        }).catch((e) => {
+            logError("memories: couldn't bookmark a clip", e);
+        });
+    }
+
+    function focusPicture() {
+        const win = imageBoxRef.current?.ownerDocument.defaultView;
+        if (!win) {
+            return;
+        }
+        win.requestAnimationFrame(() => {
+            pictureNavRef.current?.TakeFocus(true);
+        });
+    }
+
+    function stepBookmark(direction: 1 | -1): boolean {
+        if (bookmarks.length === 0) {
+            return false;
+        }
+        const from = momentOnScreen();
+        const target = direction > 0
+            ? bookmarks.find((row) => row.mediaTime > from + BOOKMARK_STEP_SECONDS)
+            : [...bookmarks].reverse().find((row) => row.mediaTime < from - BOOKMARK_STEP_SECONDS);
+        if (!target) {
+            return false;
+        }
+        const named = target.name.trim();
+        if (fullscreen) {
+            seekMemoryPlayback(target.mediaTime);
+            if (named) {
+                announceMemoryBookmark(named);
+            }
+            return true;
+        }
+        alignedRef.current = false;
+        playbackRef.current?.seekTo(target.mediaTime);
+        if (named) {
+            setFlash((current) => ({ name: named, token: (current?.token ?? 0) + 1 }));
+        }
+        return true;
+    }
+
+    function selectBookmark(bookmark: MemoryBookmark) {
+        pendingSeekRef.current = bookmark.mediaTime;
+        setTimeline(false);
+        setFullscreen(true);
+    }
+
+    function timelineBookmark(bookmark: MemoryBookmark) {
+        if (!timelineOffered) {
+            return;
+        }
+        if (timeline) {
+            playbackRef.current?.seekTo(bookmark.mediaTime);
+            if (clipState?.paused) {
+                playbackRef.current?.togglePause();
+            }
+            alignedRef.current = false;
+            focusPicture();
+            return;
+        }
+        pendingSeekRef.current = bookmark.mediaTime;
+        setVideoMissing(false);
+        setTimeline(true);
+        focusPicture();
+    }
+
+    function renameBookmarkRow(bookmark: MemoryBookmark) {
+        if (timeline && clipState && !clipState.paused) {
+            playbackRef.current?.togglePause();
+        }
+        showManagedModal((closeModal) => (
+            <BookmarkNameModal
+                language={language}
+                initialName={bookmark.name}
+                onSubmit={(name) => {
+                    void renameMemoryBookmark(gameId, memory.id, bookmark.id, name).then((result) => {
+                        if (!result.ok || !result.bookmark) {
+                            return;
+                        }
+                        const saved = result.bookmark;
+                        setBookmarks((current) => current.map(
+                            (row) => (row.id === saved.id ? saved : row)
+                        ));
+                    }).catch((e) => {
+                        logError("memories: couldn't rename a bookmark", e);
+                    });
+                }}
+                close={() => {
+                    closeModal();
+                    focusBookmarkRow(bookmark.id);
+                }}
+            />
+        ));
+    }
+
+    function deleteBookmarkRow(bookmark: MemoryBookmark) {
+        if (armedBookmark !== bookmark.id) {
+            setArmedBookmark(bookmark.id);
+            return;
+        }
+        setArmedBookmark(null);
+
+        const at = bookmarks.findIndex((row) => row.id === bookmark.id);
+        void removeMemoryBookmark(gameId, memory.id, bookmark.id).then((result) => {
+            if (!result.ok) {
+                return;
+            }
+            setBookmarks((current) => current.filter((row) => row.id !== bookmark.id));
+            rowNavs.current.delete(bookmark.id);
+            const remaining = bookmarks.filter((row) => row.id !== bookmark.id);
+            focusBookmarkRow(
+                remaining.length > 0 ? remaining[Math.min(at, remaining.length - 1)].id : null
+            );
+        }).catch((e) => {
+            logError("memories: couldn't delete a bookmark", e);
+        });
+    }
+
+    function snippetFromBookmark(bookmark: MemoryBookmark) {
+        setTimeline(false);
+        void saveBookmarkSnippetToFolder(gameId, memory.id, bookmark.id, language);
     }
 
     function pressDelete() {
@@ -415,10 +709,10 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
         minute: "2-digit"
     }), [language]);
 
-    const captured = new Date(memory.capturedAt * 1000);
     const progress = memory.progress;
     const rule = noteBodyColor(color);
     const imageMaxVh = getDeviceIsSteamMachine() ? 70 : 55;
+
 
     const sortedCards = useMemo(() => [...memory.achievements]
         .sort((first, second) => (first.unlockedAt ?? Infinity) - (second.unlockedAt ?? Infinity)),
@@ -432,10 +726,20 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
     );
 
     const clipSeconds = clipSource ? clipSource.durationMs / 1000 : 0;
+    const clipStartSeconds = clipSource ? clipSource.startMs / 1000 : 0;
     const timelineOffered = Boolean(clipSource)
         && offsets.some((offset) => offset !== null && offset >= 0 && offset <= clipSeconds);
 
     const position = clipState?.position ?? 0;
+
+    const captured = new Date(
+        (memory.capturedAt + (timeline ? Math.floor(position) : 0)) * 1000
+    );
+
+    const gainedCap = timeline ? position : clipSeconds;
+    const gainedInClip = offsets.filter(
+        (offset) => offset !== null && offset > 0 && offset <= gainedCap
+    ).length;
     const lit = useMemo(
         () => (timeline ? litIndices(offsets, position) : []),
         [timeline, offsets, position]
@@ -450,9 +754,14 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
             return;
         }
         const rail = railRef.current;
+        if (!rail) {
+            return;
+        }
         const first = cardRefs.current[lit[0] ?? -1];
         const last = cardRefs.current[lit[lit.length - 1] ?? -1];
-        if (!rail || !first || !last) {
+        if (!first || !last) {
+            alignedRef.current = false;
+            rail.scrollTo({ top: 0, behavior: "auto" });
             return;
         }
         if (!alignedRef.current) {
@@ -471,21 +780,101 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
         }
     }, [timeline, litKey]);
 
-    const framedButtons: Record<number, string> = {};
-    if (clipSource) {
-        framedButtons[BUTTON_SELECT] = muted ? t(language, "Unmute") : t(language, "Mute");
-    }
-    if (timelineOffered) {
-        if (timeline && clipState?.ended) {
-            framedButtons[BUTTON_BUMPER_RIGHT] = t(language, "Restart");
+    useEffect(() => {
+        const rail = railRef.current;
+        const first = cardRefs.current[0];
+        const last = cardRefs.current[railCards.length - 1];
+        if (!timeline || !rail || !first || !last) {
+            setRailFiller({ count: 0, height: 0, tail: 0 });
+            return;
         }
-        else if (timeline) {
-            framedButtons[BUTTON_BUMPER_RIGHT] = t(language, "Stop");
+        const height = first.offsetHeight;
+        const free = rail.clientHeight - (last.offsetTop + last.offsetHeight);
+        const step = height + RAIL_CARD_GAP;
+        const whole = height > 0
+            ? Math.min(Math.max(Math.floor((free - RAIL_CARD_GAP) / step), 0), RAIL_FILLER_LIMIT)
+            : 0;
+        const rest = free - whole * step - RAIL_CARD_GAP;
+        setRailFiller({
+            count: whole,
+            height,
+            tail: rest >= RAIL_FILLER_MIN ? rest : 0
+        });
+    }, [timeline, railCap, railCards.length]);
+
+    const framedButtons = useMemo(() => {
+        const map: Record<number, ReactNode> = {};
+        if (clipSource) {
+            map[BUTTON_SELECT] = muted
+                ? transportLabel(language, "Unmute", "\u266a")
+                : transportLabel(language, "Mute", "\u2298");
         }
-        else {
-            framedButtons[BUTTON_BUMPER_RIGHT] = t(language, "Timeline Play");
+        return map;
+    }, [clipSource, muted, language]);
+
+    const heldStill = clipState?.paused && hasRunRef.current;
+    const pictureAction = useMemo(() => {
+        if (timeline && !clipState?.ended) {
+            return heldStill
+                ? transportLabel(language, "Resume", "\u25b6")
+                : transportLabel(language, "Pause", "\u2016");
         }
-    }
+        return clipSource
+            ? transportLabel(language, "Play", "\u25b6")
+            : t(language, "Fullscreen");
+    }, [timeline, clipState?.ended, heldStill, clipSource, language]);
+
+    const videoButtons = useMemo(() => {
+        const map: Record<number, ReactNode> = { ...framedButtons };
+        if (timelineOffered) {
+            if (timeline && clipState?.ended) {
+                map[BUTTON_BUMPER_RIGHT] = transportLabel(language, "Restart", "\u21bb");
+            }
+            else if (timeline) {
+                map[BUTTON_BUMPER_RIGHT] = transportLabel(language, "Stop", "\u25a0");
+            }
+            else {
+                map[BUTTON_BUMPER_RIGHT] = t(language, "Timeline");
+            }
+        }
+        return map;
+    }, [framedButtons, timelineOffered, timeline, clipState?.ended, language]);
+
+    const reservedButtons = clipSource ? (["view", "menu"] as ShortcutButton[]) : undefined;
+
+    const fullscreenButtons = useMemo(() => {
+        if (!clipSource) {
+            return undefined;
+        }
+        const map: Record<number, ReactNode> = {
+            [BUTTON_TRIGGER_LEFT]: transportLabel(language, "Rewind", "\u00ab"),
+            [BUTTON_TRIGGER_RIGHT]: transportLabel(language, "Forward", "\u00bb"),
+            [BUTTON_BUMPER_LEFT]: transportLabel(language, "Skip Back", "\u2039"),
+            [BUTTON_BUMPER_RIGHT]: transportLabel(language, "Skip Forward", "\u203a")
+        };
+        return map;
+    }, [clipSource, language]);
+
+    const bookmarkRowButtons = useMemo(() => {
+        const map: Record<number, ReactNode> = {
+            [BUTTON_BUMPER_LEFT]: t(language, "Snippet")
+        };
+        if (timelineOffered) {
+            map[BUTTON_BUMPER_RIGHT] = t(language, "Timeline");
+        }
+        return map;
+    }, [timelineOffered, language]);
+
+    const bookmarkIconButtonStyle: CSSProperties = {
+        minWidth: 0,
+        width: `${modalSize(26)}px`,
+        height: `${modalSize(26)}px`,
+        padding: "2px",
+        flexShrink: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center"
+    };
 
     if (fullscreen) {
         return (
@@ -495,15 +884,21 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                 className="cheevo-memory-full"
                 modalClassName="cheevo-memory-fullpos"
             >
-                <SnapshotHotkey language={language} reservedButtons={clipSource ? ["view"] : undefined} />
+                <SnapshotHotkey language={language} reservedButtons={reservedButtons} />
                 <style>{MEMORY_DIALOG_CSS}</style>
                 <Focusable
                     onActivate={clipSource
                         ? () => toggleMemoryPlayback()
                         : () => setFullscreen(false)}
                     onOKActionDescription={clipSource
-                        ? t(language, "Pause")
+                        ? transportLabel(language, "Pause", "\u2016")
                         : t(language, "Shrink")}
+                    onMenuButton={clipSource ? captureBookmark : undefined}
+                    onMenuActionDescription={clipSource
+                                ? transportLabel(language, "Bookmark", "\u2605")
+                                : undefined}
+                    onMoveLeft={clipSource ? () => stepBookmark(-1) : undefined}
+                    onMoveRight={clipSource ? () => stepBookmark(1) : undefined}
                     onButtonDown={clipSource
                         ? (event: { detail?: { button?: number; is_repeat?: boolean } }) => {
                             const button = event?.detail?.button;
@@ -535,14 +930,7 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                             }
                         }
                         : undefined}
-                    actionDescriptionMap={clipSource
-                        ? {
-                            [BUTTON_TRIGGER_LEFT]: t(language, "Rewind"),
-                            [BUTTON_TRIGGER_RIGHT]: t(language, "Forward"),
-                            [BUTTON_BUMPER_LEFT]: t(language, "Skip Back"),
-                            [BUTTON_BUMPER_RIGHT]: t(language, "Skip Forward")
-                        }
-                        : undefined}
+                    actionDescriptionMap={fullscreenButtons}
                     style={{ display: "block", width: "100%" }}
                 >
                     <FadeImage
@@ -568,10 +956,6 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
             className="cheevo-memory-dialog"
         >
             <Focusable
-                onSecondaryButton={pressDelete}
-                onSecondaryActionDescription={t(language, "Delete")}
-                onOptionsButton={openEditor}
-                onOptionsActionDescription={t(language, "Edit")}
                 onButtonDown={clipSource
                     ? (event: { detail?: { button?: number; is_repeat?: boolean } }) => {
                         const button = event?.detail?.button;
@@ -580,10 +964,6 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                         }
                         if (button === BUTTON_SELECT) {
                             pressMute();
-                            return;
-                        }
-                        if (button === BUTTON_BUMPER_RIGHT) {
-                            pressTimeline();
                             return;
                         }
                         if (!timeline) {
@@ -602,9 +982,8 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                         }
                     }
                     : undefined}
-                actionDescriptionMap={clipSource ? framedButtons : undefined}
             >
-                <SnapshotHotkey language={language} reservedButtons={clipSource ? ["view"] : undefined} />
+                <SnapshotHotkey language={language} reservedButtons={reservedButtons} />
                 <style>{MEMORY_DIALOG_CSS}</style>
                 <style>{POINTS_LABEL_STYLES}</style>
 
@@ -617,7 +996,7 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                             fontSize: `${modalSize(14)}px`
                         }}
                     >
-                        <span style={{ fontWeight: 700 }}>
+                        <span style={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
                             <AwardStamp date={stampFormatter.format(captured)} />
                         </span>
                         {progress ? (
@@ -628,13 +1007,14 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                                         display: "inline-flex",
                                         alignItems: "center",
                                         gap: "0.35em",
-                                        opacity: 0.75
+                                        opacity: 0.75,
+                                        fontVariantNumeric: "tabular-nums"
                                     }}
                                 >
                                     <FaTrophy style={{ flexShrink: 0 }} />
                                     <span>
                                         {t(language, "{{awarded}}/{{possible}} Achievements", {
-                                            awarded: progress.unlocked,
+                                            awarded: progress.unlocked + gainedInClip,
                                             possible: progress.total
                                         })}
                                     </span>
@@ -651,10 +1031,37 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                 <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                         <Focusable
-                            onActivate={pressFullscreen}
-                            onOKActionDescription={clipSource
-                                ? t(language, "Play")
-                                : t(language, "Fullscreen")}
+                            navRef={pictureNavRef}
+                            onGamepadFocus={() => {
+                                pictureFocusedRef.current = true;
+                            }}
+                            onGamepadBlur={() => {
+                                pictureFocusedRef.current = false;
+                            }}
+                            onActivate={pressPicture}
+                            onOKActionDescription={pictureAction}
+                            onSecondaryButton={pressDelete}
+                            onSecondaryActionDescription={t(language, "Delete")}
+                            onOptionsButton={openEditor}
+                            onOptionsActionDescription={t(language, "Edit")}
+                            onMenuButton={clipSource ? captureBookmark : undefined}
+                            onMenuActionDescription={clipSource
+                                ? transportLabel(language, "Bookmark", "\u2605")
+                                : undefined}
+                            onMoveLeft={timeline ? () => stepBookmark(-1) : undefined}
+                            onMoveRight={timeline ? () => stepBookmark(1) : undefined}
+                            onButtonDown={clipSource
+                                ? (event: { detail?: { button?: number; is_repeat?: boolean } }) => {
+                                    if (event?.detail?.is_repeat) {
+                                        return;
+                                    }
+                                    const button = event?.detail?.button;
+                                    if (button === BUTTON_BUMPER_RIGHT && timelineOffered) {
+                                        pressTimeline();
+                                    }
+                                }
+                                : undefined}
+                            actionDescriptionMap={clipSource ? videoButtons : undefined}
                             style={{ display: "block" }}
                         >
                             <div
@@ -710,6 +1117,37 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                                                 maxHeight: "100%"
                                             }}
                                         >
+                                            {flash ? (
+                                                <div
+                                                    style={{
+                                                        position: "absolute",
+                                                        top: `${modalSize(6)}px`,
+                                                        left: 0,
+                                                        right: 0,
+                                                        textAlign: "center",
+                                                        opacity: flashOn ? 1 : 0,
+                                                        transition: "opacity 220ms ease"
+                                                    }}
+                                                >
+                                                    <span
+                                                        style={{
+                                                            display: "inline-block",
+                                                            maxWidth: "80%",
+                                                            padding: `${modalSize(3)}px ${modalSize(10)}px`,
+                                                            borderRadius: "4px",
+                                                            background: "rgba(0, 0, 0, 0.55)",
+                                                            color: "rgba(255, 255, 255, 0.92)",
+                                                            fontSize: `${modalSize(13)}px`,
+                                                            fontWeight: 700,
+                                                            overflow: "hidden",
+                                                            textOverflow: "ellipsis",
+                                                            whiteSpace: "nowrap"
+                                                        }}
+                                                    >
+                                                        {flash.name}
+                                                    </span>
+                                                </div>
+                                            ) : null}
                                             {muted ? (
                                                 <div
                                                     style={{
@@ -837,7 +1275,11 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                                     </div>
                                 ) : null}
                             </div>
-                            <Focusable flow-children="row" style={{ display: "flex", flexShrink: 0 }}>
+                            <Focusable
+                                navRef={captionNavRef}
+                                flow-children="row"
+                                style={{ display: "flex", flexShrink: 0 }}
+                            >
                                 <DialogButton
                                     onClick={openEditor}
                                     style={{
@@ -852,6 +1294,24 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                                 >
                                     <PencilIcon size={modalSize(16)} />
                                 </DialogButton>
+                                {mouseKeyboardMode && timelineOffered && (
+                                    <DialogButton
+                                        onClick={pressTimeline}
+                                        style={{
+                                            minWidth: 0,
+                                            width: `${modalSize(34)}px`,
+                                            height: `${modalSize(34)}px`,
+                                            padding: "4px",
+                                            marginLeft: "6px",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            color: timeline ? "#4ea1ff" : undefined
+                                        }}
+                                    >
+                                        <ColumnsIcon size={modalSize(16)} />
+                                    </DialogButton>
+                                )}
                                 {mouseKeyboardMode && (
                                     <DialogButton
                                         onClick={pressDelete}
@@ -873,6 +1333,104 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                             </Focusable>
                         </div>
 
+                        {clipSource && bookmarks.length > 0 ? (
+                            <div style={{ marginTop: "12px" }}>
+                                <div
+                                    style={{
+                                        textAlign: "center",
+                                        fontSize: `${modalSize(13)}px`,
+                                        fontWeight: 700,
+                                        opacity: 0.75,
+                                        marginBottom: "4px"
+                                    }}
+                                >
+                                    {t(language, "Bookmarks")}
+                                </div>
+                                <Focusable
+                                    flow-children="column"
+                                    style={{ display: "flex", flexDirection: "column", gap: "2px" }}
+                                >
+                                    {bookmarks.map((row) => (
+                                        <Focusable
+                                            key={row.id}
+                                            navRef={rowNav(row.id)}
+                                            flow-children="row"
+                                            style={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: "4px",
+                                                padding: "3px",
+                                                borderRadius: "6px",
+                                                boxShadow: armedBookmark === row.id
+                                                    ? `0 0 0 2px ${errorRed}`
+                                                    : undefined
+                                            }}
+                                        >
+                                            <ActionLink
+                                                block
+                                                onActivate={() => selectBookmark(row)}
+                                                onOKActionDescription={t(language, "Play")}
+                                                onOptionsButton={() => renameBookmarkRow(row)}
+                                                onOptionsActionDescription={t(language, "Rename")}
+                                                onSecondaryButton={() => deleteBookmarkRow(row)}
+                                                onSecondaryActionDescription={t(language, "Delete")}
+                                                onButtonDown={(event) => {
+                                                    if (event?.detail?.is_repeat) {
+                                                        return;
+                                                    }
+                                                    const button = event?.detail?.button;
+                                                    if (button === BUTTON_BUMPER_RIGHT) {
+                                                        timelineBookmark(row);
+                                                        return;
+                                                    }
+                                                    if (button === BUTTON_BUMPER_LEFT) {
+                                                        snippetFromBookmark(row);
+                                                    }
+                                                }}
+                                                actionDescriptionMap={bookmarkRowButtons}
+                                                onGamepadBlur={() => setArmedBookmark(
+                                                    (current) => (current === row.id ? null : current)
+                                                )}
+                                            >
+                                                {`${formatClipLength(
+                                                    Math.max(row.mediaTime - clipStartSeconds, 0)
+                                                )} \u2014 ${row.name || t(language, "Untitled")}`}
+                                            </ActionLink>
+                                            {mouseKeyboardMode && (
+                                                <DialogButton
+                                                    onClick={() => renameBookmarkRow(row)}
+                                                    style={bookmarkIconButtonStyle}
+                                                >
+                                                    <PencilIcon size={modalSize(13)} />
+                                                </DialogButton>
+                                            )}
+                                            {mouseKeyboardMode && (
+                                                <DialogButton
+                                                    onClick={() => snippetFromBookmark(row)}
+                                                    style={bookmarkIconButtonStyle}
+                                                >
+                                                    <ScissorsIcon size={modalSize(13)} />
+                                                </DialogButton>
+                                            )}
+                                            {mouseKeyboardMode && (
+                                                <DialogButton
+                                                    onClick={() => deleteBookmarkRow(row)}
+                                                    style={{
+                                                        ...bookmarkIconButtonStyle,
+                                                        color: armedBookmark === row.id
+                                                            ? errorRed
+                                                            : undefined
+                                                    }}
+                                                >
+                                                    <TrashIcon size={modalSize(13)} />
+                                                </DialogButton>
+                                            )}
+                                        </Focusable>
+                                    ))}
+                                </Focusable>
+                            </div>
+                        ) : null}
+
                         <Focusable style={{ display: "flex", marginTop: "12px" }}>
                             <DialogButton onClick={close} style={{ width: "100%" }}>
                                 {t(language, "Close")}
@@ -887,7 +1445,14 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                                 // The scroller inside is absolutely positioned, so
                                 // this has to be its containing block.
                                 position: "relative",
-                                alignSelf: timeline ? "stretch" : undefined
+                                alignSelf: timeline ? "stretch" : undefined,
+                                maxHeight: timeline && railCap > 0
+                                    ? `${railCap}px`
+                                    : undefined,
+                                border: `2px solid ${timeline ? RAIL_EDGE_COLOR : "transparent"}`,
+                                borderRadius: "6px",
+                                padding: `${RAIL_INNER_PAD}px`,
+                                boxSizing: "border-box"
                             }}
                         >
                         <div
@@ -897,7 +1462,7 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                                 flexDirection: "column",
                                 gap: "6px",
                                 position: timeline ? "absolute" : "relative",
-                                inset: timeline ? 0 : undefined,
+                                inset: timeline ? `${RAIL_INNER_PAD}px` : undefined,
                                 overflowY: timeline ? "auto" : undefined,
                                 scrollBehavior: "smooth"
                             }}
@@ -1009,6 +1574,31 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                                     {t(language, "+{{count}} more", { count: overflow })}
                                 </div>
                             )}
+                            {Array.from({ length: railFiller.count }, (_, slot) => (
+                                <div
+                                    key={`rail-filler-${slot}`}
+                                    style={{
+                                        height: `${railFiller.height}px`,
+                                        boxSizing: "border-box",
+                                        borderRadius: "6px",
+                                        background: "rgba(255,255,255,0.06)",
+                                        flexShrink: 0,
+                                        borderLeft: `${RAIL_EDGE_WIDTH}px solid transparent`
+                                    }}
+                                />
+                            ))}
+                            {railFiller.tail > 0 ? (
+                                <div
+                                    style={{
+                                        height: `${railFiller.tail}px`,
+                                        boxSizing: "border-box",
+                                        borderRadius: "6px",
+                                        background: "rgba(255,255,255,0.06)",
+                                        flexShrink: 0,
+                                        borderLeft: `${RAIL_EDGE_WIDTH}px solid transparent`
+                                    }}
+                                />
+                            ) : null}
                         </div>
                         </div>
                     )}

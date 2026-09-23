@@ -206,6 +206,9 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
     }, [games, payloadGameId, payloadGameTitle, payloadConsoleName, payloadImageIcon]);
 
     const effectiveGameId = useMemo(() => {
+        if (!ready) {
+            return null;
+        }
         if (gameId === ALL_GAMES_ID) {
             return ALL_GAMES_ID;
         }
@@ -213,7 +216,7 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
             return gameId;
         }
         return listedGames.length > 0 ? listedGames[0].gameId : null;
-    }, [gameId, listedGames]);
+    }, [ready, gameId, listedGames]);
 
     const loadForGame = useCallback(async (target: number | null) => {
         const forAccount = accountRef.current;

@@ -12,7 +12,8 @@ import {
     setCurrentGuideModalZoom,
     GUIDE_ZOOM_STEP,
 } from "../../utils/scale";
-import { BUMPER_LEFT, BUMPER_RIGHT, GuidesReaderBody, legendGlyph } from "./GuidesReaderBody";
+import { BUMPER_LEFT, BUMPER_RIGHT, GuidesReaderBody } from "./GuidesReaderBody";
+import { legendGlyph } from "../ui/legendGlyph";
 import { GuidesBookmarksModal } from "./GuidesBookmarksModal";
 import { MODAL_ECHO_WINDOW_MS, showManagedModal } from "../../utils/modalRegistry";
 import { scanGuideHtml, SEARCH_MATCH_LIMIT, SEARCH_MIN_TERM } from "../../utils/guidesSearch";

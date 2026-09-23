@@ -37,6 +37,8 @@ const BOUNDARY_NUDGE_SECONDS = 0.05;
 
 const SCAN_WATCHDOG_MS = 15000;
 
+const LAND_CLEAR_ROUNDS = 3;
+
 
 const CLIP_NAME = "clip.mp4";
 const CLIP_INDEX_NAME = "clip.json";
@@ -54,12 +56,12 @@ export type ClipSource = {
 
 export type ClipPlaybackState = {
     position: number;
+    mediaTime: number;
     duration: number;
     paused: boolean;
     ended: boolean;
     unavailable: boolean;
     scanning: boolean;
-    ready: boolean;
 };
 
 export type ClipPlayback = {
@@ -68,6 +70,7 @@ export type ClipPlayback = {
     beginSeek: (direction: 1 | -1) => void;
     endSeek: () => void;
     skip: (direction: 1 | -1) => void;
+    seekTo: (mediaTime: number) => void;
     subscribe: (listener: (state: ClipPlaybackState) => void) => () => void;
 };
 
@@ -282,6 +285,8 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
     let watchdog: ReturnType<typeof setTimeout> | null = null;
     let scanDirection: 1 | -1 = 1;
     let resumeAfterScan = false;
+    let landRun = 0;
+    let clearingForLanding = false;
 
     const inPoint = Math.max(source.startMs, 0) / 1000;
     const span = Math.max(source.durationMs, 0) / 1000;
@@ -297,12 +302,12 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         const running = playable > 0 && span > 0 ? Math.min(elapsed / playable, 1) * span : elapsed;
         const state: ClipPlaybackState = {
             position: ended ? span : running,
+            mediaTime: video.currentTime,
             duration: span,
             paused: scanning ? !resumeAfterScan : video.paused,
             ended,
             unavailable,
-            scanning,
-            ready: video.readyState >= 2
+            scanning
         };
         listeners.forEach((listener) => listener(state));
     }
@@ -601,7 +606,7 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
     }
 
     async function pump(ahead: number = readAhead(), from?: number) {
-        if (pumping || destroyed || (!plan && !index) || mediaFailed()) {
+        if (pumping || clearingForLanding || destroyed || (!plan && !index) || mediaFailed()) {
             return;
         }
         pumping = true;
@@ -821,6 +826,16 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         return here + plan.segmentSeconds;
     }
 
+    function pictureBefore(at: number): number {
+        if (index) {
+            return syncTimeFor(at);
+        }
+        if (!plan) {
+            return at;
+        }
+        return firstSegmentStart + (segmentFor(at) - plan.startNumber) * plan.segmentSeconds;
+    }
+
     function secondsToNextPicture(rate: number): number {
         const here = scanTarget(scanAim) - BOUNDARY_NUDGE_SECONDS;
         const edge = scanDirection > 0 ? nextPictureAfter(here) : here;
@@ -852,21 +867,15 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         frameArrived("stop");
         clipDebug("clip-scan", source.clipId,
             () => `stop on ${why} at ${video.currentTime.toFixed(1)}s, holding ${coverage()}`);
-        const landing = why === "edge" ? -1 : nextPictureAfter(video.currentTime);
+        let landing = -1;
+        if (why !== "edge") {
+            landing = scanDirection > 0 ? nextPictureAfter(video.currentTime)
+                : Math.max(pictureBefore(video.currentTime), inPoint);
+        }
         if (landing > 0 && landing < endTarget()) {
-            for (const buffer of buffers) {
-                if (!buffer.updating) {
-                    try {
-                        buffer.remove(0, Infinity);
-                    }
-                    catch {
-                    }
-                }
-            }
-            video.currentTime = landing;
-            clipDebug("clip-land", source.clipId,
-                () => `${landing.toFixed(2)}s, cleared and reading from the keyframe`);
-            requestFrom(landing);
+            generation += 1;
+            clearingForLanding = true;
+            void landOn(landing);
         }
         else if (!bufferedHolds(video, video.currentTime)) {
             requestFrom(video.currentTime);
@@ -875,6 +884,54 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
             void video.play().catch(() => publish());
         }
         resumeAfterScan = false;
+        publish();
+    }
+
+    async function landOn(at: number) {
+        landRun += 1;
+        const run = landRun;
+        let round = 0;
+        try {
+            while (round < LAND_CLEAR_ROUNDS) {
+                round += 1;
+                for (const buffer of buffers) {
+                    if (buffer.updating) {
+                        try {
+                            buffer.abort();
+                        }
+                        catch {
+                        }
+                    }
+                    try {
+                        buffer.remove(0, Infinity);
+                    }
+                    catch {
+                    }
+                }
+                for (const buffer of buffers) {
+                    await settled(buffer);
+                }
+                if (destroyed || run !== landRun) {
+                    return;
+                }
+                if (video.buffered.length === 0) {
+                    break;
+                }
+            }
+        }
+        finally {
+            if (run === landRun) {
+                clearingForLanding = false;
+            }
+        }
+        if (destroyed || scanning) {
+            return;
+        }
+        clipDebug("clip-land", source.clipId,
+            () => `${at.toFixed(2)}s after ${round} clear${round === 1 ? "" : "s"}, `
+            + `holding ${coverage()}`);
+        video.currentTime = at;
+        requestFrom(at);
         publish();
     }
 
@@ -905,7 +962,7 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
         video.pause();
         scanning = true;
         scanRun += 1;
-        scanAim = video.currentTime;
+        scanAim = scanDirection > 0 ? nextPictureAfter(video.currentTime) : video.currentTime;
         armWatchdog();
         void runScan(scanRun);
         publish();
@@ -1224,6 +1281,17 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
             clipDebug("clip-seek", source.clipId,
                 () => `release at ${video.currentTime.toFixed(1)}s scanning=${scanning}`);
             stopScan();
+        },
+
+        seekTo(mediaTime: number) {
+            if (destroyed) {
+                return;
+            }
+            clipDebug("clip-seek", source.clipId,
+                () => `jump to ${mediaTime.toFixed(1)}s `
+                + `from ${video.currentTime.toFixed(1)}s scanning=${scanning}`);
+            stopScan();
+            seekTo(mediaTime);
         },
 
         subscribe(listener: (state: ClipPlaybackState) => void) {

@@ -41,7 +41,7 @@ def truncate_to_bytes(text: str, limit: int) -> str:
     return encoded[:max(limit, 0)].decode("utf-8", "ignore").rstrip(". ")
 
 
-def export_name(game_title, captured_at, suffix: str) -> str:
+def export_name(game_title, captured_at, suffix: str, label: str = "") -> str:
     """The filename one memory is saved out under.
 
     ``<title> <YYYY-MM-DD HH-MM><suffix>``, with the title trimmed to whatever
@@ -50,7 +50,8 @@ def export_name(game_title, captured_at, suffix: str) -> str:
     person saving the file already knows.
     """
     stamp = datetime.fromtimestamp(max(int(captured_at or 0), 0)).strftime("%Y-%m-%d %H-%M")
-    tail = f" {stamp}{suffix}"
+    marked = safe_stem(label) if str(label or "").strip() else ""
+    tail = f" {stamp} - {marked}{suffix}" if marked else f" {stamp}{suffix}"
     budget = NAME_BYTE_LIMIT - len(tail.encode("utf-8"))
     stem = truncate_to_bytes(safe_stem(game_title), budget) or _FALLBACK_STEM
     return f"{stem}{tail}"

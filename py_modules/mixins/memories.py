@@ -23,6 +23,8 @@ _RESOLVE_COOLDOWN_SECONDS = 5
 
 FULL_IMAGE_MAX_BYTES = 6 * 1024 * 1024
 
+_MIN_SNIPPET_SECONDS = 1.0
+
 
 def _read_slice(path: Path, offset: int, limit: int):
     """Bytes ``offset`` onwards from ``path``, at most ``limit`` of them.
@@ -343,6 +345,30 @@ class MemoriesMixin(PluginContext):
             image_icon=image_icon,
         )
 
+    async def add_memory_bookmark(self, game_id=None, memory_id: str = "", media_time=0):
+        return await asyncio.to_thread(
+            self.memories_store.add_bookmark, game_id, memory_id, media_time
+        )
+
+    async def rename_memory_bookmark(
+        self, game_id=None, memory_id: str = "", bookmark_id: str = "", name: str = ""
+    ):
+        return await asyncio.to_thread(
+            self.memories_store.rename_bookmark, game_id, memory_id, bookmark_id, name
+        )
+
+    async def remove_memory_bookmark(self, game_id=None, memory_id: str = "", bookmark_id: str = ""):
+        return await asyncio.to_thread(
+            self.memories_store.remove_bookmark, game_id, memory_id, bookmark_id
+        )
+
+    async def save_memory_bookmark_clip(
+        self, game_id=None, memory_id: str = "", bookmark_id: str = "", folder: str = ""
+    ):
+        return await asyncio.to_thread(
+            self._save_memory_bookmark_clip_sync, game_id, memory_id, bookmark_id, folder
+        )
+
     async def save_memory_media(self, game_id=None, memory_id: str = "", folder: str = ""):
         """Write one memory's picture or clip into a folder the user picked.
 
@@ -357,6 +383,86 @@ class MemoriesMixin(PluginContext):
             if memory.get("id") == memory_id:
                 return memory
         return None
+
+    def _save_memory_bookmark_clip_sync(self, game_id, memory_id: str, bookmark_id: str, folder: str):
+        destination_dir = Path(str(folder or "").strip())
+        if not destination_dir.is_dir():
+            return {"ok": False, "error": "bad_target"}
+
+        memory = self._find_memory(game_id, memory_id)
+        if memory is None:
+            return {"ok": False, "error": "not_found"}
+
+        video = memory.get("video") or {}
+        if not video.get("clipId") and not video.get("path"):
+            return {"ok": False, "error": "no_source"}
+
+        bookmarks = memory.get("bookmarks") or []
+        found = -1
+        for position, row in enumerate(bookmarks):
+            if row.get("id") == bookmark_id:
+                found = position
+                break
+        if found < 0:
+            return {"ok": False, "error": "not_found"}
+
+        start = float(bookmarks[found]["mediaTime"])
+        in_point = max(to_int(video.get("startMs"), 0), 0) / 1000.0
+        if found + 1 < len(bookmarks):
+            end = float(bookmarks[found + 1]["mediaTime"])
+        else:
+            end = in_point + max(to_int(video.get("durationMs"), 0), 0) / 1000.0
+        span = end - start
+        if span < _MIN_SNIPPET_SECONDS:
+            return {"ok": False, "error": "too_short"}
+
+        if not memories_clips.tools_available():
+            return {"ok": False, "error": "no_tools"}
+
+        owned = str(video.get("path") or "")
+        if owned and video.get("kind") == "mp4":
+            source = self.memories_store.video_path(owned) / memories_clips.CLIP_NAME
+            if not source.is_file():
+                return {"ok": False, "error": "no_source"}
+            video_input = str(source)
+            audio_input = ""
+        else:
+            if owned:
+                session = self.memories_store.video_path(owned)
+            else:
+                clip_folder = memories_clips.clip_dir(str(video.get("clipId") or ""), self.user_home)
+                session = memories_clips.session_dir(clip_folder) if clip_folder is not None else None
+            if session is None or not session.is_dir():
+                return {"ok": False, "error": "no_source"}
+            video_input = memories_clips.segment_source(session, 0)
+            audio_input = memories_clips.segment_source(session, 1)
+            if not video_input:
+                return {"ok": False, "error": "no_source"}
+
+        label = str(bookmarks[found].get("name") or "").strip()
+        if not label:
+            offset = int(max(start - in_point, 0.0))
+            label = f"[{offset // 60:02d}-{offset % 60:02d}]"
+        name = memories_export.export_name(
+            memory.get("gameTitle"), memory.get("capturedAt"), ".mp4", label
+        )
+        target = memories_capture.unique_destination(destination_dir, name)
+
+        scratch = self.memories_save_scratch_dir / f"snippet-{memory['id']}"
+        memories_clips.discard_copy(scratch)
+        try:
+            built = memories_clips.trim_clip(
+                video_input, audio_input, scratch / memories_clips.CLIP_NAME, start, span
+            )
+            if not built["ok"]:
+                return {"ok": False, "error": "trim_failed"}
+            placed = memories_export.place(scratch / memories_clips.CLIP_NAME, target)
+        finally:
+            memories_clips.discard_copy(scratch)
+
+        if not placed["ok"]:
+            return {"ok": False, "error": "write_failed"}
+        return {"ok": True, "name": target.name}
 
     def _save_memory_media_sync(self, game_id, memory_id: str, folder: str):
         destination_dir = Path(str(folder or "").strip())

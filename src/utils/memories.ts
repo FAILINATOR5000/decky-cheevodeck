@@ -59,6 +59,8 @@ export function memoryRemovalLanding(list: MemoryRecord[], removedId: string): s
     return list[index + 1]?.id ?? list[index - 1]?.id ?? null;
 }
 
+export const BOOKMARK_FLASH_MS = 3000;
+
 export function formatClipLength(seconds: number): string {
     const whole = Math.max(Math.round(seconds), 0);
     const minutes = Math.floor((whole % 3600) / 60);

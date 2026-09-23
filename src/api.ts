@@ -28,6 +28,7 @@ import type {
     MemoriesTransferMode,
     MemoriesTransferStatus,
     MemoriesVideoMoveStatus,
+    MemoryBookmark,
     MemoryBundleRow,
     MemoryDateOrder,
     MemoryGameRow,
@@ -563,6 +564,22 @@ export const saveMemoryMedia = callable<
     [number, string, string],
     { ok: boolean; error?: string; name?: string }
 >("save_memory_media");
+export const addMemoryBookmark = callable<
+    [number, string, number],
+    { ok: boolean; error?: string; bookmark?: MemoryBookmark }
+>("add_memory_bookmark");
+export const renameMemoryBookmark = callable<
+    [number, string, string, string],
+    { ok: boolean; error?: string; bookmark?: MemoryBookmark }
+>("rename_memory_bookmark");
+export const removeMemoryBookmark = callable<
+    [number, string, string],
+    { ok: boolean; error?: string; deletedId?: string }
+>("remove_memory_bookmark");
+export const saveMemoryBookmarkClip = callable<
+    [number, string, string, string],
+    { ok: boolean; error?: string; name?: string }
+>("save_memory_bookmark_clip");
 export const memoriesExportCounts = callable<
     [],
     MemoriesExportCounts

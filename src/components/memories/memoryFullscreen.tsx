@@ -6,7 +6,8 @@ import { FadeImage } from "../ui/FadeImage";
 import { ButtonPrompt } from "../ui/ButtonPrompt";
 import { playClip, type ClipPlayback, type ClipPlaybackState, type ClipSource } from "./clipPlayer";
 import { useClipMuted } from "./clipMute";
-import { formatClipLength } from "../../utils/memories";
+import { transportMark } from "./transportLabel";
+import { BOOKMARK_FLASH_MS, formatClipLength } from "../../utils/memories";
 import { debugLoggingEnabled, logFocusDebug } from "../../api";
 import { logError } from "../../utils/errors";
 import { modalSize } from "../../utils/scale";
@@ -31,6 +32,7 @@ type FullscreenPicture = {
     thumb: string | null;
     full: string | null;
     clip: ClipSource | null;
+    startAt: number | null;
     language: LanguageCode;
 };
 
@@ -38,7 +40,11 @@ let shown: FullscreenPicture | null = null;
 
 let playback: ClipPlayback | null = null;
 
+let liveMediaTime = 0;
+
 const transportNudges = new Set<() => void>();
+
+const bookmarkFlashes = new Set<(name: string) => void>();
 
 
 function nudgeTransport() {
@@ -65,11 +71,22 @@ function samePicture(a: FullscreenPicture | null, b: FullscreenPicture | null) {
     );
 }
 
-function playKey(state: ClipPlaybackState): string {
+function playKey(state: ClipPlaybackState, hasRun: boolean): string {
     if (state.ended) {
         return "{{button}} Restart";
     }
-    return state.paused ? "{{button}} Play" : "{{button}} Pause";
+    return heldStill(state, hasRun) ? "{{button}} Play" : "{{button}} Pause";
+}
+
+function heldStill(state: ClipPlaybackState, hasRun: boolean): boolean {
+    return state.paused && hasRun;
+}
+
+function playMark(state: ClipPlaybackState, hasRun: boolean): string {
+    if (state.ended) {
+        return "\u21bb";
+    }
+    return heldStill(state, hasRun) ? "\u25b6" : "\u2016";
 }
 
 
@@ -96,20 +113,23 @@ function useShown(): FullscreenPicture | null {
     return picture;
 }
 
-function ClipLayer(props: { clip: ClipSource; language: LanguageCode }) {
-    const { clip, language } = props;
+function ClipLayer(props: { clip: ClipSource; startAt: number | null; language: LanguageCode }) {
+    const { clip, startAt, language } = props;
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const [state, setState] = useState<ClipPlaybackState>({
         position: 0,
+        mediaTime: clip.startMs / 1000,
         duration: clip.durationMs / 1000,
         paused: true,
         ended: false,
         unavailable: false,
-        scanning: false,
-        ready: false
+        scanning: false
     });
     const [visible, setVisible] = useState(true);
     const [reveal, setReveal] = useState(0);
+    const [flash, setFlash] = useState<{ name: string; token: number } | null>(null);
+    const [flashOn, setFlashOn] = useState(false);
+    const hasRunRef = useRef(false);
     const muted = useClipMuted();
 
     // Teardown lives here rather than in the dialog's cleanup. This component is
@@ -123,15 +143,29 @@ function ClipLayer(props: { clip: ClipSource; language: LanguageCode }) {
         }
         const handle = playClip(element, clip);
         playback = handle;
-        const unsubscribe = handle.subscribe(setState);
+        liveMediaTime = clip.startMs / 1000;
+        hasRunRef.current = false;
+        let landed = startAt === null;
+        const unsubscribe = handle.subscribe((next) => {
+            liveMediaTime = next.mediaTime;
+            if (!next.paused) {
+                hasRunRef.current = true;
+            }
+            if (!landed && !next.paused) {
+                landed = true;
+                handle.seekTo(startAt as number);
+            }
+            setState(next);
+        });
         return () => {
             unsubscribe();
             handle.destroy();
             if (playback === handle) {
                 playback = null;
+                liveMediaTime = 0;
             }
         };
-    }, [clip]);
+    }, [clip, startAt]);
 
     useEffect(() => {
         const element = videoRef.current;
@@ -149,6 +183,25 @@ function ClipLayer(props: { clip: ClipSource; language: LanguageCode }) {
     }, []);
 
     useEffect(() => {
+        const announce = (name: string) => {
+            setFlash((current) => ({ name, token: (current?.token ?? 0) + 1 }));
+        };
+        bookmarkFlashes.add(announce);
+        return () => {
+            bookmarkFlashes.delete(announce);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!flash) {
+            return;
+        }
+        setFlashOn(true);
+        const hold = setTimeout(() => setFlashOn(false), BOOKMARK_FLASH_MS);
+        return () => clearTimeout(hold);
+    }, [flash]);
+
+    useEffect(() => {
         setVisible(true);
         const timer = setTimeout(() => setVisible(false), TRANSPORT_VISIBLE_MS);
         return () => clearTimeout(timer);
@@ -160,6 +213,38 @@ function ClipLayer(props: { clip: ClipSource; language: LanguageCode }) {
     return (
         <>
             <video ref={videoRef} playsInline style={LAYER_STYLE} />
+            {flash ? (
+                <div
+                    style={{
+                        position: "absolute",
+                        top: `${modalSize(18)}px`,
+                        left: 0,
+                        right: 0,
+                        textAlign: "center",
+                        opacity: flashOn ? 1 : 0,
+                        transition: "opacity 220ms ease",
+                        pointerEvents: "none"
+                    }}
+                >
+                    <span
+                        style={{
+                            display: "inline-block",
+                            maxWidth: "70%",
+                            padding: `${modalSize(4)}px ${modalSize(12)}px`,
+                            borderRadius: "4px",
+                            background: "rgba(0, 0, 0, 0.55)",
+                            color: "rgba(255, 255, 255, 0.92)",
+                            fontSize: `${modalSize(16)}px`,
+                            fontWeight: 700,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap"
+                        }}
+                    >
+                        {flash.name}
+                    </span>
+                </div>
+            ) : null}
             {state.unavailable ? (
                 <div
                     style={{
@@ -233,17 +318,23 @@ function ClipLayer(props: { clip: ClipSource; language: LanguageCode }) {
                 }}>
                     <ButtonPrompt
                         language={language}
-                        textKey={playKey(state)}
+                        textKey={playKey(state, hasRunRef.current)}
+                        mark={transportMark(language, playMark(state, hasRunRef.current))}
                         button="a"
                         fontSize={modalSize(14)}
                     />
-                    <ButtonPrompt language={language} textKey="{{button}} Rewind" button="l2" fontSize={modalSize(14)} />
-                    <ButtonPrompt language={language} textKey="{{button}} Forward" button="r2" fontSize={modalSize(14)} />
+                    <ButtonPrompt language={language} textKey="{{button}} Rewind" button="l2"
+                        mark={transportMark(language, "\u00ab")} fontSize={modalSize(14)} />
+                    <ButtonPrompt language={language} textKey="{{button}} Forward" button="r2"
+                        mark={transportMark(language, "\u00bb")} fontSize={modalSize(14)} />
                     <ButtonPrompt language={language} textKey="{{button}} Skip" button={["l1", "r1"]}
-                        fontSize={modalSize(14)} />
+                        mark={transportMark(language, "\u2039\u203a")} fontSize={modalSize(14)} />
+                    <ButtonPrompt language={language} textKey="{{button}} Bookmark" button="menu"
+                        mark={transportMark(language, "\u2605")} fontSize={modalSize(14)} />
                     <ButtonPrompt
                         language={language}
                         textKey={muted ? "{{button}} Unmute" : "{{button}} Mute"}
+                        mark={transportMark(language, muted ? "\u266a" : "\u2298")}
                         button="view"
                         fontSize={modalSize(14)}
                     />
@@ -343,7 +434,13 @@ function MemoryFullscreen() {
                         />
                     </div>
                 ) : null}
-                {clip ? <ClipLayer clip={clip} language={picture!.language} /> : null}
+                {clip ? (
+                    <ClipLayer
+                        clip={clip}
+                        startAt={picture!.startAt}
+                        language={picture!.language}
+                    />
+                ) : null}
             </div>
         </>
     );
@@ -363,11 +460,12 @@ export function showMemoryFullscreen(
     thumb: string | null,
     full: string | null,
     language: LanguageCode,
-    clip: ClipSource | null = null
+    clip: ClipSource | null = null,
+    startAt: number | null = null
 ): () => void {
     shownToken += 1;
     const token = shownToken;
-    setShown({ thumb, full, clip, language });
+    setShown({ thumb, full, clip, startAt, language });
     return () => {
         if (shownToken === token) {
             setShown(null);
@@ -405,6 +503,10 @@ export function endMemorySeek(): void {
     nudgeTransport();
 }
 
+export function announceMemoryBookmark(name: string): void {
+    bookmarkFlashes.forEach((listener) => listener(name));
+}
+
 export function skipMemoryPlayback(direction: 1 | -1): void {
     if (!playback) {
         return;
@@ -412,3 +514,16 @@ export function skipMemoryPlayback(direction: 1 | -1): void {
     playback.skip(direction);
     nudgeTransport();
 }
+
+export function seekMemoryPlayback(mediaTime: number): void {
+    if (!playback) {
+        return;
+    }
+    playback.seekTo(mediaTime);
+    nudgeTransport();
+}
+
+export function memoryPlaybackMediaTime(): number | null {
+    return playback ? liveMediaTime : null;
+}
+

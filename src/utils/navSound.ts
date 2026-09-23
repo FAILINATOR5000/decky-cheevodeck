@@ -4,6 +4,8 @@ const SOUND_TOGGLE_ON = 16;
 const SOUND_TOGGLE_OFF = 17;
 const SOUND_DEFAULT_OK = 21;
 
+const SOUND_SCREENSHOT = 28;
+
 type NavSoundPlayer = { PlayNavSound: (sound: number) => void };
 
 let cached: NavSoundPlayer | null | undefined;
@@ -24,6 +26,14 @@ function player(): NavSoundPlayer | null {
 export function playOkSound(): void {
     try {
         player()?.PlayNavSound(SOUND_DEFAULT_OK);
+    }
+    catch {
+    }
+}
+
+export function playCaptureSound(): void {
+    try {
+        player()?.PlayNavSound(SOUND_SCREENSHOT);
     }
     catch {
     }
