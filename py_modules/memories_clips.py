@@ -566,6 +566,7 @@ def trim_clip(video: str, audio: str, target: Path, start_seconds: float, span_s
     command += [
         "-t", f"{span_seconds:.3f}",
         "-c", "copy",
+        "-avoid_negative_ts", "make_zero",
         "-movflags", "+faststart",
         str(target),
     ]
