@@ -412,12 +412,7 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
             return;
         }
         const frame = win.requestAnimationFrame(() => {
-            const top = box.getBoundingClientRect().top;
-            const moved = Math.abs(top - pictureTopRef.current) > 0.5;
-            pictureTopRef.current = top;
-            if (moved) {
-                pictureNavRef.current?.TakeFocus(true);
-            }
+            pictureNavRef.current?.Node?.()?.ForceMeasureFocusRing?.();
         });
         return () => {
             win.cancelAnimationFrame(frame);
@@ -1039,6 +1034,10 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                                 pictureFocusedRef.current = false;
                             }}
                             onActivate={pressPicture}
+                            fnScrollIntoViewHandler={() => {
+                                imageBoxRef.current?.scrollIntoView({ block: "start" });
+                                return true;
+                            }}
                             onOKActionDescription={pictureAction}
                             onSecondaryButton={pressDelete}
                             onSecondaryActionDescription={t(language, "Delete")}
