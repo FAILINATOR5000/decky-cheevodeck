@@ -1367,6 +1367,7 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                                         >
                                             <ActionLink
                                                 block
+                                                fontSize={modalSize(14)}
                                                 onActivate={() => selectBookmark(row)}
                                                 onOKActionDescription={t(language, "Play")}
                                                 onOptionsButton={() => renameBookmarkRow(row)}

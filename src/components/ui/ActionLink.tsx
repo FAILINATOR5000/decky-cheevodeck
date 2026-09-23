@@ -13,6 +13,7 @@ type ActionLinkProps = {
     onGamepadFocus?: () => void;
     onGamepadBlur?: () => void;
     block?: boolean;
+    fontSize?: number;
     children: ReactNode;
 };
 
@@ -29,6 +30,7 @@ export function ActionLink(props: ActionLinkProps) {
         onGamepadFocus,
         onGamepadBlur,
         block,
+        fontSize,
         children
     } = props;
 
@@ -68,6 +70,7 @@ export function ActionLink(props: ActionLinkProps) {
                     boxSizing: block ? "border-box" : undefined,
                     padding: block ? "4px 6px" : undefined,
                     borderRadius: "3px",
+                    fontSize: fontSize === undefined ? undefined : `${fontSize}px`,
                     color: focused ? "#8fc4ff" : "#4ea1ff",
                     textDecoration: "underline",
                     cursor: "pointer",
