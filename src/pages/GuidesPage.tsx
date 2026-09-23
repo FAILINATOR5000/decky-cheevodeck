@@ -282,7 +282,11 @@ export function GuidesPage(props: GuidesPageProps) {
     }
 
     return (
-        <Focusable key={scopeKey} onCancelButton={pressBack}>
+        <Focusable
+            key={scopeKey}
+            flow-children="column"
+            onCancelButton={pressBack}
+        >
             <PanelSection>
                 <PageNavStrip
                     title={t(lang, "Guides")}

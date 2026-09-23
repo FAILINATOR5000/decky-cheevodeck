@@ -636,6 +636,7 @@ function GameOverviewPage(props: GameOverviewPageProps) {
 
     const page = (
         <Focusable
+            flow-children="column"
             onButtonDown={headerStripPageable ? handleHeaderButtonDown : undefined}
         >
             <PanelSection>

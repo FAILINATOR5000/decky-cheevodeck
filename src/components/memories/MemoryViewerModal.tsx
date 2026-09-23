@@ -951,6 +951,7 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
             className="cheevo-memory-dialog"
         >
             <Focusable
+                flow-children="column"
                 onButtonDown={clipSource
                     ? (event: { detail?: { button?: number; is_repeat?: boolean } }) => {
                         const button = event?.detail?.button;

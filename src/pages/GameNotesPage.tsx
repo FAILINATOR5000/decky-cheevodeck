@@ -650,7 +650,10 @@ export function GameNotesPage(props: GameNotesPageProps) {
     const restoreSettled = restoreAbandoned
         || ((restoreClaim.claim?.token ?? 0) > 0 && !restoreClaim.claim?.armed);
     const page = (
-        <Focusable onButtonDown={handlePageButtonDown}>
+        <Focusable
+            flow-children="column"
+            onButtonDown={handlePageButtonDown}
+        >
             <PanelSection
                 key={`game-notes:view:${focusScopeResetToken}`}
             >

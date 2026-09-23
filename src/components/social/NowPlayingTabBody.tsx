@@ -941,6 +941,7 @@ export function NowPlayingTabBody(props: NowPlayingTabBodyProps) {
                 <PanelSection title={t(language, "Compare Stats")}>
                     <Focusable
                         key={`compare-picker:${comparePickerEntryToken}`}
+                        flow-children="column"
                         autoFocus={comparePickerEntryToken > 0 || undefined}
                     >
                         <PanelSectionRow>

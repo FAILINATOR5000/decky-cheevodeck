@@ -392,7 +392,10 @@ function FileWatcherPage(props: FileWatcherPageProps) {
     const restoreSettled = restoreAbandoned || restoreSettledRef.current;
 
     const page = (
-        <Focusable key={scopeKey}>
+        <Focusable
+            key={scopeKey}
+            flow-children="column"
+        >
             <PanelSection>
                 <PageNavStrip
                     title={t(language, "File Watcher")}

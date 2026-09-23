@@ -455,6 +455,7 @@ export function CommentViewModal(props: CommentViewModalProps) {
                 ) : (
                     <Focusable
                         key="links"
+                        flow-children="column"
                         style={{ width: "100%" }}
                         onButtonDown={handleModalButtons}
                         actionDescriptionMap={modalLegend}
