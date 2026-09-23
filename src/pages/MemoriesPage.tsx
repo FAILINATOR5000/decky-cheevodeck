@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
+// Font Awesome Free icon, CC BY 4.0. See ATTRIBUTIONS.md.
+import { FaRegQuestionCircle } from "react-icons/fa";
 import { PanelSection } from "../components/ui/PanelSection";
 import { BackButton } from "../components/ui/BackButton";
 import { PageNavStrip } from "../components/ui/PageNavStrip";
@@ -11,6 +13,7 @@ import { ButtonHints } from "../components/ui/ButtonHints";
 import { ToggleRow } from "../components/ui/ToggleRow";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
 import { RestoreCurtain } from "../components/ui/RestoreCurtain";
+import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
 import { FocusClaim } from "../components/ui/FocusClaim";
 import type { FocusClaimController } from "../hooks/useFocusClaim";
 import { GridIcon } from "../components/ui/GridIcon";
@@ -28,6 +31,7 @@ import { requestJumpToTop } from "../utils/jumpToTop";
 import { saveMemoryToFolder } from "../utils/saveMemoryMedia";
 import { forgetNavAxisMemory, type NavAxisRef } from "../utils/navAxisMemory";
 import { playOkSound } from "../utils/navSound";
+import { openExternalUrl } from "../utils/navigation";
 import { logFocusDebug } from "../api";
 import { ALL_GAMES_ID, MISC_GAME_ID, mediaFilterKey, memoryRemovalLanding } from "../utils/memories";
 import { noteBodyColor } from "../utils/achievements";
@@ -83,7 +87,12 @@ function MemoryGameValue(props: { gameId: number | null; label: string; imageIco
     );
 }
 
-function ClaimedRow(props: { claim: FocusClaimController; slotIndex: number; children: ReactNode }) {
+function ClaimedRow(props: {
+    claim: FocusClaimController;
+    slotIndex: number;
+    style?: CSSProperties;
+    children: ReactNode;
+}) {
     const { claim, spend } = props.claim;
     const mine = claim && claim.slotIndex === props.slotIndex ? claim : null;
 
@@ -92,6 +101,7 @@ function ClaimedRow(props: { claim: FocusClaimController; slotIndex: number; chi
             token={mine ? mine.token : 0}
             armed={mine !== null && mine.armed}
             onSpent={spend}
+            style={props.style}
         >
             {props.children}
         </FocusClaim>
@@ -125,16 +135,20 @@ const BOTTOM_HEADROOM_PX = 80;
 
 const GRID_COLUMN_CHOICES = [1, 2, 3];
 
+const MEMORIES_GUIDE_URL = "https://github.com/FAILINATOR5000/decky-cheevodeck/blob/main/docs/memories.md";
+
 type PageStripPlace = "top" | "bottom";
 
 const NAV_ENTER_FIRST = 0;
 
 const GAME_CLAIM_SLOT = -2;
 const FILTER_CLAIM_SLOT = -3;
+const GUIDE_CLAIM_SLOT = -4;
 
 const CONTROL_CLAIM_SLOTS: Record<string, number> = {
     "memories:game": GAME_CLAIM_SLOT,
-    "memories:filter": FILTER_CLAIM_SLOT
+    "memories:filter": FILTER_CLAIM_SLOT,
+    "memories:guide": GUIDE_CLAIM_SLOT
 };
 
 type MemoriesPageState = {
@@ -651,7 +665,7 @@ function MemoriesPage(props: MemoriesPageProps) {
                     <div style={bodyTextStyle()}>
                         {memories.tagFilter
                             ? t(language, "No memories with that tag.")
-                            : t(language, "No memories yet. Press the default Steam screenshot or record button combo to either take pictures or record a clip. When recording be sure to press it again when done.")}
+                            : t(language, "No memories yet. With this game loaded in CheevoDeck, simply press Steam's currently configured screenshot or record/stop buttons to begin saving memories. See the help button (?) above for a complete guide on how this feature works.")}
                     </div>
                 </PanelSectionRow>
             );
@@ -794,7 +808,10 @@ function MemoriesPage(props: MemoriesPageProps) {
                             scaled={false}
                             label={t(language, "Memories ({{count}})", { count: memories.visibleCount })}
                             action={(
-                                <Focusable flow-children="row" style={{ display: "flex", gap: "6px" }}>
+                                <Focusable
+                                    flow-children="row"
+                                    style={{ display: "flex", gap: "6px", flexShrink: 0 }}
+                                >
                                     {renderToggleButton(
                                         "memories:order",
                                         memories.dateOrder === "desc"
@@ -813,13 +830,34 @@ function MemoriesPage(props: MemoriesPageProps) {
                                             actions.memories.selectColumns(next);
                                         }
                                     )}
+                                    <ClaimedRow
+                                        claim={restoreClaim}
+                                        slotIndex={GUIDE_CLAIM_SLOT}
+                                        style={{ display: "flex" }}
+                                    >
+                                    {renderToggleButton(
+                                        "memories:guide",
+                                        <FaRegQuestionCircle size={16} />,
+                                        () => {
+                                            armFocusKey("memories:guide");
+                                            void openExternalUrl(MEMORIES_GUIDE_URL);
+                                        }
+                                    )}
+                                    </ClaimedRow>
                                 </Focusable>
                             )}
                         />
 
                         {renderGrid()}
 
-                        <div style={{ height: `${BOTTOM_HEADROOM_PX}px` }} />
+                        {memories.pageMemories.length === 0 ? (
+                            <BottomFocusAnchor
+                                focusKey="memories:bottom:anchor"
+                                headroomPx={BOTTOM_HEADROOM_PX}
+                            />
+                        ) : (
+                            <div style={{ height: `${BOTTOM_HEADROOM_PX}px` }} />
+                        )}
                     </>
                 )}
             </PanelSection>

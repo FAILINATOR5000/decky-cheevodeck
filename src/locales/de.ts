@@ -1884,7 +1884,7 @@ const DE: LocaleTable = {
     "Delete Again to Confirm": "Zum Bestätigen erneut löschen",
     "Memories ({{count}})": "Erinnerungen ({{count}})",
     "No memories with that tag.": "Keine Erinnerungen mit diesem Tag.",
-    "No memories yet. Press the default Steam screenshot or record button combo to either take pictures or record a clip. When recording be sure to press it again when done.": "Noch keine Erinnerungen. Drücke die Standard-Tastenkombination von Steam für Screenshot oder Aufnahme, um Bilder zu machen oder einen Clip aufzunehmen. Drücke sie bei einer Aufnahme am Ende noch einmal.",
+    "No memories yet. With this game loaded in CheevoDeck, simply press Steam's currently configured screenshot or record/stop buttons to begin saving memories. See the help button (?) above for a complete guide on how this feature works.": "Noch keine Erinnerungen. Wenn dieses Spiel in CheevoDeck geladen ist, drücke einfach die in Steam eingestellten Tasten für Screenshot oder Aufnahme starten/stoppen, um Erinnerungen zu speichern. Über die Hilfe-Schaltfläche (?) oben findest du eine vollständige Anleitung zu dieser Funktion.",
     "Enable Memories": "Erinnerungen aktivieren",
     "help_memories_first_run": "Sobald du die Erinnerungen-Funktion einschaltest, wird jeder Steam-Screenshot hier als Erinnerung festgehalten. Machst du ihn innerhalb von 60 Sekunden nach einer Errungenschaft, werden die Angaben dazu der Erinnerung hinzugefügt. Standardmäßig wird der Steam-Screenshot kopiert und das Original bleibt unangetastet, du kannst es also löschen, ohne dass sich hier etwas ändert. In den Optionen lässt sich einstellen, dass das Original nach dem Kopieren automatisch gelöscht wird.",
     "Recently Used": "Zuletzt verwendet",

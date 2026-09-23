@@ -1939,7 +1939,7 @@ const PL: LocaleTable = {
     "Delete Again to Confirm": "Naciśnij ponownie, aby usunąć",
     "Memories ({{count}})": "Wspomnienia ({{count}})",
     "No memories with that tag.": "Brak wspomnień z tym tagiem.",
-    "No memories yet. Press the default Steam screenshot or record button combo to either take pictures or record a clip. When recording be sure to press it again when done.": "Brak wspomnień. Użyj domyślnej kombinacji przycisków Steam do zrzutu ekranu lub nagrywania, aby zrobić zdjęcia albo nagrać klip. Przy nagrywaniu pamiętaj, aby nacisnąć ją ponownie po zakończeniu.",
+    "No memories yet. With this game loaded in CheevoDeck, simply press Steam's currently configured screenshot or record/stop buttons to begin saving memories. See the help button (?) above for a complete guide on how this feature works.": "Brak wspomnień. Gdy ta gra jest wczytana w CheevoDeck, wystarczy nacisnąć ustawione w Steam przyciski zrzutu ekranu albo rozpoczęcia/zakończenia nagrywania, aby zacząć zapisywać wspomnienia. Pełny przewodnik po tej funkcji znajdziesz pod przyciskiem pomocy (?) powyżej.",
     "Enable Memories": "Włącz wspomnienia",
     "help_memories_first_run": "Po włączeniu funkcji wspomnień każdy zrzut ekranu Steam trafi tutaj. Jeśli zrobisz go w ciągu 60 sekund od zdobycia osiągnięcia, informacje o osiągnięciu zostaną dodane do wspomnienia. Domyślnie zrzut ze Steam jest kopiowany, a oryginał pozostaje nietknięty, więc możesz go usunąć bez wpływu na to miejsce. W Opcjach możesz ustawić automatyczne usuwanie oryginału po skopiowaniu.",
     "Recently Used": "Ostatnio używane",

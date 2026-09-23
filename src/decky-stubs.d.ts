@@ -171,4 +171,5 @@ declare module "react-icons/fa" {
     export const FaMusic: any;
     export const FaVideo: any;
     export const FaArrowUp: any;
+    export const FaRegQuestionCircle: any;
 }

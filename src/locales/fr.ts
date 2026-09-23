@@ -1881,7 +1881,7 @@ const FR: LocaleTable = {
     "Delete Again to Confirm": "Appuyez encore pour supprimer",
     "Memories ({{count}})": "Souvenirs ({{count}})",
     "No memories with that tag.": "Aucun souvenir avec cette étiquette.",
-    "No memories yet. Press the default Steam screenshot or record button combo to either take pictures or record a clip. When recording be sure to press it again when done.": "Pas encore de souvenirs. Utilisez la combinaison de touches Steam par défaut pour la capture ou l'enregistrement afin de prendre des images ou d'enregistrer un clip. Pour un enregistrement, pensez à appuyer de nouveau une fois terminé.",
+    "No memories yet. With this game loaded in CheevoDeck, simply press Steam's currently configured screenshot or record/stop buttons to begin saving memories. See the help button (?) above for a complete guide on how this feature works.": "Pas encore de souvenirs. Lorsque ce jeu est chargé dans CheevoDeck, appuyez simplement sur les boutons de capture d'écran ou de démarrage/arrêt d'enregistrement configurés dans Steam pour commencer à enregistrer des souvenirs. Consultez le bouton d'aide (?) ci-dessus pour un guide complet du fonctionnement de cette fonctionnalité.",
     "Enable Memories": "Activer les souvenirs",
     "help_memories_first_run": "Une fois la fonction Souvenirs activée, chaque capture d'écran Steam est conservée ici. Si vous la prenez dans les 60 secondes suivant l'obtention d'un succès, les informations du succès sont ajoutées à votre souvenir. Par défaut, la capture Steam est copiée et l'original reste intact : vous pouvez donc le supprimer sans rien changer ici. Dans les Options, vous pouvez choisir de supprimer automatiquement l'original après la copie.",
     "Recently Used": "Utilisées récemment",

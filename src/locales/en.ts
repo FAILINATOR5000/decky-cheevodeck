@@ -1875,7 +1875,7 @@ export const EN: LocaleTable = {
     "Delete Again to Confirm": "Delete Again to Confirm",
     "Memories ({{count}})": "Memories ({{count}})",
     "No memories with that tag.": "No memories with that tag.",
-    "No memories yet. Press the default Steam screenshot or record button combo to either take pictures or record a clip. When recording be sure to press it again when done.": "No memories yet. Press the default Steam screenshot or record button combo to either take pictures or record a clip. When recording be sure to press it again when done.",
+    "No memories yet. With this game loaded in CheevoDeck, simply press Steam's currently configured screenshot or record/stop buttons to begin saving memories. See the help button (?) above for a complete guide on how this feature works.": "No memories yet. With this game loaded in CheevoDeck, simply press Steam's currently configured screenshot or record/stop buttons to begin saving memories. See the help button (?) above for a complete guide on how this feature works.",
     "Enable Memories": "Enable Memories",
     "help_memories_first_run": "Once you turn the Memories feature on, whenever you take a Steam screenshot, your memories will be captured here. If you take it within 60 seconds of obtaining an achievement, your achievement info will be added to your memory. By default, this feature copies your Steam screenshot over, leaving the source untouched, so you are able to delete the source if you like without affecting things here. In Options you can configure it to automatically delete the Steam screenshot source after copying it here.",
     "Recently Used": "Recently Used",

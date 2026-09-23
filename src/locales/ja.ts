@@ -1819,7 +1819,7 @@ const JA: LocaleTable = {
     "Delete Again to Confirm": "もう一度押して削除",
     "Memories ({{count}})": "思い出 ({{count}})",
     "No memories with that tag.": "そのタグの思い出はありません。",
-    "No memories yet. Press the default Steam screenshot or record button combo to either take pictures or record a clip. When recording be sure to press it again when done.": "まだ思い出がありません。Steam の既定のスクリーンショットまたは録画のボタン操作で、画像を撮るかクリップを録画できます。録画のときは終わったらもう一度押してください。",
+    "No memories yet. With this game loaded in CheevoDeck, simply press Steam's currently configured screenshot or record/stop buttons to begin saving memories. See the help button (?) above for a complete guide on how this feature works.": "まだ思い出がありません。このゲームを CheevoDeck で読み込んだ状態で、Steam で設定しているスクリーンショットまたは録画の開始／停止のボタンを押すと、思い出の保存が始まります。この機能の詳しい説明は、上のヘルプボタン（?）から確認できます。",
     "Enable Memories": "思い出を有効にする",
     "help_memories_first_run": "思い出の機能を有効にすると、Steam のスクリーンショットを撮るたびにここへ記録されます。実績を獲得してから 60 秒以内に撮った場合は、その実績の情報も思い出に追加されます。既定では Steam のスクリーンショットをコピーし、元のファイルはそのまま残るため、ここに影響を与えずに削除できます。オプションでは、コピー後に元のファイルを自動的に削除する設定にもできます。",
     "Recently Used": "最近使ったもの",

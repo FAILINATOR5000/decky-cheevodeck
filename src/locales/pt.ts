@@ -1881,7 +1881,7 @@ const PT: LocaleTable = {
     "Delete Again to Confirm": "Pressione de novo para excluir",
     "Memories ({{count}})": "Memórias ({{count}})",
     "No memories with that tag.": "Nenhuma memória com essa tag.",
-    "No memories yet. Press the default Steam screenshot or record button combo to either take pictures or record a clip. When recording be sure to press it again when done.": "Ainda não há memórias. Use a combinação de botões padrão do Steam para captura ou gravação e tire fotos ou grave um clipe. Ao gravar, lembre-se de pressioná-la de novo ao terminar.",
+    "No memories yet. With this game loaded in CheevoDeck, simply press Steam's currently configured screenshot or record/stop buttons to begin saving memories. See the help button (?) above for a complete guide on how this feature works.": "Ainda não há memórias. Com este jogo carregado no CheevoDeck, basta pressionar os botões de captura ou de iniciar/parar gravação configurados no Steam para começar a salvar memórias. Consulte o botão de ajuda (?) acima para ver um guia completo de como este recurso funciona.",
     "Enable Memories": "Ativar memórias",
     "help_memories_first_run": "Depois de ativar o recurso de memórias, cada captura de tela do Steam será guardada aqui. Se você a fizer até 60 segundos após obter uma conquista, as informações da conquista serão adicionadas à sua memória. Por padrão, a captura do Steam é copiada e o original fica intacto, então você pode excluí-lo sem afetar nada aqui. Nas Opções, é possível configurar a exclusão automática do original após a cópia.",
     "Recently Used": "Usadas recentemente",
