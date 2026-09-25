@@ -1,4 +1,5 @@
 import { DEFAULT_LANGUAGE, type LanguageCode, t } from "../locales";
+import { getDeviceIsSteamMachine } from "./scale";
 import type { AchievementStyle, ActivityCardAction, BrowserHistoryRetention, BrowserNewTabPage, BrowserSearchEngine, ButtonSpacing, ControllerGlyphStyle, HeaderStyle, PlayersNearYouMode, PlayersNearYouTapMode, QuickMenuShortcut, ScalePreset, ScaleStep, ShortcutAction, ShortcutButton, SocialEntryDefault } from "../types";
 
 
@@ -626,8 +627,12 @@ export function memoriesPerPageLabel(value: number) {
 
 const BROWSER_PAGE_ZOOM_OPTIONS = [50, 60, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200] as const;
 
+export function defaultBrowserPageZoom(): number {
+    return getDeviceIsSteamMachine() ? 100 : 80;
+}
+
 export function stepBrowserPageZoom(current: number, direction: number) {
-    const normalized = BROWSER_PAGE_ZOOM_OPTIONS.includes(current as any) ? current : 80;
+    const normalized = BROWSER_PAGE_ZOOM_OPTIONS.includes(current as any) ? current : defaultBrowserPageZoom();
     const currentIndex = BROWSER_PAGE_ZOOM_OPTIONS.indexOf(normalized as any);
     const nextIndex = Math.min(Math.max(currentIndex + direction, 0), BROWSER_PAGE_ZOOM_OPTIONS.length - 1);
 

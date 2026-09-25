@@ -54,7 +54,7 @@ from resolved_avatar_store import ResolvedAvatarStore
 from developer_message_store import DeveloperMessageStore
 from cheevo_check_store import CheevoCheckStore
 from calculator_store import CalculatorStore
-from browser_store import BrowserStore
+from browser_store import DEFAULT_PAGE_ZOOM, STEAM_MACHINE_PAGE_ZOOM, BrowserStore
 from file_watcher_store import FileWatcherStore
 from dolphin_mappings_store import DolphinMappingsStore
 from smb_shares_store import SmbSharesStore
@@ -337,6 +337,7 @@ class Plugin(
         )
         self.browser_store = BrowserStore(
             base_dir=self.browser_dir,
+            default_page_zoom=STEAM_MACHINE_PAGE_ZOOM if self._is_steam_machine() else DEFAULT_PAGE_ZOOM,
         )
         self.saved_comments_store = SavedCommentsStore(
             base_dir=self.runtime_dir,

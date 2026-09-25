@@ -45,7 +45,7 @@ import {
 } from "../api";
 import { requestHeadersFor, setAdBlock, setZoomPercent, type DownloadRequest } from "../components/browser/browserSession";
 import { toastDownload } from "../components/browser/browserDownloads";
-import { nextBrowserHistoryRetention, nextBrowserNewTabPage, nextBrowserSearchEngine, stepBrowserPageZoom } from "../utils/options";
+import { defaultBrowserPageZoom, nextBrowserHistoryRetention, nextBrowserNewTabPage, nextBrowserSearchEngine, stepBrowserPageZoom } from "../utils/options";
 import { logError } from "../utils/errors";
 import type {
     BrowserBookmark,
@@ -88,8 +88,6 @@ const SCHEME = /^[a-z][a-z0-9+.-]*:\/\//i;
 const CHALLENGE_PARAM = /[?&]__cf_chl/i;
 
 const RESTORE_DEADLINE_MS = 6000;
-
-const DEFAULT_PAGE_ZOOM = 80;
 
 const EARLY_RESTORE_STEP_MS = 120;
 
@@ -256,7 +254,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
     const [bookmarkLimit, setBookmarkLimit] = useState(0);
     const [history, setHistory] = useState<BrowserHistoryEntry[]>([]);
     const [blockedUrl, setBlockedUrl] = useState("");
-    const [pageZoom, setPageZoom] = useState(DEFAULT_PAGE_ZOOM);
+    const [pageZoom, setPageZoom] = useState(defaultBrowserPageZoom);
     const [historyRetention, setHistoryRetention] = useState<BrowserHistoryRetention>("forever");
     const [searchEngine, setSearchEngine] = useState<BrowserSearchEngine>("google");
     const [newTabPage, setNewTabPage] = useState<BrowserNewTabPage>("google");
@@ -297,7 +295,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         return state;
     }, []);
 
-    const zoomRef = useRef(DEFAULT_PAGE_ZOOM);
+    const zoomRef = useRef(pageZoom);
     zoomRef.current = pageZoom;
     const blockAdsRef = useRef(blockAds);
     blockAdsRef.current = blockAds;

@@ -52,6 +52,8 @@ ALLOWED_PANEL_TABS = ("bookmarks", "history", "options")
 
 DEFAULT_PAGE_ZOOM = 80
 
+STEAM_MACHINE_PAGE_ZOOM = 100
+
 DEFAULT_HISTORY_RETENTION = "forever"
 
 DEFAULT_PANEL_TAB = "bookmarks"
@@ -105,8 +107,9 @@ def _new_id(prefix: str) -> str:
 
 
 class BrowserStore:
-    def __init__(self, *, base_dir: Path):
+    def __init__(self, *, base_dir: Path, default_page_zoom: int = DEFAULT_PAGE_ZOOM):
         self._base_dir = base_dir
+        self._default_page_zoom = default_page_zoom
         self._lock = threading.Lock()
         ensure_dir(self._base_dir)
 
@@ -776,7 +779,7 @@ class BrowserStore:
     def _empty_settings(self) -> dict:
         return {
             "schemaVersion": CURRENT_SCHEMA_VERSION,
-            "pageZoom": DEFAULT_PAGE_ZOOM,
+            "pageZoom": self._default_page_zoom,
             "historyRetention": DEFAULT_HISTORY_RETENTION,
             "searchEngine": DEFAULT_SEARCH_ENGINE,
             "newTabPage": DEFAULT_NEW_TAB_PAGE,
@@ -796,7 +799,7 @@ class BrowserStore:
         if not isinstance(raw, dict):
             return self._empty_settings()
 
-        zoom = to_int(raw.get("pageZoom", DEFAULT_PAGE_ZOOM), DEFAULT_PAGE_ZOOM)
+        zoom = to_int(raw.get("pageZoom", self._default_page_zoom), self._default_page_zoom)
         retention = _clean_text(raw.get("historyRetention"), MAX_ID_LENGTH)
         engine = _clean_text(raw.get("searchEngine"), MAX_ID_LENGTH)
         new_tab = _clean_text(raw.get("newTabPage"), MAX_ID_LENGTH)
@@ -808,7 +811,7 @@ class BrowserStore:
 
         return {
             "schemaVersion": CURRENT_SCHEMA_VERSION,
-            "pageZoom": zoom if zoom in ALLOWED_PAGE_ZOOM else DEFAULT_PAGE_ZOOM,
+            "pageZoom": zoom if zoom in ALLOWED_PAGE_ZOOM else self._default_page_zoom,
             "historyRetention": retention if retention in ALLOWED_HISTORY_RETENTION else DEFAULT_HISTORY_RETENTION,
             "searchEngine": engine if engine in ALLOWED_SEARCH_ENGINES else DEFAULT_SEARCH_ENGINE,
             "newTabPage": new_tab if new_tab in ALLOWED_NEW_TAB_PAGES else DEFAULT_NEW_TAB_PAGE,
@@ -834,7 +837,7 @@ class BrowserStore:
     def set_page_zoom(self, value: Any) -> dict:
         with self._lock:
             data = self._load_settings()
-            zoom = to_int(value, DEFAULT_PAGE_ZOOM)
+            zoom = to_int(value, self._default_page_zoom)
             if zoom not in ALLOWED_PAGE_ZOOM:
                 return data
             data["pageZoom"] = zoom
