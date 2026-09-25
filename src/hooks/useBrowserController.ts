@@ -268,7 +268,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
     const [pendingDownload, setPendingDownload] = useState<PendingDownload | null>(null);
     const [downloadFolder, setDownloadFolderState] = useState("");
     const [rememberDownloadFolder, setRememberDownloadFolder] = useState(false);
-    const [expanded, setExpanded] = useState(false);
+    const [expanded, setExpanded] = useState(true);
     const [panelTab, setPanelTabState] = useState<BrowserPanelTab>("bookmarks");
     const [maxTabs, setMaxTabs] = useState(DEFAULT_MAX_TABS);
 
@@ -407,7 +407,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         fastForwardRef.current = saved.fastForwardYouTubeAds !== false;
         setDownloadFolderState(saved.downloadFolder ?? "");
         setRememberDownloadFolder(saved.rememberDownloadFolder === true);
-        setExpanded(saved.expanded === true);
+        setExpanded(saved.expanded !== false);
     }, []);
 
     const saveSetting = useCallback((label: string, save: () => Promise<BrowserSettingsResponse>) => {

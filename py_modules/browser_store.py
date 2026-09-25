@@ -788,7 +788,7 @@ class BrowserStore:
             "downloadFolder": "",
             "rememberDownloadFolder": False,
             "lastDownloadFolder": "",
-            "expanded": False,
+            "expanded": True,
         }
 
     def _load_settings(self) -> dict:
@@ -804,7 +804,7 @@ class BrowserStore:
         block_ads = raw.get("blockAds", True)
         fast_forward = raw.get("fastForwardYouTubeAds", True)
         remember_folder = raw.get("rememberDownloadFolder", False)
-        expanded = raw.get("expanded", False)
+        expanded = raw.get("expanded", True)
 
         return {
             "schemaVersion": CURRENT_SCHEMA_VERSION,
@@ -820,7 +820,7 @@ class BrowserStore:
             "downloadFolder": _clean_folder(raw.get("downloadFolder")),
             "rememberDownloadFolder": remember_folder if isinstance(remember_folder, bool) else False,
             "lastDownloadFolder": _clean_folder(raw.get("lastDownloadFolder")),
-            "expanded": expanded if isinstance(expanded, bool) else False,
+            "expanded": expanded if isinstance(expanded, bool) else True,
         }
 
     def _save_settings(self, data: dict) -> dict:

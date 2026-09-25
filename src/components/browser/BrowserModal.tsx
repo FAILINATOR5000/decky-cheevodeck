@@ -56,6 +56,24 @@ const BROWSER_MODAL_CSS = `
 *:has(> .cd-browser-dialog.cd-browser-expanded) {
     padding: 0 !important;
 }
+.cd-browser-dialog.cd-browser-fullscreen, *:has(> .cd-browser-dialog.cd-browser-fullscreen) {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    max-height: none !important;
+}
+.cd-browser-dialog.cd-browser-fullscreen {
+    border: none !important;
+}
+.cd-browser-dialog.cd-browser-fullscreen .cd-browser-outer {
+    height: 100vh;
+}
+.FullModalOverlay:has(.cd-browser-fullscreen) ~ .GamepadMode,
+*:has(> .FullModalOverlay .cd-browser-fullscreen) + *:not(:has([class*="Layout_"])) {
+    visibility: hidden !important;
+}
 .cd-browser-expanded .cd-browser-outer {
     height: calc(100vh - var(--basicui-header-height, 0px) - var(--gamepadui-current-footer-height, 0px) - 4px);
 }
@@ -379,9 +397,12 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
     const components = resolveBrowserComponents();
     const wrapper = host.browser;
     const raw = host.view;
+    const dialogClass = browser.expanded
+        ? "cd-browser-dialog cd-browser-expanded cd-browser-fullscreen"
+        : "cd-browser-dialog cd-browser-expanded";
 
     return (
-        <ModalRoot closeModal={close} className={browser.expanded ? "cd-browser-dialog cd-browser-expanded" : "cd-browser-dialog"}>
+        <ModalRoot closeModal={close} className={dialogClass}>
             <style>{BROWSER_MODAL_CSS}</style>
 
             <SnapshotHotkey language={language} />
