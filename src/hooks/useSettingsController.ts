@@ -41,6 +41,7 @@ import type {
 import { logError } from "../utils/errors";
 import { DEFAULT_SHORTCUT_BINDINGS } from "../utils/options";
 import { setSnapshotHotkey } from "../utils/snapshotHotkey";
+import { setWebBrowserForLinks } from "../utils/navigation";
 import {
     setCurrentTextScale,
     setCurrentTitleScale,
@@ -162,6 +163,7 @@ export function useSettingsController({
     const [memoriesVideoPath, setMemoriesVideoPath] = useState("");
     const [memoriesRemux, setMemoriesRemux] = useState(true);
     const [memoriesDeleteSteamClip, setMemoriesDeleteSteamClip] = useState(false);
+    const [linksOpenInWebBrowser, setLinksOpenInWebBrowser] = useState(true);
     const [fileWatcherSpeed, setFileWatcherSpeed] = useState<FileWatcherSpeed>("gentle");
     const [fileWatcherRunDuringGames, setFileWatcherRunDuringGames] = useState(true);
     const [trackedSetAButtonMode, setTrackedSetAButtonMode] = useState<TrackedSetAButtonMode>("editNote");
@@ -445,6 +447,8 @@ export function useSettingsController({
         setMemoriesVideoPath(source.memoriesVideoPath);
         setMemoriesRemux(source.memoriesRemux);
         setMemoriesDeleteSteamClip(source.memoriesDeleteSteamClip);
+        setLinksOpenInWebBrowser(source.linksOpenInWebBrowser);
+        setWebBrowserForLinks(source.linksOpenInWebBrowser);
         setFileWatcherSpeed(source.fileWatcherSpeed);
         setFileWatcherRunDuringGames(source.fileWatcherRunDuringGames);
         setTrackedSetAButtonMode(source.trackedSetAButtonMode);
@@ -719,6 +723,7 @@ export function useSettingsController({
         memoriesVideoPath,
         memoriesRemux,
         memoriesDeleteSteamClip,
+        linksOpenInWebBrowser,
         fileWatcherSpeed,
         fileWatcherRunDuringGames,
         trackedSetAButtonMode,
@@ -947,6 +952,7 @@ export function useSettingsController({
         setMemoriesVideoPath,
         setMemoriesRemux,
         setMemoriesDeleteSteamClip,
+        setLinksOpenInWebBrowser,
         setBatterySaverDisablesMemories,
         setFileWatcherSpeed,
         setFileWatcherRunDuringGames,

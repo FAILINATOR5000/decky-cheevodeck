@@ -5,16 +5,17 @@ import { ActionLink } from "./ActionLink";
 type ExternalLinkProps = {
     url: string;
     onBeforeNavigate?: () => void;
+    useWebBrowser?: boolean;
     block?: boolean;
     children: ReactNode;
 };
 
 export function ExternalLink(props: ExternalLinkProps) {
-    const { url, onBeforeNavigate, block, children } = props;
+    const { url, onBeforeNavigate, useWebBrowser = true, block, children } = props;
 
     function open() {
         onBeforeNavigate?.();
-        void openExternalUrl(url);
+        void openExternalUrl(url, useWebBrowser);
     }
 
     return (

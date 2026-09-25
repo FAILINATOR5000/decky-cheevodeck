@@ -1,4 +1,6 @@
-import { Navigation } from "@decky/ui";
+import { openBrowserModal } from "../components/browser/BrowserModal";
+import { getCurrentLanguage } from "../locales";
+import { openInSteamBrowser } from "./steamBrowser";
 
 const RA_BASE = "https://retroachievements.org";
 
@@ -42,21 +44,23 @@ export function youtubeSearchUrl(query: string) {
     return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
 }
 
-export async function openExternalUrl(url: string) {
+let linksOpenInWebBrowser = true;
+
+export function setWebBrowserForLinks(value: boolean) {
+    linksOpenInWebBrowser = value;
+}
+
+export async function openExternalUrl(url: string, useWebBrowser = true) {
     const targetUrl = String(url || "").trim();
 
     if (!targetUrl) {
         return false;
     }
 
-    try {
-        Navigation.CloseSideMenus();
-    } catch { }
-
-    try {
-        Navigation.NavigateToExternalWeb(targetUrl);
-        return true;
-    } catch {
-        return false;
+    if (!useWebBrowser || !linksOpenInWebBrowser) {
+        return openInSteamBrowser(targetUrl);
     }
+
+    openBrowserModal(getCurrentLanguage(), targetUrl);
+    return true;
 }

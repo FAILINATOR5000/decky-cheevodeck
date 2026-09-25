@@ -138,6 +138,7 @@ import {
     saveMemoriesVideo,
     saveMemoriesRemux,
     saveMemoriesDeleteSteamClip,
+    saveLinksOpenInWebBrowser,
     saveLegacyCommentsLoading,
     saveBatterySaverDisablesSocialActivity,
     saveBatterySaverDisablesComments,
@@ -301,6 +302,7 @@ import {
 } from "../utils/scale";
 import { setCurrentColoredGlyphs, setCurrentControllerGlyphStyle } from "../utils/controllerGlyphs";
 import { setClipMuted } from "../components/memories/clipMute";
+import { setWebBrowserForLinks } from "../utils/navigation";
 
 type SaveSettingWithRollback = <T>(options: {
     nextValue: T;
@@ -463,6 +465,7 @@ type UseOptionsControllerArgs = {
     memoriesVideoPath: string;
     memoriesRemux: boolean;
     memoriesDeleteSteamClip: boolean;
+    linksOpenInWebBrowser: boolean;
     batterySaverDisablesMemories: boolean;
     legacyCommentsLoading: boolean;
     batterySaverDisablesSocialActivity: boolean;
@@ -520,6 +523,7 @@ type UseOptionsControllerArgs = {
     setMemoriesVideo: Dispatch<SetStateAction<boolean>>;
     setMemoriesRemux: Dispatch<SetStateAction<boolean>>;
     setMemoriesDeleteSteamClip: Dispatch<SetStateAction<boolean>>;
+    setLinksOpenInWebBrowser: Dispatch<SetStateAction<boolean>>;
     setLegacyCommentsLoading: Dispatch<SetStateAction<boolean>>;
     setBatterySaverDisablesSocialActivity: Dispatch<SetStateAction<boolean>>;
     setBatterySaverDisablesComments: Dispatch<SetStateAction<boolean>>;
@@ -899,6 +903,7 @@ export function useOptionsController({
     memoriesVideoPath,
     memoriesRemux,
     memoriesDeleteSteamClip,
+    linksOpenInWebBrowser,
     batterySaverDisablesMemories,
     legacyCommentsLoading,
     batterySaverDisablesSocialActivity,
@@ -956,6 +961,7 @@ export function useOptionsController({
     setMemoriesVideo,
     setMemoriesRemux,
     setMemoriesDeleteSteamClip,
+    setLinksOpenInWebBrowser,
     setBatterySaverDisablesMemories,
     setLegacyCommentsLoading,
     setBatterySaverDisablesSocialActivity,
@@ -1202,6 +1208,8 @@ export function useOptionsController({
         setMemoriesRemux(Boolean(result.memoriesRemux ?? true));
         setClipMuted(Boolean(result.memoriesMuted ?? false));
         setMemoriesDeleteSteamClip(Boolean(result.memoriesDeleteSteamClip));
+        setLinksOpenInWebBrowser(Boolean(result.linksOpenInWebBrowser ?? true));
+        setWebBrowserForLinks(Boolean(result.linksOpenInWebBrowser ?? true));
         setFileWatcherSpeed(result.fileWatcherSpeed ?? "gentle");
         setFileWatcherRunDuringGames(Boolean(result.fileWatcherRunDuringGames ?? true));
         setDoNotDisturbDisablesDot(Boolean(result.doNotDisturbDisablesDot ?? true));
@@ -3217,6 +3225,20 @@ export function useOptionsController({
             getSavedValue: (result, fallbackValue) => Boolean(result.memoriesRemux ?? fallbackValue),
         });
 
+    const applyLinksOpenInWebBrowser = (value: boolean) => {
+        setLinksOpenInWebBrowser(value);
+        setWebBrowserForLinks(value);
+    };
+
+    const onCycleLinksOpenInWebBrowser = () =>
+        saveSettingWithRollback<boolean>({
+            nextValue: !linksOpenInWebBrowser,
+            previousValue: linksOpenInWebBrowser,
+            applyValue: applyLinksOpenInWebBrowser,
+            saveCall: saveLinksOpenInWebBrowser,
+            getSavedValue: (result, fallbackValue) => Boolean(result.linksOpenInWebBrowser ?? fallbackValue),
+        });
+
     const onToggleMemoriesDeleteSteamClip = (nextValue: boolean) =>
         saveSettingWithRollback<boolean>({
             nextValue,
@@ -3565,6 +3587,7 @@ export function useOptionsController({
         memoriesVideoPath,
         memoriesRemux,
         memoriesDeleteSteamClip,
+        linksOpenInWebBrowser,
         memoriesCount,
         batterySaverDisablesMemories,
         legacyCommentsLoading,
@@ -3808,6 +3831,7 @@ export function useOptionsController({
         onToggleMemoriesRemux,
         onToggleMemoriesDeleteSteamClip,
         onCycleMemoriesPerPage,
+        onCycleLinksOpenInWebBrowser,
         onToggleBatterySaverDisablesMemories,
         onToggleLegacyCommentsLoading,
         onToggleBatterySaverDisablesSocialActivity,

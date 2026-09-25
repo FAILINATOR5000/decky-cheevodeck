@@ -12,6 +12,7 @@ import { registerScreenDarken, unregisterScreenDarken } from "./components/darke
 import { registerMemoryCapture, unregisterMemoryCapture } from "./components/memories/memoryCapture";
 import { registerMemoryFullscreen, unregisterMemoryFullscreen } from "./components/memories/memoryFullscreen";
 import { setClipMuted } from "./components/memories/clipMute";
+import { setWebBrowserForLinks } from "./utils/navigation";
 import { closeBrowserForUnload } from "./components/browser/BrowserModal";
 import { releaseWebBrowserActionset } from "./components/browser/browserViewHost";
 import { registerBrowserDownloads, unregisterBrowserDownloads } from "./components/browser/browserDownloads";
@@ -53,6 +54,7 @@ export default definePlugin(() => {
             }
             setDeviceIsSteamMachine(settings?.isSteamMachine ?? false);
             setClipMuted(Boolean(settings?.memoriesMuted ?? false));
+            setWebBrowserForLinks(settings?.linksOpenInWebBrowser ?? true);
             if (settings?.libraryBadge) {
                 enableLibraryBadge();
             }

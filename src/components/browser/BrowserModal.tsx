@@ -22,7 +22,7 @@ import { useFocusPaintWake } from "../../hooks/useFocusPaintWake";
 import { logFocusDebug } from "../../api";
 import { logError } from "../../utils/errors";
 import { showManagedModal } from "../../utils/modalRegistry";
-import { openExternalUrl } from "../../utils/navigation";
+import { openInSteamBrowser } from "../../utils/steamBrowser";
 
 const MIN_STAGE_HEIGHT_PX = 120;
 
@@ -162,7 +162,7 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
     useEffect(() => {
         if (!host.create()) {
             close();
-            void openExternalUrl(BROWSER_HOME_URL);
+            openInSteamBrowser(BROWSER_HOME_URL);
             return;
         }
         host.setExternalUrlHandler((url) => {
@@ -513,7 +513,7 @@ export function closeBrowserForUnload(): void {
 
 export function openBrowserModal(language: LanguageCode, startUrl = "") {
     if (!BrowserViewHost.isAvailable()) {
-        void openExternalUrl(startUrl || BROWSER_HOME_URL);
+        openInSteamBrowser(startUrl || BROWSER_HOME_URL);
         return;
     }
     const modal = showManagedModal(

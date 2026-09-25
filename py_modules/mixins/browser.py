@@ -188,6 +188,12 @@ class BrowserMixin(PluginContext):
     async def save_browser_fast_forward_youtube_ads(self, value: bool = True):
         return _settings_response(self.user_home, self.browser_store.set_fast_forward_youtube_ads(value))
 
+    async def save_links_open_in_web_browser(self, value: bool = True):
+        return {
+            "ok": True,
+            "linksOpenInWebBrowser": self.settings_store.update_links_open_in_web_browser(value),
+        }
+
     async def save_browser_download_folder(self, path: str = ""):
         if Path(str(path or "")).is_dir():
             self.browser_store.set_download_folder(path)

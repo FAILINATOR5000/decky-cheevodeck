@@ -87,7 +87,7 @@ export function AddUserModal(props: AddUserModalProps) {
                         disabled={modalSaving}
                     />
                     <div style={{ ...modalBodyStyle() }}>
-                        <ExternalLink url={RA_API_KEY_URL} onBeforeNavigate={onBeforeNavigate ?? close}>
+                        <ExternalLink url={RA_API_KEY_URL} onBeforeNavigate={onBeforeNavigate ?? close} useWebBrowser={false}>
                             {t(language, "Find your Web API Key on RetroAchievements")}
                         </ExternalLink>
                     </div>

@@ -243,6 +243,7 @@ type OptionsPageState = {
     memoriesVideo: boolean;
     memoriesVideoPath: string;
     memoriesRemux: boolean;
+    linksOpenInWebBrowser: boolean;
     memoriesDeleteSteamClip: boolean;
     memoriesVideoMove: MemoriesVideoMoveStatus;
     memoriesCount: number;
@@ -378,6 +379,7 @@ type OptionsPageActions = {
     onToggleMemoriesDeleteSource: (next: boolean) => void | Promise<void>;
     onToggleMemoriesVideo: (next: boolean) => void | Promise<void>;
     onToggleMemoriesRemux: (next: boolean) => void | Promise<void>;
+    onCycleLinksOpenInWebBrowser: () => void | Promise<void>;
     onToggleMemoriesDeleteSteamClip: (next: boolean) => void | Promise<void>;
     onPickMemoriesVideoPath: () => void | Promise<void>;
     onUseDefaultMemoriesVideoPath: () => void | Promise<void>;
@@ -1034,6 +1036,16 @@ function SystemTab(props: SystemTabProps) {
                 onChange={actions.onToggleMemoriesRemux}
                 disabled={disabled}
                 help={t(state.language, "help_memories_remux")}
+            />
+            <SectionTitle label={t(state.language, "Web Browser")} />
+            <OptionValueRow
+                outerStyle={buttonOuterStyle}
+                focusKey="options:links-open-in"
+                onClick={actions.onCycleLinksOpenInWebBrowser}
+                disabled={disabled}
+                label={t(state.language, "Open Links In")}
+                value={t(state.language, state.linksOpenInWebBrowser ? "Web Browser" : "Steam Browser")}
+                help={t(state.language, "help_open_links_in")}
             />
             <SectionTitle label={t(state.language, "Mastery Goals")} />
             <OptionToggle

@@ -58,7 +58,7 @@ function SetupPage(props: SetupPageProps) {
             <PanelSectionRow>
                 <FocusableItem
                     focusKey="setup:getting-started"
-                    onClick={() => { void openExternalUrl(GETTING_STARTED_URL); }}
+                    onClick={() => { void openExternalUrl(GETTING_STARTED_URL, false); }}
                     disabled={saving}
                     bottomSeparator="none"
                     outerStyle={regularButtonSpacingStyle(buttonSpacing)}

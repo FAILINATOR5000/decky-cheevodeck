@@ -511,6 +511,10 @@ export const saveMemoriesMuted = callable<
     [boolean],
     { ok: boolean; memoriesMuted: boolean }
 >("save_memories_muted");
+export const saveLinksOpenInWebBrowser = callable<
+    [boolean],
+    { ok: boolean; linksOpenInWebBrowser: boolean }
+>("save_links_open_in_web_browser");
 export const saveMemoriesDeleteSteamClip = callable<
     [boolean],
     { ok: boolean; memoriesDeleteSteamClip: boolean }

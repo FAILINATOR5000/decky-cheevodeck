@@ -974,6 +974,7 @@ export type SettingsResponse = {
     memoriesRemux: boolean;
     memoriesMuted: boolean;
     memoriesDeleteSteamClip: boolean;
+    linksOpenInWebBrowser: boolean;
     fileWatcherSpeed: FileWatcherSpeed;
     fileWatcherRunDuringGames: boolean;
     trackedSetAButtonMode: TrackedSetAButtonMode;
