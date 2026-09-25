@@ -15,7 +15,7 @@ import { BrowserPanel } from "./BrowserPanel";
 import { BrowserTabLimit } from "./BrowserTabLimit";
 import { BrowserBookmarkLimit } from "./BrowserBookmarkLimit";
 import { BrowserDownloadFolder } from "./BrowserDownloadFolder";
-import { closeSession, ensureSession, setDownloadHandler } from "./browserSession";
+import { closeSession, ensureSession, setDownloadHandler, stopLoading } from "./browserSession";
 import { BROWSER_HOME_URL, useBrowserController } from "../../hooks/useBrowserController";
 import { t, type LanguageCode } from "../../locales";
 import { useFocusPaintWake } from "../../hooks/useFocusPaintWake";
@@ -27,6 +27,8 @@ import { openInSteamBrowser } from "../../utils/steamBrowser";
 const MIN_STAGE_HEIGHT_PX = 120;
 
 const CANCELLED_REQUEST_RETRY_MS = 400;
+
+const STOP_SETTLE_MS = 300;
 
 const KEYBOARD_SETTLE_MS = 700;
 
@@ -119,6 +121,8 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
     const [keyboardOpen, setKeyboardOpen] = useState(false);
     const [panelOpen, setPanelOpen] = useState(false);
     const [findCount, setFindCount] = useState<{ total: number; current: number } | null>(null);
+    const [loading, setLoading] = useState(false);
+    const loadStartsRef = useRef(0);
     const findTextRef = useRef("");
     const findTimerRef = useRef<number | null>(null);
 
@@ -203,6 +207,12 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
             });
             claimView();
         });
+        host.setLoadingHandler((value) => {
+            if (value) {
+                loadStartsRef.current++;
+            }
+            setLoading(value);
+        });
         setReady(true);
         return () => {
             setDownloadHandler(null);
@@ -262,6 +272,19 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
     useEffect(() => subscribeVirtualKeyboard(resizeForKeyboard), [resizeForKeyboard]);
 
     useFocusPaintWake(outerRef);
+
+    const stop = useCallback(() => {
+        const starts = loadStartsRef.current;
+        void stopLoading()
+            .catch((e) => logError("BrowserModal.stop", e))
+            .finally(() => {
+                window.setTimeout(() => {
+                    if (loadStartsRef.current === starts) {
+                        host.endCancelledRequest();
+                    }
+                }, STOP_SETTLE_MS);
+            });
+    }, [host]);
 
     const openPanel = useCallback(() => {
         browser.refreshLists();
@@ -366,6 +389,8 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
                     onBack={browser.goBack}
                     onForward={browser.goForward}
                     onReload={browser.reload}
+                    loading={loading}
+                    onStop={stop}
                     onNewTab={browser.openNewTab}
                     onSelectTab={browser.selectTab}
                     onCloseTab={browser.closeTab}

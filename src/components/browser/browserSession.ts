@@ -221,6 +221,10 @@ export async function requestHeadersFor(url: string): Promise<{ cookie: string; 
     return { cookie, userAgent };
 }
 
+export async function stopLoading(): Promise<void> {
+    await send("Page.stopLoading");
+}
+
 export function closeSession(): void {
     generation++;
     const live = socket;

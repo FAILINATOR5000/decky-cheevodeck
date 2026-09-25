@@ -176,6 +176,7 @@ declare module "react-icons/fa" {
     export const FaPlus: any;
     export const FaTimes: any;
     export const FaStar: any;
+    export const FaStop: any;
     export const FaRegStar: any;
     export const FaBars: any;
     export const FaWindowMaximize: any;

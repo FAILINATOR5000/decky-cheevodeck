@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { DialogButton, Focusable, TextField } from "@decky/ui";
 // Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
-import { FaArrowLeft, FaArrowRight, FaBars, FaChevronDown, FaChevronLeft, FaChevronRight, FaChevronUp, FaPlus, FaRegStar, FaSearch, FaStar, FaSyncAlt, FaTimes, FaWindowMaximize, FaWindowRestore } from "react-icons/fa";
+import { FaArrowLeft, FaArrowRight, FaBars, FaChevronDown, FaChevronLeft, FaChevronRight, FaChevronUp, FaPlus, FaRegStar, FaSearch, FaStar, FaStop, FaSyncAlt, FaTimes, FaWindowMaximize, FaWindowRestore } from "react-icons/fa";
 import { t, type LanguageCode } from "../../locales";
 import { useBrowserPress } from "../../hooks/useBrowserPress";
 import { modalSize } from "../../utils/scale";
@@ -48,6 +48,12 @@ function iconButtonStyle(dimmed = false, active = false): Record<string, string>
     };
 }
 
+const TAB_SPIN_KEYFRAMES = `
+@keyframes da-browser-tab-spin {
+    to { transform: rotate(360deg); }
+}
+`;
+
 function tabLabel(tab: BrowserTab): string {
     if (tab.title) return tab.title;
     if (!tab.url) return "";
@@ -73,6 +79,8 @@ type BrowserChromeProps = {
     onBack: () => void;
     onForward: () => void;
     onReload: () => void;
+    loading: boolean;
+    onStop: () => void;
     onNewTab: () => void;
     onSelectTab: (tabId: string) => void;
     onCloseTab: (tabId: string) => void;
@@ -93,7 +101,7 @@ export function BrowserChrome(props: BrowserChromeProps) {
     const {
         language, tabs, activeTabId, address, addressDirty,
         canGoBack, canGoForward, pageUrl, onAddressChange, onSubmit, onBack, onForward,
-        onReload, onNewTab, onSelectTab, onCloseTab, onClose, expanded, onToggleExpanded,
+        onReload, loading, onStop, onNewTab, onSelectTab, onCloseTab, onClose, expanded, onToggleExpanded,
         bookmarked, onToggleBookmark, onOpenPanel, keyboardOpen, atTabLimit,
         findCount, onFind, onStopFind
     } = props;
@@ -403,10 +411,12 @@ export function BrowserChrome(props: BrowserChromeProps) {
                     <>
                         <DialogButton
                             focusable={false}
-                            {...(editing || addressDirty ? commit : act("reload", onReload))}
+                            {...(editing || addressDirty ? commit : loading ? act("stop", onStop) : act("reload", onReload))}
                             style={iconButtonStyle()}
                         >
-                            {editing || addressDirty ? <FaArrowRight size={iconPx} /> : <FaSyncAlt size={iconPx} />}
+                            {editing || addressDirty
+                                ? <FaArrowRight size={iconPx} />
+                                : loading ? <FaStop size={iconPx} /> : <FaSyncAlt size={iconPx} />}
                         </DialogButton>
 
                         <DialogButton
@@ -485,6 +495,22 @@ export function BrowserChrome(props: BrowserChromeProps) {
                                     opacity: tab.id === activeTabId ? "1" : "0.6"
                                 }}
                             >
+                                {loading && tab.id === activeTabId && (
+                                    <span
+                                        style={{
+                                            flex: "0 0 auto",
+                                            width: `${modalSize(10)}px`,
+                                            height: `${modalSize(10)}px`,
+                                            border: "2px solid rgba(255, 255, 255, 0.25)",
+                                            borderTopColor: "rgba(255, 255, 255, 0.95)",
+                                            borderRadius: "50%",
+                                            boxSizing: "border-box",
+                                            animation: "da-browser-tab-spin 0.9s linear infinite"
+                                        }}
+                                    >
+                                        <style>{TAB_SPIN_KEYFRAMES}</style>
+                                    </span>
+                                )}
                                 <span
                                     style={{
                                         flex: "1 1 auto",

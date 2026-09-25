@@ -400,6 +400,24 @@ export class BrowserViewHost {
         }
     }
 
+    setLoadingHandler(handler: (loading: boolean) => void): void {
+        const wrapper = this.wrapper;
+        const started = wrapper?.StartRequestCallbacks;
+        const finished = wrapper?.FinishedRequestCallbacks;
+        if (typeof started?.Register !== "function" || typeof finished?.Register !== "function") {
+            return;
+        }
+        try {
+            started.Register(() => handler(true));
+            finished.Register(() => handler(false));
+        }
+        catch (e) {
+            logError("BrowserViewHost.setLoadingHandler", e);
+            return;
+        }
+        handler(!!wrapper?.m_bLoading);
+    }
+
     find(text: string, next: boolean, backwards: boolean): void {
         const raw = this.rawView;
         if (!raw || typeof raw.FindInPage !== "function" || !text) {
