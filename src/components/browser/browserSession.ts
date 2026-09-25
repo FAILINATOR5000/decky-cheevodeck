@@ -1,6 +1,7 @@
 import { logFocusDebug } from "../../api";
 import { socketForUrl } from "./browserScroll";
 import { AD_BLOCK_HOSTS, AD_BLOCK_PATTERNS } from "./adBlockHosts";
+import { AD_LIBRARY_STAND_IN } from "./adStandIns";
 
 const COMMAND_TIMEOUT_MS = 4000;
 
@@ -22,6 +23,7 @@ const waiting = new Map<number, { resolve: (value: any) => void; reject: (reason
 
 let blockAds = true;
 let blockingSent: boolean | null = null;
+let standInId: string | null = null;
 let downloadHandler: ((request: DownloadRequest) => void) | null = null;
 
 let blockPatterns: string[] | null = null;
@@ -89,6 +91,7 @@ function onMessage(ev: MessageEvent) {
 function dropSocket() {
     socket = null;
     blockingSent = null;
+    standInId = null;
     for (const entry of waiting.values()) {
         window.clearTimeout(entry.timer);
         entry.reject(new Error("session-closed"));
@@ -105,10 +108,23 @@ async function applyBlocking() {
     try {
         await send("Network.setBlockedURLs", { urls: wanted ? patterns() : [] });
         logFocusDebug("browser-session", "blocking", `${wanted ? patterns().length : 0} patterns`);
+        await applyStandIns(wanted);
     }
     catch (e) {
         blockingSent = null;
         logFocusDebug("browser-session", "blocking failed", String((e as Error)?.message ?? e));
+    }
+}
+
+async function applyStandIns(wanted: boolean) {
+    if (wanted && standInId === null) {
+        const result = await send("Page.addScriptToEvaluateOnNewDocument", { source: AD_LIBRARY_STAND_IN });
+        standInId = String(result?.identifier ?? "") || null;
+    }
+    else if (!wanted && standInId !== null) {
+        const identifier = standInId;
+        standInId = null;
+        await send("Page.removeScriptToEvaluateOnNewDocument", { identifier });
     }
 }
 
