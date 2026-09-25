@@ -8,6 +8,9 @@ const CREATE_OPTIONS = { bPreventCloseFromJavascript: true };
 
 const STEAM_EXTERNAL_PREFIX = "steam://openexternalforpid/";
 
+const INPUT_LEVEL_UNKNOWN = 1;
+const INPUT_LEVEL_NONE = 2;
+
 const KEYBOARD_BOTTOM_TOLERANCE_PX = 12;
 
 const KEYBOARD_HOLD_MAX_MS = 15000;
@@ -299,6 +302,7 @@ export class BrowserViewHost {
             this.wrapper = wrapper;
             this.rawView = raw;
             this.gatePageKeyboard();
+            this.keepPointerThroughLoads();
             return true;
         }
         catch (e) {
@@ -501,6 +505,21 @@ export class BrowserViewHost {
         catch (e) {
             logError("BrowserViewHost.syncBounds", e);
         }
+    }
+
+    private keepPointerThroughLoads(): void {
+        const bridge = this.wrapper?.m_gamepadBridge;
+        const steam = bridge?.SetGameInputSupportLevel;
+        if (typeof steam !== "function") {
+            return;
+        }
+        bridge.SetGameInputSupportLevel = (level: number, source: string) => {
+            if (level === INPUT_LEVEL_UNKNOWN && (source === "OnStartRequest" || source === "LoadURL")) {
+                logFocusDebug("browser-pointer", "kept", source);
+                return steam.call(bridge, INPUT_LEVEL_NONE, source);
+            }
+            return steam.call(bridge, level, source);
+        };
     }
 
     private gatePageKeyboard(): void {
