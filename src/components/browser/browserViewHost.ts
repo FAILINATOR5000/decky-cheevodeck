@@ -260,6 +260,7 @@ export class BrowserViewHost {
     private rawView: SteamBrowserView | null = null;
     private torndown = false;
     private bounds: { x: number; y: number; width: number; height: number } | null = null;
+    private fullscreen = false;
     private keyboardHeld = false;
     private keyboardHold = 0;
     private keyboardHoldTimer: number | null = null;
@@ -505,7 +506,7 @@ export class BrowserViewHost {
 
     syncBounds(placeholder: HTMLElement | null): void {
         const raw = this.rawView;
-        if (!raw || !placeholder || typeof raw.SetBounds !== "function") {
+        if (!raw || !placeholder || typeof raw.SetBounds !== "function" || this.fullscreen) {
             return;
         }
         const rect = placeholder.getBoundingClientRect();
@@ -522,6 +523,30 @@ export class BrowserViewHost {
         }
         catch (e) {
             logError("BrowserViewHost.syncBounds", e);
+        }
+    }
+
+    setPageFullscreen(fullscreen: boolean, win: Window | null): void {
+        const raw = this.rawView;
+        if (!raw || typeof raw.SetBounds !== "function") {
+            return;
+        }
+        if (!fullscreen) {
+            this.fullscreen = false;
+            this.bounds = null;
+            return;
+        }
+        const width = win?.visualViewport?.width ?? win?.innerWidth ?? 0;
+        const height = win?.visualViewport?.height ?? win?.innerHeight ?? 0;
+        if (width <= 0 || height <= 0) {
+            return;
+        }
+        this.fullscreen = true;
+        try {
+            raw.SetBounds(0, 0, width, height);
+        }
+        catch (e) {
+            logError("BrowserViewHost.setPageFullscreen", e);
         }
     }
 

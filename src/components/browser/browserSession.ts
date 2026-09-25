@@ -2,6 +2,7 @@ import { logFocusDebug } from "../../api";
 import { socketForUrl } from "./browserScroll";
 import { AD_BLOCK_HOSTS, AD_BLOCK_PATTERNS } from "./adBlockHosts";
 import { AD_LIBRARY_STAND_IN } from "./adStandIns";
+import { FULLSCREEN_BINDING, FULLSCREEN_WATCH } from "./fullscreenWatch";
 
 const COMMAND_TIMEOUT_MS = 4000;
 
@@ -25,6 +26,7 @@ let blockAds = true;
 let blockingSent: boolean | null = null;
 let standInId: string | null = null;
 let downloadHandler: ((request: DownloadRequest) => void) | null = null;
+let fullscreenHandler: ((fullscreen: boolean) => void) | null = null;
 
 let blockPatterns: string[] | null = null;
 
@@ -76,6 +78,10 @@ function onMessage(ev: MessageEvent) {
         else {
             entry.resolve(msg.result ?? {});
         }
+        return;
+    }
+    if (msg.method === "Runtime.bindingCalled" && msg.params?.name === FULLSCREEN_BINDING) {
+        fullscreenHandler?.(msg.params?.payload === "1");
         return;
     }
     if (msg.method === "Page.downloadWillBegin") {
@@ -141,6 +147,14 @@ async function attached() {
     }
     catch (e) {
         logFocusDebug("browser-session", "downloads failed", String((e as Error)?.message ?? e));
+    }
+    try {
+        await send("Runtime.addBinding", { name: FULLSCREEN_BINDING });
+        await send("Page.addScriptToEvaluateOnNewDocument", { source: FULLSCREEN_WATCH });
+        await send("Runtime.evaluate", { expression: FULLSCREEN_WATCH });
+    }
+    catch (e) {
+        logFocusDebug("browser-session", "fullscreen watch failed", String((e as Error)?.message ?? e));
     }
     await applyBlocking();
 }
@@ -211,6 +225,19 @@ export function setAdBlock(enabled: boolean): void {
 
 export function setDownloadHandler(handler: ((request: DownloadRequest) => void) | null): void {
     downloadHandler = handler;
+}
+
+export function setFullscreenHandler(handler: ((fullscreen: boolean) => void) | null): void {
+    fullscreenHandler = handler;
+}
+
+export function refreshFullscreenBinding(): void {
+    if (!socket) {
+        return;
+    }
+    send("Runtime.addBinding", { name: FULLSCREEN_BINDING }).catch((e) => {
+        logFocusDebug("browser-session", "fullscreen binding failed", String((e as Error)?.message ?? e));
+    });
 }
 
 export async function requestHeadersFor(url: string): Promise<{ cookie: string; userAgent: string }> {
