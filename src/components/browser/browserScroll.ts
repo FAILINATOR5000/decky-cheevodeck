@@ -469,6 +469,10 @@ const AD_SLOT_CSS = [
 
 const AD_SLOT_STYLE_ID = "__cheevodeckAdHide";
 
+const YOUTUBE_STYLE_ID = "__cheevodeckYouTube";
+
+const YOUTUBE_CSS = "ytd-watch-flexy[theater] #full-bleed-container { min-height: 0 !important; }";
+
 const AD_SPEED = 16;
 
 export const AD_SKIP_BINDING = "__cheevodeckSkip";
@@ -610,6 +614,13 @@ export async function preparePage(url: string, percent: number, blockAds: boolea
         }
         window.__cheevodeckFastForward = ${fastForward};
         if (/(^|\\.)youtube\\.com$/.test(location.hostname)) {
+            if (!document.getElementById(${JSON.stringify(YOUTUBE_STYLE_ID)})) {
+                const youTubeStyle = document.createElement("style");
+                youTubeStyle.id = ${JSON.stringify(YOUTUBE_STYLE_ID)};
+                youTubeStyle.textContent = ${JSON.stringify(YOUTUBE_CSS)};
+                (document.head || document.documentElement).appendChild(youTubeStyle);
+                dispatchEvent(new Event("resize"));
+            }
             if (window.__cheevodeckAdCheck) {
                 window.__cheevodeckAdCheck();
             }
