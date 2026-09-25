@@ -1,6 +1,6 @@
 import { logFocusDebug } from "../../api";
 import { socketForUrl } from "./browserScroll";
-import { AD_BLOCK_HOSTS } from "./adBlockHosts";
+import { AD_BLOCK_HOSTS, AD_BLOCK_PATTERNS } from "./adBlockHosts";
 
 const COMMAND_TIMEOUT_MS = 4000;
 
@@ -32,6 +32,7 @@ function patterns(): string[] {
         for (const host of AD_BLOCK_HOSTS) {
             blockPatterns.push(`*://${host}/*`, `*://*.${host}/*`);
         }
+        blockPatterns.push(...AD_BLOCK_PATTERNS);
     }
     return blockPatterns;
 }
