@@ -89,6 +89,8 @@ from mixins.browser import BrowserMixin
 
 DEFAULT_IPC_SLOW_THRESHOLD_MS = 250
 
+GUEST_USER_DIR = "GUEST"
+
 
 def _timed_ipc(method):
     @functools.wraps(method)
@@ -209,7 +211,7 @@ class Plugin(
         self.cheevo_check_scratch_dir = self.runtime_dir / "scan-temp"
         self.cheevo_check_ram_scratch_dir = Path("/run/cheevodeck-scan-temp")
         self.file_watcher_dir = self.runtime_dir
-        self.browser_dir = self.runtime_dir / "browser"
+        self.browser_dir = self.runtime_dir / GUEST_USER_DIR / "browser"
         self.plugin_dir = Path(
             getattr(decky, "DECKY_PLUGIN_DIR", str(Path(__file__).resolve().parent))
         )
@@ -934,7 +936,8 @@ class Plugin(
             self.tracked_sets_store.repoint(base)
             self.subscriptions_store.repoint(base)
             self.calculator_store.repoint(base)
-            self.browser_store.repoint(base / "browser")
+            browser_base = base if user_key else self.runtime_dir / GUEST_USER_DIR
+            self.browser_store.repoint(browser_base / "browser")
             self.saved_comments_store.repoint(base)
             self.comment_baselines_store.repoint(base)
             self.notifications_store.repoint(base)
@@ -1534,6 +1537,8 @@ class Plugin(
         removed = 0
         for entry in self.runtime_dir.iterdir():
             if not entry.is_dir():
+                continue
+            if entry.name == GUEST_USER_DIR:
                 continue
             if not self._is_safe_user_dir_key(entry.name):
                 continue
