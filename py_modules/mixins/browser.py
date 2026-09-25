@@ -161,7 +161,7 @@ class BrowserMixin(PluginContext):
     async def load_browser_settings(self):
         return _settings_response(self.user_home, self.browser_store.list_settings())
 
-    async def save_browser_page_zoom(self, value=100):
+    async def save_browser_page_zoom(self, value=80):
         return _settings_response(self.user_home, self.browser_store.set_page_zoom(value))
 
     async def save_browser_history_retention(self, value: str = "forever"):

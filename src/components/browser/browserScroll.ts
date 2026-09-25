@@ -561,14 +561,17 @@ const AD_SKIP = `
     check();
 `;
 
+function cssZoom(percent: number): string {
+    return percent > 100 ? String(percent / 100) : "";
+}
+
 export async function preparePage(url: string, percent: number, blockAds: boolean, fastForward: boolean): Promise<boolean> {
     const wsUrl = await socketForUrl(url);
     if (!wsUrl) {
         return false;
     }
-    const value = percent === 100 ? "" : String(percent / 100);
     const script = `(() => {
-        document.documentElement.style.zoom = ${JSON.stringify(value)};
+        document.documentElement.style.zoom = ${JSON.stringify(cssZoom(percent))};
         let adStyle = document.getElementById(${JSON.stringify(AD_SLOT_STYLE_ID)});
         if (${blockAds} && !adStyle) {
             adStyle = document.createElement("style");
@@ -624,8 +627,7 @@ export async function applyPageZoom(url: string, percent: number): Promise<boole
     if (!wsUrl) {
         return false;
     }
-    const value = percent === 100 ? "" : String(percent / 100);
-    const script = `(() => { document.documentElement.style.zoom = ${JSON.stringify(value)}; return true; })()`;
+    const script = `(() => { document.documentElement.style.zoom = ${JSON.stringify(cssZoom(percent))}; return true; })()`;
     try {
         await evaluate(wsUrl, script);
         return true;

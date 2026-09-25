@@ -624,10 +624,10 @@ export function memoriesPerPageLabel(value: number) {
     return `${value}`;
 }
 
-const BROWSER_PAGE_ZOOM_OPTIONS = [75, 90, 100, 110, 125, 150, 175, 200] as const;
+const BROWSER_PAGE_ZOOM_OPTIONS = [50, 60, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200] as const;
 
 export function stepBrowserPageZoom(current: number, direction: number) {
-    const normalized = BROWSER_PAGE_ZOOM_OPTIONS.includes(current as any) ? current : 100;
+    const normalized = BROWSER_PAGE_ZOOM_OPTIONS.includes(current as any) ? current : 80;
     const currentIndex = BROWSER_PAGE_ZOOM_OPTIONS.indexOf(normalized as any);
     const nextIndex = Math.min(Math.max(currentIndex + direction, 0), BROWSER_PAGE_ZOOM_OPTIONS.length - 1);
 

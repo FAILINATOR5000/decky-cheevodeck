@@ -261,6 +261,7 @@ export class BrowserViewHost {
     private torndown = false;
     private bounds: { x: number; y: number; width: number; height: number } | null = null;
     private fullscreen = false;
+    private onBounds: ((width: number, height: number) => void) | null = null;
     private keyboardHeld = false;
     private keyboardHold = 0;
     private keyboardHoldTimer: number | null = null;
@@ -524,6 +525,11 @@ export class BrowserViewHost {
         catch (e) {
             logError("BrowserViewHost.syncBounds", e);
         }
+        this.onBounds?.(rect.width, rect.height);
+    }
+
+    setBoundsHandler(handler: (width: number, height: number) => void): void {
+        this.onBounds = handler;
     }
 
     setPageFullscreen(fullscreen: boolean, win: Window | null): void {
@@ -548,6 +554,7 @@ export class BrowserViewHost {
         catch (e) {
             logError("BrowserViewHost.setPageFullscreen", e);
         }
+        this.onBounds?.(width, height);
     }
 
     private keepPointerThroughLoads(): void {

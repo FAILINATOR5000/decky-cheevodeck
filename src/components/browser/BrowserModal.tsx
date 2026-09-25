@@ -15,7 +15,7 @@ import { BrowserPanel } from "./BrowserPanel";
 import { BrowserTabLimit } from "./BrowserTabLimit";
 import { BrowserBookmarkLimit } from "./BrowserBookmarkLimit";
 import { BrowserDownloadFolder } from "./BrowserDownloadFolder";
-import { closeSession, ensureSession, refreshFullscreenBinding, setDownloadHandler, setFullscreenHandler, stopLoading } from "./browserSession";
+import { closeSession, ensureSession, refreshFullscreenBinding, setDownloadHandler, setFullscreenHandler, setViewSize, stopLoading } from "./browserSession";
 import { BROWSER_HOME_URL, useBrowserController } from "../../hooks/useBrowserController";
 import { t, type LanguageCode } from "../../locales";
 import { useFocusPaintWake } from "../../hooks/useFocusPaintWake";
@@ -175,6 +175,9 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
         });
         host.setHeldFocusHandler(() => handlersRef.current.blurPage());
         host.setTitleHandler((title) => handlersRef.current.noteTitle(title));
+        host.setBoundsHandler((width, height) => {
+            setViewSize(width, height, stageRef.current?.ownerDocument?.defaultView?.devicePixelRatio ?? 0);
+        });
         setFullscreenHandler((fullscreen) => {
             const stage = stageRef.current;
             host.setPageFullscreen(fullscreen, stage?.ownerDocument?.defaultView ?? null);

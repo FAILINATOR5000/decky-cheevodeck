@@ -43,7 +43,7 @@ import {
     saveBrowserSearchEngine,
     startBrowserDownload
 } from "../api";
-import { requestHeadersFor, setAdBlock, type DownloadRequest } from "../components/browser/browserSession";
+import { requestHeadersFor, setAdBlock, setZoomPercent, type DownloadRequest } from "../components/browser/browserSession";
 import { toastDownload } from "../components/browser/browserDownloads";
 import { nextBrowserHistoryRetention, nextBrowserNewTabPage, nextBrowserSearchEngine, stepBrowserPageZoom } from "../utils/options";
 import { logError } from "../utils/errors";
@@ -89,7 +89,7 @@ const CHALLENGE_PARAM = /[?&]__cf_chl/i;
 
 const RESTORE_DEADLINE_MS = 6000;
 
-const DEFAULT_PAGE_ZOOM = 100;
+const DEFAULT_PAGE_ZOOM = 80;
 
 const EARLY_RESTORE_STEP_MS = 120;
 
@@ -355,6 +355,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         const nextValue = stepBrowserPageZoom(zoomRef.current, direction);
         if (nextValue === zoomRef.current) return;
         setPageZoom(nextValue);
+        setZoomPercent(nextValue);
         const url = tabsRef.current.find((tab) => tab.id === activeTabIdRef.current)?.url ?? "";
         if (url) {
             void applyPageZoom(url, nextValue);
@@ -385,6 +386,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         if (typeof saved.pageZoom === "number") {
             setPageZoom(saved.pageZoom);
             zoomRef.current = saved.pageZoom;
+            setZoomPercent(saved.pageZoom);
         }
         if (saved.historyRetention) {
             setHistoryRetention(saved.historyRetention);

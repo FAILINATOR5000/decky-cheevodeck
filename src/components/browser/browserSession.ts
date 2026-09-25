@@ -28,6 +28,12 @@ let standInId: string | null = null;
 let downloadHandler: ((request: DownloadRequest) => void) | null = null;
 let fullscreenHandler: ((fullscreen: boolean) => void) | null = null;
 
+let zoomPercent = 100;
+let viewSize: { width: number; height: number } | null = null;
+let windowDpr = 1;
+let pageDpr = 0;
+let metricsSent: string | null = null;
+
 let blockPatterns: string[] | null = null;
 
 function patterns(): string[] {
@@ -98,6 +104,8 @@ function dropSocket() {
     socket = null;
     blockingSent = null;
     standInId = null;
+    metricsSent = null;
+    pageDpr = 0;
     for (const entry of waiting.values()) {
         window.clearTimeout(entry.timer);
         entry.reject(new Error("session-closed"));
@@ -134,6 +142,51 @@ async function applyStandIns(wanted: boolean) {
     }
 }
 
+async function applyMetrics() {
+    if (!socket || !viewSize || viewSize.width <= 0 || viewSize.height <= 0) {
+        return;
+    }
+    if (pageDpr <= 0) {
+        try {
+            const result = await send("Runtime.evaluate", { expression: "devicePixelRatio", returnByValue: true });
+            pageDpr = Number(result?.result?.value) || 0;
+        }
+        catch (e) {
+            logFocusDebug("browser-session", "pixel ratio failed", String((e as Error)?.message ?? e));
+        }
+        if (pageDpr <= 0) {
+            pageDpr = windowDpr;
+        }
+    }
+    const z = zoomPercent / 100;
+    const toPage = windowDpr / pageDpr;
+    const metrics = zoomPercent >= 100 ? null : {
+        width: Math.round(viewSize.width * toPage / z),
+        height: Math.round(viewSize.height * toPage / z),
+        deviceScaleFactor: 0,
+        mobile: false,
+        scale: z
+    };
+    const key = metrics ? `${metrics.width}x${metrics.height}@${metrics.scale}` : "clear";
+    if (metricsSent === key) {
+        return;
+    }
+    metricsSent = key;
+    try {
+        if (metrics) {
+            await send("Emulation.setDeviceMetricsOverride", metrics);
+        }
+        else {
+            await send("Emulation.clearDeviceMetricsOverride");
+        }
+        logFocusDebug("browser-session", "zoom", `${zoomPercent}% ${key} dpr=${windowDpr}/${pageDpr}`);
+    }
+    catch (e) {
+        metricsSent = null;
+        logFocusDebug("browser-session", "zoom failed", String((e as Error)?.message ?? e));
+    }
+}
+
 async function attached() {
     try {
         await send("Network.enable", { maxTotalBufferSize: 0, maxResourceBufferSize: 0 });
@@ -157,6 +210,7 @@ async function attached() {
         logFocusDebug("browser-session", "fullscreen watch failed", String((e as Error)?.message ?? e));
     }
     await applyBlocking();
+    await applyMetrics();
 }
 
 export function ensureSession(url: string): void {
@@ -221,6 +275,19 @@ export function setAdBlock(enabled: boolean): void {
     if (socket) {
         void applyBlocking();
     }
+}
+
+export function setZoomPercent(percent: number): void {
+    zoomPercent = percent;
+    void applyMetrics();
+}
+
+export function setViewSize(width: number, height: number, dpr: number): void {
+    viewSize = { width, height };
+    if (dpr > 0) {
+        windowDpr = dpr;
+    }
+    void applyMetrics();
 }
 
 export function setDownloadHandler(handler: ((request: DownloadRequest) => void) | null): void {
