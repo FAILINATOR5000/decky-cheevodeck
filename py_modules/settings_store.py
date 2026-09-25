@@ -276,7 +276,7 @@ def _default_shortcut_bindings() -> dict:
         "r3": "none",
         "l4": "none",
         "l5": "none",
-        "r4": "none",
+        "r4": "browser",
         "r5": "none",
     }
 

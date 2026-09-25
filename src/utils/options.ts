@@ -307,7 +307,7 @@ export const DEFAULT_SHORTCUT_BINDINGS: Record<ShortcutButton, ShortcutAction> =
     r3: "none",
     l4: "none",
     l5: "none",
-    r4: "none",
+    r4: "browser",
     r5: "none"
 };
 
