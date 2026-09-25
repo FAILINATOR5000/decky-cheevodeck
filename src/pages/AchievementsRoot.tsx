@@ -108,6 +108,7 @@ import { NotificationsModal } from "../components/notifications/NotificationsMod
 import { NotificationsProvider } from "../components/notifications/NotificationsContext";
 import { NotificationsMultipathModal, type MultipathOption } from "../components/notifications/NotificationsMultipathModal";
 import { useAboutController } from "../hooks/useAboutController";
+import { useFocusPaintWake } from "../hooks/useFocusPaintWake";
 import { useAccountActions } from "../hooks/useAccountActions";
 import { useAchievementsController } from "../hooks/useAchievementsController";
 import { useFocusController } from "../hooks/useFocusController";
@@ -151,6 +152,7 @@ import { getSavedGuidesSubView } from "../resume/guidesResume";
 import { computeBootView, getSavedNavStack } from "../resume/bootView";
 import { PanelProviders } from "../components/panel/PanelProviders";
 import { openCalculatorModal } from "../components/calculator/CalculatorModal";
+import { openBrowserModal } from "../components/browser/BrowserModal";
 import { describeStack, initialNav, previousView, rehydrateNav, settleNav, type NavIntent } from "../nav";
 import { ROUTES, type RouteBackActions } from "../routes";
 import type {
@@ -238,6 +240,7 @@ import { takeFileWatcherFocusReturn } from "../utils/fileWatcherFocusReturn";
 import { takeMemoriesTransferFocusReturn } from "../utils/memoriesTransferFocusReturn";
 import { takeMemoriesFocusReturn } from "../utils/memoriesFocusReturn";
 import { takeOptionsFocusReturn } from "../utils/optionsFocusReturn";
+import { takeUtilsFocusReturn } from "../utils/utilsFocusReturn";
 import { useMemoriesController } from "../hooks/useMemoriesController";
 import { useMemoriesVideoController } from "../hooks/useMemoriesVideoController";
 import { takeSavedCommentFocusReturn } from "../utils/savedCommentFocusReturn";
@@ -2508,6 +2511,16 @@ function AchievementsRoot() {
     optionsWasOpenRef.current = view === "options";
     const optionsRestorePending = optionsRestoreArmedRef.current;
 
+    const [utilsFocusReturn] = useState(takeUtilsFocusReturn);
+
+    const utilsRestoreArmedRef = useRef(utilsFocusReturn !== null);
+    const utilsWasOpenRef = useRef(false);
+    if (utilsWasOpenRef.current && view !== "utils") {
+        utilsRestoreArmedRef.current = false;
+    }
+    utilsWasOpenRef.current = view === "utils";
+    const utilsRestorePending = utilsRestoreArmedRef.current;
+
     const [fileWatcherFocusReturn] = useState(takeFileWatcherFocusReturn);
 
     const fileWatcherRestoreArmedRef = useRef(fileWatcherFocusReturn !== null);
@@ -2664,26 +2677,7 @@ function AchievementsRoot() {
         };
     }, [modalEchoArmed]);
 
-    useEffect(() => {
-        const root = rootRef.current;
-        const win = root?.ownerDocument.defaultView;
-        if (!root || !win) {
-            return;
-        }
-        const wake = () => {
-            root.dispatchEvent(new win.FocusEvent("focusin", { bubbles: true }));
-        };
-        wake();
-        const timer = window.setTimeout(() => {
-            if (root.ownerDocument.querySelectorAll('[class*="gpfocus"]').length > 0) {
-                return;
-            }
-            wake();
-        }, 200);
-        return () => {
-            window.clearTimeout(timer);
-        };
-    }, []);
+    useFocusPaintWake(rootRef);
 
     const [mainStripClaim, setMainStripClaim] = useState<{ token: number; armed: boolean } | null>(null);
     const mainStripClaimedRef = useRef(false);
@@ -4551,6 +4545,10 @@ function AchievementsRoot() {
             openCalculatorModal(language);
             return;
         }
+        if (action === "browser") {
+            openBrowserModal(language);
+            return;
+        }
 
         navIntentRef.current = "hub";
         if (action === "notifications") {
@@ -4965,7 +4963,10 @@ function AchievementsRoot() {
                                     view,
                                     focusScopeResetToken,
                                     language,
-                                    buttonSpacing
+                                    buttonSpacing,
+                                    restoreFocusKey: utilsFocusReturn,
+                                    restorePending: utilsRestorePending,
+                                    panelOverlayVisible
                                 }}
                                 actions={{
                                     onBack: backFromUtils,
@@ -4975,7 +4976,8 @@ function AchievementsRoot() {
                                     onOpenCheevoCheck: goToCheevoCheck,
                                     onOpenFileWatcher: goToFileWatcher,
                                     onOpenMemoriesTransfer: goToMemoriesTransfer,
-                                    onOpenMemories: goToMemories
+                                    onOpenMemories: goToMemories,
+                                    onRequestFocus: setPendingFocusKey
                                 }}
                             />
 

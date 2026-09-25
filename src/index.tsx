@@ -12,12 +12,17 @@ import { registerScreenDarken, unregisterScreenDarken } from "./components/darke
 import { registerMemoryCapture, unregisterMemoryCapture } from "./components/memories/memoryCapture";
 import { registerMemoryFullscreen, unregisterMemoryFullscreen } from "./components/memories/memoryFullscreen";
 import { setClipMuted } from "./components/memories/clipMute";
+import { closeBrowserForUnload } from "./components/browser/BrowserModal";
+import { releaseWebBrowserActionset } from "./components/browser/browserViewHost";
+import { registerBrowserDownloads, unregisterBrowserDownloads } from "./components/browser/browserDownloads";
 
 const NOTIFICATION_EVENT = "cheevodeck_notification";
 
 const AVATAR_HEALED_EVENT = "cheevodeck_avatar_healed";
 
 export default definePlugin(() => {
+    releaseWebBrowserActionset();
+
     const onNotificationToast = (payload: {
         type?: string;
         titleKey?: string;
@@ -64,6 +69,7 @@ export default definePlugin(() => {
         void refreshHealedUserAvatar(username);
     };
     addEventListener(AVATAR_HEALED_EVENT, onAvatarHealed);
+    registerBrowserDownloads();
 
     registerScreenDarken();
     registerMemoryCapture();
@@ -77,10 +83,12 @@ export default definePlugin(() => {
         onDismount() {
             removeEventListener(NOTIFICATION_EVENT, onNotificationToast);
             removeEventListener(AVATAR_HEALED_EVENT, onAvatarHealed);
+            unregisterBrowserDownloads();
             disableLibraryBadge();
             unregisterScreenDarken();
             unregisterMemoryCapture();
             unregisterMemoryFullscreen();
+            closeBrowserForUnload();
         }
     };
 });

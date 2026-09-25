@@ -161,6 +161,14 @@ import type {
     UnsaveCommentResponse,
     ClearSavedCommentsResponse,
     CalculatorHistoryResponse,
+    BrowserHistoryRetention,
+    BrowserNewTabPage,
+    BrowserSearchEngine,
+    BrowserPanelTab,
+    BrowserSettingsResponse,
+    BrowserTabsResponse,
+    BrowserHistoryResponse,
+    BrowserBookmarksResponse,
     OkResult,
     SocialView,
     BadgesSortOrder,
@@ -1962,7 +1970,6 @@ let USER_AVATAR_CACHE_LIMIT = 1024;
 const userAvatarMemoryCache = new Map<string, string>();
 const userAvatarCacheOrder: string[] = [];
 
-
 function normaliseAvatarKey(username: string | null | undefined): string | null {
     const text = String(username || "").trim().toLowerCase();
     return text || null;
@@ -2708,3 +2715,122 @@ export const addCalculatorHistoryEntry = callable<
     CalculatorHistoryResponse
 >("add_calculator_history_entry");
 export const clearCalculatorHistory = callable<[], CalculatorHistoryResponse>("clear_calculator_history");
+
+export const loadBrowserSettings = callable<[], BrowserSettingsResponse>("load_browser_settings");
+export const saveBrowserPageZoom = callable<[number], BrowserSettingsResponse>("save_browser_page_zoom");
+export const saveBrowserHistoryRetention = callable<
+    [BrowserHistoryRetention],
+    BrowserSettingsResponse
+>("save_browser_history_retention");
+export const saveBrowserSearchEngine = callable<[BrowserSearchEngine], BrowserSettingsResponse>(
+    "save_browser_search_engine"
+);
+export const saveBrowserNewTabPage = callable<[BrowserNewTabPage], BrowserSettingsResponse>(
+    "save_browser_new_tab_page"
+);
+export const saveBrowserCustomNewTabUrl = callable<[string], BrowserSettingsResponse>(
+    "save_browser_custom_new_tab_url"
+);
+export const saveBrowserCustomSearchUrl = callable<[string], BrowserSettingsResponse>(
+    "save_browser_custom_search_url"
+);
+export const saveBrowserExpanded = callable<[boolean], BrowserSettingsResponse>(
+    "save_browser_expanded"
+);
+export const saveBrowserOpenLinksInNewTab = callable<[boolean], BrowserSettingsResponse>(
+    "save_browser_open_links_in_new_tab"
+);
+export const saveBrowserBlockAds = callable<[boolean], BrowserSettingsResponse>(
+    "save_browser_block_ads"
+);
+export const saveBrowserFastForwardYouTubeAds = callable<[boolean], BrowserSettingsResponse>(
+    "save_browser_fast_forward_youtube_ads"
+);
+export const saveBrowserDownloadFolder = callable<[string], BrowserSettingsResponse>(
+    "save_browser_download_folder"
+);
+export const saveBrowserRememberDownloadFolder = callable<[boolean], BrowserSettingsResponse>(
+    "save_browser_remember_download_folder"
+);
+export const getBrowserDownloadFolder = callable<[], { ok: boolean; path: string }>(
+    "get_browser_download_folder"
+);
+export const startBrowserDownload = callable<
+    [url: string, folder: string, suggestedName: string, cookie: string, userAgent: string, referer: string, chosenName: string],
+    { ok: boolean; id?: string; error?: string }
+>("start_browser_download");
+
+export const getBrowserTabs = callable<[], BrowserTabsResponse>("get_browser_tabs");
+export const addBrowserTab = callable<
+    [url: string, title: string, evictOldest: boolean],
+    BrowserTabsResponse
+>("add_browser_tab");
+export const closeBrowserTab = callable<[tabId: string], BrowserTabsResponse>("close_browser_tab");
+export const closeAllBrowserTabs = callable<[], BrowserTabsResponse>("close_all_browser_tabs");
+export const setActiveBrowserTab = callable<[tabId: string], BrowserTabsResponse>("set_active_browser_tab");
+export const setBrowserPanelTab = callable<[panelTab: BrowserPanelTab], BrowserTabsResponse>("set_browser_panel_tab");
+export const setBrowserTabScroll = callable<
+    [tabId: string, scroll: number, anchor?: string, url?: string],
+    BrowserTabsResponse
+>("set_browser_tab_scroll");
+export const setBrowserTabTitle = callable<
+    [tabId: string, title: string],
+    BrowserTabsResponse
+>("set_browser_tab_title");
+export const navigateBrowserTab = callable<
+    [tabId: string, url: string, title: string],
+    BrowserTabsResponse
+>("navigate_browser_tab");
+export const replaceBrowserTabEntry = callable<
+    [tabId: string, oldUrl: string, newUrl: string],
+    BrowserTabsResponse
+>("replace_browser_tab_entry");
+export const setBrowserTabHistoryIndex = callable<
+    [tabId: string, index: number],
+    BrowserTabsResponse
+>("set_browser_tab_history_index");
+
+export const getBrowserHistory = callable<[], BrowserHistoryResponse>("get_browser_history");
+export const addBrowserHistoryEntry = callable<
+    [url: string, title: string],
+    BrowserHistoryResponse
+>("add_browser_history_entry");
+export const removeBrowserHistoryEntry = callable<
+    [entryId: string],
+    BrowserHistoryResponse
+>("remove_browser_history_entry");
+export const clearBrowserHistory = callable<[number], BrowserHistoryResponse>("clear_browser_history");
+
+export const getBrowserBookmarks = callable<[], BrowserBookmarksResponse>("get_browser_bookmarks");
+export const addBrowserBookmark = callable<
+    [url: string, title: string],
+    BrowserBookmarksResponse
+>("add_browser_bookmark");
+export const removeBrowserBookmark = callable<
+    [bookmarkId: string],
+    BrowserBookmarksResponse
+>("remove_browser_bookmark");
+export const renameBrowserBookmark = callable<
+    [bookmarkId: string, title: string],
+    BrowserBookmarksResponse
+>("rename_browser_bookmark");
+export const addBrowserBookmarkCategory = callable<
+    [name: string],
+    BrowserBookmarksResponse
+>("add_browser_bookmark_category");
+export const renameBrowserBookmarkCategory = callable<
+    [categoryId: string, name: string],
+    BrowserBookmarksResponse
+>("rename_browser_bookmark_category");
+export const removeBrowserBookmarkCategory = callable<
+    [categoryId: string],
+    BrowserBookmarksResponse
+>("remove_browser_bookmark_category");
+export const setDefaultBrowserBookmarkCategory = callable<
+    [categoryId: string],
+    BrowserBookmarksResponse
+>("set_default_browser_bookmark_category");
+export const setBrowserCategoryCollapsed = callable<
+    [categoryId: string, collapsed: boolean],
+    BrowserBookmarksResponse
+>("set_browser_category_collapsed");

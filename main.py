@@ -54,6 +54,7 @@ from resolved_avatar_store import ResolvedAvatarStore
 from developer_message_store import DeveloperMessageStore
 from cheevo_check_store import CheevoCheckStore
 from calculator_store import CalculatorStore
+from browser_store import BrowserStore
 from file_watcher_store import FileWatcherStore
 from dolphin_mappings_store import DolphinMappingsStore
 from smb_shares_store import SmbSharesStore
@@ -83,6 +84,7 @@ from mixins.file_browser import FileBrowserMixin
 from mixins.guides import GuidesMixin
 from mixins.library_badge import LibraryBadgeMixin
 from mixins.calculator import CalculatorMixin
+from mixins.browser import BrowserMixin
 
 
 DEFAULT_IPC_SLOW_THRESHOLD_MS = 250
@@ -137,6 +139,7 @@ class Plugin(
     GuidesMixin,
     LibraryBadgeMixin,
     CalculatorMixin,
+    BrowserMixin,
 ):
     DEFAULT_LANGUAGE = "en"
     RECENT_UNLOCK_LOOKBACK_MINUTES = 1440
@@ -206,6 +209,7 @@ class Plugin(
         self.cheevo_check_scratch_dir = self.runtime_dir / "scan-temp"
         self.cheevo_check_ram_scratch_dir = Path("/run/cheevodeck-scan-temp")
         self.file_watcher_dir = self.runtime_dir
+        self.browser_dir = self.runtime_dir / "browser"
         self.plugin_dir = Path(
             getattr(decky, "DECKY_PLUGIN_DIR", str(Path(__file__).resolve().parent))
         )
@@ -328,6 +332,9 @@ class Plugin(
         )
         self.calculator_store = CalculatorStore(
             base_dir=self.runtime_dir,
+        )
+        self.browser_store = BrowserStore(
+            base_dir=self.browser_dir,
         )
         self.saved_comments_store = SavedCommentsStore(
             base_dir=self.runtime_dir,
@@ -927,6 +934,7 @@ class Plugin(
             self.tracked_sets_store.repoint(base)
             self.subscriptions_store.repoint(base)
             self.calculator_store.repoint(base)
+            self.browser_store.repoint(base / "browser")
             self.saved_comments_store.repoint(base)
             self.comment_baselines_store.repoint(base)
             self.notifications_store.repoint(base)

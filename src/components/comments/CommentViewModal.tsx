@@ -4,7 +4,8 @@ import type { AotwComment, ControllerGlyphStyle, GameComment, SaveCommentRespons
 import type { LanguageCode } from "../../locales";
 import { t } from "../../locales";
 import { ButtonGlyph } from "../ui/ButtonGlyph";
-import { ExternalLink } from "../ui/ExternalLink";
+import { ActionLink } from "../ui/ActionLink";
+import { openBrowserModal } from "../browser/BrowserModal";
 import { UserAvatar } from "../ui/UserAvatar";
 import { formatUnlockDate } from "../../utils/achievements";
 import { BUTTON_OPTIONS, BUTTON_SECONDARY } from "../../utils/gamepadButtons";
@@ -477,7 +478,7 @@ export function CommentViewModal(props: CommentViewModalProps) {
                             }}
                         >
                             {links.slice(0, MAX_LINKS).map((link) => (
-                                <ExternalLink key={link.url} url={link.url} onBeforeNavigate={close} block>
+                                <ActionLink key={link.url} onActivate={() => openBrowserModal(language, link.url)} block>
                                     <div style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0 }}>
                                         <span style={{ fontWeight: 700, wordBreak: "break-word" }}>
                                             {link.label || link.url}
@@ -488,7 +489,7 @@ export function CommentViewModal(props: CommentViewModalProps) {
                                             </span>
                                         ) : null}
                                     </div>
-                                </ExternalLink>
+                                </ActionLink>
                             ))}
                             {links.length > MAX_LINKS && (
                                 <div style={{ opacity: 0.75, paddingTop: "4px" }}>

@@ -6,7 +6,7 @@ interface SteamBrowserView {
 }
 
 interface SteamWindowInstance {
-    CreateBrowserView?(name: string): SteamBrowserView;
+    CreateBrowserView?(name: string, options?: any): SteamBrowserView;
     [key: string]: any;
 }
 

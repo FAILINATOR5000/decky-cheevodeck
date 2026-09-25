@@ -171,5 +171,27 @@ declare module "react-icons/fa" {
     export const FaMusic: any;
     export const FaVideo: any;
     export const FaArrowUp: any;
+    export const FaArrowLeft: any;
+    export const FaArrowRight: any;
+    export const FaPlus: any;
+    export const FaTimes: any;
+    export const FaStar: any;
+    export const FaRegStar: any;
+    export const FaBars: any;
+    export const FaWindowMaximize: any;
+    export const FaWindowRestore: any;
+    export const FaTrash: any;
+    export const FaSearch: any;
+    export const FaChevronUp: any;
+    export const FaChevronDown: any;
+    export const FaGlobe: any;
+    export const FaMinus: any;
+    export const FaChevronLeft: any;
+    export const FaChevronRight: any;
     export const FaRegQuestionCircle: any;
+    export const FaCheck: any;
+    export const FaCheckCircle: any;
+    export const FaRegCircle: any;
+    export const FaFolderPlus: any;
+    export const FaPen: any;
 }

@@ -217,6 +217,7 @@ _ALLOWED_QUICK_MENU_SHORTCUTS = (
     "fileWatcher",
     "memories",
     "calculator",
+    "browser",
     "socialActivity",
     "visitRa",
     "uiDefault",
@@ -254,6 +255,7 @@ _ALLOWED_SHORTCUT_ACTIONS = (
     "fileWatcher",
     "memories",
     "calculator",
+    "browser",
     "socialActivity",
     "visitRa",
     "snapshot",
@@ -265,7 +267,6 @@ _ALLOWED_SHORTCUT_ACTIONS = (
 
 
 _ALLOWED_SCALE_PRESETS = ("portable", "bigScreen", "bigText")
-
 
 def _default_shortcut_bindings() -> dict:
     return {

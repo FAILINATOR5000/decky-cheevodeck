@@ -1,5 +1,5 @@
 import { DEFAULT_LANGUAGE, type LanguageCode, t } from "../locales";
-import type { AchievementStyle, ActivityCardAction, ButtonSpacing, ControllerGlyphStyle, HeaderStyle, PlayersNearYouMode, PlayersNearYouTapMode, QuickMenuShortcut, ScalePreset, ScaleStep, ShortcutAction, ShortcutButton, SocialEntryDefault } from "../types";
+import type { AchievementStyle, ActivityCardAction, BrowserHistoryRetention, BrowserNewTabPage, BrowserSearchEngine, ButtonSpacing, ControllerGlyphStyle, HeaderStyle, PlayersNearYouMode, PlayersNearYouTapMode, QuickMenuShortcut, ScalePreset, ScaleStep, ShortcutAction, ShortcutButton, SocialEntryDefault } from "../types";
 
 
 const UNLOCK_LOOKBACK_OPTIONS = [60, 120, 360, 720, 1440];
@@ -244,6 +244,7 @@ export const QUICK_MENU_SHORTCUTS: { id: QuickMenuShortcut; labelKey: string; he
     { id: "fileWatcher", labelKey: "File Watcher", helpKey: "help_quick_shortcut_file_watcher" },
     { id: "memories", labelKey: "Memories", helpKey: "help_quick_shortcut_memories" },
     { id: "calculator", labelKey: "Calculator", helpKey: "help_quick_shortcut_calculator" },
+    { id: "browser", labelKey: "Web Browser", helpKey: "help_quick_shortcut_browser" },
     { id: "socialActivity", labelKey: "Social Activity Feed", helpKey: "help_quick_shortcut_social_activity" },
     { id: "visitRa", labelKey: "Visit RA", helpKey: "help_quick_shortcut_visit_ra" },
     { id: "uiDefault", labelKey: "UI: Default View", helpKey: "help_quick_shortcut_ui_default" },
@@ -289,6 +290,7 @@ const SHORTCUT_ACTIONS: { id: ShortcutAction; labelKey: string }[] = [
     { id: "fileWatcher", labelKey: "File Watcher" },
     { id: "memories", labelKey: "Memories" },
     { id: "calculator", labelKey: "Calculator" },
+    { id: "browser", labelKey: "Web Browser" },
     { id: "socialActivity", labelKey: "Social Activity Feed" },
     { id: "visitRa", labelKey: "Visit RA" },
     { id: "snapshot", labelKey: "Snapshot (Debug)" },
@@ -620,6 +622,66 @@ export function nextAchievementIconCacheGames(current: number) {
 
 export function memoriesPerPageLabel(value: number) {
     return `${value}`;
+}
+
+const BROWSER_PAGE_ZOOM_OPTIONS = [75, 90, 100, 110, 125, 150, 175, 200] as const;
+
+export function stepBrowserPageZoom(current: number, direction: number) {
+    const normalized = BROWSER_PAGE_ZOOM_OPTIONS.includes(current as any) ? current : 100;
+    const currentIndex = BROWSER_PAGE_ZOOM_OPTIONS.indexOf(normalized as any);
+    const nextIndex = Math.min(Math.max(currentIndex + direction, 0), BROWSER_PAGE_ZOOM_OPTIONS.length - 1);
+
+    return BROWSER_PAGE_ZOOM_OPTIONS[nextIndex];
+}
+
+const BROWSER_HISTORY_RETENTION_OPTIONS = ["off", "7", "30", "forever"] as const;
+
+export function nextBrowserHistoryRetention(current: BrowserHistoryRetention): BrowserHistoryRetention {
+    const normalized = BROWSER_HISTORY_RETENTION_OPTIONS.includes(current) ? current : "forever";
+    const currentIndex = BROWSER_HISTORY_RETENTION_OPTIONS.indexOf(normalized);
+
+    return BROWSER_HISTORY_RETENTION_OPTIONS[(currentIndex + 1) % BROWSER_HISTORY_RETENTION_OPTIONS.length];
+}
+
+export function browserHistoryRetentionLabel(value: BrowserHistoryRetention, language: LanguageCode = DEFAULT_LANGUAGE) {
+    if (value === "off") return t(language, "Do Not Record");
+    if (value === "7") return t(language, "7 Days");
+    if (value === "30") return t(language, "30 Days");
+    return t(language, "Forever");
+}
+
+const BROWSER_SEARCH_ENGINE_OPTIONS = ["google", "brave", "duckduckgo", "youtube", "retroachievements", "custom"] as const;
+
+export function nextBrowserSearchEngine(current: BrowserSearchEngine): BrowserSearchEngine {
+    const currentIndex = BROWSER_SEARCH_ENGINE_OPTIONS.indexOf(current);
+
+    return BROWSER_SEARCH_ENGINE_OPTIONS[(currentIndex + 1) % BROWSER_SEARCH_ENGINE_OPTIONS.length];
+}
+
+const BROWSER_NEW_TAB_PAGE_OPTIONS = ["google", "brave", "duckduckgo", "retroachievements", "custom"] as const;
+
+export function nextBrowserNewTabPage(current: BrowserNewTabPage): BrowserNewTabPage {
+    const currentIndex = BROWSER_NEW_TAB_PAGE_OPTIONS.indexOf(current);
+
+    return BROWSER_NEW_TAB_PAGE_OPTIONS[(currentIndex + 1) % BROWSER_NEW_TAB_PAGE_OPTIONS.length];
+}
+
+export function browserSiteLabel(value: BrowserSearchEngine | BrowserNewTabPage, language: LanguageCode = DEFAULT_LANGUAGE) {
+    if (value === "brave") return "Brave Search";
+    if (value === "duckduckgo") return "DuckDuckGo";
+    if (value === "youtube") return "YouTube";
+    if (value === "retroachievements") return "RetroAchievements";
+    if (value === "custom") return t(language, "Custom");
+    return "Google";
+}
+
+export function browserOptionLabels(language: LanguageCode = DEFAULT_LANGUAGE): string[] {
+    const labels = [
+        ...BROWSER_SEARCH_ENGINE_OPTIONS.map((value) => browserSiteLabel(value, language)),
+        ...BROWSER_NEW_TAB_PAGE_OPTIONS.map((value) => browserSiteLabel(value, language)),
+        ...BROWSER_HISTORY_RETENTION_OPTIONS.map((value) => browserHistoryRetentionLabel(value, language))
+    ];
+    return [...new Set(labels)];
 }
 
 export function nextMemoriesPerPage(current: number) {

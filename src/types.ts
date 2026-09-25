@@ -623,10 +623,17 @@ export type QuickMenuShortcut =
     | "fileWatcher"
     | "memories"
     | "calculator"
+    | "browser"
     | "socialActivity"
     | "visitRa"
     | "uiDefault"
     | "uiCompact";
+
+export type BrowserHistoryRetention = "off" | "7" | "30" | "forever";
+
+export type BrowserSearchEngine = "google" | "brave" | "duckduckgo" | "youtube" | "retroachievements" | "custom";
+
+export type BrowserNewTabPage = "google" | "brave" | "duckduckgo" | "retroachievements" | "custom";
 
 export type ShortcutButton = "menu" | "view" | "l3" | "r3" | "l4" | "l5" | "r4" | "r5";
 
@@ -656,6 +663,7 @@ export type ShortcutAction =
     | "fileWatcher"
     | "memories"
     | "calculator"
+    | "browser"
     | "socialActivity"
     | "visitRa"
     | "snapshot"
@@ -1841,6 +1849,83 @@ export type CalculatorHistoryEntry = {
 export type CalculatorHistoryResponse = {
     ok: boolean;
     entries: CalculatorHistoryEntry[];
+};
+
+export type BrowserTab = {
+    id: string;
+    url: string;
+    title: string;
+    history: string[];
+    historyScroll: number[];
+    historyAnchor: string[];
+    historyIndex: number;
+    scroll: number;
+    anchor: string;
+    usedAt: number;
+};
+
+export type BrowserPanelTab = "bookmarks" | "history" | "options";
+
+export type BrowserTabsResponse = {
+    ok: boolean;
+    reason: string;
+    tabs: BrowserTab[];
+    activeTabId: string;
+    panelTab: BrowserPanelTab;
+    maxTabs: number;
+};
+
+export type BrowserSettingsResponse = {
+    ok: boolean;
+    pageZoom: number;
+    historyRetention: BrowserHistoryRetention;
+    searchEngine: BrowserSearchEngine;
+    newTabPage: BrowserNewTabPage;
+    customNewTabUrl: string;
+    customSearchUrl: string;
+    openLinksInNewTab: boolean;
+    blockAds: boolean;
+    fastForwardYouTubeAds: boolean;
+    downloadFolder: string;
+    rememberDownloadFolder: boolean;
+    expanded: boolean;
+};
+
+export type BrowserHistoryEntry = {
+    id: string;
+    url: string;
+    title: string;
+    visitedAt: number;
+};
+
+export type BrowserHistoryResponse = {
+    ok: boolean;
+    entries: BrowserHistoryEntry[];
+};
+
+export type BrowserBookmark = {
+    id: string;
+    url: string;
+    title: string;
+    createdAt: number;
+    categoryId: string;
+};
+
+export type BrowserBookmarkCategory = {
+    id: string;
+    name: string;
+    createdAt: number;
+};
+
+export type BrowserBookmarksResponse = {
+    ok: boolean;
+    reason: string;
+    bookmarks: BrowserBookmark[];
+    categories: BrowserBookmarkCategory[];
+    defaultCategoryId: string;
+    collapsedCategoryIds: string[];
+    maxBookmarks: number;
+    maxCategories: number;
 };
 
 export type SavedCommentsResponse = {

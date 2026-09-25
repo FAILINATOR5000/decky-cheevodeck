@@ -2,9 +2,10 @@ import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
 // Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
-import { FaCalculator, FaClipboardCheck, FaClock, FaCompressArrowsAlt, FaExpandAlt, FaFileAlt, FaGamepad, FaHistory, FaImage, FaNetworkWired, FaSyncAlt, FaThumbtack, FaTrophy } from "react-icons/fa";
+import { FaCalculator, FaClipboardCheck, FaClock, FaCompressArrowsAlt, FaExpandAlt, FaFileAlt, FaGamepad, FaGlobe, FaHistory, FaImage, FaNetworkWired, FaSyncAlt, FaThumbtack, FaTrophy } from "react-icons/fa";
 import { AchievementList } from "../components/achievements/AchievementList";
 import { openCalculatorModal } from "../components/calculator/CalculatorModal";
+import { openBrowserModal } from "../components/browser/BrowserModal";
 import { ButtonHints } from "../components/ui/ButtonHints";
 import { playOkSound } from "../utils/navSound";
 import { AwardStatusBadge } from "../components/achievements/AwardStatusBadge";
@@ -503,6 +504,7 @@ const QUICK_MENU_SHORTCUT_ICONS: Record<QuickMenuShortcut, ComponentType<{ size?
     fileWatcher: FaFileAlt,
     memories: FaImage,
     calculator: FaCalculator,
+    browser: FaGlobe,
     socialActivity: FaClock,
     visitRa: FaTrophy,
     uiDefault: FaExpandAlt,
@@ -1267,6 +1269,10 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
         }
         if (id === "calculator") {
             openCalculatorModal(language);
+            return;
+        }
+        if (id === "browser") {
+            openBrowserModal(language);
             return;
         }
         if (id === "socialActivity") {
