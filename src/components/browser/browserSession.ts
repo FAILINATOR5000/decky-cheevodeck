@@ -1,5 +1,5 @@
 import { logFocusDebug } from "../../api";
-import { socketForUrl } from "./browserScroll";
+import { AD_SKIP_BINDING, socketForUrl } from "./browserScroll";
 import { AD_BLOCK_HOSTS, AD_BLOCK_PATTERNS } from "./adBlockHosts";
 import { AD_LIBRARY_STAND_IN } from "./adStandIns";
 import { FULLSCREEN_BINDING, FULLSCREEN_WATCH } from "./fullscreenWatch";
@@ -84,6 +84,10 @@ function onMessage(ev: MessageEvent) {
         else {
             entry.resolve(msg.result ?? {});
         }
+        return;
+    }
+    if (msg.method === "Runtime.bindingCalled" && msg.params?.name === AD_SKIP_BINDING) {
+        pressSkip(String(msg.params?.payload ?? ""));
         return;
     }
     if (msg.method === "Runtime.bindingCalled" && msg.params?.name === FULLSCREEN_BINDING) {
@@ -203,6 +207,7 @@ async function attached() {
     }
     try {
         await send("Runtime.addBinding", { name: FULLSCREEN_BINDING });
+        await send("Runtime.addBinding", { name: AD_SKIP_BINDING });
         await send("Page.addScriptToEvaluateOnNewDocument", { source: FULLSCREEN_WATCH });
         await send("Runtime.evaluate", { expression: FULLSCREEN_WATCH });
     }
@@ -298,13 +303,40 @@ export function setFullscreenHandler(handler: ((fullscreen: boolean) => void) | 
     fullscreenHandler = handler;
 }
 
-export function refreshFullscreenBinding(): void {
+export function refreshPageBindings(): void {
     if (!socket) {
         return;
     }
-    send("Runtime.addBinding", { name: FULLSCREEN_BINDING }).catch((e) => {
-        logFocusDebug("browser-session", "fullscreen binding failed", String((e as Error)?.message ?? e));
-    });
+    for (const name of [FULLSCREEN_BINDING, AD_SKIP_BINDING]) {
+        send("Runtime.addBinding", { name }).catch((e) => {
+            logFocusDebug("browser-session", "binding failed", `${name} ${String((e as Error)?.message ?? e)}`);
+        });
+    }
+}
+
+async function pressSkip(payload: string) {
+    let point: { x?: unknown; y?: unknown };
+    try {
+        point = JSON.parse(payload);
+    }
+    catch {
+        return;
+    }
+    if (typeof point.x !== "number" || typeof point.y !== "number") {
+        return;
+    }
+    const scale = zoomPercent < 100 ? zoomPercent / 100 : 1;
+    const x = point.x * scale;
+    const y = point.y * scale;
+    try {
+        await send("Input.dispatchMouseEvent", { type: "mouseMoved", x, y, button: "none" });
+        await send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", clickCount: 1 });
+        await send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", clickCount: 1 });
+        logFocusDebug("browser-session", "skip pressed", `${Math.round(x)},${Math.round(y)} at ${zoomPercent}%`);
+    }
+    catch (e) {
+        logFocusDebug("browser-session", "skip failed", String((e as Error)?.message ?? e));
+    }
 }
 
 export async function requestHeadersFor(url: string): Promise<{ cookie: string; userAgent: string }> {

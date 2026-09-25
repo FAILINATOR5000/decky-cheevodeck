@@ -15,7 +15,7 @@ import { BrowserPanel } from "./BrowserPanel";
 import { BrowserTabLimit } from "./BrowserTabLimit";
 import { BrowserBookmarkLimit } from "./BrowserBookmarkLimit";
 import { BrowserDownloadFolder } from "./BrowserDownloadFolder";
-import { closeSession, ensureSession, refreshFullscreenBinding, setDownloadHandler, setFullscreenHandler, setViewSize, stopLoading } from "./browserSession";
+import { closeSession, ensureSession, refreshPageBindings, setDownloadHandler, setFullscreenHandler, setViewSize, stopLoading } from "./browserSession";
 import { BROWSER_HOME_URL, useBrowserController } from "../../hooks/useBrowserController";
 import { t, type LanguageCode } from "../../locales";
 import { useFocusPaintWake } from "../../hooks/useFocusPaintWake";
@@ -209,7 +209,7 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
                 handlersRef.current.noteLeaving();
                 return;
             }
-            refreshFullscreenBinding();
+            refreshPageBindings();
             const token = host.pageKeyboardHold;
             void handlersRef.current.noteLoaded(url, title, finished).finally(() => {
                 if (finished) {

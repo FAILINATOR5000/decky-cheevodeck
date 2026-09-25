@@ -471,12 +471,35 @@ const AD_SLOT_STYLE_ID = "__cheevodeckAdHide";
 
 const AD_SPEED = 16;
 
+export const AD_SKIP_BINDING = "__cheevodeckSkip";
+
 const AD_SKIP = `
     const player = () => document.getElementById("movie_player") || document.querySelector(".html5-video-player");
     const videoOf = (node) => node ? node.querySelector("video") : null;
     const skipSelector = ".ytp-skip-ad-button, .ytp-ad-skip-button, .ytp-ad-skip-button-modern, button[id^='skip-button']";
     let saved = null;
     let userRate = 0;
+    let skipTimer = 0;
+    let lastPress = 0;
+    const pressSkip = () => {
+        if (Date.now() - lastPress < 1000) {
+            return;
+        }
+        for (const button of document.querySelectorAll(skipSelector)) {
+            if (button.offsetParent === null) {
+                continue;
+            }
+            lastPress = Date.now();
+            const rect = button.getBoundingClientRect();
+            try {
+                window.${AD_SKIP_BINDING}(JSON.stringify({ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }));
+            }
+            catch (e) {
+                button.click();
+            }
+            return;
+        }
+    };
     const isMuted = (node, video) => typeof node.isMuted === "function" ? node.isMuted() : video.volume === 0;
     const mute = (node, video, state) => {
         if (typeof node.mute === "function") {
@@ -512,12 +535,15 @@ const AD_SKIP = `
             if (video.playbackRate !== ${AD_SPEED}) {
                 video.playbackRate = ${AD_SPEED};
             }
-            for (const button of document.querySelectorAll(skipSelector)) {
-                if (button.offsetParent !== null) {
-                    button.click();
-                }
+            pressSkip();
+            if (!skipTimer) {
+                skipTimer = setInterval(pressSkip, 500);
             }
             return;
+        }
+        if (skipTimer) {
+            clearInterval(skipTimer);
+            skipTimer = 0;
         }
         if (!saved) {
             return;
