@@ -264,6 +264,7 @@ _ALLOWED_SHORTCUT_ACTIONS = (
     "snapshot",
     "nightMode",
     "doNotDisturb",
+    "batterySaver",
     "mouseKeyboardMode",
     "cycleUiScale",
 )

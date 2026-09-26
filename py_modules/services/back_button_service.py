@@ -46,6 +46,7 @@ SUMMON_ACTIONS = (
     "lastMemory",
     "snapshot",
     "doNotDisturb",
+    "batterySaver",
     "notifications",
     "socialActivity",
     "profile",

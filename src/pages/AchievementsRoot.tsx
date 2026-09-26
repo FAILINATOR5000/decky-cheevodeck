@@ -252,6 +252,7 @@ import { measureCommentWindow } from "../utils/commentGeometry";
 import { currentQuickGuideVisible, setQuickGuide } from "../utils/quickGuide";
 import { lastOpenedGuide } from "../utils/guidesResolve";
 import { requestPanelEntry, takePanelEntry, type PanelEntry } from "../utils/pendingPanelEntry";
+import { showToggleToast } from "../utils/toggleToast";
 import { openExternalUrl, raAchievementUrl, raAchievementCommentsUrl, raGameUrl, raGameCommentsUrl, raHomeUrl, raLookupSearchUrl, raUserUrl, raUserCommentsUrl } from "../utils/navigation";
 import { userRefFor } from "../utils/friends";
 import { loadCachedImage } from "../utils/loadCachedImage";
@@ -4480,6 +4481,11 @@ function AchievementsRoot() {
         }
         if (action === "doNotDisturb") {
             toggleDoNotDisturb(!doNotDisturb);
+            return;
+        }
+        if (action === "batterySaver") {
+            toggleBatterySaver(!batterySaver);
+            showToggleToast(language, "Standby", !batterySaver);
             return;
         }
         if (action === "mouseKeyboardMode") {

@@ -1,4 +1,4 @@
-import { addEventListener, removeEventListener, toaster } from "@decky/api";
+import { addEventListener, removeEventListener } from "@decky/api";
 import {
     getCachedPayload,
     getNotifications,
@@ -7,6 +7,7 @@ import {
     logFocusDebug,
     markNotificationsSeen,
     prefetchGameIcons,
+    saveBatterySaver,
     saveDoNotDisturb,
     saveSavedCommentsPrefs
 } from "../../api";
@@ -19,6 +20,7 @@ import { lastOpenedGuide } from "../../utils/guidesResolve";
 import { cheevoModalOpen, showManagedModal } from "../../utils/modalRegistry";
 import type { PanelEntry } from "../../utils/pendingPanelEntry";
 import { captureSnapshot } from "../../utils/snapshot";
+import { showToggleToast } from "../../utils/toggleToast";
 import { openPanelOn, quickAccessIsHidden } from "../../utils/quickAccess";
 import { browserModalOpen, openBrowserModal } from "../browser/BrowserModal";
 import { openCalculatorModal } from "../calculator/CalculatorModal";
@@ -49,6 +51,7 @@ type SummonAction =
     | "lastMemory"
     | "snapshot"
     | "doNotDisturb"
+    | "batterySaver"
     | "notifications"
     | PageAction;
 
@@ -125,24 +128,25 @@ async function summonCurrentGuide(language: LanguageCode) {
     }
 }
 
-async function toggleDoNotDisturb(language: LanguageCode) {
+async function toggleSetting(action: "doNotDisturb" | "batterySaver", language: LanguageCode) {
     if (summoning) {
         return;
     }
     summoning = true;
     try {
         const settings = await getSettings();
-        if (!mayOpen("doNotDisturb")) {
+        if (!mayOpen(action)) {
             return;
         }
-        const result = await saveDoNotDisturb(!settings.doNotDisturb);
-        toaster.toast({
-            title: t(language, "Do Not Disturb"),
-            body: t(language, result.doNotDisturb ? "On" : "Off"),
-            duration: 2000
-        });
+        if (action === "doNotDisturb") {
+            const result = await saveDoNotDisturb(!settings.doNotDisturb);
+            showToggleToast(language, "Do Not Disturb", result.doNotDisturb);
+        } else {
+            const result = await saveBatterySaver(!settings.batterySaver);
+            showToggleToast(language, "Standby", result.batterySaver);
+        }
     } catch (e) {
-        logError("backButtons: couldn't toggle Do Not Disturb", e);
+        logError(`backButtons: couldn't toggle ${action}`, e);
     } finally {
         summoning = false;
     }
@@ -276,7 +280,8 @@ async function onBackButton(payload: { action?: string | null; browserSnapshot?:
             void captureSnapshot(language);
             break;
         case "doNotDisturb":
-            void toggleDoNotDisturb(language);
+        case "batterySaver":
+            void toggleSetting(summon, language);
             break;
         case "notifications":
             void summonNotifications(language);
