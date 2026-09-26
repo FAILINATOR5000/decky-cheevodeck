@@ -455,7 +455,8 @@ function consumePendingRouteOverrides(resumeState: ResumeState | null): ResumeSt
             view: "guides",
             guidesSubView: "list",
             guidesFaqId: null,
-            focusKey: "guides:back"
+            focusKey: "guides:back",
+            navStack: null
         };
     }
 
