@@ -72,6 +72,8 @@ CheevoDeck's own source stays BSD-3. It invokes RAHasher as a separate process r
 
 The underlying rcheevos is MIT, but the packaged tool is not, so the GPL is what governs here.
 
+There is also an **ARM64 build** at `bin/aarch64/RAHasher`, for SteamOS on ARM. LeXofLeviafan's releases don't include one, so I build it myself from the same 1.8.3 tag, unmodified, since upstream's own makefile already has the ARM64 target. `bin/aarch64/RAHasher.PROVENANCE.md` records the commit, the exact build command and the checksum, and its license text ships beside it.
+
 ## chdman — the bundled disc tool
 
 Cheevo Check's verification pass ships [**chdman**](https://github.com/mamedev/mame) at `bin/chdman` and runs it as a separate executable over its command line. It's MAME's CHD tool, and it does the one thing verification cannot do without: turn a compressed disc image back into the plain image a published catalog describes. CHD is how most disc-based games end up being stored, so without it every one of them would be a blank spot in the results.
@@ -81,6 +83,8 @@ Cheevo Check's verification pass ships [**chdman**](https://github.com/mamedev/m
 **chdman is GPL-2.0-only** — MAME's COPYING names version 2 with no "or later" clause — so it needs its own license text rather than sharing RAHasher's GPL-3.0. That text ships beside it as `bin/chdman.COPYING`, and `bin/chdman.PROVENANCE.md` records the release tag, the exact build command and the binary's checksum.
 
 Same arm's-length arrangement as RAHasher: a separate process over a command line, no linking, none of its code here. CheevoDeck's own source stays BSD-3.
+
+The ARM64 build at `bin/aarch64/chdman` comes from the same tag, cross-compiled with no source changes, and has its own provenance file and license text beside it.
 
 ## libretro-database — the bundled reference catalogs
 

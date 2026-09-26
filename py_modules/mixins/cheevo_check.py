@@ -75,6 +75,7 @@ class CheevoCheckMixin(PluginContext):
             "running": status["running"],
             "error": status["error"],
             "progress": status["progress"],
+            "hasherProblem": self.cheevo_check_service.hasher_problem(),
             "results": self.cheevo_check_store.load_results(),
             "verifyResults": self.cheevo_check_store.load_verify_results(),
             "dataAvailable": summary["available"],

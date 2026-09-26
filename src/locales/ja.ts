@@ -1505,6 +1505,7 @@ const JA: LocaleTable = {
     "The scan stopped: RetroAchievements couldn't be reached. Your previous results are unchanged.": "スキャンを中止しました。RetroAchievements に接続できませんでした。これまでの結果はそのままです。",
     "There's no saved RetroAchievements data to check against yet. Run a Scan first.": "照合に使える RetroAchievements のデータがまだありません。先にスキャンを実行してください。",
     "The hashing tool is missing from this install. Reinstalling CheevoDeck should fix it.": "このインストールにはハッシュ用のツールが入っていません。CheevoDeck を入れ直すと直るはずです。",
+    "Cheevo Check can't run its hashing tool on this device, so scanning is off. Your previous results are unchanged, and the rest of CheevoDeck works as normal.": "この端末では Cheevo Check のハッシュ用ツールを実行できないため、スキャンは使えません。これまでの結果はそのままで、CheevoDeck のほかの機能は普段どおり使えます。",
     "The scan stopped before it finished. Your previous results are unchanged.": "スキャンは終わる前に中止されました。前回の結果はそのまま残っています。",
     "Cheevo Check Data": "Cheevo Check のデータ",
     "Clear Last Scan Results": "前回のスキャン結果を削除",

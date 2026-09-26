@@ -241,7 +241,8 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
     const supportedGames = results?.supportedGames ?? [];
     const missingConsoles = results?.missingConsoles ?? [];
     const verify = cheevo?.verifyResults ?? null;
-    const canScanOffline = Boolean(cheevo?.dataAvailable) && !busy;
+    const hasherProblem = cheevo?.hasherProblem ?? null;
+    const canScanOffline = Boolean(cheevo?.dataAvailable) && !busy && !hasherProblem;
 
     function openGuide() {
         showManagedModal((close) => (
@@ -471,11 +472,21 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                         </>
                     )}
 
+                    {hasherProblem && (
+                        <PanelSectionRow>
+                            <div style={{ ...bodyTextStyle(), color: errorRed, opacity: 1, marginTop: "12px" }}>
+                                {t(language, hasherProblem === "no_hasher"
+                                    ? "The hashing tool is missing from this install. Reinstalling CheevoDeck should fix it."
+                                    : "Cheevo Check can't run its hashing tool on this device, so scanning is off. Your previous results are unchanged, and the rest of CheevoDeck works as normal.")}
+                            </div>
+                        </PanelSectionRow>
+                    )}
                     <PanelSectionRow>
                         {claimTarget(
                             <FocusableItem
                                 focusKey="cheevocheck:scan"
                                 outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                                disabled={Boolean(hasherProblem)}
                                 onClick={() => {
                                     armCheevoCheckFocusReturn("cheevocheck:scan");
                                     void startScan(false);

@@ -28,6 +28,7 @@ import zlib
 import decky
 import cdi_reader
 import chd_reader
+import cheevo_check_tools
 import cheevo_check_systems as systems
 import dat_index
 import rom_headers
@@ -147,6 +148,7 @@ ABORT_ROOT_GONE = "root_gone"
 ABORT_NO_DATA = "no_data"
 ABORT_FETCH_FAILED = "fetch_failed"
 ABORT_NO_HASHER = "no_hasher"
+ABORT_HASHER_BROKEN = "hasher_broken"
 ABORT_FAILED = "failed"
 ABORT_CANCELLED = "cancelled"
 
@@ -155,8 +157,13 @@ _ABORT_BODIES = {
     ABORT_FETCH_FAILED: "The scan stopped: we couldn't reach RetroAchievements. Your previous results are unchanged.",
     ABORT_NO_DATA: "There's no saved RetroAchievements data to check against yet. Run a Scan first.",
     ABORT_NO_HASHER: "The hashing tool is missing from this install. Reinstalling CheevoDeck should fix it.",
+    ABORT_HASHER_BROKEN: "Cheevo Check can't run its hashing tool on this device, so scanning is off. Your previous results are unchanged, and the rest of CheevoDeck works as normal.",
     None: "The scan stopped before it finished. Your previous results are unchanged.",
 }
+
+
+class HasherBroken(Exception):
+    pass
 
 
 class CheevoCheckService:
@@ -167,8 +174,7 @@ class CheevoCheckService:
         store,
         settings_store,
         notifications_store,
-        hasher_path: Path,
-        chdman_path: Path,
+        bin_dir: Path,
         dats_dir: Path,
         data_dats_dir: Path,
         scratch_dir: Path,
@@ -180,8 +186,11 @@ class CheevoCheckService:
         self._store = store
         self._settings_store = settings_store
         self._notifications = notifications_store
-        self._hasher_path = hasher_path
-        self._chdman_path = chdman_path
+        self._bin_dir = bin_dir
+        self._hasher_path = bin_dir / cheevo_check_tools.HASHER
+        self._chdman_path = bin_dir / cheevo_check_tools.CHDMAN
+        self._hasher_fault = None
+        self._chdman_fault = None
         self._dats_dir = dats_dir
         self._data_dats_dir = data_dats_dir
         self._scratch_dir = scratch_dir
@@ -229,6 +238,20 @@ class CheevoCheckService:
                     "cheevocheck: couldn't make %s executable (%s)", tool.name, exc
                 )
 
+        tool_dir = cheevo_check_tools.choose_dir(self._bin_dir)
+        self._hasher_path = tool_dir / cheevo_check_tools.HASHER
+        self._chdman_path = tool_dir / cheevo_check_tools.CHDMAN
+        for tool in (self._hasher_path, self._chdman_path):
+            if not tool.exists():
+                continue
+            fault = cheevo_check_tools.probe(tool)
+            if tool == self._hasher_path:
+                self._hasher_fault = fault
+            else:
+                self._chdman_fault = fault
+            if fault is not None:
+                decky.logger.warning("cheevocheck: %s won't run (%s)", tool, fault)
+
         for scratch in (self._scratch_dir, self._ram_scratch_dir):
             try:
                 if scratch.exists():
@@ -242,6 +265,13 @@ class CheevoCheckService:
         with self._lock:
             progress = dict(self._progress) if self._progress else None
         return {"running": self._running, "error": self._last_error, "progress": progress}
+
+    def hasher_problem(self):
+        if not self._hasher_path.exists():
+            return ABORT_NO_HASHER
+        if self._hasher_fault is not None:
+            return ABORT_HASHER_BROKEN
+        return None
 
     def _set_progress(self, phase: str, done: int, total: int) -> None:
         """Where the scan has got to.
@@ -266,6 +296,14 @@ class CheevoCheckService:
             with self._lock:
                 self._last_error = ABORT_NO_HASHER
             return {"ok": False, "error": ABORT_NO_HASHER}
+        if self._hasher_fault is not None:
+            self._hasher_fault = cheevo_check_tools.probe(self._hasher_path)
+        if self._hasher_fault is not None:
+            with self._lock:
+                self._last_error = ABORT_HASHER_BROKEN
+            return {"ok": False, "error": ABORT_HASHER_BROKEN}
+        if self._chdman_fault is not None and self._chdman_path.exists():
+            self._chdman_fault = cheevo_check_tools.probe(self._chdman_path)
         if not offline and not web_api_key:
             return {"ok": False, "error": "no_credentials"}
 
@@ -311,6 +349,8 @@ class CheevoCheckService:
                 error = outcome
             else:
                 results, verify_results = outcome
+        except HasherBroken:
+            error = ABORT_HASHER_BROKEN
         except Exception as exc:
             decky.logger.exception("cheevocheck: the scan failed (%s)", type(exc).__name__)
             error = ABORT_FAILED
@@ -1277,8 +1317,13 @@ class CheevoCheckService:
             return []
         argv = [str(self._hasher_path), str(console_id), *[str(path) for path in paths]]
         started = time.monotonic()
-        _, out, err = subprocess_util.run_command(argv, timeout=HASHER_TIMEOUT_SECONDS)
+        code, out, err = subprocess_util.run_command(argv, timeout=HASHER_TIMEOUT_SECONDS)
         elapsed = time.monotonic() - started
+        fault = cheevo_check_tools.tool_fault(code, err)
+        if fault is not None:
+            decky.logger.warning("cheevocheck: %s won't run (%s)", self._hasher_path, fault)
+            self._hasher_fault = fault
+            raise HasherBroken(fault)
         if subprocess_util.TIMEOUT_MARKER in err:
             decky.logger.warning(
                 "cheevocheck: hasher timed out after %ds on a batch of %d under console %s",
@@ -2520,7 +2565,7 @@ class CheevoCheckService:
         and never to the review list, and only chdman actually failing is a
             fault.
         """
-        if not self._chdman_path.exists():
+        if not self._chdman_path.exists() or self._chdman_fault is not None:
             return VERIFY_NO_TOOL
 
         tags = chd_reader.shape_tags(path)
@@ -2548,7 +2593,7 @@ class CheevoCheckService:
 
         needed = self._chd_logical_size(path)
         if needed <= 0:
-            return VERIFY_CHD_EXTRACT_FAILED
+            return VERIFY_NO_TOOL if self._chdman_fault is not None else VERIFY_CHD_EXTRACT_FAILED
         base = self._scratch_base(needed)
         if base is None:
             return VERIFY_NO_SPACE
@@ -2569,6 +2614,8 @@ class CheevoCheckService:
             )
             if self._cancel.is_set():
                 return VERIFY_READ_FAILED
+            if self._chdman_broke(code, err):
+                return VERIFY_NO_TOOL
             if code != 0:
                 self._debug("chdman %s failed for %s: %s", command, path.name, err.strip()[:200])
                 return VERIFY_CHD_EXTRACT_FAILED
@@ -2597,6 +2644,8 @@ class CheevoCheckService:
         The row carries the outcome either way, so a disc that came through
         this can say so rather than only saying whether one track matched.
         """
+        if not self._chdman_path.exists() or self._chdman_fault is not None:
+            return VERIFY_NO_TOOL
         try:
             size = path.stat().st_size
         except OSError:
@@ -2618,12 +2667,23 @@ class CheevoCheckService:
                 "cheevocheck: the whole-disc check of %s timed out", path.name
             )
             return VERIFY_NO_TOOL
+        if self._chdman_broke(code, err):
+            return VERIFY_NO_TOOL
         if code != 0:
             row["problems"] = _tool_complaints(err)
             return VERIFY_READ_FAILED
 
         row["selfCheck"] = "passed"
         return None
+
+    def _chdman_broke(self, code: int, err: str) -> bool:
+        fault = cheevo_check_tools.tool_fault(code, err)
+        if fault is None:
+            return False
+        if self._chdman_fault is None:
+            decky.logger.warning("cheevocheck: %s won't run (%s)", self._chdman_path, fault)
+        self._chdman_fault = fault
+        return True
 
     def _chd_extracted_image(self, scratch: Path, command: str, tags, tracks):
         """Which file chdman produced, and how much of it the catalogue covers.
@@ -2671,10 +2731,11 @@ class CheevoCheckService:
         better than 4:1, and the free-space check is the thing standing between a
         user with a nearly-full drive and a scan that fills it.
         """
-        code, out, _ = subprocess_util.run_command(
+        code, out, err = subprocess_util.run_command(
             [str(self._chdman_path), "info", "-i", str(path)],
             timeout=FLATPAK_QUERY_TIMEOUT_SECONDS,
         )
+        self._chdman_broke(code, err)
         if code != 0:
             return 0
         found = _LOGICAL_SIZE_RE.search(out)

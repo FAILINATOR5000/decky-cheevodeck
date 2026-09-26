@@ -172,6 +172,9 @@ function cheevoCheckAbortKey(reason: string): string {
     if (reason === "no_hasher") {
         return "The hashing tool is missing from this install. Reinstalling CheevoDeck should fix it.";
     }
+    if (reason === "hasher_broken") {
+        return "Cheevo Check can't run its hashing tool on this device, so scanning is off. Your previous results are unchanged, and the rest of CheevoDeck works as normal.";
+    }
     return "The scan stopped before it finished. Your previous results are unchanged.";
 }
 
