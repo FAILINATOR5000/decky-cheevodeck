@@ -1313,7 +1313,7 @@ function GuiTab(props: TabContentProps) {
                     />
                     {state.quickMenuShortcutRefused === entry.id && (
                         <PanelSectionRow>
-                            <ErrorText>{t(state.language, "You can only choose up to four customizable links.")}</ErrorText>
+                            <ErrorText>{t(state.language, "You can only choose up to eight customizable links.")}</ErrorText>
                         </PanelSectionRow>
                     )}
                 </Fragment>

@@ -216,16 +216,16 @@ _ALLOWED_QUICK_MENU_SHORTCUTS = (
     "smbShares",
     "fileWatcher",
     "memories",
-    "mapShortcuts",
     "calculator",
     "browser",
     "socialActivity",
+    "mapShortcuts",
     "visitRa",
     "uiDefault",
     "uiCompact",
 )
 
-QUICK_MENU_SHORTCUT_LIMIT = 4
+QUICK_MENU_SHORTCUT_LIMIT = 8
 
 
 _ALLOWED_SHORTCUT_BUTTONS = ("menu", "view", "l3", "r3", "l4", "l5", "r4", "r5")
@@ -285,7 +285,16 @@ def _default_shortcut_bindings() -> dict:
 
 
 def _default_quick_menu_shortcuts() -> list:
-    return ["dolphinMapper", "cheevoCheck", "socialActivity", "visitRa"]
+    return [
+        "dolphinMapper",
+        "cheevoCheck",
+        "smbShares",
+        "fileWatcher",
+        "calculator",
+        "browser",
+        "socialActivity",
+        "mapShortcuts",
+    ]
 
 
 def _default_saved_comments_prefs() -> dict:

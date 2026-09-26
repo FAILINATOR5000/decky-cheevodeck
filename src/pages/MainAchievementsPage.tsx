@@ -1155,6 +1155,8 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
     const focusedBottomRowEntry = QUICK_MENU_BOTTOM_ROW.find((entry) => entry.id === previewStripButton) || null;
     const focusedShortcut = QUICK_MENU_SHORTCUTS.find((entry) => entry.id === previewStripButton) || null;
     const pinnedShortcuts = QUICK_MENU_SHORTCUTS.filter((entry) => quickMenuShortcuts.includes(entry.id));
+    const pillRows = [pinnedShortcuts.slice(0, 4), pinnedShortcuts.slice(4, 8)].filter((row) => row.length > 0);
+    const lowerRowShortcut = pinnedShortcuts.slice(4).find((entry) => entry.id === previewStripButton) ?? null;
 
     const gamepadCardActions = !mouseKeyboardMode;
 
@@ -1168,12 +1170,13 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
         : (focusedTopRowEntry ? t(language, focusedTopRowEntry.labelKey) : "");
     const bottomRowMenuLabel = previewStripButton === "refresh"
         ? t(language, "Refresh")
-        : focusedShortcut
+        : focusedShortcut && !lowerRowShortcut
             ? t(language, focusedShortcut.labelKey)
             : (focusedBottomRowEntry ? t(language, focusedBottomRowEntry.labelKey) : "");
+    const lowerRowMenuLabel = lowerRowShortcut ? t(language, lowerRowShortcut.labelKey) : "";
 
     // Quick menu rendering
-    function renderQuickMenuCaption(label: string, marginTop: string) {
+    function renderQuickMenuCaption(label: string, marginTop: string, marginBottom = "2px") {
         return (
             <div
                 style={{
@@ -1181,7 +1184,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                     fontWeight: 700,
                     minHeight: "17px",
                     marginTop,
-                    marginBottom: "2px",
+                    marginBottom,
                     textAlign: "center",
                     whiteSpace: "nowrap",
                     opacity: label ? 0.95 : 0
@@ -2127,7 +2130,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                     {t(language, "Background services paused")}
                                 </InfoText>
                             )}
-                            {renderQuickMenuCaption(topRowMenuLabel, "3px")}
+                            {renderQuickMenuCaption(topRowMenuLabel, "0px", "0px")}
                             <Focusable
                                 flow-children="grid"
                                 navEntryPreferPosition={NAV_ENTER_MAINTAIN_X}
@@ -2186,20 +2189,22 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                 </div>
                                 <div style={{ gridColumn: "1 / -1" }}>
                                     {renderQuickMenuCaption(bottomRowMenuLabel, "4px")}
-                                    {pinnedShortcuts.length > 0 && (
+                                    {pillRows.map((row, index) => (
                                         <div
+                                            key={index}
                                             style={{
                                                 display: "flex",
                                                 flexDirection: "row",
                                                 justifyContent: "center",
                                                 gap: "8px",
-                                                marginTop: "2px",
-                                                marginBottom: "4px"
+                                                marginTop: index === 0 ? "2px" : QUICK_MENU_ROW_GAP,
+                                                marginBottom: pillRows.length === 1 ? "4px" : "0"
                                             }}
                                         >
-                                            {pinnedShortcuts.map(renderShortcutPill)}
+                                            {row.map(renderShortcutPill)}
                                         </div>
-                                    )}
+                                    ))}
+                                    {pillRows.length > 1 && renderQuickMenuCaption(lowerRowMenuLabel, "4px", "4px")}
                                 </div>
                             </Focusable>
                         </Focusable>

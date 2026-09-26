@@ -253,7 +253,7 @@ export const QUICK_MENU_SHORTCUTS: { id: QuickMenuShortcut; labelKey: string; he
     { id: "uiCompact", labelKey: "UI: Compact View", helpKey: "help_quick_shortcut_ui_compact" }
 ];
 
-export const QUICK_MENU_SHORTCUT_LIMIT = 4;
+export const QUICK_MENU_SHORTCUT_LIMIT = 8;
 
 export const SHORTCUT_BUTTONS: { id: ShortcutButton; helpKey: string }[] = [
     { id: "menu", helpKey: "help_shortcut_menu" },
