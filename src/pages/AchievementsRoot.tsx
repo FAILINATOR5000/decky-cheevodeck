@@ -152,6 +152,8 @@ import { getSavedGuidesSubView } from "../resume/guidesResume";
 import { computeBootView, getSavedNavStack } from "../resume/bootView";
 import { PanelProviders } from "../components/panel/PanelProviders";
 import { openCalculatorModal } from "../components/calculator/CalculatorModal";
+import { openLastMemory } from "../components/memories/openLastMemory";
+import { MAP_SHORTCUTS_FOCUS_KEY } from "../utils/options";
 import { openBrowserModal } from "../components/browser/BrowserModal";
 import { describeStack, initialNav, previousView, rehydrateNav, settleNav, type NavIntent } from "../nav";
 import { ROUTES, type RouteBackActions } from "../routes";
@@ -249,7 +251,7 @@ import { notePanelMount, notePanelUnmount, samplePanelEntryFrames } from "../uti
 import { measureCommentWindow } from "../utils/commentGeometry";
 import { currentQuickGuideVisible, setQuickGuide } from "../utils/quickGuide";
 import { lastOpenedGuide } from "../utils/guidesResolve";
-import { takeGuidesOnOpen } from "../utils/pendingPanelEntry";
+import { takePanelEntry } from "../utils/pendingPanelEntry";
 import { openExternalUrl, raAchievementUrl, raAchievementCommentsUrl, raGameUrl, raGameCommentsUrl, raHomeUrl, raLookupSearchUrl, raUserUrl, raUserCommentsUrl } from "../utils/navigation";
 import { userRefFor } from "../utils/friends";
 import { loadCachedImage } from "../utils/loadCachedImage";
@@ -449,13 +451,22 @@ function consumePendingRouteOverrides(resumeState: ResumeState | null): ResumeSt
             focusKey: "friendgame:back"
         };
     }
-    if (takeGuidesOnOpen()) {
+    const panelEntry = takePanelEntry();
+    if (panelEntry === "guides") {
         nextResumeState = {
             ...(nextResumeState ?? ({} as ResumeState)),
             view: "guides",
             guidesSubView: "list",
             guidesFaqId: null,
             focusKey: "guides:back",
+            navStack: null
+        };
+    }
+    if (panelEntry === "memories") {
+        nextResumeState = {
+            ...(nextResumeState ?? ({} as ResumeState)),
+            view: "memories",
+            focusKey: "memories:back",
             navStack: null
         };
     }
@@ -4547,6 +4558,10 @@ function AchievementsRoot() {
             openBrowserModal(language);
             return;
         }
+        if (action === "lastMemory") {
+            void openLastMemory(language);
+            return;
+        }
 
         navIntentRef.current = "hub";
         if (action === "notifications") {
@@ -4596,6 +4611,10 @@ function AchievementsRoot() {
         }
         if (action === "options") {
             goToOptions();
+            return;
+        }
+        if (action === "mapShortcuts") {
+            goToOptions(MAP_SHORTCUTS_FOCUS_KEY);
             return;
         }
         if (action === "about") {

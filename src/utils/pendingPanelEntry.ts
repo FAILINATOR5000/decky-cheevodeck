@@ -1,11 +1,13 @@
-let guidesOnOpen = false;
+type PanelEntry = "guides" | "memories";
 
-export function requestGuidesOnOpen(): void {
-    guidesOnOpen = true;
+let pendingEntry: PanelEntry | null = null;
+
+export function requestPanelEntry(entry: PanelEntry): void {
+    pendingEntry = entry;
 }
 
-export function takeGuidesOnOpen(): boolean {
-    const requested = guidesOnOpen;
-    guidesOnOpen = false;
+export function takePanelEntry(): PanelEntry | null {
+    const requested = pendingEntry;
+    pendingEntry = null;
     return requested;
 }

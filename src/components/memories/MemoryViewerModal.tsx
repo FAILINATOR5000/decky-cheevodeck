@@ -175,11 +175,12 @@ export type MemoryViewerModalProps = {
     activeUlid: string;
     tagFilter: string;
     removalLandingId: string | null;
+    standalone?: boolean;
     close: () => void;
 };
 
 export function MemoryViewerModal(props: MemoryViewerModalProps) {
-    const { memory, gameId, thumbDataUri, language, showRetroPoints, mouseKeyboardMode, allTags, activeUlid, tagFilter, removalLandingId, close } = props;
+    const { memory, gameId, thumbDataUri, language, showRetroPoints, mouseKeyboardMode, allTags, activeUlid, tagFilter, removalLandingId, standalone, close } = props;
 
     const [caption, setCaption] = useState(memory.caption);
     const [tag, setTag] = useState(memory.tag);
@@ -659,10 +660,12 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
         void deleteMemory(gameId, memory.id).catch((e) => {
             logError("memories: couldn't delete a memory", e);
         });
-        if (removalLandingId === null) {
-            armMemoriesFocusKey("memories:back");
-        } else {
-            armMemoriesFocusReturn(gameId, removalLandingId, activeUlid);
+        if (!standalone) {
+            if (removalLandingId === null) {
+                armMemoriesFocusKey("memories:back");
+            } else {
+                armMemoriesFocusReturn(gameId, removalLandingId, activeUlid);
+            }
         }
         close();
     }

@@ -625,6 +625,7 @@ export type QuickMenuShortcut =
     | "calculator"
     | "browser"
     | "socialActivity"
+    | "mapShortcuts"
     | "visitRa"
     | "uiDefault"
     | "uiCompact";
@@ -655,6 +656,7 @@ export type ShortcutAction =
     | "utilities"
     | "useraccounts"
     | "options"
+    | "mapShortcuts"
     | "about"
     | "refresh"
     | "dolphinMapper"
@@ -662,6 +664,7 @@ export type ShortcutAction =
     | "smbShares"
     | "fileWatcher"
     | "memories"
+    | "lastMemory"
     | "calculator"
     | "browser"
     | "socialActivity"
@@ -1620,6 +1623,12 @@ export type MemoryViewPrefs = {
     lastMediaFilter: string;
     tagSort: MemoryTagSort;
     lastPageIndex: number;
+};
+
+export type LatestMemoryResponse = {
+    ok: boolean;
+    memory: MemoryRecord | null;
+    tags: Array<{ tag: string; at: number }>;
 };
 
 export type MemoriesResponse = {

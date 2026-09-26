@@ -2,7 +2,7 @@ import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
 // Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
-import { FaCalculator, FaClipboardCheck, FaClock, FaCompressArrowsAlt, FaExpandAlt, FaFileAlt, FaGamepad, FaGlobe, FaHistory, FaImage, FaNetworkWired, FaSyncAlt, FaThumbtack, FaTrophy } from "react-icons/fa";
+import { FaCalculator, FaClipboardCheck, FaClock, FaCompressArrowsAlt, FaExchangeAlt, FaExpandAlt, FaFileAlt, FaGamepad, FaGlobe, FaHistory, FaImage, FaNetworkWired, FaSyncAlt, FaThumbtack, FaTrophy } from "react-icons/fa";
 import { AchievementList } from "../components/achievements/AchievementList";
 import { openCalculatorModal } from "../components/calculator/CalculatorModal";
 import { openBrowserModal } from "../components/browser/BrowserModal";
@@ -59,7 +59,7 @@ import type {
 import { achievementUiMetrics, headerCase } from "../utils/style";
 import { useQuickGuide } from "../utils/quickGuide";
 import { localizeRuntimeText, t } from "../locales";
-import { QUICK_MENU_SHORTCUTS, type MainUiPreset } from "../utils/options";
+import { MAP_SHORTCUTS_FOCUS_KEY, QUICK_MENU_SHORTCUTS, type MainUiPreset } from "../utils/options";
 import {
     achievementSortLabel,
     mainAchievementFilterLabel,
@@ -506,6 +506,7 @@ const QUICK_MENU_SHORTCUT_ICONS: Record<QuickMenuShortcut, ComponentType<{ size?
     calculator: FaCalculator,
     browser: FaGlobe,
     socialActivity: FaClock,
+    mapShortcuts: FaExchangeAlt,
     visitRa: FaTrophy,
     uiDefault: FaExpandAlt,
     uiCompact: FaCompressArrowsAlt
@@ -606,7 +607,7 @@ type MainAchievementsPageProps = {
         goToFriends: () => void | Promise<void>;
         onOpenProfile: () => void | Promise<void>;
         goToLeaderboards: () => void | Promise<void>;
-        goToOptions: () => void | Promise<void>;
+        goToOptions: (focusKey?: string) => void | Promise<void>;
         goToAbout: () => void | Promise<void>;
         goToUnlockHistory: () => void | Promise<void>;
         goToGuides: () => void | Promise<void>;
@@ -1277,6 +1278,10 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
         }
         if (id === "socialActivity") {
             void goToSocialActivity();
+            return;
+        }
+        if (id === "mapShortcuts") {
+            void goToOptions(MAP_SHORTCUTS_FOCUS_KEY);
             return;
         }
         if (id === "visitRa") {

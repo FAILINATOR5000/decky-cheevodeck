@@ -3,22 +3,22 @@ import { Navigation, QuickAccessTab } from "@decky/ui";
 import { getCachedPayload, getSettings, loadGameGuides, logFocusDebug, prefetchGameIcons } from "../../api";
 import { ensureLanguageLoaded, getCurrentLanguage, t } from "../../locales";
 import type { LanguageCode } from "../../locales";
-import type { GameGuidesRecord } from "../../types";
+import type { GameGuidesRecord, ShortcutAction } from "../../types";
+import { GLOBAL_SHORTCUT_ACTIONS } from "../../utils/options";
 import { logError } from "../../utils/errors";
 import { lastOpenedGuide } from "../../utils/guidesResolve";
 import { cheevoModalOpen, showManagedModal } from "../../utils/modalRegistry";
-import { requestGuidesOnOpen, takeGuidesOnOpen } from "../../utils/pendingPanelEntry";
+import { requestPanelEntry, takePanelEntry } from "../../utils/pendingPanelEntry";
 import { captureSnapshot } from "../../utils/snapshot";
 import { focusOurPlugin, quickAccessIsHidden } from "../../utils/quickAccess";
 import { browserModalOpen, openBrowserModal } from "../browser/BrowserModal";
 import { openCalculatorModal } from "../calculator/CalculatorModal";
 import { GuidesReaderModal } from "../guides/GuidesReaderModal";
+import { openLastMemory } from "../memories/openLastMemory";
 
 const BACK_BUTTON_EVENT = "cheevodeck_back_button";
 
-type SummonAction = "browser" | "calculator" | "currentGuide";
-
-const SUMMON_ACTIONS: readonly string[] = ["browser", "calculator", "currentGuide"];
+type SummonAction = "browser" | "calculator" | "currentGuide" | "memories" | "lastMemory";
 
 let summoning = false;
 
@@ -34,14 +34,14 @@ function mayOpen(action: string): boolean {
     return true;
 }
 
-function openPanelOnGuides() {
-    requestGuidesOnOpen();
+function openPanelOn(entry: "guides" | "memories") {
+    requestPanelEntry(entry);
     try {
         focusOurPlugin();
         Navigation.OpenQuickAccessMenu(QuickAccessTab.Decky);
     } catch (e) {
-        takeGuidesOnOpen();
-        logError("backButtons: couldn't open the panel on Guides", e);
+        takePanelEntry();
+        logError(`backButtons: couldn't open the panel on ${entry}`, e);
     }
 }
 
@@ -73,7 +73,7 @@ async function summonCurrentGuide(language: LanguageCode) {
 
         const last = lastOpenedGuide(record);
         if (last === null) {
-            openPanelOnGuides();
+            openPanelOn("guides");
             return;
         }
 
@@ -112,7 +112,7 @@ async function onBackButton(payload: { action?: string | null; browserSnapshot?:
         return;
     }
     const action = payload?.action;
-    if (typeof action !== "string" || !SUMMON_ACTIONS.includes(action)) {
+    if (typeof action !== "string" || !GLOBAL_SHORTCUT_ACTIONS.includes(action as ShortcutAction)) {
         return;
     }
     if (!mayOpen(action)) {
@@ -134,6 +134,12 @@ async function onBackButton(payload: { action?: string | null; browserSnapshot?:
             break;
         case "currentGuide":
             void summonCurrentGuide(language);
+            break;
+        case "memories":
+            openPanelOn("memories");
+            break;
+        case "lastMemory":
+            void openLastMemory(language, () => quickAccessIsHidden() && !cheevoModalOpen());
             break;
     }
 }

@@ -883,6 +883,15 @@ class MemoriesStore:
             "truncated": dropped,
         }
 
+    def latest_memory(self) -> dict:
+        listed = self.load_all()
+        memories = listed["memories"]
+        return {
+            "ok": True,
+            "memory": memories[0] if memories else None,
+            "tags": [{"tag": m["tag"], "at": m["updatedAt"]} for m in memories if m.get("tag")],
+        }
+
     def all_entries(self) -> dict:
         with self._index_lock:
             index = self._load_games_index()

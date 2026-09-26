@@ -68,6 +68,8 @@ import {
     type MainUiPreset,
     QUICK_MENU_SHORTCUTS,
     SHORTCUT_BUTTONS,
+    shortcutRowFocusKey,
+    worksOutsidePanel,
     shortcutActionLabel,
     shortcutButtonLabel,
     unlockHistoryDaysLabel,
@@ -875,6 +877,7 @@ type SystemTabProps = TabContentProps & {
 function SystemTab(props: SystemTabProps) {
     const { state, actions, buttonOuterStyle, disabled, claimTarget } = props;
     const glyphStyle = resolveGlyphStyle(state.controllerGlyphStyle);
+    const showGlobalFootnote = SHORTCUT_BUTTONS.some((entry) => worksOutsidePanel(entry.id, state.shortcutBindings[entry.id]));
 
     return (
         <>
@@ -1199,7 +1202,7 @@ function SystemTab(props: SystemTabProps) {
                 <OptionValueRow
                     key={entry.id}
                     outerStyle={buttonOuterStyle}
-                    focusKey={`options:shortcut:${entry.id}`}
+                    focusKey={shortcutRowFocusKey(entry.id)}
                     onClick={() => actions.onCycleShortcutBinding(entry.id)}
                     onButtonDown={(evt) => {
                         if (evt?.detail?.button === BUTTON_BUMPER_LEFT) {
@@ -1219,11 +1222,17 @@ function SystemTab(props: SystemTabProps) {
                             {shortcutButtonLabel(entry.id, state.language)}
                         </span>
                     }
-                    value={shortcutActionLabel(state.shortcutBindings[entry.id], state.language)}
+                    value={shortcutActionLabel(state.shortcutBindings[entry.id], state.language)
+                        + (worksOutsidePanel(entry.id, state.shortcutBindings[entry.id]) ? "*" : "")}
                     help={t(state.language, entry.helpKey)}
-                    separator={index === SHORTCUT_BUTTONS.length - 1}
+                    separator={index === SHORTCUT_BUTTONS.length - 1 && !showGlobalFootnote}
                 />
             ))}
+            {showGlobalFootnote && (
+                <PanelSectionRow>
+                    <InfoText separator>{t(state.language, "*Supported for Make Back Buttons Global")}</InfoText>
+                </PanelSectionRow>
+            )}
             <SectionTitle label={t(state.language, "Developer Options")} />
             <OptionToggle
                 outerStyle={buttonOuterStyle}

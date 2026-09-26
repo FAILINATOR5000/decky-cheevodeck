@@ -38,7 +38,7 @@ _PADDLE_BITS = {
     ),
 }
 
-SUMMON_ACTIONS = ("browser", "calculator", "currentGuide")
+SUMMON_ACTIONS = ("browser", "calculator", "currentGuide", "memories", "lastMemory")
 
 BROWSER_SNAPSHOT_BUTTON = "r4"
 

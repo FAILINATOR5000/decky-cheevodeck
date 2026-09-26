@@ -24,6 +24,7 @@ import type {
     CheevoNotification,
     MemoriesExportCounts,
     MemoriesExportWeight,
+    LatestMemoryResponse,
     MemoriesResponse,
     MemoriesTransferMode,
     MemoriesTransferStatus,
@@ -550,6 +551,7 @@ export const adoptClip = callable<
     { ok: boolean; error?: string; gameId?: number; memory?: MemoryRecord; deleteClip?: boolean }
 >("adopt_clip");
 export const loadMemories = callable<[number], MemoriesResponse>("load_memories");
+export const loadLatestMemory = callable<[], LatestMemoryResponse>("load_latest_memory");
 export const loadMemoryGames = callable<
     [],
     { ok: boolean; games: MemoryGameRow[] }

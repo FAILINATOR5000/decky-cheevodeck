@@ -226,6 +226,9 @@ class MemoriesMixin(PluginContext):
             return await asyncio.to_thread(self.memories_store.load_all)
         return await asyncio.to_thread(self.memories_store.load_for_game, game_id)
 
+    async def load_latest_memory(self):
+        return await asyncio.to_thread(self.memories_store.latest_memory)
+
     async def load_memory_games(self):
         """Every game this account has memories for, with its count."""
         return await asyncio.to_thread(self.memories_store.games_with_memories)

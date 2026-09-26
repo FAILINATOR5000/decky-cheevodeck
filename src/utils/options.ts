@@ -247,6 +247,7 @@ export const QUICK_MENU_SHORTCUTS: { id: QuickMenuShortcut; labelKey: string; he
     { id: "calculator", labelKey: "Calculator", helpKey: "help_quick_shortcut_calculator" },
     { id: "browser", labelKey: "Web Browser", helpKey: "help_quick_shortcut_browser" },
     { id: "socialActivity", labelKey: "Social Activity Feed", helpKey: "help_quick_shortcut_social_activity" },
+    { id: "mapShortcuts", labelKey: "Map Shortcuts", helpKey: "help_quick_shortcut_map_shortcuts" },
     { id: "visitRa", labelKey: "Visit RA", helpKey: "help_quick_shortcut_visit_ra" },
     { id: "uiDefault", labelKey: "UI: Default View", helpKey: "help_quick_shortcut_ui_default" },
     { id: "uiCompact", labelKey: "UI: Compact View", helpKey: "help_quick_shortcut_ui_compact" }
@@ -264,6 +265,20 @@ export const SHORTCUT_BUTTONS: { id: ShortcutButton; helpKey: string }[] = [
     { id: "r4", helpKey: "help_shortcut_r4" },
     { id: "r5", helpKey: "help_shortcut_r5" }
 ];
+
+export function shortcutRowFocusKey(button: ShortcutButton): string {
+    return `options:shortcut:${button}`;
+}
+
+export const MAP_SHORTCUTS_FOCUS_KEY = shortcutRowFocusKey(SHORTCUT_BUTTONS[0].id);
+
+const GLOBAL_SHORTCUT_BUTTONS: readonly ShortcutButton[] = ["l4", "l5", "r4", "r5"];
+
+export const GLOBAL_SHORTCUT_ACTIONS: readonly ShortcutAction[] = ["browser", "calculator", "currentGuide", "memories", "lastMemory"];
+
+export function worksOutsidePanel(button: ShortcutButton, action: ShortcutAction): boolean {
+    return GLOBAL_SHORTCUT_BUTTONS.includes(button) && GLOBAL_SHORTCUT_ACTIONS.includes(action);
+}
 
 const SHORTCUT_ACTIONS: { id: ShortcutAction; labelKey: string }[] = [
     { id: "none", labelKey: "Not Set" },
@@ -283,6 +298,7 @@ const SHORTCUT_ACTIONS: { id: ShortcutAction; labelKey: string }[] = [
     { id: "utilities", labelKey: "Utilities" },
     { id: "useraccounts", labelKey: "User Accounts" },
     { id: "options", labelKey: "Options" },
+    { id: "mapShortcuts", labelKey: "Map Shortcuts" },
     { id: "about", labelKey: "About" },
     { id: "refresh", labelKey: "Refresh" },
     { id: "dolphinMapper", labelKey: "Dolphin Mapper" },
@@ -290,6 +306,7 @@ const SHORTCUT_ACTIONS: { id: ShortcutAction; labelKey: string }[] = [
     { id: "smbShares", labelKey: "SMB Shares" },
     { id: "fileWatcher", labelKey: "File Watcher" },
     { id: "memories", labelKey: "Memories" },
+    { id: "lastMemory", labelKey: "View Last Memory" },
     { id: "calculator", labelKey: "Calculator" },
     { id: "browser", labelKey: "Web Browser" },
     { id: "socialActivity", labelKey: "Social Activity Feed" },
