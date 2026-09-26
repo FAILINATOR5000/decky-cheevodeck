@@ -1416,6 +1416,13 @@ function OpenSetView(props: OpenSetViewProps) {
         );
     }, [mountedGames, showIcons]);
 
+    useEffect(function prefetchHeaderIcons() {
+        if (!showIcons) {
+            return;
+        }
+        void prefetchGameIcons(mosaicEntriesForSet(set));
+    }, [set, showIcons]);
+
     const restoreFiredRef = useRef(false);
     const restoreSlotRef = useRef<number | null>(null);
     const restoreStripKeyRef = useRef<string | null>(null);

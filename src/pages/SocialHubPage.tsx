@@ -2089,6 +2089,14 @@ function SavedCommentsFilterValue(props: {
         selectedGame?.imageIcon || null,
         "SavedCommentsFilterValue useGameIcon"
     );
+    const prefetchGameId = selectedGame && showIcons ? selectedGame.gameId : null;
+    const prefetchImageIcon = selectedGame?.imageIcon || null;
+    useEffect(() => {
+        if (prefetchGameId === null) {
+            return;
+        }
+        void prefetchGameIcons([{ gameId: prefetchGameId, imageIcon: prefetchImageIcon }]);
+    }, [prefetchGameId, prefetchImageIcon]);
     if (filter === "all") {
         return <>{t(language, "All")}</>;
     }
