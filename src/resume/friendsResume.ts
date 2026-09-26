@@ -214,6 +214,9 @@ export async function restoreFriendGame(savedState: ResumeState, savedView: View
             ctx.setView("achievements");
             return true;
         }
+        const friend = cachedFriend.ulid && cachedFriend.ulid === ctx.activeUlid
+            ? { ...cachedFriend, isSelf: true }
+            : cachedFriend;
         const savedFriendGameSource = getSavedFriendGameSource(savedState);
         const savedFriendGameSelectionMode = getSavedFriendGameSelectionMode(savedState);
         const resumeGameId = getResumeFriendGameId(savedState);
@@ -225,7 +228,7 @@ export async function restoreFriendGame(savedState: ResumeState, savedView: View
         ctx.setPendingPrimaryViewRestoreGameId(undefined);
         ctx.markResumeApplied();
         await ctx.loadFriendGame(
-            cachedFriend,
+            friend,
             resumeGameId,
             true,
             ctx.pendingResumeFocusKeyRef.current || "friendgame:back"

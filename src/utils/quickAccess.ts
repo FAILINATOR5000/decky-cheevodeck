@@ -1,5 +1,6 @@
-import { getGamepadNavigationTrees } from "@decky/ui";
+import { getGamepadNavigationTrees, Navigation, QuickAccessTab } from "@decky/ui";
 import { logError } from "./errors";
+import { requestPanelEntry, takePanelEntry, type PanelEntry } from "./pendingPanelEntry";
 
 let reportedMissingQuickAccess = false;
 
@@ -27,4 +28,15 @@ export function focusOurPlugin() {
         return;
     }
     setActivePlugin.call(loader.deckyState, "CheevoDeck");
+}
+
+export function openPanelOn(entry: PanelEntry) {
+    requestPanelEntry(entry);
+    try {
+        focusOurPlugin();
+        Navigation.OpenQuickAccessMenu(QuickAccessTab.Decky);
+    } catch (e) {
+        takePanelEntry();
+        logError(`quickAccess: couldn't open the panel on ${entry.kind}`, e);
+    }
 }

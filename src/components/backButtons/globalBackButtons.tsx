@@ -1,6 +1,15 @@
-import { addEventListener, removeEventListener } from "@decky/api";
-import { Navigation, QuickAccessTab } from "@decky/ui";
-import { getCachedPayload, getSettings, loadGameGuides, logFocusDebug, prefetchGameIcons } from "../../api";
+import { addEventListener, removeEventListener, toaster } from "@decky/api";
+import {
+    getCachedPayload,
+    getNotifications,
+    getSettings,
+    loadGameGuides,
+    logFocusDebug,
+    markNotificationsSeen,
+    prefetchGameIcons,
+    saveDoNotDisturb,
+    saveSavedCommentsPrefs
+} from "../../api";
 import { ensureLanguageLoaded, getCurrentLanguage, t } from "../../locales";
 import type { LanguageCode } from "../../locales";
 import type { GameGuidesRecord, ShortcutAction } from "../../types";
@@ -8,17 +17,40 @@ import { GLOBAL_SHORTCUT_ACTIONS } from "../../utils/options";
 import { logError } from "../../utils/errors";
 import { lastOpenedGuide } from "../../utils/guidesResolve";
 import { cheevoModalOpen, showManagedModal } from "../../utils/modalRegistry";
-import { requestPanelEntry, takePanelEntry } from "../../utils/pendingPanelEntry";
+import type { PanelEntry } from "../../utils/pendingPanelEntry";
 import { captureSnapshot } from "../../utils/snapshot";
-import { focusOurPlugin, quickAccessIsHidden } from "../../utils/quickAccess";
+import { openPanelOn, quickAccessIsHidden } from "../../utils/quickAccess";
 import { browserModalOpen, openBrowserModal } from "../browser/BrowserModal";
 import { openCalculatorModal } from "../calculator/CalculatorModal";
 import { GuidesReaderModal } from "../guides/GuidesReaderModal";
 import { openLastMemory } from "../memories/openLastMemory";
+import { NotificationsModal } from "../notifications/NotificationsModal";
+import { buildStandaloneNotificationNav } from "../notifications/standaloneNotificationNav";
 
 const BACK_BUTTON_EVENT = "cheevodeck_back_button";
 
-type SummonAction = "browser" | "calculator" | "currentGuide" | "memories" | "lastMemory";
+type PageAction =
+    | "dolphinMapper"
+    | "socialActivity"
+    | "socialhub"
+    | "news"
+    | "aotw"
+    | "newsets"
+    | "subscribeddiscussions"
+    | "savedcomments"
+    | "trackedsets"
+    | "profile";
+
+type SummonAction =
+    | "browser"
+    | "calculator"
+    | "currentGuide"
+    | "memories"
+    | "lastMemory"
+    | "snapshot"
+    | "doNotDisturb"
+    | "notifications"
+    | PageAction;
 
 let summoning = false;
 
@@ -32,17 +64,6 @@ function mayOpen(action: string): boolean {
         return false;
     }
     return true;
-}
-
-function openPanelOn(entry: "guides" | "memories") {
-    requestPanelEntry(entry);
-    try {
-        focusOurPlugin();
-        Navigation.OpenQuickAccessMenu(QuickAccessTab.Decky);
-    } catch (e) {
-        takePanelEntry();
-        logError(`backButtons: couldn't open the panel on ${entry}`, e);
-    }
 }
 
 async function summonCurrentGuide(language: LanguageCode) {
@@ -73,7 +94,7 @@ async function summonCurrentGuide(language: LanguageCode) {
 
         const last = lastOpenedGuide(record);
         if (last === null) {
-            openPanelOn("guides");
+            openPanelOn({ kind: "guides" });
             return;
         }
 
@@ -104,6 +125,115 @@ async function summonCurrentGuide(language: LanguageCode) {
     }
 }
 
+async function toggleDoNotDisturb(language: LanguageCode) {
+    if (summoning) {
+        return;
+    }
+    summoning = true;
+    try {
+        const settings = await getSettings();
+        if (!mayOpen("doNotDisturb")) {
+            return;
+        }
+        const result = await saveDoNotDisturb(!settings.doNotDisturb);
+        toaster.toast({
+            title: t(language, "Do Not Disturb"),
+            body: t(language, result.doNotDisturb ? "On" : "Off"),
+            duration: 2000
+        });
+    } catch (e) {
+        logError("backButtons: couldn't toggle Do Not Disturb", e);
+    } finally {
+        summoning = false;
+    }
+}
+
+async function summonNotifications(language: LanguageCode) {
+    if (summoning) {
+        return;
+    }
+    summoning = true;
+    try {
+        const [payload, settings] = await Promise.all([getNotifications(), getSettings()]);
+        if (!mayOpen("notifications")) {
+            return;
+        }
+        const nav = buildStandaloneNotificationNav(language, settings);
+        showManagedModal(
+            (close) => (
+                <NotificationsModal
+                    initialNotifications={payload?.notifications ?? []}
+                    seenAtSnapshot={payload?.lastSeenAt ?? 0}
+                    language={language}
+                    showIcons={settings.showIcons}
+                    nav={nav}
+                    close={close}
+                />
+            ),
+            { needsMarkSeen: true, onClose: () => { void markNotificationsSeen(); } }
+        );
+    } catch (e) {
+        logError("backButtons: couldn't open notifications", e);
+    } finally {
+        summoning = false;
+    }
+}
+
+async function pageEntry(action: PageAction): Promise<PanelEntry | null> {
+    switch (action) {
+        case "dolphinMapper":
+            return { kind: "dolphinMapper" };
+        case "trackedsets":
+            return { kind: "trackedSets" };
+        case "socialActivity":
+            return { kind: "socialTab", tab: "activity" };
+        case "news":
+            return { kind: "socialTab", tab: "newsEvents", newsSub: "news" };
+        case "aotw":
+            return { kind: "socialTab", tab: "newsEvents", newsSub: "aotw" };
+        case "newsets":
+            return { kind: "socialTab", tab: "newsEvents", newsSub: "newSets" };
+        case "subscribeddiscussions":
+        case "savedcomments": {
+            await saveSavedCommentsPrefs({ subTab: action === "savedcomments" ? "savedComments" : "subscribed" });
+            return { kind: "socialTab", tab: "subscribedDiscussions" };
+        }
+        case "socialhub": {
+            const settings = await getSettings();
+            return {
+                kind: "socialTab",
+                tab: settings.socialEntryDefault === "lastUsed" ? null : settings.socialEntryDefault
+            };
+        }
+        case "profile": {
+            const settings = await getSettings();
+            const username = String(settings.username || "").trim();
+            if (!username) {
+                return null;
+            }
+            return { kind: "profile", username, ulid: settings.activeUlid || null };
+        }
+    }
+}
+
+async function landOn(action: PageAction) {
+    if (summoning) {
+        return;
+    }
+    summoning = true;
+    try {
+        const entry = await pageEntry(action);
+        if (entry === null || !mayOpen(action)) {
+            return;
+        }
+        openPanelOn(entry);
+    } catch (e) {
+        logError(`backButtons: couldn't open the panel for ${action}`, e);
+    } finally {
+        summoning = false;
+    }
+}
+
 async function onBackButton(payload: { action?: string | null; browserSnapshot?: boolean }) {
     if (payload?.browserSnapshot && browserModalOpen()) {
         const language = getCurrentLanguage();
@@ -125,7 +255,8 @@ async function onBackButton(payload: { action?: string | null; browserSnapshot?:
         return;
     }
 
-    switch (action as SummonAction) {
+    const summon = action as SummonAction;
+    switch (summon) {
         case "browser":
             openBrowserModal(language);
             break;
@@ -136,10 +267,22 @@ async function onBackButton(payload: { action?: string | null; browserSnapshot?:
             void summonCurrentGuide(language);
             break;
         case "memories":
-            openPanelOn("memories");
+            openPanelOn({ kind: "memories" });
             break;
         case "lastMemory":
             void openLastMemory(language, () => quickAccessIsHidden() && !cheevoModalOpen());
+            break;
+        case "snapshot":
+            void captureSnapshot(language);
+            break;
+        case "doNotDisturb":
+            void toggleDoNotDisturb(language);
+            break;
+        case "notifications":
+            void summonNotifications(language);
+            break;
+        default:
+            void landOn(summon);
             break;
     }
 }

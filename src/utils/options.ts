@@ -274,7 +274,26 @@ export const MAP_SHORTCUTS_FOCUS_KEY = shortcutRowFocusKey(SHORTCUT_BUTTONS[0].i
 
 const GLOBAL_SHORTCUT_BUTTONS: readonly ShortcutButton[] = ["l4", "l5", "r4", "r5"];
 
-export const GLOBAL_SHORTCUT_ACTIONS: readonly ShortcutAction[] = ["browser", "calculator", "currentGuide", "memories", "lastMemory"];
+export const GLOBAL_SHORTCUT_ACTIONS: readonly ShortcutAction[] = [
+    "browser",
+    "calculator",
+    "currentGuide",
+    "memories",
+    "lastMemory",
+    "snapshot",
+    "doNotDisturb",
+    "notifications",
+    "socialActivity",
+    "profile",
+    "socialhub",
+    "news",
+    "aotw",
+    "newsets",
+    "subscribeddiscussions",
+    "savedcomments",
+    "trackedsets",
+    "dolphinMapper"
+];
 
 export function worksOutsidePanel(button: ShortcutButton, action: ShortcutAction): boolean {
     return GLOBAL_SHORTCUT_BUTTONS.includes(button) && GLOBAL_SHORTCUT_ACTIONS.includes(action);

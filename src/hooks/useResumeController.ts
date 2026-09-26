@@ -93,6 +93,7 @@ type UseResumeControllerArgs = {
     trackedIdsLoadedForGameId: number | null;
     setTrackedSelectedGameId: Dispatch<SetStateAction<number | null>>;
     friendsPayload: FriendsPayload | null;
+    activeUlid: string;
     friendGameReturnGameIdRef: RefObject<number | null>;
     onRestoreGuides: (target: { subView: GuidesSubView; faqId: string | null }) => void;
     friendProfileBackSourceRef: RefObject<"social" | "main">;
@@ -180,6 +181,7 @@ export function useResumeController({
     trackedIdsLoadedForGameId,
     setTrackedSelectedGameId,
     friendsPayload,
+    activeUlid,
     friendGameReturnGameIdRef,
     onRestoreGuides,
     friendProfileBackSourceRef,
@@ -236,6 +238,7 @@ export function useResumeController({
     const pendingResumeStateRef = useRef<ResumeState | null>(null);
     const resumeAppliedRef = useRef(false);
     const rememberLastPageRef = useRef(false);
+    const forceRestoreRef = useRef(false);
 
     useEffect(() => {
         rememberLastPageRef.current = rememberLastPage;
@@ -259,7 +262,8 @@ export function useResumeController({
     };
 
     const initializeResumeFromBoot = useCallback(
-        (nextResumeState: ResumeState | null, nextPayload: Payload | null, bootView: ViewKey) => {
+        (nextResumeState: ResumeState | null, nextPayload: Payload | null, bootView: ViewKey, force = false) => {
+            forceRestoreRef.current = force;
             const shouldBootDirectlyToTracked =
                 Boolean(nextPayload) && nextResumeState?.view === "tracked";
             const skipPrimaryViewRestore =
@@ -379,6 +383,7 @@ export function useResumeController({
             pendingResumeFocusKeyRef,
             mountedRef,
             friendsPayload,
+            activeUlid,
             friendGameReturnGameIdRef,
             setSelectedFriend,
             setFriendGameSource,
@@ -411,7 +416,7 @@ export function useResumeController({
 
     async function restoreResumeState(savedState: ResumeState) {
         const savedView = savedState?.view;
-        if (!rememberLastPage || !savedView) {
+        if ((!rememberLastPage && !forceRestoreRef.current) || !savedView) {
             markResumeApplied();
             return;
         }
@@ -478,7 +483,7 @@ export function useResumeController({
         }
 
         const savedState = pendingResumeStateRef.current;
-        if (!savedState || !rememberLastPage) {
+        if (!savedState || (!rememberLastPage && !forceRestoreRef.current)) {
             resumeAppliedRef.current = true;
             pendingResumeStateRef.current = null;
             if (

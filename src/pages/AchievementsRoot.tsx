@@ -251,7 +251,7 @@ import { notePanelMount, notePanelUnmount, samplePanelEntryFrames } from "../uti
 import { measureCommentWindow } from "../utils/commentGeometry";
 import { currentQuickGuideVisible, setQuickGuide } from "../utils/quickGuide";
 import { lastOpenedGuide } from "../utils/guidesResolve";
-import { takePanelEntry } from "../utils/pendingPanelEntry";
+import { requestPanelEntry, takePanelEntry, type PanelEntry } from "../utils/pendingPanelEntry";
 import { openExternalUrl, raAchievementUrl, raAchievementCommentsUrl, raGameUrl, raGameCommentsUrl, raHomeUrl, raLookupSearchUrl, raUserUrl, raUserCommentsUrl } from "../utils/navigation";
 import { userRefFor } from "../utils/friends";
 import { loadCachedImage } from "../utils/loadCachedImage";
@@ -260,10 +260,6 @@ import type { NotificationNav } from "../notifications/registry";
 import { t } from "../locales";
 
 
-
-let pendingNoteReminderGameId: number | null = null;
-
-let pendingNotificationAchievement: { gameId: number; achievementId: number; viewedUsername: string | null; viewedUserRef: string | null } | null = null;
 
 // Module helpers
 function notificationAoSnapshot(achievementId: number): AchievementOverviewSnapshot {
@@ -280,19 +276,6 @@ function notificationAoSnapshot(achievementId: number): AchievementOverviewSnaps
     };
 }
 
-let pendingTrackedSetOpenId: string | null = null;
-
-let pendingNotificationGame: { gameId: number; viewedUsername: string | null; viewedUserRef: string | null } | null = null;
-
-let pendingNotificationProfile: { username: string; ulid: string | null } | null = null;
-
-let pendingNotificationAbout = false;
-
-let pendingNotificationCheevoCheck = false;
-let pendingNotificationFileWatcher = false;
-
-let pendingNotificationMemoriesTransfer = false;
-
 let pendingSearchGameId: number | null = null;
 
 let pendingSearchBackSource: GameOverviewSource = "search";
@@ -301,95 +284,8 @@ let pendingFriendGameSearch: { username: string; ulid: string | null; gameId: nu
 
 let pendingCheevoCheckGameId: number | null = null;
 
-function consumePendingRouteOverrides(resumeState: ResumeState | null): ResumeState | null {
+function consumePendingRouteOverrides(resumeState: ResumeState | null): { resumeState: ResumeState | null; entry: PanelEntry | null } {
     let nextResumeState = resumeState;
-    const tappedNotesGameId = pendingNoteReminderGameId;
-    pendingNoteReminderGameId = null;
-    if (tappedNotesGameId != null) {
-        nextResumeState = {
-            ...(nextResumeState ?? ({} as ResumeState)),
-            view: "gameNotes",
-            gameNotesGameId: tappedNotesGameId,
-            focusKey: "gn:back"
-        };
-    }
-    const tappedNotification = pendingNotificationAchievement;
-    pendingNotificationAchievement = null;
-    if (tappedNotification != null) {
-        nextResumeState = {
-            ...(nextResumeState ?? ({} as ResumeState)),
-            view: "achievementOverview",
-            aoSource: "notification",
-            gameOverviewSource: "main",
-            aoGameId: tappedNotification.gameId,
-            aoAchievementId: tappedNotification.achievementId,
-            aoAchievementSnapshot: notificationAoSnapshot(tappedNotification.achievementId),
-            aoViewedUsername: tappedNotification.viewedUsername ?? null,
-            aoViewedUserRef: tappedNotification.viewedUserRef ?? null,
-            focusKey: "ao:back"
-        };
-    }
-    const tappedTrackedSetId = pendingTrackedSetOpenId;
-    pendingTrackedSetOpenId = null;
-    if (tappedTrackedSetId != null) {
-        nextResumeState = {
-            ...(nextResumeState ?? ({} as ResumeState)),
-            view: "trackedSetOpen",
-            trackedSetOpenId: tappedTrackedSetId,
-            trackedSetsBackSource: "main",
-            focusKey: "trackedsetopen:back"
-        };
-    }
-    const tappedNotificationGame = pendingNotificationGame;
-    pendingNotificationGame = null;
-    if (tappedNotificationGame != null) {
-        nextResumeState = {
-            ...(nextResumeState ?? ({} as ResumeState)),
-            view: "gameOverview",
-            gameOverviewSource: "main",
-            gameOverviewGameId: tappedNotificationGame.gameId,
-            gameOverviewViewedUsername: tappedNotificationGame.viewedUsername ?? null,
-            gameOverviewViewedUserRef: tappedNotificationGame.viewedUserRef ?? null,
-            gameOverviewSubView: "achievements",
-            focusKey: "gameoverview:back"
-        };
-    }
-    const tappedNotificationAbout = pendingNotificationAbout;
-    pendingNotificationAbout = false;
-    if (tappedNotificationAbout) {
-        nextResumeState = {
-            ...(nextResumeState ?? ({} as ResumeState)),
-            view: "about",
-            focusKey: "about:back"
-        };
-    }
-    const tappedNotificationCheevoCheck = pendingNotificationCheevoCheck;
-    pendingNotificationCheevoCheck = false;
-    if (tappedNotificationCheevoCheck) {
-        nextResumeState = {
-            ...(nextResumeState ?? ({} as ResumeState)),
-            view: "cheevoCheck",
-            focusKey: "cheevocheck:back"
-        };
-    }
-    const tappedNotificationFileWatcher = pendingNotificationFileWatcher;
-    pendingNotificationFileWatcher = false;
-    if (tappedNotificationFileWatcher) {
-        nextResumeState = {
-            ...(nextResumeState ?? ({} as ResumeState)),
-            view: "fileWatcher",
-            focusKey: "fileWatcher:back"
-        };
-    }
-    const tappedNotificationMemoriesTransfer = pendingNotificationMemoriesTransfer;
-    pendingNotificationMemoriesTransfer = false;
-    if (tappedNotificationMemoriesTransfer) {
-        nextResumeState = {
-            ...(nextResumeState ?? ({} as ResumeState)),
-            view: "memoriesTransfer",
-            focusKey: "memoriesTransfer:back"
-        };
-    }
     const tappedSearchGameId = pendingSearchGameId;
     pendingSearchGameId = null;
     if (tappedSearchGameId != null) {
@@ -435,43 +331,80 @@ function consumePendingRouteOverrides(resumeState: ResumeState | null): ResumeSt
             focusKey: "gameoverview:back"
         };
     }
-    const tappedNotificationProfile = pendingNotificationProfile;
-    pendingNotificationProfile = null;
-    if (tappedNotificationProfile != null) {
+    const entry = takePanelEntry();
+    if (entry) {
         nextResumeState = {
             ...(nextResumeState ?? ({} as ResumeState)),
-            view: "friendGame",
-            selectedFriendUsername: tappedNotificationProfile.username,
-            selectedFriendUlid: tappedNotificationProfile.ulid ?? null,
-            friendProfileBackSource: "main",
-            friendGameSelectionMode: "auto",
-            friendGameId: null,
-            friendGameSource: "recentGames",
-            friendProfileSubView: "game",
-            focusKey: "friendgame:back"
-        };
-    }
-    const panelEntry = takePanelEntry();
-    if (panelEntry === "guides") {
-        nextResumeState = {
-            ...(nextResumeState ?? ({} as ResumeState)),
-            view: "guides",
-            guidesSubView: "list",
-            guidesFaqId: null,
-            focusKey: "guides:back",
-            navStack: null
-        };
-    }
-    if (panelEntry === "memories") {
-        nextResumeState = {
-            ...(nextResumeState ?? ({} as ResumeState)),
-            view: "memories",
-            focusKey: "memories:back",
+            ...panelEntryOverlay(entry),
             navStack: null
         };
     }
 
-    return nextResumeState;
+    return { resumeState: nextResumeState, entry };
+}
+
+function panelEntryOverlay(entry: PanelEntry): Partial<ResumeState> & Pick<ResumeState, "view"> {
+    switch (entry.kind) {
+        case "guides":
+            return { view: "guides", guidesSubView: "list", guidesFaqId: null, focusKey: "guides:back" };
+        case "memories":
+            return { view: "memories", focusKey: "memories:back" };
+        case "dolphinMapper":
+            return { view: "dolphinMapper", focusKey: "dolphinMapper:back" };
+        case "socialTab":
+            if (entry.newsSub) {
+                return { view: "social", newsEventsSubView: entry.newsSub, focusKey: "social:back" };
+            }
+            return { view: "social", focusKey: "social:back" };
+        case "trackedSets":
+            return { view: "trackedSets", trackedSetOpenId: null, trackedSetsBackSource: "main", focusKey: "trackedsets:back" };
+        case "trackedSet":
+            return { view: "trackedSetOpen", trackedSetOpenId: entry.setId, trackedSetsBackSource: "main", focusKey: "trackedsetopen:back" };
+        case "gameNotes":
+            return { view: "gameNotes", gameNotesGameId: entry.gameId, focusKey: "gn:back" };
+        case "achievement":
+            return {
+                view: "achievementOverview",
+                aoSource: "notification",
+                gameOverviewSource: "main",
+                aoGameId: entry.gameId,
+                aoAchievementId: entry.achievementId,
+                aoAchievementSnapshot: notificationAoSnapshot(entry.achievementId),
+                aoViewedUsername: entry.viewedUsername,
+                aoViewedUserRef: entry.viewedUserRef,
+                focusKey: "ao:back"
+            };
+        case "game":
+            return {
+                view: "gameOverview",
+                gameOverviewSource: "main",
+                gameOverviewGameId: entry.gameId,
+                gameOverviewViewedUsername: entry.viewedUsername,
+                gameOverviewViewedUserRef: entry.viewedUserRef,
+                gameOverviewSubView: "achievements",
+                focusKey: "gameoverview:back"
+            };
+        case "profile":
+            return {
+                view: "friendGame",
+                selectedFriendUsername: entry.username,
+                selectedFriendUlid: entry.ulid,
+                friendProfileBackSource: "main",
+                friendGameSelectionMode: "auto",
+                friendGameId: null,
+                friendGameSource: "recentGames",
+                friendProfileSubView: "game",
+                focusKey: "friendgame:back"
+            };
+        case "about":
+            return { view: "about", focusKey: "about:back" };
+        case "cheevoCheck":
+            return { view: "cheevoCheck", focusKey: "cheevocheck:back" };
+        case "fileWatcher":
+            return { view: "fileWatcher", focusKey: "fileWatcher:back" };
+        case "memoriesTransfer":
+            return { view: "memoriesTransfer", focusKey: "memoriesTransfer:back" };
+    }
 }
 
 function AchievementsRoot() {
@@ -1951,6 +1884,7 @@ function AchievementsRoot() {
         trackedIdsLoadedForGameId,
         setTrackedSelectedGameId,
         friendsPayload,
+        activeUlid,
         friendGameReturnGameIdRef,
         onRestoreGuides: setGuidesResumeTarget,
         friendProfileBackSourceRef,
@@ -2209,7 +2143,7 @@ function AchievementsRoot() {
         goToGameOverview: (targetGameId, source, viewedUsername, viewedUserRef, subView) =>
             goToGameOverview(targetGameId, source, viewedUsername, viewedUserRef, subView),
         stashPendingNotificationProfile: (target) => {
-            pendingNotificationProfile = target;
+            requestPanelEntry({ kind: "profile", username: target.username, ulid: target.ulid });
         }
     });
 
@@ -2999,8 +2933,9 @@ function AchievementsRoot() {
         setAccurateAvatarDebug(settings.debugLogging);
         const nextPayload = cached?.payload ?? null;
         const nextFriendsPayload = cachedFriends?.payload ?? null;
-        let nextResumeState = nextRememberLastPage ? (savedResume?.resumeState ?? null) : null;
-        nextResumeState = consumePendingRouteOverrides(nextResumeState);
+        const pending = consumePendingRouteOverrides(nextRememberLastPage ? (savedResume?.resumeState ?? null) : null);
+        const nextResumeState = pending.resumeState;
+        const entry = pending.entry;
         const bootView = computeBootView(nextResumeState, nextPayload);
 
         const ownRef = String(settings.activeUlid || "").trim();
@@ -3055,8 +2990,22 @@ function AchievementsRoot() {
                 nextResumeState.guidesFaqId ?? null
             );
         }
+        if (entry?.kind === "socialTab") {
+            setSocialEntryViewOverride(entry.tab);
+            if (entry.newsSub) {
+                setNewsEventsSubView(entry.newsSub);
+            }
+        }
+        if (entry?.kind === "trackedSets") {
+            trackedSetsBackSourceRef.current = "main";
+            setTrackedSetOpenId(null);
+            armTrackedSetsFullCheck();
+        }
+        if (entry?.kind === "profile") {
+            friendProfileBackSourceRef.current = "main";
+        }
         setPayload(nextPayload);
-        initializeResumeFromBoot(nextResumeState, nextPayload, bootView);
+        initializeResumeFromBoot(nextResumeState, nextPayload, bootView, entry?.kind === "profile");
         setGoResumeProvisional(nextGoResumeProvisional);
         setAoResumeProvisional(nextAoResumeProvisional);
         setFriendsPayload(nextFriendsPayload);
@@ -3757,7 +3706,7 @@ function AchievementsRoot() {
     }
     const notificationNav: NotificationNav = {
         openGameNotes: (gameId, noteId) => {
-            pendingNoteReminderGameId = gameId;
+            requestPanelEntry({ kind: "gameNotes", gameId });
             if (noteId) {
                 armNoteFocusReturn(gameId, noteId, activeUlid);
             }
@@ -3768,13 +3717,13 @@ function AchievementsRoot() {
         openGameOverview: (gameId, viewedUsername, viewedUserRef) => {
             const viewedName = viewedUsername ?? null;
             const viewedRef = viewedUserRef ?? null;
-            pendingNotificationGame = { gameId, viewedUsername: viewedName, viewedUserRef: viewedRef };
+            requestPanelEntry({ kind: "game", gameId, viewedUsername: viewedName, viewedUserRef: viewedRef });
             goToGameOverview(gameId, "main", viewedName, viewedRef);
         },
         openAchievementOverview: (gameId, achievementId, viewedUsername, viewedUserRef) => {
             const friend = viewedUsername ?? null;
             const friendRef = viewedUserRef ?? null;
-            pendingNotificationAchievement = { gameId, achievementId, viewedUsername: friend, viewedUserRef: friendRef };
+            requestPanelEntry({ kind: "achievement", gameId, achievementId, viewedUsername: friend, viewedUserRef: friendRef });
             setAoAchievementId(achievementId);
             setAoGameId(gameId);
             setAoSource("notification");
@@ -3785,24 +3734,24 @@ function AchievementsRoot() {
             setPendingFocusKey("ao:back");
         },
         openTrackedSet: (setId) => {
-            pendingTrackedSetOpenId = setId;
+            requestPanelEntry({ kind: "trackedSet", setId });
             trackedSetsBackSourceRef.current = "main";
             setTrackedSetOpenId(setId);
             setView("trackedSetOpen");
             setPendingFocusKey("trackedsetopen:back");
         },
         openCheevoCheck: () => {
-            pendingNotificationCheevoCheck = true;
+            requestPanelEntry({ kind: "cheevoCheck" });
             navIntentRef.current = "hub";
             goToCheevoCheck();
         },
         openFileWatcher: () => {
-            pendingNotificationFileWatcher = true;
+            requestPanelEntry({ kind: "fileWatcher" });
             navIntentRef.current = "hub";
             goToFileWatcher();
         },
         openMemoriesTransfer: () => {
-            pendingNotificationMemoriesTransfer = true;
+            requestPanelEntry({ kind: "memoriesTransfer" });
             navIntentRef.current = "hub";
             goToMemoriesTransfer();
         },
@@ -3829,7 +3778,7 @@ function AchievementsRoot() {
             ));
         },
         openAbout: () => {
-            pendingNotificationAbout = true;
+            requestPanelEntry({ kind: "about" });
             navIntentRef.current = "hub";
             goToAbout();
         },

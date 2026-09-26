@@ -38,7 +38,26 @@ _PADDLE_BITS = {
     ),
 }
 
-SUMMON_ACTIONS = ("browser", "calculator", "currentGuide", "memories", "lastMemory")
+SUMMON_ACTIONS = (
+    "browser",
+    "calculator",
+    "currentGuide",
+    "memories",
+    "lastMemory",
+    "snapshot",
+    "doNotDisturb",
+    "notifications",
+    "socialActivity",
+    "profile",
+    "socialhub",
+    "news",
+    "aotw",
+    "newsets",
+    "subscribeddiscussions",
+    "savedcomments",
+    "trackedsets",
+    "dolphinMapper",
+)
 
 BROWSER_SNAPSHOT_BUTTON = "r4"
 

@@ -27,6 +27,7 @@ export type RestoreContext = {
     mountedRef: RefObject<boolean>;
 
     friendsPayload: FriendsPayload | null;
+    activeUlid: string;
     friendGameReturnGameIdRef: RefObject<number | null>;
     setSelectedFriend: Dispatch<SetStateAction<FriendRow | null>>;
     setFriendGameSource: Dispatch<SetStateAction<FriendGameSource>>;
