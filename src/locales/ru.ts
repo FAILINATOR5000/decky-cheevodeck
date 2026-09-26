@@ -231,6 +231,8 @@ const RU: LocaleTable = {
     "help_mapped_shortcuts": "Назначь действия и ярлыки на кнопки контроллера.",
     "Make Back Buttons Global": "Сделать задние кнопки глобальными",
     "help_back_buttons_global": "Позволяет кнопкам L4, L5, R4 и R5 на Steam Controller или встроенном контроллере Steam Deck работать вне плагина в некоторых функциях. Сейчас это работает с Гайдами, Калькулятором и Веб-браузером.",
+    "Browser Snapshot": "Скриншот в браузере",
+    "help_browser_snapshot": "Включает скриншот в браузере на кнопке R4. Если на R4 назначено что-то другое, это игнорируется в пользу скриншота.",
     "shortcut_button_menu": "Меню",
     "shortcut_button_view": "Вид",
     "Previous": "Назад",

@@ -213,6 +213,9 @@ export const saveDeferModalCleanup = callable<[boolean], { ok: boolean; deferMod
 export const saveBackButtonsGlobal = callable<[boolean], { ok: boolean; backButtonsGlobal: boolean }>(
     "save_back_buttons_global"
 );
+export const saveBrowserSnapshot = callable<[boolean], { ok: boolean; browserSnapshot: boolean }>(
+    "save_browser_snapshot"
+);
 export const saveLegacyCommentsLoading = callable<[boolean], { ok: boolean; legacyCommentsLoading: boolean }>(
     "save_legacy_comments_loading"
 );

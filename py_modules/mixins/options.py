@@ -593,6 +593,15 @@ class OptionsMixin(PluginContext):
             "backButtonsGlobal": value,
         }
 
+    async def save_browser_snapshot(self, browser_snapshot: bool):
+        value = self.settings_store.update_browser_snapshot(browser_snapshot)
+        self.back_button_service.sync()
+
+        return {
+            "ok": True,
+            "browserSnapshot": value,
+        }
+
     async def save_legacy_comments_loading(self, legacy_comments_loading: bool):
         value = self.settings_store.update_legacy_comments_loading(legacy_comments_loading)
 

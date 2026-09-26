@@ -231,6 +231,8 @@ const FR: LocaleTable = {
     "help_mapped_shortcuts": "Assigne des actions et des raccourcis aux boutons de ta manette.",
     "Make Back Buttons Global": "Rendre les boutons arrière globaux",
     "help_back_buttons_global": "Permet aux boutons L4, L5, R4 et R5 de ton Steam Controller ou de la manette intégrée du Steam Deck de fonctionner hors du plugin pour certaines fonctions. Pour l'instant, ça marche avec Guides, Calculatrice et Navigateur web.",
+    "Browser Snapshot": "Capture dans le navigateur",
+    "help_browser_snapshot": "Permet de faire une capture dans le navigateur avec R4. Si R4 est assigné à autre chose, c'est ignoré au profit de la capture.",
     "shortcut_button_menu": "Menu",
     "shortcut_button_view": "Vue",
     "Previous": "Précédent",

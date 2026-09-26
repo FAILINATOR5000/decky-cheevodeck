@@ -237,6 +237,7 @@ type OptionsPageState = {
     debugLogging: boolean;
     deferModalCleanup: boolean;
     backButtonsGlobal: boolean;
+    browserSnapshot: boolean;
     libraryBadge: boolean;
     memoriesAutoCapture: boolean;
     memoriesDeleteSource: boolean;
@@ -477,6 +478,7 @@ type OptionsPageActions = {
     onToggleDebugLogging: (nextValue: boolean) => void | Promise<void>;
     onToggleDeferModalCleanup: (nextValue: boolean) => void | Promise<void>;
     onToggleBackButtonsGlobal: (nextValue: boolean) => void | Promise<void>;
+    onToggleBrowserSnapshot: (nextValue: boolean) => void | Promise<void>;
     onToggleLibraryBadge: (nextValue: boolean) => void | Promise<void>;
     onToggleLegacyCommentsLoading: (nextValue: boolean) => void | Promise<void>;
     onToggleBatterySaverDisablesSocialActivity: (nextValue: boolean) => void | Promise<void>;
@@ -1172,6 +1174,16 @@ function SystemTab(props: SystemTabProps) {
                 disabled={disabled}
                 help={t(state.language, "help_back_buttons_global")}
             />
+            {state.showDeveloperOptions && (
+                <OptionToggle
+                    outerStyle={buttonOuterStyle}
+                    label={t(state.language, "Browser Snapshot")}
+                    value={state.browserSnapshot}
+                    onChange={actions.onToggleBrowserSnapshot}
+                    disabled={disabled}
+                    help={t(state.language, "help_browser_snapshot")}
+                />
+            )}
             {!state.mouseKeyboardMode && (
                 <PanelSectionRow>
                     <ButtonHints

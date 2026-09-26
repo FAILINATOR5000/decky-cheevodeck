@@ -771,6 +771,7 @@ export type SettingsResponse = {
     showIcons: boolean;
     deferModalCleanup: boolean;
     backButtonsGlobal: boolean;
+    browserSnapshot: boolean;
     legacyCommentsLoading: boolean;
     showAllAchievements: boolean;
     unlockLookbackMinutes: number;

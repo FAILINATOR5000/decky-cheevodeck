@@ -707,12 +707,12 @@ class Plugin(
         task.add_done_callback(self._background_tasks.discard)
         return task
 
-    def _emit_back_button(self, action: str) -> None:
+    def _emit_back_button(self, payload: dict) -> None:
         loop = getattr(self, "_asyncio_loop", None)
         if loop is None:
             return
         try:
-            asyncio.run_coroutine_threadsafe(decky.emit(BACK_BUTTON_EVENT, {"action": action}), loop)
+            asyncio.run_coroutine_threadsafe(decky.emit(BACK_BUTTON_EVENT, payload), loop)
         except Exception as exc:
             decky.logger.warning("back buttons: event emit failed (%s: %s)", type(exc).__name__, exc)
 

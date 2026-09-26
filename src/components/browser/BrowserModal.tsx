@@ -149,6 +149,13 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
     }
     const host = hostRef.current;
 
+    useEffect(() => {
+        mountedBrowsers += 1;
+        return () => {
+            mountedBrowsers -= 1;
+        };
+    }, []);
+
     const keyboardOpenRef = useRef(false);
     const claimViewNode = useCallback((force: boolean) => {
         if (keyboardOpenRef.current && !force) {
@@ -552,6 +559,12 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
 }
 
 let closeOpenBrowser: (() => void) | null = null;
+
+let mountedBrowsers = 0;
+
+export function browserModalOpen(): boolean {
+    return mountedBrowsers > 0;
+}
 
 export function closeBrowserForUnload(): void {
     const close = closeOpenBrowser;

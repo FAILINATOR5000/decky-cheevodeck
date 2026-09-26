@@ -231,6 +231,8 @@ export const EN: LocaleTable = {
     "help_mapped_shortcuts": "Map actions/shortcuts to your controller buttons.",
     "Make Back Buttons Global": "Make Back Buttons Global",
     "help_back_buttons_global": "Allows the L4, L5, R4 and R5 buttons on your Steam Controller or built-in Steam Deck controller to work outside the plugin for some features. Right now it works with Guides, Calculator and Web Browser.",
+    "Browser Snapshot": "Browser Snapshot",
+    "help_browser_snapshot": "Enables snapshot in the browser bound to R4. If anything is mapped to R4, it is discarded in favor of the snapshot.",
     "shortcut_button_menu": "Menu",
     "shortcut_button_view": "View",
     "Previous": "Previous",

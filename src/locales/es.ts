@@ -231,6 +231,8 @@ const ES: LocaleTable = {
     "help_mapped_shortcuts": "Asigna acciones y atajos a los botones de tu mando.",
     "Make Back Buttons Global": "Hacer globales los botones traseros",
     "help_back_buttons_global": "Permite que los botones L4, L5, R4 y R5 de tu Steam Controller o del mando integrado de la Steam Deck funcionen fuera del plugin en algunas funciones. Por ahora funciona con Guías, Calculadora y Navegador web.",
+    "Browser Snapshot": "Captura en el navegador",
+    "help_browser_snapshot": "Permite hacer una captura en el navegador con R4. Si R4 tiene otra acción asignada, se descarta en favor de la captura.",
     "shortcut_button_menu": "Menú",
     "shortcut_button_view": "Vista",
     "Previous": "Anterior",

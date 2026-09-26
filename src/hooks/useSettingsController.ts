@@ -88,6 +88,7 @@ export function useSettingsController({
     const [showIcons, setShowIcons] = useState(true);
     const [deferModalCleanup, setDeferModalCleanup] = useState(true);
     const [backButtonsGlobal, setBackButtonsGlobal] = useState(false);
+    const [browserSnapshot, setBrowserSnapshot] = useState(false);
     const [legacyCommentsLoading, setLegacyCommentsLoading] = useState(false);
     const [showAllAchievements, setShowAllAchievements] = useState(true);
     const [unlockLookbackMinutes, setUnlockLookbackMinutes] = useState(1440);
@@ -362,6 +363,7 @@ export function useSettingsController({
         setShowIcons(source.showIcons);
         setDeferModalCleanup(source.deferModalCleanup);
         setBackButtonsGlobal(source.backButtonsGlobal);
+        setBrowserSnapshot(source.browserSnapshot);
         setLegacyCommentsLoading(Boolean(source.legacyCommentsLoading));
         setShowAllAchievements(source.showAllAchievements);
         setUnlockLookbackMinutes(source.unlockLookbackMinutes);
@@ -649,6 +651,7 @@ export function useSettingsController({
         showIcons,
         deferModalCleanup,
         backButtonsGlobal,
+        browserSnapshot,
         legacyCommentsLoading,
         showAllAchievements,
         unlockLookbackMinutes,
@@ -880,6 +883,7 @@ export function useSettingsController({
         setShowIcons,
         setDeferModalCleanup,
         setBackButtonsGlobal,
+        setBrowserSnapshot,
         setLegacyCommentsLoading,
         setBatterySaverDisablesSocialActivity,
         setBatterySaverDisablesComments,

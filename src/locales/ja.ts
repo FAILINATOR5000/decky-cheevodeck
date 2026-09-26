@@ -231,6 +231,8 @@ const JA: LocaleTable = {
     "help_mapped_shortcuts": "コントローラーのボタンに操作やショートカットを割り当てます。",
     "Make Back Buttons Global": "背面ボタンをグローバルにする",
     "help_back_buttons_global": "Steam Controller または Steam Deck 内蔵コントローラーの L4・L5・R4・R5 ボタンを、一部の機能でプラグインの外でも使えるようにします。現在はガイド、電卓、ウェブブラウザに対応しています。",
+    "Browser Snapshot": "ブラウザでのスクリーンショット",
+    "help_browser_snapshot": "ブラウザ内で R4 によるスクリーンショットを有効にします。R4 に何か割り当てられていても、スクリーンショットが優先されます。",
     "shortcut_button_menu": "メニュー",
     "shortcut_button_view": "ビュー",
     "Previous": "前へ",

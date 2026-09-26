@@ -8,8 +8,9 @@ import { logError } from "../../utils/errors";
 import { lastOpenedGuide } from "../../utils/guidesResolve";
 import { cheevoModalOpen, showManagedModal } from "../../utils/modalRegistry";
 import { requestGuidesOnOpen, takeGuidesOnOpen } from "../../utils/pendingPanelEntry";
+import { captureSnapshot } from "../../utils/snapshot";
 import { focusOurPlugin, quickAccessIsHidden } from "../../utils/quickAccess";
-import { openBrowserModal } from "../browser/BrowserModal";
+import { browserModalOpen, openBrowserModal } from "../browser/BrowserModal";
 import { openCalculatorModal } from "../calculator/CalculatorModal";
 import { GuidesReaderModal } from "../guides/GuidesReaderModal";
 
@@ -103,7 +104,13 @@ async function summonCurrentGuide(language: LanguageCode) {
     }
 }
 
-async function onBackButton(payload: { action?: string }) {
+async function onBackButton(payload: { action?: string | null; browserSnapshot?: boolean }) {
+    if (payload?.browserSnapshot && browserModalOpen()) {
+        const language = getCurrentLanguage();
+        await ensureLanguageLoaded(language);
+        void captureSnapshot(language);
+        return;
+    }
     const action = payload?.action;
     if (typeof action !== "string" || !SUMMON_ACTIONS.includes(action)) {
         return;

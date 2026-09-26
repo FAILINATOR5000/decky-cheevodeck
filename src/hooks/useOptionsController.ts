@@ -132,6 +132,7 @@ import {
     saveShowIcons,
     saveDeferModalCleanup,
     saveBackButtonsGlobal,
+    saveBrowserSnapshot,
     saveLibraryBadge,
     saveMemoriesAutoCapture,
     saveMemoriesDeleteSource,
@@ -459,6 +460,7 @@ type UseOptionsControllerArgs = {
     showIcons: boolean;
     deferModalCleanup: boolean;
     backButtonsGlobal: boolean;
+    browserSnapshot: boolean;
     libraryBadge: boolean;
     memoriesAutoCapture: boolean;
     memoriesDeleteSource: boolean;
@@ -519,6 +521,7 @@ type UseOptionsControllerArgs = {
     setShowIcons: Dispatch<SetStateAction<boolean>>;
     setDeferModalCleanup: Dispatch<SetStateAction<boolean>>;
     setBackButtonsGlobal: Dispatch<SetStateAction<boolean>>;
+    setBrowserSnapshot: Dispatch<SetStateAction<boolean>>;
     setLibraryBadge: Dispatch<SetStateAction<boolean>>;
     setMemoriesAutoCapture: Dispatch<SetStateAction<boolean>>;
     setMemoriesDeleteSource: Dispatch<SetStateAction<boolean>>;
@@ -899,6 +902,7 @@ export function useOptionsController({
     showIcons,
     deferModalCleanup,
     backButtonsGlobal,
+    browserSnapshot,
     libraryBadge,
     memoriesAutoCapture,
     memoriesDeleteSource,
@@ -959,6 +963,7 @@ export function useOptionsController({
     setShowIcons,
     setDeferModalCleanup,
     setBackButtonsGlobal,
+    setBrowserSnapshot,
     setLibraryBadge,
     setMemoriesAutoCapture,
     setMemoriesDeleteSource,
@@ -1200,6 +1205,7 @@ export function useOptionsController({
         setShowIcons(Boolean(result.showIcons));
         setDeferModalCleanup(Boolean(result.deferModalCleanup ?? true));
         setBackButtonsGlobal(Boolean(result.backButtonsGlobal ?? false));
+        setBrowserSnapshot(Boolean(result.browserSnapshot ?? false));
         setLegacyCommentsLoading(Boolean(result.legacyCommentsLoading));
         setBatterySaverDisablesSocialActivity(Boolean(result.batterySaverDisablesSocialActivity ?? true));
         setBatterySaverDisablesComments(Boolean(result.batterySaverDisablesComments ?? true));
@@ -3281,6 +3287,15 @@ export function useOptionsController({
             getSavedValue: (result, fallbackValue) => Boolean(result.backButtonsGlobal ?? fallbackValue),
         });
 
+    const onToggleBrowserSnapshot = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: browserSnapshot,
+            applyValue: setBrowserSnapshot,
+            saveCall: saveBrowserSnapshot,
+            getSavedValue: (result, fallbackValue) => Boolean(result.browserSnapshot ?? fallbackValue),
+        });
+
     const onToggleLegacyCommentsLoading = (nextValue: boolean) =>
         saveSettingWithRollback<boolean>({
             nextValue,
@@ -3595,6 +3610,7 @@ export function useOptionsController({
         showIcons,
         deferModalCleanup,
         backButtonsGlobal,
+        browserSnapshot,
         libraryBadge,
         memoriesAutoCapture,
         memoriesDeleteSource,
@@ -3841,6 +3857,7 @@ export function useOptionsController({
         onToggleShowIcons,
         onToggleDeferModalCleanup,
         onToggleBackButtonsGlobal,
+        onToggleBrowserSnapshot,
         onToggleLibraryBadge,
         onToggleMemoriesAutoCapture,
         onToggleMemoriesDeleteSource,

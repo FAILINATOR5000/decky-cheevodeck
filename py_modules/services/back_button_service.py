@@ -40,6 +40,8 @@ _PADDLE_BITS = {
 
 SUMMON_ACTIONS = ("browser", "calculator", "currentGuide")
 
+BROWSER_SNAPSHOT_BUTTON = "r4"
+
 HIDRAW_CLASS_DIR = Path("/sys/class/hidraw")
 
 READ_SIZE = 128
@@ -129,7 +131,7 @@ class BackButtonService:
 
     def sync(self) -> None:
         cfg = self._settings_store.load_config()
-        if cfg.get("backButtonsGlobal", False):
+        if cfg.get("backButtonsGlobal", False) or cfg.get("browserSnapshot", False):
             self.start()
         else:
             self.stop()
@@ -285,11 +287,17 @@ class BackButtonService:
             self._on_press(node, button)
 
     def _on_press(self, node: _OpenNode, button: str) -> None:
-        action = self._settings_store.get_shortcut_bindings().get(button)
+        cfg = self._settings_store.load_config()
+        snapshot = button == BROWSER_SNAPSHOT_BUTTON and bool(cfg.get("browserSnapshot", False))
+        action = None
+        if cfg.get("backButtonsGlobal", False):
+            action = self._settings_store.get_shortcut_bindings(cfg).get(button)
         if action not in SUMMON_ACTIONS:
+            action = None
+        if action is None and not snapshot:
             if self._debug_logging():
-                decky.logger.info("back buttons: %s on %s is mapped to %s, not sent", button, node.name, action)
+                decky.logger.info("back buttons: %s on %s has nothing to send", button, node.name)
             return
         if self._debug_logging():
-            decky.logger.info("back buttons: %s on %s sent %s", button, node.name, action)
-        self._emit(action)
+            decky.logger.info("back buttons: %s on %s sent action=%s snapshot=%s", button, node.name, action, snapshot)
+        self._emit({"action": action, "browserSnapshot": snapshot})
