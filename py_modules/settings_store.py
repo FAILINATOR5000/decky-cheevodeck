@@ -377,6 +377,7 @@ _KNOBS = (
     Knob("autoRefresh", default=True, normalize=True, read=READ_BOOL),
     Knob("showIcons", default=True, normalize=True, read=READ_BOOL),
     Knob("deferModalCleanup", default=True, normalize=True, read=READ_BOOL),
+    Knob("backButtonsGlobal", default=False, normalize=True, read=READ_BOOL),
     Knob("legacyCommentsLoading", default=False, normalize=True, read=READ_BOOL),
     Knob("showAllAchievements", default=True, normalize=True, read=READ_BOOL),
     Knob("unlockLookbackMinutes", from_attr="_recent_unlock_lookback_minutes", normalize=True),
@@ -2100,6 +2101,11 @@ class SettingsStore:
         cfg = self._update_config("deferModalCleanup", bool(value))
 
         return bool(cfg.get("deferModalCleanup", True))
+
+    def update_back_buttons_global(self, value: bool) -> bool:
+        cfg = self._update_config("backButtonsGlobal", bool(value))
+
+        return bool(cfg.get("backButtonsGlobal", False))
 
     def update_legacy_comments_loading(self, value: bool) -> bool:
         cfg = self._update_config("legacyCommentsLoading", bool(value))

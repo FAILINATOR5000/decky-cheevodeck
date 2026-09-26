@@ -229,6 +229,8 @@ const ES: LocaleTable = {
     "help_quick_menu_shortcuts": "Personaliza la parte de abajo del menú rápido con hasta cuatro accesos directos.",
     "Mapped Shortcuts": "Atajos asignados",
     "help_mapped_shortcuts": "Asigna acciones y atajos a los botones de tu mando.",
+    "Make Back Buttons Global": "Hacer globales los botones traseros",
+    "help_back_buttons_global": "Permite que los botones L4, L5, R4 y R5 de tu Steam Controller o del mando integrado de la Steam Deck funcionen fuera del plugin en algunas funciones. Por ahora funciona con Guías, Calculadora y Navegador web.",
     "shortcut_button_menu": "Menú",
     "shortcut_button_view": "Vista",
     "Previous": "Anterior",

@@ -1,3 +1,4 @@
+import type { GameGuidesRecord, GuideUserData } from "../types";
 import { GAMEFAQS_PLATFORM_SLUGS } from "./consoles";
 import type { GuideSearchResult } from "./guidesFetch";
 import { foldText } from "./searchText";
@@ -27,6 +28,26 @@ export function guideBelongsToMapping(
         return true;
     }
     return stamped === (mappedUrl || "");
+}
+
+export function lastOpenedGuide(
+    record: GameGuidesRecord
+): { faqId: string; guide: GuideUserData; gameUrl: string } | null {
+    const gameUrl = record.gamefaqs?.gameUrl ?? null;
+    if (!gameUrl) {
+        return null;
+    }
+
+    let best: { faqId: string; guide: GuideUserData } | null = null;
+    for (const [faqId, guide] of Object.entries(record.guides)) {
+        if (!guideBelongsToMapping(guide, gameUrl)) {
+            continue;
+        }
+        if (guide.lastOpenedAt > (best?.guide.lastOpenedAt ?? 0)) {
+            best = { faqId, guide };
+        }
+    }
+    return best === null ? null : { ...best, gameUrl };
 }
 
 function platformSlugForConsole(consoleName: string | null | undefined): string | null {

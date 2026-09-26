@@ -70,6 +70,7 @@ declare module "@decky/ui" {
     };
 
     export const findModuleExport: (filter: (e: any) => boolean, minExports?: number) => any;
+    export const getGamepadNavigationTrees: () => any[];
     export const ButtonItem: (props: NoDomFocusEvents) => any;
     export const ConfirmModal: any;
     export const DialogButton: (props: NoDomFocusEvents) => any;

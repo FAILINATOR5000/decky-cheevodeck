@@ -236,6 +236,7 @@ type OptionsPageState = {
     trackedSetsRefreshMinutes: number;
     debugLogging: boolean;
     deferModalCleanup: boolean;
+    backButtonsGlobal: boolean;
     libraryBadge: boolean;
     memoriesAutoCapture: boolean;
     memoriesDeleteSource: boolean;
@@ -475,6 +476,7 @@ type OptionsPageActions = {
     onCycleTrackedSetsRefreshMinutes: () => void | Promise<void>;
     onToggleDebugLogging: (nextValue: boolean) => void | Promise<void>;
     onToggleDeferModalCleanup: (nextValue: boolean) => void | Promise<void>;
+    onToggleBackButtonsGlobal: (nextValue: boolean) => void | Promise<void>;
     onToggleLibraryBadge: (nextValue: boolean) => void | Promise<void>;
     onToggleLegacyCommentsLoading: (nextValue: boolean) => void | Promise<void>;
     onToggleBatterySaverDisablesSocialActivity: (nextValue: boolean) => void | Promise<void>;
@@ -1162,6 +1164,14 @@ function SystemTab(props: SystemTabProps) {
             <PanelSectionRow>
                 <InfoText>{t(state.language, "help_mapped_shortcuts")}</InfoText>
             </PanelSectionRow>
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                label={t(state.language, "Make Back Buttons Global")}
+                value={state.backButtonsGlobal}
+                onChange={actions.onToggleBackButtonsGlobal}
+                disabled={disabled}
+                help={t(state.language, "help_back_buttons_global")}
+            />
             {!state.mouseKeyboardMode && (
                 <PanelSectionRow>
                     <ButtonHints

@@ -584,6 +584,15 @@ class OptionsMixin(PluginContext):
             "deferModalCleanup": value,
         }
 
+    async def save_back_buttons_global(self, back_buttons_global: bool):
+        value = self.settings_store.update_back_buttons_global(back_buttons_global)
+        self.back_button_service.sync()
+
+        return {
+            "ok": True,
+            "backButtonsGlobal": value,
+        }
+
     async def save_legacy_comments_loading(self, legacy_comments_loading: bool):
         value = self.settings_store.update_legacy_comments_loading(legacy_comments_loading)
 

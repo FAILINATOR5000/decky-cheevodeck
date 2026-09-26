@@ -229,6 +229,8 @@ export const EN: LocaleTable = {
     "help_quick_menu_shortcuts": "Customize the bottom of the quick menu with up to four shortcuts.",
     "Mapped Shortcuts": "Mapped Shortcuts",
     "help_mapped_shortcuts": "Map actions/shortcuts to your controller buttons.",
+    "Make Back Buttons Global": "Make Back Buttons Global",
+    "help_back_buttons_global": "Allows the L4, L5, R4 and R5 buttons on your Steam Controller or built-in Steam Deck controller to work outside the plugin for some features. Right now it works with Guides, Calculator and Web Browser.",
     "shortcut_button_menu": "Menu",
     "shortcut_button_view": "View",
     "Previous": "Previous",

@@ -131,6 +131,7 @@ import {
     saveTrackedColor,
     saveShowIcons,
     saveDeferModalCleanup,
+    saveBackButtonsGlobal,
     saveLibraryBadge,
     saveMemoriesAutoCapture,
     saveMemoriesDeleteSource,
@@ -457,6 +458,7 @@ type UseOptionsControllerArgs = {
     modalScale: ScaleStep;
     showIcons: boolean;
     deferModalCleanup: boolean;
+    backButtonsGlobal: boolean;
     libraryBadge: boolean;
     memoriesAutoCapture: boolean;
     memoriesDeleteSource: boolean;
@@ -516,6 +518,7 @@ type UseOptionsControllerArgs = {
     setAutoRefresh: Dispatch<SetStateAction<boolean>>;
     setShowIcons: Dispatch<SetStateAction<boolean>>;
     setDeferModalCleanup: Dispatch<SetStateAction<boolean>>;
+    setBackButtonsGlobal: Dispatch<SetStateAction<boolean>>;
     setLibraryBadge: Dispatch<SetStateAction<boolean>>;
     setMemoriesAutoCapture: Dispatch<SetStateAction<boolean>>;
     setMemoriesDeleteSource: Dispatch<SetStateAction<boolean>>;
@@ -895,6 +898,7 @@ export function useOptionsController({
     modalScale,
     showIcons,
     deferModalCleanup,
+    backButtonsGlobal,
     libraryBadge,
     memoriesAutoCapture,
     memoriesDeleteSource,
@@ -954,6 +958,7 @@ export function useOptionsController({
     setAutoRefresh,
     setShowIcons,
     setDeferModalCleanup,
+    setBackButtonsGlobal,
     setLibraryBadge,
     setMemoriesAutoCapture,
     setMemoriesDeleteSource,
@@ -1194,6 +1199,7 @@ export function useOptionsController({
         setAutoRefresh(Boolean(result.autoRefresh));
         setShowIcons(Boolean(result.showIcons));
         setDeferModalCleanup(Boolean(result.deferModalCleanup ?? true));
+        setBackButtonsGlobal(Boolean(result.backButtonsGlobal ?? false));
         setLegacyCommentsLoading(Boolean(result.legacyCommentsLoading));
         setBatterySaverDisablesSocialActivity(Boolean(result.batterySaverDisablesSocialActivity ?? true));
         setBatterySaverDisablesComments(Boolean(result.batterySaverDisablesComments ?? true));
@@ -3266,6 +3272,15 @@ export function useOptionsController({
             getSavedValue: (result, fallbackValue) => Boolean(result.deferModalCleanup ?? fallbackValue),
         });
 
+    const onToggleBackButtonsGlobal = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: backButtonsGlobal,
+            applyValue: setBackButtonsGlobal,
+            saveCall: saveBackButtonsGlobal,
+            getSavedValue: (result, fallbackValue) => Boolean(result.backButtonsGlobal ?? fallbackValue),
+        });
+
     const onToggleLegacyCommentsLoading = (nextValue: boolean) =>
         saveSettingWithRollback<boolean>({
             nextValue,
@@ -3579,6 +3594,7 @@ export function useOptionsController({
         modalScale,
         showIcons,
         deferModalCleanup,
+        backButtonsGlobal,
         libraryBadge,
         memoriesAutoCapture,
         memoriesDeleteSource,
@@ -3824,6 +3840,7 @@ export function useOptionsController({
         onCycleShortcutBindingBack,
         onToggleShowIcons,
         onToggleDeferModalCleanup,
+        onToggleBackButtonsGlobal,
         onToggleLibraryBadge,
         onToggleMemoriesAutoCapture,
         onToggleMemoriesDeleteSource,

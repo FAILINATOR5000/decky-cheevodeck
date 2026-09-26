@@ -248,7 +248,8 @@ import { takeSmbFocusReturn } from "../utils/smbFocusReturn";
 import { notePanelMount, notePanelUnmount, samplePanelEntryFrames } from "../utils/panelLifecycle";
 import { measureCommentWindow } from "../utils/commentGeometry";
 import { currentQuickGuideVisible, setQuickGuide } from "../utils/quickGuide";
-import { guideBelongsToMapping } from "../utils/guidesResolve";
+import { lastOpenedGuide } from "../utils/guidesResolve";
+import { takeGuidesOnOpen } from "../utils/pendingPanelEntry";
 import { openExternalUrl, raAchievementUrl, raAchievementCommentsUrl, raGameUrl, raGameCommentsUrl, raHomeUrl, raLookupSearchUrl, raUserUrl, raUserCommentsUrl } from "../utils/navigation";
 import { userRefFor } from "../utils/friends";
 import { loadCachedImage } from "../utils/loadCachedImage";
@@ -446,6 +447,15 @@ function consumePendingRouteOverrides(resumeState: ResumeState | null): ResumeSt
             friendGameSource: "recentGames",
             friendProfileSubView: "game",
             focusKey: "friendgame:back"
+        };
+    }
+    if (takeGuidesOnOpen()) {
+        nextResumeState = {
+            ...(nextResumeState ?? ({} as ResumeState)),
+            view: "guides",
+            guidesSubView: "list",
+            guidesFaqId: null,
+            focusKey: "guides:back"
         };
     }
 
@@ -1518,26 +1528,13 @@ function AchievementsRoot() {
                 return;
             }
 
-            const gameUrl = record.gamefaqs?.gameUrl ?? null;
-
-            let bestFaqId: string | null = null;
-            let bestOpened = 0;
-            for (const [faqId, guide] of Object.entries(record.guides)) {
-                if (!guideBelongsToMapping(guide, gameUrl)) {
-                    continue;
-                }
-                if (guide.lastOpenedAt > bestOpened) {
-                    bestFaqId = faqId;
-                    bestOpened = guide.lastOpenedAt;
-                }
-            }
-
-            if (bestFaqId === null || !gameUrl) {
+            const last = lastOpenedGuide(record);
+            if (last === null) {
                 fallBackToGuidesPage();
                 return;
             }
 
-            const guide = record.guides[bestFaqId];
+            const { faqId, guide, gameUrl } = last;
             showManagedModal((close) => (
                 <GuidesReaderModal
                     language={language}
@@ -1545,7 +1542,7 @@ function AchievementsRoot() {
                     gameId={gid}
                     imageIcon={payload?.imageIcon ?? null}
                     showIcons={showIcons}
-                    faqId={bestFaqId}
+                    faqId={faqId}
                     gameUrl={gameUrl}
                     initialContent={null}
                     initialSection={guide.lastAnchor || null}

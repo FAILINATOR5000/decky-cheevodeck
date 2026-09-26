@@ -229,6 +229,8 @@ const PL: LocaleTable = {
     "help_quick_menu_shortcuts": "Ustaw dół szybkiego menu po swojemu, najwyżej czterema skrótami.",
     "Mapped Shortcuts": "Przypisane skróty",
     "help_mapped_shortcuts": "Przypisz akcje i skróty do przycisków kontrolera.",
+    "Make Back Buttons Global": "Ustaw przyciski tylne jako globalne",
+    "help_back_buttons_global": "Pozwala przyciskom L4, L5, R4 i R5 na Steam Controllerze lub wbudowanym kontrolerze Steam Decka działać poza wtyczką w niektórych funkcjach. Na razie działa to z Poradnikami, Kalkulatorem i Przeglądarką internetową.",
     "shortcut_button_menu": "Menu",
     "shortcut_button_view": "Widok",
     "Previous": "Wstecz",

@@ -210,6 +210,9 @@ export const saveShowIcons = callable<[boolean], { ok: boolean; showIcons: boole
 export const saveDeferModalCleanup = callable<[boolean], { ok: boolean; deferModalCleanup: boolean }>(
     "save_defer_modal_cleanup"
 );
+export const saveBackButtonsGlobal = callable<[boolean], { ok: boolean; backButtonsGlobal: boolean }>(
+    "save_back_buttons_global"
+);
 export const saveLegacyCommentsLoading = callable<[boolean], { ok: boolean; legacyCommentsLoading: boolean }>(
     "save_legacy_comments_loading"
 );

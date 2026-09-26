@@ -770,6 +770,7 @@ export type SettingsResponse = {
     autoRefresh: boolean;
     showIcons: boolean;
     deferModalCleanup: boolean;
+    backButtonsGlobal: boolean;
     legacyCommentsLoading: boolean;
     showAllAchievements: boolean;
     unlockLookbackMinutes: number;

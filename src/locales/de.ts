@@ -229,6 +229,8 @@ const DE: LocaleTable = {
     "help_quick_menu_shortcuts": "Richte den unteren Teil des Schnellmenüs mit bis zu vier Verknüpfungen ein.",
     "Mapped Shortcuts": "Tastenbelegung",
     "help_mapped_shortcuts": "Aktionen und Kürzel auf die Tasten deines Controllers legen.",
+    "Make Back Buttons Global": "Rücktasten global machen",
+    "help_back_buttons_global": "Lässt die Tasten L4, L5, R4 und R5 deines Steam Controllers oder des eingebauten Steam Deck-Controllers bei einigen Funktionen auch außerhalb des Plugins arbeiten. Im Moment klappt das mit Anleitungen, Rechner und Webbrowser.",
     "shortcut_button_menu": "Menü",
     "shortcut_button_view": "Ansicht",
     "Previous": "Zurück",

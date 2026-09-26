@@ -11,6 +11,7 @@ import snapshot
 
 from cache_store import CacheStore
 from ra_client import RetroAchievementsClient
+from services.back_button_service import BACK_BUTTON_EVENT, BackButtonService
 from services.cache_maintenance_service import CacheMaintenanceService
 from services.cheevo_check_service import CheevoCheckService
 from services.file_watcher_service import FileWatcherService
@@ -558,6 +559,11 @@ class Plugin(
             notifications_store=self.notifications_store,
             debug_logging=lambda: getattr(self, "_debug_logging", False),
         )
+        self.back_button_service = BackButtonService(
+            settings_store=self.settings_store,
+            debug_logging=lambda: getattr(self, "_debug_logging", False),
+            emit=self._emit_back_button,
+        )
         self.comments_service = CommentsService(
             game_comments_service=self.game_comments_service,
             subscriptions_store=self.subscriptions_store,
@@ -701,6 +707,15 @@ class Plugin(
         task.add_done_callback(self._background_tasks.discard)
         return task
 
+    def _emit_back_button(self, action: str) -> None:
+        loop = getattr(self, "_asyncio_loop", None)
+        if loop is None:
+            return
+        try:
+            asyncio.run_coroutine_threadsafe(decky.emit(BACK_BUTTON_EVENT, {"action": action}), loop)
+        except Exception as exc:
+            decky.logger.warning("back buttons: event emit failed (%s: %s)", type(exc).__name__, exc)
+
     async def _main(self):
         self._asyncio_loop = asyncio.get_running_loop()
 
@@ -752,6 +767,8 @@ class Plugin(
                 "filewatcher: load-time prepare failed: %s",
                 type(e).__name__,
             )
+
+        self.back_button_service.sync()
 
         try:
             cfg = self.settings_store.load_config()
@@ -868,6 +885,7 @@ class Plugin(
         self.update_checker_service.stop()
         self.developer_message_service.stop()
         self.file_watcher_service.stop()
+        self.back_button_service.stop()
         self._restore_deck_controller_safe()
 
     def _validate_credentials_or_raise(self, username: str, web_api_key: str, *, expected_ulid: str = "", skip_name_match: bool = False):
@@ -1365,6 +1383,7 @@ class Plugin(
         self._restart_guide_clock_if_thawed(was_frozen)
         self.players_near_you_service.wake_for_reschedule()
         self.social_activity_trickle_service.wake_for_reschedule()
+        self.back_button_service.sync()
 
         return {
             "ok": True,
@@ -1377,6 +1396,7 @@ class Plugin(
         self._restart_guide_clock_if_thawed(was_frozen)
         self.players_near_you_service.wake_for_reschedule()
         self.social_activity_trickle_service.wake_for_reschedule()
+        self.back_button_service.sync()
 
         return {
             "ok": True,
@@ -1587,6 +1607,7 @@ class Plugin(
             self.notes_reminder_service.reset_pending()
             self.file_watcher_service.prepare()
             self.file_watcher_service.start()
+            self.back_button_service.sync()
 
     async def factory_reset(self):
         self.players_near_you_service.note_cache_cleared()

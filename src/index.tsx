@@ -4,7 +4,8 @@ import { FaTrophy } from "react-icons/fa";
 import AchievementsRoot from "./pages/AchievementsRoot";
 import { getSettings, refreshHealedUserAvatar } from "./api";
 import { t, getCurrentLanguage, setCurrentLanguage } from "./locales";
-import { setDeviceIsSteamMachine } from "./utils/scale";
+import { setCurrentGuideModalZoom, setDeviceIsSteamMachine } from "./utils/scale";
+import { setSnapshotHotkey } from "./utils/snapshotHotkey";
 import { logError } from "./utils/errors";
 import { quickAccessMenuClasses } from "@decky/ui";
 import { disableLibraryBadge, enableLibraryBadge } from "./components/library/libraryBadgePatch";
@@ -16,6 +17,7 @@ import { setWebBrowserForLinks } from "./utils/navigation";
 import { closeBrowserForUnload } from "./components/browser/BrowserModal";
 import { releaseWebBrowserActionset } from "./components/browser/browserViewHost";
 import { registerBrowserDownloads, unregisterBrowserDownloads } from "./components/browser/browserDownloads";
+import { registerGlobalBackButtons, unregisterGlobalBackButtons } from "./components/backButtons/globalBackButtons";
 
 const NOTIFICATION_EVENT = "cheevodeck_notification";
 
@@ -55,6 +57,12 @@ export default definePlugin(() => {
             setDeviceIsSteamMachine(settings?.isSteamMachine ?? false);
             setClipMuted(Boolean(settings?.memoriesMuted ?? false));
             setWebBrowserForLinks(settings?.linksOpenInWebBrowser ?? true);
+            if (settings?.shortcutBindings) {
+                setSnapshotHotkey(settings.shortcutBindings);
+            }
+            if (settings?.guideModalZoom) {
+                setCurrentGuideModalZoom(settings.guideModalZoom);
+            }
             if (settings?.libraryBadge) {
                 enableLibraryBadge();
             }
@@ -72,6 +80,7 @@ export default definePlugin(() => {
     };
     addEventListener(AVATAR_HEALED_EVENT, onAvatarHealed);
     registerBrowserDownloads();
+    registerGlobalBackButtons();
 
     registerScreenDarken();
     registerMemoryCapture();
@@ -86,6 +95,7 @@ export default definePlugin(() => {
             removeEventListener(NOTIFICATION_EVENT, onNotificationToast);
             removeEventListener(AVATAR_HEALED_EVENT, onAvatarHealed);
             unregisterBrowserDownloads();
+            unregisterGlobalBackButtons();
             disableLibraryBadge();
             unregisterScreenDarken();
             unregisterMemoryCapture();

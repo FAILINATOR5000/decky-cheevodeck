@@ -1,15 +1,7 @@
 import { Navigation, QuickAccessTab } from "@decky/ui";
 import { clearResumeState, saveResumeState } from "../../api";
 import { logError } from "../../utils/errors";
-
-function focusOurPlugin() {
-    const loader = (window as any)?.DeckyPluginLoader;
-    const setActivePlugin = loader?.deckyState?.setActivePlugin;
-    if (typeof setActivePlugin !== "function") {
-        return;
-    }
-    setActivePlugin.call(loader.deckyState, "CheevoDeck");
-}
+import { focusOurPlugin } from "../../utils/quickAccess";
 
 export async function openGameOverviewForGame(gameId: number) {
     try {

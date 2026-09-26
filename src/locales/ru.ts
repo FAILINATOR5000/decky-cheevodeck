@@ -229,6 +229,8 @@ const RU: LocaleTable = {
     "help_quick_menu_shortcuts": "Настрой низ быстрого меню, до четырёх ярлыков.",
     "Mapped Shortcuts": "Назначенные кнопки",
     "help_mapped_shortcuts": "Назначь действия и ярлыки на кнопки контроллера.",
+    "Make Back Buttons Global": "Сделать задние кнопки глобальными",
+    "help_back_buttons_global": "Позволяет кнопкам L4, L5, R4 и R5 на Steam Controller или встроенном контроллере Steam Deck работать вне плагина в некоторых функциях. Сейчас это работает с Гайдами, Калькулятором и Веб-браузером.",
     "shortcut_button_menu": "Меню",
     "shortcut_button_view": "Вид",
     "Previous": "Назад",

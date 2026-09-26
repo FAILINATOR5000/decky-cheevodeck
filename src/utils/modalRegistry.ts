@@ -1,5 +1,5 @@
 import { showModal } from "@decky/ui";
-import type { ReactElement } from "react";
+import { cloneElement, createElement, useEffect, type ReactElement } from "react";
 
 type OpenModal = {
     close: () => void;
@@ -51,6 +51,41 @@ function unregisterModal(entry: OpenModal): void {
     openModals.delete(entry);
 }
 
+let mountedModals = 0;
+
+let pendingModals = 0;
+
+type ClosableElement = ReactElement<{ closeModal?: () => void }>;
+
+function ModalPresence(props: { children: ClosableElement; closeModal?: () => void }) {
+    useEffect(() => {
+        pendingModals = Math.max(0, pendingModals - 1);
+        mountedModals += 1;
+        return () => {
+            mountedModals -= 1;
+        };
+    }, []);
+    if (props.closeModal) {
+        return cloneElement(props.children, { closeModal: props.closeModal });
+    }
+    return props.children;
+}
+
+export function cheevoModalOpen(): boolean {
+    return mountedModals > 0 || pendingModals > 0;
+}
+
+function showCountedModal(element: ReactElement): { Close: () => void } {
+    pendingModals += 1;
+    try {
+        return showModal(createElement(ModalPresence, null, element), window);
+    }
+    catch (e) {
+        pendingModals -= 1;
+        throw e;
+    }
+}
+
 export function drainOpenModals(): OpenModal[] {
     const entries = Array.from(openModals);
     openModals.clear();
@@ -71,7 +106,7 @@ export function showManagedModal(
             }
             closeModal();
         };
-        const modal = showModal(render(close), window);
+        const modal = showCountedModal(render(close));
         closeModal = modal.Close;
         return modal;
     }
@@ -89,7 +124,7 @@ export function showManagedModal(
         }
     };
 
-    const modal = showModal(render(close), window);
+    const modal = showCountedModal(render(close));
     closeModal = modal.Close;
     entry = registerModal(modal.Close, opts?.needsMarkSeen ?? false);
     return modal;

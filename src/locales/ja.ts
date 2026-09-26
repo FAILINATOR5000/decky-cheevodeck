@@ -229,6 +229,8 @@ const JA: LocaleTable = {
     "help_quick_menu_shortcuts": "クイックメニューの下部を、最大4つのショートカットで自由に設定できます。",
     "Mapped Shortcuts": "ボタン割り当て",
     "help_mapped_shortcuts": "コントローラーのボタンに操作やショートカットを割り当てます。",
+    "Make Back Buttons Global": "背面ボタンをグローバルにする",
+    "help_back_buttons_global": "Steam Controller または Steam Deck 内蔵コントローラーの L4・L5・R4・R5 ボタンを、一部の機能でプラグインの外でも使えるようにします。現在はガイド、電卓、ウェブブラウザに対応しています。",
     "shortcut_button_menu": "メニュー",
     "shortcut_button_view": "ビュー",
     "Previous": "前へ",
