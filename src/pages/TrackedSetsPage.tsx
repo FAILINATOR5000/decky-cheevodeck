@@ -1812,11 +1812,14 @@ function OpenSetView(props: OpenSetViewProps) {
             )}
 
             {set.games.length > 0 && visibleGames.length === 0 && (
-                <PanelSectionRow>
-                    <div style={bodyTextStyle()}>
-                        {t(language, "No games match this filter.")}
-                    </div>
-                </PanelSectionRow>
+                <>
+                    <PanelSectionRow>
+                        <div style={bodyTextStyle()}>
+                            {t(language, "No games match this filter.")}
+                        </div>
+                    </PanelSectionRow>
+                    <BottomFocusAnchor focusKey="trackedsetopen:bottom:anchor" />
+                </>
             )}
 
             <div ref={listRef}>
