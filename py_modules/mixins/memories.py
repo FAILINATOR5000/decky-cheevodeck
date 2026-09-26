@@ -727,6 +727,7 @@ class MemoriesMixin(PluginContext):
                 achievements,
                 memory["capturedAt"],
                 now=now,
+                back=self._memory_back_window(memory),
                 forward=self._memory_forward_window(memory),
             )
             for memory in pending
@@ -746,6 +747,11 @@ class MemoriesMixin(PluginContext):
         video = memory.get("video") or {}
         span = to_int(video.get("durationMs"), 0) // 1000
         return memories_resolver.FORWARD_SKEW_SECONDS + max(span, 0)
+
+    def _memory_back_window(self, memory) -> int:
+        if memory.get("video"):
+            return memories_resolver.FORWARD_SKEW_SECONDS
+        return memories_resolver.BACK_SECONDS
 
     def _adopt_screenshot_sync(self, path: str, app_id, created_at, screenshot_game_id=""):
         cfg = self.settings_store.load_config()
