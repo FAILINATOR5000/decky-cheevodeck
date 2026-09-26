@@ -241,7 +241,7 @@ import { takeDolphinFocusReturn } from "../utils/dolphinFocusReturn";
 import { takeFileWatcherFocusReturn } from "../utils/fileWatcherFocusReturn";
 import { takeMemoriesTransferFocusReturn } from "../utils/memoriesTransferFocusReturn";
 import { takeMemoriesFocusReturn } from "../utils/memoriesFocusReturn";
-import { takeOptionsFocusReturn } from "../utils/optionsFocusReturn";
+import { armOptionsLanding, takeOptionsFocusReturn } from "../utils/optionsFocusReturn";
 import { takeUtilsFocusReturn } from "../utils/utilsFocusReturn";
 import { useMemoriesController } from "../hooks/useMemoriesController";
 import { useMemoriesVideoController } from "../hooks/useMemoriesVideoController";
@@ -3340,8 +3340,11 @@ function AchievementsRoot() {
         void saveLastOptionsTab("system").catch(() => {
         });
         setQuickMenuShortcutRefused(null);
+        if (focusKey) {
+            armOptionsLanding(focusKey);
+        }
         setView("options");
-        setPendingFocusKey(focusKey ?? "options:back");
+        setPendingFocusKey("options:back");
     }
 
     function goToUnlockHistory() {

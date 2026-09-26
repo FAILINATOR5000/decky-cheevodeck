@@ -77,6 +77,7 @@ import {
 } from "../utils/options";
 import { trackedColorHex, trackedColorLabelKey } from "../utils/achievements";
 import { resolveGlyphStyle } from "../utils/controllerGlyphs";
+import { listenForOptionsLanding, takeOptionsLanding } from "../utils/optionsFocusReturn";
 import { BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT } from "../utils/gamepadButtons";
 import { playOkSound } from "../utils/navSound";
 import { bodyTextStyle, regularButtonSpacingStyle, smallTextStyle } from "../utils/style";
@@ -610,11 +611,21 @@ function OptionsPage(props: OptionsPageProps) {
     const buttonOuterStyle = regularButtonSpacingStyle(state.buttonSpacing);
 
     // Coming back from a modal
-    const { restoreFocusKey, restorePending } = state;
+    const [landing, setLanding] = useState(() => {
+        const key = takeOptionsLanding();
+        return key === null ? null : { key };
+    });
+    const restoreFocusKey = landing?.key ?? state.restoreFocusKey;
+    const restorePending = landing !== null || state.restorePending;
     const restoreClaim = useFocusClaim();
     const restoreFiredRef = useRef(false);
     const claimedKeyRef = useRef<string | null>(null);
     const [restoreAbandoned, setRestoreAbandoned] = useState(false);
+
+    useEffect(() => listenForOptionsLanding((key) => {
+        restoreFiredRef.current = false;
+        setLanding({ key });
+    }), []);
 
     useEffect(function landRestoredCursor() {
         if (!restorePending || restoreFiredRef.current) {
@@ -631,7 +642,7 @@ function OptionsPage(props: OptionsPageProps) {
         claimedKeyRef.current = restoreFocusKey;
         restoreClaim.claimSlot(0);
         actions.onRequestFocus(restoreFocusKey);
-    }, [restorePending, restoreFocusKey, restoreClaim.claimSlot, actions.onRequestFocus]);
+    }, [landing, restorePending, restoreFocusKey, restoreClaim.claimSlot, actions.onRequestFocus]);
 
     const restoreSettled = restoreAbandoned
         || (restoreClaim.claim?.token ?? 0) > 0 && !restoreClaim.claim?.armed;
@@ -709,7 +720,7 @@ function OptionsPage(props: OptionsPageProps) {
             <BackButton
                 label={t(state.language, "← Back to Main")}
                 focusKey="options:back"
-                navAutoFocus={!state.restorePending}
+                navAutoFocus={!restorePending}
                 buttonSpacing={state.buttonSpacing}
                 onClick={actions.onBack}
                 disabled={state.loading || state.saving}
@@ -832,7 +843,7 @@ function OptionsPage(props: OptionsPageProps) {
 
     return (
         <RestoreCurtain
-            armed={state.restorePending}
+            armed={restorePending}
             settled={restoreSettled}
             covered={state.panelOverlayVisible}
         >
@@ -1199,34 +1210,37 @@ function SystemTab(props: SystemTabProps) {
                 </PanelSectionRow>
             )}
             {SHORTCUT_BUTTONS.map((entry, index) => (
-                <OptionValueRow
-                    key={entry.id}
-                    outerStyle={buttonOuterStyle}
-                    focusKey={shortcutRowFocusKey(entry.id)}
-                    onClick={() => actions.onCycleShortcutBinding(entry.id)}
-                    onButtonDown={(evt) => {
-                        if (evt?.detail?.button === BUTTON_BUMPER_LEFT) {
-                            playOkSound();
-                            void actions.onCycleShortcutBindingBack(entry.id);
-                            return;
-                        }
-                        if (evt?.detail?.button === BUTTON_BUMPER_RIGHT) {
-                            playOkSound();
-                            void actions.onCycleShortcutBinding(entry.id);
-                        }
-                    }}
-                    disabled={disabled}
-                    label={
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                            <ButtonGlyph button={entry.id} style={glyphStyle} size="1.2em" />
-                            {shortcutButtonLabel(entry.id, state.language)}
-                        </span>
-                    }
-                    value={shortcutActionLabel(state.shortcutBindings[entry.id], state.language)
-                        + (worksOutsidePanel(entry.id, state.shortcutBindings[entry.id]) ? "*" : "")}
-                    help={t(state.language, entry.helpKey)}
-                    separator={index === SHORTCUT_BUTTONS.length - 1 && !showGlobalFootnote}
-                />
+                <Fragment key={entry.id}>
+                    {claimTarget(
+                        <OptionValueRow
+                            outerStyle={buttonOuterStyle}
+                            focusKey={shortcutRowFocusKey(entry.id)}
+                            onClick={() => actions.onCycleShortcutBinding(entry.id)}
+                            onButtonDown={(evt) => {
+                                if (evt?.detail?.button === BUTTON_BUMPER_LEFT) {
+                                    playOkSound();
+                                    void actions.onCycleShortcutBindingBack(entry.id);
+                                    return;
+                                }
+                                if (evt?.detail?.button === BUTTON_BUMPER_RIGHT) {
+                                    playOkSound();
+                                    void actions.onCycleShortcutBinding(entry.id);
+                                }
+                            }}
+                            disabled={disabled}
+                            label={
+                                <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                                    <ButtonGlyph button={entry.id} style={glyphStyle} size="1.2em" />
+                                    {shortcutButtonLabel(entry.id, state.language)}
+                                </span>
+                            }
+                            value={shortcutActionLabel(state.shortcutBindings[entry.id], state.language)
+                                + (worksOutsidePanel(entry.id, state.shortcutBindings[entry.id]) ? "*" : "")}
+                            help={t(state.language, entry.helpKey)}
+                            separator={index === SHORTCUT_BUTTONS.length - 1 && !showGlobalFootnote}
+                        />
+                    )}
+                </Fragment>
             ))}
             {showGlobalFootnote && (
                 <PanelSectionRow>
