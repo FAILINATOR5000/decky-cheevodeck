@@ -3,6 +3,7 @@ import { AD_SKIP_BINDING, socketForUrl } from "./browserScroll";
 import { AD_BLOCK_HOSTS, AD_BLOCK_PATTERNS } from "./adBlockHosts";
 import { AD_LIBRARY_STAND_IN } from "./adStandIns";
 import { FULLSCREEN_BINDING, FULLSCREEN_WATCH } from "./fullscreenWatch";
+import { OVERLAY_FIX } from "./overlayFix";
 
 const COMMAND_TIMEOUT_MS = 4000;
 
@@ -213,6 +214,13 @@ async function attached() {
     }
     catch (e) {
         logFocusDebug("browser-session", "fullscreen watch failed", String((e as Error)?.message ?? e));
+    }
+    try {
+        await send("Page.addScriptToEvaluateOnNewDocument", { source: OVERLAY_FIX });
+        await send("Runtime.evaluate", { expression: OVERLAY_FIX });
+    }
+    catch (e) {
+        logFocusDebug("browser-session", "overlay fix failed", String((e as Error)?.message ?? e));
     }
     await applyBlocking();
     await applyMetrics();
