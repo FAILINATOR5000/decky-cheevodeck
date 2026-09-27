@@ -439,7 +439,7 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
                     onToggleExpanded={browser.toggleExpanded}
                     bookmarked={browser.currentIsBookmarked}
                     onToggleBookmark={browser.toggleBookmark}
-                    onOpenPanel={openPanel}
+                    onTogglePanel={panelOpen ? closePanel : openPanel}
                     keyboardOpen={keyboardOpen}
                     atTabLimit={browser.atTabLimit}
                     findCount={findCount}

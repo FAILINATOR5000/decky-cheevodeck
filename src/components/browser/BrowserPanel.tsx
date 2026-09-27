@@ -365,7 +365,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
     const optionStyle = { ...wideActionStyle, ...controlTextStyle };
 
-    const optionLabels = [...browserOptionLabels(language), t(language, "On"), t(language, "Off"), t(language, "Close All Tabs")];
+    const optionLabels = [...browserOptionLabels(language), t(language, "On"), t(language, "Off"), t(language, "Close All Tabs"), t(language, "Clear")];
     const sizedLabel = (current: string) => (
         <span style={{ display: "grid", justifyItems: "center" }}>
             {optionLabels.map((label) => (
@@ -859,19 +859,17 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
                     {canWipe && (
                         <div style={settingCardStyle}>
-                            {editing?.kind !== "wipe" && (
-                                <div style={settingRowStyle}>
-                                    <span style={{ opacity: 0.8, minWidth: "0" }}>
-                                        {wiped ? t(language, "Browsing data cleared.") : ""}
-                                    </span>
-                                    <div style={{ flex: "1 1 auto" }} />
+                            <div style={settingRowStyle}>
+                                <span style={{ opacity: 0.8, minWidth: "0" }}>{t(language, "Clear Browsing Data")}</span>
+                                <div style={{ flex: "1 1 auto" }} />
+                                {editing?.kind !== "wipe" && (
                                     <div style={cellStyle}>
                                         <DialogButton {...act("wipe:open", () => openEditor("wipe", "", ""))} style={optionStyle}>
-                                            {t(language, "Clear Browsing Data")}
+                                            {sizedLabel(t(language, "Clear"))}
                                         </DialogButton>
                                     </div>
-                                </div>
-                            )}
+                                )}
+                            </div>
                             {editing?.kind === "wipe" && (
                                 <div style={actionRowStyle(CATEGORY_HEIGHT_PX, true)}>
                                     <div
@@ -905,6 +903,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                                     </div>
                                 </div>
                             )}
+                            {wiped && <div style={noteStyle}>{t(language, "Browsing data cleared.")}</div>}
                             <div style={noteStyle}>{t(language, "help_browser_clear_data")}</div>
                         </div>
                     )}

@@ -89,7 +89,7 @@ type BrowserChromeProps = {
     onToggleExpanded: () => void;
     bookmarked: boolean;
     onToggleBookmark: () => void;
-    onOpenPanel: () => void;
+    onTogglePanel: () => void;
     keyboardOpen: boolean;
     atTabLimit: boolean;
     findCount: { total: number; current: number } | null;
@@ -102,7 +102,7 @@ export function BrowserChrome(props: BrowserChromeProps) {
         language, tabs, activeTabId, address, addressDirty,
         canGoBack, canGoForward, pageUrl, onAddressChange, onSubmit, onBack, onForward,
         onReload, loading, onStop, onNewTab, onSelectTab, onCloseTab, onClose, expanded, onToggleExpanded,
-        bookmarked, onToggleBookmark, onOpenPanel, keyboardOpen, atTabLimit,
+        bookmarked, onToggleBookmark, onTogglePanel, keyboardOpen, atTabLimit,
         findCount, onFind, onStopFind
     } = props;
 
@@ -426,7 +426,7 @@ export function BrowserChrome(props: BrowserChromeProps) {
                         >
                             {bookmarked ? <FaStar size={iconPx} /> : <FaRegStar size={iconPx} />}
                         </DialogButton>
-                        <DialogButton focusable={false} {...act("panel", onOpenPanel)} style={iconButtonStyle()}>
+                        <DialogButton focusable={false} {...act("panel", onTogglePanel)} style={iconButtonStyle()}>
                             <FaBars size={iconPx} />
                         </DialogButton>
                         <DialogButton
