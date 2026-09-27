@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { DialogButton, Focusable, TextField } from "@decky/ui";
 // Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
-import { FaArrowLeft, FaArrowRight, FaBars, FaChevronDown, FaChevronLeft, FaChevronRight, FaChevronUp, FaPlus, FaRegStar, FaSearch, FaStar, FaStop, FaSyncAlt, FaTimes, FaWindowMaximize, FaWindowRestore } from "react-icons/fa";
+import { FaArrowLeft, FaArrowRight, FaBars, FaChevronDown, FaChevronLeft, FaChevronRight, FaChevronUp, FaPlus, FaRegStar, FaSearch, FaStar, FaStop, FaSyncAlt, FaTimes, FaWindowMaximize, FaWindowMinimize, FaWindowRestore } from "react-icons/fa";
 import { t, type LanguageCode } from "../../locales";
 import { useBrowserPress } from "../../hooks/useBrowserPress";
 import { modalSize } from "../../utils/scale";
@@ -85,6 +85,7 @@ type BrowserChromeProps = {
     onSelectTab: (tabId: string) => void;
     onCloseTab: (tabId: string) => void;
     onClose: () => void;
+    onMinimize: () => void;
     expanded: boolean;
     onToggleExpanded: () => void;
     bookmarked: boolean;
@@ -101,7 +102,7 @@ export function BrowserChrome(props: BrowserChromeProps) {
     const {
         language, tabs, activeTabId, address, addressDirty,
         canGoBack, canGoForward, pageUrl, onAddressChange, onSubmit, onBack, onForward,
-        onReload, loading, onStop, onNewTab, onSelectTab, onCloseTab, onClose, expanded, onToggleExpanded,
+        onReload, loading, onStop, onNewTab, onSelectTab, onCloseTab, onClose, onMinimize, expanded, onToggleExpanded,
         bookmarked, onToggleBookmark, onTogglePanel, keyboardOpen, atTabLimit,
         findCount, onFind, onStopFind
     } = props;
@@ -435,6 +436,9 @@ export function BrowserChrome(props: BrowserChromeProps) {
                             style={iconButtonStyle(atTabLimit)}
                         >
                             <FaPlus size={iconPx} />
+                        </DialogButton>
+                        <DialogButton focusable={false} {...act("minimize", onMinimize)} style={iconButtonStyle()}>
+                            <FaWindowMinimize size={iconPx} />
                         </DialogButton>
                         <DialogButton focusable={false} {...act("expand", onToggleExpanded)} style={iconButtonStyle()}>
                             {expanded ? <FaWindowRestore size={iconPx} /> : <FaWindowMaximize size={iconPx} />}

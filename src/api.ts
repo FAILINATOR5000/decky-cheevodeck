@@ -2758,6 +2758,12 @@ export const saveBrowserBlockAds = callable<[boolean], BrowserSettingsResponse>(
 export const saveBrowserFastForwardYouTubeAds = callable<[boolean], BrowserSettingsResponse>(
     "save_browser_fast_forward_youtube_ads"
 );
+export const saveBrowserActiveTabs = callable<[number], BrowserSettingsResponse>(
+    "save_browser_active_tabs"
+);
+export const saveBrowserPauseMediaOnTabSwitch = callable<[boolean], BrowserSettingsResponse>(
+    "save_browser_pause_media_on_tab_switch"
+);
 export const saveBrowserDownloadFolder = callable<[string], BrowserSettingsResponse>(
     "save_browser_download_folder"
 );

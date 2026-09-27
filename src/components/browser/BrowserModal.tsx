@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ModalRoot } from "@decky/ui";
 import {
-    BrowserViewHost,
     heightAboveKeyboard,
     keyboardIsBelow,
     releaseWebBrowserActionset,
@@ -15,7 +14,9 @@ import { BrowserPanel } from "./BrowserPanel";
 import { BrowserTabLimit } from "./BrowserTabLimit";
 import { BrowserBookmarkLimit } from "./BrowserBookmarkLimit";
 import { BrowserDownloadFolder } from "./BrowserDownloadFolder";
-import { closeSession, ensureSession, refreshPageBindings, setDownloadHandler, setFullscreenHandler, setViewSize, stopLoading } from "./browserSession";
+import { setDownloadHandler, setFullscreenHandler, setViewSize, stopLoading } from "./browserSession";
+import { activeView, destroyAllViews, destroyDetached, detachAllViews, setViewEvents, type LiveView } from "./browserViews";
+import { BrowserViewHost } from "./browserViewHost";
 import { BROWSER_HOME_URL, useBrowserController } from "../../hooks/useBrowserController";
 import { t, type LanguageCode } from "../../locales";
 import { useFocusPaintWake } from "../../hooks/useFocusPaintWake";
@@ -43,6 +44,8 @@ const VIEW_UNDERLAY = false;
 const FIND_SELECT_DELAY_MS = 150;
 
 const FIND_COUNT_SETTLE_MS = 120;
+
+const PENDING_VIEW_MAX_MS = 4000;
 
 const BROWSER_MODAL_CSS = `
 .cd-browser-dialog.DialogContent, .cd-browser-dialog {
@@ -131,10 +134,38 @@ const BROWSER_MODAL_CSS = `
 `;
 
 function BrowserModal({ language, close, startUrl }: { language: LanguageCode; close: () => void; startUrl: string }) {
-    const hostRef = useRef<BrowserViewHost | null>(null);
     const outerRef = useRef<HTMLDivElement | null>(null);
     const stageRef = useRef<HTMLDivElement | null>(null);
-    const [ready, setReady] = useState(false);
+    const [view, setView] = useState<LiveView | null>(() => activeView());
+    const host = view?.host ?? null;
+    const shownRef = useRef<LiveView | null>(view);
+    const pendingRef = useRef<LiveView | null>(null);
+    const pendingTimerRef = useRef<number | null>(null);
+
+    const showView = useCallback((next: LiveView) => {
+        if (pendingTimerRef.current !== null) {
+            window.clearTimeout(pendingTimerRef.current);
+            pendingTimerRef.current = null;
+        }
+        const waiting = pendingRef.current;
+        pendingRef.current = null;
+        if (waiting && waiting !== next) {
+            waiting.host.hide();
+        }
+        const shown = shownRef.current;
+        if (shown && shown !== next && paintedRef.current) {
+            next.host.showAt(shown.host.placedAt);
+        }
+        shownRef.current = next;
+        setView(next);
+    }, []);
+
+    useEffect(() => () => {
+        if (pendingTimerRef.current !== null) {
+            window.clearTimeout(pendingTimerRef.current);
+        }
+    }, []);
+    const ready = view !== null;
     const [stageHeight, setStageHeight] = useState(0);
     const [keyboardOpen, setKeyboardOpen] = useState(false);
     const [panelOpen, setPanelOpen] = useState(false);
@@ -143,11 +174,6 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
     const loadStartsRef = useRef(0);
     const findTextRef = useRef("");
     const findTimerRef = useRef<number | null>(null);
-
-    if (hostRef.current === null) {
-        hostRef.current = new BrowserViewHost();
-    }
-    const host = hostRef.current;
 
     useEffect(() => {
         mountedBrowsers += 1;
@@ -180,8 +206,8 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
     const paintedRef = useRef(true);
 
     const loadUrl = useCallback((url: string) => {
-        host.loadUrl(url);
-    }, [host]);
+        activeView()?.host.loadUrl(url);
+    }, []);
 
     const browser = useBrowserController(loadUrl, startUrl);
 
@@ -189,78 +215,120 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
     handlersRef.current = browser;
 
     useEffect(() => {
-        if (!host.create()) {
-            close();
-            openInSteamBrowser(BROWSER_HOME_URL);
-            return;
-        }
-        host.setExternalUrlHandler((url) => {
-            handlersRef.current.openExternalLink(url);
-            claimView();
-        });
-        host.setHeldFocusHandler(() => handlersRef.current.blurPage());
-        host.setTitleHandler((title) => handlersRef.current.noteTitle(title));
-        host.setBoundsHandler((width, height) => {
-            setViewSize(width, height, stageRef.current?.ownerDocument?.defaultView?.devicePixelRatio ?? 0);
+        const liveHost = () => activeView()?.host ?? null;
+        setViewEvents({
+            active: (next, showNow) => {
+                if (showNow || !shownRef.current) {
+                    showView(next);
+                }
+                else {
+                    const waiting = pendingRef.current;
+                    if (waiting && waiting !== next && waiting !== shownRef.current) {
+                        waiting.host.hide();
+                    }
+                    pendingRef.current = next;
+                    next.host.showUnderneath(shownRef.current?.host.placedAt ?? null);
+                    if (pendingTimerRef.current !== null) {
+                        window.clearTimeout(pendingTimerRef.current);
+                    }
+                    pendingTimerRef.current = window.setTimeout(() => {
+                        if (pendingRef.current === next) {
+                            showView(next);
+                        }
+                    }, PENDING_VIEW_MAX_MS);
+                }
+                setLoading(next.host.isLoading);
+                findTextRef.current = "";
+                setFindCount(null);
+            },
+            external: (url) => {
+                handlersRef.current.openExternalLink(url);
+                claimView();
+            },
+            heldFocus: () => handlersRef.current.blurPage(),
+            title: (title) => handlersRef.current.noteTitle(title),
+            bounds: (width, height) => {
+                setViewSize(width, height, stageRef.current?.ownerDocument?.defaultView?.devicePixelRatio ?? 0);
+            },
+            history: (index, urls) => handlersRef.current.noteViewHistory(index, urls),
+            background: (moved) => handlersRef.current.noteBackgroundPage(moved),
+            find: (total, current) => {
+                if (findTimerRef.current !== null) {
+                    window.clearTimeout(findTimerRef.current);
+                }
+                findTimerRef.current = window.setTimeout(() => {
+                    findTimerRef.current = null;
+                    if (findTextRef.current) {
+                        setFindCount({ total, current });
+                    }
+                }, FIND_COUNT_SETTLE_MS);
+            },
+            load: (loadHost, url, title, loading, finished) => {
+                if (loading) {
+                    loadHost.holdPageKeyboard();
+                    handlersRef.current.noteLeaving();
+                    return;
+                }
+                if (finished && pendingRef.current?.host === loadHost) {
+                    showView(pendingRef.current);
+                }
+                const token = loadHost.pageKeyboardHold;
+                void handlersRef.current.noteLoaded(url, title, finished).finally(() => {
+                    if (finished) {
+                        loadHost.releasePageKeyboard(token);
+                    }
+                });
+                claimView();
+            },
+            loading: (value) => {
+                if (value) {
+                    loadStartsRef.current++;
+                }
+                setLoading(value);
+            }
         });
         setFullscreenHandler((fullscreen) => {
             const stage = stageRef.current;
-            host.setPageFullscreen(fullscreen, stage?.ownerDocument?.defaultView ?? null);
+            const current = liveHost();
+            current?.setPageFullscreen(fullscreen, stage?.ownerDocument?.defaultView ?? null);
             if (!fullscreen) {
-                host.syncBounds(stage?.querySelector<HTMLElement>(".cd-browser-view") ?? null);
+                current?.syncBounds(stage?.querySelector<HTMLElement>(".cd-browser-view") ?? null);
             }
         });
         setDownloadHandler((request) => {
-            host.endCancelledRequest();
-            window.setTimeout(() => host.endCancelledRequest(), CANCELLED_REQUEST_RETRY_MS);
+            liveHost()?.endCancelledRequest();
+            window.setTimeout(() => liveHost()?.endCancelledRequest(), CANCELLED_REQUEST_RETRY_MS);
             handlersRef.current.noteDownload(request);
         });
-        host.setHistoryHandler((index, urls) => handlersRef.current.noteViewHistory(index, urls));
-        host.setFindHandler((total, current) => {
-            if (findTimerRef.current !== null) {
-                window.clearTimeout(findTimerRef.current);
-            }
-            findTimerRef.current = window.setTimeout(() => {
-                findTimerRef.current = null;
-                if (findTextRef.current) {
-                    setFindCount({ total, current });
-                }
-            }, FIND_COUNT_SETTLE_MS);
-        });
-        host.setLoadHandler((url, title, loading, finished) => {
-            ensureSession(url);
-            if (loading) {
-                host.holdPageKeyboard();
-                handlersRef.current.noteLeaving();
-                return;
-            }
-            refreshPageBindings();
-            const token = host.pageKeyboardHold;
-            void handlersRef.current.noteLoaded(url, title, finished).finally(() => {
-                if (finished) {
-                    host.releasePageKeyboard(token);
-                }
-            });
-            claimView();
-        });
-        host.setLoadingHandler((value) => {
-            if (value) {
-                loadStartsRef.current++;
-            }
-            setLoading(value);
-        });
-        setReady(true);
+        const current = activeView();
+        if (current) {
+            shownRef.current = current;
+            setView(current);
+            setLoading(current.host.isLoading);
+        }
         return () => {
             setDownloadHandler(null);
             setFullscreenHandler(null);
-            closeSession();
-            void handlersRef.current.rememberPlace().finally(() => host.destroy());
+            setViewEvents(null);
+            const waiting = pendingRef.current;
+            pendingRef.current = null;
+            if (waiting && waiting !== shownRef.current) {
+                waiting.host.hide();
+            }
+            if (minimizeRequested) {
+                minimizeRequested = false;
+                releaseWebBrowserActionset();
+                return;
+            }
+            const shown = activeView();
+            const detached = detachAllViews();
+            void handlersRef.current.rememberPlaces(detached, shown).finally(() => destroyDetached(detached));
         };
-    }, [host, close, claimView]);
+    }, [claimView, showView]);
 
     const syncViewBounds = useCallback(() => {
         const placeholder = stageRef.current?.querySelector<HTMLElement>(".cd-browser-view") ?? null;
-        host.syncBounds(placeholder);
+        host?.syncBounds(placeholder);
     }, [host]);
 
     useEffect(() => {
@@ -317,11 +385,11 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
             .finally(() => {
                 window.setTimeout(() => {
                     if (loadStartsRef.current === starts) {
-                        host.endCancelledRequest();
+                        activeView()?.host.endCancelledRequest();
                     }
                 }, STOP_SETTLE_MS);
             });
-    }, [host]);
+    }, []);
 
     const openPanel = useCallback(() => {
         browser.refreshLists();
@@ -334,23 +402,23 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
 
     const find = useCallback((text: string, backwards: boolean) => {
         if (text === findTextRef.current) {
-            host.find(text, true, backwards);
+            activeView()?.host.find(text, true, backwards);
             return;
         }
         findTextRef.current = text;
-        host.find(text, false, false);
+        activeView()?.host.find(text, false, false);
         window.setTimeout(() => {
             if (findTextRef.current === text) {
-                host.find(text, true, backwards);
+                activeView()?.host.find(text, true, backwards);
             }
         }, FIND_SELECT_DELAY_MS);
-    }, [host]);
+    }, []);
 
     const stopFind = useCallback(() => {
         findTextRef.current = "";
         setFindCount(null);
-        host.stopFind();
-    }, [host]);
+        activeView()?.host.stopFind();
+    }, []);
 
     useEffect(() => () => {
         if (findTimerRef.current !== null) {
@@ -397,13 +465,13 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
 
     useEffect(() => {
         if (!keyboardOpen) {
-            host.noteKeyboardClosed();
+            host?.noteKeyboardClosed();
         }
     }, [host, keyboardOpen]);
 
     const components = resolveBrowserComponents();
-    const wrapper = host.browser;
-    const raw = host.view;
+    const wrapper = host?.browser;
+    const raw = host?.view;
     const dialogClass = browser.expanded
         ? "cd-browser-dialog cd-browser-expanded cd-browser-fullscreen"
         : "cd-browser-dialog cd-browser-expanded";
@@ -435,6 +503,10 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
                     onSelectTab={browser.selectTab}
                     onCloseTab={browser.closeTab}
                     onClose={close}
+                    onMinimize={() => {
+                        minimizeRequested = true;
+                        close();
+                    }}
                     expanded={browser.expanded}
                     onToggleExpanded={browser.toggleExpanded}
                     bookmarked={browser.currentIsBookmarked}
@@ -528,6 +600,10 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
                                 onToggleBlockAds={browser.toggleBlockAds}
                                 fastForwardYouTubeAds={browser.fastForwardYouTubeAds}
                                 onToggleFastForwardYouTubeAds={browser.toggleFastForwardYouTubeAds}
+                                activeTabs={browser.activeTabs}
+                                onCycleActiveTabs={browser.cycleActiveTabs}
+                                pauseMediaOnTabSwitch={browser.pauseMediaOnTabSwitch}
+                                onTogglePauseMediaOnTabSwitch={browser.togglePauseMediaOnTabSwitch}
                                 downloadFolder={browser.downloadFolder}
                                 onSetDownloadFolder={browser.setDownloadFolder}
                                 rememberDownloadFolder={browser.rememberDownloadFolder}
@@ -537,8 +613,9 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
                         )}
                         </div>
                     )}
-                    {ready && components && wrapper && raw && (
+                    {view && components && wrapper && raw && (
                         <components.GamepadHost
+                            key={view.key}
                             browser={wrapper}
                             visible={true}
                             autoFocus={true}
@@ -560,6 +637,8 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
 
 let closeOpenBrowser: (() => void) | null = null;
 
+let minimizeRequested = false;
+
 let mountedBrowsers = 0;
 
 export function browserModalOpen(): boolean {
@@ -569,16 +648,16 @@ export function browserModalOpen(): boolean {
 export function closeBrowserForUnload(): void {
     const close = closeOpenBrowser;
     closeOpenBrowser = null;
-    if (!close) {
-        return;
+    minimizeRequested = false;
+    if (close) {
+        try {
+            close();
+        }
+        catch (e) {
+            logError("closeBrowserForUnload", e);
+        }
     }
-    try {
-        close();
-    }
-    catch (e) {
-        logError("closeBrowserForUnload", e);
-    }
-    closeSession();
+    destroyAllViews();
     releaseWebBrowserActionset();
 }
 

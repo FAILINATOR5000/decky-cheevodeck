@@ -6,6 +6,10 @@ const VIEW_NAME = "CheevoDeck Browser";
 
 const CREATE_OPTIONS = { bPreventCloseFromJavascript: true };
 
+const STACK_OVER = 1;
+
+const STACK_UNDER = 2;
+
 const STEAM_EXTERNAL_PREFIX = "steam://openexternalforpid/";
 
 const INPUT_LEVEL_UNKNOWN = 1;
@@ -268,6 +272,8 @@ export class BrowserViewHost {
     private onHeldFocus: (() => void) | null = null;
     private pageFieldFocused = false;
     private pageKeyboardShown = false;
+    private reportedUrl = "";
+    private reportedTitle = "";
 
     static isAvailable(): boolean {
         try {
@@ -288,7 +294,7 @@ export class BrowserViewHost {
         return this.rawView;
     }
 
-    create(): boolean {
+    create(slot = 0): boolean {
         if (this.torndown) return false;
         if (this.wrapper) return true;
         const inst = resolveWindowInstance();
@@ -296,13 +302,15 @@ export class BrowserViewHost {
             return false;
         }
         try {
-            const wrapper = inst.CreateBrowserView(VIEW_NAME, CREATE_OPTIONS) as SteamBrowserWrapper;
+            const name = slot > 0 ? `${VIEW_NAME} ${slot + 1}` : VIEW_NAME;
+            const wrapper = inst.CreateBrowserView(name, CREATE_OPTIONS) as SteamBrowserWrapper;
             const raw = wrapper?.GetBrowser?.();
             if (!wrapper || !raw) {
                 return false;
             }
             this.wrapper = wrapper;
             this.rawView = raw;
+            this.hide();
             this.gatePageKeyboard();
             this.keepPointerThroughLoads();
             return true;
@@ -311,6 +319,57 @@ export class BrowserViewHost {
             logError("BrowserViewHost.create", e);
             return false;
         }
+    }
+
+    hide(): void {
+        try {
+            this.rawView?.SetVisible?.(false);
+        }
+        catch (e) {
+            logError("BrowserViewHost.hide", e);
+        }
+    }
+
+    showAt(bounds: { x: number; y: number; width: number; height: number } | null): void {
+        this.place(bounds, STACK_OVER);
+    }
+
+    showUnderneath(bounds: { x: number; y: number; width: number; height: number } | null): void {
+        this.place(bounds, STACK_UNDER);
+    }
+
+    private place(bounds: { x: number; y: number; width: number; height: number } | null, order: number): void {
+        const raw = this.rawView;
+        if (!raw) {
+            return;
+        }
+        try {
+            if (bounds && !this.fullscreen) {
+                raw.SetBounds?.(bounds.x, bounds.y, bounds.width, bounds.height);
+                this.bounds = { ...bounds };
+            }
+            raw.SetWindowStackingOrder?.(order);
+            raw.SetVisible?.(true);
+        }
+        catch (e) {
+            logError("BrowserViewHost.place", e);
+        }
+    }
+
+    get placedAt(): { x: number; y: number; width: number; height: number } | null {
+        return this.bounds;
+    }
+
+    get currentUrl(): string {
+        return this.reportedUrl || String(this.wrapper?.m_URL ?? "");
+    }
+
+    get currentTitle(): string {
+        return this.reportedTitle || String(this.wrapper?.m_strTitle ?? "");
+    }
+
+    get isLoading(): boolean {
+        return !!this.wrapper?.m_bLoading;
     }
 
     loadUrl(url: string): void {
@@ -366,6 +425,9 @@ export class BrowserViewHost {
             return;
         }
         const safely = (url: any, title: any, loading: boolean, finished: boolean) => {
+            if (url) {
+                this.reportedUrl = String(url);
+            }
             try {
                 handler(String(url || ""), String(title || ""), loading, finished);
             }
@@ -475,6 +537,10 @@ export class BrowserViewHost {
             raw.on("history-changed", (history: any) => {
                 try {
                     const entries = Array.isArray(history?.entries) ? history.entries : [];
+                    const here = entries[Number(history?.index) || 0]?.url;
+                    if (here) {
+                        this.reportedUrl = String(here);
+                    }
                     handler(Number(history?.index) || 0, entries.map((entry: any) => String(entry?.url || "")));
                 }
                 catch (e) {
@@ -496,6 +562,7 @@ export class BrowserViewHost {
             raw.on("set-title", (...args: any[]) => {
                 const title = args.find((value) => typeof value === "string" && value);
                 if (title) {
+                    this.reportedTitle = title;
                     handler(title);
                 }
             });

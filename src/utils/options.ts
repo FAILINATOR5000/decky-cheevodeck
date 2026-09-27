@@ -693,6 +693,14 @@ export function browserHistoryRetentionLabel(value: BrowserHistoryRetention, lan
     return t(language, "Forever");
 }
 
+const BROWSER_ACTIVE_TABS_OPTIONS = [1, 2, 3, 4, 5, 6, 7] as const;
+
+export function nextBrowserActiveTabs(current: number): number {
+    const currentIndex = BROWSER_ACTIVE_TABS_OPTIONS.indexOf(current as any);
+
+    return BROWSER_ACTIVE_TABS_OPTIONS[(currentIndex + 1) % BROWSER_ACTIVE_TABS_OPTIONS.length];
+}
+
 const BROWSER_SEARCH_ENGINE_OPTIONS = ["google", "brave", "duckduckgo", "youtube", "retroachievements", "custom"] as const;
 
 export function nextBrowserSearchEngine(current: BrowserSearchEngine): BrowserSearchEngine {
@@ -722,7 +730,8 @@ export function browserOptionLabels(language: LanguageCode = DEFAULT_LANGUAGE): 
     const labels = [
         ...BROWSER_SEARCH_ENGINE_OPTIONS.map((value) => browserSiteLabel(value, language)),
         ...BROWSER_NEW_TAB_PAGE_OPTIONS.map((value) => browserSiteLabel(value, language)),
-        ...BROWSER_HISTORY_RETENTION_OPTIONS.map((value) => browserHistoryRetentionLabel(value, language))
+        ...BROWSER_HISTORY_RETENTION_OPTIONS.map((value) => browserHistoryRetentionLabel(value, language)),
+        ...BROWSER_ACTIVE_TABS_OPTIONS.map((value) => String(value))
     ];
     return [...new Set(labels)];
 }

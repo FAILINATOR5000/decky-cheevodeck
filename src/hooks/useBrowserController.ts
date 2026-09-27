@@ -25,7 +25,25 @@ import {
     setBrowserTabScroll,
     setBrowserTabTitle
 } from "../api";
-import { applyPageZoom, blurPageField, captureScroll, lastCaptureMiss, PAGE_KEPT_PLACE, preparePage, restoreScroll, restoreScrollEarly, ScrollPlace } from "../components/browser/browserScroll";
+import { applyPageZoom, blurPageField, captureScroll, isPlayingSound, lastCaptureMiss, PAGE_KEPT_PLACE, pausePlayingMedia, preparePage, restoreScroll, restoreScrollEarly, ScrollPlace } from "../components/browser/browserScroll";
+import {
+    activateView,
+    activeView,
+    assignView,
+    createView,
+    DEFAULT_ACTIVE_TABS,
+    destroyFreeViews,
+    destroyView,
+    freeViewsNotIn,
+    liveViewFor,
+    liveViews,
+    refreshHiddenPages,
+    setHiddenPageSettings,
+    setViewLimit,
+    takeFreeView,
+    viewLimit,
+    type LiveView
+} from "../components/browser/browserViews";
 import {
     loadBrowserSettings,
     logFocusDebug,
@@ -38,6 +56,8 @@ import {
     saveBrowserDownloadFolder,
     saveBrowserRememberDownloadFolder,
     saveBrowserFastForwardYouTubeAds,
+    saveBrowserActiveTabs,
+    saveBrowserPauseMediaOnTabSwitch,
     saveBrowserOpenLinksInNewTab,
     saveBrowserPageZoom,
     saveBrowserSearchEngine,
@@ -45,7 +65,7 @@ import {
 } from "../api";
 import { requestHeadersFor, setAdBlock, setZoomPercent, type DownloadRequest } from "../components/browser/browserSession";
 import { toastDownload } from "../components/browser/browserDownloads";
-import { defaultBrowserPageZoom, nextBrowserHistoryRetention, nextBrowserNewTabPage, nextBrowserSearchEngine, stepBrowserPageZoom } from "../utils/options";
+import { defaultBrowserPageZoom, nextBrowserActiveTabs, nextBrowserHistoryRetention, nextBrowserNewTabPage, nextBrowserSearchEngine, stepBrowserPageZoom } from "../utils/options";
 import { logError } from "../utils/errors";
 import type {
     BrowserBookmark,
@@ -205,7 +225,8 @@ export type BrowserController = {
     blockedUrl: string;
     resolveTabLimit: (choice: "evict" | "cancel") => void;
     closeAllTabs: () => void;
-    rememberPlace: () => Promise<void>;
+    rememberPlaces: (views: LiveView[], shown: LiveView | null) => Promise<void>;
+    noteBackgroundPage: (view: LiveView) => void;
     noteLeaving: () => void;
     pageZoom: number;
     stepZoom: (direction: number) => void;
@@ -225,6 +246,10 @@ export type BrowserController = {
     toggleBlockAds: () => void;
     fastForwardYouTubeAds: boolean;
     toggleFastForwardYouTubeAds: () => void;
+    activeTabs: number;
+    cycleActiveTabs: () => void;
+    pauseMediaOnTabSwitch: boolean;
+    togglePauseMediaOnTabSwitch: () => void;
     downloadFolder: string;
     setDownloadFolder: (path: string) => void;
     rememberDownloadFolder: boolean;
@@ -263,6 +288,8 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
     const [openLinksInNewTab, setOpenLinksInNewTab] = useState(true);
     const [blockAds, setBlockAds] = useState(true);
     const [fastForwardYouTubeAds, setFastForwardYouTubeAds] = useState(true);
+    const [activeTabs, setActiveTabs] = useState(DEFAULT_ACTIVE_TABS);
+    const [pauseMediaOnTabSwitch, setPauseMediaOnTabSwitch] = useState(false);
     const [pendingDownload, setPendingDownload] = useState<PendingDownload | null>(null);
     const [downloadFolder, setDownloadFolderState] = useState("");
     const [rememberDownloadFolder, setRememberDownloadFolder] = useState(false);
@@ -287,6 +314,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
     const apply = useCallback((state: { tabs: BrowserTab[]; activeTabId: string; maxTabs?: number }) => {
         tabsRef.current = state.tabs;
         activeTabIdRef.current = state.activeTabId;
+        freeViewsNotIn(state.tabs.map((tab) => tab.id));
         setTabs(state.tabs);
         setActiveTabId(state.activeTabId);
         if (typeof state.maxTabs === "number" && state.maxTabs > 0) {
@@ -406,6 +434,13 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         setDownloadFolderState(saved.downloadFolder ?? "");
         setRememberDownloadFolder(saved.rememberDownloadFolder === true);
         setExpanded(saved.expanded !== false);
+        const tabsLive = typeof saved.activeTabs === "number" ? saved.activeTabs : DEFAULT_ACTIVE_TABS;
+        activeTabsRef.current = tabsLive;
+        setActiveTabs(tabsLive);
+        setViewLimit(tabsLive);
+        void trimViewsRef.current();
+        pauseOnSwitchRef.current = saved.pauseMediaOnTabSwitch === true;
+        setPauseMediaOnTabSwitch(saved.pauseMediaOnTabSwitch === true);
     }, []);
 
     const saveSetting = useCallback((label: string, save: () => Promise<BrowserSettingsResponse>) => {
@@ -476,6 +511,31 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         void settle(liveUrlRef.current);
         saveSetting("toggleBlockAds", () => saveBrowserBlockAds(nextValue));
     }, [saveSetting, settle]);
+
+    const activeTabsRef = useRef(DEFAULT_ACTIVE_TABS);
+    const pauseOnSwitchRef = useRef(false);
+    const trimViewsRef = useRef<() => Promise<void>>(async () => undefined);
+
+    const cycleActiveTabs = useCallback(() => {
+        const nextValue = nextBrowserActiveTabs(activeTabsRef.current);
+        activeTabsRef.current = nextValue;
+        setActiveTabs(nextValue);
+        setViewLimit(nextValue);
+        void trimViewsRef.current();
+        saveSetting("cycleActiveTabs", () => saveBrowserActiveTabs(nextValue));
+    }, [saveSetting]);
+
+    const togglePauseMediaOnTabSwitch = useCallback(() => {
+        const nextValue = !pauseOnSwitchRef.current;
+        pauseOnSwitchRef.current = nextValue;
+        setPauseMediaOnTabSwitch(nextValue);
+        saveSetting("togglePauseMediaOnTabSwitch", () => saveBrowserPauseMediaOnTabSwitch(nextValue));
+    }, [saveSetting]);
+
+    useEffect(() => {
+        setHiddenPageSettings(pageZoom, blockAds, fastForwardYouTubeAds);
+        refreshHiddenPages();
+    }, [pageZoom, blockAds, fastForwardYouTubeAds]);
 
     const toggleFastForwardYouTubeAds = useCallback(() => {
         const nextValue = !fastForwardRef.current;
@@ -594,6 +654,158 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
             .catch((e) => logError("useBrowserController.showTab", e));
     }, [drive, queueRestore]);
 
+    const followActiveView = useCallback(() => {
+        const host = activeView()?.host;
+        const url = host?.currentUrl ?? "";
+        endRestore();
+        drivingRef.current = false;
+        requestedUrlRef.current = "";
+        drivenUrlRef.current = url;
+        liveUrlRef.current = url;
+        liveTitleRef.current = host?.currentTitle ?? "";
+        leftTitleRef.current = "";
+        viewHistoryRef.current = null;
+        viewIndexRef.current = -1;
+        viewChangeRef.current = null;
+        pendingPushRef.current = null;
+        return url;
+    }, [endRestore]);
+
+    const syncTabToView = useCallback(async (view: LiveView) => {
+        const tab = tabsRef.current.find((row) => row.id === view.tabId);
+        const url = view.host.currentUrl;
+        if (!tab || !url || isChallengeUrl(url) || withoutChallenge(url) === withoutChallenge(tab.url)) {
+            return;
+        }
+        apply(await navigateBrowserTab(tab.id, url, view.host.currentTitle));
+    }, [apply]);
+
+    const noteBackgroundPage = useCallback((view: LiveView) => {
+        const tab = tabsRef.current.find((row) => row.id === view.tabId);
+        const title = view.host.currentTitle;
+        if (!tab) {
+            return;
+        }
+        (async () => {
+            try {
+                const url = view.host.currentUrl;
+                if (url && !isChallengeUrl(url) && withoutChallenge(url) !== withoutChallenge(tab.url)) {
+                    apply(await navigateBrowserTab(tab.id, url, title));
+                    return;
+                }
+                if (title && title !== tab.title) {
+                    apply(await setBrowserTabTitle(tab.id, title));
+                }
+            }
+            catch (e) {
+                logError("useBrowserController.noteBackgroundPage", e);
+            }
+        })();
+    }, [apply]);
+
+    const retireView = useCallback(async (view: LiveView) => {
+        const tab = tabsRef.current.find((row) => row.id === view.tabId);
+        const url = view.host.currentUrl || tab?.url || "";
+        if (!tab || !url || !view.session.targetId) {
+            return;
+        }
+        try {
+            const place = await captureScroll(url, view.session.targetId);
+            if (place !== null) {
+                await setBrowserTabScroll(tab.id, place.offset, place.anchor);
+            }
+            await syncTabToView(view);
+        }
+        catch (e) {
+            logError("useBrowserController.retireView", e);
+        }
+    }, [syncTabToView]);
+
+    const pickVictim = useCallback(async (keepActive: boolean, mayGrow: boolean) => {
+        const current = activeView();
+        const candidates = liveViews()
+            .filter((view) => !keepActive || view !== current)
+            .sort((a, b) => a.usedAt - b.usedAt);
+        if (viewLimit() > 1) {
+            for (const view of candidates) {
+                if (!(await isPlayingSound(view.session.targetId))) {
+                    return view;
+                }
+            }
+            if (mayGrow) {
+                return null;
+            }
+        }
+        return candidates[0] ?? null;
+    }, []);
+
+    const trimViews = useCallback(async () => {
+        for (;;) {
+            const excess = liveViews().length - viewLimit();
+            if (excess <= 0) {
+                return;
+            }
+            const victim = await pickVictim(true, excess === 1);
+            if (!victim) {
+                return;
+            }
+            await retireView(victim);
+            destroyView(victim);
+        }
+    }, [pickVictim, retireView]);
+    trimViewsRef.current = trimViews;
+
+    const bringUpView = useCallback(async (tabId: string): Promise<"live" | "fresh" | null> => {
+        const live = liveViewFor(tabId);
+        if (live) {
+            activateView(live, true);
+            destroyFreeViews();
+            return "live";
+        }
+        let view = takeFreeView();
+        if (!view && liveViews().length >= viewLimit()) {
+            view = await pickVictim(false, liveViews().length < viewLimit() + 1);
+            if (view) {
+                await retireView(view);
+            }
+        }
+        if (view) {
+            assignView(view, tabId);
+        }
+        else {
+            view = createView(tabId);
+        }
+        if (!view) {
+            return null;
+        }
+        const wanted = tabsRef.current.find((tab) => tab.id === tabId)?.url ?? "";
+        const showing = view.host.currentUrl;
+        activateView(view, !!showing && withoutChallenge(showing) === withoutChallenge(wanted));
+        destroyFreeViews();
+        return "fresh";
+    }, [pickVictim, retireView]);
+
+    const leaveActiveView = useCallback(async () => {
+        const target = activeView()?.session.targetId;
+        if (pauseOnSwitchRef.current && target) {
+            await pausePlayingMedia(target);
+        }
+    }, []);
+
+    const showTabInView = useCallback(async (tab: BrowserTab) => {
+        const mode = await bringUpView(tab.id);
+        followActiveView();
+        if (mode === "live") {
+            const view = activeView();
+            if (view) {
+                await syncTabToView(view);
+            }
+            setAddress(liveUrlRef.current || tab.url);
+            return;
+        }
+        showTab(tab);
+    }, [bringUpView, followActiveView, showTab, syncTabToView]);
+
     useEffect(() => {
         let cancelled = false;
         (async () => {
@@ -622,6 +834,18 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
                 if (cancelled) return;
                 apply(state);
                 const current = state.tabs.find((tab) => tab.id === state.activeTabId);
+                const mode = current ? await bringUpView(current.id) : null;
+                if (cancelled) return;
+                followActiveView();
+                if (mode === "live" && current) {
+                    const view = activeView();
+                    if (view) {
+                        await syncTabToView(view);
+                    }
+                    setAddress(liveUrlRef.current || current.url);
+                    setLoaded(true);
+                    return;
+                }
                 drive(current?.url || startUrl || BROWSER_HOME_URL);
                 setLoaded(true);
                 if (current?.url && (current.scroll > 0 || current.anchor === PAGE_KEPT_PLACE)) {
@@ -639,7 +863,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         return () => {
             cancelled = true;
         };
-    }, [apply, applySettings, drive, queueRestore, startUrl]);
+    }, [apply, applySettings, bringUpView, drive, followActiveView, queueRestore, startUrl, syncTabToView]);
 
     const openTab = useCallback((url: string) => {
         const target = url || BROWSER_HOME_URL;
@@ -654,14 +878,17 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
                     setBlockedUrl(target);
                     return;
                 }
+                await leaveActiveView();
                 apply(state);
+                await bringUpView(state.activeTabId);
+                followActiveView();
                 drive(target);
             }
             catch (e) {
                 logError("useBrowserController.openTab", e);
             }
         })();
-    }, [apply, drive]);
+    }, [apply, bringUpView, drive, followActiveView, leaveActiveView]);
 
     const resolveTabLimit = useCallback((choice: "evict" | "cancel") => {
         const target = blockedUrl;
@@ -675,14 +902,17 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
                 if (!state.ok) {
                     return;
                 }
+                await leaveActiveView();
                 apply(state);
+                await bringUpView(state.activeTabId);
+                followActiveView();
                 drive(target);
             }
             catch (e) {
                 logError("useBrowserController.resolveTabLimit", e);
             }
         })();
-    }, [apply, blockedUrl, drive]);
+    }, [apply, blockedUrl, bringUpView, drive, followActiveView, leaveActiveView]);
 
     const closeTab = useCallback((tabId: string) => {
         const wasActive = tabId === activeTabIdRef.current;
@@ -690,18 +920,19 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
             try {
                 const state = apply(await closeBrowserTab(tabId));
                 if (!wasActive) {
+                    destroyFreeViews();
                     return;
                 }
                 const current = state.tabs.find((tab) => tab.id === state.activeTabId);
                 if (current) {
-                    showTab(current);
+                    await showTabInView(current);
                 }
             }
             catch (e) {
                 logError("useBrowserController.closeTab", e);
             }
         })();
-    }, [apply, showTab]);
+    }, [apply, showTabInView]);
 
     const rememberPlace = useCallback(async () => {
         const tab = tabsRef.current.find((row) => row.id === activeTabIdRef.current);
@@ -720,6 +951,13 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         }
     }, []);
 
+    const rememberPlaces = useCallback(async (views: LiveView[], shown: LiveView | null) => {
+        await Promise.all([
+            rememberPlace(),
+            ...views.filter((view) => view !== shown && view.tabId).map((view) => retireView(view))
+        ]);
+    }, [rememberPlace, retireView]);
+
     const closeAllTabs = useCallback(() => {
         (async () => {
             try {
@@ -727,13 +965,17 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
                 const home = newTabUrlRef.current;
                 const state = apply(await addBrowserTab(home, "", false));
                 const current = state.tabs.find((tab) => tab.id === state.activeTabId);
+                if (current) {
+                    await bringUpView(current.id);
+                    followActiveView();
+                }
                 drive(current?.url || home);
             }
             catch (e) {
                 logError("useBrowserController.closeAllTabs", e);
             }
         })();
-    }, [apply, drive]);
+    }, [apply, bringUpView, drive, followActiveView]);
 
     const selectTab = useCallback((tabId: string) => {
         if (tabId === activeTabIdRef.current) return;
@@ -747,18 +989,19 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
                         await setBrowserTabScroll(outgoing.id, place.offset, place.anchor);
                     }
                 }
+                await leaveActiveView();
                 const state = apply(await setActiveBrowserTab(tabId));
                 const current = state.tabs.find((tab) => tab.id === state.activeTabId);
                 if (!current) {
                     return;
                 }
-                showTab(current);
+                await showTabInView(current);
             }
             catch (e) {
                 logError("useBrowserController.selectTab", e);
             }
         })();
-    }, [apply, showTab]);
+    }, [apply, leaveActiveView, showTabInView]);
 
     const step = useCallback((delta: number) => {
         const tab = tabs.find((row) => row.id === activeTabIdRef.current);
@@ -1268,7 +1511,8 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         blockedUrl,
         resolveTabLimit,
         closeAllTabs,
-        rememberPlace,
+        rememberPlaces,
+        noteBackgroundPage,
         noteLeaving,
         pageZoom,
         stepZoom,
@@ -1288,6 +1532,10 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         toggleBlockAds,
         fastForwardYouTubeAds,
         toggleFastForwardYouTubeAds,
+        activeTabs,
+        cycleActiveTabs,
+        pauseMediaOnTabSwitch,
+        togglePauseMediaOnTabSwitch,
         downloadFolder,
         setDownloadFolder,
         rememberDownloadFolder,

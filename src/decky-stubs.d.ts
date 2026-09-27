@@ -182,6 +182,7 @@ declare module "react-icons/fa" {
     export const FaRegStar: any;
     export const FaBars: any;
     export const FaWindowMaximize: any;
+    export const FaWindowMinimize: any;
     export const FaWindowRestore: any;
     export const FaTrash: any;
     export const FaSearch: any;

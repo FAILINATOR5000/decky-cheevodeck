@@ -1900,6 +1900,8 @@ export type BrowserSettingsResponse = {
     openLinksInNewTab: boolean;
     blockAds: boolean;
     fastForwardYouTubeAds: boolean;
+    activeTabs: number;
+    pauseMediaOnTabSwitch: boolean;
     downloadFolder: string;
     rememberDownloadFolder: boolean;
     expanded: boolean;

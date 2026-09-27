@@ -12,6 +12,7 @@ const RESTORE_GAP_MS = 220;
 const KEEP_PLACE_SETTLE_MS = 250;
 
 type CdpTarget = {
+    id?: string;
     type?: string;
     url?: string;
     webSocketDebuggerUrl?: string;
@@ -84,7 +85,64 @@ function sameAddress(reported: string, url: string): boolean {
     return reported === url || reported === encodeURI(url) || reported.replace(/\/$/, "") === url.replace(/\/$/, "");
 }
 
-export async function socketForUrl(url: string): Promise<string | null> {
+let activeTarget = "";
+const claimedTargets = new Set<string>();
+
+export function setActiveTarget(id: string): void {
+    if (id !== activeTarget) {
+        activeTarget = id;
+        viewSocket = "";
+    }
+}
+
+export function claimTarget(id: string): void {
+    claimedTargets.add(id);
+}
+
+export function releaseTarget(id: string): void {
+    claimedTargets.delete(id);
+    if (activeTarget === id) {
+        activeTarget = "";
+        viewSocket = "";
+    }
+}
+
+async function pageTargets(): Promise<CdpTarget[]> {
+    const response = await fetchNoCors(CDP_TAB_LIST);
+    const targets: CdpTarget[] = JSON.parse(await response.text());
+    return Array.isArray(targets)
+        ? targets.filter((t) => t.type === "page" && typeof t.url === "string" && !!t.webSocketDebuggerUrl)
+        : [];
+}
+
+export async function targetForUrl(url: string): Promise<{ id: string; socket: string } | null> {
+    if (!url) {
+        return null;
+    }
+    try {
+        const match = (await pageTargets()).find(
+            (t) => !!t.id && !claimedTargets.has(t.id) && sameAddress(String(t.url), url)
+        );
+        return match?.id && match.webSocketDebuggerUrl ? { id: match.id, socket: match.webSocketDebuggerUrl } : null;
+    }
+    catch {
+        return null;
+    }
+}
+
+export async function socketOfTarget(id: string): Promise<string | null> {
+    if (!id) {
+        return null;
+    }
+    try {
+        return (await pageTargets()).find((t) => t.id === id)?.webSocketDebuggerUrl ?? null;
+    }
+    catch {
+        return null;
+    }
+}
+
+async function socketForUrl(url: string, targetId = activeTarget): Promise<string | null> {
     if (!url) {
         return null;
     }
@@ -99,9 +157,10 @@ export async function socketForUrl(url: string): Promise<string | null> {
                 t.type === "page" &&
                 typeof t.url === "string" &&
                 !!t.webSocketDebuggerUrl &&
-                sameAddress(t.url, url)
+                sameAddress(t.url, url) &&
+                (targetId ? t.id === targetId : !claimedTargets.has(t.id ?? ""))
         );
-        if (match?.webSocketDebuggerUrl) {
+        if (match?.webSocketDebuggerUrl && targetId === activeTarget) {
             viewSocket = match.webSocketDebuggerUrl;
         }
         return match?.webSocketDebuggerUrl ?? null;
@@ -229,20 +288,20 @@ const PLACE_OF = `
     };
 `;
 
-export async function captureScroll(url: string): Promise<ScrollPlace | null> {
+export async function captureScroll(url: string, targetId = activeTarget): Promise<ScrollPlace | null> {
     lastCaptureMiss = "";
     if (!url) {
         lastCaptureMiss = "no url";
         return null;
     }
-    if (viewSocket) {
+    if (viewSocket && targetId === activeTarget) {
         const place = await readPlace(viewSocket, url);
         if (place) {
             return place;
         }
     }
     const viaView = lastCaptureMiss;
-    const wsUrl = await socketForUrl(url);
+    const wsUrl = await socketForUrl(url, targetId);
     if (!wsUrl) {
         lastCaptureMiss = `${viaView || "no view socket"}; no target for url`;
         return null;
@@ -595,8 +654,8 @@ function cssZoom(percent: number): string {
     return percent > 100 ? String(percent / 100) : "";
 }
 
-export async function preparePage(url: string, percent: number, blockAds: boolean, fastForward: boolean): Promise<boolean> {
-    const wsUrl = await socketForUrl(url);
+export async function preparePage(url: string, percent: number, blockAds: boolean, fastForward: boolean, targetId = activeTarget): Promise<boolean> {
+    const wsUrl = await socketForUrl(url, targetId);
     if (!wsUrl) {
         return false;
     }
@@ -671,5 +730,33 @@ export async function applyPageZoom(url: string, percent: number): Promise<boole
     }
     catch {
         return false;
+    }
+}
+
+const PLAYING_MEDIA = `[...document.querySelectorAll("video, audio")].filter((media) => !media.paused)`;
+
+export async function isPlayingSound(targetId: string): Promise<boolean> {
+    const wsUrl = await socketOfTarget(targetId);
+    if (!wsUrl) {
+        return false;
+    }
+    try {
+        return (await evaluate(wsUrl, `${PLAYING_MEDIA}.some((media) => !media.muted && media.volume > 0)`)) === true;
+    }
+    catch {
+        return false;
+    }
+}
+
+export async function pausePlayingMedia(targetId: string): Promise<void> {
+    const wsUrl = await socketOfTarget(targetId);
+    if (!wsUrl) {
+        return;
+    }
+    try {
+        await evaluate(wsUrl, `(${PLAYING_MEDIA}.forEach((media) => media.pause()), true)`);
+    }
+    catch {
+        return;
     }
 }

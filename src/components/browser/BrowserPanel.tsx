@@ -235,6 +235,10 @@ type BrowserPanelProps = {
     onToggleBlockAds: () => void;
     fastForwardYouTubeAds: boolean;
     onToggleFastForwardYouTubeAds: () => void;
+    activeTabs: number;
+    onCycleActiveTabs: () => void;
+    pauseMediaOnTabSwitch: boolean;
+    onTogglePauseMediaOnTabSwitch: () => void;
     downloadFolder: string;
     onSetDownloadFolder: (path: string) => void;
     rememberDownloadFolder: boolean;
@@ -252,6 +256,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
         newTabPage, customNewTabUrl, onCycleNewTabPage, onSetCustomNewTabUrl,
         openLinksInNewTab, onToggleOpenLinksInNewTab,
         blockAds, onToggleBlockAds, fastForwardYouTubeAds, onToggleFastForwardYouTubeAds,
+        activeTabs, onCycleActiveTabs, pauseMediaOnTabSwitch, onTogglePauseMediaOnTabSwitch,
         downloadFolder, onSetDownloadFolder, rememberDownloadFolder, onToggleRememberDownloadFolder
     } = props;
 
@@ -777,6 +782,32 @@ export function BrowserPanel(props: BrowserPanelProps) {
                             </div>
                         </div>
                         <div style={noteStyle}>{t(language, "help_browser_open_links")}</div>
+                    </div>
+
+                    <div style={settingCardStyle}>
+                        <div style={settingRowStyle}>
+                            <span style={{ opacity: 0.8, minWidth: "0" }}>{t(language, "Active Tabs")}</span>
+                            <div style={{ flex: "1 1 auto" }} />
+                            <div style={cellStyle}>
+                                <DialogButton {...act("activetabs:cycle", onCycleActiveTabs)} style={optionStyle}>
+                                    {sizedLabel(String(activeTabs))}
+                                </DialogButton>
+                            </div>
+                        </div>
+                        <div style={noteStyle}>{t(language, "help_browser_active_tabs")}</div>
+                    </div>
+
+                    <div style={settingCardStyle}>
+                        <div style={settingRowStyle}>
+                            <span style={{ opacity: 0.8, minWidth: "0" }}>{t(language, "Pause Videos on Tab Switch")}</span>
+                            <div style={{ flex: "1 1 auto" }} />
+                            <div style={cellStyle}>
+                                <DialogButton {...act("pausemedia:toggle", onTogglePauseMediaOnTabSwitch)} style={optionStyle}>
+                                    {sizedLabel(t(language, pauseMediaOnTabSwitch ? "On" : "Off"))}
+                                </DialogButton>
+                            </div>
+                        </div>
+                        <div style={noteStyle}>{t(language, "help_browser_pause_media_on_tab_switch")}</div>
                     </div>
 
                     <div style={settingCardStyle}>

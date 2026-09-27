@@ -144,6 +144,8 @@ def _settings_response(home: Path, state: dict) -> dict:
         "openLinksInNewTab": state["openLinksInNewTab"],
         "blockAds": state["blockAds"],
         "fastForwardYouTubeAds": state["fastForwardYouTubeAds"],
+        "activeTabs": state["activeTabs"],
+        "pauseMediaOnTabSwitch": state["pauseMediaOnTabSwitch"],
         "downloadFolder": str(_default_download_folder(home, state["downloadFolder"])),
         "rememberDownloadFolder": state["rememberDownloadFolder"],
         "expanded": state["expanded"],
@@ -187,6 +189,12 @@ class BrowserMixin(PluginContext):
 
     async def save_browser_fast_forward_youtube_ads(self, value: bool = True):
         return _settings_response(self.user_home, self.browser_store.set_fast_forward_youtube_ads(value))
+
+    async def save_browser_active_tabs(self, value: int = 3):
+        return _settings_response(self.user_home, self.browser_store.set_active_tabs(value))
+
+    async def save_browser_pause_media_on_tab_switch(self, value: bool = False):
+        return _settings_response(self.user_home, self.browser_store.set_pause_media_on_tab_switch(value))
 
     async def save_links_open_in_web_browser(self, value: bool = True):
         return {
