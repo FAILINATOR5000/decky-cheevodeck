@@ -15,7 +15,7 @@ const CLIP_LENGTH_SIZE_BY_COLUMNS: Record<number, number> = { 1: 13, 2: 11, 3: 9
 const CLIP_MARK_BACKDROP = "rgba(0, 0, 0, 0.35)";
 const CLIP_MARK_COLOR = "rgba(255, 255, 255, 0.88)";
 
-const FOCUS_RING = "0 0 0 2px rgba(120, 200, 255, 0.85), 0 2px 8px rgba(0, 0, 0, 0.35)";
+const FOCUS_RING = "0 0 0 2px rgba(255,255,255,0.78), 0 2px 8px rgba(0, 0, 0, 0.35)";
 
 export type MemoryCardListProps = {
     columns: number;

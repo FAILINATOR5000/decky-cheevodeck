@@ -57,7 +57,7 @@ function TagChip(props: {
                     ...compactButtonStyle,
                     fontSize: `${modalSize(14)}px`,
                     fontWeight: selected ? 800 : 500,
-                    outline: selected ? "2px solid rgba(120, 200, 255, 0.85)" : undefined
+                    outline: selected ? "1px solid rgba(255,255,255,0.65)" : undefined
                 }}
             >
                 {count === null ? label : `${label} (${count})`}

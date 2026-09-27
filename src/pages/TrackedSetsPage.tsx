@@ -1568,7 +1568,7 @@ function OpenSetView(props: OpenSetViewProps) {
                     textAlign: "center",
                     opacity: disabled ? 0.5 : focused ? 1 : 0.82,
                     boxShadow: focused
-                        ? "0 0 0 2px rgba(120, 200, 255, 0.85), 0 2px 8px rgba(0,0,0,0.35)"
+                        ? "0 0 0 2px rgba(255,255,255,0.55), 0 2px 8px rgba(0,0,0,0.35)"
                         : undefined
                 }}
             >

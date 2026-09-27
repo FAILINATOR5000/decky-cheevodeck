@@ -482,11 +482,10 @@ function BadgesPage(props: BadgesPageProps) {
                                                         alignItems: "center",
                                                         justifyContent: "center",
                                                         opacity: buttonOpacity,
-                                                        boxShadow: isSelected
-                                                            ? "0 0 0 2px rgba(120, 200, 255, 0.85), 0 2px 8px rgba(0,0,0,0.35)"
-                                                            : isPreviewed
-                                                                ? "0 0 0 2px rgba(255,255,255,0.55), 0 2px 8px rgba(0,0,0,0.35)"
-                                                                : undefined
+                                                        outline: isSelected ? "1px solid rgba(255,255,255,0.65)" : undefined,
+                                                        boxShadow: isPreviewed
+                                                            ? "0 0 0 2px rgba(255,255,255,0.55), 0 2px 8px rgba(0,0,0,0.35)"
+                                                            : undefined
                                                     }}
                                                 >
                                                     <Icon size={18} />
