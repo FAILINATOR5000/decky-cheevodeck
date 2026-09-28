@@ -138,7 +138,9 @@ CheevoDeck runs on top of [**Decky Loader**](https://github.com/SteamDeckHomebre
 
 ## RetroAchievements
 
-CheevoDeck reads from the [**RetroAchievements**](https://retroachievements.org) public Web API. Thanks to the RA team and the broader community of achievement developers and players that make the data worth reading.
+CheevoDeck reads from [**RetroAchievements**](https://retroachievements.org)' public Web API. Thanks to the RA team and broader community of achievement developers, as well as the players that curate this data.
+
+The event data in `events/events.json` (each event's type, dates, checklist, and source games) is obtained from the RetroAchievements event pages, as well as the [Evergreen Events](https://retroachievements.org/forums/topic/25332) threads kept by the [**RAEvents**](https://retroachievements.org/user/RAEvents) team. The checklists and the rules are their work, copied as written; the file only rearranges them so the Events tab can read them without the browser. In other words, CheevoDeck parses the data to provide users with info needed to track and manage their events. All credit is owed to RAEvents and the event organizers for making this feature possible.
 
 ## Dependency licenses
 
