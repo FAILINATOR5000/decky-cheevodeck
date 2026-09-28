@@ -48,7 +48,7 @@ CheevoDeck isn't just a basic RetroAchievements tracker — it's a full suite fo
 
     - **Sitting Out** — finds nobody near you. Pure silence.
 
-- **Community features** — The best part of RetroAchievements is the people. Join in with Achievement of the Week, catch the latest RA news to participate in special events, and watch new sets and revisions as they land.
+- **Community features** — The best part of RetroAchievements is the people. Join in with the Achievement of the Week, and stay up-to-date with the latest events, and view the latest new sets and revisions.
 
 - **Multiple accounts** — Sharing a device? Add another account with its own API key and switch between them, progress kept separate. Add its RA password too and switching signs you into most of your emulators for you. The password is never stored: it's traded for a token instead, and CheevoDeck even clears out any password your emulator config was hanging onto.
 
@@ -235,7 +235,7 @@ Pressing the hamburger-looking button, as a part of the button strip, on the **M
 
     - **Mouse & Keyboard Mode** — Useful if you are switching over to playing a standalone RetroAchievements-supported game such as Terraria or Final Fantasy XI. This switches over the UI to make everything work well for mouse and keyboard users. When going back to a controller-based game, simply turn it off and you are good to go.
 
-- **The cluster of 12 small buttons** — These are quick shortcuts to different useful pages. From left to right, top to bottom: **Social Hub**, **News**, **Achievement of the Week**, **New Sets & Revisions**, **Subscribed Discussions**, **Saved Comments**, **Mastery Goals**, **Utilities**, **User Accounts**, **Options**, **About**, and a **Refresh**. While **News**, **Achievement of the Week**, **New Sets & Revisions**, **Subscribed Discussions**, and **Saved Comments** are all from the **Social Hub**, they are in different tabs and subsections within it, so these shortcuts in the **Quick Menu** make getting there incredibly fast.
+- **The cluster of 12 small buttons** — These are quick shortcuts to different useful pages. From left to right, top to bottom: **Social Hub**, **News**, **Events**, **New Sets & Revisions**, **Subscribed Discussions**, **Saved Comments**, **Mastery Goals**, **Utilities**, **User Accounts**, **Options**, **About**, and a **Refresh**. While **News**, **Events**, **New Sets & Revisions**, **Subscribed Discussions**, and **Saved Comments** are all from the **Social Hub**, they are in different tabs and subsections within it, so these shortcuts in the **Quick Menu** make getting there incredibly fast.
 
 - **The last row of buttons** — Your own custom shortcuts and actions. You can pin up to eight of the places you go often or actions that you perform often, so they sit one press away. Which eight is up to you, and you choose them in **Options** > **Display & Notifications** tab > **Customize Quick Menu**. Your default loadout is: **Dolphin Mapper**, **Cheevo Check**, **SMB Shares**, **File Watcher**, **Calculator**, **Web Browser**, **Social Activity Feed**, and **Map Shortcuts**.
 
