@@ -2164,7 +2164,7 @@ const DE: LocaleTable = {
     "Checklist": "Checkliste",
     "Spreadsheet": "Tabelle",
     "Paused": "Pausiert",
-    "Unscanned": "Noch ohne Details",
+    "Pending": "Ausstehend",
     "All types": "Alle Arten",
     "Latest": "Neueste",
     "My Activity": "Meine Aktivität",

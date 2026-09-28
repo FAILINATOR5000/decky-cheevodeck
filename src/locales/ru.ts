@@ -2231,7 +2231,7 @@ const RU: LocaleTable = {
     "Checklist": "Список игр",
     "Spreadsheet": "Таблица",
     "Paused": "Приостановлено",
-    "Unscanned": "Пока без подробностей",
+    "Pending": "Ожидающие",
     "All types": "Все типы",
     "Latest": "Сначала новые",
     "My Activity": "Моя активность",

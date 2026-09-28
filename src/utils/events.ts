@@ -291,7 +291,7 @@ export function eventsTypeLabel(value: EventsType, language: LanguageCode): stri
         case "other":
             return t(language, "Other");
         case "unscanned":
-            return t(language, "Unscanned");
+            return t(language, "Pending");
         default:
             return t(language, "All types");
     }

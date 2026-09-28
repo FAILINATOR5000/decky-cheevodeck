@@ -2266,7 +2266,7 @@ const PL: LocaleTable = {
     "Checklist": "Lista gier",
     "Spreadsheet": "Arkusz",
     "Paused": "Wstrzymane",
-    "Unscanned": "Jeszcze bez szczegółów",
+    "Pending": "Oczekujące",
     "All types": "Wszystkie rodzaje",
     "Latest": "Najnowsze",
     "My Activity": "Moja aktywność",

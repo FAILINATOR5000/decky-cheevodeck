@@ -2155,7 +2155,7 @@ export const EN: LocaleTable = {
     "Checklist": "Checklist",
     "Spreadsheet": "Spreadsheet",
     "Paused": "Paused",
-    "Unscanned": "Unscanned",
+    "Pending": "Pending",
     "All types": "All types",
     "Latest": "Latest",
     "My Activity": "My Activity",

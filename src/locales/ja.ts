@@ -2097,7 +2097,7 @@ const JA: LocaleTable = {
     "Checklist": "チェックリスト",
     "Spreadsheet": "スプレッドシート",
     "Paused": "休止中",
-    "Unscanned": "詳細なし",
+    "Pending": "準備中",
     "All types": "すべての種類",
     "Latest": "新しい順",
     "My Activity": "自分のアクティビティ",

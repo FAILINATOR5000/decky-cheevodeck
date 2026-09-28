@@ -2172,7 +2172,7 @@ const ES: LocaleTable = {
     "Checklist": "Lista",
     "Spreadsheet": "Hoja de cálculo",
     "Paused": "En pausa",
-    "Unscanned": "Sin detalles aún",
+    "Pending": "Pendientes",
     "All types": "Todos los tipos",
     "Latest": "Más recientes",
     "My Activity": "Mi actividad",
