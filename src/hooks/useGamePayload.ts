@@ -9,6 +9,7 @@ export type UseGamePayloadOptions = {
     gameId: number | null;
     seedPayload?: Payload | null;
     seedIsProvisional?: boolean;
+    seedRevalidate?: boolean;
 };
 
 type LoadTarget = {
@@ -28,7 +29,7 @@ function sameTarget(a: LoadTarget | null, b: LoadTarget | null): boolean {
 }
 
 export function useGamePayload(options: UseGamePayloadOptions) {
-    const { isActive, viewedUsername, viewedUserRef, gameId, seedPayload, seedIsProvisional } = options;
+    const { isActive, viewedUsername, viewedUserRef, gameId, seedPayload, seedIsProvisional, seedRevalidate } = options;
 
     const [payload, setPayload] = useState<Payload | null>(null);
     const [loadedGameId, setLoadedGameId] = useState<number | null>(null);
@@ -152,9 +153,9 @@ export function useGamePayload(options: UseGamePayloadOptions) {
                 setError(null);
                 setLoading(false);
             }
-            if (seedIsProvisional) {
+            if (seedIsProvisional || seedRevalidate) {
                 revalidatedKeyRef.current = seedKey;
-                void doLoad(true);
+                void doLoad(Boolean(seedIsProvisional));
             }
             return;
         }

@@ -145,6 +145,7 @@ _ALLOWED_RESUME_VIEWS = {
     "memories",
     "memoriesTransfer",
     "guides",
+    "eventViewer",
 }
 
 _ALLOWED_NOW_PLAYING_COMPARE_FILTERS = {"all", "onlyYou", "onlyThem", "shared"}
@@ -168,7 +169,7 @@ _ALLOWED_ACHIEVEMENT_SORTS = {"upNext", "absolute", "mostPoints", "fewestPoints"
 
 _ALLOWED_TRACKED_SORTS = {"upNext", "manual", "mostPoints", "fewestPoints", "rarest", "mostCommon"}
 
-_ALLOWED_NEWS_EVENTS_SUB_VIEWS = {"news", "aotw", "newSets"}
+_ALLOWED_NEWS_EVENTS_SUB_VIEWS = {"news", "aotw", "events", "newSets"}
 _ALLOWED_NEW_SETS_FILTERS = {"new", "revision"}
 _ALLOWED_AOTW_SUB_VIEWS = {"unlocks", "comments"}
 
@@ -177,7 +178,7 @@ _ALLOWED_FRIEND_PROFILE_SUB_VIEWS = {"game", "wall"}
 
 _ALLOWED_GUIDES_SUB_VIEWS = {"list", "reader", "search"}
 
-_ALLOWED_GAME_OVERVIEW_SOURCES = {"main", "newsEvents", "socialActivity", "mainNowPlaying", "friend", "badges", "wantToPlay", "trackedSet", "subscribedDiscussions", "search", "cheevoCheck"}
+_ALLOWED_GAME_OVERVIEW_SOURCES = {"main", "newsEvents", "socialActivity", "mainNowPlaying", "friend", "badges", "wantToPlay", "trackedSet", "subscribedDiscussions", "search", "cheevoCheck", "eventViewer"}
 
 _ALLOWED_AO_SOURCES = {
     "main",
@@ -191,7 +192,12 @@ _ALLOWED_AO_SOURCES = {
     "notification",
     "subscribedDiscussions",
     "external",
+    "eventViewer",
 }
+
+_ALLOWED_EVENT_VIEWER_TABS = {"achievements", "comments"}
+_ALLOWED_FRIEND_PROFILE_BACK_SOURCES = {"social", "main", "eventViewer"}
+_ALLOWED_EVENT_VIEWER_SOURCES = {"events", "main"}
 
 _ALLOWED_FRIEND_ENTRY_SOURCES = {"profile", "compareGame"}
 
@@ -241,6 +247,7 @@ _ALLOWED_SHORTCUT_ACTIONS = (
     "socialhub",
     "news",
     "aotw",
+    "events",
     "newsets",
     "subscribeddiscussions",
     "savedcomments",
@@ -418,6 +425,7 @@ _KNOBS = (
     Knob("coloredGlyphs", default=True, normalize=True, read=READ_BOOL),
     Knob("showAButtonMode", default=True, normalize=True),
     Knob("showAButtonModeTracked", default=True, normalize=True),
+    Knob("showAButtonModeEvents", default=True, normalize=True),
     Knob("gameNotesAButtonMode", default="editNote", normalize=True),
     Knob("showSocialHubButton", default=True, normalize=True),
     Knob("showTrackedSetsButton", default=True, normalize=True),
@@ -439,6 +447,8 @@ _KNOBS = (
     Knob("mainAchievementSort", default="upNext", normalize=True),
     Knob("mainAchievementAction", default="track", normalize=True),
     Knob("trackedAchievementAction", default="editNote", normalize=True),
+    Knob("eventsClickAction", default="open", normalize=True),
+    Knob("trackedEventsClickAction", default="open", normalize=True),
     Knob("dolphinMapperMode", default="map", normalize=True),
     Knob("dolphinSystemFilter", default="all", normalize=True),
     Knob("dolphinBluetoothPassthrough", default=False, normalize=True),
@@ -1269,6 +1279,18 @@ class SettingsStore:
         cfg = self._update_config("trackedAchievementAction", value)
 
         return self.get_tracked_achievement_action(cfg)
+
+    def update_show_a_button_mode_events(self, value: bool) -> bool:
+        cfg = self._update_config("showAButtonModeEvents", bool(value))
+        return self.get_show_a_button_mode_events(cfg)
+
+    def update_events_click_action(self, value: str) -> str:
+        cfg = self._update_config("eventsClickAction", str(value or "open").strip())
+        return self.get_events_click_action(cfg)
+
+    def update_tracked_events_click_action(self, value: str) -> str:
+        cfg = self._update_config("trackedEventsClickAction", str(value or "open").strip())
+        return self.get_tracked_events_click_action(cfg)
 
     def update_dolphin_mapper_mode(self, value: str) -> str:
         value = str(value or "map").strip()
@@ -2614,6 +2636,22 @@ class SettingsStore:
             save_json_file(self._favorites_file, {"favoriteUlids": updated}, compact=True)
             return updated
 
+    def _friend_profile_back_source(self, raw: dict) -> str:
+        value = str(raw.get("friendProfileBackSource") or "").strip()
+        return value if value in _ALLOWED_FRIEND_PROFILE_BACK_SOURCES else "social"
+
+    def _normalize_event_viewer_resume(self, raw: dict) -> dict:
+        target = str(raw.get("eventViewerTarget") or "").strip()
+        if target != "aotw" and not (target.isdigit() and 0 < len(target) <= 12):
+            target = ""
+        tab = str(raw.get("eventViewerTab") or "").strip()
+        source = str(raw.get("eventViewerSource") or "").strip()
+        return {
+            "eventViewerTarget": target or None,
+            "eventViewerTab": tab if tab in _ALLOWED_EVENT_VIEWER_TABS else None,
+            "eventViewerSource": source if source in _ALLOWED_EVENT_VIEWER_SOURCES else None,
+        }
+
     def _normalize_nav_stack(self, raw):
         if not isinstance(raw, list) or not raw:
             return None
@@ -2669,6 +2707,22 @@ class SettingsStore:
         news_events_sub_view = str(raw.get("newsEventsSubView") or "").strip()
         if news_events_sub_view not in _ALLOWED_NEWS_EVENTS_SUB_VIEWS:
             news_events_sub_view = None
+
+        aotw_landing = (
+            news_events_sub_view == "aotw"
+            and view == "social"
+            and str(cfg.get("lastSocialView") or "").strip() == "newsEvents"
+        )
+        if news_events_sub_view == "aotw":
+            news_events_sub_view = "events"
+        event_viewer = self._normalize_event_viewer_resume(raw)
+        if aotw_landing:
+            view = "eventViewer"
+            event_viewer = {
+                "eventViewerTarget": "aotw",
+                "eventViewerTab": "achievements",
+                "eventViewerSource": "events",
+            }
 
         new_sets_filter = str(raw.get("newSetsFilter") or "").strip()
         if new_sets_filter not in _ALLOWED_NEW_SETS_FILTERS:
@@ -2736,6 +2790,9 @@ class SettingsStore:
         nav_stack = self._normalize_nav_stack(raw.get("navStack"))
 
         focus_key = raw.get("focusKey")
+        if aotw_landing:
+            nav_stack = None
+            focus_key = "eventviewer:back"
         return {
             "view": view,
             "navStack": nav_stack,
@@ -2773,13 +2830,14 @@ class SettingsStore:
             "friendEntrySource": friend_entry_source,
             "trackedSelectedGameId": norm_game_id(raw.get("trackedSelectedGameId")),
             "unlockHistorySource": unlock_history_source,
-            "friendProfileBackSource": "main" if str(raw.get("friendProfileBackSource") or "").strip() == "main" else "social",
+            "friendProfileBackSource": self._friend_profile_back_source(raw),
             "badgeFilter": badge_filter,
             "allGamesLetterRange": all_games_letter_range,
             "allGamesStatusFilter": all_games_status_filter,
             "trackedSetOpenId": str(raw.get("trackedSetOpenId") or "").strip() or None,
             "trackedSetsBackSource": "main" if str(raw.get("trackedSetsBackSource") or "").strip() == "main" else "profile",
             "followedRankingMetric": followed_ranking_metric,
+            **event_viewer,
             "savedAt": to_int(raw.get("savedAt"), 0) or None,
         }
 
@@ -2808,6 +2866,8 @@ class SettingsStore:
             news_events_sub_view = str(resume_state.get("newsEventsSubView") or "").strip()
             if news_events_sub_view not in _ALLOWED_NEWS_EVENTS_SUB_VIEWS:
                 news_events_sub_view = None
+            if news_events_sub_view == "aotw":
+                news_events_sub_view = "events"
 
             new_sets_filter = str(resume_state.get("newSetsFilter") or "").strip()
             if new_sets_filter not in _ALLOWED_NEW_SETS_FILTERS:
@@ -2911,13 +2971,14 @@ class SettingsStore:
                 "friendEntrySource": friend_entry_source,
                 "trackedSelectedGameId": norm_game_id(resume_state.get("trackedSelectedGameId")),
                 "unlockHistorySource": unlock_history_source,
-                "friendProfileBackSource": "main" if str(resume_state.get("friendProfileBackSource") or "").strip() == "main" else "social",
+                "friendProfileBackSource": self._friend_profile_back_source(resume_state),
                 "badgeFilter": badge_filter,
                 "allGamesLetterRange": all_games_letter_range,
                 "allGamesStatusFilter": all_games_status_filter,
                 "trackedSetOpenId": str(resume_state.get("trackedSetOpenId") or "").strip() or None,
                 "trackedSetsBackSource": "main" if str(resume_state.get("trackedSetsBackSource") or "").strip() == "main" else "profile",
                 "followedRankingMetric": followed_ranking_metric,
+                **self._normalize_event_viewer_resume(resume_state),
                 "savedAt": to_int(resume_state.get("savedAt"), int(time.time() * 1000)),
             }
             cfg["resumeState"] = payload
@@ -4000,6 +4061,17 @@ class SettingsStore:
     def get_tracked_achievement_action(self, cfg: dict) -> str:
         value = str(cfg.get("trackedAchievementAction", "editNote") or "editNote").strip()
         return value if value in {"untrack", "info", "editNote", "reorder"} else "editNote"
+
+    def get_show_a_button_mode_events(self, cfg: dict) -> bool:
+        return bool(cfg.get("showAButtonModeEvents", True))
+
+    def get_events_click_action(self, cfg: dict) -> str:
+        value = str(cfg.get("eventsClickAction", "open") or "open").strip()
+        return value if value in {"open", "track"} else "open"
+
+    def get_tracked_events_click_action(self, cfg: dict) -> str:
+        value = str(cfg.get("trackedEventsClickAction", "open") or "open").strip()
+        return value if value in {"untrack", "open", "note", "reorder"} else "open"
 
     def get_dolphin_mapper_mode(self, cfg: dict) -> str:
         value = str(cfg.get("dolphinMapperMode", "map") or "map").strip()

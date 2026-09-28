@@ -24,6 +24,10 @@ export function raGameCommentsUrl(id: number) {
     return `${RA_BASE}/game/${id}/comments`;
 }
 
+export function raForumTopicUrl(id: number) {
+    return `${RA_BASE}/forums/topic/${id}`;
+}
+
 export function raUserUrl(username: string) {
     return `${RA_BASE}/user/${encodeURIComponent(username)}`;
 }

@@ -64,17 +64,27 @@ import type {
     GameOverviewSubView,
     LeaderboardRow,
     NewsEventsSubView,
+    EventViewerSource,
+    EventViewerTab,
+    EventViewerTarget,
     NewSetsFilter,
     MainAchievementsTab,
     NowPlayingCompareFilter,
     NowPlayingSubView,
     Payload,
     ResumeState,
-    ViewKey
+    ViewKey,
+    FriendProfileBackSource
 } from "../types";
 import { restoreLeaderboards } from "../resume/leaderboardsResume";
 import { restoreSelfOnlyView } from "../resume/selfOnlyResume";
 import { restoreStandaloneView } from "../resume/standaloneResume";
+import {
+    getSavedEventViewerSource,
+    getSavedEventViewerTab,
+    getSavedEventViewerTarget,
+    restoreEventViewer
+} from "../resume/eventViewerResume";
 import { logError } from "../utils/errors";
 import type { RestoreContext } from "../resume/restoreContext";
 
@@ -96,7 +106,7 @@ type UseResumeControllerArgs = {
     activeUlid: string;
     friendGameReturnGameIdRef: RefObject<number | null>;
     onRestoreGuides: (target: { subView: GuidesSubView; faqId: string | null }) => void;
-    friendProfileBackSourceRef: RefObject<"social" | "main">;
+    friendProfileBackSourceRef: RefObject<FriendProfileBackSource>;
     trackedSetsBackSourceRef: RefObject<"profile" | "main">;
     setSelectedFriend: Dispatch<SetStateAction<FriendRow | null>>;
     setFriendGameSource: Dispatch<SetStateAction<FriendGameSource>>;
@@ -164,6 +174,9 @@ type UseResumeControllerArgs = {
     setAllGamesStatusFilter: Dispatch<SetStateAction<AllGamesStatusFilter>>;
     setFollowedRankingMetric: Dispatch<SetStateAction<FollowedRankingMetric>>;
     setTrackedSetOpenId: Dispatch<SetStateAction<string | null>>;
+    setEventViewerTarget: Dispatch<SetStateAction<EventViewerTarget | null>>;
+    setEventViewerTab: Dispatch<SetStateAction<EventViewerTab>>;
+    setEventViewerSource: Dispatch<SetStateAction<EventViewerSource>>;
 };
 
 export function useResumeController({
@@ -229,7 +242,10 @@ export function useResumeController({
     setAllGamesLetterRange,
     setAllGamesStatusFilter,
     setFollowedRankingMetric,
-    setTrackedSetOpenId
+    setTrackedSetOpenId,
+    setEventViewerTarget,
+    setEventViewerTab,
+    setEventViewerSource
 }: UseResumeControllerArgs) {
     const [pendingPrimaryViewRestoreGameId, setPendingPrimaryViewRestoreGameId] = useState<number | null | undefined>(
         undefined
@@ -286,7 +302,8 @@ export function useResumeController({
                 bootView === "gameNotes" ||
                 bootView === "badges" ||
                 bootView === "gameOverview" ||
-                bootView === "achievementOverview";
+                bootView === "achievementOverview" ||
+                bootView === "eventViewer";
             pendingResumeStateRef.current = shouldBootDirectlyToTracked ? null : nextResumeState;
             resumeAppliedRef.current = shouldBootDirectlyToTracked;
             pendingResumeFocusKeyRef.current = getAchievementsResumeFocusKey(
@@ -353,6 +370,10 @@ export function useResumeController({
         setNewSetsFilter(getSavedNewSetsFilter(savedState));
 
         setTrackedSetOpenId(getSavedTrackedSetOpenId(savedState));
+
+        setEventViewerTarget(getSavedEventViewerTarget(savedState));
+        setEventViewerTab(getSavedEventViewerTab(savedState));
+        setEventViewerSource(getSavedEventViewerSource(savedState));
 
         trackedSetsBackSourceRef.current = getSavedTrackedSetsBackSource(savedState);
 
@@ -426,6 +447,10 @@ export function useResumeController({
         const restoreCtx = buildRestoreContext();
 
         if (restoreStandaloneView(savedState, savedView, restoreCtx)) {
+            return;
+        }
+
+        if (restoreEventViewer(savedState, savedView, restoreCtx)) {
             return;
         }
 

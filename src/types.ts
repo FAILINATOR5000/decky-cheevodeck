@@ -452,7 +452,8 @@ export type ViewKey =
     | "fileWatcher"
     | "memories"
     | "memoriesTransfer"
-    | "guides";
+    | "guides"
+    | "eventViewer";
 
 // Guides
 export type GuidesSubView = "list" | "reader" | "search";
@@ -536,13 +537,13 @@ export type NowPlayingProps = {
     showRetroPoints: boolean;
 };
 
-export type NewsEventsSubView = "news" | "aotw" | "newSets";
+export type NewsEventsSubView = "news" | "events" | "newSets";
 export type NewSetsFilter = "new" | "revision";
 export type AotwSubView = "unlocks" | "comments";
 export type GameOverviewSubView = "achievements" | "comments" | "hashes";
 export type FriendProfileSubView = "game" | "wall";
 export type MainAchievementsTab = "achievements" | "activity" | "comments" | "compare";
-export type GameOverviewSource = "newsEvents" | "main" | "socialActivity" | "mainNowPlaying" | "friend" | "badges" | "wantToPlay" | "trackedSet" | "subscribedDiscussions" | "search" | "cheevoCheck";
+export type GameOverviewSource = "newsEvents" | "main" | "socialActivity" | "mainNowPlaying" | "friend" | "badges" | "wantToPlay" | "trackedSet" | "subscribedDiscussions" | "search" | "cheevoCheck" | "eventViewer";
 
 export type AOSource =
     | "main"
@@ -555,7 +556,8 @@ export type AOSource =
     | "unlockHistory"
     | "notification"
     | "subscribedDiscussions"
-    | "external";
+    | "external"
+    | "eventViewer";
 
 export type AchievementOverviewSnapshot = {
     id: number;
@@ -650,6 +652,7 @@ export type ShortcutAction =
     | "socialhub"
     | "news"
     | "aotw"
+    | "events"
     | "newsets"
     | "subscribeddiscussions"
     | "savedcomments"
@@ -679,7 +682,7 @@ export type ShortcutAction =
 
 export type TrackedTab = "thisGame" | "otherGames" | "addAllMissable" | "applyTag" | "clear";
 
-export type CacheClearGroup = "gameData" | "friendGamePayloads" | "friends" | "images" | "awardIcons" | "socialActivity" | "gameActivity" | "playersNearYou" | "gamesList" | "awardsList" | "wantToPlayList" | "setsList" | "leaderboards" | "cheevoCheckResults" | "cheevoCheckHashes" | "cheevoCheckRaData";
+export type CacheClearGroup = "gameData" | "friendGamePayloads" | "friends" | "images" | "awardIcons" | "socialActivity" | "gameActivity" | "playersNearYou" | "gamesList" | "awardsList" | "wantToPlayList" | "setsList" | "leaderboards" | "cheevoCheckResults" | "cheevoCheckHashes" | "cheevoCheckRaData" | "events";
 
 // Notifications
 export type NotificationType =
@@ -933,6 +936,7 @@ export type SettingsResponse = {
     coloredGlyphs: boolean;
     showAButtonMode: boolean;
     showAButtonModeTracked: boolean;
+    showAButtonModeEvents: boolean;
     gameNotesAButtonMode: GameNoteAButtonMode;
     showSocialHubButton: boolean;
     showTrackedSetsButton: boolean;
@@ -956,6 +960,8 @@ export type SettingsResponse = {
     gameOverviewAchievementSort: AchievementSort;
     mainAchievementAction: MainAchievementAction;
     trackedAchievementAction: TrackedAchievementAction;
+    eventsClickAction: EventsClickAction;
+    trackedEventsClickAction: TrackedEventsClickAction;
     dolphinMapperMode: DolphinMapperMode;
     dolphinSystemFilter: DolphinSystemFilter;
     dolphinBluetoothPassthrough: boolean;
@@ -1971,7 +1977,8 @@ export type CommentSurfaceKey =
     | "comments:overview"
     | "comments:nowplaying"
     | "comments:wall"
-    | "comments:aotw";
+    | "comments:aotw"
+    | "comments:event";
 
 export type CommunitySubTab = "subscribed" | "savedComments";
 export type SavedCommentsSort = "recent" | "oldest" | "opened";
@@ -2343,7 +2350,7 @@ export type GameCommentsResponse = {
 export type ResumeState = {
     view: ViewKey;
     navStack?: ViewKey[] | null;
-    friendProfileBackSource?: "social" | "main" | null;
+    friendProfileBackSource?: FriendProfileBackSource | null;
     focusKey?: string | null;
     primaryGameId?: number | null;
     selectedFriendUsername?: string | null;
@@ -2384,6 +2391,9 @@ export type ResumeState = {
     followedRankingMetric?: FollowedRankingMetric | null;
     trackedSetOpenId?: string | null;
     trackedSetsBackSource?: "profile" | "main" | null;
+    eventViewerTarget?: string | null;
+    eventViewerTab?: EventViewerTab | null;
+    eventViewerSource?: EventViewerSource | null;
     savedAt?: number | null;
 };
 
@@ -2391,3 +2401,147 @@ export type ResumeStateResponse = {
     ok: boolean;
     resumeState: ResumeState | null;
 };
+
+type EventKind = "automated" | "checklist" | "spreadsheet" | "paused";
+type EventState = "active" | "evergreen" | "concluded";
+
+export type EventListRow = {
+    gameId: number;
+    title: string;
+    imageIcon: string;
+    numAchievements: number | null;
+    hasSiteData: boolean;
+    eventId: number | null;
+    kind: EventKind | null;
+    state: EventState | null;
+    evergreen: boolean;
+    activeFrom: string | null;
+    activeThrough: string | null;
+    activeUntil: string | null;
+    createdAt: string | null;
+    forumTopicId: number | null;
+    checklistTarget: number | null;
+    earnedAt: string | null;
+};
+
+export type EventsShow = "all" | "active" | "evergreen" | "ended" | "completed";
+export type EventsType = "all" | "automated" | "checklist" | "spreadsheet" | "other" | "unscanned";
+export type EventsSort = "manual" | "latest" | "activity" | "name" | "progress";
+export type EventsListView = "all" | "tracked";
+export type EventsViewPrefs = { show: EventsShow; type: EventsType; sort: EventsSort };
+export type EventsPrefs = { all: EventsViewPrefs; tracked: EventsViewPrefs; listView: EventsListView };
+
+export type EventsClickAction = "open" | "track";
+export type EventViewerTab = "achievements" | "comments";
+export type EventViewerSource = "events" | "main";
+export type EventViewerTarget = number | "aotw";
+export type FriendProfileBackSource = "social" | "main" | "eventViewer";
+export type TrackedEventsClickAction = "untrack" | "open" | "note" | "reorder";
+
+type TrackedEventItem = {
+    trackedAt: number;
+    note: string;
+    noteColor: NoteColor | "";
+    noteEditedAt: number;
+};
+
+export type TrackedEventsState = {
+    order: string[];
+    collapsedTags: string[];
+    items: Record<string, TrackedEventItem>;
+};
+
+export type EventProgress = {
+    earned: number;
+    total: number;
+    points: number | null;
+    checkedAt: number;
+};
+
+export type EventActivity = {
+    lastOpenedAt: number;
+    lastEarnedSeenAt: number;
+    lastProgress: EventProgress | null;
+};
+
+export type EventsUserState = {
+    tracked: TrackedEventsState;
+    prefs: EventsPrefs;
+    completed: Record<string, { at: number }>;
+    checklistTicks: Record<string, Record<string, boolean>>;
+    checklistViews: Record<string, ChecklistViewPrefs>;
+    activity: Record<string, EventActivity>;
+};
+
+export type ChecklistView = "sections" | "system" | "systemYear";
+export type ChecklistFilter = "all" | "todo" | "ticked";
+export type ChecklistViewPrefs = { view: ChecklistView; filter: ChecklistFilter };
+
+export type EventsTabResponse = {
+    ok: boolean;
+    events: EventListRow[];
+    newestSiteGameId: number;
+    user: EventsUserState;
+    owner: string;
+    error: string | null;
+    needsSettings: boolean;
+};
+
+export type EventSource = {
+    achievementId: number;
+    points: number | null;
+    gameId: number;
+    gameTitle: string;
+    consoleId: number;
+    consoleName: string;
+    obfuscated: boolean;
+};
+
+export type EventChecklistRule = {
+    text: string;
+    kind: "points" | "masterAll" | null;
+    target: number | null;
+    masteryBonus: number | null;
+};
+
+export type EventChecklist = {
+    sections: { label: string; gameIds: number[] }[];
+    rule: EventChecklistRule;
+};
+
+export type EventDetail = {
+    gameId: number;
+    eventId: number | null;
+    title: string;
+    imageIcon: string;
+    badgeUrl: string | null;
+    kind: EventKind | null;
+    evergreen: boolean;
+    state: EventState | null;
+    activeFrom: string | null;
+    activeThrough: string | null;
+    activeUntil: string | null;
+    createdAt: string | null;
+    forumTopicId: number | null;
+    infoUrl: string | null;
+    links: { label: string; url: string }[];
+    sources: Record<string, EventSource>;
+    checklist: EventChecklist | null;
+};
+
+export type EventChecklistGame = {
+    title: string;
+    consoleId: number;
+    consoleName: string;
+    imageIcon: string;
+};
+
+export type ChecklistGameProgress = {
+    numAwarded: number;
+    numAwardedHardcore: number;
+    maxPossible: number;
+    highestAwardKind: string | null;
+    highestAwardDate: string | null;
+};
+
+export type EventCompletion = { kind: "earned" | "marked"; at: number } | null;

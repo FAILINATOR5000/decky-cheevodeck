@@ -72,6 +72,7 @@ export function useCacheClearing({
     const [clearingPlayersNearYouCache, setClearingPlayersNearYouCache] = useState(false);
     const [clearingGamesListCache, setClearingGamesListCache] = useState(false);
     const [clearingAwardsListCache, setClearingAwardsListCache] = useState(false);
+    const [clearingEventsCache, setClearingEventsCache] = useState(false);
     const [clearingWantToPlayCache, setClearingWantToPlayCache] = useState(false);
     const [clearingGameOverviewCache, setClearingGameOverviewCache] = useState(false);
     const [clearingAllCache, setClearingAllCache] = useState(false);
@@ -86,6 +87,7 @@ export function useCacheClearing({
         || clearingPlayersNearYouCache
         || clearingGamesListCache
         || clearingAwardsListCache
+        || clearingEventsCache
         || clearingWantToPlayCache
         || clearingGameOverviewCache
         || clearingAllCache
@@ -248,6 +250,18 @@ export function useCacheClearing({
             "Couldn't clear the awards list cache.",
             async () => {
                 await clearCacheGroup("awardsList");
+            }
+        );
+    }
+
+    async function onClearEventsCache() {
+        await runClearWithSpinner(
+            "options:clear-events-cache",
+            setClearingEventsCache,
+            "onClearEventsCache",
+            "Couldn't clear the events cache.",
+            async () => {
+                await clearCacheGroup("events");
             }
         );
     }
@@ -424,6 +438,7 @@ export function useCacheClearing({
         clearingPlayersNearYouCache,
         clearingGamesListCache,
         clearingAwardsListCache,
+        clearingEventsCache,
         clearingWantToPlayCache,
         clearingGameOverviewCache,
         clearingAllCache,
@@ -438,6 +453,7 @@ export function useCacheClearing({
         onClearPlayersNearYou,
         onClearGamesListCache,
         onClearAwardsListCache,
+        onClearEventsCache,
         onClearWantToPlayCache,
         onClearGameOverviewCache,
         onClearSetsCache,

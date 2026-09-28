@@ -30,6 +30,10 @@ class WalkYieldedForClear(Exception):
     pass
 
 
+class WalkBusy(Exception):
+    pass
+
+
 def load_json_file(path: Path, default: Any) -> Any:
     """Read a JSON file, returning ``default`` on any failure.
 

@@ -10,10 +10,14 @@ import type {
     AOSource,
     AotwSubView,
     BadgeFilter,
+    EventViewerSource,
+    EventViewerTab,
+    EventViewerTarget,
     FollowedRankingMetric,
     FriendGamePayload,
     FriendGameSelectionMode,
     FriendGameSource,
+    FriendProfileBackSource,
     FriendProfileSubView,
     FriendRow,
     GameOverviewSource,
@@ -68,6 +72,9 @@ type ResumeSnapshotArgs = {
     aotwSubView: AotwSubView;
     newSetsFilter: NewSetsFilter;
     trackedSetOpenId: string | null;
+    eventViewerTarget: EventViewerTarget | null;
+    eventViewerTab: EventViewerTab;
+    eventViewerSource: EventViewerSource;
 
     viewRef: RefObject<ViewKey>;
     payloadRef: RefObject<Payload | null>;
@@ -79,7 +86,7 @@ type ResumeSnapshotArgs = {
     friendGameSelectionModeRef: RefObject<FriendGameSelectionMode>;
     guidesSubViewRef: RefObject<GuidesSubView>;
     guidesOpenFaqIdRef: RefObject<string | null>;
-    friendProfileBackSourceRef: RefObject<"social" | "main">;
+    friendProfileBackSourceRef: RefObject<FriendProfileBackSource>;
     trackedSetsBackSourceRef: RefObject<"profile" | "main">;
     leaderboardsSourceViewRef: RefObject<"achievements" | "friendGame" | "gameOverview">;
     selectedLeaderboardRef: RefObject<LeaderboardRow | null>;
@@ -132,6 +139,9 @@ export function useResumeSnapshot(args: ResumeSnapshotArgs) {
         aotwSubView,
         newSetsFilter,
         trackedSetOpenId,
+        eventViewerTarget,
+        eventViewerTab,
+        eventViewerSource,
         viewRef,
         payloadRef,
         defaultPersistedFocusKeyForView,
@@ -177,6 +187,9 @@ export function useResumeSnapshot(args: ResumeSnapshotArgs) {
     const aoViewedUserRefRef = useLatestRef(aoViewedUserRef);
     const aoSnapshotRef = useLatestRef(aoSnapshot);
     const trackedSelectedGameIdRef = useLatestRef(trackedSelectedGameId);
+    const eventViewerTargetRef = useLatestRef(eventViewerTarget);
+    const eventViewerTabRef = useLatestRef(eventViewerTab);
+    const eventViewerSourceRef = useLatestRef(eventViewerSource);
 
 
     const buildResumeState = useCallback((): ResumeState => {
@@ -187,6 +200,12 @@ export function useResumeSnapshot(args: ResumeSnapshotArgs) {
             (currentView === "leaderboards" || currentView === "leaderboardDetail")
             && leaderboardsSourceViewRef.current === "gameOverview";
         const keepGameOverviewIdentity = onGameOverviewStack || onLeaderboardsFromGameOverview;
+        const keepEventViewer = currentView === "eventViewer"
+            || ((currentView === "gameOverview" || currentView === "achievementOverview")
+                && (gameOverviewSourceRef.current === "eventViewer" || aoSourceRef.current === "eventViewer"))
+            || friendProfileBackSourceRef.current === "eventViewer"
+            || (onLeaderboardsFromGameOverview && gameOverviewSourceRef.current === "eventViewer");
+        const heldEventTarget = keepEventViewer ? eventViewerTargetRef.current : null;
         return {
             view: currentView,
             navStack: navStackRef.current.map((route) => route.view),
@@ -271,9 +290,12 @@ export function useResumeSnapshot(args: ResumeSnapshotArgs) {
                     ? (trackedSetOpenIdRef.current ?? null)
                     : null,
             trackedSetsBackSource: trackedSetsBackSourceRef.current ?? null,
+            eventViewerTarget: heldEventTarget === null ? null : String(heldEventTarget),
+            eventViewerTab: keepEventViewer ? eventViewerTabRef.current : null,
+            eventViewerSource: keepEventViewer ? eventViewerSourceRef.current : null,
             savedAt: Date.now()
         };
-    }, [allGamesLetterRangeRef, allGamesStatusFilterRef, aoSourceRef, badgeFilterRef, compareFilterRef, compareFriendUsernameRef, defaultPersistedFocusKeyForView, followedRankingMetricRef, trackedSelectedGameIdRef, trackedSetOpenIdRef, trackedSetsBackSourceRef, unlockHistorySourceRef]);
+    }, [allGamesLetterRangeRef, allGamesStatusFilterRef, aoSourceRef, badgeFilterRef, compareFilterRef, compareFriendUsernameRef, defaultPersistedFocusKeyForView, eventViewerSourceRef, eventViewerTabRef, eventViewerTargetRef, followedRankingMetricRef, trackedSelectedGameIdRef, trackedSetOpenIdRef, trackedSetsBackSourceRef, unlockHistorySourceRef]);
 
     useEffect(() => {
         if (!settingsLoaded || settingsMode || !rememberLastPage) {
@@ -315,7 +337,10 @@ export function useResumeSnapshot(args: ResumeSnapshotArgs) {
         allGamesLetterRange,
         allGamesStatusFilter,
         followedRankingMetric,
-        trackedSetOpenId
+        trackedSetOpenId,
+        eventViewerTarget,
+        eventViewerTab,
+        eventViewerSource
     ]);
 
     return {

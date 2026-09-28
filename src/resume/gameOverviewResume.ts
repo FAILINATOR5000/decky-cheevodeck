@@ -33,7 +33,8 @@ export function getSavedGameOverviewSource(savedState: ResumeState): GameOvervie
         value === "trackedSet" ||
         value === "subscribedDiscussions" ||
         value === "search" ||
-        value === "cheevoCheck"
+        value === "cheevoCheck" ||
+        value === "eventViewer"
     ) {
         return value;
     }

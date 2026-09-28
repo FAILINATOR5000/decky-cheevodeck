@@ -53,6 +53,7 @@ SUMMON_ACTIONS = (
     "socialhub",
     "news",
     "aotw",
+    "events",
     "newsets",
     "subscribeddiscussions",
     "savedcomments",

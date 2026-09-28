@@ -11,6 +11,7 @@ import type {
     AOSource,
     FriendGameSelectionMode,
     FriendGameSource,
+    FriendProfileBackSource,
     FriendRow,
     GameOverviewSource,
     GameOverviewSubView,
@@ -44,7 +45,7 @@ type UseSocialIntentsArgs = {
     mountedRef: RefObject<boolean>;
     friendGameReturnGameIdRef: RefObject<number | null>;
     navIntentRef: RefObject<NavIntent | null>;
-    friendProfileBackSourceRef: RefObject<"social" | "main">;
+    friendProfileBackSourceRef: RefObject<FriendProfileBackSource>;
     setError: Dispatch<SetStateAction<string | null>>;
     resolveViewedUser: (viewedName?: string | null, viewedUlid?: string | null) => {
         isOwn: boolean;
@@ -93,7 +94,7 @@ export function useSocialIntents({
     goToGameOverview,
     stashPendingNotificationProfile
 }: UseSocialIntentsArgs) {
-    function beginProfileOpen(backSource: "main" | "social") {
+    function beginProfileOpen(backSource: FriendProfileBackSource) {
         clearCommentsRestoreForSurface("comments:wall");
         cancelPendingFriendPauseRefresh();
         resetFriendEntryRefreshTracking();
@@ -245,7 +246,7 @@ export function useSocialIntents({
         goToAchievementOverview(fallbackRow, item.gameId ?? null, "mainNowPlaying", viewedUsername, viewedUserRef);
     }
 
-    async function handleOpenUserProfile(username: string, ulid?: string | null) {
+    async function handleOpenUserProfile(username: string, ulid?: string | null, backSource: FriendProfileBackSource = "social") {
         const trimmed = String(username || "").trim();
         if (!trimmed) {
             return;
@@ -259,7 +260,7 @@ export function useSocialIntents({
             ulid: ulid ?? null
         };
 
-        beginProfileOpen("social");
+        beginProfileOpen(backSource);
         try {
             await loadFriendGame(friend, undefined, false, "friendgame:back");
         }

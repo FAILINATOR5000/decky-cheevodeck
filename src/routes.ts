@@ -25,6 +25,7 @@ export interface RouteBackActions {
     backFromUtils: BackAction;
     backFromUtilityTool: BackAction;
     backFromMemories: BackAction;
+    backFromEventViewer: BackAction;
 }
 
 export interface RouteRow {
@@ -61,7 +62,8 @@ export const ROUTES: Record<ViewKey, RouteRow> = {
     fileWatcher: { focusKey: "fileWatcher:back", mount: "always", back: (nav) => nav.backFromUtilityTool() },
     memoriesTransfer: { focusKey: "memoriesTransfer:back", mount: "always", back: (nav) => nav.backFromUtilityTool() },
     memories: { focusKey: "memories:back", mount: "always", back: (nav) => nav.backFromMemories() },
-    guides: { focusKey: "guides:back", mount: "always" }
+    guides: { focusKey: "guides:back", mount: "always" },
+    eventViewer: { focusKey: "eventviewer:back", mount: "whenActive", back: (nav) => nav.backFromEventViewer() }
 };
 
 export const ALL_VIEW_KEYS = Object.keys(ROUTES) as ViewKey[];

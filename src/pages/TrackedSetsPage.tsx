@@ -8,13 +8,11 @@ import {
     saveTrackedSetsSelectorFilter,
     saveTrackedSetsSelectorSort
 } from "../api";
-import { useGameIcon } from "../hooks/useGameIcon";
 import { useFocusClaim } from "../hooks/useFocusClaim";
 import { useWindowedList } from "../hooks/useWindowedList";
 import { AddGameToSetModal } from "../components/pickers/AddGameToSetModal";
 import { ButtonHints } from "../components/ui/ButtonHints";
 import { ErrorText } from "../components/ui/ErrorText";
-import { FadeImage } from "../components/ui/FadeImage";
 import { BackButton } from "../components/ui/BackButton";
 import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
 import { FocusableItem } from "../components/ui/FocusableItem";
@@ -26,6 +24,8 @@ import { RestoreCurtain } from "../components/ui/RestoreCurtain";
 import { SetGameNoteEditModal } from "../components/notes/SetGameNoteEditModal";
 import { SetMosaicBanner, type SetMosaicEntry } from "../components/mastery/SetMosaicBanner";
 import { SystemHeader } from "../components/mastery/SystemHeader";
+import { SetGameCard, type SetGameCardListProps } from "../components/mastery/SetGameCard";
+import { groupGamesByConsole, orderFieldForView, orderGamesByField, type ConsoleGroup } from "../components/mastery/setGameGrouping";
 import type {
     AddTrackedSetGamePayload,
     AddTrackedSetGameResponse,
@@ -35,7 +35,6 @@ import type {
     ReorderDirection,
     TrackedSet,
     TrackedSetAButtonMode,
-    TrackedSetAward,
     TrackedSetConsole,
     TrackedSetFilter,
     TrackedSetGame,
@@ -53,21 +52,14 @@ import {
     nextTrackedSetGameSort,
     nextTrackedSetSelectorSort,
     nextTrackedSetViewMode,
-    noteBodyColor,
     trackedSetAButtonModeLabel,
     trackedSetFilterLabel,
     trackedSetGameSortLabel,
     trackedSetSelectorSortLabel,
     trackedSetViewModeLabel
 } from "../utils/achievements";
-import { compareConsolesByName, compareConsolesByYear } from "../utils/consoles";
-import {
-    BUTTON_BUMPER_RIGHT,
-    BUTTON_OPTIONS
-} from "../utils/gamepadButtons";
 import { showManagedModal } from "../utils/modalRegistry";
-import { playOkSound } from "../utils/navSound";
-import { achievementUiMetrics, type AchievementUiMetrics, regularButtonSpacingStyle, smallTextStyle, bodyTextStyle, achievementGreen, FADE_IN_KEYFRAMES } from "../utils/style";
+import { achievementUiMetrics, regularButtonSpacingStyle, bodyTextStyle, FADE_IN_KEYFRAMES } from "../utils/style";
 import { modalSize } from "../utils/scale";
 import { armTrackedSetFocusReturn, type TrackedSetFocusReturn } from "../utils/trackedSetFocusReturn";
 import { SaveOnStart } from "../components/ui/SaveOnStart";
@@ -77,22 +69,6 @@ import { SnapshotHotkey } from "../components/ui/SnapshotHotkey";
 type DeleteFocusPlan =
     | { kind: "claim"; slotIndex: number }
     | { kind: "back" };
-
-// Font Awesome Free icon path, CC BY 4.0. See ATTRIBUTIONS.md.
-function TrashIcon({ size = 16 }: { size?: number }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 448 512"
-            width={size}
-            height={size}
-            fill="currentColor"
-        >
-            <path d="M170.5 51.6L151.5 80l145 0-19-28.4c-1.5-2.2-4-3.6-6.7-3.6l-93.7 0c-2.7 0-5.2 1.3-6.7 3.6zm147-26.6L354.2 80 368 80l48 0 8 0c13.3 0 24 10.7 24 24s-10.7 24-24 24l-8 0 0 304c0 44.2-35.8 80-80 80l-224 0c-44.2 0-80-35.8-80-80l0-304-8 0c-13.3 0-24-10.7-24-24s10.7-24 24-24l8 0 48 0 13.8 0 36.7-55c10.4-15.6 27.9-25 46.7-25l93.7 0c18.7 0 36.2 9.4 46.7 25zM80 128l0 304c0 17.7 14.3 32 32 32l224 0c17.7 0 32-14.3 32-32l0-304L80 128zm80 64l0 208c0 8.8-7.2 16-16 16s-16-7.2-16-16l0-208c0-8.8 7.2-16 16-16s16 7.2 16 16zm80 0l0 208c0 8.8-7.2 16-16 16s-16-7.2-16-16l0-208c0-8.8 7.2-16 16-16s16 7.2 16 16zm80 0l0 208c0 8.8-7.2 16-16 16s-16-7.2-16-16l0-208c0-8.8 7.2-16 16-16s16 7.2 16 16z" />
-        </svg>
-    );
-}
-
 
 type TrackedSetsPageProps = {
     view: ViewKey;
@@ -181,62 +157,6 @@ function weightedPercent(set: TrackedSet): number | null {
 function isSetCompleted(set: TrackedSet): boolean {
     const { awarded, possible, anyChecked } = sumSetProgress(set);
     return anyChecked && possible > 0 && awarded >= possible;
-}
-
-function orderFieldForView(view: TrackedSetViewMode): "manualOrder" | "systemOrder" | "systemYearOrder" | "retroOrder" | "retroAlphaOrder" {
-    if (view === "system") {
-        return "systemOrder";
-    }
-    if (view === "systemYear") {
-        return "systemYearOrder";
-    }
-    if (view === "retroHistory") {
-        return "retroOrder";
-    }
-    if (view === "retroHistoryAlpha") {
-        return "retroAlphaOrder";
-    }
-    return "manualOrder";
-}
-
-function orderGamesByField(
-    games: TrackedSetGame[],
-    gameSort: TrackedSetGameSort,
-    field: "manualOrder" | "systemOrder" | "systemYearOrder" | "retroOrder" | "retroAlphaOrder"
-): TrackedSetGame[] {
-    const ordered = [...games];
-    if (gameSort === "recent") {
-        ordered.sort((a, b) => b[field] - a[field]);
-    } else {
-        ordered.sort((a, b) => a[field] - b[field]);
-    }
-    return ordered;
-}
-
-type ConsoleGroup = { consoleName: string; games: TrackedSetGame[] };
-
-function groupGamesByConsole(
-    games: TrackedSetGame[],
-    view: TrackedSetViewMode,
-    gameSort: TrackedSetGameSort
-): ConsoleGroup[] {
-    const buckets = new Map<string, TrackedSetGame[]>();
-    for (const game of games) {
-        const key = game.consoleName || "";
-        const bucket = buckets.get(key);
-        if (bucket) {
-            bucket.push(game);
-        } else {
-            buckets.set(key, [game]);
-        }
-    }
-    const compare = (view === "systemYear" || view === "retroHistory") ? compareConsolesByYear : compareConsolesByName;
-    const names = [...buckets.keys()].sort(compare);
-    const field = orderFieldForView(view);
-    return names.map((name) => ({
-        consoleName: name,
-        games: orderGamesByField(buckets.get(name) || [], gameSort, field)
-    }));
 }
 
 function gamesInSameGroup(set: TrackedSet, gameId: number): TrackedSetGame[] {
@@ -1615,7 +1535,7 @@ function OpenSetView(props: OpenSetViewProps) {
     const growFocusRef = useRef(growFromCardFocus);
     growFocusRef.current = growFromCardFocus;
 
-    const cardList = useMemo<GameCardListProps>(() => ({
+    const cardList = useMemo<SetGameCardListProps>(() => ({
         aButtonMode: effectiveAButtonMode,
         reorderMode,
         language,
@@ -1664,7 +1584,7 @@ function OpenSetView(props: OpenSetViewProps) {
 
     function renderCard(game: TrackedSetGame, slotIndex: number) {
         const card = (
-            <GameCard
+            <SetGameCard
                 game={game}
                 done={isGameDone(game)}
                 slotIndex={slotIndex}
@@ -1856,302 +1776,6 @@ function OpenSetView(props: OpenSetViewProps) {
         </>
     );
 }
-
-
-type GameCardListProps = {
-    aButtonMode: TrackedSetAButtonMode;
-    reorderMode: boolean;
-    language: LanguageCode;
-    showIcons: boolean;
-    metrics: AchievementUiMetrics;
-    buttonOuterStyle: React.CSSProperties;
-    onPickOrSwap: (gameId: number) => void;
-    onEditNote: (game: TrackedSetGame) => void;
-    onOpenGameOverview: (gameId: number) => void;
-    onTrashPress: (gameId: number) => void;
-    onTrashBlur: (gameId: number) => void;
-    onCardFocus: (slotIndex: number, gameId: number) => void;
-    onCardNote?: (game: TrackedSetGame) => void;
-    onCardReorderPick?: (gameId: number) => void;
-};
-
-type GameCardProps = {
-    game: TrackedSetGame;
-    done: boolean;
-    slotIndex: number;
-    isReorderTarget: boolean;
-    trashArmed: boolean;
-    claimToken: number;
-    list: GameCardListProps;
-};
-
-const GameCard = React.memo(function GameCard(props: GameCardProps) {
-    const { game, done, slotIndex, isReorderTarget, trashArmed, claimToken, list } = props;
-    const { aButtonMode, reorderMode, language, showIcons, metrics, buttonOuterStyle } = list;
-
-    const { iconDataUri, cold } = useGameIcon(game.gameId, game.imageIcon ?? null, "getGameIconCached (tracked set card)");
-
-    const fallbackLetter = game.title.trim().charAt(0).toUpperCase() || "?";
-    const noteColor = noteBodyColor(game.color);
-
-    function handleCardClick() {
-        if (reorderMode) {
-            list.onPickOrSwap(game.gameId);
-            return;
-        }
-        if (aButtonMode === "info") {
-            list.onOpenGameOverview(game.gameId);
-            return;
-        }
-        list.onEditNote(game);
-    }
-
-    function handleButtonDown(evt: { detail?: { button?: number } }) {
-        const button = evt?.detail?.button;
-
-        if (button === BUTTON_OPTIONS && list.onCardNote) {
-            playOkSound();
-            list.onCardNote(game);
-            return;
-        }
-
-        if (button === BUTTON_BUMPER_RIGHT && list.onCardReorderPick) {
-            playOkSound();
-            list.onCardReorderPick(game.gameId);
-            return;
-        }
-
-    }
-
-    const progressText = game.numAwarded !== null && game.maxPossible !== null
-        ? t(language, "{{awarded}} / {{total}}", { awarded: game.numAwarded, total: game.maxPossible })
-        : null;
-
-    function awardLabel(award: TrackedSetAward | null): string {
-        if (award === "mastered") {
-            return t(language, "Mastered");
-        }
-        if (award === "completed") {
-            return t(language, "Completed");
-        }
-        if (award === "beaten-hardcore") {
-            return t(language, "Beaten Hardcore");
-        }
-        if (award === "beaten-softcore") {
-            return t(language, "Beaten Softcore");
-        }
-        return t(language, "Unfinished");
-    }
-
-    const progressLine = progressText !== null
-        ? `${progressText} · ${awardLabel(game.highestAward)}`
-        : null;
-
-    function handleTrashPress() {
-        list.onTrashPress(game.gameId);
-    }
-
-    const [trashFocused, setTrashFocused] = useState(false);
-
-    function handleTrashFocus() {
-        setTrashFocused(true);
-    }
-
-    function handleTrashBlur() {
-        setTrashFocused(false);
-        list.onTrashBlur(game.gameId);
-    }
-
-    const card = (
-        <Focusable
-            flow-children="row"
-            style={{ position: "relative", display: "flex", alignItems: "stretch", width: "100%" }}
-        >
-            <FocusableItem
-                outerStyle={{
-                    ...buttonOuterStyle,
-                    width: "100%",
-                    minWidth: 0,
-                    outline: isReorderTarget ? `2px solid ${achievementGreen}` : undefined,
-                    borderRadius: isReorderTarget ? "6px" : undefined
-                }}
-                focusKey={`trackedsetgame:${game.gameId}`}
-                onClick={handleCardClick}
-                onGamepadFocus={() => list.onCardFocus(slotIndex, game.gameId)}
-                onButtonDown={handleButtonDown}
-            >
-                <div
-                    style={{
-                        width: "100%",
-                        display: "flex",
-                        gap: `${Math.max(8, metrics.iconGap - 2)}px`,
-                        alignItems: "flex-start",
-                        minWidth: 0,
-                        opacity: done ? 0.55 : 1
-                    }}
-                >
-                    {showIcons && (
-                        <div
-                            style={{
-                                width: `${metrics.iconSize}px`,
-                                height: `${metrics.iconSize}px`,
-                                borderRadius: "7px",
-                                overflow: "hidden",
-                                flexShrink: 0,
-                                background: "rgba(255,255,255,0.10)",
-                                border: "1px solid rgba(255,255,255,0.12)",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontSize: `${Math.max(16, metrics.iconSize * 0.42)}px`,
-                                fontWeight: 800
-                            }}
-                        >
-                            {iconDataUri ? (
-                                <FadeImage
-                                    src={iconDataUri}
-                                    fadeOnLoad={cold}
-                                    decoding="async"
-                                    style={{
-                                        width: "100%",
-                                        height: "100%",
-                                        objectFit: "cover",
-                                        display: "block"
-                                    }}
-                                />
-                            ) : (
-                                fallbackLetter
-                            )}
-                        </div>
-                    )}
-                    <div
-                        style={{
-                            flex: 1,
-                            minWidth: 0,
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: `${Math.max(2, metrics.contentGap - 1)}px`,
-                            textAlign: "left",
-                            paddingRight: "24px"
-                        }}
-                    >
-                        <div
-                            style={{
-                                fontSize: `${metrics.titleFontSize}px`,
-                                lineHeight: metrics.titleLineHeight,
-                                fontWeight: 700,
-                                minWidth: 0,
-                                wordBreak: "break-word",
-                                textDecoration: done ? "line-through" : undefined
-                            }}
-                        >
-                            {game.title}
-                        </div>
-                        {game.note.trim() && (
-                            <div
-                                style={{
-                                    fontSize: `${metrics.bodyFontSize}px`,
-                                    lineHeight: metrics.bodyLineHeight,
-                                    minWidth: 0,
-                                    wordBreak: "break-word",
-                                    color: noteColor
-                                }}
-                            >
-                                {game.note}
-                            </div>
-                        )}
-                        <div
-                            style={{
-                                ...smallTextStyle(),
-                                fontSize: `${metrics.bodyFontSize}px`,
-                                lineHeight: metrics.bodyLineHeight,
-                                opacity: 1,
-                                minWidth: 0,
-                                wordBreak: "break-word"
-                            }}
-                        >
-                            {game.consoleName || ""}
-                        </div>
-                        {progressLine && (
-                            <div
-                                style={{
-                                    ...smallTextStyle(),
-                                    fontSize: `${metrics.pointsFontSize}px`,
-                                    lineHeight: metrics.pointsLineHeight,
-                                    opacity: 1,
-                                    minWidth: 0
-                                }}
-                            >
-                                {progressLine}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </FocusableItem>
-
-            <div
-                data-focus-key={`trackedsetgame:trash:${game.gameId}`}
-                style={{
-                    position: "absolute",
-                    top: "17px",
-                    right: "8px",
-                    zIndex: 2,
-                    width: "32px",
-                    height: "32px",
-                    display: "flex"
-                }}
-            >
-                <DialogButton
-                    onClick={handleTrashPress}
-                    onGamepadFocus={handleTrashFocus}
-                    onGamepadBlur={handleTrashBlur}
-                    style={{
-                        minWidth: 0,
-                        width: "32px",
-                        height: "32px",
-                        padding: 0,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: trashArmed
-                            ? "rgba(255,255,255,0.98)"
-                            : trashFocused
-                                ? "rgba(24,24,24,0.98)"
-                                : "rgba(255,255,255,0.92)",
-                        background: trashArmed
-                            ? "rgba(220,38,38,0.92)"
-                            : trashFocused
-                                ? "rgba(255,255,255,0.96)"
-                                : "rgba(24,24,24,0.78)",
-                        border: trashArmed
-                            ? "1px solid rgba(255,255,255,0.9)"
-                            : trashFocused
-                                ? "1px solid rgba(255,255,255,1)"
-                                : "1px solid rgba(255,255,255,0.36)",
-                        boxShadow: trashFocused
-                            ? "0 0 0 2px rgba(255,255,255,0.78), 0 2px 8px rgba(0,0,0,0.45)"
-                            : trashArmed
-                                ? "0 0 0 2px rgba(220,38,38,0.65), 0 2px 8px rgba(0,0,0,0.45)"
-                                : "0 2px 6px rgba(0,0,0,0.35)",
-                        transition: "background 120ms ease, box-shadow 120ms ease, color 120ms ease"
-                    }}
-                >
-                    <TrashIcon size={15} />
-                </DialogButton>
-            </div>
-        </Focusable>
-    );
-
-    if (claimToken <= 0) {
-        return card;
-    }
-
-    return (
-        <Focusable key={`claim:${claimToken}`} autoFocus>
-            {card}
-        </Focusable>
-    );
-});
 
 
 type NameSetModalProps = {

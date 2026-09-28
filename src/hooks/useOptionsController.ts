@@ -87,6 +87,7 @@ import {
     saveColoredGlyphs,
     saveShowAButtonMode,
     saveShowAButtonModeTracked,
+    saveShowAButtonModeEvents,
     saveFriendRefreshDelayMs,
     saveLanguage,
     saveRememberLastPage,
@@ -331,6 +332,7 @@ type UseOptionsControllerArgs = {
     clearingPlayersNearYouCache: boolean;
     clearingGamesListCache: boolean;
     clearingAwardsListCache: boolean;
+    clearingEventsCache: boolean;
     clearingWantToPlayCache: boolean;
     clearingGameOverviewCache: boolean;
     clearingAllCache: boolean;
@@ -487,6 +489,7 @@ type UseOptionsControllerArgs = {
     coloredGlyphs: boolean;
     showAButtonMode: boolean;
     showAButtonModeTracked: boolean;
+    showAButtonModeEvents: boolean;
     showSocialHubButton: boolean;
     showTrackedSetsButton: boolean;
     putUpdaterOnDesktop: boolean;
@@ -562,6 +565,7 @@ type UseOptionsControllerArgs = {
     setColoredGlyphs: Dispatch<SetStateAction<boolean>>;
     setShowAButtonMode: Dispatch<SetStateAction<boolean>>;
     setShowAButtonModeTracked: Dispatch<SetStateAction<boolean>>;
+    setShowAButtonModeEvents: Dispatch<SetStateAction<boolean>>;
     setShowSocialHubButton: Dispatch<SetStateAction<boolean>>;
     setShowTrackedSetsButton: Dispatch<SetStateAction<boolean>>;
     setPutUpdaterOnDesktop: Dispatch<SetStateAction<boolean>>;
@@ -725,6 +729,7 @@ type UseOptionsControllerArgs = {
     onClearPlayersNearYou: () => void | Promise<void>;
     onClearGamesListCache: () => void | Promise<void>;
     onClearAwardsListCache: () => void | Promise<void>;
+    onClearEventsCache: () => void | Promise<void>;
     onClearWantToPlayCache: () => void | Promise<void>;
     onClearGameOverviewCache: () => void | Promise<void>;
     onClearAllCache: () => void | Promise<void>;
@@ -773,6 +778,7 @@ export function useOptionsController({
     clearingPlayersNearYouCache,
     clearingGamesListCache,
     clearingAwardsListCache,
+    clearingEventsCache,
     clearingWantToPlayCache,
     clearingGameOverviewCache,
     clearingAllCache,
@@ -929,6 +935,7 @@ export function useOptionsController({
     coloredGlyphs,
     showAButtonMode,
     showAButtonModeTracked,
+    showAButtonModeEvents,
     showSocialHubButton,
     showTrackedSetsButton,
     putUpdaterOnDesktop,
@@ -1004,6 +1011,7 @@ export function useOptionsController({
     setColoredGlyphs,
     setShowAButtonMode,
     setShowAButtonModeTracked,
+    setShowAButtonModeEvents,
     setShowSocialHubButton,
     setShowTrackedSetsButton,
     setPutUpdaterOnDesktop,
@@ -1167,6 +1175,7 @@ export function useOptionsController({
     onClearPlayersNearYou,
     onClearGamesListCache,
     onClearAwardsListCache,
+    onClearEventsCache,
     onClearWantToPlayCache,
     onClearGameOverviewCache,
     onClearAllCache,
@@ -1258,6 +1267,7 @@ export function useOptionsController({
         setCurrentColoredGlyphs(Boolean(result.coloredGlyphs ?? true));
         setShowAButtonMode(Boolean(result.showAButtonMode ?? true));
         setShowAButtonModeTracked(Boolean(result.showAButtonModeTracked ?? true));
+        setShowAButtonModeEvents(Boolean(result.showAButtonModeEvents ?? true));
         setShowSocialHubButton(Boolean(result.showSocialHubButton ?? true));
         setShowTrackedSetsButton(Boolean(result.showTrackedSetsButton ?? true));
         setPutUpdaterOnDesktop(Boolean(result.putUpdaterOnDesktop ?? true));
@@ -1833,6 +1843,15 @@ export function useOptionsController({
             applyValue: setShowAButtonModeTracked,
             saveCall: saveShowAButtonModeTracked,
             getSavedValue: (result, fallbackValue) => Boolean(result.showAButtonModeTracked ?? fallbackValue),
+        });
+
+    const onToggleShowAButtonModeEvents = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: showAButtonModeEvents,
+            applyValue: setShowAButtonModeEvents,
+            saveCall: saveShowAButtonModeEvents,
+            getSavedValue: (result, fallbackValue) => Boolean(result.showAButtonModeEvents ?? fallbackValue),
         });
 
     // Tracked sets
@@ -3480,6 +3499,7 @@ export function useOptionsController({
         clearingPlayersNearYouCache,
         clearingGamesListCache,
         clearingAwardsListCache,
+        clearingEventsCache,
         clearingWantToPlayCache,
         clearingGameOverviewCache,
         clearingAllCache,
@@ -3638,6 +3658,7 @@ export function useOptionsController({
         coloredGlyphs,
         showAButtonMode,
         showAButtonModeTracked,
+        showAButtonModeEvents,
         showSocialHubButton,
         showTrackedSetsButton,
         showOptionsButton,
@@ -3689,6 +3710,7 @@ export function useOptionsController({
         onClearPlayersNearYou,
         onClearGamesListCache,
         onClearAwardsListCache,
+        onClearEventsCache,
         onClearWantToPlayCache,
         onClearGameOverviewCache,
         onClearAllCache,
@@ -3883,6 +3905,7 @@ export function useOptionsController({
         onToggleColoredGlyphs,
         onToggleShowAButtonMode,
         onToggleShowAButtonModeTracked,
+        onToggleShowAButtonModeEvents,
         onToggleShowSocialHubButton,
         onToggleShowTrackedSetsButton,
         onTogglePutUpdaterOnDesktop,

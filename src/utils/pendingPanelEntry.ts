@@ -5,6 +5,7 @@ export type PanelEntry =
     | { kind: "memories" }
     | { kind: "dolphinMapper" }
     | { kind: "socialTab"; tab: SocialView | null; newsSub?: NewsEventsSubView }
+    | { kind: "aotw" }
     | { kind: "trackedSets" }
     | { kind: "gameNotes"; gameId: number }
     | { kind: "achievement"; gameId: number; achievementId: number; viewedUsername: string | null; viewedUserRef: string | null }

@@ -83,6 +83,7 @@ import { GameNotesPage } from "./GameNotesPage";
 import { GuidesPage } from "./GuidesPage";
 import { GuidesReaderModal } from "../components/guides/GuidesReaderModal";
 import GameOverviewPage from "./GameOverviewPage";
+import EventViewerPage from "./EventViewerPage";
 import AchievementOverviewPage from "./AchievementOverviewPage";
 import SetupPage from "./SetupPage";
 import UtilsPage from "./UtilsPage";
@@ -150,6 +151,9 @@ import { useLatestRef } from "../hooks/useLatestRef";
 import { getSavedMainAchievementsTab } from "../resume/achievementsResume";
 import { getSavedGuidesSubView } from "../resume/guidesResume";
 import { computeBootView, getSavedNavStack } from "../resume/bootView";
+import { getSavedEventViewerSource, getSavedEventViewerTab, getSavedEventViewerTarget } from "../resume/eventViewerResume";
+import { clearEventsFocusReturn } from "../utils/eventsFocusReturn";
+import { clearEventViewerRowReturn } from "../utils/eventViewerFocusReturn";
 import { PanelProviders } from "../components/panel/PanelProviders";
 import { openCalculatorModal } from "../components/calculator/CalculatorModal";
 import { openLastMemory } from "../components/memories/openLastMemory";
@@ -183,6 +187,10 @@ import type {
     SavedCommentsFilter,
     SavedCommentsPrefs,
     GameOverviewSource,
+    EventViewerSource,
+    EventViewerTab,
+    EventViewerTarget,
+    FriendProfileBackSource,
     GameOverviewSubView,
     FriendGamePayload,
     MainAchievementsTab,
@@ -357,6 +365,14 @@ function panelEntryOverlay(entry: PanelEntry): Partial<ResumeState> & Pick<Resum
                 return { view: "social", newsEventsSubView: entry.newsSub, focusKey: "social:back" };
             }
             return { view: "social", focusKey: "social:back" };
+        case "aotw":
+            return {
+                view: "eventViewer",
+                eventViewerTarget: "aotw",
+                eventViewerSource: "main",
+                eventViewerTab: "achievements",
+                focusKey: "eventviewer:back"
+            };
         case "trackedSets":
             return { view: "trackedSets", trackedSetOpenId: null, trackedSetsBackSource: "main", focusKey: "trackedsets:back" };
         case "trackedSet":
@@ -461,6 +477,9 @@ function AchievementsRoot() {
     const [mainTab, setMainTab] = useState<MainAchievementsTab>("achievements");
     const [gameOverviewSource, setGameOverviewSource] = useState<GameOverviewSource>("main");
     const [gameOverviewGameId, setGameOverviewGameId] = useState<number | null>(null);
+    const [eventViewerTarget, setEventViewerTarget] = useState<EventViewerTarget | null>(null);
+    const [eventViewerTab, setEventViewerTab] = useState<EventViewerTab>("achievements");
+    const [eventViewerSource, setEventViewerSource] = useState<EventViewerSource>("events");
     const [gameNotesGameId, setGameNotesGameId] = useState<number | null>(null);
     const [gameOverviewViewedUsername, setGameOverviewViewedUsername] = useState<string | null>(null);
     const [gameOverviewViewedUserRef, setGameOverviewViewedUserRef] = useState<string | null>(null);
@@ -696,7 +715,7 @@ function AchievementsRoot() {
     const payloadRef = useRef<Payload | null>(null);
     const friendGameReturnGameIdRef = useRef<number | null>(null);
     const friendEntrySourceRef = useRef<"profile" | "compareGame">("profile");
-    const friendProfileBackSourceRef = useRef<"social" | "main">("social");
+    const friendProfileBackSourceRef = useRef<FriendProfileBackSource>("social");
     const trackedSetsBackSourceRef = useRef<"profile" | "main">("profile");
     const goToAchievementOverviewRef = useRef<typeof goToAchievementOverview | null>(null);
     const metrics = achievementUiMetrics(uiSize);
@@ -1039,7 +1058,8 @@ function AchievementsRoot() {
 
     // News and AotW
     const newsEventsController = useNewsEventsController({
-        isActive: view === "social" && socialView === "newsEvents"
+        isActive: view === "social" && socialView === "newsEvents",
+        aotwActive: view === "eventViewer" && eventViewerTarget === "aotw"
     });
     const { state: newsEventsState, actions: newsEventsActions } = newsEventsController;
     const {
@@ -1062,10 +1082,8 @@ function AchievementsRoot() {
     } = newsEventsController;
 
     const aotwThreadId = aotwResponse?.payload?.achievement?.id ?? null;
-    const aotwCommentsOpen = view === "social"
-        && socialView === "newsEvents"
-        && newsEventsSubView === "aotw"
-        && aotwSubView === "comments";
+    const aotwViewerOpen = view === "eventViewer" && eventViewerTarget === "aotw";
+    const aotwCommentsOpen = aotwViewerOpen && aotwSubView === "comments";
 
     const aotwCommentsController = useGameCommentsController({
         isActive: aotwCommentsOpen,
@@ -1105,18 +1123,18 @@ function AchievementsRoot() {
     if (aotwThreadId != null && hasCommentsPostReturnFor("comments:aotw", aotwThreadId)) {
         aotwRestoreArmedRef.current = true;
     }
-    if (aotwWasOpenRef.current && view !== "social") {
+    if (aotwWasOpenRef.current && !aotwViewerOpen) {
         aotwRestoreArmedRef.current = false;
         aotwSnapshotArmedRef.current = false;
     }
-    aotwWasOpenRef.current = view === "social";
+    aotwWasOpenRef.current = aotwViewerOpen;
     const aotwRestorePending = aotwRestoreArmedRef.current;
 
     const aotwRestoreLandedRef = useRef(false);
     if (aotwCommentsLoaded) {
         aotwRestoreLandedRef.current = true;
     }
-    if (view !== "social") {
+    if (!aotwViewerOpen) {
         aotwRestoreLandedRef.current = false;
     }
     const aotwHoldCommentsBody = aotwSnapshotArmedRef.current && !aotwRestoreLandedRef.current;
@@ -1825,6 +1843,9 @@ function AchievementsRoot() {
         aotwSubView,
         newSetsFilter,
         trackedSetOpenId,
+        eventViewerTarget,
+        eventViewerTab,
+        eventViewerSource,
         navStack: nav.stack,
         unlockHistorySource,
         badgeFilter,
@@ -1933,7 +1954,10 @@ function AchievementsRoot() {
         setAllGamesLetterRange,
         setAllGamesStatusFilter,
         setFollowedRankingMetric,
-        setTrackedSetOpenId
+        setTrackedSetOpenId,
+        setEventViewerTarget,
+        setEventViewerTab,
+        setEventViewerSource
     });
     const {
         actions: {
@@ -2020,6 +2044,7 @@ function AchievementsRoot() {
         clearingPlayersNearYouCache,
         clearingGamesListCache,
         clearingAwardsListCache,
+        clearingEventsCache,
         clearingWantToPlayCache,
         clearingGameOverviewCache,
         clearingAllCache,
@@ -2034,6 +2059,7 @@ function AchievementsRoot() {
         onClearPlayersNearYou,
         onClearGamesListCache,
         onClearAwardsListCache,
+        onClearEventsCache,
         onClearWantToPlayCache,
         onClearGameOverviewCache,
         onClearSetsCache,
@@ -2178,6 +2204,7 @@ function AchievementsRoot() {
         clearingPlayersNearYouCache,
         clearingGamesListCache,
         clearingAwardsListCache,
+        clearingEventsCache,
         clearingWantToPlayCache,
         clearingGameOverviewCache,
         clearingAllCache,
@@ -2229,6 +2256,7 @@ function AchievementsRoot() {
         onClearPlayersNearYou,
         onClearGamesListCache,
         onClearAwardsListCache,
+        onClearEventsCache,
         onClearWantToPlayCache,
         onClearGameOverviewCache,
         onClearAllCache,
@@ -2979,6 +3007,16 @@ function AchievementsRoot() {
         ) {
             setTrackedSetOpenId(nextResumeState?.trackedSetOpenId ?? null);
         }
+        if (
+            nextResumeState !== null
+            && (bootView === "eventViewer"
+                || ((bootView === "gameOverview" || bootView === "achievementOverview")
+                    && (nextResumeState.gameOverviewSource === "eventViewer" || nextResumeState.aoSource === "eventViewer")))
+        ) {
+            setEventViewerTarget(getSavedEventViewerTarget(nextResumeState));
+            setEventViewerTab(getSavedEventViewerTab(nextResumeState));
+            setEventViewerSource(getSavedEventViewerSource(nextResumeState));
+        }
         if (bootView === "gameNotes") {
             setGameNotesGameId(nextResumeState?.gameNotesGameId ?? null);
         }
@@ -3296,6 +3334,8 @@ function AchievementsRoot() {
 
     function goToAchievements(focusKey = "action:friends") {
         navIntentRef.current = "root";
+        clearEventsFocusReturn();
+        clearEventViewerRowReturn();
         friendRowRefreshRunIdRef.current += 1;
         friendGameSessionRefreshKeysRef.current = new Set();
 
@@ -3494,7 +3534,7 @@ function AchievementsRoot() {
     function backFromFriendProfile() {
         navIntentRef.current = "back";
         const trailSays = previousView(nav.stack);
-        const trailWouldSay = trailSays === "achievements" ? "main" : "social";
+        const trailWouldSay = trailSays === "achievements" ? "main" : trailSays === "eventViewer" ? "eventViewer" : "social";
         logNavDebug(
             trailWouldSay === friendProfileBackSourceRef.current ? "backsource-agree" : "backsource-DISAGREE",
             "friendGame",
@@ -3503,6 +3543,11 @@ function AchievementsRoot() {
         if (friendProfileBackSourceRef.current === "main") {
             friendProfileBackSourceRef.current = "social";
             goToAchievements("action:profilestrip");
+            return;
+        }
+        if (friendProfileBackSourceRef.current === "eventViewer") {
+            friendProfileBackSourceRef.current = "social";
+            returnToEventViewer();
             return;
         }
         routeBackToSocialTab(null, "social:back");
@@ -3883,11 +3928,39 @@ function AchievementsRoot() {
         routeBackToSocialTab("newsEvents", "social:back");
     }
     function goToSocialAotw() {
-        setNewsEventsSubView("aotw");
-        routeBackToSocialTab("newsEvents", "social:back");
+        goToEventViewer("aotw", "main");
     }
     function goToSocialNewSets() {
         setNewsEventsSubView("newSets");
+        routeBackToSocialTab("newsEvents", "social:back");
+    }
+    function goToSocialEvents() {
+        setNewsEventsSubView("events");
+        routeBackToSocialTab("newsEvents", "social:back");
+    }
+    function goToEventViewer(target: EventViewerTarget, source: EventViewerSource) {
+        setEventViewerTarget(target);
+        setEventViewerTab("achievements");
+        setEventViewerSource(source);
+        setView("eventViewer");
+        setPendingFocusKey("eventviewer:back");
+    }
+    function returnToEventViewer() {
+        if (eventViewerTarget === null) {
+            setNewsEventsSubView("events");
+            routeBackToSocialTab("newsEvents", "social:back");
+            return;
+        }
+        setView("eventViewer");
+        setPendingFocusKey("eventviewer:back");
+    }
+    function backFromEventViewer() {
+        navIntentRef.current = "back";
+        if (eventViewerSource === "main") {
+            goToAchievements();
+            return;
+        }
+        setNewsEventsSubView("events");
         routeBackToSocialTab("newsEvents", "social:back");
     }
     function goToSocialSubscribed() {
@@ -3972,6 +4045,10 @@ function AchievementsRoot() {
             setPendingFocusKey("friendgame:back");
             return;
         }
+        if (source === "eventViewer") {
+            returnToEventViewer();
+            return;
+        }
         if (source === "newsEvents") {
             routeBackToSocialTab("newsEvents", "social:tab:newsEvents");
             return;
@@ -4034,6 +4111,10 @@ function AchievementsRoot() {
         }
         if (source === "socialActivity") {
             routeBackToSocialTab(null, "social:back");
+            return;
+        }
+        if (source === "eventViewer") {
+            returnToEventViewer();
             return;
         }
         if (source === "newsEvents") {
@@ -4425,7 +4506,8 @@ function AchievementsRoot() {
             closeTrackedSetToSelector,
             backFromUtils,
             backFromUtilityTool,
-            backFromMemories
+            backFromMemories,
+            backFromEventViewer
         };
         return () => {
             playOkSound();
@@ -4540,6 +4622,10 @@ function AchievementsRoot() {
         }
         if (action === "aotw") {
             goToSocialAotw();
+            return;
+        }
+        if (action === "events") {
+            goToSocialEvents();
             return;
         }
         if (action === "newsets") {
@@ -4747,7 +4833,7 @@ function AchievementsRoot() {
                                     },
                                     openUtils: goToUtils,
                                     goToSocialNews,
-                                    goToSocialAotw,
+                                    goToSocialEvents,
                                     goToSocialNewSets,
                                     goToSocialSubscribed,
                                     goToSocialSavedComments,
@@ -5211,78 +5297,9 @@ function AchievementsRoot() {
                                         setError(null);
                                         await openExternalUrl(url);
                                     },
-                                    onChangeAotwSubView: newsEventsActions.setAotwSubView,
-                                    onOpenUserProfile: (username: string, ulid?: string | null) =>
-                                        handleOpenUserProfile(username, ulid),
-                                    onOpenAotwComment: (comment, achievementId) => {
-                                        const url = achievementId != null
-                                            ? raAchievementCommentsUrl(achievementId)
-                                            : null;
-                                        const captured = achievementId == null
-                                            ? null
-                                            : aotwCommentsController.actions.captureComments(comment);
-                                        if (achievementId != null && captured) {
-                                            const geometry = measureCommentWindow(
-                                                rootRef.current,
-                                                "aotw:comment",
-                                                captured.focusIndex
-                                            );
-                                            putCommentsSnapshot({
-                                                surfaceKey: "comments:aotw",
-                                                threadId: achievementId,
-                                                ulid: activeUlid,
-                                                ...captured,
-                                                windowStart: geometry?.windowStart ?? 0,
-                                                spacerPx: geometry?.spacerPx ?? 0
-                                            });
-                                            putAotwCarry(aotwResponse, activeUlid);
-                                        }
-                                        else {
-                                            logCommentsDebug(
-                                                "press-nocapture",
-                                                achievementId ?? "null",
-                                                `surface=comments:aotw aid=${achievementId ?? "null"}`
-                                            );
-                                            clearCommentsSnapshot();
-                                            clearAotwCarry();
-                                        }
-                                        openCommentModal(comment, url);
-                                    },
-                                    aotwComments,
-                                    aotwCommentsLoading,
-                                    aotwCommentsLoadingMore,
-                                    aotwCommentsError,
-                                    aotwCommentsHasMore,
-                                    aotwCommentsSort,
-                                    aotwCommentsLoaded,
-                                    aotwCommentsCardClaim: aotwCommentsController.state.commentsCardClaim ?? undefined,
-                                    onSpendAotwCommentsCardClaim: aotwCommentsController.actions.spendCommentsCardClaim,
-                                    aotwCommentsPostClaim: aotwCommentsController.state.commentsPostClaim ?? undefined,
-                                    onSpendAotwCommentsPostClaim: aotwCommentsController.actions.spendCommentsPostClaim,
-                                    aotwRestorePending,
-                                    aotwHoldCommentsBody,
-                                    aotwCommentsWindow: aotwCommentsController.state.commentsWindow,
-                                    onChangeAotwCommentsSort: setAotwCommentsSort,
-                                    onLoadMoreAotwComments: loadMoreAotwComments,
-                                    onPostAotwComment: async () => {
-                                        const aid = aotwResponse?.payload?.achievement?.id ?? null;
-                                        if (aid == null) {
-                                            return;
-                                        }
-                                        setError(null);
-                                        clearCommentsSnapshot();
-                                        putCommentsPostReturn("comments:aotw", aid, activeUlid);
-                                        putAotwCarry(aotwResponse, activeUlid);
-                                        await openExternalUrl(raAchievementCommentsUrl(aid));
-                                    },
-                                    onOpenGameOverview: async (gameId: number) => {
-                                        if (legacyGameLinks) {
-                                            await openExternalUrl(raGameUrl(gameId));
-                                            return;
-                                        }
-                                        goToGameOverview(gameId, "newsEvents", null, null);
-                                    },
                                     onChangeNewSetsFilter: newsEventsActions.changeNewSetsFilter,
+                                    onOpenEvent: (eventGameId: number) => goToEventViewer(eventGameId, "events"),
+                                    onOpenAotw: () => goToEventViewer("aotw", "events"),
                                     onOpenNewSetGame: async (gameId: number) => {
                                         if (legacyGameLinks) {
                                             await openExternalUrl(raGameUrl(gameId));
@@ -5618,6 +5635,7 @@ function AchievementsRoot() {
                                     showAllToggleFriend,
                                     showRetroPoints,
                                     backToMain: friendProfileBackSourceRef.current === "main",
+                                    backToEvent: friendProfileBackSourceRef.current === "eventViewer",
                                     friendProfileSubView,
                                     wallComments,
                                     wallCommentsLoading,
@@ -5930,6 +5948,109 @@ function AchievementsRoot() {
                                     onOpenLeaderboards={() => goToLeaderboards(gameOverviewGameIdRef.current ?? gameOverviewGameId, "gameOverview")}
                                     dynamicComments={dynamicComments}
                                     dynamicCommentsSentinelRootMargin={dynamicCommentsSentinelRootMargin}
+                                />
+                            )}
+
+                            {view === "eventViewer" && eventViewerTarget !== null && (
+                                <EventViewerPage
+                                    key={String(eventViewerTarget)}
+                                    state={{
+                                        view,
+                                        language,
+                                        target: eventViewerTarget,
+                                        tab: eventViewerTab,
+                                        panelOverlayVisible
+                                    }}
+                                    aotw={{
+                                        ...newsEventsState,
+                                        onChangeAotwSubView: newsEventsActions.setAotwSubView,
+                                        onOpenUserProfile: (username: string, ulid?: string | null) =>
+                                            handleOpenUserProfile(username, ulid, "eventViewer"),
+                                        onOpenAotwComment: (comment, achievementId) => {
+                                            const url = achievementId != null
+                                                ? raAchievementCommentsUrl(achievementId)
+                                                : null;
+                                            const captured = achievementId == null
+                                                ? null
+                                                : aotwCommentsController.actions.captureComments(comment);
+                                            if (achievementId != null && captured) {
+                                                const geometry = measureCommentWindow(
+                                                    rootRef.current,
+                                                    "aotw:comment",
+                                                    captured.focusIndex
+                                                );
+                                                putCommentsSnapshot({
+                                                    surfaceKey: "comments:aotw",
+                                                    threadId: achievementId,
+                                                    ulid: activeUlid,
+                                                    ...captured,
+                                                    windowStart: geometry?.windowStart ?? 0,
+                                                    spacerPx: geometry?.spacerPx ?? 0
+                                                });
+                                                putAotwCarry(aotwResponse, activeUlid);
+                                            }
+                                            else {
+                                                logCommentsDebug(
+                                                    "press-nocapture",
+                                                    achievementId ?? "null",
+                                                    `surface=comments:aotw aid=${achievementId ?? "null"}`
+                                                );
+                                                clearCommentsSnapshot();
+                                                clearAotwCarry();
+                                            }
+                                            openCommentModal(comment, url);
+                                        },
+                                        aotwComments,
+                                        aotwCommentsLoading,
+                                        aotwCommentsLoadingMore,
+                                        aotwCommentsError,
+                                        aotwCommentsHasMore,
+                                        aotwCommentsSort,
+                                        aotwCommentsLoaded,
+                                        aotwCommentsCardClaim: aotwCommentsController.state.commentsCardClaim ?? undefined,
+                                        onSpendAotwCommentsCardClaim: aotwCommentsController.actions.spendCommentsCardClaim,
+                                        aotwCommentsPostClaim: aotwCommentsController.state.commentsPostClaim ?? undefined,
+                                        onSpendAotwCommentsPostClaim: aotwCommentsController.actions.spendCommentsPostClaim,
+                                        aotwRestorePending,
+                                        aotwHoldCommentsBody,
+                                        aotwCommentsWindow: aotwCommentsController.state.commentsWindow,
+                                        onChangeAotwCommentsSort: setAotwCommentsSort,
+                                        onLoadMoreAotwComments: loadMoreAotwComments,
+                                        onPostAotwComment: async () => {
+                                            const aid = aotwResponse?.payload?.achievement?.id ?? null;
+                                            if (aid == null) {
+                                                return;
+                                            }
+                                            setError(null);
+                                            clearCommentsSnapshot();
+                                            putCommentsPostReturn("comments:aotw", aid, activeUlid);
+                                            putAotwCarry(aotwResponse, activeUlid);
+                                            await openExternalUrl(raAchievementCommentsUrl(aid));
+                                        },
+                                        onOpenGameOverview: async (gameId: number) => {
+                                            if (legacyGameLinks) {
+                                                await openExternalUrl(raGameUrl(gameId));
+                                                return;
+                                            }
+                                            goToGameOverview(gameId, "eventViewer", null, null);
+                                        },
+                                    }}
+                                    actions={{
+                                        onBack: backFromEventViewer,
+                                        onHome: goToAchievements,
+                                        onChangeTab: setEventViewerTab,
+                                        onOpenAchievement: (achievement, parentGameId) =>
+                                            goToAchievementOverview(achievement, parentGameId, "eventViewer", null, null),
+                                        onOpenGame: (gameId) => {
+                                            if (legacyGameLinks) {
+                                                void openExternalUrl(raGameUrl(gameId));
+                                                return;
+                                            }
+                                            goToGameOverview(gameId, "eventViewer", null, null);
+                                        },
+                                        onOpenCommentModal: openCommentModal,
+                                        onRequestFocus: setPendingFocusKey
+                                    }}
                                 />
                             )}
 

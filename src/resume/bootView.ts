@@ -45,6 +45,7 @@ export function computeBootView(resumeState: ResumeState | null, payload: Payloa
     const shouldBootDirectlyToMemories = resumeState?.view === "memories";
     const shouldBootDirectlyToMemoriesTransfer = resumeState?.view === "memoriesTransfer";
     const shouldBootDirectlyToGuides = resumeState?.view === "guides";
+    const shouldBootDirectlyToEventViewer = resumeState?.view === "eventViewer" && Boolean(resumeState?.eventViewerTarget);
     return shouldBootDirectlyToFriendGame ? "friendGame" :
             shouldBootDirectlyToFriendAllGames ? "friendAllGames" :
                 shouldBootDirectlyToWantToPlay ? "wantToPlay" :
@@ -71,6 +72,7 @@ export function computeBootView(resumeState: ResumeState | null, payload: Payloa
                                                                 shouldBootDirectlyToMemoriesTransfer ? "memoriesTransfer" :
                                                                 shouldBootDirectlyToUtils ? "utils" :
                                                                 shouldBootDirectlyToGuides ? "guides" :
+                                                                shouldBootDirectlyToEventViewer ? "eventViewer" :
                                                                 shouldBootDirectlyToTracked ? "tracked" :
                                                                     "achievements";
 }

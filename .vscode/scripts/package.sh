@@ -41,7 +41,7 @@ else
     pnpm run build
 fi
 
-for path in "${PAYLOAD[@]}"; do
+for path in "${PAYLOAD[@]}" events/events.json; do
     if [[ ! -e "$path" ]]; then
         echo "Payload is missing ${path}, refusing to package." >&2
         exit 1
@@ -55,6 +55,8 @@ mkdir -p "$STAGE_DIR/$PLUGIN_DIR_NAME"
 for path in "${PAYLOAD[@]}"; do
     cp -R "$path" "$STAGE_DIR/$PLUGIN_DIR_NAME/"
 done
+mkdir -p "$STAGE_DIR/$PLUGIN_DIR_NAME/defaults/events"
+cp events/events.json "$STAGE_DIR/$PLUGIN_DIR_NAME/defaults/events/events.json"
 
 find "$STAGE_DIR" -type d -name '__pycache__' -prune -exec rm -rf {} +
 find "$STAGE_DIR" -type f \( -name '*.pyc' -o -name '*.log' -o -name '.DS_Store' \) -delete

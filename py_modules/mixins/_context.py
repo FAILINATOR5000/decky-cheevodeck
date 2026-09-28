@@ -38,6 +38,8 @@ from want_to_play_cache_store import WantToPlayCacheStore
 from tracked_sets_store import TrackedSetsStore
 from subscriptions_store import SubscriptionsStore
 from saved_comments_store import SavedCommentsStore
+from events_store import EventsStore
+from events_cache_store import EventsCacheStore
 from comment_baselines_store import CommentBaselinesStore
 from resolved_avatar_store import ResolvedAvatarStore
 from cheevo_check_store import CheevoCheckStore
@@ -70,6 +72,8 @@ class PluginContext:
     settings_store: SettingsStore
     subscriptions_store: SubscriptionsStore
     saved_comments_store: SavedCommentsStore
+    events_store: EventsStore
+    events_cache_store: EventsCacheStore
     tracked_sets_store: TrackedSetsStore
     dolphin_mappings_store: DolphinMappingsStore
     smb_shares_store: SmbSharesStore
@@ -104,6 +108,11 @@ class PluginContext:
     _comments_cache_lock: threading.Lock
     _debug_logging: bool
     _friend_fetch_lock: asyncio.Lock
+    _events_tab_lock: asyncio.Lock
+    _events_site_lock: asyncio.Lock
+    _events_site_attempt_at: float
+    _completion_walk_lock: threading.Lock
+    _last_completion_walk: tuple | None
     _memories_adopt_lock: asyncio.Lock
     _ipc_slow_threshold_ms: int
     _validate_friends_roster: bool

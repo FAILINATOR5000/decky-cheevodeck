@@ -152,6 +152,8 @@ declare module "@decky/ui" {
 declare module "react-icons/fa" {
     export const FaTrophy: any;
     export const FaThumbtack: any;
+    export const FaList: any;
+    export const FaTag: any;
     export const FaHistory: any;
     export const FaSyncAlt: any;
     export const FaUnlock: any;

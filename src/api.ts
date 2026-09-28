@@ -6,6 +6,18 @@ import { logError } from "./utils/errors";
 import type {
     AchievementSort,
     AchievementStyle,
+    ChecklistFilter,
+    ChecklistGameProgress,
+    ChecklistView,
+    ChecklistViewPrefs,
+    EventActivity,
+    EventChecklistGame,
+    EventDetail,
+    EventsClickAction,
+    EventsPrefs,
+    EventsTabResponse,
+    TrackedEventsClickAction,
+    TrackedEventsState,
     HeaderStyle,
     ActivityCardAction,
     AllTrackedGamesResponse,
@@ -325,6 +337,16 @@ export const saveShowAButtonMode = callable<[boolean], { ok: boolean; showAButto
 export const saveShowAButtonModeTracked = callable<[boolean], { ok: boolean; showAButtonModeTracked: boolean }>(
     "save_show_a_button_mode_tracked"
 );
+export const saveShowAButtonModeEvents = callable<[boolean], { ok: boolean; showAButtonModeEvents: boolean }>(
+    "save_show_a_button_mode_events"
+);
+export const saveEventsClickAction = callable<[EventsClickAction], { ok: boolean; eventsClickAction: EventsClickAction }>(
+    "save_events_click_action"
+);
+export const saveTrackedEventsClickAction = callable<
+    [TrackedEventsClickAction],
+    { ok: boolean; trackedEventsClickAction: TrackedEventsClickAction }
+>("save_tracked_events_click_action");
 export const saveAchievementStyle = callable<
     [AchievementStyle],
     { ok: boolean; achievementStyle: AchievementStyle }
@@ -2852,3 +2874,56 @@ export const setBrowserCategoryCollapsed = callable<
     [categoryId: string, collapsed: boolean],
     BrowserBookmarksResponse
 >("set_browser_category_collapsed");
+
+type EventsWriteError = { ok: false; error: string };
+
+export const openEventsTab = callable<[force: boolean], EventsTabResponse>("open_events_tab");
+export const refreshEventsSite = callable<[], { ok: boolean; updated: boolean }>("refresh_events_site");
+export const getEventDetail = callable<
+    [eventGameId: number],
+    { ok: boolean; event: EventDetail | null; games: Record<string, EventChecklistGame> }
+>("get_event_detail");
+export const toggleTrackedEvent = callable<
+    [ulid: string, eventGameId: number],
+    { ok: true; tracked: boolean; state: TrackedEventsState } | EventsWriteError
+>("toggle_tracked_event");
+export const saveTrackedEventOrder = callable<
+    [ulid: string, order: string[]],
+    { ok: true; state: TrackedEventsState } | EventsWriteError
+>("save_tracked_event_order");
+export const saveTrackedEventNote = callable<
+    [ulid: string, eventGameId: number, note: string, color: string],
+    { ok: true; state: TrackedEventsState } | EventsWriteError
+>("save_tracked_event_note");
+export const saveTrackedEventsCollapsedTags = callable<
+    [ulid: string, keys: string[]],
+    { ok: true; state: TrackedEventsState } | EventsWriteError
+>("save_tracked_events_collapsed_tags");
+export const bulkTagTrackedEvents = callable<
+    [ulid: string, eventGameIds: number[], tag: string],
+    { ok: true; state: TrackedEventsState } | EventsWriteError
+>("bulk_tag_tracked_events");
+export const saveEventsPrefs = callable<
+    [ulid: string, prefs: Partial<{ all: Partial<EventsPrefs["all"]>; tracked: Partial<EventsPrefs["tracked"]>; listView: EventsPrefs["listView"] }>],
+    { ok: true; prefs: EventsPrefs } | EventsWriteError
+>("save_events_prefs");
+export const setEventCompleted = callable<
+    [ulid: string, eventGameId: number, completed: boolean],
+    { ok: true; completed: Record<string, { at: number }>; state: TrackedEventsState } | EventsWriteError
+>("set_event_completed");
+export const setChecklistTick = callable<
+    [ulid: string, eventGameId: number, gameId: number, value: boolean | null],
+    { ok: true; ticks: Record<string, boolean> } | EventsWriteError
+>("set_checklist_tick");
+export const saveChecklistView = callable<
+    [ulid: string, eventGameId: number, view: ChecklistView, filterValue: ChecklistFilter],
+    { ok: true; view: ChecklistViewPrefs } | EventsWriteError
+>("save_checklist_view");
+export const touchEventOpened = callable<
+    [ulid: string, eventGameId: number, progress: { earned: number; total: number; points: number | null } | null],
+    { ok: true; activity: EventActivity } | EventsWriteError
+>("touch_event_opened");
+export const getChecklistProgress = callable<
+    [eventGameId: number, force: boolean],
+    { ok: boolean; games: Record<string, ChecklistGameProgress>; refreshedAt: number | null; error: string | null }
+>("get_checklist_progress");

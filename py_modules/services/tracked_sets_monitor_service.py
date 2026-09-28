@@ -14,7 +14,7 @@ from notifications import (
     is_type_toast,
     push_debug_notification,
 )
-from utils import WalkYieldedForClear, norm_game_id, to_int
+from utils import WalkBusy, WalkYieldedForClear, norm_game_id, to_int
 
 
 WALK_DEBOUNCE_MIN_SECONDS = 1.5
@@ -27,6 +27,10 @@ TRACKED_SETS_SERVICE_UNAVAILABLE_BACKOFF_SECONDS = 30 * 60
 MOSAIC_ENTRY_COUNT = 4
 
 WALK_RESULT_TIMEOUT_SECONDS = 120
+
+WALK_BUSY_RETRY_SECONDS = 10
+
+_WALK_BUSY = object()
 
 
 _generation_fence = GenerationFence()
@@ -290,7 +294,12 @@ class TrackedSetsMonitorService:
             "Baton walking",
         )
 
-        self._walk_and_apply(username, web_api_key, tick_ulid)
+        if self._walk_and_apply(username, web_api_key, tick_ulid) is _WALK_BUSY:
+            with self._pending_lock:
+                self._pending_game_ids.update(drained)
+            retry = threading.Timer(WALK_BUSY_RETRY_SECONDS, self._wake_event.set)
+            retry.daemon = True
+            retry.start()
 
     def _run_periodic_walk(self):
         username, web_api_key, tick_ulid = self._read_walk_credentials()
@@ -321,6 +330,8 @@ class TrackedSetsMonitorService:
                 return
             user_ref = tick_ulid or username
             results = self._walk_completion_through_slot(user_ref, web_api_key, username)
+            if results is _WALK_BUSY:
+                return _WALK_BUSY
             if results is None:
                 return
 
@@ -378,6 +389,7 @@ class TrackedSetsMonitorService:
                     user_ref,
                     web_api_key,
                     abort_check=self._clear_is_pending,
+                    wait_for_walk=False,
                 ),
                 loop,
             )
@@ -385,6 +397,9 @@ class TrackedSetsMonitorService:
         except WalkYieldedForClear:
             self._debug_log("tracked sets monitor: walk yielded to a pending clear")
             return None
+        except WalkBusy:
+            self._debug_log("tracked sets monitor: a walk is already running, skipping this one")
+            return _WALK_BUSY
         except urllib.error.HTTPError as exc:
             self._handle_http_error(exc, username)
             return None

@@ -386,16 +386,16 @@ function NewspaperIcon(props: { size?: number }) {
 }
 
 // Font Awesome Free icon path, CC BY 4.0. See ATTRIBUTIONS.md.
-function MedalIcon(props: { size?: number }) {
+function EventIcon(props: { size?: number }) {
     const size = props.size ?? 18;
     return (
         <svg
-            viewBox="0 0 512 512"
+            viewBox="0 0 448 512"
             width={size}
             height={size}
             fill="currentColor"
         >
-            <path d="M223.75 130.75L154.62 15.54A31.997 31.997 0 0 0 127.18 0H16.03C3.08 0-4.5 14.57 2.92 25.18l111.27 158.96c29.72-27.77 67.52-46.83 109.56-53.39zM495.97 0H384.82c-11.24 0-21.66 5.9-27.44 15.54l-69.13 115.21c42.04 6.56 79.84 25.62 109.56 53.38L509.08 25.18C516.5 14.57 508.92 0 495.97 0zM256 160c-97.2 0-176 78.8-176 176s78.8 176 176 176 176-78.8 176-176-78.8-176-176-176zm92.52 157.26l-37.93 36.96 8.97 52.22c1.6 9.36-8.26 16.51-16.65 12.09L256 393.88l-46.9 24.65c-8.4 4.45-18.25-2.74-16.65-12.09l8.97-52.22-37.93-36.96c-6.82-6.64-3.05-18.23 6.35-19.59l52.43-7.64 23.43-47.52c2.11-4.28 6.19-6.39 10.28-6.39 4.11 0 8.22 2.14 10.33 6.39l23.43 47.52 52.43 7.64c9.4 1.36 13.17 12.95 6.35 19.59z" />
+            <path d="M128 0c17.7 0 32 14.3 32 32V64H288V32c0-17.7 14.3-32 32-32s32 14.3 32 32V64h48c26.5 0 48 21.5 48 48v48H0V112C0 85.5 21.5 64 48 64H96V32c0-17.7 14.3-32 32-32zM0 192H448V464c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48V192zM238.1 244.5l-21.7 44.2-48.7 7.1c-8.6 1.3-12 11.9-5.8 18l35.3 34.4-8.3 48.6c-1.5 8.6 7.6 15.2 15.3 11.1L224 432.6l43.6 22.9c7.7 4.1 16.7-2.5 15.3-11.1l-8.3-48.6 35.3-34.4c6.2-6.1 2.8-16.7-5.8-18l-48.7-7.1-21.7-44.2c-3.9-7.8-15-7.8-18.8 0z" />
         </svg>
     );
 }
@@ -464,12 +464,12 @@ const MAIN_TABS: { value: MainAchievementsTab; focusKey: string; icon: SubTabIco
     { value: "compare", focusKey: "main:tab:compare", icon: "scale" }
 ];
 
-type QuickMenuId = "useraccounts" | "utilities" | "trackedsets" | "socialhub" | "options" | "about" | "news" | "aotw" | "newsets" | "subscribeddiscussions" | "savedcomments";
+type QuickMenuId = "useraccounts" | "utilities" | "trackedsets" | "socialhub" | "options" | "about" | "news" | "events" | "newsets" | "subscribeddiscussions" | "savedcomments";
 
 type StripButtonId =
     | "profile" | "quickmenu" | "quickguide" | "notifications"
     | "useraccounts" | "utilities" | "trackedsets" | "socialhub" | "options" | "about"
-    | "refresh" | "news" | "aotw" | "newsets" | "subscribeddiscussions" | "savedcomments"
+    | "refresh" | "news" | "events" | "newsets" | "subscribeddiscussions" | "savedcomments"
     | "dnd" | "nightmode" | "batterysaver" | "mkmode"
     | QuickMenuShortcut;
 
@@ -483,7 +483,7 @@ type QuickMenuEntry = {
 const QUICK_MENU_TOP_ROW: QuickMenuEntry[] = [
     { id: "socialhub", Icon: FriendsIcon, labelKey: "Social Hub", focusKey: "action:socialhub" },
     { id: "news", Icon: NewspaperIcon, labelKey: "News", focusKey: "action:news" },
-    { id: "aotw", Icon: MedalIcon, labelKey: "Achievement of the Week", focusKey: "action:aotw" },
+    { id: "events", Icon: EventIcon, labelKey: "Events", focusKey: "action:events" },
     { id: "newsets", Icon: CompactDiscIcon, labelKey: "New Sets & Revisions", focusKey: "action:newsets" },
     { id: "subscribeddiscussions", Icon: CommentsIcon, labelKey: "Subscribed Discussions", focusKey: "action:subscribeddiscussions" },
     { id: "savedcomments", Icon: BookmarkIcon, labelKey: "Saved Comments", focusKey: "action:savedcomments" }
@@ -616,7 +616,7 @@ type MainAchievementsPageProps = {
         openUserAccounts: () => void | Promise<void>;
         openUtils: () => void | Promise<void>;
         goToSocialNews: () => void | Promise<void>;
-        goToSocialAotw: () => void | Promise<void>;
+        goToSocialEvents: () => void | Promise<void>;
         goToSocialNewSets: () => void | Promise<void>;
         goToSocialSubscribed: () => void | Promise<void>;
         goToSocialSavedComments: () => void | Promise<void>;
@@ -928,7 +928,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
             openUserAccounts,
             openUtils,
             goToSocialNews,
-            goToSocialAotw,
+            goToSocialEvents,
             goToSocialNewSets,
             goToSocialSubscribed,
             goToSocialSavedComments,
@@ -1387,9 +1387,9 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                             void goToSocialNews();
                             return;
                         }
-                        if (entry.id === "aotw") {
+                        if (entry.id === "events") {
                             setQuickMenuExpanded(false);
-                            void goToSocialAotw();
+                            void goToSocialEvents();
                             return;
                         }
                         if (entry.id === "newsets") {

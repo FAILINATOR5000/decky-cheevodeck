@@ -12,10 +12,11 @@ import { takeAotwCarry } from "../utils/commentsSnapshot";
 
 export type UseNewsEventsControllerOptions = {
     isActive: boolean;
+    aotwActive: boolean;
 };
 
 export function useNewsEventsController(options: UseNewsEventsControllerOptions) {
-    const { isActive } = options;
+    const { isActive, aotwActive } = options;
 
     const [subView, setSubView] = useState<NewsEventsSubView>("news");
 
@@ -145,17 +146,14 @@ export function useNewsEventsController(options: UseNewsEventsControllerOptions)
     }, [isActive, subView, newsPayload, loadNews]);
 
     useEffect(() => {
-        if (!isActive) {
-            return;
-        }
-        if (subView !== "aotw") {
+        if (!aotwActive) {
             return;
         }
         if (aotwResponse) {
             return;
         }
         void loadAotw();
-    }, [isActive, subView, aotwResponse, loadAotw]);
+    }, [aotwActive, aotwResponse, loadAotw]);
 
     const newSetsFilterRef = useRef<NewSetsFilter>(newSetsFilter);
     useEffect(() => {

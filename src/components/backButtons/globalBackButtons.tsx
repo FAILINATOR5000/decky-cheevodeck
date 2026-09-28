@@ -37,6 +37,7 @@ type PageAction =
     | "socialhub"
     | "news"
     | "aotw"
+    | "events"
     | "newsets"
     | "subscribeddiscussions"
     | "savedcomments"
@@ -194,7 +195,9 @@ async function pageEntry(action: PageAction): Promise<PanelEntry | null> {
         case "news":
             return { kind: "socialTab", tab: "newsEvents", newsSub: "news" };
         case "aotw":
-            return { kind: "socialTab", tab: "newsEvents", newsSub: "aotw" };
+            return { kind: "aotw" };
+        case "events":
+            return { kind: "socialTab", tab: "newsEvents", newsSub: "events" };
         case "newsets":
             return { kind: "socialTab", tab: "newsEvents", newsSub: "newSets" };
         case "subscribeddiscussions":

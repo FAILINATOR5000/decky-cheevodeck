@@ -190,6 +190,7 @@ type OptionsPageState = {
     clearingPlayersNearYouCache: boolean;
     clearingGamesListCache: boolean;
     clearingAwardsListCache: boolean;
+    clearingEventsCache: boolean;
     clearingWantToPlayCache: boolean;
     clearingGameOverviewCache: boolean;
     clearingAllCache: boolean;
@@ -352,6 +353,7 @@ type OptionsPageState = {
     shortcutBindings: Record<ShortcutButton, ShortcutAction>;
     showAButtonMode: boolean;
     showAButtonModeTracked: boolean;
+    showAButtonModeEvents: boolean;
     showSocialHubButton: boolean;
     showTrackedSetsButton: boolean;
     showOptionsButton: boolean;
@@ -404,6 +406,7 @@ type OptionsPageActions = {
     onClearPlayersNearYou: () => void | Promise<void>;
     onClearGamesListCache: () => void | Promise<void>;
     onClearAwardsListCache: () => void | Promise<void>;
+    onClearEventsCache: () => void | Promise<void>;
     onClearWantToPlayCache: () => void | Promise<void>;
     onClearGameOverviewCache: () => void | Promise<void>;
     onClearAllCache: () => void | Promise<void>;
@@ -587,6 +590,7 @@ type OptionsPageActions = {
     onToggleColoredGlyphs: (value: boolean) => void | Promise<void>;
     onToggleShowAButtonMode: (nextValue: boolean) => void | Promise<void>;
     onToggleShowAButtonModeTracked: (nextValue: boolean) => void | Promise<void>;
+    onToggleShowAButtonModeEvents: (nextValue: boolean) => void | Promise<void>;
     onToggleShowSocialHubButton: (nextValue: boolean) => void | Promise<void>;
     onToggleShowTrackedSetsButton: (nextValue: boolean) => void | Promise<void>;
     onToggleShowOptionsButton: (nextValue: boolean) => void | Promise<void>;
@@ -2076,6 +2080,16 @@ function CacheTab(props: CacheTabProps) {
             />
             <OptionButton
                 outerStyle={buttonOuterStyle}
+                focusKey="options:clear-events-cache"
+                onClick={actions.onClearEventsCache}
+                disabled={clearCacheDisabled}
+                label={state.clearingEventsCache
+                        ? t(state.language, "Clearing...")
+                        : t(state.language, "Clear Events Cache")}
+                help={t(state.language, "help_clear_events_cache")}
+            />
+            <OptionButton
+                outerStyle={buttonOuterStyle}
                 focusKey="options:clear-want-to-play-cache"
                 onClick={actions.onClearWantToPlayCache}
                 disabled={clearCacheDisabled}
@@ -2564,6 +2578,14 @@ function AdvancedTab(props: TabContentProps) {
                 onChange={actions.onToggleShowAButtonModeTracked}
                 disabled={disabled}
                 help={t(state.language, "help_show_a_button_mode_tracked")}
+            />
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                label={t(state.language, "Show Click Row - Events")}
+                value={state.showAButtonModeEvents}
+                onChange={actions.onToggleShowAButtonModeEvents}
+                disabled={disabled}
+                help={t(state.language, "help_show_a_button_mode_events")}
             />
             <OptionValueRow
                 outerStyle={buttonOuterStyle}

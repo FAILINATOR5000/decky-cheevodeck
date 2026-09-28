@@ -1,8 +1,11 @@
 import type { AotwSubView, NewSetsFilter, NewsEventsSubView, ResumeState } from "../types";
 
 export function getSavedNewsEventsSubView(savedState: ResumeState): NewsEventsSubView {
-    const value = savedState.newsEventsSubView;
-    if (value === "aotw" || value === "newSets") {
+    const value: string | null | undefined = savedState.newsEventsSubView;
+    if (value === "aotw") {
+        return "events";
+    }
+    if (value === "events" || value === "newSets") {
         return value;
     }
     return "news";

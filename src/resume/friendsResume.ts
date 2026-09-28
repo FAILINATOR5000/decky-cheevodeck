@@ -1,4 +1,4 @@
-import type { FollowedRankingMetric, FriendGameSelectionMode, FriendGameSource, FriendProfileSubView, FriendRow, FriendsPayload, ResumeState, ViewKey } from "../types";
+import type { FollowedRankingMetric, FriendGameSelectionMode, FriendGameSource, FriendProfileBackSource, FriendProfileSubView, FriendRow, FriendsPayload, ResumeState, ViewKey } from "../types";
 import { userRefFor } from "../utils/friends";
 import { getSavedAllGamesLetterRange, getSavedAllGamesStatusFilter } from "./allGamesResume";
 import type { RestoreContext } from "./restoreContext";
@@ -31,8 +31,9 @@ export function getSavedFriendEntrySource(savedState: ResumeState): "profile" | 
 }
 
 
-export function getSavedFriendProfileBackSource(savedState: ResumeState): "social" | "main" {
-    return savedState.friendProfileBackSource === "main" ? "main" : "social";
+export function getSavedFriendProfileBackSource(savedState: ResumeState): FriendProfileBackSource {
+    const value = savedState.friendProfileBackSource;
+    return value === "main" || value === "eventViewer" ? value : "social";
 }
 
 export function getSavedFriendUsername(savedState: ResumeState): string {

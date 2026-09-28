@@ -50,6 +50,8 @@ from game_activity_history_store import GameActivityHistoryStore
 from tracked_sets_store import TrackedSetsStore
 from subscriptions_store import SubscriptionsStore
 from saved_comments_store import SavedCommentsStore
+from events_store import EventsStore
+from events_cache_store import EventsCacheStore
 from comment_baselines_store import CommentBaselinesStore
 from resolved_avatar_store import ResolvedAvatarStore
 from developer_message_store import DeveloperMessageStore
@@ -86,6 +88,8 @@ from mixins.guides import GuidesMixin
 from mixins.library_badge import LibraryBadgeMixin
 from mixins.calculator import CalculatorMixin
 from mixins.browser import BrowserMixin
+from mixins.events import EventsMixin
+from mixins.completion_walk import CompletionWalkMixin
 
 
 DEFAULT_IPC_SLOW_THRESHOLD_MS = 250
@@ -143,6 +147,8 @@ class Plugin(
     LibraryBadgeMixin,
     CalculatorMixin,
     BrowserMixin,
+    EventsMixin,
+    CompletionWalkMixin,
 ):
     DEFAULT_LANGUAGE = "en"
     RECENT_UNLOCK_LOOKBACK_MINUTES = 1440
@@ -242,6 +248,7 @@ class Plugin(
         self.game_activity_history_dir = self.runtime_dir / "game_activity_history"
         self.games_list_cache_dir = self.runtime_dir / "games_list_cache"
         self.awards_lists_dir = self.runtime_dir / "awards_lists"
+        self.events_cache_dir = self.runtime_dir / "events_cache"
         self.want_to_play_dir = self.runtime_dir / "want_to_play"
         self.news_cache_file = self.runtime_dir / "news_cache.json"
         self.aotw_cache_file = self.runtime_dir / "aotw_cache.json"
@@ -342,6 +349,16 @@ class Plugin(
         )
         self.saved_comments_store = SavedCommentsStore(
             base_dir=self.runtime_dir,
+        )
+        self.events_store = EventsStore(
+            base_dir=self.runtime_dir,
+        )
+        events_seed = self.plugin_dir / "events" / "events.json"
+        if not events_seed.exists():
+            events_seed = self.plugin_dir / "defaults" / "events" / "events.json"
+        self.events_cache_store = EventsCacheStore(
+            store_dir=self.events_cache_dir,
+            seed_path=events_seed,
         )
         self.notifications_store = NotificationsStore(
             base_dir=self.runtime_dir,
@@ -622,6 +639,13 @@ class Plugin(
         self._friend_fetch_lock = asyncio.Lock()
 
         self._memories_adopt_lock = asyncio.Lock()
+
+        self._events_tab_lock = asyncio.Lock()
+        self._events_site_lock = asyncio.Lock()
+        self._events_site_attempt_at = 0.0
+
+        self._completion_walk_lock = threading.Lock()
+        self._last_completion_walk = None
 
         self._game_check_gate = asyncio.Event()
         self._game_check_gate.set()
@@ -957,6 +981,7 @@ class Plugin(
             browser_base = base if user_key else self.runtime_dir / GUEST_USER_DIR
             self.browser_store.repoint(browser_base / "browser")
             self.saved_comments_store.repoint(base)
+            self.events_store.repoint(base, user_key)
             self.comment_baselines_store.repoint(base)
             self.notifications_store.repoint(base)
             self.notifications_archive_store.repoint(base)
@@ -1457,6 +1482,7 @@ class Plugin(
             cleared += self.games_list_cache_store.clear_all()
             cleared += self.awards_list_cache_store.clear_all()
             cleared += self.want_to_play_cache_store.clear_all()
+            cleared += self.events_cache_store.clear_all()
             cleared += self.guides_store.clear_cache().get("removed", [])
             cleared += self.cheevo_check_store.clear_hash_cache()
             cleared += self.cheevo_check_store.clear_ra_data()
@@ -1477,6 +1503,7 @@ class Plugin(
         "cheevoCheckHashes",
         "cheevoCheckRaData",
         "memoryThumbs",
+        "events",
     ))
 
     async def clear_cache_group(self, group=None):
@@ -1494,6 +1521,7 @@ class Plugin(
             "gamesList": self.games_list_cache_store.clear_all,
             "awardsList": self.awards_list_cache_store.clear_all,
             "wantToPlayList": self.want_to_play_cache_store.clear_all,
+            "events": self.events_cache_store.clear_all,
             "setsList": self.cache_store.clear_sets_list_cache,
             "cheevoCheckResults": self.cheevo_check_store.clear_results,
             "cheevoCheckHashes": self.cheevo_check_store.clear_hash_cache,

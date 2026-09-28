@@ -1,6 +1,6 @@
 import asyncio
 import decky
-from utils import WalkYieldedForClear, to_int
+from utils import to_int
 
 from mixins._context import PluginContext
 
@@ -195,68 +195,6 @@ class TrackedSetsMixin(PluginContext):
             )
 
         return self.tracked_sets_store.apply_completion_results_all(results)
-
-    def _completion_results(self, user: str, web_api_key: str, abort_check=None) -> dict:
-        gen0 = self.games_list_cache_store.current_generation()
-        progress, truncated = self._gather_completion_progress(user, web_api_key, abort_check=abort_check)
-        self._feed_games_list_cache(user, progress, truncated, gen0)
-        results = {}
-        for row in progress:
-            game_id = to_int(row.get("GameID", row.get("gameId")), 0)
-            if game_id <= 0:
-                continue
-            results[str(game_id)] = {
-                "numAwarded": to_int(row.get("NumAwarded", row.get("numAwarded")), 0),
-                "maxPossible": to_int(row.get("MaxPossible", row.get("maxPossible")), 0),
-                "highestAward": row.get("HighestAwardKind", row.get("highestAward")),
-            }
-        return results
-
-    def _feed_games_list_cache(self, user, raw_rows, truncated, gen0):
-        if truncated:
-            if bool(getattr(self, "_debug_logging", False)):
-                decky.logger.info(
-                    "tracked sets monitor: walk hit the page safety stop, skipping the games-list cache feed"
-                )
-            return
-        if not raw_rows:
-            return
-        payload = self.friends_service.build_friend_all_games_payload(user, raw_rows)
-        try:
-            self.games_list_cache_store.save(user, payload, gen0)
-        except Exception as e:
-            decky.logger.warning("tracked sets games-list cache feed failed: %s", type(e).__name__)
-        if bool(getattr(self, "_debug_logging", False)):
-            decky.logger.info(
-                "tracked sets monitor: games-list cache fed off the walk (%d games)",
-                len(payload["results"]),
-            )
-
-    def _gather_completion_progress(self, user: str, web_api_key: str, abort_check=None) -> tuple:
-        page_size = 500
-        offset = 0
-        rows = []
-        truncated = False
-        while True:
-            if abort_check is not None and abort_check():
-                raise WalkYieldedForClear()
-            payload = self.ra.get_user_completion_progress(
-                user,
-                web_api_key,
-                count=page_size,
-                offset=offset,
-            )
-            results = (payload or {}).get("Results", []) if isinstance(payload, dict) else []
-            if not isinstance(results, list) or not results:
-                break
-            rows.extend(results)
-            if len(results) < page_size:
-                break
-            offset += page_size
-            if offset >= page_size * 20:
-                truncated = True
-                break
-        return rows, truncated
 
     def _shape_console_list(self, raw) -> list:
         if not isinstance(raw, list):

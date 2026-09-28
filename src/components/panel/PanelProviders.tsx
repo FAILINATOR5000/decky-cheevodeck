@@ -4,6 +4,7 @@ import { CheevoCheckProvider } from "../cheevocheck/CheevoCheckContext";
 import { FileWatcherProvider } from "../filewatcher/FileWatcherContext";
 import { DolphinMapperProvider } from "../mapping/DolphinMapperContext";
 import { MemoriesTransferProvider } from "../memories/MemoriesTransferContext";
+import { EventsProvider } from "../events/EventsContext";
 import type { SettingsController } from "../../hooks/useSettingsController";
 import type { LanguageCode } from "../../locales";
 import type { ViewKey } from "../../types";
@@ -34,7 +35,12 @@ export function PanelProviders(props: {
                             isActive={props.view === "memoriesTransfer"}
                             language={props.language}
                         >
-                            {props.children}
+                            <EventsProvider
+                                isActive={props.view === "social" || props.view === "eventViewer"}
+                                settings={props.settings}
+                            >
+                                {props.children}
+                            </EventsProvider>
                         </MemoriesTransferProvider>
                     </DolphinMapperProvider>
                 </FileWatcherProvider>

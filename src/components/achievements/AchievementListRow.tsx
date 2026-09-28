@@ -53,6 +53,7 @@ export const AchievementListRow = React.memo(function AchievementListRow(props: 
     isTagMarked: boolean;
     communityLabel: string | null;
     extraLabel: ReactNode;
+    headerLabel?: ReactNode;
     noteText?: string;
     noteColor?: string;
 }) {
@@ -205,6 +206,18 @@ export const AchievementListRow = React.memo(function AchievementListRow(props: 
         );
     }
 
+    function withHeader(card: ReactNode): ReactNode {
+        if (!props.headerLabel) {
+            return card;
+        }
+        return (
+            <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: `${metrics.contentGap}px` }}>
+                {props.headerLabel}
+                {card}
+            </div>
+        );
+    }
+
     return (
         <FocusableItem
             focusKey={`achievement:${achievement.id}`}
@@ -214,7 +227,7 @@ export const AchievementListRow = React.memo(function AchievementListRow(props: 
             onGamepadFocus={handleGamepadFocus}
             onButtonDown={handleButtonDown}
         >
-            {list.showIcons ? (
+            {withHeader(list.showIcons ? (
                 useLeftStyle ? (
                 <div
                     style={{
@@ -617,7 +630,7 @@ export const AchievementListRow = React.memo(function AchievementListRow(props: 
                         </>
                     )}
                 </div>
-            )}
+            ))}
         </FocusableItem>
     );
 });

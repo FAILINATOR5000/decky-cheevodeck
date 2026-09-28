@@ -23,6 +23,8 @@ import type {
     SocialEntryDefault,
     SavedCommentsPrefs,
     TrackedAchievementAction,
+    EventsClickAction,
+    TrackedEventsClickAction,
     TrackedSetAButtonMode,
     DolphinMapperMode,
     DolphinSystemFilter,
@@ -114,6 +116,7 @@ export function useSettingsController({
     const [coloredGlyphs, setColoredGlyphs] = useState(true);
     const [showAButtonMode, setShowAButtonMode] = useState(true);
     const [showAButtonModeTracked, setShowAButtonModeTracked] = useState(true);
+    const [showAButtonModeEvents, setShowAButtonModeEvents] = useState(true);
     const [gameNotesAButtonMode, setGameNotesAButtonMode] = useState<GameNoteAButtonMode>("editNote");
     const [showSocialHubButton, setShowSocialHubButton] = useState(true);
     const [showTrackedSetsButton, setShowTrackedSetsButton] = useState(true);
@@ -141,6 +144,8 @@ export function useSettingsController({
     const [gameOverviewAchievementSort, setGameOverviewAchievementSort] = useState<AchievementSort>("absolute");
     const [mainAchievementAction, setMainAchievementAction] = useState<MainAchievementAction>("track");
     const [trackedAchievementAction, setTrackedAchievementAction] = useState<TrackedAchievementAction>("untrack");
+    const [eventsClickAction, setEventsClickAction] = useState<EventsClickAction>("open");
+    const [trackedEventsClickAction, setTrackedEventsClickAction] = useState<TrackedEventsClickAction>("open");
     const [dolphinMapperMode, setDolphinMapperMode] = useState<DolphinMapperMode>("map");
     const [dolphinSystemFilter, setDolphinSystemFilter] = useState<DolphinSystemFilter>("all");
     const [dolphinBluetoothPassthrough, setDolphinBluetoothPassthrough] = useState<boolean>(false);
@@ -401,6 +406,7 @@ export function useSettingsController({
         setCurrentColoredGlyphs(source.coloredGlyphs);
         setShowAButtonMode(source.showAButtonMode);
         setShowAButtonModeTracked(source.showAButtonModeTracked);
+        setShowAButtonModeEvents(source.showAButtonModeEvents);
         setGameNotesAButtonMode(source.gameNotesAButtonMode);
         if (!options.skipButtonToggles) {
             setShowSocialHubButton(source.showSocialHubButton);
@@ -427,6 +433,8 @@ export function useSettingsController({
         setGameOverviewAchievementSort(source.gameOverviewAchievementSort);
         setMainAchievementAction(source.mainAchievementAction);
         setTrackedAchievementAction(source.trackedAchievementAction);
+        setEventsClickAction(source.eventsClickAction);
+        setTrackedEventsClickAction(source.trackedEventsClickAction);
         setDolphinMapperMode(source.dolphinMapperMode);
         setDolphinSystemFilter(source.dolphinSystemFilter);
         setDolphinBluetoothPassthrough(source.dolphinBluetoothPassthrough);
@@ -677,6 +685,7 @@ export function useSettingsController({
         coloredGlyphs,
         showAButtonMode,
         showAButtonModeTracked,
+        showAButtonModeEvents,
         gameNotesAButtonMode,
         showSocialHubButton,
         showTrackedSetsButton,
@@ -700,6 +709,8 @@ export function useSettingsController({
         gameOverviewAchievementSort,
         mainAchievementAction,
         trackedAchievementAction,
+        eventsClickAction,
+        trackedEventsClickAction,
         dolphinMapperMode,
         dolphinSystemFilter,
         dolphinBluetoothPassthrough,
@@ -941,6 +952,9 @@ export function useSettingsController({
         setGameOverviewAchievementSort,
         setMainAchievementAction,
         setTrackedAchievementAction,
+        setShowAButtonModeEvents,
+        setEventsClickAction,
+        setTrackedEventsClickAction,
         setDolphinMapperMode,
         setDolphinSystemFilter,
         setDolphinBluetoothPassthrough,

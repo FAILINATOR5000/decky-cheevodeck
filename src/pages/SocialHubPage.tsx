@@ -10,30 +10,23 @@ import { ErrorText } from "../components/ui/ErrorText";
 import { FadeImage } from "../components/ui/FadeImage";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
 import { NewsCard } from "../components/social/NewsCard";
-import { AotwHeader } from "../components/social/AotwHeader";
-import { AotwUnlockRow } from "../components/social/AotwUnlockRow";
-import { CommentsList } from "../components/comments/CommentsList";
 import { CommentCard } from "../components/comments/CommentCard";
 import { GameContextBanner } from "../components/social/GameContextBanner";
 import { AchievementContextBanner } from "../components/social/AchievementContextBanner";
-import { CommentActionStrip } from "../components/comments/CommentActionStrip";
 import { LabeledRow } from "../components/ui/LabeledRow";
 import { NewSetCard } from "../components/social/NewSetCard";
 import { SubTabButton } from "../components/ui/SubTabButton";
+import { EventsTabBody } from "../components/events/EventsTabBody";
+import { takeEventsFocusReturn, type EventsFocusReturn } from "../utils/eventsFocusReturn";
 import { PageNavStrip } from "../components/ui/PageNavStrip";
 import { activityCardActionLabel } from "../utils/options";
 import type {
-    AchievementOfTheWeekResponse,
     ActivityCardAction,
-    AotwComment,
-    AotwSubView,
-    AotwUnlock,
     ButtonSpacing,
     CommunitySubTab,
     ControllerGlyphStyle,
     FriendRow,
     FriendsPayload,
-    GameComment,
     NewsEntry,
     NewSetEntry,
     NewSetsAndRevisionsResponse,
@@ -52,7 +45,6 @@ import type {
 } from "../types";
 import type { LanguageCode } from "../locales";
 import { ButtonPrompt } from "../components/ui/ButtonPrompt";
-import type { RestoredCommentsWindow } from "../hooks/useCommentsWindow";
 
 import {
     cacheAchievementIcons,
@@ -69,7 +61,6 @@ import { filterAndSortSavedComments } from "../utils/savedComments";
 import { armSavedCommentFocusReturn } from "../utils/savedCommentFocusReturn";
 import { useFocusClaim, type FocusClaimController } from "../hooks/useFocusClaim";
 import { useGameIcon } from "../hooks/useGameIcon";
-import { useThreadSubscription } from "../hooks/useThreadSubscription";
 import { useWindowedList } from "../hooks/useWindowedList";
 import { UserAvatar } from "../components/ui/UserAvatar";
 import { FriendListRow, type FriendRowListProps } from "../components/social/FriendListRow";
@@ -188,7 +179,7 @@ const SOCIAL_TABS: SocialTab[] = [
 
 const NEWS_EVENTS_SUB_TABS: { value: NewsEventsSubView; labelKey: string; focusKey: string }[] = [
     { value: "news", labelKey: "News", focusKey: "newsevents:subtab:news" },
-    { value: "aotw", labelKey: "Achievement of the Week", focusKey: "newsevents:subtab:aotw" },
+    { value: "events", labelKey: "Events", focusKey: "newsevents:subtab:events" },
     { value: "newSets", labelKey: "New Sets & Revisions", focusKey: "newsevents:subtab:newsets" }
 ];
 
@@ -206,11 +197,6 @@ const SAVED_COMMENT_CARD_FOCUS_PREFIX = "savedcomment:card:";
 
 const SAVED_COMMENT_FACET_CLAIM_SLOT = -2;
 
-const AOTW_SUB_TABS: { value: AotwSubView; labelKey: string; focusKey: string }[] = [
-    { value: "unlocks", labelKey: "Unlocks", focusKey: "aotw:subtab:unlocks" },
-    { value: "comments", labelKey: "Comments", focusKey: "aotw:subtab:comments" }
-];
-
 const NEW_SETS_FILTER_TABS: { value: NewSetsFilter; labelKey: string; focusKey: string }[] = [
     { value: "new", labelKey: "New Sets", focusKey: "newsets:filter:new" },
     { value: "revision", labelKey: "Revisions", focusKey: "newsets:filter:revision" }
@@ -224,44 +210,14 @@ type NewsEventsProps = {
     newsLoading: boolean;
     newsError: string | null;
     onOpenNewsLink: (url: string) => void | Promise<void>;
-    aotwResponse: AchievementOfTheWeekResponse | null;
-    aotwSubView: AotwSubView;
-    aotwLoading: boolean;
-    aotwError: string | null;
-    onChangeAotwSubView: (subView: AotwSubView) => void;
-    onOpenUserProfile: (username: string, ulid?: string | null) => void | Promise<void>;
-    onOpenAotwComment: (comment: AotwComment, achievementId: number | null) => void | Promise<void>;
-    aotwComments: GameComment[];
-    aotwCommentsLoading: boolean;
-    aotwCommentsLoadingMore: boolean;
-    aotwCommentsError: string | null;
-    aotwCommentsHasMore: boolean;
-    aotwCommentsSort: "newest" | "oldest";
-    aotwCommentsLoaded: boolean;
-    aotwCommentsCardClaim?: {
-        slotIndex: number;
-        token: number;
-        armed: boolean;
-    };
-    onSpendAotwCommentsCardClaim: () => void;
-    aotwCommentsPostClaim?: {
-        token: number;
-        armed: boolean;
-    };
-    onSpendAotwCommentsPostClaim: () => void;
-    aotwRestorePending: boolean;
-    aotwHoldCommentsBody: boolean;
-    aotwCommentsWindow: RestoredCommentsWindow | null;
-    onChangeAotwCommentsSort: (sort: "newest" | "oldest") => void;
-    onLoadMoreAotwComments: () => void | Promise<void>;
-    onPostAotwComment: () => void | Promise<void>;
-    onOpenGameOverview?: (gameId: number) => void | Promise<void>;
     newSetsResponse: NewSetsAndRevisionsResponse | null;
     newSetsFilter: NewSetsFilter;
     newSetsLoading: boolean;
     newSetsError: string | null;
     onChangeNewSetsFilter: (filter: NewSetsFilter) => void;
     onOpenNewSetGame: (gameId: number) => void | Promise<void>;
+    onOpenEvent?: (eventGameId: number) => void;
+    onOpenAotw?: () => void;
 };
 
 type SavedCommentsPanelProps = {
@@ -347,36 +303,27 @@ function SocialHubPage(props: SocialHubPageProps) {
     const dynamicNewSetsRowStep = Math.max(1, props.dynamicCommentsRowStep ?? 10);
     const dynamicNewSetsSentinelRootMargin = Math.max(0, props.dynamicCommentsSentinelRootMargin ?? 400);
 
-    const aotwPayload = props.newsEvents.aotwResponse?.payload ?? null;
-    const aotwSubscription = useThreadSubscription({
-        language: props.language,
-        kind: "achievement",
-        id: aotwPayload?.achievement?.id ?? null,
-        buildEntry: () => {
-            const achievementId = aotwPayload?.achievement?.id ?? null;
-            if (!aotwPayload || achievementId == null) {
-                return null;
-            }
-            return {
-                kind: "achievement",
-                id: achievementId,
-                gameId: aotwPayload.game?.id ?? achievementId,
-                title: aotwPayload.achievement.title ?? "",
-                gameTitle: aotwPayload.game?.title ?? "",
-                console: aotwPayload.console?.title ?? "",
-                iconUrl: aotwPayload.achievement.badgeUrl ?? "",
-                badgeName: aotwPayload.achievement.badgeName ?? "",
-                seedComments: props.newsEvents.aotwComments,
-                seedSort: props.newsEvents.aotwCommentsSort,
-                seedLoaded: props.newsEvents.aotwCommentsLoaded
-            };
-        }
-    });
     const [socialView, setSocialView] = useState<SocialView>(props.socialEntryView);
     const [focusedSocialView, setFocusedSocialView] = useState<SocialView | null>(null);
     const [hoveredSocialView, setHoveredSocialView] = useState<SocialView | null>(null);
 
     const [backClaimToken, setBackClaimToken] = useState(0);
+    const [eventsRestore] = useState<EventsFocusReturn | null>(() =>
+        props.view === "social" ? takeEventsFocusReturn() : null
+    );
+    const [eventsRestoreSettled, setEventsRestoreSettled] = useState(false);
+    const eventsRestorePending = eventsRestore !== null;
+    const onEventsTab = socialView === "newsEvents" && props.newsEvents.subView === "events";
+    useEffect(() => {
+        if (!eventsRestorePending || eventsRestoreSettled) {
+            return;
+        }
+        const timer = window.setTimeout(() => {
+            setEventsRestoreSettled(true);
+            setBackClaimToken((current) => current + 1);
+        }, onEventsTab ? 5000 : 600);
+        return () => window.clearTimeout(timer);
+    }, [eventsRestorePending, eventsRestoreSettled, onEventsTab]);
     const favoriteRowClaim = useFocusClaim();
     const subscriptionRowClaim = useFocusClaim();
     const savedCommentRowClaim = useFocusClaim();
@@ -1168,15 +1115,6 @@ function SocialHubPage(props: SocialHubPageProps) {
         setHoveredSocialView((current) => current === nextView ? null : current);
     }
 
-    function handleAotwSortCycle() {
-        if (!props.newsEvents.aotwCommentsLoaded) {
-            return;
-        }
-        props.newsEvents.onChangeAotwCommentsSort(
-            props.newsEvents.aotwCommentsSort === "newest" ? "oldest" : "newest"
-        );
-    }
-
     function socialTitle() {
         if (socialView === "friends") {
             return props.friendsPayload?.count
@@ -1195,20 +1133,15 @@ function SocialHubPage(props: SocialHubPageProps) {
         return null;
     }
 
-    const aotwCardClaim = props.newsEvents.aotwCommentsCardClaim
-        ?? props.newsEvents.aotwCommentsPostClaim;
     if (savedRestoreFiredRef.current
         && (savedCommentRowClaim.claim?.token ?? 0) > 0
         && !savedCommentRowClaim.claim?.armed) {
         savedRestoreSettledRef.current = true;
     }
     const savedRestoreSettled = savedRestoreAbandoned || savedRestoreSettledRef.current;
-    const restoreCurtainArmed = props.newsEvents.aotwRestorePending || savedRestorePending;
-    const aotwRestoreSettled = !props.newsEvents.aotwHoldCommentsBody
-        && (aotwCardClaim?.token ?? 0) > 0
-        && !aotwCardClaim?.armed;
-    const restoreCurtainSettled = (!props.newsEvents.aotwRestorePending || aotwRestoreSettled)
-        && (!savedRestorePending || savedRestoreSettled);
+    const restoreCurtainArmed = savedRestorePending || eventsRestorePending;
+    const restoreCurtainSettled = (!savedRestorePending || savedRestoreSettled)
+        && (!eventsRestorePending || eventsRestoreSettled);
 
     // Render
     const page = (
@@ -1226,7 +1159,7 @@ function SocialHubPage(props: SocialHubPageProps) {
                     label={t(props.language, "← Back to Main")}
                     focusKey="social:back"
                     navAutoFocus={
-                        (!props.newsEvents.aotwRestorePending && !savedRestorePending)
+                        (!savedRestorePending && !eventsRestorePending)
                         || backClaimToken > 0
                     }
                     buttonSpacing={props.buttonSpacing}
@@ -1643,198 +1576,24 @@ function SocialHubPage(props: SocialHubPageProps) {
                                     </>
                                 )}
                             </>
-                        ) : props.newsEvents.subView === "aotw" ? (
-                            <>
-                                {props.newsEvents.aotwError && props.newsEvents.aotwResponse && (
-                                    <PanelSectionRow>
-                                        <ErrorText>
-                                            {localizeRuntimeText(props.language, props.newsEvents.aotwError)}
-                                        </ErrorText>
-                                    </PanelSectionRow>
-                                )}
-                                {props.newsEvents.aotwError && !props.newsEvents.aotwResponse ? (
-                                    <PanelSectionRow>
-                                        <ErrorText>
-                                            {t(props.language, "Couldn't load the Achievement of the Week.")}
-                                        </ErrorText>
-                                    </PanelSectionRow>
-                                ) : props.newsEvents.aotwLoading && !props.newsEvents.aotwResponse ? (
-                                    <PanelSectionRow>
-                                        <InlineSpinner label={t(props.language, "Loading...")} />
-                                    </PanelSectionRow>
-                                ) : props.newsEvents.aotwResponse ? (
-                                    <>
-                                        {props.newsEvents.aotwResponse.payload && (
-                                            <AotwHeader
-                                                payload={props.newsEvents.aotwResponse.payload}
-                                                currentUserHasUnlocked={
-                                                    props.newsEvents.aotwResponse.currentUserHasUnlocked
-                                                }
-                                                language={props.language}
-                                                uiSize={props.uiSize}
-                                                showIcons={props.showIcons}
-                                                onClickGameTitle={(() => {
-                                                    const gameId = props.newsEvents.aotwResponse.payload?.game?.id ?? null;
-                                                    const handler = props.newsEvents.onOpenGameOverview;
-                                                    if (gameId == null || !handler) {
-                                                        return undefined;
-                                                    }
-                                                    return () => handler(gameId);
-                                                })()}
-                                            />
-                                        )}
-                                        <Focusable
-                                            flow-children="row"
-                                            style={{
-                                                width: "100%",
-                                                display: "flex",
-                                                gap: "6px",
-                                                margin: "6px 0 4px 0"
-                                            }}
-                                        >
-                                            {AOTW_SUB_TABS.map((tab) => (
-                                                <SubTabButton
-                                                    key={tab.value}
-                                                    label={t(props.language, tab.labelKey)}
-                                                    active={props.newsEvents.aotwSubView === tab.value}
-                                                    onClick={() => props.newsEvents.onChangeAotwSubView(tab.value)}
-                                                    focusKey={tab.focusKey}
-                                                />
-                                            ))}
-                                        </Focusable>
-                                        {props.newsEvents.aotwSubView === "unlocks" ? (
-                                            (props.newsEvents.aotwResponse.payload?.unlocks?.length ?? 0) === 0 ? (
-                                                <PanelSectionRow>
-                                                    <div
-                                                        style={{
-                                                            width: "100%",
-                                                            display: "flex",
-                                                            flexDirection: "column",
-                                                            gap: "6px",
-                                                            alignItems: "center",
-                                                            textAlign: "center"
-                                                        }}
-                                                    >
-                                                        <div style={{ fontSize: `${textSize(16)}px`, fontWeight: 700 }}>
-                                                            {t(props.language, "No unlocks yet.")}
-                                                        </div>
-                                                    </div>
-                                                </PanelSectionRow>
-                                            ) : (
-                                                <>
-                                                    {props.newsEvents.aotwResponse.payload?.unlocks.map((unlock, index) => (
-                                                        <AotwUnlockRow
-                                                            key={`${unlock.user}:${unlock.dateAwarded}:${index}`}
-                                                            unlock={unlock}
-                                                            language={props.language}
-                                                            metrics={rowMetrics}
-                                                            showIcons={props.showIcons}
-                                                            focusKey={`aotw:unlock:${index}`}
-                                                            onClick={(u: AotwUnlock) =>
-                                                                props.newsEvents.onOpenUserProfile(u.user, u.ulid)
-                                                            }
-                                                        />
-                                                    ))}
-                                                </>
-                                            )
-                                        ) : (
-                                            props.newsEvents.aotwHoldCommentsBody
-                                                && !props.newsEvents.aotwCommentsLoaded ? (
-                                                <PanelSectionRow>
-                                                    <InlineSpinner label={t(props.language, "Loading comments...")} />
-                                                </PanelSectionRow>
-                                            ) : (props.newsEvents.aotwCommentsLoaded
-                                                && props.newsEvents.aotwComments.length === 0
-                                                && !props.newsEvents.aotwCommentsLoading
-                                                && !props.newsEvents.aotwCommentsError) ? (
-                                                <>
-                                                    <PanelSectionRow>
-                                                        <div style={bodyTextStyle()}>
-                                                            {t(props.language, "No comments yet.")}
-                                                        </div>
-                                                    </PanelSectionRow>
-                                                    {aotwSubscription.subscribeError ? (
-                                                        <PanelSectionRow>
-                                                            <ErrorText>{localizeRuntimeText(props.language, aotwSubscription.subscribeError)}</ErrorText>
-                                                        </PanelSectionRow>
-                                                    ) : null}
-                                                    <FocusClaim
-                                                        token={props.newsEvents.aotwCommentsPostClaim?.token ?? 0}
-                                                        armed={props.newsEvents.aotwCommentsPostClaim?.armed ?? false}
-                                                        onSpent={props.newsEvents.onSpendAotwCommentsPostClaim}
-                                                    >
-                                                        <CommentActionStrip
-                                                            language={props.language}
-                                                            isSubscribed={aotwSubscription.isSubscribed}
-                                                            onPost={props.newsEvents.onPostAotwComment}
-                                                            onToggleSubscribe={aotwSubscription.onToggleSubscribe}
-                                                            postFocusKey="aotw:comments:post"
-                                                            subscribeFocusKey="aotw:comments:subscribe"
-                                                        />
-                                                    </FocusClaim>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    {aotwSubscription.subscribeError ? (
-                                                        <PanelSectionRow>
-                                                            <ErrorText>{localizeRuntimeText(props.language, aotwSubscription.subscribeError)}</ErrorText>
-                                                        </PanelSectionRow>
-                                                    ) : null}
-                                                    <FocusClaim
-                                                        token={props.newsEvents.aotwCommentsPostClaim?.token ?? 0}
-                                                        armed={props.newsEvents.aotwCommentsPostClaim?.armed ?? false}
-                                                        onSpent={props.newsEvents.onSpendAotwCommentsPostClaim}
-                                                    >
-                                                        <CommentActionStrip
-                                                            language={props.language}
-                                                            isSubscribed={aotwSubscription.isSubscribed}
-                                                            onPost={props.newsEvents.onPostAotwComment}
-                                                            onToggleSubscribe={aotwSubscription.onToggleSubscribe}
-                                                            postFocusKey="aotw:comments:post"
-                                                            subscribeFocusKey="aotw:comments:subscribe"
-                                                        />
-                                                    </FocusClaim>
-                                                    <LabeledRow
-                                                        focusKey="aotw:comments:sort"
-                                                        onClick={handleAotwSortCycle}
-                                                        label={t(props.language, "Sort")}
-                                                        value={props.newsEvents.aotwCommentsSort === "newest"
-                                                            ? t(props.language, "Newest")
-                                                            : t(props.language, "Oldest")}
-                                                    />
-                                                    <CommentsList
-                                                        comments={props.newsEvents.aotwComments}
-                                                        language={props.language}
-                                                        uiSize={props.uiSize}
-                                                        showIcons={props.showIcons}
-                                                        focusKeyPrefix="aotw:comment"
-                                                        surfaceKey="comments:aotw"
-                                                        onCommentClick={(c) =>
-                                                            props.newsEvents.onOpenAotwComment(
-                                                                c,
-                                                                props.newsEvents.aotwResponse?.payload?.achievement?.id ?? null
-                                                            )
-                                                        }
-                                                        dynamicLoading={props.dynamicComments}
-                                                        dynamicSentinelRootMargin={props.dynamicCommentsSentinelRootMargin}
-                                                        loading={props.newsEvents.aotwCommentsLoading}
-                                                        loadingMore={props.newsEvents.aotwCommentsLoadingMore}
-                                                        hasMore={props.newsEvents.aotwCommentsHasMore}
-                                                        error={props.newsEvents.aotwCommentsError}
-                                                        onLoadMore={props.newsEvents.onLoadMoreAotwComments}
-                                                        emptyMessage={t(props.language, "No comments yet.")}
-                                                        claimedCard={props.newsEvents.aotwCommentsCardClaim && {
-                                                            ...props.newsEvents.aotwCommentsCardClaim,
-                                                            onSpent: props.newsEvents.onSpendAotwCommentsCardClaim
-                                                        }}
-                                                        restoredWindow={props.newsEvents.aotwCommentsWindow}
-                                                    />
-                                                </>
-                                            )
-                                        )}
-                                    </>
-                                ) : null}
-                            </>
+                        ) : props.newsEvents.subView === "events" ? (
+                            <EventsTabBody
+                                language={props.language}
+                                restore={eventsRestoreSettled ? null : eventsRestore}
+                                onRestoreSettled={(abandoned) => {
+                                    setEventsRestoreSettled(true);
+                                    if (abandoned) {
+                                        setBackClaimToken((current) => current + 1);
+                                    }
+                                }}
+                                onOpenEvent={props.newsEvents.onOpenEvent}
+                                onOpenAotw={props.newsEvents.onOpenAotw}
+                                onRequestFocus={props.onRequestFocus}
+                                onListEmptied={() => {
+                                    setBackClaimToken((current) => current + 1);
+                                    props.onRequestFocus("social:back");
+                                }}
+                            />
                         ) : (
                             <>
                                 <Focusable

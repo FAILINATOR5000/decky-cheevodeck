@@ -89,6 +89,7 @@ export function AchievementList(props: {
     emptyMessageOverride?: ReactNode;
     emptyFocusAnchorKey?: string;
     getAchievementExtraLabel?: (achievement: AchievementRow) => ReactNode;
+    getAchievementHeaderLabel?: (achievement: AchievementRow) => ReactNode;
 }) {
     const ICON_STREAM_CHUNK = 10;
 
@@ -349,7 +350,7 @@ export function AchievementList(props: {
     }, [filteredAchievements, shouldLimitMainList]);
 
     const rowLabels = useMemo(() => {
-        const labels = new Map<number, { communityLabel: string | null; extraLabel: ReactNode }>();
+        const labels = new Map<number, { communityLabel: string | null; extraLabel: ReactNode; headerLabel: ReactNode }>();
         const showsUnlockStamp = currentMode === "main" || currentMode === "friend" || currentMode === "overview";
 
         for (const achievement of visibleAchievements) {
@@ -360,12 +361,13 @@ export function AchievementList(props: {
             labels.set(achievement.id, {
                 communityLabel: communityCompletionLabel(achievement, communityPlayerCount, props.language),
                 extraLabel: props.getAchievementExtraLabel?.(achievement)
-                    ?? (unlockStamp ? <UnlockStamp date={unlockStamp} /> : null)
+                    ?? (unlockStamp ? <UnlockStamp date={unlockStamp} /> : null),
+                headerLabel: props.getAchievementHeaderLabel?.(achievement)
             });
         }
 
         return labels;
-    }, [visibleAchievements, currentMode, props.language, communityPlayerCount, props.getAchievementExtraLabel]);
+    }, [visibleAchievements, currentMode, props.language, communityPlayerCount, props.getAchievementExtraLabel, props.getAchievementHeaderLabel]);
 
     const {
         mountedItems: mountedAchievements,
@@ -663,6 +665,7 @@ export function AchievementList(props: {
                                     }
                                     communityLabel={labels?.communityLabel ?? null}
                                     extraLabel={labels?.extraLabel ?? null}
+                                    headerLabel={labels?.headerLabel}
                                     noteText={note?.body}
                                     noteColor={note?.color}
                                 />
