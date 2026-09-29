@@ -484,6 +484,7 @@ class Plugin(
         self.repair_service = RepairService(
             update_checker_service=self.update_checker_service,
             memories_store=self.memories_store,
+            settings_store=self.settings_store,
         )
         self.developer_message_service = DeveloperMessageService(
             settings_store=self.settings_store,

@@ -22,9 +22,10 @@ class RepairService:
     housekeeping that takes the panel down with it is worse than the mess.
     """
 
-    def __init__(self, *, update_checker_service, memories_store):
+    def __init__(self, *, update_checker_service, memories_store, settings_store):
         self._update_checker_service = update_checker_service
         self._memories_store = memories_store
+        self._settings_store = settings_store
 
     def run_startup_repairs(self) -> dict:
         """Run every repair in turn and report which ones did anything.
@@ -49,6 +50,15 @@ class RepairService:
         except Exception as e:
             decky.logger.warning(
                 "repair: memories games index rebuild failed: %s",
+                type(e).__name__,
+            )
+
+        try:
+            if self._settings_store.reset_outdated_quick_menu_shortcuts():
+                fixed.append("quick_menu_shortcuts")
+        except Exception as e:
+            decky.logger.warning(
+                "repair: quick menu shortcuts reset failed: %s",
                 type(e).__name__,
             )
 

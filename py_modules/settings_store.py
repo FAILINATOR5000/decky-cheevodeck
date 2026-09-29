@@ -233,6 +233,8 @@ _ALLOWED_QUICK_MENU_SHORTCUTS = (
 
 QUICK_MENU_SHORTCUT_LIMIT = 8
 
+QUICK_MENU_SHORTCUTS_VERSION = 2
+
 
 _ALLOWED_SHORTCUT_BUTTONS = ("menu", "view", "l3", "r3", "l4", "l5", "r4", "r5")
 
@@ -432,6 +434,7 @@ _KNOBS = (
     Knob("putUpdaterOnDesktop", default=True, normalize=True),
     Knob("showOptionsButton", default=False, normalize=True),
     Knob("quickMenuShortcuts", factory=_default_quick_menu_shortcuts, normalize=True),
+    Knob("quickMenuShortcutsVersion", default=QUICK_MENU_SHORTCUTS_VERSION, reset=False, ship=False),
     Knob("shortcutBindings", factory=_default_shortcut_bindings, normalize=True),
     Knob("lastScalePreset", default="portable", normalize=True),
     Knob("showAllToggleMain", default=False, normalize=True),
@@ -3953,6 +3956,22 @@ class SettingsStore:
         cfg = self._update_config("quickMenuShortcuts", values)
 
         return self.get_quick_menu_shortcuts(cfg)
+
+    def get_quick_menu_shortcuts_version(self, cfg: dict) -> int:
+        return to_int(cfg.get("quickMenuShortcutsVersion"), 1)
+
+    def reset_outdated_quick_menu_shortcuts(self) -> bool:
+        with self._config_lock:
+            cfg = self.ensure_display_settings(self.load_config())
+            if self.get_quick_menu_shortcuts_version(cfg) >= QUICK_MENU_SHORTCUTS_VERSION:
+                return False
+
+            cfg["quickMenuShortcuts"] = _default_quick_menu_shortcuts()
+            cfg["quickMenuShortcutsVersion"] = QUICK_MENU_SHORTCUTS_VERSION
+            cfg = self.ensure_display_settings(cfg)
+            self.save_config(cfg)
+
+            return True
 
     def _normalize_shortcut_bindings(self, raw) -> dict:
         source = raw if isinstance(raw, dict) else {}
