@@ -1,5 +1,6 @@
 import { debugLoggingEnabled, logFocusDebug, readMemoryClipPart } from "../../api";
 import { logError } from "../../utils/errors";
+import type { MemoryRecord } from "../../types";
 
 const CLIP_BASE = "https://steamloopback.host/gamerecordings/clips";
 
@@ -71,6 +72,7 @@ export type ClipPlayback = {
     endSeek: () => void;
     skip: (direction: 1 | -1) => void;
     seekTo: (mediaTime: number) => void;
+    keyframeTimes: () => number[];
     subscribe: (listener: (state: ClipPlaybackState) => void) => () => void;
 };
 
@@ -245,6 +247,23 @@ function clipDebug(stage: string, key: string, build: () => string) {
         return;
     }
     logFocusDebug(stage, key, build());
+}
+
+export function clipSourceFor(memory: MemoryRecord): ClipSource | null {
+    const video = memory.video;
+    if (!video || !video.clipId || !video.sessionId) {
+        return null;
+    }
+    return {
+        clipId: video.clipId,
+        sessionId: video.sessionId,
+        startMs: video.startMs,
+        durationMs: video.durationMs,
+        gameId: memory.gameId,
+        memoryId: memory.id,
+        owned: video.path !== "",
+        remuxed: video.path !== "" && video.kind === "mp4"
+    };
 }
 
 export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayback {
@@ -1292,6 +1311,20 @@ export function playClip(video: HTMLVideoElement, source: ClipSource): ClipPlayb
                 + `from ${video.currentTime.toFixed(1)}s scanning=${scanning}`);
             stopScan();
             seekTo(mediaTime);
+        },
+
+        keyframeTimes() {
+            if (index) {
+                return index.fragments.filter(([, , sync]) => sync).map(([time]) => time / 1000);
+            }
+            if (!plan || !started) {
+                return [];
+            }
+            const heads: number[] = [];
+            for (let head = firstSegmentStart; head < outPoint; head += plan.segmentSeconds) {
+                heads.push(head);
+            }
+            return heads;
         },
 
         subscribe(listener: (state: ClipPlaybackState) => void) {

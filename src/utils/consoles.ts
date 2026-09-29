@@ -303,6 +303,23 @@ export function consoleMaker(consoleName: string): string {
     return makerLookup.get(normalizeConsoleName(consoleName)) ?? "";
 }
 
+const FORUM_MAKER_TAGS = new Set(["Nintendo", "Sega", "Sony", "Atari", "NEC", "SNK"]);
+const FORUM_COMPUTERS = new Set(
+    ["Amstrad CPC", "Apple II", "Commodore 64", "MSX", "Sharp X68000", "ZX Spectrum"].map(normalizeConsoleName)
+);
+
+export function consoleForumTag(consoleName: string): string {
+    const maker = consoleMaker(consoleName);
+    if (FORUM_MAKER_TAGS.has(maker)) {
+        return maker;
+    }
+    const key = normalizeConsoleName(consoleName);
+    if (key === "arcade") {
+        return "Arcade";
+    }
+    return FORUM_COMPUTERS.has(key) ? "Computers" : "Other";
+}
+
 export function consoleSearchName(consoleName: string): string {
     const raw = String(consoleName || "").trim();
     if (!raw) {

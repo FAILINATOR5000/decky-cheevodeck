@@ -140,6 +140,8 @@ import {
     saveMemoriesPerPage,
     saveMemoriesVideo,
     saveMemoriesRemux,
+    saveMemoriesShareQuality,
+    saveMemoriesEncodePriority,
     saveMemoriesDeleteSteamClip,
     saveLinksOpenInWebBrowser,
     saveLegacyCommentsLoading,
@@ -205,6 +207,8 @@ import type {
     TrackedAchievementAction,
     DolphinMapperMode,
     FileWatcherSpeed,
+    MemoriesEncodePriority,
+    MemoriesShareQuality,
     TrackedSetAButtonMode,
     TrackedColor,
     ScaleStep,
@@ -255,6 +259,8 @@ import {
     nextAvatarCacheCap,
     nextAchievementIconCacheGames,
     nextMemoriesPerPage,
+    nextMemoriesShareQuality,
+    nextMemoriesEncodePriority,
     nextFisTickFrequencyMinutes,
     nextCommentsCheckFrequencyMinutes,
     nextTrackedSetRefreshMinutes,
@@ -470,6 +476,8 @@ type UseOptionsControllerArgs = {
     memoriesVideo: boolean;
     memoriesVideoPath: string;
     memoriesRemux: boolean;
+    memoriesShareQuality: MemoriesShareQuality;
+    memoriesEncodePriority: MemoriesEncodePriority;
     memoriesDeleteSteamClip: boolean;
     linksOpenInWebBrowser: boolean;
     batterySaverDisablesMemories: boolean;
@@ -531,6 +539,8 @@ type UseOptionsControllerArgs = {
     setMemoriesPerPage: Dispatch<SetStateAction<number>>;
     setMemoriesVideo: Dispatch<SetStateAction<boolean>>;
     setMemoriesRemux: Dispatch<SetStateAction<boolean>>;
+    setMemoriesShareQuality: Dispatch<SetStateAction<MemoriesShareQuality>>;
+    setMemoriesEncodePriority: Dispatch<SetStateAction<MemoriesEncodePriority>>;
     setMemoriesDeleteSteamClip: Dispatch<SetStateAction<boolean>>;
     setLinksOpenInWebBrowser: Dispatch<SetStateAction<boolean>>;
     setLegacyCommentsLoading: Dispatch<SetStateAction<boolean>>;
@@ -916,6 +926,8 @@ export function useOptionsController({
     memoriesVideo,
     memoriesVideoPath,
     memoriesRemux,
+    memoriesShareQuality,
+    memoriesEncodePriority,
     memoriesDeleteSteamClip,
     linksOpenInWebBrowser,
     batterySaverDisablesMemories,
@@ -977,6 +989,8 @@ export function useOptionsController({
     setMemoriesPerPage,
     setMemoriesVideo,
     setMemoriesRemux,
+    setMemoriesShareQuality,
+    setMemoriesEncodePriority,
     setMemoriesDeleteSteamClip,
     setLinksOpenInWebBrowser,
     setBatterySaverDisablesMemories,
@@ -1227,6 +1241,8 @@ export function useOptionsController({
         setMemoriesDeleteSource(Boolean(result.memoriesDeleteSource));
         setMemoriesVideo(Boolean(result.memoriesVideo ?? true));
         setMemoriesRemux(Boolean(result.memoriesRemux ?? true));
+        setMemoriesShareQuality(result.memoriesShareQuality ?? "medium");
+        setMemoriesEncodePriority(result.memoriesEncodePriority ?? "low");
         setClipMuted(Boolean(result.memoriesMuted ?? false));
         setMemoriesDeleteSteamClip(Boolean(result.memoriesDeleteSteamClip));
         setLinksOpenInWebBrowser(Boolean(result.linksOpenInWebBrowser ?? true));
@@ -3256,6 +3272,24 @@ export function useOptionsController({
             getSavedValue: (result, fallbackValue) => Boolean(result.memoriesRemux ?? fallbackValue),
         });
 
+    const onCycleMemoriesShareQuality = () =>
+        saveSettingWithRollback<MemoriesShareQuality>({
+            nextValue: nextMemoriesShareQuality(memoriesShareQuality),
+            previousValue: memoriesShareQuality,
+            applyValue: setMemoriesShareQuality,
+            saveCall: saveMemoriesShareQuality,
+            getSavedValue: (result, fallbackValue) => result.memoriesShareQuality ?? fallbackValue,
+        });
+
+    const onCycleMemoriesEncodePriority = () =>
+        saveSettingWithRollback<MemoriesEncodePriority>({
+            nextValue: nextMemoriesEncodePriority(memoriesEncodePriority),
+            previousValue: memoriesEncodePriority,
+            applyValue: setMemoriesEncodePriority,
+            saveCall: saveMemoriesEncodePriority,
+            getSavedValue: (result, fallbackValue) => result.memoriesEncodePriority ?? fallbackValue,
+        });
+
     const applyLinksOpenInWebBrowser = (value: boolean) => {
         setLinksOpenInWebBrowser(value);
         setWebBrowserForLinks(value);
@@ -3638,6 +3672,8 @@ export function useOptionsController({
         memoriesVideo,
         memoriesVideoPath,
         memoriesRemux,
+        memoriesShareQuality,
+        memoriesEncodePriority,
         memoriesDeleteSteamClip,
         linksOpenInWebBrowser,
         memoriesCount,
@@ -3885,6 +3921,8 @@ export function useOptionsController({
         onToggleMemoriesDeleteSource,
         onToggleMemoriesVideo,
         onToggleMemoriesRemux,
+        onCycleMemoriesShareQuality,
+        onCycleMemoriesEncodePriority,
         onToggleMemoriesDeleteSteamClip,
         onCycleMemoriesPerPage,
         onCycleLinksOpenInWebBrowser,

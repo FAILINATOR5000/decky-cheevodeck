@@ -30,6 +30,8 @@ import type {
     DolphinSystemFilter,
     CheevoCheckVerifySpeed,
     FileWatcherSpeed,
+    MemoriesEncodePriority,
+    MemoriesShareQuality,
     TrackedAchievementSort,
     TrackedColor,
     TrackedSetFilter,
@@ -169,6 +171,8 @@ export function useSettingsController({
     const [memoriesVideo, setMemoriesVideo] = useState(true);
     const [memoriesVideoPath, setMemoriesVideoPath] = useState("");
     const [memoriesRemux, setMemoriesRemux] = useState(true);
+    const [memoriesShareQuality, setMemoriesShareQuality] = useState<MemoriesShareQuality>("medium");
+    const [memoriesEncodePriority, setMemoriesEncodePriority] = useState<MemoriesEncodePriority>("low");
     const [memoriesDeleteSteamClip, setMemoriesDeleteSteamClip] = useState(false);
     const [linksOpenInWebBrowser, setLinksOpenInWebBrowser] = useState(true);
     const [fileWatcherSpeed, setFileWatcherSpeed] = useState<FileWatcherSpeed>("gentle");
@@ -458,6 +462,8 @@ export function useSettingsController({
         setMemoriesVideo(source.memoriesVideo);
         setMemoriesVideoPath(source.memoriesVideoPath);
         setMemoriesRemux(source.memoriesRemux);
+        setMemoriesShareQuality(source.memoriesShareQuality);
+        setMemoriesEncodePriority(source.memoriesEncodePriority);
         setMemoriesDeleteSteamClip(source.memoriesDeleteSteamClip);
         setLinksOpenInWebBrowser(source.linksOpenInWebBrowser);
         setWebBrowserForLinks(source.linksOpenInWebBrowser);
@@ -739,6 +745,8 @@ export function useSettingsController({
         memoriesVideo,
         memoriesVideoPath,
         memoriesRemux,
+        memoriesShareQuality,
+        memoriesEncodePriority,
         memoriesDeleteSteamClip,
         linksOpenInWebBrowser,
         fileWatcherSpeed,
@@ -973,6 +981,8 @@ export function useSettingsController({
         setMemoriesVideo,
         setMemoriesVideoPath,
         setMemoriesRemux,
+        setMemoriesShareQuality,
+        setMemoriesEncodePriority,
         setMemoriesDeleteSteamClip,
         setLinksOpenInWebBrowser,
         setBatterySaverDisablesMemories,

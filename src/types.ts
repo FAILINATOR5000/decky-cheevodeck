@@ -986,6 +986,8 @@ export type SettingsResponse = {
     memoriesVideoPath: string;
     memoriesRemux: boolean;
     memoriesMuted: boolean;
+    memoriesShareQuality: MemoriesShareQuality;
+    memoriesEncodePriority: MemoriesEncodePriority;
     memoriesDeleteSteamClip: boolean;
     linksOpenInWebBrowser: boolean;
     fileWatcherSpeed: FileWatcherSpeed;
@@ -1575,6 +1577,9 @@ type MemoryVideo = {
     sizeBytes: number;
     kind: "mp4" | "dash";
 };
+
+export type MemoriesShareQuality = "medium" | "high" | "best";
+export type MemoriesEncodePriority = "low" | "normal";
 
 export type MemoryBookmark = {
     id: string;

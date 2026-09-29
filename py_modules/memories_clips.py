@@ -549,14 +549,14 @@ def trim_clip(video: str, audio: str, target: Path, start_seconds: float, span_s
     # -ss is measured from the container's own start time, and a clip cut out
     # of a background session carries that session's clock rather than starting
     # at zero. Each input is measured on its own so the two stay in step.
-    base = _media_start_seconds(video)
+    base = media_start_seconds(video)
     if base is None:
         return {"ok": False, "bytes": 0}
 
     command = [FFMPEG, "-y", "-v", "error"]
     command += ["-noaccurate_seek", "-ss", f"{max(start_seconds - base, 0.0):.3f}", "-i", video]
     if audio:
-        audio_base = _media_start_seconds(audio)
+        audio_base = media_start_seconds(audio)
         if audio_base is None:
             return {"ok": False, "bytes": 0}
         command += [
@@ -699,7 +699,7 @@ def _tools_available() -> bool:
         return False
 
 
-def _media_start_seconds(source: str):
+def media_start_seconds(source: str):
     code, stdout, _stderr = subprocess_util.run_command([
         FFPROBE, "-v", "error",
         "-show_entries", "format=start_time",
@@ -739,7 +739,7 @@ def make_poster(session_path: Path, start_ms, duration_ms, destination: Path) ->
     # ffmpeg's -ss is measured from the container's own start time, and a clip
     # cut out of a background session carries that session's clock rather than
     # starting at zero. Seeking to the absolute figure runs off the end.
-    base = _media_start_seconds(source)
+    base = media_start_seconds(source)
     if base is None:
         decky.logger.warning("memories: couldn't read the timing of %s", session_path.name)
         return False

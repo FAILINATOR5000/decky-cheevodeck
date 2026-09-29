@@ -1,6 +1,6 @@
 import { DEFAULT_LANGUAGE, type LanguageCode, t } from "../locales";
 import { getDeviceIsSteamMachine } from "./scale";
-import type { AchievementStyle, ActivityCardAction, BrowserHistoryRetention, BrowserNewTabPage, BrowserSearchEngine, ButtonSpacing, ControllerGlyphStyle, HeaderStyle, PlayersNearYouMode, PlayersNearYouTapMode, QuickMenuShortcut, ScalePreset, ScaleStep, ShortcutAction, ShortcutButton, SocialEntryDefault } from "../types";
+import type { AchievementStyle, ActivityCardAction, BrowserHistoryRetention, BrowserNewTabPage, BrowserSearchEngine, ButtonSpacing, ControllerGlyphStyle, HeaderStyle, MemoriesEncodePriority, MemoriesShareQuality, PlayersNearYouMode, PlayersNearYouTapMode, QuickMenuShortcut, ScalePreset, ScaleStep, ShortcutAction, ShortcutButton, SocialEntryDefault } from "../types";
 
 
 const UNLOCK_LOOKBACK_OPTIONS = [60, 120, 360, 720, 1440];
@@ -736,6 +736,32 @@ export function browserOptionLabels(language: LanguageCode = DEFAULT_LANGUAGE): 
         ...BROWSER_ACTIVE_TABS_OPTIONS.map((value) => String(value))
     ];
     return [...new Set(labels)];
+}
+
+const MEMORIES_SHARE_QUALITY_OPTIONS: MemoriesShareQuality[] = ["medium", "high", "best"];
+
+export function nextMemoriesShareQuality(current: MemoriesShareQuality) {
+    const currentIndex = MEMORIES_SHARE_QUALITY_OPTIONS.indexOf(current);
+
+    return MEMORIES_SHARE_QUALITY_OPTIONS[(currentIndex + 1) % MEMORIES_SHARE_QUALITY_OPTIONS.length];
+}
+
+export function memoriesShareQualityLabel(value: MemoriesShareQuality, language: LanguageCode = DEFAULT_LANGUAGE) {
+    if (value === "best") {
+        return t(language, "share_quality_best");
+    }
+    if (value === "high") {
+        return t(language, "share_quality_high");
+    }
+    return t(language, "share_quality_medium");
+}
+
+export function nextMemoriesEncodePriority(current: MemoriesEncodePriority): MemoriesEncodePriority {
+    return current === "low" ? "normal" : "low";
+}
+
+export function memoriesEncodePriorityLabel(value: MemoriesEncodePriority, language: LanguageCode = DEFAULT_LANGUAGE) {
+    return t(language, value === "normal" ? "encode_priority_normal" : "encode_priority_low");
 }
 
 export function nextMemoriesPerPage(current: number) {

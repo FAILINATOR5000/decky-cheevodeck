@@ -72,6 +72,18 @@ export function formatClipLength(seconds: number): string {
     return `${minutes}:${rest}`;
 }
 
+export function formatClipTenths(seconds: number): string {
+    const tenths = Math.max(Math.round(seconds * 10), 0);
+    const whole = Math.floor(tenths / 10);
+    const minutes = Math.floor((whole % 3600) / 60);
+    const rest = String(whole % 60).padStart(2, "0");
+    const hours = Math.floor(whole / 3600);
+    if (hours > 0) {
+        return `${hours}:${String(minutes).padStart(2, "0")}:${rest}.${tenths % 10}`;
+    }
+    return `${minutes}:${rest}.${tenths % 10}`;
+}
+
 export function pageCount(total: number, perPage: number): number {
     if (perPage <= 0) {
         return 1;

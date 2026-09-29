@@ -17,6 +17,8 @@ import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
 import { FocusClaim } from "../components/ui/FocusClaim";
 import type { FocusClaimController } from "../hooks/useFocusClaim";
 import { GridIcon } from "../components/ui/GridIcon";
+import { UsersIcon } from "../components/ui/UsersIcon";
+import { openSharedMemories } from "../components/browser/discordShare";
 import { ArrowDownWideShortIcon, ArrowUpShortWideIcon } from "../components/ui/SortOrderIcons";
 import { MemoryCard, type MemoryCardListProps } from "../components/memories/MemoryCard";
 import { MemoryGamePickerModal } from "../components/memories/MemoryGamePickerModal";
@@ -24,6 +26,7 @@ import { MemoryTagFilterModal } from "../components/memories/MemoryTagFilterModa
 import { MemoryViewerModal } from "../components/memories/MemoryViewerModal";
 import { MemoryEditorModal } from "../components/memories/MemoryEditorModal";
 import { MemoryMoveModal } from "../components/memories/MemoryMoveModal";
+import { MemoryShareModal } from "../components/memories/MemoryShareModal";
 import { useFocusClaim } from "../hooks/useFocusClaim";
 import { showManagedModal } from "../utils/modalRegistry";
 import { armMemoriesFocusKey, armMemoriesFocusReturn } from "../utils/memoriesFocusReturn";
@@ -35,9 +38,9 @@ import { openExternalUrl } from "../utils/navigation";
 import { logFocusDebug } from "../api";
 import { ALL_GAMES_ID, MISC_GAME_ID, mediaFilterKey, memoryRemovalLanding } from "../utils/memories";
 import { noteBodyColor } from "../utils/achievements";
-import { bodyTextStyle, regularButtonSpacingStyle } from "../utils/style";
+import { bodyTextStyle, regularButtonSpacingStyle, smallTextStyle } from "../utils/style";
 import { textSize } from "../utils/scale";
-import { BUTTON_SECONDARY, BUTTON_OPTIONS, BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT } from "../utils/gamepadButtons";
+import { BUTTON_SECONDARY, BUTTON_OPTIONS, BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT, BUTTON_TRIGGER_RIGHT } from "../utils/gamepadButtons";
 import { t, type LanguageCode } from "../locales";
 import type { MemoriesControllerActions, MemoriesControllerState } from "../hooks/useMemoriesController";
 import type { ButtonSpacing, ControllerGlyphStyle, NoteColor, ViewKey } from "../types";
@@ -144,11 +147,13 @@ const NAV_ENTER_FIRST = 0;
 const GAME_CLAIM_SLOT = -2;
 const FILTER_CLAIM_SLOT = -3;
 const GUIDE_CLAIM_SLOT = -4;
+const SHARED_CLAIM_SLOT = -5;
 
 const CONTROL_CLAIM_SLOTS: Record<string, number> = {
     "memories:game": GAME_CLAIM_SLOT,
     "memories:filter": FILTER_CLAIM_SLOT,
-    "memories:guide": GUIDE_CLAIM_SLOT
+    "memories:guide": GUIDE_CLAIM_SLOT,
+    "memories:shared": SHARED_CLAIM_SLOT
 };
 
 type MemoriesPageState = {
@@ -462,7 +467,31 @@ function MemoriesPage(props: MemoriesPageProps) {
         if (evt?.detail?.button === BUTTON_BUMPER_RIGHT) {
             playOkSound();
             saveMedia(focused);
+            return;
         }
+        if (evt?.detail?.button === BUTTON_TRIGGER_RIGHT) {
+            playOkSound();
+            openShare(focused);
+        }
+    }
+
+    function openShare(memoryId: string) {
+        const memory = memories.pageMemories.find((row) => row.id === memoryId);
+        if (!memory) {
+            return;
+        }
+        armMemoriesFocusReturn(memory.gameId, memoryId, activeUlid);
+        showManagedModal((close) => (
+            <MemoryShareModal
+                memory={memory}
+                gameId={memory.gameId}
+                language={language}
+                thumbDataUri={memories.thumbs[memory.path] ?? null}
+                mouseKeyboardMode={mouseKeyboardMode}
+                onHandOff={() => armMemoriesFocusReturn(memory.gameId, memoryId, activeUlid)}
+                close={close}
+            />
+        ));
     }
 
     function openMove(memoryId: string) {
@@ -545,6 +574,22 @@ function MemoriesPage(props: MemoriesPageProps) {
         restoreSettledRef.current = true;
     }
     const restoreSettled = restoreSettledRef.current;
+
+    function headerCaption(): string {
+        switch (focusedToggleKey) {
+            case "memories:order":
+                return memories.dateOrder === "desc" ? t(language, "Show Oldest First") : t(language, "Show Newest First");
+            case "memories:columns":
+                return t(language, "Grid Size");
+            case "memories:shared":
+                return t(language, "Shared Memories");
+            case "memories:guide":
+                return t(language, "Memories Guide");
+            default:
+                return "";
+        }
+    }
+    const caption = headerCaption();
 
     function renderToggleButton(focusKey: string, icon: ReactNode, onClick: () => void) {
         return (
@@ -796,7 +841,8 @@ function MemoriesPage(props: MemoriesPageProps) {
                                     { button: "y", label: t(language, "Edit") },
                                     { button: "x", label: t(language, "Delete") },
                                     { button: "l1", label: t(language, "Move") },
-                                    { button: "r1", label: t(language, "Save Media") }
+                                    { button: "r1", label: t(language, "Save Media") },
+                                    { button: "r2", label: t(language, "share_memory_action") }
                                 ]}
                             />
                         )}
@@ -812,6 +858,20 @@ function MemoriesPage(props: MemoriesPageProps) {
                                     flow-children="row"
                                     style={{ display: "flex", gap: "6px", flexShrink: 0 }}
                                 >
+                                    <ClaimedRow
+                                        claim={restoreClaim}
+                                        slotIndex={SHARED_CLAIM_SLOT}
+                                        style={{ display: "flex" }}
+                                    >
+                                    {renderToggleButton(
+                                        "memories:shared",
+                                        <UsersIcon size={16} />,
+                                        () => {
+                                            armFocusKey("memories:shared");
+                                            openSharedMemories(language);
+                                        }
+                                    )}
+                                    </ClaimedRow>
                                     {renderToggleButton(
                                         "memories:order",
                                         memories.dateOrder === "desc"
@@ -847,6 +907,19 @@ function MemoriesPage(props: MemoriesPageProps) {
                                 </Focusable>
                             )}
                         />
+                        <div
+                            style={{
+                                ...smallTextStyle(),
+                                fontWeight: 700,
+                                minHeight: "17px",
+                                marginBottom: "2px",
+                                textAlign: "center",
+                                whiteSpace: "nowrap",
+                                opacity: caption ? 0.95 : 0
+                            }}
+                        >
+                            {caption}
+                        </div>
 
                         {renderGrid()}
 

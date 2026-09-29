@@ -7,7 +7,9 @@ export const MEMORY_TAG_SEEDS: ReadonlyArray<TagSeed> = [
     { key: "memory_seed_rare", tag: "Rare" },
     { key: "memory_seed_pb", tag: "Personal Best" },
     { key: "memory_seed_ending", tag: "Ending" },
-    { key: "memory_seed_achievement", tag: "Achievement" }
+    { key: "memory_seed_achievement", tag: "Achievement" },
+    { key: "memory_seed_memorable", tag: "Memorable Moment" },
+    { key: "memory_seed_cutscene", tag: "Cool Cutscene" }
 ];
 
 export const GAME_NOTE_TAG_SEEDS: ReadonlyArray<TagSeed> = [

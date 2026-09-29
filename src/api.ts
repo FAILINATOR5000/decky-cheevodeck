@@ -123,6 +123,8 @@ import type {
     FileWatcherSpeed,
     FileWatcherState,
     FileWatcherWindow,
+    MemoriesEncodePriority,
+    MemoriesShareQuality,
     DeckControllerStatus,
     SetDeckControllerResponse,
     TrackedAchievementsResponse,
@@ -548,6 +550,24 @@ export const saveMemoriesDeleteSteamClip = callable<
     [boolean],
     { ok: boolean; memoriesDeleteSteamClip: boolean }
 >("save_memories_delete_steam_clip");
+export const saveMemoriesShareQuality = callable<
+    [MemoriesShareQuality],
+    { ok: boolean; memoriesShareQuality: MemoriesShareQuality }
+>("save_memories_share_quality");
+export const saveMemoriesEncodePriority = callable<
+    [MemoriesEncodePriority],
+    { ok: boolean; memoriesEncodePriority: MemoriesEncodePriority }
+>("save_memories_encode_priority");
+export const probeMemoryShare = callable<
+    [number, string],
+    { ok: boolean; username?: string; consoleName?: string; originalUpTo?: number; error?: string }
+>("probe_memory_share");
+export const prepareMemoryShare = callable<
+    [number, string, number, number],
+    { ok: boolean; path?: string; kind?: "screenshot" | "clip"; sizeBytes?: number; encoded?: boolean; error?: string }
+>("prepare_memory_share");
+export const cancelMemoryShare = callable<[], { ok: boolean }>("cancel_memory_share");
+export const discardMemoryShare = callable<[string], { ok: boolean }>("discard_memory_share");
 export const startMemoriesVideoMove = callable<
     [string],
     { ok: boolean; error?: string }

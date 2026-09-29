@@ -53,6 +53,7 @@ export class ViewSession {
     private standInId: string | null = null;
     private pageDpr = 0;
     private metricsSent: string | null = null;
+    private fileChooserHandler: ((backendNodeId: number) => void) | null = null;
 
     constructor() {
         sessions.add(this);
@@ -76,6 +77,14 @@ export class ViewSession {
             this.waiting.set(id, { resolve, reject, timer });
             live.send(JSON.stringify({ id, method, params }));
         });
+    }
+
+    command(method: string, params: Record<string, unknown> = {}): Promise<any> {
+        return this.send(method, params);
+    }
+
+    onFileChooser(handler: ((backendNodeId: number) => void) | null): void {
+        this.fileChooserHandler = handler;
     }
 
     private onMessage(ev: MessageEvent) {
@@ -103,6 +112,10 @@ export class ViewSession {
         }
         if (msg.method === "Runtime.bindingCalled" && msg.params?.name === AD_SKIP_BINDING) {
             void this.pressSkip(String(msg.params?.payload ?? ""));
+            return;
+        }
+        if (msg.method === "Page.fileChooserOpened") {
+            this.fileChooserHandler?.(Number(msg.params?.backendNodeId));
             return;
         }
         if (this !== activeSession) {

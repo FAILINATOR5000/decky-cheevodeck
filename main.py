@@ -210,6 +210,7 @@ class Plugin(
         self.memory_thumbs_dir = self.runtime_dir / "memory_thumbs"
         self.memories_transfer_scratch_dir = self.runtime_dir / "transfer-temp"
         self.memories_save_scratch_dir = self.runtime_dir / "save-temp"
+        self.memories_share_scratch_dir = self.runtime_dir / "share-temp"
         self.guides_dir = self.runtime_dir / "guides"
         self.tracked_sets_dir = self.runtime_dir
         self.dolphin_mappings_dir = self.runtime_dir
@@ -277,6 +278,8 @@ class Plugin(
                 type(e).__name__,
             )
 
+        shutil.rmtree(self.memories_share_scratch_dir, ignore_errors=True)
+
         self._ssl_ctx = ssl_context()
         self.ra = RetroAchievementsClient(self._ssl_ctx)
         self.settings_store = SettingsStore(
@@ -286,6 +289,7 @@ class Plugin(
             default_language=self.DEFAULT_LANGUAGE,
             recent_unlock_lookback_minutes=self.RECENT_UNLOCK_LOOKBACK_MINUTES,
             recent_unlock_history_days=self.RECENT_UNLOCK_HISTORY_DAYS,
+            default_share_quality="high" if self._is_steam_machine() else "medium",
         )
         self.notes_store = NotesStore(
             notes_dir=self.notes_dir,
@@ -639,6 +643,9 @@ class Plugin(
         self._friend_fetch_lock = asyncio.Lock()
 
         self._memories_adopt_lock = asyncio.Lock()
+
+        self._memory_share_lock = threading.Lock()
+        self._memory_share_cancel = None
 
         self._events_tab_lock = asyncio.Lock()
         self._events_site_lock = asyncio.Lock()

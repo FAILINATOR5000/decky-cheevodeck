@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import threading
 import time
 from pathlib import Path
 
@@ -8,6 +9,7 @@ import memories_capture
 import memories_clips
 import memories_export
 import memories_resolver
+import memories_share
 import memories_thumbs
 
 import memories_transfer
@@ -16,7 +18,7 @@ from services import memories_video_service
 
 from memories_store import ALL_GAMES_ID, MISC_GAME_ID
 from mixins._context import PluginContext
-from utils import norm_game_id, to_int
+from utils import ensure_dir, norm_game_id, to_float, to_int
 
 
 _RESOLVE_COOLDOWN_SECONDS = 5
@@ -85,6 +87,18 @@ class MemoriesMixin(PluginContext):
         return {
             "ok": True,
             "memoriesDeleteSteamClip": self.settings_store.update_memories_delete_steam_clip(value),
+        }
+
+    async def save_memories_share_quality(self, value: str):
+        return {
+            "ok": True,
+            "memoriesShareQuality": self.settings_store.update_memories_share_quality(value),
+        }
+
+    async def save_memories_encode_priority(self, value: str):
+        return {
+            "ok": True,
+            "memoriesEncodePriority": self.settings_store.update_memories_encode_priority(value),
         }
 
     async def start_memories_video_move(self, value):
@@ -422,25 +436,10 @@ class MemoriesMixin(PluginContext):
         if not memories_clips.tools_available():
             return {"ok": False, "error": "no_tools"}
 
-        owned = str(video.get("path") or "")
-        if owned and video.get("kind") == "mp4":
-            source = self.memories_store.video_path(owned) / memories_clips.CLIP_NAME
-            if not source.is_file():
-                return {"ok": False, "error": "no_source"}
-            video_input = str(source)
-            audio_input = ""
-        else:
-            if owned:
-                session = self.memories_store.video_path(owned)
-            else:
-                clip_folder = memories_clips.clip_dir(str(video.get("clipId") or ""), self.user_home)
-                session = memories_clips.session_dir(clip_folder) if clip_folder is not None else None
-            if session is None or not session.is_dir():
-                return {"ok": False, "error": "no_source"}
-            video_input = memories_clips.segment_source(session, 0)
-            audio_input = memories_clips.segment_source(session, 1)
-            if not video_input:
-                return {"ok": False, "error": "no_source"}
+        inputs = self._clip_inputs(video)
+        if inputs is None:
+            return {"ok": False, "error": "no_source"}
+        video_input, audio_input = inputs
 
         label = str(bookmarks[found].get("name") or "").strip()
         if not label:
@@ -466,6 +465,26 @@ class MemoriesMixin(PluginContext):
         if not placed["ok"]:
             return {"ok": False, "error": "write_failed"}
         return {"ok": True, "name": target.name}
+
+    def _clip_inputs(self, video):
+        owned = str(video.get("path") or "")
+        if owned and video.get("kind") == "mp4":
+            source = self.memories_store.video_path(owned) / memories_clips.CLIP_NAME
+            if not source.is_file():
+                return None
+            return str(source), ""
+
+        if owned:
+            session = self.memories_store.video_path(owned)
+        else:
+            clip_folder = memories_clips.clip_dir(str(video.get("clipId") or ""), self.user_home)
+            session = memories_clips.session_dir(clip_folder) if clip_folder is not None else None
+        if session is None or not session.is_dir():
+            return None
+        video_input = memories_clips.segment_source(session, 0)
+        if not video_input:
+            return None
+        return video_input, memories_clips.segment_source(session, 1)
 
     def _save_memory_media_sync(self, game_id, memory_id: str, folder: str):
         destination_dir = Path(str(folder or "").strip())
@@ -534,6 +553,200 @@ class MemoriesMixin(PluginContext):
         if not placed["ok"]:
             return {"ok": False, "error": "write_failed"}
         return {"ok": True, "name": target.name}
+
+    async def prepare_memory_share(self, game_id=None, memory_id: str = "", start_s=0, end_s=0):
+        return await asyncio.to_thread(
+            self._prepare_memory_share_sync, game_id, memory_id, start_s, end_s
+        )
+
+    async def cancel_memory_share(self):
+        cancel = self._memory_share_cancel
+        if cancel is not None:
+            cancel.set()
+        return {"ok": True}
+
+    async def discard_memory_share(self, path: str = ""):
+        return await asyncio.to_thread(self._discard_memory_share_sync, path)
+
+    async def probe_memory_share(self, game_id=None, memory_id: str = ""):
+        return await asyncio.to_thread(self._probe_memory_share_sync, game_id, memory_id)
+
+    def _prepare_memory_share_sync(self, game_id, memory_id, start_s, end_s):
+        cancel = threading.Event()
+        previous = self._memory_share_cancel
+        self._memory_share_cancel = cancel
+        if previous is not None:
+            previous.set()
+
+        with self._memory_share_lock:
+            if cancel.is_set():
+                return {"ok": False, "error": "cancelled"}
+            memories_clips.discard_copy(self.memories_share_scratch_dir)
+
+            memory = self._find_memory(game_id, str(memory_id or ""))
+            if memory is None:
+                return {"ok": False, "error": "not_found"}
+
+            cfg = self.settings_store.load_config()
+            low_priority = self.settings_store.get_memories_encode_priority(cfg) == "low"
+            video = memory.get("video") or {}
+            if video.get("clipId") or video.get("path"):
+                preset = memories_share.PRESETS[self.settings_store.get_memories_share_quality(cfg)]
+                result = self._share_clip(memory, video, start_s, end_s, preset, low_priority, cancel)
+            else:
+                result = self._share_picture(memory, low_priority, cancel)
+
+            if result["ok"] and cancel.is_set():
+                result = {"ok": False, "error": "cancelled"}
+
+            if not result["ok"]:
+                memories_clips.discard_copy(self.memories_share_scratch_dir)
+
+        if result["ok"]:
+            decky.logger.info(
+                "memories: a %s is ready to share, %s MB%s",
+                result["kind"], round(result["sizeBytes"] / (1024 * 1024), 2),
+                " after an encode" if result["encoded"] else "",
+            )
+        elif result["error"] != "cancelled":
+            decky.logger.warning("memories: preparing a share failed (%s)", result["error"])
+        return result
+
+    def _share_scratch(self):
+        folder = self.memories_share_scratch_dir / str(time.time_ns())
+        try:
+            ensure_dir(folder)
+        except OSError as e:
+            decky.logger.warning("memories: couldn't prepare the share folder (%s)", type(e).__name__)
+            return None
+        return folder
+
+    def _share_picture(self, memory, low_priority: bool, cancel):
+        source = self.memories_store.picture_path(memory["path"])
+        try:
+            size = source.stat().st_size
+        except OSError:
+            return {"ok": False, "error": "no_source"}
+
+        if size <= memories_share.TARGET_BYTES:
+            return {"ok": True, "path": str(source), "kind": "screenshot", "sizeBytes": size, "encoded": False}
+
+        if not memories_clips.tools_available():
+            return {"ok": False, "error": "no_tools"}
+        scratch = self._share_scratch()
+        if scratch is None:
+            return {"ok": False, "error": "write_failed"}
+
+        target = scratch / memories_export.export_name(
+            memory.get("gameTitle"), memory.get("capturedAt"), ".jpg"
+        )
+        shrunk = memories_share.shrink_picture(source, target, low_priority, cancel)
+        if not shrunk["ok"]:
+            return {"ok": False, "error": shrunk["error"]}
+        return {"ok": True, "path": str(target), "kind": "screenshot", "sizeBytes": shrunk["bytes"], "encoded": True}
+
+    def _share_clip(self, memory, video, start_s, end_s, preset: str, low_priority: bool, cancel):
+        in_point = max(to_int(video.get("startMs"), 0), 0) / 1000.0
+        clip_end = in_point + max(to_int(video.get("durationMs"), 0), 0) / 1000.0
+        start = max(to_float(start_s, in_point), in_point)
+        end = min(to_float(end_s, clip_end), clip_end)
+        span = end - start
+        if span > memories_share.MAX_PART_SECONDS + 0.01:
+            return {"ok": False, "error": "too_long"}
+        if span < _MIN_SNIPPET_SECONDS:
+            return {"ok": False, "error": "too_short"}
+
+        if not memories_clips.tools_available():
+            return {"ok": False, "error": "no_tools"}
+        inputs = self._clip_inputs(video)
+        if inputs is None:
+            return {"ok": False, "error": "no_source"}
+        scratch = self._share_scratch()
+        if scratch is None:
+            return {"ok": False, "error": "write_failed"}
+
+        target = scratch / memories_export.export_name(
+            memory.get("gameTitle"), memory.get("capturedAt"), ".mp4"
+        )
+        start = memories_share.frame_at(inputs[0], start)
+        span = end - start
+        shipped = self._share_clip_as_is(video, inputs, start, end, target, scratch)
+        if shipped is not None:
+            return shipped
+        if cancel.is_set():
+            return {"ok": False, "error": "cancelled"}
+
+        encoded = memories_share.encode_part(
+            inputs[0], inputs[1], start, span, target, scratch, preset, low_priority, cancel
+        )
+        if not encoded["ok"]:
+            return {"ok": False, "error": encoded["error"]}
+        return {"ok": True, "path": str(target), "kind": "clip", "sizeBytes": encoded["bytes"], "encoded": True}
+
+    def _share_clip_as_is(self, video, inputs, start, end, target: Path, scratch: Path):
+        video_input, audio_input = inputs
+        seconds = max(to_int(video.get("durationMs"), 0), 0) / 1000.0
+        size = max(to_int(video.get("sizeBytes"), 0), 0)
+        if end - start > memories_share.original_up_to(size, seconds):
+            return None
+        if not memories_share.source_plays_as_is(video_input, audio_input):
+            return None
+        keyframe = memories_share.keyframe_at(video_input, start)
+        if keyframe is None:
+            return None
+
+        cut = scratch / "cut.mp4"
+        built = memories_clips.trim_clip(video_input, audio_input, cut, keyframe + 0.001, end - keyframe)
+        if not built["ok"]:
+            return None
+        info = memories_share.probe(str(cut))
+        fits = (
+            info is not None
+            and memories_share.plays_as_is(info["video"], info["audio"])
+            and built["bytes"] <= memories_share.TARGET_BYTES
+        )
+        try:
+            if fits:
+                cut.rename(target)
+                return {"ok": True, "path": str(target), "kind": "clip", "sizeBytes": built["bytes"], "encoded": False}
+            cut.unlink()
+        except OSError:
+            pass
+        return None
+
+    def _discard_memory_share_sync(self, path):
+        folder = Path(str(path or "")).parent
+        if folder.parent != self.memories_share_scratch_dir or not folder.name.isdigit():
+            return {"ok": True}
+        memories_clips.discard_copy(folder)
+        return {"ok": True}
+
+    def _probe_memory_share_sync(self, game_id, memory_id):
+        memory = self._find_memory(game_id, str(memory_id or ""))
+        if memory is None:
+            return {"ok": False, "error": "not_found"}
+        username = str(self.settings_store.load_config().get("username") or "").strip()
+        wanted = norm_game_id(game_id)
+        console_name = ""
+        for row in self.memories_store.games_with_memories().get("games", []):
+            if row.get("gameId") == wanted:
+                console_name = str(row.get("consoleName") or "")
+                break
+        known = {"username": username, "consoleName": console_name}
+        video = memory.get("video") or {}
+        if not video.get("clipId") and not video.get("path"):
+            return {"ok": True, **known, "originalUpTo": 0}
+        if not memories_clips.tools_available():
+            return {"ok": False, "error": "no_tools", **known}
+        inputs = self._clip_inputs(video)
+        if inputs is None:
+            return {"ok": False, "error": "no_source", **known}
+
+        if not memories_share.source_plays_as_is(inputs[0], inputs[1]):
+            return {"ok": True, **known, "originalUpTo": 0}
+        seconds = max(to_int(video.get("durationMs"), 0), 0) / 1000.0
+        size = max(to_int(video.get("sizeBytes"), 0), 0)
+        return {"ok": True, **known, "originalUpTo": memories_share.original_up_to(size, seconds)}
 
     async def delete_all_memories(self):
         result = await asyncio.to_thread(self.memories_store.delete_all)

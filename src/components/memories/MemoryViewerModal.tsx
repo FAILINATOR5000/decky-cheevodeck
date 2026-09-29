@@ -21,14 +21,17 @@ import { BookmarkNameModal } from "../ui/BookmarkNameModal";
 import { ColumnsIcon } from "../ui/ColumnsIcon";
 import { FadeImage } from "../ui/FadeImage";
 import { ScissorsIcon } from "../ui/ScissorsIcon";
+import { ShareIcon } from "../ui/ShareIcon";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { PencilIcon } from "../ui/PencilIcon";
 import { TrashIcon } from "../ui/TrashIcon";
+import { VolumeIcon } from "../ui/VolumeIcon";
 import { AwardStamp } from "../achievements/AwardStamp";
 import { HardcoreBadge } from "../achievements/HardcoreBadge";
 import { POINTS_LABEL_STYLES, PointsLabel } from "../achievements/PointsLabel";
 import { UnlockStamp } from "../achievements/UnlockStamp";
 import { MemoryEditorModal } from "./MemoryEditorModal";
+import { MemoryShareModal, type ShareRange } from "./MemoryShareModal";
 import {
     announceMemoryBookmark,
     beginMemorySeek,
@@ -40,7 +43,7 @@ import {
     skipMemoryPlayback,
     toggleMemoryPlayback
 } from "./memoryFullscreen";
-import { playClip, type ClipPlayback, type ClipPlaybackState, type ClipSource } from "./clipPlayer";
+import { clipSourceFor, playClip, type ClipPlayback, type ClipPlaybackState, type ClipSource } from "./clipPlayer";
 import { getClipMuted, setClipMuted, useClipMuted } from "./clipMute";
 import {
     BUTTON_BUMPER_LEFT,
@@ -223,22 +226,10 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
     const [railCap, setRailCap] = useState(0);
     const [railFiller, setRailFiller] = useState({ count: 0, height: 0, tail: 0 });
 
-    const clipSource = useMemo<ClipSource | null>(() => {
-        const video = memory.video;
-        if (!video || !video.clipId || !video.sessionId) {
-            return null;
-        }
-        return {
-            clipId: video.clipId,
-            sessionId: video.sessionId,
-            startMs: video.startMs,
-            durationMs: video.durationMs,
-            gameId: memory.gameId,
-            memoryId: memory.id,
-            owned: video.path !== "",
-            remuxed: video.path !== "" && video.kind === "mp4"
-        };
-    }, [memory.video, memory.gameId, memory.id]);
+    const clipSource = useMemo<ClipSource | null>(
+        () => clipSourceFor(memory),
+        [memory.video, memory.gameId, memory.id]
+    );
 
     useEffect(() => {
         let cancelled = false;
@@ -646,6 +637,29 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
         });
     }
 
+    function openShare(range?: ShareRange) {
+        setTimeline(false);
+        showManagedModal((closeShare) => (
+            <MemoryShareModal
+                memory={{ ...memory, caption, tag, color }}
+                gameId={gameId}
+                language={language}
+                thumbDataUri={thumbDataUri ?? fullSrc}
+                mouseKeyboardMode={mouseKeyboardMode}
+                range={range}
+                close={closeShare}
+            />
+        ));
+    }
+
+    function shareFromBookmark(bookmark: MemoryBookmark) {
+        const index = bookmarks.findIndex((row) => row.id === bookmark.id);
+        const next = index + 1 < bookmarks.length
+            ? bookmarks[index + 1].mediaTime
+            : clipStartSeconds + clipSeconds;
+        openShare({ start: bookmark.mediaTime, end: Math.min(next, bookmark.mediaTime + 30) });
+    }
+
     function snippetFromBookmark(bookmark: MemoryBookmark) {
         setTimeline(false);
         void saveBookmarkSnippetToFolder(gameId, memory.id, bookmark.id, language);
@@ -855,7 +869,8 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
 
     const bookmarkRowButtons = useMemo(() => {
         const map: Record<number, ReactNode> = {
-            [BUTTON_BUMPER_LEFT]: t(language, "Snippet")
+            [BUTTON_BUMPER_LEFT]: t(language, "Snippet"),
+            [BUTTON_TRIGGER_RIGHT]: t(language, "share_memory_action")
         };
         if (timelineOffered) {
             map[BUTTON_BUMPER_RIGHT] = t(language, "Timeline");
@@ -957,19 +972,11 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                 flow-children="column"
                 onButtonDown={clipSource
                     ? (event: { detail?: { button?: number; is_repeat?: boolean } }) => {
-                        const button = event?.detail?.button;
                         if (event?.detail?.is_repeat) {
                             return;
                         }
-                        if (button === BUTTON_SELECT) {
+                        if (event?.detail?.button === BUTTON_SELECT) {
                             pressMute();
-                            return;
-                        }
-                        if (!timeline) {
-                            return;
-                        }
-                        if (button === BUTTON_TRIGGER_LEFT || button === BUTTON_TRIGGER_RIGHT) {
-                            playbackRef.current?.beginSeek(button === BUTTON_TRIGGER_RIGHT ? 1 : -1);
                         }
                     }
                     : undefined}
@@ -1061,6 +1068,13 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                                     const button = event?.detail?.button;
                                     if (button === BUTTON_BUMPER_RIGHT && timelineOffered) {
                                         pressTimeline();
+                                        return;
+                                    }
+                                    if (!timeline) {
+                                        return;
+                                    }
+                                    if (button === BUTTON_TRIGGER_LEFT || button === BUTTON_TRIGGER_RIGHT) {
+                                        playbackRef.current?.beginSeek(button === BUTTON_TRIGGER_RIGHT ? 1 : -1);
                                     }
                                 }
                                 : undefined}
@@ -1297,6 +1311,21 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                                 >
                                     <PencilIcon size={modalSize(16)} />
                                 </DialogButton>
+                                <DialogButton
+                                    onClick={() => openShare()}
+                                    style={{
+                                        minWidth: 0,
+                                        width: `${modalSize(34)}px`,
+                                        height: `${modalSize(34)}px`,
+                                        padding: "4px",
+                                        marginLeft: "6px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center"
+                                    }}
+                                >
+                                    <ShareIcon size={modalSize(16)} />
+                                </DialogButton>
                                 {mouseKeyboardMode && timelineOffered && (
                                     <DialogButton
                                         onClick={pressTimeline}
@@ -1313,6 +1342,23 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                                         }}
                                     >
                                         <ColumnsIcon size={modalSize(16)} />
+                                    </DialogButton>
+                                )}
+                                {mouseKeyboardMode && clipSource && (
+                                    <DialogButton
+                                        onClick={pressMute}
+                                        style={{
+                                            minWidth: 0,
+                                            width: `${modalSize(34)}px`,
+                                            height: `${modalSize(34)}px`,
+                                            padding: "4px",
+                                            marginLeft: "6px",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center"
+                                        }}
+                                    >
+                                        <VolumeIcon muted={muted} size={modalSize(16)} />
                                     </DialogButton>
                                 )}
                                 {mouseKeyboardMode && (
@@ -1389,6 +1435,10 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                                                     }
                                                     if (button === BUTTON_BUMPER_LEFT) {
                                                         snippetFromBookmark(row);
+                                                        return;
+                                                    }
+                                                    if (button === BUTTON_TRIGGER_RIGHT) {
+                                                        shareFromBookmark(row);
                                                     }
                                                 }}
                                                 actionDescriptionMap={bookmarkRowButtons}
@@ -1414,6 +1464,14 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                                                     style={bookmarkIconButtonStyle}
                                                 >
                                                     <ScissorsIcon size={modalSize(13)} />
+                                                </DialogButton>
+                                            )}
+                                            {mouseKeyboardMode && (
+                                                <DialogButton
+                                                    onClick={() => shareFromBookmark(row)}
+                                                    style={bookmarkIconButtonStyle}
+                                                >
+                                                    <ShareIcon size={modalSize(13)} />
                                                 </DialogButton>
                                             )}
                                             {mouseKeyboardMode && (

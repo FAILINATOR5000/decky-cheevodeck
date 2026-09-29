@@ -25,7 +25,7 @@ import {
     t,
     type LanguageCode
 } from "../locales";
-import type { AchievementStyle, ActivityCardAction, ButtonSpacing, ControllerGlyphStyle, HeaderStyle, MemoriesVideoMoveStatus, OptionsTab, Payload, QuickMenuShortcut, SavedUser, ScalePreset, ScaleStep, ShortcutAction, ShortcutButton, SocialEntryDefault, TrackedColor, UiSize } from "../types";
+import type { AchievementStyle, ActivityCardAction, ButtonSpacing, ControllerGlyphStyle, HeaderStyle, MemoriesEncodePriority, MemoriesShareQuality, MemoriesVideoMoveStatus, OptionsTab, Payload, QuickMenuShortcut, SavedUser, ScalePreset, ScaleStep, ShortcutAction, ShortcutButton, SocialEntryDefault, TrackedColor, UiSize } from "../types";
 import {
     achievementStyleLabel,
     headerStyleLabel,
@@ -49,6 +49,8 @@ import {
     avatarCacheCapLabel,
     achievementIconCacheGamesLabel,
     memoriesPerPageLabel,
+    memoriesShareQualityLabel,
+    memoriesEncodePriorityLabel,
     fisTickFrequencyMinutesLabel,
     commentsCheckFrequencyLabel,
     trackedSetRefreshFrequencyLabel,
@@ -249,6 +251,8 @@ type OptionsPageState = {
     memoriesVideo: boolean;
     memoriesVideoPath: string;
     memoriesRemux: boolean;
+    memoriesShareQuality: MemoriesShareQuality;
+    memoriesEncodePriority: MemoriesEncodePriority;
     linksOpenInWebBrowser: boolean;
     memoriesDeleteSteamClip: boolean;
     memoriesVideoMove: MemoriesVideoMoveStatus;
@@ -386,6 +390,8 @@ type OptionsPageActions = {
     onToggleMemoriesDeleteSource: (next: boolean) => void | Promise<void>;
     onToggleMemoriesVideo: (next: boolean) => void | Promise<void>;
     onToggleMemoriesRemux: (next: boolean) => void | Promise<void>;
+    onCycleMemoriesShareQuality: () => void | Promise<void>;
+    onCycleMemoriesEncodePriority: () => void | Promise<void>;
     onCycleLinksOpenInWebBrowser: () => void | Promise<void>;
     onToggleMemoriesDeleteSteamClip: (next: boolean) => void | Promise<void>;
     onPickMemoriesVideoPath: () => void | Promise<void>;
@@ -1057,6 +1063,24 @@ function SystemTab(props: SystemTabProps) {
                 onChange={actions.onToggleMemoriesRemux}
                 disabled={disabled}
                 help={t(state.language, "help_memories_remux")}
+            />
+            <OptionValueRow
+                outerStyle={buttonOuterStyle}
+                focusKey="options:memories-share-quality"
+                onClick={actions.onCycleMemoriesShareQuality}
+                disabled={disabled}
+                label={t(state.language, "Share Quality")}
+                value={memoriesShareQualityLabel(state.memoriesShareQuality, state.language)}
+                help={t(state.language, "help_memories_share_quality")}
+            />
+            <OptionValueRow
+                outerStyle={buttonOuterStyle}
+                focusKey="options:memories-encode-priority"
+                onClick={actions.onCycleMemoriesEncodePriority}
+                disabled={disabled}
+                label={t(state.language, "Encode Priority")}
+                value={memoriesEncodePriorityLabel(state.memoriesEncodePriority, state.language)}
+                help={t(state.language, "help_memories_encode_priority")}
             />
             <SectionTitle label={t(state.language, "Web Browser")} />
             <OptionValueRow
