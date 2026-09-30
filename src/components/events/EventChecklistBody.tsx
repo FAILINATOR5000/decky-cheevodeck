@@ -19,21 +19,23 @@ import { localizeRuntimeText, t, type LanguageCode } from "../../locales";
 import type {
     ChecklistFilter,
     ChecklistGameProgress,
+    ChecklistTick,
     ChecklistView,
     EventChecklistGame,
     TrackedSetGame,
     TrackedSetViewMode
 } from "../../types";
-import type { ChecklistCard } from "../../utils/events";
+import { checklistTickFor, type ChecklistCard, type ChecklistLevel } from "../../utils/events";
 import { playToggleSound } from "../../utils/navSound";
 import { achievementGreen, achievementUiMetrics, regularButtonSpacingStyle, smallTextStyle } from "../../utils/style";
 import { textSize } from "../../utils/scale";
 
-type ChecklistClick = "open" | "tick";
+type ChecklistClick = "open" | "tick" | "master";
 
 const RESTORE_SEED_CEILING = 300;
 
 const TICK_MARK = <span style={{ color: achievementGreen, fontSize: "20px", fontWeight: 800 }}>{"✔"}</span>;
+const MASTERED_MARK = <span style={{ color: "#fbbf24", fontSize: "20px", fontWeight: 800 }}>{"✔"}</span>;
 
 type Group = { key: string; label: string; consoleName: string | null; games: TrackedSetGame[] };
 
@@ -46,11 +48,12 @@ type EventChecklistBodyProps = {
     progressLoading: boolean;
     progressError: string | null;
     ruleText: string;
+    masteryMarkable: boolean;
     undated: boolean;
     restoreGameId: number | null;
     onRestoreSettled: () => void;
     onOpenGame: (gameId: number) => void;
-    onSetTick: (gameId: number, value: boolean | null) => void;
+    onSetTick: (gameId: number, value: ChecklistTick | null) => void;
     onRequestFocus: (focusKey: string) => void;
 };
 
@@ -164,21 +167,22 @@ export function EventChecklistBody(props: EventChecklistBodyProps) {
         void prefetchGameIcons(mountedItems.map((game) => ({ gameId: game.gameId, imageIcon: game.imageIcon })));
     }, [mountedItems, settings.showIcons]);
 
-    function flip(gameId: number) {
+    function mark(gameId: number, press: "tick" | "master") {
         const card = byId.get(gameId);
         if (!card) {
             return;
         }
-        const next = !card.ticked;
-        playToggleSound(next);
-        props.onSetTick(gameId, next === card.auto ? null : next);
+        const own: ChecklistLevel = press === "master" ? 2 : 1;
+        const level: ChecklistLevel = card.level === own ? 0 : own;
+        playToggleSound(level > 0);
+        props.onSetTick(gameId, checklistTickFor(card, level));
     }
 
     const gamepad = !settings.mouseKeyboardMode;
     const openRef = useRef(props.onOpenGame);
     openRef.current = props.onOpenGame;
-    const flipRef = useRef(flip);
-    flipRef.current = flip;
+    const markRef = useRef(mark);
+    markRef.current = mark;
     const clickRef = useRef(clickAction);
     clickRef.current = gamepad ? "open" : clickAction;
     const focusRef = useRef(onItemFocus);
@@ -195,15 +199,16 @@ export function EventChecklistBody(props: EventChecklistBodyProps) {
         buttonOuterStyle,
         focusKeyPrefix: "eventchecklist",
         onOpenGameOverview: (gameId) => {
-            if (clickRef.current === "tick") {
-                flipRef.current(gameId);
+            if (clickRef.current !== "open") {
+                markRef.current(gameId, clickRef.current);
                 return;
             }
             openRef.current(gameId);
         },
         onCardFocus: (slotIndex) => focusRef.current(slotIndex),
-        onCardSecondary: gamepad ? (game) => flipRef.current(game.gameId) : undefined
-    }), [language, settings.showIcons, metrics, buttonOuterStyle, gamepad]);
+        onCardSecondary: gamepad ? (game) => markRef.current(game.gameId, "tick") : undefined,
+        onCardOptions: gamepad && props.masteryMarkable ? (game) => markRef.current(game.gameId, "master") : undefined
+    }), [language, settings.showIcons, metrics, buttonOuterStyle, gamepad, props.masteryMarkable]);
 
     const viewLabel = view === "sections"
         ? t(language, "Checklist")
@@ -256,7 +261,7 @@ export function EventChecklistBody(props: EventChecklistBodyProps) {
                         isReorderTarget={false}
                         trashArmed={false}
                         claimToken={0}
-                        corner={card?.ticked ? TICK_MARK : undefined}
+                        corner={card?.level === 2 ? MASTERED_MARK : card?.ticked ? TICK_MARK : undefined}
                         extraLine={card?.beforeEvent && !card.ticked ? t(language, "Before event") : undefined}
                         list={list}
                     />
@@ -308,8 +313,15 @@ export function EventChecklistBody(props: EventChecklistBodyProps) {
                     focusKey="eventchecklist:click"
                     bottomSeparator="none"
                     label={t(language, "Click")}
-                    value={clickAction === "tick" ? t(language, "Checkmark") : t(language, "View Info")}
-                    onClick={() => setClickAction((current) => (current === "open" ? "tick" : "open"))}
+                    value={clickAction === "tick"
+                        ? t(language, "Mark Beaten")
+                        : clickAction === "master" ? t(language, "Mark Mastered") : t(language, "View Info")}
+                    onClick={() => setClickAction((current) => {
+                        if (current === "open") {
+                            return "tick";
+                        }
+                        return current === "tick" && props.masteryMarkable ? "master" : "open";
+                    })}
                 />
             ) : (
                 <PanelSectionRow>
@@ -317,7 +329,8 @@ export function EventChecklistBody(props: EventChecklistBodyProps) {
                         style={settings.controllerGlyphStyle}
                         hints={[
                             { button: "a", label: t(language, "View Info") },
-                            { button: "x", label: t(language, "Checkmark") }
+                            { button: "x", label: t(language, "Beaten") },
+                            ...(props.masteryMarkable ? [{ button: "y" as const, label: t(language, "Mastered") }] : [])
                         ]}
                     />
                 </PanelSectionRow>

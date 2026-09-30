@@ -2,6 +2,7 @@ import { t, type LanguageCode } from "../locales";
 import { formatUnlockDate, parseNoteTag } from "./achievements";
 import type {
     ChecklistGameProgress,
+    ChecklistTick,
     EventChecklist,
     EventChecklistRule,
     EventCompletion,
@@ -344,19 +345,52 @@ export function nextTrackedEventsClickAction(
     return cycle[(index + 1) % cycle.length];
 }
 
+export type ChecklistLevel = 0 | 1 | 2;
+
 export type ChecklistCard = {
     gameId: number;
     sectionLabel: string;
-    auto: boolean;
+    auto: ChecklistLevel;
+    level: ChecklistLevel;
     ticked: boolean;
     beforeEvent: boolean;
-    mastered: boolean;
+    raLevel: ChecklistLevel;
 };
+
+function tickLevel(tick: ChecklistTick | undefined, card: { auto: ChecklistLevel; raLevel: ChecklistLevel }, masterAll: boolean): ChecklistLevel {
+    if (tick === undefined) {
+        return card.auto;
+    }
+    if (tick === false) {
+        return 0;
+    }
+    if (tick === true) {
+        return card.raLevel;
+    }
+    return tick === "mastered" && !masterAll ? 2 : 1;
+}
+
+export function checklistTickFor(card: ChecklistCard, level: ChecklistLevel): ChecklistTick | null {
+    if (level === card.auto) {
+        return null;
+    }
+    if (level === 0) {
+        return false;
+    }
+    if (level === card.raLevel) {
+        return true;
+    }
+    return level === 2 ? "mastered" : "beaten";
+}
+
+export function checklistMasteryMarkable(rule: EventChecklistRule): boolean {
+    return rule.kind === "points" && (rule.masteryBonus ?? 0) > 0;
+}
 
 export function checklistCards(
     checklist: EventChecklist,
     progress: Record<string, ChecklistGameProgress> | null,
-    ticks: Record<string, boolean>,
+    ticks: Record<string, ChecklistTick>,
     activeFrom: string | null
 ): ChecklistCard[] {
     const start = eventTime(activeFrom);
@@ -374,15 +408,17 @@ export function checklistCards(
             const qualifies = masterAll ? mastered : (mastered || kind === "beaten-hardcore");
             const awardedAt = eventTime(progress?.[String(gameId)]?.highestAwardDate);
             const beforeEvent = qualifies && start !== null && awardedAt !== null && awardedAt < start;
-            const auto = qualifies && !beforeEvent;
-            const override = ticks[String(gameId)];
+            const raLevel: ChecklistLevel = mastered && !masterAll ? 2 : 1;
+            const auto: ChecklistLevel = qualifies && !beforeEvent ? raLevel : 0;
+            const level = tickLevel(ticks[String(gameId)], { auto, raLevel }, masterAll);
             cards.push({
                 gameId,
                 sectionLabel: section.label,
                 auto,
-                ticked: override ?? auto,
+                level,
+                ticked: level > 0,
                 beforeEvent,
-                mastered
+                raLevel
             });
         }
     }
@@ -398,5 +434,5 @@ export function checklistPoints(cards: ChecklistCard[], rule: EventChecklistRule
         return ticked.length;
     }
     const bonus = rule.masteryBonus ?? 0;
-    return ticked.reduce((total, card) => total + 1 + (card.mastered ? bonus : 0), 0);
+    return ticked.reduce((total, card) => total + 1 + (card.level === 2 ? bonus : 0), 0);
 }

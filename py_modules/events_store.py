@@ -44,6 +44,11 @@ _DEFAULT_SORT = {"all": "latest", "tracked": "manual"}
 _LIST_VIEWS = ("all", "tracked")
 _CHECKLIST_VIEWS = ("sections", "system", "systemYear")
 _CHECKLIST_FILTERS = ("all", "todo", "ticked")
+_TICK_LEVELS = ("beaten", "mastered")
+
+
+def _is_tick_value(value: Any) -> bool:
+    return isinstance(value, bool) or value in _TICK_LEVELS
 
 
 def _now_ms() -> int:
@@ -223,7 +228,7 @@ class EventsStore:
             games = {}
             for game_key, flag in value.items():
                 game_id = _event_key(game_key)
-                if game_id is None or not isinstance(flag, bool):
+                if game_id is None or not _is_tick_value(flag):
                     continue
                 games[game_id] = flag
                 if len(games) >= MAX_TICKS_PER_EVENT:
@@ -450,7 +455,7 @@ class EventsStore:
         game_key = _event_key(game_id)
         if key is None or game_key is None:
             return {"ok": False, "error": "invalid_event"}
-        if value is not None and not isinstance(value, bool):
+        if value is not None and not _is_tick_value(value):
             return {"ok": False, "error": "invalid_value"}
         with self._lock:
             if not self._owner_matches(ulid):

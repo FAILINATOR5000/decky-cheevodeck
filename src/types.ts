@@ -2477,11 +2477,12 @@ export type EventsUserState = {
     tracked: TrackedEventsState;
     prefs: EventsPrefs;
     completed: Record<string, { at: number }>;
-    checklistTicks: Record<string, Record<string, boolean>>;
+    checklistTicks: Record<string, Record<string, ChecklistTick>>;
     checklistViews: Record<string, ChecklistViewPrefs>;
     activity: Record<string, EventActivity>;
 };
 
+export type ChecklistTick = boolean | "beaten" | "mastered";
 export type ChecklistView = "sections" | "system" | "systemYear";
 export type ChecklistFilter = "all" | "todo" | "ticked";
 export type ChecklistViewPrefs = { view: ChecklistView; filter: ChecklistFilter };

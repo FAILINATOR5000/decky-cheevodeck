@@ -8,6 +8,7 @@ import type {
     AchievementStyle,
     ChecklistFilter,
     ChecklistGameProgress,
+    ChecklistTick,
     ChecklistView,
     ChecklistViewPrefs,
     EventActivity,
@@ -2944,8 +2945,8 @@ export const setEventCompleted = callable<
     { ok: true; completed: Record<string, { at: number }>; state: TrackedEventsState } | EventsWriteError
 >("set_event_completed");
 export const setChecklistTick = callable<
-    [ulid: string, eventGameId: number, gameId: number, value: boolean | null],
-    { ok: true; ticks: Record<string, boolean> } | EventsWriteError
+    [ulid: string, eventGameId: number, gameId: number, value: ChecklistTick | null],
+    { ok: true; ticks: Record<string, ChecklistTick> } | EventsWriteError
 >("set_checklist_tick");
 export const saveChecklistView = callable<
     [ulid: string, eventGameId: number, view: ChecklistView, filterValue: ChecklistFilter],

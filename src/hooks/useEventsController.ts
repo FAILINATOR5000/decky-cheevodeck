@@ -14,7 +14,7 @@ import {
     touchEventOpened
 } from "../api";
 import { logError } from "../utils/errors";
-import type { ChecklistViewPrefs, EventsPrefs, EventsTabResponse, EventsUserState, EventsViewPrefs } from "../types";
+import type { ChecklistTick, ChecklistViewPrefs, EventsPrefs, EventsTabResponse, EventsUserState, EventsViewPrefs } from "../types";
 
 const ORDER_WRITE_SETTLE_MS = 250;
 
@@ -278,7 +278,7 @@ export function useEventsController(options: UseEventsControllerOptions) {
         }
     }
 
-    function setTick(eventGameId: number, gameId: number, value: boolean | null) {
+    function setTick(eventGameId: number, gameId: number, value: ChecklistTick | null) {
         const owner = ownerNow();
         const key = String(eventGameId);
         patchUser(owner, (user) => {

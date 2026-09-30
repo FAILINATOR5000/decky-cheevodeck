@@ -41,6 +41,7 @@ export type SetGameCardListProps = {
     onCardFocus: (slotIndex: number, gameId: number) => void;
     onCardSecondary?: (game: TrackedSetGame) => void;
     onCardNote?: (game: TrackedSetGame) => void;
+    onCardOptions?: (game: TrackedSetGame) => void;
     onCardReorderPick?: (gameId: number) => void;
 };
 
@@ -83,6 +84,11 @@ export const SetGameCard = React.memo(function SetGameCard(props: SetGameCardPro
 
         if (button === BUTTON_SECONDARY && list.onCardSecondary) {
             list.onCardSecondary(game);
+            return;
+        }
+
+        if (button === BUTTON_OPTIONS && list.onCardOptions) {
+            list.onCardOptions(game);
             return;
         }
 

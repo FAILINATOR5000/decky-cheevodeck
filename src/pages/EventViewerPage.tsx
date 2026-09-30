@@ -22,7 +22,7 @@ import type { AchievementRow, EventViewerTab, EventViewerTarget, GameComment, Vi
 import type { SavedCommentSourceInput } from "../utils/savedComments";
 import { gameCommentSource } from "../utils/savedComments";
 import { unlockedHardcore } from "../utils/achievements";
-import { canMarkComplete, checklistCards, checklistPoints, eventCompletion } from "../utils/events";
+import { canMarkComplete, checklistCards, checklistMasteryMarkable, checklistPoints, eventCompletion } from "../utils/events";
 import { armEventViewerRowReturn, takeEventViewerRowReturn } from "../utils/eventViewerFocusReturn";
 import {
     clearCommentsSnapshot,
@@ -148,8 +148,8 @@ function EventView(props: { state: EventViewState; actions: EventViewerPageActio
     if (checklist) {
         if (points !== null && target !== null && viewer.checklistProgress !== null) {
             progressText = points >= target
-                ? t(language, "{{points}} / {{target}} points (estimate), target reached", { points, target })
-                : t(language, "{{points}} / {{target}} points (estimate)", { points, target });
+                ? t(language, "{{points}} / {{target}} points, target reached", { points, target })
+                : t(language, "{{points}} / {{target}} points", { points, target });
             progressFraction = Math.min(1, points / target);
         }
     }
@@ -166,7 +166,7 @@ function EventView(props: { state: EventViewState; actions: EventViewerPageActio
     if (progressText === null && !progressReady && lastProgress !== null) {
         const lastTarget = row?.checklistTarget ?? null;
         if (isChecklistKind && lastProgress.points !== null && lastTarget) {
-            progressText = t(language, "{{points}} / {{target}} points (estimate)", { points: lastProgress.points, target: lastTarget });
+            progressText = t(language, "{{points}} / {{target}} points", { points: lastProgress.points, target: lastTarget });
             progressFraction = Math.min(1, lastProgress.points / lastTarget);
         }
         else if (!isChecklistKind && lastProgress.total > 0) {
@@ -503,6 +503,7 @@ function EventView(props: { state: EventViewState; actions: EventViewerPageActio
                                 progressLoading={viewer.checklistLoading}
                                 progressError={viewer.checklistError}
                                 ruleText={checklist.rule.text}
+                                masteryMarkable={checklistMasteryMarkable(checklist.rule)}
                                 undated={activeFrom === null}
                                 restoreGameId={rowRestoreSettled ? null : restoreRowId}
                                 onRestoreSettled={() => setRowRestoreSettled(true)}
