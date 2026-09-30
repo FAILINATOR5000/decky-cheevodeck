@@ -8,6 +8,7 @@ import type {
     SavedCommentsFilter,
     SavedCommentsSort
 } from "../types";
+import { isEventConsole } from "./events";
 
 export type SavedCommentSourceInput = Omit<SavedCommentSource, "sourceId">;
 
@@ -140,6 +141,9 @@ export function filterAndSortSavedComments(
     }
     else if (filter === "wall") {
         out = out.filter((entry) => entry.source.kind === "userWall");
+    }
+    else if (filter === "events") {
+        out = out.filter((entry) => isEventConsole(entry.source.gameConsoleName));
     }
     else if (filter !== "all") {
         out = out.filter((entry) => entry.source.gameId === filter);

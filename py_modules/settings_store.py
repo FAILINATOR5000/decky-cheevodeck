@@ -198,7 +198,7 @@ _ALLOWED_AO_SOURCES = {
 
 _ALLOWED_EVENT_VIEWER_TABS = {"achievements", "comments"}
 _ALLOWED_FRIEND_PROFILE_BACK_SOURCES = {"social", "main", "eventViewer"}
-_ALLOWED_EVENT_VIEWER_SOURCES = {"events", "main"}
+_ALLOWED_EVENT_VIEWER_SOURCES = {"events", "main", "subscribedDiscussions"}
 
 _ALLOWED_FRIEND_ENTRY_SOURCES = {"profile", "compareGame"}
 
@@ -2514,7 +2514,7 @@ class SettingsStore:
         if sort not in self._SAVED_COMMENTS_SORT_OPTIONS:
             sort = defaults["sort"]
         filter_value = str(raw.get("filter", defaults["filter"]) or defaults["filter"]).strip()
-        if filter_value not in ("all", "achievement", "wall") and not filter_value.isdigit():
+        if filter_value not in ("all", "achievement", "wall", "events") and not filter_value.isdigit():
             filter_value = defaults["filter"]
         return {"subTab": sub_tab, "sort": sort, "filter": filter_value}
 

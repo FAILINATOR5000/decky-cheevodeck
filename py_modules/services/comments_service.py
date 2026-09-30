@@ -539,6 +539,7 @@ class CommentsService(TickServiceBase):
                     "badgeName": badge_name,
                     "url": comments_url,
                     "gameTitle": subscription.get("gameTitle") or "",
+                    "consoleName": subscription.get("console") or "",
                     "iconUrl": subscription.get("iconUrl") or "",
                 },
             })

@@ -3,12 +3,14 @@ import { type Dispatch, type RefObject, type SetStateAction } from "react";
 import type { NavIntent } from "../nav";
 import { logError } from "../utils/errors";
 import { clearCommentsRestoreForSurface } from "../utils/commentsSnapshot";
+import { isEventConsole } from "../utils/events";
 import { findFriendRow } from "../utils/friends";
 import { openExternalUrl, raAchievementUrl, raGameUrl } from "../utils/navigation";
 import type {
     AchievementRow,
     ActivityCardAction,
     AOSource,
+    EventViewerTab,
     FriendGameSelectionMode,
     FriendGameSource,
     FriendProfileBackSource,
@@ -66,6 +68,7 @@ type UseSocialIntentsArgs = {
         viewedUserRef: string | null,
         subView?: GameOverviewSubView
     ) => void;
+    goToEventViewer: (eventGameId: number, tab: EventViewerTab) => void;
     stashPendingNotificationProfile: (target: { username: string; ulid: string | null }) => void;
 };
 
@@ -92,6 +95,7 @@ export function useSocialIntents({
     resolveViewedUser,
     goToAchievementOverview,
     goToGameOverview,
+    goToEventViewer,
     stashPendingNotificationProfile
 }: UseSocialIntentsArgs) {
     function beginProfileOpen(backSource: FriendProfileBackSource) {
@@ -301,6 +305,10 @@ export function useSocialIntents({
     }
 
     function handleOpenSubscription(subscription: Subscription) {
+        if (subscription.kind === "game" && isEventConsole(subscription.console)) {
+            goToEventViewer(subscription.gameId, "comments");
+            return;
+        }
         if (subscription.kind === "game") {
             goToGameOverview(subscription.gameId, "subscribedDiscussions", null, null, "comments");
             return;

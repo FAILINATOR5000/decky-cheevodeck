@@ -4,6 +4,7 @@ import type { SavedCommentGame, SavedCommentsFilter } from "../../types";
 import type { LanguageCode } from "../../locales";
 import { t } from "../../locales";
 import { FocusableItem } from "../ui/FocusableItem";
+import { SubTabButton } from "../ui/SubTabButton";
 import { FadeImage } from "../ui/FadeImage";
 import { useGameIcon } from "../../hooks/useGameIcon";
 import { useWindowedList } from "../../hooks/useWindowedList";
@@ -13,12 +14,15 @@ import { FADE_IN_KEYFRAMES } from "../../utils/style";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { searchKey } from "../../utils/searchText";
 import { consoleInlineName, consoleSearchName } from "../../utils/consoles";
+import { isEventConsole } from "../../utils/events";
 
 const GAMES_INITIAL_ROWS = 30;
 const GAMES_ROW_STEP = 50;
 const GAMES_SENTINEL_ROOT_MARGIN = "300px";
 
 const SEARCH_THRESHOLD = 12;
+
+type ListTab = "games" | "events";
 
 export type SavedCommentsFilterModalProps = {
     games: SavedCommentGame[];
@@ -77,7 +81,8 @@ const GameRow = React.memo(function GameRow(props: GameRowProps) {
     );
     const size = list.iconSize;
 
-    const system = consoleInlineName(game.consoleName || "");
+    const isEvent = isEventConsole(game.consoleName);
+    const system = isEvent ? "" : consoleInlineName(game.consoleName || "");
 
     function handleSelect() {
         list.onSelect(game.gameId);
@@ -123,7 +128,7 @@ const GameRow = React.memo(function GameRow(props: GameRowProps) {
                             wordBreak: "break-word"
                         }}
                     >
-                        {game.title || t(language, "Unknown game")}
+                        {game.title || (isEvent ? t(language, "Unknown event") : t(language, "Unknown game"))}
                     </span>
                     {system ? (
                         <span style={{ fontSize: `${modalSize(12)}px`, opacity: 0.7, wordBreak: "break-word" }}>
@@ -144,22 +149,41 @@ export function SavedCommentsFilterModal(props: SavedCommentsFilterModalProps) {
 
     const [query, setQuery] = useState("");
 
-    const searchShown = games.length > SEARCH_THRESHOLD;
+    const gameRows = useMemo(() => games.filter((game) => !isEventConsole(game.consoleName)), [games]);
+    const eventRows = useMemo(() => games.filter((game) => isEventConsole(game.consoleName)), [games]);
+    const [tab, setTab] = useState<ListTab>(() => {
+        if (selected === "events") {
+            return "events";
+        }
+        const current = games.find((game) => game.gameId === selected);
+        if (current) {
+            return isEventConsole(current.consoleName) ? "events" : "games";
+        }
+        return games.some((game) => !isEventConsole(game.consoleName)) ? "games" : "events";
+    });
+    const tabRows = tab === "events" ? eventRows : gameRows;
+
+    function switchTab(next: ListTab) {
+        setTab(next);
+        setQuery("");
+    }
+
+    const searchShown = tabRows.length > SEARCH_THRESHOLD;
 
     const gameKeys = useMemo(
-        () => games.map((game) => searchKey(
+        () => tabRows.map((game) => searchKey(
             (game.title || "") + " " + consoleSearchName(game.consoleName || "")
         )),
-        [games]
+        [tabRows]
     );
 
     const filteredGames = useMemo(() => {
         const wanted = searchKey(query.trim());
         if (!wanted) {
-            return games;
+            return tabRows;
         }
-        return games.filter((_game, index) => gameKeys[index].includes(wanted));
-    }, [games, gameKeys, query]);
+        return tabRows.filter((_game, index) => gameKeys[index].includes(wanted));
+    }, [tabRows, gameKeys, query]);
 
     const { mountedItems: visibleGames, markerRef: gamesMarkerRef, onItemFocus } = useWindowedList({
         items: filteredGames,
@@ -168,7 +192,7 @@ export function SavedCommentsFilterModal(props: SavedCommentsFilterModalProps) {
         rowStep: GAMES_ROW_STEP,
         prefetchDistance: 8,
         sentinelRootMargin: GAMES_SENTINEL_ROOT_MARGIN,
-        resetKey: `savedfilter:${query}`
+        resetKey: `savedfilter:${tab}:${query}`
     });
 
     useEffect(() => {
@@ -227,6 +251,28 @@ export function SavedCommentsFilterModal(props: SavedCommentsFilterModalProps) {
                     selected={selected === "wall"}
                     onSelect={() => pick("wall")}
                 />
+                <OptionRow
+                    label={t(language, "Events")}
+                    focusKey="savedfilter:events"
+                    selected={selected === "events"}
+                    onSelect={() => pick("events")}
+                />
+                {eventRows.length > 0 && (
+                    <Focusable flow-children="row" style={{ display: "flex", gap: "6px", margin: "8px 0 2px" }}>
+                        <SubTabButton
+                            label={t(language, "Games")}
+                            active={tab === "games"}
+                            onClick={() => switchTab("games")}
+                            focusKey="savedfilter:tab:games"
+                        />
+                        <SubTabButton
+                            label={t(language, "Events")}
+                            active={tab === "events"}
+                            onClick={() => switchTab("events")}
+                            focusKey="savedfilter:tab:events"
+                        />
+                    </Focusable>
+                )}
                 {searchShown && (
                     <div style={{ margin: "8px 0 2px" }}>
                         <TextField
@@ -238,7 +284,7 @@ export function SavedCommentsFilterModal(props: SavedCommentsFilterModalProps) {
                 )}
                 {query && filteredGames.length === 0 && (
                     <div style={{ padding: "8px 0", fontSize: `${modalSize(13)}px`, opacity: 0.75 }}>
-                        {t(language, "No games match that search.")}
+                        {tab === "events" ? t(language, "No events match that search.") : t(language, "No games match that search.")}
                     </div>
                 )}
                 {filteredGames.length > 0 && (

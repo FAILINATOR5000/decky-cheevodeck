@@ -22,7 +22,7 @@ import type { AchievementRow, EventViewerTab, EventViewerTarget, GameComment, Vi
 import type { SavedCommentSourceInput } from "../utils/savedComments";
 import { gameCommentSource } from "../utils/savedComments";
 import { unlockedHardcore } from "../utils/achievements";
-import { canMarkComplete, checklistCards, checklistMasteryMarkable, checklistPoints, eventCompletion } from "../utils/events";
+import { canMarkComplete, checklistCards, checklistMasteryMarkable, checklistPoints, eventCompletion, EVENTS_CONSOLE_NAME } from "../utils/events";
 import { armEventViewerRowReturn, takeEventViewerRowReturn } from "../utils/eventViewerFocusReturn";
 import {
     clearCommentsSnapshot,
@@ -124,6 +124,7 @@ function EventView(props: { state: EventViewState; actions: EventViewerPageActio
     const detail = viewer.detail;
     const payload = viewer.payload;
     const title = row?.title || detail?.title || payload?.title || "";
+    const iconUrl = row?.imageIcon || detail?.imageIcon || "";
     const completion = row ? eventCompletion(row, events.state.user) : null;
     const tracked = Boolean(events.state.user?.tracked.items[String(eventGameId)]);
 
@@ -297,19 +298,24 @@ function EventView(props: { state: EventViewState; actions: EventViewerPageActio
         language,
         kind: "game",
         id: eventGameId,
-        buildEntry: () => ({
-            kind: "game",
-            id: eventGameId,
-            gameId: eventGameId,
-            title,
-            gameTitle: title,
-            console: "Events",
-            iconUrl: row?.imageIcon ?? "",
-            badgeName: "",
-            seedComments: comments.comments,
-            seedSort: comments.commentsSort,
-            seedLoaded: comments.commentsLoaded
-        })
+        buildEntry: () => {
+            if (!title) {
+                return null;
+            }
+            return {
+                kind: "game",
+                id: eventGameId,
+                gameId: eventGameId,
+                title,
+                gameTitle: title,
+                console: EVENTS_CONSOLE_NAME,
+                iconUrl,
+                badgeName: "",
+                seedComments: comments.comments,
+                seedSort: comments.commentsSort,
+                seedLoaded: comments.commentsLoaded
+            };
+        }
     });
 
     useEffect(() => {
@@ -342,7 +348,7 @@ function EventView(props: { state: EventViewState; actions: EventViewerPageActio
         actions.onOpenCommentModal(
             comment,
             raGameCommentsUrl(eventGameId),
-            gameCommentSource(eventGameId, title, row?.imageIcon, "Events")
+            gameCommentSource(eventGameId, title, iconUrl, EVENTS_CONSOLE_NAME)
         );
     }
 

@@ -1992,7 +1992,7 @@ export type CommentSurfaceKey =
 
 export type CommunitySubTab = "subscribed" | "savedComments";
 export type SavedCommentsSort = "recent" | "oldest" | "opened";
-export type SavedCommentsFilter = "all" | "achievement" | "wall" | number;
+export type SavedCommentsFilter = "all" | "achievement" | "wall" | "events" | number;
 
 export type SavedCommentGame = {
     gameId: number;
@@ -2443,7 +2443,7 @@ export type EventsPrefs = { all: EventsViewPrefs; tracked: EventsViewPrefs; list
 
 export type EventsClickAction = "open" | "track";
 export type EventViewerTab = "achievements" | "comments";
-export type EventViewerSource = "events" | "main";
+export type EventViewerSource = "events" | "main" | "subscribedDiscussions";
 export type EventViewerTarget = number | "aotw";
 export type FriendProfileBackSource = "social" | "main" | "eventViewer";
 export type TrackedEventsClickAction = "untrack" | "open" | "note" | "reorder";

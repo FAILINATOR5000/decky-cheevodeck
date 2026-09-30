@@ -19,6 +19,12 @@ import type {
 export const EVENTS_UNTAGGED_KEY = "__UNTAGGED__";
 export const EVENTS_COMPLETED_KEY = "__COMPLETED__";
 
+export const EVENTS_CONSOLE_NAME = "Events";
+
+export function isEventConsole(consoleName: string | null | undefined): boolean {
+    return consoleName === EVENTS_CONSOLE_NAME;
+}
+
 function eventTime(value: string | null | undefined): number | null {
     const trimmed = String(value || "").trim();
     if (!trimmed) {

@@ -15,7 +15,8 @@ export function getSavedEventViewerTab(savedState: ResumeState): EventViewerTab 
 }
 
 export function getSavedEventViewerSource(savedState: ResumeState): EventViewerSource {
-    return savedState.eventViewerSource === "main" ? "main" : "events";
+    const source = savedState.eventViewerSource;
+    return source === "main" || source === "subscribedDiscussions" ? source : "events";
 }
 
 export function restoreEventViewer(savedState: ResumeState, savedView: ViewKey, ctx: RestoreContext): boolean {

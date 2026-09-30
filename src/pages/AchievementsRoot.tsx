@@ -834,7 +834,7 @@ function AchievementsRoot() {
     });
     const rawSavedFilter = savedCommentsPrefs.filter;
     const parsedSavedFilter: SavedCommentsFilter =
-        rawSavedFilter === "all" || rawSavedFilter === "achievement" || rawSavedFilter === "wall"
+        rawSavedFilter === "all" || rawSavedFilter === "achievement" || rawSavedFilter === "wall" || rawSavedFilter === "events"
             ? rawSavedFilter
             : Number(rawSavedFilter);
     const savedCommentsFilter: SavedCommentsFilter =
@@ -2170,6 +2170,7 @@ function AchievementsRoot() {
             goToAchievementOverview(achievement, parentGameId, source, viewedUsername, viewedUserRef),
         goToGameOverview: (targetGameId, source, viewedUsername, viewedUserRef, subView) =>
             goToGameOverview(targetGameId, source, viewedUsername, viewedUserRef, subView),
+        goToEventViewer: (eventGameId, tab) => goToEventViewer(eventGameId, "subscribedDiscussions", tab),
         stashPendingNotificationProfile: (target) => {
             requestPanelEntry({ kind: "profile", username: target.username, ulid: target.ulid });
         }
@@ -3945,9 +3946,9 @@ function AchievementsRoot() {
         setNewsEventsSubView("events");
         routeBackToSocialTab("newsEvents", "social:back");
     }
-    function goToEventViewer(target: EventViewerTarget, source: EventViewerSource) {
+    function goToEventViewer(target: EventViewerTarget, source: EventViewerSource, tab: EventViewerTab = "achievements") {
         setEventViewerTarget(target);
-        setEventViewerTab("achievements");
+        setEventViewerTab(tab);
         setEventViewerSource(source);
         setView("eventViewer");
         setPendingFocusKey("eventviewer:back");
@@ -3965,6 +3966,10 @@ function AchievementsRoot() {
         navIntentRef.current = "back";
         if (eventViewerSource === "main") {
             goToAchievements();
+            return;
+        }
+        if (eventViewerSource === "subscribedDiscussions") {
+            routeBackToSocialTab("subscribedDiscussions", "social:tab:subscribeddiscussions");
             return;
         }
         setNewsEventsSubView("events");

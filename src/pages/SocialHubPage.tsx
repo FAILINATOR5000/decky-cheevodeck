@@ -17,6 +17,7 @@ import { LabeledRow } from "../components/ui/LabeledRow";
 import { NewSetCard } from "../components/social/NewSetCard";
 import { SubTabButton } from "../components/ui/SubTabButton";
 import { EventsTabBody } from "../components/events/EventsTabBody";
+import { isEventConsole } from "../utils/events";
 import { takeEventsFocusReturn, type EventsFocusReturn } from "../utils/eventsFocusReturn";
 import { PageNavStrip } from "../components/ui/PageNavStrip";
 import { activityCardActionLabel } from "../utils/options";
@@ -1865,6 +1866,9 @@ function SavedCommentsFilterValue(props: {
     if (filter === "wall") {
         return <>{t(language, "Wall Posts")}</>;
     }
+    if (filter === "events") {
+        return <>{t(language, "Events")}</>;
+    }
     if (!selectedGame) {
         return <>{t(language, "All")}</>;
     }
@@ -2100,7 +2104,9 @@ function SubscriptionCard(props: SubscriptionCardProps) {
     const iconDataUri = isGame ? gameIconDataUri : badgeDataUri;
     const fallbackLetter = (subscription.title.trim().charAt(0) || "?").toUpperCase();
     const cardTitle = t(language, "{{title}} Comments", { title: subscription.title });
-    const bodyContext = isGame ? subscription.console : subscription.gameTitle;
+    const bodyContext = isGame
+        ? (isEventConsole(subscription.console) ? t(language, "Events") : subscription.console)
+        : subscription.gameTitle;
     const bodyText = (
         <ButtonPrompt
             language={language}

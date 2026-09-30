@@ -64,7 +64,7 @@ function threadCommentSource(n: CheevoNotification): SavedCommentSourceInput {
     const title = readText(n.meta, "threadTitle");
     const icon = readText(n.meta, "iconUrl");
     if (readText(n.meta, "kind") !== "achievement") {
-        return gameCommentSource(gameId, title, icon);
+        return gameCommentSource(gameId, title, icon, readText(n.meta, "consoleName"));
     }
     const rawAchievementId = n.meta?.achievementId;
     return achievementCommentSource(
