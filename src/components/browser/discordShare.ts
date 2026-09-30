@@ -1,6 +1,7 @@
 import { toaster } from "@decky/api";
-import { discardMemoryShare, getBrowserTabs, logFocusDebug } from "../../api";
+import { discardMemoryShare, getBrowserTabs, logFocusDebug, setActiveBrowserTab } from "../../api";
 import { getCurrentLanguage, t, type LanguageCode } from "../../locales";
+import type { BrowserTab } from "../../types";
 import { logError } from "../../utils/errors";
 import { SHARED_MEMORIES_CHANNEL_URL, SHARED_MEMORIES_INVITE_URL, SHARED_MEMORIES_PATH } from "../../utils/sharedMemories";
 import { openBrowserModal } from "./BrowserModal";
@@ -154,6 +155,32 @@ async function tabStillOpen(tabId: string): Promise<boolean> {
     }
 }
 
+function discordPath(address: string): string {
+    try {
+        const url = new URL(address);
+        return url.hostname === "discord.com" ? url.pathname.replace(/\/$/, "") : "";
+    }
+    catch {
+        return "";
+    }
+}
+
+function onForum(tab: BrowserTab): boolean {
+    const path = discordPath(liveViewFor(String(tab.id))?.host.currentUrl || tab.url);
+    return path === SHARED_MEMORIES_PATH || path.startsWith(`${SHARED_MEMORIES_PATH}/`);
+}
+
+async function switchToTab(tabId: string): Promise<boolean> {
+    try {
+        const state = await setActiveBrowserTab(tabId);
+        return state?.activeTabId === tabId;
+    }
+    catch (e) {
+        logError("discord share: couldn't switch to the forum's tab", e);
+        return false;
+    }
+}
+
 class ForumWatch {
     private tabId: string | null = null;
     private readonly known: Set<string>;
@@ -161,6 +188,7 @@ class ForumWatch {
     private settled = 0;
     private away = 0;
     private invited = false;
+    private steer = false;
     private timer: number | null = null;
     stopped = false;
 
@@ -169,11 +197,15 @@ class ForumWatch {
     }
 
     async start(language: LanguageCode) {
+        let forumTab: BrowserTab | null = null;
         try {
             const listed = await getBrowserTabs();
             for (const tab of listed?.tabs ?? []) {
                 if (tab?.id) {
                     this.known.add(String(tab.id));
+                    if (onForum(tab) && (!forumTab || tab.usedAt > forumTab.usedAt)) {
+                        forumTab = tab;
+                    }
                 }
             }
         }
@@ -183,7 +215,19 @@ class ForumWatch {
         if (this.stopped) {
             return;
         }
-        openBrowserModal(language, SHARED_MEMORIES_CHANNEL_URL);
+        const reuse = forumTab ? await switchToTab(String(forumTab.id)) : false;
+        if (this.stopped) {
+            return;
+        }
+        if (forumTab && reuse) {
+            this.tabId = String(forumTab.id);
+            this.steer = true;
+            logFocusDebug("discord-share", "reusing the forum's tab", this.tabId);
+            openBrowserModal(language);
+        }
+        else {
+            openBrowserModal(language, SHARED_MEMORIES_CHANNEL_URL);
+        }
         this.schedule(POLL_MS);
     }
 
@@ -236,6 +280,19 @@ class ForumWatch {
         if (Date.now() - this.startedAt > WAIT_CAP_MS) {
             this.stop("timed out");
             return;
+        }
+
+        if (view && this.steer && !view.host.isLoading) {
+            const path = discordPath(view.host.currentUrl);
+            if (path === SHARED_MEMORIES_PATH) {
+                this.steer = false;
+            }
+            else if (path.startsWith(`${SHARED_MEMORIES_PATH}/`)) {
+                logFocusDebug("discord-share", "back to the forum from a post", path);
+                view.host.loadUrl(SHARED_MEMORIES_CHANNEL_URL);
+                this.schedule(POLL_MS);
+                return;
+            }
         }
 
         if (view) {
@@ -378,6 +435,7 @@ async function fill(entry: Pending, view: LiveView, alreadyOpen: boolean) {
     let attached = false;
     const keyboardHold = view.host.holdPageKeyboard();
     try {
+        await disarmFileChooser(view);
         if (!alreadyOpen && !(await evaluate(view, PRESS_NEW_POST))) {
             missed = "new post";
         }
@@ -467,6 +525,16 @@ async function armFileChooser(view: LiveView, filePath: string) {
     catch (e) {
         view.session.onFileChooser(null);
         logError("discord share: couldn't arm the file dialog", e);
+    }
+}
+
+async function disarmFileChooser(view: LiveView) {
+    view.session.onFileChooser(null);
+    try {
+        await view.session.command("Page.setInterceptFileChooserDialog", { enabled: false });
+    }
+    catch (e) {
+        logError("discord share: couldn't disarm the file dialog", e);
     }
 }
 
