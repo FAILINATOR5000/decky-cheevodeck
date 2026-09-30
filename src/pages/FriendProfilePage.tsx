@@ -437,6 +437,12 @@ function FriendProfilePage(props: FriendProfilePageProps) {
         }
     }
 
+    function previewedQuickActionLabel(): string {
+        const id = hoveredQuickAction ?? focusedQuickAction;
+        const action = FRIEND_QUICK_ACTIONS.find((candidate) => candidate.id === id);
+        return action ? t(language, action.labelKey) : "\u00a0";
+    }
+
     function handleQuickActionFocus(id: FriendQuickActionId) {
         setFocusedQuickAction(id);
     }
@@ -492,6 +498,12 @@ function FriendProfilePage(props: FriendProfilePageProps) {
             void actions.onOpenTrackedSets();
             return;
         }
+    }
+
+    function previewedProfileActionLabel(): string {
+        const id = hoveredProfileAction ?? focusedProfileAction;
+        const action = FRIEND_PROFILE_ACTIONS.find((candidate) => candidate.id === id);
+        return action ? t(language, action.labelKey) : "\u00a0";
     }
 
     function handleProfileActionFocus(id: FriendProfileActionId) {
@@ -791,7 +803,6 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                                             : friendGameLoading ||
                                               friendAllGamesLoading ||
                                               (action.id === "wanttoplay" && wantToPlayLoading);
-                                    const labelText = t(language, action.labelKey);
                                     const Icon = action.Icon;
 
                                     return (
@@ -828,24 +839,22 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                                             >
                                                 <Icon size={18} />
                                             </DialogButton>
-                                            <div
-                                                style={{
-                                                    ...smallTextStyle(),
-                                                    fontWeight: 700,
-                                                    textAlign: "center",
-                                                    whiteSpace: "nowrap",
-                                                    overflow: "visible",
-                                                    marginTop: "1px",
-                                                    minHeight: "1em",
-                                                    opacity: previewed ? 0.95 : 0
-                                                }}
-                                            >
-                                                {labelText}
-                                            </div>
                                         </div>
                                     );
                                 })}
                             </Focusable>
+                            <div
+                                style={{
+                                    ...smallTextStyle(),
+                                    fontWeight: 700,
+                                    textAlign: "center",
+                                    whiteSpace: "nowrap",
+                                    marginTop: "1px",
+                                    opacity: 0.95
+                                }}
+                            >
+                                {previewedProfileActionLabel()}
+                            </div>
                         </div>
                     </PanelSectionRow>
                 )}
@@ -1100,7 +1109,6 @@ function FriendProfilePage(props: FriendProfilePageProps) {
 
                                             const previewed = (hoveredQuickAction ?? focusedQuickAction) === action.id;
                                             const buttonDisabled = friendGameLoading;
-                                            const labelText = t(language, action.labelKey);
                                             const Icon = action.Icon;
 
                                             return (
@@ -1137,24 +1145,22 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                                                     >
                                                         <Icon size={18} />
                                                     </DialogButton>
-                                                    <div
-                                                        style={{
-                                                            ...smallTextStyle(),
-                                                            fontWeight: 700,
-                                                            textAlign: "center",
-                                                            whiteSpace: "nowrap",
-                                                            overflow: "visible",
-                                                            marginTop: "1px",
-                                                            minHeight: "1em",
-                                                            opacity: previewed ? 0.95 : 0
-                                                        }}
-                                                    >
-                                                        {labelText}
-                                                    </div>
                                                 </div>
                                             );
                                         })}
                                     </Focusable>
+                                    <div
+                                        style={{
+                                            ...smallTextStyle(),
+                                            fontWeight: 700,
+                                            textAlign: "center",
+                                            whiteSpace: "nowrap",
+                                            marginTop: "1px",
+                                            opacity: 0.95
+                                        }}
+                                    >
+                                        {previewedQuickActionLabel()}
+                                    </div>
                                 </div>
                             ) : null}
                         </div>

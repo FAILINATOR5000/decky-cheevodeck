@@ -1097,6 +1097,18 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
         });
     }
 
+    function previewedQuickActionLabel(): string {
+        const id = hoveredQuickAction ?? focusedQuickAction;
+        const action = QUICK_ACTIONS.find((candidate) => candidate.id === id);
+        if (!action) {
+            return "\u00a0";
+        }
+        if (action.id === "tracked") {
+            return t(language, "Tracked ({{count}})", { count: trackedIds.length });
+        }
+        return t(language, action.labelKey);
+    }
+
     function handleQuickActionFocus(id: QuickActionId) {
         setFocusedQuickAction(id);
     }
@@ -2469,12 +2481,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                     >
                                         {QUICK_ACTIONS.map((action) => {
                                             const previewed = (hoveredQuickAction ?? focusedQuickAction) === action.id;
-                                            const isTracked = action.id === "tracked";
                                             const buttonDisabled = loading || saving;
-                                            const trackedCountLabel = isTracked
-                                                ? t(language, "Tracked ({{count}})", { count: trackedIds.length })
-                                                : null;
-                                            const labelText = trackedCountLabel ?? t(language, action.labelKey);
                                             const Icon = action.Icon;
 
                                             return (
@@ -2534,24 +2541,22 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                                             <style>{NOTES_DOT_KEYFRAMES}</style>
                                                         </div>
                                                     )}
-                                                    <div
-                                                        style={{
-                                                            ...smallTextStyle(),
-                                                            fontWeight: 700,
-                                                            textAlign: "center",
-                                                            whiteSpace: "nowrap",
-                                                            overflow: "visible",
-                                                            marginTop: "1px",
-                                                            minHeight: "1em",
-                                                            opacity: previewed ? 0.95 : 0
-                                                        }}
-                                                    >
-                                                        {labelText}
-                                                    </div>
                                                 </div>
                                             );
                                         })}
                                     </Focusable>
+                                    <div
+                                        style={{
+                                            ...smallTextStyle(),
+                                            fontWeight: 700,
+                                            textAlign: "center",
+                                            whiteSpace: "nowrap",
+                                            marginTop: "1px",
+                                            opacity: 0.95
+                                        }}
+                                    >
+                                        {previewedQuickActionLabel()}
+                                    </div>
                                 </div>
                             )}
                         </div>
