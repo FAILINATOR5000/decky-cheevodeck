@@ -61,6 +61,7 @@ export const ROUTES: Record<ViewKey, RouteRow> = {
     cheevoCheck: { focusKey: "cheevocheck:back", mount: "always", back: (nav) => nav.backFromUtilityTool() },
     fileWatcher: { focusKey: "fileWatcher:back", mount: "always", back: (nav) => nav.backFromUtilityTool() },
     memoriesTransfer: { focusKey: "memoriesTransfer:back", mount: "always", back: (nav) => nav.backFromUtilityTool() },
+    qamGuard: { focusKey: "qamGuard:back", mount: "always", back: (nav) => nav.backFromUtilityTool() },
     memories: { focusKey: "memories:back", mount: "always", back: (nav) => nav.backFromMemories() },
     guides: { focusKey: "guides:back", mount: "always" },
     eventViewer: { focusKey: "eventviewer:back", mount: "whenActive", back: (nav) => nav.backFromEventViewer() }

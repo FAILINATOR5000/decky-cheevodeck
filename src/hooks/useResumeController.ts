@@ -293,6 +293,7 @@ export function useResumeController({
                 bootView === "smbShares" ||
                 bootView === "cheevoCheck" ||
                 bootView === "memories" ||
+                bootView === "qamGuard" ||
                 bootView === "unlockHistory" ||
                 bootView === "about" ||
                 bootView === "social" ||

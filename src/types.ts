@@ -452,6 +452,7 @@ export type ViewKey =
     | "fileWatcher"
     | "memories"
     | "memoriesTransfer"
+    | "qamGuard"
     | "guides"
     | "eventViewer";
 

@@ -87,6 +87,7 @@ import EventViewerPage from "./EventViewerPage";
 import AchievementOverviewPage from "./AchievementOverviewPage";
 import SetupPage from "./SetupPage";
 import UtilsPage from "./UtilsPage";
+import QamGuardPage from "./QamGuardPage";
 import DolphinMapperPage from "./DolphinMapperPage";
 import SmbSharesPage from "./SmbSharesPage";
 import CheevoCheckPage from "./CheevoCheckPage";
@@ -3654,6 +3655,12 @@ function AchievementsRoot() {
         setPendingFocusKey("memoriesTransfer:back");
     }
 
+    function goToQamGuard() {
+        friendGameSessionRefreshKeysRef.current = new Set();
+        setView("qamGuard");
+        setPendingFocusKey("qamGuard:back");
+    }
+
     function backFromMemories() {
         navIntentRef.current = "back";
         const from = previousView(nav.stack);
@@ -5037,7 +5044,30 @@ function AchievementsRoot() {
                                     onOpenCheevoCheck: goToCheevoCheck,
                                     onOpenFileWatcher: goToFileWatcher,
                                     onOpenMemoriesTransfer: goToMemoriesTransfer,
+                                    onOpenQamGuard: goToQamGuard,
                                     onRequestFocus: setPendingFocusKey
+                                }}
+                            />
+
+                            <QamGuardPage
+                                state={{
+                                    view,
+                                    focusScopeResetToken,
+                                    language,
+                                    buttonSpacing,
+                                    loading: optionsState.loading,
+                                    saving: optionsState.saving,
+                                    automaticRecovery: optionsState.automaticRecovery,
+                                    recoveryButtonCombo: optionsState.recoveryButtonCombo,
+                                    recoveryLogs: optionsState.recoveryLogs
+                                }}
+                                actions={{
+                                    onBack: backFromUtilityTool,
+                                    onHome: goToAchievements,
+                                    onToggleAutomaticRecovery: optionsActions.onToggleAutomaticRecovery,
+                                    onToggleRecoveryButtonCombo: optionsActions.onToggleRecoveryButtonCombo,
+                                    onToggleRecoveryLogs: optionsActions.onToggleRecoveryLogs,
+                                    onClearRecoveryLogs: optionsActions.onClearRecoveryLogs
                                 }}
                             />
 

@@ -144,6 +144,7 @@ _ALLOWED_RESUME_VIEWS = {
     "fileWatcher",
     "memories",
     "memoriesTransfer",
+    "qamGuard",
     "guides",
     "eventViewer",
 }

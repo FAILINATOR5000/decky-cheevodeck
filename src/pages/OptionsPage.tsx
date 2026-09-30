@@ -2405,7 +2405,7 @@ function AdvancedTab(props: TabContentProps) {
 
     return (
         <>
-            <SectionTitle label={t(state.language, "Steam Freeze Protection")} />
+            <SectionTitle label={t(state.language, "QAMGuard")} />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
                 label={t(state.language, "Automatic Recovery")}

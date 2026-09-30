@@ -66,6 +66,15 @@ export function restoreStandaloneView(savedState: ResumeState, savedView: ViewKe
         return true;
     }
 
+    if (savedView === "qamGuard") {
+        ctx.setRecentGamesExpanded(false);
+        ctx.setView("qamGuard");
+        ctx.setPendingPrimaryViewRestoreGameId(undefined);
+        ctx.setPendingFocusKey("qamGuard:back");
+        ctx.markResumeApplied();
+        return true;
+    }
+
     if (savedView === "memories") {
         ctx.setRecentGamesExpanded(false);
         ctx.setView("memories");

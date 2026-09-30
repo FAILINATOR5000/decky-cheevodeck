@@ -36,6 +36,7 @@ type UtilsPageActions = {
     onOpenCheevoCheck: () => void | Promise<void>;
     onOpenFileWatcher: () => void | Promise<void>;
     onOpenMemoriesTransfer: () => void | Promise<void>;
+    onOpenQamGuard: () => void | Promise<void>;
     onRequestFocus: (focusKey: string) => void;
 };
 
@@ -144,6 +145,16 @@ function UtilsPage(props: UtilsPageProps) {
                     help={t(state.language, "help_utils_file_watcher")}
                 >
                     {t(state.language, "File Watcher")}
+                </FocusableItem>
+            </PanelSectionRow>
+            <PanelSectionRow>
+                <FocusableItem
+                    outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                    focusKey="utils:qamguard"
+                    onClick={actions.onOpenQamGuard}
+                    help={t(state.language, "help_utils_qamguard")}
+                >
+                    {t(state.language, "QAMGuard")}
                 </FocusableItem>
             </PanelSectionRow>
             <PanelSectionRow>
