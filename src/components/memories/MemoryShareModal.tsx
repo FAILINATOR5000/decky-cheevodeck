@@ -139,6 +139,7 @@ export function MemoryShareModal(props: MemoryShareModalProps) {
     const preparingRef = useRef(false);
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const playbackRef = useRef<ClipPlayback | null>(null);
+    const titleRef = useRef<HTMLDivElement | null>(null);
     const landedRef = useRef(false);
     const previewFrameRef = useRef<number | null>(null);
     const stopStickRef = useRef<(() => void) | null>(null);
@@ -557,7 +558,7 @@ export function MemoryShareModal(props: MemoryShareModalProps) {
             >
                 <SnapshotHotkey language={language} reservedButtons={reservedButtons} />
                 {clip ? <style>{SHARE_CLIP_CSS + FADE_IN_KEYFRAMES}</style> : null}
-                <div style={{ fontSize: `${modalSize(18)}px`, fontWeight: 800, marginBottom: "12px" }}>
+                <div ref={titleRef} style={{ fontSize: `${modalSize(18)}px`, fontWeight: 800, marginBottom: "12px" }}>
                     {t(language, "Share Memory")}
                 </div>
 
@@ -575,6 +576,10 @@ export function MemoryShareModal(props: MemoryShareModalProps) {
                                 watchStick(false);
                             }}
                             onActivate={pressPlay}
+                            fnScrollIntoViewHandler={() => {
+                                titleRef.current?.scrollIntoView({ block: "start" });
+                                return true;
+                            }}
                             onOKActionDescription={playAction}
                             onOptionsButton={playPreview}
                             onOptionsActionDescription={t(language, "Preview")}
