@@ -869,7 +869,7 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
 
     const bookmarkRowButtons = useMemo(() => {
         const map: Record<number, ReactNode> = {
-            [BUTTON_BUMPER_LEFT]: t(language, "Snippet"),
+            [BUTTON_BUMPER_LEFT]: transportLabel(language, "Snippet", "\u2702\ufe0e"),
             [BUTTON_TRIGGER_RIGHT]: t(language, "share_memory_action")
         };
         if (timelineOffered) {
@@ -1419,9 +1419,9 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                                                 block
                                                 fontSize={modalSize(14)}
                                                 onActivate={() => selectBookmark(row)}
-                                                onOKActionDescription={t(language, "Play")}
+                                                onOKActionDescription={transportLabel(language, "Play", "\u25b6")}
                                                 onOptionsButton={() => renameBookmarkRow(row)}
-                                                onOptionsActionDescription={t(language, "Rename")}
+                                                onOptionsActionDescription={transportLabel(language, "Rename", "\u270e")}
                                                 onSecondaryButton={() => deleteBookmarkRow(row)}
                                                 onSecondaryActionDescription={t(language, "Delete")}
                                                 onButtonDown={(event) => {

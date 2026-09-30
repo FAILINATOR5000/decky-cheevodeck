@@ -3,9 +3,9 @@ import { useState, type ReactNode } from "react";
 
 type ActionLinkProps = {
     onActivate: () => void;
-    onOKActionDescription?: string;
+    onOKActionDescription?: ReactNode;
     onOptionsButton?: () => void;
-    onOptionsActionDescription?: string;
+    onOptionsActionDescription?: ReactNode;
     onSecondaryButton?: () => void;
     onSecondaryActionDescription?: string;
     onButtonDown?: (event: { detail?: { button?: number; is_repeat?: boolean } }) => void;
