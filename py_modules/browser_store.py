@@ -1,8 +1,10 @@
+import re
 import secrets
 import threading
 import time
 from pathlib import Path
 from typing import Any, Callable, Optional
+from urllib.parse import urlsplit
 
 from utils import ensure_dir, load_json_file, save_json_file, to_int
 
@@ -17,6 +19,8 @@ BOOKMARKS_FILENAME = "bookmarks.json"
 
 SETTINGS_FILENAME = "settings.json"
 
+AD_EXEMPTIONS_FILENAME = "ad_exemptions.json"
+
 MAX_TABS = 100
 
 MAX_TAB_HISTORY = 100
@@ -26,6 +30,8 @@ MAX_HISTORY_ENTRIES = 2000
 MAX_BOOKMARKS = 2000
 
 MAX_BOOKMARK_CATEGORIES = 50
+
+MAX_AD_EXEMPTIONS = 500
 
 MAX_CATEGORY_NAME_LENGTH = 48
 
@@ -44,11 +50,13 @@ MAX_ANCHOR_LENGTH = 2048
 
 MAX_ID_LENGTH = 64
 
+MAX_HOST_LENGTH = 253
+
 ALLOWED_PAGE_ZOOM = (50, 60, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200)
 
 ALLOWED_HISTORY_RETENTION = ("off", "7", "30", "forever")
 
-ALLOWED_PANEL_TABS = ("bookmarks", "history", "options")
+ALLOWED_PANEL_TABS = ("bookmarks", "history", "options", "adblock")
 
 DEFAULT_PAGE_ZOOM = 80
 
@@ -73,6 +81,9 @@ DEFAULT_NEW_TAB_PAGE = "google"
 DEFAULT_CUSTOM_SEARCH_URL = "https://gamefaqs.gamespot.com/search?game=%s"
 
 _CONTROL_CHARS = frozenset(chr(code) for code in range(0x20)) | frozenset("\x7f")
+
+_HOST_LABEL = r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
+_HOST_PATTERN = re.compile(rf"{_HOST_LABEL}(?:\.{_HOST_LABEL})*")
 
 
 def _clean_text(value: Any, limit: int) -> str:
@@ -106,6 +117,39 @@ def _clean_search_url(value: Any) -> str:
     return text if "%s" in text else ""
 
 
+def _clean_host(value: Any) -> str:
+    text = _clean_text(value, MAX_HOST_LENGTH + 2)
+    if not text.isascii():
+        return ""
+    text = text.lower()
+    if text.endswith("."):
+        text = text[:-1]
+    if len(text) > MAX_HOST_LENGTH or not _HOST_PATTERN.fullmatch(text):
+        return ""
+    return text
+
+
+def clean_site(value: Any) -> str:
+    text = _clean_text(value, MAX_URL_LENGTH)
+    if not text.isascii():
+        return ""
+    if "://" in text:
+        try:
+            parts = urlsplit(text)
+            host = parts.hostname
+        except ValueError:
+            return ""
+        if parts.scheme not in ("http", "https") or not host:
+            return ""
+        text = host
+
+    host = _clean_host(text)
+    labels = host.split(".")
+    if len(labels) >= 3 and labels[0] in ("www", "m"):
+        return ".".join(labels[1:])
+    return host
+
+
 def _new_id(prefix: str) -> str:
     return f"{prefix}_{secrets.token_urlsafe(8)}"
 
@@ -133,6 +177,9 @@ class BrowserStore:
 
     def _settings_path(self) -> Path:
         return self._base_dir / SETTINGS_FILENAME
+
+    def _ad_exemptions_path(self) -> Path:
+        return self._base_dir / AD_EXEMPTIONS_FILENAME
 
     def _empty_tabs(self) -> dict:
         return {
@@ -960,3 +1007,48 @@ class BrowserStore:
             data = self._load_settings()
             data["expanded"] = bool(value)
             return self._save_settings(data)
+
+    def _load_ad_exemptions(self) -> dict:
+        raw = load_json_file(self._ad_exemptions_path(), {})
+        rows = raw.get("hosts") if isinstance(raw, dict) else None
+        hosts = set()
+        if isinstance(rows, list):
+            for row in rows:
+                host = _clean_host(row)
+                if host:
+                    hosts.add(host)
+        return {
+            "schemaVersion": CURRENT_SCHEMA_VERSION,
+            "hosts": sorted(hosts)[:MAX_AD_EXEMPTIONS],
+        }
+
+    def _save_ad_exemptions(self, data: dict) -> dict:
+        save_json_file(self._ad_exemptions_path(), data, compact=True)
+        return data
+
+    def list_ad_exemptions(self) -> dict:
+        with self._lock:
+            return self._load_ad_exemptions()
+
+    def add_ad_exemption(self, host: Any) -> Optional[dict]:
+        site = clean_site(host)
+        if not site:
+            return self.list_ad_exemptions()
+
+        with self._lock:
+            data = self._load_ad_exemptions()
+            if site in data["hosts"]:
+                return data
+            if len(data["hosts"]) >= MAX_AD_EXEMPTIONS:
+                return None
+            data["hosts"] = sorted(data["hosts"] + [site])
+            return self._save_ad_exemptions(data)
+
+    def remove_ad_exemption(self, host: Any) -> dict:
+        wanted = _clean_host(host)
+        with self._lock:
+            data = self._load_ad_exemptions()
+            if wanted not in data["hosts"]:
+                return data
+            data["hosts"].remove(wanted)
+            return self._save_ad_exemptions(data)

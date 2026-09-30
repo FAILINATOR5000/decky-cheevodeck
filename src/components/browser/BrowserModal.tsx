@@ -600,6 +600,13 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
                                 onToggleBlockAds={browser.toggleBlockAds}
                                 fastForwardYouTubeAds={browser.fastForwardYouTubeAds}
                                 onToggleFastForwardYouTubeAds={browser.toggleFastForwardYouTubeAds}
+                                adExemptions={browser.adExemptions}
+                                maxAdExemptions={browser.maxAdExemptions}
+                                adExemptionsFull={browser.adExemptionsFull}
+                                currentSite={browser.currentSite}
+                                currentExemption={browser.currentExemption}
+                                onToggleCurrentExemption={browser.toggleCurrentExemption}
+                                onRemoveExemption={browser.removeAdExemption}
                                 activeTabs={browser.activeTabs}
                                 onCycleActiveTabs={browser.cycleActiveTabs}
                                 pauseMediaOnTabSwitch={browser.pauseMediaOnTabSwitch}

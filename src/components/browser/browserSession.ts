@@ -1,6 +1,7 @@
 import { logFocusDebug } from "../../api";
 import { AD_SKIP_BINDING, claimTarget, releaseTarget, setActiveTarget, socketOfTarget, targetForUrl } from "./browserScroll";
 import { AD_BLOCK_HOSTS, AD_BLOCK_PATTERNS } from "./adBlockHosts";
+import { isAdExempt, replaceAdExemptionHosts } from "./adExemptions";
 import { AD_LIBRARY_STAND_IN } from "./adStandIns";
 import { FULLSCREEN_BINDING, FULLSCREEN_WATCH } from "./fullscreenWatch";
 import { OVERLAY_FIX } from "./overlayFix";
@@ -51,6 +52,11 @@ export class ViewSession {
     private readonly waiting = new Map<number, { resolve: (value: any) => void; reject: (reason: Error) => void; timer: number }>();
     private blockingSent: boolean | null = null;
     private standInId: string | null = null;
+    private mainFrameId = "";
+    private committedUrl = "";
+    private pendingUrl = "";
+    private pendingRequestId = "";
+    private blockQueue: Promise<void> = Promise.resolve();
     private pageDpr = 0;
     private metricsSent: string | null = null;
     private fileChooserHandler: ((backendNodeId: number) => void) | null = null;
@@ -118,6 +124,40 @@ export class ViewSession {
             this.fileChooserHandler?.(Number(msg.params?.backendNodeId));
             return;
         }
+        if (msg.method === "Network.requestWillBeSent") {
+            if (msg.params?.type === "Document" && this.mainFrameId && msg.params?.frameId === this.mainFrameId) {
+                this.pendingUrl = String(msg.params?.request?.url ?? "");
+                this.pendingRequestId = String(msg.params?.requestId ?? "");
+                void this.applyBlocking();
+            }
+            return;
+        }
+        if (msg.method === "Page.frameNavigated") {
+            const frame = msg.params?.frame;
+            if (frame && !frame.parentId) {
+                this.mainFrameId = String(frame.id ?? "") || this.mainFrameId;
+                this.committedUrl = String(frame.url ?? "");
+                this.pendingUrl = "";
+                this.pendingRequestId = "";
+                void this.applyBlocking();
+            }
+            return;
+        }
+        if (msg.method === "Network.loadingFailed") {
+            if (this.pendingRequestId && msg.params?.requestId === this.pendingRequestId) {
+                this.dropPending();
+            }
+            return;
+        }
+        if (msg.method === "Page.frameStoppedLoading") {
+            if (msg.params?.frameId === this.mainFrameId) {
+                this.dropPending();
+            }
+            return;
+        }
+        if (msg.method === "Page.downloadWillBegin") {
+            this.dropPending();
+        }
         if (this !== activeSession) {
             return;
         }
@@ -139,6 +179,11 @@ export class ViewSession {
         this.socket = null;
         this.blockingSent = null;
         this.standInId = null;
+        this.mainFrameId = "";
+        this.committedUrl = "";
+        this.pendingUrl = "";
+        this.pendingRequestId = "";
+        this.blockQueue = Promise.resolve();
         this.metricsSent = null;
         this.pageDpr = 0;
         for (const entry of this.waiting.values()) {
@@ -148,18 +193,31 @@ export class ViewSession {
         this.waiting.clear();
     }
 
-    async applyBlocking() {
+    private dropPending() {
+        if (!this.pendingUrl) {
+            return;
+        }
+        this.pendingUrl = "";
+        this.pendingRequestId = "";
+        void this.applyBlocking();
+    }
+
+    applyBlocking(): Promise<void> {
+        this.blockQueue = this.blockQueue.then(() => this.syncBlocking());
+        return this.blockQueue;
+    }
+
+    private async syncBlocking() {
         if (!this.socket) {
             return;
         }
-        const wanted = blockAds;
-        if (this.blockingSent === wanted) {
-            return;
-        }
-        this.blockingSent = wanted;
         try {
-            await this.send("Network.setBlockedURLs", { urls: wanted ? patterns() : [] });
-            logFocusDebug("browser-session", "blocking", `${wanted ? patterns().length : 0} patterns`);
+            const wanted = blockAds && !isAdExempt(this.pendingUrl || this.committedUrl);
+            if (this.blockingSent !== wanted) {
+                await this.send("Network.setBlockedURLs", { urls: wanted ? patterns() : [] });
+                this.blockingSent = wanted;
+                logFocusDebug("browser-session", "blocking", `${wanted ? patterns().length : 0} patterns ${(this.pendingUrl || this.committedUrl).slice(0, 60)}`);
+            }
             await this.applyStandIns(wanted);
         }
         catch (e) {
@@ -226,6 +284,7 @@ export class ViewSession {
     }
 
     private async attached() {
+        this.mainFrameId = this.target;
         try {
             await this.send("Network.enable", { maxTotalBufferSize: 0, maxResourceBufferSize: 0 });
         }
@@ -238,6 +297,20 @@ export class ViewSession {
         }
         catch (e) {
             logFocusDebug("browser-session", "downloads failed", String((e as Error)?.message ?? e));
+        }
+        try {
+            const result = await this.send("Page.getFrameTree");
+            const frame = result?.frameTree?.frame;
+            if (frame) {
+                this.mainFrameId = String(frame.id ?? "") || this.mainFrameId;
+                this.committedUrl = String(frame.url ?? "");
+            }
+            if (this.mainFrameId !== this.target) {
+                logFocusDebug("browser-session", "main frame", `${this.mainFrameId} is not the target ${this.target}`);
+            }
+        }
+        catch (e) {
+            logFocusDebug("browser-session", "frame tree failed", String((e as Error)?.message ?? e));
         }
         try {
             await this.send("Runtime.addBinding", { name: FULLSCREEN_BINDING });
@@ -424,6 +497,13 @@ export function setActiveSession(session: ViewSession | null): void {
 
 export function setAdBlock(enabled: boolean): void {
     blockAds = enabled;
+    for (const session of sessions) {
+        void session.applyBlocking();
+    }
+}
+
+export function setAdExemptions(hosts: string[]): void {
+    replaceAdExemptionHosts(hosts);
     for (const session of sessions) {
         void session.applyBlocking();
     }

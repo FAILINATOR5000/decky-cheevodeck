@@ -12,7 +12,7 @@ import uuid
 
 import decky
 
-from browser_store import MAX_BOOKMARK_CATEGORIES, MAX_BOOKMARKS, MAX_TABS
+from browser_store import MAX_AD_EXEMPTIONS, MAX_BOOKMARK_CATEGORIES, MAX_BOOKMARKS, MAX_TABS, clean_site
 from utils import chown_to_data_owner, ssl_context, to_int
 from mixins._context import PluginContext
 
@@ -122,6 +122,15 @@ def _bookmarks_response(state: dict, reason: str = "") -> dict:
         "collapsedCategoryIds": state["collapsedCategoryIds"],
         "maxBookmarks": MAX_BOOKMARKS,
         "maxCategories": MAX_BOOKMARK_CATEGORIES,
+    }
+
+
+def _ad_exemptions_response(state: dict, reason: str = "") -> dict:
+    return {
+        "ok": not reason,
+        "reason": reason,
+        "hosts": state["hosts"],
+        "maxHosts": MAX_AD_EXEMPTIONS,
     }
 
 
@@ -462,3 +471,16 @@ class BrowserMixin(PluginContext):
     async def set_browser_category_collapsed(self, category_id: str = "", collapsed: bool = False):
         return _bookmarks_response(self.browser_store.set_bookmark_category_collapsed(category_id, collapsed))
 
+    async def get_browser_ad_exemptions(self):
+        return _ad_exemptions_response(self.browser_store.list_ad_exemptions())
+
+    async def add_browser_ad_exemption(self, host: str = ""):
+        if not clean_site(host):
+            return _ad_exemptions_response(self.browser_store.list_ad_exemptions(), "badSite")
+        state = self.browser_store.add_ad_exemption(host)
+        if state is None:
+            return _ad_exemptions_response(self.browser_store.list_ad_exemptions(), "exemptionLimit")
+        return _ad_exemptions_response(state)
+
+    async def remove_browser_ad_exemption(self, host: str = ""):
+        return _ad_exemptions_response(self.browser_store.remove_ad_exemption(host))

@@ -235,6 +235,13 @@ type BrowserPanelProps = {
     onToggleBlockAds: () => void;
     fastForwardYouTubeAds: boolean;
     onToggleFastForwardYouTubeAds: () => void;
+    adExemptions: string[];
+    maxAdExemptions: number;
+    adExemptionsFull: boolean;
+    currentSite: string;
+    currentExemption: string;
+    onToggleCurrentExemption: () => void;
+    onRemoveExemption: (host: string) => void;
     activeTabs: number;
     onCycleActiveTabs: () => void;
     pauseMediaOnTabSwitch: boolean;
@@ -256,6 +263,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
         newTabPage, customNewTabUrl, onCycleNewTabPage, onSetCustomNewTabUrl,
         openLinksInNewTab, onToggleOpenLinksInNewTab,
         blockAds, onToggleBlockAds, fastForwardYouTubeAds, onToggleFastForwardYouTubeAds,
+        adExemptions, maxAdExemptions, adExemptionsFull, currentSite, currentExemption, onToggleCurrentExemption, onRemoveExemption,
         activeTabs, onCycleActiveTabs, pauseMediaOnTabSwitch, onTogglePauseMediaOnTabSwitch,
         downloadFolder, onSetDownloadFolder, rememberDownloadFolder, onToggleRememberDownloadFolder
     } = props;
@@ -351,12 +359,17 @@ export function BrowserPanel(props: BrowserPanelProps) {
         return out;
     }, [days, shutDays]);
 
+    const exemptionRows = useMemo(() => adExemptions.map((host) => ({ id: host, url: host, title: host })), [adExemptions]);
+
     let rows: { id: string; url: string; title: string }[] = [];
     if (tab === "bookmarks") {
         rows = flatMarks;
     }
     else if (tab === "history") {
         rows = flatVisits;
+    }
+    else if (tab === "adblock") {
+        rows = exemptionRows;
     }
 
     const controlHeight = `${modalSize(ACTION_PX)}px`;
@@ -370,16 +383,18 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
     const optionStyle = { ...wideActionStyle, ...controlTextStyle };
 
-    const optionLabels = [...browserOptionLabels(language), t(language, "On"), t(language, "Off"), t(language, "Close All Tabs"), t(language, "Clear")];
-    const sizedLabel = (current: string) => (
+    const stackedLabel = (labels: string[], current: string) => (
         <span style={{ display: "grid", justifyItems: "center" }}>
-            {optionLabels.map((label) => (
+            {labels.map((label) => (
                 <span key={label} style={{ gridArea: "1 / 1", visibility: label === current ? "visible" : "hidden" }}>
                     {label}
                 </span>
             ))}
         </span>
     );
+    const optionLabels = [...browserOptionLabels(language), t(language, "On"), t(language, "Off"), t(language, "Close All Tabs"), t(language, "Clear")];
+    const sizedLabel = (current: string) => stackedLabel(optionLabels, current);
+    const exemptLabels = [...optionLabels, t(language, "Add This Site"), t(language, "Remove This Site")];
 
     const pillStyle = (selected: boolean): Record<string, string> => ({
         minWidth: "0",
@@ -439,6 +454,16 @@ export function BrowserPanel(props: BrowserPanelProps) {
     }
 
     const atCategoryLimit = maxCategories > 0 && categories.length >= maxCategories;
+
+    const atExemptionLimit = adExemptions.length >= maxAdExemptions;
+    const canToggleExemption = !!currentExemption || (!!currentSite && !atExemptionLimit);
+    let siteText = currentSite;
+    if (!currentSite) {
+        siteText = t(language, "This page isn't a website.");
+    }
+    else if (currentExemption && currentExemption !== currentSite) {
+        siteText = `${currentSite} (${currentExemption})`;
+    }
 
     const toggleCollapsed = (categoryId: string) => {
         onSetCategoryCollapsed(categoryId, !collapsed.includes(categoryId));
@@ -642,6 +667,11 @@ export function BrowserPanel(props: BrowserPanelProps) {
                     {t(language, "Options")}
                 </DialogButton>
             </div>
+            <div style={cellStyle}>
+                <DialogButton {...act("tab:adblock", () => onSetTab("adblock"))} style={pillStyle(tab === "adblock")}>
+                    {t(language, "Ad Block")}
+                </DialogButton>
+            </div>
             <div
                 style={{
                     flex: "0 0 auto",
@@ -808,32 +838,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
                             </div>
                         </div>
                         <div style={noteStyle}>{t(language, "help_browser_pause_media_on_tab_switch")}</div>
-                    </div>
-
-                    <div style={settingCardStyle}>
-                        <div style={settingRowStyle}>
-                            <span style={{ opacity: 0.8, minWidth: "0" }}>{t(language, "Block Ads")}</span>
-                            <div style={{ flex: "1 1 auto" }} />
-                            <div style={cellStyle}>
-                                <DialogButton {...act("ads:toggle", onToggleBlockAds)} style={optionStyle}>
-                                    {sizedLabel(t(language, blockAds ? "On" : "Off"))}
-                                </DialogButton>
-                            </div>
-                        </div>
-                        <div style={noteStyle}>{t(language, "help_browser_block_ads")}</div>
-                    </div>
-
-                    <div style={settingCardStyle}>
-                        <div style={settingRowStyle}>
-                            <span style={{ opacity: 0.8, minWidth: "0" }}>{t(language, "Fast-forward YouTube Ads")}</span>
-                            <div style={{ flex: "1 1 auto" }} />
-                            <div style={cellStyle}>
-                                <DialogButton {...act("ytads:toggle", onToggleFastForwardYouTubeAds)} style={optionStyle}>
-                                    {sizedLabel(t(language, fastForwardYouTubeAds ? "On" : "Off"))}
-                                </DialogButton>
-                            </div>
-                        </div>
-                        <div style={noteStyle}>{t(language, "help_browser_fast_forward_youtube_ads")}</div>
                     </div>
 
                     <div style={settingCardStyle}>
@@ -1070,6 +1074,120 @@ export function BrowserPanel(props: BrowserPanelProps) {
                         {t(language, "No bookmarks yet. Use the star to add a site to your bookmarks.")}
                     </div>
                 )}
+
+                {mountedCount < rows.length && (
+                    <div ref={window_.markerRef} style={{ flex: "0 0 auto", height: "1px" }} />
+                )}
+            </BrowserScrollArea>
+            )}
+
+            {tab === "adblock" && (
+            <BrowserScrollArea railPx={RAIL_PX} gapPx={ROW_GAP_PX} rowGap={`${modalSize(3)}px`} unmountedPx={unmountedPx} header={header}>
+                <div style={{ display: "flex", flexDirection: "column", flex: "0 0 auto", gap }}>
+                        <div style={settingCardStyle}>
+                            <div style={settingRowStyle}>
+                                <span style={{ opacity: 0.8, minWidth: "0" }}>{t(language, "Block Ads")}</span>
+                                <div style={{ flex: "1 1 auto" }} />
+                                <div style={cellStyle}>
+                                    <DialogButton {...act("ads:toggle", onToggleBlockAds)} style={optionStyle}>
+                                        {sizedLabel(t(language, blockAds ? "On" : "Off"))}
+                                    </DialogButton>
+                                </div>
+                            </div>
+                            <div style={noteStyle}>{t(language, "help_browser_block_ads")}</div>
+                        </div>
+
+                        <div style={settingCardStyle}>
+                            <div style={settingRowStyle}>
+                                <span style={{ opacity: 0.8, minWidth: "0" }}>{t(language, "Fast-forward YouTube Ads")}</span>
+                                <div style={{ flex: "1 1 auto" }} />
+                                <div style={cellStyle}>
+                                    <DialogButton {...act("ytads:toggle", onToggleFastForwardYouTubeAds)} style={optionStyle}>
+                                        {sizedLabel(t(language, fastForwardYouTubeAds ? "On" : "Off"))}
+                                    </DialogButton>
+                                </div>
+                            </div>
+                            <div style={noteStyle}>{t(language, "help_browser_fast_forward_youtube_ads")}</div>
+                        </div>
+
+                    <div style={settingCardStyle}>
+                        <div style={settingRowStyle}>
+                            <span style={{ opacity: 0.8, minWidth: "0" }}>{t(language, "Exempt Sites")}</span>
+                            <div style={{ flex: "1 1 auto" }} />
+                            <span style={{ opacity: 0.6 }}>{`${adExemptions.length} / ${maxAdExemptions}`}</span>
+                        </div>
+                        <div style={noteStyle}>{t(language, "help_browser_ad_exemptions")}</div>
+                        {!blockAds && <div style={noteStyle}>{t(language, "Block Ads is off, so this list makes no difference right now.")}</div>}
+                        <div style={{ ...settingRowStyle, flexWrap: "nowrap" }}>
+                            <div style={{ flex: "1 1 auto", minWidth: "0", display: "flex", alignItems: "center", padding: `0 ${modalSize(2)}px` }}>
+                                <span
+                                    style={{
+                                        minWidth: "0",
+                                        whiteSpace: "nowrap",
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        fontSize: `${modalSize(13)}px`,
+                                        opacity: currentSite ? "1" : "0.6"
+                                    }}
+                                >
+                                    {siteText}
+                                </span>
+                            </div>
+                            <div style={cellStyle}>
+                                <DialogButton
+                                    {...act("exempt:toggle", () => {
+                                        if (canToggleExemption) {
+                                            onToggleCurrentExemption();
+                                        }
+                                    })}
+                                    style={{ ...optionStyle, opacity: canToggleExemption ? "1" : "0.35" }}
+                                >
+                                    {stackedLabel(exemptLabels, t(language, currentExemption ? "Remove This Site" : "Add This Site"))}
+                                </DialogButton>
+                            </div>
+                        </div>
+                        {(atExemptionLimit || adExemptionsFull) && (
+                            <div style={noteStyle}>{t(language, "The list is full. Remove a site to add another.")}</div>
+                        )}
+                        <div style={noteStyle}>{t(language, "Takes effect when the page reloads.")}</div>
+                    </div>
+                </div>
+
+                {adExemptions.length === 0 && (
+                    <div style={{ padding: gap, fontSize: `${modalSize(13)}px`, opacity: 0.7 }}>
+                        {t(language, "No exempt sites yet. Open a site, then add it here to let its ads through.")}
+                    </div>
+                )}
+
+                <div style={{ display: "flex", flexDirection: "column", gap: `${modalSize(3)}px`, paddingLeft: `${modalSize(10)}px` }}>
+                    {adExemptions.slice(0, mountedCount).map((host) => (
+                        <div key={host} style={actionRowStyle(ROW_HEIGHT_PX)}>
+                            <div
+                                style={{
+                                    flex: "1 1 auto",
+                                    minWidth: "0",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    padding: `0 ${modalSize(10)}px`,
+                                    borderRadius: `${modalSize(4)}px`,
+                                    background: "rgba(255, 255, 255, 0.05)"
+                                }}
+                            >
+                                <span style={{ minWidth: "0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize: `${modalSize(13)}px` }}>
+                                    {host}
+                                </span>
+                            </div>
+                            <div style={cellStyle}>
+                                <DialogButton
+                                    {...act("exempt:remove", () => onRemoveExemption(host))}
+                                    style={{ ...squareStyle(ACTION_PX), height: "100%" }}
+                                >
+                                    <FaTrash size={modalSize(12)} />
+                                </DialogButton>
+                            </div>
+                        </div>
+                    ))}
+                </div>
 
                 {mountedCount < rows.length && (
                     <div ref={window_.markerRef} style={{ flex: "0 0 auto", height: "1px" }} />

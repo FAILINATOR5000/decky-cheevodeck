@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+    addBrowserAdExemption,
     addBrowserBookmark,
     addBrowserBookmarkCategory,
     addBrowserHistoryEntry,
     addBrowserTab,
     clearBrowserHistory,
+    getBrowserAdExemptions,
     getBrowserBookmarks,
     getBrowserHistory,
+    removeBrowserAdExemption,
     removeBrowserBookmark,
     removeBrowserBookmarkCategory,
     renameBrowserBookmark,
@@ -63,11 +66,13 @@ import {
     saveBrowserSearchEngine,
     startBrowserDownload
 } from "../api";
-import { requestHeadersFor, setAdBlock, setZoomPercent, type DownloadRequest } from "../components/browser/browserSession";
+import { requestHeadersFor, setAdBlock, setAdExemptions, setZoomPercent, type DownloadRequest } from "../components/browser/browserSession";
+import { exemptEntryFor, siteOf } from "../components/browser/adExemptions";
 import { toastDownload } from "../components/browser/browserDownloads";
 import { defaultBrowserPageZoom, nextBrowserActiveTabs, nextBrowserHistoryRetention, nextBrowserNewTabPage, nextBrowserSearchEngine, stepBrowserPageZoom } from "../utils/options";
 import { logError } from "../utils/errors";
 import type {
+    BrowserAdExemptionsResponse,
     BrowserBookmark,
     BrowserBookmarkCategory,
     BrowserBookmarksResponse,
@@ -85,6 +90,8 @@ export const BROWSER_HOME_URL = "https://retroachievements.org/";
 export const DEFAULT_BOOKMARK_CATEGORY_ID = "cat_default";
 
 const DEFAULT_MAX_TABS = 100;
+
+const DEFAULT_MAX_AD_EXEMPTIONS = 500;
 
 const SEARCH_URLS: Record<string, string> = {
     google: "https://www.google.com/search?q=%s",
@@ -246,6 +253,13 @@ export type BrowserController = {
     toggleBlockAds: () => void;
     fastForwardYouTubeAds: boolean;
     toggleFastForwardYouTubeAds: () => void;
+    adExemptions: string[];
+    maxAdExemptions: number;
+    adExemptionsFull: boolean;
+    currentSite: string;
+    currentExemption: string;
+    toggleCurrentExemption: () => void;
+    removeAdExemption: (host: string) => void;
     activeTabs: number;
     cycleActiveTabs: () => void;
     pauseMediaOnTabSwitch: boolean;
@@ -288,6 +302,9 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
     const [openLinksInNewTab, setOpenLinksInNewTab] = useState(true);
     const [blockAds, setBlockAds] = useState(true);
     const [fastForwardYouTubeAds, setFastForwardYouTubeAds] = useState(true);
+    const [adExemptions, setAdExemptionList] = useState<string[]>([]);
+    const [maxAdExemptions, setMaxAdExemptions] = useState(DEFAULT_MAX_AD_EXEMPTIONS);
+    const [adExemptionsFull, setAdExemptionsFull] = useState(false);
     const [activeTabs, setActiveTabs] = useState(DEFAULT_ACTIVE_TABS);
     const [pauseMediaOnTabSwitch, setPauseMediaOnTabSwitch] = useState(false);
     const [pendingDownload, setPendingDownload] = useState<PendingDownload | null>(null);
@@ -544,6 +561,18 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         void settle(liveUrlRef.current);
         saveSetting("toggleFastForwardYouTubeAds", () => saveBrowserFastForwardYouTubeAds(nextValue));
     }, [saveSetting, settle]);
+
+    const applyExemptions = useCallback((state: BrowserAdExemptionsResponse) => {
+        const hosts = Array.isArray(state.hosts) ? state.hosts : [];
+        setAdExemptions(hosts);
+        setAdExemptionList(hosts);
+        if (typeof state.maxHosts === "number" && state.maxHosts > 0) {
+            setMaxAdExemptions(state.maxHosts);
+        }
+        setAdExemptionsFull(state.reason === "exemptionLimit");
+        void settle(liveUrlRef.current);
+        refreshHiddenPages();
+    }, [settle]);
 
     const setDownloadFolder = useCallback((path: string) => {
         setDownloadFolderState(path);
@@ -821,7 +850,15 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
                         logError("useBrowserController.settings", e);
                         return null;
                     });
-                let state = await getBrowserTabs();
+                const exemptionsLoad = getBrowserAdExemptions().catch((e) => {
+                    logError("useBrowserController.adExemptions", e);
+                    return null;
+                });
+                const [loadedTabs, exemptions] = await Promise.all([getBrowserTabs(), exemptionsLoad]);
+                if (exemptions) {
+                    applyExemptions(exemptions);
+                }
+                let state = loadedTabs;
                 setPanelTabState(state.panelTab);
                 if (startUrl) {
                     state = await addBrowserTab(startUrl, "", true);
@@ -863,7 +900,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         return () => {
             cancelled = true;
         };
-    }, [apply, applySettings, bringUpView, drive, followActiveView, queueRestore, startUrl, syncTabToView]);
+    }, [apply, applyExemptions, applySettings, bringUpView, drive, followActiveView, queueRestore, startUrl, syncTabToView]);
 
     const openTab = useCallback((url: string) => {
         const target = url || BROWSER_HOME_URL;
@@ -1376,6 +1413,34 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
 
     const clearBookmarkLimit = useCallback(() => setBookmarkLimit(0), []);
 
+    const currentSite = siteOf(currentUrl);
+    const currentExemption = exemptEntryFor(currentUrl);
+
+    const toggleCurrentExemption = useCallback(() => {
+        const entry = exemptEntryFor(currentUrl);
+        const site = siteOf(currentUrl);
+        if (!entry && !site) return;
+        (async () => {
+            try {
+                applyExemptions(entry ? await removeBrowserAdExemption(entry) : await addBrowserAdExemption(site));
+            }
+            catch (e) {
+                logError("useBrowserController.toggleCurrentExemption", e);
+            }
+        })();
+    }, [applyExemptions, currentUrl]);
+
+    const removeAdExemption = useCallback((host: string) => {
+        (async () => {
+            try {
+                applyExemptions(await removeBrowserAdExemption(host));
+            }
+            catch (e) {
+                logError("useBrowserController.removeAdExemption", e);
+            }
+        })();
+    }, [applyExemptions]);
+
     const removeBookmark = useCallback((bookmarkId: string) => {
         (async () => {
             try {
@@ -1532,6 +1597,13 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         toggleBlockAds,
         fastForwardYouTubeAds,
         toggleFastForwardYouTubeAds,
+        adExemptions,
+        maxAdExemptions,
+        adExemptionsFull,
+        currentSite,
+        currentExemption,
+        toggleCurrentExemption,
+        removeAdExemption,
         activeTabs,
         cycleActiveTabs,
         pauseMediaOnTabSwitch,

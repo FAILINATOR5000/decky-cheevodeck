@@ -1,5 +1,6 @@
 import { fetchNoCors } from "@decky/api";
 import { logError } from "../../utils/errors";
+import { isAdExempt } from "./adExemptions";
 
 const CDP_TAB_LIST = "http://localhost:8080/json";
 
@@ -661,16 +662,17 @@ export async function preparePage(url: string, percent: number, blockAds: boolea
     if (!wsUrl) {
         return false;
     }
+    const hideAdSlots = blockAds && !isAdExempt(url);
     const script = `(() => {
         document.documentElement.style.zoom = ${JSON.stringify(cssZoom(percent))};
         let adStyle = document.getElementById(${JSON.stringify(AD_SLOT_STYLE_ID)});
-        if (${blockAds} && !adStyle) {
+        if (${hideAdSlots} && !adStyle) {
             adStyle = document.createElement("style");
             adStyle.id = ${JSON.stringify(AD_SLOT_STYLE_ID)};
             adStyle.textContent = ${JSON.stringify(AD_SLOT_CSS)};
             (document.head || document.documentElement).appendChild(adStyle);
         }
-        else if (!${blockAds} && adStyle) {
+        else if (!${hideAdSlots} && adStyle) {
             adStyle.remove();
         }
         window.__cheevodeckFastForward = ${fastForward};

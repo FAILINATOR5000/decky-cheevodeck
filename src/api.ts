@@ -185,6 +185,7 @@ import type {
     BrowserTabsResponse,
     BrowserHistoryResponse,
     BrowserBookmarksResponse,
+    BrowserAdExemptionsResponse,
     OkResult,
     SocialView,
     BadgesSortOrder,
@@ -2911,6 +2912,10 @@ export const setBrowserCategoryCollapsed = callable<
     [categoryId: string, collapsed: boolean],
     BrowserBookmarksResponse
 >("set_browser_category_collapsed");
+
+export const getBrowserAdExemptions = callable<[], BrowserAdExemptionsResponse>("get_browser_ad_exemptions");
+export const addBrowserAdExemption = callable<[host: string], BrowserAdExemptionsResponse>("add_browser_ad_exemption");
+export const removeBrowserAdExemption = callable<[host: string], BrowserAdExemptionsResponse>("remove_browser_ad_exemption");
 
 type EventsWriteError = { ok: false; error: string };
 

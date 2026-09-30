@@ -1894,7 +1894,7 @@ export type BrowserTab = {
     usedAt: number;
 };
 
-export type BrowserPanelTab = "bookmarks" | "history" | "options";
+export type BrowserPanelTab = "bookmarks" | "history" | "options" | "adblock";
 
 export type BrowserTabsResponse = {
     ok: boolean;
@@ -1958,6 +1958,13 @@ export type BrowserBookmarksResponse = {
     collapsedCategoryIds: string[];
     maxBookmarks: number;
     maxCategories: number;
+};
+
+export type BrowserAdExemptionsResponse = {
+    ok: boolean;
+    reason: string;
+    hosts: string[];
+    maxHosts: number;
 };
 
 export type SavedCommentsResponse = {
