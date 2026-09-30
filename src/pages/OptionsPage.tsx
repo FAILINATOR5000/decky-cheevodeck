@@ -374,6 +374,7 @@ type OptionsPageState = {
     trackedHeaderStyle: HeaderStyle;
     notesHeaderStyle: HeaderStyle;
     generalHeaderStyle: HeaderStyle;
+    trackedEventsHeaderStyle: HeaderStyle;
     trackedColor: TrackedColor;
     socialEntryDefault: SocialEntryDefault;
     activityCardAction: ActivityCardAction;
@@ -580,6 +581,7 @@ type OptionsPageActions = {
     onCycleTrackedHeaderStyle: () => void | Promise<void>;
     onCycleNotesHeaderStyle: () => void | Promise<void>;
     onCycleGeneralHeaderStyle: () => void | Promise<void>;
+    onCycleTrackedEventsHeaderStyle: () => void | Promise<void>;
     onCycleTrackedColor: () => void | Promise<void>;
     onCycleSocialEntryDefault: () => void | Promise<void>;
     onCycleActivityCardAction: () => void | Promise<void>;
@@ -1522,6 +1524,15 @@ function GuiTab(props: TabContentProps) {
                 label={t(state.language, "Notes Header Style")}
                 value={headerStyleLabel(state.notesHeaderStyle, state.language)}
                 help={t(state.language, "help_notes_header_style")}
+            />
+            <OptionValueRow
+                outerStyle={buttonOuterStyle}
+                focusKey="options:tracked-events-header-style"
+                onClick={actions.onCycleTrackedEventsHeaderStyle}
+                disabled={disabled}
+                label={t(state.language, "Tracked Events Header Style")}
+                value={headerStyleLabel(state.trackedEventsHeaderStyle, state.language)}
+                help={t(state.language, "help_tracked_events_header_style")}
             />
             <OptionValueRow
                 outerStyle={buttonOuterStyle}

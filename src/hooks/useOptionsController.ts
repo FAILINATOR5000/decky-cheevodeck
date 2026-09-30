@@ -129,6 +129,7 @@ import {
     saveTrackedHeaderStyle,
     saveNotesHeaderStyle,
     saveGeneralHeaderStyle,
+    saveTrackedEventsHeaderStyle,
     saveTrackedColor,
     saveShowIcons,
     saveDeferModalCleanup,
@@ -521,6 +522,7 @@ type UseOptionsControllerArgs = {
     trackedHeaderStyle: HeaderStyle;
     notesHeaderStyle: HeaderStyle;
     generalHeaderStyle: HeaderStyle;
+    trackedEventsHeaderStyle: HeaderStyle;
     trackedColor: TrackedColor;
     socialEntryDefault: SocialEntryDefault;
     activityCardAction: ActivityCardAction;
@@ -602,6 +604,7 @@ type UseOptionsControllerArgs = {
     setTrackedHeaderStyle: Dispatch<SetStateAction<HeaderStyle>>;
     setNotesHeaderStyle: Dispatch<SetStateAction<HeaderStyle>>;
     setGeneralHeaderStyle: Dispatch<SetStateAction<HeaderStyle>>;
+    setTrackedEventsHeaderStyle: Dispatch<SetStateAction<HeaderStyle>>;
     setTrackedColor: Dispatch<SetStateAction<TrackedColor>>;
     setSocialEntryDefault: Dispatch<SetStateAction<SocialEntryDefault>>;
     setActivityCardAction: Dispatch<SetStateAction<ActivityCardAction>>;
@@ -977,6 +980,7 @@ export function useOptionsController({
     trackedHeaderStyle,
     notesHeaderStyle,
     generalHeaderStyle,
+    trackedEventsHeaderStyle,
     trackedColor,
     socialEntryDefault,
     activityCardAction,
@@ -1058,6 +1062,7 @@ export function useOptionsController({
     setTrackedHeaderStyle,
     setNotesHeaderStyle,
     setGeneralHeaderStyle,
+    setTrackedEventsHeaderStyle,
     setTrackedColor,
     setSocialEntryDefault,
     setActivityCardAction,
@@ -1319,6 +1324,7 @@ export function useOptionsController({
         setNotesHeaderStyle(result.notesHeaderStyle ?? "typed");
         setGeneralHeaderStyle(result.generalHeaderStyle ?? "capitalized");
         setCurrentGeneralHeaderStyle(result.generalHeaderStyle ?? "capitalized");
+        setTrackedEventsHeaderStyle(result.trackedEventsHeaderStyle ?? "typed");
         setTrackedColor(result.trackedColor ?? "default");
         setSocialEntryDefault(result.socialEntryDefault ?? "friends");
         setActivityCardAction(result.activityCardAction ?? "achievement");
@@ -1786,6 +1792,18 @@ export function useOptionsController({
             },
             saveCall: saveGeneralHeaderStyle,
             getSavedValue: (result, fallbackValue) => result.generalHeaderStyle ?? fallbackValue,
+        });
+    };
+
+    const onCycleTrackedEventsHeaderStyle = () => {
+        const previousValue = trackedEventsHeaderStyle;
+        const nextValue = nextHeaderStyle(trackedEventsHeaderStyle);
+        return saveSettingWithRollback<HeaderStyle>({
+            nextValue,
+            previousValue,
+            applyValue: setTrackedEventsHeaderStyle,
+            saveCall: saveTrackedEventsHeaderStyle,
+            getSavedValue: (result, fallbackValue) => result.trackedEventsHeaderStyle ?? fallbackValue,
         });
     };
 
@@ -3772,6 +3790,7 @@ export function useOptionsController({
         trackedHeaderStyle,
         notesHeaderStyle,
         generalHeaderStyle,
+        trackedEventsHeaderStyle,
         trackedColor,
         socialEntryDefault,
         activityCardAction,
@@ -3954,6 +3973,7 @@ export function useOptionsController({
         onCycleTrackedHeaderStyle,
         onCycleNotesHeaderStyle,
         onCycleGeneralHeaderStyle,
+        onCycleTrackedEventsHeaderStyle,
         onCycleTrackedColor,
         onCycleSocialEntryDefault,
         onCycleActivityCardAction,

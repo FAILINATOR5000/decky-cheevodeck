@@ -378,6 +378,10 @@ export const saveGeneralHeaderStyle = callable<
     [HeaderStyle],
     { ok: boolean; generalHeaderStyle: HeaderStyle }
 >("save_general_header_style");
+export const saveTrackedEventsHeaderStyle = callable<
+    [HeaderStyle],
+    { ok: boolean; trackedEventsHeaderStyle: HeaderStyle }
+>("save_tracked_events_header_style");
 export const saveTrackedColor = callable<
     [TrackedColor],
     { ok: boolean; trackedColor: TrackedColor }

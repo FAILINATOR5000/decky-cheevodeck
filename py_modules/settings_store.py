@@ -450,6 +450,7 @@ _KNOBS = (
     Knob("trackedHeaderStyle", default="typed", normalize=True),
     Knob("notesHeaderStyle", default="typed", normalize=True),
     Knob("generalHeaderStyle", default="capitalized", normalize=True),
+    Knob("trackedEventsHeaderStyle", default="typed", normalize=True),
     Knob("mainAchievementFilter", default="all", normalize=True),
     Knob("mainAchievementSort", default="upNext", normalize=True),
     Knob("mainAchievementAction", default="track", normalize=True),
@@ -1224,6 +1225,12 @@ class SettingsStore:
         cfg = self._update_config("generalHeaderStyle", value)
 
         return self.get_general_header_style(cfg)
+
+    def update_tracked_events_header_style(self, value: str) -> str:
+        value = str(value or "typed").strip().lower()
+        cfg = self._update_config("trackedEventsHeaderStyle", value)
+
+        return self.get_tracked_events_header_style(cfg)
 
     def update_main_achievement_filter(self, value: str) -> str:
         value = str(value or "all").strip().lower()
@@ -4064,6 +4071,10 @@ class SettingsStore:
     def get_general_header_style(self, cfg: dict) -> str:
         value = str(cfg.get("generalHeaderStyle", "capitalized") or "capitalized").strip().lower()
         return value if value in {"typed", "capitalized"} else "capitalized"
+
+    def get_tracked_events_header_style(self, cfg: dict) -> str:
+        value = str(cfg.get("trackedEventsHeaderStyle", "typed") or "typed").strip().lower()
+        return value if value in {"typed", "capitalized"} else "typed"
 
     def get_controller_glyph_style(self, cfg: dict) -> str:
         value = str(cfg.get("controllerGlyphStyle", "auto") or "auto").strip().lower()

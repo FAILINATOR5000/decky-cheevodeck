@@ -38,6 +38,7 @@ function eventsSettings(controller: SettingsController) {
         showClickRow: state.showAButtonModeEvents,
         clickAction: state.eventsClickAction,
         trackedClickAction: state.trackedEventsClickAction,
+        trackedHeaderStyle: state.trackedEventsHeaderStyle,
 
         saveClickAction: (nextValue: EventsClickAction) =>
             actions.saveSettingWithRollback<EventsClickAction>({

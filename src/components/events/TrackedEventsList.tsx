@@ -30,7 +30,7 @@ import { armEventsRowReturn } from "../../utils/eventsFocusReturn";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { landOn, orderAfterGroupMove, stepTo } from "../../utils/reorderOrder";
 import { orderedTagsByRecency } from "../../utils/tags";
-import { achievementUiMetrics, headerCase } from "../../utils/style";
+import { achievementUiMetrics } from "../../utils/style";
 
 const ROW_KEY_PREFIX = "events:tracked:";
 
@@ -372,7 +372,7 @@ export function TrackedEventsList(props: EventsListProps & {
                         collapsed={folded}
                         focusKey={`events:group:${section.key}`}
                         disabled={heldId !== null}
-                        preserveCase={headerCase() === "none"}
+                        preserveCase={settings.trackedHeaderStyle === "typed"}
                         onToggle={() => actions.toggleCollapsed(section.key)}
                     />
                 </div>

@@ -958,6 +958,7 @@ export type SettingsResponse = {
     trackedHeaderStyle: HeaderStyle;
     notesHeaderStyle: HeaderStyle;
     generalHeaderStyle: HeaderStyle;
+    trackedEventsHeaderStyle: HeaderStyle;
     mainAchievementFilter: MainAchievementFilter;
     mainAchievementSort: AchievementSort;
     gameOverviewAchievementFilter: MainAchievementFilter;

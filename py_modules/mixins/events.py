@@ -334,6 +334,10 @@ class EventsMixin(PluginContext):
         value = self.settings_store.update_tracked_events_click_action(tracked_events_click_action)
         return {"ok": True, "trackedEventsClickAction": value}
 
+    async def save_tracked_events_header_style(self, tracked_events_header_style: str):
+        value = self.settings_store.update_tracked_events_header_style(tracked_events_header_style)
+        return {"ok": True, "trackedEventsHeaderStyle": value}
+
     async def toggle_tracked_event(self, ulid="", event_game_id=None):
         return await asyncio.to_thread(self.events_store.toggle_tracked, ulid, event_game_id)
 

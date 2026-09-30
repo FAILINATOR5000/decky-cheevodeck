@@ -142,6 +142,7 @@ export function useSettingsController({
     const [trackedHeaderStyle, setTrackedHeaderStyle] = useState<HeaderStyle>("typed");
     const [notesHeaderStyle, setNotesHeaderStyle] = useState<HeaderStyle>("typed");
     const [generalHeaderStyle, setGeneralHeaderStyle] = useState<HeaderStyle>("capitalized");
+    const [trackedEventsHeaderStyle, setTrackedEventsHeaderStyle] = useState<HeaderStyle>("typed");
     const [trackedColor, setTrackedColor] = useState<TrackedColor>("default");
     const [mainAchievementFilter, setMainAchievementFilter] = useState<MainAchievementFilter>("all");
     const [mainAchievementSort, setMainAchievementSort] = useState<AchievementSort>("upNext");
@@ -436,6 +437,7 @@ export function useSettingsController({
         setNotesHeaderStyle(source.notesHeaderStyle);
         setGeneralHeaderStyle(source.generalHeaderStyle);
         setCurrentGeneralHeaderStyle(source.generalHeaderStyle);
+        setTrackedEventsHeaderStyle(source.trackedEventsHeaderStyle);
         setTrackedColor(source.trackedColor);
         setMainAchievementFilter(source.mainAchievementFilter);
         setMainAchievementSort(source.mainAchievementSort);
@@ -717,6 +719,7 @@ export function useSettingsController({
         trackedHeaderStyle,
         notesHeaderStyle,
         generalHeaderStyle,
+        trackedEventsHeaderStyle,
         trackedColor,
         mainAchievementFilter,
         mainAchievementSort,
@@ -965,6 +968,7 @@ export function useSettingsController({
         setTrackedHeaderStyle,
         setNotesHeaderStyle,
         setGeneralHeaderStyle,
+        setTrackedEventsHeaderStyle,
         setTrackedColor,
         setMainAchievementFilter,
         setMainAchievementSort,
