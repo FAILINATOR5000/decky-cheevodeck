@@ -2246,5 +2246,4 @@ export const EN: LocaleTable = {
     "Show Oldest First": "Show Oldest First",
     "Show Newest First": "Show Newest First",
     "Grid Size": "Grid Size",
-    "Memories Guide": "Memories Guide",
 };

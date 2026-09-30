@@ -1,5 +1,6 @@
 import React from "react";
 import { DialogButton, Focusable } from "@decky/ui";
+import { FaRegQuestionCircle } from "react-icons/fa";
 import { NOTES_DOT_KEYFRAMES, headerCase, regularButtonSpacingStyle, warnAmber } from "../../utils/style";
 import { QuickGuideColumn, QuickGuidePin } from "../guides/QuickGuidePin";
 import { useQuickGuide } from "../../utils/quickGuide";
@@ -69,7 +70,18 @@ type PageNavStripProps = {
     title: string;
     buttonSpacing: ButtonSpacing;
     onHome: () => void | Promise<void>;
+    help?: React.ReactNode;
 };
+
+export function PageHelpButton(props: { focusKey: string; onClick: () => void }) {
+    return (
+        <div data-focus-key={props.focusKey} style={{ position: "relative" }}>
+            <DialogButton onClick={props.onClick} style={navButtonStyle}>
+                <FaRegQuestionCircle size={18} />
+            </DialogButton>
+        </div>
+    );
+}
 
 export function PageNavStrip(props: PageNavStripProps) {
     const quickGuide = useQuickGuide();
@@ -114,6 +126,7 @@ export function PageNavStrip(props: PageNavStripProps) {
                     </div>
                 )}
             </div>
+            {props.help}
         </Focusable>
     );
 

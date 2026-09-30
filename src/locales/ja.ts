@@ -2188,7 +2188,6 @@ const JA: LocaleTable = {
     "Show Oldest First": "古い順に表示",
     "Show Newest First": "新しい順に表示",
     "Grid Size": "グリッドの大きさ",
-    "Memories Guide": "思い出のガイド",
 };
 
 export default JA;

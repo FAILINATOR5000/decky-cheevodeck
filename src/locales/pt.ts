@@ -2252,7 +2252,6 @@ const PT: LocaleTable = {
     "Show Oldest First": "Mais antigas primeiro",
     "Show Newest First": "Mais recentes primeiro",
     "Grid Size": "Tamanho da grelha",
-    "Memories Guide": "Guia das memórias",
 };
 
 export default PT;

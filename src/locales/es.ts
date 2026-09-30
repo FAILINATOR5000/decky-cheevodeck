@@ -2263,7 +2263,6 @@ const ES: LocaleTable = {
     "Show Oldest First": "Más antiguos primero",
     "Show Newest First": "Más recientes primero",
     "Grid Size": "Tamaño de la cuadrícula",
-    "Memories Guide": "Guía de recuerdos",
 };
 
 export default ES;

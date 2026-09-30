@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 // Font Awesome Free icon, CC BY 4.0. See ATTRIBUTIONS.md.
-import { FaRegQuestionCircle } from "react-icons/fa";
 import { PanelSection } from "../components/ui/PanelSection";
 import { BackButton } from "../components/ui/BackButton";
-import { PageNavStrip } from "../components/ui/PageNavStrip";
+import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { SectionTitle } from "../components/ui/SectionTitle";
 import { LabeledRow } from "../components/ui/LabeledRow";
 import { FadeImage } from "../components/ui/FadeImage";
@@ -138,7 +137,7 @@ const BOTTOM_HEADROOM_PX = 80;
 
 const GRID_COLUMN_CHOICES = [1, 2, 3];
 
-const MEMORIES_GUIDE_URL = "https://github.com/FAILINATOR5000/decky-cheevodeck/blob/main/docs/memories.md";
+const MEMORIES_GUIDE_URL = "https://github.com/FAILINATOR5000/decky-cheevodeck/blob/main/docs/tutorials/memories.md";
 
 type PageStripPlace = "top" | "bottom";
 
@@ -583,8 +582,6 @@ function MemoriesPage(props: MemoriesPageProps) {
                 return t(language, "Grid Size");
             case "memories:shared":
                 return t(language, "Shared Memories");
-            case "memories:guide":
-                return t(language, "Memories Guide");
             default:
                 return "";
         }
@@ -782,6 +779,21 @@ function MemoriesPage(props: MemoriesPageProps) {
                     title={t(language, "Memories")}
                     buttonSpacing={buttonSpacing}
                     onHome={actions.onHome}
+                    help={(
+                        <ClaimedRow
+                            claim={restoreClaim}
+                            slotIndex={GUIDE_CLAIM_SLOT}
+                            style={{ display: "flex" }}
+                        >
+                            <PageHelpButton
+                                focusKey="memories:guide"
+                                onClick={() => {
+                                    armFocusKey("memories:guide");
+                                    void openExternalUrl(MEMORIES_GUIDE_URL);
+                                }}
+                            />
+                        </ClaimedRow>
+                    )}
                 />
                 <BackButton
                     label={t(language, "Back")}
@@ -890,20 +902,6 @@ function MemoriesPage(props: MemoriesPageProps) {
                                             actions.memories.selectColumns(next);
                                         }
                                     )}
-                                    <ClaimedRow
-                                        claim={restoreClaim}
-                                        slotIndex={GUIDE_CLAIM_SLOT}
-                                        style={{ display: "flex" }}
-                                    >
-                                    {renderToggleButton(
-                                        "memories:guide",
-                                        <FaRegQuestionCircle size={16} />,
-                                        () => {
-                                            armFocusKey("memories:guide");
-                                            void openExternalUrl(MEMORIES_GUIDE_URL);
-                                        }
-                                    )}
-                                    </ClaimedRow>
                                 </Focusable>
                             )}
                         />

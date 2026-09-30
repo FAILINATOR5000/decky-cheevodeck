@@ -2252,7 +2252,6 @@ const FR: LocaleTable = {
     "Show Oldest First": "Plus anciens d'abord",
     "Show Newest First": "Plus récents d'abord",
     "Grid Size": "Taille de la grille",
-    "Memories Guide": "Guide des souvenirs",
 };
 
 export default FR;
