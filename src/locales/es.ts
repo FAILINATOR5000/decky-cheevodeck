@@ -2010,7 +2010,6 @@ const ES: LocaleTable = {
     "Last chance: This erases everything": "Última oportunidad: Esto borra todo",
     "help_delete_all_memories": "Elimina todos los recuerdos de esta cuenta de usuario. Esto no se puede deshacer.",
     "help_quick_shortcut_memories": "Abre Recuerdos.",
-    "help_utils_memories": "Haz capturas de pantalla o clips de tus juegos favoritos para guardar aquí momentos preciados. Los logros que desbloquees en los 60 segundos posteriores se añadirán a tu recuerdo.",
     "Snapshot (Debug)": "Instantánea (depuración)",
     "No games match that search.": "Ningún juego coincide con esa búsqueda.",
     "Transfer Memories": "Transferir recuerdos",

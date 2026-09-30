@@ -1937,7 +1937,6 @@ const JA: LocaleTable = {
     "Last chance: This erases everything": "最終確認: すべて消えます",
     "help_delete_all_memories": "このユーザーアカウントのすべての思い出を削除します。元に戻せません。",
     "help_quick_shortcut_memories": "思い出を開きます。",
-    "help_utils_memories": "お気に入りのゲームのスクリーンショットやクリップを撮って、大切な瞬間をここに残しましょう。撮影から 60 秒以内に解除した実績が、その思い出に追加されます。",
     "Snapshot (Debug)": "スナップショット (デバッグ)",
     "No games match that search.": "その検索に一致するゲームはありません。",
     "Transfer Memories": "思い出の移行",

@@ -1993,7 +1993,6 @@ export const EN: LocaleTable = {
     "Last chance: This erases everything": "Last chance: This erases everything",
     "help_delete_all_memories": "Deletes every memory on this user account. This cannot be undone.",
     "help_quick_shortcut_memories": "Opens Memories.",
-    "help_utils_memories": "Take screenshots or clips of your favorite games to capture precious moments here. Your achievements unlocked within 60 seconds of taking it will be added to your memory.",
     "Snapshot (Debug)": "Snapshot (Debug)",
     "No games match that search.": "No games match that search.",
     "Transfer Memories": "Transfer Memories",

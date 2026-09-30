@@ -2057,7 +2057,6 @@ const PL: LocaleTable = {
     "Last chance: This erases everything": "Ostatnia szansa: To skasuje wszystko",
     "help_delete_all_memories": "Usuwa wszystkie wspomnienia z tego konta użytkownika. Tej operacji nie można cofnąć.",
     "help_quick_shortcut_memories": "Otwiera Wspomnienia.",
-    "help_utils_memories": "Rób zrzuty ekranu lub klipy z ulubionych gier, aby zachować tu cenne chwile. Osiągnięcia odblokowane w ciągu 60 sekund od tej chwili zostaną dodane do wspomnienia.",
     "Snapshot (Debug)": "Migawka (debugowanie)",
     "No games match that search.": "Żadna gra nie pasuje do tego wyszukiwania.",
     "Transfer Memories": "Przenieś wspomnienia",

@@ -5037,7 +5037,6 @@ function AchievementsRoot() {
                                     onOpenCheevoCheck: goToCheevoCheck,
                                     onOpenFileWatcher: goToFileWatcher,
                                     onOpenMemoriesTransfer: goToMemoriesTransfer,
-                                    onOpenMemories: goToMemories,
                                     onRequestFocus: setPendingFocusKey
                                 }}
                             />

@@ -35,7 +35,6 @@ type UtilsPageActions = {
     onOpenSmbShares: () => void | Promise<void>;
     onOpenCheevoCheck: () => void | Promise<void>;
     onOpenFileWatcher: () => void | Promise<void>;
-    onOpenMemories: () => void | Promise<void>;
     onOpenMemoriesTransfer: () => void | Promise<void>;
     onRequestFocus: (focusKey: string) => void;
 };
@@ -145,16 +144,6 @@ function UtilsPage(props: UtilsPageProps) {
                     help={t(state.language, "help_utils_file_watcher")}
                 >
                     {t(state.language, "File Watcher")}
-                </FocusableItem>
-            </PanelSectionRow>
-            <PanelSectionRow>
-                <FocusableItem
-                    outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
-                    focusKey="utils:memories"
-                    onClick={actions.onOpenMemories}
-                    help={t(state.language, "help_utils_memories")}
-                >
-                    {t(state.language, "Memories")}
                 </FocusableItem>
             </PanelSectionRow>
             <PanelSectionRow>

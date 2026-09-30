@@ -1999,7 +1999,6 @@ const FR: LocaleTable = {
     "Last chance: This erases everything": "Dernière chance : cela efface tout",
     "help_delete_all_memories": "Supprime tous les souvenirs de ce compte utilisateur. C'est irréversible.",
     "help_quick_shortcut_memories": "Ouvre Souvenirs.",
-    "help_utils_memories": "Prenez des captures d'écran ou des clips de vos jeux préférés pour conserver ici vos moments précieux. Les succès débloqués dans les 60 secondes qui suivent sont ajoutés à votre souvenir.",
     "Snapshot (Debug)": "Instantané (débogage)",
     "No games match that search.": "Aucun jeu ne correspond à cette recherche.",
     "Transfer Memories": "Transférer les souvenirs",

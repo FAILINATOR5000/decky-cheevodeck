@@ -2002,7 +2002,6 @@ const DE: LocaleTable = {
     "Last chance: This erases everything": "Letzte Chance: Das löscht alles",
     "help_delete_all_memories": "Löscht jede Erinnerung dieses Benutzerkontos. Das lässt sich nicht rückgängig machen.",
     "help_quick_shortcut_memories": "Öffnet Erinnerungen.",
-    "help_utils_memories": "Mache Screenshots oder Clips deiner Lieblingsspiele, um hier kostbare Momente festzuhalten. Errungenschaften, die du innerhalb von 60 Sekunden danach freischaltest, werden deiner Erinnerung hinzugefügt.",
     "Snapshot (Debug)": "Schnappschuss (Debug)",
     "No games match that search.": "Keine Spiele passen zu dieser Suche.",
     "Transfer Memories": "Erinnerungen übertragen",
