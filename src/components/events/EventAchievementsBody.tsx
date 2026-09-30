@@ -110,9 +110,16 @@ export function EventAchievementsBody(props: EventAchievementsBodyProps) {
         if (!payload) {
             return null;
         }
-        const achievements = (payload.achievements ?? []).map((row) =>
-            sources[String(row.id)]?.obfuscated ? { ...row, description: "" } : row
-        );
+        const achievements = (payload.achievements ?? []).map((row) => {
+            const source = sources[String(row.id)];
+            if (source?.obfuscated) {
+                return { ...row, description: "" };
+            }
+            if (source && typeof source.points === "number") {
+                return { ...row, points: source.points };
+            }
+            return row;
+        });
         return { ...payload, achievements };
     }, [payload, sources]);
 
