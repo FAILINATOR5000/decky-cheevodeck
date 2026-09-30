@@ -523,7 +523,9 @@ const AD_SLOT_CSS = [
     "ins.adsbygoogle",
     "iframe[id^=\"google_ads_iframe\"]",
     "iframe[src*=\"doubleclick.net\"]",
-    "iframe[src*=\"googlesyndication.com\"]"
+    "iframe[src*=\"googlesyndication.com\"]",
+    "ytd-ad-slot-renderer",
+    "ytd-watch-flexy #player-ads"
 ].join(", ") + " { display: none !important; }";
 
 const AD_SLOT_STYLE_ID = "__cheevodeckAdHide";
