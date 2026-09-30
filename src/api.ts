@@ -231,6 +231,18 @@ export const saveBackButtonsGlobal = callable<[boolean], { ok: boolean; backButt
 export const saveBrowserSnapshot = callable<[boolean], { ok: boolean; browserSnapshot: boolean }>(
     "save_browser_snapshot"
 );
+export const saveAutomaticRecovery = callable<[boolean], { ok: boolean; automaticRecovery: boolean }>(
+    "save_automatic_recovery"
+);
+export const saveRecoveryButtonCombo = callable<[boolean], { ok: boolean; recoveryButtonCombo: boolean }>(
+    "save_recovery_button_combo"
+);
+export const saveRecoveryLogs = callable<[boolean], { ok: boolean; recoveryLogs: boolean }>(
+    "save_recovery_logs"
+);
+export const clearRecoveryLogs = callable<[], { ok: boolean; removed: number }>(
+    "clear_recovery_logs"
+);
 export const saveLegacyCommentsLoading = callable<[boolean], { ok: boolean; legacyCommentsLoading: boolean }>(
     "save_legacy_comments_loading"
 );

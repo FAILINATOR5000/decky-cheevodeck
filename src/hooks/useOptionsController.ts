@@ -134,6 +134,10 @@ import {
     saveDeferModalCleanup,
     saveBackButtonsGlobal,
     saveBrowserSnapshot,
+    saveAutomaticRecovery,
+    saveRecoveryButtonCombo,
+    saveRecoveryLogs,
+    clearRecoveryLogs,
     saveLibraryBadge,
     saveMemoriesAutoCapture,
     saveMemoriesDeleteSource,
@@ -469,6 +473,9 @@ type UseOptionsControllerArgs = {
     deferModalCleanup: boolean;
     backButtonsGlobal: boolean;
     browserSnapshot: boolean;
+    automaticRecovery: boolean;
+    recoveryButtonCombo: boolean;
+    recoveryLogs: boolean;
     libraryBadge: boolean;
     memoriesAutoCapture: boolean;
     memoriesDeleteSource: boolean;
@@ -533,6 +540,9 @@ type UseOptionsControllerArgs = {
     setDeferModalCleanup: Dispatch<SetStateAction<boolean>>;
     setBackButtonsGlobal: Dispatch<SetStateAction<boolean>>;
     setBrowserSnapshot: Dispatch<SetStateAction<boolean>>;
+    setAutomaticRecovery: Dispatch<SetStateAction<boolean>>;
+    setRecoveryButtonCombo: Dispatch<SetStateAction<boolean>>;
+    setRecoveryLogs: Dispatch<SetStateAction<boolean>>;
     setLibraryBadge: Dispatch<SetStateAction<boolean>>;
     setMemoriesAutoCapture: Dispatch<SetStateAction<boolean>>;
     setMemoriesDeleteSource: Dispatch<SetStateAction<boolean>>;
@@ -919,6 +929,9 @@ export function useOptionsController({
     deferModalCleanup,
     backButtonsGlobal,
     browserSnapshot,
+    automaticRecovery,
+    recoveryButtonCombo,
+    recoveryLogs,
     libraryBadge,
     memoriesAutoCapture,
     memoriesDeleteSource,
@@ -983,6 +996,9 @@ export function useOptionsController({
     setDeferModalCleanup,
     setBackButtonsGlobal,
     setBrowserSnapshot,
+    setAutomaticRecovery,
+    setRecoveryButtonCombo,
+    setRecoveryLogs,
     setLibraryBadge,
     setMemoriesAutoCapture,
     setMemoriesDeleteSource,
@@ -1229,6 +1245,9 @@ export function useOptionsController({
         setDeferModalCleanup(Boolean(result.deferModalCleanup ?? true));
         setBackButtonsGlobal(Boolean(result.backButtonsGlobal ?? false));
         setBrowserSnapshot(Boolean(result.browserSnapshot ?? false));
+        setAutomaticRecovery(Boolean(result.automaticRecovery ?? true));
+        setRecoveryButtonCombo(Boolean(result.recoveryButtonCombo ?? false));
+        setRecoveryLogs(Boolean(result.recoveryLogs ?? false));
         setLegacyCommentsLoading(Boolean(result.legacyCommentsLoading));
         setBatterySaverDisablesSocialActivity(Boolean(result.batterySaverDisablesSocialActivity ?? true));
         setBatterySaverDisablesComments(Boolean(result.batterySaverDisablesComments ?? true));
@@ -3349,6 +3368,46 @@ export function useOptionsController({
             getSavedValue: (result, fallbackValue) => Boolean(result.browserSnapshot ?? fallbackValue),
         });
 
+    const onToggleAutomaticRecovery = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: automaticRecovery,
+            applyValue: setAutomaticRecovery,
+            saveCall: saveAutomaticRecovery,
+            getSavedValue: (result, fallbackValue) => Boolean(result.automaticRecovery ?? fallbackValue),
+        });
+
+    const onToggleRecoveryButtonCombo = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: recoveryButtonCombo,
+            applyValue: setRecoveryButtonCombo,
+            saveCall: saveRecoveryButtonCombo,
+            getSavedValue: (result, fallbackValue) => Boolean(result.recoveryButtonCombo ?? fallbackValue),
+        });
+
+    const onToggleRecoveryLogs = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: recoveryLogs,
+            applyValue: setRecoveryLogs,
+            saveCall: saveRecoveryLogs,
+            getSavedValue: (result, fallbackValue) => Boolean(result.recoveryLogs ?? fallbackValue),
+        });
+
+    const onClearRecoveryLogs = async () => {
+        setError(null);
+        try {
+            await clearRecoveryLogs();
+        } catch (e: any) {
+            logError("onClearRecoveryLogs", e);
+            if (!mountedRef.current) {
+                return;
+            }
+            setError(String(e?.message || e || "Couldn't clear the recovery logs."));
+        }
+    };
+
     const onToggleLegacyCommentsLoading = (nextValue: boolean) =>
         saveSettingWithRollback<boolean>({
             nextValue,
@@ -3665,6 +3724,9 @@ export function useOptionsController({
         deferModalCleanup,
         backButtonsGlobal,
         browserSnapshot,
+        automaticRecovery,
+        recoveryButtonCombo,
+        recoveryLogs,
         libraryBadge,
         memoriesAutoCapture,
         memoriesDeleteSource,
@@ -3916,6 +3978,10 @@ export function useOptionsController({
         onToggleDeferModalCleanup,
         onToggleBackButtonsGlobal,
         onToggleBrowserSnapshot,
+        onToggleAutomaticRecovery,
+        onToggleRecoveryButtonCombo,
+        onToggleRecoveryLogs,
+        onClearRecoveryLogs,
         onToggleLibraryBadge,
         onToggleMemoriesAutoCapture,
         onToggleMemoriesDeleteSource,

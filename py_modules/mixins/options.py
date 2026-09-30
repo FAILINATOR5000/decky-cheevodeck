@@ -1,5 +1,9 @@
+import asyncio
+
 import decky
 import cheevo_check_systems as systems
+
+from freeze_capture import clear_captures
 
 from services.update_checker_service import installed_version
 
@@ -600,6 +604,43 @@ class OptionsMixin(PluginContext):
         return {
             "ok": True,
             "browserSnapshot": value,
+        }
+
+    async def save_automatic_recovery(self, automatic_recovery: bool):
+        value = self.settings_store.update_automatic_recovery(automatic_recovery)
+        self.freeze_watchdog_service.sync()
+
+        return {
+            "ok": True,
+            "automaticRecovery": value,
+        }
+
+    async def save_recovery_button_combo(self, recovery_button_combo: bool):
+        value = self.settings_store.update_recovery_button_combo(recovery_button_combo)
+        self.back_button_service.sync()
+
+        return {
+            "ok": True,
+            "recoveryButtonCombo": value,
+        }
+
+    async def save_recovery_logs(self, recovery_logs: bool):
+        value = self.settings_store.update_recovery_logs(recovery_logs)
+        self.freeze_watchdog_service.sync()
+        self.back_button_service.sync()
+
+        return {
+            "ok": True,
+            "recoveryLogs": value,
+        }
+
+    async def clear_recovery_logs(self):
+        removed = await asyncio.to_thread(clear_captures)
+        decky.logger.info("freeze capture: cleared %d recovery log folder(s)", removed)
+
+        return {
+            "ok": True,
+            "removed": removed,
         }
 
     async def save_legacy_comments_loading(self, legacy_comments_loading: bool):

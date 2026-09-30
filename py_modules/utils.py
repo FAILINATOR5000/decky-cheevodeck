@@ -9,6 +9,7 @@ import json
 import os
 import pwd
 import re
+import signal
 import ssl
 from pathlib import Path
 from typing import Any, Optional
@@ -315,3 +316,22 @@ def frontend_error(prefix: str, exc: Exception) -> str:
     """
     decky.logger.exception("%s — %s (%s)", prefix, type(exc).__name__, exc)
     return prefix
+
+
+def kill_steamwebhelper() -> int:
+    killed = 0
+    for entry in os.listdir("/proc"):
+        if not entry.isdigit():
+            continue
+        try:
+            comm = Path(f"/proc/{entry}/comm").read_text().strip()
+        except OSError:
+            continue
+        if comm != "steamwebhelper":
+            continue
+        try:
+            os.kill(int(entry), signal.SIGKILL)
+        except OSError:
+            continue
+        killed += 1
+    return killed

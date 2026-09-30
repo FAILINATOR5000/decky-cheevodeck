@@ -401,6 +401,9 @@ _KNOBS = (
     Knob("deferModalCleanup", default=True, normalize=True, read=READ_BOOL),
     Knob("backButtonsGlobal", default=False, normalize=True, read=READ_BOOL),
     Knob("browserSnapshot", default=False, normalize=True, read=READ_BOOL),
+    Knob("automaticRecovery", default=True, normalize=True, read=READ_BOOL),
+    Knob("recoveryButtonCombo", default=False, normalize=True, read=READ_BOOL),
+    Knob("recoveryLogs", default=False, normalize=True, read=READ_BOOL),
     Knob("legacyCommentsLoading", default=False, normalize=True, read=READ_BOOL),
     Knob("showAllAchievements", default=True, normalize=True, read=READ_BOOL),
     Knob("unlockLookbackMinutes", from_attr="_recent_unlock_lookback_minutes", normalize=True),
@@ -2166,6 +2169,21 @@ class SettingsStore:
         cfg = self._update_config("browserSnapshot", bool(value))
 
         return bool(cfg.get("browserSnapshot", False))
+
+    def update_automatic_recovery(self, value: bool) -> bool:
+        cfg = self._update_config("automaticRecovery", bool(value))
+
+        return bool(cfg.get("automaticRecovery", True))
+
+    def update_recovery_button_combo(self, value: bool) -> bool:
+        cfg = self._update_config("recoveryButtonCombo", bool(value))
+
+        return bool(cfg.get("recoveryButtonCombo", False))
+
+    def update_recovery_logs(self, value: bool) -> bool:
+        cfg = self._update_config("recoveryLogs", bool(value))
+
+        return bool(cfg.get("recoveryLogs", False))
 
     def update_legacy_comments_loading(self, value: bool) -> bool:
         cfg = self._update_config("legacyCommentsLoading", bool(value))

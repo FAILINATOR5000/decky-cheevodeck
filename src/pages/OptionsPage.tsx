@@ -244,6 +244,9 @@ type OptionsPageState = {
     deferModalCleanup: boolean;
     backButtonsGlobal: boolean;
     browserSnapshot: boolean;
+    automaticRecovery: boolean;
+    recoveryButtonCombo: boolean;
+    recoveryLogs: boolean;
     libraryBadge: boolean;
     memoriesAutoCapture: boolean;
     memoriesDeleteSource: boolean;
@@ -491,6 +494,10 @@ type OptionsPageActions = {
     onToggleDeferModalCleanup: (nextValue: boolean) => void | Promise<void>;
     onToggleBackButtonsGlobal: (nextValue: boolean) => void | Promise<void>;
     onToggleBrowserSnapshot: (nextValue: boolean) => void | Promise<void>;
+    onToggleAutomaticRecovery: (nextValue: boolean) => void | Promise<void>;
+    onToggleRecoveryButtonCombo: (nextValue: boolean) => void | Promise<void>;
+    onToggleRecoveryLogs: (nextValue: boolean) => void | Promise<void>;
+    onClearRecoveryLogs: () => void | Promise<void>;
     onToggleLibraryBadge: (nextValue: boolean) => void | Promise<void>;
     onToggleLegacyCommentsLoading: (nextValue: boolean) => void | Promise<void>;
     onToggleBatterySaverDisablesSocialActivity: (nextValue: boolean) => void | Promise<void>;
@@ -2398,6 +2405,39 @@ function AdvancedTab(props: TabContentProps) {
 
     return (
         <>
+            <SectionTitle label={t(state.language, "Steam Freeze Protection")} />
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                label={t(state.language, "Automatic Recovery")}
+                value={state.automaticRecovery}
+                onChange={actions.onToggleAutomaticRecovery}
+                disabled={disabled}
+                help={t(state.language, "help_automatic_recovery")}
+            />
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                label={t(state.language, "Recovery Button Combo")}
+                value={state.recoveryButtonCombo}
+                onChange={actions.onToggleRecoveryButtonCombo}
+                disabled={disabled}
+                help={t(state.language, "help_recovery_button_combo")}
+            />
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                label={t(state.language, "Save Recovery Logs")}
+                value={state.recoveryLogs}
+                onChange={actions.onToggleRecoveryLogs}
+                disabled={disabled}
+                help={t(state.language, "help_recovery_logs")}
+            />
+            <OptionButton
+                outerStyle={buttonOuterStyle}
+                focusKey="options:clear-recovery-logs"
+                onClick={actions.onClearRecoveryLogs}
+                disabled={disabled}
+                label={t(state.language, "Clear Recovery Logs")}
+                help={t(state.language, "help_clear_recovery_logs")}
+            />
             <SectionTitle label={t(state.language, "Rendering & Performance")} />
             <OptionToggle
                 outerStyle={buttonOuterStyle}

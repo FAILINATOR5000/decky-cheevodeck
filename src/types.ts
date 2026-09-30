@@ -780,6 +780,9 @@ export type SettingsResponse = {
     deferModalCleanup: boolean;
     backButtonsGlobal: boolean;
     browserSnapshot: boolean;
+    automaticRecovery: boolean;
+    recoveryButtonCombo: boolean;
+    recoveryLogs: boolean;
     legacyCommentsLoading: boolean;
     showAllAchievements: boolean;
     unlockLookbackMinutes: number;

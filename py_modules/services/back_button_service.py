@@ -4,8 +4,12 @@ import os
 import select
 import socket
 import threading
+import time
 
 import decky
+
+from freeze_capture import write_capture
+from utils import kill_steamwebhelper
 
 BACK_BUTTON_EVENT = "cheevodeck_back_button"
 
@@ -23,7 +27,7 @@ _PRODUCT_FORMATS = {
     0x1305: CONTROLLER_FORMAT,
 }
 
-_PADDLE_BITS = {
+_BUTTON_BITS = {
     DECK_FORMAT: (
         ("l4", 13, 0x02),
         ("r4", 13, 0x04),
@@ -61,6 +65,16 @@ SUMMON_ACTIONS = (
     "dolphinMapper",
 )
 
+_SUMMON_BUTTONS = ("l4", "r4", "l5", "r5")
+
+_RECOVERY_COMBOS = {
+    DECK_FORMAT: ("l4", "l5", "r4", "r5"),
+    CONTROLLER_FORMAT: ("l4", "l5", "r4", "r5"),
+}
+
+COMBO_HOLD_SECONDS = 3.0
+COMBO_COOLDOWN_SECONDS = 30.0
+
 BROWSER_SNAPSHOT_BUTTON = "r4"
 
 HIDRAW_CLASS_DIR = Path("/sys/class/hidraw")
@@ -96,17 +110,46 @@ def is_input_report(fmt: str, data: bytes) -> bool:
     return len(data) == 54 and data[0] == 0x42
 
 
-def paddle_state(fmt: str, data: bytes) -> int:
+def button_state(fmt: str, data: bytes) -> int:
     state = 0
-    for index, (_button, byte, mask) in enumerate(_PADDLE_BITS[fmt]):
+    for index, (_button, byte, mask) in enumerate(_BUTTON_BITS[fmt]):
         if data[byte] & mask:
             state |= 1 << index
     return state
 
 
+def buttons_mask(fmt: str, buttons) -> int:
+    mask = 0
+    for index, (button, _byte, _mask) in enumerate(_BUTTON_BITS[fmt]):
+        if button in buttons:
+            mask |= 1 << index
+    if mask.bit_count() != len(buttons):
+        return 0
+    return mask
+
+
+def combo_mask(fmt: str) -> int:
+    combo = _RECOVERY_COMBOS.get(fmt)
+    if not combo:
+        return 0
+    return buttons_mask(fmt, combo)
+
+
+def held_summon_buttons(fmt: str, state: int) -> int:
+    held = 0
+    for index, (button, _byte, _mask) in enumerate(_BUTTON_BITS[fmt]):
+        if button in _SUMMON_BUTTONS and state & (1 << index):
+            held += 1
+    return held
+
+
 def pressed_buttons(fmt: str, before: int, after: int) -> list[str]:
     went_down = after & ~before
-    return [button for index, (button, _byte, _mask) in enumerate(_PADDLE_BITS[fmt]) if went_down & (1 << index)]
+    return [
+        button
+        for index, (button, _byte, _mask) in enumerate(_BUTTON_BITS[fmt])
+        if went_down & (1 << index) and button in _SUMMON_BUTTONS
+    ]
 
 
 def is_hidraw_hotplug(message: bytes) -> bool:
@@ -138,13 +181,19 @@ class _OpenNode:
         self.name = name
         self.fmt = fmt
         self.state = 0
+        self.combo_since = None
+        self.combo_spent = False
 
 
 class BackButtonService:
-    def __init__(self, *, settings_store, debug_logging, emit):
+    def __init__(self, *, settings_store, debug_logging, emit, user_home):
         self._settings_store = settings_store
         self._debug_logging = debug_logging
         self._emit = emit
+        self._user_home = user_home
+        self._combo_enabled = False
+        self._recovery_logs = False
+        self._combo_fired_at = None
         self._generation = 0
         self._lock = threading.Lock()
         self._thread = None
@@ -152,7 +201,9 @@ class BackButtonService:
 
     def sync(self) -> None:
         cfg = self._settings_store.load_config()
-        if cfg.get("backButtonsGlobal", False) or cfg.get("browserSnapshot", False):
+        self._combo_enabled = bool(cfg.get("recoveryButtonCombo", False))
+        self._recovery_logs = bool(cfg.get("recoveryLogs", False))
+        if cfg.get("backButtonsGlobal", False) or cfg.get("browserSnapshot", False) or self._combo_enabled:
             self.start()
         else:
             self.stop()
@@ -211,18 +262,20 @@ class BackButtonService:
             watched = self._watch_list(stop_r, netlink, nodes)
 
             while True:
-                timeout = RESCAN_RETRY_SECONDS if retries else None
+                timeout = RESCAN_RETRY_SECONDS if retries else self._combo_time_left(nodes)
                 ready, _, _ = select.select(watched, [], [], timeout)
 
                 if stop_r in ready:
                     break
 
                 if not ready:
-                    failed = self._rescan(nodes)
-                    watched = self._watch_list(stop_r, netlink, nodes)
-                    retries = retries - 1 if failed else 0
-                    if failed and not retries:
-                        decky.logger.warning("back buttons: gave up opening %d controller node(s)", failed)
+                    if retries:
+                        failed = self._rescan(nodes)
+                        watched = self._watch_list(stop_r, netlink, nodes)
+                        retries = retries - 1 if failed else 0
+                        if failed and not retries:
+                            decky.logger.warning("back buttons: gave up opening %d controller node(s)", failed)
+                    self._check_combo(nodes)
                     continue
 
                 if netlink is not None and netlink in ready:
@@ -252,6 +305,8 @@ class BackButtonService:
                 if dropped:
                     retries = RESCAN_RETRY_PASSES if self._rescan(nodes) else 0
                     watched = self._watch_list(stop_r, netlink, nodes)
+
+                self._check_combo(nodes)
         except Exception as exc:
             decky.logger.warning("back buttons: thread failed (%s: %s)", type(exc).__name__, exc)
         finally:
@@ -299,13 +354,86 @@ class BackButtonService:
     def _decode(self, node: _OpenNode, data: bytes) -> None:
         if not is_input_report(node.fmt, data):
             return
-        state = paddle_state(node.fmt, data)
+        state = button_state(node.fmt, data)
         if state == node.state:
             return
         pressed = pressed_buttons(node.fmt, node.state, state)
         node.state = state
+        self._track_combo(node)
+        if self._combo_enabled and held_summon_buttons(node.fmt, state) > 1:
+            if pressed and self._debug_logging():
+                decky.logger.info("back buttons: %s on %s held back (combo chord)", ",".join(pressed), node.name)
+            return
         for button in pressed:
             self._on_press(node, button)
+
+    def _track_combo(self, node: _OpenNode) -> None:
+        mask = combo_mask(node.fmt)
+        if not mask or node.state & mask != mask:
+            if node.combo_since is not None and self._recovery_logs:
+                decky.logger.info(
+                    "back buttons: recovery combo on %s let go after %.1fs",
+                    node.name,
+                    time.monotonic() - node.combo_since,
+                )
+            node.combo_since = None
+            node.combo_spent = False
+            return
+        if self._combo_enabled and not node.combo_spent and node.combo_since is None:
+            node.combo_since = time.monotonic()
+            if self._recovery_logs:
+                decky.logger.info("back buttons: recovery combo held on %s, firing in %.0fs", node.name, COMBO_HOLD_SECONDS)
+
+    def _combo_time_left(self, nodes: dict):
+        left = None
+        now = time.monotonic()
+        for node in nodes.values():
+            if node.combo_since is None:
+                continue
+            remaining = max(0.0, COMBO_HOLD_SECONDS - (now - node.combo_since))
+            if left is None or remaining < left:
+                left = remaining
+        return left
+
+    def _check_combo(self, nodes: dict) -> None:
+        now = time.monotonic()
+        for node in nodes.values():
+            if node.combo_since is None or now - node.combo_since < COMBO_HOLD_SECONDS:
+                continue
+            node.combo_since = None
+            node.combo_spent = True
+            if not self._combo_enabled:
+                continue
+            self._fire_combo(node, now)
+
+    def _fire_combo(self, node: _OpenNode, now: float) -> None:
+        if self._combo_fired_at is not None and now - self._combo_fired_at < COMBO_COOLDOWN_SECONDS:
+            decky.logger.info(
+                "back buttons: recovery combo held on %s, ignored (fired %ds ago)",
+                node.name,
+                now - self._combo_fired_at,
+            )
+            return
+        self._combo_fired_at = now
+        capture = "off"
+        if self._recovery_logs:
+            capture = write_capture(
+                source="combo",
+                summary=(
+                    f"Recovery Button Combo held {COMBO_HOLD_SECONDS:.0f}s on {node.name} ({node.fmt}) "
+                    f"at {time.strftime('%Y-%m-%d %H:%M:%S')}"
+                ),
+                user_home=self._user_home,
+            )
+        killed = kill_steamwebhelper()
+        decky.logger.info(
+            "back buttons: recovery combo held %.0fs on %s (%s), killed %d steamwebhelper processes, capture %s",
+            COMBO_HOLD_SECONDS,
+            node.name,
+            node.fmt,
+            killed,
+            capture,
+        )
 
     def _on_press(self, node: _OpenNode, button: str) -> None:
         cfg = self._settings_store.load_config()
