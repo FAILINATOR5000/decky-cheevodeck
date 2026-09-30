@@ -708,7 +708,7 @@ export const EN: LocaleTable = {
     "Game Activity": "Game Activity",
     "Compare Stats": "Compare Stats",
     "News & Events": "News & Events",
-    "New Sets & Revisions": "New Sets & Revisions",
+    "Set Feed": "Set Feed",
     "News": "News",
     "Achievement of the Week": "Achievement of the Week",
     "New Sets": "New Sets",

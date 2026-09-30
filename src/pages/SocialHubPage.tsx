@@ -180,7 +180,7 @@ const SOCIAL_TABS: SocialTab[] = [
 const NEWS_EVENTS_SUB_TABS: { value: NewsEventsSubView; labelKey: string; focusKey: string }[] = [
     { value: "news", labelKey: "News", focusKey: "newsevents:subtab:news" },
     { value: "events", labelKey: "Events", focusKey: "newsevents:subtab:events" },
-    { value: "newSets", labelKey: "New Sets & Revisions", focusKey: "newsevents:subtab:newsets" }
+    { value: "newSets", labelKey: "Set Feed", focusKey: "newsevents:subtab:newsets" }
 ];
 
 const COMMUNITY_SUB_TABS: { value: CommunitySubTab; labelKey: string; focusKey: string }[] = [

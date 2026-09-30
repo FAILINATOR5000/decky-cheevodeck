@@ -484,7 +484,7 @@ const QUICK_MENU_TOP_ROW: QuickMenuEntry[] = [
     { id: "socialhub", Icon: FriendsIcon, labelKey: "Social Hub", focusKey: "action:socialhub" },
     { id: "news", Icon: NewspaperIcon, labelKey: "News", focusKey: "action:news" },
     { id: "events", Icon: EventIcon, labelKey: "Events", focusKey: "action:events" },
-    { id: "newsets", Icon: CompactDiscIcon, labelKey: "New Sets & Revisions", focusKey: "action:newsets" },
+    { id: "newsets", Icon: CompactDiscIcon, labelKey: "Set Feed", focusKey: "action:newsets" },
     { id: "subscribeddiscussions", Icon: CommentsIcon, labelKey: "Subscribed Discussions", focusKey: "action:subscribeddiscussions" },
     { id: "savedcomments", Icon: BookmarkIcon, labelKey: "Saved Comments", focusKey: "action:savedcomments" }
 ];

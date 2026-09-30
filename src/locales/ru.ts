@@ -708,7 +708,7 @@ const RU: LocaleTable = {
     "Game Activity": "Активность в игре",
     "Compare Stats": "Сравнить статистику",
     "News & Events": "События",
-    "New Sets & Revisions": "Новые наборы и правки",
+    "Set Feed": "Лента наборов",
     "News": "Новости",
     "Achievement of the Week": "Достижение недели",
     "New Sets": "Новые наборы",

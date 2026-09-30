@@ -708,7 +708,7 @@ const FR: LocaleTable = {
     "Game Activity": "Activité du jeu",
     "Compare Stats": "Comparer les stats",
     "News & Events": "Actualités et événements",
-    "New Sets & Revisions": "Nouveaux sets et révisions",
+    "Set Feed": "Fil des sets",
     "News": "Actualités",
     "Achievement of the Week": "Succès de la semaine",
     "New Sets": "Nouveaux sets",

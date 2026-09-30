@@ -313,7 +313,7 @@ const SHORTCUT_ACTIONS: { id: ShortcutAction; labelKey: string }[] = [
     { id: "news", labelKey: "News" },
     { id: "aotw", labelKey: "Achievement of the Week" },
     { id: "events", labelKey: "Events" },
-    { id: "newsets", labelKey: "New Sets & Revisions" },
+    { id: "newsets", labelKey: "Set Feed" },
     { id: "subscribeddiscussions", labelKey: "Subscribed Discussions" },
     { id: "savedcomments", labelKey: "Saved Comments" },
     { id: "trackedsets", labelKey: "Mastery Goals" },

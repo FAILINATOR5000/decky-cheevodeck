@@ -711,7 +711,7 @@ const ES: LocaleTable = {
     "News & Events": "Noticias y Eventos",
     "News": "Noticias",
     "Achievement of the Week": "Logro de la Semana",
-    "New Sets & Revisions": "Nuevos Sets y Revisiones",
+    "Set Feed": "Feed de sets",
     "New Sets": "Nuevos Sets",
     "Revisions": "Revisiones",
     "Unlocks": "Desbloqueos",

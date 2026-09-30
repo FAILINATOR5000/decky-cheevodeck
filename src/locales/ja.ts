@@ -708,7 +708,7 @@ const JA: LocaleTable = {
     "Game Activity": "ゲームの活動",
     "Compare Stats": "成績を比較",
     "News & Events": "ニュースとイベント",
-    "New Sets & Revisions": "新しいセットと改訂",
+    "Set Feed": "セットフィード",
     "News": "ニュース",
     "Achievement of the Week": "今週の実績",
     "New Sets": "新しいセット",
