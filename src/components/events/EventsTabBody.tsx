@@ -276,7 +276,7 @@ export function EventsTabBody(props: EventsTabBodyProps) {
                 style={{
                     ...smallTextStyle(),
                     fontWeight: 700,
-                    minHeight: "17px",
+                    height: "17px",
                     marginBottom: "2px",
                     textAlign: "center",
                     whiteSpace: "nowrap",
