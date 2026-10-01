@@ -43,6 +43,7 @@ import type {
     BadgesSortOrder
 } from "../types";
 import { logError } from "../utils/errors";
+import { setQamReturnDelay } from "../utils/modalRegistry";
 import { DEFAULT_SHORTCUT_BINDINGS } from "../utils/options";
 import { setSnapshotHotkey } from "../utils/snapshotHotkey";
 import { setWebBrowserForLinks } from "../utils/navigation";
@@ -245,6 +246,7 @@ export function useSettingsController({
     const [ipcSlowThresholdMs, setIpcSlowThresholdMs] = useState(250);
     const [largeViewportBonusEnabled, setLargeViewportBonusEnabled] = useState(true);
     const [largeViewportBonus, setLargeViewportBonus] = useState(8);
+    const [qamReturnDelayMs, setQamReturnDelayMs] = useState(300);
     const [parallelRaCalls, setParallelRaCalls] = useState(4);
     const [parallelCdnFetches, setParallelCdnFetches] = useState(5);
     const [maxIconWorkers, setMaxIconWorkers] = useState(6);
@@ -553,6 +555,8 @@ export function useSettingsController({
             setCurrentLargeViewportBonusEnabled(bonusEnabled);
             setCurrentLargeViewportBonus(bonusLines);
         }
+        setQamReturnDelayMs(source.qamReturnDelayMs);
+        setQamReturnDelay(source.qamReturnDelayMs);
         setParallelRaCalls(source.parallelRaCalls);
         setParallelCdnFetches(source.parallelCdnFetches);
         setMaxIconWorkers(source.maxIconWorkers);
@@ -826,6 +830,7 @@ export function useSettingsController({
         ipcSlowThresholdMs,
         largeViewportBonusEnabled,
         largeViewportBonus,
+        qamReturnDelayMs,
         parallelRaCalls,
         parallelCdnFetches,
         maxIconWorkers,
@@ -1058,6 +1063,7 @@ export function useSettingsController({
         setIpcSlowThresholdMs,
         setLargeViewportBonusEnabled,
         setLargeViewportBonus,
+        setQamReturnDelayMs,
         setParallelRaCalls,
         setParallelCdnFetches,
         setMaxIconWorkers,

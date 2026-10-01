@@ -1,5 +1,8 @@
-import { showModal } from "@decky/ui";
+import { Navigation, QuickAccessTab, showModal } from "@decky/ui";
 import { cloneElement, createElement, useEffect, type ReactElement } from "react";
+import { logFocusDebug } from "../api";
+import { logError } from "./errors";
+import { focusOurPlugin } from "./quickAccess";
 
 type OpenModal = {
     close: () => void;
@@ -15,6 +18,45 @@ export function setModalAutoCleanup(enabled: boolean): void {
 }
 
 export const MODAL_REAP_DELAY_MS = 80;
+
+const SIDE_MENU_QUICK_ACCESS = 2;
+
+let qamReopenDelayMs = 300;
+
+export function setQamReturnDelay(ms: number): void {
+    qamReopenDelayMs = ms;
+}
+
+function takeOverQuickAccessReopen(): boolean {
+    if (qamReopenDelayMs <= 0 || mountedModals + pendingModals > 1) {
+        return false;
+    }
+    const menus = SteamUIStore?.WindowStore?.GamepadUIMainWindowInstance?.MenuStore;
+    try {
+        if (menus?.GetLastRequestedSideMenu?.() !== SIDE_MENU_QUICK_ACCESS) {
+            return false;
+        }
+        menus.ClearLastRequestedSideMenu();
+        logFocusDebug("modal-close", "QAM held back", `reopen in ${qamReopenDelayMs}ms`);
+        return true;
+    }
+    catch (e) {
+        logError("modalRegistry: couldn't hold the QAM back", e);
+        return false;
+    }
+}
+
+function reopenQuickAccessSoon(): void {
+    window.setTimeout(() => {
+        try {
+            focusOurPlugin();
+            Navigation.OpenQuickAccessMenu(QuickAccessTab.Decky);
+        }
+        catch (e) {
+            logError("modalRegistry: couldn't open the QAM again", e);
+        }
+    }, qamReopenDelayMs);
+}
 
 let lastModalCloseAt = 0;
 
@@ -104,7 +146,11 @@ export function showManagedModal(
             if (opts?.onClose) {
                 opts.onClose();
             }
+            const handOff = takeOverQuickAccessReopen();
             closeModal();
+            if (handOff) {
+                reopenQuickAccessSoon();
+            }
         };
         const modal = showCountedModal(render(close));
         closeModal = modal.Close;
@@ -118,9 +164,13 @@ export function showManagedModal(
         if (opts?.onClose) {
             opts.onClose();
         }
+        const handOff = takeOverQuickAccessReopen();
         closeModal();
         if (entry) {
             unregisterModal(entry);
+        }
+        if (handOff) {
+            reopenQuickAccessSoon();
         }
     };
 

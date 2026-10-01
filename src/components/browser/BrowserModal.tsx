@@ -47,6 +47,9 @@ const FIND_COUNT_SETTLE_MS = 120;
 
 const PENDING_VIEW_MAX_MS = 4000;
 
+const POINTER_PARK_X = 0.4;
+const POINTER_PARK_Y = 0.5;
+
 const BROWSER_MODAL_CSS = `
 .cd-browser-dialog.DialogContent, .cd-browser-dialog {
     width: min(94vw, 1100px);
@@ -202,6 +205,38 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
     }, []);
 
     const claimView = useCallback(() => claimViewNode(false), [claimViewNode]);
+
+    const pointerCloseRef = useRef(false);
+    const mountedRef = useRef(true);
+    useEffect(() => () => {
+        mountedRef.current = false;
+    }, []);
+    const closeFromPointer = (minimize: boolean) => {
+        if (pointerCloseRef.current) {
+            return;
+        }
+        pointerCloseRef.current = true;
+        releaseWebBrowserActionset();
+        const win = stageRef.current?.ownerDocument.defaultView ?? window;
+        const scale = win.devicePixelRatio || 1;
+        const x = Math.round(win.screenLeft + win.innerWidth * scale * POINTER_PARK_X);
+        const y = Math.round(win.screenTop + win.innerHeight * scale * POINTER_PARK_Y);
+        try {
+            SteamClient.Input?.SetMousePosition?.(0, x, y);
+            SteamClient.Browser?.HideCursorUntilMouseEvent?.();
+        }
+        catch (e) {
+            logError("BrowserModal.closeFromPointer", e);
+        }
+        win.requestAnimationFrame(() => {
+            logFocusDebug("browser-close", "pointer parked and hidden", `${minimize ? "minimize" : "close"} at=${x},${y}`);
+            if (!mountedRef.current) {
+                return;
+            }
+            minimizeRequested = minimize;
+            close();
+        });
+    };
 
     const paintedRef = useRef(true);
 
@@ -502,11 +537,8 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
                     onNewTab={browser.openNewTab}
                     onSelectTab={browser.selectTab}
                     onCloseTab={browser.closeTab}
-                    onClose={close}
-                    onMinimize={() => {
-                        minimizeRequested = true;
-                        close();
-                    }}
+                    onClose={() => closeFromPointer(false)}
+                    onMinimize={() => closeFromPointer(true)}
                     expanded={browser.expanded}
                     onToggleExpanded={browser.toggleExpanded}
                     bookmarked={browser.currentIsBookmarked}

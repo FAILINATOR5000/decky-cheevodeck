@@ -95,6 +95,7 @@ import {
     saveIpcSlowThresholdMs,
     saveLargeViewportBonusEnabled,
     saveLargeViewportBonus,
+    saveQamReturnDelayMs,
     saveParallelRaCalls,
     saveParallelCdnFetches,
     saveMaxIconWorkers,
@@ -221,6 +222,7 @@ import type {
 } from "../types";
 
 import { logError } from "../utils/errors";
+import { setQamReturnDelay } from "../utils/modalRegistry";
 import {
     nextActivityCacheMinutes,
     nextAchievementStyle,
@@ -254,6 +256,7 @@ import {
     nextReturnStaggerFrames,
     nextIpcSlowThresholdMs,
     nextLargeViewportBonus,
+    nextQamReturnDelayMs,
     nextParallelRaCalls,
     nextParallelCdnFetches,
     nextMaxIconWorkers,
@@ -398,6 +401,7 @@ type UseOptionsControllerArgs = {
     ipcSlowThresholdMs: number;
     largeViewportBonusEnabled: boolean;
     largeViewportBonus: number;
+    qamReturnDelayMs: number;
     parallelRaCalls: number;
     parallelCdnFetches: number;
     maxIconWorkers: number;
@@ -661,6 +665,7 @@ type UseOptionsControllerArgs = {
     setIpcSlowThresholdMs: Dispatch<SetStateAction<number>>;
     setLargeViewportBonusEnabled: Dispatch<SetStateAction<boolean>>;
     setLargeViewportBonus: Dispatch<SetStateAction<number>>;
+    setQamReturnDelayMs: Dispatch<SetStateAction<number>>;
     setParallelRaCalls: Dispatch<SetStateAction<number>>;
     setParallelCdnFetches: Dispatch<SetStateAction<number>>;
     setMaxIconWorkers: Dispatch<SetStateAction<number>>;
@@ -856,6 +861,7 @@ export function useOptionsController({
     ipcSlowThresholdMs,
     largeViewportBonusEnabled,
     largeViewportBonus,
+    qamReturnDelayMs,
     parallelRaCalls,
     parallelCdnFetches,
     maxIconWorkers,
@@ -1119,6 +1125,7 @@ export function useOptionsController({
     setIpcSlowThresholdMs,
     setLargeViewportBonusEnabled,
     setLargeViewportBonus,
+    setQamReturnDelayMs,
     setParallelRaCalls,
     setParallelCdnFetches,
     setMaxIconWorkers,
@@ -1387,6 +1394,11 @@ export function useOptionsController({
             setLargeViewportBonus(bonusLines);
             setCurrentLargeViewportBonusEnabled(bonusEnabled);
             setCurrentLargeViewportBonus(bonusLines);
+        }
+        {
+            const qamDelay = result.qamReturnDelayMs ?? 300;
+            setQamReturnDelayMs(qamDelay);
+            setQamReturnDelay(qamDelay);
         }
         setParallelRaCalls(result.parallelRaCalls ?? 4);
         setParallelCdnFetches(result.parallelCdnFetches ?? 5);
@@ -2457,6 +2469,21 @@ export function useOptionsController({
             },
             saveCall: saveLargeViewportBonus,
             getSavedValue: (result, fallbackValue) => result.largeViewportBonus ?? fallbackValue,
+        });
+    };
+
+    const onCycleQamReturnDelayMs = () => {
+        const previousValue = qamReturnDelayMs;
+        const nextValue = nextQamReturnDelayMs(qamReturnDelayMs);
+        return saveSettingWithRollback<number>({
+            nextValue,
+            previousValue,
+            applyValue: (value) => {
+                setQamReturnDelayMs(value);
+                setQamReturnDelay(value);
+            },
+            saveCall: saveQamReturnDelayMs,
+            getSavedValue: (result, fallbackValue) => result.qamReturnDelayMs ?? fallbackValue,
         });
     };
 
@@ -3665,6 +3692,7 @@ export function useOptionsController({
         ipcSlowThresholdMs,
         largeViewportBonusEnabled,
         largeViewportBonus,
+        qamReturnDelayMs,
         parallelRaCalls,
         parallelCdnFetches,
         maxIconWorkers,
@@ -3913,6 +3941,7 @@ export function useOptionsController({
         onCycleIpcSlowThresholdMs,
         onToggleLargeViewportBonusEnabled,
         onCycleLargeViewportBonus,
+        onCycleQamReturnDelayMs,
         onCycleParallelRaCalls,
         onCycleParallelCdnFetches,
         onCycleMaxIconWorkers,

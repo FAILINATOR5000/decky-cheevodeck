@@ -1048,6 +1048,9 @@ export const saveLargeViewportBonusEnabled = callable<[boolean], { ok: boolean; 
 export const saveLargeViewportBonus = callable<[number], { ok: boolean; largeViewportBonus: number }>(
     "save_large_viewport_bonus"
 );
+export const saveQamReturnDelayMs = callable<[number], { ok: boolean; qamReturnDelayMs: number }>(
+    "save_qam_return_delay_ms"
+);
 export const saveParallelRaCalls = callable<[number], { ok: boolean; parallelRaCalls: number }>(
     "save_parallel_ra_calls"
 );

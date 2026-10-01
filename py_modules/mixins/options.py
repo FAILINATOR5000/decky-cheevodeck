@@ -191,6 +191,14 @@ class OptionsMixin(PluginContext):
             "largeViewportBonus": value,
         }
 
+    async def save_qam_return_delay_ms(self, qam_return_delay_ms: int):
+        value = self.settings_store.update_qam_return_delay_ms(qam_return_delay_ms)
+
+        return {
+            "ok": True,
+            "qamReturnDelayMs": value,
+        }
+
     async def save_parallel_ra_calls(self, parallel_ra_calls: int):
         value = self.settings_store.update_parallel_ra_calls(parallel_ra_calls)
 

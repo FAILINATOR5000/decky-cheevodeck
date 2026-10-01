@@ -39,6 +39,7 @@ import {
     friendRefreshDelayLabel,
     ipcSlowThresholdMsLabel,
     largeViewportBonusLabel,
+    qamReturnDelayMsLabel,
     parallelRaCallsLabel,
     parallelCdnFetchesLabel,
     maxIconWorkersLabel,
@@ -279,6 +280,7 @@ type OptionsPageState = {
     ipcSlowThresholdMs: number;
     largeViewportBonusEnabled: boolean;
     largeViewportBonus: number;
+    qamReturnDelayMs: number;
     parallelRaCalls: number;
     parallelCdnFetches: number;
     maxIconWorkers: number;
@@ -522,6 +524,7 @@ type OptionsPageActions = {
     onCycleIpcSlowThresholdMs: () => void | Promise<void>;
     onToggleLargeViewportBonusEnabled: (nextValue: boolean) => void | Promise<void>;
     onCycleLargeViewportBonus: () => void | Promise<void>;
+    onCycleQamReturnDelayMs: () => void | Promise<void>;
     onCycleParallelRaCalls: () => void | Promise<void>;
     onCycleParallelCdnFetches: () => void | Promise<void>;
     onCycleMaxIconWorkers: () => void | Promise<void>;
@@ -2458,6 +2461,17 @@ function AdvancedTab(props: TabContentProps) {
                 disabled={disabled}
                 help={t(state.language, "help_defer_modal_cleanup")}
             />
+            {state.showDeveloperOptions && (
+                <OptionValueRow
+                    outerStyle={buttonOuterStyle}
+                    focusKey="options:qam-return-delay"
+                    onClick={actions.onCycleQamReturnDelayMs}
+                    disabled={disabled}
+                    label={t(state.language, "Post-Modal QAM Delay")}
+                    value={qamReturnDelayMsLabel(state.qamReturnDelayMs, state.language)}
+                    help={t(state.language, "help_post_modal_qam_delay")}
+                />
+            )}
             <OptionToggle
                 outerStyle={buttonOuterStyle}
                 label={t(state.language, "Notification Body - Large Viewport Bonus")}

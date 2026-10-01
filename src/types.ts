@@ -927,6 +927,7 @@ export type SettingsResponse = {
     isSteamMachine?: boolean;
     largeViewportBonusEnabled: boolean;
     largeViewportBonus: number;
+    qamReturnDelayMs: number;
     guideZoom: number;
     guideModalZoom: number;
     textViewerZoom: number;

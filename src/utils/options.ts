@@ -30,6 +30,7 @@ const RETURN_STAGGER_FRAME_OPTIONS = [0, 1, 2, 3, 4, 5, 6, 7, 8] as const;
 const IPC_SLOW_THRESHOLD_MS_OPTIONS = [50, 100, 150, 200, 250, 300, 350, 400, 450, 500] as const;
 const PARALLEL_RA_CALLS_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 const LARGE_VIEWPORT_BONUS_OPTIONS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14] as const;
+const QAM_RETURN_DELAY_MS_OPTIONS = [0, 40, 80, 100, 150, 200, 250, 300, 350, 400, 500] as const;
 const PARALLEL_CDN_FETCHES_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 const MAX_ICON_WORKERS_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
 const AVATAR_WORKERS_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
@@ -553,6 +554,17 @@ export function nextIpcSlowThresholdMs(current: number) {
 
 export function largeViewportBonusLabel(value: number) {
     return `${value}`;
+}
+
+export function qamReturnDelayMsLabel(value: number, language: LanguageCode = DEFAULT_LANGUAGE) {
+    return value === 0 ? t(language, "Off") : `${value} ms`;
+}
+
+export function nextQamReturnDelayMs(current: number) {
+    const normalized = QAM_RETURN_DELAY_MS_OPTIONS.includes(current as any) ? current : 300;
+    const currentIndex = QAM_RETURN_DELAY_MS_OPTIONS.indexOf(normalized as any);
+
+    return QAM_RETURN_DELAY_MS_OPTIONS[(currentIndex + 1) % QAM_RETURN_DELAY_MS_OPTIONS.length];
 }
 
 export function nextLargeViewportBonus(current: number) {
