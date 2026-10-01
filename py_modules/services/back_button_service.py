@@ -67,6 +67,11 @@ SUMMON_ACTIONS = (
 
 _SUMMON_BUTTONS = ("l4", "r4", "l5", "r5")
 
+_CHORD_BITS = {
+    DECK_FORMAT: ((8, 0xFF), (9, 0x7F), (10, 0x46), (11, 0x04), (14, 0x04)),
+    CONTROLLER_FORMAT: ((2, 0x7F), (3, 0xFE), (4, 0x89), (5, 0x0C)),
+}
+
 _RECOVERY_COMBOS = {
     DECK_FORMAT: ("l4", "l5", "r4", "r5"),
     CONTROLLER_FORMAT: ("l4", "l5", "r4", "r5"),
@@ -133,6 +138,10 @@ def combo_mask(fmt: str) -> int:
     if not combo:
         return 0
     return buttons_mask(fmt, combo)
+
+
+def other_button_held(fmt: str, data: bytes) -> bool:
+    return any(data[byte] & mask for byte, mask in _CHORD_BITS[fmt])
 
 
 def held_summon_buttons(fmt: str, state: int) -> int:
@@ -363,6 +372,10 @@ class BackButtonService:
         if self._combo_enabled and held_summon_buttons(node.fmt, state) > 1:
             if pressed and self._debug_logging():
                 decky.logger.info("back buttons: %s on %s held back (combo chord)", ",".join(pressed), node.name)
+            return
+        if pressed and other_button_held(node.fmt, data):
+            if self._debug_logging():
+                decky.logger.info("back buttons: %s on %s held back (other button held)", ",".join(pressed), node.name)
             return
         for button in pressed:
             self._on_press(node, button)
