@@ -49,7 +49,7 @@ function QamGuardPage(props: QamGuardPageProps) {
     return (
         <PanelSection key={`qamGuard:view:${state.focusScopeResetToken}`}>
             <PageNavStrip
-                title={t(state.language, "QAMGuard")}
+                title={t(state.language, "Stormbreaker")}
                 buttonSpacing={state.buttonSpacing}
                 onHome={actions.onHome}
             />

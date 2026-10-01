@@ -154,7 +154,7 @@ function UtilsPage(props: UtilsPageProps) {
                     onClick={actions.onOpenQamGuard}
                     help={t(state.language, "help_utils_qamguard")}
                 >
-                    {t(state.language, "QAMGuard")}
+                    {t(state.language, "Stormbreaker")}
                 </FocusableItem>
             </PanelSectionRow>
             <PanelSectionRow>

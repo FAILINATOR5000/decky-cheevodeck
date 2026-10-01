@@ -2421,7 +2421,7 @@ function AdvancedTab(props: TabContentProps) {
 
     return (
         <>
-            <SectionTitle label={t(state.language, "QAMGuard")} />
+            <SectionTitle label={t(state.language, "Stormbreaker")} />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
                 label={t(state.language, "Stormbreaker")}
