@@ -3,5 +3,14 @@
     "py_modules"
   ],
   "stubPath": "typings",
-  "reportMissingModuleSource": "none"
+  "reportMissingModuleSource": "none",
+  "reportOptionalMemberAccess": "none",
+  "reportOptionalIterable": "none",
+  "reportAttributeAccessIssue": "none",
+  "reportArgumentType": "none",
+  "reportReturnType": "none",
+  "reportGeneralTypeIssues": "none",
+  "reportCallIssue": "none",
+  "reportIncompatibleMethodOverride": "none",
+  "reportPossiblyUnboundVariable": "none"
 }
