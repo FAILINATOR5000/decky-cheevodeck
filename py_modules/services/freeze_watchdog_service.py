@@ -49,7 +49,7 @@ BLIND_SILENCE = 60.0
 RESUME_GRACE = 20.0
 SUSPEND_JUMP = 1.0
 
-HEALTHY_TO_REARM = 120.0
+HEALTHY_TO_REARM = 30.0
 KILL_CAP = 4
 KILL_CAP_WINDOW = 1800.0
 
@@ -977,7 +977,7 @@ class FreezeWatchdogService:
         if self._stood_down:
             return "stood down"
         if not self._rearmed:
-            return f"not healthy for {HEALTHY_TO_REARM / 60:.0f} minutes since the last recovery"
+            return f"not healthy for {HEALTHY_TO_REARM:.0f}s since the last recovery"
         return None
 
     def note_kill(self, now: float) -> None:
