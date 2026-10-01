@@ -21,6 +21,7 @@ import { BROWSER_HOME_URL, useBrowserController } from "../../hooks/useBrowserCo
 import { t, type LanguageCode } from "../../locales";
 import { useFocusPaintWake } from "../../hooks/useFocusPaintWake";
 import { logFocusDebug } from "../../api";
+import { steamDisplayScale } from "../../utils/closeTrace";
 import { logError } from "../../utils/errors";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { openInSteamBrowser } from "../../utils/steamBrowser";
@@ -229,7 +230,11 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
             logError("BrowserModal.closeFromPointer", e);
         }
         win.requestAnimationFrame(() => {
-            logFocusDebug("browser-close", "pointer parked and hidden", `${minimize ? "minimize" : "close"} at=${x},${y}`);
+            logFocusDebug(
+                "browser-close",
+                "pointer parked and hidden",
+                `${minimize ? "minimize" : "close"} at=${x},${y} window=${win.innerWidth}x${win.innerHeight}@${win.screenLeft},${win.screenTop} dpr=${scale} steamScale=${steamDisplayScale()} screen=${win.screen.width}x${win.screen.height}`
+            );
             if (!mountedRef.current) {
                 return;
             }
@@ -707,7 +712,7 @@ export function openBrowserModal(language: LanguageCode, startUrl = "") {
     }
     const modal = showManagedModal(
         (close) => <BrowserModal language={language} close={close} startUrl={startUrl} />,
-        { onClose: () => { closeOpenBrowser = null; } }
+        { onClose: () => { closeOpenBrowser = null; }, skipQamReturn: true }
     );
     closeOpenBrowser = modal.Close;
 }

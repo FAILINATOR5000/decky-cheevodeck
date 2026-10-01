@@ -1,6 +1,7 @@
 import { Navigation, QuickAccessTab, showModal } from "@decky/ui";
 import { cloneElement, createElement, useEffect, type ReactElement } from "react";
 import { logFocusDebug } from "../api";
+import { markCloseTrace, traceModalClose } from "./closeTrace";
 import { logError } from "./errors";
 import { focusOurPlugin } from "./quickAccess";
 
@@ -27,13 +28,23 @@ export function setQamReturnDelay(ms: number): void {
     qamReopenDelayMs = ms;
 }
 
-function takeOverQuickAccessReopen(): boolean {
-    if (qamReopenDelayMs <= 0 || mountedModals + pendingModals > 1) {
+function takeOverQuickAccessReopen(skipReturn: boolean): boolean {
+    if (mountedModals + pendingModals > 1) {
         return false;
     }
     const menus = SteamUIStore?.WindowStore?.GamepadUIMainWindowInstance?.MenuStore;
     try {
         if (menus?.GetLastRequestedSideMenu?.() !== SIDE_MENU_QUICK_ACCESS) {
+            return false;
+        }
+        if (qamReopenDelayMs <= 0) {
+            traceModalClose(0);
+            return false;
+        }
+        traceModalClose(skipReturn ? null : qamReopenDelayMs);
+        if (skipReturn) {
+            menus.ClearLastRequestedSideMenu();
+            logFocusDebug("modal-close", "QAM return skipped", "browser");
             return false;
         }
         menus.ClearLastRequestedSideMenu();
@@ -49,8 +60,10 @@ function takeOverQuickAccessReopen(): boolean {
 function reopenQuickAccessSoon(): void {
     window.setTimeout(() => {
         try {
+            markCloseTrace("reopen");
             focusOurPlugin();
             Navigation.OpenQuickAccessMenu(QuickAccessTab.Decky);
+            markCloseTrace("reopen called");
         }
         catch (e) {
             logError("modalRegistry: couldn't open the QAM again", e);
@@ -136,7 +149,7 @@ export function drainOpenModals(): OpenModal[] {
 
 export function showManagedModal(
     render: (close: () => void) => ReactElement,
-    opts?: { needsMarkSeen?: boolean; onClose?: () => void }
+    opts?: { needsMarkSeen?: boolean; onClose?: () => void; skipQamReturn?: boolean }
 ): { Close: () => void } {
     let closeModal = function () { };
 
@@ -146,7 +159,7 @@ export function showManagedModal(
             if (opts?.onClose) {
                 opts.onClose();
             }
-            const handOff = takeOverQuickAccessReopen();
+            const handOff = takeOverQuickAccessReopen(opts?.skipQamReturn ?? false);
             closeModal();
             if (handOff) {
                 reopenQuickAccessSoon();
@@ -164,7 +177,7 @@ export function showManagedModal(
         if (opts?.onClose) {
             opts.onClose();
         }
-        const handOff = takeOverQuickAccessReopen();
+        const handOff = takeOverQuickAccessReopen(opts?.skipQamReturn ?? false);
         closeModal();
         if (entry) {
             unregisterModal(entry);
