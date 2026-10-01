@@ -1,4 +1,5 @@
 import { debugLoggingEnabled, logFocusDebug } from "../api";
+import { quickAccessWindow } from "./quickAccess";
 
 const TRACE_AFTER_REOPEN_MS = 4000;
 const MAX_EVENTS = 300;
@@ -76,6 +77,29 @@ function geometry(win: Window): string {
     }
 }
 
+type Callable = (...args: unknown[]) => unknown;
+
+function describeArgs(args: unknown[]): string {
+    return args.map((arg) => (typeof arg === "object" && arg !== null ? "obj" : String(arg))).join(",");
+}
+
+function watchCall(trace: Trace, owner: Record<string, unknown> | null | undefined, method: string, label: string): (() => void) | null {
+    const original = owner?.[method];
+    if (!owner || typeof original !== "function") {
+        return null;
+    }
+    const wrapper = function (this: unknown, ...args: unknown[]) {
+        record(trace, `call ${label}(${describeArgs(args)})`);
+        return (original as Callable).apply(this, args);
+    };
+    owner[method] = wrapper;
+    return () => {
+        if (owner[method] === wrapper) {
+            owner[method] = original;
+        }
+    };
+}
+
 function record(trace: Trace, text: string): void {
     if (trace.lines.length >= MAX_EVENTS) {
         trace.dropped += 1;
@@ -119,7 +143,24 @@ export function traceModalClose(reopenInMs: number | null): void {
     }
 
     const detach: Array<() => void> = [];
+    const coordinator = (window as unknown as { g_WindowFocusCoordinator?: Record<string, unknown> }).g_WindowFocusCoordinator;
+    const watched = [
+        watchCall(trace, coordinator, "SetBrowserViewFocus", "coord.SetBrowserViewFocus"),
+        watchCall(trace, coordinator, "SetBrowserViewBlurred", "coord.SetBrowserViewBlurred")
+    ];
     for (const win of windows) {
+        const steamWindow = (win as unknown as { SteamClient?: { Window?: Record<string, unknown> } }).SteamClient?.Window;
+        watched.push(watchCall(trace, steamWindow, "SetKeyFocus", `${nameOf(win)}.SetKeyFocus`));
+        watched.push(watchCall(trace, steamWindow, "MarkLastFocused", `${nameOf(win)}.MarkLastFocused`));
+    }
+    for (const undo of watched) {
+        if (undo) {
+            detach.push(undo);
+        }
+    }
+    const qam = quickAccessWindow();
+    const listened = qam && !windows.includes(qam) ? [...windows, qam] : windows;
+    for (const win of listened) {
         const name = nameOf(win);
         const onFocus = () => record(trace, `${name} focus`);
         const onBlur = () => record(trace, `${name} blur`);
