@@ -20,7 +20,7 @@ from freeze_capture import (
     webhelper_processes,
     write_capture,
 )
-from utils import kill_steamwebhelper
+from utils import kill_steamwebhelper, stormbreaker_plugin_runs_watchdog
 
 CDP_HOST = "127.0.0.1"
 CDP_PORT = 8080
@@ -318,6 +318,7 @@ class _Watch:
         self.grace_until = 0.0
         self.last_answer_at = None
         self.episode = None
+        self.left_to_stormbreaker = False
         self.clocks = (time.clock_gettime(time.CLOCK_BOOTTIME), time.monotonic())
         self.baseline_at = time.monotonic() + BASELINE_EVERY
         self.baseline_worst_ping = 0.0
@@ -454,6 +455,7 @@ class _Watch:
         self.outstanding = None
         self.next_ping_at = sent + PING_INTERVAL
         self.last_answer_at = now
+        self.left_to_stormbreaker = False
         self.baseline_worst_ping = max(self.baseline_worst_ping, latency)
         if not self.armed:
             self.armed = True
@@ -532,6 +534,11 @@ class _Watch:
         self.open_episode(max(self.last_answer_at, self.grace_until), blind=True)
 
     def open_episode(self, silence_start: float, *, blind: bool) -> None:
+        if stormbreaker_plugin_runs_watchdog():
+            if not self.left_to_stormbreaker:
+                self.left_to_stormbreaker = True
+                decky.logger.info("freeze watchdog: left to the Stormbreaker plugin")
+            return
         self.episode = _Episode(
             silence_start=silence_start,
             focus_offset=self.js_log_size(),

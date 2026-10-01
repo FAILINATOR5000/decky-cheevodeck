@@ -246,6 +246,7 @@ const JA: LocaleTable = {
     "help_recovery_logs": "復旧のたびに、フリーズしたときに Steam のインターフェースが何をしていたかを含む記録をプラグインのログフォルダーに保存し、復旧の詳しい動作をプラグインのログに書き込みます。問題を報告するときに役立ちます。オンの間は Steam の処理が少し増えるため、それ以外はオフのままにしてください。",
     "Stormbreaker": "Stormbreaker",
     "help_stormbreaker": "クイックアクセスメニューを開くときに起こることがある、SteamOSのまれなフリーズを止めます。フリーズが始まると、Steamの画面が固まる代わりに、メニューが一度点滅してそのまま使えます。その瞬間だけ動作し、Steamのコードは一切変更しません。",
+    "Handled by the Stormbreaker plugin": "Stormbreaker プラグインが担当しています",
     "Clear Recovery Logs": "復旧ログを消去",
     "help_clear_recovery_logs": "保存されたすべての復旧記録をプラグインのログフォルダーから削除します。",
     "shortcut_button_menu": "メニュー",

@@ -83,6 +83,7 @@ import { resolveGlyphStyle } from "../utils/controllerGlyphs";
 import { listenForOptionsLanding, takeOptionsLanding } from "../utils/optionsFocusReturn";
 import { BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT } from "../utils/gamepadButtons";
 import { playOkSound } from "../utils/navSound";
+import { standaloneClaim } from "../utils/stormbreaker";
 import { bodyTextStyle, regularButtonSpacingStyle, smallTextStyle } from "../utils/style";
 
 type TabIconProps = { size?: number };
@@ -2430,6 +2431,11 @@ function AdvancedTab(props: TabContentProps) {
                 disabled={disabled}
                 help={t(state.language, "help_stormbreaker")}
             />
+            {standaloneClaim()?.stormbreaker && (
+                <PanelSectionRow>
+                    <InfoText>{t(state.language, "Handled by the Stormbreaker plugin")}</InfoText>
+                </PanelSectionRow>
+            )}
             <OptionToggle
                 outerStyle={buttonOuterStyle}
                 label={t(state.language, "Automatic Recovery")}
@@ -2438,6 +2444,11 @@ function AdvancedTab(props: TabContentProps) {
                 disabled={disabled}
                 help={t(state.language, "help_automatic_recovery")}
             />
+            {standaloneClaim()?.automaticRecovery && (
+                <PanelSectionRow>
+                    <InfoText>{t(state.language, "Handled by the Stormbreaker plugin")}</InfoText>
+                </PanelSectionRow>
+            )}
             <OptionToggle
                 outerStyle={buttonOuterStyle}
                 label={t(state.language, "Recovery Button Combo")}

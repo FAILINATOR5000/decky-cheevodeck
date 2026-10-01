@@ -246,6 +246,7 @@ const PL: LocaleTable = {
     "help_recovery_logs": "Zapisuje raport z każdego odzyskiwania w folderze dzienników wtyczki, w tym to, co robił interfejs Steam w chwili zawieszenia, i zapisuje szczegóły odzyskiwania w dzienniku wtyczki. Przydatne przy zgłaszaniu problemu. Gdy jest włączone, Steam ma trochę więcej pracy, więc poza tym zostaw to wyłączone.",
     "Stormbreaker": "Stormbreaker",
     "help_stormbreaker": "Zatrzymuje rzadkie zawieszanie się SteamOS, które może wystąpić przy otwieraniu menu szybkiego dostępu. Gdy się zaczyna, menu raz mignie i działa dalej, zamiast zawiesić interfejs Steam. Działa tylko w tym momencie i nie zmienia kodu Steam.",
+    "Handled by the Stormbreaker plugin": "Obsługuje to wtyczka Stormbreaker",
     "Clear Recovery Logs": "Wyczyść dzienniki odzyskiwania",
     "help_clear_recovery_logs": "Usuwa wszystkie zapisane raporty odzyskiwania z folderu dzienników wtyczki.",
     "shortcut_button_menu": "Menu",

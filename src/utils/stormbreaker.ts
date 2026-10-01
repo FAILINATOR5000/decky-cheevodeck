@@ -14,6 +14,12 @@ type ViewHolder = {
 
 type Side = "bpm" | "qam";
 
+type StandaloneClaim = {
+    owner?: string;
+    stormbreaker?: boolean;
+    automaticRecovery?: boolean;
+};
+
 type Breaking = {
     view: QamView;
     hiddenAt: number;
@@ -119,6 +125,10 @@ function startBreak(now: number): void {
     const span = Math.round(now - recent[0].at);
     recent = [];
     rearmAt = now + REARM_MS;
+    if (standaloneClaim()?.stormbreaker) {
+        report("storm", `${count} focus changes in ${span}ms, left to the Stormbreaker plugin`);
+        return;
+    }
     if (!quickAccessIsOpen()) {
         report("storm", `${count} focus changes in ${span}ms with the menu closed, left alone`);
         return;
@@ -203,6 +213,11 @@ function detachAll(): void {
     }
     detach = [];
     recent = [];
+}
+
+export function standaloneClaim(): StandaloneClaim | null {
+    const claim = (window as unknown as { __stormbreakerClaim?: StandaloneClaim }).__stormbreakerClaim;
+    return claim?.owner === "stormbreaker" ? claim : null;
 }
 
 export function setStormbreakerEnabled(on: boolean): void {

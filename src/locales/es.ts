@@ -246,6 +246,7 @@ const ES: LocaleTable = {
     "help_recovery_logs": "Guarda un informe de cada recuperación en la carpeta de registros del plugin, incluido lo que hacía la interfaz de Steam al congelarse, y escribe los detalles de la recuperación en el registro del plugin. Útil para informar de un problema. Steam trabaja un poco más mientras está activado, así que déjalo desactivado si no lo necesitas.",
     "Stormbreaker": "Stormbreaker",
     "help_stormbreaker": "Detiene un congelamiento poco frecuente de SteamOS que puede producirse al abrir el menú de acceso rápido. Cuando empieza, el menú parpadea una vez y sigue funcionando en lugar de congelarse la interfaz de Steam. Solo actúa en ese momento y no modifica el código de Steam.",
+    "Handled by the Stormbreaker plugin": "Lo gestiona el plugin Stormbreaker",
     "Clear Recovery Logs": "Borrar registros de recuperación",
     "help_clear_recovery_logs": "Elimina todos los informes de recuperación guardados de la carpeta de registros del plugin.",
     "shortcut_button_menu": "Menú",

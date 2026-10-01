@@ -246,6 +246,7 @@ const DE: LocaleTable = {
     "help_recovery_logs": "Speichert zu jeder Wiederherstellung einen Bericht im Log-Ordner des Plugins, einschließlich dessen, was die Steam-Oberfläche beim Einfrieren gerade tat, und schreibt ausführliche Details ins Plugin-Log. Hilfreich, um ein Problem zu melden. Steam hat damit etwas mehr zu tun, also lass es sonst aus.",
     "Stormbreaker": "Stormbreaker",
     "help_stormbreaker": "Stoppt ein seltenes Einfrieren von SteamOS, das beim Öffnen des Schnellzugriffsmenüs entstehen kann. Beginnt es, blinkt das Menü einmal kurz und läuft weiter, statt dass die Steam-Oberfläche einfriert. Greift nur in diesem Moment ein und verändert keinen Steam-Code.",
+    "Handled by the Stormbreaker plugin": "Wird vom Stormbreaker-Plugin übernommen",
     "Clear Recovery Logs": "Wiederherstellungsprotokolle löschen",
     "help_clear_recovery_logs": "Löscht alle gespeicherten Wiederherstellungsberichte aus dem Log-Ordner des Plugins.",
     "shortcut_button_menu": "Menü",

@@ -335,3 +335,26 @@ def kill_steamwebhelper() -> int:
             continue
         killed += 1
     return killed
+
+
+STORMBREAKER_WATCHDOG_LOCK = "/tmp/stormbreaker-watchdog.lock"
+
+
+def stormbreaker_plugin_runs_watchdog() -> bool:
+    try:
+        import fcntl
+    except ImportError:
+        return False
+    try:
+        fd = os.open(STORMBREAKER_WATCHDOG_LOCK, os.O_RDONLY)
+    except OSError:
+        return False
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        return True
+    else:
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        return False
+    finally:
+        os.close(fd)

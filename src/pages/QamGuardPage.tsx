@@ -1,10 +1,13 @@
+import { PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
 import { BackButton } from "../components/ui/BackButton";
 import { PageNavStrip } from "../components/ui/PageNavStrip";
 import { OptionButton, OptionToggle } from "../components/options/OptionRows";
+import { InfoText } from "../components/ui/InfoText";
 import { t, type LanguageCode } from "../locales";
 import type { ButtonSpacing, ViewKey } from "../types";
 import { regularButtonSpacingStyle } from "../utils/style";
+import { standaloneClaim } from "../utils/stormbreaker";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
@@ -71,6 +74,11 @@ function QamGuardPage(props: QamGuardPageProps) {
                 disabled={disabled}
                 help={t(state.language, "help_stormbreaker")}
             />
+            {standaloneClaim()?.stormbreaker && (
+                <PanelSectionRow>
+                    <InfoText>{t(state.language, "Handled by the Stormbreaker plugin")}</InfoText>
+                </PanelSectionRow>
+            )}
             <OptionToggle
                 outerStyle={buttonOuterStyle}
                 label={t(state.language, "Automatic Recovery")}
@@ -79,6 +87,11 @@ function QamGuardPage(props: QamGuardPageProps) {
                 disabled={disabled}
                 help={t(state.language, "help_automatic_recovery")}
             />
+            {standaloneClaim()?.automaticRecovery && (
+                <PanelSectionRow>
+                    <InfoText>{t(state.language, "Handled by the Stormbreaker plugin")}</InfoText>
+                </PanelSectionRow>
+            )}
             <OptionToggle
                 outerStyle={buttonOuterStyle}
                 label={t(state.language, "Recovery Button Combo")}

@@ -246,6 +246,7 @@ export const EN: LocaleTable = {
     "help_recovery_logs": "Saves a record of each recovery to the plugin's log folder, including what Steam's interface was doing when it froze, and writes detailed recovery activity to the plugin log. Useful when reporting a problem. Steam does a little more work while this is on, so leave it off otherwise.",
     "Stormbreaker": "Stormbreaker",
     "help_stormbreaker": "Stops a rare SteamOS freeze that can start as the Quick Access Menu opens. When one begins, the menu blinks once and carries on instead of Steam's interface freezing. It only acts during that moment and changes no Steam code.",
+    "Handled by the Stormbreaker plugin": "Handled by the Stormbreaker plugin",
     "Clear Recovery Logs": "Clear Recovery Logs",
     "help_clear_recovery_logs": "Deletes every saved recovery record from the plugin's log folder.",
     "shortcut_button_menu": "Menu",
