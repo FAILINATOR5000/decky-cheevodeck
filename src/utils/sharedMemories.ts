@@ -24,8 +24,10 @@ export function sharePostTitle(gameTitle: string, consoleName: string): string {
     return game.slice(0, room - 1).join("").trimEnd() + "…" + system;
 }
 
+export const SHARE_CREDIT_TEXT = "Shared from CheevoDeck by";
+
 export function shareCreditLine(username: string): string {
-    return `-# Shared from CheevoDeck by [${username}](<${raUserUrl(username)}>)`;
+    return `-# ${SHARE_CREDIT_TEXT} [${username}](<${raUserUrl(username)}>)`;
 }
 
 export function shareMessage(caption: string, username: string, credit: boolean): string {

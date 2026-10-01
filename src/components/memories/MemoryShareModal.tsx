@@ -472,8 +472,8 @@ export function MemoryShareModal(props: MemoryShareModalProps) {
             if (closedRef.current) {
                 return;
             }
-            setPreparing(false);
             if (!result?.ok || !result.path) {
+                setPreparing(false);
                 if (result?.error !== "cancelled") {
                     toaster.toast({
                         title: t(language, "Shared Memories"),
@@ -485,13 +485,16 @@ export function MemoryShareModal(props: MemoryShareModalProps) {
                 return;
             }
             const filePath = result.path;
-            finish();
             onHandOff?.();
             startDiscordShare(language, {
                 filePath,
                 title: sharePostTitle(memory.gameTitle, probe.consoleName),
                 message: shareMessage(caption, username, credit),
                 tags: [systemTag, mediaTag, ...memoryTags]
+            }, () => {
+                if (!closedRef.current) {
+                    finish();
+                }
             });
         }
         catch (e) {

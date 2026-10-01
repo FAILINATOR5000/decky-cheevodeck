@@ -3,11 +3,12 @@ import { discardMemoryShare, getBrowserTabs, logFocusDebug, setActiveBrowserTab 
 import { getCurrentLanguage, t, type LanguageCode } from "../../locales";
 import type { BrowserTab } from "../../types";
 import { logError } from "../../utils/errors";
-import { SHARED_MEMORIES_CHANNEL_URL, SHARED_MEMORIES_INVITE_URL, SHARED_MEMORIES_PATH } from "../../utils/sharedMemories";
+import { SHARE_CREDIT_TEXT, SHARED_MEMORIES_CHANNEL_URL, SHARED_MEMORIES_INVITE_URL, SHARED_MEMORIES_PATH } from "../../utils/sharedMemories";
 import { openBrowserModal } from "./BrowserModal";
 import { liveViewFor, liveViews, type LiveView } from "./browserViews";
 
 const POLL_MS = 1000;
+const FIRST_POLL_MS = 250;
 
 const DISCORD_ORIGIN = "https://discord.com/";
 
@@ -32,12 +33,18 @@ export type DiscordShare = {
 
 type PageState = "forum" | "entry" | "elsewhere" | "away" | "loading";
 
+const HEADER_TEXTAREA = `[...document.querySelectorAll("textarea")].find((node) => node.parentElement !== document.body)`;
+
 const PAGE_STATE = `(() => {
     if (location.protocol !== "https:" && location.protocol !== "http:") return "loading";
     if (location.hostname !== "discord.com") return "away";
     const path = location.pathname.replace(/\\/$/, "");
     if (path === ${JSON.stringify(SHARED_MEMORIES_PATH)}) {
-        return document.querySelector("textarea") ? "forum" : "loading";
+        if (${HEADER_TEXTAREA}) return "forum";
+        const scrolled = [...document.querySelectorAll("*")].filter((node) => node.scrollTop > 0 && node.scrollHeight > node.clientHeight);
+        scrolled.sort((a, b) => b.scrollHeight - a.scrollHeight);
+        if (scrolled.length) scrolled[0].scrollTop = 0;
+        return "loading";
     }
     if (path.startsWith(${JSON.stringify(SHARED_MEMORIES_PATH)})) return "loading";
     if (path.includes("/login") || path.startsWith("/invite/") || path.startsWith("/app/invite") || path === "/register") return "entry";
@@ -45,7 +52,7 @@ const PAGE_STATE = `(() => {
 })()`;
 
 const FIND_FORM = `
-    const title = document.querySelector("textarea");
+    const title = ${HEADER_TEXTAREA};
     const climb = (test) => {
         let node = title;
         for (let i = 0; i < 14 && node; i++) {
@@ -69,11 +76,11 @@ const FORM_STATE = `(() => {
         copy.querySelectorAll("[data-slate-placeholder],[contenteditable=false]").forEach((node) => node.remove());
         typed = (copy.textContent || "").replace(/\\uFEFF/g, "").trim();
     }
-    return { open: true, title: title.value, typed, attached: !tight && !!form.querySelector("[src^='blob:']") };
+    return { open: true, title: title.value, typed, input: !!tight, attached: !tight && !!form.querySelector("[src^='blob:']") };
 })()`;
 
 const PRESS_NEW_POST = `(() => {
-    let node = document.querySelector("textarea");
+    let node = ${HEADER_TEXTAREA};
     for (let i = 0; i < 6 && node; i++) {
         node = node.parentElement;
         const buttons = node ? node.querySelectorAll("button") : [];
@@ -94,8 +101,16 @@ function inTightForm(select: string): string {
 }
 
 const FORM_READY = inTightForm("true");
-const FOCUS_TITLE = inTightForm(`(title.focus(), true)`);
-const FOCUS_CAPTION = inTightForm(`(editor.focus(), true)`);
+function inForm(select: string): string {
+    return `(() => {
+        ${FIND_FORM}
+        if (!editor) return null;
+        return ${select};
+    })()`;
+}
+
+const FOCUS_TITLE = inForm(`(title.focus(), true)`);
+const FOCUS_CAPTION = inForm(`(editor.focus(), true)`);
 const FILE_INPUT = inTightForm(`tight.querySelector("input[type=file]")`);
 
 const CHIP_SCOPE = `
@@ -108,8 +123,13 @@ function pressTags(names: string[]): string {
     return `(() => {
         ${CHIP_SCOPE}
         if (!scope) return null;
+        const wanted = ${JSON.stringify(names)};
         const chips = [...scope.querySelectorAll("[aria-pressed]")];
-        for (const name of ${JSON.stringify(names)}) {
+        for (const chip of chips) {
+            const name = (chip.innerText || "").trim();
+            if (name && chip.getAttribute("aria-pressed") === "true" && !wanted.includes(name)) chip.click();
+        }
+        for (const name of wanted) {
             const found = chips.filter((chip) => (chip.innerText || "").trim() === name);
             if (found.length === 1 && found[0].getAttribute("aria-pressed") !== "true") found[0].click();
         }
@@ -124,6 +144,7 @@ function filledState(names: string[]): string {
         const pressed = [...scope.querySelectorAll("[aria-pressed=true]")].map((chip) => (chip.innerText || "").trim());
         const post = scope.querySelector("button[type=submit]");
         return {
+            title: title ? title.value : null,
             tags: ${JSON.stringify(names)}.every((name) => pressed.includes(name)),
             postEnabled: !!post && !post.disabled
         };
@@ -134,9 +155,33 @@ function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+const HOLD_POST = `(() => {
+    if (!document.getElementById("cheevodeck-hold")) {
+        const style = document.createElement("style");
+        style.id = "cheevodeck-hold";
+        style.textContent = "button[type=submit] { pointer-events: none !important; opacity: 0.4 !important; }";
+        document.head.appendChild(style);
+    }
+    return true;
+})()`;
+const RELEASE_POST = `(() => {
+    const style = document.getElementById("cheevodeck-hold");
+    if (style) style.remove();
+    return true;
+})()`;
+
 async function evaluate(view: LiveView, expression: string): Promise<any> {
     const result = await view.session.command("Runtime.evaluate", { expression, returnByValue: true });
     return result?.result?.value ?? null;
+}
+
+async function pressKey(view: LiveView, key: string, code: string, keyCode: number, extra: Record<string, unknown> = {}) {
+    await view.session.command("Input.dispatchKeyEvent", { type: "rawKeyDown", key, code, windowsVirtualKeyCode: keyCode, ...extra });
+    await view.session.command("Input.dispatchKeyEvent", { type: "keyUp", key, code, windowsVirtualKeyCode: keyCode, ...extra });
+}
+
+function selectAll(view: LiveView) {
+    return pressKey(view, "a", "KeyA", 65, { modifiers: 2, commands: ["selectAll"] });
 }
 
 function toast(body: string, vars?: Record<string, string | number>) {
@@ -196,7 +241,16 @@ class ForumWatch {
         this.known = new Set(liveViews().map((view) => view.tabId));
     }
 
-    async start(language: LanguageCode) {
+    async start(language: LanguageCode, opened?: () => void) {
+        try {
+            await this.open(language);
+        }
+        finally {
+            opened?.();
+        }
+    }
+
+    private async open(language: LanguageCode) {
         let forumTab: BrowserTab | null = null;
         try {
             const listed = await getBrowserTabs();
@@ -228,7 +282,7 @@ class ForumWatch {
         else {
             openBrowserModal(language, SHARED_MEMORIES_CHANNEL_URL);
         }
-        this.schedule(POLL_MS);
+        this.schedule(FIRST_POLL_MS);
     }
 
     stop(reason: string) {
@@ -358,10 +412,12 @@ type Pending = {
     share: DiscordShare;
     watch: ForumWatch;
     draftToasted: boolean;
+    reloaded: boolean;
     filling: boolean;
 };
 
 let pending: Pending | null = null;
+let lastFilledTitle = "";
 let postWatch: number | null = null;
 
 function endPostWatch() {
@@ -375,7 +431,7 @@ function discard(filePath: string) {
     discardMemoryShare(filePath).catch((e) => logError("discord share: couldn't discard the share file", e));
 }
 
-export function startDiscordShare(language: LanguageCode, share: DiscordShare): void {
+export function startDiscordShare(language: LanguageCode, share: DiscordShare, opened?: () => void): void {
     const previous = pending;
     pending = null;
     previous?.watch.stop("replaced");
@@ -397,17 +453,17 @@ export function startDiscordShare(language: LanguageCode, share: DiscordShare): 
             }
         }
     );
-    entry = { share, watch, draftToasted: false, filling: false };
+    entry = { share, watch, draftToasted: false, reloaded: false, filling: false };
     pending = entry;
     logFocusDebug("discord-share", "started", `${share.title} tags=${share.tags.join(",")}`);
-    void watch.start(language);
+    void watch.start(language, opened);
 }
 
 async function onSharePoll(entry: Pending, view: LiveView, state: PageState): Promise<boolean> {
     if (state !== "forum" || entry.filling) {
         return false;
     }
-    let form: { open: boolean; title?: string; typed?: string; attached?: boolean } | null = null;
+    let form: { open: boolean; title?: string; typed?: string; input?: boolean; attached?: boolean } | null = null;
     try {
         form = await evaluate(view, FORM_STATE);
     }
@@ -418,23 +474,41 @@ async function onSharePoll(entry: Pending, view: LiveView, state: PageState): Pr
         return true;
     }
     if (form?.open && (form.title?.trim() || form.typed || form.attached)) {
-        if (!entry.draftToasted) {
-            entry.draftToasted = true;
-            toast("Discard your Discord draft and CheevoDeck will fill in your post.");
+        const leftover = Boolean(form.typed?.includes(SHARE_CREDIT_TEXT)
+            || (lastFilledTitle && form.title?.trim() === lastFilledTitle));
+        if (leftover && !entry.reloaded) {
+            entry.reloaded = true;
+            await evaluate(view, HOLD_POST).catch(() => null);
+            logFocusDebug("discord-share", "reloading to drop an earlier share's attachment", form.title ?? "");
+            view.host.loadUrl(SHARED_MEMORIES_CHANNEL_URL);
+            return false;
         }
-        return false;
+        if (!leftover || form.attached || !form.input) {
+            if (!entry.draftToasted) {
+                entry.draftToasted = true;
+                toast("Discard your Discord draft and CheevoDeck will fill in your post.");
+            }
+            return false;
+        }
+        entry.filling = true;
+        logFocusDebug("discord-share", "replacing an earlier share's draft", form.title ?? "");
+        await fill(entry, view, true, true);
+        return true;
     }
     entry.filling = true;
-    await fill(entry, view, Boolean(form?.open));
+    await fill(entry, view, Boolean(form?.open), false);
     return true;
 }
 
-async function fill(entry: Pending, view: LiveView, alreadyOpen: boolean) {
+async function fill(entry: Pending, view: LiveView, alreadyOpen: boolean, replace: boolean) {
     const { share } = entry;
     let missed = "";
     let attached = false;
     const keyboardHold = view.host.holdPageKeyboard();
     try {
+        if (replace) {
+            await evaluate(view, HOLD_POST);
+        }
         await disarmFileChooser(view);
         if (!alreadyOpen && !(await evaluate(view, PRESS_NEW_POST))) {
             missed = "new post";
@@ -453,15 +527,25 @@ async function fill(entry: Pending, view: LiveView, alreadyOpen: boolean) {
         }
         if (!missed) {
             if (await evaluate(view, FOCUS_TITLE)) {
+                if (replace) {
+                    await selectAll(view);
+                }
                 await view.session.command("Input.insertText", { text: share.title });
+                lastFilledTitle = share.title;
             }
             else {
                 missed = "title";
             }
         }
-        if (!missed && share.message) {
+        if (!missed && (share.message || replace)) {
             if (await evaluate(view, FOCUS_CAPTION)) {
-                await view.session.command("Input.insertText", { text: share.message });
+                if (replace) {
+                    await selectAll(view);
+                    await pressKey(view, "Backspace", "Backspace", 8);
+                }
+                if (share.message) {
+                    await view.session.command("Input.insertText", { text: share.message });
+                }
             }
             else {
                 missed = "caption";
@@ -486,6 +570,9 @@ async function fill(entry: Pending, view: LiveView, alreadyOpen: boolean) {
             if (!filled?.tags || !filled?.postEnabled) {
                 missed = "tags";
             }
+            else if (replace && filled.title !== share.title) {
+                missed = "title";
+            }
         }
     }
     catch (e) {
@@ -494,6 +581,9 @@ async function fill(entry: Pending, view: LiveView, alreadyOpen: boolean) {
     }
     finally {
         view.host.releasePageKeyboard(keyboardHold);
+        if (replace) {
+            await evaluate(view, RELEASE_POST).catch((e) => logError("discord share: couldn't give Post back", e));
+        }
     }
 
     if (pending !== entry) {
