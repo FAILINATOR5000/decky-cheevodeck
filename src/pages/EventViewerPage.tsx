@@ -16,6 +16,7 @@ import { EventViewerHeader, type EventHeaderButton } from "../components/events/
 import { useEvents } from "../components/events/EventsContext";
 import { AotwView, type AotwViewProps } from "../components/events/AotwView";
 import { useEventViewerController } from "../hooks/useEventViewerController";
+import { useFocusClaim } from "../hooks/useFocusClaim";
 import { useThreadSubscription } from "../hooks/useThreadSubscription";
 import { localizeRuntimeText, t, type LanguageCode } from "../locales";
 import type { AchievementRow, EventViewerTab, EventViewerTarget, GameComment, ViewKey } from "../types";
@@ -23,7 +24,7 @@ import type { SavedCommentSourceInput } from "../utils/savedComments";
 import { gameCommentSource } from "../utils/savedComments";
 import { unlockedHardcore } from "../utils/achievements";
 import { canMarkComplete, checklistCards, checklistMasteryMarkable, checklistPoints, eventCompletion, EVENTS_CONSOLE_NAME } from "../utils/events";
-import { armEventViewerRowReturn, takeEventViewerRowReturn } from "../utils/eventViewerFocusReturn";
+import { armEventViewerButtonReturn, armEventViewerRowReturn, takeEventViewerReturn } from "../utils/eventViewerFocusReturn";
 import {
     clearCommentsSnapshot,
     hasCommentsPostReturnFor,
@@ -113,12 +114,14 @@ function EventView(props: { state: EventViewState; actions: EventViewerPageActio
         }
     }, []);
 
-    const [restoreRowId] = useState(() => takeEventViewerRowReturn(eventGameId, events.state.owner));
+    const [restore] = useState(() => takeEventViewerReturn(eventGameId, events.state.owner));
+    const restoreRowId = restore?.achievementId ?? null;
+    const restoreButtonKey = restore?.buttonKey ?? null;
     const [commentsRestore] = useState(() =>
         hasCommentsSnapshotFor("comments:event", eventGameId) || hasCommentsPostReturnFor("comments:event", eventGameId)
     );
     const [rowRestoreSettled, setRowRestoreSettled] = useState(restoreRowId === null);
-    const restorePending = restoreRowId !== null || commentsRestore;
+    const restorePending = restoreRowId !== null || restoreButtonKey !== null || commentsRestore;
 
     const row = events.state.events?.find((entry) => entry.gameId === eventGameId) ?? null;
     const detail = viewer.detail;
@@ -279,20 +282,50 @@ function EventView(props: { state: EventViewState; actions: EventViewerPageActio
         buttons.push({
             key: "thread",
             label: t(language, "Event Thread"),
-            onClick: () => void openExternalUrl(raForumTopicUrl(forumTopicId))
+            onClick: () => openHeaderLink("thread", raForumTopicUrl(forumTopicId))
         });
     }
     if (detail?.infoUrl) {
         const infoUrl = detail.infoUrl;
-        buttons.push({ key: "info", label: t(language, "More Info"), onClick: () => void openExternalUrl(infoUrl) });
+        buttons.push({ key: "info", label: t(language, "More Info"), onClick: () => openHeaderLink("info", infoUrl) });
     }
     for (const [index, link] of (detail?.links ?? []).entries()) {
         buttons.push({
             key: `link:${index}`,
             label: link.label || t(language, "Open Sheet"),
-            onClick: () => void openExternalUrl(link.url)
+            onClick: () => openHeaderLink(`link:${index}`, link.url)
         });
     }
+
+    function openHeaderLink(key: string, url: string) {
+        armEventViewerButtonReturn(eventGameId, key, events.state.owner);
+        void openExternalUrl(url);
+    }
+
+    const buttonClaim = useFocusClaim();
+    const [buttonRestoreSettled, setButtonRestoreSettled] = useState(restoreButtonKey === null);
+    const buttonFiredRef = useRef(false);
+    const buttonsKnown = viewer.detailLoaded && events.state.events !== null;
+    const restoreButtonIndex = restoreButtonKey === null ? -1 : buttons.findIndex((button) => button.key === restoreButtonKey);
+    useEffect(() => {
+        if (restoreButtonKey === null || buttonFiredRef.current || !buttonsKnown) {
+            return;
+        }
+        buttonFiredRef.current = true;
+        if (restoreButtonIndex < 0) {
+            setButtonRestoreSettled(true);
+            actions.onRequestFocus("eventviewer:back");
+            return;
+        }
+        buttonClaim.claimSlot(restoreButtonIndex);
+        actions.onRequestFocus(`eventviewer:${restoreButtonKey}`);
+    }, [buttonsKnown, restoreButtonIndex]);
+    const buttonClaimSpent = buttonFiredRef.current && (buttonClaim.claim?.token ?? 0) > 0 && !buttonClaim.claim?.armed;
+    useEffect(() => {
+        if (buttonClaimSpent) {
+            setButtonRestoreSettled(true);
+        }
+    }, [buttonClaimSpent]);
 
     const { isSubscribed, subscribeError, onToggleSubscribe } = useThreadSubscription({
         language,
@@ -362,7 +395,7 @@ function EventView(props: { state: EventViewState; actions: EventViewerPageActio
     const commentsSettled = !commentsRestore
         || ((commentClaim?.token ?? 0) > 0 && !commentClaim?.armed);
     const curtainArmed = restorePending && !state.panelOverlayVisible;
-    const curtainSettled = (rowRestoreSettled || tab !== "achievements") && commentsSettled;
+    const curtainSettled = (rowRestoreSettled || tab !== "achievements") && buttonRestoreSettled && commentsSettled;
 
     const commentsEmpty = comments.commentsLoaded && comments.comments.length === 0 && !comments.commentsError;
 
@@ -496,6 +529,7 @@ function EventView(props: { state: EventViewState; actions: EventViewerPageActio
                         progressFraction={progressFraction}
                         progressPending={progressPending}
                         buttons={buttons}
+                        buttonClaim={buttonClaim}
                         tabs={tabs}
                     />
                     {tab === "achievements" && checklist && (

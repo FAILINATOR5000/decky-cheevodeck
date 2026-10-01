@@ -3,7 +3,9 @@ import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 import { FadeImage } from "../ui/FadeImage";
 import { ProgressBar } from "../ui/ProgressBar";
 import { AwardStamp } from "../achievements/AwardStamp";
+import { ClaimedRow } from "./ClaimedRow";
 import { prefetchGameIcons } from "../../api";
+import type { FocusClaimController } from "../../hooks/useFocusClaim";
 import { useGameIcon } from "../../hooks/useGameIcon";
 import { t, type LanguageCode } from "../../locales";
 import type { EventCompletion, EventListRow } from "../../types";
@@ -31,6 +33,7 @@ type EventViewerHeaderProps = {
     progressFraction: number | null;
     progressPending: boolean;
     buttons: EventHeaderButton[];
+    buttonClaim: FocusClaimController;
     tabs: ReactNode;
 };
 
@@ -44,6 +47,8 @@ const gridButtonStyle = {
     fontSize: "13px",
     fontWeight: 600
 };
+
+const claimCellStyle = { display: "flex", flex: 1, minWidth: 0 };
 
 export function EventViewerHeader(props: EventViewerHeaderProps) {
     const { language, row } = props;
@@ -151,9 +156,11 @@ export function EventViewerHeader(props: EventViewerHeaderProps) {
                             gridColumn: index === props.buttons.length - 1 && index % 2 === 0 ? "1 / -1" : undefined
                         }}
                     >
-                        <DialogButton onClick={button.onClick} style={gridButtonStyle}>
-                            {button.label}
-                        </DialogButton>
+                        <ClaimedRow claim={props.buttonClaim} slotIndex={index} style={claimCellStyle}>
+                            <DialogButton onClick={button.onClick} style={gridButtonStyle}>
+                                {button.label}
+                            </DialogButton>
+                        </ClaimedRow>
                     </div>
                 ))}
                 {props.tabs}
