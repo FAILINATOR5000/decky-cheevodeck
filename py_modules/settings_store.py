@@ -237,6 +237,8 @@ QUICK_MENU_SHORTCUT_LIMIT = 8
 
 QUICK_MENU_SHORTCUTS_VERSION = 2
 
+SHORTCUT_BINDINGS_VERSION = 2
+
 
 _ALLOWED_SHORTCUT_BUTTONS = ("menu", "view", "l3", "r3", "l4", "l5", "r4", "r5")
 
@@ -287,12 +289,12 @@ def _default_shortcut_bindings() -> dict:
     return {
         "menu": "notifications",
         "view": "pageUp",
-        "l3": "none",
-        "r3": "none",
-        "l4": "none",
-        "l5": "none",
+        "l3": "search",
+        "r3": "home",
+        "l4": "lastMemory",
+        "l5": "memories",
         "r4": "browser",
-        "r5": "none",
+        "r5": "currentGuide",
     }
 
 
@@ -441,6 +443,7 @@ _KNOBS = (
     Knob("quickMenuShortcuts", factory=_default_quick_menu_shortcuts, normalize=True),
     Knob("quickMenuShortcutsVersion", default=QUICK_MENU_SHORTCUTS_VERSION, reset=False, ship=False),
     Knob("shortcutBindings", factory=_default_shortcut_bindings, normalize=True),
+    Knob("shortcutBindingsVersion", default=SHORTCUT_BINDINGS_VERSION, reset=False, ship=False),
     Knob("lastScalePreset", default="portable", normalize=True),
     Knob("showAllToggleMain", default=False, normalize=True),
     Knob("showAllToggleFriend", default=False, normalize=True),
@@ -4001,6 +4004,22 @@ class SettingsStore:
 
             cfg["quickMenuShortcuts"] = _default_quick_menu_shortcuts()
             cfg["quickMenuShortcutsVersion"] = QUICK_MENU_SHORTCUTS_VERSION
+            cfg = self.ensure_display_settings(cfg)
+            self.save_config(cfg)
+
+            return True
+
+    def get_shortcut_bindings_version(self, cfg: dict) -> int:
+        return to_int(cfg.get("shortcutBindingsVersion"), 1)
+
+    def reset_outdated_shortcut_bindings(self) -> bool:
+        with self._config_lock:
+            cfg = self.ensure_display_settings(self.load_config())
+            if self.get_shortcut_bindings_version(cfg) >= SHORTCUT_BINDINGS_VERSION:
+                return False
+
+            cfg["shortcutBindings"] = _default_shortcut_bindings()
+            cfg["shortcutBindingsVersion"] = SHORTCUT_BINDINGS_VERSION
             cfg = self.ensure_display_settings(cfg)
             self.save_config(cfg)
 

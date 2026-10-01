@@ -62,6 +62,15 @@ class RepairService:
                 type(e).__name__,
             )
 
+        try:
+            if self._settings_store.reset_outdated_shortcut_bindings():
+                fixed.append("shortcut_bindings")
+        except Exception as e:
+            decky.logger.warning(
+                "repair: shortcut bindings reset failed: %s",
+                type(e).__name__,
+            )
+
         if fixed:
             decky.logger.info("repair: fixed %s", ", ".join(fixed))
         return {"fixed": fixed}

@@ -345,12 +345,12 @@ const SHORTCUT_ACTIONS: { id: ShortcutAction; labelKey: string }[] = [
 export const DEFAULT_SHORTCUT_BINDINGS: Record<ShortcutButton, ShortcutAction> = {
     menu: "notifications",
     view: "pageUp",
-    l3: "none",
-    r3: "none",
-    l4: "none",
-    l5: "none",
+    l3: "search",
+    r3: "home",
+    l4: "lastMemory",
+    l5: "memories",
     r4: "browser",
-    r5: "none"
+    r5: "currentGuide"
 };
 
 export function shortcutButtonLabel(value: ShortcutButton, language: LanguageCode = DEFAULT_LANGUAGE) {
