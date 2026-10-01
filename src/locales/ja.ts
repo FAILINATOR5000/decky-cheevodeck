@@ -230,6 +230,7 @@ const JA: LocaleTable = {
     "Mapped Shortcuts": "ボタン割り当て",
     "help_mapped_shortcuts": "コントローラーのボタンに操作やショートカットを割り当てます。",
     "Make Back Buttons Global": "背面ボタンをグローバルにする",
+    "Global Back Buttons": "グローバル背面ボタン",
     "help_back_buttons_global": "Steam Controller または Steam Deck 内蔵コントローラーの L4・L5・R4・R5 ボタンを、* の付いた操作でプラグインの外でも使えるようにします。",
     "*Supported for Make Back Buttons Global": "*「背面ボタンをグローバルにする」に対応",
     "View Last Memory": "最新の思い出を見る",

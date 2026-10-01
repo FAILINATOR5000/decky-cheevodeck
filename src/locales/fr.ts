@@ -230,6 +230,7 @@ const FR: LocaleTable = {
     "Mapped Shortcuts": "Raccourcis assignés",
     "help_mapped_shortcuts": "Assigne des actions et des raccourcis aux boutons de ta manette.",
     "Make Back Buttons Global": "Rendre les boutons arrière globaux",
+    "Global Back Buttons": "Boutons arrière globaux",
     "help_back_buttons_global": "Permet aux boutons L4, L5, R4 et R5 de ton Steam Controller ou de la manette intégrée du Steam Deck de fonctionner hors du plugin pour les actions marquées d'un *.",
     "*Supported for Make Back Buttons Global": "*Pris en charge par « Rendre les boutons arrière globaux »",
     "View Last Memory": "Voir le dernier souvenir",

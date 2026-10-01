@@ -8,6 +8,7 @@ import { openCalculatorModal } from "../components/calculator/CalculatorModal";
 import { openBrowserModal } from "../components/browser/BrowserModal";
 import { ButtonHints } from "../components/ui/ButtonHints";
 import { playOkSound } from "../utils/navSound";
+import { forgetNavAxisMemory, type NavAxisRef } from "../utils/navAxisMemory";
 import { AwardStatusBadge } from "../components/achievements/AwardStatusBadge";
 import { ErrorText } from "../components/ui/ErrorText";
 import { FadeImage } from "../components/ui/FadeImage";
@@ -290,6 +291,21 @@ function KeyboardIcon(props: { size?: number }) {
 }
 
 // Font Awesome Free icon path, CC BY 4.0. See ATTRIBUTIONS.md.
+function OutsideIcon(props: { size?: number }) {
+    const size = props.size ?? 18;
+    return (
+        <svg
+            viewBox="0 0 512 512"
+            width={size}
+            height={size}
+            fill="currentColor"
+        >
+            <path d="M432,320H400a16,16,0,0,0-16,16V448H64V128H208a16,16,0,0,0,16-16V80a16,16,0,0,0-16-16H48A48,48,0,0,0,0,112V464a48,48,0,0,0,48,48H400a48,48,0,0,0,48-48V336A16,16,0,0,0,432,320ZM488,0h-128c-21.37,0-32.05,25.91-17,41l35.73,35.73L135,320.37a24,24,0,0,0,0,34L157.67,377a24,24,0,0,0,34,0L435.28,133.32,471,169c15,15,41,4.5,41-17V24A24,24,0,0,0,488,0Z" />
+        </svg>
+    );
+}
+
+// Font Awesome Free icon path, CC BY 4.0. See ATTRIBUTIONS.md.
 function GearIcon(props: { size?: number }) {
     const size = props.size ?? 18;
     return (
@@ -470,7 +486,7 @@ type StripButtonId =
     | "profile" | "quickmenu" | "quickguide" | "notifications"
     | "useraccounts" | "utilities" | "trackedsets" | "socialhub" | "options" | "about"
     | "refresh" | "news" | "events" | "newsets" | "subscribeddiscussions" | "savedcomments"
-    | "dnd" | "nightmode" | "batterysaver" | "mkmode"
+    | "dnd" | "nightmode" | "batterysaver" | "backbuttons" | "mkmode"
     | QuickMenuShortcut;
 
 type QuickMenuEntry = {
@@ -601,6 +617,7 @@ type MainAchievementsPageProps = {
         doNotDisturb: boolean;
         batterySaver: boolean;
         mouseKeyboardMode: boolean;
+        backButtonsGlobal: boolean;
         nowPlayingBody: NowPlayingTabBodyProps;
     };
     actions: {
@@ -644,6 +661,7 @@ type MainAchievementsPageProps = {
         onToggleDoNotDisturb: (next: boolean) => void | Promise<void>;
         onToggleBatterySaver: (next: boolean) => void | Promise<void>;
         onToggleMouseKeyboardMode: (next: boolean) => void | Promise<void>;
+        onToggleBackButtonsGlobal: (next: boolean) => void | Promise<void>;
         onOpenGameSearch: () => void;
         onSpendMainStripClaim: () => void;
     };
@@ -913,6 +931,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
             doNotDisturb,
             batterySaver,
             mouseKeyboardMode,
+            backButtonsGlobal,
             nowPlayingBody
         },
         actions: {
@@ -956,6 +975,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
             onToggleDoNotDisturb,
             onToggleBatterySaver,
             onToggleMouseKeyboardMode,
+            onToggleBackButtonsGlobal,
             onOpenGameSearch,
             onSpendMainStripClaim
         }
@@ -1020,6 +1040,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
         useState<StripButtonId | null>(null);
 
     const [quickMenuExpanded, setQuickMenuExpanded] = useState(false);
+    const quickMenuNavRef = useRef(null) as NavAxisRef;
     const tabBodyRef = useRef<HTMLDivElement | null>(null);
     const [heldBodyHeight, setHeldBodyHeight] = useState<number | null>(null);
     const releaseHeldBodyHeightRef = useRef<(() => void) | null>(null);
@@ -1159,6 +1180,11 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
         setFocusedStripButton(id);
     }
 
+    function focusDrawerButton(id: StripButtonId) {
+        forgetNavAxisMemory(quickMenuNavRef);
+        focusStripButton(id);
+    }
+
     function blurStripButton(id: StripButtonId) {
         setFocusedStripButton((current) => current === id ? null : current);
     }
@@ -1175,8 +1201,9 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
     const pillLabelKey = previewStripButton === "dnd" ? "Do Not Disturb"
         : previewStripButton === "nightmode" ? "Night Mode"
             : previewStripButton === "batterysaver" ? "Standby"
-                : previewStripButton === "mkmode" ? "Mouse & Keyboard Mode"
-                    : null;
+                : previewStripButton === "backbuttons" ? "Global Back Buttons"
+                    : previewStripButton === "mkmode" ? "Mouse & Keyboard Mode"
+                        : null;
     const topRowMenuLabel = pillLabelKey
         ? t(language, pillLabelKey)
         : (focusedTopRowEntry ? t(language, focusedTopRowEntry.labelKey) : "");
@@ -1208,7 +1235,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
     }
 
     function renderStatePill(
-        id: Extract<StripButtonId, "dnd" | "nightmode" | "batterysaver" | "mkmode">,
+        id: Extract<StripButtonId, "dnd" | "nightmode" | "batterysaver" | "backbuttons" | "mkmode">,
         icon: ReactNode,
         on: boolean,
         onToggle: (nextValue: boolean) => void | Promise<void>
@@ -1227,18 +1254,18 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
             >
                 <DialogButton
                     onClick={() => { void onToggle(!on); }}
-                    onGamepadFocus={() => focusStripButton(id)}
+                    onGamepadFocus={() => focusDrawerButton(id)}
                     onGamepadBlur={() => blurStripButton(id)}
                     disabled={saving || loading}
                     style={{
                         minWidth: 0,
-                        width: "58px",
+                        width: "36px",
                         height: "36px",
                         padding: "2px",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        borderRadius: "999px",
+                        borderRadius: "50%",
                         background: on ? skyBlue : undefined,
                         opacity: on || previewed ? 1 : 0.82,
                         boxShadow: previewed
@@ -1321,7 +1348,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
             >
                 <DialogButton
                     onClick={() => pressShortcut(entry.id)}
-                    onGamepadFocus={() => focusStripButton(entry.id)}
+                    onGamepadFocus={() => focusDrawerButton(entry.id)}
                     onGamepadBlur={() => blurStripButton(entry.id)}
                     disabled={saving || loading}
                     style={{
@@ -1420,7 +1447,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                             return;
                         }
                     }}
-                    onGamepadFocus={() => focusStripButton(entry.id)}
+                    onGamepadFocus={() => focusDrawerButton(entry.id)}
                     onGamepadBlur={() => blurStripButton(entry.id)}
                     disabled={saving || loading}
                     style={{
@@ -2122,29 +2149,8 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                 </FocusableItem>
                             </PanelSectionRow>
                             <Focusable
-                                flow-children="row"
-                                navEntryPreferPosition={NAV_ENTER_MAINTAIN_X}
-                                style={{
-                                    display: "flex",
-                                    flexDirection: "row",
-                                    justifyContent: "center",
-                                    gap: "8px",
-                                    marginTop: "2px"
-                                }}
-                            >
-                                {renderStatePill("dnd", <BellSlashIcon size={18} />, doNotDisturb, onToggleDoNotDisturb)}
-                                {renderStatePill("nightmode", <MoonIcon size={18} />, nightMode, onToggleNightMode)}
-                                {renderStatePill("batterysaver", <StandbyIcon size={18} />, batterySaver, onToggleBatterySaver)}
-                                {renderStatePill("mkmode", <KeyboardIcon size={18} />, mouseKeyboardMode, onToggleMouseKeyboardMode)}
-                            </Focusable>
-                            {batterySaver && (
-                                <InfoText centered>
-                                    {t(language, "Background services paused")}
-                                </InfoText>
-                            )}
-                            {renderQuickMenuCaption(topRowMenuLabel, "0px", "0px")}
-                            <Focusable
                                 flow-children="grid"
+                                navRef={quickMenuNavRef}
                                 navEntryPreferPosition={NAV_ENTER_MAINTAIN_X}
                                 style={{
                                     display: "grid",
@@ -2155,6 +2161,27 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                     marginTop: "2px"
                                 }}
                             >
+                                <div style={{ gridColumn: "1 / -1", marginBottom: "2px" }}>
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            flexDirection: "row",
+                                            justifyContent: "space-between"
+                                        }}
+                                    >
+                                        {renderStatePill("dnd", <BellSlashIcon size={18} />, doNotDisturb, onToggleDoNotDisturb)}
+                                        {renderStatePill("nightmode", <MoonIcon size={18} />, nightMode, onToggleNightMode)}
+                                        {renderStatePill("batterysaver", <StandbyIcon size={18} />, batterySaver, onToggleBatterySaver)}
+                                        {renderStatePill("backbuttons", <OutsideIcon size={18} />, backButtonsGlobal, onToggleBackButtonsGlobal)}
+                                        {renderStatePill("mkmode", <KeyboardIcon size={18} />, mouseKeyboardMode, onToggleMouseKeyboardMode)}
+                                    </div>
+                                    {batterySaver && (
+                                        <InfoText centered>
+                                            {t(language, "Background services paused")}
+                                        </InfoText>
+                                    )}
+                                    {renderQuickMenuCaption(topRowMenuLabel, "0px", "0px")}
+                                </div>
                                 {QUICK_MENU_TOP_ROW.map((entry) => renderQuickMenuTile(entry))}
                                 {QUICK_MENU_BOTTOM_ROW.map((entry) => renderQuickMenuTile(entry, QUICK_MENU_ROW_GAP))}
                                 <div
@@ -2170,7 +2197,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                 >
                                     <DialogButton
                                         onClick={() => handleManualRefresh()}
-                                        onGamepadFocus={() => focusStripButton("refresh")}
+                                        onGamepadFocus={() => focusDrawerButton("refresh")}
                                         onGamepadBlur={() => blurStripButton("refresh")}
                                         disabled={saving || loading}
                                         style={{

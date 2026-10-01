@@ -4825,6 +4825,7 @@ function AchievementsRoot() {
                                     nightMode,
                                     batterySaver,
                                     mouseKeyboardMode,
+                                    backButtonsGlobal: optionsState.backButtonsGlobal,
                                     nowPlayingBody: nowPlayingBodyProps
                                 }}
                                 actions={{
@@ -4868,6 +4869,7 @@ function AchievementsRoot() {
                                     onToggleDoNotDisturb: toggleDoNotDisturb,
                                     onToggleBatterySaver: toggleBatterySaver,
                                     onToggleMouseKeyboardMode: toggleMouseKeyboardMode,
+                                    onToggleBackButtonsGlobal: optionsActions.onToggleBackButtonsGlobal,
                                     onOpenGameSearch: openGameSearch,
                                     onSpendMainStripClaim: spendMainStripClaim,
                                     onViewGameOverview: () => {

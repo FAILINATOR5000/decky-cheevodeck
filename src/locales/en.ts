@@ -230,6 +230,7 @@ export const EN: LocaleTable = {
     "Mapped Shortcuts": "Mapped Shortcuts",
     "help_mapped_shortcuts": "Map actions/shortcuts to your controller buttons.",
     "Make Back Buttons Global": "Make Back Buttons Global",
+    "Global Back Buttons": "Global Back Buttons",
     "help_back_buttons_global": "Allows the L4, L5, R4 and R5 buttons on your Steam Controller or built-in Steam Deck controller to work outside the plugin for actions marked with *.",
     "*Supported for Make Back Buttons Global": "*Supported for Make Back Buttons Global",
     "View Last Memory": "View Last Memory",

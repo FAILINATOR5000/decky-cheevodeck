@@ -230,6 +230,7 @@ const PL: LocaleTable = {
     "Mapped Shortcuts": "Przypisane skróty",
     "help_mapped_shortcuts": "Przypisz akcje i skróty do przycisków kontrolera.",
     "Make Back Buttons Global": "Ustaw przyciski tylne jako globalne",
+    "Global Back Buttons": "Globalne przyciski tylne",
     "help_back_buttons_global": "Pozwala przyciskom L4, L5, R4 i R5 na Steam Controllerze lub wbudowanym kontrolerze Steam Decka działać poza wtyczką w akcjach oznaczonych *.",
     "*Supported for Make Back Buttons Global": "*Obsługiwane przez „Ustaw przyciski tylne jako globalne”",
     "View Last Memory": "Zobacz ostatnie wspomnienie",

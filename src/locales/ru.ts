@@ -230,6 +230,7 @@ const RU: LocaleTable = {
     "Mapped Shortcuts": "Назначенные кнопки",
     "help_mapped_shortcuts": "Назначь действия и ярлыки на кнопки контроллера.",
     "Make Back Buttons Global": "Сделать задние кнопки глобальными",
+    "Global Back Buttons": "Глобальные задние кнопки",
     "help_back_buttons_global": "Позволяет кнопкам L4, L5, R4 и R5 на Steam Controller или встроенном контроллере Steam Deck работать вне плагина для действий, отмеченных *.",
     "*Supported for Make Back Buttons Global": "*Поддерживается функцией «Сделать задние кнопки глобальными»",
     "View Last Memory": "Открыть последний момент",

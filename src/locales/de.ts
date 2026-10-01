@@ -230,6 +230,7 @@ const DE: LocaleTable = {
     "Mapped Shortcuts": "Tastenbelegung",
     "help_mapped_shortcuts": "Aktionen und Kürzel auf die Tasten deines Controllers legen.",
     "Make Back Buttons Global": "Rücktasten global machen",
+    "Global Back Buttons": "Globale Rücktasten",
     "help_back_buttons_global": "Lässt die Tasten L4, L5, R4 und R5 deines Steam Controllers oder des eingebauten Steam Deck-Controllers bei Aktionen, die mit * markiert sind, auch außerhalb des Plugins arbeiten.",
     "*Supported for Make Back Buttons Global": "*Unterstützt von „Rücktasten global machen“",
     "View Last Memory": "Letzte Erinnerung ansehen",
