@@ -4,7 +4,7 @@ import { requestPanelEntry, takePanelEntry, type PanelEntry } from "./pendingPan
 
 let reportedMissingQuickAccess = false;
 
-function quickAccessWindow(): Window | null {
+export function quickAccessWindow(): Window | null {
     const tree = getGamepadNavigationTrees().find((t: any) => t?.id === "QuickAccess-NA");
     return tree?.m_Root?.m_element?.ownerDocument?.defaultView ?? null;
 }

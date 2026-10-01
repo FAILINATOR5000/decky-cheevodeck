@@ -245,6 +245,8 @@ const PL: LocaleTable = {
     "help_recovery_button_combo": "Gdy interfejs Steam się zawiesi, przytrzymaj jednocześnie L4, L5, R4 i R5 przez 3 sekundy, aby uruchomić go ponownie. Interfejs Steam wczyta się ponownie z animacją startową, a gra będzie działać dalej; wybierz Wznów, aby do niej wrócić. Tylko Steam Deck i Steam Controller. Gdy ta opcja jest włączona, a menu szybkiego dostępu jest zamknięte, tylny przycisk naciśnięty podczas trzymania innego nie uruchamia swojego skrótu.",
     "Save Recovery Logs": "Zapisuj dzienniki odzyskiwania",
     "help_recovery_logs": "Zapisuje raport z każdego odzyskiwania w folderze dzienników wtyczki, w tym to, co robił interfejs Steam w chwili zawieszenia, i zapisuje szczegóły odzyskiwania w dzienniku wtyczki. Przydatne przy zgłaszaniu problemu. Gdy jest włączone, Steam ma trochę więcej pracy, więc poza tym zostaw to wyłączone.",
+    "Stormbreaker": "Stormbreaker",
+    "help_stormbreaker": "Zatrzymuje rzadkie zawieszanie się SteamOS, które może wystąpić przy otwieraniu menu szybkiego dostępu. Gdy się zaczyna, menu raz mignie i działa dalej, zamiast zawiesić interfejs Steam. Działa tylko w tym momencie i nie zmienia kodu Steam.",
     "Clear Recovery Logs": "Wyczyść dzienniki odzyskiwania",
     "help_clear_recovery_logs": "Usuwa wszystkie zapisane raporty odzyskiwania z folderu dzienników wtyczki.",
     "shortcut_button_menu": "Menu",

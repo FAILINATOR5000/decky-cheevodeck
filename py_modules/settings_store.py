@@ -408,6 +408,7 @@ _KNOBS = (
     Knob("automaticRecovery", default=True, normalize=True, read=READ_BOOL),
     Knob("recoveryButtonCombo", default=False, normalize=True, read=READ_BOOL),
     Knob("recoveryLogs", default=False, normalize=True, read=READ_BOOL),
+    Knob("stormbreaker", default=True, normalize=True, read=READ_BOOL),
     Knob("legacyCommentsLoading", default=False, normalize=True, read=READ_BOOL),
     Knob("showAllAchievements", default=True, normalize=True, read=READ_BOOL),
     Knob("unlockLookbackMinutes", from_attr="_recent_unlock_lookback_minutes", normalize=True),
@@ -2202,6 +2203,11 @@ class SettingsStore:
         cfg = self._update_config("recoveryLogs", bool(value))
 
         return bool(cfg.get("recoveryLogs", False))
+
+    def update_stormbreaker(self, value: bool) -> bool:
+        cfg = self._update_config("stormbreaker", bool(value))
+
+        return bool(cfg.get("stormbreaker", True))
 
     def update_legacy_comments_loading(self, value: bool) -> bool:
         cfg = self._update_config("legacyCommentsLoading", bool(value))

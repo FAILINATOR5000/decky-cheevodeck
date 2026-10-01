@@ -248,6 +248,7 @@ type OptionsPageState = {
     automaticRecovery: boolean;
     recoveryButtonCombo: boolean;
     recoveryLogs: boolean;
+    stormbreaker: boolean;
     libraryBadge: boolean;
     memoriesAutoCapture: boolean;
     memoriesDeleteSource: boolean;
@@ -500,6 +501,7 @@ type OptionsPageActions = {
     onToggleAutomaticRecovery: (nextValue: boolean) => void | Promise<void>;
     onToggleRecoveryButtonCombo: (nextValue: boolean) => void | Promise<void>;
     onToggleRecoveryLogs: (nextValue: boolean) => void | Promise<void>;
+    onToggleStormbreaker: (nextValue: boolean) => void | Promise<void>;
     onClearRecoveryLogs: () => void | Promise<void>;
     onToggleLibraryBadge: (nextValue: boolean) => void | Promise<void>;
     onToggleLegacyCommentsLoading: (nextValue: boolean) => void | Promise<void>;
@@ -2420,6 +2422,14 @@ function AdvancedTab(props: TabContentProps) {
     return (
         <>
             <SectionTitle label={t(state.language, "QAMGuard")} />
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                label={t(state.language, "Stormbreaker")}
+                value={state.stormbreaker}
+                onChange={actions.onToggleStormbreaker}
+                disabled={disabled}
+                help={t(state.language, "help_stormbreaker")}
+            />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
                 label={t(state.language, "Automatic Recovery")}

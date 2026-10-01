@@ -642,6 +642,20 @@ class OptionsMixin(PluginContext):
             "recoveryLogs": value,
         }
 
+    async def save_stormbreaker(self, stormbreaker: bool):
+        value = self.settings_store.update_stormbreaker(stormbreaker)
+
+        return {
+            "ok": True,
+            "stormbreaker": value,
+        }
+
+    async def log_stormbreaker_event(self, stage=None, extra=None):
+        stage_text = str(stage or "").strip() or "?"
+        extra_text = str(extra or "").strip()
+        decky.logger.info("stormbreaker: %s %s", stage_text, extra_text)
+        return {"ok": True}
+
     async def clear_recovery_logs(self):
         removed = await asyncio.to_thread(clear_captures)
         decky.logger.info("freeze capture: cleared %d recovery log folder(s)", removed)

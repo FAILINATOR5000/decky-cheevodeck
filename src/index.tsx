@@ -18,6 +18,7 @@ import { closeBrowserForUnload } from "./components/browser/BrowserModal";
 import { releaseWebBrowserActionset } from "./components/browser/browserViewHost";
 import { registerBrowserDownloads, unregisterBrowserDownloads } from "./components/browser/browserDownloads";
 import { registerGlobalBackButtons, unregisterGlobalBackButtons } from "./components/backButtons/globalBackButtons";
+import { setStormbreakerEnabled, uninstallStormbreaker } from "./utils/stormbreaker";
 
 const NOTIFICATION_EVENT = "cheevodeck_notification";
 
@@ -56,6 +57,7 @@ export default definePlugin(() => {
             }
             setDeviceIsSteamMachine(settings?.isSteamMachine ?? false);
             setClipMuted(Boolean(settings?.memoriesMuted ?? false));
+            setStormbreakerEnabled(Boolean(settings?.stormbreaker ?? true));
             setWebBrowserForLinks(settings?.linksOpenInWebBrowser ?? true);
             if (settings?.shortcutBindings) {
                 setSnapshotHotkey(settings.shortcutBindings);
@@ -96,6 +98,7 @@ export default definePlugin(() => {
             removeEventListener(AVATAR_HEALED_EVENT, onAvatarHealed);
             unregisterBrowserDownloads();
             unregisterGlobalBackButtons();
+            uninstallStormbreaker();
             disableLibraryBadge();
             unregisterScreenDarken();
             unregisterMemoryCapture();

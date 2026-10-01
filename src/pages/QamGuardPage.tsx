@@ -18,6 +18,7 @@ type QamGuardPageState = {
     automaticRecovery: boolean;
     recoveryButtonCombo: boolean;
     recoveryLogs: boolean;
+    stormbreaker: boolean;
 };
 
 type QamGuardPageActions = {
@@ -26,6 +27,7 @@ type QamGuardPageActions = {
     onToggleAutomaticRecovery: (nextValue: boolean) => void | Promise<void>;
     onToggleRecoveryButtonCombo: (nextValue: boolean) => void | Promise<void>;
     onToggleRecoveryLogs: (nextValue: boolean) => void | Promise<void>;
+    onToggleStormbreaker: (nextValue: boolean) => void | Promise<void>;
     onClearRecoveryLogs: () => void | Promise<void>;
 };
 
@@ -61,6 +63,14 @@ function QamGuardPage(props: QamGuardPageProps) {
                 scrollMarginTop={BACK_BUTTON_SCROLL_MARGIN_PX}
             />
 
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                label={t(state.language, "Stormbreaker")}
+                value={state.stormbreaker}
+                onChange={actions.onToggleStormbreaker}
+                disabled={disabled}
+                help={t(state.language, "help_stormbreaker")}
+            />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
                 label={t(state.language, "Automatic Recovery")}

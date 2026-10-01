@@ -245,6 +245,8 @@ const DE: LocaleTable = {
     "help_recovery_button_combo": "Wenn die Steam-Oberfläche einfriert, halte L4, L5, R4 und R5 zusammen 3 Sekunden lang gedrückt, um sie neu zu starten. Die Steam-Oberfläche lädt mit ihrer Startanimation neu, während dein Spiel weiterläuft; wähle „Fortsetzen“, um direkt weiterzuspielen. Nur Steam Deck und Steam Controller. Solange diese Option an ist und das Schnellzugriffsmenü geschlossen ist, löst eine hintere Taste, die gedrückt wird, während eine andere gehalten wird, ihre Belegung nicht aus.",
     "Save Recovery Logs": "Wiederherstellungsprotokolle speichern",
     "help_recovery_logs": "Speichert zu jeder Wiederherstellung einen Bericht im Log-Ordner des Plugins, einschließlich dessen, was die Steam-Oberfläche beim Einfrieren gerade tat, und schreibt ausführliche Details ins Plugin-Log. Hilfreich, um ein Problem zu melden. Steam hat damit etwas mehr zu tun, also lass es sonst aus.",
+    "Stormbreaker": "Stormbreaker",
+    "help_stormbreaker": "Stoppt ein seltenes Einfrieren von SteamOS, das beim Öffnen des Schnellzugriffsmenüs entstehen kann. Beginnt es, blinkt das Menü einmal kurz und läuft weiter, statt dass die Steam-Oberfläche einfriert. Greift nur in diesem Moment ein und verändert keinen Steam-Code.",
     "Clear Recovery Logs": "Wiederherstellungsprotokolle löschen",
     "help_clear_recovery_logs": "Löscht alle gespeicherten Wiederherstellungsberichte aus dem Log-Ordner des Plugins.",
     "shortcut_button_menu": "Menü",

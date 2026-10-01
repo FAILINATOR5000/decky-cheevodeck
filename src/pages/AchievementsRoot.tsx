@@ -5066,7 +5066,8 @@ function AchievementsRoot() {
                                     saving: optionsState.saving,
                                     automaticRecovery: optionsState.automaticRecovery,
                                     recoveryButtonCombo: optionsState.recoveryButtonCombo,
-                                    recoveryLogs: optionsState.recoveryLogs
+                                    recoveryLogs: optionsState.recoveryLogs,
+                                    stormbreaker: optionsState.stormbreaker
                                 }}
                                 actions={{
                                     onBack: backFromUtilityTool,
@@ -5074,6 +5075,7 @@ function AchievementsRoot() {
                                     onToggleAutomaticRecovery: optionsActions.onToggleAutomaticRecovery,
                                     onToggleRecoveryButtonCombo: optionsActions.onToggleRecoveryButtonCombo,
                                     onToggleRecoveryLogs: optionsActions.onToggleRecoveryLogs,
+                                    onToggleStormbreaker: optionsActions.onToggleStormbreaker,
                                     onClearRecoveryLogs: optionsActions.onClearRecoveryLogs
                                 }}
                             />

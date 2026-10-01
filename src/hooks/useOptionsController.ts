@@ -140,6 +140,7 @@ import {
     saveRecoveryButtonCombo,
     saveRecoveryLogs,
     clearRecoveryLogs,
+    saveStormbreaker,
     saveLibraryBadge,
     saveMemoriesAutoCapture,
     saveMemoriesDeleteSource,
@@ -223,6 +224,7 @@ import type {
 
 import { logError } from "../utils/errors";
 import { setQamReturnDelay } from "../utils/modalRegistry";
+import { setStormbreakerEnabled } from "../utils/stormbreaker";
 import {
     nextActivityCacheMinutes,
     nextAchievementStyle,
@@ -481,6 +483,7 @@ type UseOptionsControllerArgs = {
     automaticRecovery: boolean;
     recoveryButtonCombo: boolean;
     recoveryLogs: boolean;
+    stormbreaker: boolean;
     libraryBadge: boolean;
     memoriesAutoCapture: boolean;
     memoriesDeleteSource: boolean;
@@ -549,6 +552,7 @@ type UseOptionsControllerArgs = {
     setAutomaticRecovery: Dispatch<SetStateAction<boolean>>;
     setRecoveryButtonCombo: Dispatch<SetStateAction<boolean>>;
     setRecoveryLogs: Dispatch<SetStateAction<boolean>>;
+    setStormbreaker: Dispatch<SetStateAction<boolean>>;
     setLibraryBadge: Dispatch<SetStateAction<boolean>>;
     setMemoriesAutoCapture: Dispatch<SetStateAction<boolean>>;
     setMemoriesDeleteSource: Dispatch<SetStateAction<boolean>>;
@@ -941,6 +945,7 @@ export function useOptionsController({
     automaticRecovery,
     recoveryButtonCombo,
     recoveryLogs,
+    stormbreaker,
     libraryBadge,
     memoriesAutoCapture,
     memoriesDeleteSource,
@@ -1009,6 +1014,7 @@ export function useOptionsController({
     setAutomaticRecovery,
     setRecoveryButtonCombo,
     setRecoveryLogs,
+    setStormbreaker,
     setLibraryBadge,
     setMemoriesAutoCapture,
     setMemoriesDeleteSource,
@@ -1260,6 +1266,11 @@ export function useOptionsController({
         setAutomaticRecovery(Boolean(result.automaticRecovery ?? true));
         setRecoveryButtonCombo(Boolean(result.recoveryButtonCombo ?? false));
         setRecoveryLogs(Boolean(result.recoveryLogs ?? false));
+        {
+            const breakerOn = Boolean(result.stormbreaker ?? true);
+            setStormbreaker(breakerOn);
+            setStormbreakerEnabled(breakerOn);
+        }
         setLegacyCommentsLoading(Boolean(result.legacyCommentsLoading));
         setBatterySaverDisablesSocialActivity(Boolean(result.batterySaverDisablesSocialActivity ?? true));
         setBatterySaverDisablesComments(Boolean(result.batterySaverDisablesComments ?? true));
@@ -3440,6 +3451,18 @@ export function useOptionsController({
             getSavedValue: (result, fallbackValue) => Boolean(result.recoveryLogs ?? fallbackValue),
         });
 
+    const onToggleStormbreaker = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: stormbreaker,
+            applyValue: (value) => {
+                setStormbreaker(value);
+                setStormbreakerEnabled(value);
+            },
+            saveCall: saveStormbreaker,
+            getSavedValue: (result, fallbackValue) => Boolean(result.stormbreaker ?? fallbackValue),
+        });
+
     const onClearRecoveryLogs = async () => {
         setError(null);
         try {
@@ -3773,6 +3796,7 @@ export function useOptionsController({
         automaticRecovery,
         recoveryButtonCombo,
         recoveryLogs,
+        stormbreaker,
         libraryBadge,
         memoriesAutoCapture,
         memoriesDeleteSource,
@@ -4030,6 +4054,7 @@ export function useOptionsController({
         onToggleAutomaticRecovery,
         onToggleRecoveryButtonCombo,
         onToggleRecoveryLogs,
+        onToggleStormbreaker,
         onClearRecoveryLogs,
         onToggleLibraryBadge,
         onToggleMemoriesAutoCapture,

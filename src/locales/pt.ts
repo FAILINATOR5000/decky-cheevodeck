@@ -245,6 +245,8 @@ const PT: LocaleTable = {
     "help_recovery_button_combo": "Quando a interface do Steam bloquear, mantém L4, L5, R4 e R5 premidos em simultâneo durante 3 segundos para a reiniciar. A interface do Steam recarrega com a animação de arranque enquanto o teu jogo continua a correr; seleciona Retomar para voltar ao jogo. Apenas Steam Deck e Steam Controller. Com esta opção ativada e o menu de acesso rápido fechado, um botão traseiro premido enquanto outro está a ser mantido não aciona o seu atalho.",
     "Save Recovery Logs": "Guardar registos de recuperação",
     "help_recovery_logs": "Guarda um relatório de cada recuperação na pasta de registos do plugin, incluindo o que a interface do Steam estava a fazer quando bloqueou, e escreve os detalhes da recuperação no registo do plugin. Útil para comunicar um problema. O Steam trabalha um pouco mais enquanto estiver ativado, por isso deixa-o desativado se não precisares.",
+    "Stormbreaker": "Stormbreaker",
+    "help_stormbreaker": "Interrompe um congelamento raro do SteamOS que pode começar ao abrir o menu de acesso rápido. Quando ele começa, o menu pisca uma vez e continua funcionando, em vez de a interface do Steam congelar. Só age nesse momento e não altera nenhum código do Steam.",
     "Clear Recovery Logs": "Limpar registos de recuperação",
     "help_clear_recovery_logs": "Apaga todos os relatórios de recuperação guardados da pasta de registos do plugin.",
     "shortcut_button_menu": "Menu",

@@ -245,6 +245,12 @@ export const saveRecoveryLogs = callable<[boolean], { ok: boolean; recoveryLogs:
 export const clearRecoveryLogs = callable<[], { ok: boolean; removed: number }>(
     "clear_recovery_logs"
 );
+export const saveStormbreaker = callable<[boolean], { ok: boolean; stormbreaker: boolean }>(
+    "save_stormbreaker"
+);
+export const logStormbreakerEvent = callable<[string, string], { ok: boolean }>(
+    "log_stormbreaker_event"
+);
 export const saveLegacyCommentsLoading = callable<[boolean], { ok: boolean; legacyCommentsLoading: boolean }>(
     "save_legacy_comments_loading"
 );

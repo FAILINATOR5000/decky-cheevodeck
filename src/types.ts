@@ -784,6 +784,7 @@ export type SettingsResponse = {
     automaticRecovery: boolean;
     recoveryButtonCombo: boolean;
     recoveryLogs: boolean;
+    stormbreaker: boolean;
     legacyCommentsLoading: boolean;
     showAllAchievements: boolean;
     unlockLookbackMinutes: number;

@@ -245,6 +245,8 @@ const FR: LocaleTable = {
     "help_recovery_button_combo": "Quand l'interface de Steam est figée, maintiens L4, L5, R4 et R5 ensemble pendant 3 secondes pour la redémarrer. L'interface de Steam se recharge avec son animation de démarrage pendant que ton jeu continue de tourner ; sélectionne Reprendre pour y retourner. Steam Deck et Steam Controller uniquement. Quand cette option est activée et que le menu d'accès rapide est fermé, un bouton arrière pressé pendant qu'un autre est maintenu ne déclenche pas son raccourci.",
     "Save Recovery Logs": "Enregistrer les journaux de récupération",
     "help_recovery_logs": "Enregistre un rapport de chaque récupération dans le dossier des journaux du plugin, avec ce que faisait l'interface de Steam au moment du gel, et écrit le détail de la récupération dans le journal du plugin. Utile pour signaler un problème. Steam travaille un peu plus quand c'est activé, alors laisse-le désactivé sinon.",
+    "Stormbreaker": "Stormbreaker",
+    "help_stormbreaker": "Arrête un blocage rare de SteamOS qui peut survenir à l'ouverture du menu d'accès rapide. Quand il commence, le menu clignote une fois et continue de fonctionner au lieu de figer l'interface de Steam. N'intervient qu'à ce moment-là et ne modifie aucun code de Steam.",
     "Clear Recovery Logs": "Effacer les journaux de récupération",
     "help_clear_recovery_logs": "Supprime tous les rapports de récupération enregistrés du dossier des journaux du plugin.",
     "shortcut_button_menu": "Menu",

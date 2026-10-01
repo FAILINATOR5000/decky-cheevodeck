@@ -44,6 +44,7 @@ import type {
 } from "../types";
 import { logError } from "../utils/errors";
 import { setQamReturnDelay } from "../utils/modalRegistry";
+import { setStormbreakerEnabled } from "../utils/stormbreaker";
 import { DEFAULT_SHORTCUT_BINDINGS } from "../utils/options";
 import { setSnapshotHotkey } from "../utils/snapshotHotkey";
 import { setWebBrowserForLinks } from "../utils/navigation";
@@ -97,6 +98,7 @@ export function useSettingsController({
     const [automaticRecovery, setAutomaticRecovery] = useState(true);
     const [recoveryButtonCombo, setRecoveryButtonCombo] = useState(false);
     const [recoveryLogs, setRecoveryLogs] = useState(false);
+    const [stormbreaker, setStormbreaker] = useState(true);
     const [legacyCommentsLoading, setLegacyCommentsLoading] = useState(false);
     const [showAllAchievements, setShowAllAchievements] = useState(true);
     const [unlockLookbackMinutes, setUnlockLookbackMinutes] = useState(1440);
@@ -382,6 +384,8 @@ export function useSettingsController({
         setAutomaticRecovery(source.automaticRecovery);
         setRecoveryButtonCombo(source.recoveryButtonCombo);
         setRecoveryLogs(source.recoveryLogs);
+        setStormbreaker(source.stormbreaker);
+        setStormbreakerEnabled(source.stormbreaker);
         setLegacyCommentsLoading(Boolean(source.legacyCommentsLoading));
         setShowAllAchievements(source.showAllAchievements);
         setUnlockLookbackMinutes(source.unlockLookbackMinutes);
@@ -681,6 +685,7 @@ export function useSettingsController({
         automaticRecovery,
         recoveryButtonCombo,
         recoveryLogs,
+        stormbreaker,
         legacyCommentsLoading,
         showAllAchievements,
         unlockLookbackMinutes,
@@ -923,6 +928,7 @@ export function useSettingsController({
         setAutomaticRecovery,
         setRecoveryButtonCombo,
         setRecoveryLogs,
+        setStormbreaker,
         setLegacyCommentsLoading,
         setBatterySaverDisablesSocialActivity,
         setBatterySaverDisablesComments,
