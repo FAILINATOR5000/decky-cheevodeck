@@ -21,6 +21,7 @@ import type {
     ReorderDirection
 } from "../types";
 import { logError } from "../utils/errors";
+import { toastAfterPress } from "../utils/navSound";
 import { landOn, liveOrder, orderAfterGroupMove, stepTo } from "../utils/reorderOrder";
 
 
@@ -180,13 +181,13 @@ export function useDolphinMapperController({ isActive, language }: UseDolphinMap
             try {
                 const result = await applyDolphinMapping(mappingId);
                 if (result?.ok) {
-                    toaster.toast({
+                    toastAfterPress({
                         title: t(language, "Dolphin Mapper"),
                         body: t(language, "Mapping applied to Dolphin")
                     });
                 }
                 else if (result?.error !== "dolphin_running") {
-                    toaster.toast({
+                    toastAfterPress({
                         title: t(language, "Dolphin Mapper"),
                         body: t(language, "Couldn't apply the mapping.")
                     });
@@ -195,7 +196,7 @@ export function useDolphinMapperController({ isActive, language }: UseDolphinMap
             }
             catch (e) {
                 logError("applyDolphinMapping", e);
-                toaster.toast({
+                toastAfterPress({
                     title: t(language, "Dolphin Mapper"),
                     body: t(language, "Couldn't apply the mapping.")
                 });

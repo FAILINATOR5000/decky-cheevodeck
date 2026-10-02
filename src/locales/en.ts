@@ -919,6 +919,7 @@ export const EN: LocaleTable = {
     "Close Dolphin to apply this mapping.": "Close Dolphin to apply this mapping.",
     "Close Dolphin to change Bluetooth passthrough.": "Close Dolphin to change Bluetooth Passthrough.",
     "Close Dolphin to change this setting.": "Close Dolphin to change this setting.",
+    "Dolphin Settings Not Saved": "Dolphin Settings Not Saved",
     "Couldn't save the mapping.": "Couldn't save the mapping.",
     "{{count}} player(s)": "{{count}} player(s)",
     "Edit": "Edit",

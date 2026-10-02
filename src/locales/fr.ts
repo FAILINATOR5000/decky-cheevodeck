@@ -919,6 +919,7 @@ const FR: LocaleTable = {
     "Close Dolphin to apply this mapping.": "Fermez Dolphin pour appliquer ce mappage.",
     "Close Dolphin to change Bluetooth passthrough.": "Fermez Dolphin pour modifier le Passthrough Bluetooth.",
     "Close Dolphin to change this setting.": "Ferme Dolphin pour modifier ce réglage.",
+    "Dolphin Settings Not Saved": "Réglages de Dolphin non enregistrés",
     "Couldn't save the mapping.": "Impossible d'enregistrer le mappage.",
     "{{count}} player(s)": "{{count}} joueur(s)",
     "Edit": "Modifier",

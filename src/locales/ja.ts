@@ -919,6 +919,7 @@ const JA: LocaleTable = {
     "Close Dolphin to apply this mapping.": "この設定を適用するには Dolphin を閉じてください。",
     "Close Dolphin to change Bluetooth passthrough.": "Bluetooth パススルーを変えるには Dolphin を閉じてください。",
     "Close Dolphin to change this setting.": "この設定を変更するには Dolphin を閉じてください。",
+    "Dolphin Settings Not Saved": "Dolphin の設定を保存できませんでした",
     "Couldn't save the mapping.": "設定を保存できませんでした。",
     "{{count}} player(s)": "{{count}}人",
     "Edit": "編集",

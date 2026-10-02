@@ -80,6 +80,12 @@ def _live_collapse_keys(mappings) -> set:
     return {_collapse_key(mapping.get("name")) for mapping in mappings}
 
 
+def _same_mapping(stored, cleaned) -> bool:
+    stamps = ("createdAt", "updatedAt")
+    return ({k: v for k, v in stored.items() if k not in stamps}
+            == {k: v for k, v in cleaned.items() if k not in stamps})
+
+
 class DolphinMappingsStore:
     """User-defined Dolphin controller mappings for the Dolphin Mapper utility.
 
@@ -303,6 +309,8 @@ class DolphinMappingsStore:
             now = int(time.time())
 
             existing = self._find(data, cleaned["id"])
+            if existing is not None and _same_mapping(existing, cleaned):
+                return {"ok": True, "mapping": existing}
             if existing is not None:
                 cleaned["createdAt"] = existing.get("createdAt", cleaned["createdAt"])
                 cleaned["updatedAt"] = now

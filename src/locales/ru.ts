@@ -919,6 +919,7 @@ const RU: LocaleTable = {
     "Close Dolphin to apply this mapping.": "Закрой Dolphin, чтобы применить эту раскладку.",
     "Close Dolphin to change Bluetooth passthrough.": "Закрой Dolphin, чтобы изменить проброс Bluetooth.",
     "Close Dolphin to change this setting.": "Закрой Dolphin, чтобы изменить эту настройку.",
+    "Dolphin Settings Not Saved": "Настройки Dolphin не сохранены",
     "Couldn't save the mapping.": "Не удалось сохранить раскладку.",
     "{{count}} player(s)": "Игроков: {{count}}",
     "Edit": "Изменить",

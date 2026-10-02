@@ -1,5 +1,7 @@
+import { toaster } from "@decky/api";
 import { findModuleExport } from "@decky/ui";
 
+const SOUND_HIDE_MODAL = 12;
 const SOUND_TOGGLE_ON = 16;
 const SOUND_TOGGLE_OFF = 17;
 const SOUND_DEFAULT_OK = 21;
@@ -26,6 +28,22 @@ function player(): NavSoundPlayer | null {
 export function playOkSound(): void {
     try {
         player()?.PlayNavSound(SOUND_DEFAULT_OK);
+    }
+    catch {
+    }
+}
+
+const PRESS_TOAST_DELAY_MS = 500;
+
+export function toastAfterPress(toast: Parameters<typeof toaster.toast>[0]): void {
+    window.setTimeout(() => {
+        toaster.toast(toast);
+    }, PRESS_TOAST_DELAY_MS);
+}
+
+export function playBackSound(): void {
+    try {
+        player()?.PlayNavSound(SOUND_HIDE_MODAL);
     }
     catch {
     }

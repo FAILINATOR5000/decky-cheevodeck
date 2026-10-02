@@ -44,7 +44,7 @@ import {
     BUTTON_OPTIONS,
     BUTTON_SECONDARY
 } from "../utils/gamepadButtons";
-import { playOkSound } from "../utils/navSound";
+import { playOkSound, toastAfterPress } from "../utils/navSound";
 import { regularButtonSpacingStyle, bodyTextStyle } from "../utils/style";
 import { achievementGreen } from "../utils/style";
 import { textSize } from "../utils/scale";
@@ -211,7 +211,7 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
     const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
     const [applyBlockedId, setApplyBlockedId] = useState<string | null>(null);
     const [passthroughBlocked, setPassthroughBlocked] = useState(false);
-    const [realHardwareBlocked, setRealHardwareBlocked] = useState(false);
+    const [realHardwareBlocked, setRealHardwareBlocked] = useState<"scanning" | "board" | null>(null);
     const rowClaim = useFocusClaim();
     const [backClaimToken, setBackClaimToken] = useState(0);
     const backClaimed = backClaimToken > 0;
@@ -332,10 +332,6 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
         onRequestFocus
     ]);
 
-    if (view !== "dolphinMapper") {
-        return null;
-    }
-
     const belowDisabled = dolphinBluetoothPassthrough;
     const mode = mouseKeyboardMode ? dolphinMapperMode : "map";
     const reordering = mode === "reorder";
@@ -452,28 +448,31 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
         setPendingDeleteId((cur) => (cur === mappingId ? null : cur));
     }
 
-    async function handlePassthroughChange(next: boolean) {
-        setPassthroughBlocked(false);
-        const result = await onBluetoothPassthroughChange(next);
-        if (result && result.error === "dolphin_running") {
-            setPassthroughBlocked(true);
+    function toastIfNotWritten(result: OkResult | void) {
+        if (result && result.error === "write_failed") {
+            toastAfterPress({
+                title: t(language, "Dolphin Mapper"),
+                body: t(language, "Dolphin Settings Not Saved")
+            });
         }
+    }
+
+    async function handlePassthroughChange(next: boolean) {
+        const result = await onBluetoothPassthroughChange(next);
+        setPassthroughBlocked(Boolean(result && result.error === "dolphin_running"));
+        toastIfNotWritten(result);
     }
 
     async function handleContinuousScanningChange(next: boolean) {
-        setRealHardwareBlocked(false);
         const result = await onContinuousScanningChange(next);
-        if (result && result.error === "dolphin_running") {
-            setRealHardwareBlocked(true);
-        }
+        setRealHardwareBlocked(result && result.error === "dolphin_running" ? "scanning" : null);
+        toastIfNotWritten(result);
     }
 
     async function handleBalanceBoardChange(next: boolean) {
-        setRealHardwareBlocked(false);
         const result = await onBalanceBoardChange(next);
-        if (result && result.error === "dolphin_running") {
-            setRealHardwareBlocked(true);
-        }
+        setRealHardwareBlocked(result && result.error === "dolphin_running" ? "board" : null);
+        toastIfNotWritten(result);
     }
 
     const cardClickRef = useRef(handleCardClick);
@@ -520,6 +519,10 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
             }
             : undefined
     }), [language, belowDisabled, buttonSpacing, gamepadCardActions, gamepadReorderAvailable]);
+
+    if (view !== "dolphinMapper") {
+        return null;
+    }
 
     function renderCard(mapping: DolphinMapping, reactKey: string | number, slotIndex: number) {
         const card = (
@@ -659,6 +662,11 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
                             help={t(language, "help_dolphin_continuous_scanning")}
                         />
                     </PanelSectionRow>
+                    {realHardwareBlocked === "scanning" && (
+                        <PanelSectionRow>
+                            <ErrorText>{t(language, "Close Dolphin to change this setting.")}</ErrorText>
+                        </PanelSectionRow>
+                    )}
                     <PanelSectionRow>
                         <ToggleRow
                             label={t(language, "Balance Board")}
@@ -668,7 +676,7 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
                             help={t(language, "help_dolphin_balance_board")}
                         />
                     </PanelSectionRow>
-                    {realHardwareBlocked && (
+                    {realHardwareBlocked === "board" && (
                         <PanelSectionRow>
                             <ErrorText>{t(language, "Close Dolphin to change this setting.")}</ErrorText>
                         </PanelSectionRow>

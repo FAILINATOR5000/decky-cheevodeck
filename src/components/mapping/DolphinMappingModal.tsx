@@ -18,7 +18,8 @@ import type {
 } from "../../types";
 import { TAG_MAX_LEN, parseNoteTag, prefixNoteTag, resolveNoteTag } from "../../utils/achievements";
 import { TagPickerModal } from "../tags/TagPickerModal";
-import { showManagedModal } from "../../utils/modalRegistry";
+import { MODAL_ECHO_WINDOW_MS, modalEchoPending, showManagedModal } from "../../utils/modalRegistry";
+import { playBackSound } from "../../utils/navSound";
 import { DOLPHIN_TAG_SEEDS, cleanTagInput } from "../../utils/tags";
 import {
     controllerTypeLabel,
@@ -130,6 +131,7 @@ export function DolphinMappingModal(props: DolphinMappingModalProps) {
     const bodyRef = useRef<HTMLDivElement | null>(null);
     const focusedTopForStepRef = useRef<Step | null>(null);
     const pendingFocusKeyRef = useRef<string | null>(null);
+    const cancelAtRef = useRef(0);
 
     useEffect(function focusStep() {
         const root = bodyRef.current;
@@ -278,10 +280,36 @@ export function DolphinMappingModal(props: DolphinMappingModalProps) {
         }
         else {
             pendingFocusKeyRef.current = `dmapform:slot:${pickerIndex}:type`;
-            updatePlayer(pickerIndex, { controllerType: type });
+            const patch: Partial<MappingPlayer> = { controllerType: type };
+            if (aaFaceLayout(players[pickerIndex].controllerType) !== aaFaceLayout(type)) {
+                patch.faceLayout = aaFaceLayout(type);
+            }
+            updatePlayer(pickerIndex, patch);
         }
         focusedTopForStepRef.current = null;
         setStep("form");
+    }
+
+    function backToForm() {
+        pendingFocusKeyRef.current = pickerIndex === null
+            ? "dmapform:add-controller"
+            : `dmapform:slot:${pickerIndex}:type`;
+        focusedTopForStepRef.current = null;
+        setStep("form");
+    }
+
+    function handleCancel() {
+        const now = Date.now();
+        if (now - cancelAtRef.current < MODAL_ECHO_WINDOW_MS || modalEchoPending()) {
+            return;
+        }
+        cancelAtRef.current = now;
+        if (step === "controller") {
+            playBackSound();
+            backToForm();
+            return;
+        }
+        close();
     }
 
     async function handleSave() {
@@ -316,7 +344,7 @@ export function DolphinMappingModal(props: DolphinMappingModalProps) {
     }
 
     return (
-        <ModalRoot onCancel={close} onEscKeypress={close}>
+        <ModalRoot onCancel={handleCancel} onEscKeypress={handleCancel}>
             <SnapshotHotkey language={language} />
             <SaveOnStart
                 canSave={step === "form" && !saving && !nameOverLimit && players.length > 0}
@@ -329,10 +357,7 @@ export function DolphinMappingModal(props: DolphinMappingModalProps) {
                             language={language}
                             options={controllerOptions(system)}
                             onChoose={chooseType}
-                            onBack={() => {
-                                focusedTopForStepRef.current = null;
-                                setStep("form");
-                            }}
+                            onBack={backToForm}
                         />
                     ) : (
                         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>

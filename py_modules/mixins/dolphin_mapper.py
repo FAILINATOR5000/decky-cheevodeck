@@ -1,5 +1,7 @@
 import asyncio
 import os
+import stat
+import threading
 from pathlib import Path
 
 import decky
@@ -16,6 +18,8 @@ USB_DEVICES_DIR = Path("/sys/bus/usb/devices")
 USB_DRIVER_DIR = Path("/sys/bus/usb/drivers/usb")
 
 _chown_warned = False
+
+_dolphin_ini_lock = threading.Lock()
 
 
 class DolphinMapperMixin(PluginContext):
@@ -94,61 +98,55 @@ class DolphinMapperMixin(PluginContext):
         return await asyncio.to_thread(self._apply_dolphin_mapping_sync, mapping_id)
 
     def _apply_dolphin_mapping_sync(self, mapping_id):
-        data = self.dolphin_mappings_store.load_all()
-        mapping = next((m for m in data["mappings"] if m["id"] == mapping_id), None)
-        if mapping is None:
-            return {"ok": False, "error": "not_found"}
+        with _dolphin_ini_lock:
+            data = self.dolphin_mappings_store.load_all()
+            mapping = next((m for m in data["mappings"] if m["id"] == mapping_id), None)
+            if mapping is None:
+                return {"ok": False, "error": "not_found"}
 
-        if self.emulator_login_sync_service.is_dolphin_running():
-            return {"ok": False, "error": "dolphin_running"}
+            if self.emulator_login_sync_service.is_dolphin_running():
+                return {"ok": False, "error": "dolphin_running"}
 
-        system = mapping["system"]
-        balance_board = self.settings_store.get_dolphin_balance_board(
-            self.settings_store.load_config()
-        )
-        content = dolphin_ini.generate_ini(
-            str(self.dolphin_defaults_dir),
-            mapping,
-            balance_board=balance_board,
-        )
-        filename = dolphin_ini.output_filename(system)
+            system = mapping["system"]
+            balance_board = self.settings_store.get_dolphin_balance_board(
+                self.settings_store.load_config()
+            )
+            content = dolphin_ini.generate_ini(
+                str(self.dolphin_defaults_dir),
+                mapping,
+                balance_board=balance_board,
+            )
+            filename = dolphin_ini.output_filename(system)
 
-        other = dolphin_ini.other_system(system)
-        other_content = dolphin_ini.generate_empty_ini(other)
-        other_filename = dolphin_ini.output_filename(other)
+            other = dolphin_ini.other_system(system)
+            other_content = dolphin_ini.generate_empty_ini(other)
+            other_filename = dolphin_ini.output_filename(other)
 
-        si_devices = dolphin_ini.gc_si_devices(mapping)
+            si_devices = dolphin_ini.gc_si_devices(mapping)
 
-        written = []
-        for target in self._detected_dolphin_targets():
-            config_dir = target["config_dir"]
-            config_dir.mkdir(parents=True, exist_ok=True)
-            self._chown_to_user(config_dir)
-            main_path = config_dir / filename
-            other_path = config_dir / other_filename
-            main_path.write_text(content, encoding="utf-8")
-            other_path.write_text(other_content, encoding="utf-8")
-            self._chown_to_user(main_path)
-            self._chown_to_user(other_path)
+            writes = []
+            written = []
+            for target in self._detected_dolphin_targets():
+                config_dir = target["config_dir"]
+                writes.append((config_dir / filename, content))
+                writes.append((config_dir / other_filename, other_content))
 
-            dolphin_ini_path = config_dir / "Dolphin.ini"
-            for port, value in enumerate(si_devices):
-                self._set_ini_value(
-                    dolphin_ini_path,
-                    "Core",
-                    "SIDevice{}".format(port),
-                    value,
-                )
+                writes.append((config_dir / "Dolphin.ini", [
+                    ("Core", "SIDevice{}".format(port), value)
+                    for port, value in enumerate(si_devices)
+                ]))
 
-            written.append({
-                "name": target["name"],
-                "dir": str(config_dir),
-                "file": filename,
-                "cleared": other_filename,
-                "ports": list(si_devices),
-            })
+                written.append({
+                    "name": target["name"],
+                    "dir": str(config_dir),
+                    "file": filename,
+                    "cleared": other_filename,
+                    "ports": list(si_devices),
+                })
 
-        return {"ok": True, "file": filename, "cleared": other_filename, "targets": written}
+            if not self._write_ini_files(writes):
+                return {"ok": False, "error": "write_failed"}
+            return {"ok": True, "file": filename, "cleared": other_filename, "targets": written}
 
     def _read_sysfs(self, path):
         try:
@@ -227,73 +225,73 @@ class DolphinMapperMixin(PluginContext):
         return await asyncio.to_thread(self._set_dolphin_bluetooth_passthrough_sync, bool(enabled))
 
     def _set_dolphin_bluetooth_passthrough_sync(self, enabled):
-        if self.emulator_login_sync_service.is_dolphin_running():
-            current = self.settings_store.get_dolphin_bluetooth_passthrough(
-                self.settings_store.load_config()
-            )
-            return {"ok": False, "error": "dolphin_running", "dolphinBluetoothPassthrough": current}
+        with _dolphin_ini_lock:
+            if self.emulator_login_sync_service.is_dolphin_running():
+                current = self.settings_store.get_dolphin_bluetooth_passthrough(
+                    self.settings_store.load_config()
+                )
+                return {"ok": False, "error": "dolphin_running", "dolphinBluetoothPassthrough": current}
 
-        value = self.settings_store.update_dolphin_bluetooth_passthrough(enabled)
-        flag = "True" if value else "False"
-        for target in self._detected_dolphin_targets():
-            config_dir = target["config_dir"]
-            config_dir.mkdir(parents=True, exist_ok=True)
-            self._chown_to_user(config_dir)
-            self._set_ini_value(
-                config_dir / "Dolphin.ini",
-                "BluetoothPassthrough",
-                "Enabled",
-                flag,
-            )
-        return {"ok": True, "dolphinBluetoothPassthrough": value}
+            flag = "True" if enabled else "False"
+            writes = [
+                (target["config_dir"] / "Dolphin.ini", [("BluetoothPassthrough", "Enabled", flag)])
+                for target in self._detected_dolphin_targets()
+            ]
+            if not self._write_ini_files(writes):
+                current = self.settings_store.get_dolphin_bluetooth_passthrough(
+                    self.settings_store.load_config()
+                )
+                return {"ok": False, "error": "write_failed", "dolphinBluetoothPassthrough": current}
+            value = self.settings_store.update_dolphin_bluetooth_passthrough(enabled)
+            return {"ok": True, "dolphinBluetoothPassthrough": value}
 
     async def set_dolphin_continuous_scanning(self, enabled):
         return await asyncio.to_thread(self._set_dolphin_continuous_scanning_sync, bool(enabled))
 
     def _set_dolphin_continuous_scanning_sync(self, enabled):
-        if self.emulator_login_sync_service.is_dolphin_running():
-            current = self.settings_store.get_dolphin_continuous_scanning(
-                self.settings_store.load_config()
-            )
-            return {"ok": False, "error": "dolphin_running", "dolphinContinuousScanning": current}
+        with _dolphin_ini_lock:
+            if self.emulator_login_sync_service.is_dolphin_running():
+                current = self.settings_store.get_dolphin_continuous_scanning(
+                    self.settings_store.load_config()
+                )
+                return {"ok": False, "error": "dolphin_running", "dolphinContinuousScanning": current}
 
-        value = self.settings_store.update_dolphin_continuous_scanning(enabled)
-        flag = "True" if value else "False"
-        for target in self._detected_dolphin_targets():
-            config_dir = target["config_dir"]
-            config_dir.mkdir(parents=True, exist_ok=True)
-            self._chown_to_user(config_dir)
-            self._set_ini_value(
-                config_dir / "Dolphin.ini",
-                "Core",
-                "WiimoteContinuousScanning",
-                flag,
-            )
-        return {"ok": True, "dolphinContinuousScanning": value}
+            flag = "True" if enabled else "False"
+            writes = [
+                (target["config_dir"] / "Dolphin.ini", [("Core", "WiimoteContinuousScanning", flag)])
+                for target in self._detected_dolphin_targets()
+            ]
+            if not self._write_ini_files(writes):
+                current = self.settings_store.get_dolphin_continuous_scanning(
+                    self.settings_store.load_config()
+                )
+                return {"ok": False, "error": "write_failed", "dolphinContinuousScanning": current}
+            value = self.settings_store.update_dolphin_continuous_scanning(enabled)
+            return {"ok": True, "dolphinContinuousScanning": value}
 
     async def set_dolphin_balance_board(self, enabled):
         return await asyncio.to_thread(self._set_dolphin_balance_board_sync, bool(enabled))
 
     def _set_dolphin_balance_board_sync(self, enabled):
-        if self.emulator_login_sync_service.is_dolphin_running():
-            current = self.settings_store.get_dolphin_balance_board(
-                self.settings_store.load_config()
-            )
-            return {"ok": False, "error": "dolphin_running", "dolphinBalanceBoard": current}
+        with _dolphin_ini_lock:
+            if self.emulator_login_sync_service.is_dolphin_running():
+                current = self.settings_store.get_dolphin_balance_board(
+                    self.settings_store.load_config()
+                )
+                return {"ok": False, "error": "dolphin_running", "dolphinBalanceBoard": current}
 
-        value = self.settings_store.update_dolphin_balance_board(enabled)
-        source = "2" if value else "0"
-        for target in self._detected_dolphin_targets():
-            config_dir = target["config_dir"]
-            config_dir.mkdir(parents=True, exist_ok=True)
-            self._chown_to_user(config_dir)
-            self._set_ini_value(
-                config_dir / "WiimoteNew.ini",
-                "BalanceBoard",
-                "Source",
-                source,
-            )
-        return {"ok": True, "dolphinBalanceBoard": value}
+            source = "2" if enabled else "0"
+            writes = [
+                (target["config_dir"] / "WiimoteNew.ini", [("BalanceBoard", "Source", source)])
+                for target in self._detected_dolphin_targets()
+            ]
+            if not self._write_ini_files(writes):
+                current = self.settings_store.get_dolphin_balance_board(
+                    self.settings_store.load_config()
+                )
+                return {"ok": False, "error": "write_failed", "dolphinBalanceBoard": current}
+            value = self.settings_store.update_dolphin_balance_board(enabled)
+            return {"ok": True, "dolphinBalanceBoard": value}
 
     async def save_dolphin_mapper_mode(self, mode):
         value = self.settings_store.update_dolphin_mapper_mode(mode)
@@ -314,7 +312,7 @@ class DolphinMapperMixin(PluginContext):
     async def save_dolphin_collapsed_tags(self, tags):
         return self.dolphin_mappings_store.set_collapsed_tags(tags)
 
-    def _set_ini_value(self, path: Path, section: str, key: str, value: str) -> None:
+    def _set_ini_value(self, text: str, section: str, key: str, value: str) -> str:
         """Set `key = value` under `[section]` in a Dolphin .ini, preserving the
         rest of the file.
 
@@ -322,9 +320,7 @@ class DolphinMapperMixin(PluginContext):
         configparser so nothing ever reflows or loses the exact formatting
         Dolphin is picky about elsewhere.
         """
-        lines = []
-        if path.exists():
-            lines = path.read_text(encoding="utf-8").splitlines()
+        lines = text.splitlines()
 
         section_header = "[{}]".format(section)
         out = []
@@ -366,5 +362,75 @@ class DolphinMapperMixin(PluginContext):
         text = "\n".join(out)
         if not text.endswith("\n"):
             text += "\n"
-        path.write_text(text, encoding="utf-8")
-        self._chown_to_user(path)
+        return text
+
+    def _write_ini_files(self, writes) -> bool:
+        prepared = set()
+        done = []
+        try:
+            for path, change in writes:
+                config_dir = path.parent
+                if config_dir not in prepared:
+                    config_dir.mkdir(parents=True, exist_ok=True)
+                    self._chown_to_user(config_dir)
+                    prepared.add(config_dir)
+
+                real = Path(os.path.realpath(path))
+                previous = real.read_bytes() if real.exists() else None
+                if isinstance(change, str):
+                    data = change.encode("utf-8")
+                else:
+                    text = previous.decode("utf-8") if previous is not None else ""
+                    for section, key, value in change:
+                        text = self._set_ini_value(text, section, key, value)
+                    data = text.encode("utf-8")
+                self._replace_ini_file(real, data)
+                done.append((real, previous))
+        except (OSError, ValueError) as exc:
+            decky.logger.warning(
+                "dolphin mapper: writing %s failed (%s: %s), undoing %d earlier write(s)",
+                path,
+                type(exc).__name__,
+                exc,
+                len(done),
+            )
+            for real, previous in reversed(done):
+                try:
+                    if previous is None:
+                        real.unlink()
+                    else:
+                        self._replace_ini_file(real, previous)
+                except OSError as undo_exc:
+                    decky.logger.warning(
+                        "dolphin mapper: could not undo the write to %s (%s: %s)",
+                        real,
+                        type(undo_exc).__name__,
+                        undo_exc,
+                    )
+            return False
+        return True
+
+    def _replace_ini_file(self, real: Path, data: bytes) -> None:
+        try:
+            mode = stat.S_IMODE(real.stat().st_mode)
+        except FileNotFoundError:
+            mode = None
+        tmp = real.with_name("." + real.name + ".cheevodeck-tmp")
+        try:
+            tmp.unlink()
+        except FileNotFoundError:
+            pass
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
+        try:
+            with os.fdopen(fd, "wb") as handle:
+                handle.write(data)
+            if mode is not None:
+                os.chmod(tmp, mode)
+            self._chown_to_user(tmp)
+            os.replace(tmp, real)
+        except Exception:
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
+            raise
