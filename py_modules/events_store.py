@@ -37,8 +37,6 @@ UNTAGGED_COLLAPSE_KEY = "__UNTAGGED__"
 COMPLETED_COLLAPSE_KEY = "__COMPLETED__"
 _RESERVED_TAG_KEYS = frozenset({"completed"})
 
-MAX_TRACKED = 1000
-MAX_COMPLETED = 1000
 MAX_ACTIVITY = 400
 MAX_CHECKLIST_VIEWS = 100
 
@@ -214,8 +212,6 @@ class EventsStore:
             if event_key is None or item is None or event_key in items:
                 continue
             items[event_key] = item
-            if len(items) >= MAX_TRACKED:
-                break
         data["tracked"]["items"] = items
         data["tracked"]["order"] = self._reconcile_order(tracked.get("order"), items)
         data["tracked"]["collapsedTags"] = self._sanitize_collapsed(tracked.get("collapsedTags"), items)
@@ -229,8 +225,6 @@ class EventsStore:
             if event_key is None or not isinstance(value, dict):
                 continue
             completed[event_key] = {"at": to_int(value.get("at"), 0)}
-            if len(completed) >= MAX_COMPLETED:
-                break
         data["completed"] = completed
 
         ticks = {}
@@ -335,7 +329,7 @@ class EventsStore:
             return self._public(self._load_raw())
 
     @refuses_newer_schema
-    def toggle_tracked(self, ulid: Any, event_game_id: Any) -> dict:
+    def set_tracked(self, ulid: Any, event_game_id: Any, tracked: bool) -> dict:
         key = _event_key(event_game_id)
         if key is None:
             return {"ok": False, "error": "invalid_event"}
@@ -344,16 +338,13 @@ class EventsStore:
                 return {"ok": False, "error": "account_changed"}
             data = self._load_raw()
             items = data["tracked"]["items"]
-            if key in items:
-                del items[key]
-                data["tracked"]["order"] = [k for k in data["tracked"]["order"] if k != key]
-                tracked = False
+            if tracked:
+                if key not in items:
+                    items[key] = {"trackedAt": _now_ms(), "note": "", "noteColor": "", "noteEditedAt": 0}
+                    data["tracked"]["order"].append(key)
             else:
-                if len(items) >= MAX_TRACKED:
-                    return {"ok": False, "error": "tracked_full"}
-                items[key] = {"trackedAt": _now_ms(), "note": "", "noteColor": "", "noteEditedAt": 0}
-                data["tracked"]["order"].append(key)
-                tracked = True
+                items.pop(key, None)
+                data["tracked"]["order"] = [k for k in data["tracked"]["order"] if k != key]
             data["tracked"]["collapsedTags"] = self._sanitize_collapsed(data["tracked"]["collapsedTags"], items)
             self._save_raw(data)
             return {"ok": True, "tracked": tracked, "state": data["tracked"]}
@@ -456,8 +447,6 @@ class EventsStore:
             data = self._load_raw()
             marks = data["completed"]
             if completed:
-                if key not in marks and len(marks) >= MAX_COMPLETED:
-                    return {"ok": False, "error": "completed_full"}
                 marks[key] = {"at": _now_ms()}
             elif key in marks:
                 del marks[key]

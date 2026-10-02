@@ -10,7 +10,7 @@ import {
     saveChecklistView,
     setChecklistTick,
     setEventCompleted,
-    toggleTrackedEvent,
+    setEventTracked,
     touchEventOpened
 } from "../api";
 import { logError } from "../utils/errors";
@@ -150,27 +150,28 @@ export function useEventsController(options: UseEventsControllerOptions) {
     function toggleTracked(eventGameId: number) {
         const owner = ownerNow();
         const key = String(eventGameId);
+        const tracked = !lastResponse?.user.tracked.items[key];
         patchUser(owner, (user) => {
             const items = { ...user.tracked.items };
             let order = user.tracked.order;
-            if (items[key]) {
-                delete items[key];
-                order = order.filter((id) => id !== key);
-            }
-            else {
+            if (tracked) {
                 items[key] = { trackedAt: Date.now(), note: "", noteColor: "", noteEditedAt: 0 };
                 order = [...order, key];
             }
+            else {
+                delete items[key];
+                order = order.filter((id) => id !== key);
+            }
             return { ...user, tracked: { ...user.tracked, items, order } };
         });
-        toggleTrackedEvent(owner, eventGameId)
+        setEventTracked(owner, eventGameId, tracked)
             .then((result) => {
                 if (result.ok) {
                     patchUser(owner, (user) => ({ ...user, tracked: result.state }));
                 }
-                recover("toggle tracked event", result);
+                recover("set event tracked", result);
             })
-            .catch((e) => failed("toggle tracked event", e));
+            .catch((e) => failed("set event tracked", e));
     }
 
     function saveOrder(order: string[]) {

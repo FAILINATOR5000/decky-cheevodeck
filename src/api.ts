@@ -2934,10 +2934,10 @@ export const getEventDetail = callable<
     [eventGameId: number],
     { ok: boolean; event: EventDetail | null; games: Record<string, EventChecklistGame> }
 >("get_event_detail");
-export const toggleTrackedEvent = callable<
-    [ulid: string, eventGameId: number],
+export const setEventTracked = callable<
+    [ulid: string, eventGameId: number, tracked: boolean],
     { ok: true; tracked: boolean; state: TrackedEventsState } | EventsWriteError
->("toggle_tracked_event");
+>("set_event_tracked");
 export const saveTrackedEventOrder = callable<
     [ulid: string, order: string[]],
     { ok: true; state: TrackedEventsState } | EventsWriteError
