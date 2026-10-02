@@ -1536,6 +1536,7 @@ export type MemoriesTransferStatus = {
     totalBytes: number;
     target: string;
     stashed: boolean;
+    captureTurnedOn: boolean;
 };
 
 export type MemoryBundleRow = {

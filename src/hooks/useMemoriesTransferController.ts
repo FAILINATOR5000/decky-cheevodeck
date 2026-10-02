@@ -34,7 +34,7 @@ import {
 } from "../utils/memoriesTransferChoices";
 import { clearMemoriesTransferFocusReturn } from "../utils/memoriesTransferFocusReturn";
 import { exportRefusalKey } from "../utils/memoriesTransferErrors";
-import { announceMemoriesChanged } from "../utils/memoriesChanged";
+import { announceMemoriesCaptureOn, announceMemoriesChanged } from "../utils/memoriesChanged";
 import { logError } from "../utils/errors";
 import { openPathPicker } from "../components/pickers/FilePickerModal";
 
@@ -320,7 +320,10 @@ export function useMemoriesTransferController({ isActive, language }: UseMemorie
             announceMemoriesChanged();
             void reloadEstimate();
         }
-    }, [status?.state, reloadEstimate]);
+        if (landed === "done" && status?.captureTurnedOn) {
+            announceMemoriesCaptureOn();
+        }
+    }, [status?.state, status?.captureTurnedOn, reloadEstimate]);
 
     return {
         status,

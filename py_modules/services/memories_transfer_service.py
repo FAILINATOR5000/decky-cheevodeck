@@ -125,6 +125,7 @@ class MemoriesTransferService:
                 "totalBytes": self._total_bytes,
                 "target": self._target,
                 "stashed": stashed,
+                "captureTurnedOn": bool(self._result and self._result.get("captureTurnedOn")),
             }
 
     def running(self) -> bool:
@@ -717,6 +718,7 @@ class MemoriesTransferService:
             self._fail(ERROR_ROOT_MISSING)
             return
 
+        library_was_empty = not self._store.games_with_memories()["games"]
         moved = []
         if mode == MODE_REPLACE:
             stashed = self._store.stash_account_trees()
@@ -855,7 +857,21 @@ class MemoriesTransferService:
             "missingVideos": missing_videos,
             "bundleUlid": manifest["ulid"],
             "sameAccount": bool(account) and manifest["ulid"] == account,
+            "captureTurnedOn": self._turn_capture_on(library_was_empty, inserted),
         })
+
+    def _turn_capture_on(self, library_was_empty: bool, inserted: int) -> bool:
+        if not library_was_empty or inserted <= 0:
+            return False
+        try:
+            if self._settings_store.get_memories_auto_capture(self._settings_store.load_config()):
+                return False
+            self._settings_store.update_memories_auto_capture(True)
+        except OSError as e:
+            decky.logger.warning("memories: couldn't turn capture on after the import (%s)", type(e).__name__)
+            return False
+        decky.logger.info("memories: capture turned on, the import filled an empty library")
+        return True
 
     def _place_media(self, archive, names: set, memory: dict, loose_files: list):
         tail = memories_transfer.safe_tail(memory.get("path"))

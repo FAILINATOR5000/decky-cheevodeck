@@ -47,6 +47,7 @@ import { setQamReturnDelay } from "../utils/modalRegistry";
 import { setStormbreakerEnabled } from "../utils/stormbreaker";
 import { DEFAULT_SHORTCUT_BINDINGS } from "../utils/options";
 import { setSnapshotHotkey } from "../utils/snapshotHotkey";
+import { subscribeMemoriesCaptureOn } from "../utils/memoriesChanged";
 import { setWebBrowserForLinks } from "../utils/navigation";
 import {
     setCurrentTextScale,
@@ -1150,6 +1151,8 @@ export function useSettingsController({
         applySettings,
         saveSettingWithRollback
     };
+
+    useEffect(() => subscribeMemoriesCaptureOn(() => setMemoriesAutoCapture(true)), []);
 
     return {
         state: controllerState,

@@ -12,3 +12,18 @@ export function subscribeMemoriesChanged(listener: () => void): () => void {
         listeners.delete(listener);
     };
 }
+
+const captureListeners = new Set<() => void>();
+
+export function announceMemoriesCaptureOn(): void {
+    for (const listener of captureListeners) {
+        listener();
+    }
+}
+
+export function subscribeMemoriesCaptureOn(listener: () => void): () => void {
+    captureListeners.add(listener);
+    return () => {
+        captureListeners.delete(listener);
+    };
+}
