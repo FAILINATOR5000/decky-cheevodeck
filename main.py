@@ -688,6 +688,8 @@ class Plugin(
 
         self._trickle_tick_lock = threading.Lock()
 
+        self._account_switch_lock = threading.Lock()
+
         self._clear_waiting = 0
         self._clear_waiting_lock = threading.Lock()
 
@@ -1097,9 +1099,9 @@ class Plugin(
         is_first_time_setup = (not current_username) and (not current_key)
 
         if is_first_time_setup or not active_ulid:
-            self.settings_store.add_user(canonical, key_to_validate, validated_ulid)
-            cfg = self.settings_store.activate_user(canonical, validated_ulid)
-            self._apply_user_scope(self._user_dir_key(cfg))
+            cfg = await asyncio.to_thread(
+                self._establish_account_under_locks, canonical, key_to_validate, validated_ulid
+            )
 
         elif validated_ulid == active_ulid:
             cfg = self.settings_store.update_credentials(canonical, key_to_validate)
@@ -1118,6 +1120,14 @@ class Plugin(
             "ok": True,
             **self.settings_store.settings_response(cfg),
         }
+
+    def _establish_account_under_locks(self, canonical: str, web_api_key: str, ulid: str):
+        with self._trickle_tick_lock, self._account_switch_lock:
+            self.settings_store.add_user(canonical, web_api_key, ulid)
+            cfg = self.settings_store.activate_user(canonical, ulid)
+            self._apply_user_scope(self._user_dir_key(cfg))
+            self.notes_reminder_service.reset_pending()
+            return cfg
 
     def _run_clear_under_trickle_lock(self, clear_fn):
         with self._clear_waiting_lock:
@@ -1241,7 +1251,7 @@ class Plugin(
         }
 
     def _switch_commit_under_trickle_lock(self, username: str, canonical: str, ulid: str):
-        with self._trickle_tick_lock:
+        with self._trickle_tick_lock, self._account_switch_lock:
             cfg = self.settings_store.activate_user(username, ulid)
 
             slot_name = str(cfg.get("username") or "").strip()
@@ -1711,10 +1721,11 @@ class Plugin(
                 if version and version != "unknown":
                     self.settings_store.save_changelog_version(version)
 
-            self.settings_store.run_under_config_lock(_wipe)
+            with self._account_switch_lock:
+                self.settings_store.run_under_config_lock(_wipe)
 
-            self._apply_user_scope("")
-            self.notes_reminder_service.reset_pending()
+                self._apply_user_scope("")
+                self.notes_reminder_service.reset_pending()
             self.file_watcher_service.prepare()
             self.file_watcher_service.start()
             self.back_button_service.sync()

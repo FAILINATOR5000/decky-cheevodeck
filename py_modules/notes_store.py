@@ -33,6 +33,7 @@ _ALLOWED_SORT_MODES = {"newest", "oldest", "manual"}
 _ALLOWED_REMINDER_MODES = {"off", "once", "every"}
 
 _ALLOWED_REMINDER_UNITS = {"minutes", "hours", "days"}
+_REMINDER_UNIT_MINUTES = {"minutes": 1, "hours": 60, "days": 60 * 24}
 
 _RESERVED_TAG_KEYS = {"completed"}
 
@@ -71,6 +72,36 @@ def _collapse_key(note) -> str:
 
 def _live_collapse_keys(notes) -> set:
     return {_collapse_key(note) for note in notes}
+
+
+REMINDER_CLOCK_SKEW_SECONDS = 60
+
+
+def reminder_due_at(note):
+    if note.get("reminderMode") not in ("once", "every"):
+        return None
+    if note.get("completedAt") is not None:
+        return None
+    try:
+        every_seconds = int(note.get("reminderEveryMinutes")) * 60
+    except (TypeError, ValueError):
+        return None
+    if every_seconds <= 0:
+        return None
+    try:
+        last = int(note.get("reminderLastFiredAt"))
+    except (TypeError, ValueError):
+        return 0
+    return last + every_seconds
+
+
+def reminder_is_due(note, now_ts) -> bool:
+    due_at = reminder_due_at(note)
+    if due_at is None:
+        return False
+    if now_ts >= due_at:
+        return True
+    return to_int(note.get("reminderLastFiredAt"), 0) > now_ts + REMINDER_CLOCK_SKEW_SECONDS
 
 
 class NotesStore:
@@ -203,6 +234,13 @@ class NotesStore:
         if value <= 0 or unit == "minutes":
             value = every
             unit = "minutes"
+        elif value * _REMINDER_UNIT_MINUTES[unit] != every:
+            unit = "minutes"
+            for candidate in ("days", "hours"):
+                if every % _REMINDER_UNIT_MINUTES[candidate] == 0:
+                    unit = candidate
+                    break
+            value = every // _REMINDER_UNIT_MINUTES[unit]
         return (mode, every, value, unit)
 
     def _normalize_note(self, raw):
@@ -602,7 +640,7 @@ class NotesStore:
         return {"ok": True, "sortMode": cleaned}
 
     @refuses_newer_schema
-    def stamp_reminder_fired(self, game_id, note_id: str, now_ts=None) -> dict:
+    def stamp_reminder_fired(self, game_id, note_id: str, now_ts=None, on_stamped=None) -> dict:
         key = self._game_key(game_id)
         if key is None:
             return {"ok": False, "error": "invalid_game_id"}
@@ -626,6 +664,9 @@ class NotesStore:
             if target is None:
                 return {"ok": False, "error": "not_found"}
 
+            if not reminder_is_due(target, now):
+                return {"ok": False, "error": "not_due"}
+
             target["reminderLastFiredAt"] = now
             target["showFiredDot"] = True
             if target["reminderMode"] == "once":
@@ -633,6 +674,8 @@ class NotesStore:
                 target["reminderEveryMinutes"] = None
 
             self._save_raw(key, entry, notes_dir)
+            if on_stamped is not None:
+                on_stamped(target)
 
         return {"ok": True, "note": target}
 

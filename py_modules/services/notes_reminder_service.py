@@ -5,11 +5,16 @@ import time
 import decky
 
 from services._tick_common import GenerationFence
+from notes_store import reminder_due_at, reminder_is_due
 from notifications import emit_notification, is_type_enabled
 from utils import TAG_PREFIX_PATTERN
 
 
 REMINDER_TICK_SECONDS = 30
+
+REMINDER_MIN_TICK_SECONDS = 5
+
+REMINDER_WAKE_MARGIN_SECONDS = 0.5
 
 REMINDER_STARTUP_DELAY_SECONDS = 5.0
 
@@ -24,7 +29,8 @@ _generation_fence = GenerationFence()
 class NotesReminderService:
     """Background daemon that surfaces note reminders for the current game.
 
-    One tick every REMINDER_TICK_SECONDS:
+    Each tick, at most REMINDER_TICK_SECONDS apart and sooner when a reminder
+    comes due:
       1. Read the current game id from the cache_store payload.
       2. Load that game's notes file.
       3. For every note with a non-off reminder that is due, append it to the
@@ -75,9 +81,9 @@ class NotesReminderService:
             decky.logger.info(message, *args)
 
     @contextlib.contextmanager
-    def _maybe_hold_trickle_lock(self):
+    def _maybe_hold_switch_lock(self):
         plugin = self._plugin
-        lock = getattr(plugin, "_trickle_tick_lock", None) if plugin is not None else None
+        lock = getattr(plugin, "_account_switch_lock", None) if plugin is not None else None
         if lock is None:
             yield
             return
@@ -138,8 +144,9 @@ class NotesReminderService:
                 )
                 return
 
+            delay = REMINDER_TICK_SECONDS
             try:
-                self._run_one_tick()
+                delay = self._run_one_tick()
             except Exception as exc:
                 decky.logger.exception(
                     "notes reminder: tick crashed: %s (%s)",
@@ -147,7 +154,7 @@ class NotesReminderService:
                     exc,
                 )
 
-            if self._stop_event.wait(REMINDER_TICK_SECONDS):
+            if self._stop_event.wait(delay):
                 return
 
     def _run_one_tick(self):
@@ -164,27 +171,42 @@ class NotesReminderService:
             threading.get_ident(),
         )
 
-        current_game_id, current_game_title, current_game_image_icon = self._read_current_game()
-        if current_game_id is None:
-            return
-
-        entry = self._notes_store.load_notes_for_game(current_game_id)
-        notes = entry.get("notes") or []
-        if not notes:
-            return
-
-        now = int(time.time())
-
-        with self._maybe_hold_trickle_lock():
+        with self._maybe_hold_switch_lock():
             if self._active_account_changed(tick_ulid):
                 self._debug_log(
                     "notes reminder: account switched mid-tick, skipping reminder fire"
                 )
-                return
+                return REMINDER_TICK_SECONDS
+
+            current_game_id, current_game_title, current_game_image_icon = self._read_current_game()
+            if current_game_id is None:
+                return REMINDER_TICK_SECONDS
+
+            entry = self._notes_store.load_notes_for_game(current_game_id)
+            notes = entry.get("notes") or []
+            now = int(time.time())
+
+            upcoming = []
             for note in notes:
-                if not self._is_due(note, now):
+                if not reminder_is_due(note, now):
+                    upcoming.append(note)
                     continue
-                self._fire(current_game_id, note, now, current_game_title, current_game_image_icon)
+                fired = self._fire(current_game_id, note, now, current_game_title, current_game_image_icon)
+                if fired is not None:
+                    upcoming.append(fired)
+
+        return self._seconds_until_next_tick(upcoming)
+
+    def _seconds_until_next_tick(self, notes):
+        soonest = None
+        for note in notes:
+            due_at = reminder_due_at(note)
+            if due_at is not None and (soonest is None or due_at < soonest):
+                soonest = due_at
+        if soonest is None:
+            return REMINDER_TICK_SECONDS
+        wait = soonest - time.time() + REMINDER_WAKE_MARGIN_SECONDS
+        return min(REMINDER_TICK_SECONDS, max(REMINDER_MIN_TICK_SECONDS, wait))
 
     def _read_current_game(self):
         try:
@@ -207,38 +229,25 @@ class NotesReminderService:
             image_icon = None
         return game_id, title, image_icon
 
-    def _is_due(self, note, now_ts):
-        mode = note.get("reminderMode")
-        if mode not in ("once", "every"):
-            return False
-
-        if note.get("completedAt") is not None:
-            return False
-
-        every = note.get("reminderEveryMinutes")
-        try:
-            every_seconds = int(every) * 60
-        except (TypeError, ValueError):
-            return False
-        if every_seconds <= 0:
-            return False
-
-        last = note.get("reminderLastFiredAt")
-        if last is None:
-            return True
-        try:
-            last_ts = int(last)
-        except (TypeError, ValueError):
-            return True
-
-        return (now_ts - last_ts) >= every_seconds
-
     def _fire(self, game_id, note, now_ts, game_title, game_image_icon):
         note_id = note.get("id")
         if not isinstance(note_id, str) or not note_id:
-            return
+            return None
 
-        result = self._notes_store.stamp_reminder_fired(game_id, note_id, now_ts)
+        result = self._notes_store.stamp_reminder_fired(
+            game_id,
+            note_id,
+            now_ts,
+            on_stamped=lambda stamped: self._queue_pending(game_id, stamped, now_ts),
+        )
+        if isinstance(result, dict) and result.get("error") in ("not_due", "not_found"):
+            self._debug_log(
+                "notes reminder: game=%s note=%s %s, skipped",
+                game_id,
+                note_id,
+                result.get("error"),
+            )
+            return None
         if not isinstance(result, dict) or not result.get("ok"):
             decky.logger.warning(
                 "notes reminder: stamp failed for game=%s note=%s result=%s",
@@ -246,27 +255,11 @@ class NotesReminderService:
                 note_id,
                 result,
             )
-            return
+            return None
 
-        item = {
-            "noteId": note_id,
-            "gameId": game_id,
-            "title": note.get("title") or "",
-            "body": note.get("body") or "",
-            "color": note.get("color") or "default",
-            "firedAt": now_ts,
-        }
+        note = result["note"]
 
-        with self._state_lock:
-            bucket = self._pending_by_game.setdefault(int(game_id), [])
-            replaced = False
-            for i, existing in enumerate(bucket):
-                if existing.get("noteId") == note_id:
-                    bucket[i] = item
-                    replaced = True
-                    break
-            if not replaced:
-                bucket.append(item)
+        toast_line = self._toast_text_for_note(note)
 
         decky.logger.info(
             "notes reminder: fired game=%s note=%s",
@@ -297,10 +290,33 @@ class NotesReminderService:
         emit_notification(
             ntype="noteReminder",
             title_key="Reminder",
-            toast_line=self._toast_text_for_note(note),
+            toast_line=toast_line or None,
+            line_key=None if toast_line else "Reminder",
             settings_store=self._settings_store,
             event_loop=self._event_loop,
         )
+        return note
+
+    def _queue_pending(self, game_id, note, now_ts):
+        item = {
+            "noteId": note["id"],
+            "gameId": game_id,
+            "title": note.get("title") or "",
+            "body": note.get("body") or "",
+            "color": note.get("color") or "default",
+            "firedAt": now_ts,
+        }
+
+        with self._state_lock:
+            bucket = self._pending_by_game.setdefault(int(game_id), [])
+            replaced = False
+            for i, existing in enumerate(bucket):
+                if existing.get("noteId") == item["noteId"]:
+                    bucket[i] = item
+                    replaced = True
+                    break
+            if not replaced:
+                bucket.append(item)
 
     def _toast_text_for_note(self, note):
         title = (note.get("title") or "").strip()
@@ -309,6 +325,8 @@ class NotesReminderService:
 
         body = (note.get("body") or "").strip()
         body = _LEADING_TAG_PATTERN.sub("", body, count=1).strip()
+        if not body:
+            return (note.get("tag") or "").strip()
         if len(body) <= REMINDER_TOAST_BODY_MAX_LEN:
             return body
 
@@ -337,7 +355,8 @@ class NotesReminderService:
 
     def _notification_body_for_note(self, note):
         body = (note.get("body") or "")
-        return _LEADING_TAG_PATTERN.sub("", body, count=1).strip()
+        body = _LEADING_TAG_PATTERN.sub("", body, count=1).strip()
+        return body or (note.get("tag") or "").strip()
 
     def get_pending(self, game_id):
         """Return, without clearing, all unacked reminders for a game.

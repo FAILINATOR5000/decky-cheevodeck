@@ -80,7 +80,7 @@ class NotesMixin(PluginContext):
         reminder_every_unit=None,
         reset_reminder_timer: bool = False,
     ):
-        return self.notes_store.update_note(
+        result = self.notes_store.update_note(
             game_id,
             note_id,
             title=title,
@@ -93,9 +93,15 @@ class NotesMixin(PluginContext):
             reminder_every_unit=reminder_every_unit,
             reset_reminder_timer=reset_reminder_timer,
         )
+        if result.get("ok") and (result.get("deletedId") or result["note"]["reminderMode"] == "off"):
+            self.notes_reminder_service.ack(game_id, [note_id])
+        return result
 
     async def delete_game_note(self, game_id=None, note_id: str = ""):
-        return self.notes_store.delete_note(game_id, note_id)
+        result = self.notes_store.delete_note(game_id, note_id)
+        if result.get("ok"):
+            self.notes_reminder_service.ack(game_id, [note_id])
+        return result
 
     async def reorder_game_notes(self, game_id=None, ordered_ids=None):
         if ordered_ids is None:
@@ -132,6 +138,8 @@ class NotesMixin(PluginContext):
 
     async def delete_all_notes(self):
         result = self.notes_store.delete_all_notes()
+        if result.get("ok"):
+            self.notes_reminder_service.reset_pending()
         return {
             "ok": bool(result.get("ok", False)),
             "deletedNotes": int(result.get("deletedNotes", 0)),
