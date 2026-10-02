@@ -45,6 +45,15 @@ def _boot_seconds() -> float:
     return time.clock_gettime(time.CLOCK_BOOTTIME)
 
 
+def _clip_moment(seconds: float) -> str:
+    whole = int(max(seconds, 0.0) + 0.5)
+    hours, rest = divmod(whole, 3600)
+    minutes, secs = divmod(rest, 60)
+    if hours:
+        return f"{hours}h{minutes:02d}m{secs:02d}s"
+    return f"{minutes}m{secs:02d}s"
+
+
 class MemoriesMixin(PluginContext):
 
     async def save_memories_auto_capture(self, value: bool):
@@ -461,8 +470,7 @@ class MemoriesMixin(PluginContext):
 
         label = str(bookmarks[found].get("name") or "").strip()
         if not label:
-            offset = int(max(start - in_point, 0.0))
-            label = f"[{offset // 60:02d}-{offset % 60:02d}]"
+            label = f"[{_clip_moment(start - in_point)}-{_clip_moment(end - in_point)}]"
         name = memories_export.export_name(
             memory.get("gameTitle"), memory.get("capturedAt"), ".mp4", label
         )
