@@ -19,6 +19,7 @@ import os
 import re
 import shlex
 import shutil
+import stat
 import threading
 import time
 import urllib.error
@@ -37,7 +38,7 @@ import switch_container
 
 from dolphin_ini import DOLPHIN_FLATPAK_APP_ID
 from notifications import emit_notification
-from utils import to_int
+from utils import child_owner, chown_to_data_owner, exclusive_file, open_dir, to_int, write_file_atomic
 
 
 HASHER_BATCH_SIZE = 24
@@ -1136,7 +1137,7 @@ class CheevoCheckService:
             self._reset_scratch(scratch)
             image = scratch / "track.bin"
             written = 0
-            with open(image, "wb") as out:
+            with exclusive_file(image) as out:
                 for index in range(track["frames"]):
                     if self._cancel.is_set():
                         return None
@@ -1149,10 +1150,7 @@ class CheevoCheckService:
                 return None
 
             cue = scratch / "track.cue"
-            cue.write_text(
-                'FILE "track.bin" BINARY\n  TRACK 01 MODE1/2048\n    INDEX 01 00:00:00\n',
-                encoding="utf-8",
-            )
+            write_file_atomic(cue, 'FILE "track.bin" BINARY\n  TRACK 01 MODE1/2048\n    INDEX 01 00:00:00\n')
             complete = written == track["frames"]
             self._debug(
                 "chd recovery wrote %d of %d sector(s) from %s", written, track["frames"], path.name
@@ -1253,7 +1251,7 @@ class CheevoCheckService:
                 skip = cdi.content_start(track)
 
             name = f"track{track['number']:02d}.bin"
-            with open(scratch / name, "wb") as out:
+            with exclusive_file(scratch / name) as out:
                 written = cdi.copy_track(track, out, skip_sectors=skip, cancel=self._cancel)
                 if self._cancel.is_set():
                     return None
@@ -1269,7 +1267,7 @@ class CheevoCheckService:
             lines.append("    INDEX 01 00:00:00")
 
         cue = scratch / "disc.cue"
-        cue.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        write_file_atomic(cue, "\n".join(lines) + "\n")
         return cue
 
     def _run_hasher(self, console_id: int, paths: list) -> list:
@@ -1376,8 +1374,9 @@ class CheevoCheckService:
         scratch = base / "zip"
         try:
             self._reset_scratch(scratch)
-            with zipfile.ZipFile(path) as archive:
-                extracted = Path(archive.extract(picked, path=str(scratch)))
+            extracted = scratch / (Path(picked.replace("\\", "/")).name or "rom")
+            with zipfile.ZipFile(path) as archive, archive.open(picked) as reader, exclusive_file(extracted) as out:
+                shutil.copyfileobj(reader, out)
             digests = self._run_hasher(console_id, [extracted])
             return digests[0] if digests and digests[0] else FAILED_UNREADABLE
         except OSError:
@@ -1397,8 +1396,9 @@ class CheevoCheckService:
         system = candidate["systems"][0]
         result = {**candidate, "system": system, "hash": None}
 
+        as_user = self._user_can_read(path)
         try:
-            entries = self._archive_entries(path, candidate["kind"])
+            entries = self._archive_entries(path, candidate["kind"], as_user)
         except Exception:
             result["hash"] = FAILED_ARCHIVE
             return result
@@ -1416,10 +1416,11 @@ class CheevoCheckService:
             return result
 
         try:
-            self._reset_scratch(scratch)
+            self._reset_scratch(scratch, for_user=as_user)
             extract_started = time.monotonic()
             code, _, err = subprocess_util.run_command(
                 ["7z", "x", "-y", f"-o{scratch}", str(path)],
+                as_data_owner=as_user,
                 timeout=ARCHIVE_EXTRACT_TIMEOUT_SECONDS,
                 cancel=self._cancel,
             )
@@ -1473,7 +1474,7 @@ class CheevoCheckService:
         result["verifyName"] = Path(entry_name).name
         result["verifySize"] = size
 
-    def _archive_entries(self, path: Path, kind: str) -> list:
+    def _archive_entries(self, path: Path, kind: str, as_user=None) -> list:
         """(name, uncompressed size) for everything in an archive.
 
         Reads headers only, so the size check below costs nothing next to the
@@ -1484,7 +1485,8 @@ class CheevoCheckService:
                 return [(item.filename, item.file_size) for item in archive.infolist() if not item.is_dir()]
 
         code, out, _ = subprocess_util.run_command(
-            ["7z", "l", "-slt", str(path)], timeout=ARCHIVE_LIST_TIMEOUT_SECONDS
+            ["7z", "l", "-slt", str(path)], timeout=ARCHIVE_LIST_TIMEOUT_SECONDS,
+            as_data_owner=self._user_can_read(path) if as_user is None else as_user,
         )
         if code != 0:
             raise OSError(f"7z couldn't list {path.name}")
@@ -1620,15 +1622,40 @@ class CheevoCheckService:
         except OSError:
             return False
 
-    def _reset_scratch(self, scratch: Path) -> None:
+    def _reset_scratch(self, scratch: Path, for_user: bool = False) -> None:
+        if scratch.parent.is_symlink():
+            scratch.parent.unlink()
         self._remove_scratch(scratch)
-        scratch.mkdir(parents=True, exist_ok=True)
+        scratch.parent.mkdir(parents=True, exist_ok=True)
+        dir_fd = open_dir(scratch.parent)
+        try:
+            try:
+                os.mkdir(scratch.name, dir_fd=dir_fd)
+            except FileExistsError:
+                pass
+            inner = os.open(scratch.name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=dir_fd)
+            try:
+                if for_user:
+                    chown_to_data_owner(inner)
+            finally:
+                os.close(inner)
+        finally:
+            os.close(dir_fd)
 
     def _remove_scratch(self, scratch: Path) -> None:
         try:
-            shutil.rmtree(scratch)
-        except (FileNotFoundError, OSError):
+            dir_fd = open_dir(scratch.parent)
+        except OSError:
+            return
+        try:
+            if stat.S_ISLNK(os.stat(scratch.name, dir_fd=dir_fd, follow_symlinks=False).st_mode):
+                os.unlink(scratch.name, dir_fd=dir_fd)
+            else:
+                shutil.rmtree(scratch.name, dir_fd=dir_fd)
+        except OSError:
             pass
+        finally:
+            os.close(dir_fd)
 
     def _dolphin_available(self) -> bool:
         if self._dolphin_ready is not None:
@@ -2572,7 +2599,8 @@ class CheevoCheckService:
         if not tags:
             return VERIFY_READ_FAILED
 
-        damaged = self._chd_self_check(path, row)
+        as_user = self._user_can_read(path)
+        damaged = self._chd_self_check(path, row, as_user)
         if damaged is not None:
             return damaged
 
@@ -2591,7 +2619,7 @@ class CheevoCheckService:
         else:
             return VERIFY_CHD_EXTRACT_FAILED
 
-        needed = self._chd_logical_size(path)
+        needed = self._chd_logical_size(path, as_user)
         if needed <= 0:
             return VERIFY_NO_TOOL if self._chdman_fault is not None else VERIFY_CHD_EXTRACT_FAILED
         base = self._scratch_base(needed)
@@ -2600,14 +2628,14 @@ class CheevoCheckService:
 
         scratch = base / "verify"
         try:
-            self._reset_scratch(scratch)
+            self._reset_scratch(scratch, for_user=as_user)
             target = scratch / produced
             argv = [str(self._chdman_path), command, "-i", str(path), "-o", str(target)]
             if command == "extractcd":
                 argv += ["-ob", str(scratch / ("track%t.bin" if gdrom else "disc.bin"))]
             started = time.monotonic()
             code, _, err = subprocess_util.run_command(
-                argv, timeout=self._verify_timeout(needed), cancel=self._cancel
+                argv, timeout=self._verify_timeout(needed), cancel=self._cancel, as_data_owner=as_user
             )
             self._debug(
                 "chd verify %s: %s in %.1fs", path.name, command, time.monotonic() - started
@@ -2633,7 +2661,7 @@ class CheevoCheckService:
         finally:
             self._remove_scratch(scratch)
 
-    def _chd_self_check(self, path: Path, row):
+    def _chd_self_check(self, path: Path, row, as_user=None):
         """Re-derive the CHD's own whole-image SHA-1, or None if it holds up.
 
         Returns a reason when it does not, which is one of the two things this
@@ -2656,6 +2684,7 @@ class CheevoCheckService:
             [str(self._chdman_path), "verify", "-i", str(path)],
             timeout=self._verify_timeout(size),
             cancel=self._cancel,
+            as_data_owner=self._user_can_read(path) if as_user is None else as_user,
         )
         self._debug(
             "chd self-check %s: rc=%d in %.1fs", path.name, code, time.monotonic() - started
@@ -2723,7 +2752,15 @@ class CheevoCheckService:
                 limit = frames * chd_reader.CD_SECTOR_DATA
         return (image, limit)
 
-    def _chd_logical_size(self, path: Path) -> int:
+    def _user_can_read(self, path: Path) -> bool:
+        if child_owner() is None:
+            return True
+        code, _, _ = subprocess_util.run_command(
+            ["/usr/bin/test", "-r", str(path)], timeout=FLATPAK_QUERY_TIMEOUT_SECONDS, as_data_owner=True
+        )
+        return code != 1
+
+    def _chd_logical_size(self, path: Path, as_user=None) -> int:
         """How much room unpacking this disc will want.
 
         Asked of chdman rather than worked out from the CHD's own size: the
@@ -2734,6 +2771,7 @@ class CheevoCheckService:
         code, out, err = subprocess_util.run_command(
             [str(self._chdman_path), "info", "-i", str(path)],
             timeout=FLATPAK_QUERY_TIMEOUT_SECONDS,
+            as_data_owner=self._user_can_read(path) if as_user is None else as_user,
         )
         self._chdman_broke(code, err)
         if code != 0:

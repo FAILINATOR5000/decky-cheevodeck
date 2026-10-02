@@ -10,6 +10,7 @@ import dolphin_seed
 
 from dolphin_ini import DOLPHIN_FLATPAK_APP_ID
 from mixins._context import PluginContext
+from utils import open_dir, user_file_target
 
 
 STEAMDECK_CONTROLLER_VID = "28de"
@@ -44,7 +45,10 @@ class DolphinMapperMixin(PluginContext):
 
         try:
             st = self.user_home.stat()
-            os.chown(path, st.st_uid, st.st_gid)
+            if isinstance(path, int):
+                os.fchown(path, st.st_uid, st.st_gid)
+            else:
+                os.chown(path, st.st_uid, st.st_gid, follow_symlinks=False)
         except OSError as exc:
             if not _chown_warned:
                 _chown_warned = True
@@ -368,14 +372,25 @@ class DolphinMapperMixin(PluginContext):
         prepared = set()
         done = []
         try:
+            home = self.user_home.stat()
+            owner = (home.st_uid, home.st_gid)
+        except OSError:
+            owner = None
+        try:
             for path, change in writes:
                 config_dir = path.parent
                 if config_dir not in prepared:
+                    made = []
+                    probe = config_dir
+                    while not probe.exists() and probe.parent != probe:
+                        made.append(probe)
+                        probe = probe.parent
                     config_dir.mkdir(parents=True, exist_ok=True)
-                    self._chown_to_user(config_dir)
+                    for level in made:
+                        self._chown_to_user(level)
                     prepared.add(config_dir)
 
-                real = Path(os.path.realpath(path))
+                real = user_file_target(path, owner)
                 previous = real.read_bytes() if real.exists() else None
                 if isinstance(change, str):
                     data = change.encode("utf-8")
@@ -411,26 +426,30 @@ class DolphinMapperMixin(PluginContext):
         return True
 
     def _replace_ini_file(self, real: Path, data: bytes) -> None:
+        dir_fd = open_dir(real.parent, real.parent)
         try:
-            mode = stat.S_IMODE(real.stat().st_mode)
-        except FileNotFoundError:
-            mode = None
-        tmp = real.with_name("." + real.name + ".cheevodeck-tmp")
-        try:
-            tmp.unlink()
-        except FileNotFoundError:
-            pass
-        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
-        try:
-            with os.fdopen(fd, "wb") as handle:
-                handle.write(data)
-            if mode is not None:
-                os.chmod(tmp, mode)
-            self._chown_to_user(tmp)
-            os.replace(tmp, real)
-        except Exception:
             try:
-                tmp.unlink()
-            except OSError:
+                mode = stat.S_IMODE(os.stat(real.name, dir_fd=dir_fd, follow_symlinks=False).st_mode)
+            except FileNotFoundError:
+                mode = None
+            tmp = "." + real.name + ".cheevodeck-tmp"
+            try:
+                os.unlink(tmp, dir_fd=dir_fd)
+            except FileNotFoundError:
                 pass
-            raise
+            fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o666, dir_fd=dir_fd)
+            try:
+                with os.fdopen(fd, "wb") as handle:
+                    handle.write(data)
+                    if mode is not None:
+                        os.fchmod(handle.fileno(), mode)
+                    self._chown_to_user(handle.fileno())
+                os.replace(tmp, real.name, src_dir_fd=dir_fd, dst_dir_fd=dir_fd)
+            except Exception:
+                try:
+                    os.unlink(tmp, dir_fd=dir_fd)
+                except OSError:
+                    pass
+                raise
+        finally:
+            os.close(dir_fd)

@@ -9,7 +9,6 @@ import time
 
 from utils import (
     NewerSchemaFile,
-    chown_to_data_owner,
     ensure_dir,
     is_newer_schema,
     load_json_file,
@@ -19,6 +18,7 @@ from utils import (
     report_newer_schema,
     save_json_file,
     to_int,
+    write_file_atomic,
 )
 
 
@@ -113,10 +113,7 @@ class GuidesStore:
     def _save_text_atomic(self, path: Path, text: str, *, create_dir: bool = True) -> None:
         if create_dir:
             ensure_dir(path.parent)
-        tmp = path.with_suffix(path.suffix + ".tmp")
-        tmp.write_text(text, encoding="utf-8")
-        chown_to_data_owner(tmp)
-        tmp.replace(path)
+        write_file_atomic(path, text)
 
     def _empty_game_record(self, game_id: int) -> dict:
         return {

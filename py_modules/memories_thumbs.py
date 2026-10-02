@@ -12,7 +12,6 @@ from pathlib import Path
 import decky
 import subprocess_util
 
-from utils import chown_to_data_owner
 
 
 FFMPEG = "/usr/bin/ffmpeg"
@@ -74,7 +73,7 @@ def _has_content(path: Path) -> bool:
 
 
 def _run(argv, timeout) -> bool:
-    code, stdout, stderr = subprocess_util.run_command(argv, timeout=timeout)
+    code, stdout, stderr = subprocess_util.run_command(argv, timeout=timeout, as_data_owner=True)
     if code != 0:
         decky.logger.warning("memories: ffmpeg failed (rc=%s): %s", code, f"{stdout}{stderr}".strip()[:300])
         return False
@@ -85,6 +84,7 @@ def make_thumbnail(source: Path, destination: Path) -> bool:
     """Write a 640px WebP tile for one picture. True when it lands."""
     if not ffmpeg_available():
         return False
+    _discard(destination)
     ok = _run([
         FFMPEG, "-y", "-v", "error",
         "-i", str(source),
@@ -93,9 +93,7 @@ def make_thumbnail(source: Path, destination: Path) -> bool:
         "-q:v", str(THUMB_QUALITY),
         str(destination),
     ], _THUMB_TIMEOUT_SECONDS)
-    if ok:
-        chown_to_data_owner(destination)
-    else:
+    if not ok:
         _discard(destination)
     return ok
 
@@ -109,6 +107,7 @@ def transcode_lossless(source: Path, destination: Path) -> bool:
     """
     if not ffmpeg_available():
         return False
+    _discard(destination)
     ok = _run([
         FFMPEG, "-y", "-v", "error",
         "-i", str(source),
@@ -117,9 +116,7 @@ def transcode_lossless(source: Path, destination: Path) -> bool:
         "-compression_level", str(LOSSLESS_COMPRESSION_LEVEL),
         str(destination),
     ], _TRANSCODE_TIMEOUT_SECONDS)
-    if ok:
-        chown_to_data_owner(destination)
-    else:
+    if not ok:
         _discard(destination)
     return ok
 

@@ -9,7 +9,7 @@ import urllib.request
 import decky
 
 from ra_client import build_user_agent
-from utils import chown_to_data_owner, frontend_error, ssl_context
+from utils import exclusive_file, frontend_error, ssl_context
 
 
 PATCH_HOSTS = ("github.com", "raw.githubusercontent.com", "retroachievements.org")
@@ -100,15 +100,14 @@ class GameHashesService:
             return {"ok": False, "error": PATCH_TOO_BIG}
 
         path = folder / name
-        if path.exists():
-            return {"ok": False, "error": PATCH_EXISTS}
         try:
-            path.write_bytes(data)
+            with exclusive_file(path, trusted=folder) as out:
+                out.write(data)
+        except FileExistsError:
+            return {"ok": False, "error": PATCH_EXISTS}
         except OSError as exc:
             decky.logger.error("couldn't write the patch to %s (%s)", path, exc)
             return {"ok": False, "error": PATCH_BAD_FOLDER}
-
-        chown_to_data_owner(path)
         decky.logger.info("patch saved to %s (%d bytes)", path, len(data))
         return {"ok": True, "path": str(path), "name": path.name}
 

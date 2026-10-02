@@ -7,7 +7,7 @@ import decky
 
 from mixins._context import PluginContext
 from services.file_watcher_service import default_start_dir
-from utils import chown_to_data_owner
+from utils import write_user_file
 
 
 FINDINGS_PAGE_SIZE = 200
@@ -239,12 +239,10 @@ class FileWatcherMixin(PluginContext):
 
         path = folder / f"filewatcher_report_{time.strftime('%Y-%m-%d')}.txt"
         try:
-            path.write_text(text, encoding="utf-8")
+            write_user_file(path, text, folder=folder)
         except OSError as exc:
             decky.logger.error("couldn't write the report to %s (%s)", path, exc)
             return {"ok": False, "error": "bad_folder"}
-
-        chown_to_data_owner(path)
         decky.logger.info("filewatcher: report saved to %s (%d bytes)", path, len(text))
         return {"ok": True, "name": path.name, "path": str(path)}
 

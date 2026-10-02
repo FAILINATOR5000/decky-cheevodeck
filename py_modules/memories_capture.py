@@ -16,7 +16,7 @@ import cheevo_check_systems as systems
 import decky
 import steam_shortcuts
 
-from utils import chown_to_data_owner
+from utils import atomic_file
 
 
 SHORTCUT_APPID_FLOOR = 1 << 31
@@ -252,12 +252,16 @@ def unique_destination(folder: Path, name: str) -> Path:
     """A path in ``folder`` that no picture of any format is already using."""
     stem = Path(name).stem
     suffix = Path(name).suffix
-    if _stem_is_free(folder, stem):
+    if _name_is_free(folder, stem, suffix):
         return folder / name
     for index in range(1, 1000):
-        if _stem_is_free(folder, f"{stem}-{index}"):
+        if _name_is_free(folder, f"{stem}-{index}", suffix):
             return folder / f"{stem}-{index}{suffix}"
     return folder / f"{stem}-{os.getpid()}{suffix}"
+
+
+def _name_is_free(folder: Path, stem: str, suffix: str) -> bool:
+    return _stem_is_free(folder, stem) and not os.path.lexists(folder / (stem + suffix))
 
 
 def copy_into(source: Path, folder: Path):
@@ -272,18 +276,11 @@ def copy_into(source: Path, folder: Path):
         return None
 
     destination = unique_destination(folder, source.name)
-    tmp = destination.with_suffix(destination.suffix + ".tmp")
     try:
-        shutil.copyfile(source, tmp)
-        chown_to_data_owner(tmp)
-        tmp.replace(destination)
+        with source.open("rb") as reader, atomic_file(destination) as writer:
+            shutil.copyfileobj(reader, writer, 1024 * 1024)
     except OSError as e:
         decky.logger.error("memories: couldn't copy %s (%s)", source.name, type(e).__name__)
-        try:
-            tmp.unlink()
-        except OSError:
-            pass
         return None
 
-    chown_to_data_owner(destination)
     return destination

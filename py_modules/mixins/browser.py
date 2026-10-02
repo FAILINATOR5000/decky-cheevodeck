@@ -13,7 +13,7 @@ import uuid
 import decky
 
 from browser_store import MAX_AD_EXEMPTIONS, MAX_BOOKMARK_CATEGORIES, MAX_BOOKMARKS, MAX_TABS, clean_site
-from utils import chown_to_data_owner, ssl_context, to_int
+from utils import atomic_file, ssl_context, to_int
 from mixins._context import PluginContext
 
 
@@ -80,7 +80,7 @@ def _claim_destination(folder: Path, name: str, download_id: str) -> Path:
     stem, suffix = os.path.splitext(name)
     candidate = folder / name
     index = 1
-    while candidate.exists() or candidate in claimed or Path(str(candidate) + ".part").exists():
+    while os.path.lexists(candidate) or candidate in claimed or os.path.lexists(str(candidate) + ".part"):
         candidate = folder / f"{stem} ({index}){suffix}"
         index += 1
     _active_downloads[download_id]["path"] = candidate
@@ -325,7 +325,6 @@ class BrowserMixin(PluginContext):
             name = _scrub_name(chosen) or _download_name(response.headers.get("Content-Disposition", ""), suggested, final)
             with _active_lock:
                 path = _claim_destination(folder, name, download_id)
-            part = Path(str(path) + ".part")
             decky.logger.info(
                 "browser download from %s started: %s (%s)",
                 host, path, f"{length} bytes" if length >= 0 else "size unknown",
@@ -333,7 +332,7 @@ class BrowserMixin(PluginContext):
 
             written = 0
             try:
-                with open(part, "wb") as out:
+                with atomic_file(path, trusted=folder, suffix=".part") as out:
                     while True:
                         try:
                             chunk = response.read(BROWSER_DOWNLOAD_CHUNK)
@@ -348,27 +347,13 @@ class BrowserMixin(PluginContext):
                             out.write(chunk)
                         except OSError as exc:
                             raise _DownloadError("write_failed", f"{type(exc).__name__}: {exc}") from exc
-                if length >= 0 and written < length:
-                    raise _DownloadError("failed", f"ended at {written} of {length} bytes")
-                os.replace(part, path)
-            except _DownloadError:
-                self._remove_part(part)
-                raise
+                    if length >= 0 and written < length:
+                        raise _DownloadError("failed", f"ended at {written} of {length} bytes")
             except OSError as exc:
-                self._remove_part(part)
                 raise _DownloadError("write_failed", f"{type(exc).__name__}: {exc}") from exc
 
-        chown_to_data_owner(path)
         decky.logger.info("browser download saved to %s (%d bytes)", path, written)
         return path
-
-    def _remove_part(self, part: Path) -> None:
-        try:
-            part.unlink()
-        except FileNotFoundError:
-            pass
-        except OSError as exc:
-            decky.logger.warning("couldn't remove %s (%s)", part, exc)
 
     def _emit_browser_download(self, payload: dict) -> None:
         loop = getattr(self, "_asyncio_loop", None)

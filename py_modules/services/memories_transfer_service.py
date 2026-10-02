@@ -13,7 +13,7 @@ from memories_store import CURRENT_SCHEMA_VERSION, is_clip_folder
 
 from notifications import emit_notification
 from services import memories_video_service
-from utils import chown_to_data_owner, ensure_dir, to_int
+from utils import append_file, ensure_dir, to_int, write_file_atomic
 
 
 FREE_SPACE_MARGIN_BYTES = 256 * 1024 * 1024
@@ -599,8 +599,7 @@ class MemoriesTransferService:
         note = self._scratch_dir / EXPORT_PART_NOTE
         try:
             ensure_dir(self._scratch_dir)
-            note.write_text(str(part), encoding="utf-8")
-            chown_to_data_owner(note)
+            write_file_atomic(note, str(part))
         except OSError as e:
             decky.logger.warning("memories: couldn't note the export in progress (%s)", type(e).__name__)
 
@@ -874,10 +873,6 @@ class MemoriesTransferService:
                 return None
         except (OSError, zipfile.BadZipFile) as e:
             decky.logger.error("memories: %s would not land (%s)", target.name, type(e).__name__)
-            try:
-                target.unlink()
-            except OSError:
-                pass
             return {"picture": "", "video": "", "missingVideo": False}
         loose_files.append(target)
         with self._lock:
@@ -909,7 +904,7 @@ class MemoriesTransferService:
                     return None
             except (OSError, zipfile.BadZipFile) as e:
                 decky.logger.error("memories: %s would not land (%s)", name, type(e).__name__)
-                self._drop_files(landed + [landing])
+                self._drop_files(landed)
                 try:
                     folder.rmdir()
                 except OSError:
@@ -930,11 +925,7 @@ class MemoriesTransferService:
         note = self._scratch_dir / IMPORT_FILES_NOTE
         try:
             ensure_dir(self._scratch_dir)
-            fresh = not note.exists()
-            with note.open("a", encoding="utf-8") as writer:
-                writer.write(json.dumps(str(path)) + "\n")
-            if fresh:
-                chown_to_data_owner(note)
+            append_file(note, json.dumps(str(path)) + "\n")
         except OSError as e:
             decky.logger.warning("memories: couldn't note the import in progress (%s)", type(e).__name__)
 

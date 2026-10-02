@@ -19,7 +19,7 @@ import threading
 import decky
 
 from memories_store import is_clip_file
-from utils import chown_to_data_owner, ensure_dir
+from utils import add_write_root, ensure_dir, exclusive_file, write_file_atomic
 
 
 SENTINEL_NAME = ".cheevodeck-videos"
@@ -62,10 +62,8 @@ def write_sentinel(root: Path) -> None:
     videos are gone".
     """
     try:
-        ensure_dir(root)
-        marker = root / SENTINEL_NAME
-        marker.write_text("CheevoDeck memories videos\n", encoding="utf-8")
-        chown_to_data_owner(marker)
+        ensure_dir(root, root)
+        write_file_atomic(root / SENTINEL_NAME, "CheevoDeck memories videos\n", trusted=root)
     except OSError as e:
         decky.logger.warning("memories: couldn't mark the video root (%s)", type(e).__name__)
 
@@ -242,7 +240,7 @@ class MemoriesVideoService:
         progress figures move inside a single large file and what lets a cancel
         be answered during one rather than after it.
         """
-        with source.open("rb") as reader, destination.open("wb") as writer:
+        with source.open("rb") as reader, exclusive_file(destination, replace=True) as writer:
             while True:
                 block = reader.read(_COPY_CHUNK_BYTES)
                 if not block:
@@ -295,6 +293,7 @@ class MemoriesVideoService:
             self._files = len(files)
             self._total_bytes = total
 
+        add_write_root(target_root)
         try:
             ensure_dir(target_root)
         except OSError:
@@ -336,7 +335,6 @@ class MemoriesVideoService:
                 if not finished:
                     self._stopped(written, target_root)
                     return
-                chown_to_data_owner(destination)
                 copied.append((source, destination))
                 with self._lock:
                     self._copied += 1

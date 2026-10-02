@@ -5,6 +5,7 @@ instance: they only operate on their arguments, and this way other modules
 import the specific helpers they use, which makes dependencies visible.
 """
 
+import contextlib
 import functools
 import json
 import os
@@ -12,6 +13,7 @@ import pwd
 import re
 import signal
 import ssl
+import stat
 import threading
 from pathlib import Path
 from typing import Any, Optional
@@ -174,10 +176,16 @@ def init_data_owner(*candidates) -> None:
     _data_owner = None
 
 
+def child_owner():
+    if _data_owner is None or os.geteuid() != 0:
+        return None
+    return _data_owner
+
+
 _chown_warned = False
 
 
-def chown_to_data_owner(path) -> None:
+def chown_to_data_owner(path, dir_fd=None) -> None:
     """Hand a newly created file or directory back to the data-dir owner.
 
     A no-op unless the process is actually root and the target is known, so an
@@ -193,7 +201,10 @@ def chown_to_data_owner(path) -> None:
     try:
         if os.geteuid() != 0:
             return
-        os.chown(path, _data_owner[0], _data_owner[1])
+        if isinstance(path, int):
+            os.fchown(path, _data_owner[0], _data_owner[1])
+        else:
+            os.chown(path, _data_owner[0], _data_owner[1], dir_fd=dir_fd, follow_symlinks=False)
     except OSError as exc:
         if not _chown_warned:
             _chown_warned = True
@@ -206,27 +217,62 @@ def chown_to_data_owner(path) -> None:
             )
 
 
-def lchown_to_data_owner(path) -> None:
-    """The symlink version, and the reason it has to exist.
+_write_roots = ()
 
-    chown_to_data_owner goes through os.chown, which follows the link. Aimed at
-    a symlink it would walk to the far end and take ownership of the mount
-    point the link points at, which is somebody else's business entirely.
-    lchown stops at the link. Same best-effort shrug as its sibling: the link
-    already works whoever owns it, since deleting one depends on the
-    directory's permissions rather than the link's.
-    """
-    if _data_owner is None:
-        return
+
+def set_write_roots(*roots) -> None:
+    global _write_roots
+    _write_roots = tuple(Path(root) for root in roots)
+
+
+def add_write_root(root) -> None:
+    global _write_roots
+    root = Path(root)
+    if root not in _write_roots:
+        _write_roots = _write_roots + (root,)
+
+
+def _root_for(path):
+    best = None
+    for root in _write_roots:
+        if path.is_relative_to(root) and (best is None or len(root.parts) > len(best.parts)):
+            best = root
+    return best
+
+
+_DIR_FLAGS = os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC
+
+
+def _levels_below(path, trusted):
     try:
-        if os.geteuid() != 0:
-            return
-        os.lchown(path, _data_owner[0], _data_owner[1])
-    except OSError:
-        pass
+        below = path.relative_to(trusted).parts
+    except ValueError:
+        raise PermissionError(f"{path} is not under {trusted}") from None
+    if ".." in below:
+        raise PermissionError(f"{path} climbs out of {trusted}")
+    return below
 
 
-def ensure_dir(path) -> None:
+def open_dir(path, trusted=None) -> int:
+    path = Path(path)
+    if trusted is None:
+        trusted = _root_for(path)
+    if trusted is None:
+        return os.open(path, _DIR_FLAGS | os.O_NOFOLLOW)
+    below = _levels_below(path, trusted)
+    fd = os.open("/", _DIR_FLAGS)
+    try:
+        for part in Path(os.path.realpath(trusted)).parts[1:] + below:
+            inner = os.open(part, _DIR_FLAGS | os.O_NOFOLLOW, dir_fd=fd)
+            os.close(fd)
+            fd = inner
+    except BaseException:
+        os.close(fd)
+        raise
+    return fd
+
+
+def ensure_dir(path, trusted=None) -> None:
     """mkdir -p that also hands the created dirs back to the data-dir owner.
 
     A root-owned directory is worse than a root-owned file: nothing running as
@@ -237,15 +283,145 @@ def ensure_dir(path) -> None:
     reaching three levels down in one go would otherwise leave the two above it
     owned by root. Levels that were already there keep whoever owns them.
     """
-    made = []
-    probe = path
-    while not probe.exists() and probe.parent != probe:
-        made.append(probe)
-        probe = probe.parent
-    path.mkdir(parents=True, exist_ok=True)
-    chown_to_data_owner(path)
-    for level in made[1:]:
-        chown_to_data_owner(level)
+    path = Path(path)
+    if trusted is None:
+        trusted = _root_for(path)
+    if trusted is None or trusted == path:
+        made = []
+        probe = path
+        while not probe.exists() and probe.parent != probe:
+            made.append(probe)
+            probe = probe.parent
+        path.mkdir(parents=True, exist_ok=True)
+        for level in made:
+            chown_to_data_owner(level)
+        return
+    ensure_dir(trusted, trusted)
+    fd = open_dir(trusted, trusted)
+    try:
+        for part in _levels_below(path, trusted):
+            try:
+                os.mkdir(part, 0o777, dir_fd=fd)
+                created = True
+            except FileExistsError:
+                created = False
+            inner = os.open(part, _DIR_FLAGS | os.O_NOFOLLOW, dir_fd=fd)
+            os.close(fd)
+            fd = inner
+            if created:
+                chown_to_data_owner(fd)
+    finally:
+        os.close(fd)
+
+
+def _unlink_at(name, dir_fd) -> None:
+    try:
+        os.unlink(name, dir_fd=dir_fd)
+    except FileNotFoundError:
+        pass
+
+
+@contextlib.contextmanager
+def atomic_file(path, *, trusted=None, suffix=".tmp", owner=None, mode=0o666, keep_mode=None, tmp_name=None):
+    path = Path(path)
+    dir_fd = open_dir(path.parent, trusted)
+    tmp = tmp_name or path.name + suffix
+    try:
+        _unlink_at(tmp, dir_fd)
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, mode, dir_fd=dir_fd)
+        try:
+            if owner is None:
+                chown_to_data_owner(fd)
+            elif os.geteuid() == 0:
+                try:
+                    os.fchown(fd, owner[0], owner[1])
+                except OSError:
+                    pass
+            if keep_mode is not None:
+                os.fchmod(fd, keep_mode)
+            with os.fdopen(fd, "wb") as out:
+                yield out
+            os.replace(tmp, path.name, src_dir_fd=dir_fd, dst_dir_fd=dir_fd)
+        except BaseException:
+            _unlink_at(tmp, dir_fd)
+            raise
+    finally:
+        os.close(dir_fd)
+
+
+def user_file_target(path, owner=None) -> Path:
+    real = Path(os.path.realpath(path))
+    if owner is None:
+        return real
+    try:
+        st = os.lstat(real)
+    except FileNotFoundError:
+        st = os.lstat(real.parent)
+    if st.st_uid != owner[0]:
+        raise PermissionError(f"{real} does not belong to the user")
+    return real
+
+
+@contextlib.contextmanager
+def exclusive_file(path, *, trusted=None, replace=False):
+    path = Path(path)
+    dir_fd = open_dir(path.parent, trusted)
+    try:
+        if replace:
+            _unlink_at(path.name, dir_fd)
+        fd = os.open(path.name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o666, dir_fd=dir_fd)
+        try:
+            chown_to_data_owner(fd)
+            with os.fdopen(fd, "wb") as out:
+                yield out
+        except BaseException:
+            _unlink_at(path.name, dir_fd)
+            raise
+    finally:
+        os.close(dir_fd)
+
+
+def append_file(path, text, *, trusted=None) -> None:
+    path = Path(path)
+    flags = os.O_WRONLY | os.O_APPEND | os.O_NOFOLLOW | os.O_CLOEXEC
+    dir_fd = open_dir(path.parent, trusted)
+    try:
+        try:
+            fd = os.open(path.name, flags | os.O_CREAT | os.O_EXCL, 0o666, dir_fd=dir_fd)
+            chown_to_data_owner(fd)
+        except FileExistsError:
+            fd = os.open(path.name, flags, dir_fd=dir_fd)
+        with os.fdopen(fd, "ab") as out:
+            out.write(text.encode("utf-8"))
+    finally:
+        os.close(dir_fd)
+
+
+def write_user_file(path, data, *, folder, mode=None) -> None:
+    path = Path(path)
+    if isinstance(data, str):
+        data = data.encode("utf-8")
+    trusted = folder
+    if path.is_symlink():
+        path = user_file_target(path, child_owner())
+        trusted = path.parent
+    keep = mode
+    if keep is None:
+        try:
+            st = os.lstat(path)
+            if stat.S_ISREG(st.st_mode):
+                keep = stat.S_IMODE(st.st_mode)
+        except FileNotFoundError:
+            pass
+    with atomic_file(path, trusted=trusted, keep_mode=keep, tmp_name="." + path.name + ".cheevodeck-tmp") as out:
+        out.write(data)
+
+
+def write_file_atomic(path, data, *, trusted=None) -> None:
+    if isinstance(data, str):
+        data = data.encode("utf-8")
+    with atomic_file(path, trusted=trusted) as out:
+        out.write(data)
 
 
 def save_json_file(path: Path, payload: Any, *, compact: bool = False) -> None:
@@ -269,10 +445,7 @@ def save_json_file(path: Path, payload: Any, *, compact: bool = False) -> None:
     else:
         serialized = json.dumps(payload, indent=2)
     ensure_dir(path.parent)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(serialized, encoding="utf-8")
-    chown_to_data_owner(tmp)
-    tmp.replace(path)
+    write_file_atomic(path, serialized)
 
 
 def ssl_context() -> ssl.SSLContext:

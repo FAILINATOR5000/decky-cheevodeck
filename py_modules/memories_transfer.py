@@ -1,13 +1,14 @@
 from pathlib import Path
 
 import json
+import os
 import re
 import time
 import zipfile
 
 import decky
 
-from utils import chown_to_data_owner, ensure_dir, to_int
+from utils import chown_to_data_owner, ensure_dir, exclusive_file, open_dir, to_int
 
 
 BUNDLE_KIND = "cheevodeck.memories.bundle"
@@ -369,8 +370,7 @@ def extract_entry(
     should_stop=None,
 ) -> bool:
     ensure_dir(destination.parent)
-    with archive.open(arcname) as reader, destination.open("wb") as writer:
-        chown_to_data_owner(destination)
+    with archive.open(arcname) as reader, exclusive_file(destination) as writer:
         while True:
             block = reader.read(_COPY_CHUNK_BYTES)
             if not block:
@@ -399,17 +399,36 @@ class BundleWriter:
         self._destination = destination
         self._temp = destination.with_name(f"{destination.name}.part")
         self._archive = None
+        self._file = None
+        self._dir_fd = None
 
     @property
     def part_path(self) -> Path:
         return self._temp
 
     def open(self) -> None:
-        ensure_dir(self._destination.parent)
-        self._archive = zipfile.ZipFile(
-            self._temp, "w", compression=zipfile.ZIP_DEFLATED, allowZip64=True
-        )
-        chown_to_data_owner(self._temp)
+        folder = self._destination.parent
+        ensure_dir(folder, folder)
+        self._dir_fd = open_dir(folder, folder)
+        try:
+            try:
+                os.unlink(self._temp.name, dir_fd=self._dir_fd)
+            except FileNotFoundError:
+                pass
+            fd = os.open(
+                self._temp.name,
+                os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC,
+                0o666,
+                dir_fd=self._dir_fd,
+            )
+            chown_to_data_owner(fd)
+            self._file = os.fdopen(fd, "w+b")
+            self._archive = zipfile.ZipFile(
+                self._file, "w", compression=zipfile.ZIP_DEFLATED, allowZip64=True
+            )
+        except BaseException:
+            self.abandon()
+            raise
 
     def add_json(self, arcname: str, payload) -> None:
         self._archive.writestr(arcname, json.dumps(payload, separators=(",", ":")))
@@ -431,9 +450,12 @@ class BundleWriter:
     def finish(self) -> Path:
         self._archive.close()
         self._archive = None
+        self._file.close()
+        self._file = None
         landed = free_path(self._destination)
-        self._temp.replace(landed)
-        chown_to_data_owner(landed)
+        os.replace(self._temp.name, landed.name, src_dir_fd=self._dir_fd, dst_dir_fd=self._dir_fd)
+        os.close(self._dir_fd)
+        self._dir_fd = None
         return landed
 
     def abandon(self) -> None:
@@ -443,7 +465,17 @@ class BundleWriter:
             except (OSError, zipfile.BadZipFile):
                 pass
             self._archive = None
+        if self._file is not None:
+            try:
+                self._file.close()
+            except OSError:
+                pass
+            self._file = None
+        if self._dir_fd is None:
+            return
         try:
-            self._temp.unlink()
+            os.unlink(self._temp.name, dir_fd=self._dir_fd)
         except OSError:
             pass
+        os.close(self._dir_fd)
+        self._dir_fd = None

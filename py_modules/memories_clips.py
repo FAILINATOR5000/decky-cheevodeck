@@ -20,7 +20,7 @@ from pathlib import Path
 import decky
 import subprocess_util
 
-from utils import chown_to_data_owner, ensure_dir
+from utils import ensure_dir, exclusive_file, write_file_atomic
 
 
 FFMPEG = "/usr/bin/ffmpeg"
@@ -500,8 +500,9 @@ def remux_session(session_path: Path, destination: Path) -> dict:
 
     try:
         ensure_dir(destination)
+        _discard_remux(destination)
         code, stdout, stderr = subprocess_util.run_command(
-            command, timeout=_REMUX_TIMEOUT_SECONDS
+            command, timeout=_REMUX_TIMEOUT_SECONDS, as_data_owner=True
         )
     except OSError as e:
         decky.logger.warning("memories: the remux could not run (%s)", type(e).__name__)
@@ -525,11 +526,7 @@ def remux_session(session_path: Path, destination: Path) -> dict:
         return {"ok": False, "bytes": 0, "mediaStartMs": 0}
 
     try:
-        (destination / CLIP_INDEX_NAME).write_text(
-            json.dumps(index, separators=(",", ":")), encoding="utf-8"
-        )
-        chown_to_data_owner(destination / CLIP_INDEX_NAME)
-        chown_to_data_owner(target)
+        write_file_atomic(destination / CLIP_INDEX_NAME, json.dumps(index, separators=(",", ":")))
     except OSError as e:
         decky.logger.warning("memories: the clip index could not be written (%s)", type(e).__name__)
         _discard_remux(destination)
@@ -573,8 +570,9 @@ def trim_clip(video: str, audio: str, target: Path, start_seconds: float, span_s
 
     try:
         ensure_dir(target.parent)
+        _discard_file(target)
         code, stdout, stderr = subprocess_util.run_command(
-            command, timeout=_REMUX_TIMEOUT_SECONDS
+            command, timeout=_REMUX_TIMEOUT_SECONDS, as_data_owner=True
         )
     except OSError as e:
         decky.logger.warning("memories: the snippet could not be cut (%s)", type(e).__name__)
@@ -597,7 +595,6 @@ def trim_clip(video: str, audio: str, target: Path, start_seconds: float, span_s
         _discard_file(target)
         return {"ok": False, "bytes": 0}
 
-    chown_to_data_owner(target)
     return {"ok": True, "bytes": written}
 
 
@@ -656,8 +653,8 @@ def copy_session(session_path: Path, destination: Path) -> dict:
         ensure_dir(destination)
         for source in sources:
             target = destination / source.name
-            shutil.copyfile(source, target)
-            chown_to_data_owner(target)
+            with source.open("rb") as reader, exclusive_file(target, replace=True) as writer:
+                shutil.copyfileobj(reader, writer, 1024 * 1024)
             size = source.stat().st_size
             if target.stat().st_size != size:
                 raise OSError(f"{source.name} came out short")
@@ -705,7 +702,7 @@ def media_start_seconds(source: str):
         "-show_entries", "format=start_time",
         "-of", "csv=p=0",
         "-i", source,
-    ], timeout=_PROBE_TIMEOUT_SECONDS)
+    ], timeout=_PROBE_TIMEOUT_SECONDS, as_data_owner=True)
     if code != 0:
         return None
     for line in stdout.splitlines():
@@ -747,6 +744,10 @@ def make_poster(session_path: Path, start_ms, duration_ms, destination: Path) ->
     seek = max((max(int(start_ms or 0), 0) / 1000.0) - base, 0.0)
     span = max(int(duration_ms or 0), 0) / 1000.0 or 1.0
 
+    try:
+        destination.unlink()
+    except OSError:
+        pass
     code, stdout, stderr = subprocess_util.run_command([
         FFMPEG, "-y", "-v", "error",
         "-ss", f"{seek:.3f}",
@@ -757,7 +758,7 @@ def make_poster(session_path: Path, start_ms, duration_ms, destination: Path) ->
         "-c:v", "libwebp",
         "-q:v", str(POSTER_QUALITY),
         str(destination),
-    ], timeout=_POSTER_TIMEOUT_SECONDS)
+    ], timeout=_POSTER_TIMEOUT_SECONDS, as_data_owner=True)
 
     if code != 0:
         decky.logger.warning(
@@ -782,5 +783,4 @@ def make_poster(session_path: Path, start_ms, duration_ms, destination: Path) ->
             pass
         return False
 
-    chown_to_data_owner(destination)
     return True

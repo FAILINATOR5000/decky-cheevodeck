@@ -1,4 +1,14 @@
+import os
+
 import decky
+
+from dolphin_ini import DOLPHIN_FLATPAK_APP_ID
+
+
+_DOLPHIN_CHAINS = (
+    (".var", "app", DOLPHIN_FLATPAK_APP_ID, "config", "dolphin-emu"),
+    (".config", "dolphin-emu"),
+)
 
 
 class RepairService:
@@ -22,10 +32,11 @@ class RepairService:
     housekeeping that takes the panel down with it is worse than the mess.
     """
 
-    def __init__(self, *, update_checker_service, memories_store, settings_store):
+    def __init__(self, *, update_checker_service, memories_store, settings_store, user_home):
         self._update_checker_service = update_checker_service
         self._memories_store = memories_store
         self._settings_store = settings_store
+        self._user_home = user_home
 
     def run_startup_repairs(self) -> dict:
         """Run every repair in turn and report which ones did anything.
@@ -71,6 +82,44 @@ class RepairService:
                 type(e).__name__,
             )
 
+        try:
+            if self._hand_back_dolphin_folders():
+                fixed.append("dolphin_folders")
+        except Exception as e:
+            decky.logger.warning(
+                "repair: handing back Dolphin's folders failed: %s",
+                type(e).__name__,
+            )
+
         if fixed:
             decky.logger.info("repair: fixed %s", ", ".join(fixed))
         return {"fixed": fixed}
+
+    def _hand_back_dolphin_folders(self) -> bool:
+        if os.geteuid() != 0:
+            return False
+        owner = os.stat(self._user_home)
+        if owner.st_uid == 0:
+            return False
+        changed = False
+        for chain in _DOLPHIN_CHAINS:
+            fd = os.open(self._user_home, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
+            try:
+                for name in chain:
+                    try:
+                        inner = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC, dir_fd=fd)
+                    except OSError:
+                        break
+                    os.close(fd)
+                    fd = inner
+                    if os.fstat(fd).st_uid == 0:
+                        os.fchown(fd, owner.st_uid, owner.st_gid)
+                        changed = True
+            except OSError as e:
+                decky.logger.warning(
+                    "repair: couldn't hand back a Dolphin folder under %s: %s",
+                    "/".join(chain[:2]), type(e).__name__,
+                )
+            finally:
+                os.close(fd)
+        return changed

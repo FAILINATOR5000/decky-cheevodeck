@@ -11,6 +11,8 @@ import time
 
 import decky
 
+from utils import child_owner
+
 
 TIMEOUT_MARKER = "cheevodeck: timed out"
 EXEC_MARKER = "cheevodeck: couldn't run the command"
@@ -50,7 +52,7 @@ def system_env():
     return env
 
 
-def run_command(argv, *, timeout, env=None, user=None, group=None, cancel=None):
+def run_command(argv, *, timeout, env=None, user=None, group=None, cancel=None, as_data_owner=False):
     """Run ``argv`` and return ``(returncode, stdout, stderr)``.
 
     ``env`` replaces the environment outright rather than adding to it. Left
@@ -78,6 +80,12 @@ def run_command(argv, *, timeout, env=None, user=None, group=None, cancel=None):
         second
     caller wanted to interrupt things.
     """
+    if as_data_owner:
+        owner = child_owner()
+        if owner is not None:
+            user, group = owner
+    extra_groups = [] if user is not None and os.geteuid() == 0 else None
+
     if cancel is not None:
         return _run_interruptible(
             argv,
@@ -85,6 +93,7 @@ def run_command(argv, *, timeout, env=None, user=None, group=None, cancel=None):
             env=system_env() if env is None else env,
             user=user,
             group=group,
+            extra_groups=extra_groups,
             cancel=cancel,
         )
 
@@ -98,6 +107,7 @@ def run_command(argv, *, timeout, env=None, user=None, group=None, cancel=None):
             env=system_env() if env is None else env,
             user=user,
             group=group,
+            extra_groups=extra_groups,
         )
     except subprocess.TimeoutExpired:
         return 124, "", f"{TIMEOUT_MARKER} after {timeout}s: {' '.join(argv)}"
@@ -107,7 +117,7 @@ def run_command(argv, *, timeout, env=None, user=None, group=None, cancel=None):
     return completed.returncode, completed.stdout or "", completed.stderr or ""
 
 
-def _run_interruptible(argv, *, timeout, env, user, group, cancel):
+def _run_interruptible(argv, *, timeout, env, user, group, extra_groups, cancel):
     """run_command, but watching a cancel event while the child works.
 
     subprocess.run() blocks until the child exits and hands back no handle, so
@@ -128,6 +138,7 @@ def _run_interruptible(argv, *, timeout, env, user, group, cancel):
             env=env,
             user=user,
             group=group,
+            extra_groups=extra_groups,
         )
     except OSError as exc:
         decky.logger.error("couldn't run %s (%s)", argv[0], exc)

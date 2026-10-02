@@ -72,6 +72,7 @@ from utils import (
     init_data_owner,
     is_network_error,
     set_newer_schema_listener,
+    set_write_roots,
     ssl_context,
 )
 
@@ -238,6 +239,7 @@ class Plugin(
         init_data_owner(self.runtime_dir, self.settings_dir, self.user_home)
         chown_to_data_owner(self.settings_dir)
         chown_to_data_owner(self.runtime_dir)
+        set_write_roots(self.settings_dir, self.runtime_dir)
 
         self.dolphin_defaults_dir = self.plugin_dir / "dolphin"
         if not self.dolphin_defaults_dir.exists():
@@ -496,6 +498,7 @@ class Plugin(
             update_checker_service=self.update_checker_service,
             memories_store=self.memories_store,
             settings_store=self.settings_store,
+            user_home=self.user_home,
         )
         self.developer_message_service = DeveloperMessageService(
             settings_store=self.settings_store,

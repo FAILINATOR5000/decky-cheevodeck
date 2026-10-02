@@ -319,6 +319,9 @@ class FileWatcherStore:
     def _db(self):
         ensure_dir(self._base_dir)
         path = self.db_path()
+        for name in (path, Path(str(path) + "-wal"), Path(str(path) + "-shm"), Path(str(path) + "-journal")):
+            if name.is_symlink():
+                raise sqlite3.OperationalError(f"{name.name} is a link")
         existed = path.exists()
         conn = sqlite3.connect(str(path), timeout=DB_TIMEOUT_SECONDS)
         try:

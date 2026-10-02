@@ -13,7 +13,7 @@ import decky
 from services._tick_common import GenerationFence
 from notifications import emit_notification, is_type_enabled
 from ra_client import build_user_agent
-from utils import chown_to_data_owner
+from utils import write_user_file
 
 
 GITHUB_OWNER = "FAILINATOR5000"
@@ -371,12 +371,11 @@ class UpdateCheckerService:
 
         path = folder / name
         try:
-            path.write_bytes(data)
+            write_user_file(path, data, folder=folder)
         except OSError as exc:
             decky.logger.error("couldn't write the update to %s (%s)", path, exc)
             return {"ok": False, "error": DOWNLOAD_BAD_FOLDER}
 
-        chown_to_data_owner(path)
         decky.logger.info("update saved to %s (%d bytes)", path, len(data))
         return {"ok": True, "path": str(path), "name": path.name}
 
@@ -399,13 +398,11 @@ class UpdateCheckerService:
 
         path = desktop / LAUNCHER_FILE_NAME
         try:
-            path.write_text(LAUNCHER_TEXT, encoding="utf-8")
-            path.chmod(0o755)
+            write_user_file(path, LAUNCHER_TEXT, folder=desktop, mode=0o755)
         except OSError as exc:
             decky.logger.error("couldn't write the updater launcher to %s (%s)", path, exc)
             return {"ok": False, "error": LAUNCHER_FAILED}
 
-        chown_to_data_owner(path)
         decky.logger.info("updater launcher written to %s", path)
         return {"ok": True, "path": str(path), "name": path.name}
 

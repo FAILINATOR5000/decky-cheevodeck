@@ -1,10 +1,12 @@
 import asyncio
+import os
+import stat
 
 import decky
 import smb_shares_store
 
 from mixins._context import PluginContext
-from utils import chown_to_data_owner, lchown_to_data_owner
+from utils import chown_to_data_owner, ensure_dir, open_dir
 
 DESKTOP_LINKS_FOLDER = "CheevoDeck Mounts"
 
@@ -365,36 +367,37 @@ class SmbSharesMixin(PluginContext):
         desktop = self.user_home / "Desktop"
         folder = desktop / DESKTOP_LINKS_FOLDER
 
-        made_desktop = not desktop.exists()
         try:
-            folder.mkdir(parents=True, exist_ok=True)
+            ensure_dir(folder, desktop)
+            dir_fd = open_dir(folder, desktop)
         except OSError as exc:
             decky.logger.error("smb: couldn't make %s (%s)", folder, exc)
             return {"ok": False, "error": "folder"}
-        if made_desktop:
-            chown_to_data_owner(desktop)
-        chown_to_data_owner(folder)
-
         try:
-            for entry in folder.iterdir():
-                if entry.is_symlink():
-                    entry.unlink()
-        except OSError as exc:
-            decky.logger.error("smb: couldn't clear %s (%s)", folder, exc)
-            return {"ok": False, "error": "folder"}
+            chown_to_data_owner(dir_fd)
 
-        taken = set()
-        linked = 0
-        for share in self.smb_shares_store.list_shares():
-            target = self.smb_mount_service.mount_point(share["slug"])
-            link = folder / self._desktop_link_name(share, taken)
             try:
-                link.symlink_to(target, target_is_directory=True)
+                for name in os.listdir(dir_fd):
+                    if stat.S_ISLNK(os.stat(name, dir_fd=dir_fd, follow_symlinks=False).st_mode):
+                        os.unlink(name, dir_fd=dir_fd)
             except OSError as exc:
-                decky.logger.error("smb: couldn't link %s (%s)", link, exc)
-                continue
-            lchown_to_data_owner(link)
-            linked += 1
+                decky.logger.error("smb: couldn't clear %s (%s)", folder, exc)
+                return {"ok": False, "error": "folder"}
+
+            taken = set()
+            linked = 0
+            for share in self.smb_shares_store.list_shares():
+                target = self.smb_mount_service.mount_point(share["slug"])
+                name = self._desktop_link_name(share, taken)
+                try:
+                    os.symlink(target, name, target_is_directory=True, dir_fd=dir_fd)
+                except OSError as exc:
+                    decky.logger.error("smb: couldn't link %s (%s)", folder / name, exc)
+                    continue
+                chown_to_data_owner(name, dir_fd=dir_fd)
+                linked += 1
+        finally:
+            os.close(dir_fd)
 
         decky.logger.info("smb: %d desktop link(s) in %s", linked, folder)
         return {"ok": True, "linked": linked}

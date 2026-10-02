@@ -14,6 +14,7 @@ from utils import (
     TAG_MAX_LEN,
     TAG_STRIP_PATTERN,
     NewerSchemaFile,
+    add_write_root,
     ensure_dir,
     is_newer_schema,
     load_json_file,
@@ -194,6 +195,8 @@ class MemoriesStore:
         self._pictures_dir = pictures_dir
         self._videos_dir = videos_dir
         self._account_key = ""
+        add_write_root(pictures_dir)
+        add_write_root(videos_dir)
 
         self._master_lock = threading.Lock()
         self._game_locks: dict[str, threading.Lock] = {}
@@ -221,6 +224,7 @@ class MemoriesStore:
         new one. Records carry a path relative to whichever root is current, so
         moving the files and calling this have to happen together.
         """
+        add_write_root(videos_dir)
         with self._master_lock:
             self._videos_dir = videos_dir
 

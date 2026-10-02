@@ -5,8 +5,6 @@ import decky
 import subprocess_util
 
 from memories_clips import FFMPEG, FFPROBE, media_start_seconds
-from utils import chown_to_data_owner
-
 
 TARGET_BYTES = 8_245_000
 
@@ -68,7 +66,7 @@ def probe(source: str):
         "-show_entries", "stream=codec_type,codec_name:format=duration",
         "-of", "json",
         "-i", source,
-    ], timeout=_PROBE_TIMEOUT_SECONDS)
+    ], timeout=_PROBE_TIMEOUT_SECONDS, as_data_owner=True)
     if code != 0:
         return None
     try:
@@ -121,7 +119,7 @@ def frame_at(video_input: str, start_s: float) -> float:
         "-of", "csv=p=0",
         "-read_intervals", f"{max(start_s - 0.2, 0.0):.3f}%{window_end:.3f}",
         "-i", video_input,
-    ], timeout=_PROBE_TIMEOUT_SECONDS)
+    ], timeout=_PROBE_TIMEOUT_SECONDS, as_data_owner=True)
     if code != 0:
         return start_s
     found = None
@@ -148,7 +146,7 @@ def keyframe_at(video_input: str, start_s: float):
         "-of", "csv=p=0",
         "-read_intervals", f"{window_start:.3f}%{window_end:.3f}",
         "-i", video_input,
-    ], timeout=_PROBE_TIMEOUT_SECONDS)
+    ], timeout=_PROBE_TIMEOUT_SECONDS, as_data_owner=True)
     if code != 0:
         return None
 
@@ -178,7 +176,7 @@ def shrink_picture(source: Path, target: Path, low_priority: bool, cancel) -> di
             str(target),
         ]
         code, stdout, stderr = subprocess_util.run_command(
-            command, timeout=_PICTURE_TIMEOUT_SECONDS, cancel=cancel
+            command, timeout=_PICTURE_TIMEOUT_SECONDS, cancel=cancel, as_data_owner=True
         )
         if cancel.is_set():
             _discard(target)
@@ -192,7 +190,6 @@ def shrink_picture(source: Path, target: Path, low_priority: bool, cancel) -> di
             return {"ok": False, "error": "encode_failed"}
         size = _size(target)
         if 0 < size <= TARGET_BYTES:
-            chown_to_data_owner(target)
             return {"ok": True, "bytes": size}
 
     _discard(target)
@@ -259,7 +256,7 @@ def _two_pass(source: list, target: Path, scratch: Path, kbps: int, preset: str,
 
     for command in (first, second):
         code, stdout, stderr = subprocess_util.run_command(
-            command, timeout=_ENCODE_TIMEOUT_SECONDS, cancel=cancel
+            command, timeout=_ENCODE_TIMEOUT_SECONDS, cancel=cancel, as_data_owner=True
         )
         if cancel.is_set():
             _discard(target)
@@ -277,5 +274,4 @@ def _two_pass(source: list, target: Path, scratch: Path, kbps: int, preset: str,
         decky.logger.warning("memories: the share encode came out empty")
         _discard(target)
         return {"ok": False, "error": "encode_failed"}
-    chown_to_data_owner(target)
     return {"ok": True, "bytes": size}

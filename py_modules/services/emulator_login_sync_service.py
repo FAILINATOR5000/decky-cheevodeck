@@ -43,6 +43,8 @@ from pathlib import Path
 
 import decky
 
+from utils import atomic_file, user_file_target
+
 
 RETROARCH = "RetroArch"
 DOLPHIN = "Dolphin"
@@ -298,7 +300,7 @@ def _chown_best_effort(path, owner):
     global _chown_warned
 
     try:
-        os.chown(path, owner[0], owner[1])
+        os.chown(path, owner[0], owner[1], follow_symlinks=False)
     except OSError as exc:
         if not _chown_warned:
             _chown_warned = True
@@ -321,12 +323,18 @@ def _atomic_write_text(path, text, *, owner=None):
     the config is never briefly visible root-owned and a chown that fails can't
     strand it that way. Same ordering save_json_file uses, for the same reason.
     """
+    made = []
+    probe = path.parent
+    while not probe.exists() and probe.parent != probe:
+        made.append(probe)
+        probe = probe.parent
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(text, encoding="utf-8")
     if owner is not None:
-        _chown_best_effort(tmp, owner)
-    tmp.replace(path)
+        for level in made:
+            _chown_best_effort(level, owner)
+    real = user_file_target(path, owner)
+    with atomic_file(real, trusted=real.parent, owner=owner) as out:
+        out.write(text.encode("utf-8"))
 
 
 class EmulatorLoginSyncService:

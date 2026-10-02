@@ -7,7 +7,7 @@ import shutil
 
 import decky
 
-from utils import chown_to_data_owner, ensure_dir
+from utils import ensure_dir, write_file_atomic
 
 CAPTURE_DIR_NAME = "freeze-captures"
 CAPTURES_KEPT = 10
@@ -169,11 +169,9 @@ def write_capture(*, source: str, summary: str, user_home: Path, extra_files: di
             "webhelper.tail.txt": tail_lines(logs / "webhelper.txt", VIEW_LOG_TAIL_LINES),
         }
         files.update(extra_files or {})
-        ensure_dir(folder)
+        ensure_dir(folder, root)
         for file_name, text in files.items():
-            path = folder / file_name
-            path.write_text(text)
-            chown_to_data_owner(path)
+            write_file_atomic(folder / file_name, text, trusted=root)
         prune_captures(root)
     except Exception as exc:
         decky.logger.warning("freeze capture: writing %s failed (%s: %s)", name, type(exc).__name__, exc)

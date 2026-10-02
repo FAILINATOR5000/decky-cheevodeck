@@ -5,7 +5,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
-from utils import chown_to_data_owner, ensure_dir
+from utils import ensure_dir, exclusive_file
 
 
 # The destination is whatever folder the user browsed to, and on a Deck that is
@@ -66,13 +66,9 @@ def place(source: Path, destination: Path) -> dict:
     delete it.
     """
     try:
-        ensure_dir(destination.parent)
-        shutil.copyfile(source, destination)
-        chown_to_data_owner(destination)
+        ensure_dir(destination.parent, destination.parent)
+        with source.open("rb") as reader, exclusive_file(destination, trusted=destination.parent) as writer:
+            shutil.copyfileobj(reader, writer, 1024 * 1024)
         return {"ok": True, "bytes": destination.stat().st_size}
     except OSError:
-        try:
-            destination.unlink()
-        except OSError:
-            pass
         return {"ok": False, "bytes": 0}

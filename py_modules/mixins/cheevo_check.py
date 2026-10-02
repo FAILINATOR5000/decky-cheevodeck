@@ -11,7 +11,7 @@ import urllib.request
 import decky
 
 from mixins._context import PluginContext
-from utils import chown_to_data_owner, ensure_dir
+from utils import atomic_file, ensure_dir, write_user_file
 
 
 EMUDECK_ROMS_DIR = "Emulation/roms"
@@ -138,12 +138,10 @@ class CheevoCheckMixin(PluginContext):
 
         path = folder / f"cheevocheck_report_{time.strftime('%Y-%m-%d')}.txt"
         try:
-            path.write_text(text, encoding="utf-8")
+            write_user_file(path, text, folder=folder)
         except OSError as exc:
             decky.logger.error("couldn't write the report to %s (%s)", path, exc)
             return {"ok": False, "error": "bad_folder"}
-
-        chown_to_data_owner(path)
         decky.logger.info("cheevocheck: report saved to %s (%d bytes)", path, len(text))
         return {"ok": True, "name": path.name, "path": str(path)}
 
@@ -242,11 +240,8 @@ class CheevoCheckMixin(PluginContext):
             path = target / f"{system.dat_key}.json.gz"
             try:
                 ensure_dir(target)
-                tmp = path.with_suffix(".tmp")
-                with gzip.open(tmp, "wb", compresslevel=9) as out:
+                with atomic_file(path) as raw, gzip.GzipFile(filename=path.name, fileobj=raw, mode="wb", compresslevel=9) as out:
                     out.write(json.dumps(rows, separators=(",", ":")).encode("utf-8"))
-                tmp.replace(path)
-                chown_to_data_owner(path)
             except OSError as exc:
                 decky.logger.warning(
                     "cheevocheck: couldn't write the refreshed catalogue for %s (%s)",
