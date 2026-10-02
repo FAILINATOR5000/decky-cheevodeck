@@ -2010,6 +2010,8 @@ const RU: LocaleTable = {
     "Folder Overlaps Memories": "Папка пересекается с моментами",
     "Not Compatible": "Несовместимо",
     "Save for this is newer.": "Сохранённые данные новее.",
+    "No Longer Tracked": "Больше не отслеживается",
+    "Tag Not Applied": "Тег не применён",
     "Clip Kept in Steam": "Клип остался в Steam",
     "Media Not Connected": "Носитель не подключён",
     "Transfer in Progress": "Идёт перенос",

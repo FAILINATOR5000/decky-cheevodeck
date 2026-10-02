@@ -5,8 +5,9 @@ import threading
 import time
 
 from utils import (
-    TAG_MAX_LEN,
+    NOTE_STORED_MAX_LEN,
     TAG_PREFIX_PATTERN,
+    clean_bulk_tag,
     ensure_dir,
     is_newer_schema,
     load_json_file,
@@ -21,7 +22,7 @@ from utils import (
 
 CURRENT_SCHEMA_VERSION = 1
 
-NOTE_MAX_LEN = 500
+NOTE_MAX_LEN = NOTE_STORED_MAX_LEN
 _COLLAPSE_KEY_MAX_LEN = 64
 _MAX_COLLAPSED_TAGS = 400
 
@@ -390,8 +391,8 @@ class EventsStore:
 
     @refuses_newer_schema
     def bulk_tag(self, ulid: Any, event_game_ids: Any, tag: Any) -> dict:
-        clean_tag = str(tag or "").strip()[:TAG_MAX_LEN]
-        if not clean_tag or "]" in clean_tag or "\n" in clean_tag:
+        clean_tag = clean_bulk_tag(tag)
+        if clean_tag is None:
             return {"ok": False, "error": "invalid_tag"}
         keys = []
         for value in event_game_ids if isinstance(event_game_ids, list) else []:

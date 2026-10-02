@@ -342,7 +342,7 @@ export function parseNoteTag(note: string | null | undefined): ParsedNote {
     };
 }
 
-export const TRACKED_NOTE_MAX_LEN = 500;
+export const NOTE_TEXT_MAX_LEN = 500;
 
 export function prefixNoteTag(body: string, tag: string | null): string {
     const clean = (tag ?? "").trim();
@@ -367,6 +367,14 @@ export function resolveNoteTag(
         tag: lifted ?? (fieldTag.trim() || null),
         body: lifted === null ? body : typed.body
     };
+}
+
+export function revealLeadingTag(body: string): { tag: string; body: string } {
+    const lead = parseNoteTag(body);
+    if (lead.tag === null || parseNoteTag(lead.body).tag !== null) {
+        return { tag: "", body };
+    }
+    return { tag: lead.tag, body: lead.body };
 }
 
 export const NOTE_COLOR_OPTIONS: readonly NoteColor[] = [

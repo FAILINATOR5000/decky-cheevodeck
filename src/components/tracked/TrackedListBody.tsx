@@ -460,6 +460,27 @@ export function trackedRemovalLanding(
     };
 }
 
+export function trackedRetagLanding(
+    trackedAchievements: AchievementRow[],
+    notesByAchievementId: TrackedNotes,
+    language: LanguageCode,
+    collapsedKeys: ReadonlySet<string>,
+    achievementId: number,
+    nextNote: string
+): number | null {
+    const previousNote = notesByAchievementId[String(achievementId)] ?? "";
+    if (parseNoteTag(previousNote).tagKey === parseNoteTag(nextNote).tagKey) {
+        return null;
+    }
+    return trackedRemovalLanding(
+        trackedAchievements,
+        notesByAchievementId,
+        language,
+        collapsedKeys,
+        achievementId
+    ).landingId;
+}
+
 export function trackedRowGroupSlot(
     trackedAchievements: AchievementRow[],
     notesByAchievementId: TrackedNotes,

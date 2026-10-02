@@ -1990,6 +1990,8 @@ const DE: LocaleTable = {
     "Folder Overlaps Memories": "Ordner überschneidet sich mit Erinnerungen",
     "Not Compatible": "Nicht kompatibel",
     "Save for this is newer.": "Die Daten hierfür sind neuer.",
+    "No Longer Tracked": "Nicht mehr verfolgt",
+    "Tag Not Applied": "Tag nicht angewendet",
     "Clip Kept in Steam": "Clip bleibt in Steam",
     "Media Not Connected": "Speichermedium nicht verbunden",
     "Transfer in Progress": "Übertragung läuft",

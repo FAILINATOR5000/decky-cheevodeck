@@ -1925,6 +1925,8 @@ const JA: LocaleTable = {
     "Folder Overlaps Memories": "思い出のフォルダーと重なっています",
     "Not Compatible": "互換性がありません",
     "Save for this is newer.": "この保存データは新しい形式です。",
+    "No Longer Tracked": "追跡対象外になりました",
+    "Tag Not Applied": "タグを適用できませんでした",
     "Clip Kept in Steam": "クリップはSteamに残っています",
     "Media Not Connected": "メディアが接続されていません",
     "Transfer in Progress": "移行中です",

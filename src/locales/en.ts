@@ -1981,6 +1981,8 @@ export const EN: LocaleTable = {
     "Folder Overlaps Memories": "Folder Overlaps Memories",
     "Not Compatible": "Not Compatible",
     "Save for this is newer.": "Save for this is newer.",
+    "No Longer Tracked": "No Longer Tracked",
+    "Tag Not Applied": "Tag Not Applied",
     "Clip Kept in Steam": "Clip Kept in Steam",
     "Media Not Connected": "Media Not Connected",
     "Transfer in Progress": "Transfer in Progress",

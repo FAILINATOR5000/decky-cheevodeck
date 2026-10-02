@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { toaster } from "@decky/api";
 import {
     bulkTagTracked,
     cacheTrackedNotes,
@@ -7,10 +8,14 @@ import {
 } from "../api";
 import { logFocusDebug } from "../api";
 import { logError } from "../utils/errors";
+import { t, type LanguageCode } from "../locales";
 import type { AchievementRow, TrackedNotes, TrackedNotesColor } from "../types";
+
+const TOAST_DURATION_MS = 4000;
 
 type UseTagMarkingArgs = {
     selectedGameId: number | null;
+    language: LanguageCode;
     trackedIds: number[];
     notesByAchievementId: TrackedNotes;
     isActive: boolean;
@@ -20,8 +25,17 @@ type UseTagMarkingArgs = {
     setCollapsedTags: (tags: string[]) => void;
 };
 
+function toastTagNotApplied(language: LanguageCode) {
+    toaster.toast({
+        title: t(language, "Tracked"),
+        body: t(language, "Tag Not Applied"),
+        duration: TOAST_DURATION_MS
+    });
+}
+
 export function useTagMarking({
     selectedGameId,
+    language,
     trackedIds,
     notesByAchievementId,
     isActive,
@@ -46,14 +60,11 @@ export function useTagMarking({
                     return;
                 }
                 const tags = result?.recentTags ?? [];
-                const vocabulary = result?.tagVocabulary ?? [];
-                const next = tags.length > 0
-                    ? tags[0]
-                    : vocabulary.length > 0 ? vocabulary[0] : null;
+                const next = tags.length > 0 ? tags[0] : null;
                 logFocusDebug(
                     "tag-mark",
                     `game:${selectedGameId}`,
-                    `lastTag=${next ?? "(none)"} vocab=${vocabulary.length} recent=${tags.length}`
+                    `lastTag=${next ?? "(none)"} recent=${tags.length}`
                 );
                 setLastTag(next);
             } catch (e) {
@@ -121,10 +132,11 @@ export function useTagMarking({
         setApplyingTag(true);
         try {
             const result = await bulkTagTracked(selectedGameId, ids, tag);
-            if (!mountedRef.current) {
+            if (!result?.ok) {
+                toastTagNotApplied(language);
                 return;
             }
-            if (!result?.ok) {
+            if (!mountedRef.current) {
                 return;
             }
             const nextNotes = result.notes ?? {};
@@ -139,6 +151,7 @@ export function useTagMarking({
             setTagMarkedIds(new Set<number>());
         } catch (e) {
             logError("bulkTagTracked", e);
+            toastTagNotApplied(language);
         } finally {
             if (mountedRef.current) {
                 setApplyingTag(false);
@@ -146,6 +159,7 @@ export function useTagMarking({
         }
     }, [
         selectedGameId,
+        language,
         applyingTag,
         tagMarkedIds,
         lastTag,

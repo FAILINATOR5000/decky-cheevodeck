@@ -7,7 +7,7 @@ import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { t, type LanguageCode } from "../../locales";
 import type { NoteColor } from "../../types";
-import { TAG_MAX_LEN, TRACKED_NOTE_MAX_LEN, parseNoteTag, prefixNoteTag, resolveNoteTag } from "../../utils/achievements";
+import { NOTE_TEXT_MAX_LEN, TAG_MAX_LEN, parseNoteTag, prefixNoteTag, resolveNoteTag, revealLeadingTag } from "../../utils/achievements";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { playOkSound } from "../../utils/navSound";
 import { cleanTagInput } from "../../utils/tags";
@@ -49,8 +49,7 @@ export function EventNoteEditModal(props: EventNoteEditModalProps) {
     const resolved = resolveNoteTag(tagText, bodyText, stored.body);
     const effectiveTag = resolved.tag;
     const composed = prefixNoteTag(resolved.body.trim(), effectiveTag);
-    const bodyBudget = effectiveTag === null ? TRACKED_NOTE_MAX_LEN : TRACKED_NOTE_MAX_LEN - (effectiveTag.length + 2);
-    const overLimit = composed.length > TRACKED_NOTE_MAX_LEN;
+    const overLimit = resolved.body.length > NOTE_TEXT_MAX_LEN;
 
     async function handleSave() {
         if (saving || overLimit) {
@@ -102,8 +101,25 @@ export function EventNoteEditModal(props: EventNoteEditModalProps) {
         if (saving) {
             return;
         }
-        setTagText(tag === null ? "" : cleanTagInput(tag, TAG_MAX_LEN));
+        if (tag === null) {
+            const next = revealLeadingTag(resolved.body);
+            setTagText(next.tag);
+            setBodyText(next.body);
+            return;
+        }
+        setTagText(cleanTagInput(tag, TAG_MAX_LEN));
         setBodyText(resolved.body);
+    }
+
+    function revealTagOnLeave() {
+        if (saving || effectiveTag !== null) {
+            return;
+        }
+        const next = revealLeadingTag(resolved.body);
+        if (next.tag) {
+            setTagText(next.tag);
+            setBodyText(next.body);
+        }
     }
 
     function openTagPicker() {
@@ -166,16 +182,18 @@ export function EventNoteEditModal(props: EventNoteEditModalProps) {
                                 textAlign: "right"
                             }}
                         >
-                            {t(language, "{{count}} / {{max}} characters", { count: resolved.body.length, max: bodyBudget })}
+                            {t(language, "{{count}} / {{max}} characters", { count: resolved.body.length, max: NOTE_TEXT_MAX_LEN })}
                         </div>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                         <div style={LABEL_STYLE}>{t(language, "Tag:")}</div>
-                        <TextField
-                            value={tagText}
-                            onChange={(e: any) => setTagText(cleanTagInput(e?.target?.value ?? "", TAG_MAX_LEN))}
-                            disabled={saving}
-                        />
+                        <div onBlurCapture={revealTagOnLeave}>
+                            <TextField
+                                value={tagText}
+                                onChange={(e: any) => setTagText(cleanTagInput(e?.target?.value ?? "", TAG_MAX_LEN))}
+                                disabled={saving}
+                            />
+                        </div>
                         <Focusable
                             style={{ display: "flex", flexDirection: "row", gap: "8px", flexWrap: "wrap", alignItems: "center" }}
                             flow-children="grid"

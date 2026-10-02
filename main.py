@@ -1007,11 +1007,16 @@ class Plugin(
         active_ulid = str(cfg.get("activeUlid") or "").strip()
         return active_ulid or str(cfg.get("username", "")).strip()
 
+    def _user_scope_base(self, user_key: str) -> Path:
+        if user_key and self._is_safe_user_dir_key(user_key):
+            return self.runtime_dir / user_key
+        return self.runtime_dir
+
     def _apply_user_scope(self, user_key: str) -> None:
         if user_key and not self._is_safe_user_dir_key(user_key):
             decky.logger.warning("user dir key failed the safety check, using runtime_dir: %r", user_key)
             user_key = ""
-        base = (self.runtime_dir / user_key) if user_key else self.runtime_dir
+        base = self._user_scope_base(user_key)
         if user_key:
             ensure_dir(base)
 

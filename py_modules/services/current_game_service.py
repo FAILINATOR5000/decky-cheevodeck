@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import time
 
 import decky
@@ -436,7 +438,11 @@ class CurrentGameService:
             "refreshedAt": int(time.time()),
         }
 
-    def check_current_game(self, username: str, web_api_key: str, unlock_lookback_minutes: int, auto_refresh: bool) -> dict:
+    def _account_moved(self, account_key: str) -> bool:
+        return str(self._settings_store.load_config().get("activeUlid") or "") != account_key
+
+    def check_current_game(self, username: str, web_api_key: str, unlock_lookback_minutes: int, auto_refresh: bool,
+                           *, account_key: str, tracked_dir: Path) -> dict:
         cached_wrapper = self._cache_store.load_payload()
         cached = cached_wrapper.get("payload")
         cached_meta = cached_wrapper.get("meta", {})
@@ -472,8 +478,17 @@ class CurrentGameService:
                     with self._cache_store.payload_lock():
                         fresh_wrapper = self._cache_store.load_payload()
                         fresh_cached = fresh_wrapper.get("payload")
+                        if self._account_moved(account_key):
+                            return {
+                                "needsSettings": False,
+                                "payload": fresh_cached,
+                                "sameGame": False,
+                                "changed": False,
+                                "currentGameId": None,
+                                "cachedGameId": cached_game_id,
+                            }
                         payload = self._patch_recent_unlocks_into_payload(fresh_cached, recent_same_game)
-                        cleanup = self._settings_store.cleanup_tracked_against_payload(payload)
+                        cleanup = self._settings_store.cleanup_tracked_against_payload(payload, tracked_dir=tracked_dir)
                         self._cache_store.save_payload(payload, self._build_meta(current_game_id, current_recent_marker))
                     self._emit_tracked_unlock_notifications(payload, cleanup.get("removedIds"))
                     self._nudge_tracked_sets_monitor(current_game_id)
@@ -497,7 +512,8 @@ class CurrentGameService:
                 "cachedGameId": cached_game_id,
             }
 
-    def refresh_current_game(self, username: str, web_api_key: str, unlock_lookback_minutes: int, force: bool = False) -> dict:
+    def refresh_current_game(self, username: str, web_api_key: str, unlock_lookback_minutes: int, force: bool = False,
+                             *, account_key: str, tracked_dir: Path) -> dict:
         cached_wrapper = self._cache_store.load_payload()
         cached = cached_wrapper.get("payload")
         cached_meta = cached_wrapper.get("meta", {})
@@ -520,8 +536,10 @@ class CurrentGameService:
                 with self._cache_store.payload_lock():
                     fresh_wrapper = self._cache_store.load_payload()
                     fresh_cached = fresh_wrapper.get("payload")
+                    if self._account_moved(account_key):
+                        return {"payload": fresh_cached, "changed": False}
                     patched_payload = self._patch_recent_unlocks_into_payload(fresh_cached, recent_same_game)
-                    cleanup = self._settings_store.cleanup_tracked_against_payload(patched_payload)
+                    cleanup = self._settings_store.cleanup_tracked_against_payload(patched_payload, tracked_dir=tracked_dir)
                     self._cache_store.save_payload(patched_payload, self._build_meta(current_game_id, current_recent_marker))
                 self._emit_tracked_unlock_notifications(patched_payload, cleanup.get("removedIds"))
                 self._nudge_tracked_sets_monitor(current_game_id)
@@ -534,6 +552,8 @@ class CurrentGameService:
             if not current_game_id:
                 payload = self._empty_game_payload()
                 with self._cache_store.payload_lock():
+                    if self._account_moved(account_key):
+                        return {"payload": self._cache_store.load_payload().get("payload"), "changed": False}
                     self._cache_store.save_payload(payload, self._build_meta(None, None))
                 return {"payload": payload, "changed": True}
 
@@ -546,7 +566,9 @@ class CurrentGameService:
 
             payload = self._patch_recent_unlocks_into_payload(payload, self._recent_items_for_game(recent, current_game_id))
             with self._cache_store.payload_lock():
-                cleanup = self._settings_store.cleanup_tracked_against_payload(payload)
+                if self._account_moved(account_key):
+                    return {"payload": self._cache_store.load_payload().get("payload"), "changed": False}
+                cleanup = self._settings_store.cleanup_tracked_against_payload(payload, tracked_dir=tracked_dir)
                 self._cache_store.save_payload(payload, self._build_meta(payload["gameId"], current_recent_marker))
             self._emit_tracked_unlock_notifications(payload, cleanup.get("removedIds"))
             self._nudge_tracked_sets_monitor(current_game_id)

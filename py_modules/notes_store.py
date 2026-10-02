@@ -7,6 +7,7 @@ import re
 
 from settings_store import _NOTE_COLOR_OPTIONS
 from utils import (
+    NOTE_STORED_MAX_LEN,
     TAG_MAX_LEN,
     TAG_PREFIX_PATTERN,
     ensure_dir,
@@ -22,7 +23,7 @@ from utils import (
 
 
 NOTE_TITLE_MAX_LEN = 80
-NOTE_BODY_MAX_LEN = 500
+NOTE_BODY_MAX_LEN = NOTE_STORED_MAX_LEN
 
 NOTE_TAG_MAX_LEN = TAG_MAX_LEN
 
@@ -109,10 +110,10 @@ class NotesStore:
             return None
         return str(normalized)
 
-    def _path_for_game_key(self, key: str) -> Path:
+    def _path_for_game_key(self, key: str, notes_dir: Path) -> Path:
         if not key or not key.isdigit():
             raise ValueError(f"invalid notes game key: {key!r}")
-        return self._notes_dir / f"{key}.json"
+        return notes_dir / f"{key}.json"
 
     def _lock_for_game(self, key: str) -> threading.Lock:
         with self._notes_master_lock:
@@ -122,8 +123,8 @@ class NotesStore:
                 self._notes_game_locks[key] = lock
             return lock
 
-    def _load_raw(self, key: str) -> dict:
-        path = self._path_for_game_key(key)
+    def _load_raw(self, key: str, notes_dir: Path) -> dict:
+        path = self._path_for_game_key(key, notes_dir)
         raw = load_json_file(path, {})
         if not isinstance(raw, dict):
             return self._empty_entry(int(key))
@@ -138,14 +139,14 @@ class NotesStore:
 
         return self._normalize_entry(raw, int(key))
 
-    def _save_raw(self, key: str, entry: dict) -> None:
-        path = self._path_for_game_key(key)
+    def _save_raw(self, key: str, entry: dict, notes_dir: Path) -> None:
+        path = self._path_for_game_key(key, notes_dir)
         entry["collapsedTags"] = self._sanitize_collapsed(
             entry.get("collapsedTags") or [],
             _live_collapse_keys(entry.get("notes") or []),
         )
         refuse_newer_file(path, CURRENT_SCHEMA_VERSION)
-        ensure_dir(self._notes_dir)
+        ensure_dir(notes_dir)
         save_json_file(path, entry, compact=True)
 
     def _empty_entry(self, game_id: int) -> dict:
@@ -345,7 +346,8 @@ class NotesStore:
 
         lock = self._lock_for_game(key)
         with lock:
-            entry = self._load_raw(key)
+            notes_dir = self._notes_dir
+            entry = self._load_raw(key, notes_dir)
 
         response = dict(entry)
         response["notes"] = self._sorted_notes_for_return(entry)
@@ -406,12 +408,13 @@ class NotesStore:
 
         lock = self._lock_for_game(key)
         with lock:
-            entry = self._load_raw(key)
+            notes_dir = self._notes_dir
+            entry = self._load_raw(key, notes_dir)
             for existing in entry["notes"]:
                 existing["manualOrder"] += 1
             entry["notes"].insert(0, new_note)
             self._add_tag_to_vocab(entry, clean_tag)
-            self._save_raw(key, entry)
+            self._save_raw(key, entry, notes_dir)
             collapsed = list(entry["collapsedTags"])
 
         return {"ok": True, "note": new_note, "collapsedTags": collapsed}
@@ -454,7 +457,8 @@ class NotesStore:
 
         lock = self._lock_for_game(key)
         with lock:
-            entry = self._load_raw(key)
+            notes_dir = self._notes_dir
+            entry = self._load_raw(key, notes_dir)
             target = None
             for note in entry["notes"]:
                 if note["id"] == note_id:
@@ -485,7 +489,7 @@ class NotesStore:
                 target["reminderLastFiredAt"] = now
 
             self._add_tag_to_vocab(entry, clean_tag)
-            self._save_raw(key, entry)
+            self._save_raw(key, entry, notes_dir)
             collapsed = list(entry["collapsedTags"])
 
         return {"ok": True, "note": target, "collapsedTags": collapsed}
@@ -500,7 +504,8 @@ class NotesStore:
 
         lock = self._lock_for_game(key)
         with lock:
-            entry = self._load_raw(key)
+            notes_dir = self._notes_dir
+            entry = self._load_raw(key, notes_dir)
             before = len(entry["notes"])
             entry["notes"] = [n for n in entry["notes"] if n["id"] != note_id]
             if len(entry["notes"]) == before:
@@ -509,7 +514,7 @@ class NotesStore:
             for index, note in enumerate(entry["notes"]):
                 note["manualOrder"] = index
 
-            self._save_raw(key, entry)
+            self._save_raw(key, entry, notes_dir)
             collapsed = list(entry["collapsedTags"])
 
         return {"ok": True, "deletedId": note_id, "collapsedTags": collapsed}
@@ -524,7 +529,8 @@ class NotesStore:
 
         lock = self._lock_for_game(key)
         with lock:
-            entry = self._load_raw(key)
+            notes_dir = self._notes_dir
+            entry = self._load_raw(key, notes_dir)
             by_id = {note["id"]: note for note in entry["notes"]}
 
             new_order = []
@@ -548,7 +554,7 @@ class NotesStore:
                 note["manualOrder"] = index
             entry["notes"] = new_order
 
-            self._save_raw(key, entry)
+            self._save_raw(key, entry, notes_dir)
 
         return {"ok": True}
 
@@ -568,12 +574,13 @@ class NotesStore:
 
         lock = self._lock_for_game(key)
         with lock:
-            entry = self._load_raw(key)
+            notes_dir = self._notes_dir
+            entry = self._load_raw(key, notes_dir)
             entry["collapsedTags"] = self._sanitize_collapsed(
                 tags,
                 _live_collapse_keys(entry["notes"]),
             )
-            self._save_raw(key, entry)
+            self._save_raw(key, entry, notes_dir)
             collapsed = list(entry["collapsedTags"])
 
         return {"ok": True, "collapsedTags": collapsed}
@@ -587,9 +594,10 @@ class NotesStore:
         cleaned = self._clean_sort_mode(mode)
         lock = self._lock_for_game(key)
         with lock:
-            entry = self._load_raw(key)
+            notes_dir = self._notes_dir
+            entry = self._load_raw(key, notes_dir)
             entry["sortMode"] = cleaned
-            self._save_raw(key, entry)
+            self._save_raw(key, entry, notes_dir)
 
         return {"ok": True, "sortMode": cleaned}
 
@@ -608,7 +616,8 @@ class NotesStore:
 
         lock = self._lock_for_game(key)
         with lock:
-            entry = self._load_raw(key)
+            notes_dir = self._notes_dir
+            entry = self._load_raw(key, notes_dir)
             target = None
             for note in entry["notes"]:
                 if note["id"] == note_id:
@@ -623,7 +632,7 @@ class NotesStore:
                 target["reminderMode"] = "off"
                 target["reminderEveryMinutes"] = None
 
-            self._save_raw(key, entry)
+            self._save_raw(key, entry, notes_dir)
 
         return {"ok": True, "note": target}
 
@@ -638,7 +647,8 @@ class NotesStore:
         flag = bool(value)
         lock = self._lock_for_game(key)
         with lock:
-            entry = self._load_raw(key)
+            notes_dir = self._notes_dir
+            entry = self._load_raw(key, notes_dir)
             target = None
             for note in entry["notes"]:
                 if note["id"] == note_id:
@@ -648,7 +658,7 @@ class NotesStore:
                 return {"ok": False, "error": "not_found"}
 
             target["showFiredDot"] = flag
-            self._save_raw(key, entry)
+            self._save_raw(key, entry, notes_dir)
 
         return {"ok": True, "note": target}
 
@@ -663,7 +673,8 @@ class NotesStore:
         flag = bool(completed)
         lock = self._lock_for_game(key)
         with lock:
-            entry = self._load_raw(key)
+            notes_dir = self._notes_dir
+            entry = self._load_raw(key, notes_dir)
             target = None
             for note in entry["notes"]:
                 if note["id"] == note_id:
@@ -681,15 +692,19 @@ class NotesStore:
                 if target["reminderMode"] != "off":
                     target["reminderLastFiredAt"] = now
 
-            self._save_raw(key, entry)
+            self._save_raw(key, entry, notes_dir)
             collapsed = list(entry["collapsedTags"])
 
         return {"ok": True, "note": target, "collapsedTags": collapsed}
 
     def delete_all_notes(self) -> dict:
         with self._notes_master_lock:
-            deleted_notes = 0
-            for path in self._notes_dir.glob("*.json"):
+            notes_dir = self._notes_dir
+            paths = list(notes_dir.glob("*.json"))
+
+        deleted_notes = 0
+        for path in paths:
+            with self._lock_for_game(path.stem):
                 raw = load_json_file(path, {})
                 if is_newer_schema(raw, CURRENT_SCHEMA_VERSION):
                     report_newer_schema(path)
@@ -702,7 +717,5 @@ class NotesStore:
                     path.unlink()
                 except FileNotFoundError:
                     pass
-
-            self._notes_game_locks.clear()
 
         return {"ok": True, "deletedNotes": deleted_notes}

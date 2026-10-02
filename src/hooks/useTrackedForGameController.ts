@@ -21,8 +21,7 @@ import {
     getTrackedAchievements,
     saveTrackedNote,
     saveTrackedCollapsedTags,
-    saveTrackedSortForGame,
-    toggleTrackedAchievement
+    saveTrackedSortForGame
 } from "../api";
 import type {
     AchievementRow,
@@ -44,7 +43,9 @@ import { landOn, liveOrder, orderAfterGroupMove, stepTo } from "../utils/reorder
 
 const ORDER_WRITE_SETTLE_MS = 250;
 import { openExternalUrl, raAchievementUrl } from "../utils/navigation";
-import { groupIdsForTrackedTarget, trackedRemovalLanding } from "../components/tracked/TrackedListBody";
+import { groupIdsForTrackedTarget, trackedRemovalLanding, trackedRetagLanding } from "../components/tracked/TrackedListBody";
+import { noteSaveErrorKey } from "../utils/noteSaveErrors";
+import { retargetTrackedFocusReturn } from "../utils/trackedFocusReturn";
 import { useFocusClaim } from "./useFocusClaim";
 
 type UseTrackedForGameControllerArgs = {
@@ -115,6 +116,9 @@ export function useTrackedForGameController({
     payloadRef.current = payload;
     const [reorderViaSwap, setReorderViaSwap] = useState(false);
 
+    const payloadForGameRef = useRef<number | null>(null);
+    const payloadRunIdRef = useRef(0);
+
     const rowClaim = useFocusClaim();
     const collapsedTagSet = useMemo(() => new Set(collapsedTags), [collapsedTags]);
 
@@ -153,6 +157,9 @@ export function useTrackedForGameController({
     );
 
     useEffect(() => {
+        payloadRunIdRef.current += 1;
+        payloadForGameRef.current = null;
+
         if (selectedGameId === null) {
             setPayload(null);
             setPayloadLoading(false);
@@ -183,35 +190,6 @@ export function useTrackedForGameController({
         setPayloadLoading(true);
 
         let cancelled = false;
-
-        void (async () => {
-            try {
-                const result = await getGamePayload(selectedGameId);
-                if (cancelled || !mountedRef.current) {
-                    return;
-                }
-                if (result?.error) {
-                    setPayloadError(result.error);
-                    setPayload(null);
-                    return;
-                }
-                setPayload(result?.payload ?? null);
-                setPayloadError(null);
-            } catch (e: any) {
-                logError("getGamePayload (drill-in)", e);
-                if (cancelled || !mountedRef.current) {
-                    return;
-                }
-                setPayloadError(
-                    String(e?.message || e || "Couldn't load this game's achievements.")
-                );
-                setPayload(null);
-            } finally {
-                if (!cancelled && mountedRef.current) {
-                    setPayloadLoading(false);
-                }
-            }
-        })();
 
         void (async () => {
             try {
@@ -250,6 +228,48 @@ export function useTrackedForGameController({
         };
     }, [mountedRef, selectedGameId]);
 
+    useEffect(() => {
+        if (!isActive || selectedGameId === null || payloadForGameRef.current === selectedGameId) {
+            return;
+        }
+        const gameId = selectedGameId;
+        const runId = payloadRunIdRef.current + 1;
+        payloadRunIdRef.current = runId;
+        payloadForGameRef.current = gameId;
+        setPayloadLoading(true);
+        setPayloadError(null);
+        void (async () => {
+            try {
+                const result = await getGamePayload(gameId);
+                if (payloadRunIdRef.current !== runId || !mountedRef.current) {
+                    return;
+                }
+                if (result?.error) {
+                    payloadForGameRef.current = null;
+                    setPayloadError(result.error);
+                    setPayload(null);
+                    return;
+                }
+                setPayload(result?.payload ?? null);
+                setPayloadError(null);
+            } catch (e: any) {
+                logError("getGamePayload (drill-in)", e);
+                if (payloadRunIdRef.current !== runId || !mountedRef.current) {
+                    return;
+                }
+                payloadForGameRef.current = null;
+                setPayloadError(
+                    String(e?.message || e || "Couldn't load this game's achievements.")
+                );
+                setPayload(null);
+            } finally {
+                if (payloadRunIdRef.current === runId && mountedRef.current) {
+                    setPayloadLoading(false);
+                }
+            }
+        })();
+    }, [isActive, mountedRef, selectedGameId]);
+
     const achievementMap = useMemo(() => {
         const map = new Map<number, AchievementRow>();
         for (const achievement of payload?.achievements ?? []) {
@@ -286,6 +306,7 @@ export function useTrackedForGameController({
         if (nextTrackedIds.length === trackedIds.length) {
             return;
         }
+        const earnedTrackedIds = trackedIds.filter((id) => earnedAchievementIds.has(id));
 
         cacheTrackedCount(selectedGameId, nextTrackedIds.length);
         cacheTrackedIds(selectedGameId, nextTrackedIds);
@@ -293,8 +314,8 @@ export function useTrackedForGameController({
 
         void bulkToggleTracked(
             selectedGameId,
-            nextTrackedIds,
-            "set",
+            earnedTrackedIds,
+            "untrack",
             payload.title ?? null,
             payload.consoleName ?? null,
             payload.imageIcon ?? null,
@@ -365,36 +386,50 @@ export function useTrackedForGameController({
         });
     }, [selectedGameId]);
 
+    const landingInputsRef = useRef({ trackedAchievements, notesByAchievementId, collapsedTagSet, language });
+    landingInputsRef.current = { trackedAchievements, notesByAchievementId, collapsedTagSet, language };
+
     const onSaveTrackedNote = useCallback(
         async (achievementId: number, note: string, color: NoteColor): Promise<OkResult> => {
             if (selectedGameId === null) {
                 return { ok: false, error: "No game selected." };
             }
+            const inputs = landingInputsRef.current;
+            const landingId = trackedRetagLanding(
+                inputs.trackedAchievements,
+                inputs.notesByAchievementId,
+                inputs.language,
+                inputs.collapsedTagSet,
+                achievementId,
+                note
+            );
+
+            let result;
             try {
-                const result = await saveTrackedNote(selectedGameId, achievementId, note, color);
-                if (!mountedRef.current) {
-                    return { ok: true };
-                }
-                if (!result?.ok) {
-                    return { ok: false, error: "Couldn't save your note." };
-                }
-                const nextNotes = result.notes ?? {};
-                const nextNotesColor = result.notesColor ?? {};
-                cacheTrackedNotes(selectedGameId, nextNotes);
-                cacheTrackedNotesColor(selectedGameId, nextNotesColor);
-                setNotesByAchievementId(nextNotes);
-                setNotesColorByAchievementId(nextNotesColor);
-                if (Array.isArray(result.collapsedTags)) {
-                    setCollapsedTags(result.collapsedTags);
-                }
-                return { ok: true };
+                result = await saveTrackedNote(selectedGameId, achievementId, note, color);
             } catch (e: any) {
                 logError("onSaveTrackedNote (drill-in)", e);
-                return {
-                    ok: false,
-                    error: String(e?.message || e || "Couldn't save your note.")
-                };
+                return { ok: false, error: "Couldn't save your note." };
             }
+            if (!result?.ok) {
+                return { ok: false, error: noteSaveErrorKey(result?.error, "Couldn't save your note.") };
+            }
+            if (landingId !== null) {
+                retargetTrackedFocusReturn(landingId);
+            }
+            const nextNotes = result.notes ?? {};
+            const nextNotesColor = result.notesColor ?? {};
+            cacheTrackedNotes(selectedGameId, nextNotes);
+            cacheTrackedNotesColor(selectedGameId, nextNotesColor);
+            if (!mountedRef.current) {
+                return { ok: true };
+            }
+            setNotesByAchievementId(nextNotes);
+            setNotesColorByAchievementId(nextNotesColor);
+            if (Array.isArray(result.collapsedTags)) {
+                setCollapsedTags(result.collapsedTags);
+            }
+            return { ok: true };
         },
         [mountedRef, selectedGameId]
     );
@@ -485,7 +520,7 @@ export function useTrackedForGameController({
                 const result = await bulkToggleTracked(
                     selectedGameId,
                     swapped,
-                    "set",
+                    "reorder",
                     payload.title ?? null,
                     payload.consoleName ?? null,
                     payload.imageIcon ?? null
@@ -584,9 +619,10 @@ export function useTrackedForGameController({
             clearReorderSelection();
             setError(null);
             try {
-                const result = await toggleTrackedAchievement(
+                const result = await bulkToggleTracked(
                     selectedGameId,
-                    achievement.id,
+                    [achievement.id],
+                    "untrack",
                     payload.title ?? null,
                     payload.consoleName ?? null,
                     payload.imageIcon ?? null
@@ -671,7 +707,7 @@ export function useTrackedForGameController({
             const result = await bulkToggleTracked(
                 gameId,
                 pending.ids,
-                "set",
+                "reorder",
                 pending.title,
                 pending.consoleName,
                 pending.imageIcon
@@ -742,7 +778,7 @@ export function useTrackedForGameController({
             void bulkToggleTracked(
                 pending.gameId,
                 pending.ids,
-                "set",
+                "reorder",
                 pending.title,
                 pending.consoleName,
                 pending.imageIcon
@@ -797,6 +833,7 @@ export function useTrackedForGameController({
 
     const tagMarking = useTagMarking({
         selectedGameId,
+        language,
         trackedIds,
         notesByAchievementId,
         isActive,

@@ -31,7 +31,8 @@ import type {
     ReorderDirection
 } from "../types";
 import { logError } from "../utils/errors";
-import { noteRemovalLanding } from "../utils/noteSections";
+import { noteCollapseKey, noteRemovalLanding } from "../utils/noteSections";
+import { noteSaveErrorKey } from "../utils/noteSaveErrors";
 import type { LanguageCode } from "../locales";
 
 const ORDER_WRITE_SETTLE_MS = 250;
@@ -186,12 +187,7 @@ export function useGameNotesController({
             );
         } catch (e: any) {
             logError("createGameNote (IPC)", e);
-            if (!mountedRef.current) {
-                return { ok: true as const };
-            }
-            const message = String(e?.message || e || "Couldn't save note.");
-            setError(message);
-            return { ok: false as const, error: message };
+            return { ok: false as const, error: "Couldn't save your note." };
         }
 
         if (result?.ok && result.note) {
@@ -200,18 +196,15 @@ export function useGameNotesController({
 
         adoptCollapsedTags(result);
 
-        if (!mountedRef.current) {
-            return { ok: true as const };
-        }
-
         if (!result || !result.ok || !result.note) {
-            const backendError = result?.error
-                || (result?.ok ? "Backend returned no note." : "Backend rejected the save.");
-            setError(`Couldn't save note: ${backendError}`);
-            return { ok: false as const, error: backendError };
+            return { ok: false as const, error: noteSaveErrorKey(result?.error, "Couldn't save your note.") };
         }
 
         const created = result.note;
+
+        if (!mountedRef.current) {
+            return { ok: true as const, note: created };
+        }
         try {
             setNotes((current) => [created, ...current]);
         } catch (e) {
@@ -254,9 +247,8 @@ export function useGameNotesController({
 
         setError(null);
 
-        const sectionBefore = parseNoteTag(
-            notes.find((note) => note.id === noteId)?.body ?? ""
-        ).tagKey;
+        const before = notes.find((note) => note.id === noteId);
+        const sectionBefore = before ? noteCollapseKey(before) : null;
 
         let result;
         try {
@@ -275,19 +267,14 @@ export function useGameNotesController({
             );
         } catch (e: any) {
             logError("updateGameNote (IPC)", e);
-            if (!mountedRef.current) {
-                return { ok: true as const };
-            }
-            const message = String(e?.message || e || "Couldn't save note.");
-            setError(message);
-            return { ok: false as const, error: message };
+            return { ok: false as const, error: "Couldn't save your note." };
         }
 
         if (result?.ok && !result.note) {
             armRemovalLanding(gameId, noteId);
         }
 
-        if (result?.ok && result.note && parseNoteTag(result.note.body).tagKey !== sectionBefore) {
+        if (result?.ok && result.note && sectionBefore !== null && noteCollapseKey(result.note) !== sectionBefore) {
             const landingId = noteRemovalLanding(
                 notes,
                 sortMode,
@@ -302,14 +289,12 @@ export function useGameNotesController({
 
         adoptCollapsedTags(result);
 
-        if (!mountedRef.current) {
-            return { ok: true as const };
+        if (!result || !result.ok) {
+            return { ok: false as const, error: noteSaveErrorKey(result?.error, "Couldn't save your note.") };
         }
 
-        if (!result || !result.ok) {
-            const backendError = result?.error || "Backend rejected the save.";
-            setError(`Couldn't save note: ${backendError}`);
-            return { ok: false as const, error: backendError };
+        if (!mountedRef.current) {
+            return { ok: true as const };
         }
 
         if (result.note) {
@@ -354,12 +339,7 @@ export function useGameNotesController({
             result = await deleteGameNote(gameId, noteId);
         } catch (e: any) {
             logError("deleteGameNote (IPC)", e);
-            if (!mountedRef.current) {
-                return { ok: true as const };
-            }
-            const message = String(e?.message || e || "Couldn't delete note.");
-            setError(message);
-            return { ok: false as const, error: message };
+            return { ok: false as const, error: "Couldn't delete your note." };
         }
 
         if (result?.ok) {
@@ -368,14 +348,12 @@ export function useGameNotesController({
 
         adoptCollapsedTags(result);
 
-        if (!mountedRef.current) {
-            return { ok: true as const };
+        if (!result || !result.ok) {
+            return { ok: false as const, error: noteSaveErrorKey(result?.error, "Couldn't delete your note.") };
         }
 
-        if (!result || !result.ok) {
-            const backendError = result?.error || "Backend rejected the delete.";
-            setError(`Couldn't delete note: ${backendError}`);
-            return { ok: false as const, error: backendError };
+        if (!mountedRef.current) {
+            return { ok: true as const };
         }
 
         setNotes((current) => current.filter((n) => n.id !== noteId));
@@ -739,12 +717,7 @@ export function useGameNotesController({
             result = await markGameNoteCompleted(gameId, noteId, completed);
         } catch (e: any) {
             logError("markGameNoteCompleted", e);
-            if (!mountedRef.current) {
-                return { ok: true };
-            }
-            const message = String(e?.message || e || "Couldn't update note.");
-            setError(message);
-            return { ok: false, error: message };
+            return { ok: false, error: "Couldn't update your note." };
         }
 
         adoptCollapsedTags(result);
@@ -753,13 +726,11 @@ export function useGameNotesController({
             armRemovalLanding(gameId, noteId);
         }
 
+        if (!result || !result.ok || !result.note) {
+            return { ok: false, error: noteSaveErrorKey(result?.error, "Couldn't update your note.") };
+        }
         if (!mountedRef.current) {
             return { ok: true };
-        }
-        if (!result || !result.ok || !result.note) {
-            const backendError = result?.error || "Backend rejected the change.";
-            setError(`Couldn't update note: ${backendError}`);
-            return { ok: false, error: backendError };
         }
 
         const saved = result.note;

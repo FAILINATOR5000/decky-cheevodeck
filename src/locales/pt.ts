@@ -1987,6 +1987,8 @@ const PT: LocaleTable = {
     "Folder Overlaps Memories": "A pasta se sobrepõe às memórias",
     "Not Compatible": "Não compatível",
     "Save for this is newer.": "Os dados salvos são mais recentes.",
+    "No Longer Tracked": "Não está mais em Seguidos",
+    "Tag Not Applied": "Tag não aplicada",
     "Clip Kept in Steam": "O clipe ficou no Steam",
     "Media Not Connected": "Mídia não conectada",
     "Transfer in Progress": "Transferência em andamento",

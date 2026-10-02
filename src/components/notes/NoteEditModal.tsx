@@ -5,7 +5,7 @@ import { ErrorText } from "../ui/ErrorText";
 import { NoteColorPicker } from "./NoteColorPicker";
 import { localizeRuntimeText, t, type LanguageCode } from "../../locales";
 import type { AchievementRow, NoteColor, OkResult } from "../../types";
-import { parseNoteTag, prefixNoteTag, resolveNoteTag, TAG_MAX_LEN, TRACKED_NOTE_MAX_LEN } from "../../utils/achievements";
+import { NOTE_TEXT_MAX_LEN, parseNoteTag, prefixNoteTag, resolveNoteTag, revealLeadingTag, TAG_MAX_LEN } from "../../utils/achievements";
 import { TagPickerModal } from "../tags/TagPickerModal";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { TRACKED_TAG_SEEDS, cleanTagInput } from "../../utils/tags";
@@ -81,14 +81,9 @@ export function NoteEditModal(props: NoteEditModalProps) {
 
     const resolved = resolveNoteTag(tagText, noteText, stored.body);
     const effectiveTag = resolved.tag;
-    const composedNote = prefixNoteTag(resolved.body, effectiveTag);
-
-    const noteBudget = effectiveTag === null
-        ? TRACKED_NOTE_MAX_LEN
-        : TRACKED_NOTE_MAX_LEN - (effectiveTag.length + 2);
 
     const trimmedLength = resolved.body.length;
-    const overLimit = composedNote.length > TRACKED_NOTE_MAX_LEN;
+    const overLimit = trimmedLength > NOTE_TEXT_MAX_LEN;
 
     async function handleSave() {
         if (savingNote || overLimit) {
@@ -132,7 +127,7 @@ export function NoteEditModal(props: NoteEditModalProps) {
 
     const counterText = t(language, "{{count}} / {{max}} characters", {
         count: trimmedLength,
-        max: noteBudget
+        max: NOTE_TEXT_MAX_LEN
     });
 
     const seenSuggestionKeys = new Set<string>();
@@ -179,8 +174,25 @@ export function NoteEditModal(props: NoteEditModalProps) {
         if (savingNote) {
             return;
         }
-        setTagText(tag === null ? "" : cleanTagInput(tag, TAG_MAX_LEN));
+        if (tag === null) {
+            const next = revealLeadingTag(resolved.body);
+            setTagText(next.tag);
+            setNoteText(next.body);
+            return;
+        }
+        setTagText(cleanTagInput(tag, TAG_MAX_LEN));
         setNoteText(resolved.body);
+    }
+
+    function revealTagOnLeave() {
+        if (savingNote || effectiveTag !== null) {
+            return;
+        }
+        const next = revealLeadingTag(resolved.body);
+        if (next.tag) {
+            setTagText(next.tag);
+            setNoteText(next.body);
+        }
     }
 
     function openTagPicker() {
@@ -268,11 +280,13 @@ export function NoteEditModal(props: NoteEditModalProps) {
                         >
                             {t(language, "Tag:")}
                         </div>
-                        <TextField
-                            value={tagText}
-                            onChange={(e: any) => setTagText(cleanTagInput(e?.target?.value ?? "", TAG_MAX_LEN))}
-                            disabled={savingNote}
-                        />
+                        <div onBlurCapture={revealTagOnLeave}>
+                            <TextField
+                                value={tagText}
+                                onChange={(e: any) => setTagText(cleanTagInput(e?.target?.value ?? "", TAG_MAX_LEN))}
+                                disabled={savingNote}
+                            />
+                        </div>
                         <Focusable
                             style={{
                                 display: "flex",

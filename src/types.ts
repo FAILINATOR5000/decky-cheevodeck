@@ -2041,7 +2041,7 @@ export type ToggleTrackedResponse = {
     collapsedTags: string[];
 };
 
-export type BulkToggleTrackedAction = "track" | "untrack" | "set";
+export type BulkToggleTrackedAction = "track" | "untrack" | "reorder";
 
 export type BulkToggleTrackedResponse = {
     ok: boolean;
@@ -2055,6 +2055,7 @@ export type BulkToggleTrackedResponse = {
 
 export type SaveTrackedNoteResponse = {
     ok: boolean;
+    error?: string;
     notes: TrackedNotes;
     notesColor: TrackedNotesColor;
     collapsedTags: string[];

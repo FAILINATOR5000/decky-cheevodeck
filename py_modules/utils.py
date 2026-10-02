@@ -28,6 +28,19 @@ TAG_MAX_LEN = 32
 
 TAG_PREFIX_PATTERN = re.compile(r"^\s*\[([^\]\n]{1,%d})\]\s*" % TAG_MAX_LEN)
 
+NOTE_TEXT_MAX_LEN = 500
+NOTE_STORED_MAX_LEN = NOTE_TEXT_MAX_LEN + TAG_MAX_LEN + 2
+
+_TAG_REJECT_PATTERN = re.compile(r"[\[\]\n\r\t]")
+_RESERVED_TAG_KEYS = frozenset({"completed"})
+
+
+def clean_bulk_tag(raw):
+    tag = str(raw or "").strip()[:TAG_MAX_LEN].strip()
+    if not tag or _TAG_REJECT_PATTERN.search(tag) or tag.lower() in _RESERVED_TAG_KEYS:
+        return None
+    return tag
+
 
 class WalkYieldedForClear(Exception):
     pass

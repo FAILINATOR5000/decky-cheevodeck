@@ -19,6 +19,13 @@ export function noteSectionCollapseKey(section: NoteSection): string {
     return section.tagKey ?? NOTES_UNTAGGED_COLLAPSE_KEY;
 }
 
+export function noteCollapseKey(note: GameNote): string {
+    if (note.completedAt !== null) {
+        return NOTES_COMPLETED_COLLAPSE_KEY;
+    }
+    return parseNoteTag(note.body).tagKey ?? NOTES_UNTAGGED_COLLAPSE_KEY;
+}
+
 export function buildNoteSections(
     notes: GameNote[],
     sortMode: GameNoteSortMode,

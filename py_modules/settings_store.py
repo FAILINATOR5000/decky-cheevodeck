@@ -6,7 +6,9 @@ import time
 
 from utils import (
     TAG_MAX_LEN,
+    NOTE_STORED_MAX_LEN,
     TAG_PREFIX_PATTERN,
+    clean_bulk_tag,
     ensure_dir,
     load_json_file,
     norm_game_id,
@@ -74,8 +76,6 @@ PLAYERS_NEAR_YOU_LOOKAHEAD_OPTIONS = {2, 4, 6, 8, 10, 12}
 
 PLAYERS_NEAR_YOU_TICK_MINUTES_OPTIONS = {1, 2, 3, 5, 10, 15, 30, 60}
 GAMES_LIST_CACHE_MINUTE_VALUES = {1, 5, 10, 15, 20, 30, 60, 120, 180, 720, 1440, 10080}
-
-TRACKED_NOTE_MAX_LEN = 500
 
 _NOTE_COLOR_OPTIONS = (
     "default", "green", "amber", "orange", "red", "pink", "purple",
@@ -681,9 +681,9 @@ class SettingsStore:
 
     Lock ordering across the three locks in this class plus NotesStore is
     ``_config_lock`` -> ``_tracked_master_lock`` ->
-    ``_tracked_game_locks[...]`` -> NotesStore's locks. No current code path
-    mixes them; it is written down so nothing paints itself into a corner if
-    one ever does.
+    ``_tracked_game_locks[...]`` -> NotesStore's locks. ``CacheStore``'s
+    payload lock comes before all of them: the current-game check holds it
+    while it cleans the tracked list against the payload it is about to save.
     """
 
     def __init__(
@@ -752,10 +752,10 @@ class SettingsStore:
     def save_config(self, cfg: dict):
         save_json_file(self._config_file, cfg)
 
-    def _path_for_game_key(self, key: str) -> Path:
+    def _path_for_game_key(self, key: str, tracked_dir: Path) -> Path:
         if not key or not key.isdigit():
             raise ValueError(f"invalid tracked game key: {key!r}")
-        return self._tracked_dir / f"{key}.json"
+        return tracked_dir / f"{key}.json"
 
     def _lock_for_game(self, key: str) -> threading.Lock:
         with self._tracked_master_lock:
@@ -765,27 +765,27 @@ class SettingsStore:
                 self._tracked_game_locks[key] = lock
             return lock
 
-    def _load_tracked_for_game_key(self, key: str) -> dict:
-        path = self._path_for_game_key(key)
+    def _load_tracked_for_game_key(self, key: str, tracked_dir: Path) -> dict:
+        path = self._path_for_game_key(key, tracked_dir)
         raw = load_json_file(path, {})
         return raw if isinstance(raw, dict) else {}
 
-    def _save_tracked_for_game_key(self, key: str, entry: dict) -> None:
-        path = self._path_for_game_key(key)
-        ensure_dir(self._tracked_dir)
+    def _save_tracked_for_game_key(self, key: str, entry: dict, tracked_dir: Path) -> None:
+        path = self._path_for_game_key(key, tracked_dir)
+        ensure_dir(tracked_dir)
         save_json_file(path, entry or {}, compact=True)
 
-    def _delete_tracked_for_game_key(self, key: str) -> None:
-        path = self._path_for_game_key(key)
+    def _delete_tracked_for_game_key(self, key: str, tracked_dir: Path) -> None:
+        path = self._path_for_game_key(key, tracked_dir)
         try:
             path.unlink()
         except FileNotFoundError:
             pass
 
-    def _iter_all_tracked_keys(self):
-        if not self._tracked_dir.exists():
+    def _iter_all_tracked_keys(self, tracked_dir: Path):
+        if not tracked_dir.exists():
             return
-        for path in self._tracked_dir.iterdir():
+        for path in tracked_dir.iterdir():
             if path.suffix != ".json":
                 continue
             stem = path.stem
@@ -3067,6 +3067,9 @@ class SettingsStore:
             ``achievement_ids``, in the
                         given order. ``_save_tracked_for_game_locked``
                             de-dupes.
+        - ``"reorder"`` put the tracked ids in the order given. Membership
+            never changes: ids that are not tracked are ignored, and tracked
+            ids the list leaves out keep their relative order at the end.
 
         The point of this method is one load, one mutation across every id, and
         one save. The single-toggle path is a thin wrapper on top of it: it
@@ -3096,7 +3099,8 @@ class SettingsStore:
                 continue
 
         with self._lock_for_game(key):
-            entry = self._load_tracked_for_game_key(key)
+            tracked_dir = self._tracked_dir
+            entry = self._load_tracked_for_game_key(key, tracked_dir)
             current = []
             seen_current = set()
             for value in entry.get("achievementIds", []) or []:
@@ -3130,6 +3134,16 @@ class SettingsStore:
                 changed = 0 if next_ids == current else max(
                     len(set(next_ids).symmetric_difference(set(current))), 1
                 )
+            elif action == "reorder":
+                present = set(current)
+                placed = set()
+                next_ids = []
+                for a in incoming:
+                    if a in present and a not in placed:
+                        placed.add(a)
+                        next_ids.append(a)
+                next_ids.extend(a for a in current if a not in placed)
+                changed = 0
             else:
                 return {
                     "ok": False,
@@ -3160,6 +3174,7 @@ class SettingsStore:
                 saved = self._save_tracked_for_game_locked(
                     key,
                     next_ids,
+                    tracked_dir=tracked_dir,
                     notes=next_notes,
                     notes_color=next_notes_color,
                     notes_last_edited_at=next_notes_last_edited_at,
@@ -3171,6 +3186,7 @@ class SettingsStore:
                 saved = self._save_tracked_for_game_locked(
                     key,
                     next_ids,
+                    tracked_dir=tracked_dir,
                     title=title,
                     console_name=console_name,
                     image_icon=image_icon,
@@ -3244,16 +3260,34 @@ class SettingsStore:
                 "notesColor": {},
             }
 
+        note_text = "" if note is None else str(note).strip()
+
         with self._lock_for_game(key):
-            entry = self._load_tracked_for_game_key(key)
+            tracked_dir = self._tracked_dir
+            entry = self._load_tracked_for_game_key(key, tracked_dir)
+
+            if note_text:
+                tracked_ids = set()
+                for value in entry.get("achievementIds", []) or []:
+                    try:
+                        tracked_ids.add(int(value))
+                    except (ValueError, TypeError, OverflowError):
+                        continue
+                if norm_achievement_id not in tracked_ids:
+                    return {
+                        "ok": False,
+                        "error": "not_tracked",
+                        "notes": {},
+                        "notesColor": {},
+                    }
+
             existing_notes = dict(entry.get("notes", {}) or {})
             existing_notes_color = dict(entry.get("notesColor", {}) or {})
             existing_notes_last_edited_at = dict(entry.get("notesLastEditedAt", {}) or {})
 
-            note_text = "" if note is None else str(note).strip()
             tag_vocab = None
             if note_text:
-                existing_notes[str(norm_achievement_id)] = note_text[:TRACKED_NOTE_MAX_LEN]
+                existing_notes[str(norm_achievement_id)] = note_text[:NOTE_STORED_MAX_LEN]
                 existing_notes_last_edited_at[str(norm_achievement_id)] = int(time.time() * 1000)
                 used_tag = self._parse_tag_prefix(note_text)
                 if used_tag:
@@ -3274,6 +3308,7 @@ class SettingsStore:
             saved = self._save_tracked_for_game_locked(
                 key,
                 entry.get("achievementIds", []),
+                tracked_dir=tracked_dir,
                 notes=existing_notes,
                 notes_color=existing_notes_color,
                 notes_last_edited_at=existing_notes_last_edited_at,
@@ -3298,11 +3333,12 @@ class SettingsStore:
         under one lock and one save, so callers never have to reconcile answers
         arriving out of order.
         """
-        clean_tag = "" if tag is None else str(tag).strip()[:TAG_MAX_LEN]
+        clean_tag = clean_bulk_tag(tag)
         key = self._game_key(game_id)
-        if not clean_tag or not key:
+        if clean_tag is None or not key:
             return {
                 "ok": False,
+                "error": "invalid_tag" if key else "invalid_game_id",
                 "notes": {},
                 "notesColor": {},
                 "collapsedTags": [],
@@ -3324,7 +3360,8 @@ class SettingsStore:
             }
 
         with self._lock_for_game(key):
-            entry = self._load_tracked_for_game_key(key)
+            tracked_dir = self._tracked_dir
+            entry = self._load_tracked_for_game_key(key, tracked_dir)
             tracked_ids = set()
             for value in entry.get("achievementIds", []) or []:
                 try:
@@ -3341,7 +3378,7 @@ class SettingsStore:
                     continue
                 note_key = str(achievement_id)
                 body = _TAG_PREFIX_PATTERN.sub("", existing_notes.get(note_key, "") or "")
-                retagged = f"[{clean_tag}]{body}"[:TRACKED_NOTE_MAX_LEN]
+                retagged = f"[{clean_tag}]{body}"
                 if retagged == existing_notes.get(note_key):
                     continue
                 existing_notes[note_key] = retagged
@@ -3359,6 +3396,7 @@ class SettingsStore:
             saved = self._save_tracked_for_game_locked(
                 key,
                 entry.get("achievementIds", []),
+                tracked_dir=tracked_dir,
                 notes=existing_notes,
                 notes_last_edited_at=existing_notes_last_edited_at,
                 tag_vocabulary=self._tag_vocab_with(entry.get("tagVocabulary", []) or [], clean_tag),
@@ -3384,10 +3422,12 @@ class SettingsStore:
                 "notesColor": {},
             }
         with self._lock_for_game(key):
-            entry = self._load_tracked_for_game_key(key)
+            tracked_dir = self._tracked_dir
+            entry = self._load_tracked_for_game_key(key, tracked_dir)
             saved = self._save_tracked_for_game_locked(
                 key,
                 entry.get("achievementIds", []),
+                tracked_dir=tracked_dir,
                 sort=sort,
             )
         return {
@@ -3407,10 +3447,12 @@ class SettingsStore:
         if not isinstance(tags, list):
             tags = []
         with self._lock_for_game(key):
-            entry = self._load_tracked_for_game_key(key)
+            tracked_dir = self._tracked_dir
+            entry = self._load_tracked_for_game_key(key, tracked_dir)
             saved = self._save_tracked_for_game_locked(
                 key,
                 entry.get("achievementIds", []),
+                tracked_dir=tracked_dir,
                 collapsed_tags=tags,
             )
         return {
@@ -3437,7 +3479,7 @@ class SettingsStore:
                 "tagVocabulary": [],
                 "collapsedTags": [],
             }
-        entry = self._load_tracked_for_game_key(key)
+        entry = self._load_tracked_for_game_key(key, self._tracked_dir)
         achievement_ids = []
         for value in entry.get("achievementIds", []):
             try:
@@ -3489,7 +3531,7 @@ class SettingsStore:
             trimmed = value.strip()
             if not trimmed:
                 continue
-            cleaned[str(ach_id)] = trimmed[:TRACKED_NOTE_MAX_LEN]
+            cleaned[str(ach_id)] = trimmed[:NOTE_STORED_MAX_LEN]
         return cleaned
 
     def _sanitize_notes_color_dict(self, raw) -> dict:
@@ -3624,12 +3666,12 @@ class SettingsStore:
             return None
         return trimmed
 
-    def _save_tracked_for_game_locked(self, key, achievement_ids, view_open=None, notes=None,
+    def _save_tracked_for_game_locked(self, key, achievement_ids, *, tracked_dir, view_open=None, notes=None,
                                       title=None, console_name=None, image_icon=None, sort=None, notes_color=None,
                                       notes_last_edited_at=None, tag_vocabulary=None,
                                       collapsed_tags=None) -> dict:
         cfg = self.load_config()
-        existing = self._load_tracked_for_game_key(key)
+        existing = self._load_tracked_for_game_key(key, tracked_dir)
 
         deduped = []
         seen = set()
@@ -3714,7 +3756,7 @@ class SettingsStore:
             "tagVocabulary": next_tag_vocabulary,
             "collapsedTags": next_collapsed_tags,
         }
-        self._save_tracked_for_game_key(key, entry)
+        self._save_tracked_for_game_key(key, entry, tracked_dir)
         return {
             "ok": True,
             "viewOpen": next_view_open,
@@ -3731,7 +3773,8 @@ class SettingsStore:
         if not key:
             return {"ok": False, "cleared": 0}
         with self._lock_for_game(key):
-            existing = self._load_tracked_for_game_key(key)
+            tracked_dir = self._tracked_dir
+            existing = self._load_tracked_for_game_key(key, tracked_dir)
             cleared = len(existing.get("achievementIds", []) or [])
             existing["achievementIds"] = []
             existing["notes"] = {}
@@ -3739,25 +3782,27 @@ class SettingsStore:
             existing["notesLastEditedAt"] = {}
             existing["viewOpen"] = False
             existing["collapsedTags"] = []
-            self._save_tracked_for_game_key(key, existing)
+            self._save_tracked_for_game_key(key, existing, tracked_dir)
         return {"ok": True, "cleared": cleared}
 
     def clear_all_tracked(self) -> dict:
         with self._tracked_master_lock:
-            cleared = 0
-            for stem in list(self._iter_all_tracked_keys()):
-                entry = self._load_tracked_for_game_key(stem)
-                if isinstance(entry, dict):
-                    cleared += len(entry.get("achievementIds", []) or [])
-                self._delete_tracked_for_game_key(stem)
-            self._tracked_game_locks.clear()
+            tracked_dir = self._tracked_dir
+            keys = list(self._iter_all_tracked_keys(tracked_dir))
+        cleared = 0
+        for stem in keys:
+            with self._lock_for_game(stem):
+                entry = self._load_tracked_for_game_key(stem, tracked_dir)
+                cleared += len(entry.get("achievementIds", []) or [])
+                self._delete_tracked_for_game_key(stem, tracked_dir)
         return {"ok": True, "cleared": cleared}
 
     def get_total_tracked_count(self) -> int:
         with self._tracked_master_lock:
+            tracked_dir = self._tracked_dir
             total = 0
-            for stem in self._iter_all_tracked_keys():
-                entry = self._load_tracked_for_game_key(stem)
+            for stem in self._iter_all_tracked_keys(tracked_dir):
+                entry = self._load_tracked_for_game_key(stem, tracked_dir)
                 if isinstance(entry, dict):
                     total += len(entry.get("achievementIds", []) or [])
         return total
@@ -3794,8 +3839,9 @@ class SettingsStore:
     def get_all_tracked_games(self) -> list:
         games = []
         with self._tracked_master_lock:
-            for stem in self._iter_all_tracked_keys():
-                entry = self._load_tracked_for_game_key(stem)
+            tracked_dir = self._tracked_dir
+            for stem in self._iter_all_tracked_keys(tracked_dir):
+                entry = self._load_tracked_for_game_key(stem, tracked_dir)
                 if not isinstance(entry, dict):
                     continue
                 game_id = norm_game_id(stem)
@@ -3813,7 +3859,7 @@ class SettingsStore:
                 })
         return games
 
-    def cleanup_tracked_against_payload(self, payload) -> dict:
+    def cleanup_tracked_against_payload(self, payload, *, tracked_dir: Path) -> dict:
         if not payload:
             return {"removedIds": [], "remainingIds": [], "viewOpen": False}
 
@@ -3822,7 +3868,7 @@ class SettingsStore:
             return {"removedIds": [], "remainingIds": [], "viewOpen": False}
 
         with self._lock_for_game(key):
-            entry = self._load_tracked_for_game_key(key)
+            entry = self._load_tracked_for_game_key(key, tracked_dir)
             tracked_ids = []
             for value in entry.get("achievementIds", []) or []:
                 try:
@@ -3866,7 +3912,7 @@ class SettingsStore:
                     if note_key in kept_keys
                 }
                 self._save_tracked_for_game_locked(
-                    key, remaining, view_open=view_open,
+                    key, remaining, tracked_dir=tracked_dir, view_open=view_open,
                     notes=next_notes, notes_color=next_notes_color,
                     notes_last_edited_at=next_notes_last_edited_at,
                 )

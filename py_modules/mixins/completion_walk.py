@@ -38,6 +38,7 @@ class CompletionWalkMixin(PluginContext):
                 "numAwarded": to_int(row.get("numAwarded"), 0),
                 "maxPossible": to_int(row.get("maxPossible"), 0),
                 "highestAward": row.get("highestAwardKind"),
+                "title": row.get("title"),
             }
         return results
 

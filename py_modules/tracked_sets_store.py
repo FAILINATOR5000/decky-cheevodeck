@@ -21,6 +21,8 @@ from utils import (
 SET_NAME_MAX_LEN = 60
 GAME_NOTE_MAX_LEN = 2000
 
+GAME_TITLE_MAX_LEN = 200
+
 CONSOLE_NAME_MAX_LEN = 60
 
 MAX_SETS = 500
@@ -113,6 +115,11 @@ class TrackedSetsStore:
             return ""
         return raw.strip()[:SET_NAME_MAX_LEN]
 
+    def _clean_title(self, raw) -> str:
+        if not isinstance(raw, str):
+            return ""
+        return raw.strip()[:GAME_TITLE_MAX_LEN]
+
     def _clean_note(self, raw) -> str:
         if not isinstance(raw, str):
             return ""
@@ -172,7 +179,7 @@ class TrackedSetsStore:
 
         return {
             "gameId": game_id,
-            "title": self._clean_name(raw.get("title")),
+            "title": self._clean_title(raw.get("title")),
             "imageIcon": raw.get("imageIcon") if isinstance(raw.get("imageIcon"), str) else "",
             "consoleName": self._clean_console_name(raw.get("consoleName")),
             "note": self._clean_note(raw.get("note")),
@@ -540,6 +547,9 @@ class TrackedSetsStore:
             awarded = to_int(entry.get("numAwarded"), 0)
             max_possible = to_int(entry.get("maxPossible"), 0)
             card["numAwarded"] = awarded
+            title = self._clean_title(entry.get("title"))
+            if len(title) > len(card["title"]) and title.startswith(card["title"]):
+                card["title"] = title
             if max_possible > 0:
                 card["maxPossible"] = max_possible
             card["highestAward"] = self._opt_award(entry.get("highestAward"))

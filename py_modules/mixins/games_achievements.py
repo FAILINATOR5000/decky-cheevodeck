@@ -128,7 +128,14 @@ class GamesAchievementsMixin(PluginContext):
                 "cachedGameId": None,
             }
 
-        return self.current_game_service.check_current_game(username, web_api_key, unlock_lookback_minutes, auto_refresh)
+        return self.current_game_service.check_current_game(
+            username,
+            web_api_key,
+            unlock_lookback_minutes,
+            auto_refresh,
+            account_key=self._user_dir_key(cfg),
+            tracked_dir=self._user_scope_base(self._user_dir_key(cfg)) / "tracked",
+        )
 
     async def refresh_current_game(self, force: bool = False):
         async with self._game_check_slot():
@@ -149,7 +156,14 @@ class GamesAchievementsMixin(PluginContext):
                 "changed": False,
             }
 
-        return self.current_game_service.refresh_current_game(username, web_api_key, unlock_lookback_minutes, force=force)
+        return self.current_game_service.refresh_current_game(
+            username,
+            web_api_key,
+            unlock_lookback_minutes,
+            force=force,
+            account_key=self._user_dir_key(cfg),
+            tracked_dir=self._user_scope_base(self._user_dir_key(cfg)) / "tracked",
+        )
 
     async def get_game_payload(self, game_id=None, force: bool = False):
         async with self._ra_slot():

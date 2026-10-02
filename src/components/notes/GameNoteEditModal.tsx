@@ -5,7 +5,7 @@ import { ErrorText } from "../ui/ErrorText";
 import { NoteColorPicker } from "./NoteColorPicker";
 import { localizeRuntimeText, t, type LanguageCode } from "../../locales";
 import type { GameNote, GameNoteReminderMode, NoteColor, OkResult } from "../../types";
-import { TAG_MAX_LEN, parseNoteTag, prefixNoteTag, resolveNoteTag } from "../../utils/achievements";
+import { NOTE_TEXT_MAX_LEN, TAG_MAX_LEN, parseNoteTag, prefixNoteTag, resolveNoteTag, revealLeadingTag } from "../../utils/achievements";
 import { TagPickerModal } from "../tags/TagPickerModal";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { GAME_NOTE_TAG_SEEDS, cleanTagInput } from "../../utils/tags";
@@ -17,7 +17,6 @@ import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 
 const GAME_NOTE_TITLE_MAX_LEN = 80;
-const GAME_NOTE_BODY_MAX_LEN = 500;
 
 const DELETE_ARMED_CSS = `
 .cheevo-note-delete-armed.DialogContent, .cheevo-note-delete-armed {
@@ -116,20 +115,28 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
     const effectiveTag = resolved.tag;
     const composedBody = prefixNoteTag(resolved.body, effectiveTag);
 
-    const bodyBudget = effectiveTag === null
-        ? GAME_NOTE_BODY_MAX_LEN
-        : GAME_NOTE_BODY_MAX_LEN - (effectiveTag.length + 2);
-
     const titleLength = titleText.length;
     const bodyLength = resolved.body.length;
     const titleOverLimit = titleLength > GAME_NOTE_TITLE_MAX_LEN;
-    const bodyOverLimit = composedBody.length > GAME_NOTE_BODY_MAX_LEN;
+    const bodyOverLimit = bodyLength > NOTE_TEXT_MAX_LEN;
     const bodyEmpty = composedBody.trim().length === 0;
 
     const cadenceMinutesIfValid = parseCustomMinutes(cadenceDraft, cadenceUnit);
     const cadenceInvalid =
         reminderMode !== "off"
         && cadenceMinutesIfValid === null;
+    const canSave = !bodyOverLimit && !titleOverLimit && !bodyEmpty && !cadenceInvalid;
+
+    const openedBody = prefixNoteTag(stored.body.trim(), stored.tag);
+    const openedCadence = initialValue !== null ? String(initialValue) : "";
+    const edited = existing !== null && (
+        titleText.trim() !== existing.title
+        || prefixNoteTag(resolved.body.trim(), effectiveTag) !== openedBody
+        || selectedColor !== initialColor
+        || reminderMode !== initialMode
+        || (reminderMode !== "off" && (cadenceDraft.trim() !== openedCadence || cadenceUnit !== initialUnit))
+        || resetReminderTimer
+    );
 
     const showResetRow =
         existing !== null
@@ -141,10 +148,7 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
     const canMarkCompleted = existing !== null && toggleCompleted !== null;
     const reminderControlsDisabled = saving || isCompleted;
 
-    async function handleSave() {
-        if (saving || bodyOverLimit || titleOverLimit || bodyEmpty || cadenceInvalid) {
-            return;
-        }
+    async function writeEdits(): Promise<boolean> {
         setSaving(true);
         setError(null);
 
@@ -156,7 +160,7 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
             if (parsed === null) {
                 setSaving(false);
                 setError(t(language, "Enter a reminder time between 1 minute and 365 days."));
-                return;
+                return false;
             }
             effectiveMinutes = parsed;
             effectiveValue = Number(cadenceDraft.trim());
@@ -178,18 +182,27 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
             resetReminderTimer
         });
 
-        if (result.ok) {
-            if (selectedColor !== defaultNoteColor) {
-                setDefaultNoteColor(selectedColor);
-                void saveDefaultNoteColor(selectedColor).catch(() => {
-                });
-            }
-            close();
-            return;
+        if (!result.ok) {
+            setSaving(false);
+            setError(result.error ?? t(language, "Couldn't save your note."));
+            return false;
         }
 
-        setSaving(false);
-        setError(result.error ?? t(language, "Couldn't save your note."));
+        if (selectedColor !== defaultNoteColor) {
+            setDefaultNoteColor(selectedColor);
+            void saveDefaultNoteColor(selectedColor).catch(() => {
+            });
+        }
+        return true;
+    }
+
+    async function handleSave() {
+        if (saving || !canSave) {
+            return;
+        }
+        if (await writeEdits()) {
+            close();
+        }
     }
 
     async function handleDelete() {
@@ -211,6 +224,11 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
         if (saving || !toggleCompleted) {
             return;
         }
+        if (edited) {
+            if (!canSave || !(await writeEdits())) {
+                return;
+            }
+        }
         setSaving(true);
         setError(null);
         const result = await toggleCompleted(!isCompleted);
@@ -223,7 +241,7 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
     }
 
     const deleteReady = canDelete && !saving;
-    const markReady = canMarkCompleted && !saving;
+    const markReady = canMarkCompleted && !saving && (!edited || canSave);
     const deleteArmedNow = deleteArmed && !saving;
 
     function handleDeletePress() {
@@ -301,7 +319,7 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
     });
     const bodyCounterText = t(language, "{{count}} / {{max}} characters", {
         count: bodyLength,
-        max: bodyBudget
+        max: NOTE_TEXT_MAX_LEN
     });
 
     const seenSuggestionKeys = new Set<string>();
@@ -348,8 +366,25 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
         if (saving) {
             return;
         }
-        setTagText(tag === null ? "" : cleanTagInput(tag, TAG_MAX_LEN));
+        if (tag === null) {
+            const next = revealLeadingTag(resolved.body);
+            setTagText(next.tag);
+            setBodyText(next.body);
+            return;
+        }
+        setTagText(cleanTagInput(tag, TAG_MAX_LEN));
         setBodyText(resolved.body);
+    }
+
+    function revealTagOnLeave() {
+        if (saving || effectiveTag !== null) {
+            return;
+        }
+        const next = revealLeadingTag(resolved.body);
+        if (next.tag) {
+            setTagText(next.tag);
+            setBodyText(next.body);
+        }
     }
 
     function openTagPicker() {
@@ -382,7 +417,7 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
             <style>{DELETE_ARMED_CSS}</style>
             <SnapshotHotkey language={language} />
             <SaveOnStart
-                canSave={!saving && !bodyOverLimit && !titleOverLimit && !bodyEmpty && !cadenceInvalid}
+                canSave={!saving && canSave}
                 label={t(language, "Save")}
                 onSave={handleSave}
                 onSecondaryButton={deleteReady ? handleDeletePress : undefined}
@@ -472,11 +507,13 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
                         >
                             {t(language, "Tag:")}
                         </div>
-                        <TextField
-                            value={tagText}
-                            onChange={(e: any) => setTagText(cleanTagInput(e?.target?.value ?? "", TAG_MAX_LEN))}
-                            disabled={saving}
-                        />
+                        <div onBlurCapture={revealTagOnLeave}>
+                            <TextField
+                                value={tagText}
+                                onChange={(e: any) => setTagText(cleanTagInput(e?.target?.value ?? "", TAG_MAX_LEN))}
+                                disabled={saving}
+                            />
+                        </div>
                         <Focusable
                             style={{
                                 display: "flex",
@@ -740,7 +777,7 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
                 >
                     <DialogButton
                         onClick={handleSave}
-                        disabled={saving || bodyOverLimit || titleOverLimit || bodyEmpty || cadenceInvalid}
+                        disabled={saving || !canSave}
                     >
                         {saving ? t(language, "Saving...") : t(language, "Save")}
                     </DialogButton>
@@ -750,7 +787,7 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
                         </DialogButton>
                     )}
                     {existing !== null && toggleCompleted !== null && (
-                        <DialogButton onClick={handleToggleCompletedClick} disabled={saving}>
+                        <DialogButton onClick={handleToggleCompletedClick} disabled={!markReady}>
                             {isCompleted
                                 ? t(language, "Mark as Active")
                                 : t(language, "Mark as Completed")}
