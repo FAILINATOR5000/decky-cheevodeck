@@ -5,7 +5,17 @@ import time
 import uuid
 
 from settings_store import _NOTE_COLOR_OPTIONS
-from utils import ensure_dir, load_json_file, norm_game_id, save_json_file, to_int
+from utils import (
+    ensure_dir,
+    is_newer_schema,
+    load_json_file,
+    norm_game_id,
+    refuse_newer_file,
+    refuses_newer_schema,
+    report_newer_schema,
+    save_json_file,
+    to_int,
+)
 
 
 SET_NAME_MAX_LEN = 60
@@ -78,6 +88,10 @@ class TrackedSetsStore:
         if not isinstance(raw, dict):
             return self._empty_file()
 
+        if is_newer_schema(raw, CURRENT_SCHEMA_VERSION):
+            report_newer_schema(self._path())
+            return self._empty_file()
+
         schema = to_int(raw.get("schemaVersion", 0), 0)
         if schema != CURRENT_SCHEMA_VERSION:
             return self._empty_file()
@@ -85,6 +99,7 @@ class TrackedSetsStore:
         return self._normalize_file(raw)
 
     def _save_raw(self, data: dict) -> None:
+        refuse_newer_file(self._path(), CURRENT_SCHEMA_VERSION)
         save_json_file(self._path(), data, compact=True)
 
     def _empty_file(self) -> dict:
@@ -242,6 +257,7 @@ class TrackedSetsStore:
             data = self._load_raw()
         return data
 
+    @refuses_newer_schema
     def create_set(self, name) -> dict:
         cleaned = self._clean_name(name)
         if not cleaned:
@@ -268,6 +284,7 @@ class TrackedSetsStore:
 
         return {"ok": True, "set": new_set}
 
+    @refuses_newer_schema
     def rename_set(self, set_id: str, name) -> dict:
         if not isinstance(set_id, str) or not set_id:
             return {"ok": False, "error": "invalid_set_id"}
@@ -287,6 +304,7 @@ class TrackedSetsStore:
 
         return {"ok": True, "set": target}
 
+    @refuses_newer_schema
     def set_game_sort(self, set_id: str, sort) -> dict:
         if not isinstance(set_id, str) or not set_id:
             return {"ok": False, "error": "invalid_set_id"}
@@ -302,6 +320,7 @@ class TrackedSetsStore:
 
         return {"ok": True, "set": target}
 
+    @refuses_newer_schema
     def set_game_filter(self, set_id: str, game_filter) -> dict:
         if not isinstance(set_id, str) or not set_id:
             return {"ok": False, "error": "invalid_set_id"}
@@ -317,6 +336,7 @@ class TrackedSetsStore:
 
         return {"ok": True, "set": target}
 
+    @refuses_newer_schema
     def set_view_mode(self, set_id: str, mode) -> dict:
         if not isinstance(set_id, str) or not set_id:
             return {"ok": False, "error": "invalid_set_id"}
@@ -332,6 +352,7 @@ class TrackedSetsStore:
 
         return {"ok": True, "set": target}
 
+    @refuses_newer_schema
     def touch_opened(self, set_id: str) -> dict:
         if not isinstance(set_id, str) or not set_id:
             return {"ok": False, "error": "invalid_set_id"}
@@ -347,6 +368,7 @@ class TrackedSetsStore:
 
         return {"ok": True, "set": target}
 
+    @refuses_newer_schema
     def delete_set(self, set_id: str) -> dict:
         if not isinstance(set_id, str) or not set_id:
             return {"ok": False, "error": "invalid_set_id"}
@@ -364,6 +386,7 @@ class TrackedSetsStore:
 
         return {"ok": True}
 
+    @refuses_newer_schema
     def add_game(self, set_id: str, game) -> dict:
         if not isinstance(set_id, str) or not set_id:
             return {"ok": False, "error": "invalid_set_id"}
@@ -409,6 +432,7 @@ class TrackedSetsStore:
 
         return {"ok": True, "set": target}
 
+    @refuses_newer_schema
     def remove_game(self, set_id: str, game_id) -> dict:
         if not isinstance(set_id, str) or not set_id:
             return {"ok": False, "error": "invalid_set_id"}
@@ -433,6 +457,7 @@ class TrackedSetsStore:
 
         return {"ok": True, "set": target}
 
+    @refuses_newer_schema
     def update_game_note(self, set_id: str, game_id, note, color) -> dict:
         if not isinstance(set_id, str) or not set_id:
             return {"ok": False, "error": "invalid_set_id"}
@@ -461,6 +486,7 @@ class TrackedSetsStore:
 
         return {"ok": True, "set": target}
 
+    @refuses_newer_schema
     def reorder_games(self, set_id: str, ordered_ids, order: str = "all") -> dict:
         if not isinstance(set_id, str) or not set_id:
             return {"ok": False, "error": "invalid_set_id"}
@@ -533,6 +559,7 @@ class TrackedSetsStore:
                 possible += to_int(max_possible, 0)
         return any_checked and possible > 0 and awarded >= possible
 
+    @refuses_newer_schema
     def apply_completion_results(self, set_id: str, results: dict) -> dict:
         if not isinstance(set_id, str) or not set_id:
             return {"ok": False, "error": "invalid_set_id"}
@@ -551,6 +578,7 @@ class TrackedSetsStore:
 
         return {"ok": True, "set": target}
 
+    @refuses_newer_schema
     def apply_completion_results_all(self, results: dict) -> dict:
         if not isinstance(results, dict):
             return {"ok": False, "error": "invalid_results"}
@@ -565,6 +593,7 @@ class TrackedSetsStore:
 
         return {"ok": True, "sets": data["sets"]}
 
+    @refuses_newer_schema
     def apply_completion_results_with_transitions(self, results: dict) -> dict:
         if not isinstance(results, dict):
             return {"ok": False, "error": "invalid_results", "completedSets": []}
@@ -584,11 +613,13 @@ class TrackedSetsStore:
 
         return {"ok": True, "completedSets": completed}
 
+    @refuses_newer_schema
     def clear_all_tracked_sets(self) -> dict:
         with self._lock:
             data = self._load_raw()
             deleted_sets = len(data["sets"])
             deleted_games = sum(len(s["games"]) for s in data["sets"])
+            refuse_newer_file(self._path(), CURRENT_SCHEMA_VERSION)
             try:
                 self._path().unlink()
             except FileNotFoundError:

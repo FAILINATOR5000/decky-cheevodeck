@@ -16,7 +16,8 @@ const TRANSFER_ERROR_KEYS: Record<string, string> = {
     no_records: "That bundle holds no memories",
     media_missing: "Some of that bundle's files are missing",
     count_mismatch: "That bundle's counts don't add up",
-    unreadable: "That bundle couldn't be read"
+    unreadable: "That bundle couldn't be read",
+    newer_schema: "Not Compatible"
 };
 
 export function transferErrorKey(code: string): string {

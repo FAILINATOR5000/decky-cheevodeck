@@ -8,10 +8,15 @@ import threading
 import time
 
 from utils import (
+    NewerSchemaFile,
     chown_to_data_owner,
     ensure_dir,
+    is_newer_schema,
     load_json_file,
     norm_game_id,
+    refuse_newer_file,
+    refuses_newer_schema,
+    report_newer_schema,
     save_json_file,
     to_int,
 )
@@ -127,6 +132,9 @@ class GuidesStore:
         raw = load_json_file(path, {})
         if not isinstance(raw, dict):
             return self._empty_game_record(int(key))
+        if is_newer_schema(raw, CURRENT_SCHEMA_VERSION):
+            report_newer_schema(path)
+            return self._empty_game_record(int(key))
         schema = to_int(raw.get("schemaVersion", 0), 0)
         if schema != CURRENT_SCHEMA_VERSION:
             return self._empty_game_record(int(key))
@@ -134,6 +142,7 @@ class GuidesStore:
 
     def _save_raw(self, key: str, record: dict) -> None:
         path = self._path_for_game_key(key)
+        refuse_newer_file(path, CURRENT_SCHEMA_VERSION)
         ensure_dir(self._guides_dir)
         save_json_file(path, record, compact=True)
 
@@ -295,6 +304,7 @@ class GuidesStore:
         with lock:
             return self._load_raw(key)
 
+    @refuses_newer_schema
     def save_mapping(self, game_id, platform_slug: str, game_url: str, product_name: str) -> dict:
         key = self._game_key(game_id)
         if key is None:
@@ -313,6 +323,7 @@ class GuidesStore:
             self._save_raw(key, record)
         return {"ok": True, "gamefaqs": mapping}
 
+    @refuses_newer_schema
     def save_type_filter(self, game_id, value) -> dict:
         key = self._game_key(game_id)
         if key is None:
@@ -325,6 +336,7 @@ class GuidesStore:
             self._save_raw(key, record)
         return {"ok": True, "typeFilter": cleaned}
 
+    @refuses_newer_schema
     def clear_mapping(self, game_id) -> dict:
         key = self._game_key(game_id)
         if key is None:
@@ -346,6 +358,7 @@ class GuidesStore:
             guide["gameUrl"] = mapping["gameUrl"]
         return guide
 
+    @refuses_newer_schema
     def upsert_guide_meta(
         self,
         game_id,
@@ -380,6 +393,7 @@ class GuidesStore:
             self._save_raw(key, record)
             return {"ok": True, "guide": dict(guide)}
 
+    @refuses_newer_schema
     def save_position(
         self,
         game_id,
@@ -410,6 +424,7 @@ class GuidesStore:
             self._save_raw(key, record)
         return {"ok": True}
 
+    @refuses_newer_schema
     def add_bookmark(
         self,
         game_id,
@@ -444,6 +459,7 @@ class GuidesStore:
             self._save_raw(key, record)
         return {"ok": True, "bookmark": bookmark}
 
+    @refuses_newer_schema
     def remove_bookmark(self, game_id, faq_id, bookmark_id: str) -> dict:
         key = self._game_key(game_id)
         faq = self._clean_faq_id(faq_id)
@@ -464,6 +480,7 @@ class GuidesStore:
             self._save_raw(key, record)
         return {"ok": True, "deletedId": bookmark_id}
 
+    @refuses_newer_schema
     def rename_bookmark(self, game_id, faq_id, bookmark_id: str, name: str) -> dict:
         key = self._game_key(game_id)
         faq = self._clean_faq_id(faq_id)
@@ -641,6 +658,7 @@ class GuidesStore:
             generation = self._cache_generation
         return {"ok": True, "allowed": True, "generation": generation}
 
+    @refuses_newer_schema
     def finish_revalidate(self, game_id, faq_id, html, page="0", generation=-1, section_slugs=None) -> dict:
         """Land a background revalidate: write the page, or stamp the failure.
 
@@ -769,7 +787,10 @@ class GuidesStore:
             moved = bool(stored) and stored != incoming
             if stored != incoming:
                 guide["sectionSlugs"] = incoming
-                self._save_raw(key, record)
+                try:
+                    self._save_raw(key, record)
+                except NewerSchemaFile:
+                    return False
         return moved
 
     def _nudge_siblings_stale(self, key: str, faq: str, keep_token: str) -> int:
@@ -867,6 +888,9 @@ class GuidesStore:
         removed = 0
         with self._master_lock:
             for path in self._guides_dir.glob("*_guides.json"):
+                if is_newer_schema(load_json_file(path, {}), CURRENT_SCHEMA_VERSION):
+                    report_newer_schema(path)
+                    continue
                 try:
                     path.unlink()
                     removed += 1

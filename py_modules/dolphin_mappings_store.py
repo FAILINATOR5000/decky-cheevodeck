@@ -4,7 +4,17 @@ import threading
 import time
 import uuid
 
-from utils import TAG_PREFIX_PATTERN, ensure_dir, load_json_file, save_json_file, to_int
+from utils import (
+    TAG_PREFIX_PATTERN,
+    ensure_dir,
+    is_newer_schema,
+    load_json_file,
+    refuse_newer_file,
+    refuses_newer_schema,
+    report_newer_schema,
+    save_json_file,
+    to_int,
+)
 
 
 MAPPING_NAME_MAX_LEN = 100
@@ -93,6 +103,10 @@ class DolphinMappingsStore:
         if not isinstance(raw, dict):
             return self._empty_file()
 
+        if is_newer_schema(raw, CURRENT_SCHEMA_VERSION):
+            report_newer_schema(self._path())
+            return self._empty_file()
+
         schema = to_int(raw.get("schemaVersion", 0), 0)
         if schema != CURRENT_SCHEMA_VERSION:
             return self._empty_file()
@@ -104,6 +118,7 @@ class DolphinMappingsStore:
             data.get("collapsedTags") or [],
             _live_collapse_keys(data["mappings"]),
         )
+        refuse_newer_file(self._path(), CURRENT_SCHEMA_VERSION)
         save_json_file(self._path(), data, compact=True)
 
     def _empty_file(self) -> dict:
@@ -277,6 +292,7 @@ class DolphinMappingsStore:
             data = self._load_raw()
         return data
 
+    @refuses_newer_schema
     def upsert(self, mapping) -> dict:
         cleaned = self._clean_mapping(mapping)
         if cleaned is None:
@@ -310,6 +326,7 @@ class DolphinMappingsStore:
 
         return {"ok": True, "mapping": cleaned}
 
+    @refuses_newer_schema
     def delete(self, mapping_id: str) -> dict:
         if not isinstance(mapping_id, str) or not mapping_id:
             return {"ok": False, "error": "invalid_mapping_id"}
@@ -324,6 +341,7 @@ class DolphinMappingsStore:
 
         return {"ok": True}
 
+    @refuses_newer_schema
     def set_collapsed_tags(self, tags) -> dict:
         if not isinstance(tags, list):
             tags = []
@@ -335,6 +353,7 @@ class DolphinMappingsStore:
 
         return {"ok": True, "collapsedTags": data["collapsedTags"]}
 
+    @refuses_newer_schema
     def reorder(self, ordered_ids) -> dict:
         if not isinstance(ordered_ids, list):
             return {"ok": False, "error": "invalid_order"}
@@ -362,6 +381,7 @@ class DolphinMappingsStore:
 
         return {"ok": True, "mappings": data["mappings"]}
 
+    @refuses_newer_schema
     def seed(self, mappings) -> dict:
         """One-shot starter seed: write the given mappings, but only onto an empty
         store.
@@ -389,8 +409,10 @@ class DolphinMappingsStore:
 
         return {"ok": True, "seeded": True, "count": len(cleaned)}
 
+    @refuses_newer_schema
     def clear_all(self) -> dict:
         with self._lock:
+            refuse_newer_file(self._path(), CURRENT_SCHEMA_VERSION)
             try:
                 self._path().unlink()
             except FileNotFoundError:

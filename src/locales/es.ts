@@ -1996,6 +1996,8 @@ const ES: LocaleTable = {
     "Not enough room": "No hay espacio suficiente",
     "Drive not connected": "Unidad no conectada",
     "Folder Overlaps Memories": "La carpeta se solapa con los recuerdos",
+    "Not Compatible": "No compatible",
+    "Save for this is newer.": "Los datos guardados son más recientes.",
     "Clip Kept in Steam": "El clip se queda en Steam",
     "Media Not Connected": "Medio no conectado",
     "Transfer in Progress": "Transferencia en curso",

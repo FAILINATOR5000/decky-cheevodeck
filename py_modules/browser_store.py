@@ -6,7 +6,16 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 from urllib.parse import urlsplit
 
-from utils import ensure_dir, load_json_file, save_json_file, to_int
+from utils import (
+    NewerSchemaFile,
+    ensure_dir,
+    is_newer_schema,
+    load_json_file,
+    refuse_newer_file,
+    report_newer_schema,
+    save_json_file,
+    to_int,
+)
 
 
 CURRENT_SCHEMA_VERSION = 1
@@ -483,6 +492,9 @@ class BrowserStore:
         raw = load_json_file(self._history_path(), {})
         if not isinstance(raw, dict):
             return self._empty_history()
+        if is_newer_schema(raw, CURRENT_SCHEMA_VERSION):
+            report_newer_schema(self._history_path())
+            return self._empty_history()
         if to_int(raw.get("schemaVersion", 0), 0) != CURRENT_SCHEMA_VERSION:
             return self._empty_history()
         rows = raw.get("entries")
@@ -501,6 +513,10 @@ class BrowserStore:
         }
 
     def _save_history(self, data: dict) -> dict:
+        try:
+            refuse_newer_file(self._history_path(), CURRENT_SCHEMA_VERSION)
+        except NewerSchemaFile:
+            return self._empty_history()
         save_json_file(self._history_path(), data, compact=True)
         return data
 
@@ -641,7 +657,8 @@ class BrowserStore:
         raw = load_json_file(self._bookmarks_path(), {})
         if not isinstance(raw, dict):
             return self._empty_bookmarks()
-        if to_int(raw.get("schemaVersion", 0), 0) > BOOKMARKS_SCHEMA_VERSION:
+        if is_newer_schema(raw, BOOKMARKS_SCHEMA_VERSION):
+            report_newer_schema(self._bookmarks_path())
             return self._empty_bookmarks()
 
         categories = [self._default_category()]
@@ -697,6 +714,10 @@ class BrowserStore:
             if row["categoryId"] not in known:
                 row["categoryId"] = data["defaultCategoryId"]
 
+        try:
+            refuse_newer_file(self._bookmarks_path(), BOOKMARKS_SCHEMA_VERSION)
+        except NewerSchemaFile:
+            return self._empty_bookmarks()
         save_json_file(self._bookmarks_path(), data, compact=True)
         return data
 

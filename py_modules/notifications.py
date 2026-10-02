@@ -7,7 +7,16 @@ from collections import deque
 
 import decky
 
-from utils import ensure_dir, load_json_file, save_json_file, to_int
+from utils import (
+    NewerSchemaFile,
+    ensure_dir,
+    is_newer_schema,
+    load_json_file,
+    refuse_newer_file,
+    report_newer_schema,
+    save_json_file,
+    to_int,
+)
 
 
 NOTIFICATION_EVENT = "cheevodeck_notification"
@@ -154,6 +163,14 @@ def push_debug_notification(*, store, settings_store, event_loop, title, body, t
     )
 
 
+def _newer_file_still_there(path: Path) -> bool:
+    try:
+        refuse_newer_file(path, CURRENT_SCHEMA_VERSION)
+    except NewerSchemaFile:
+        return True
+    return False
+
+
 class NotificationsStore:
     """The notification list and a single last-seen timestamp.
 
@@ -181,6 +198,7 @@ class NotificationsStore:
         self._items = deque(maxlen=MAX_NOTIFICATIONS)
         self._last_seen = 0
         self._counter = 0
+        self._newer_file = False
         self._load_from_disk()
 
     def repoint(self, base_dir: Path) -> None:
@@ -190,12 +208,15 @@ class NotificationsStore:
             self._items = deque(maxlen=MAX_NOTIFICATIONS)
             self._last_seen = 0
             self._counter = 0
+            self._newer_file = False
             self._load_from_disk()
 
     def get_payload(self) -> dict:
         with self._lock:
             items = list(self._items)
             last_seen = self._last_seen
+            if self._newer_file:
+                report_newer_schema(self._path)
         items.reverse()
         return {"notifications": items, "lastSeenAt": last_seen}
 
@@ -224,6 +245,11 @@ class NotificationsStore:
             self._last_seen = int(time.time())
             self._persist_locked()
 
+    def _refusing_locked(self) -> bool:
+        if self._newer_file and not _newer_file_still_there(self._path):
+            self._newer_file = False
+        return self._newer_file
+
     def _persist_locked(self) -> None:
         data = {
             "schemaVersion": CURRENT_SCHEMA_VERSION,
@@ -231,6 +257,8 @@ class NotificationsStore:
             "lastSeenAt": self._last_seen,
             "counter": self._counter,
         }
+        if self._refusing_locked():
+            return
         try:
             save_json_file(self._path, data, compact=True)
         except Exception as exc:
@@ -243,6 +271,9 @@ class NotificationsStore:
     def _load_from_disk(self) -> None:
         raw = load_json_file(self._path, {})
         if not isinstance(raw, dict):
+            return
+        if is_newer_schema(raw, CURRENT_SCHEMA_VERSION):
+            self._newer_file = True
             return
         if to_int(raw.get("schemaVersion", 0), 0) != CURRENT_SCHEMA_VERSION:
             return
@@ -288,6 +319,7 @@ class NotificationsArchiveStore:
         self._path = base_dir / NOTIFICATIONS_ARCHIVE_FILENAME
         self._lock = threading.Lock()
         self._items = []
+        self._newer_file = False
         self._load_from_disk()
 
     def repoint(self, base_dir: Path) -> None:
@@ -295,10 +327,13 @@ class NotificationsArchiveStore:
             self._path = base_dir / NOTIFICATIONS_ARCHIVE_FILENAME
             ensure_dir(self._path.parent)
             self._items = []
+            self._newer_file = False
             self._load_from_disk()
 
     def get_payload(self) -> dict:
         with self._lock:
+            if self._newer_file:
+                report_newer_schema(self._path)
             return {"archived": list(self._items)}
 
     def archive(self, notification: dict) -> dict:
@@ -309,6 +344,8 @@ class NotificationsArchiveStore:
             return {"ok": False, "error": "invalid"}
 
         with self._lock:
+            if self._refusing_locked():
+                return {"ok": False, "error": "newer_schema"}
             for existing in self._items:
                 if str(existing.get("id")) == notif_id:
                     return {"ok": True, "archived": dict(existing)}
@@ -327,6 +364,8 @@ class NotificationsArchiveStore:
         if not notif_id:
             return {"ok": False, "error": "invalid"}
         with self._lock:
+            if self._refusing_locked():
+                return {"ok": False, "error": "newer_schema"}
             before = len(self._items)
             self._items = [item for item in self._items if str(item.get("id")) != notif_id]
             if len(self._items) != before:
@@ -338,11 +377,18 @@ class NotificationsArchiveStore:
             self._items = []
             self._persist_locked()
 
+    def _refusing_locked(self) -> bool:
+        if self._newer_file and not _newer_file_still_there(self._path):
+            self._newer_file = False
+        return self._newer_file
+
     def _persist_locked(self) -> None:
         data = {
             "schemaVersion": CURRENT_SCHEMA_VERSION,
             "archived": list(self._items),
         }
+        if self._refusing_locked():
+            return
         try:
             save_json_file(self._path, data, compact=True)
         except Exception as exc:
@@ -355,6 +401,9 @@ class NotificationsArchiveStore:
     def _load_from_disk(self) -> None:
         raw = load_json_file(self._path, {})
         if not isinstance(raw, dict):
+            return
+        if is_newer_schema(raw, CURRENT_SCHEMA_VERSION):
+            self._newer_file = True
             return
         if to_int(raw.get("schemaVersion", 0), 0) != CURRENT_SCHEMA_VERSION:
             return

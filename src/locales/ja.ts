@@ -1923,6 +1923,8 @@ const JA: LocaleTable = {
     "Not enough room": "空き容量が足りません",
     "Drive not connected": "ドライブが接続されていません",
     "Folder Overlaps Memories": "思い出のフォルダーと重なっています",
+    "Not Compatible": "互換性がありません",
+    "Save for this is newer.": "この保存データは新しい形式です。",
     "Clip Kept in Steam": "クリップはSteamに残っています",
     "Media Not Connected": "メディアが接続されていません",
     "Transfer in Progress": "移行中です",

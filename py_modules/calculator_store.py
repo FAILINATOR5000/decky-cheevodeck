@@ -4,7 +4,16 @@ import time
 from pathlib import Path
 from typing import Any
 
-from utils import ensure_dir, load_json_file, save_json_file, to_int
+from utils import (
+    NewerSchemaFile,
+    ensure_dir,
+    is_newer_schema,
+    load_json_file,
+    refuse_newer_file,
+    report_newer_schema,
+    save_json_file,
+    to_int,
+)
 
 
 CURRENT_SCHEMA_VERSION = 1
@@ -60,6 +69,9 @@ class CalculatorStore:
         raw = load_json_file(self._path(), {})
         if not isinstance(raw, dict):
             return self._empty_file()
+        if is_newer_schema(raw, CURRENT_SCHEMA_VERSION):
+            report_newer_schema(self._path())
+            return self._empty_file()
         if to_int(raw.get("schemaVersion", 0), 0) != CURRENT_SCHEMA_VERSION:
             return self._empty_file()
         entries = raw.get("entries")
@@ -93,12 +105,20 @@ class CalculatorStore:
             data = self._load_raw()
             data["entries"].insert(0, entry)
             del data["entries"][MAX_HISTORY_ENTRIES:]
+            try:
+                refuse_newer_file(self._path(), CURRENT_SCHEMA_VERSION)
+            except NewerSchemaFile:
+                return []
             save_json_file(self._path(), data, compact=True)
 
             return data["entries"]
 
     def clear(self) -> list:
         with self._lock:
+            try:
+                refuse_newer_file(self._path(), CURRENT_SCHEMA_VERSION)
+            except NewerSchemaFile:
+                return []
             save_json_file(self._path(), self._empty_file(), compact=True)
 
             return []

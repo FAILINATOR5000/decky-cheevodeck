@@ -5,7 +5,17 @@ import hashlib
 import threading
 import time
 
-from utils import ensure_dir, load_json_file, norm_game_id, save_json_file, to_int
+from utils import (
+    ensure_dir,
+    is_newer_schema,
+    load_json_file,
+    norm_game_id,
+    refuse_newer_file,
+    refuses_newer_schema,
+    report_newer_schema,
+    save_json_file,
+    to_int,
+)
 
 
 MAX_SAVED_COMMENTS = 500
@@ -97,6 +107,10 @@ class SavedCommentsStore:
         if not isinstance(raw, dict):
             return self._empty_file()
 
+        if is_newer_schema(raw, CURRENT_SCHEMA_VERSION):
+            report_newer_schema(self._path())
+            return self._empty_file()
+
         schema = to_int(raw.get("schemaVersion", 0), 0)
         if schema != CURRENT_SCHEMA_VERSION:
             return self._empty_file()
@@ -122,6 +136,7 @@ class SavedCommentsStore:
         }
 
     def _save_raw(self, data: dict) -> None:
+        refuse_newer_file(self._path(), CURRENT_SCHEMA_VERSION)
         save_json_file(self._path(), data, compact=True)
 
     def _normalize_source(self, raw: Any) -> Optional[dict]:
@@ -212,6 +227,7 @@ class SavedCommentsStore:
             ]
         }
 
+    @refuses_newer_schema
     def add(self, record: Any) -> dict:
         normalized = self._normalize_entry(record)
         if normalized is None:
@@ -232,6 +248,7 @@ class SavedCommentsStore:
 
         return {"ok": True, "record": normalized}
 
+    @refuses_newer_schema
     def remove(self, comment_id: Any) -> dict:
         entry_id = _clean_text(comment_id)
         if not entry_id:
@@ -249,6 +266,7 @@ class SavedCommentsStore:
 
         return {"ok": True, "id": entry_id}
 
+    @refuses_newer_schema
     def touch_opened(self, comment_id: Any) -> dict:
         entry_id = _clean_text(comment_id)
         if not entry_id:
@@ -264,6 +282,7 @@ class SavedCommentsStore:
 
         return {"ok": True, "id": entry_id}
 
+    @refuses_newer_schema
     def clear(self) -> dict:
         with self._lock:
             self._save_raw(self._empty_file())

@@ -2008,6 +2008,8 @@ const RU: LocaleTable = {
     "Not enough room": "Недостаточно места",
     "Drive not connected": "Накопитель не подключён",
     "Folder Overlaps Memories": "Папка пересекается с моментами",
+    "Not Compatible": "Несовместимо",
+    "Save for this is newer.": "Сохранённые данные новее.",
     "Clip Kept in Steam": "Клип остался в Steam",
     "Media Not Connected": "Носитель не подключён",
     "Transfer in Progress": "Идёт перенос",

@@ -1045,6 +1045,9 @@ class MemoriesMixin(PluginContext):
         if game_id is None:
             game_id = MISC_GAME_ID
 
+        if self.memories_store.game_file_is_newer(game_id):
+            return {"ok": False, "error": "newer_schema"}
+
         try:
             folder = self.memories_store.ensure_picture_dir(game_id)
         except OSError as e:
@@ -1134,6 +1137,9 @@ class MemoriesMixin(PluginContext):
         image_icon = str(payload.get("imageIcon") or "").strip()
         if ra_game_id is None:
             ra_game_id = MISC_GAME_ID
+
+        if self.memories_store.game_file_is_newer(ra_game_id):
+            return {"ok": False, "error": "newer_schema"}
 
         for memory in self.memories_store.load_for_game(ra_game_id).get("memories", []):
             if (memory.get("video") or {}).get("clipId") == clip_id:

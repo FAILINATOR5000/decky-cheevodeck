@@ -39,6 +39,7 @@ ERROR_STASH_PENDING = "stash_pending"
 ERROR_STASH_FAILED = "stash_failed"
 ERROR_NOTHING_STASHED = "nothing_stashed"
 ERROR_ROOT_MISSING = "root_missing"
+ERROR_NEWER_SCHEMA = "newer_schema"
 
 MODE_MERGE = "merge"
 MODE_REPLACE = "replace"
@@ -385,6 +386,8 @@ class MemoriesTransferService:
         if wanted == MODE_REPLACE:
             if not self._store.account_key():
                 return {"ok": False, "error": ERROR_NO_ACCOUNT}
+            if self._store.any_game_file_newer():
+                return {"ok": False, "error": ERROR_NEWER_SCHEMA}
             if self._store.stashed_trees():
                 return {"ok": False, "error": ERROR_STASH_PENDING}
 
@@ -749,6 +752,10 @@ class MemoriesTransferService:
                     if self._stopped():
                         self._undo_import(mode, moved, placed_records, loose_files)
                         return
+
+                    if self._store.game_file_is_newer(entry.get("gameId", int(key))):
+                        skipped += len(entry.get("memories", []) or [])
+                        continue
 
                     arriving = []
                     media_for = {}

@@ -12,9 +12,14 @@ import decky
 from settings_store import _NOTE_COLOR_OPTIONS
 from utils import (
     TAG_MAX_LEN,
+    NewerSchemaFile,
     ensure_dir,
+    is_newer_schema,
     load_json_file,
     norm_game_id,
+    refuse_newer_file,
+    refuses_newer_schema,
+    report_newer_schema,
     save_json_file,
     to_int,
 )
@@ -351,7 +356,20 @@ class MemoriesStore:
         return self._memories_dir / GAMES_INDEX_NAME
 
     def _load_games_index(self) -> dict:
-        raw = load_json_file(self._games_index_path(), {})
+        path = self._games_index_path()
+        raw = load_json_file(path, {})
+        if path.exists() and not (
+            isinstance(raw, dict) and to_int(raw.get("schemaVersion"), 0) == CURRENT_SCHEMA_VERSION
+        ):
+            rows = self._index_rows_from_game_files()
+            if rows is None:
+                return {"schemaVersion": CURRENT_SCHEMA_VERSION, "games": []}
+            index = {"schemaVersion": CURRENT_SCHEMA_VERSION, "games": rows}
+            try:
+                self._save_games_index(index)
+            except OSError:
+                pass
+            return index
         games = []
         if isinstance(raw, dict) and to_int(raw.get("schemaVersion"), 0) == CURRENT_SCHEMA_VERSION:
             for row in raw.get("games", []) or []:
@@ -469,24 +487,33 @@ class MemoriesStore:
         if not self._memories_dir.is_dir():
             return False
 
+        rows = self._index_rows_from_game_files()
+        if rows is None:
+            return False
+        with self._index_lock:
+            self._save_games_index({"schemaVersion": CURRENT_SCHEMA_VERSION, "games": rows})
+        return True
+
+    def _index_rows_from_game_files(self) -> list:
         rows = []
         try:
             candidates = sorted(self._memories_dir.glob("*.json"))
         except OSError:
-            return False
+            return None
 
         for path in candidates:
             key = path.stem
             if not _GAME_KEY_PATTERN.match(key):
                 continue
-            entry = self._normalize_entry(load_json_file(path, {}), int(key))
+            raw = load_json_file(path, {})
+            if is_newer_schema(raw, CURRENT_SCHEMA_VERSION):
+                report_newer_schema(path)
+            entry = self._normalize_entry(raw, int(key))
             if entry["memories"]:
                 rows.append(self._index_row_from_entry(entry))
 
         rows.sort(key=lambda row: (row["gameId"] == MISC_GAME_ID, row["gameTitle"].lower()))
-        with self._index_lock:
-            self._save_games_index({"schemaVersion": CURRENT_SCHEMA_VERSION, "games": rows})
-        return True
+        return rows
 
     def _view_prefs_path(self) -> Path:
         return self._memories_dir / VIEW_PREFS_NAME
@@ -815,10 +842,15 @@ class MemoriesStore:
         return entry
 
     def _load_raw(self, key: str) -> dict:
-        return self._normalize_entry(load_json_file(self._path_for_game_key(key), {}), int(key))
+        path = self._path_for_game_key(key)
+        raw = load_json_file(path, {})
+        if is_newer_schema(raw, CURRENT_SCHEMA_VERSION):
+            report_newer_schema(path)
+        return self._normalize_entry(raw, int(key))
 
     def _save_raw(self, key: str, entry: dict) -> None:
         path = self._path_for_game_key(key)
+        refuse_newer_file(path, CURRENT_SCHEMA_VERSION)
         if entry["memories"]:
             ensure_dir(self._memories_dir)
             save_json_file(path, entry, compact=True)
@@ -1006,7 +1038,13 @@ class MemoriesStore:
 
             entry["memories"].sort(key=lambda m: m["capturedAt"], reverse=True)
             if inserted:
-                self._save_raw(key, entry)
+                try:
+                    self._save_raw(key, entry)
+                except NewerSchemaFile:
+                    return {
+                        "ok": False, "error": "newer_schema",
+                        "inserted": 0, "skipped": skipped + inserted, "insertedIds": [],
+                    }
 
         return {
             "ok": True,
@@ -1048,6 +1086,7 @@ class MemoriesStore:
             return self.video_path(relative) if relative else None
         return None
 
+    @refuses_newer_schema
     def add_memory(
         self,
         game_id,
@@ -1117,6 +1156,7 @@ class MemoriesStore:
 
         return {"ok": True, "memory": memory}
 
+    @refuses_newer_schema
     def update_memory(self, game_id, memory_id: str, *, caption=None, tag=None, color=None) -> dict:
         """Change a memory's caption, tag or color.
 
@@ -1180,6 +1220,7 @@ class MemoriesStore:
                 return memory
         return None
 
+    @refuses_newer_schema
     def add_bookmark(self, game_id, memory_id: str, media_time) -> dict:
         key = self._game_key(game_id)
         if key is None:
@@ -1218,6 +1259,7 @@ class MemoriesStore:
 
         return {"ok": True, "bookmark": dict(bookmark)}
 
+    @refuses_newer_schema
     def rename_bookmark(self, game_id, memory_id: str, bookmark_id: str, name: str) -> dict:
         key = self._game_key(game_id)
         if key is None:
@@ -1247,6 +1289,7 @@ class MemoriesStore:
 
         return {"ok": True, "bookmark": result}
 
+    @refuses_newer_schema
     def remove_bookmark(self, game_id, memory_id: str, bookmark_id: str) -> dict:
         key = self._game_key(game_id)
         if key is None:
@@ -1271,6 +1314,7 @@ class MemoriesStore:
 
         return {"ok": True, "deletedId": bookmark_id}
 
+    @refuses_newer_schema
     def apply_resolution(self, game_id, resolved) -> dict:
         """Write the resolver's progress and bound achievements onto memories.
 
@@ -1339,6 +1383,29 @@ class MemoriesStore:
         except OSError:
             pass
 
+    def game_file_is_newer(self, game_id) -> bool:
+        key = self._game_key(game_id)
+        if key is None:
+            return False
+        path = self._path_for_game_key(key)
+        if is_newer_schema(load_json_file(path, None), CURRENT_SCHEMA_VERSION):
+            report_newer_schema(path)
+            return True
+        return False
+
+    def any_game_file_newer(self) -> bool:
+        try:
+            game_files = sorted(self._memories_dir.glob("*.json"))
+        except OSError:
+            return False
+        for path in game_files:
+            if not _GAME_KEY_PATTERN.match(path.stem):
+                continue
+            if is_newer_schema(load_json_file(path, None), CURRENT_SCHEMA_VERSION):
+                report_newer_schema(path)
+                return True
+        return False
+
     def media_in_use(self):
         try:
             game_files = sorted(self._memories_dir.glob("*.json"))
@@ -1366,6 +1433,7 @@ class MemoriesStore:
         except OSError:
             pass
 
+    @refuses_newer_schema
     def move_memory(
         self,
         source_game_id,
@@ -1451,6 +1519,7 @@ class MemoriesStore:
             except OSError:
                 pass
 
+    @refuses_newer_schema
     def delete_memory(self, game_id, memory_id: str) -> dict:
         """Remove a memory, its thumbnail and its picture.
 
@@ -1583,7 +1652,10 @@ class MemoriesStore:
                         note_dirs(self._videos_dir, owned)
                 removed += len(entry["memories"])
                 entry["memories"] = []
-                self._save_raw(key, entry)
+                try:
+                    self._save_raw(key, entry)
+                except NewerSchemaFile:
+                    continue
 
         for folder in sorted(media_dirs) + sorted(account_dirs):
             try:

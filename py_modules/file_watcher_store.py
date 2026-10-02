@@ -33,7 +33,18 @@ import time
 
 import decky
 
-from utils import chown_to_data_owner, ensure_dir, load_json_file, save_json_file, to_int
+from utils import (
+    NewerSchemaFile,
+    chown_to_data_owner,
+    ensure_dir,
+    is_newer_schema,
+    load_json_file,
+    refuse_newer_file,
+    refuses_newer_schema,
+    report_newer_schema,
+    save_json_file,
+    to_int,
+)
 
 
 CURRENT_SCHEMA_VERSION = 1
@@ -384,11 +395,15 @@ class FileWatcherStore:
         raw = load_json_file(self.config_path(), None)
         if not isinstance(raw, dict):
             return self._empty_config()
+        if is_newer_schema(raw, CURRENT_SCHEMA_VERSION, "version"):
+            report_newer_schema(self.config_path())
+            return self._empty_config()
         if to_int(raw.get("version", 0), 0) != CURRENT_SCHEMA_VERSION:
             return self._empty_config()
         return self._normalize(raw)
 
     def _save_locked(self, data: dict) -> None:
+        refuse_newer_file(self.config_path(), CURRENT_SCHEMA_VERSION, "version")
         save_json_file(self.config_path(), data)
 
     def _normalize(self, raw: dict) -> dict:
@@ -471,6 +486,7 @@ class FileWatcherStore:
             "blockTo": _clean_clock(raw.get("blockTo"), 23, 0),
         }
 
+    @refuses_newer_schema
     def add_root(self, path: str, label: str = "") -> dict:
         """Adopt a directory, rejecting duplicates and overlaps.
 
@@ -546,6 +562,7 @@ class FileWatcherStore:
             spent = conn.execute("SELECT MAX(root_id) FROM files").fetchone()[0]
         return max(to_int(data["nextRootId"], 1), to_int(spent, 0) + 1, 1)
 
+    @refuses_newer_schema
     def remove_root(self, root_id) -> dict:
         """Drop a root and every hash recorded under it.
 
@@ -566,6 +583,7 @@ class FileWatcherStore:
         decky.logger.info("filewatcher: stopped watching root %d", wanted)
         return {"ok": True}
 
+    @refuses_newer_schema
     def update_root(self, root_id, label=None, excludes=None) -> dict:
         """Rename a root and/or replace its exclusion list.
 
@@ -667,6 +685,7 @@ class FileWatcherStore:
                 conn.commit()
         return len(doomed)
 
+    @refuses_newer_schema
     def set_schedule(self, *, enabled, every_weeks, weekday, hour, minute) -> dict:
         with self._lock:
             data = self._load_locked()
@@ -685,6 +704,7 @@ class FileWatcherStore:
             self._save_locked(data)
         return {"ok": True, "schedule": schedule}
 
+    @refuses_newer_schema
     def set_window(self, *, enabled, block_from, block_to) -> dict:
         with self._lock:
             data = self._load_locked()
@@ -697,6 +717,7 @@ class FileWatcherStore:
             self._save_locked(data)
         return {"ok": True, "window": window}
 
+    @refuses_newer_schema
     def set_clocks(self, *, last_completed_at=None, last_scheduled_at=None, next_due_at=None) -> dict:
         """Move any of the three clocks.
 
@@ -737,7 +758,10 @@ class FileWatcherStore:
             if data["startDir"] == cleaned:
                 return
             data["startDir"] = cleaned
-            self._save_locked(data)
+            try:
+                self._save_locked(data)
+            except NewerSchemaFile:
+                pass
 
     def bucket_counts(self) -> dict:
         """One row per bucket that has anything in it, plus the skipped roots.
@@ -1388,6 +1412,9 @@ class FileWatcherStore:
         """The database and the configuration both. Nothing survives this."""
         removed = []
         with self._lock:
+            if is_newer_schema(load_json_file(self.config_path(), None), CURRENT_SCHEMA_VERSION, "version"):
+                report_newer_schema(self.config_path())
+                return removed
             base = self.db_path()
             for path in (base, Path(str(base) + "-wal"), Path(str(base) + "-shm"), self.config_path()):
                 try:

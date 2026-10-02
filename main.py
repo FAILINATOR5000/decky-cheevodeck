@@ -66,7 +66,14 @@ from dolphin_mappings_store import DolphinMappingsStore
 from smb_shares_store import SmbSharesStore
 from settings_store import SettingsStore
 from notifications import NotificationsStore, NotificationsArchiveStore, NOTIFICATION_EVENT, emit_notification, is_type_enabled
-from utils import chown_to_data_owner, ensure_dir, init_data_owner, is_network_error, ssl_context
+from utils import (
+    chown_to_data_owner,
+    ensure_dir,
+    init_data_owner,
+    is_network_error,
+    set_newer_schema_listener,
+    ssl_context,
+)
 
 from mixins.notifications import NotificationsMixin
 from mixins.memories import MemoriesMixin
@@ -768,6 +775,16 @@ class Plugin(
         except Exception as exc:
             decky.logger.warning("back buttons: event emit failed (%s: %s)", type(exc).__name__, exc)
 
+    def _toast_newer_schema(self) -> None:
+        emit_notification(
+            ntype="system",
+            title_key="Not Compatible",
+            line_key="Save for this is newer.",
+            force_toast=True,
+            settings_store=self.settings_store,
+            event_loop=getattr(self, "_asyncio_loop", None),
+        )
+
     async def _main(self):
         self._asyncio_loop = asyncio.get_running_loop()
 
@@ -1036,6 +1053,7 @@ class Plugin(
             )
 
     async def get_settings(self):
+        set_newer_schema_listener(self._toast_newer_schema)
         cfg = self.settings_store.load_config()
 
         response = self.settings_store.settings_response(cfg)

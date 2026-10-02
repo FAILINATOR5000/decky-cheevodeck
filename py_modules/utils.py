@@ -5,12 +5,14 @@ instance: they only operate on their arguments, and this way other modules
 import the specific helpers they use, which makes dependencies visible.
 """
 
+import functools
 import json
 import os
 import pwd
 import re
 import signal
 import ssl
+import threading
 from pathlib import Path
 from typing import Any, Optional
 
@@ -53,6 +55,61 @@ def load_json_file(path: Path, default: Any) -> Any:
             path.name, type(e).__name__,
         )
         return default
+
+
+class NewerSchemaFile(Exception):
+    pass
+
+
+def is_newer_schema(raw: Any, current: int, key: str = "schemaVersion") -> bool:
+    return isinstance(raw, dict) and to_int(raw.get(key, 0), 0) > current
+
+
+_newer_schema_listener = None
+_newer_schema_reported: set = set()
+_newer_schema_lock = threading.Lock()
+
+
+def set_newer_schema_listener(listener) -> None:
+    global _newer_schema_listener
+    _newer_schema_listener = listener
+
+
+def report_newer_schema(path: Path) -> None:
+    listener = _newer_schema_listener
+    with _newer_schema_lock:
+        if str(path) in _newer_schema_reported:
+            return
+        if listener is not None:
+            _newer_schema_reported.add(str(path))
+    decky.logger.warning(
+        "%s was saved by a newer CheevoDeck; showing it as empty and leaving it untouched",
+        path,
+    )
+    if listener is None:
+        return
+    try:
+        listener()
+    except Exception as exc:
+        decky.logger.warning("newer-schema toast failed (%s: %s)", type(exc).__name__, exc)
+
+
+def refuse_newer_file(path: Path, current: int, key: str = "schemaVersion") -> None:
+    if not path.exists():
+        return
+    if is_newer_schema(load_json_file(path, None), current, key):
+        report_newer_schema(path)
+        raise NewerSchemaFile(str(path))
+
+
+def refuses_newer_schema(method):
+    @functools.wraps(method)
+    def wrapper(*args, **kwargs):
+        try:
+            return method(*args, **kwargs)
+        except NewerSchemaFile:
+            return {"ok": False, "error": "newer_schema"}
+    return wrapper
 
 
 _data_owner = None

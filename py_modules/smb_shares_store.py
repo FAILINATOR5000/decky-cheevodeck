@@ -6,7 +6,16 @@ import time
 import unicodedata
 import uuid
 
-from utils import ensure_dir, load_json_file, save_json_file, to_int
+from utils import (
+    ensure_dir,
+    is_newer_schema,
+    load_json_file,
+    refuse_newer_file,
+    refuses_newer_schema,
+    report_newer_schema,
+    save_json_file,
+    to_int,
+)
 
 
 NAME_MAX_LEN = 64
@@ -241,6 +250,10 @@ class SmbSharesStore:
         if not isinstance(raw, dict):
             return self._empty_file()
 
+        if is_newer_schema(raw, CURRENT_SCHEMA_VERSION):
+            report_newer_schema(self._path())
+            return self._empty_file()
+
         schema = to_int(raw.get("schemaVersion", 0), 0)
         if schema != CURRENT_SCHEMA_VERSION:
             return self._empty_file()
@@ -248,6 +261,7 @@ class SmbSharesStore:
         return self._normalize_file(raw)
 
     def _save_raw(self, data: dict) -> None:
+        refuse_newer_file(self._path(), CURRENT_SCHEMA_VERSION)
         save_json_file(self._path(), data, compact=True)
 
     def _normalize_file(self, raw: dict) -> dict:
@@ -459,6 +473,7 @@ class SmbSharesStore:
         updated["softMount"] = bool(payload.get("softMount", existing["softMount"]))
         return {"ok": True, "share": updated}
 
+    @refuses_newer_schema
     def put(self, share: dict) -> dict:
         """Insert or replace a record wholesale.
 
@@ -487,6 +502,7 @@ class SmbSharesStore:
 
         return {"ok": True, "share": cleaned}
 
+    @refuses_newer_schema
     def delete(self, share_id: str) -> dict:
         if not isinstance(share_id, str) or not share_id:
             return {"ok": False, "error": "invalid_share_id"}
@@ -501,6 +517,7 @@ class SmbSharesStore:
 
         return {"ok": True}
 
+    @refuses_newer_schema
     def replace_all(self, shares) -> dict:
         """Overwrite the whole file. This is the rehydrate path.
 

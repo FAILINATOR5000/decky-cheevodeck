@@ -1979,6 +1979,8 @@ export const EN: LocaleTable = {
     "Not enough room": "Not enough room",
     "Drive not connected": "Drive not connected",
     "Folder Overlaps Memories": "Folder Overlaps Memories",
+    "Not Compatible": "Not Compatible",
+    "Save for this is newer.": "Save for this is newer.",
     "Clip Kept in Steam": "Clip Kept in Steam",
     "Media Not Connected": "Media Not Connected",
     "Transfer in Progress": "Transfer in Progress",

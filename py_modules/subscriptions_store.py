@@ -6,7 +6,17 @@ import time
 
 import decky
 
-from utils import ensure_dir, load_json_file, norm_game_id, save_json_file, to_int
+from utils import (
+    ensure_dir,
+    is_newer_schema,
+    load_json_file,
+    norm_game_id,
+    refuse_newer_file,
+    refuses_newer_schema,
+    report_newer_schema,
+    save_json_file,
+    to_int,
+)
 
 
 MAX_SUBSCRIPTIONS = 10
@@ -86,6 +96,8 @@ class SubscriptionsStore:
             self._last_read_degraded = present
             return self._empty_file()
 
+        if is_newer_schema(raw, CURRENT_SCHEMA_VERSION):
+            report_newer_schema(self._path())
         schema = to_int(raw.get("schemaVersion", 0), 0)
         if schema != CURRENT_SCHEMA_VERSION:
             self._last_read_degraded = present
@@ -108,6 +120,7 @@ class SubscriptionsStore:
         }
 
     def _save_raw(self, data: dict) -> None:
+        refuse_newer_file(self._path(), CURRENT_SCHEMA_VERSION)
         save_json_file(self._path(), data, compact=True)
 
     def _normalize_entry(self, raw: Any) -> Optional[dict]:
@@ -153,6 +166,7 @@ class SubscriptionsStore:
         data["degraded"] = degraded
         return data
 
+    @refuses_newer_schema
     def add(self, entry: Any) -> dict:
         normalized = self._normalize_entry(entry)
         if normalized is None:
@@ -179,6 +193,7 @@ class SubscriptionsStore:
 
         return {"ok": True, "subscription": normalized}
 
+    @refuses_newer_schema
     def remove(self, kind: Any, target_id: Any) -> dict:
         key = section_key(kind, target_id)
         with self._lock:

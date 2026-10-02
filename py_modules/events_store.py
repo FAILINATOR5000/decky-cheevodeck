@@ -4,7 +4,19 @@ from typing import Any, Optional
 import threading
 import time
 
-from utils import TAG_MAX_LEN, TAG_PREFIX_PATTERN, ensure_dir, load_json_file, norm_game_id, save_json_file, to_int
+from utils import (
+    TAG_MAX_LEN,
+    TAG_PREFIX_PATTERN,
+    ensure_dir,
+    is_newer_schema,
+    load_json_file,
+    norm_game_id,
+    refuse_newer_file,
+    refuses_newer_schema,
+    report_newer_schema,
+    save_json_file,
+    to_int,
+)
 
 
 CURRENT_SCHEMA_VERSION = 1
@@ -184,6 +196,9 @@ class EventsStore:
         raw = load_json_file(self._path(), {})
         if not isinstance(raw, dict):
             return self._empty_file()
+        if is_newer_schema(raw, CURRENT_SCHEMA_VERSION):
+            report_newer_schema(self._path())
+            return self._empty_file()
         if to_int(raw.get("schemaVersion", 0), 0) != CURRENT_SCHEMA_VERSION:
             return self._empty_file()
 
@@ -257,6 +272,7 @@ class EventsStore:
         return data
 
     def _save_raw(self, data: dict) -> None:
+        refuse_newer_file(self._path(), CURRENT_SCHEMA_VERSION)
         save_json_file(self._path(), data, compact=True)
 
     def _reconcile_order(self, raw_order: Any, items: dict) -> list:
@@ -317,6 +333,7 @@ class EventsStore:
         with self._lock:
             return self._public(self._load_raw())
 
+    @refuses_newer_schema
     def toggle_tracked(self, ulid: Any, event_game_id: Any) -> dict:
         key = _event_key(event_game_id)
         if key is None:
@@ -340,6 +357,7 @@ class EventsStore:
             self._save_raw(data)
             return {"ok": True, "tracked": tracked, "state": data["tracked"]}
 
+    @refuses_newer_schema
     def save_order(self, ulid: Any, order: Any) -> dict:
         with self._lock:
             if not self._owner_matches(ulid):
@@ -349,6 +367,7 @@ class EventsStore:
             self._save_raw(data)
             return {"ok": True, "state": data["tracked"]}
 
+    @refuses_newer_schema
     def save_note(self, ulid: Any, event_game_id: Any, note: Any, color: Any) -> dict:
         key = _event_key(event_game_id)
         if key is None:
@@ -369,6 +388,7 @@ class EventsStore:
             self._save_raw(data)
             return {"ok": True, "state": data["tracked"]}
 
+    @refuses_newer_schema
     def bulk_tag(self, ulid: Any, event_game_ids: Any, tag: Any) -> dict:
         clean_tag = str(tag or "").strip()[:TAG_MAX_LEN]
         if not clean_tag or "]" in clean_tag or "\n" in clean_tag:
@@ -395,6 +415,7 @@ class EventsStore:
             self._save_raw(data)
             return {"ok": True, "state": data["tracked"]}
 
+    @refuses_newer_schema
     def save_collapsed(self, ulid: Any, keys: Any) -> dict:
         with self._lock:
             if not self._owner_matches(ulid):
@@ -404,6 +425,7 @@ class EventsStore:
             self._save_raw(data)
             return {"ok": True, "state": data["tracked"]}
 
+    @refuses_newer_schema
     def save_prefs(self, ulid: Any, prefs: Any) -> dict:
         prefs = prefs if isinstance(prefs, dict) else {}
         with self._lock:
@@ -422,6 +444,7 @@ class EventsStore:
             self._save_raw(data)
             return {"ok": True, "prefs": data["prefs"]}
 
+    @refuses_newer_schema
     def set_completed(self, ulid: Any, event_game_id: Any, completed: Any) -> dict:
         key = _event_key(event_game_id)
         if key is None:
@@ -444,6 +467,7 @@ class EventsStore:
             self._save_raw(data)
             return {"ok": True, "completed": marks, "state": data["tracked"]}
 
+    @refuses_newer_schema
     def set_checklist_tick(self, ulid: Any, event_game_id: Any, game_id: Any, value: Any) -> dict:
         key = _event_key(event_game_id)
         game_key = _event_key(game_id)
@@ -468,6 +492,7 @@ class EventsStore:
             self._save_raw(data)
             return {"ok": True, "ticks": ticks.get(key, {})}
 
+    @refuses_newer_schema
     def save_checklist_view(self, ulid: Any, event_game_id: Any, view: Any, filter_value: Any) -> dict:
         key = _event_key(event_game_id)
         if key is None:
@@ -484,6 +509,7 @@ class EventsStore:
             self._save_raw(data)
             return {"ok": True, "view": views[key]}
 
+    @refuses_newer_schema
     def touch_opened(self, ulid: Any, event_game_id: Any, progress: Any = None) -> dict:
         key = _event_key(event_game_id)
         if key is None:

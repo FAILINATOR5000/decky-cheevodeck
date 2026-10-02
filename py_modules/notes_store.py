@@ -10,8 +10,12 @@ from utils import (
     TAG_MAX_LEN,
     TAG_PREFIX_PATTERN,
     ensure_dir,
+    is_newer_schema,
     load_json_file,
     norm_game_id,
+    refuse_newer_file,
+    refuses_newer_schema,
+    report_newer_schema,
     save_json_file,
     to_int,
 )
@@ -124,6 +128,10 @@ class NotesStore:
         if not isinstance(raw, dict):
             return self._empty_entry(int(key))
 
+        if is_newer_schema(raw, CURRENT_SCHEMA_VERSION):
+            report_newer_schema(path)
+            return self._empty_entry(int(key))
+
         schema = to_int(raw.get("schemaVersion", 0), 0)
         if schema != CURRENT_SCHEMA_VERSION:
             return self._empty_entry(int(key))
@@ -136,6 +144,7 @@ class NotesStore:
             entry.get("collapsedTags") or [],
             _live_collapse_keys(entry.get("notes") or []),
         )
+        refuse_newer_file(path, CURRENT_SCHEMA_VERSION)
         ensure_dir(self._notes_dir)
         save_json_file(path, entry, compact=True)
 
@@ -345,6 +354,7 @@ class NotesStore:
         )
         return response
 
+    @refuses_newer_schema
     def create_note(
         self,
         game_id,
@@ -406,6 +416,7 @@ class NotesStore:
 
         return {"ok": True, "note": new_note, "collapsedTags": collapsed}
 
+    @refuses_newer_schema
     def update_note(
         self,
         game_id,
@@ -479,6 +490,7 @@ class NotesStore:
 
         return {"ok": True, "note": target, "collapsedTags": collapsed}
 
+    @refuses_newer_schema
     def delete_note(self, game_id, note_id: str) -> dict:
         key = self._game_key(game_id)
         if key is None:
@@ -502,6 +514,7 @@ class NotesStore:
 
         return {"ok": True, "deletedId": note_id, "collapsedTags": collapsed}
 
+    @refuses_newer_schema
     def reorder_notes(self, game_id, ordered_ids) -> dict:
         key = self._game_key(game_id)
         if key is None:
@@ -539,6 +552,7 @@ class NotesStore:
 
         return {"ok": True}
 
+    @refuses_newer_schema
     def set_collapsed_tags(self, game_id, tags) -> dict:
         """Replace the per-game list of collapsed section keys.
 
@@ -564,6 +578,7 @@ class NotesStore:
 
         return {"ok": True, "collapsedTags": collapsed}
 
+    @refuses_newer_schema
     def set_sort_mode(self, game_id, mode: str) -> dict:
         key = self._game_key(game_id)
         if key is None:
@@ -578,6 +593,7 @@ class NotesStore:
 
         return {"ok": True, "sortMode": cleaned}
 
+    @refuses_newer_schema
     def stamp_reminder_fired(self, game_id, note_id: str, now_ts=None) -> dict:
         key = self._game_key(game_id)
         if key is None:
@@ -611,6 +627,7 @@ class NotesStore:
 
         return {"ok": True, "note": target}
 
+    @refuses_newer_schema
     def set_show_fired_dot(self, game_id, note_id: str, value: bool) -> dict:
         key = self._game_key(game_id)
         if key is None:
@@ -635,6 +652,7 @@ class NotesStore:
 
         return {"ok": True, "note": target}
 
+    @refuses_newer_schema
     def mark_note_completed(self, game_id, note_id: str, completed: bool) -> dict:
         key = self._game_key(game_id)
         if key is None:
@@ -673,6 +691,9 @@ class NotesStore:
             deleted_notes = 0
             for path in self._notes_dir.glob("*.json"):
                 raw = load_json_file(path, {})
+                if is_newer_schema(raw, CURRENT_SCHEMA_VERSION):
+                    report_newer_schema(path)
+                    continue
                 if isinstance(raw, dict):
                     notes = raw.get("notes")
                     if isinstance(notes, list):

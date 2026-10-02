@@ -65,12 +65,15 @@ class DolphinMapperMixin(PluginContext):
         cfg = self.settings_store.load_config()
         if self.settings_store.get_dolphin_mappings_seeded(cfg):
             return
-        self.dolphin_mappings_store.seed(dolphin_seed.build_seed_mappings())
-        self.settings_store.mark_dolphin_mappings_seeded()
+        result = self.dolphin_mappings_store.seed(dolphin_seed.build_seed_mappings())
+        if result.get("ok"):
+            self.settings_store.mark_dolphin_mappings_seeded()
 
     async def reset_dolphin_mappings(self):
         self.dolphin_mappings_store.clear_all()
         result = self.dolphin_mappings_store.seed(dolphin_seed.build_seed_mappings())
+        if not result.get("ok"):
+            return result
         self.settings_store.mark_dolphin_mappings_seeded()
         return result
 
