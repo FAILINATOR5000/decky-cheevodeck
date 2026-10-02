@@ -217,7 +217,7 @@ def uncompressed_twin(source: Path, game_id: str):
     if folder is None:
         return None
     prefix = str(game_id or "").strip()
-    if not prefix:
+    if not prefix.isdigit():
         return None
     twin = folder / f"{prefix}_{source.stem}.png"
     return twin if twin.is_file() else None

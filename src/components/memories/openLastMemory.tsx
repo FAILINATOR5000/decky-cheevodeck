@@ -22,7 +22,7 @@ export async function openLastMemory(language: LanguageCode, stillAllowed?: () =
         if (stillAllowed && !stillAllowed()) {
             return;
         }
-        const allTags = orderedTagsByRecency(latest.tags ?? []);
+        const allTags = orderedTagsByRecency(latest.tags ?? [], true);
         showManagedModal((close) => (
             <MemoryViewerModal
                 memory={memory}

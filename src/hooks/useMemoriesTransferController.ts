@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toaster } from "@decky/api";
 
 import {
     cancelMemoriesTransfer,
@@ -32,6 +33,8 @@ import {
     rememberTransferMode
 } from "../utils/memoriesTransferChoices";
 import { clearMemoriesTransferFocusReturn } from "../utils/memoriesTransferFocusReturn";
+import { exportRefusalKey } from "../utils/memoriesTransferErrors";
+import { announceMemoriesChanged } from "../utils/memoriesChanged";
 import { logError } from "../utils/errors";
 import { openPathPicker } from "../components/pickers/FilePickerModal";
 
@@ -46,8 +49,18 @@ const RUNNING_STATES = ["scanning", "writing", "validating", "importing", "finis
 
 const PICKER_START_PATH = "/home/deck";
 
+const TOAST_DURATION_MS = 4000;
+
 function isRunning(status: MemoriesTransferStatus | null): boolean {
     return status !== null && RUNNING_STATES.includes(status.state);
+}
+
+function toastExportRefusal(language: LanguageCode, error: string) {
+    toaster.toast({
+        title: t(language, "Export"),
+        body: t(language, exportRefusalKey(error)),
+        duration: TOAST_DURATION_MS
+    });
 }
 
 export function useMemoriesTransferController({ isActive, language }: UseMemoriesTransferControllerArgs) {
@@ -210,7 +223,7 @@ export function useMemoriesTransferController({ isActive, language }: UseMemorie
             clearMemoriesTransferFocusReturn();
             const started = await startMemoriesExport(folder, includeVideos);
             if (!started.ok) {
-                setStartError(started.error ?? "");
+                toastExportRefusal(language, started.error ?? "");
             }
             await reload();
         }
@@ -281,6 +294,7 @@ export function useMemoriesTransferController({ isActive, language }: UseMemorie
         catch (e) {
             logError("recoverMemoriesRestore", e);
         }
+        announceMemoriesChanged();
         await reload();
         await reloadEstimate();
     }, [reload, reloadEstimate]);
@@ -303,6 +317,7 @@ export function useMemoriesTransferController({ isActive, language }: UseMemorie
         }
         settledRef.current = landed;
         if (landed === "done" || landed === "canceled" || landed === "failed") {
+            announceMemoriesChanged();
             void reloadEstimate();
         }
     }, [status?.state, reloadEstimate]);

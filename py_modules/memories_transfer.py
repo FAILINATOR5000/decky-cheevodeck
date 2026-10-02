@@ -22,6 +22,7 @@ PICTURES_PREFIX = "pictures/"
 
 VIDEOS_PREFIX = "videos/"
 
+BUNDLE_PREFIX = "CheevoDeck-Memories-"
 BUNDLE_SUFFIX = ".zip"
 
 _COPY_CHUNK_BYTES = 4 * 1024 * 1024
@@ -71,7 +72,7 @@ def account_path(tail: str, account_key: str) -> str:
 
 def bundle_name(stamp: int = 0) -> str:
     when = time.localtime(max(to_int(stamp, 0), 0) or int(time.time()))
-    return f"CheevoDeck-Memories-{time.strftime('%Y%m%d-%H%M%S', when)}{BUNDLE_SUFFIX}"
+    return f"{BUNDLE_PREFIX}{time.strftime('%Y%m%d-%H%M%S', when)}{BUNDLE_SUFFIX}"
 
 
 def free_path(target: Path) -> Path:
@@ -398,6 +399,10 @@ class BundleWriter:
         self._destination = destination
         self._temp = destination.with_name(f"{destination.name}.part")
         self._archive = None
+
+    @property
+    def part_path(self) -> Path:
+        return self._temp
 
     def open(self) -> None:
         ensure_dir(self._destination.parent)

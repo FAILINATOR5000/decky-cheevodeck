@@ -764,6 +764,10 @@ def make_poster(session_path: Path, start_ms, duration_ms, destination: Path) ->
             "memories: the poster for %s failed (rc=%s): %s",
             session_path.name, code, f"{stdout}{stderr}".strip()[:300],
         )
+        try:
+            destination.unlink()
+        except OSError:
+            pass
         return False
 
     try:

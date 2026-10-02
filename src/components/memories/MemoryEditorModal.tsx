@@ -54,12 +54,11 @@ export function MemoryEditorModal(props: MemoryEditorModalProps) {
         if (!trimmed) {
             continue;
         }
-        const lower = trimmed.toLowerCase();
-        if (seen.has(lower)) {
+        if (seen.has(trimmed)) {
             continue;
         }
-        seen.add(lower);
-        suggestions.push({ key: `recent:${lower}`, label: trimmed, tag: trimmed });
+        seen.add(trimmed);
+        suggestions.push({ key: `recent:${trimmed}`, label: trimmed, tag: trimmed });
         if (suggestions.length >= SUGGESTION_COUNT) {
             break;
         }
@@ -68,12 +67,11 @@ export function MemoryEditorModal(props: MemoryEditorModalProps) {
         if (suggestions.length >= SUGGESTION_COUNT) {
             break;
         }
-        const lower = seed.tag.toLowerCase();
-        if (seen.has(lower)) {
+        if (seen.has(seed.tag)) {
             continue;
         }
-        seen.add(lower);
-        suggestions.push({ key: `seed:${lower}`, label: t(language, seed.key), tag: seed.tag });
+        seen.add(seed.tag);
+        suggestions.push({ key: `seed:${seed.tag}`, label: t(language, seed.key), tag: seed.tag });
     }
 
     function openTagPicker() {
@@ -87,6 +85,7 @@ export function MemoryEditorModal(props: MemoryEditorModalProps) {
                 selected={tag}
                 language={language}
                 focusPrefix="memories"
+                caseSensitive
                 onSelect={(picked) => setTag(cleanTagInput(picked, TAG_MAX_LEN))}
                 close={closePicker}
             />

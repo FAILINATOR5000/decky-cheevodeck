@@ -17,6 +17,7 @@ export type TagPickerModalProps = {
     selected: string;
     language: LanguageCode;
     focusPrefix: string;
+    caseSensitive?: boolean;
     onSelect: (tag: string) => void;
     close: () => void;
 };
@@ -58,7 +59,7 @@ function SectionLabel(props: { text: string }) {
 }
 
 export function TagPickerModal(props: TagPickerModalProps) {
-    const { tags, seeds: allSeeds, selected, language, focusPrefix, onSelect, close } = props;
+    const { tags, seeds: allSeeds, selected, language, focusPrefix, caseSensitive, onSelect, close } = props;
 
     const { mountedItems: visibleTags, markerRef, onItemFocus } = useWindowedList({
         items: tags,
@@ -73,7 +74,7 @@ export function TagPickerModal(props: TagPickerModalProps) {
     const focusRef = useRef(onItemFocus);
     focusRef.current = onItemFocus;
 
-    const seeds = unusedTagSeeds(allSeeds, tags);
+    const seeds = unusedTagSeeds(allSeeds, tags, caseSensitive);
 
     const preferredTag = visibleTags.includes(selected)
         ? selected

@@ -30,6 +30,8 @@ from services.news_service import NewsService
 from services.aotw_service import AotwService
 from services.game_comments_service import GameCommentsService
 from services.game_hashes_service import GameHashesService
+from services.memories_video_service import ROOT_DIR_NAME as MEMORIES_ROOT_DIR_NAME
+from services.memories_video_service import SENTINEL_NAME as MEMORIES_VIDEO_SENTINEL
 from services.memories_video_service import MemoriesVideoService, root_for as memories_video_root
 from services.memories_transfer_service import MemoriesTransferService
 from services.smb_mount_service import SmbMountService
@@ -40,7 +42,7 @@ from services.update_checker_service import UpdateCheckerService, installed_vers
 from services.developer_message_service import DeveloperMessageService
 from services.repair_service import RepairService
 from services.emulator_login_sync_service import EmulatorLoginSyncService
-from memories_store import MemoriesStore
+from memories_store import MemoriesStore, is_media_folder_name
 from notes_store import NotesStore
 from guides_store import GuidesStore
 from players_near_you_store import PlayersNearYouStore
@@ -280,6 +282,7 @@ class Plugin(
             )
 
         shutil.rmtree(self.memories_share_scratch_dir, ignore_errors=True)
+        shutil.rmtree(self.memories_save_scratch_dir, ignore_errors=True)
 
         self._ssl_ctx = ssl_context()
         self.ra = RetroAchievementsClient(self._ssl_ctx)
@@ -555,6 +558,14 @@ class Plugin(
             scratch_dir=self.memories_transfer_scratch_dir,
             on_finished=self._memories_job_finished,
         )
+        for discard in (
+            self.memories_transfer_service.discard_abandoned_export,
+            self.memories_transfer_service.discard_abandoned_import,
+        ):
+            try:
+                discard()
+            except Exception as e:
+                decky.logger.warning("startup: %s failed: %s", discard.__name__, type(e).__name__)
         self.smb_mount_service = SmbMountService(
             debug_logging=lambda: getattr(self, "_debug_logging", False),
         )
@@ -1614,6 +1625,8 @@ class Plugin(
                 continue
             if entry.name in keep:
                 continue
+            for media_root in (self.memories_store.pictures_root(), self.memories_store.videos_root()):
+                shutil.rmtree(media_root / entry.name, ignore_errors=True)
             try:
                 shutil.rmtree(entry)
                 removed += 1
@@ -1622,6 +1635,8 @@ class Plugin(
         return removed
 
     async def cleanup_user_directories(self):
+        if self._memories_job_running():
+            return {"ok": False, "error": "busy", "removed": 0}
         removed = await asyncio.to_thread(
             self._run_clear_under_trickle_lock,
             self._sweep_orphan_user_dirs,
@@ -1640,11 +1655,34 @@ class Plugin(
                 except FileNotFoundError:
                     pass
 
+    def _delete_memories_media(self, root: Path) -> None:
+        if root.name != MEMORIES_ROOT_DIR_NAME:
+            return
+        try:
+            children = list(root.iterdir())
+        except OSError:
+            return
+        for child in children:
+            if child.is_dir() and not child.is_symlink() and is_media_folder_name(child.name):
+                shutil.rmtree(child, ignore_errors=True)
+        try:
+            (root / MEMORIES_VIDEO_SENTINEL).unlink()
+        except OSError:
+            pass
+        try:
+            root.rmdir()
+        except OSError:
+            pass
+
     def _run_factory_reset_locked(self) -> None:
         with self._trickle_tick_lock:
+            for media_root in (self.memories_store.pictures_root(), self.memories_store.videos_root()):
+                self._delete_memories_media(media_root)
+
             def _wipe():
                 self._empty_dir_contents(self.runtime_dir)
                 self._empty_dir_contents(self.settings_dir)
+                self.memories_store.set_videos_root(memories_video_root("", self.user_home))
 
                 version = installed_version()
                 if version and version != "unknown":

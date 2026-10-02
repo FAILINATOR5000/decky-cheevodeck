@@ -8,6 +8,7 @@ import {
     saveMemoryViewPrefs
 } from "../api";
 import { logError } from "../utils/errors";
+import { subscribeMemoriesChanged } from "../utils/memoriesChanged";
 import { requestJumpToTop } from "../utils/jumpToTop";
 import {
     ALL_GAMES_ID,
@@ -47,6 +48,7 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
     const [loading, setLoading] = useState(false);
     const [games, setGames] = useState<MemoryGameRow[]>([]);
     const [memories, setMemories] = useState<MemoryRecord[]>([]);
+    const [truncated, setTruncated] = useState(0);
 
     const [gameId, setGameId] = useState<number | null>(null);
     const [tagFilter, setTagFilter] = useState("");
@@ -86,6 +88,7 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
         setGames([]);
         setIndexLoaded(false);
         setMemories([]);
+        setTruncated(0);
         setLoadedForGameId(null);
         setThumbs({});
         setColdPaths(new Set());
@@ -140,7 +143,7 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
     }, []);
 
     useEffect(() => {
-        if (indexLoadedForRef.current === activeUlid) {
+        if (indexLoadedForRef.current === activeUlid && !isActive) {
             return;
         }
         indexLoadedForRef.current = activeUlid;
@@ -150,7 +153,11 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
                 setIndexLoaded(true);
             }
         })();
-    }, [refreshIndexes, activeUlid]);
+    }, [refreshIndexes, activeUlid, isActive]);
+
+    useEffect(() => subscribeMemoriesChanged(() => {
+        void refreshIndexes();
+    }), [refreshIndexes]);
 
     useEffect(() => {
         if (!isActive || !ready) {
@@ -218,26 +225,29 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
         return listedGames.length > 0 ? listedGames[0].gameId : null;
     }, [ready, gameId, listedGames]);
 
-    const loadForGame = useCallback(async (target: number | null) => {
+    const loadForGame = useCallback(async (target: number | null, order: MemoryDateOrder) => {
         const forAccount = accountRef.current;
         const runId = loadRunIdRef.current + 1;
         loadRunIdRef.current = runId;
         if (target === null) {
             setMemories([]);
+            setTruncated(0);
             setLoadedForGameId(null);
             return;
         }
         setLoading(true);
         try {
-            const result = await loadMemories(target);
+            const result = await loadMemories(target, order);
             if (loadRunIdRef.current !== runId || accountRef.current !== forAccount) {
                 return;
             }
             setMemories(result.memories || []);
+            setTruncated(result.truncated ?? 0);
             setLoadedForGameId(target);
         } catch (error) {
             if (loadRunIdRef.current === runId) {
                 setMemories([]);
+                setTruncated(0);
                 setLoadedForGameId(target);
                 logError("memories: couldn't read the memories for a game", error);
             }
@@ -251,8 +261,8 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
         if (!isActive || !ready) {
             return;
         }
-        void loadForGame(effectiveGameId);
-    }, [isActive, ready, effectiveGameId, loadForGame]);
+        void loadForGame(effectiveGameId, dateOrder);
+    }, [isActive, ready, effectiveGameId, dateOrder, loadForGame]);
 
     const visible = useMemo(
         () => sortMemories(
@@ -454,28 +464,28 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
         setGameId(next);
         setPageIndex(0);
         setArmedDeleteId(null);
-        persist(null, null, next, null, null, null, null, null);
+        persist(null, null, next, null, null, null, null, 0);
     }, [persist]);
 
     const selectTag = useCallback((next: string) => {
         setTagFilter(next);
         setPageIndex(0);
         setArmedDeleteId(null);
-        persist(null, null, null, next, null, null, null, null);
+        persist(null, null, null, next, null, null, null, 0);
     }, [persist]);
 
     const selectColor = useCallback((next: string) => {
         setColorFilter(next);
         setPageIndex(0);
         setArmedDeleteId(null);
-        persist(null, null, null, null, next, null, null, null);
+        persist(null, null, null, null, next, null, null, 0);
     }, [persist]);
 
     const selectMedia = useCallback((next: string) => {
         setMediaFilter(next);
         setPageIndex(0);
         setArmedDeleteId(null);
-        persist(null, null, null, null, null, next, null, null);
+        persist(null, null, null, null, null, next, null, 0);
     }, [persist]);
 
     const selectColumns = useCallback((next: number) => {
@@ -543,30 +553,31 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
             logError("memories: couldn't delete a memory", error);
         }
         await refreshIndexes();
-        await loadForGame(effectiveGameId);
-    }, [effectiveGameId, refreshIndexes, loadForGame]);
+        await loadForGame(effectiveGameId, dateOrder);
+    }, [effectiveGameId, dateOrder, refreshIndexes, loadForGame]);
 
     const refresh = useCallback(async () => {
         await refreshIndexes();
-        await loadForGame(effectiveGameId);
-    }, [refreshIndexes, loadForGame, effectiveGameId]);
+        await loadForGame(effectiveGameId, dateOrder);
+    }, [refreshIndexes, loadForGame, effectiveGameId, dateOrder]);
 
     const sortedTags = useMemo(() => {
-        const counts = new Map<string, number>();
-        const lastUsed = new Map<string, number>();
+        const grouped = new Map<string, MemoryTagRow>();
         for (const memory of memories) {
             const tag = memory.tag;
             if (!tag) {
                 continue;
             }
-            counts.set(tag, (counts.get(tag) ?? 0) + 1);
-            lastUsed.set(tag, Math.max(lastUsed.get(tag) ?? 0, memory.capturedAt));
+            const at = memory.taggedAt ?? memory.updatedAt;
+            const held = grouped.get(tag);
+            if (!held) {
+                grouped.set(tag, { tag, count: 1, lastUsed: at });
+                continue;
+            }
+            held.count += 1;
+            held.lastUsed = Math.max(held.lastUsed, at);
         }
-        const rows: MemoryTagRow[] = [...counts].map(([tag, count]) => ({
-            tag,
-            count,
-            lastUsed: lastUsed.get(tag) ?? 0
-        }));
+        const rows = [...grouped.values()];
         if (tagSort === "alpha") {
             rows.sort((left, right) => left.tag.localeCompare(right.tag));
         } else {
@@ -577,7 +588,8 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
 
     const allTags = useMemo(
         () => orderedTagsByRecency(
-            memories.map((memory) => ({ tag: memory.tag, at: memory.updatedAt }))
+            memories.map((memory) => ({ tag: memory.tag, at: memory.taggedAt ?? memory.updatedAt })),
+            true
         ),
         [memories]
     );
@@ -591,6 +603,7 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
             tags: sortedTags,
             allTags,
             memories,
+            truncated,
             visibleCount: visible.length,
             pageMemories,
             gameId: effectiveGameId,

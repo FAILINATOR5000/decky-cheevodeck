@@ -213,6 +213,7 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const playbackRef = useRef<ClipPlayback | null>(null);
     const pendingSeekRef = useRef<number | null>(null);
+    const fullscreenStartRef = useRef<number | null>(null);
     const hasRunRef = useRef(false);
     const pictureTopRef = useRef(0);
     const pictureNavRef = useRef<any>(null);
@@ -339,14 +340,17 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
 
     useEffect(() => {
         if (!fullscreen) {
+            fullscreenStartRef.current = null;
             return;
+        }
+        if (pendingSeekRef.current !== null) {
+            fullscreenStartRef.current = pendingSeekRef.current;
+            pendingSeekRef.current = null;
         }
         if (!fullSrc && !thumbDataUri) {
             return;
         }
-        const startAt = pendingSeekRef.current;
-        pendingSeekRef.current = null;
-        return showMemoryFullscreen(thumbDataUri, fullSrc, language, clipSource, startAt);
+        return showMemoryFullscreen(thumbDataUri, fullSrc, language, clipSource, fullscreenStartRef.current);
     }, [fullscreen, fullSrc, thumbDataUri, language, clipSource]);
 
     useEffect(() => {
@@ -441,6 +445,7 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
 
     const handleCancel = useCallback(() => {
         if (fullscreen) {
+            setArmedDelete(false);
             setFullscreen(false);
             return;
         }
@@ -451,6 +456,7 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
         if (!timelineOffered) {
             return;
         }
+        setArmedDelete(false);
         if (!timeline) {
             setVideoMissing(false);
             setTimeline(true);
@@ -466,6 +472,7 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
     }
 
     function pressPicture() {
+        setArmedDelete(false);
         if (timeline && !clipState?.ended) {
             playbackRef.current?.togglePause();
             return;
@@ -503,6 +510,7 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
         if (!clipSource) {
             return;
         }
+        setArmedDelete(false);
         void addMemoryBookmark(gameId, memory.id, momentOnScreen()).then((result) => {
             if (!result.ok || !result.bookmark) {
                 toaster.toast({
@@ -686,6 +694,7 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
 
     function openEditor() {
         setTimeline(false);
+        setArmedDelete(false);
         showManagedModal((closeEditor) => (
             <MemoryEditorModal
                 memory={{ ...memory, caption, tag, color }}
@@ -701,11 +710,10 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                     setColor(next.color);
                     setKnownTags((current) => {
                         const applied = (next.tag ?? "").trim();
-                        if (!applied) {
+                        if (!applied || applied === (tag ?? "").trim()) {
                             return current;
                         }
-                        const lower = applied.toLowerCase();
-                        return [applied, ...current.filter((entry) => entry.trim().toLowerCase() !== lower)];
+                        return [applied, ...current.filter((entry) => entry.trim() !== applied)];
                     });
                 }}
                 close={closeEditor}
@@ -1043,6 +1051,7 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                             }}
                             onGamepadBlur={() => {
                                 pictureFocusedRef.current = false;
+                                setArmedDelete(false);
                             }}
                             onActivate={pressPicture}
                             fnScrollIntoViewHandler={() => {

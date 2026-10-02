@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import json
 import shutil
 import threading
 import zipfile
@@ -8,11 +9,11 @@ import decky
 import memories_clips
 import memories_transfer
 
-from memories_store import CURRENT_SCHEMA_VERSION
+from memories_store import CURRENT_SCHEMA_VERSION, is_clip_folder
 
 from notifications import emit_notification
 from services import memories_video_service
-from utils import ensure_dir, to_int
+from utils import chown_to_data_owner, ensure_dir, to_int
 
 
 FREE_SPACE_MARGIN_BYTES = 256 * 1024 * 1024
@@ -20,6 +21,10 @@ FREE_SPACE_MARGIN_BYTES = 256 * 1024 * 1024
 _MEGABYTE = 1024 * 1024
 
 _GIGABYTE = 1024 * 1024 * 1024
+
+EXPORT_PART_NOTE = "export-part.txt"
+
+IMPORT_FILES_NOTE = "import-files.txt"
 
 ERROR_BUSY = "busy"
 ERROR_NOT_RUNNING = "not_running"
@@ -451,16 +456,24 @@ class MemoriesTransferService:
                 self._on_finished()
 
     def _export(self, destination: Path, include_videos: bool) -> None:
-        account = self._store.account_key()
-        entries = self._store.all_entries()
-        scratch = self._scratch_dir / "export"
         writer = memories_transfer.BundleWriter(destination / memories_transfer.bundle_name(0))
-
         try:
             writer.open()
         except OSError:
             self._fail(ERROR_NOT_WRITABLE)
             return
+
+        self._remember_export_part(writer.part_path)
+        try:
+            self._write_bundle(writer, include_videos)
+        finally:
+            writer.abandon()
+            self._forget_export_part()
+
+    def _write_bundle(self, writer, include_videos: bool) -> None:
+        account = self._store.account_key()
+        entries = self._store.all_entries()
+        scratch = self._scratch_dir / "export"
 
         with self._lock:
             self._state = "writing"
@@ -475,7 +488,6 @@ class MemoriesTransferService:
         try:
             for key, entry in sorted(entries.items(), key=lambda pair: int(pair[0])):
                 if self._stopped():
-                    writer.abandon()
                     self._canceled()
                     return
 
@@ -501,7 +513,6 @@ class MemoriesTransferService:
                         on_bytes=self._bump_bytes,
                         should_stop=self._stopped,
                     ):
-                        writer.abandon()
                         self._canceled()
                         return
                     with self._lock:
@@ -510,7 +521,6 @@ class MemoriesTransferService:
 
                     landed = self._export_video(writer, memory, record, scratch)
                     if landed is None:
-                        writer.abandon()
                         self._canceled()
                         return
                     if landed["missing"]:
@@ -540,8 +550,6 @@ class MemoriesTransferService:
                 })
         except OSError as e:
             decky.logger.error("memories: writing the bundle stopped (%s)", type(e).__name__)
-            writer.abandon()
-            memories_clips.discard_copy(scratch)
             self._fail(ERROR_WRITE_FAILED)
             return
         finally:
@@ -565,7 +573,6 @@ class MemoriesTransferService:
             landed = writer.finish()
         except OSError as e:
             decky.logger.error("memories: the bundle would not close (%s)", type(e).__name__)
-            writer.abandon()
             self._fail(ERROR_WRITE_FAILED)
             return
 
@@ -584,6 +591,38 @@ class MemoriesTransferService:
             "leftBehind": left_behind,
             "bytes": written_bytes,
         })
+
+    def _remember_export_part(self, part: Path) -> None:
+        note = self._scratch_dir / EXPORT_PART_NOTE
+        try:
+            ensure_dir(self._scratch_dir)
+            note.write_text(str(part), encoding="utf-8")
+            chown_to_data_owner(note)
+        except OSError as e:
+            decky.logger.warning("memories: couldn't note the export in progress (%s)", type(e).__name__)
+
+    def _forget_export_part(self) -> None:
+        try:
+            (self._scratch_dir / EXPORT_PART_NOTE).unlink()
+        except OSError:
+            pass
+
+    def discard_abandoned_export(self) -> None:
+        try:
+            raw = (self._scratch_dir / EXPORT_PART_NOTE).read_text(encoding="utf-8").strip()
+        except OSError:
+            return
+        part = Path(raw)
+        named = part.name.startswith(memories_transfer.BUNDLE_PREFIX) and part.name.endswith(
+            memories_transfer.BUNDLE_SUFFIX + ".part"
+        )
+        if part.is_absolute() and named:
+            try:
+                part.unlink()
+                decky.logger.info("memories: removed an unfinished export, %s", part.name)
+            except OSError:
+                pass
+        self._forget_export_part()
 
     def _export_video(self, writer, memory: dict, record: dict, scratch: Path):
         video = record.get("video")
@@ -654,6 +693,13 @@ class MemoriesTransferService:
         return {"video": landed, "tail": tail, "missing": False}
 
     def _import(self, source: Path, mode: str) -> None:
+        self._clear_import_note()
+        try:
+            self._read_bundle(source, mode)
+        finally:
+            self._clear_import_note()
+
+    def _read_bundle(self, source: Path, mode: str) -> None:
         checked = memories_transfer.validate(
             source, on_bytes=self._bump_bytes, should_stop=self._stopped
         )
@@ -707,10 +753,11 @@ class MemoriesTransferService:
                     arriving = []
                     media_for = {}
                     for memory in entry.get("memories", []) or []:
-                        if not isinstance(memory, dict):
+                        memory_id = memory.get("id") if isinstance(memory, dict) else None
+                        if not isinstance(memory_id, str) or not memory_id:
                             skipped += 1
                             continue
-                        if memory.get("id") in held:
+                        if memory_id in held:
                             skipped += 1
                             continue
 
@@ -759,10 +806,11 @@ class MemoriesTransferService:
                     if landed_ids:
                         games += 1
                     loose_files.clear()
+                    self._clear_import_note()
                     for memory_id in landed_ids:
                         held.add(memory_id)
                         placed_records.append((game_id, memory_id))
-        except (OSError, zipfile.BadZipFile) as e:
+        except Exception as e:
             decky.logger.error("memories: the import stopped (%s)", type(e).__name__)
             self._undo_import(mode, moved, placed_records, loose_files)
             self._fail(ERROR_IMPORT_FAILED)
@@ -810,6 +858,7 @@ class MemoriesTransferService:
             return {"picture": "", "video": "", "missingVideo": False}
 
         target = memories_transfer.free_path(self._store.account_picture_root() / tail)
+        self._placing(target)
         try:
             if not memories_transfer.extract_entry(
                 archive, arcname, target, on_bytes=self._bump_bytes, should_stop=self._stopped
@@ -832,6 +881,8 @@ class MemoriesTransferService:
         owned = memories_transfer.safe_tail(video.get("path"))
         if not owned:
             return {"picture": picture_tail, "video": "", "missingVideo": bool(video.get("clipId"))}
+        if not is_clip_folder(Path(owned)):
+            return {"picture": picture_tail, "video": "", "missingVideo": True}
 
         prefix = memories_transfer.video_prefix(owned)
         sources = sorted(name for name in names if name.startswith(prefix))
@@ -839,8 +890,10 @@ class MemoriesTransferService:
             return {"picture": picture_tail, "video": "", "missingVideo": True}
 
         folder = memories_transfer.free_path(self._store.account_video_root() / owned)
+        landed = []
         for name in sources:
             landing = folder / Path(name).name
+            self._placing(landing)
             try:
                 if not memories_transfer.extract_entry(
                     archive, name, landing, on_bytes=self._bump_bytes, should_stop=self._stopped
@@ -849,7 +902,13 @@ class MemoriesTransferService:
                     return None
             except (OSError, zipfile.BadZipFile) as e:
                 decky.logger.error("memories: %s would not land (%s)", name, type(e).__name__)
+                self._drop_files(landed + [landing])
+                try:
+                    folder.rmdir()
+                except OSError:
+                    pass
                 return {"picture": picture_tail, "video": "", "missingVideo": True}
+            landed.append(landing)
             loose_files.append(landing)
             with self._lock:
                 self._copied += 1
@@ -859,6 +918,72 @@ class MemoriesTransferService:
             "video": folder.relative_to(self._store.account_video_root()).as_posix(),
             "missingVideo": False,
         }
+
+    def _placing(self, path: Path) -> None:
+        note = self._scratch_dir / IMPORT_FILES_NOTE
+        try:
+            ensure_dir(self._scratch_dir)
+            fresh = not note.exists()
+            with note.open("a", encoding="utf-8") as writer:
+                writer.write(json.dumps(str(path)) + "\n")
+            if fresh:
+                chown_to_data_owner(note)
+        except OSError as e:
+            decky.logger.warning("memories: couldn't note the import in progress (%s)", type(e).__name__)
+
+    def _clear_import_note(self) -> None:
+        try:
+            (self._scratch_dir / IMPORT_FILES_NOTE).unlink()
+        except OSError:
+            pass
+
+    def discard_abandoned_import(self) -> None:
+        note = self._scratch_dir / IMPORT_FILES_NOTE
+        try:
+            lines = note.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            return
+        listed = []
+        for line in lines:
+            try:
+                listed.append(json.loads(line))
+            except ValueError:
+                continue
+        used = self._store.media_in_use()
+        if used is None:
+            return
+        roots = [self._store.pictures_root().resolve(), self._store.videos_root().resolve()]
+        removed = 0
+        for raw in listed:
+            if not isinstance(raw, str):
+                continue
+            path = Path(raw)
+            if not path.is_absolute() or path in used or path.parent in used:
+                continue
+            try:
+                resolved = path.resolve()
+            except (OSError, RuntimeError):
+                continue
+            if not any(resolved.is_relative_to(root) for root in roots):
+                continue
+            if not path.is_file():
+                continue
+            try:
+                path.unlink()
+            except OSError:
+                continue
+            removed += 1
+            for folder in (path.parent, path.parent.parent):
+                try:
+                    folder.rmdir()
+                except OSError:
+                    break
+        if removed:
+            decky.logger.info("memories: removed %s files an unfinished import left", removed)
+        try:
+            note.unlink()
+        except OSError:
+            pass
 
     def _drop_files(self, paths) -> None:
         for path in paths:

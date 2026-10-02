@@ -59,6 +59,20 @@ def _executor_for_thumbs() -> ThreadPoolExecutor:
         return _executor
 
 
+def _discard(path: Path) -> None:
+    try:
+        path.unlink()
+    except OSError:
+        pass
+
+
+def _has_content(path: Path) -> bool:
+    try:
+        return path.stat().st_size > 0
+    except OSError:
+        return False
+
+
 def _run(argv, timeout) -> bool:
     code, stdout, stderr = subprocess_util.run_command(argv, timeout=timeout)
     if code != 0:
@@ -81,6 +95,8 @@ def make_thumbnail(source: Path, destination: Path) -> bool:
     ], _THUMB_TIMEOUT_SECONDS)
     if ok:
         chown_to_data_owner(destination)
+    else:
+        _discard(destination)
     return ok
 
 
@@ -103,6 +119,8 @@ def transcode_lossless(source: Path, destination: Path) -> bool:
     ], _TRANSCODE_TIMEOUT_SECONDS)
     if ok:
         chown_to_data_owner(destination)
+    else:
+        _discard(destination)
     return ok
 
 
@@ -116,7 +134,7 @@ def fill_missing(jobs) -> dict:
     made = {}
     pending = []
     for key, source, destination in jobs:
-        if destination.exists():
+        if _has_content(destination):
             made[key] = destination
         else:
             pending.append((key, source, destination))

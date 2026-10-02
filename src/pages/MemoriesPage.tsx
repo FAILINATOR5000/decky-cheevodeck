@@ -332,6 +332,8 @@ function MemoriesPage(props: MemoriesPageProps) {
         actions.onRequestFocus("memories:back");
     }, [active, firstRun, actions.onRequestFocus]);
 
+    const restoreSettledRef = useRef(false);
+
     if (!active) {
         return null;
     }
@@ -354,7 +356,8 @@ function MemoriesPage(props: MemoriesPageProps) {
     const filterParts = [memories.tagFilter, mediaKey ? t(language, mediaKey) : ""];
     let filterValue = "";
     if (memories.ready) {
-        filterValue = filterParts.filter(Boolean).join(" \u00b7 ") || t(language, "All");
+        filterValue = filterParts.filter(Boolean).join(" \u00b7 ")
+            || t(language, memories.colorFilter ? "Filtered" : "All");
     }
 
     function openGamePicker() {
@@ -568,7 +571,6 @@ function MemoriesPage(props: MemoriesPageProps) {
     }
 
 
-    const restoreSettledRef = useRef(false);
     if (restoreAbandoned || ((restoreClaim.claim?.token ?? 0) > 0 && !restoreClaim.claim?.armed)) {
         restoreSettledRef.current = true;
     }
@@ -577,7 +579,7 @@ function MemoriesPage(props: MemoriesPageProps) {
     function headerCaption(): string {
         switch (focusedToggleKey) {
             case "memories:order":
-                return memories.dateOrder === "desc" ? t(language, "Show Oldest First") : t(language, "Show Newest First");
+                return t(language, "Toggle Newest / Oldest");
             case "memories:columns":
                 return t(language, "Grid Size");
             case "memories:shared":
@@ -705,8 +707,8 @@ function MemoriesPage(props: MemoriesPageProps) {
             return (
                 <PanelSectionRow>
                     <div style={bodyTextStyle()}>
-                        {memories.tagFilter
-                            ? t(language, "No memories with that tag.")
+                        {memories.tagFilter || memories.colorFilter || memories.mediaFilter
+                            ? t(language, "No memories match the filter.")
                             : t(language, "No memories yet. With this game loaded in CheevoDeck, simply press Steam's currently configured screenshot or record/stop buttons to begin saving memories. See the help button (?) above for a complete guide on how this feature works.")}
                     </div>
                 </PanelSectionRow>
@@ -918,6 +920,18 @@ function MemoriesPage(props: MemoriesPageProps) {
                         >
                             {caption}
                         </div>
+
+                        {memories.truncated > 0 && memories.gameId === ALL_GAMES_ID ? (
+                            <div style={{ ...smallTextStyle(), opacity: 0.7, marginBottom: "4px" }}>
+                                {t(
+                                    language,
+                                    memories.dateOrder === "desc"
+                                        ? "Showing the newest {{count}}. Filters only search these."
+                                        : "Showing the oldest {{count}}. Filters only search these.",
+                                    { count: memories.memories.length }
+                                )}
+                            </div>
+                        ) : null}
 
                         {renderGrid()}
 

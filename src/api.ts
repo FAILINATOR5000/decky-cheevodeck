@@ -616,7 +616,7 @@ export const adoptClip = callable<
     [string, string, number, number, number],
     { ok: boolean; error?: string; gameId?: number; memory?: MemoryRecord; deleteClip?: boolean }
 >("adopt_clip");
-export const loadMemories = callable<[number], MemoriesResponse>("load_memories");
+export const loadMemories = callable<[number, MemoryDateOrder], MemoriesResponse>("load_memories");
 export const loadLatestMemory = callable<[], LatestMemoryResponse>("load_latest_memory");
 export const loadMemoryGames = callable<
     [],
@@ -1320,7 +1320,7 @@ export const clearResolvedAvatars = callable<
 >("clear_resolved_avatars");
 export const cleanupUserDirectories = callable<
     [],
-    { ok: boolean; removed: number }
+    { ok: boolean; removed: number; error?: string }
 >("cleanup_user_directories");
 export const getCachedPayload = callable<[], CachedResponse>("get_cached_payload");
 export const getPluginVersion = callable<[], { version: string }>("get_plugin_version");

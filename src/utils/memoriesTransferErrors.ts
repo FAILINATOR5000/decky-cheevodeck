@@ -35,3 +35,14 @@ const VIDEO_MOVE_ERROR_KEYS: Record<string, string> = {
 export function videoMoveErrorKey(code: string): string {
     return VIDEO_MOVE_ERROR_KEYS[code] ?? "Move failed";
 }
+
+const EXPORT_REFUSAL_KEYS: Record<string, string> = {
+    busy: "Transfer in Progress",
+    bad_target: "Folder Not Found",
+    no_space: "Not Enough Room",
+    nothing_to_export: "Nothing to Export"
+};
+
+export function exportRefusalKey(code: string): string {
+    return EXPORT_REFUSAL_KEYS[code] ?? "Export Failed";
+}

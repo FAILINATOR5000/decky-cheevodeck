@@ -66,6 +66,8 @@ _CLIP_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,120}$")
 
 STASHED_SUFFIX = ".previous"
 
+_ULID_PATTERN = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
+
 GAMES_INDEX_NAME = "_games.json"
 VIEW_PREFS_NAME = "_index.json"
 
@@ -97,6 +99,21 @@ def is_clip_file(relative: Path) -> bool:
     if game_folder != MISC_FOLDER_NAME and not _GAME_KEY_PATTERN.match(game_folder):
         return False
     return bool(_CLIP_ID_PATTERN.match(parts[-2]))
+
+
+def is_media_folder_name(name: str) -> bool:
+    name = name.removesuffix(STASHED_SUFFIX)
+    return name == MISC_FOLDER_NAME or bool(_GAME_KEY_PATTERN.match(name)) or bool(_ULID_PATTERN.match(name))
+
+
+def is_clip_folder(relative: Path) -> bool:
+    parts = relative.parts
+    if len(parts) != 2:
+        return False
+    game_folder, clip_folder = parts
+    if game_folder != MISC_FOLDER_NAME and not _GAME_KEY_PATTERN.match(game_folder):
+        return False
+    return bool(_CLIP_ID_PATTERN.match(clip_folder))
 
 
 def _clean_video(raw):
@@ -241,6 +258,18 @@ class MemoriesStore:
     def picture_path(self, relative: str) -> Path:
         """Absolute path of a picture from the relative path on its record."""
         return self._pictures_dir / relative
+
+    def safe_picture_path(self, relative):
+        cleaned = _clean_relative_path(relative)
+        if cleaned is None:
+            return None
+        picture = self._pictures_dir / cleaned
+        try:
+            if not picture.resolve().is_relative_to(self._pictures_dir.resolve()):
+                return None
+        except OSError:
+            return None
+        return picture
 
     def videos_root(self) -> Path:
         """The folder an owned video's relative path is measured from."""
@@ -711,7 +740,7 @@ class MemoriesStore:
         achievements = self._clean_achievements(raw.get("achievements"))
         video = _clean_video(raw.get("video"))
         captured = to_int(raw.get("capturedAt"), 0)
-        return {
+        memory = {
             "id": memory_id,
             "gameId": game_id,
             "path": path,
@@ -732,6 +761,10 @@ class MemoriesStore:
             "achievementCount": max(to_int(raw.get("achievementCount"), 0), len(achievements)),
             "bookmarks": self._clean_bookmarks(raw.get("bookmarks"), video),
         }
+        tagged = to_int(raw.get("taggedAt"), 0)
+        if tagged > 0:
+            memory["taggedAt"] = tagged
+        return memory
 
     def _empty_entry(self, game_id: int) -> dict:
         return {
@@ -764,10 +797,9 @@ class MemoriesStore:
             cleaned = self._clean_tag(raw_tag)
             if cleaned is None:
                 continue
-            lower = cleaned.lower()
-            if lower in seen:
+            if cleaned in seen:
                 continue
-            seen.add(lower)
+            seen.add(cleaned)
             vocab.append(cleaned)
             if len(vocab) >= TAG_VOCAB_LIMIT:
                 break
@@ -800,8 +832,7 @@ class MemoriesStore:
     def _add_tag_to_vocab(self, entry: dict, tag) -> None:
         if tag is None:
             return
-        lower = tag.lower()
-        entry["tagVocabulary"] = [tag] + [t for t in entry["tagVocabulary"] if t.lower() != lower]
+        entry["tagVocabulary"] = [tag] + [t for t in entry["tagVocabulary"] if t != tag]
         del entry["tagVocabulary"][TAG_VOCAB_LIMIT:]
 
     def _prune_tag_vocab(self, entry: dict) -> None:
@@ -811,8 +842,8 @@ class MemoriesStore:
         that used one takes it out of the suggestions rather than leaving a tag
         nothing can ever match.
         """
-        in_use = {m["tag"].lower() for m in entry["memories"] if m.get("tag")}
-        entry["tagVocabulary"] = [t for t in entry["tagVocabulary"] if t.lower() in in_use]
+        in_use = {m["tag"] for m in entry["memories"] if m.get("tag")}
+        entry["tagVocabulary"] = [t for t in entry["tagVocabulary"] if t in in_use]
 
     def _new_memory_id(self) -> str:
         return f"mem_{secrets.token_urlsafe(8)}"
@@ -820,7 +851,7 @@ class MemoriesStore:
     def _new_bookmark_id(self) -> str:
         return f"bm_{secrets.token_urlsafe(8)}"
 
-    def load_for_game(self, game_id) -> dict:
+    def load_for_game(self, game_id, clips_reachable: bool = False) -> dict:
         """One game's memories, newest first, with its tag vocabulary.
 
         Records whose picture has gone missing are dropped and the pruned list
@@ -836,6 +867,11 @@ class MemoriesStore:
             entry = self._load_raw(key)
             kept = [m for m in entry["memories"] if self.picture_path(m["path"]).exists()]
             if len(kept) != len(entry["memories"]):
+                if clips_reachable:
+                    kept_ids = {m["id"] for m in kept}
+                    for memory in entry["memories"]:
+                        if memory["id"] not in kept_ids:
+                            self._remove_owned_clip(memory)
                 entry["memories"] = kept
                 self._prune_tag_vocab(entry)
                 self._save_raw(key, entry)
@@ -848,8 +884,8 @@ class MemoriesStore:
             "tagVocabulary": list(entry["tagVocabulary"]),
         }
 
-    def load_all(self) -> dict:
-        """Every memory this account has, newest first.
+    def load_all(self, oldest_first: bool = False) -> dict:
+        """Every memory this account has, newest first unless ``oldest_first``.
 
         Reads one file per game that has any, which is the one place this store
         lists anything. It runs only when somebody picks All Games, and the file
@@ -873,12 +909,11 @@ class MemoriesStore:
                 if self.picture_path(memory["path"]).exists():
                     memories.append(memory)
             for tag in entry["tagVocabulary"]:
-                lower = tag.lower()
-                if lower not in seen_tags:
-                    seen_tags.add(lower)
+                if tag not in seen_tags:
+                    seen_tags.add(tag)
                     vocabulary.append(tag)
 
-        memories.sort(key=lambda m: m["capturedAt"], reverse=True)
+        memories.sort(key=lambda m: m["capturedAt"], reverse=not oldest_first)
         dropped = max(0, len(memories) - ALL_GAMES_RECORD_CAP)
         if dropped:
             decky.logger.info("memories: All Games capped at %s, %s not listed", ALL_GAMES_RECORD_CAP, dropped)
@@ -899,7 +934,10 @@ class MemoriesStore:
         return {
             "ok": True,
             "memory": memories[0] if memories else None,
-            "tags": [{"tag": m["tag"], "at": m["updatedAt"]} for m in memories if m.get("tag")],
+            "tags": [
+                {"tag": m["tag"], "at": m.get("taggedAt") or m["updatedAt"]}
+                for m in memories if m.get("tag")
+            ],
         }
 
     def all_entries(self) -> dict:
@@ -958,8 +996,11 @@ class MemoriesStore:
                 if cleaned["imageIcon"] and not entry["imageIcon"]:
                     entry["imageIcon"] = cleaned["imageIcon"]
 
+            in_use = {m["tag"] for m in entry["memories"] if m.get("tag")}
             for tag in reversed(list(tag_vocabulary or [])):
-                self._add_tag_to_vocab(entry, self._clean_tag(tag))
+                cleaned = self._clean_tag(tag)
+                if cleaned is not None and cleaned in in_use:
+                    self._add_tag_to_vocab(entry, cleaned)
             for memory in arriving:
                 self._add_tag_to_vocab(entry, memory.get("tag"))
 
@@ -1100,19 +1141,24 @@ class MemoriesStore:
             if target is None:
                 return {"ok": False, "error": "not_found"}
 
+            now = int(time.time())
+            self._keep_tag_time(target)
             changed = False
             if caption is not None:
                 target["caption"] = self._clean_caption(caption)
                 changed = True
             if tag is not None:
-                target["tag"] = self._clean_tag(tag)
+                cleaned = self._clean_tag(tag)
+                if cleaned != target["tag"]:
+                    target["taggedAt"] = now
+                target["tag"] = cleaned
                 self._add_tag_to_vocab(entry, target["tag"])
                 changed = True
             if color is not None:
                 target["color"] = self._clean_color(color)
                 changed = True
             if changed:
-                target["updatedAt"] = int(time.time())
+                target["updatedAt"] = now
 
             if tag is not None:
                 self._prune_tag_vocab(entry)
@@ -1121,6 +1167,10 @@ class MemoriesStore:
             vocabulary = list(entry["tagVocabulary"])
 
         return {"ok": True, "memory": result, "tagVocabulary": vocabulary}
+
+    def _keep_tag_time(self, memory: dict) -> None:
+        if memory.get("tag") and "taggedAt" not in memory:
+            memory["taggedAt"] = memory["updatedAt"]
 
     def _find_in_entry(self, entry: dict, memory_id) -> dict | None:
         if not isinstance(memory_id, str) or not memory_id:
@@ -1162,6 +1212,7 @@ class MemoriesStore:
 
             target["bookmarks"].append(bookmark)
             target["bookmarks"].sort(key=lambda row: row["mediaTime"])
+            self._keep_tag_time(target)
             target["updatedAt"] = int(time.time())
             self._save_raw(key, entry)
 
@@ -1189,6 +1240,7 @@ class MemoriesStore:
                 return {"ok": False, "error": "not_found"}
 
             bookmark["name"] = self._clean_bookmark_name(name)
+            self._keep_tag_time(target)
             target["updatedAt"] = int(time.time())
             self._save_raw(key, entry)
             result = dict(bookmark)
@@ -1213,6 +1265,7 @@ class MemoriesStore:
                 return {"ok": False, "error": "not_found"}
 
             target["bookmarks"] = remaining
+            self._keep_tag_time(target)
             target["updatedAt"] = int(time.time())
             self._save_raw(key, entry)
 
@@ -1268,6 +1321,43 @@ class MemoriesStore:
                 shutil.rmtree(self.video_path(owned))
             except OSError:
                 pass
+
+    def _remove_owned_clip(self, memory: dict) -> None:
+        owned = (memory.get("video") or {}).get("path")
+        if not owned:
+            return
+        folder = self.video_path(owned)
+        try:
+            relative = folder.relative_to(self.account_video_root())
+        except ValueError:
+            return
+        if not is_clip_folder(relative):
+            return
+        shutil.rmtree(folder, ignore_errors=True)
+        try:
+            folder.parent.rmdir()
+        except OSError:
+            pass
+
+    def media_in_use(self):
+        try:
+            game_files = sorted(self._memories_dir.glob("*.json"))
+        except OSError:
+            return None
+        used = set()
+        for path in game_files:
+            key = path.stem
+            if not _GAME_KEY_PATTERN.match(key):
+                continue
+            raw = load_json_file(path, None)
+            if not isinstance(raw, dict) or to_int(raw.get("schemaVersion"), 0) != CURRENT_SCHEMA_VERSION:
+                return None
+            for memory in self._normalize_entry(raw, int(key))["memories"]:
+                used.add(self.picture_path(memory["path"]))
+                owned = (memory.get("video") or {}).get("path")
+                if owned:
+                    used.add(self.video_path(owned))
+        return used
 
     def _unlink_thumb(self, game_id, memory: dict) -> None:
         # Deliberately not _unlink_memory_files, which also takes the picture

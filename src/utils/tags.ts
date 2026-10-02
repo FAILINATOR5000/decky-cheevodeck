@@ -39,10 +39,12 @@ export const DOLPHIN_TAG_SEEDS: ReadonlyArray<TagSeed> = [
 
 export function unusedTagSeeds(
     seeds: ReadonlyArray<TagSeed>,
-    used: string[]
+    used: string[],
+    caseSensitive = false
 ): ReadonlyArray<TagSeed> {
-    const taken = new Set(used.map((tag) => tag.trim().toLowerCase()));
-    return seeds.filter((seed) => !taken.has(seed.tag.toLowerCase()));
+    const fold = (tag: string) => (caseSensitive ? tag.trim() : tag.trim().toLowerCase());
+    const taken = new Set(used.map(fold));
+    return seeds.filter((seed) => !taken.has(fold(seed.tag)));
 }
 
 const TAG_INPUT_STRIP = /[[\]\n\r\t]/g;
@@ -52,7 +54,8 @@ export function cleanTagInput(raw: string, maxLen: number): string {
 }
 
 export function orderedTagsByRecency(
-    rows: ReadonlyArray<{ tag: string | null | undefined; at: number }>
+    rows: ReadonlyArray<{ tag: string | null | undefined; at: number }>,
+    caseSensitive = false
 ): string[] {
     const newest = new Map<string, { tag: string; at: number; index: number }>();
     rows.forEach((row, index) => {
@@ -60,10 +63,10 @@ export function orderedTagsByRecency(
         if (!tag) {
             return;
         }
-        const lower = tag.toLowerCase();
-        const held = newest.get(lower);
+        const key = caseSensitive ? tag : tag.toLowerCase();
+        const held = newest.get(key);
         if (!held || row.at > held.at || (row.at === held.at && index < held.index)) {
-            newest.set(lower, { tag, at: row.at, index });
+            newest.set(key, { tag, at: row.at, index });
         }
     });
     return [...newest.values()]

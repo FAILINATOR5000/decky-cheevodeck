@@ -1,6 +1,6 @@
 import { Focusable, PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
-import { addEventListener, removeEventListener } from "@decky/api";
+import { addEventListener, removeEventListener, toaster } from "@decky/api";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
     cleanupUserDirectories,
@@ -3239,7 +3239,13 @@ function AchievementsRoot() {
             "onCleanupDirectory",
             "Couldn't clean up the directory.",
             async () => {
-                await cleanupUserDirectories();
+                const result = await cleanupUserDirectories();
+                if (!result.ok) {
+                    toaster.toast({
+                        title: t(language, "Cleanup Directory"),
+                        body: t(language, "Transfer in Progress")
+                    });
+                }
             }
         );
     }

@@ -1602,6 +1602,7 @@ export type MemoryRecord = {
     video: MemoryVideo | null;
     capturedAt: number;
     updatedAt: number;
+    taggedAt?: number;
     appid: number;
     gameTitle: string;
     source: string;
@@ -1657,6 +1658,7 @@ export type MemoriesResponse = {
     gameTitle?: string;
     memories: MemoryRecord[];
     tagVocabulary: string[];
+    truncated?: number;
 };
 
 export type TrackedNotesColor = Record<string, NoteColor>;

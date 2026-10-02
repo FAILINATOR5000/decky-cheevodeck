@@ -1,13 +1,14 @@
 import type { ReactNode } from "react";
 import { bodyTextStyle, helpTextBlue, modalBodyStyle } from "../../utils/style";
 import { modalSize, textSize } from "../../utils/scale";
+import { withInlineTags } from "./inlineTags";
 
 export function helpDescription(help: ReactNode, modal = false): ReactNode {
     if (!help) {
         return undefined;
     }
     const size = modal ? modalSize(12) : textSize(12);
-    return <span style={{ fontSize: `${size}px` }}>{help}</span>;
+    return <span style={{ fontSize: `${size}px` }}>{typeof help === "string" ? withInlineTags(help) : help}</span>;
 }
 
 export type InfoTextProps = {

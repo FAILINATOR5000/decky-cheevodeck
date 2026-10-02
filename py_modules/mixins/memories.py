@@ -240,7 +240,7 @@ class MemoriesMixin(PluginContext):
 
         return {"ok": True, "data": base64.b64encode(raw).decode("ascii"), "size": size}
 
-    async def load_memories(self, game_id=None):
+    async def load_memories(self, game_id=None, order: str = "desc"):
         """Every memory for one game, newest first.
 
         Unchunked, unlike the thumbnails: the page needs the whole filtered list
@@ -251,8 +251,12 @@ class MemoriesMixin(PluginContext):
         one read in the feature that lists anything.
         """
         if to_int(game_id, ALL_GAMES_ID) == ALL_GAMES_ID:
-            return await asyncio.to_thread(self.memories_store.load_all)
-        return await asyncio.to_thread(self.memories_store.load_for_game, game_id)
+            return await asyncio.to_thread(self.memories_store.load_all, order == "asc")
+        picked = self.settings_store.get_memories_video_path(self.settings_store.load_config())
+        reachable = memories_video_service.root_available(self.memories_store.videos_root(), picked != "")
+        return await asyncio.to_thread(
+            self.memories_store.load_for_game, game_id, clips_reachable=reachable
+        )
 
     async def load_latest_memory(self):
         return await asyncio.to_thread(self.memories_store.latest_memory)
@@ -282,7 +286,8 @@ class MemoriesMixin(PluginContext):
             if not isinstance(item, dict):
                 continue
             relative = item.get("path")
-            if not isinstance(relative, str) or not relative:
+            picture = self.memories_store.safe_picture_path(relative)
+            if picture is None:
                 continue
             game_id = norm_game_id(item.get("gameId"))
             if game_id is None:
@@ -290,7 +295,7 @@ class MemoriesMixin(PluginContext):
             games.add(game_id)
             jobs.append((
                 relative,
-                self.memories_store.picture_path(relative),
+                picture,
                 self.memories_store.thumb_path(game_id, relative),
             ))
         if not jobs:
@@ -319,10 +324,9 @@ class MemoriesMixin(PluginContext):
         return await asyncio.to_thread(self._load_memory_full_sync, game_id, path)
 
     def _load_memory_full_sync(self, game_id, path):
-        if not isinstance(path, str) or not path:
+        picture = self.memories_store.safe_picture_path(path)
+        if picture is None:
             return {"ok": False, "dataUri": None}
-
-        picture = self.memories_store.picture_path(path)
         try:
             size = picture.stat().st_size
         except OSError:
