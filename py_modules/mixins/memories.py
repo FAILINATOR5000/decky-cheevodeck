@@ -121,9 +121,13 @@ class MemoriesMixin(PluginContext):
             )
 
         current = self.settings_store.get_memories_video_path(self.settings_store.load_config())
-        return self.memories_video_service.start(
-            self.memories_store.videos_root(), current != "", picked, settled
-        )
+        async with self._memories_adopt_lock:
+            if self.memories_transfer_service.running():
+                return {"ok": False, "error": memories_video_service.ERROR_BUSY}
+            return self.memories_video_service.start(
+                self.memories_store.videos_root(), current != "", picked, settled,
+                pictures_root=self.memories_store.pictures_root(),
+            )
 
     async def memories_video_move_status(self):
         """How far the move has got, and where the copies live now.
@@ -158,9 +162,12 @@ class MemoriesMixin(PluginContext):
         return await asyncio.to_thread(self.memories_transfer_service.weigh)
 
     async def start_memories_export(self, folder: str = "", include_videos: bool = True):
-        return await asyncio.to_thread(
-            self.memories_transfer_service.start_export, folder, bool(include_videos)
-        )
+        async with self._memories_adopt_lock:
+            if self.memories_video_service.running():
+                return {"ok": False, "error": memories_video_service.ERROR_BUSY}
+            return await asyncio.to_thread(
+                self.memories_transfer_service.start_export, folder, bool(include_videos)
+            )
 
     async def list_memory_bundles(self, folder: str = ""):
         return await asyncio.to_thread(
@@ -168,9 +175,12 @@ class MemoriesMixin(PluginContext):
         )
 
     async def start_memories_import(self, bundle: str = "", mode: str = "merge"):
-        return await asyncio.to_thread(
-            self.memories_transfer_service.start_import, bundle, str(mode or "merge")
-        )
+        async with self._memories_adopt_lock:
+            if self.memories_video_service.running():
+                return {"ok": False, "error": memories_video_service.ERROR_BUSY}
+            return await asyncio.to_thread(
+                self.memories_transfer_service.start_import, bundle, str(mode or "merge")
+            )
 
     async def memories_transfer_status(self):
         return self.memories_transfer_service.status()
@@ -179,9 +189,13 @@ class MemoriesMixin(PluginContext):
         return self.memories_transfer_service.cancel()
 
     async def recover_memories_restore(self):
+        if self.memories_video_service.running():
+            return {"ok": False, "error": memories_video_service.ERROR_BUSY}
         return await asyncio.to_thread(self.memories_transfer_service.recover_stashed)
 
     async def discard_memories_restore(self):
+        if self.memories_video_service.running():
+            return {"ok": False, "error": memories_video_service.ERROR_BUSY}
         return await asyncio.to_thread(self.memories_transfer_service.discard_stashed)
 
     async def read_memory_clip_part(self, game_id, memory_id: str, name: str, offset=0, limit=0):
@@ -821,10 +835,10 @@ class MemoriesMixin(PluginContext):
         caller treats as "no memory" rather than as a failure. ``deleteSource``
         on a successful reply says whether the caller may remove Steam's copy.
         """
-        async with self._memories_adopt_lock:
-            result = await asyncio.to_thread(
-                self._adopt_screenshot_sync, path, app_id, created_at, screenshot_game_id
-            )
+        context = await asyncio.to_thread(self._capture_context)
+        result = await self._adopt_when_free(
+            self._adopt_screenshot_sync, path, app_id, created_at, screenshot_game_id, context
+        )
         if result.get("ok"):
             self._schedule_memory_resolve(result.get("gameId"))
         return result
@@ -850,16 +864,46 @@ class MemoriesMixin(PluginContext):
         Returns ``{"ok": False, "error": ...}`` for every decline, which the
         caller treats as "no memory" rather than as a failure.
         """
-        async with self._memories_adopt_lock:
-            result = await asyncio.to_thread(
-                self._adopt_clip_sync, clip_id, game_id, recorded_at,
-                duration_ms, file_size,
-            )
+        context = await asyncio.to_thread(self._capture_context)
+        result = await self._adopt_when_free(
+            self._adopt_clip_sync, clip_id, game_id, recorded_at,
+            duration_ms, file_size, context,
+        )
         if result.get("ok"):
             self._schedule_memory_resolve(
                 result.get("gameId"), forward_seconds=to_int(duration_ms, 0) // 1000
             )
         return result
+
+    def _capture_context(self) -> dict:
+        payload = (self.cache_store.load_payload() or {}).get("payload") or {}
+        return {
+            "gameId": payload.get("gameId"),
+            "title": payload.get("title"),
+            "consoleName": payload.get("consoleName"),
+            "imageIcon": payload.get("imageIcon"),
+        }
+
+    def _memories_job_running(self) -> bool:
+        return self.memories_transfer_service.running() or self.memories_video_service.running()
+
+    def _memories_job_finished(self) -> None:
+        loop = self._asyncio_loop
+        if loop is None:
+            return
+        try:
+            loop.call_soon_threadsafe(self._memories_job_ended.set)
+        except RuntimeError:
+            pass
+
+    async def _adopt_when_free(self, work, *args):
+        while True:
+            async with self._memories_adopt_lock:
+                if not self._memories_job_running():
+                    return await asyncio.to_thread(work, *args)
+            while self._memories_job_running():
+                self._memories_job_ended.clear()
+                await self._memories_job_ended.wait()
 
     def _schedule_memory_resolve(self, game_id, forward_seconds: int = 0) -> None:
         """Ask for the context behind a fresh capture, twice over.
@@ -966,7 +1010,7 @@ class MemoriesMixin(PluginContext):
             return memories_resolver.FORWARD_SKEW_SECONDS
         return memories_resolver.BACK_SECONDS
 
-    def _adopt_screenshot_sync(self, path: str, app_id, created_at, screenshot_game_id=""):
+    def _adopt_screenshot_sync(self, path: str, app_id, created_at, screenshot_game_id, payload):
         cfg = self.settings_store.load_config()
         if not self.settings_store.get_memories_auto_capture(cfg):
             return {"ok": False, "error": "disabled"}
@@ -990,7 +1034,6 @@ class MemoriesMixin(PluginContext):
         if not memories_capture.is_non_steam_shortcut(running, self.user_home):
             return {"ok": False, "error": "steam_game"}
 
-        payload = (self.cache_store.load_payload() or {}).get("payload") or {}
         game_id = norm_game_id(payload.get("gameId"))
         title = memories_capture.resolve_title(running, payload.get("title"), self.user_home)
         console_name = str(payload.get("consoleName") or "").strip()
@@ -1052,7 +1095,7 @@ class MemoriesMixin(PluginContext):
             "deleteSource": delete_source,
         }
 
-    def _adopt_clip_sync(self, clip_id, game_id, recorded_at, duration_ms, file_size):
+    def _adopt_clip_sync(self, clip_id, game_id, recorded_at, duration_ms, file_size, payload):
         cfg = self.settings_store.load_config()
         if not self.settings_store.get_memories_auto_capture(cfg):
             return {"ok": False, "error": "disabled"}
@@ -1081,13 +1124,28 @@ class MemoriesMixin(PluginContext):
         span_ms = to_int(duration_ms, 0)
         start_ms = memories_clips.in_point_ms(period_start_ms)
 
-        payload = (self.cache_store.load_payload() or {}).get("payload") or {}
         ra_game_id = norm_game_id(payload.get("gameId"))
         title = memories_capture.resolve_title(running, payload.get("title"), self.user_home)
         console_name = str(payload.get("consoleName") or "").strip()
         image_icon = str(payload.get("imageIcon") or "").strip()
         if ra_game_id is None:
             ra_game_id = MISC_GAME_ID
+
+        for memory in self.memories_store.load_for_game(ra_game_id).get("memories", []):
+            if (memory.get("video") or {}).get("clipId") == clip_id:
+                decky.logger.info("memories: clip %s is already filed, leaving it", clip_id)
+                return {
+                    "ok": True,
+                    "gameId": ra_game_id,
+                    "memory": memory,
+                    "deleteClip": False,
+                    "duplicate": True,
+                }
+
+        picked = self.settings_store.get_memories_video_path(cfg)
+        if not memories_video_service.root_available(self.memories_store.videos_root(), picked != ""):
+            decky.logger.warning("memories: clip %s stays in Steam, the video drive is not connected", clip_id)
+            return {"ok": False, "error": "root_missing"}
 
         try:
             folder = self.memories_store.ensure_picture_dir(ra_game_id)

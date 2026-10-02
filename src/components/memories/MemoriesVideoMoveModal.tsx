@@ -7,6 +7,7 @@ import { ProgressBar } from "../ui/ProgressBar";
 import { t, type LanguageCode } from "../../locales";
 import { modalSize } from "../../utils/scale";
 import { logError } from "../../utils/errors";
+import { videoMoveErrorKey } from "../../utils/memoriesTransferErrors";
 import { modalBodyStyle } from "../../utils/style";
 import type { MemoriesVideoMoveStatus } from "../../types";
 
@@ -75,7 +76,7 @@ function phaseLabel(status: MemoriesVideoMoveStatus | null, language: LanguageCo
         return t(language, "Checking the copy");
     }
     if (status.state === "failed") {
-        return t(language, status.error === "no_space" ? "Not enough room" : "Move failed");
+        return t(language, videoMoveErrorKey(status.error));
     }
     return t(language, "Checking the copy");
 }

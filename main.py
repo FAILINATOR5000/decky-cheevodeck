@@ -545,6 +545,7 @@ class Plugin(
         )
         self.memories_video_service = MemoriesVideoService(
             home=self.user_home,
+            on_finished=self._memories_job_finished,
         )
         self.memories_transfer_service = MemoriesTransferService(
             store=self.memories_store,
@@ -552,6 +553,7 @@ class Plugin(
             notifications_store=self.notifications_store,
             home=self.user_home,
             scratch_dir=self.memories_transfer_scratch_dir,
+            on_finished=self._memories_job_finished,
         )
         self.smb_mount_service = SmbMountService(
             debug_logging=lambda: getattr(self, "_debug_logging", False),
@@ -650,6 +652,8 @@ class Plugin(
         self._friend_fetch_lock = asyncio.Lock()
 
         self._memories_adopt_lock = asyncio.Lock()
+
+        self._memories_job_ended = asyncio.Event()
 
         self._memory_share_lock = threading.Lock()
         self._memory_share_cancel = None
@@ -1656,6 +1660,9 @@ class Plugin(
             self.freeze_watchdog_service.sync()
 
     async def factory_reset(self):
+        if self._memories_job_running():
+            return {"ok": False, "error": "busy"}
+
         self.players_near_you_service.note_cache_cleared()
 
         await asyncio.to_thread(self.file_watcher_service.quiesce)

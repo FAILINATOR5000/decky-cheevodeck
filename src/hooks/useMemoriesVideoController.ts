@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toaster } from "@decky/api";
 import { getMemoriesVideoMoveStatus, startMemoriesVideoMove } from "../api";
 import { t, type LanguageCode } from "../locales";
 import type { MemoriesVideoMoveStatus } from "../types";
 import { logError } from "../utils/errors";
+import { videoMoveErrorKey } from "../utils/memoriesTransferErrors";
 import { openPathPicker } from "../components/pickers/FilePickerModal";
 import { openMemoriesVideoMoveModal } from "../components/memories/MemoriesVideoMoveModal";
 import { armOptionsFocusKey } from "../utils/optionsFocusReturn";
 
 const POLL_INTERVAL_MS = 900;
+
+const TOAST_DURATION_MS = 4000;
 
 const IDLE: MemoriesVideoMoveStatus = {
     ok: true,
@@ -22,6 +26,14 @@ const IDLE: MemoriesVideoMoveStatus = {
     root: "",
     rootAvailable: true
 };
+
+function toastRefusal(language: LanguageCode, error: string) {
+    toaster.toast({
+        title: t(language, "Video Clip Location"),
+        body: t(language, videoMoveErrorKey(error)),
+        duration: TOAST_DURATION_MS
+    });
+}
 
 function isRunning(state: MemoriesVideoMoveStatus["state"]): boolean {
     return state === "checking" || state === "copying" || state === "verifying" || state === "finishing";
@@ -92,6 +104,7 @@ export function useMemoriesVideoController(options: UseMemoriesVideoControllerOp
             if (!started.ok) {
                 if (started.error !== "same_place") {
                     setStatus({ ...IDLE, state: "failed", error: started.error ?? "failed" });
+                    toastRefusal(language, started.error ?? "failed");
                 }
                 return false;
             }
@@ -102,9 +115,10 @@ export function useMemoriesVideoController(options: UseMemoriesVideoControllerOp
         catch (e) {
             logError("startMemoriesVideoMove", e);
             setStatus({ ...IDLE, state: "failed", error: "failed" });
+            toastRefusal(language, "failed");
             return false;
         }
-    }, [readStatus]);
+    }, [language, readStatus]);
 
     const watchMove = useCallback((focusKey: string) => {
         armOptionsFocusKey(focusKey);

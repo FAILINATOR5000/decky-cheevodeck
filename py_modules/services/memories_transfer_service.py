@@ -33,6 +33,7 @@ ERROR_NO_ACCOUNT = "no_account"
 ERROR_STASH_PENDING = "stash_pending"
 ERROR_STASH_FAILED = "stash_failed"
 ERROR_NOTHING_STASHED = "nothing_stashed"
+ERROR_ROOT_MISSING = "root_missing"
 
 MODE_MERGE = "merge"
 MODE_REPLACE = "replace"
@@ -70,13 +71,16 @@ def _free_bytes(path: Path) -> int:
 
 class MemoriesTransferService:
 
-    def __init__(self, *, store, settings_store, notifications_store, home: Path, scratch_dir: Path):
+    def __init__(
+        self, *, store, settings_store, notifications_store, home: Path, scratch_dir: Path, on_finished=None
+    ):
         self._store = store
         self._settings_store = settings_store
         self._notifications = notifications_store
         self._home = home
         self._scratch_dir = scratch_dir
         self._event_loop = None
+        self._on_finished = on_finished
         self._lock = threading.Lock()
         self._thread = None
         self._stop = threading.Event()
@@ -246,8 +250,7 @@ class MemoriesTransferService:
 
     def weigh(self) -> dict:
         entries = self._store.all_entries()
-        picked = self._settings_store.get_memories_video_path(self._settings_store.load_config())
-        reachable = memories_video_service.root_available(self._store.videos_root(), picked != "")
+        reachable = self._video_root_reachable()
         pictures = 0
         picture_bytes = 0
         screenshots = 0
@@ -303,6 +306,10 @@ class MemoriesTransferService:
             "bytes": picture_bytes + clip_bytes,
             "bytesNoVideos": screenshot_bytes,
         }
+
+    def _video_root_reachable(self) -> bool:
+        picked = self._settings_store.get_memories_video_path(self._settings_store.load_config())
+        return memories_video_service.root_available(self._store.videos_root(), picked != "")
 
     def _clip_size(self, memory: dict) -> int:
         video = memory.get("video") or {}
@@ -381,6 +388,8 @@ class MemoriesTransferService:
             return {"ok": False, "error": found["error"]}
 
         sizes = memories_transfer.bundle_sizes(source)
+        if sizes["videos"] > 0 and not self._video_root_reachable():
+            return {"ok": False, "error": ERROR_ROOT_MISSING}
         for root, needed in (
             (self._store.pictures_root(), sizes["pictures"]),
             (self._store.videos_root(), sizes["videos"]),
@@ -437,6 +446,9 @@ class MemoriesTransferService:
                 "memories: the transfer thread stopped (%s: %s)", type(e).__name__, e
             )
             self._fail(ERROR_WRITE_FAILED)
+        finally:
+            if self._on_finished is not None:
+                self._on_finished()
 
     def _export(self, destination: Path, include_videos: bool) -> None:
         account = self._store.account_key()
@@ -653,6 +665,10 @@ class MemoriesTransferService:
             return
 
         manifest = checked["manifest"]
+        if memories_transfer.bundle_sizes(source)["videos"] > 0 and not self._video_root_reachable():
+            self._fail(ERROR_ROOT_MISSING)
+            return
+
         moved = []
         if mode == MODE_REPLACE:
             stashed = self._store.stash_account_trees()
@@ -759,11 +775,11 @@ class MemoriesTransferService:
         self._store.clear_thumbs()
 
         if mode == MODE_REPLACE:
-            landed = len(self._store.memory_ids())
-            if landed != inserted:
+            unread = {memory_id for _game_id, memory_id in placed_records} - self._store.memory_ids()
+            if unread:
                 decky.logger.error(
-                    "memories: the restore wrote %s records and reads back %s, putting it back",
-                    inserted, landed,
+                    "memories: the restore wrote %s records and %s do not read back, putting it back",
+                    inserted, len(unread),
                 )
                 self._store.restore_account_trees(moved)
                 self._store.clear_thumbs()

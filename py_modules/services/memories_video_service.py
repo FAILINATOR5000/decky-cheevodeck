@@ -18,6 +18,7 @@ import threading
 
 import decky
 
+from memories_store import is_clip_file
 from utils import chown_to_data_owner, ensure_dir
 
 
@@ -33,6 +34,7 @@ ERROR_BUSY = "busy"
 ERROR_NOT_RUNNING = "not_running"
 ERROR_BAD_TARGET = "bad_target"
 ERROR_SAME_PLACE = "same_place"
+ERROR_OVERLAP = "overlap"
 ERROR_NO_SPACE = "no_space"
 ERROR_ROOT_MISSING = "root_missing"
 ERROR_NOT_WRITABLE = "not_writable"
@@ -85,13 +87,19 @@ def root_available(root: Path, custom: bool) -> bool:
         return False
 
 
-def _tree_size(root: Path) -> tuple:
+def _overlaps(one: Path, other: Path) -> bool:
+    one = one.resolve()
+    other = other.resolve()
+    return one.is_relative_to(other) or other.is_relative_to(one)
+
+
+def _clip_files(root: Path) -> tuple:
     files = []
     total = 0
     if not root.is_dir():
         return (files, total)
     for path in sorted(root.rglob("*")):
-        if path.name == SENTINEL_NAME:
+        if not is_clip_file(path.relative_to(root)):
             continue
         try:
             if not path.is_file():
@@ -104,6 +112,29 @@ def _tree_size(root: Path) -> tuple:
     return (files, total)
 
 
+def _remove_file(path: Path) -> None:
+    try:
+        path.unlink()
+    except OSError:
+        pass
+
+
+def _prune_empty_parents(paths: list, root: Path, include_root: bool) -> None:
+    folders = set()
+    for path in paths:
+        folder = path.parent
+        while folder != root and root in folder.parents:
+            folders.add(folder)
+            folder = folder.parent
+    if include_root:
+        folders.add(root)
+    for folder in sorted(folders, key=lambda p: len(p.parts), reverse=True):
+        try:
+            folder.rmdir()
+        except OSError:
+            pass
+
+
 class MemoriesVideoService:
     """Relocates the clip copies, one whole tree at a time.
 
@@ -112,8 +143,9 @@ class MemoriesVideoService:
     to call from anywhere.
     """
 
-    def __init__(self, *, home: Path):
+    def __init__(self, *, home: Path, on_finished=None):
         self._home = home
+        self._on_finished = on_finished
         self._lock = threading.Lock()
         self._thread = None
         self._state = "idle"
@@ -156,7 +188,9 @@ class MemoriesVideoService:
         with self._lock:
             return self._state in ("checking", "copying", "verifying", "finishing")
 
-    def start(self, current_root: Path, current_is_custom: bool, picked: str, on_settled) -> dict:
+    def start(
+        self, current_root: Path, current_is_custom: bool, picked: str, on_settled, *, pictures_root: Path
+    ) -> dict:
         """Begin a move to ``picked``, or say why it cannot start.
 
         Refuses while the drive holding the current copies is not mounted.
@@ -166,7 +200,7 @@ class MemoriesVideoService:
 
         ``on_settled`` is called from the worker thread once every file is in
         place and checked, with the new root. It is what flips the setting and
-        repoints the store, and the old tree is only removed after it returns.
+        repoints the store, and the old copies are only removed after it returns.
         """
         if self.running():
             return {"ok": False, "error": ERROR_BUSY}
@@ -177,8 +211,10 @@ class MemoriesVideoService:
         target_root = root_for(picked, self._home)
         if picked and not Path(picked).is_dir():
             return {"ok": False, "error": ERROR_BAD_TARGET}
-        if target_root == current_root:
+        if target_root.resolve() == current_root.resolve():
             return {"ok": False, "error": ERROR_SAME_PLACE}
+        if _overlaps(target_root, current_root) or _overlaps(target_root, pictures_root):
+            return {"ok": False, "error": ERROR_OVERLAP}
 
         self._stop.clear()
         with self._lock:
@@ -249,9 +285,12 @@ class MemoriesVideoService:
                 "memories: the video move thread stopped (%s: %s)", type(e).__name__, e
             )
             self._fail(ERROR_COPY_FAILED)
+        finally:
+            if self._on_finished is not None:
+                self._on_finished()
 
     def _move(self, source_root: Path, target_root: Path, on_settled) -> None:
-        files, total = _tree_size(source_root)
+        files, total = _clip_files(source_root)
         with self._lock:
             self._files = len(files)
             self._total_bytes = total
@@ -275,18 +314,30 @@ class MemoriesVideoService:
             self._state = "copying"
 
         written = []
+        copied = []
         try:
             for source, size in files:
                 if self._stopped(written, target_root):
                     return
+                if not source.exists():
+                    continue
                 relative = source.relative_to(source_root)
                 destination = target_root / relative
                 ensure_dir(destination.parent)
                 written.append((destination, size))
-                if not self._copy_file(source, destination):
+                try:
+                    finished = self._copy_file(source, destination)
+                except FileNotFoundError:
+                    if source.exists():
+                        raise
+                    written.pop()
+                    _remove_file(destination)
+                    continue
+                if not finished:
                     self._stopped(written, target_root)
                     return
                 chown_to_data_owner(destination)
+                copied.append((source, destination))
                 with self._lock:
                     self._copied += 1
         except OSError as e:
@@ -318,17 +369,21 @@ class MemoriesVideoService:
         write_sentinel(target_root)
         on_settled(target_root)
 
-        try:
-            shutil.rmtree(source_root)
-        except OSError as e:
-            decky.logger.warning(
-                "memories: the videos moved but the old folder stayed (%s)", type(e).__name__
-            )
+        dropped = 0
+        for source, destination in copied:
+            if source.exists():
+                _remove_file(source)
+            else:
+                _remove_file(destination)
+                dropped += 1
+        _remove_file(source_root / SENTINEL_NAME)
+        _prune_empty_parents([source for source, _destination in copied], source_root, True)
+        _prune_empty_parents([destination for _source, destination in copied], target_root, False)
 
         with self._lock:
             self._state = "done"
         decky.logger.info(
-            "memories: moved %s clip files to %s", len(written), target_root
+            "memories: moved %s clip files to %s", len(copied) - dropped, target_root
         )
 
     def _unwind(self, written: list, target_root: Path) -> None:

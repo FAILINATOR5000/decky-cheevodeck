@@ -1,6 +1,8 @@
 import { findModuleExport, Router } from "@decky/ui";
+import { toaster } from "@decky/api";
 
 import { adoptClip, adoptScreenshot } from "../../api";
+import { getCurrentLanguage, t } from "../../locales";
 import { logError } from "../../utils/errors";
 
 let runningAppId = 0;
@@ -151,6 +153,13 @@ async function onClipCreated(message: ClipMessage) {
     );
     if (result?.ok && result.deleteClip) {
         await deleteSteamClip(clipId);
+    }
+    if (result && !result.ok && result.error === "root_missing") {
+        const language = getCurrentLanguage();
+        toaster.toast({
+            title: t(language, "Clip Kept in Steam"),
+            body: t(language, "Media Not Connected")
+        });
     }
 }
 

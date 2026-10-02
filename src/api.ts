@@ -1309,7 +1309,7 @@ export const setFriendFavorite = callable<[string, boolean], { ok: boolean; favo
 );
 export const clearApiKey = callable<[], { ok: boolean }>("clear_api_key");
 export const clearCache = callable<[], { ok: boolean; cleared: string[] }>("clear_cache");
-export const factoryReset = callable<[], { ok: boolean }>("factory_reset");
+export const factoryReset = callable<[], { ok: boolean; error?: string }>("factory_reset");
 export const clearCacheGroup = callable<
     [CacheClearGroup],
     { ok: boolean; group?: CacheClearGroup; cleared: string[]; error?: string }

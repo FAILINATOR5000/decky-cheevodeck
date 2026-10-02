@@ -1,4 +1,5 @@
 import { useState, type Dispatch, type RefObject, type SetStateAction } from "react";
+import { toaster } from "@decky/api";
 
 import { useLatestRef } from "./useLatestRef";
 
@@ -368,7 +369,14 @@ export function useAccountActions({
         setFriendGameError(null);
 
         try {
-            await factoryReset();
+            const result = await factoryReset();
+            if (!result.ok) {
+                toaster.toast({
+                    title: t(language, "Factory Reset"),
+                    body: t(language, "Transfer in Progress")
+                });
+                return;
+            }
             if (!mountedRef.current) {
                 return;
             }

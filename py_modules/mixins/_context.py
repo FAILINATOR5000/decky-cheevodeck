@@ -114,6 +114,7 @@ class PluginContext:
     _completion_walk_lock: threading.Lock
     _last_completion_walk: tuple | None
     _memories_adopt_lock: asyncio.Lock
+    _memories_job_ended: asyncio.Event
     _memory_share_lock: threading.Lock
     _memory_share_cancel: threading.Event | None
     _ipc_slow_threshold_ms: int

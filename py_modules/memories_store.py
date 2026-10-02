@@ -89,6 +89,16 @@ def _clean_relative_path(raw):
     return path
 
 
+def is_clip_file(relative: Path) -> bool:
+    parts = relative.parts
+    if len(parts) < 3:
+        return False
+    game_folder = parts[-3]
+    if game_folder != MISC_FOLDER_NAME and not _GAME_KEY_PATTERN.match(game_folder):
+        return False
+    return bool(_CLIP_ID_PATTERN.match(parts[-2]))
+
+
 def _clean_video(raw):
     """The video source on a record, or ``None`` when there is not one.
 

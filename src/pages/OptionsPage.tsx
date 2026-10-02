@@ -80,6 +80,7 @@ import {
 } from "../utils/options";
 import { trackedColorHex, trackedColorLabelKey } from "../utils/achievements";
 import { resolveGlyphStyle } from "../utils/controllerGlyphs";
+import { videoMoveErrorKey } from "../utils/memoriesTransferErrors";
 import { listenForOptionsLanding, takeOptionsLanding } from "../utils/optionsFocusReturn";
 import { BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT } from "../utils/gamepadButtons";
 import { playOkSound } from "../utils/navSound";
@@ -900,7 +901,7 @@ function videoLocationValue(state: OptionsPageState): string {
         return t(state.language, "Drive not connected");
     }
     if (move.state === "failed") {
-        return t(state.language, move.error === "no_space" ? "Not enough room" : "Move failed");
+        return t(state.language, videoMoveErrorKey(move.error));
     }
     return t(state.language, move.picked ? "Custom" : "Default");
 }
