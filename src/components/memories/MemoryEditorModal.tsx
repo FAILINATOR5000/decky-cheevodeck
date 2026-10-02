@@ -11,7 +11,7 @@ import { showManagedModal } from "../../utils/modalRegistry";
 import { logError } from "../../utils/errors";
 import { modalSize } from "../../utils/scale";
 import { compactButtonStyle } from "../../utils/style";
-import { MEMORY_TAG_SEEDS, cleanTagInput } from "../../utils/tags";
+import { MEMORY_TAG_SEEDS, cleanTagInput, cleanTextInput } from "../../utils/tags";
 import { TAG_MAX_LEN } from "../../utils/achievements";
 import { t, type LanguageCode } from "../../locales";
 import type { MemoryRecord, NoteColor } from "../../types";
@@ -146,7 +146,7 @@ export function MemoryEditorModal(props: MemoryEditorModalProps) {
                     <TextField
                         value={caption}
                         disabled={saving}
-                        onChange={(e: { target: { value: string } }) => setCaption(e.target.value.slice(0, CAPTION_MAX_LEN))}
+                        onChange={(e: { target: { value: string } }) => setCaption(cleanTextInput(e.target.value).slice(0, CAPTION_MAX_LEN))}
                     />
                 </div>
 

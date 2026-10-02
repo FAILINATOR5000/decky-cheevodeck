@@ -8,6 +8,7 @@ from utils import (
     NOTE_STORED_MAX_LEN,
     TAG_PREFIX_PATTERN,
     clean_bulk_tag,
+    clean_tag_prefix,
     ensure_dir,
     is_newer_schema,
     load_json_file,
@@ -372,7 +373,7 @@ class EventsStore:
             item = items.get(key)
             if item is None:
                 return {"ok": False, "error": "not_tracked"}
-            text = _clean_note(note)
+            text = clean_tag_prefix(_clean_note(note))
             item["note"] = text
             item["noteColor"] = _clean_color(color) if text else ""
             item["noteEditedAt"] = _now_ms() if text else 0

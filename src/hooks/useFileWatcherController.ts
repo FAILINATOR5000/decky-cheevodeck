@@ -22,6 +22,7 @@ import { t, type LanguageCode } from "../locales";
 import { openPathPicker } from "../components/pickers/FilePickerModal";
 import type { FileWatcherBucket, FileWatcherFinding, FileWatcherSpeed, FileWatcherState } from "../types";
 import { logError } from "../utils/errors";
+import { quickAccessIsHidden } from "../utils/quickAccess";
 import { REPORTED_BUCKETS, buildFileWatcherReport } from "../utils/fileWatcher";
 
 const ACTIVE_POLL_MS = 1000;
@@ -106,7 +107,7 @@ export function useFileWatcherController({ isActive, language }: UseFileWatcherC
             return;
         }
         const timer = window.setInterval(() => {
-            if (document.visibilityState !== "visible" || loadingRef.current) {
+            if (quickAccessIsHidden() || loadingRef.current) {
                 return;
             }
             void pollPass();

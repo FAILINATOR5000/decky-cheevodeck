@@ -1,6 +1,7 @@
 import type { AchievementRow, Payload } from "../types";
 import type { AchievementSort, FriendAchievementFilter, LeaderboardAudience, MainAchievementFilter, NoteColor, TrackedAchievementAction, TrackedAchievementSort, TrackedColor, TrackedSetAButtonMode, TrackedSetFilter, TrackedSetGameSort, TrackedSetSelectorSort, TrackedSetViewMode } from "../types";
 import { formatInteger } from "./format";
+import { LEADING_RUN, cleanTagInput } from "./tags";
 import { type LanguageCode, DEFAULT_LANGUAGE, t } from "../locales";
 
 export function earned(a: AchievementRow) {
@@ -317,9 +318,13 @@ export type ParsedNote = {
 
 export const TAG_MAX_LEN = 32;
 
-const TAG_PATTERN = new RegExp(`^\\s*\\[([^\\]\\n]{1,${TAG_MAX_LEN}})\\]\\s*`);
+const TAG_PATTERN = new RegExp(`^\\s*\\[([^\\]\\n]{1,${TAG_MAX_LEN}})\\]\\s*`, "u");
 
 const RESERVED_TAG_KEYS: ReadonlySet<string> = new Set(["completed"]);
+
+export function isReservedTag(tag: string): boolean {
+    return RESERVED_TAG_KEYS.has(tag.trim().toLowerCase());
+}
 
 export function parseNoteTag(note: string | null | undefined): ParsedNote {
     const source = (note ?? "").toString();
@@ -360,13 +365,25 @@ export function resolveNoteTag(
     fieldTag: string,
     body: string,
     bodyAtOpen: string
-): { tag: string | null; body: string } {
-    const typed = parseNoteTag(body);
-    const lifted = tagPrefixOf(body) === tagPrefixOf(bodyAtOpen) ? null : typed.tag;
-    return {
-        tag: lifted ?? (fieldTag.trim() || null),
-        body: lifted === null ? body : typed.body
-    };
+): { tag: string | null; body: string; lifted: string | null } {
+    const field = fieldTag.trim();
+    const fieldTagUsable = field && !isReservedTag(field) ? field : null;
+    const match = tagPrefixOf(body) === tagPrefixOf(bodyAtOpen) ? null : body.match(TAG_PATTERN);
+    const typed = match ? cleanTagInput(match[1], TAG_MAX_LEN).trim() : "";
+    if (match && typed) {
+        return { tag: isReservedTag(typed) ? null : typed, body: body.slice(match[0].length), lifted: typed };
+    }
+    return { tag: fieldTagUsable, body: fieldTagUsable ? body : cleanTagPrefix(body), lifted: null };
+}
+
+function cleanTagPrefix(text: string): string {
+    const rest = text.slice(text.match(LEADING_RUN)?.[0].length ?? 0);
+    const match = rest.match(TAG_PATTERN);
+    if (!match) {
+        return rest;
+    }
+    const open = match[0].indexOf("[") + 1;
+    return rest.slice(0, open) + cleanTagInput(match[1], TAG_MAX_LEN) + rest.slice(open + match[1].length);
 }
 
 export function revealLeadingTag(body: string): { tag: string; body: string } {
@@ -374,7 +391,11 @@ export function revealLeadingTag(body: string): { tag: string; body: string } {
     if (lead.tag === null || parseNoteTag(lead.body).tag !== null) {
         return { tag: "", body };
     }
-    return { tag: lead.tag, body: lead.body };
+    const tag = cleanTagInput(lead.tag, TAG_MAX_LEN).trim();
+    if (!tag) {
+        return { tag: "", body };
+    }
+    return { tag, body: lead.body };
 }
 
 export const NOTE_COLOR_OPTIONS: readonly NoteColor[] = [

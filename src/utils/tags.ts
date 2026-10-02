@@ -47,10 +47,20 @@ export function unusedTagSeeds(
     return seeds.filter((seed) => !taken.has(fold(seed.tag)));
 }
 
-const TAG_INPUT_STRIP = /[[\]\n\r\t]/g;
+const UNSAFE_CHARS = "\\u0000-\\u001f\\u007f-\\u009f\\u00ad\\u200b-\\u200f\\u202a-\\u202e\\u2060\\u2066-\\u2069\\ufeff";
+const UNSAFE_TEXT = new RegExp(`[${UNSAFE_CHARS}]`, "g");
+
+export const LEADING_RUN = new RegExp(`^[\\s${UNSAFE_CHARS}]*`);
+
+const TAG_INPUT_STRIP = /[[\]]/g;
+
+export function cleanTextInput(raw: string): string {
+    return raw.replace(UNSAFE_TEXT, "");
+}
 
 export function cleanTagInput(raw: string, maxLen: number): string {
-    return raw.replace(TAG_INPUT_STRIP, "").slice(0, maxLen);
+    const stripped = cleanTextInput(raw).replace(TAG_INPUT_STRIP, "");
+    return Array.from(stripped).slice(0, maxLen).join("");
 }
 
 export function orderedTagsByRecency(

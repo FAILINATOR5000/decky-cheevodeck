@@ -42,6 +42,7 @@ import type {
 
 import type { NavIntent } from "../nav";
 import { logError } from "../utils/errors";
+import { quickAccessIsHidden, quickAccessWindow } from "../utils/quickAccess";
 import { findFriendRowIndex, sortFriendRowsForDisplay, userRefFor } from "../utils/friends";
 import {
     t,
@@ -597,15 +598,6 @@ export function useFriendsController({
             }
         }
 
-        const active = document.activeElement as HTMLElement | null;
-        if (active && searchRoot.contains(active)) {
-            const focusContainer = active.closest?.('[data-focus-key^="friend:"]') as HTMLElement | null;
-            const selectionKey = extractFriendSelectionKey(focusContainer?.getAttribute("data-focus-key"));
-            if (selectionKey) {
-                return selectionKey;
-            }
-        }
-
         return null;
     }, [extractFriendSelectionKey, rootRef]);
 
@@ -624,7 +616,7 @@ export function useFriendsController({
         }
 
         const intervalId = window.setInterval(() => {
-            if (document.visibilityState !== "visible") {
+            if (quickAccessIsHidden()) {
                 return;
             }
             handleDetectedFriendSelectionKey(detectSelectedFriendSelectionKey());
@@ -1132,16 +1124,20 @@ export function useFriendsController({
     }, [view]);
 
     useEffect(() => {
+        const panel = quickAccessWindow()?.document;
+        if (!panel) {
+            return;
+        }
         function onVisibilityChange() {
-            if (document.visibilityState === "visible") {
+            if (panel?.visibilityState === "visible") {
                 return;
             }
             friendRowRefreshQueueRef.current = [];
             setLiveRefreshingFriendUsernames((current) => (current.size === 0 ? current : new Set()));
         }
-        document.addEventListener("visibilitychange", onVisibilityChange);
+        panel.addEventListener("visibilitychange", onVisibilityChange);
         return () => {
-            document.removeEventListener("visibilitychange", onVisibilityChange);
+            panel.removeEventListener("visibilitychange", onVisibilityChange);
         };
     }, []);
 

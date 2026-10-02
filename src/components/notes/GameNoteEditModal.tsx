@@ -5,10 +5,10 @@ import { ErrorText } from "../ui/ErrorText";
 import { NoteColorPicker } from "./NoteColorPicker";
 import { localizeRuntimeText, t, type LanguageCode } from "../../locales";
 import type { GameNote, GameNoteReminderMode, NoteColor, OkResult } from "../../types";
-import { NOTE_TEXT_MAX_LEN, TAG_MAX_LEN, parseNoteTag, prefixNoteTag, resolveNoteTag, revealLeadingTag } from "../../utils/achievements";
+import { NOTE_TEXT_MAX_LEN, TAG_MAX_LEN, isReservedTag, parseNoteTag, prefixNoteTag, resolveNoteTag, revealLeadingTag } from "../../utils/achievements";
 import { TagPickerModal } from "../tags/TagPickerModal";
 import { showManagedModal } from "../../utils/modalRegistry";
-import { GAME_NOTE_TAG_SEEDS, cleanTagInput } from "../../utils/tags";
+import { GAME_NOTE_TAG_SEEDS, cleanTagInput, cleanTextInput } from "../../utils/tags";
 import { modalSize } from "../../utils/scale";
 import { achievementGreen, errorRed, compactButtonStyle } from "../../utils/style";
 import { REMINDER_PRESETS, matchingPreset, parseCustomMinutes, type ReminderUnit, type ReminderPreset } from "../../utils/reminders";
@@ -86,7 +86,7 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
 
     const [titleText, setTitleText] = useState(existing?.title ?? "");
     const [bodyText, setBodyText] = useState(stored.body);
-    const [tagText, setTagText] = useState(stored.tag ?? "");
+    const [tagText, setTagText] = useState(cleanTagInput(stored.tag ?? "", TAG_MAX_LEN));
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [deleteArmed, setDeleteArmed] = useState(false);
@@ -358,7 +358,7 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
         if (resolved.body === bodyText) {
             return;
         }
-        setTagText(resolved.tag ?? "");
+        setTagText(resolved.lifted ?? tagText);
         setBodyText(resolved.body);
     }
 
@@ -450,7 +450,7 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
                             </div>
                             <TextField
                                 value={titleText}
-                                onChange={(e: any) => setTitleText(e?.target?.value ?? "")}
+                                onChange={(e: any) => setTitleText(cleanTextInput(e?.target?.value ?? ""))}
                                 disabled={saving}
                             />
                             <div
@@ -479,7 +479,7 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
                             <div onBlurCapture={liftTypedTag}>
                                 <TextField
                                     value={bodyText}
-                                    onChange={(e: any) => setBodyText(e?.target?.value ?? "")}
+                                    onChange={(e: any) => setBodyText(cleanTextInput(e?.target?.value ?? ""))}
                                     disabled={saving}
                                 />
                             </div>
@@ -514,6 +514,11 @@ export function GameNoteEditModal(props: GameNoteEditModalProps) {
                                 disabled={saving}
                             />
                         </div>
+                        {isReservedTag(tagText) && (
+                            <div style={{ fontSize: `${modalSize(13)}px`, color: errorRed }}>
+                                {t(language, "tag_reserved_hint_game_notes")}
+                            </div>
+                        )}
                         <Focusable
                             style={{
                                 display: "flex",

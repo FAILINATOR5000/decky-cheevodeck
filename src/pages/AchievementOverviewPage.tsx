@@ -210,6 +210,13 @@ function AchievementOverviewPage(props: AchievementOverviewPageProps) {
         }
     });
 
+    const [settledAchievementId, setSettledAchievementId] = useState<number | null>(null);
+    useEffect(() => {
+        if (commentsLoaded && achievementId != null) {
+            setSettledAchievementId(achievementId);
+        }
+    }, [commentsLoaded, achievementId]);
+
     if (view !== "achievementOverview") {
         return null;
     }
@@ -259,12 +266,6 @@ function AchievementOverviewPage(props: AchievementOverviewPageProps) {
         marginTop: "8px"
     };
 
-    const [settledAchievementId, setSettledAchievementId] = useState<number | null>(null);
-    useEffect(() => {
-        if (commentsLoaded && achievementId != null) {
-            setSettledAchievementId(achievementId);
-        }
-    }, [commentsLoaded, achievementId]);
     const commentsSettled = achievementId != null
         && (commentsLoaded || settledAchievementId === achievementId);
 

@@ -6,6 +6,7 @@ import uuid
 
 from utils import (
     TAG_PREFIX_PATTERN,
+    clean_tag_prefix,
     ensure_dir,
     is_newer_schema,
     load_json_file,
@@ -303,6 +304,7 @@ class DolphinMappingsStore:
         cleaned = self._clean_mapping(mapping)
         if cleaned is None:
             return {"ok": False, "error": "invalid_mapping"}
+        cleaned["name"] = clean_tag_prefix(cleaned["name"])
 
         with self._lock:
             data = self._load_raw()

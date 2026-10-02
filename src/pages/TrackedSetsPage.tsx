@@ -227,7 +227,10 @@ function TrackedSetsPage(props: TrackedSetsPageProps) {
     if (props.view !== "trackedSets" && props.view !== "trackedSetOpen") {
         return null;
     }
+    return <TrackedSetsPageBody {...props} />;
+}
 
+function TrackedSetsPageBody(props: TrackedSetsPageProps) {
     const {
         language,
         buttonSpacing,

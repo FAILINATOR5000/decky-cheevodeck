@@ -54,12 +54,6 @@ export function FocusableItem(props: FocusableItemProps) {
             return;
         }
 
-        const root = wrapperRef.current?.closest("[data-cheevodeck-root]") as HTMLElement | null;
-        const active = document.activeElement as HTMLElement | null;
-        if (root && active && root.contains(active)) {
-            return;
-        }
-
         const target = wrapperRef.current?.querySelector("button, [tabindex]") as HTMLElement | null;
         if (!target) {
             return;

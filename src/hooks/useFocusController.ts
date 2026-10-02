@@ -12,10 +12,8 @@ import type { ViewKey } from "../types";
 
 interface UseFocusControllerArgs {
     view: ViewKey;
-    viewRef: RefObject<ViewKey>;
     loading: boolean;
     friendProfileOverlayText: string | null;
-    mountedRef: RefObject<boolean>;
     rootRef: RefObject<HTMLDivElement | null>;
     pendingFocusKey: string | null;
     setPendingFocusKey: (value: string | null) => void;
@@ -28,10 +26,8 @@ function escapeAttrValue(value: string): string {
 
 export function useFocusController({
     view,
-    viewRef,
     loading,
     friendProfileOverlayText,
-    mountedRef,
     rootRef,
     pendingFocusKey,
     setPendingFocusKey,
@@ -39,10 +35,9 @@ export function useFocusController({
 }: UseFocusControllerArgs) {
     const lastViewRef = useRef<ViewKey>("achievements");
     const needsViewportResetRef = useRef(false);
-    const panelHiddenRef = useRef(false);
 
-    const [listResetToken, setListResetToken] = useState(0);
-    const [focusScopeResetToken, setFocusScopeResetToken] = useState(0);
+    const listResetToken = 0;
+    const focusScopeResetToken = 0;
     const [achievementsInitialAutoFocusDone, setAchievementsInitialAutoFocusDone] = useState(false);
     const [mainEntryToken, setMainEntryToken] = useState(0);
     const [mainEntryFromView, setMainEntryFromView] = useState<ViewKey | null>(null);
@@ -97,11 +92,6 @@ export function useFocusController({
         return ROUTES[currentView].focusKey;
     }, []);
 
-    const triggerFocusScopeReset = useCallback(() => {
-        setFocusScopeResetToken((current) => current + 1);
-        setListResetToken((current) => current + 1);
-    }, []);
-
     useEffect(() => {
         logFocusDebug(
             "pending",
@@ -109,79 +99,6 @@ export function useFocusController({
             `view=${view} last=${lastViewRef.current} loading=${loading} overlay=${Boolean(friendProfileOverlayText)}`
         );
     }, [pendingFocusKey, view, loading, friendProfileOverlayText]);
-
-    useEffect(() => {
-        logFocusDebug("scope-reset", "(token)", `token=${focusScopeResetToken}`);
-    }, [focusScopeResetToken]);
-
-    useEffect(() => {
-        function restoreTopLevelFocus() {
-            if (!mountedRef.current || loading || Boolean(friendProfileOverlayText)) {
-                logFocusDebug(
-                    "restore-bail",
-                    "(reshow)",
-                    `mounted=${mountedRef.current} loading=${loading} overlay=${Boolean(friendProfileOverlayText)}`
-                );
-                return;
-            }
-            if (viewRef.current === "achievements") {
-                logFocusDebug("restore-bail", "(reshow)", "view=achievements");
-                return;
-            }
-            const alreadyFocused = currentFocusKeyInRoot();
-            if (alreadyFocused) {
-                logFocusDebug("restore-bail", alreadyFocused, "already-focused");
-                return;
-            }
-            const key = topLevelFocusKeyForView(viewRef.current);
-            logFocusDebug("restore", key, `view=${viewRef.current}`);
-            needsViewportResetRef.current = true;
-            triggerFocusScopeReset();
-            setPendingFocusKey(key);
-        }
-
-        function onVisibilityChange() {
-            if (document.visibilityState === "hidden") {
-                logFocusDebug("vis", "(hidden)", `panelHidden ${panelHiddenRef.current}->true`);
-                panelHiddenRef.current = true;
-                setPendingFocusKey(null);
-                triggerFocusScopeReset();
-                return;
-            }
-            if (!panelHiddenRef.current) {
-                return;
-            }
-            logFocusDebug("vis", "(visible)", "panelHidden true->false");
-            panelHiddenRef.current = false;
-            restoreTopLevelFocus();
-        }
-
-        function onWindowBlur() {
-            logFocusDebug("blur", "(blur)", `panelHidden ${panelHiddenRef.current}->true`);
-            panelHiddenRef.current = true;
-            setPendingFocusKey(null);
-            triggerFocusScopeReset();
-        }
-
-        function onWindowFocus() {
-            if (!panelHiddenRef.current) {
-                return;
-            }
-            logFocusDebug("focus", "(focus)", "panelHidden true->false");
-            panelHiddenRef.current = false;
-            restoreTopLevelFocus();
-        }
-
-        document.addEventListener("visibilitychange", onVisibilityChange);
-        window.addEventListener("blur", onWindowBlur);
-        window.addEventListener("focus", onWindowFocus);
-
-        return () => {
-            document.removeEventListener("visibilitychange", onVisibilityChange);
-            window.removeEventListener("blur", onWindowBlur);
-            window.removeEventListener("focus", onWindowFocus);
-        };
-    }, [loading, friendProfileOverlayText, topLevelFocusKeyForView, triggerFocusScopeReset, currentFocusKeyInRoot]);
 
     useEffect(() => {
         if (loading || Boolean(friendProfileOverlayText)) {

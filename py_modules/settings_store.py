@@ -9,6 +9,7 @@ from utils import (
     NOTE_STORED_MAX_LEN,
     TAG_PREFIX_PATTERN,
     clean_bulk_tag,
+    clean_tag_prefix,
     ensure_dir,
     load_json_file,
     norm_game_id,
@@ -3260,7 +3261,7 @@ class SettingsStore:
                 "notesColor": {},
             }
 
-        note_text = "" if note is None else str(note).strip()
+        note_text = "" if note is None else clean_tag_prefix(str(note).strip())
 
         with self._lock_for_game(key):
             tracked_dir = self._tracked_dir

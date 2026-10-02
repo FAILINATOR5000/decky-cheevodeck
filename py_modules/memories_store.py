@@ -12,6 +12,7 @@ import decky
 from settings_store import _NOTE_COLOR_OPTIONS
 from utils import (
     TAG_MAX_LEN,
+    TAG_STRIP_PATTERN,
     NewerSchemaFile,
     ensure_dir,
     is_newer_schema,
@@ -64,8 +65,6 @@ GRID_COLUMN_OPTIONS = (1, 2, 3)
 DEFAULT_GRID_COLUMNS = 2
 
 _GAME_KEY_PATTERN = re.compile(r"^-?\d+$")
-
-_TAG_CLEAN_PATTERN = re.compile(r"[\[\]\n\r\t]")
 
 _CLIP_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,120}$")
 
@@ -645,7 +644,7 @@ class MemoriesStore:
     def _clean_tag(self, raw):
         if not isinstance(raw, str):
             return None
-        cleaned = _TAG_CLEAN_PATTERN.sub("", raw).strip()[:MEMORY_TAG_MAX_LEN]
+        cleaned = TAG_STRIP_PATTERN.sub("", raw).strip()[:MEMORY_TAG_MAX_LEN]
         return cleaned or None
 
     def _clean_color(self, raw) -> str:

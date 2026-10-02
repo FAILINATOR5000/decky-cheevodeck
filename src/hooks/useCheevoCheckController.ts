@@ -13,6 +13,7 @@ import { t, type LanguageCode } from "../locales";
 import type { CheevoCheckState } from "../types";
 import { clearCheevoCheckFocusReturn } from "../utils/cheevoCheckFocusReturn";
 import { logError } from "../utils/errors";
+import { quickAccessIsHidden } from "../utils/quickAccess";
 import { openPathPicker } from "../components/pickers/FilePickerModal";
 
 type UseCheevoCheckControllerArgs = {
@@ -86,7 +87,7 @@ export function useCheevoCheckController({ isActive, language }: UseCheevoCheckC
             return;
         }
         const timer = window.setInterval(() => {
-            if (document.visibilityState !== "visible" || loadingRef.current) {
+            if (quickAccessIsHidden() || loadingRef.current) {
                 return;
             }
             void pollScan();

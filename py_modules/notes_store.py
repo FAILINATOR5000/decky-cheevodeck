@@ -3,13 +3,14 @@ from pathlib import Path
 import secrets
 import threading
 import time
-import re
 
 from settings_store import _NOTE_COLOR_OPTIONS
 from utils import (
     NOTE_STORED_MAX_LEN,
     TAG_MAX_LEN,
     TAG_PREFIX_PATTERN,
+    TAG_STRIP_PATTERN,
+    clean_tag_prefix,
     ensure_dir,
     is_newer_schema,
     load_json_file,
@@ -39,8 +40,6 @@ _RESERVED_TAG_KEYS = {"completed"}
 
 REMINDER_MIN_MINUTES = 1
 REMINDER_MAX_MINUTES = 60 * 24 * 365
-
-_TAG_CLEAN_PATTERN = re.compile(r"[\[\]\n\r\t]")
 
 UNTAGGED_COLLAPSE_KEY = "__UNTAGGED__"
 COMPLETED_COLLAPSE_KEY = "__COMPLETED__"
@@ -203,7 +202,7 @@ class NotesStore:
     def _clean_tag(self, raw):
         if not isinstance(raw, str):
             return None
-        cleaned = _TAG_CLEAN_PATTERN.sub("", raw).strip()[:NOTE_TAG_MAX_LEN]
+        cleaned = TAG_STRIP_PATTERN.sub("", raw).strip()[:NOTE_TAG_MAX_LEN]
         if not cleaned:
             return None
         if cleaned.lower() in _RESERVED_TAG_KEYS:
@@ -412,7 +411,7 @@ class NotesStore:
         if key is None:
             return {"ok": False, "error": "invalid_game_id"}
 
-        clean_body = self._clean_body(body)
+        clean_body = clean_tag_prefix(self._clean_body(body))
         if not clean_body:
             return {"ok": False, "error": "empty_body"}
 
@@ -479,7 +478,7 @@ class NotesStore:
         if not isinstance(note_id, str) or not note_id:
             return {"ok": False, "error": "invalid_note_id"}
 
-        clean_body = self._clean_body(body)
+        clean_body = clean_tag_prefix(self._clean_body(body))
         if not clean_body:
             return self.delete_note(game_id, note_id)
 

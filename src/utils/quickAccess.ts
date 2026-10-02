@@ -14,7 +14,7 @@ export function quickAccessIsHidden(): boolean {
     if (win === null) {
         if (!reportedMissingQuickAccess) {
             reportedMissingQuickAccess = true;
-            logError("quickAccess: no Quick Access window, back buttons stand down", null);
+            logError("quickAccess: no Quick Access window, so back buttons stand down and pollers never pause", null);
         }
         return false;
     }

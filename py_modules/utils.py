@@ -31,15 +31,29 @@ TAG_PREFIX_PATTERN = re.compile(r"^\s*\[([^\]\n]{1,%d})\]\s*" % TAG_MAX_LEN)
 NOTE_TEXT_MAX_LEN = 500
 NOTE_STORED_MAX_LEN = NOTE_TEXT_MAX_LEN + TAG_MAX_LEN + 2
 
-_TAG_REJECT_PATTERN = re.compile(r"[\[\]\n\r\t]")
+_UNSAFE_TEXT_CHARS = r"\x00-\x1f\x7f-\x9f\xad\u200b-\u200f\u202a-\u202e\u2060\u2066-\u2069\ufeff"
+
+TAG_STRIP_PATTERN = re.compile(r"[\[\]%s]" % _UNSAFE_TEXT_CHARS)
+
+_LEADING_RUN_PATTERN = re.compile(r"[\s%s]*" % _UNSAFE_TEXT_CHARS)
+
 _RESERVED_TAG_KEYS = frozenset({"completed"})
 
 
 def clean_bulk_tag(raw):
     tag = str(raw or "").strip()[:TAG_MAX_LEN].strip()
-    if not tag or _TAG_REJECT_PATTERN.search(tag) or tag.lower() in _RESERVED_TAG_KEYS:
+    if not tag or TAG_STRIP_PATTERN.search(tag) or tag.lower() in _RESERVED_TAG_KEYS:
         return None
     return tag
+
+
+def clean_tag_prefix(text):
+    text = text[_LEADING_RUN_PATTERN.match(text).end():]
+    match = TAG_PREFIX_PATTERN.match(text)
+    if match is None:
+        return text
+    inside = TAG_STRIP_PATTERN.sub("", match.group(1))
+    return text[:match.start(1)] + inside + text[match.end(1):]
 
 
 class WalkYieldedForClear(Exception):

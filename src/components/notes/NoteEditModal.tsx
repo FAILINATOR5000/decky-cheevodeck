@@ -5,10 +5,10 @@ import { ErrorText } from "../ui/ErrorText";
 import { NoteColorPicker } from "./NoteColorPicker";
 import { localizeRuntimeText, t, type LanguageCode } from "../../locales";
 import type { AchievementRow, NoteColor, OkResult } from "../../types";
-import { NOTE_TEXT_MAX_LEN, parseNoteTag, prefixNoteTag, resolveNoteTag, revealLeadingTag, TAG_MAX_LEN } from "../../utils/achievements";
+import { NOTE_TEXT_MAX_LEN, isReservedTag, parseNoteTag, prefixNoteTag, resolveNoteTag, revealLeadingTag, TAG_MAX_LEN } from "../../utils/achievements";
 import { TagPickerModal } from "../tags/TagPickerModal";
 import { showManagedModal } from "../../utils/modalRegistry";
-import { TRACKED_TAG_SEEDS, cleanTagInput } from "../../utils/tags";
+import { TRACKED_TAG_SEEDS, cleanTagInput, cleanTextInput } from "../../utils/tags";
 import { logError } from "../../utils/errors";
 import { modalSize } from "../../utils/scale";
 import { achievementGreen, errorRed, compactButtonStyle } from "../../utils/style";
@@ -52,7 +52,7 @@ export function NoteEditModal(props: NoteEditModalProps) {
     const stored = parseNoteTag(currentNote);
 
     const [noteText, setNoteText] = useState(stored.body);
-    const [tagText, setTagText] = useState(stored.tag ?? "");
+    const [tagText, setTagText] = useState(cleanTagInput(stored.tag ?? "", TAG_MAX_LEN));
     const [savingNote, setSavingNote] = useState(false);
     const [noteError, setNoteError] = useState<string | null>(null);
     const [recentTags, setRecentTags] = useState<string[]>([]);
@@ -166,7 +166,7 @@ export function NoteEditModal(props: NoteEditModalProps) {
         if (resolved.body === noteText) {
             return;
         }
-        setTagText(resolved.tag ?? "");
+        setTagText(resolved.lifted ?? tagText);
         setNoteText(resolved.body);
     }
 
@@ -254,7 +254,7 @@ export function NoteEditModal(props: NoteEditModalProps) {
                         <div onBlurCapture={liftTypedTag}>
                             <TextField
                                 value={noteText}
-                                onChange={(e: any) => setNoteText(e?.target?.value ?? "")}
+                                onChange={(e: any) => setNoteText(cleanTextInput(e?.target?.value ?? ""))}
                                 disabled={savingNote}
                             />
                         </div>
@@ -287,6 +287,11 @@ export function NoteEditModal(props: NoteEditModalProps) {
                                 disabled={savingNote}
                             />
                         </div>
+                        {isReservedTag(tagText) && (
+                            <div style={{ fontSize: `${modalSize(13)}px`, color: errorRed }}>
+                                {t(language, "tag_reserved_hint")}
+                            </div>
+                        )}
                         <Focusable
                             style={{
                                 display: "flex",

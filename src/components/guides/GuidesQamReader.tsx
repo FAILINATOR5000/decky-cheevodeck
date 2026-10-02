@@ -20,6 +20,7 @@ import type { GuideUpdateOutcome, GuidesControllerActions, GuidesControllerState
 import { chunkAnchorHtml, findChunkForLine, spotTarget, type GuideSpot } from "../../utils/guidesChunk";
 import { getCachedGuidePages, logGuidesDebug } from "../../api";
 import { achievementGreen, bodyTextStyle, regularButtonSpacingStyle, warnAmber } from "../../utils/style";
+import { quickAccessWindow } from "../../utils/quickAccess";
 import { NETWORK_WAIT_MS, useSlowWait } from "../../hooks/useSlowWait";
 import { InlineSpinner } from "../ui/InlineSpinner";
 
@@ -149,6 +150,10 @@ export function GuidesQamReader(props: GuidesQamReaderProps) {
     }, []);
 
     useEffect(() => {
+        const panel = quickAccessWindow();
+        if (!panel) {
+            return;
+        }
         function persistNow() {
             if (suppressUnmountPersistRef.current) {
                 return;
@@ -156,15 +161,15 @@ export function GuidesQamReader(props: GuidesQamReaderProps) {
             void persistRef.current();
         }
         function onVisibilityChange() {
-            if (document.visibilityState === "hidden") {
+            if (panel?.document.visibilityState === "hidden") {
                 persistNow();
             }
         }
-        document.addEventListener("visibilitychange", onVisibilityChange);
-        window.addEventListener("blur", persistNow);
+        panel.document.addEventListener("visibilitychange", onVisibilityChange);
+        panel.addEventListener("blur", persistNow);
         return () => {
-            document.removeEventListener("visibilitychange", onVisibilityChange);
-            window.removeEventListener("blur", persistNow);
+            panel.document.removeEventListener("visibilitychange", onVisibilityChange);
+            panel.removeEventListener("blur", persistNow);
         };
     }, []);
 

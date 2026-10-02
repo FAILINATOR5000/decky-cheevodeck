@@ -7,10 +7,10 @@ import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { t, type LanguageCode } from "../../locales";
 import type { NoteColor } from "../../types";
-import { NOTE_TEXT_MAX_LEN, TAG_MAX_LEN, parseNoteTag, prefixNoteTag, resolveNoteTag, revealLeadingTag } from "../../utils/achievements";
+import { NOTE_TEXT_MAX_LEN, TAG_MAX_LEN, isReservedTag, parseNoteTag, prefixNoteTag, resolveNoteTag, revealLeadingTag } from "../../utils/achievements";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { playOkSound } from "../../utils/navSound";
-import { cleanTagInput } from "../../utils/tags";
+import { cleanTagInput, cleanTextInput } from "../../utils/tags";
 import { modalSize } from "../../utils/scale";
 import { achievementGreen, compactButtonStyle, errorRed } from "../../utils/style";
 
@@ -42,7 +42,7 @@ export function EventNoteEditModal(props: EventNoteEditModalProps) {
 
     const stored = parseNoteTag(props.note);
     const [bodyText, setBodyText] = useState(stored.body);
-    const [tagText, setTagText] = useState(stored.tag ?? "");
+    const [tagText, setTagText] = useState(cleanTagInput(stored.tag ?? "", TAG_MAX_LEN));
     const [selectedColor, setSelectedColor] = useState<NoteColor>(props.color || defaultNoteColor || "default");
     const [saving, setSaving] = useState(false);
 
@@ -93,7 +93,7 @@ export function EventNoteEditModal(props: EventNoteEditModalProps) {
         if (saving || resolved.body === bodyText) {
             return;
         }
-        setTagText(resolved.tag ?? "");
+        setTagText(resolved.lifted ?? tagText);
         setBodyText(resolved.body);
     }
 
@@ -169,7 +169,7 @@ export function EventNoteEditModal(props: EventNoteEditModalProps) {
                         <div onBlurCapture={liftTypedTag}>
                             <TextField
                                 value={bodyText}
-                                onChange={(e: any) => setBodyText(e?.target?.value ?? "")}
+                                onChange={(e: any) => setBodyText(cleanTextInput(e?.target?.value ?? ""))}
                                 disabled={saving}
                             />
                         </div>
@@ -194,6 +194,11 @@ export function EventNoteEditModal(props: EventNoteEditModalProps) {
                                 disabled={saving}
                             />
                         </div>
+                        {isReservedTag(tagText) && (
+                            <div style={{ fontSize: `${modalSize(13)}px`, color: errorRed }}>
+                                {t(language, "tag_reserved_hint_events")}
+                            </div>
+                        )}
                         <Focusable
                             style={{ display: "flex", flexDirection: "row", gap: "8px", flexWrap: "wrap", alignItems: "center" }}
                             flow-children="grid"

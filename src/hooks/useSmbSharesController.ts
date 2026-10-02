@@ -9,6 +9,7 @@ import {
 } from "../api";
 import type { SmbShare, SmbSharePayload } from "../types";
 import { logError } from "../utils/errors";
+import { quickAccessIsHidden } from "../utils/quickAccess";
 
 type UseSmbSharesControllerArgs = {
     isActive: boolean;
@@ -67,7 +68,7 @@ export function useSmbSharesController({ isActive }: UseSmbSharesControllerArgs)
             return;
         }
         const timer = window.setInterval(() => {
-            if (document.visibilityState !== "visible") {
+            if (quickAccessIsHidden()) {
                 return;
             }
             if (busyRef.current || loadingRef.current) {

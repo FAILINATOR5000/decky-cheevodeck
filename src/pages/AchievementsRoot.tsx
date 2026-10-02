@@ -266,6 +266,7 @@ import { openExternalUrl, raAchievementUrl, raAchievementCommentsUrl, raGameUrl,
 import { userRefFor } from "../utils/friends";
 import { loadCachedImage } from "../utils/loadCachedImage";
 import { beginGuardedRun } from "../utils/runGuard";
+import { quickAccessWindow } from "../utils/quickAccess";
 import type { NotificationNav } from "../notifications/registry";
 import { t } from "../locales";
 
@@ -1807,10 +1808,8 @@ function AchievementsRoot() {
         }
     } = useFocusController({
         view,
-        viewRef,
         loading,
         friendProfileOverlayText,
-        mountedRef,
         rootRef,
         pendingFocusKey,
         setPendingFocusKey,
@@ -2916,8 +2915,12 @@ function AchievementsRoot() {
     });
 
     useEffect(() => {
+        const panel = quickAccessWindow()?.document;
+        if (!panel) {
+            return;
+        }
         function onVisibilityChange() {
-            if (document.visibilityState !== "visible") {
+            if (panel?.visibilityState !== "visible") {
                 return;
             }
             if (viewRef.current !== "achievements") {
@@ -2926,9 +2929,9 @@ function AchievementsRoot() {
             setAchievementsResumeToken((current) => current + 1);
         }
 
-        document.addEventListener("visibilitychange", onVisibilityChange);
+        panel.addEventListener("visibilitychange", onVisibilityChange);
         return () => {
-            document.removeEventListener("visibilitychange", onVisibilityChange);
+            panel.removeEventListener("visibilitychange", onVisibilityChange);
         };
     }, []);
 

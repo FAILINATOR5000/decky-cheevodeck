@@ -16,11 +16,11 @@ import type {
     MappingPlayer,
     WiiStyle
 } from "../../types";
-import { TAG_MAX_LEN, parseNoteTag, prefixNoteTag, resolveNoteTag } from "../../utils/achievements";
+import { TAG_MAX_LEN, isReservedTag, parseNoteTag, prefixNoteTag, resolveNoteTag } from "../../utils/achievements";
 import { TagPickerModal } from "../tags/TagPickerModal";
 import { MODAL_ECHO_WINDOW_MS, modalEchoPending, showManagedModal } from "../../utils/modalRegistry";
 import { playBackSound } from "../../utils/navSound";
-import { DOLPHIN_TAG_SEEDS, cleanTagInput } from "../../utils/tags";
+import { DOLPHIN_TAG_SEEDS, cleanTagInput, cleanTextInput } from "../../utils/tags";
 import {
     controllerTypeLabel,
     aaFaceLayout,
@@ -118,7 +118,7 @@ export function DolphinMappingModal(props: DolphinMappingModalProps) {
     const stored = parseNoteTag(existing?.name ?? "");
 
     const [name, setName] = useState(stored.body);
-    const [tagText, setTagText] = useState(stored.tag ?? "");
+    const [tagText, setTagText] = useState(cleanTagInput(stored.tag ?? "", TAG_MAX_LEN));
     const [bodyText, setBodyText] = useState(existing?.body ?? "");
     const [system, setSystem] = useState<DolphinSystem>(existing?.system ?? "gamecube");
     const [wiiStyle, setWiiStyle] = useState<WiiStyle>(existing?.wiiStyle ?? "wiimote_sideways");
@@ -184,7 +184,7 @@ export function DolphinMappingModal(props: DolphinMappingModalProps) {
         if (resolved.body === name) {
             return;
         }
-        setTagText(resolved.tag ?? "");
+        setTagText(resolved.lifted ?? tagText);
         setName(resolved.body);
     }
 
@@ -374,7 +374,7 @@ export function DolphinMappingModal(props: DolphinMappingModalProps) {
                                 <div data-focus-key="dmapform:name" onBlurCapture={liftTypedTag}>
                                     <TextField
                                         value={name}
-                                        onChange={(e: any) => setName((e?.target?.value ?? "").slice(0, MAPPING_NAME_MAX_LEN))}
+                                        onChange={(e: any) => setName(cleanTextInput(e?.target?.value ?? "").slice(0, MAPPING_NAME_MAX_LEN))}
                                         disabled={saving}
                                     />
                                 </div>
@@ -401,6 +401,11 @@ export function DolphinMappingModal(props: DolphinMappingModalProps) {
                                         disabled={saving}
                                     />
                                 </div>
+                                {isReservedTag(tagText) && (
+                                    <div style={{ fontSize: `${modalSize(13)}px`, color: errorRed }}>
+                                        {t(language, "tag_reserved_hint")}
+                                    </div>
+                                )}
                                 <Focusable
                                     style={{ display: "flex", flexDirection: "row", gap: "8px", flexWrap: "wrap", alignItems: "center" }}
                                     flow-children="grid"
@@ -474,7 +479,7 @@ export function DolphinMappingModal(props: DolphinMappingModalProps) {
                                 <div data-focus-key="dmapform:body">
                                     <TextField
                                         value={bodyText}
-                                        onChange={(e: any) => setBodyText(e?.target?.value ?? "")}
+                                        onChange={(e: any) => setBodyText(cleanTextInput(e?.target?.value ?? ""))}
                                         disabled={saving}
                                     />
                                 </div>

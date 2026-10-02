@@ -73,6 +73,7 @@ import { BUTTON_OPTIONS, BUTTON_SECONDARY } from "../utils/gamepadButtons";
 import { NOTES_DOT_KEYFRAMES, regularButtonSpacingStyle, smallTextStyle, bodyTextStyle, achievementGreen, warnAmber, skyBlue } from "../utils/style";
 import { headerSize } from "../utils/scale";
 import { consoleInlineName } from "../utils/consoles";
+import { quickAccessWindow } from "../utils/quickAccess";
 
 // Layout constants
 const GAME_TICKER_FRESHNESS_MS = 60 * 60 * 1000;
@@ -1790,8 +1791,12 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
     }, [reminderEvent]);
 
     useEffect(() => {
+        const panel = quickAccessWindow()?.document;
+        if (!panel) {
+            return;
+        }
         function onVisibilityChange() {
-            if (document.visibilityState !== "hidden") {
+            if (panel?.visibilityState !== "hidden") {
                 return;
             }
             setTickerEvent(null);
@@ -1799,9 +1804,9 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
             setReminderEvent(null);
         }
 
-        document.addEventListener("visibilitychange", onVisibilityChange);
+        panel.addEventListener("visibilitychange", onVisibilityChange);
         return () => {
-            document.removeEventListener("visibilitychange", onVisibilityChange);
+            panel.removeEventListener("visibilitychange", onVisibilityChange);
         };
     }, []);
 
