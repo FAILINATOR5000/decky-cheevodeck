@@ -26,8 +26,6 @@ _RESERVED_TAG_KEYS = frozenset({"completed"})
 
 MAX_TRACKED = 1000
 MAX_COMPLETED = 1000
-MAX_TICK_EVENTS = 100
-MAX_TICKS_PER_EVENT = 300
 MAX_ACTIVITY = 400
 MAX_CHECKLIST_VIEWS = 100
 
@@ -231,12 +229,8 @@ class EventsStore:
                 if game_id is None or not _is_tick_value(flag):
                     continue
                 games[game_id] = flag
-                if len(games) >= MAX_TICKS_PER_EVENT:
-                    break
             if games:
                 ticks[event_key] = games
-            if len(ticks) >= MAX_TICK_EVENTS:
-                break
         data["checklistTicks"] = ticks
 
         views = {}
@@ -466,10 +460,6 @@ class EventsStore:
             if value is None:
                 games.pop(game_key, None)
             else:
-                if game_key not in games and len(games) >= MAX_TICKS_PER_EVENT:
-                    return {"ok": False, "error": "ticks_full"}
-                if key not in ticks and len(ticks) >= MAX_TICK_EVENTS:
-                    return {"ok": False, "error": "ticks_full"}
                 games[game_key] = value
             if games:
                 ticks[key] = games
