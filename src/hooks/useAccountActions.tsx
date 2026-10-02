@@ -40,6 +40,8 @@ import { showManagedModal } from "../utils/modalRegistry";
 import type { ScalePreset } from "../types";
 import type { MainUiPreset } from "../utils/options";
 
+const WELCOME_TOAST_DELAY_MS = 4000;
+
 type UseAccountActionsArgs = {
     language: LanguageCode;
     mountedRef: RefObject<boolean>;
@@ -182,7 +184,9 @@ export function useAccountActions({
         showManagedModal((close) => {
             function finish() {
                 close();
-                void announceWelcome().catch(() => {});
+                window.setTimeout(() => {
+                    void announceWelcome().catch(() => {});
+                }, WELCOME_TOAST_DELAY_MS);
             }
 
             return (

@@ -28,13 +28,25 @@ export function setQamReturnDelay(ms: number): void {
     qamReopenDelayMs = ms;
 }
 
+let qamReopenOwed = false;
+
+let qamReopenTimer = 0;
+
+export function cancelQuickAccessReturn(): void {
+    window.clearTimeout(qamReopenTimer);
+    qamReopenTimer = 0;
+    qamReopenOwed = false;
+}
+
 function takeOverQuickAccessReopen(skipReturn: boolean): boolean {
     if (mountedModals + pendingModals > 1) {
         return false;
     }
     const menus = SteamUIStore?.WindowStore?.GamepadUIMainWindowInstance?.MenuStore;
+    const owed = qamReopenOwed;
+    qamReopenOwed = false;
     try {
-        if (menus?.GetLastRequestedSideMenu?.() !== SIDE_MENU_QUICK_ACCESS) {
+        if (!owed && menus?.GetLastRequestedSideMenu?.() !== SIDE_MENU_QUICK_ACCESS) {
             return false;
         }
         if (qamReopenDelayMs <= 0) {
@@ -58,7 +70,17 @@ function takeOverQuickAccessReopen(skipReturn: boolean): boolean {
 }
 
 function reopenQuickAccessSoon(): void {
-    window.setTimeout(() => {
+    window.clearTimeout(qamReopenTimer);
+    qamReopenTimer = window.setTimeout(() => {
+        qamReopenTimer = 0;
+        if (SteamUIStore?.WindowStore?.GamepadUIMainWindowInstance?.MenuStore?.GetOpenSideMenu?.() === SIDE_MENU_QUICK_ACCESS) {
+            return;
+        }
+        if (mountedModals + pendingModals > 0) {
+            qamReopenOwed = true;
+            logFocusDebug("modal-close", "QAM reopen held", "another modal is open");
+            return;
+        }
         try {
             markCloseTrace("reopen");
             focusOurPlugin();
@@ -142,6 +164,9 @@ function showCountedModal(element: ReactElement): { Close: () => void } {
 }
 
 export function drainOpenModals(): OpenModal[] {
+    qamReopenOwed = false;
+    window.clearTimeout(qamReopenTimer);
+    qamReopenTimer = 0;
     const entries = Array.from(openModals);
     openModals.clear();
     return entries;

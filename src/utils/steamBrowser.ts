@@ -1,4 +1,5 @@
 import { Navigation } from "@decky/ui";
+import { cancelQuickAccessReturn } from "./modalRegistry";
 
 export function openInSteamBrowser(url: string) {
     const targetUrl = String(url || "").trim();
@@ -7,6 +8,7 @@ export function openInSteamBrowser(url: string) {
         return false;
     }
 
+    cancelQuickAccessReturn();
     try {
         Navigation.CloseSideMenus();
     } catch { }
