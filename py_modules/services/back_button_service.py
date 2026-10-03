@@ -19,9 +19,11 @@ VALVE_VENDOR_ID = 0x28DE
 
 DECK_FORMAT = "deck"
 CONTROLLER_FORMAT = "controller"
+ALLY_FORMAT = "ally"
 
 _PRODUCT_FORMATS = {
     0x1205: DECK_FORMAT,
+    0x12FD: ALLY_FORMAT,
     0x1302: CONTROLLER_FORMAT,
     0x1304: CONTROLLER_FORMAT,
     0x1305: CONTROLLER_FORMAT,
@@ -33,6 +35,12 @@ _BUTTON_BITS = {
         ("r4", 13, 0x04),
         ("l5", 9, 0x80),
         ("r5", 10, 0x01),
+    ),
+    ALLY_FORMAT: (
+        ("l4", 13, 0x02),
+        ("r4", 13, 0x04),
+        ("m1", 9, 0x80),
+        ("m2", 10, 0x01),
     ),
     CONTROLLER_FORMAT: (
         ("l4", 4, 0x02),
@@ -77,6 +85,15 @@ _MENU_COMBO_BITS = {
         ("l1", 8, 0x08),
         ("r1", 8, 0x04),
     ),
+    ALLY_FORMAT: (
+        ("menu", 9, 0x40),
+        ("up", 9, 0x01),
+        ("down", 9, 0x08),
+        ("left", 9, 0x04),
+        ("right", 9, 0x02),
+        ("l1", 8, 0x08),
+        ("r1", 8, 0x04),
+    ),
     CONTROLLER_FORMAT: (
         ("menu", 2, 0x40),
         ("up", 3, 0x20),
@@ -99,11 +116,13 @@ _MENU_COMBO_KEYS = {
 
 _CHORD_BITS = {
     DECK_FORMAT: ((8, 0xFF), (9, 0x7F), (10, 0x46), (11, 0x04), (14, 0x04)),
+    ALLY_FORMAT: ((8, 0xFF), (9, 0xFF), (10, 0x47), (11, 0x04), (14, 0x04)),
     CONTROLLER_FORMAT: ((2, 0x7F), (3, 0xFE), (4, 0x89), (5, 0x0C)),
 }
 
 _RECOVERY_COMBOS = {
     DECK_FORMAT: ("l4", "l5", "r4", "r5"),
+    ALLY_FORMAT: ("m1", "m2"),
     CONTROLLER_FORMAT: ("l4", "l5", "r4", "r5"),
 }
 
@@ -140,7 +159,7 @@ def format_from_uevent(text: str):
 
 
 def is_input_report(fmt: str, data: bytes) -> bool:
-    if fmt == DECK_FORMAT:
+    if fmt in (DECK_FORMAT, ALLY_FORMAT):
         return len(data) == 64 and data[0] == 0x01 and data[2] == 0x09
     return len(data) == 54 and data[0] == 0x42
 
