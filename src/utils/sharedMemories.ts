@@ -7,7 +7,7 @@ const FORUM_ID = "1553625149130149948";
 export const SHARED_MEMORIES_PATH = `/channels/${GUILD_ID}/${FORUM_ID}`;
 export const SHARED_MEMORIES_CHANNEL_URL = `https://discord.com${SHARED_MEMORIES_PATH}`;
 
-export const SHARED_MEMORIES_INVITE_URL = "";
+export const SHARED_MEMORIES_INVITE_URL = "https://discord.com/invite/RCbqXg9aQs";
 
 const DISCORD_TITLE_MAX = 100;
 export const DISCORD_MESSAGE_MAX = 2000;
