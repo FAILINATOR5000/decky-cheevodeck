@@ -320,7 +320,7 @@ export class ViewSession {
         const toPage = windowDpr / this.pageDpr;
         const metrics = zoomPercent >= 100 ? null : {
             width: Math.round(viewSize.width * toPage / z),
-            height: Math.round(viewSize.height * toPage / z),
+            height: 0,
             deviceScaleFactor: 0,
             mobile: false,
             scale: z

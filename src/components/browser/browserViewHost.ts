@@ -132,32 +132,36 @@ function findKeyboardElement(doc: Document, width: number, height: number): Elem
     return null;
 }
 
-export function heightAboveKeyboard(node: HTMLElement | null): number {
+export type KeyboardRoom = { measured: number | null; guess: number };
+
+export function heightAboveKeyboard(node: HTMLElement | null): KeyboardRoom {
+    const nothing = { measured: null, guess: 0 };
     if (!node) {
-        return 0;
+        return nothing;
     }
     const doc = node.ownerDocument;
     const win = doc?.defaultView;
     if (!doc || !win) {
-        return 0;
+        return nothing;
     }
     try {
         const height = win.innerHeight;
+        const stageTop = node.getBoundingClientRect().top;
         const keyboard = findKeyboardElement(doc, win.innerWidth, height);
-        const top = keyboard
-            ? keyboard.getBoundingClientRect().top
-            : height * (1 - KEYBOARD_FALLBACK_FRACTION);
-        const available = Math.max(0, Math.round(top - node.getBoundingClientRect().top));
+        const guess = Math.max(0, Math.round(height * (1 - KEYBOARD_FALLBACK_FRACTION) - stageTop));
+        const measured = keyboard
+            ? Math.max(0, Math.round(keyboard.getBoundingClientRect().top - stageTop))
+            : null;
         logFocusDebug(
             "browser-osk",
-            keyboard ? "found" : "FELL BACK",
-            `top=${Math.round(top)} available=${available}`
+            keyboard ? "found" : "not found",
+            `available=${measured ?? "-"} guess=${guess}`
         );
-        return available;
+        return { measured, guess };
     }
     catch (e) {
         logError("heightAboveKeyboard", e);
-        return 0;
+        return nothing;
     }
 }
 

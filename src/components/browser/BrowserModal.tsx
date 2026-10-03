@@ -187,6 +187,7 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
     }, []);
 
     const keyboardOpenRef = useRef(false);
+    const keyboardReadingRef = useRef<number | null>(null);
     const claimViewNode = useCallback((force: boolean) => {
         if (keyboardOpenRef.current && !force) {
             logFocusDebug("browser-claim", "guarded", "keyboard up");
@@ -434,10 +435,19 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
         keyboardOpenRef.current = showing;
         setKeyboardOpen(showing);
         if (!showing || !paintedRef.current || !keyboardIsBelow()) {
+            keyboardReadingRef.current = null;
             setStageHeight(0);
             return;
         }
-        setStageHeight(Math.max(heightAboveKeyboard(stageRef.current), MIN_STAGE_HEIGHT_PX));
+        const { measured, guess } = heightAboveKeyboard(stageRef.current);
+        const settled = measured !== null && measured === keyboardReadingRef.current;
+        keyboardReadingRef.current = measured;
+        setStageHeight((current) => {
+            if (settled) {
+                return Math.max(measured, MIN_STAGE_HEIGHT_PX);
+            }
+            return current > 0 ? current : Math.max(guess, MIN_STAGE_HEIGHT_PX);
+        });
     }, []);
 
     useEffect(() => subscribeVirtualKeyboard(resizeForKeyboard), [resizeForKeyboard]);

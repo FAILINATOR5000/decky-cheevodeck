@@ -54,6 +54,17 @@ const TAB_SPIN_KEYFRAMES = `
 }
 `;
 
+function fieldCss(height: number): string {
+    return `
+.cd-browser-field .DialogInput {
+    box-sizing: border-box;
+    height: ${height}px;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+`;
+}
+
 function tabLabel(tab: BrowserTab): string {
     if (tab.title) return tab.title;
     if (!tab.url) return "";
@@ -297,7 +308,8 @@ export function BrowserChrome(props: BrowserChromeProps) {
                     <FaArrowRight size={iconPx} />
                 </DialogButton>
 
-                <div style={{ flex: "1 1 auto", minWidth: "0" }} ref={fieldRef}>
+                <div className="cd-browser-field" style={{ flex: "1 1 auto", minWidth: "0" }} ref={fieldRef}>
+                    <style>{fieldCss(modalSize(CONTROL_HEIGHT_PX))}</style>
                     {finding ? (findEditing ? (
                         <TextField
                             autoFocus
