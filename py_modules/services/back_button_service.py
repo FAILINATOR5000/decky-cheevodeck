@@ -206,7 +206,14 @@ def menu_combo_pressed(fmt: str, before: int, after: int):
                 pressed = button
     if not menu_held or pressed is None or partners_held != 1:
         return None
-    return _MENU_COMBO_KEYS[pressed]
+    return pressed
+
+
+def menu_combo_bit(fmt: str, button: str) -> int:
+    for index, (name, _byte, _mask) in enumerate(_MENU_COMBO_BITS[fmt]):
+        if name == button:
+            return 1 << index
+    return 0
 
 
 def other_button_beside_menu_combo(fmt: str, data: bytes) -> bool:
@@ -258,6 +265,7 @@ class _OpenNode:
         self.fmt = fmt
         self.state = 0
         self.menu_state = 0
+        self.menu_armed = None
         self.combo_since = None
         self.combo_spent = False
 
@@ -453,15 +461,21 @@ class BackButtonService:
         menu_state = menu_combo_state(node.fmt, data)
         if menu_state == node.menu_state:
             return
-        key = menu_combo_pressed(node.fmt, node.menu_state, menu_state)
+        before = node.menu_state
         node.menu_state = menu_state
-        if key is None:
+        armed = node.menu_armed
+        if armed is not None and not menu_state & menu_combo_bit(node.fmt, armed):
+            node.menu_armed = None
+            self._on_menu_combo(node, _MENU_COMBO_KEYS[armed])
+            return
+        partner = menu_combo_pressed(node.fmt, before, menu_state)
+        if partner is None:
             return
         if paddles or other_button_beside_menu_combo(node.fmt, data):
             if self._debug_logging():
-                decky.logger.info("back buttons: %s on %s held back (other button held)", key, node.name)
+                decky.logger.info("back buttons: %s on %s held back (other button held)", _MENU_COMBO_KEYS[partner], node.name)
             return
-        self._on_menu_combo(node, key)
+        node.menu_armed = partner
 
     def _track_combo(self, node: _OpenNode) -> None:
         mask = combo_mask(node.fmt)
