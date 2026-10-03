@@ -431,6 +431,26 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
     const newTabUrlRef = useRef("");
     newTabUrlRef.current = newTabUrlFor(newTabPage, customNewTabUrl);
 
+    const disposedRef = useRef(false);
+    useEffect(() => () => {
+        disposedRef.current = true;
+    }, []);
+
+    const tabQueueRef = useRef<Promise<void>>(Promise.resolve());
+    const queueTabAction = useCallback((label: string, action: () => Promise<void>) => {
+        tabQueueRef.current = tabQueueRef.current.then(async () => {
+            if (disposedRef.current) {
+                return;
+            }
+            try {
+                await action();
+            }
+            catch (e) {
+                logError(`useBrowserController.${label}`, e);
+            }
+        });
+    }, []);
+
     const applySettings = useCallback((saved: BrowserSettingsResponse | null | undefined) => {
         if (!saved) {
             return;
@@ -465,10 +485,10 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         activeTabsRef.current = tabsLive;
         setActiveTabs(tabsLive);
         setViewLimit(tabsLive);
-        void trimViewsRef.current();
+        queueTabAction("trimViews", () => trimViewsRef.current());
         pauseOnSwitchRef.current = saved.pauseMediaOnTabSwitch === true;
         setPauseMediaOnTabSwitch(saved.pauseMediaOnTabSwitch === true);
-    }, []);
+    }, [queueTabAction]);
 
     const saveSetting = useCallback((label: string, save: () => Promise<BrowserSettingsResponse>) => {
         (async () => {
@@ -548,9 +568,9 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         activeTabsRef.current = nextValue;
         setActiveTabs(nextValue);
         setViewLimit(nextValue);
-        void trimViewsRef.current();
+        queueTabAction("trimViews", () => trimViewsRef.current());
         saveSetting("cycleActiveTabs", () => saveBrowserActiveTabs(nextValue));
-    }, [saveSetting]);
+    }, [queueTabAction, saveSetting]);
 
     const togglePauseMediaOnTabSwitch = useCallback(() => {
         const nextValue = !pauseOnSwitchRef.current;
@@ -808,6 +828,9 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
             if (view) {
                 await retireView(view);
             }
+            if (disposedRef.current) {
+                return null;
+            }
         }
         if (view) {
             assignView(view, tabId);
@@ -834,6 +857,9 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
 
     const showTabInView = useCallback(async (tab: BrowserTab) => {
         const mode = await bringUpView(tab.id);
+        if (disposedRef.current) {
+            return;
+        }
         followActiveView();
         if (mode === "live") {
             const view = activeView();
@@ -848,7 +874,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
 
     useEffect(() => {
         let cancelled = false;
-        (async () => {
+        tabQueueRef.current = tabQueueRef.current.then(async () => {
             try {
                 const settingsLoad = loadBrowserSettings()
                     .then((saved) => {
@@ -907,7 +933,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
                     setLoaded(true);
                 }
             }
-        })();
+        });
         return () => {
             cancelled = true;
         };
@@ -919,24 +945,28 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
             drive(target);
             return;
         }
-        (async () => {
-            try {
-                const state = await addBrowserTab(target, "", false);
-                if (!state.ok) {
-                    setBlockedUrl(target);
-                    return;
-                }
-                await leaveActiveView();
-                apply(state);
-                await bringUpView(state.activeTabId);
-                followActiveView();
-                drive(target);
+        queueTabAction("openTab", async () => {
+            const state = await addBrowserTab(target, "", false);
+            if (disposedRef.current) {
+                return;
             }
-            catch (e) {
-                logError("useBrowserController.openTab", e);
+            if (!state.ok) {
+                setBlockedUrl(target);
+                return;
             }
-        })();
-    }, [apply, bringUpView, drive, followActiveView, leaveActiveView]);
+            await leaveActiveView();
+            if (disposedRef.current) {
+                return;
+            }
+            apply(state);
+            await bringUpView(state.activeTabId);
+            if (disposedRef.current) {
+                return;
+            }
+            followActiveView();
+            drive(target);
+        });
+    }, [apply, bringUpView, drive, followActiveView, leaveActiveView, queueTabAction]);
 
     const resolveTabLimit = useCallback((choice: "evict" | "cancel") => {
         const target = blockedUrl;
@@ -944,43 +974,43 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         if (choice !== "evict" || !target) {
             return;
         }
-        (async () => {
-            try {
-                const state = await addBrowserTab(target, "", true);
-                if (!state.ok) {
-                    return;
-                }
-                await leaveActiveView();
-                apply(state);
-                await bringUpView(state.activeTabId);
-                followActiveView();
-                drive(target);
+        queueTabAction("resolveTabLimit", async () => {
+            const state = await addBrowserTab(target, "", true);
+            if (disposedRef.current || !state.ok) {
+                return;
             }
-            catch (e) {
-                logError("useBrowserController.resolveTabLimit", e);
+            await leaveActiveView();
+            if (disposedRef.current) {
+                return;
             }
-        })();
-    }, [apply, blockedUrl, bringUpView, drive, followActiveView, leaveActiveView]);
+            apply(state);
+            await bringUpView(state.activeTabId);
+            if (disposedRef.current) {
+                return;
+            }
+            followActiveView();
+            drive(target);
+        });
+    }, [apply, blockedUrl, bringUpView, drive, followActiveView, leaveActiveView, queueTabAction]);
 
     const closeTab = useCallback((tabId: string) => {
-        const wasActive = tabId === activeTabIdRef.current;
-        (async () => {
-            try {
-                const state = apply(await closeBrowserTab(tabId));
-                if (!wasActive) {
-                    destroyFreeViews();
-                    return;
-                }
-                const current = state.tabs.find((tab) => tab.id === state.activeTabId);
-                if (current) {
-                    await showTabInView(current);
-                }
+        queueTabAction("closeTab", async () => {
+            const wasActive = tabId === activeTabIdRef.current;
+            const closed = await closeBrowserTab(tabId);
+            if (disposedRef.current) {
+                return;
             }
-            catch (e) {
-                logError("useBrowserController.closeTab", e);
+            const state = apply(closed);
+            if (!wasActive) {
+                destroyFreeViews();
+                return;
             }
-        })();
-    }, [apply, showTabInView]);
+            const current = state.tabs.find((tab) => tab.id === state.activeTabId);
+            if (current) {
+                await showTabInView(current);
+            }
+        });
+    }, [apply, queueTabAction, showTabInView]);
 
     const rememberPlace = useCallback(async (deadlineMs?: number) => {
         const tab = tabsRef.current.find((row) => row.id === activeTabIdRef.current);
@@ -1007,49 +1037,56 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
     }, [rememberPlace, retireView]);
 
     const closeAllTabs = useCallback(() => {
-        (async () => {
-            try {
-                await closeAllBrowserTabs();
-                const home = newTabUrlRef.current;
-                const state = apply(await addBrowserTab(home, "", false));
-                const current = state.tabs.find((tab) => tab.id === state.activeTabId);
-                if (current) {
-                    await bringUpView(current.id);
-                    followActiveView();
+        queueTabAction("closeAllTabs", async () => {
+            await closeAllBrowserTabs();
+            const home = newTabUrlRef.current;
+            const added = await addBrowserTab(home, "", false);
+            if (disposedRef.current) {
+                return;
+            }
+            const state = apply(added);
+            const current = state.tabs.find((tab) => tab.id === state.activeTabId);
+            if (current) {
+                await bringUpView(current.id);
+                if (disposedRef.current) {
+                    return;
                 }
-                drive(current?.url || home);
+                followActiveView();
             }
-            catch (e) {
-                logError("useBrowserController.closeAllTabs", e);
-            }
-        })();
-    }, [apply, bringUpView, drive, followActiveView]);
+            drive(current?.url || home);
+        });
+    }, [apply, bringUpView, drive, followActiveView, queueTabAction]);
 
     const selectTab = useCallback((tabId: string) => {
         if (tabId === activeTabIdRef.current) return;
-        const outgoing = tabsRef.current.find((tab) => tab.id === activeTabIdRef.current);
-        (async () => {
-            try {
-                if (outgoing?.url) {
-                    const place = await captureScroll(liveUrlRef.current || outgoing.url);
-                    logFocusDebug("browser-capture", outgoing.id, `offset=${place?.offset} anchored=${!!place?.anchor}`);
-                    if (place !== null) {
-                        await setBrowserTabScroll(outgoing.id, place.offset, place.anchor);
-                    }
-                }
-                await leaveActiveView();
-                const state = apply(await setActiveBrowserTab(tabId));
-                const current = state.tabs.find((tab) => tab.id === state.activeTabId);
-                if (!current) {
-                    return;
-                }
-                await showTabInView(current);
+        queueTabAction("selectTab", async () => {
+            if (tabId === activeTabIdRef.current) {
+                return;
             }
-            catch (e) {
-                logError("useBrowserController.selectTab", e);
+            const outgoing = tabsRef.current.find((tab) => tab.id === activeTabIdRef.current);
+            if (outgoing?.url) {
+                const place = await captureScroll(liveUrlRef.current || outgoing.url);
+                logFocusDebug("browser-capture", outgoing.id, `offset=${place?.offset} anchored=${!!place?.anchor}`);
+                if (place !== null) {
+                    await setBrowserTabScroll(outgoing.id, place.offset, place.anchor);
+                }
             }
-        })();
-    }, [apply, leaveActiveView, showTabInView]);
+            if (disposedRef.current) {
+                return;
+            }
+            await leaveActiveView();
+            const switched = await setActiveBrowserTab(tabId);
+            if (disposedRef.current) {
+                return;
+            }
+            const state = apply(switched);
+            const current = state.tabs.find((tab) => tab.id === state.activeTabId);
+            if (!current) {
+                return;
+            }
+            await showTabInView(current);
+        });
+    }, [apply, leaveActiveView, queueTabAction, showTabInView]);
 
     const step = useCallback((delta: number) => {
         const tab = tabs.find((row) => row.id === activeTabIdRef.current);
