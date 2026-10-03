@@ -909,8 +909,15 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
                 }
                 let state = loadedTabs;
                 setPanelTabState(state.panelTab);
+                let blocked = "";
                 if (startUrl) {
-                    state = await addBrowserTab(startUrl, "", true);
+                    const added = await addBrowserTab(startUrl, "", false);
+                    if (added.ok) {
+                        state = added;
+                    }
+                    else {
+                        blocked = startUrl;
+                    }
                 }
                 else if (!state.tabs.length) {
                     const saved = await settingsLoad;
@@ -930,10 +937,12 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
                     }
                     setAddress(liveUrlRef.current || current.url);
                     setLoaded(true);
+                    setBlockedUrl(blocked);
                     return;
                 }
                 drive(current?.url || startUrl || BROWSER_HOME_URL);
                 setLoaded(true);
+                setBlockedUrl(blocked);
                 if (current?.url && (current.scroll > 0 || current.anchor === PAGE_KEPT_PLACE)) {
                     queueRestore(current.url, { offset: current.scroll, anchor: current.anchor });
                 }
