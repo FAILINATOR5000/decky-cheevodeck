@@ -94,6 +94,34 @@ class _DownloadError(Exception):
         self.detail = detail or code
 
 
+def _site_of(url: str):
+    parsed = urlparse(url)
+    return (parsed.hostname or "").rstrip(".")
+
+
+class _DownloadRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        old = urlparse(req.full_url)
+        new = urlparse(newurl)
+        if new.scheme not in ("http", "https") or not new.hostname:
+            if fp is not None:
+                fp.close()
+            raise _DownloadError("bad_link", "redirected off http(s)")
+        follow = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if follow is None:
+            return None
+        downgrade = old.scheme == "https" and new.scheme == "http"
+        if downgrade or _site_of(req.full_url) != _site_of(newurl):
+            follow.remove_header("Cookie")
+            referer = follow.get_header("Referer")
+            if referer is not None:
+                follow.remove_header("Referer")
+                origin = urlparse(referer)
+                if not downgrade and origin.scheme and origin.netloc:
+                    follow.add_header("Referer", f"{origin.scheme}://{origin.netloc}/")
+        return follow
+
+
 def _tabs_response(state: dict, reason: str = "") -> dict:
     return {
         "ok": not reason,
@@ -297,10 +325,11 @@ class BrowserMixin(PluginContext):
 
     def _fetch_browser_download(self, download_id, url, folder, suggested, chosen, headers, host) -> Path:
         request = urllib.request.Request(url, headers=headers)
+        opener = urllib.request.build_opener(
+            urllib.request.HTTPSHandler(context=ssl_context()), _DownloadRedirect()
+        )
         try:
-            response = urllib.request.urlopen(
-                request, context=ssl_context(), timeout=BROWSER_DOWNLOAD_TIMEOUT_SECONDS
-            )
+            response = opener.open(request, timeout=BROWSER_DOWNLOAD_TIMEOUT_SECONDS)
         except urllib.error.HTTPError as exc:
             raise _DownloadError("refused" if 400 <= exc.code < 500 else "failed", f"HTTP {exc.code}") from exc
         except (urllib.error.URLError, OSError) as exc:
