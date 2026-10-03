@@ -290,9 +290,12 @@ export type BrowserController = {
     setPanelTab: (panelTab: BrowserPanelTab) => void;
 };
 
+let lastShown: { tabs: BrowserTab[]; activeTabId: string; expanded: boolean } = { tabs: [], activeTabId: "", expanded: true };
+
 export function useBrowserController(onLoadUrl: (url: string) => void, startUrl = ""): BrowserController {
-    const [tabs, setTabs] = useState<BrowserTab[]>([]);
-    const [activeTabId, setActiveTabId] = useState("");
+    const [resumed] = useState(() => activeView() !== null);
+    const [tabs, setTabs] = useState<BrowserTab[]>(() => (resumed ? lastShown.tabs : []));
+    const [activeTabId, setActiveTabId] = useState(() => (resumed ? lastShown.activeTabId : ""));
     const [address, setAddress] = useState("");
     const [loaded, setLoaded] = useState(false);
     const [bookmarks, setBookmarks] = useState<BrowserBookmark[]>([]);
@@ -320,7 +323,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
     const [pendingDownload, setPendingDownload] = useState<PendingDownload | null>(null);
     const [downloadFolder, setDownloadFolderState] = useState("");
     const [rememberDownloadFolder, setRememberDownloadFolder] = useState(false);
-    const [expanded, setExpanded] = useState(true);
+    const [expanded, setExpanded] = useState(() => (resumed ? lastShown.expanded : true));
     const [panelTab, setPanelTabState] = useState<BrowserPanelTab>("bookmarks");
     const [maxTabs, setMaxTabs] = useState(DEFAULT_MAX_TABS);
 
@@ -343,6 +346,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         activeTabIdRef.current = state.activeTabId;
         freeViewsNotIn(state.tabs.map((tab) => tab.id));
         setTabs(state.tabs);
+        lastShown = { ...lastShown, tabs: state.tabs, activeTabId: state.activeTabId };
         setActiveTabId(state.activeTabId);
         if (typeof state.maxTabs === "number" && state.maxTabs > 0) {
             setMaxTabs(state.maxTabs);
@@ -488,6 +492,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         setDownloadFolderState(saved.downloadFolder ?? "");
         setRememberDownloadFolder(saved.rememberDownloadFolder === true);
         setExpanded(saved.expanded !== false);
+        lastShown = { ...lastShown, expanded: saved.expanded !== false };
         const tabsLive = typeof saved.activeTabs === "number" ? saved.activeTabs : DEFAULT_ACTIVE_TABS;
         activeTabsRef.current = tabsLive;
         setActiveTabs(tabsLive);
@@ -538,6 +543,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
             try {
                 const place = live ? await captureScroll(live, undefined, activeView()?.session) : null;
                 setExpanded(nextValue);
+                lastShown = { ...lastShown, expanded: nextValue };
                 saveSetting("toggleExpanded", () => saveBrowserExpanded(nextValue));
                 if (place && place.offset > 0) {
                     await new Promise((resolve) => window.setTimeout(resolve, RESIZE_RESTORE_DELAY_MS));
