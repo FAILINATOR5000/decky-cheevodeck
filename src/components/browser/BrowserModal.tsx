@@ -15,7 +15,7 @@ import { BrowserTabLimit } from "./BrowserTabLimit";
 import { BrowserBookmarkLimit } from "./BrowserBookmarkLimit";
 import { BrowserDownloadFolder } from "./BrowserDownloadFolder";
 import { setDownloadHandler, setFullscreenHandler, setViewSize, stopLoading } from "./browserSession";
-import { activeView, destroyAllViews, destroyDetached, detachAllViews, setClosing, setViewEvents, silenceViews, type LiveView } from "./browserViews";
+import { activeView, destroyAllViews, destroyDetached, detachAllViews, loadInView, setClosing, setViewEvents, silenceViews, type LiveView } from "./browserViews";
 import { BrowserViewHost } from "./browserViewHost";
 import { BROWSER_HOME_URL, useBrowserController } from "../../hooks/useBrowserController";
 import { t, type LanguageCode } from "../../locales";
@@ -246,7 +246,10 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
     const paintedRef = useRef(true);
 
     const loadUrl = useCallback((url: string) => {
-        activeView()?.host.loadUrl(url);
+        const shown = activeView();
+        if (shown) {
+            loadInView(shown, url);
+        }
     }, []);
 
     const browser = useBrowserController(loadUrl, startUrl);

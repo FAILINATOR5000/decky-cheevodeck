@@ -5,7 +5,7 @@ import type { BrowserTab } from "../../types";
 import { logError } from "../../utils/errors";
 import { SHARE_CREDIT_TEXT, SHARED_MEMORIES_CHANNEL_URL, SHARED_MEMORIES_INVITE_URL, SHARED_MEMORIES_PATH } from "../../utils/sharedMemories";
 import { onBrowserClosed, openBrowserModal } from "./BrowserModal";
-import { liveViewFor, liveViews, type LiveView } from "./browserViews";
+import { liveViewFor, liveViews, loadInView, type LiveView } from "./browserViews";
 
 const POLL_MS = 1000;
 const FIRST_POLL_MS = 250;
@@ -343,7 +343,7 @@ class ForumWatch {
             }
             else if (path.startsWith(`${SHARED_MEMORIES_PATH}/`)) {
                 logFocusDebug("discord-share", "back to the forum from a post", path);
-                view.host.loadUrl(SHARED_MEMORIES_CHANNEL_URL);
+                loadInView(view, SHARED_MEMORIES_CHANNEL_URL);
                 this.schedule(POLL_MS);
                 return;
             }
@@ -379,7 +379,7 @@ class ForumWatch {
         }
         this.invited = true;
         logFocusDebug("discord-share", "sending to the invite", view.host.currentUrl.slice(0, 80));
-        view.host.loadUrl(SHARED_MEMORIES_INVITE_URL);
+        loadInView(view, SHARED_MEMORIES_INVITE_URL);
     }
 }
 
@@ -489,7 +489,7 @@ async function onSharePoll(entry: Pending, view: LiveView, state: PageState): Pr
             entry.reloaded = true;
             await evaluate(view, HOLD_POST).catch(() => null);
             logFocusDebug("discord-share", "reloading to drop an earlier share's attachment", form.title ?? "");
-            view.host.loadUrl(SHARED_MEMORIES_CHANNEL_URL);
+            loadInView(view, SHARED_MEMORIES_CHANNEL_URL);
             return false;
         }
         if (!leftover || form.attached || !form.input) {

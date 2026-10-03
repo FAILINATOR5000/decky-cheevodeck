@@ -1,4 +1,4 @@
-import { BrowserViewHost } from "./browserViewHost";
+import { BrowserViewHost, isViewMarker, newViewMarker } from "./browserViewHost";
 import { setActiveSession, ViewSession } from "./browserSession";
 import { preparePage } from "./browserScroll";
 import { logFocusDebug } from "../../api";
@@ -10,7 +10,11 @@ export type LiveView = {
     host: BrowserViewHost;
     session: ViewSession;
     usedAt: number;
+    opening: boolean;
+    pendingUrl: string;
 };
+
+const MARKER_ATTACH_MS = 2000;
 
 export type ViewEvents = {
     active: (view: LiveView, showNow: boolean) => void;
@@ -39,6 +43,20 @@ function bind(view: LiveView) {
     const { host, session } = view;
     const mine = () => view === active && events !== null;
     host.setLoadHandler((url, title, loading, finished) => {
+        if (isViewMarker(url)) {
+            if (view.opening) {
+                session.ensure(url);
+            }
+            else if (finished) {
+                const page = host.currentUrl;
+                session.evaluate("(history.forward(), true)").catch(() => {
+                    if (page) {
+                        host.loadUrl(page);
+                    }
+                });
+            }
+            return;
+        }
         session.ensure(url);
         if (!loading) {
             session.refreshBindings();
@@ -51,7 +69,7 @@ function bind(view: LiveView) {
         }
     });
     host.setLoadingHandler((loading) => {
-        if (mine()) {
+        if (mine() && !view.opening) {
             events?.loading(loading);
         }
     });
@@ -66,6 +84,9 @@ function bind(view: LiveView) {
         }
     });
     host.setTitleHandler((title) => {
+        if (view.opening || isViewMarker(title)) {
+            return;
+        }
         if (mine()) {
             events?.title(title);
         }
@@ -73,7 +94,12 @@ function bind(view: LiveView) {
             events?.background(view);
         }
     });
-    host.setHistoryHandler((index, urls) => {
+    host.setHistoryHandler((reportedIndex, reportedUrls) => {
+        if (isViewMarker(reportedUrls[reportedIndex] ?? "")) {
+            return;
+        }
+        const urls = reportedUrls.filter((url) => !isViewMarker(url));
+        const index = reportedIndex - reportedUrls.slice(0, reportedIndex).filter(isViewMarker).length;
         if (mine()) {
             events?.history(index, urls);
         }
@@ -140,11 +166,31 @@ export function createView(tabId: string): LiveView | null {
     if (!host.create(slot)) {
         return null;
     }
-    const view: LiveView = { key: nextKey++, slot, tabId, host, session: new ViewSession(), usedAt: 0 };
+    const view: LiveView = { key: nextKey++, slot, tabId, host, session: new ViewSession(), usedAt: 0, opening: true, pendingUrl: "" };
     bind(view);
     views.push(view);
     logFocusDebug("browser-views", "created", `slot=${slot} live=${views.length}`);
+    const marker = newViewMarker();
+    host.loadUrl(marker);
+    view.session.ensure(marker);
+    void view.session.whenAttached(MARKER_ATTACH_MS).then((attached) => {
+        view.opening = false;
+        logFocusDebug("browser-views", attached ? "attached before loading" : "loading unattached", `slot=${slot}`);
+        const url = view.pendingUrl;
+        view.pendingUrl = "";
+        if (url && view.host.browser) {
+            view.host.loadUrl(url);
+        }
+    });
     return view;
+}
+
+export function loadInView(view: LiveView, url: string): void {
+    if (view.opening) {
+        view.pendingUrl = url;
+        return;
+    }
+    view.host.loadUrl(url);
 }
 
 export function activateView(view: LiveView, showNow: boolean): void {

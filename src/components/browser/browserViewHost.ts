@@ -12,6 +12,16 @@ const STACK_UNDER = 2;
 
 const STEAM_EXTERNAL_PREFIX = "steam://openexternalforpid/";
 
+const VIEW_MARKER_PREFIX = "about:blank#cd-";
+
+export function newViewMarker(): string {
+    return `${VIEW_MARKER_PREFIX}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export function isViewMarker(value: string): boolean {
+    return String(value || "").startsWith(VIEW_MARKER_PREFIX);
+}
+
 const INPUT_LEVEL_UNKNOWN = 1;
 const INPUT_LEVEL_NONE = 2;
 
@@ -361,11 +371,13 @@ export class BrowserViewHost {
     }
 
     get currentUrl(): string {
-        return this.reportedUrl || String(this.wrapper?.m_URL ?? "");
+        const url = this.reportedUrl || String(this.wrapper?.m_URL ?? "");
+        return isViewMarker(url) ? "" : url;
     }
 
     get currentTitle(): string {
-        return this.reportedTitle || String(this.wrapper?.m_strTitle ?? "");
+        const title = this.reportedTitle || String(this.wrapper?.m_strTitle ?? "");
+        return isViewMarker(title) || title === "about:blank" ? "" : title;
     }
 
     get isLoading(): boolean {
@@ -425,7 +437,7 @@ export class BrowserViewHost {
             return;
         }
         const safely = (url: any, title: any, loading: boolean, finished: boolean) => {
-            if (url) {
+            if (url && !isViewMarker(String(url))) {
                 this.reportedUrl = String(url);
             }
             try {
@@ -538,7 +550,7 @@ export class BrowserViewHost {
                 try {
                     const entries = Array.isArray(history?.entries) ? history.entries : [];
                     const here = entries[Number(history?.index) || 0]?.url;
-                    if (here) {
+                    if (here && !isViewMarker(String(here))) {
                         this.reportedUrl = String(here);
                     }
                     handler(Number(history?.index) || 0, entries.map((entry: any) => String(entry?.url || "")));

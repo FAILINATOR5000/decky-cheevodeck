@@ -96,6 +96,8 @@ export class ViewSession {
     private metricsSent: string | null = null;
     private skipAt = 0;
     private skipping = false;
+    private ready = false;
+    private readyWaiters: Array<(ready: boolean) => void> = [];
     private posts: string[] = [];
     private fileChooserHandler: ((backendNodeId: number) => void) | null = null;
 
@@ -236,6 +238,7 @@ export class ViewSession {
 
     private dropSocket() {
         this.socket = null;
+        this.ready = false;
         this.blockingSent = null;
         this.standInId = null;
         this.mainFrameId = "";
@@ -389,6 +392,27 @@ export class ViewSession {
         }
         await this.applyBlocking();
         await this.applyMetrics();
+        this.ready = true;
+        for (const waiter of this.readyWaiters.splice(0)) {
+            waiter(true);
+        }
+    }
+
+    whenAttached(ms: number): Promise<boolean> {
+        if (this.ready) {
+            return Promise.resolve(true);
+        }
+        return new Promise((resolve) => {
+            const waiter = (ready: boolean) => {
+                window.clearTimeout(timer);
+                resolve(ready);
+            };
+            const timer = window.setTimeout(() => {
+                this.readyWaiters = this.readyWaiters.filter((row) => row !== waiter);
+                resolve(false);
+            }, ms);
+            this.readyWaiters.push(waiter);
+        });
     }
 
     ensure(url: string): void {
