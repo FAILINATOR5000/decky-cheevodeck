@@ -255,7 +255,7 @@ Here are some speed-hacks that will help you move through the many pages of Chee
 
 - **Make use of customizing the Quick Menu** — You can customize the bottom row of the **Quick Menu** on the **Main Menu**, adding custom shortcuts and actions to it. Do that by going to **Options** > **Display & Notifications** tab > **Customize Quick Menu**.
 
-- **Map shortcuts and actions to your controller** — You can also skip the trip entirely by mapping common shortcuts and actions to your controller buttons. Go to **Options** > **System** tab > **Mapped Shortcuts** to customize this. While the other buttons are reserved for the core features in CheevoDeck, the ones that you are able to map are: **Menu**, **View**, **L3**, **L4**, **L5**, **R3**, **R4**, and **R5**.
+- **Map shortcuts and actions to your controller** — You can also skip the trip entirely by mapping common shortcuts and actions to your controller buttons. Go to **Options** > **System** tab > **Mapped Shortcuts** to customize this. While the other buttons are reserved for the core features in CheevoDeck, the ones that you are able to map are: **Menu**, **View**, **L3**, **L4**, **L5**, **R3**, **R4**, and **R5**. There are also **Menu** + **D-Pad** / **L1** / **R1** combos as well.
 
     <a href="docs/images/tutorial-mapped-shortcuts.webp"><img src="docs/images/tutorial-mapped-shortcuts.webp" width="320" alt="The Mapped Shortcuts list in Options"></a>
 
