@@ -252,6 +252,27 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
 
     const browser = useBrowserController(loadUrl, startUrl);
 
+    const startSettledRef = useRef(false);
+    useEffect(() => {
+        if (!browser.loaded || !startUrl || startSettledRef.current) {
+            return;
+        }
+        startSettledRef.current = true;
+        if (browser.blockedUrl === startUrl) {
+            heldTabLimitUrl = startUrl;
+        }
+        else if (browser.blockedUrl === "" && heldTabLimitUrl === startUrl) {
+            dropTabLimitQuestion(false);
+        }
+    }, [browser.blockedUrl, browser.loaded, startUrl]);
+
+    const answerTabLimit = (choice: "evict" | "cancel") => {
+        if (browser.blockedUrl === heldTabLimitUrl) {
+            dropTabLimitQuestion(choice === "cancel");
+        }
+        browser.resolveTabLimit(choice);
+    };
+
     const holdView = useCallback((next: LiveView) => {
         const waiting = pendingRef.current;
         if (waiting && waiting !== next && waiting !== shownRef.current) {
@@ -379,6 +400,7 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
                 releaseWebBrowserActionset();
                 return;
             }
+            dropTabLimitQuestion(false);
             announceClosed();
             const shown = activeView();
             const detached = detachAllViews();
@@ -618,8 +640,8 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
                                 language={language}
                                 url={blocked}
                                 maxTabs={browser.maxTabs}
-                                onEvict={() => browser.resolveTabLimit("evict")}
-                                onCancel={() => browser.resolveTabLimit("cancel")}
+                                onEvict={() => answerTabLimit("evict")}
+                                onCancel={() => answerTabLimit("cancel")}
                             />
                         )}
                         {blocked === "" && bookmarkLimit === 0 && download !== null && (
@@ -742,6 +764,43 @@ function announceClosed(): void {
 
 let minimizeRequested = false;
 
+let heldTabLimitUrl = "";
+
+const tabLimitCancelListeners = new Set<(url: string) => void>();
+
+export function tabLimitQuestionOpen(url: string): boolean {
+    return heldTabLimitUrl === url;
+}
+
+export function releaseTabLimitQuestion(url: string): void {
+    if (heldTabLimitUrl === url) {
+        heldTabLimitUrl = "";
+    }
+}
+
+export function onTabLimitCanceled(listener: (url: string) => void): () => void {
+    tabLimitCancelListeners.add(listener);
+    return () => {
+        tabLimitCancelListeners.delete(listener);
+    };
+}
+
+function dropTabLimitQuestion(canceled: boolean): void {
+    const url = heldTabLimitUrl;
+    heldTabLimitUrl = "";
+    if (!url || !canceled) {
+        return;
+    }
+    for (const listener of [...tabLimitCancelListeners]) {
+        try {
+            listener(url);
+        }
+        catch (e) {
+            logError("BrowserModal.dropTabLimitQuestion", e);
+        }
+    }
+}
+
 let mountedBrowsers = 0;
 
 export function browserModalOpen(): boolean {
@@ -752,6 +811,7 @@ export function closeBrowserForUnload(): void {
     const close = closeOpenBrowser;
     closeOpenBrowser = null;
     minimizeRequested = false;
+    dropTabLimitQuestion(false);
     if (close) {
         try {
             close();
@@ -770,8 +830,12 @@ export function openBrowserModal(language: LanguageCode, startUrl = "") {
         openInSteamBrowser(startUrl || BROWSER_HOME_URL);
         return;
     }
+    if (startUrl && heldTabLimitUrl && startUrl !== heldTabLimitUrl) {
+        dropTabLimitQuestion(true);
+    }
+    const address = startUrl || heldTabLimitUrl;
     const modal = showManagedModal(
-        (close) => <BrowserModal language={language} close={close} startUrl={startUrl} />,
+        (close) => <BrowserModal language={language} close={close} startUrl={address} />,
         { onClose: () => { closeOpenBrowser = null; }, skipQamReturn: true }
     );
     closeOpenBrowser = modal.Close;

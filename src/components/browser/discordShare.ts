@@ -4,7 +4,7 @@ import { getCurrentLanguage, t, type LanguageCode } from "../../locales";
 import type { BrowserTab } from "../../types";
 import { logError } from "../../utils/errors";
 import { SHARE_CREDIT_TEXT, SHARED_MEMORIES_CHANNEL_URL, SHARED_MEMORIES_INVITE_URL, SHARED_MEMORIES_PATH } from "../../utils/sharedMemories";
-import { onBrowserClosed, openBrowserModal } from "./BrowserModal";
+import { onBrowserClosed, onTabLimitCanceled, openBrowserModal, releaseTabLimitQuestion, tabLimitQuestionOpen } from "./BrowserModal";
 import { liveViewFor, liveViews, loadInView, type LiveView } from "./browserViews";
 
 const POLL_MS = 1000;
@@ -230,6 +230,12 @@ class ForumWatch {
     private tabId: string | null = null;
     private readonly known: Set<string>;
     private readonly startedAt = Date.now();
+    private adoptFrom = Date.now();
+    private readonly stopListening = onTabLimitCanceled((url) => {
+        if (this.tabId === null && url === SHARED_MEMORIES_CHANNEL_URL) {
+            this.stop("tab limit");
+        }
+    });
     private settled = 0;
     private away = 0;
     private invited = false;
@@ -290,6 +296,10 @@ class ForumWatch {
             return;
         }
         this.stopped = true;
+        this.stopListening();
+        if (this.tabId === null) {
+            releaseTabLimitQuestion(SHARED_MEMORIES_CHANNEL_URL);
+        }
         if (this.timer !== null) {
             window.clearTimeout(this.timer);
             this.timer = null;
@@ -316,7 +326,10 @@ class ForumWatch {
                 this.tabId = candidate.tabId;
                 view = candidate;
             }
-            else if (Date.now() - this.startedAt > ADOPT_CAP_MS) {
+            else if (tabLimitQuestionOpen(SHARED_MEMORIES_CHANNEL_URL)) {
+                this.adoptFrom = Date.now();
+            }
+            else if (Date.now() - this.adoptFrom > ADOPT_CAP_MS) {
                 this.stop("no tab");
                 return;
             }
@@ -460,6 +473,9 @@ export function startDiscordShare(language: LanguageCode, share: DiscordShare, o
             if (reason !== "filled") {
                 discard(share.filePath);
             }
+            if (reason === "tab limit") {
+                toast("Share stopped. Try again.");
+            }
         }
     );
     entry = { share, watch, draftToasted: false, reloaded: false, filling: false };
@@ -495,7 +511,7 @@ async function onSharePoll(entry: Pending, view: LiveView, state: PageState): Pr
         if (!leftover || form.attached || !form.input) {
             if (!entry.draftToasted) {
                 entry.draftToasted = true;
-                toast("Discard your Discord draft and CheevoDeck will fill in your post.");
+                toast("Discard your draft to continue.");
             }
             return false;
         }
@@ -601,8 +617,8 @@ async function fill(entry: Pending, view: LiveView, alreadyOpen: boolean, replac
     if (missed) {
         logError("discord share: the form didn't fill", new Error(missed));
         toast(attached
-            ? "Part of your post needs finishing in Discord."
-            : "Part of your post needs finishing in Discord. Press Discord's attach button and your memory is picked for you.");
+            ? "Finish your post in Discord."
+            : "Press Attach to add your memory");
         if (!attached) {
             await armFileChooser(view, share.filePath);
         }
