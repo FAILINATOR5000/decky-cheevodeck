@@ -30,6 +30,8 @@ SETTINGS_FILENAME = "settings.json"
 
 AD_EXEMPTIONS_FILENAME = "ad_exemptions.json"
 
+DOWNLOADS_FILENAME = "downloads.json"
+
 MAX_TABS = 100
 
 MAX_TAB_HISTORY = 100
@@ -41,6 +43,14 @@ MAX_BOOKMARKS = 2000
 MAX_BOOKMARK_CATEGORIES = 50
 
 MAX_AD_EXEMPTIONS = 500
+
+MAX_DOWNLOADS = 100
+
+DOWNLOAD_STATES = ("downloading", "done", "failed", "canceled", "interrupted")
+
+MAX_DOWNLOAD_NAME_LENGTH = 255
+
+MAX_DOWNLOAD_ERROR_LENGTH = 32
 
 MAX_CATEGORY_NAME_LENGTH = 48
 
@@ -65,7 +75,7 @@ ALLOWED_PAGE_ZOOM = (50, 60, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200)
 
 ALLOWED_HISTORY_RETENTION = ("off", "7", "30", "forever")
 
-ALLOWED_PANEL_TABS = ("bookmarks", "history", "options", "adblock")
+ALLOWED_PANEL_TABS = ("bookmarks", "history", "options", "adblock", "downloads")
 
 DEFAULT_PAGE_ZOOM = 80
 
@@ -112,6 +122,14 @@ def _clean_folder(value: Any) -> str:
     if not text.startswith("/") or len(text) > MAX_FOLDER_LENGTH:
         return ""
     return text
+
+
+def _clean_identity(value: Any, size: int) -> Optional[list]:
+    if not isinstance(value, (list, tuple)) or len(value) != size:
+        return None
+    if not all(isinstance(item, int) and not isinstance(item, bool) and item >= 0 for item in value):
+        return None
+    return list(value)
 
 
 def _clean_web_url(value: Any) -> str:
@@ -189,6 +207,10 @@ class BrowserStore:
 
     def _ad_exemptions_path(self) -> Path:
         return self._base_dir / AD_EXEMPTIONS_FILENAME
+
+    def downloads_path(self) -> Path:
+        with self._lock:
+            return self._base_dir / DOWNLOADS_FILENAME
 
     def _empty_tabs(self) -> dict:
         return {
@@ -1073,3 +1095,107 @@ class BrowserStore:
                 return data
             data["hosts"].remove(wanted)
             return self._save_ad_exemptions(data)
+
+    def _clean_download(self, raw: Any) -> dict:
+        if not isinstance(raw, dict):
+            return {}
+        download_id = _clean_text(raw.get("id"), MAX_ID_LENGTH)
+        if not download_id:
+            return {}
+        state = raw.get("state")
+        return {
+            "id": download_id,
+            "name": _clean_text(raw.get("name"), MAX_DOWNLOAD_NAME_LENGTH),
+            "folder": _clean_folder(raw.get("folder")),
+            "state": state if state in DOWNLOAD_STATES else "failed",
+            "error": _clean_text(raw.get("error"), MAX_DOWNLOAD_ERROR_LENGTH),
+            "received": max(to_int(raw.get("received", 0), 0), 0),
+            "total": max(to_int(raw.get("total", -1), -1), -1),
+            "startedAt": max(to_int(raw.get("startedAt", 0), 0), 0),
+            "finishedAt": max(to_int(raw.get("finishedAt", 0), 0), 0),
+            "run": _clean_text(raw.get("run"), MAX_ID_LENGTH),
+            "part": _clean_identity(raw.get("part"), 2),
+            "file": _clean_identity(raw.get("file"), 4),
+            "fileGone": bool(raw.get("fileGone", False)),
+        }
+
+    def _load_downloads(self, path: Path) -> dict:
+        raw = load_json_file(path, {})
+        empty = {"schemaVersion": CURRENT_SCHEMA_VERSION, "downloads": []}
+        if not isinstance(raw, dict):
+            return empty
+        if is_newer_schema(raw, CURRENT_SCHEMA_VERSION):
+            report_newer_schema(path)
+            return empty
+        rows = raw.get("downloads")
+        if not isinstance(rows, list):
+            return empty
+        downloads = []
+        seen = set()
+        for row in rows[:MAX_DOWNLOADS]:
+            download = self._clean_download(row)
+            if download and download["id"] not in seen:
+                seen.add(download["id"])
+                downloads.append(download)
+        return {"schemaVersion": CURRENT_SCHEMA_VERSION, "downloads": downloads}
+
+    def _save_downloads(self, path: Path, data: dict) -> dict:
+        try:
+            refuse_newer_file(path, CURRENT_SCHEMA_VERSION)
+        except NewerSchemaFile:
+            return {"schemaVersion": CURRENT_SCHEMA_VERSION, "downloads": []}
+        save_json_file(path, data, compact=True)
+        return data
+
+    def list_downloads(self, path: Path) -> dict:
+        with self._lock:
+            return self._load_downloads(path)
+
+    def add_download(self, path: Path, row: dict) -> dict:
+        download = self._clean_download(row)
+        with self._lock:
+            data = self._load_downloads(path)
+            if not download:
+                return data
+            rows = [entry for entry in data["downloads"] if entry["id"] != download["id"]]
+            while len(rows) >= MAX_DOWNLOADS:
+                finished = [entry for entry in rows if entry["state"] != "downloading"]
+                if not finished:
+                    break
+                oldest = min(finished, key=lambda entry: entry["startedAt"])
+                rows.remove(oldest)
+            data["downloads"] = [download] + rows
+            return self._save_downloads(path, data)
+
+    def update_download(self, path: Path, download_id: Any, **fields: Any) -> dict:
+        wanted = _clean_text(download_id, MAX_ID_LENGTH)
+        with self._lock:
+            data = self._load_downloads(path)
+            for index, entry in enumerate(data["downloads"]):
+                if entry["id"] == wanted:
+                    updated = self._clean_download({**entry, **fields, "id": wanted})
+                    if updated:
+                        data["downloads"][index] = updated
+                        return self._save_downloads(path, data)
+            return data
+
+    def remove_download(self, path: Path, download_id: Any) -> dict:
+        wanted = _clean_text(download_id, MAX_ID_LENGTH)
+        with self._lock:
+            data = self._load_downloads(path)
+            kept = [entry for entry in data["downloads"] if entry["id"] != wanted or entry["state"] == "downloading"]
+            if len(kept) == len(data["downloads"]):
+                return data
+            data["downloads"] = kept
+            return self._save_downloads(path, data)
+
+    def settle_interrupted(self, path: Path, run: str) -> list:
+        with self._lock:
+            data = self._load_downloads(path)
+            stale = [entry for entry in data["downloads"] if entry["state"] == "downloading" and entry["run"] != run]
+            if not stale:
+                return []
+            for entry in stale:
+                entry["state"] = "interrupted"
+            self._save_downloads(path, data)
+            return [dict(entry) for entry in stale]

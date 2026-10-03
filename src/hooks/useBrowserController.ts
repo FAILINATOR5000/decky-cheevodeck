@@ -68,7 +68,7 @@ import {
 } from "../api";
 import { requestHeadersFor, setAdBlock, setAdExemptions, setFastForward, setZoomPercent, type DownloadRequest } from "../components/browser/browserSession";
 import { exemptEntryFor, siteOf } from "../components/browser/adExemptions";
-import { toastDownload } from "../components/browser/browserDownloads";
+import { downloadFailure, toastDownload } from "../components/browser/browserDownloads";
 import { defaultBrowserPageZoom, nextBrowserActiveTabs, nextBrowserHistoryRetention, nextBrowserNewTabPage, nextBrowserSearchEngine, stepBrowserPageZoom } from "../utils/options";
 import { logError } from "../utils/errors";
 import type {
@@ -630,6 +630,10 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         if (pendingDownloadRef.current) {
             return;
         }
+        if (request.url.startsWith("blob:") || request.posted) {
+            toastDownload("Download Failed", downloadFailure("unsupported"));
+            return;
+        }
         const held = {
             url: request.url,
             name: request.suggestedFilename || fileNameOf(request.url) || "download",
@@ -657,7 +661,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
                 const chosen = fileName && fileName !== held.name ? fileName : "";
                 const started = await startBrowserDownload(held.url, folder, held.name, cookie, userAgent, held.referer, chosen);
                 logFocusDebug("browser-download", started?.ok ? "started" : "refused", String(started?.error ?? started?.id ?? ""));
-                toastDownload(started?.ok ? "Downloading" : "Download Failed", chosen || held.name);
+                toastDownload(started?.ok ? "Downloading" : "Download Failed", chosen || held.name, started?.ok ? "" : String(started?.error ?? ""));
             }
             catch (e) {
                 logError("useBrowserController.downloadTo", e);

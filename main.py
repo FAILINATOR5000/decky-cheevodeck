@@ -855,6 +855,8 @@ class Plugin(
                 type(e).__name__,
             )
 
+        self._sweep_interrupted_downloads()
+
         self._spawn_background_task(self._delayed_startup_roster_check())
 
         await self._announce_changelog()

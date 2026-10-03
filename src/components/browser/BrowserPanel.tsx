@@ -24,9 +24,13 @@ import { BrowserScrollArea } from "./BrowserScrollArea";
 import { BrowserDownloadFolder } from "./BrowserDownloadFolder";
 import { useWindowedList } from "../../hooks/useWindowedList";
 import { DEFAULT_BOOKMARK_CATEGORY_ID } from "../../hooks/useBrowserController";
+import { useBrowserDownloads } from "../../hooks/useBrowserDownloads";
+import { downloadFailure } from "./browserDownloads";
+import { formatDateTime } from "../../utils/fileWatcher";
 import type {
     BrowserBookmark,
     BrowserBookmarkCategory,
+    BrowserDownload,
     BrowserHistoryEntry,
     BrowserHistoryRetention,
     BrowserNewTabPage,
@@ -191,7 +195,37 @@ function hostOf(url: string): string {
     }
 }
 
-type EditKind = "add" | "rename" | "delete" | "mark" | "clear" | "home" | "search" | "wipe";
+type EditKind = "add" | "rename" | "delete" | "mark" | "clear" | "home" | "search" | "wipe" | "deletefile";
+
+function sizeLabel(bytes: number): string {
+    if (bytes >= 1024 * 1024 * 1024) {
+        return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+    }
+    if (bytes >= 1024 * 1024) {
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+    if (bytes >= 1024) {
+        return `${Math.round(bytes / 1024)} KB`;
+    }
+    return `${Math.max(0, bytes)} B`;
+}
+
+function downloadStatus(row: BrowserDownload, language: LanguageCode): string {
+    switch (row.state) {
+        case "downloading":
+            return row.total > 0
+                ? `${t(language, "Downloading")} · ${sizeLabel(row.received)} / ${sizeLabel(row.total)} · ${Math.min(100, Math.floor((row.received / row.total) * 100))}%`
+                : `${t(language, "Downloading")} · ${sizeLabel(row.received)}`;
+        case "done":
+            return row.fileGone ? t(language, "File deleted") : `${t(language, "Done")} · ${sizeLabel(row.received)}`;
+        case "failed":
+            return `${t(language, "Failed")} · ${downloadFailure(row.error) || row.error}`;
+        case "canceled":
+            return t(language, "Canceled");
+        default:
+            return t(language, "Interrupted");
+    }
+}
 
 type BrowserPanelProps = {
     language: LanguageCode;
@@ -269,6 +303,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
     } = props;
 
     const act = useBrowserPress();
+
+    const downloads = useBrowserDownloads(tab === "downloads");
 
     const [editing, setEditing] = useState<{ kind: EditKind; id: string } | null>(null);
     const [draft, setDraft] = useState("");
@@ -361,6 +397,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
     const exemptionRows = useMemo(() => adExemptions.map((host) => ({ id: host, url: host, title: host })), [adExemptions]);
 
+    const downloadRows = useMemo(() => downloads.downloads.map((row) => ({ id: row.id, url: "", title: row.name })), [downloads.downloads]);
+
     let rows: { id: string; url: string; title: string }[] = [];
     if (tab === "bookmarks") {
         rows = flatMarks;
@@ -370,6 +408,9 @@ export function BrowserPanel(props: BrowserPanelProps) {
     }
     else if (tab === "adblock") {
         rows = exemptionRows;
+    }
+    else if (tab === "downloads") {
+        rows = downloadRows;
     }
 
     const controlHeight = `${modalSize(ACTION_PX)}px`;
@@ -670,6 +711,11 @@ export function BrowserPanel(props: BrowserPanelProps) {
             <div style={cellStyle}>
                 <DialogButton {...act("tab:adblock", () => onSetTab("adblock"))} style={pillStyle(tab === "adblock")}>
                     {t(language, "Ad Block")}
+                </DialogButton>
+            </div>
+            <div style={cellStyle}>
+                <DialogButton {...act("tab:downloads", () => onSetTab("downloads"))} style={pillStyle(tab === "downloads")}>
+                    {t(language, "Downloads")}
                 </DialogButton>
             </div>
             <div
@@ -1268,6 +1314,107 @@ export function BrowserPanel(props: BrowserPanelProps) {
                             </div>
                             <div style={{ display: "flex", flexDirection: "column", gap: `${modalSize(3)}px`, paddingLeft: `${modalSize(10)}px` }}>
                                 {day.rows.slice(0, slice.reach).map(linkRow)}
+                            </div>
+                        </div>
+                    );
+                })}
+
+                {mountedCount < rows.length && (
+                    <div ref={window_.markerRef} style={{ flex: "0 0 auto", height: "1px" }} />
+                )}
+            </BrowserScrollArea>
+            )}
+
+            {tab === "downloads" && (
+            <BrowserScrollArea railPx={RAIL_PX} gapPx={ROW_GAP_PX} rowGap={`${modalSize(3)}px`} unmountedPx={unmountedPx} header={header}>
+                {downloads.loaded && downloads.downloads.length === 0 && (
+                    <div style={{ padding: gap, fontSize: `${modalSize(13)}px`, opacity: 0.7 }}>
+                        {t(language, "No downloads yet.")}
+                    </div>
+                )}
+
+                {downloads.downloads.slice(0, mountedCount).map((row) => {
+                    if (editing?.kind === "deletefile" && editing.id === row.id) {
+                        return (
+                            <div key={row.id} style={actionRowStyle(ROW_HEIGHT_PX, true)}>
+                                <div
+                                    style={{
+                                        flex: "1 1 auto",
+                                        minWidth: "0",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        fontSize: `${modalSize(12)}px`,
+                                        padding: `${modalSize(4)}px 0`,
+                                        overflowWrap: "anywhere"
+                                    }}
+                                >
+                                    {t(language, "Delete {{name}}?", { name: row.name })}
+                                </div>
+                                <div style={cellStyle}>
+                                    <DialogButton
+                                        {...act("download:confirm", () => {
+                                            closeEditor();
+                                            downloads.deleteFile(row.id);
+                                        })}
+                                        style={wideActionStyle}
+                                    >
+                                        {t(language, "Delete")}
+                                    </DialogButton>
+                                </div>
+                                <div style={cellStyle}>
+                                    <DialogButton {...act("download:keep", closeEditor)} style={wideActionStyle}>
+                                        {t(language, "Cancel")}
+                                    </DialogButton>
+                                </div>
+                            </div>
+                        );
+                    }
+                    const notice = downloads.notice?.id === row.id ? downloads.notice.text : "";
+                    return (
+                        <div key={row.id} style={actionRowStyle(ROW_HEIGHT_PX, notice !== "")}>
+                            <div
+                                style={{
+                                    flex: "1 1 auto",
+                                    minWidth: "0",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    justifyContent: "center",
+                                    padding: `0 ${modalSize(10)}px`,
+                                    borderRadius: `${modalSize(4)}px`,
+                                    background: "rgba(255, 255, 255, 0.05)"
+                                }}
+                            >
+                                <div style={{ fontSize: `${modalSize(13)}px`, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                    {row.name}
+                                </div>
+                                <div style={{ fontSize: `${modalSize(11)}px`, opacity: 0.6, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                    {`${downloadStatus(row, language)} · ${formatDateTime(row.startedAt, language)}`}
+                                </div>
+                                {notice && (
+                                    <div style={{ fontSize: `${modalSize(11)}px`, padding: `${modalSize(2)}px 0 ${modalSize(4)}px`, overflowWrap: "anywhere" }}>
+                                        {t(language, notice)}
+                                    </div>
+                                )}
+                            </div>
+                            {row.canDelete ? (
+                                <div style={cellStyle}>
+                                    <DialogButton
+                                        {...act("download:delete", () => openEditor("deletefile", row.id, ""))}
+                                        style={{ ...squareStyle(ACTION_PX), height: "100%" }}
+                                    >
+                                        <FaTrash size={modalSize(12)} />
+                                    </DialogButton>
+                                </div>
+                            ) : ghostSlot("trash")}
+                            <div style={cellStyle}>
+                                <DialogButton
+                                    {...act(row.state === "downloading" ? "download:cancel" : "download:remove", () => (
+                                        row.state === "downloading" ? downloads.cancel(row.id) : downloads.remove(row.id)
+                                    ))}
+                                    style={{ ...squareStyle(ACTION_PX), height: "100%" }}
+                                >
+                                    <FaTimes size={modalSize(12)} />
+                                </DialogButton>
                             </div>
                         </div>
                     );

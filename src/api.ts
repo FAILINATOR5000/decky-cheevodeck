@@ -186,6 +186,7 @@ import type {
     BrowserHistoryResponse,
     BrowserBookmarksResponse,
     BrowserAdExemptionsResponse,
+    BrowserDownloadsResponse,
     OkResult,
     SocialView,
     BadgesSortOrder,
@@ -2846,6 +2847,10 @@ export const startBrowserDownload = callable<
     [url: string, folder: string, suggestedName: string, cookie: string, userAgent: string, referer: string, chosenName: string],
     { ok: boolean; id?: string; error?: string }
 >("start_browser_download");
+export const getBrowserDownloads = callable<[], BrowserDownloadsResponse>("get_browser_downloads");
+export const cancelBrowserDownload = callable<[downloadId: string], { ok: boolean }>("cancel_browser_download");
+export const removeBrowserDownload = callable<[downloadId: string], BrowserDownloadsResponse>("remove_browser_download");
+export const deleteBrowserDownloadFile = callable<[downloadId: string], BrowserDownloadsResponse>("delete_browser_download_file");
 
 export const getBrowserTabs = callable<[], BrowserTabsResponse>("get_browser_tabs");
 export const addBrowserTab = callable<

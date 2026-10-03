@@ -46,7 +46,10 @@ function isYouTube(url: string): boolean {
 export type DownloadRequest = {
     url: string;
     suggestedFilename: string;
+    posted: boolean;
 };
+
+const POSTS_KEPT = 20;
 
 const sessions = new Set<ViewSession>();
 let activeSession: ViewSession | null = null;
@@ -93,6 +96,7 @@ export class ViewSession {
     private metricsSent: string | null = null;
     private skipAt = 0;
     private skipping = false;
+    private posts: string[] = [];
     private fileChooserHandler: ((backendNodeId: number) => void) | null = null;
 
     constructor() {
@@ -176,6 +180,9 @@ export class ViewSession {
             return;
         }
         if (msg.method === "Network.requestWillBeSent") {
+            if (msg.params?.type === "Document" && String(msg.params?.request?.method ?? "").toUpperCase() === "POST") {
+                this.posts = [...this.posts.slice(1 - POSTS_KEPT), String(msg.params?.request?.url ?? "")];
+            }
             if (msg.params?.type === "Document" && this.mainFrameId && msg.params?.frameId === this.mainFrameId) {
                 this.pendingUrl = String(msg.params?.request?.url ?? "");
                 this.pendingRequestId = String(msg.params?.requestId ?? "");
@@ -219,9 +226,10 @@ export class ViewSession {
         if (msg.method === "Page.downloadWillBegin") {
             const url = String(msg.params?.url ?? "");
             const suggestedFilename = String(msg.params?.suggestedFilename ?? "");
-            logFocusDebug("browser-download", "caught", `${url.slice(0, 80)} name=${suggestedFilename}`);
+            const posted = this.posts.includes(url);
+            logFocusDebug("browser-download", "caught", `${url.slice(0, 80)} name=${suggestedFilename} posted=${posted}`);
             if (url && downloadHandler) {
-                downloadHandler({ url, suggestedFilename });
+                downloadHandler({ url, suggestedFilename, posted });
             }
         }
     }

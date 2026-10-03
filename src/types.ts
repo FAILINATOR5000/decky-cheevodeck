@@ -1899,7 +1899,27 @@ export type BrowserTab = {
     usedAt: number;
 };
 
-export type BrowserPanelTab = "bookmarks" | "history" | "options" | "adblock";
+export type BrowserPanelTab = "bookmarks" | "history" | "options" | "adblock" | "downloads";
+
+type BrowserDownloadState = "downloading" | "done" | "failed" | "canceled" | "interrupted";
+
+export type BrowserDownload = {
+    id: string;
+    name: string;
+    state: BrowserDownloadState;
+    error: string;
+    received: number;
+    total: number;
+    startedAt: number;
+    canDelete: boolean;
+    fileGone: boolean;
+};
+
+export type BrowserDownloadsResponse = {
+    ok: boolean;
+    error?: string;
+    downloads: BrowserDownload[];
+};
 
 export type BrowserTabsResponse = {
     ok: boolean;
