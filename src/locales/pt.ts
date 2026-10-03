@@ -1556,7 +1556,7 @@ const PT: LocaleTable = {
     "Clear Last Scan Results": "Apagar os resultados da última verificação",
     "Clear Local Hash Cache": "Limpar cache local de hashes",
     "Clear Saved RetroAchievements Data": "Apagar dados salvos do RetroAchievements",
-    "help_cheevo_check_pause_services": "Pausa os serviços em segundo plano do CheevoDeck para que uma verificação longa não esbarre nos limites de requisições do RetroAchievements. É o mesmo botão que «Em espera» no menu rápido da página principal. Desligue de novo quando a verificação terminar para os serviços em segundo plano voltarem — daqui ou por esse menu rápido.",
+    "help_cheevo_check_pause_services": "Pausa os serviços em segundo plano do CheevoDeck para que uma verificação longa não esbarre nos limites de requisições do RetroAchievements. É o mesmo botão que «Em espera» no menu rápido da página principal. Desligue de novo quando a verificação terminar para os serviços em segundo plano voltarem — daqui ou por esse menu rápido. Enquanto estiver ligado, as Memórias ficam temporariamente desativadas.",
     "help_cheevo_check_cache_hashes": "Pula arquivos que parecem não ter mudado. Mais rápido, mas não percebe um arquivo que estragou em silêncio. Onde mais economiza é em arquivos compactados e em bibliotecas guardadas em cartão SD ou na rede.",
     "Extract to RAM": "Descompactar na RAM",
     "help_cheevo_check_extract_to_ram": "Descompacta os arquivos na memória em vez de no drive. Melhor deixar desligado a não ser que você tenha RAM sobrando: um jogo de disco dentro de um zip ou 7z pode ter vários gigabytes, e essa memória sai de onde você está jogando. O que não couber volta sozinho para o drive, então nada é pulado.",

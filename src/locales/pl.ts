@@ -1597,7 +1597,7 @@ const PL: LocaleTable = {
     "Clear Last Scan Results": "Usuń wyniki ostatniego skanowania",
     "Clear Local Hash Cache": "Wyczyść lokalną pamięć sum kontrolnych",
     "Clear Saved RetroAchievements Data": "Usuń zapisane dane RetroAchievements",
-    "help_cheevo_check_pause_services": "Wstrzymuje usługi działające w tle, żeby długie skanowanie nie wpadło w limity zapytań RetroAchievements. To ten sam przełącznik co „Czuwanie” w szybkim menu na stronie głównej. Po zakończeniu skanowania wyłącz go z powrotem, żeby usługi w tle znów ruszyły — stąd albo z tego szybkiego menu.",
+    "help_cheevo_check_pause_services": "Wstrzymuje usługi działające w tle, żeby długie skanowanie nie wpadło w limity zapytań RetroAchievements. To ten sam przełącznik co „Czuwanie” w szybkim menu na stronie głównej. Po zakończeniu skanowania wyłącz go z powrotem, żeby usługi w tle znów ruszyły — stąd albo z tego szybkiego menu. Dopóki jest włączony, Wspomnienia są tymczasowo wyłączone.",
     "help_cheevo_check_cache_hashes": "Pomija pliki, które wyglądają na niezmienione. Szybciej, ale nie wyłapie pliku, który po cichu się popsuł. Najwięcej daje przy archiwach i przy bibliotekach na karcie SD albo w sieci.",
     "Extract to RAM": "Rozpakuj do pamięci RAM",
     "help_cheevo_check_extract_to_ram": "Rozpakowuje archiwa do pamięci zamiast na dysk. Lepiej zostaw to wyłączone, chyba że masz RAM-u w zapasie: gra dyskowa w zipie albo 7z potrafi mieć kilka gigabajtów, a ta pamięć zabierana jest temu, w co akurat grasz. Co się nie zmieści, samo wróci na dysk, więc nic nie zostanie pominięte.",

@@ -1550,7 +1550,7 @@ export const EN: LocaleTable = {
     "Clear Last Scan Results": "Clear Last Scan Results",
     "Clear Local Hash Cache": "Clear Local Hash Cache",
     "Clear Saved RetroAchievements Data": "Clear Saved RetroAchievements Data",
-    "help_cheevo_check_pause_services": "Pauses CheevoDeck's background services so a long scan doesn't run into RetroAchievements' rate limits. It's the same switch as Standby in the quick menu on the Main Page. Turn it back off when your scan finishes so your background services start again — from here, or from that quick menu.",
+    "help_cheevo_check_pause_services": "Pauses CheevoDeck's background services so a long scan doesn't run into RetroAchievements' rate limits. It's the same switch as Standby in the quick menu on the Main Page. Turn it back off when your scan finishes so your background services start again — from here, or from that quick menu. Temporarily disables Memories while toggled on.",
     "help_cheevo_check_cache_hashes": "Skips re-checking files that look unchanged. Faster, but it won't notice a file that has quietly gone bad. It saves the most on archives and on libraries kept on an SD card or a network share.",
     "Extract to RAM": "Extract to RAM",
     "help_cheevo_check_extract_to_ram": "Unpacks archives into memory instead of onto the drive. Best left off unless you have RAM to spare: a disc game inside a zip or a 7z can be several gigabytes, and that memory comes out of whatever you're playing. Anything too big to fit falls back to the drive on its own, so nothing gets skipped either way.",

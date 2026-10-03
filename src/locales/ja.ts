@@ -1537,7 +1537,7 @@ const JA: LocaleTable = {
     "Clear Last Scan Results": "前回のスキャン結果を削除",
     "Clear Local Hash Cache": "ローカルのハッシュキャッシュを消去",
     "Clear Saved RetroAchievements Data": "保存した RetroAchievements データを削除",
-    "help_cheevo_check_pause_services": "CheevoDeck のバックグラウンドサービスを一時停止し、長いスキャンが RetroAchievements のレート制限に当たらないようにする。メインページのクイックメニューにある「スタンバイ」と同じスイッチ。スキャンが終わったら、ここかクイックメニューからオフに戻すと、バックグラウンドサービスがまた動きだす。",
+    "help_cheevo_check_pause_services": "CheevoDeck のバックグラウンドサービスを一時停止し、長いスキャンが RetroAchievements のレート制限に当たらないようにする。メインページのクイックメニューにある「スタンバイ」と同じスイッチ。スキャンが終わったら、ここかクイックメニューからオフに戻すと、バックグラウンドサービスがまた動きだす。オンの間は「思い出」も一時的に無効になる。",
     "help_cheevo_check_cache_hashes": "変わっていなさそうなファイルの再確認を省きます。速くなりますが、静かに壊れたファイルには気づけません。書庫ファイルや、SD カード・ネットワーク共有に置いたライブラリで特に効きます。",
     "Extract to RAM": "RAM に展開",
     "help_cheevo_check_extract_to_ram": "書庫をドライブではなくメモリー上に展開します。RAM に余裕がないかぎりオフのままがおすすめです。zip や 7z に入ったディスクゲームは数ギガバイトになることがあり、そのぶんのメモリーはプレイ中のゲームから取られます。入りきらないものは自動でドライブに切り替わるので、飛ばされることはありません。",

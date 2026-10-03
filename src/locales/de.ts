@@ -1559,7 +1559,7 @@ const DE: LocaleTable = {
     "Clear Last Scan Results": "Ergebnisse der letzten Prüfung löschen",
     "Clear Local Hash Cache": "Lokalen Hash-Zwischenspeicher leeren",
     "Clear Saved RetroAchievements Data": "Gespeicherte RetroAchievements-Daten löschen",
-    "help_cheevo_check_pause_services": "Pausiert die Hintergrunddienste von CheevoDeck, damit eine lange Prüfung nicht in die Ratenbegrenzung von RetroAchievements läuft. Es ist derselbe Schalter wie „Standby“ im Schnellmenü der Hauptseite. Schalte ihn nach der Prüfung wieder aus, damit deine Hintergrunddienste weiterlaufen — hier oder über das Schnellmenü.",
+    "help_cheevo_check_pause_services": "Pausiert die Hintergrunddienste von CheevoDeck, damit eine lange Prüfung nicht in die Ratenbegrenzung von RetroAchievements läuft. Es ist derselbe Schalter wie „Standby“ im Schnellmenü der Hauptseite. Schalte ihn nach der Prüfung wieder aus, damit deine Hintergrunddienste weiterlaufen — hier oder über das Schnellmenü. Solange er an ist, sind die Erinnerungen vorübergehend deaktiviert.",
     "help_cheevo_check_cache_hashes": "Überspringt Dateien, die unverändert aussehen. Schneller, merkt aber nicht, wenn eine Datei still und leise kaputtgegangen ist. Am meisten bringt es bei Archiven und bei Sammlungen auf SD-Karte oder Netzwerkfreigabe.",
     "Extract to RAM": "In den Arbeitsspeicher entpacken",
     "help_cheevo_check_extract_to_ram": "Entpackt Archive in den Arbeitsspeicher statt auf das Laufwerk. Lass das besser aus, wenn du nicht reichlich RAM übrig hast: ein Discspiel in einem ZIP oder 7z kann mehrere Gigabyte groß sein, und der Speicher fehlt dann dem, was gerade läuft. Was nicht hineinpasst, landet von selbst wieder auf dem Laufwerk — übersprungen wird also nichts.",
