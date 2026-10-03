@@ -191,23 +191,42 @@ export function destroyFreeViews(): void {
     }
 }
 
+const detachedViews = new Set<LiveView>();
+
 export function detachAllViews(): LiveView[] {
     const detached = views;
     views = [];
     active = null;
+    for (const view of detached) {
+        detachedViews.add(view);
+    }
     return detached;
 }
 
-export function destroyDetached(detached: LiveView[]): void {
+const PAUSE_MEDIA = `(document.querySelectorAll("video, audio").forEach((media) => media.pause()), true)`;
+
+export function silenceViews(detached: LiveView[]): void {
     for (const view of detached) {
+        view.session.command("Runtime.evaluate", { expression: PAUSE_MEDIA, returnByValue: true }).catch(() => undefined);
+    }
+}
+
+export function destroyDetached(detached: LiveView[]): void {
+    let count = 0;
+    for (const view of detached) {
+        if (!detachedViews.delete(view)) {
+            continue;
+        }
         view.session.close();
         view.host.destroy();
+        count++;
     }
-    logFocusDebug("browser-views", "destroyed", `closed=${detached.length}`);
+    logFocusDebug("browser-views", "destroyed", `closed=${count}`);
 }
 
 export function destroyAllViews(): void {
     for (const view of [...views]) {
         destroyView(view);
     }
+    destroyDetached([...detachedViews]);
 }

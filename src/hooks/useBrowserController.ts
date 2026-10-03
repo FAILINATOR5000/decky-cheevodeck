@@ -122,6 +122,15 @@ const RESIZE_RESTORE_DELAY_MS = 250;
 
 const VIEW_HISTORY_WAIT_MS = 400;
 
+const CLOSE_CAPTURE_MS = 1000;
+
+
+function within<T>(work: Promise<T>, ms: number | undefined, fallback: T): Promise<T> {
+    if (ms === undefined) {
+        return work;
+    }
+    return Promise.race([work, new Promise<T>((resolve) => window.setTimeout(() => resolve(fallback), ms))]);
+}
 
 function isChallengeUrl(url: string): boolean {
     return CHALLENGE_PARAM.test(url);
@@ -734,14 +743,14 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         })();
     }, [apply]);
 
-    const retireView = useCallback(async (view: LiveView) => {
+    const retireView = useCallback(async (view: LiveView, deadlineMs?: number) => {
         const tab = tabsRef.current.find((row) => row.id === view.tabId);
         const url = view.host.currentUrl || tab?.url || "";
         if (!tab || !url || !view.session.targetId) {
             return;
         }
         try {
-            const place = await captureScroll(url, view.session.targetId);
+            const place = await within(captureScroll(url, view.session.targetId), deadlineMs, null);
             if (place !== null) {
                 await setBrowserTabScroll(tab.id, place.offset, place.anchor);
             }
@@ -973,13 +982,13 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         })();
     }, [apply, showTabInView]);
 
-    const rememberPlace = useCallback(async () => {
+    const rememberPlace = useCallback(async (deadlineMs?: number) => {
         const tab = tabsRef.current.find((row) => row.id === activeTabIdRef.current);
         if (!tab?.url) {
             return;
         }
         try {
-            const place = await captureScroll(liveUrlRef.current || tab.url);
+            const place = await within(captureScroll(liveUrlRef.current || tab.url), deadlineMs, null);
             if (place === null) {
                 return;
             }
@@ -992,8 +1001,8 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
 
     const rememberPlaces = useCallback(async (views: LiveView[], shown: LiveView | null) => {
         await Promise.all([
-            rememberPlace(),
-            ...views.filter((view) => view !== shown && view.tabId).map((view) => retireView(view))
+            rememberPlace(CLOSE_CAPTURE_MS),
+            ...views.filter((view) => view !== shown && view.tabId).map((view) => retireView(view, CLOSE_CAPTURE_MS))
         ]);
     }, [rememberPlace, retireView]);
 

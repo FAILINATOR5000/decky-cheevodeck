@@ -6,6 +6,8 @@ const CDP_TAB_LIST = "http://localhost:8080/json";
 
 const EVALUATE_TIMEOUT_MS = 4000;
 
+const TARGET_LIST_TIMEOUT_MS = 3000;
+
 const RESTORE_ATTEMPTS = 8;
 
 const RESTORE_GAP_MS = 220;
@@ -108,9 +110,24 @@ export function releaseTarget(id: string): void {
     }
 }
 
+function listTargets(): Promise<unknown> {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error("cdp-list-timeout")), TARGET_LIST_TIMEOUT_MS);
+        (async () => JSON.parse(await (await fetchNoCors(CDP_TAB_LIST)).text()))().then(
+            (value) => {
+                clearTimeout(timer);
+                resolve(value);
+            },
+            (e) => {
+                clearTimeout(timer);
+                reject(e);
+            }
+        );
+    });
+}
+
 async function pageTargets(): Promise<CdpTarget[]> {
-    const response = await fetchNoCors(CDP_TAB_LIST);
-    const targets: CdpTarget[] = JSON.parse(await response.text());
+    const targets = (await listTargets()) as CdpTarget[];
     return Array.isArray(targets)
         ? targets.filter((t) => t.type === "page" && typeof t.url === "string" && !!t.webSocketDebuggerUrl)
         : [];
@@ -148,8 +165,7 @@ async function socketForUrl(url: string, targetId = activeTarget): Promise<strin
         return null;
     }
     try {
-        const response = await fetchNoCors(CDP_TAB_LIST);
-        const targets: CdpTarget[] = JSON.parse(await response.text());
+        const targets = (await listTargets()) as CdpTarget[];
         if (!Array.isArray(targets)) {
             return null;
         }
