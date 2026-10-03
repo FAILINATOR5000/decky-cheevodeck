@@ -13,6 +13,8 @@ import { logError } from "../../utils/errors";
 import {
     applyCalcKey,
     calcExpressionText,
+    calcNumberText,
+    calcResultToken,
     calcTokensAreBareNumber,
     evaluateCalcTokens,
     formatCalcNumber,
@@ -30,6 +32,8 @@ const HISTORY_ROW_HEIGHT_PX = 34;
 const EXPRESSION_LINE_PX = 30;
 
 const ANSWER_LINE_PX = 22;
+
+const EXPRESSION_MAX_LINES = 3;
 
 const CALCULATOR_STYLES = `
 .da-calc-accent > *:not(.gpfocus) {
@@ -129,12 +133,17 @@ function CalculatorModal(props: CalculatorModalProps) {
     const previewValue = evaluateCalcTokens(tokens);
     const previewText = previewValue === null || settled || calcTokensAreBareNumber(tokens)
         ? ""
-        : `= ${formatCalcNumber(previewValue)}`;
+        : `= ${calcNumberText(formatCalcNumber(previewValue))}`;
 
     function applyPress(key: CalcKey) {
-        const fresh = settled
-            && (key.press === "digit" || key.press === "dot" || key.press === "value");
-        setTokens(applyCalcKey(fresh ? [] : tokens, key));
+        if (settled && key.press === "sqrt") {
+            setTokens([{ kind: "sqrt" }, ...tokens]);
+        }
+        else {
+            const fresh = settled
+                && (key.press === "digit" || key.press === "dot" || key.press === "value" || key.press === "lparen");
+            setTokens(applyCalcKey(fresh ? [] : tokens, key));
+        }
         setSettled(false);
         setFailed(false);
     }
@@ -148,7 +157,7 @@ function CalculatorModal(props: CalculatorModalProps) {
 
         const result = formatCalcNumber(value);
         const recorded = !calcTokensAreBareNumber(tokens);
-        setTokens([{ kind: "num", text: result }]);
+        setTokens([calcResultToken(value)]);
         setSettled(true);
         setFailed(false);
         if (!recorded) {
@@ -249,7 +258,7 @@ function CalculatorModal(props: CalculatorModalProps) {
                         {entry.expression}
                     </span>
                     <span style={{ fontSize: `${modalSize(14)}px`, fontWeight: 800 }}>
-                        {`= ${entry.result}`}
+                        {`= ${calcNumberText(entry.result)}`}
                     </span>
                 </DialogButton>
             </div>
@@ -286,15 +295,24 @@ function CalculatorModal(props: CalculatorModalProps) {
                 >
                     <div
                         style={{
-                            fontSize: `${modalSize(24)}px`,
-                            lineHeight: `${modalSize(EXPRESSION_LINE_PX)}px`,
-                            fontWeight: 700,
-                            textAlign: "right",
-                            wordBreak: "break-word",
-                            minHeight: `${modalSize(EXPRESSION_LINE_PX)}px`
+                            display: "flex",
+                            flexDirection: "column-reverse",
+                            overflow: "hidden",
+                            minHeight: `${modalSize(EXPRESSION_LINE_PX)}px`,
+                            maxHeight: `${modalSize(EXPRESSION_LINE_PX * EXPRESSION_MAX_LINES)}px`
                         }}
                     >
-                        {expressionText || "0"}
+                        <div
+                            style={{
+                                fontSize: `${modalSize(24)}px`,
+                                lineHeight: `${modalSize(EXPRESSION_LINE_PX)}px`,
+                                fontWeight: 700,
+                                textAlign: "right",
+                                wordBreak: "break-word"
+                            }}
+                        >
+                            {expressionText || "0"}
+                        </div>
                     </div>
                     <div
                         style={{

@@ -1,3 +1,6 @@
+import hashlib
+import math
+import re
 import secrets
 import threading
 import time
@@ -26,6 +29,8 @@ MAX_EXPRESSION_LENGTH = 512
 
 MAX_RESULT_LENGTH = 64
 
+RESULT_PATTERN = re.compile(r"-?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?", re.ASCII)
+
 
 class CalculatorStore:
 
@@ -48,19 +53,32 @@ class CalculatorStore:
             "entries": [],
         }
 
+    def _clean_result(self, raw: Any) -> str:
+        result = str(raw)
+        if len(result) > MAX_RESULT_LENGTH or not RESULT_PATTERN.fullmatch(result):
+            return ""
+        if not math.isfinite(float(result)):
+            return ""
+        return result
+
     def _clean_entry(self, raw: Any) -> dict:
         if not isinstance(raw, dict):
             return {}
         expression = str(raw.get("expression") or "")[:MAX_EXPRESSION_LENGTH]
-        result = str(raw.get("result") or "")[:MAX_RESULT_LENGTH]
+        result = self._clean_result(raw.get("result"))
         if not expression or not result:
             return {}
+        created_at = to_int(raw.get("createdAt", 0), 0)
         return {
-            "id": str(raw.get("id") or "") or self._new_id(),
+            "id": str(raw.get("id") or "") or self._stable_id(expression, result, created_at),
             "expression": expression,
             "result": result,
-            "createdAt": to_int(raw.get("createdAt", 0), 0),
+            "createdAt": created_at,
         }
+
+    def _stable_id(self, expression: str, result: str, created_at: int) -> str:
+        digest = hashlib.sha256(f"{created_at}\n{result}\n{expression}".encode("utf-8")).hexdigest()
+        return f"calc_{digest[:12]}"
 
     def _new_id(self) -> str:
         return f"calc_{secrets.token_urlsafe(8)}"
@@ -78,10 +96,18 @@ class CalculatorStore:
         if not isinstance(entries, list):
             return self._empty_file()
         cleaned = []
+        seen = set()
         for row in entries[:MAX_HISTORY_ENTRIES]:
             entry = self._clean_entry(row)
-            if entry:
-                cleaned.append(entry)
+            if not entry:
+                continue
+            base = entry["id"]
+            suffix = 2
+            while entry["id"] in seen:
+                entry["id"] = f"{base}_{suffix}"
+                suffix += 1
+            seen.add(entry["id"])
+            cleaned.append(entry)
         return {
             "schemaVersion": CURRENT_SCHEMA_VERSION,
             "entries": cleaned,

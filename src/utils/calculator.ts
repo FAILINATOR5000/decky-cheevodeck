@@ -1,7 +1,9 @@
 type CalcOperator = "+" | "-" | "*" | "/" | "^";
 
+type CalcNumber = { kind: "num"; text: string; value?: number; whole?: boolean; fixed?: boolean };
+
 export type CalcToken =
-    | { kind: "num"; text: string }
+    | CalcNumber
     | { kind: "op"; op: CalcOperator }
     | { kind: "lparen" }
     | { kind: "rparen" }
@@ -47,7 +49,7 @@ function closesValue(token: CalcToken | null): boolean {
     return token.kind === "num" || token.kind === "rparen" || token.kind === "percent";
 }
 
-function opensValue(token: CalcToken | null): boolean {
+function opensValue(token: ParseToken | null): boolean {
     if (!token) {
         return false;
     }
@@ -71,10 +73,22 @@ function digitCount(text: string): number {
     return text.replace("-", "").replace(".", "").length;
 }
 
+function replaceFixed(tokens: CalcToken[], text: string): CalcToken[] {
+    const head = tokens.slice(0, -1);
+    const before = lastToken(head);
+    if (before && before.kind === "num" && before.text === "-" && !before.whole) {
+        return [...head.slice(0, -1), { kind: "num", text: `-${text}` }];
+    }
+    return [...head, { kind: "num", text }];
+}
+
 function pressDigit(tokens: CalcToken[], digit: string): CalcToken[] {
     const last = lastToken(tokens);
     if (!last || last.kind !== "num") {
         return [...tokens, { kind: "num", text: digit }];
+    }
+    if (last.fixed) {
+        return replaceFixed(tokens, digit);
     }
     if (digitCount(last.text) >= MAX_DIGITS) {
         return tokens;
@@ -82,12 +96,12 @@ function pressDigit(tokens: CalcToken[], digit: string): CalcToken[] {
 
     const head = tokens.slice(0, -1);
     if (last.text === "0") {
-        return [...head, { kind: "num", text: digit }];
+        return [...head, { ...last, text: digit }];
     }
     if (last.text === "-0") {
-        return [...head, { kind: "num", text: `-${digit}` }];
+        return [...head, { ...last, text: `-${digit}` }];
     }
-    return [...head, { kind: "num", text: last.text + digit }];
+    return [...head, { ...last, text: last.text + digit }];
 }
 
 function pressDot(tokens: CalcToken[]): CalcToken[] {
@@ -95,21 +109,23 @@ function pressDot(tokens: CalcToken[]): CalcToken[] {
     if (!last || last.kind !== "num") {
         return [...tokens, { kind: "num", text: "0." }];
     }
+    if (last.fixed) {
+        return replaceFixed(tokens, "0.");
+    }
     if (last.text.includes(".")) {
         return tokens;
     }
     if (last.text === "-") {
-        return [...tokens.slice(0, -1), { kind: "num", text: "-0." }];
+        return [...tokens.slice(0, -1), { ...last, text: "-0." }];
     }
-    return [...tokens.slice(0, -1), { kind: "num", text: `${last.text}.` }];
+    return [...tokens.slice(0, -1), { ...last, text: `${last.text}.` }];
 }
 
 function pressOperator(tokens: CalcToken[], op: CalcOperator): CalcToken[] {
     const last = lastToken(tokens);
 
-    const settled = last && last.kind === "num" && last.text === "-"
-        ? tokens.slice(0, -1)
-        : tokens;
+    const loneMinus = last !== null && last.kind === "num" && last.text === "-";
+    const settled = loneMinus ? tokens.slice(0, -1) : tokens;
     const tail = lastToken(settled);
 
     if (!tail || tail.kind === "lparen") {
@@ -119,6 +135,9 @@ function pressOperator(tokens: CalcToken[], op: CalcOperator): CalcToken[] {
         return settled;
     }
     if (tail.kind === "op") {
+        if (op === "-" && !loneMinus) {
+            return [...settled, { kind: "num", text: "-" }];
+        }
         return [...settled.slice(0, -1), { kind: "op", op }];
     }
     if (tail.kind === "sqrt") {
@@ -127,14 +146,24 @@ function pressOperator(tokens: CalcToken[], op: CalcOperator): CalcToken[] {
     return [...settled, { kind: "op", op }];
 }
 
+function flipSign(token: CalcNumber): CalcNumber {
+    const text = token.text.startsWith("-") ? token.text.slice(1) : `-${token.text}`;
+    if (token.value === undefined) {
+        return { ...token, text, whole: true };
+    }
+    return { ...token, text, value: -token.value, whole: true };
+}
+
 function pressSign(tokens: CalcToken[]): CalcToken[] {
     const last = lastToken(tokens);
     if (last && last.kind === "num") {
-        const flipped = last.text.startsWith("-") ? last.text.slice(1) : `-${last.text}`;
-        return [...tokens.slice(0, -1), { kind: "num", text: flipped }];
+        if (last.text === "-") {
+            return tokens.slice(0, -1);
+        }
+        return [...tokens.slice(0, -1), flipSign(last)];
     }
     if (!last || last.kind === "op" || last.kind === "lparen") {
-        return [...tokens, { kind: "num", text: "-" }];
+        return [...tokens, { kind: "num", text: "-", whole: true }];
     }
     return tokens;
 }
@@ -144,8 +173,8 @@ function pressBack(tokens: CalcToken[]): CalcToken[] {
     if (!last) {
         return tokens;
     }
-    if (last.kind === "num" && last.text.length > 1) {
-        return [...tokens.slice(0, -1), { kind: "num", text: last.text.slice(0, -1) }];
+    if (last.kind === "num" && !last.fixed && last.text.length > 1) {
+        return [...tokens.slice(0, -1), { ...last, text: last.text.slice(0, -1) }];
     }
     return tokens.slice(0, -1);
 }
@@ -188,20 +217,34 @@ export function applyCalcKey(tokens: CalcToken[], key: CalcKey): CalcToken[] {
         return [...tokens, { kind: "percent" }];
     }
 
+    const recalled: CalcNumber = { kind: "num", text: key.text, whole: true, fixed: true };
     const last = lastToken(tokens);
     if (last && last.kind === "num") {
-        return [...tokens.slice(0, -1), { kind: "num", text: key.text }];
+        const head = tokens.slice(0, -1);
+        if (last.text === "-" && last.whole) {
+            return [...head, flipSign(recalled)];
+        }
+        if (last.text.startsWith("-") && !last.whole) {
+            return [...head, { kind: "num", text: "-" }, recalled];
+        }
+        return [...head, recalled];
     }
-    return [...tokens, { kind: "num", text: key.text }];
+    return [...tokens, recalled];
+}
+
+export function calcResultToken(value: number): CalcToken {
+    return { kind: "num", text: formatCalcNumber(value), value, whole: true, fixed: true };
+}
+
+export function calcNumberText(text: string): string {
+    return text.startsWith("-") ? MINUS_SIGN + text.slice(1) : text;
 }
 
 export function calcExpressionText(tokens: CalcToken[]): string {
     let text = "";
     for (const token of tokens) {
         if (token.kind === "num") {
-            text += token.text.startsWith("-")
-                ? MINUS_SIGN + token.text.slice(1)
-                : token.text;
+            text += calcNumberText(token.text);
         }
         else if (token.kind === "op") {
             text += OPERATOR_TEXT[token.op];
@@ -228,11 +271,13 @@ export function calcTokensAreBareNumber(tokens: CalcToken[]): boolean {
 
 class CalcFailure extends Error { }
 
-type Cursor = { tokens: CalcToken[]; index: number };
+type ParseToken = CalcToken | { kind: "neg" };
+
+type Cursor = { tokens: ParseToken[]; index: number };
 
 type Reading = { value: number; percentOnly: boolean };
 
-function peek(cursor: Cursor): CalcToken | null {
+function peek(cursor: Cursor): ParseToken | null {
     if (cursor.index >= cursor.tokens.length) {
         return null;
     }
@@ -246,7 +291,7 @@ function parsePrimary(cursor: Cursor): number {
     }
     if (token.kind === "num") {
         cursor.index += 1;
-        const value = Number(token.text);
+        const value = token.value ?? Number(token.text);
         if (!Number.isFinite(value)) {
             throw new CalcFailure();
         }
@@ -293,19 +338,29 @@ function parsePower(cursor: Cursor): Reading {
     const token = peek(cursor);
     if (token && token.kind === "op" && token.op === "^") {
         cursor.index += 1;
-        const exponent = parsePower(cursor);
+        const exponent = parseNegation(cursor);
         return { value: Math.pow(base.value, exponent.value), percentOnly: false };
     }
     return base;
 }
 
+function parseNegation(cursor: Cursor): Reading {
+    const token = peek(cursor);
+    if (token && token.kind === "neg") {
+        cursor.index += 1;
+        const inner = parseNegation(cursor);
+        return { value: -inner.value, percentOnly: inner.percentOnly };
+    }
+    return parsePower(cursor);
+}
+
 function parseProduct(cursor: Cursor): Reading {
-    let reading = parsePower(cursor);
+    let reading = parseNegation(cursor);
     for (;;) {
         const token = peek(cursor);
         if (token && token.kind === "op" && (token.op === "*" || token.op === "/")) {
             cursor.index += 1;
-            const right = parsePower(cursor);
+            const right = parseNegation(cursor);
             if (token.op === "/" && right.value === 0) {
                 throw new CalcFailure();
             }
@@ -339,12 +394,28 @@ function parseSum(cursor: Cursor): Reading {
     }
 }
 
+function splitTypedMinus(tokens: CalcToken[]): ParseToken[] {
+    const split: ParseToken[] = [];
+    for (const token of tokens) {
+        if (token.kind === "num" && token.text.startsWith("-") && (!token.whole || token.text === "-")) {
+            split.push({ kind: "neg" });
+            if (token.text !== "-") {
+                split.push({ kind: "num", text: token.text.slice(1) });
+            }
+        }
+        else {
+            split.push(token);
+        }
+    }
+    return split;
+}
+
 export function evaluateCalcTokens(tokens: CalcToken[]): number | null {
     if (tokens.length === 0) {
         return null;
     }
 
-    const cursor: Cursor = { tokens, index: 0 };
+    const cursor: Cursor = { tokens: splitTypedMinus(tokens), index: 0 };
     try {
         const reading = parseSum(cursor);
         if (cursor.index !== cursor.tokens.length) {
@@ -361,6 +432,9 @@ export function evaluateCalcTokens(tokens: CalcToken[]): number | null {
 }
 
 export function formatCalcNumber(value: number): string {
+    if (Number.isSafeInteger(value)) {
+        return String(value);
+    }
     const settled = Number(value.toPrecision(12));
     if (Object.is(settled, -0)) {
         return "0";
