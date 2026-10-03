@@ -2205,7 +2205,6 @@ const JA: LocaleTable = {
     "Discard your Discord draft and CheevoDeck will fill in your post.": "Discordの下書きを破棄すると、CheevoDeckが投稿を入力します。",
     "Part of your post needs finishing in Discord.": "投稿の一部はDiscordで仕上げる必要があります。",
     "Part of your post needs finishing in Discord. Press Discord's attach button and your memory is picked for you.": "投稿の一部はDiscordで仕上げる必要があります。Discordの添付ボタンを押すと、思い出が自動で選ばれます。",
-    "CheevoDeck stopped waiting for Discord. Share the memory again when you're ready.": "CheevoDeckはDiscordの待機をやめました。準備ができたら、もう一度思い出を共有してください。",
     "Share Memory": "思い出を共有",
     "Memory Tags": "思い出のタグ",
     "Include my RetroAchievements name": "RetroAchievementsの名前を載せる",

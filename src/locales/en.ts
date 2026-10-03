@@ -2263,7 +2263,6 @@ export const EN: LocaleTable = {
     "Discard your Discord draft and CheevoDeck will fill in your post.": "Discard your Discord draft and CheevoDeck will fill in your post.",
     "Part of your post needs finishing in Discord.": "Part of your post needs finishing in Discord.",
     "Part of your post needs finishing in Discord. Press Discord's attach button and your memory is picked for you.": "Part of your post needs finishing in Discord. Press Discord's attach button and your memory is picked for you.",
-    "CheevoDeck stopped waiting for Discord. Share the memory again when you're ready.": "CheevoDeck stopped waiting for Discord. Share the memory again when you're ready.",
     "Share Memory": "Share Memory",
     "Memory Tags": "Memory Tags",
     "Include my RetroAchievements name": "Include my RetroAchievements name",

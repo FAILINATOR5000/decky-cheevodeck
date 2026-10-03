@@ -360,6 +360,7 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
                 releaseWebBrowserActionset();
                 return;
             }
+            announceClosed();
             const shown = activeView();
             const detached = detachAllViews();
             silenceViews(detached);
@@ -682,6 +683,23 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
 
 let closeOpenBrowser: (() => void) | null = null;
 
+const closeListeners = new Set<() => void>();
+
+export function onBrowserClosed(listener: () => void): void {
+    closeListeners.add(listener);
+}
+
+function announceClosed(): void {
+    for (const listener of [...closeListeners]) {
+        try {
+            listener();
+        }
+        catch (e) {
+            logError("BrowserModal.announceClosed", e);
+        }
+    }
+}
+
 let minimizeRequested = false;
 
 let mountedBrowsers = 0;
@@ -703,6 +721,7 @@ export function closeBrowserForUnload(): void {
         }
     }
     destroyAllViews();
+    announceClosed();
     releaseWebBrowserActionset();
 }
 

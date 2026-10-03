@@ -2269,7 +2269,6 @@ const PT: LocaleTable = {
     "Discard your Discord draft and CheevoDeck will fill in your post.": "Descarta o teu rascunho do Discord e o CheevoDeck preenche a tua publicação.",
     "Part of your post needs finishing in Discord.": "Parte da tua publicação tem de ser terminada no Discord.",
     "Part of your post needs finishing in Discord. Press Discord's attach button and your memory is picked for you.": "Parte da tua publicação tem de ser terminada no Discord. Carrega no botão de anexar do Discord e a tua memória é escolhida por ti.",
-    "CheevoDeck stopped waiting for Discord. Share the memory again when you're ready.": "O CheevoDeck deixou de esperar pelo Discord. Partilha a memória outra vez quando quiseres.",
     "Share Memory": "Partilhar memória",
     "Memory Tags": "Etiquetas da memória",
     "Include my RetroAchievements name": "Incluir o meu nome do RetroAchievements",

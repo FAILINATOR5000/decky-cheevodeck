@@ -2374,7 +2374,6 @@ const PL: LocaleTable = {
     "Discard your Discord draft and CheevoDeck will fill in your post.": "Odrzuć swój szkic w Discordzie, a CheevoDeck wypełni twój post.",
     "Part of your post needs finishing in Discord.": "Część posta trzeba dokończyć w Discordzie.",
     "Part of your post needs finishing in Discord. Press Discord's attach button and your memory is picked for you.": "Część posta trzeba dokończyć w Discordzie. Naciśnij przycisk załączania w Discordzie, a wspomnienie zostanie wybrane za ciebie.",
-    "CheevoDeck stopped waiting for Discord. Share the memory again when you're ready.": "CheevoDeck przestał czekać na Discorda. Udostępnij wspomnienie ponownie, kiedy zechcesz.",
     "Share Memory": "Udostępnij wspomnienie",
     "Memory Tags": "Tagi wspomnienia",
     "Include my RetroAchievements name": "Dołącz moją nazwę z RetroAchievements",

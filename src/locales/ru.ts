@@ -2339,7 +2339,6 @@ const RU: LocaleTable = {
     "Discard your Discord draft and CheevoDeck will fill in your post.": "Удалите черновик в Discord, и CheevoDeck заполнит вашу публикацию.",
     "Part of your post needs finishing in Discord.": "Часть публикации нужно дозаполнить в Discord.",
     "Part of your post needs finishing in Discord. Press Discord's attach button and your memory is picked for you.": "Часть публикации нужно дозаполнить в Discord. Нажмите кнопку вложения в Discord, и момент будет выбран автоматически.",
-    "CheevoDeck stopped waiting for Discord. Share the memory again when you're ready.": "CheevoDeck перестал ждать Discord. Поделитесь моментом снова, когда будете готовы.",
     "Share Memory": "Поделиться моментом",
     "Memory Tags": "Теги момента",
     "Include my RetroAchievements name": "Указать моё имя в RetroAchievements",

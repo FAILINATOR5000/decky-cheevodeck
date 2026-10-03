@@ -4,7 +4,7 @@ import { getCurrentLanguage, t, type LanguageCode } from "../../locales";
 import type { BrowserTab } from "../../types";
 import { logError } from "../../utils/errors";
 import { SHARE_CREDIT_TEXT, SHARED_MEMORIES_CHANNEL_URL, SHARED_MEMORIES_INVITE_URL, SHARED_MEMORIES_PATH } from "../../utils/sharedMemories";
-import { openBrowserModal } from "./BrowserModal";
+import { onBrowserClosed, openBrowserModal } from "./BrowserModal";
 import { liveViewFor, liveViews, type LiveView } from "./browserViews";
 
 const POLL_MS = 1000;
@@ -419,6 +419,7 @@ type Pending = {
 let pending: Pending | null = null;
 let lastFilledTitle = "";
 let postWatch: number | null = null;
+let postWatchFile = "";
 
 function endPostWatch() {
     if (postWatch !== null) {
@@ -430,6 +431,17 @@ function endPostWatch() {
 function discard(filePath: string) {
     discardMemoryShare(filePath).catch((e) => logError("discord share: couldn't discard the share file", e));
 }
+
+onBrowserClosed(() => {
+    buttonWatch?.stop("browser closed");
+    pending?.watch.stop("browser closed");
+    if (postWatch !== null) {
+        const file = postWatchFile;
+        endPostWatch();
+        logFocusDebug("discord-share", "finished", "browser closed");
+        discard(file);
+    }
+});
 
 export function startDiscordShare(language: LanguageCode, share: DiscordShare, opened?: () => void): void {
     const previous = pending;
@@ -445,9 +457,6 @@ export function startDiscordShare(language: LanguageCode, share: DiscordShare, o
                 return;
             }
             pending = null;
-            if (reason === "timed out") {
-                toast("CheevoDeck stopped waiting for Discord. Share the memory again when you're ready.");
-            }
             if (reason !== "filled") {
                 discard(share.filePath);
             }
@@ -633,6 +642,7 @@ function watchForPost(view: LiveView, filePath: string, filledAt: number) {
     const threadPrefix = `${SHARED_MEMORIES_PATH}/threads/`;
     const tabId = view.tabId;
     let checking = false;
+    postWatchFile = filePath;
     const interval: number = window.setInterval(async () => {
         if (checking) {
             return;
