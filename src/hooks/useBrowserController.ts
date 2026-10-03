@@ -28,7 +28,7 @@ import {
     setBrowserTabScroll,
     setBrowserTabTitle
 } from "../api";
-import { applyPageZoom, blurPageField, captureScroll, isPlayingSound, lastCaptureMiss, PAGE_KEPT_PLACE, pausePlayingMedia, preparePage, restoreScroll, restoreScrollEarly, ScrollPlace } from "../components/browser/browserScroll";
+import { applyPageZoom, blurPageField, captureScroll, isPlayingSound, lastCaptureMiss, PAGE_KEPT_PLACE, pausePlayingMedia, preparePage, restoreScroll, restoreScrollEarly, restoreToken, ScrollPlace } from "../components/browser/browserScroll";
 import {
     activateView,
     activeView,
@@ -358,10 +358,10 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
 
     const settle = useCallback((url: string): Promise<unknown> => {
         if (!url) return Promise.resolve();
-        return preparePage(url, zoomRef.current, blockAdsRef.current, fastForwardRef.current);
+        return preparePage(url, zoomRef.current, blockAdsRef.current, fastForwardRef.current, undefined, activeView()?.session);
     }, []);
 
-    const pendingRestoreRef = useRef<{ url: string; place: ScrollPlace } | null>(null);
+    const pendingRestoreRef = useRef<{ url: string; place: ScrollPlace; token: string } | null>(null);
     const restoreTimerRef = useRef<number | null>(null);
 
     const endRestore = useCallback(() => {
@@ -379,13 +379,19 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         if (restoreTimerRef.current !== null) {
             window.clearTimeout(restoreTimerRef.current);
         }
-        const pending = { url, place };
+        const pending = { url, place, token: restoreToken() };
+        const session = activeView()?.session ?? null;
         pendingRestoreRef.current = pending;
         restoreTimerRef.current = window.setTimeout(endRestore, RESTORE_DEADLINE_MS);
         (async () => {
             while (pendingRestoreRef.current === pending) {
-                const outcome = await restoreScrollEarly(url, place);
+                const outcome = await restoreScrollEarly(url, place, pending.token, session);
                 if (pendingRestoreRef.current !== pending) {
+                    return;
+                }
+                if (outcome.state === "user") {
+                    logFocusDebug("browser-show", "early restore", "the reader scrolled");
+                    endRestore();
                     return;
                 }
                 if (outcome.state === "held") {
@@ -410,7 +416,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         setZoomPercent(nextValue);
         const url = tabsRef.current.find((tab) => tab.id === activeTabIdRef.current)?.url ?? "";
         if (url) {
-            void applyPageZoom(url, nextValue);
+            void applyPageZoom(url, nextValue, activeView()?.session);
         }
         void saveBrowserPageZoom(nextValue).catch((e) => logError("useBrowserController.stepZoom", e));
     }, []);
@@ -529,12 +535,12 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         const live = liveUrlRef.current;
         (async () => {
             try {
-                const place = live ? await captureScroll(live) : null;
+                const place = live ? await captureScroll(live, undefined, activeView()?.session) : null;
                 setExpanded(nextValue);
                 saveSetting("toggleExpanded", () => saveBrowserExpanded(nextValue));
                 if (place && place.offset > 0) {
                     await new Promise((resolve) => window.setTimeout(resolve, RESIZE_RESTORE_DELAY_MS));
-                    const by = await restoreScroll(live, place);
+                    const by = await restoreScroll(live, place, undefined, activeView()?.session);
                     logFocusDebug("browser-expand", nextValue ? "expanded" : "shrunk", `restore=${by ?? "failed"}`);
                 }
             }
@@ -709,7 +715,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         }
         drivenUrlRef.current = tab.url;
         setAddress(tab.url);
-        void restoreScroll(live, { offset: Math.max(0, tab.scroll), anchor: tab.anchor })
+        void restoreScroll(live, { offset: Math.max(0, tab.scroll), anchor: tab.anchor }, undefined, activeView()?.session)
             .then((by) => logFocusDebug("browser-show", "same-page restore", by ?? "failed"))
             .catch((e) => logError("useBrowserController.showTab", e));
     }, [drive, queueRestore]);
@@ -770,7 +776,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
             return;
         }
         try {
-            const place = await within(captureScroll(url, view.session.targetId), deadlineMs, null);
+            const place = await within(captureScroll(url, view.session.targetId, view.session), deadlineMs, null);
             if (place !== null) {
                 await setBrowserTabScroll(tab.id, place.offset, place.anchor);
             }
@@ -788,7 +794,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
             .sort((a, b) => a.usedAt - b.usedAt);
         if (viewLimit() > 1) {
             for (const view of candidates) {
-                if (!(await isPlayingSound(view.session.targetId))) {
+                if (!(await isPlayingSound(view.session.targetId, view.session))) {
                     return view;
                 }
             }
@@ -849,9 +855,9 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
     }, [pickVictim, retireView]);
 
     const leaveActiveView = useCallback(async () => {
-        const target = activeView()?.session.targetId;
-        if (pauseOnSwitchRef.current && target) {
-            await pausePlayingMedia(target);
+        const session = activeView()?.session;
+        if (pauseOnSwitchRef.current && session?.targetId) {
+            await pausePlayingMedia(session.targetId, session);
         }
     }, []);
 
@@ -1012,13 +1018,13 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         });
     }, [apply, queueTabAction, showTabInView]);
 
-    const rememberPlace = useCallback(async (deadlineMs?: number) => {
+    const rememberPlace = useCallback(async (deadlineMs?: number, session = activeView()?.session) => {
         const tab = tabsRef.current.find((row) => row.id === activeTabIdRef.current);
         if (!tab?.url) {
             return;
         }
         try {
-            const place = await within(captureScroll(liveUrlRef.current || tab.url), deadlineMs, null);
+            const place = await within(captureScroll(liveUrlRef.current || tab.url, undefined, session), deadlineMs, null);
             if (place === null) {
                 return;
             }
@@ -1031,7 +1037,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
 
     const rememberPlaces = useCallback(async (views: LiveView[], shown: LiveView | null) => {
         await Promise.all([
-            rememberPlace(CLOSE_CAPTURE_MS),
+            rememberPlace(CLOSE_CAPTURE_MS, shown?.session),
             ...views.filter((view) => view !== shown && view.tabId).map((view) => retireView(view, CLOSE_CAPTURE_MS))
         ]);
     }, [rememberPlace, retireView]);
@@ -1065,7 +1071,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
             }
             const outgoing = tabsRef.current.find((tab) => tab.id === activeTabIdRef.current);
             if (outgoing?.url) {
-                const place = await captureScroll(liveUrlRef.current || outgoing.url);
+                const place = await captureScroll(liveUrlRef.current || outgoing.url, undefined, activeView()?.session);
                 logFocusDebug("browser-capture", outgoing.id, `offset=${place?.offset} anchored=${!!place?.anchor}`);
                 if (place !== null) {
                     await setBrowserTabScroll(outgoing.id, place.offset, place.anchor);
@@ -1116,7 +1122,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         const url = tab?.url || BROWSER_HOME_URL;
         (async () => {
             try {
-                const place = await captureScroll(liveUrlRef.current || url);
+                const place = await captureScroll(liveUrlRef.current || url, undefined, activeView()?.session);
                 logFocusDebug("browser-reload", url.slice(0, 60), `offset=${place?.offset} anchored=${!!place?.anchor}`);
                 drive(url);
                 if (place !== null && place.offset > 0) {
@@ -1176,7 +1182,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
     }, [apply, drive, openTab, rememberPlace]);
 
     const blurPage = useCallback(() => {
-        void blurPageField(liveUrlRef.current);
+        void blurPageField(liveUrlRef.current, activeView()?.session);
     }, []);
 
     const openNewTab = useCallback(() => openTab(newTabUrlRef.current), [openTab]);
@@ -1206,7 +1212,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         }
         (async () => {
             try {
-                const place = await captureScroll(live);
+                const place = await captureScroll(live, undefined, activeView()?.session);
                 logFocusDebug("browser-capture", "leaving", place ? `offset=${place.offset} anchored=${!!place.anchor}` : `missed, page keeps it: ${lastCaptureMiss}`);
                 await setBrowserTabScroll(tab.id, place?.offset ?? 0, place?.anchor ?? PAGE_KEPT_PLACE, entry);
             }
@@ -1282,7 +1288,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         const pending = pendingRestoreRef.current;
         if (finished && pending && withoutChallenge(pending.url) === withoutChallenge(url)) {
             pendingRestoreRef.current = null;
-            void restoreScroll(url, pending.place)
+            void restoreScroll(url, pending.place, pending.token, activeView()?.session)
                 .then((by) => logFocusDebug("browser-show", "load-finished restore", by ?? "failed"))
                 .finally(endRestore);
         }

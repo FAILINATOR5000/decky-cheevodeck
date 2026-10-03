@@ -123,6 +123,23 @@ export class ViewSession {
         return this.send(method, params);
     }
 
+    get connected(): boolean {
+        return this.socket !== null && this.socket.readyState === WebSocket.OPEN;
+    }
+
+    async evaluate(expression: string): Promise<any> {
+        const result = await this.send("Runtime.evaluate", {
+            expression,
+            returnByValue: true,
+            awaitPromise: true,
+            allowUnsafeEvalBlocklistBypass: true
+        });
+        if (result?.exceptionDetails) {
+            throw new Error("cdp-eval-failed");
+        }
+        return result?.result?.value;
+    }
+
     onFileChooser(handler: ((backendNodeId: number) => void) | null): void {
         this.fileChooserHandler = handler;
     }

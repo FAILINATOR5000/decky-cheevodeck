@@ -47,7 +47,7 @@ function bind(view: LiveView) {
             events?.load(host, url, title, loading, finished);
         }
         else if (finished && url && session.targetId) {
-            void preparePage(url, pageSettings.zoom, pageSettings.blockAds, pageSettings.fastForward, session.targetId);
+            void preparePage(url, pageSettings.zoom, pageSettings.blockAds, pageSettings.fastForward, session.targetId, session);
         }
     });
     host.setLoadingHandler((loading) => {
@@ -125,7 +125,7 @@ export function refreshHiddenPages(): void {
     for (const view of liveViews()) {
         const url = view.host.currentUrl;
         if (view !== active && url && view.session.targetId) {
-            void preparePage(url, pageSettings.zoom, pageSettings.blockAds, pageSettings.fastForward, view.session.targetId);
+            void preparePage(url, pageSettings.zoom, pageSettings.blockAds, pageSettings.fastForward, view.session.targetId, view.session);
         }
     }
 }

@@ -80,6 +80,17 @@ function evaluate(wsUrl: string, expression: string): Promise<any> {
     });
 }
 
+export type PageSession = {
+    readonly connected: boolean;
+    evaluate(expression: string): Promise<any>;
+};
+
+type PageRunner = (expression: string) => Promise<any>;
+
+const SAME_ADDRESS = `
+    const sameAddress = (reported, url) => reported === url || reported === encodeURI(url) || reported.replace(/\\/$/, "") === url.replace(/\\/$/, "");
+`;
+
 let viewSocket = "";
 
 export let lastCaptureMiss = "";
@@ -185,6 +196,14 @@ async function socketForUrl(url: string, targetId = activeTarget): Promise<strin
     catch {
         return null;
     }
+}
+
+async function runnerFor(session: PageSession | null | undefined, url: string, targetId?: string): Promise<PageRunner | null> {
+    if (session?.connected) {
+        return (expression) => session.evaluate(expression);
+    }
+    const wsUrl = await socketForUrl(url, targetId);
+    return wsUrl ? (expression) => evaluate(wsUrl, expression) : null;
 }
 
 export type ScrollPlace = {
@@ -305,14 +324,18 @@ const PLACE_OF = `
     };
 `;
 
-export async function captureScroll(url: string, targetId = activeTarget): Promise<ScrollPlace | null> {
+export async function captureScroll(url: string, targetId = activeTarget, session?: PageSession | null): Promise<ScrollPlace | null> {
     lastCaptureMiss = "";
     if (!url) {
         lastCaptureMiss = "no url";
         return null;
     }
+    if (session?.connected) {
+        return readPlace((expression) => session.evaluate(expression), url);
+    }
     if (viewSocket && targetId === activeTarget) {
-        const place = await readPlace(viewSocket, url);
+        const socket = viewSocket;
+        const place = await readPlace((expression) => evaluate(socket, expression), url);
         if (place) {
             return place;
         }
@@ -323,17 +346,17 @@ export async function captureScroll(url: string, targetId = activeTarget): Promi
         lastCaptureMiss = `${viaView || "no view socket"}; no target for url`;
         return null;
     }
-    return readPlace(wsUrl, url);
+    return readPlace((expression) => evaluate(wsUrl, expression), url);
 }
 
-async function readPlace(wsUrl: string, url: string): Promise<ScrollPlace | null> {
+async function readPlace(run: PageRunner, url: string): Promise<ScrollPlace | null> {
     const script = `(() => {
         ${PLACE_OF}
         const place = placeHere();
         return { offset: place.offset, anchor: place.anchor, href: location.href };
     })()`;
     try {
-        const value = await evaluate(wsUrl, script);
+        const value = await run(script);
         if (!value || typeof value.offset !== "number" || value.offset < 0) {
             lastCaptureMiss = "bad value";
             return null;
@@ -350,7 +373,26 @@ async function readPlace(wsUrl: string, url: string): Promise<ScrollPlace | null
     }
 }
 
-function restoreScript(place: ScrollPlace, early: boolean, settle: boolean): string {
+const INPUT_WATCH = `
+    if (!window.__cheevodeckInput) {
+        window.__cheevodeckInput = { count: 0 };
+        const bump = () => {
+            window.__cheevodeckInput.count++;
+        };
+        for (const type of ["wheel", "touchstart", "keydown", "mousedown"]) {
+            addEventListener(type, bump, { capture: true, passive: true });
+        }
+    }
+`;
+
+let restoreCount = 0;
+
+export function restoreToken(): string {
+    restoreCount += 1;
+    return `restore-${restoreCount}`;
+}
+
+function restoreScript(place: ScrollPlace, early: boolean, settle: boolean, token: string, url: string): string {
     const askPage = place.anchor === PAGE_KEPT_PLACE;
     let saved: unknown = null;
     try {
@@ -361,9 +403,22 @@ function restoreScript(place: ScrollPlace, early: boolean, settle: boolean): str
     }
     return `(() => {
         ${TEXT_OF}
+        ${SAME_ADDRESS}
         const early = ${early};
         if (early && document.readyState === "complete") {
             return { state: "loading", by: "" };
+        }
+        if (!sameAddress(location.href, ${JSON.stringify(url)})) {
+            return { state: "absent", by: "" };
+        }
+        ${INPUT_WATCH}
+        const token = ${JSON.stringify(token)};
+        const mark = window.__cheevodeckRestore;
+        if (!mark || mark.token !== token) {
+            window.__cheevodeckRestore = { token, count: window.__cheevodeckInput.count };
+        }
+        else if (mark.count !== window.__cheevodeckInput.count) {
+            return { state: "user", by: "" };
         }
         let offset = ${Math.max(0, Math.round(place.offset))};
         let saved = ${JSON.stringify(saved)};
@@ -427,39 +482,46 @@ function restoreScript(place: ScrollPlace, early: boolean, settle: boolean): str
 }
 
 type RestoreOutcome = {
-    state: "absent" | "loading" | "held";
+    state: "absent" | "loading" | "held" | "user";
     by: string;
 };
 
-export async function restoreScrollEarly(url: string, place: ScrollPlace): Promise<RestoreOutcome> {
-    const wsUrl = await socketForUrl(url);
-    if (!wsUrl) {
+export async function restoreScrollEarly(url: string, place: ScrollPlace, token: string, session?: PageSession | null): Promise<RestoreOutcome> {
+    const run = await runnerFor(session, url);
+    if (!run) {
         return { state: "absent", by: "" };
     }
     try {
-        const value = await evaluate(wsUrl, restoreScript(place, true, false));
-        return { state: value?.state === "held" ? "held" : "loading", by: String(value?.by ?? "") };
+        const value = await run(restoreScript(place, true, false, token, url));
+        const state = value?.state === "held" || value?.state === "user" || value?.state === "absent" ? value.state : "loading";
+        return { state, by: String(value?.by ?? "") };
     }
     catch {
         return { state: "loading", by: "" };
     }
 }
 
-export async function restoreScroll(url: string, place: ScrollPlace): Promise<string | null> {
+export async function restoreScroll(url: string, place: ScrollPlace, token = restoreToken(), session?: PageSession | null): Promise<string | null> {
     if (place.offset < 0) {
         return "pixel";
     }
-    const wsUrl = await socketForUrl(url);
-    if (!wsUrl) {
+    const run = await runnerFor(session, url);
+    if (!run) {
         return null;
     }
     for (let attempt = 0; attempt < RESTORE_ATTEMPTS; attempt++) {
-        const script = restoreScript(place, false, attempt === RESTORE_ATTEMPTS - 1);
+        const script = restoreScript(place, false, attempt === RESTORE_ATTEMPTS - 1, token, url);
         try {
-            const first = await evaluate(wsUrl, script);
+            const first = await run(script);
+            if (first?.state === "user" || first?.state === "absent") {
+                return first.state === "user" ? "user" : null;
+            }
             if (first?.state === "held") {
                 await new Promise((resolve) => setTimeout(resolve, RESTORE_GAP_MS));
-                const second = await evaluate(wsUrl, script);
+                const second = await run(script);
+                if (second?.state === "user") {
+                    return "user";
+                }
                 if (second?.state === "held") {
                     return String(second.by || "pixel");
                 }
@@ -477,12 +539,16 @@ export async function restoreScroll(url: string, place: ScrollPlace): Promise<st
     return null;
 }
 
-export async function blurPageField(url: string): Promise<boolean> {
-    const wsUrl = await socketForUrl(url);
-    if (!wsUrl) {
+export async function blurPageField(url: string, session?: PageSession | null): Promise<boolean> {
+    const run = await runnerFor(session, url);
+    if (!run) {
         return false;
     }
     const script = `(() => {
+        ${SAME_ADDRESS}
+        if (!sameAddress(location.href, ${JSON.stringify(url)})) {
+            return false;
+        }
         const node = document.activeElement;
         if (node && node !== document.body && (node.tagName === "INPUT" || node.tagName === "TEXTAREA" || node.isContentEditable)) {
             node.blur();
@@ -490,8 +556,7 @@ export async function blurPageField(url: string): Promise<boolean> {
         return true;
     })()`;
     try {
-        await evaluate(wsUrl, script);
-        return true;
+        return (await run(script)) === true;
     }
     catch {
         return false;
@@ -676,13 +741,17 @@ function cssZoom(percent: number): string {
     return percent > 100 ? String(percent / 100) : "";
 }
 
-export async function preparePage(url: string, percent: number, blockAds: boolean, fastForward: boolean, targetId = activeTarget): Promise<boolean> {
-    const wsUrl = await socketForUrl(url, targetId);
-    if (!wsUrl) {
+export async function preparePage(url: string, percent: number, blockAds: boolean, fastForward: boolean, targetId = activeTarget, session?: PageSession | null): Promise<boolean> {
+    const run = await runnerFor(session, url, targetId);
+    if (!run) {
         return false;
     }
     const hideAdSlots = blockAds && !isAdExempt(url);
     const script = `(() => {
+        ${SAME_ADDRESS}
+        if (!sameAddress(location.href, ${JSON.stringify(url)})) {
+            return false;
+        }
         document.documentElement.style.zoom = ${JSON.stringify(cssZoom(percent))};
         let adStyle = document.getElementById(${JSON.stringify(AD_SLOT_STYLE_ID)});
         if (${hideAdSlots} && !adStyle) {
@@ -733,23 +802,28 @@ export async function preparePage(url: string, percent: number, blockAds: boolea
         return true;
     })()`;
     try {
-        await evaluate(wsUrl, script);
-        return true;
+        return (await run(script)) === true;
     }
     catch {
         return false;
     }
 }
 
-export async function applyPageZoom(url: string, percent: number): Promise<boolean> {
-    const wsUrl = await socketForUrl(url);
-    if (!wsUrl) {
+export async function applyPageZoom(url: string, percent: number, session?: PageSession | null): Promise<boolean> {
+    const run = await runnerFor(session, url);
+    if (!run) {
         return false;
     }
-    const script = `(() => { document.documentElement.style.zoom = ${JSON.stringify(cssZoom(percent))}; return true; })()`;
-    try {
-        await evaluate(wsUrl, script);
+    const script = `(() => {
+        ${SAME_ADDRESS}
+        if (!sameAddress(location.href, ${JSON.stringify(url)})) {
+            return false;
+        }
+        document.documentElement.style.zoom = ${JSON.stringify(cssZoom(percent))};
         return true;
+    })()`;
+    try {
+        return (await run(script)) === true;
     }
     catch {
         return false;
@@ -758,26 +832,26 @@ export async function applyPageZoom(url: string, percent: number): Promise<boole
 
 const PLAYING_MEDIA = `[...document.querySelectorAll("video, audio")].filter((media) => !media.paused)`;
 
-export async function isPlayingSound(targetId: string): Promise<boolean> {
-    const wsUrl = await socketOfTarget(targetId);
-    if (!wsUrl) {
-        return false;
+async function runOnTarget(targetId: string, session: PageSession | null | undefined, expression: string): Promise<any> {
+    if (session?.connected) {
+        return session.evaluate(expression);
     }
+    const wsUrl = await socketOfTarget(targetId);
+    return wsUrl ? evaluate(wsUrl, expression) : null;
+}
+
+export async function isPlayingSound(targetId: string, session?: PageSession | null): Promise<boolean> {
     try {
-        return (await evaluate(wsUrl, `${PLAYING_MEDIA}.some((media) => !media.muted && media.volume > 0)`)) === true;
+        return (await runOnTarget(targetId, session, `${PLAYING_MEDIA}.some((media) => !media.muted && media.volume > 0)`)) === true;
     }
     catch {
         return false;
     }
 }
 
-export async function pausePlayingMedia(targetId: string): Promise<void> {
-    const wsUrl = await socketOfTarget(targetId);
-    if (!wsUrl) {
-        return;
-    }
+export async function pausePlayingMedia(targetId: string, session?: PageSession | null): Promise<void> {
     try {
-        await evaluate(wsUrl, `(${PLAYING_MEDIA}.forEach((media) => media.pause()), true)`);
+        await runOnTarget(targetId, session, `(${PLAYING_MEDIA}.forEach((media) => media.pause()), true)`);
     }
     catch {
         return;
