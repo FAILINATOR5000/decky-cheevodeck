@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ModalRoot } from "@decky/ui";
 import {
-    heightAboveKeyboard,
-    keyboardIsBelow,
     releaseWebBrowserActionset,
     requestGamepadFocus,
     resolveBrowserComponents,
@@ -26,19 +24,15 @@ import { logError } from "../../utils/errors";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { openInSteamBrowser } from "../../utils/steamBrowser";
 
-const MIN_STAGE_HEIGHT_PX = 120;
-
 const CANCELLED_REQUEST_RETRY_MS = 400;
 
 const STOP_SETTLE_MS = 300;
 
-const KEYBOARD_SETTLE_MS = 700;
-
-const KEYBOARD_SETTLE_STEP_MS = 60;
-
 const BOUNDS_SETTLE_MS = 700;
 
 const BOUNDS_SETTLE_STEP_MS = 60;
+
+const KEYBOARD_ESTIMATE_PX = 239;
 
 const VIEW_UNDERLAY = false;
 
@@ -63,26 +57,30 @@ const BROWSER_MODAL_CSS = `
 *:has(> .cd-browser-dialog.cd-browser-expanded) {
     padding: 0 !important;
 }
-.cd-browser-dialog.cd-browser-fullscreen, *:has(> .cd-browser-dialog.cd-browser-fullscreen) {
-    position: fixed !important;
+.cd-browser-dialog.cd-browser-expanded {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+*:has(> .cd-browser-dialog.cd-browser-fullscreen) {
+    position: absolute !important;
     top: 0 !important;
+    bottom: 0 !important;
     left: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
+    right: 0 !important;
+    width: auto !important;
+    height: auto !important;
     max-height: none !important;
 }
 .cd-browser-dialog.cd-browser-fullscreen {
     border: none !important;
-}
-.cd-browser-dialog.cd-browser-fullscreen .cd-browser-outer {
-    height: 100vh;
 }
 .FullModalOverlay:has(.cd-browser-fullscreen) ~ .GamepadMode,
 *:has(> .FullModalOverlay .cd-browser-fullscreen) + *:not(:has([class*="Layout_"])) {
     visibility: hidden !important;
 }
 .cd-browser-expanded .cd-browser-outer {
-    height: calc(100vh - var(--basicui-header-height, 0px) - var(--gamepadui-current-footer-height, 0px) - 4px);
+    flex: 1 1 auto;
+    min-height: 0;
 }
 .cd-browser-dialog .DialogContent_InnerWidth {
     padding: 0;
@@ -93,7 +91,6 @@ const BROWSER_MODAL_CSS = `
     display: flex;
     flex-direction: column;
     width: 100%;
-    height: min(80vh, calc(100vh - var(--basicui-header-height, 0px) - var(--gamepadui-current-footer-height, 0px) - 52px));
 }
 .cd-browser-stage {
     position: relative;
@@ -103,6 +100,7 @@ const BROWSER_MODAL_CSS = `
     width: 100%;
     box-sizing: border-box;
     padding: 0 4px 4px;
+    overflow: clip;
 }
 .cd-browser-scroll {
     scrollbar-width: none;
@@ -134,6 +132,7 @@ const BROWSER_MODAL_CSS = `
     flex: 1 1 auto;
     min-height: 0;
     width: 100%;
+    height: var(--cd-view-hold, auto);
 }
 `;
 
@@ -170,7 +169,6 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
         }
     }, []);
     const ready = view !== null;
-    const [stageHeight, setStageHeight] = useState(0);
     const [keyboardOpen, setKeyboardOpen] = useState(false);
     const [panelOpen, setPanelOpen] = useState(false);
     const [findCount, setFindCount] = useState<{ total: number; current: number } | null>(null);
@@ -187,7 +185,6 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
     }, []);
 
     const keyboardOpenRef = useRef(false);
-    const keyboardReadingRef = useRef<number | null>(null);
     const claimViewNode = useCallback((force: boolean) => {
         if (keyboardOpenRef.current && !force) {
             logFocusDebug("browser-claim", "guarded", "keyboard up");
@@ -416,41 +413,71 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
         return () => observer.disconnect();
     }, [ready, syncViewBounds]);
 
-    useEffect(() => {
-        if (!ready) {
-            return;
+    const settleTimerRef = useRef<number | null>(null);
+
+    const settleViewBounds = useCallback((floor = 0) => {
+        if (settleTimerRef.current !== null) {
+            window.clearInterval(settleTimerRef.current);
         }
         let elapsed = 0;
-        const timer = window.setInterval(() => {
+        let previous = "";
+        settleTimerRef.current = window.setInterval(() => {
             elapsed += BOUNDS_SETTLE_STEP_MS;
-            syncViewBounds();
-            if (elapsed >= BOUNDS_SETTLE_MS) {
-                window.clearInterval(timer);
+            const stage = stageRef.current;
+            const rect = stage?.getBoundingClientRect();
+            const reading = rect ? `${rect.y},${rect.height}` : "";
+            const done = elapsed >= BOUNDS_SETTLE_MS;
+            const settled = reading === previous && (floor === 0 || (rect?.height ?? 0) > floor);
+            if (settled || done) {
+                stage?.style.removeProperty("--cd-view-hold");
+                syncViewBounds();
+            }
+            previous = reading;
+            if (done && settleTimerRef.current !== null) {
+                window.clearInterval(settleTimerRef.current);
+                settleTimerRef.current = null;
             }
         }, BOUNDS_SETTLE_STEP_MS);
-        return () => window.clearInterval(timer);
-    }, [keyboardOpen, stageHeight, browser.expanded, ready, syncViewBounds]);
+    }, [syncViewBounds]);
 
-    const resizeForKeyboard = useCallback((showing: boolean) => {
-        keyboardOpenRef.current = showing;
-        setKeyboardOpen(showing);
-        if (!showing || !paintedRef.current || !keyboardIsBelow()) {
-            keyboardReadingRef.current = null;
-            setStageHeight(0);
-            return;
+    useEffect(() => {
+        if (ready) {
+            settleViewBounds();
         }
-        const { measured, guess } = heightAboveKeyboard(stageRef.current);
-        const settled = measured !== null && measured === keyboardReadingRef.current;
-        keyboardReadingRef.current = measured;
-        setStageHeight((current) => {
-            if (settled) {
-                return Math.max(measured, MIN_STAGE_HEIGHT_PX);
-            }
-            return current > 0 ? current : Math.max(guess, MIN_STAGE_HEIGHT_PX);
-        });
+    }, [browser.expanded, ready, settleViewBounds]);
+
+    useEffect(() => () => {
+        if (settleTimerRef.current !== null) {
+            window.clearInterval(settleTimerRef.current);
+        }
     }, []);
 
-    useEffect(() => subscribeVirtualKeyboard(resizeForKeyboard), [resizeForKeyboard]);
+    const noteKeyboard = useCallback((showing: boolean) => {
+        if (showing !== keyboardOpenRef.current) {
+            const stage = stageRef.current;
+            const placeholder = stage?.querySelector<HTMLElement>(".cd-browser-view");
+            const dialog = outerRef.current?.closest(".cd-browser-dialog");
+            const win = stage?.ownerDocument?.defaultView;
+            let floor = 0;
+            if (stage && placeholder && dialog && win) {
+                const view = placeholder.getBoundingClientRect();
+                const gap = dialog.getBoundingClientRect().bottom - view.bottom;
+                const estimate = win.innerHeight - KEYBOARD_ESTIMATE_PX - gap - view.top;
+                const height = showing ? Math.min(view.height, Math.max(0, estimate)) : view.height;
+                if (height > 0) {
+                    stage.style.setProperty("--cd-view-hold", `${height}px`);
+                }
+                if (!showing) {
+                    floor = stage.getBoundingClientRect().height;
+                }
+            }
+            settleViewBounds(floor);
+        }
+        keyboardOpenRef.current = showing;
+        setKeyboardOpen(showing);
+    }, [settleViewBounds]);
+
+    useEffect(() => subscribeVirtualKeyboard(noteKeyboard), [noteKeyboard]);
 
     useFocusPaintWake(outerRef);
 
@@ -519,23 +546,6 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
     const viewPainted = blocked === "" && bookmarkLimit === 0 && download === null && !panelOpen;
 
     useEffect(() => {
-        if (!keyboardOpen) {
-            setStageHeight(0);
-            return;
-        }
-        let elapsed = 0;
-        resizeForKeyboard(true);
-        const timer = window.setInterval(() => {
-            elapsed += KEYBOARD_SETTLE_STEP_MS;
-            resizeForKeyboard(true);
-            if (elapsed >= KEYBOARD_SETTLE_MS) {
-                window.clearInterval(timer);
-            }
-        }, KEYBOARD_SETTLE_STEP_MS);
-        return () => window.clearInterval(timer);
-    }, [keyboardOpen, viewPainted, resizeForKeyboard]);
-
-    useEffect(() => {
         paintedRef.current = viewPainted;
     }, [viewPainted]);
 
@@ -592,11 +602,7 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
                     onStopFind={stopFind}
                 />
 
-                <div
-                    className="cd-browser-stage"
-                    ref={stageRef}
-                    style={stageHeight > 0 ? { flex: `0 0 ${stageHeight}px`, height: `${stageHeight}px` } : undefined}
-                >
+                <div className="cd-browser-stage" ref={stageRef}>
                     {(blocked !== "" || bookmarkLimit > 0 || download !== null || panelOpen) && (
                         <div className="cd-browser-overlay">
                         {blocked === "" && bookmarkLimit > 0 && (

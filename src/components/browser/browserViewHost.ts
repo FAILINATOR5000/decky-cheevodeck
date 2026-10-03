@@ -25,19 +25,9 @@ export function isViewMarker(value: string): boolean {
 const INPUT_LEVEL_UNKNOWN = 1;
 const INPUT_LEVEL_NONE = 2;
 
-const KEYBOARD_BOTTOM_TOLERANCE_PX = 12;
-
 const KEYBOARD_HOLD_MAX_MS = 15000;
 
 const KEYBOARD_RELEASE_GRACE_MS = 750;
-
-const KEYBOARD_MIN_HEIGHT_PX = 80;
-
-const KEYBOARD_MAX_HEIGHT_FRACTION = 0.75;
-
-const KEYBOARD_MIN_WIDTH_FRACTION = 0.5;
-
-const KEYBOARD_FALLBACK_FRACTION = 0.45;
 
 export type BrowserComponents = {
     GamepadHost: any;
@@ -119,52 +109,6 @@ function externalUrlFromSteamUrl(value: string): string {
     }
 }
 
-function findKeyboardElement(doc: Document, width: number, height: number): Element | null {
-    const stack = doc.elementsFromPoint(Math.round(width / 2), height - 4);
-    for (const el of stack) {
-        const rect = el.getBoundingClientRect();
-        if (rect.width < width * KEYBOARD_MIN_WIDTH_FRACTION) continue;
-        if (rect.height < KEYBOARD_MIN_HEIGHT_PX) continue;
-        if (rect.height > height * KEYBOARD_MAX_HEIGHT_FRACTION) continue;
-        if (Math.abs(height - rect.bottom) > KEYBOARD_BOTTOM_TOLERANCE_PX) continue;
-        return el;
-    }
-    return null;
-}
-
-export type KeyboardRoom = { measured: number | null; guess: number };
-
-export function heightAboveKeyboard(node: HTMLElement | null): KeyboardRoom {
-    const nothing = { measured: null, guess: 0 };
-    if (!node) {
-        return nothing;
-    }
-    const doc = node.ownerDocument;
-    const win = doc?.defaultView;
-    if (!doc || !win) {
-        return nothing;
-    }
-    try {
-        const height = win.innerHeight;
-        const stageTop = node.getBoundingClientRect().top;
-        const keyboard = findKeyboardElement(doc, win.innerWidth, height);
-        const guess = Math.max(0, Math.round(height * (1 - KEYBOARD_FALLBACK_FRACTION) - stageTop));
-        const measured = keyboard
-            ? Math.max(0, Math.round(keyboard.getBoundingClientRect().top - stageTop))
-            : null;
-        logFocusDebug(
-            "browser-osk",
-            keyboard ? "found" : "not found",
-            `available=${measured ?? "-"} guess=${guess}`
-        );
-        return { measured, guess };
-    }
-    catch (e) {
-        logError("heightAboveKeyboard", e);
-        return nothing;
-    }
-}
-
 export function releaseWebBrowserActionset(): void {
     try {
         (SteamClient as any)?.Input?.SetWebBrowserActionset?.(false);
@@ -211,16 +155,6 @@ export function clearBrowsingData(): boolean {
     }
     catch (e) {
         logError("clearBrowsingData", e);
-        return false;
-    }
-}
-
-export function keyboardIsBelow(): boolean {
-    try {
-        const location = resolveWindowInstance()?.m_VirtualKeyboardManager?.KeyboardLocation;
-        return typeof location === "string" && location.endsWith("-bottom");
-    }
-    catch {
         return false;
     }
 }
