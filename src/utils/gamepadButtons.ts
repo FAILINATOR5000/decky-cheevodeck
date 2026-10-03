@@ -6,6 +6,10 @@ export const BUTTON_BUMPER_LEFT = 5;
 export const BUTTON_BUMPER_RIGHT = 6;
 export const BUTTON_TRIGGER_LEFT = 7;
 export const BUTTON_TRIGGER_RIGHT = 8;
+const BUTTON_DIR_UP = 9;
+const BUTTON_DIR_DOWN = 10;
+const BUTTON_DIR_LEFT = 11;
+const BUTTON_DIR_RIGHT = 12;
 export const BUTTON_SELECT = 13;
 const BUTTON_START = 14;
 const BUTTON_LSTICK_CLICK = 15;
@@ -25,3 +29,14 @@ export const SHORTCUT_BUTTON_BY_CODE: Record<number, ShortcutButton> = {
     [BUTTON_REAR_RIGHT_UPPER]: "r4",
     [BUTTON_REAR_RIGHT_LOWER]: "r5"
 };
+
+export const MENU_COMBO_BY_CODE: Record<number, ShortcutButton> = {
+    [BUTTON_DIR_UP]: "menuUp",
+    [BUTTON_DIR_DOWN]: "menuDown",
+    [BUTTON_DIR_LEFT]: "menuLeft",
+    [BUTTON_DIR_RIGHT]: "menuRight",
+    [BUTTON_BUMPER_LEFT]: "menuL1",
+    [BUTTON_BUMPER_RIGHT]: "menuR1"
+};
+
+export const MENU_HOLD_LIMIT_MS = 10000;

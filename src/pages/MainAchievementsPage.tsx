@@ -1202,7 +1202,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
     const pillLabelKey = previewStripButton === "dnd" ? "Do Not Disturb"
         : previewStripButton === "nightmode" ? "Night Mode"
             : previewStripButton === "batterysaver" ? "Standby"
-                : previewStripButton === "backbuttons" ? "Global Back Buttons"
+                : previewStripButton === "backbuttons" ? "Global Buttons"
                     : previewStripButton === "mkmode" ? "Mouse & Keyboard Mode"
                         : null;
     const topRowMenuLabel = pillLabelKey

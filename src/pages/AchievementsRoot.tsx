@@ -111,6 +111,7 @@ import { NotificationsProvider } from "../components/notifications/Notifications
 import { NotificationsMultipathModal, type MultipathOption } from "../components/notifications/NotificationsMultipathModal";
 import { useAboutController } from "../hooks/useAboutController";
 import { useFocusPaintWake } from "../hooks/useFocusPaintWake";
+import { useMenuCombos } from "../hooks/useMenuCombos";
 import { useAccountActions } from "../hooks/useAccountActions";
 import { useAchievementsController } from "../hooks/useAchievementsController";
 import { useFocusController } from "../hooks/useFocusController";
@@ -4553,6 +4554,8 @@ function AchievementsRoot() {
         requestJumpToTop();
     }
 
+    useMenuCombos(rootRef, shortcutBindings, runShortcutAction);
+
     function runShortcutAction(action: ShortcutAction) {
         if (action === "pageUp") {
             jumpToTopOfPage();
@@ -4584,6 +4587,7 @@ function AchievementsRoot() {
         }
         if (action === "doNotDisturb") {
             toggleDoNotDisturb(!doNotDisturb);
+            showToggleToast(language, "Do Not Disturb", !doNotDisturb);
             return;
         }
         if (action === "batterySaver") {

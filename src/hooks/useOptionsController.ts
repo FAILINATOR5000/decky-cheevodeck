@@ -3550,10 +3550,13 @@ export function useOptionsController({
         });
 
     const onCycleShortcutBinding = (button: ShortcutButton) =>
-        applyShortcutBinding(button, nextShortcutAction(shortcutBindings[button]));
+        applyShortcutBinding(button, nextShortcutAction(button, shortcutBindings[button]));
 
     const onCycleShortcutBindingBack = (button: ShortcutButton) =>
-        applyShortcutBinding(button, previousShortcutAction(shortcutBindings[button]));
+        applyShortcutBinding(button, previousShortcutAction(button, shortcutBindings[button]));
+
+    const onClearShortcutBinding = (button: ShortcutButton) =>
+        applyShortcutBinding(button, "none");
 
     const onToggleRememberLastPage = async (nextValue: boolean) => {
         setRememberLastPage(nextValue);
@@ -4047,6 +4050,7 @@ export function useOptionsController({
         onToggleQuickMenuShortcut,
         onCycleShortcutBinding,
         onCycleShortcutBindingBack,
+        onClearShortcutBinding,
         onToggleShowIcons,
         onToggleDeferModalCleanup,
         onToggleBackButtonsGlobal,

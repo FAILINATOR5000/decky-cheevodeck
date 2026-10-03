@@ -1,4 +1,5 @@
 import { DEFAULT_LANGUAGE, type LanguageCode, t } from "../locales";
+import type { GlyphButton } from "./controllerGlyphs";
 import { getDeviceIsSteamMachine } from "./scale";
 import type { AchievementStyle, ActivityCardAction, BrowserHistoryRetention, BrowserNewTabPage, BrowserSearchEngine, ButtonSpacing, ControllerGlyphStyle, HeaderStyle, MemoriesEncodePriority, MemoriesShareQuality, PlayersNearYouMode, PlayersNearYouTapMode, QuickMenuShortcut, ScalePreset, ScaleStep, ShortcutAction, ShortcutButton, SocialEntryDefault } from "../types";
 
@@ -264,8 +265,32 @@ export const SHORTCUT_BUTTONS: { id: ShortcutButton; helpKey: string }[] = [
     { id: "l4", helpKey: "help_shortcut_l4" },
     { id: "l5", helpKey: "help_shortcut_l5" },
     { id: "r4", helpKey: "help_shortcut_r4" },
-    { id: "r5", helpKey: "help_shortcut_r5" }
+    { id: "r5", helpKey: "help_shortcut_r5" },
+    { id: "menuUp", helpKey: "help_shortcut_menu_up" },
+    { id: "menuDown", helpKey: "help_shortcut_menu_down" },
+    { id: "menuLeft", helpKey: "help_shortcut_menu_left" },
+    { id: "menuRight", helpKey: "help_shortcut_menu_right" },
+    { id: "menuL1", helpKey: "help_shortcut_menu_l1" },
+    { id: "menuR1", helpKey: "help_shortcut_menu_r1" }
 ];
+
+const MENU_COMBOS: { id: ShortcutButton; glyph: GlyphButton }[] = [
+    { id: "menuUp", glyph: "dpadUp" },
+    { id: "menuDown", glyph: "dpadDown" },
+    { id: "menuLeft", glyph: "dpadLeft" },
+    { id: "menuRight", glyph: "dpadRight" },
+    { id: "menuL1", glyph: "l1" },
+    { id: "menuR1", glyph: "r1" }
+];
+
+function menuCombo(button: ShortcutButton) {
+    return MENU_COMBOS.find((combo) => combo.id === button) ?? null;
+}
+
+export function shortcutButtonGlyphs(button: ShortcutButton): GlyphButton[] {
+    const combo = menuCombo(button);
+    return combo ? ["menu", combo.glyph] : [button as GlyphButton];
+}
 
 export function shortcutRowFocusKey(button: ShortcutButton): string {
     return `options:shortcut:${button}`;
@@ -273,7 +298,7 @@ export function shortcutRowFocusKey(button: ShortcutButton): string {
 
 export const MAP_SHORTCUTS_FOCUS_KEY = shortcutRowFocusKey(SHORTCUT_BUTTONS[0].id);
 
-const GLOBAL_SHORTCUT_BUTTONS: readonly ShortcutButton[] = ["l4", "l5", "r4", "r5"];
+const GLOBAL_SHORTCUT_BUTTONS: readonly ShortcutButton[] = ["l4", "l5", "r4", "r5", ...MENU_COMBOS.map((combo) => combo.id)];
 
 export const GLOBAL_SHORTCUT_ACTIONS: readonly ShortcutAction[] = [
     "browser",
@@ -350,7 +375,13 @@ export const DEFAULT_SHORTCUT_BINDINGS: Record<ShortcutButton, ShortcutAction> =
     l4: "lastMemory",
     l5: "memories",
     r4: "browser",
-    r5: "currentGuide"
+    r5: "currentGuide",
+    menuUp: "browser",
+    menuDown: "currentGuide",
+    menuLeft: "lastMemory",
+    menuRight: "memories",
+    menuL1: "doNotDisturb",
+    menuR1: "notifications"
 };
 
 export function shortcutButtonLabel(value: ShortcutButton, language: LanguageCode = DEFAULT_LANGUAGE) {
@@ -359,6 +390,9 @@ export function shortcutButtonLabel(value: ShortcutButton, language: LanguageCod
     }
     if (value === "view") {
         return t(language, "shortcut_button_view");
+    }
+    if (menuCombo(value)) {
+        return null;
     }
 
     return value.toUpperCase();
@@ -370,17 +404,26 @@ export function shortcutActionLabel(value: ShortcutAction, language: LanguageCod
     return t(language, entry ? entry.labelKey : "Not Set");
 }
 
-export function nextShortcutAction(current: ShortcutAction) {
-    const currentIndex = SHORTCUT_ACTIONS.findIndex((action) => action.id === current);
-
-    return SHORTCUT_ACTIONS[(currentIndex + 1) % SHORTCUT_ACTIONS.length].id;
+function shortcutActionsFor(button: ShortcutButton) {
+    if (!menuCombo(button)) {
+        return SHORTCUT_ACTIONS;
+    }
+    return SHORTCUT_ACTIONS.filter((action) => action.id !== "snapshot");
 }
 
-export function previousShortcutAction(current: ShortcutAction) {
-    const currentIndex = SHORTCUT_ACTIONS.findIndex((action) => action.id === current);
-    const previousIndex = (currentIndex <= 0 ? SHORTCUT_ACTIONS.length : currentIndex) - 1;
+export function nextShortcutAction(button: ShortcutButton, current: ShortcutAction) {
+    const actions = shortcutActionsFor(button);
+    const currentIndex = actions.findIndex((action) => action.id === current);
 
-    return SHORTCUT_ACTIONS[previousIndex].id;
+    return actions[(currentIndex + 1) % actions.length].id;
+}
+
+export function previousShortcutAction(button: ShortcutButton, current: ShortcutAction) {
+    const actions = shortcutActionsFor(button);
+    const currentIndex = actions.findIndex((action) => action.id === current);
+    const previousIndex = (currentIndex <= 0 ? actions.length : currentIndex) - 1;
+
+    return actions[previousIndex].id;
 }
 
 export function blockPaddingLabel(value: number, language: LanguageCode = DEFAULT_LANGUAGE) {

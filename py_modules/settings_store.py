@@ -241,7 +241,9 @@ QUICK_MENU_SHORTCUTS_VERSION = 2
 SHORTCUT_BINDINGS_VERSION = 2
 
 
-_ALLOWED_SHORTCUT_BUTTONS = ("menu", "view", "l3", "r3", "l4", "l5", "r4", "r5")
+_MENU_COMBO_SHORTCUT_BUTTONS = ("menuUp", "menuDown", "menuLeft", "menuRight", "menuL1", "menuR1")
+
+_ALLOWED_SHORTCUT_BUTTONS = ("menu", "view", "l3", "r3", "l4", "l5", "r4", "r5", *_MENU_COMBO_SHORTCUT_BUTTONS)
 
 _ALLOWED_SHORTCUT_ACTIONS = (
     "none",
@@ -296,7 +298,19 @@ def _default_shortcut_bindings() -> dict:
         "l5": "memories",
         "r4": "browser",
         "r5": "currentGuide",
+        "menuUp": "browser",
+        "menuDown": "currentGuide",
+        "menuLeft": "lastMemory",
+        "menuRight": "memories",
+        "menuL1": "doNotDisturb",
+        "menuR1": "notifications",
     }
+
+
+def _shortcut_action_allowed(button: str, action: str) -> bool:
+    if action not in _ALLOWED_SHORTCUT_ACTIONS:
+        return False
+    return not (action == "snapshot" and button in _MENU_COMBO_SHORTCUT_BUTTONS)
 
 
 def _default_quick_menu_shortcuts() -> list:
@@ -4086,7 +4100,7 @@ class SettingsStore:
                 continue
 
             action = str(source.get(button) or "").strip()
-            bindings[button] = action if action in _ALLOWED_SHORTCUT_ACTIONS else "none"
+            bindings[button] = action if _shortcut_action_allowed(button, action) else "none"
 
         return bindings
 
@@ -4111,7 +4125,7 @@ class SettingsStore:
     def update_shortcut_binding(self, button: str, action: str) -> dict:
         key = str(button or "").strip()
         value = str(action or "").strip()
-        if key not in _ALLOWED_SHORTCUT_BUTTONS or value not in _ALLOWED_SHORTCUT_ACTIONS:
+        if key not in _ALLOWED_SHORTCUT_BUTTONS or not _shortcut_action_allowed(key, value):
             return self.get_shortcut_bindings()
 
         with self._config_lock:

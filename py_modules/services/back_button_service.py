@@ -67,6 +67,36 @@ SUMMON_ACTIONS = (
 
 _SUMMON_BUTTONS = ("l4", "r4", "l5", "r5")
 
+_MENU_COMBO_BITS = {
+    DECK_FORMAT: (
+        ("menu", 9, 0x40),
+        ("up", 9, 0x01),
+        ("down", 9, 0x08),
+        ("left", 9, 0x04),
+        ("right", 9, 0x02),
+        ("l1", 8, 0x08),
+        ("r1", 8, 0x04),
+    ),
+    CONTROLLER_FORMAT: (
+        ("menu", 2, 0x40),
+        ("up", 3, 0x20),
+        ("down", 3, 0x04),
+        ("left", 3, 0x10),
+        ("right", 3, 0x08),
+        ("l1", 4, 0x08),
+        ("r1", 3, 0x02),
+    ),
+}
+
+_MENU_COMBO_KEYS = {
+    "up": "menuUp",
+    "down": "menuDown",
+    "left": "menuLeft",
+    "right": "menuRight",
+    "l1": "menuL1",
+    "r1": "menuR1",
+}
+
 _CHORD_BITS = {
     DECK_FORMAT: ((8, 0xFF), (9, 0x7F), (10, 0x46), (11, 0x04), (14, 0x04)),
     CONTROLLER_FORMAT: ((2, 0x7F), (3, 0xFE), (4, 0x89), (5, 0x0C)),
@@ -152,6 +182,43 @@ def held_summon_buttons(fmt: str, state: int) -> int:
     return held
 
 
+def menu_combo_state(fmt: str, data: bytes) -> int:
+    state = 0
+    for index, (_button, byte, mask) in enumerate(_MENU_COMBO_BITS[fmt]):
+        if data[byte] & mask:
+            state |= 1 << index
+    return state
+
+
+def menu_combo_pressed(fmt: str, before: int, after: int):
+    went_down = after & ~before
+    menu_held = False
+    partners_held = 0
+    pressed = None
+    for index, (button, _byte, _mask) in enumerate(_MENU_COMBO_BITS[fmt]):
+        bit = 1 << index
+        if button == "menu":
+            menu_held = bool(before & bit) and bool(after & bit)
+            continue
+        if after & bit:
+            partners_held += 1
+            if went_down & bit:
+                pressed = button
+    if not menu_held or pressed is None or partners_held != 1:
+        return None
+    return _MENU_COMBO_KEYS[pressed]
+
+
+def other_button_beside_menu_combo(fmt: str, data: bytes) -> bool:
+    for byte, mask in _CHORD_BITS[fmt]:
+        for _button, combo_byte, combo_mask in _MENU_COMBO_BITS[fmt]:
+            if combo_byte == byte:
+                mask &= ~combo_mask
+        if data[byte] & mask:
+            return True
+    return False
+
+
 def pressed_buttons(fmt: str, before: int, after: int) -> list[str]:
     went_down = after & ~before
     return [
@@ -190,6 +257,7 @@ class _OpenNode:
         self.name = name
         self.fmt = fmt
         self.state = 0
+        self.menu_state = 0
         self.combo_since = None
         self.combo_spent = False
 
@@ -364,6 +432,7 @@ class BackButtonService:
         if not is_input_report(node.fmt, data):
             return
         state = button_state(node.fmt, data)
+        self._decode_menu_combo(node, data, state)
         if state == node.state:
             return
         pressed = pressed_buttons(node.fmt, node.state, state)
@@ -379,6 +448,20 @@ class BackButtonService:
             return
         for button in pressed:
             self._on_press(node, button)
+
+    def _decode_menu_combo(self, node: _OpenNode, data: bytes, paddles: int) -> None:
+        menu_state = menu_combo_state(node.fmt, data)
+        if menu_state == node.menu_state:
+            return
+        key = menu_combo_pressed(node.fmt, node.menu_state, menu_state)
+        node.menu_state = menu_state
+        if key is None:
+            return
+        if paddles or other_button_beside_menu_combo(node.fmt, data):
+            if self._debug_logging():
+                decky.logger.info("back buttons: %s on %s held back (other button held)", key, node.name)
+            return
+        self._on_menu_combo(node, key)
 
     def _track_combo(self, node: _OpenNode) -> None:
         mask = combo_mask(node.fmt)
@@ -447,6 +530,19 @@ class BackButtonService:
             killed,
             capture,
         )
+
+    def _on_menu_combo(self, node: _OpenNode, key: str) -> None:
+        cfg = self._settings_store.load_config()
+        action = None
+        if cfg.get("backButtonsGlobal", False):
+            action = self._settings_store.get_shortcut_bindings(cfg).get(key)
+        if action not in SUMMON_ACTIONS:
+            if self._debug_logging():
+                decky.logger.info("back buttons: %s on %s has nothing to send", key, node.name)
+            return
+        if self._debug_logging():
+            decky.logger.info("back buttons: %s on %s sent action=%s", key, node.name, action)
+        self._emit({"action": action, "browserSnapshot": False})
 
     def _on_press(self, node: _OpenNode, button: str) -> None:
         cfg = self._settings_store.load_config()

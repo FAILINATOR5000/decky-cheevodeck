@@ -640,7 +640,9 @@ export type BrowserSearchEngine = "google" | "brave" | "duckduckgo" | "youtube" 
 
 export type BrowserNewTabPage = "google" | "brave" | "duckduckgo" | "retroachievements" | "custom";
 
-export type ShortcutButton = "menu" | "view" | "l3" | "r3" | "l4" | "l5" | "r4" | "r5";
+export type ShortcutButton =
+    | "menu" | "view" | "l3" | "r3" | "l4" | "l5" | "r4" | "r5"
+    | "menuUp" | "menuDown" | "menuLeft" | "menuRight" | "menuL1" | "menuR1";
 
 export type ShortcutAction =
     | "none"

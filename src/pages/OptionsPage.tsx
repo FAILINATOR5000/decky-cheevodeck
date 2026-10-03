@@ -71,6 +71,7 @@ import {
     type MainUiPreset,
     QUICK_MENU_SHORTCUTS,
     SHORTCUT_BUTTONS,
+    shortcutButtonGlyphs,
     shortcutRowFocusKey,
     worksOutsidePanel,
     shortcutActionLabel,
@@ -82,7 +83,7 @@ import { trackedColorHex, trackedColorLabelKey } from "../utils/achievements";
 import { resolveGlyphStyle } from "../utils/controllerGlyphs";
 import { videoMoveErrorKey } from "../utils/memoriesTransferErrors";
 import { listenForOptionsLanding, takeOptionsLanding } from "../utils/optionsFocusReturn";
-import { BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT } from "../utils/gamepadButtons";
+import { BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT, BUTTON_SECONDARY } from "../utils/gamepadButtons";
 import { playOkSound } from "../utils/navSound";
 import { standaloneClaim } from "../utils/stormbreaker";
 import { bodyTextStyle, regularButtonSpacingStyle, smallTextStyle } from "../utils/style";
@@ -605,6 +606,7 @@ type OptionsPageActions = {
     onToggleQuickMenuShortcut: (id: QuickMenuShortcut, nextValue: boolean) => void | Promise<void>;
     onCycleShortcutBinding: (button: ShortcutButton) => void | Promise<void>;
     onCycleShortcutBindingBack: (button: ShortcutButton) => void | Promise<void>;
+    onClearShortcutBinding: (button: ShortcutButton) => void | Promise<void>;
     onToggleShowIcons: (nextValue: boolean) => void | Promise<void>;
     onToggleAutoRefresh: (nextValue: boolean) => void | Promise<void>;
     onToggleRememberLastPage: (nextValue: boolean) => void | Promise<void>;
@@ -1225,7 +1227,7 @@ function SystemTab(props: SystemTabProps) {
             </PanelSectionRow>
             <OptionToggle
                 outerStyle={buttonOuterStyle}
-                label={t(state.language, "Make Back Buttons Global")}
+                label={t(state.language, "Global Buttons")}
                 value={state.backButtonsGlobal}
                 onChange={actions.onToggleBackButtonsGlobal}
                 disabled={disabled}
@@ -1247,7 +1249,8 @@ function SystemTab(props: SystemTabProps) {
                         style={state.controllerGlyphStyle}
                         hints={[
                             { button: "l1", label: t(state.language, "Previous") },
-                            { button: "r1", label: t(state.language, "Next") }
+                            { button: "r1", label: t(state.language, "Next") },
+                            { button: "x", label: t(state.language, "Clear") }
                         ]}
                     />
                 </PanelSectionRow>
@@ -1268,12 +1271,19 @@ function SystemTab(props: SystemTabProps) {
                                 if (evt?.detail?.button === BUTTON_BUMPER_RIGHT) {
                                     playOkSound();
                                     void actions.onCycleShortcutBinding(entry.id);
+                                    return;
+                                }
+                                if (evt?.detail?.button === BUTTON_SECONDARY && state.shortcutBindings[entry.id] !== "none") {
+                                    playOkSound();
+                                    void actions.onClearShortcutBinding(entry.id);
                                 }
                             }}
                             disabled={disabled}
                             label={
                                 <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                                    <ButtonGlyph button={entry.id} style={glyphStyle} size="1.2em" />
+                                    {shortcutButtonGlyphs(entry.id).map((glyph) => (
+                                        <ButtonGlyph key={glyph} button={glyph} style={glyphStyle} size="1.2em" />
+                                    ))}
                                     {shortcutButtonLabel(entry.id, state.language)}
                                 </span>
                             }
@@ -1287,7 +1297,7 @@ function SystemTab(props: SystemTabProps) {
             ))}
             {showGlobalFootnote && (
                 <PanelSectionRow>
-                    <InfoText separator>{t(state.language, "*Supported for Make Back Buttons Global")}</InfoText>
+                    <InfoText separator>{t(state.language, "*Supported for Global Buttons")}</InfoText>
                 </PanelSectionRow>
             )}
             <SectionTitle label={t(state.language, "Developer Options")} />

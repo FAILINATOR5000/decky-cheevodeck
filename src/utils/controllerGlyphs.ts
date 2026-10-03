@@ -3,6 +3,7 @@ import { logError } from "./errors";
 
 export type GlyphButton =
     | "a" | "b" | "x" | "y" | "l1" | "r1" | "l2" | "r2" | "dpad"
+    | "dpadUp" | "dpadDown" | "dpadLeft" | "dpadRight"
     | "menu" | "view" | "l3" | "r3" | "l4" | "l5" | "r4" | "r5";
 
 const GLYPH_BASE = "/steaminputglyphs";
@@ -11,24 +12,28 @@ const FILES: Record<Exclude<ControllerGlyphStyle, "auto">, Record<GlyphButton, s
     deck: {
         a: "shared_button_a", b: "shared_button_b", x: "shared_button_x", y: "shared_button_y",
         l1: "sd_l1", r1: "sd_r1", l2: "sd_l2", r2: "sd_r2", dpad: "shared_dpad",
+        dpadUp: "shared_dpad_up", dpadDown: "shared_dpad_down", dpadLeft: "shared_dpad_left", dpadRight: "shared_dpad_right",
         menu: "sd_button_menu", view: "sd_button_view", l3: "shared_l3", r3: "shared_r3",
         l4: "sd_l4", l5: "sd_l5", r4: "sd_r4", r5: "sd_r5"
     },
     steamcontroller: {
         a: "shared_button_a", b: "shared_button_b", x: "shared_button_x", y: "shared_button_y",
         l1: "sc_l1", r1: "sc_r1", l2: "sc_l2", r2: "sc_r2", dpad: "shared_dpad",
+        dpadUp: "shared_dpad_up", dpadDown: "shared_dpad_down", dpadLeft: "shared_dpad_left", dpadRight: "shared_dpad_right",
         menu: "sd_button_menu", view: "sd_button_view", l3: "shared_l3", r3: "shared_r3",
         l4: "sc_l4", l5: "sc_l5", r4: "sc_r4", r5: "sc_r5"
     },
     xbox: {
         a: "shared_button_a", b: "shared_button_b", x: "shared_button_x", y: "shared_button_y",
         l1: "xbox_lb", r1: "xbox_rb", l2: "xbox_lt", r2: "xbox_rt", dpad: "shared_dpad",
+        dpadUp: "shared_dpad_up", dpadDown: "shared_dpad_down", dpadLeft: "shared_dpad_left", dpadRight: "shared_dpad_right",
         menu: "xbox_button_start", view: "xbox_button_select", l3: "shared_l3", r3: "shared_r3",
         l4: "sd_l4", l5: "sd_l5", r4: "sd_r4", r5: "sd_r5"
     },
     nintendo: {
         a: "shared_button_a", b: "shared_button_b", x: "shared_button_x", y: "shared_button_y",
         l1: "switchpro_l", r1: "switchpro_r", l2: "switchpro_l2", r2: "switchpro_r2", dpad: "switchpro_dpad",
+        dpadUp: "switchpro_dpad_up", dpadDown: "switchpro_dpad_down", dpadLeft: "switchpro_dpad_left", dpadRight: "switchpro_dpad_right",
         menu: "switchpro_button_plus", view: "switchpro_button_minus",
         l3: "switchpro_lstick_click", r3: "switchpro_rstick_click",
         l4: "sd_l4", l5: "sd_l5", r4: "sd_r4", r5: "sd_r5"
@@ -36,12 +41,14 @@ const FILES: Record<Exclude<ControllerGlyphStyle, "auto">, Record<GlyphButton, s
     playstation: {
         a: "ps_button_x", b: "ps_button_circle", x: "ps_button_square", y: "ps_button_triangle",
         l1: "ps5_l1", r1: "ps5_r1", l2: "ps5_l2", r2: "ps5_r2", dpad: "ps_dpad",
+        dpadUp: "ps_dpad_up", dpadDown: "ps_dpad_down", dpadLeft: "ps_dpad_left", dpadRight: "ps_dpad_right",
         menu: "ps5_button_options", view: "ps5_button_create", l3: "shared_l3", r3: "shared_r3",
         l4: "sd_l4", l5: "sd_l5", r4: "sd_r4", r5: "sd_r5"
     },
     universal: {
         a: "shared_buttons_s", b: "shared_buttons_e", x: "shared_buttons_w", y: "shared_buttons_n",
         l1: "sd_l1", r1: "sd_r1", l2: "sd_l2", r2: "sd_r2", dpad: "shared_dpad",
+        dpadUp: "shared_dpad_up", dpadDown: "shared_dpad_down", dpadLeft: "shared_dpad_left", dpadRight: "shared_dpad_right",
         menu: "sd_button_menu", view: "sd_button_view", l3: "shared_l3", r3: "shared_r3",
         l4: "sd_l4", l5: "sd_l5", r4: "sd_r4", r5: "sd_r5"
     }
