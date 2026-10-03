@@ -140,7 +140,7 @@ const BROWSER_MODAL_CSS = `
 function BrowserModal({ language, close, startUrl }: { language: LanguageCode; close: () => void; startUrl: string }) {
     const outerRef = useRef<HTMLDivElement | null>(null);
     const stageRef = useRef<HTMLDivElement | null>(null);
-    const [view, setView] = useState<LiveView | null>(() => activeView());
+    const [view, setView] = useState<LiveView | null>(() => (startUrl ? null : activeView()));
     const host = view?.host ?? null;
     const shownRef = useRef<LiveView | null>(view);
     const pendingRef = useRef<LiveView | null>(null);
@@ -254,6 +254,37 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
 
     const browser = useBrowserController(loadUrl, startUrl);
 
+    const holdView = useCallback((next: LiveView) => {
+        const waiting = pendingRef.current;
+        if (waiting && waiting !== next && waiting !== shownRef.current) {
+            waiting.host.hide();
+        }
+        pendingRef.current = next;
+        next.host.showUnderneath(shownRef.current?.host.placedAt ?? null);
+        if (pendingTimerRef.current !== null) {
+            window.clearTimeout(pendingTimerRef.current);
+        }
+        pendingTimerRef.current = window.setTimeout(() => {
+            if (pendingRef.current === next) {
+                showView(next);
+            }
+        }, PENDING_VIEW_MAX_MS);
+    }, [showView]);
+
+    useEffect(() => {
+        const current = activeView();
+        if (!browser.loaded || shownRef.current || pendingRef.current || !current) {
+            return;
+        }
+        if (startUrl && !browser.blockedUrl) {
+            holdView(current);
+        }
+        else {
+            showView(current);
+        }
+        setLoading(current.host.isLoading);
+    }, [browser.blockedUrl, browser.loaded, holdView, showView, startUrl]);
+
     const handlersRef = useRef(browser);
     handlersRef.current = browser;
 
@@ -261,24 +292,11 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
         const liveHost = () => activeView()?.host ?? null;
         setViewEvents({
             active: (next, showNow) => {
-                if (showNow || !shownRef.current) {
+                if (showNow || (!shownRef.current && !startUrl)) {
                     showView(next);
                 }
                 else {
-                    const waiting = pendingRef.current;
-                    if (waiting && waiting !== next && waiting !== shownRef.current) {
-                        waiting.host.hide();
-                    }
-                    pendingRef.current = next;
-                    next.host.showUnderneath(shownRef.current?.host.placedAt ?? null);
-                    if (pendingTimerRef.current !== null) {
-                        window.clearTimeout(pendingTimerRef.current);
-                    }
-                    pendingTimerRef.current = window.setTimeout(() => {
-                        if (pendingRef.current === next) {
-                            showView(next);
-                        }
-                    }, PENDING_VIEW_MAX_MS);
+                    holdView(next);
                 }
                 setLoading(next.host.isLoading);
                 findTextRef.current = "";
@@ -343,7 +361,7 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
             window.setTimeout(() => liveHost()?.endCancelledRequest(), CANCELLED_REQUEST_RETRY_MS);
             handlersRef.current.noteDownload(request);
         });
-        const current = activeView();
+        const current = startUrl ? null : activeView();
         if (current) {
             shownRef.current = current;
             setView(current);
@@ -372,7 +390,7 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
                 return forgetBrowserBackHistory().catch((e) => logError("BrowserModal.forgetBrowserBackHistory", e));
             }));
         };
-    }, [claimView, showView]);
+    }, [claimView, holdView, showView]);
 
     const syncViewBounds = useCallback(() => {
         const placeholder = stageRef.current?.querySelector<HTMLElement>(".cd-browser-view") ?? null;
