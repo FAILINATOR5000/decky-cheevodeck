@@ -539,10 +539,14 @@ const AD_SPEED = 16;
 
 export const AD_SKIP_BINDING = "__cheevodeckSkip";
 
+export const AD_SKIP_SELECTOR = ".ytp-skip-ad-button, .ytp-ad-skip-button, .ytp-ad-skip-button-modern, button[id^='skip-button']";
+
+export const YOUTUBE_HOST = /(^|\.)youtube\.com$/;
+
 const AD_SKIP = `
     const player = () => document.getElementById("movie_player") || document.querySelector(".html5-video-player");
     const videoOf = (node) => node ? node.querySelector("video") : null;
-    const skipSelector = ".ytp-skip-ad-button, .ytp-ad-skip-button, .ytp-ad-skip-button-modern, button[id^='skip-button']";
+    const skipSelector = ${JSON.stringify(AD_SKIP_SELECTOR)};
     let saved = null;
     let userRate = 0;
     let skipTimer = 0;
@@ -556,9 +560,8 @@ const AD_SKIP = `
                 continue;
             }
             lastPress = Date.now();
-            const rect = button.getBoundingClientRect();
             try {
-                window.${AD_SKIP_BINDING}(JSON.stringify({ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }));
+                window.${AD_SKIP_BINDING}("");
             }
             catch (e) {
                 button.click();
@@ -676,7 +679,7 @@ export async function preparePage(url: string, percent: number, blockAds: boolea
             adStyle.remove();
         }
         window.__cheevodeckFastForward = ${fastForward};
-        if (/(^|\\.)youtube\\.com$/.test(location.hostname)) {
+        if (${YOUTUBE_HOST}.test(location.hostname)) {
             if (!document.getElementById(${JSON.stringify(YOUTUBE_STYLE_ID)})) {
                 const youTubeStyle = document.createElement("style");
                 youTubeStyle.id = ${JSON.stringify(YOUTUBE_STYLE_ID)};

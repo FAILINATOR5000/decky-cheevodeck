@@ -66,7 +66,7 @@ import {
     saveBrowserSearchEngine,
     startBrowserDownload
 } from "../api";
-import { requestHeadersFor, setAdBlock, setAdExemptions, setZoomPercent, type DownloadRequest } from "../components/browser/browserSession";
+import { requestHeadersFor, setAdBlock, setAdExemptions, setFastForward, setZoomPercent, type DownloadRequest } from "../components/browser/browserSession";
 import { exemptEntryFor, siteOf } from "../components/browser/adExemptions";
 import { toastDownload } from "../components/browser/browserDownloads";
 import { defaultBrowserPageZoom, nextBrowserActiveTabs, nextBrowserHistoryRetention, nextBrowserNewTabPage, nextBrowserSearchEngine, stepBrowserPageZoom } from "../utils/options";
@@ -448,6 +448,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         setAdBlock(saved.blockAds !== false);
         setFastForwardYouTubeAds(saved.fastForwardYouTubeAds !== false);
         fastForwardRef.current = saved.fastForwardYouTubeAds !== false;
+        setFastForward(saved.fastForwardYouTubeAds !== false);
         setDownloadFolderState(saved.downloadFolder ?? "");
         setRememberDownloadFolder(saved.rememberDownloadFolder === true);
         setExpanded(saved.expanded !== false);
@@ -558,6 +559,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         const nextValue = !fastForwardRef.current;
         fastForwardRef.current = nextValue;
         setFastForwardYouTubeAds(nextValue);
+        setFastForward(nextValue);
         void settle(liveUrlRef.current);
         saveSetting("toggleFastForwardYouTubeAds", () => saveBrowserFastForwardYouTubeAds(nextValue));
     }, [saveSetting, settle]);

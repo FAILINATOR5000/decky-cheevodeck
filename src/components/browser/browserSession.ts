@@ -1,5 +1,5 @@
 import { logFocusDebug } from "../../api";
-import { AD_SKIP_BINDING, claimTarget, releaseTarget, setActiveTarget, socketOfTarget, targetForUrl } from "./browserScroll";
+import { AD_SKIP_BINDING, AD_SKIP_SELECTOR, claimTarget, releaseTarget, setActiveTarget, socketOfTarget, targetForUrl, YOUTUBE_HOST } from "./browserScroll";
 import { AD_BLOCK_HOSTS, AD_BLOCK_PATTERNS } from "./adBlockHosts";
 import { isAdExempt, replaceAdExemptionHosts } from "./adExemptions";
 import { AD_LIBRARY_STAND_IN } from "./adStandIns";
@@ -12,6 +12,37 @@ const ATTACH_TRIES = 12;
 
 const ATTACH_GAP_MS = 150;
 
+const SKIP_GAP_MS = 1000;
+
+const ISOLATED_WORLD = "cheevodeck";
+
+const FIND_SKIP = `(() => {
+    if (document.visibilityState !== "visible") {
+        return null;
+    }
+    for (const button of document.querySelectorAll(${JSON.stringify(AD_SKIP_SELECTOR)})) {
+        if (button.offsetParent === null) {
+            continue;
+        }
+        const rect = button.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+            return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+        }
+    }
+    return null;
+})()`;
+
+const IN_FULLSCREEN = "document.fullscreenElement !== null";
+
+function isYouTube(url: string): boolean {
+    try {
+        return YOUTUBE_HOST.test(new URL(url).hostname);
+    }
+    catch {
+        return false;
+    }
+}
+
 export type DownloadRequest = {
     url: string;
     suggestedFilename: string;
@@ -21,6 +52,7 @@ const sessions = new Set<ViewSession>();
 let activeSession: ViewSession | null = null;
 
 let blockAds = true;
+let fastForward = true;
 let downloadHandler: ((request: DownloadRequest) => void) | null = null;
 let fullscreenHandler: ((fullscreen: boolean) => void) | null = null;
 
@@ -59,6 +91,8 @@ export class ViewSession {
     private blockQueue: Promise<void> = Promise.resolve();
     private pageDpr = 0;
     private metricsSent: string | null = null;
+    private skipAt = 0;
+    private skipping = false;
     private fileChooserHandler: ((backendNodeId: number) => void) | null = null;
 
     constructor() {
@@ -117,7 +151,7 @@ export class ViewSession {
             return;
         }
         if (msg.method === "Runtime.bindingCalled" && msg.params?.name === AD_SKIP_BINDING) {
-            void this.pressSkip(String(msg.params?.payload ?? ""));
+            void this.pressSkip();
             return;
         }
         if (msg.method === "Page.fileChooserOpened") {
@@ -162,7 +196,7 @@ export class ViewSession {
             return;
         }
         if (msg.method === "Runtime.bindingCalled" && msg.params?.name === FULLSCREEN_BINDING) {
-            fullscreenHandler?.(msg.params?.payload === "1");
+            void this.reportFullscreen(msg.params?.payload === "1");
             return;
         }
         if (msg.method === "Page.downloadWillBegin") {
@@ -413,15 +447,60 @@ export class ViewSession {
         }
     }
 
-    private async pressSkip(payload: string) {
-        let point: { x?: unknown; y?: unknown };
-        try {
-            point = JSON.parse(payload);
+    private async evaluateIsolated(expression: string): Promise<unknown> {
+        const world = await this.send("Page.createIsolatedWorld", { frameId: this.mainFrameId, worldName: ISOLATED_WORLD });
+        const contextId = world?.executionContextId;
+        if (typeof contextId !== "number") {
+            throw new Error("no isolated world");
         }
-        catch {
+        const result = await this.send("Runtime.evaluate", { expression, contextId, returnByValue: true });
+        if (result?.exceptionDetails) {
+            throw new Error("isolated evaluate failed");
+        }
+        return result?.result?.value;
+    }
+
+    private async reportFullscreen(fullscreen: boolean) {
+        if (fullscreen) {
+            let real = false;
+            try {
+                real = (await this.evaluateIsolated(IN_FULLSCREEN)) === true;
+            }
+            catch (e) {
+                logFocusDebug("browser-session", "fullscreen check failed", String((e as Error)?.message ?? e));
+            }
+            if (!real || this !== activeSession) {
+                logFocusDebug("browser-session", "fullscreen refused", this.committedUrl.slice(0, 60));
+                return;
+            }
+        }
+        fullscreenHandler?.(fullscreen);
+    }
+
+    private async pressSkip() {
+        if (!fastForward || !isYouTube(this.committedUrl) || this.skipping || Date.now() - this.skipAt < SKIP_GAP_MS) {
             return;
         }
-        if (typeof point.x !== "number" || typeof point.y !== "number") {
+        this.skipping = true;
+        try {
+            await this.findAndPressSkip();
+        }
+        finally {
+            this.skipping = false;
+            this.skipAt = Date.now();
+        }
+    }
+
+    private async findAndPressSkip() {
+        let point: { x?: unknown; y?: unknown } | null = null;
+        try {
+            point = (await this.evaluateIsolated(FIND_SKIP)) as { x?: unknown; y?: unknown } | null;
+        }
+        catch (e) {
+            logFocusDebug("browser-session", "skip lookup failed", String((e as Error)?.message ?? e));
+            return;
+        }
+        if (!point || typeof point.x !== "number" || typeof point.y !== "number") {
             return;
         }
         const scale = zoomPercent < 100 ? zoomPercent / 100 : 1;
@@ -500,6 +579,10 @@ export function setAdBlock(enabled: boolean): void {
     for (const session of sessions) {
         void session.applyBlocking();
     }
+}
+
+export function setFastForward(enabled: boolean): void {
+    fastForward = enabled;
 }
 
 export function setAdExemptions(hosts: string[]): void {
