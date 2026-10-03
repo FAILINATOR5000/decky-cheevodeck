@@ -2892,6 +2892,7 @@ export const removeBrowserHistoryEntry = callable<
     BrowserHistoryResponse
 >("remove_browser_history_entry");
 export const clearBrowserHistory = callable<[number], BrowserHistoryResponse>("clear_browser_history");
+export const forgetBrowserBackHistory = callable<[], BrowserTabsResponse>("forget_browser_back_history");
 
 export const getBrowserBookmarks = callable<[], BrowserBookmarksResponse>("get_browser_bookmarks");
 export const addBrowserBookmark = callable<

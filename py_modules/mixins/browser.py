@@ -860,7 +860,20 @@ class BrowserMixin(PluginContext):
     async def clear_browser_history(self, days: int = 0):
         if to_int(days, 0) > 0:
             return _history_response(self.browser_store.clear_recent_history(days))
-        return _history_response(self.browser_store.clear_history())
+        response = _history_response(self.browser_store.clear_history())
+        response["tabs"] = _tabs_response(self.browser_store.clear_back_history())
+        return response
+
+    async def forget_browser_back_history(self):
+        self._forget_back_history_if_off()
+        return _tabs_response(self.browser_store.list_tabs())
+
+    def _forget_back_history_if_off(self) -> None:
+        try:
+            if self._history_retention() == "off":
+                self.browser_store.clear_back_history()
+        except Exception as exc:
+            decky.logger.warning("browser: clearing back history failed (%s)", type(exc).__name__)
 
     async def get_browser_bookmarks(self):
         return _bookmarks_response(self.browser_store.list_bookmarks())

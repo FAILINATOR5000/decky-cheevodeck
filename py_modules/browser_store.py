@@ -623,6 +623,20 @@ class BrowserStore:
         with self._lock:
             return self._save_history(self._empty_history())
 
+    def clear_back_history(self) -> dict:
+        with self._lock:
+            data = self._load_tabs()
+            changed = False
+            for tab in data["tabs"]:
+                if len(tab["history"]) <= 1:
+                    continue
+                changed = True
+                tab["history"] = [tab["url"]]
+                tab["historyScroll"] = [tab["scroll"]]
+                tab["historyAnchor"] = [tab["anchor"]]
+                tab["historyIndex"] = 0
+            return self._save_tabs(data) if changed else data
+
     def clear_recent_history(self, days: Any) -> dict:
         wanted = to_int(days, 0)
         with self._lock:

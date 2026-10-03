@@ -33,6 +33,7 @@ import {
     activateView,
     activeView,
     assignView,
+    closingDone,
     createView,
     DEFAULT_ACTIVE_TABS,
     destroyFreeViews,
@@ -886,6 +887,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         let cancelled = false;
         tabQueueRef.current = tabQueueRef.current.then(async () => {
             try {
+                await closingDone();
                 const settingsLoad = loadBrowserSettings()
                     .then((saved) => {
                         if (!cancelled) {
@@ -1598,13 +1600,17 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
     const wipeHistory = useCallback((days: number) => {
         (async () => {
             try {
-                setHistory((await clearBrowserHistory(days)).entries);
+                const cleared = await clearBrowserHistory(days);
+                setHistory(cleared.entries);
+                if (cleared.tabs?.ok) {
+                    apply(cleared.tabs);
+                }
             }
             catch (e) {
                 logError("useBrowserController.wipeHistory", e);
             }
         })();
-    }, []);
+    }, [apply]);
 
     return {
         tabs,

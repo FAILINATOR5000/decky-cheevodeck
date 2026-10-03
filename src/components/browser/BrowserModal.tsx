@@ -15,12 +15,12 @@ import { BrowserTabLimit } from "./BrowserTabLimit";
 import { BrowserBookmarkLimit } from "./BrowserBookmarkLimit";
 import { BrowserDownloadFolder } from "./BrowserDownloadFolder";
 import { setDownloadHandler, setFullscreenHandler, setViewSize, stopLoading } from "./browserSession";
-import { activeView, destroyAllViews, destroyDetached, detachAllViews, setViewEvents, silenceViews, type LiveView } from "./browserViews";
+import { activeView, destroyAllViews, destroyDetached, detachAllViews, setClosing, setViewEvents, silenceViews, type LiveView } from "./browserViews";
 import { BrowserViewHost } from "./browserViewHost";
 import { BROWSER_HOME_URL, useBrowserController } from "../../hooks/useBrowserController";
 import { t, type LanguageCode } from "../../locales";
 import { useFocusPaintWake } from "../../hooks/useFocusPaintWake";
-import { logFocusDebug } from "../../api";
+import { forgetBrowserBackHistory, logFocusDebug } from "../../api";
 import { steamDisplayScale } from "../../utils/closeTrace";
 import { logError } from "../../utils/errors";
 import { showManagedModal } from "../../utils/modalRegistry";
@@ -364,7 +364,10 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
             const shown = activeView();
             const detached = detachAllViews();
             silenceViews(detached);
-            void handlersRef.current.rememberPlaces(detached, shown).finally(() => destroyDetached(detached));
+            setClosing(handlersRef.current.rememberPlaces(detached, shown).finally(() => {
+                destroyDetached(detached);
+                return forgetBrowserBackHistory().catch((e) => logError("BrowserModal.forgetBrowserBackHistory", e));
+            }));
         };
     }, [claimView, showView]);
 

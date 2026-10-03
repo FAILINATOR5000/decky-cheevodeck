@@ -1958,6 +1958,7 @@ export type BrowserHistoryEntry = {
 export type BrowserHistoryResponse = {
     ok: boolean;
     entries: BrowserHistoryEntry[];
+    tabs?: BrowserTabsResponse;
 };
 
 export type BrowserBookmark = {

@@ -224,6 +224,16 @@ export function destroyDetached(detached: LiveView[]): void {
     logFocusDebug("browser-views", "destroyed", `closed=${count}`);
 }
 
+let closing: Promise<unknown> = Promise.resolve();
+
+export function setClosing(work: Promise<unknown>): void {
+    closing = Promise.all([closing, work.catch(() => undefined)]);
+}
+
+export function closingDone(): Promise<unknown> {
+    return closing;
+}
+
 export function destroyAllViews(): void {
     for (const view of [...views]) {
         destroyView(view);
