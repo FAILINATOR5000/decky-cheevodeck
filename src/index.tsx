@@ -18,7 +18,7 @@ import { closeBrowserForUnload } from "./components/browser/BrowserModal";
 import { releaseWebBrowserActionset } from "./components/browser/browserViewHost";
 import { registerBrowserDownloads, unregisterBrowserDownloads } from "./components/browser/browserDownloads";
 import { registerGlobalBackButtons, unregisterGlobalBackButtons } from "./components/backButtons/globalBackButtons";
-import { setStormbreakerEnabled, uninstallStormbreaker } from "./utils/stormbreaker";
+import { setStormbreakerEnabled, setStormbreakerGameMode, uninstallStormbreaker } from "./utils/stormbreaker";
 
 const NOTIFICATION_EVENT = "cheevodeck_notification";
 
@@ -69,6 +69,7 @@ export default definePlugin(() => {
                 setCurrentGuideModalZoom(settings.guideModalZoom);
             }
             try {
+                setStormbreakerGameMode(settings?.gameMode ?? true);
                 setStormbreakerEnabled(Boolean(settings?.stormbreaker ?? true));
             }
             catch (e) {

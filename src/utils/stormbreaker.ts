@@ -40,6 +40,7 @@ const HOOKS_MAX = 60;
 const QUICK_ACCESS_MENU = 2;
 
 let enabled = false;
+let gameMode = true;
 let detach: Array<() => void> = [];
 let recent: Array<{ at: number; side: Side }> = [];
 let lastEvent = 0;
@@ -189,6 +190,10 @@ function tryAttach(): void {
     if (!enabled || detach.length > 0) {
         return;
     }
+    if (!gameMode) {
+        report("off", "not in Game Mode");
+        return;
+    }
     const bigPicture = mainWindowInstance()?.BrowserWindow as Window | undefined;
     const qam = quickAccessWindow();
     if (bigPicture && qam && bigPicture !== qam) {
@@ -218,6 +223,13 @@ function detachAll(): void {
 export function standaloneClaim(): StandaloneClaim | null {
     const claim = (window as unknown as { __stormbreakerClaim?: StandaloneClaim }).__stormbreakerClaim;
     return claim?.owner === "stormbreaker" ? claim : null;
+}
+
+export function setStormbreakerGameMode(on: boolean): void {
+    gameMode = on;
+    if (!on) {
+        detachAll();
+    }
 }
 
 export function setStormbreakerEnabled(on: boolean): void {

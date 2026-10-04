@@ -918,12 +918,14 @@ class _Watch:
 
 
 class FreezeWatchdogService:
-    def __init__(self, *, settings_store, user_home):
+    def __init__(self, *, settings_store, user_home, game_mode):
         self._settings_store = settings_store
         self.user_home = Path(user_home)
+        self._game_mode = game_mode
         self._recovery_logs = False
         self._lock = threading.Lock()
         self._generation = 0
+        self._sync_lock = threading.Lock()
         self._thread = None
         self._stop_event = None
         self._kill_times = []
@@ -932,12 +934,13 @@ class FreezeWatchdogService:
         self._healthy_since = None
 
     def sync(self) -> None:
-        cfg = self._settings_store.load_config()
-        self._recovery_logs = bool(cfg.get("recoveryLogs", False))
-        if cfg.get("automaticRecovery", True):
-            self.start()
-        else:
-            self.stop()
+        with self._sync_lock:
+            cfg = self._settings_store.load_config()
+            self._recovery_logs = bool(cfg.get("recoveryLogs", False))
+            if cfg.get("automaticRecovery", True) and self._game_mode():
+                self.start()
+            else:
+                self.stop()
 
     def start(self) -> None:
         with self._lock:

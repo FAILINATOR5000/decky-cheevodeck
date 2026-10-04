@@ -13,6 +13,7 @@ from cache_store import CacheStore
 from ra_client import RetroAchievementsClient
 from services.back_button_service import BACK_BUTTON_EVENT, BackButtonService
 from services.freeze_watchdog_service import FreezeWatchdogService
+from services.session_mode_service import SessionModeService
 from services.cache_maintenance_service import CacheMaintenanceService
 from services.cheevo_check_service import CheevoCheckService
 from services.file_watcher_service import FileWatcherService
@@ -604,15 +605,20 @@ class Plugin(
             notifications_store=self.notifications_store,
             debug_logging=lambda: getattr(self, "_debug_logging", False),
         )
+        self.session_mode_service = SessionModeService(
+            on_change=self._sync_game_mode_services,
+        )
         self.back_button_service = BackButtonService(
             settings_store=self.settings_store,
             debug_logging=lambda: getattr(self, "_debug_logging", False),
             emit=self._emit_back_button,
             user_home=self.user_home,
+            game_mode=self.session_mode_service.is_game_mode,
         )
         self.freeze_watchdog_service = FreezeWatchdogService(
             settings_store=self.settings_store,
             user_home=self.user_home,
+            game_mode=self.session_mode_service.is_game_mode,
         )
         self.comments_service = CommentsService(
             game_comments_service=self.game_comments_service,
@@ -780,6 +786,10 @@ class Plugin(
         except Exception as exc:
             decky.logger.warning("back buttons: event emit failed (%s: %s)", type(exc).__name__, exc)
 
+    def _sync_game_mode_services(self) -> None:
+        self.back_button_service.sync()
+        self.freeze_watchdog_service.sync()
+
     def _toast_newer_schema(self) -> None:
         emit_notification(
             ntype="system",
@@ -792,6 +802,8 @@ class Plugin(
 
     async def _main(self):
         self._asyncio_loop = asyncio.get_running_loop()
+
+        self.session_mode_service.start()
 
         try:
             await asyncio.to_thread(self.repair_service.run_startup_repairs)
@@ -963,6 +975,7 @@ class Plugin(
         self.update_checker_service.stop()
         self.developer_message_service.stop()
         self.file_watcher_service.stop()
+        self.session_mode_service.stop()
         self.back_button_service.stop()
         self.freeze_watchdog_service.stop()
         self._restore_deck_controller_safe()
@@ -1071,6 +1084,7 @@ class Plugin(
 
         response = self.settings_store.settings_response(cfg)
         response["isSteamMachine"] = self._is_steam_machine()
+        response["gameMode"] = self.session_mode_service.refresh(from_frontend=True)
         return response
 
     def _is_steam_machine(self) -> bool:

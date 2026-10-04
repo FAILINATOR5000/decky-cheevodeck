@@ -928,6 +928,7 @@ export type SettingsResponse = {
     bannerScale: ScaleStep;
     modalScale: ScaleStep;
     isSteamMachine?: boolean;
+    gameMode?: boolean;
     largeViewportBonusEnabled: boolean;
     largeViewportBonus: number;
     qamReturnDelayMs: number;

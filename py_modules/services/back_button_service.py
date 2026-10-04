@@ -290,11 +290,12 @@ class _OpenNode:
 
 
 class BackButtonService:
-    def __init__(self, *, settings_store, debug_logging, emit, user_home):
+    def __init__(self, *, settings_store, debug_logging, emit, user_home, game_mode):
         self._settings_store = settings_store
         self._debug_logging = debug_logging
         self._emit = emit
         self._user_home = user_home
+        self._game_mode = game_mode
         self._combo_enabled = False
         self._recovery_logs = False
         self._combo_fired_at = None
@@ -302,15 +303,18 @@ class BackButtonService:
         self._lock = threading.Lock()
         self._thread = None
         self._stop_w = None
+        self._sync_lock = threading.Lock()
 
     def sync(self) -> None:
-        cfg = self._settings_store.load_config()
-        self._combo_enabled = bool(cfg.get("recoveryButtonCombo", False))
-        self._recovery_logs = bool(cfg.get("recoveryLogs", False))
-        if cfg.get("backButtonsGlobal", False) or cfg.get("browserSnapshot", False) or self._combo_enabled:
-            self.start()
-        else:
-            self.stop()
+        with self._sync_lock:
+            cfg = self._settings_store.load_config()
+            self._combo_enabled = bool(cfg.get("recoveryButtonCombo", False))
+            self._recovery_logs = bool(cfg.get("recoveryLogs", False))
+            wanted = cfg.get("backButtonsGlobal", False) or cfg.get("browserSnapshot", False) or self._combo_enabled
+            if wanted and self._game_mode():
+                self.start()
+            else:
+                self.stop()
 
     def start(self) -> None:
         with self._lock:
