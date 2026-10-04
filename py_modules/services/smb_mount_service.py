@@ -953,7 +953,7 @@ class SmbMountService:
             if not pid:
                 continue
             try:
-                name = Path(f"/proc/{pid}/comm").read_text(encoding="utf-8").strip()
+                name = Path(f"/proc/{pid}/comm").read_text(encoding="utf-8", errors="replace").strip()
             except OSError:
                 continue
             if name and name not in names:

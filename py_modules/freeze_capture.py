@@ -37,8 +37,8 @@ class ProcInfo:
 def read_proc(pid: int):
     base = Path("/proc") / str(pid)
     try:
-        comm = (base / "comm").read_text().strip()
-        stat = (base / "stat").read_text()
+        comm = (base / "comm").read_text(errors="replace").strip()
+        stat = (base / "stat").read_text(errors="replace")
         statm = (base / "statm").read_text()
     except OSError:
         return None
@@ -82,7 +82,7 @@ def webhelper_processes() -> list:
         if not entry.isdigit():
             continue
         try:
-            comm = Path(f"/proc/{entry}/comm").read_text().strip()
+            comm = Path(f"/proc/{entry}/comm").read_text(errors="replace").strip()
         except OSError:
             continue
         if comm != WEBHELPER_COMM:
