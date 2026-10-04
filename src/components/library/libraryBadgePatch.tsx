@@ -68,7 +68,7 @@ function insertBadge(args: any[], ret: any) {
     return ret;
 }
 
-export function enableLibraryBadge() {
+function enableLibraryBadge() {
     wanted = true;
     if (installed) {
         return;

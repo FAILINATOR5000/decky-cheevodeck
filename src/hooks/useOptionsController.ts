@@ -223,7 +223,8 @@ import type {
 } from "../types";
 
 import { logError } from "../utils/errors";
-import { setQamReturnDelay } from "../utils/modalRegistry";
+import { setModalAutoCleanup, setQamReturnDelay } from "../utils/modalRegistry";
+import { setSnapshotHotkey } from "../utils/snapshotHotkey";
 import { setStormbreakerEnabled } from "../utils/stormbreaker";
 import {
     nextActivityCacheMinutes,
@@ -310,18 +311,12 @@ import {
     setCurrentModalScale,
     setCurrentLargeViewportBonusEnabled,
     setCurrentLargeViewportBonus,
-    setCurrentGuideZoom,
-    setCurrentGuideModalZoom,
-    setCurrentTextViewerZoom,
     setCurrentAchievementTextScale,
-    setCurrentCommentsTextScale,
-    GUIDE_ZOOM_DEFAULT,
-    GUIDE_MODAL_ZOOM_DEFAULT,
-    TEXT_VIEWER_ZOOM_DEFAULT
+    setCurrentCommentsTextScale
 } from "../utils/scale";
 import { setCurrentColoredGlyphs, setCurrentControllerGlyphStyle } from "../utils/controllerGlyphs";
-import { setClipMuted } from "../components/memories/clipMute";
 import { setWebBrowserForLinks } from "../utils/navigation";
+import { applyFrontendSettings } from "../utils/frontendSettings";
 
 type SaveSettingWithRollback = <T>(options: {
     nextValue: T;
@@ -1256,6 +1251,7 @@ export function useOptionsController({
 
     // Reset and setup
     const applyResetResult = (result: any) => {
+        applyFrontendSettings(result);
         setAutoRefresh(Boolean(result.autoRefresh));
         setShowIcons(Boolean(result.showIcons));
         setDeferModalCleanup(Boolean(result.deferModalCleanup ?? true));
@@ -1264,11 +1260,7 @@ export function useOptionsController({
         setAutomaticRecovery(Boolean(result.automaticRecovery ?? true));
         setRecoveryButtonCombo(Boolean(result.recoveryButtonCombo ?? false));
         setRecoveryLogs(Boolean(result.recoveryLogs ?? false));
-        {
-            const breakerOn = Boolean(result.stormbreaker ?? true);
-            setStormbreaker(breakerOn);
-            setStormbreakerEnabled(breakerOn);
-        }
+        setStormbreaker(Boolean(result.stormbreaker ?? true));
         setLegacyCommentsLoading(Boolean(result.legacyCommentsLoading));
         setBatterySaverDisablesSocialActivity(Boolean(result.batterySaverDisablesSocialActivity ?? true));
         setBatterySaverDisablesComments(Boolean(result.batterySaverDisablesComments ?? true));
@@ -1283,10 +1275,8 @@ export function useOptionsController({
         setMemoriesRemux(Boolean(result.memoriesRemux ?? true));
         setMemoriesShareQuality(result.memoriesShareQuality ?? "medium");
         setMemoriesEncodePriority(result.memoriesEncodePriority ?? "low");
-        setClipMuted(Boolean(result.memoriesMuted ?? false));
         setMemoriesDeleteSteamClip(Boolean(result.memoriesDeleteSteamClip));
         setLinksOpenInWebBrowser(Boolean(result.linksOpenInWebBrowser ?? true));
-        setWebBrowserForLinks(Boolean(result.linksOpenInWebBrowser ?? true));
         setFileWatcherSpeed(result.fileWatcherSpeed ?? "gentle");
         setFileWatcherRunDuringGames(Boolean(result.fileWatcherRunDuringGames ?? true));
         setDoNotDisturbDisablesDot(Boolean(result.doNotDisturbDisablesDot ?? true));
@@ -1298,29 +1288,17 @@ export function useOptionsController({
         setRememberLastPage(Boolean(result.rememberLastPage));
         setUiSize(result.uiSize ?? "normal");
         setAchievementTextScale(result.achievementTextScale ?? "normal");
-        setCurrentAchievementTextScale(result.achievementTextScale ?? "normal");
         setCommentsTextScale(result.commentsTextScale ?? "normal");
-        setCurrentCommentsTextScale(result.commentsTextScale ?? "normal");
         setTextScale(result.textScale ?? "normal");
         setTitleScale(result.titleScale ?? "normal");
         setHeaderScale(result.headerScale ?? "normal");
         setBannerScale(result.bannerScale ?? "normal");
         setModalScale(result.modalScale ?? "normal");
-        setCurrentTextScale(result.textScale ?? "normal");
-        setCurrentTitleScale(result.titleScale ?? "normal");
-        setCurrentHeaderScale(result.headerScale ?? "normal");
-        setCurrentBannerScale(result.bannerScale ?? "normal");
-        setCurrentModalScale(result.modalScale ?? "normal");
-        setCurrentGuideZoom(result.guideZoom ?? GUIDE_ZOOM_DEFAULT);
-        setCurrentGuideModalZoom(result.guideModalZoom ?? GUIDE_MODAL_ZOOM_DEFAULT);
-        setCurrentTextViewerZoom(result.textViewerZoom ?? TEXT_VIEWER_ZOOM_DEFAULT);
         setBlockPadding(result.blockPadding ?? 8);
         setButtonSpacing(result.buttonSpacing ?? "verysmall");
         setMouseKeyboardMode(Boolean(result.mouseKeyboardMode ?? false));
         setControllerGlyphStyle(result.controllerGlyphStyle ?? "auto");
-        setCurrentControllerGlyphStyle(result.controllerGlyphStyle ?? "auto");
         setColoredGlyphs(Boolean(result.coloredGlyphs ?? true));
-        setCurrentColoredGlyphs(Boolean(result.coloredGlyphs ?? true));
         setShowAButtonMode(Boolean(result.showAButtonMode ?? true));
         setShowAButtonModeTracked(Boolean(result.showAButtonModeTracked ?? true));
         setShowAButtonModeEvents(Boolean(result.showAButtonModeEvents ?? true));
@@ -1339,7 +1317,6 @@ export function useOptionsController({
         setTrackedHeaderStyle(result.trackedHeaderStyle ?? "typed");
         setNotesHeaderStyle(result.notesHeaderStyle ?? "typed");
         setGeneralHeaderStyle(result.generalHeaderStyle ?? "capitalized");
-        setCurrentGeneralHeaderStyle(result.generalHeaderStyle ?? "capitalized");
         setTrackedEventsHeaderStyle(result.trackedEventsHeaderStyle ?? "typed");
         setTrackedColor(result.trackedColor ?? "default");
         setSocialEntryDefault(result.socialEntryDefault ?? "friends");
@@ -1396,33 +1373,17 @@ export function useOptionsController({
         setNotifyDebugEnabled(Boolean(result.notifyDebugEnabled ?? false));
         setNotifyDebugToast(Boolean(result.notifyDebugToast ?? false));
         setIpcSlowThresholdMs(result.ipcSlowThresholdMs ?? 250);
-        {
-            const bonusEnabled = Boolean(result.largeViewportBonusEnabled ?? true);
-            const bonusLines = result.largeViewportBonus ?? 8;
-            setLargeViewportBonusEnabled(bonusEnabled);
-            setLargeViewportBonus(bonusLines);
-            setCurrentLargeViewportBonusEnabled(bonusEnabled);
-            setCurrentLargeViewportBonus(bonusLines);
-        }
-        {
-            const qamDelay = result.qamReturnDelayMs ?? 300;
-            setQamReturnDelayMs(qamDelay);
-            setQamReturnDelay(qamDelay);
-        }
+        setLargeViewportBonusEnabled(Boolean(result.largeViewportBonusEnabled ?? true));
+        setLargeViewportBonus(result.largeViewportBonus ?? 8);
+        setQamReturnDelayMs(result.qamReturnDelayMs ?? 300);
         setParallelRaCalls(result.parallelRaCalls ?? 4);
         setParallelCdnFetches(result.parallelCdnFetches ?? 5);
         setMaxIconWorkers(result.maxIconWorkers ?? 6);
         setAvatarWorkers(result.avatarWorkers ?? 4);
         setGameIconWorkers(result.gameIconWorkers ?? 6);
-        const nextGameArtCacheCap = result.gameArtCacheCap ?? 1024;
-        setGameArtCacheCap(nextGameArtCacheCap);
-        applyGameArtCacheCap(nextGameArtCacheCap);
-        const nextAvatarCacheCap = result.avatarCacheCap ?? 1024;
-        setAvatarCacheCap(nextAvatarCacheCap);
-        applyAvatarCacheCap(nextAvatarCacheCap);
-        const nextAchievementIconCacheGames = result.achievementIconCacheGames ?? 8;
-        setAchievementIconCacheGames(nextAchievementIconCacheGames);
-        applyAchievementIconCacheGames(nextAchievementIconCacheGames);
+        setGameArtCacheCap(result.gameArtCacheCap ?? 1024);
+        setAvatarCacheCap(result.avatarCacheCap ?? 1024);
+        setAchievementIconCacheGames(result.achievementIconCacheGames ?? 8);
         setFriendImageService(Boolean(result.friendImageService ?? true));
         setValidateFriendsRoster(Boolean(result.validateFriendsRoster ?? true));
         setFisTickFrequencyMinutes(result.fisTickFrequencyMinutes ?? 5);
@@ -1442,7 +1403,6 @@ export function useOptionsController({
         setAwardsListCacheMinutes(result.awardsListCacheMinutes ?? 15);
         setWantToPlayCacheMinutes(result.wantToPlayCacheMinutes ?? 20);
         setPlayersNearYouTapMode(result.playersNearYouTapMode ?? "profile");
-        setAccurateAvatarDebug(Boolean(result.debugLogging ?? false));
         setBigListThreshold(result.bigListThreshold ?? 9999);
         setAlwaysStaggerMounting(Boolean(result.alwaysStaggerMounting ?? false));
         setReturnStaggerFrames(result.returnStaggerFrames ?? 0);
@@ -3399,7 +3359,10 @@ export function useOptionsController({
         saveSettingWithRollback<boolean>({
             nextValue,
             previousValue: deferModalCleanup,
-            applyValue: setDeferModalCleanup,
+            applyValue: (value) => {
+                setDeferModalCleanup(value);
+                setModalAutoCleanup(value);
+            },
             saveCall: saveDeferModalCleanup,
             getSavedValue: (result, fallbackValue) => Boolean(result.deferModalCleanup ?? fallbackValue),
         });
@@ -3543,7 +3506,10 @@ export function useOptionsController({
         saveSettingWithRollback<Record<ShortcutButton, ShortcutAction>>({
             nextValue: { ...shortcutBindings, [button]: action },
             previousValue: shortcutBindings,
-            applyValue: setShortcutBindings,
+            applyValue: (value) => {
+                setShortcutBindings(value);
+                setSnapshotHotkey(value);
+            },
             saveCall: (value) => saveShortcutBinding(button, value[button]),
         });
 

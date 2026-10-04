@@ -20,7 +20,7 @@ const GUIDE_ZOOM_MAX = 200;
 export const GUIDE_ZOOM_STEP = 5;
 export const GUIDE_ZOOM_DEFAULT = 100;
 export const GUIDE_MODAL_ZOOM_DEFAULT = 105;
-export const TEXT_VIEWER_ZOOM_DEFAULT = 130;
+const TEXT_VIEWER_ZOOM_DEFAULT = 130;
 
 let currentGuideZoom: number = GUIDE_ZOOM_DEFAULT;
 let currentGuideModalZoom: number = GUIDE_MODAL_ZOOM_DEFAULT;

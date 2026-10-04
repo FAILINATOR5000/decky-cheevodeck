@@ -56,7 +56,6 @@ import {
     saveDolphinSystemFilter,
     saveKeepGuidesOffline,
     savePinLatestGuides,
-    setAccurateAvatarDebug,
     logCommentsDebug,
     logFocusDebug,
     deleteAllMemories,
@@ -227,7 +226,6 @@ import {
     consumeModalCloseArm,
     drainOpenModals,
     modalEchoPending,
-    setModalAutoCleanup,
     showManagedModal,
     MODAL_ECHO_WINDOW_MS,
     MODAL_REAP_DELAY_MS
@@ -545,7 +543,6 @@ function AchievementsRoot() {
         users,
         autoRefresh,
         showIcons,
-        deferModalCleanup,
         legacyCommentsLoading,
         showAllAchievements,
         unlockHistoryDays,
@@ -2553,10 +2550,6 @@ function AchievementsRoot() {
     }, []);
 
     useEffect(() => {
-        setModalAutoCleanup(deferModalCleanup);
-    }, [deferModalCleanup]);
-
-    useEffect(() => {
         setCommentsSnapshotUser(activeUlid);
     }, [activeUlid]);
 
@@ -2960,7 +2953,6 @@ function AchievementsRoot() {
         const nextTrackedAchievementAction = settings.trackedAchievementAction;
         const nextTrackedSetAButtonMode = settings.trackedSetAButtonMode;
         const nextFriendRefreshDelayMs = settings.friendRefreshDelayMs;
-        setAccurateAvatarDebug(settings.debugLogging);
         const nextPayload = cached?.payload ?? null;
         const nextFriendsPayload = cachedFriends?.payload ?? null;
         const pending = consumePendingRouteOverrides(nextRememberLastPage ? (savedResume?.resumeState ?? null) : null);

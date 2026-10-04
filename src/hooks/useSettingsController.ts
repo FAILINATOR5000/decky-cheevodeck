@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
-import { DEFAULT_LANGUAGE, ensureLanguageLoaded, setCurrentLanguage, type LanguageCode } from "../locales";
+import { DEFAULT_LANGUAGE, ensureLanguageLoaded, type LanguageCode } from "../locales";
 import type {
     AchievementSort,
     AchievementStyle,
@@ -43,35 +43,11 @@ import type {
     BadgesSortOrder
 } from "../types";
 import { logError } from "../utils/errors";
-import { setQamReturnDelay } from "../utils/modalRegistry";
-import { setStormbreakerEnabled } from "../utils/stormbreaker";
 import { DEFAULT_SHORTCUT_BINDINGS } from "../utils/options";
-import { setSnapshotHotkey } from "../utils/snapshotHotkey";
 import { subscribeMemoriesCaptureOn } from "../utils/memoriesChanged";
-import { setWebBrowserForLinks } from "../utils/navigation";
+import { applyFrontendSettings } from "../utils/frontendSettings";
+import { clampGuideZoom, GUIDE_ZOOM_DEFAULT, GUIDE_MODAL_ZOOM_DEFAULT } from "../utils/scale";
 import {
-    setCurrentTextScale,
-    setCurrentTitleScale,
-    setCurrentGeneralHeaderStyle,
-    setCurrentHeaderScale,
-    setCurrentBannerScale,
-    setCurrentModalScale,
-    setCurrentLargeViewportBonusEnabled,
-    setCurrentLargeViewportBonus,
-    setCurrentGuideZoom,
-    setCurrentGuideModalZoom,
-    setCurrentTextViewerZoom,
-    setCurrentAchievementTextScale,
-    setCurrentCommentsTextScale,
-    clampGuideZoom,
-    GUIDE_ZOOM_DEFAULT,
-    GUIDE_MODAL_ZOOM_DEFAULT
-} from "../utils/scale";
-import { setCurrentColoredGlyphs, setCurrentControllerGlyphStyle } from "../utils/controllerGlyphs";
-import {
-    applyGameArtCacheCap,
-    applyAvatarCacheCap,
-    applyAchievementIconCacheGames,
     saveDoNotDisturb,
     saveNightMode,
     saveBatterySaver,
@@ -133,10 +109,6 @@ export function useSettingsController({
     const [showOptionsButton, setShowOptionsButton] = useState(false);
     const [quickMenuShortcuts, setQuickMenuShortcuts] = useState<QuickMenuShortcut[]>([]);
     const [shortcutBindings, setShortcutBindings] = useState<Record<ShortcutButton, ShortcutAction>>(DEFAULT_SHORTCUT_BINDINGS);
-
-    useEffect(() => {
-        setSnapshotHotkey(shortcutBindings);
-    }, [shortcutBindings]);
     const [lastScalePreset, setLastScalePreset] = useState<ScalePreset>("portable");
     const [showAllToggleMain, setShowAllToggleMain] = useState(false);
     const [showAllToggleFriend, setShowAllToggleFriend] = useState(false);
@@ -373,6 +345,7 @@ export function useSettingsController({
     );
 
     const applySettings = (source: SettingsResponse, options: { skipButtonToggles?: boolean }) => {
+        applyFrontendSettings(source);
         setUsername(source.username);
         setActiveUlid(source.activeUlid);
         setHasApiKey(Boolean(source.hasApiKey));
@@ -386,7 +359,6 @@ export function useSettingsController({
         setRecoveryButtonCombo(source.recoveryButtonCombo);
         setRecoveryLogs(source.recoveryLogs);
         setStormbreaker(source.stormbreaker);
-        setStormbreakerEnabled(source.stormbreaker);
         setLegacyCommentsLoading(Boolean(source.legacyCommentsLoading));
         setShowAllAchievements(source.showAllAchievements);
         setUnlockLookbackMinutes(source.unlockLookbackMinutes);
@@ -394,9 +366,7 @@ export function useSettingsController({
         setRememberLastPage(source.rememberLastPage);
         setUiSize(source.uiSize);
         setAchievementTextScale(source.achievementTextScale);
-        setCurrentAchievementTextScale(source.achievementTextScale);
         setCommentsTextScale(source.commentsTextScale);
-        setCurrentCommentsTextScale(source.commentsTextScale);
         setTextScale(source.textScale);
         setTitleScale(source.titleScale);
         setHeaderScale(source.headerScale);
@@ -406,22 +376,12 @@ export function useSettingsController({
         setGuideModalZoom(clampGuideZoom(source.guideModalZoom));
         setPinLatestGuides(source.pinLatestGuides);
         setKeepGuidesOffline(source.keepGuidesOffline);
-        setCurrentTextScale(source.textScale);
-        setCurrentTitleScale(source.titleScale);
-        setCurrentHeaderScale(source.headerScale);
-        setCurrentBannerScale(source.bannerScale);
-        setCurrentModalScale(source.modalScale);
-        setCurrentGuideZoom(source.guideZoom);
-        setCurrentGuideModalZoom(source.guideModalZoom);
-        setCurrentTextViewerZoom(source.textViewerZoom);
         setTopPadding(source.topPadding);
         setBlockPadding(source.blockPadding);
         setButtonSpacing(source.buttonSpacing);
         setMouseKeyboardMode(source.mouseKeyboardMode);
         setControllerGlyphStyle(source.controllerGlyphStyle);
-        setCurrentControllerGlyphStyle(source.controllerGlyphStyle);
         setColoredGlyphs(source.coloredGlyphs);
-        setCurrentColoredGlyphs(source.coloredGlyphs);
         setShowAButtonMode(source.showAButtonMode);
         setShowAButtonModeTracked(source.showAButtonModeTracked);
         setShowAButtonModeEvents(source.showAButtonModeEvents);
@@ -443,7 +403,6 @@ export function useSettingsController({
         setTrackedHeaderStyle(source.trackedHeaderStyle);
         setNotesHeaderStyle(source.notesHeaderStyle);
         setGeneralHeaderStyle(source.generalHeaderStyle);
-        setCurrentGeneralHeaderStyle(source.generalHeaderStyle);
         setTrackedEventsHeaderStyle(source.trackedEventsHeaderStyle);
         setTrackedColor(source.trackedColor);
         setMainAchievementFilter(source.mainAchievementFilter);
@@ -481,7 +440,6 @@ export function useSettingsController({
         setMemoriesEncodePriority(source.memoriesEncodePriority);
         setMemoriesDeleteSteamClip(source.memoriesDeleteSteamClip);
         setLinksOpenInWebBrowser(source.linksOpenInWebBrowser);
-        setWebBrowserForLinks(source.linksOpenInWebBrowser);
         setFileWatcherSpeed(source.fileWatcherSpeed);
         setFileWatcherRunDuringGames(source.fileWatcherRunDuringGames);
         setTrackedSetAButtonMode(source.trackedSetAButtonMode);
@@ -496,7 +454,6 @@ export function useSettingsController({
         setTrackedSetsSelectorFilter(source.trackedSetsSelectorFilter);
         const loadedLanguage = source.language;
         setLanguage(loadedLanguage);
-        setCurrentLanguage(loadedLanguage);
         void ensureLanguageLoaded(loadedLanguage).then(() => {
             if (mountedRef.current) {
                 markLocaleTableLoaded((revision) => revision + 1);
@@ -552,30 +509,17 @@ export function useSettingsController({
         setNotifyDebugEnabled(source.notifyDebugEnabled);
         setNotifyDebugToast(source.notifyDebugToast);
         setIpcSlowThresholdMs(source.ipcSlowThresholdMs);
-        {
-            const bonusEnabled = source.largeViewportBonusEnabled;
-            const bonusLines = source.largeViewportBonus;
-            setLargeViewportBonusEnabled(bonusEnabled);
-            setLargeViewportBonus(bonusLines);
-            setCurrentLargeViewportBonusEnabled(bonusEnabled);
-            setCurrentLargeViewportBonus(bonusLines);
-        }
+        setLargeViewportBonusEnabled(source.largeViewportBonusEnabled);
+        setLargeViewportBonus(source.largeViewportBonus);
         setQamReturnDelayMs(source.qamReturnDelayMs);
-        setQamReturnDelay(source.qamReturnDelayMs);
         setParallelRaCalls(source.parallelRaCalls);
         setParallelCdnFetches(source.parallelCdnFetches);
         setMaxIconWorkers(source.maxIconWorkers);
         setAvatarWorkers(source.avatarWorkers);
         setGameIconWorkers(source.gameIconWorkers);
-        const nextGameArtCacheCap = source.gameArtCacheCap;
-        setGameArtCacheCap(nextGameArtCacheCap);
-        applyGameArtCacheCap(nextGameArtCacheCap);
-        const nextAvatarCacheCap = source.avatarCacheCap;
-        setAvatarCacheCap(nextAvatarCacheCap);
-        applyAvatarCacheCap(nextAvatarCacheCap);
-        const nextAchievementIconCacheGames = source.achievementIconCacheGames;
-        setAchievementIconCacheGames(nextAchievementIconCacheGames);
-        applyAchievementIconCacheGames(nextAchievementIconCacheGames);
+        setGameArtCacheCap(source.gameArtCacheCap);
+        setAvatarCacheCap(source.avatarCacheCap);
+        setAchievementIconCacheGames(source.achievementIconCacheGames);
         setFriendImageService(source.friendImageService);
         setValidateFriendsRoster(source.validateFriendsRoster);
         setFisTickFrequencyMinutes(source.fisTickFrequencyMinutes);

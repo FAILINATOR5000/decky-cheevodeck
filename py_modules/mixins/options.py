@@ -656,6 +656,12 @@ class OptionsMixin(PluginContext):
         decky.logger.info("stormbreaker: %s %s", stage_text, extra_text)
         return {"ok": True}
 
+    async def log_startup_event(self, stage=None, extra=None):
+        stage_text = str(stage or "").strip() or "?"
+        extra_text = str(extra or "").strip()
+        decky.logger.warning("startup: %s %s", stage_text, extra_text)
+        return {"ok": True}
+
     async def clear_recovery_logs(self):
         removed = await asyncio.to_thread(clear_captures)
         decky.logger.info("freeze capture: cleared %d recovery log folder(s)", removed)

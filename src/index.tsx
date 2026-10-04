@@ -2,24 +2,21 @@ import { definePlugin, addEventListener, removeEventListener } from "@decky/api"
 // Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
 import { FaTrophy } from "react-icons/fa";
 import AchievementsRoot from "./pages/AchievementsRoot";
-import { getSettings, refreshHealedUserAvatar } from "./api";
-import { t, getCurrentLanguage, setCurrentLanguage } from "./locales";
-import { setCurrentGuideModalZoom, setDeviceIsSteamMachine } from "./utils/scale";
-import { setSnapshotHotkey } from "./utils/snapshotHotkey";
+import { refreshHealedUserAvatar } from "./api";
+import { t, ensureLanguageLoaded, getCurrentLanguage } from "./locales";
+import { readSettingsAtStartup, startupSettingsSettled } from "./utils/frontendSettings";
 import { logError } from "./utils/errors";
 import { toastAfterQuickAccessReturn } from "./utils/modalRegistry";
 import { quickAccessMenuClasses } from "@decky/ui";
-import { disableLibraryBadge, enableLibraryBadge } from "./components/library/libraryBadgePatch";
+import { disableLibraryBadge } from "./components/library/libraryBadgePatch";
 import { registerScreenDarken, unregisterScreenDarken } from "./components/darken/screenDarken";
 import { registerMemoryCapture, unregisterMemoryCapture } from "./components/memories/memoryCapture";
 import { registerMemoryFullscreen, unregisterMemoryFullscreen } from "./components/memories/memoryFullscreen";
-import { setClipMuted } from "./components/memories/clipMute";
-import { setWebBrowserForLinks } from "./utils/navigation";
 import { closeBrowserForUnload } from "./components/browser/BrowserModal";
 import { releaseWebBrowserActionset } from "./components/browser/browserViewHost";
 import { registerBrowserDownloads, unregisterBrowserDownloads } from "./components/browser/browserDownloads";
 import { registerGlobalBackButtons, unregisterGlobalBackButtons } from "./components/backButtons/globalBackButtons";
-import { setStormbreakerEnabled, setStormbreakerGameMode, uninstallStormbreaker } from "./utils/stormbreaker";
+import { uninstallStormbreaker } from "./utils/stormbreaker";
 
 const NOTIFICATION_EVENT = "cheevodeck_notification";
 
@@ -27,6 +24,8 @@ const AVATAR_HEALED_EVENT = "cheevodeck_avatar_healed";
 
 export default definePlugin(() => {
     releaseWebBrowserActionset();
+
+    let disposed = false;
 
     const onNotificationToast = (payload: {
         type?: string;
@@ -40,54 +39,26 @@ export default definePlugin(() => {
         if (!payload?.toast) {
             return;
         }
-        const language = getCurrentLanguage();
-        const title = payload.titleKey
-            ? t(language, payload.titleKey, payload.vars)
-            : (payload.title || "CheevoDeck");
-        const body = payload.lineKey
-            ? t(language, payload.lineKey, payload.vars)
-            : (payload.body || "");
-        toastAfterQuickAccessReturn({ title, body });
-    };
-    addEventListener(NOTIFICATION_EVENT, onNotificationToast);
-
-    let disposed = false;
-    void getSettings()
-        .then((settings) => {
+        void startupSettingsSettled().then(async () => {
+            const language = getCurrentLanguage();
+            await ensureLanguageLoaded(language);
             if (disposed) {
                 return;
             }
-            if (settings?.language) {
-                setCurrentLanguage(settings.language);
-            }
-            setDeviceIsSteamMachine(settings?.isSteamMachine ?? false);
-            setClipMuted(Boolean(settings?.memoriesMuted ?? false));
-            setWebBrowserForLinks(settings?.linksOpenInWebBrowser ?? true);
-            if (settings?.shortcutBindings) {
-                setSnapshotHotkey(settings.shortcutBindings);
-            }
-            if (settings?.guideModalZoom) {
-                setCurrentGuideModalZoom(settings.guideModalZoom);
-            }
-            try {
-                setStormbreakerGameMode(settings?.gameMode ?? true);
-                setStormbreakerEnabled(Boolean(settings?.stormbreaker ?? true));
-            }
-            catch (e) {
-                logError("index: couldn't start Stormbreaker", e);
-            }
-            try {
-                if (settings?.libraryBadge) {
-                    enableLibraryBadge();
-                }
-            }
-            catch (e) {
-                logError("index: couldn't set up the library badge", e);
-            }
-        })
-        .catch((e) => {
-            logError("index: couldn't read settings at startup", e);
+            const title = payload.titleKey
+                ? t(language, payload.titleKey, payload.vars)
+                : (payload.title || "CheevoDeck");
+            const body = payload.lineKey
+                ? t(language, payload.lineKey, payload.vars)
+                : (payload.body || "");
+            toastAfterQuickAccessReturn({ title, body });
+        }).catch((e) => {
+            logError("index: couldn't raise a notification toast", e);
         });
+    };
+    addEventListener(NOTIFICATION_EVENT, onNotificationToast);
+
+    readSettingsAtStartup(() => disposed);
 
     const onAvatarHealed = (payload: { username?: string }) => {
         const username = payload?.username;

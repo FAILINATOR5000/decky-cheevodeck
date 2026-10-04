@@ -20,6 +20,7 @@ import { lastOpenedGuide } from "../../utils/guidesResolve";
 import { cheevoModalOpen, showManagedModal } from "../../utils/modalRegistry";
 import type { PanelEntry } from "../../utils/pendingPanelEntry";
 import { captureSnapshot } from "../../utils/snapshot";
+import { startupSettingsSettled } from "../../utils/frontendSettings";
 import { showToggleToast } from "../../utils/toggleToast";
 import { openPanelOn, quickAccessIsHidden } from "../../utils/quickAccess";
 import { browserModalOpen, openBrowserModal } from "../browser/BrowserModal";
@@ -57,6 +58,8 @@ type SummonAction =
     | PageAction;
 
 let summoning = false;
+
+let registered = false;
 
 function mayOpen(action: string): boolean {
     if (!quickAccessIsHidden()) {
@@ -256,9 +259,10 @@ async function onBackButton(payload: { action?: string | null; browserSnapshot?:
         return;
     }
 
+    await startupSettingsSettled();
     const language = getCurrentLanguage();
     await ensureLanguageLoaded(language);
-    if (!mayOpen(action)) {
+    if (!registered || !mayOpen(action)) {
         return;
     }
 
@@ -296,9 +300,11 @@ async function onBackButton(payload: { action?: string | null; browserSnapshot?:
 }
 
 export function registerGlobalBackButtons(): void {
+    registered = true;
     addEventListener(BACK_BUTTON_EVENT, onBackButton);
 }
 
 export function unregisterGlobalBackButtons(): void {
+    registered = false;
     removeEventListener(BACK_BUTTON_EVENT, onBackButton);
 }

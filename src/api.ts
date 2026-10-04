@@ -252,6 +252,9 @@ export const saveStormbreaker = callable<[boolean], { ok: boolean; stormbreaker:
 export const logStormbreakerEvent = callable<[string, string], { ok: boolean }>(
     "log_stormbreaker_event"
 );
+export const logStartupEvent = callable<[string, string], { ok: boolean }>(
+    "log_startup_event"
+);
 export const saveLegacyCommentsLoading = callable<[boolean], { ok: boolean; legacyCommentsLoading: boolean }>(
     "save_legacy_comments_loading"
 );
