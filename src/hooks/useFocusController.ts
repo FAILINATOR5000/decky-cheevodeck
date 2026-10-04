@@ -4,7 +4,9 @@ import {
     useLayoutEffect,
     useRef,
     useState,
-    type RefObject
+    type Dispatch,
+    type RefObject,
+    type SetStateAction
 } from "react";
 import { logFocusDebug } from "../api";
 import { ROUTES } from "../routes";
@@ -16,7 +18,7 @@ interface UseFocusControllerArgs {
     friendProfileOverlayText: string | null;
     rootRef: RefObject<HTMLDivElement | null>;
     pendingFocusKey: string | null;
-    setPendingFocusKey: (value: string | null) => void;
+    setPendingFocusKey: Dispatch<SetStateAction<string | null>>;
     resumeViewFlipRef: RefObject<boolean>;
 }
 
@@ -68,8 +70,9 @@ export function useFocusController({
     }, [findScrollParent]);
 
     const currentFocusKeyInRoot = useCallback(() => {
-        const active = document.activeElement as HTMLElement | null;
-        if (!active || !rootRef.current?.contains(active)) {
+        const root = rootRef.current;
+        const active = root?.ownerDocument.activeElement as HTMLElement | null | undefined;
+        if (!root || !active || !root.contains(active)) {
             return null;
         }
         const container = active.closest?.("[data-focus-key]") as HTMLElement | null;
@@ -141,33 +144,6 @@ export function useFocusController({
         setAchievementsInitialAutoFocusDone(true);
     }, [view, pendingFocusKey, achievementsInitialAutoFocusDone]);
 
-    useEffect(() => {
-        if (!pendingFocusKey) {
-            return;
-        }
-
-        function onFocusIn() {
-            const currentKey = currentFocusKeyInRoot();
-            if (!currentKey) {
-                return;
-            }
-
-            if (currentKey !== pendingFocusKey) {
-                return;
-            }
-
-            setPendingFocusKey(null);
-        }
-
-        const root = rootRef.current;
-        root?.addEventListener("focusin", onFocusIn);
-        onFocusIn();
-
-        return () => {
-            root?.removeEventListener("focusin", onFocusIn);
-        };
-    }, [pendingFocusKey, currentFocusKeyInRoot]);
-
     useLayoutEffect(() => {
         if (!pendingFocusKey) {
             return;
@@ -206,13 +182,7 @@ export function useFocusController({
         const claimed = focusByKey(pendingFocusKey);
         const landed = claimed ? currentFocusKeyInRoot() : null;
         logFocusDebug("fastpath", pendingFocusKey, `claimed=${claimed} landed=${landed ?? "(none)"}`);
-        if (!claimed) {
-            return;
-        }
-        if (landed === pendingFocusKey) {
-            setPendingFocusKey(null);
-        }
-    }, [pendingFocusKey, loading, friendProfileOverlayText, focusByKey, currentFocusKeyInRoot, setPendingFocusKey]);
+    }, [pendingFocusKey, loading, friendProfileOverlayText, focusByKey, currentFocusKeyInRoot]);
 
     useEffect(() => {
         if (!pendingFocusKey) {
@@ -246,7 +216,7 @@ export function useFocusController({
             );
 
             if (landed === pendingFocusKey) {
-                setPendingFocusKey(null);
+                setPendingFocusKey((current) => (current === pendingFocusKey ? null : current));
             }
         });
 
