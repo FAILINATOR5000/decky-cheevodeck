@@ -1801,8 +1801,6 @@ function AchievementsRoot() {
 
     const {
         state: {
-            listResetToken,
-            focusScopeResetToken,
             achievementsInitialAutoFocusDone,
             mainEntryToken,
             mainEntryFromView
@@ -2219,7 +2217,6 @@ function AchievementsRoot() {
         payload,
         quickMenuShortcutRefused,
         error,
-        focusScopeResetToken,
         activeOptionsTab: lastOptionsTab,
         onSelectOptionsTab,
         setActiveOptionsTab: setLastOptionsTab,
@@ -2330,7 +2327,6 @@ function AchievementsRoot() {
     const unlockHistoryController = useUnlockHistoryController({
         language,
         buttonSpacing,
-        focusScopeResetToken,
         payload: unlockHistoryPayload,
         unlockHistoryDays: unlockHistoryDaysForPage,
         showIcons,
@@ -2379,7 +2375,6 @@ function AchievementsRoot() {
     const aboutController = useAboutController({
         language,
         buttonSpacing,
-        focusScopeResetToken,
         onBack: () => {
             navIntentRef.current = "back";
             if (previousView(nav.stack) === "options") {
@@ -4263,7 +4258,7 @@ function AchievementsRoot() {
 
     let loadingOrSetup: ReactNode = null;
     const bootCatPanel = (
-        <PanelSection key={`achievements:menu:${focusScopeResetToken}`}>
+        <PanelSection key="achievements:menu">
             <PanelSectionRow>
                 <div
                     style={{
@@ -4306,7 +4301,7 @@ function AchievementsRoot() {
     }
     else if (!settingsLoaded) {
         loadingOrSetup = showBootSpinner ? bootCatPanel : (
-            <PanelSection key={`achievements:menu:${focusScopeResetToken}`} />
+            <PanelSection key="achievements:menu" />
         );
     }
     else if (settingsMode) {
@@ -4791,7 +4786,6 @@ function AchievementsRoot() {
                                     notesByAchievementId,
                                     notesColorByAchievementId,
                                     error,
-                                    focusScopeResetToken,
                                     achievementsResumeToken,
                                     showAllAchievements,
                                     showAllToggleMain,
@@ -4828,7 +4822,6 @@ function AchievementsRoot() {
                                     dynamicRowStep,
                                     dynamicPrefetchDistance,
                                     dynamicSentinelRootMargin,
-                                    listResetToken,
                                     showNotesDot,
                                     notesPendingReminderBadge: gameNotesState.pendingReminderBadge,
                                     doNotDisturb,
@@ -4897,7 +4890,6 @@ function AchievementsRoot() {
                             <TrackedPage
                                 view={view}
                                 language={language}
-                                focusScopeResetToken={focusScopeResetToken}
                                 buttonSpacing={buttonSpacing}
                                 payload={payload}
                                 trackedIdsLoadedForGameId={trackedIdsLoadedForGameId}
@@ -4931,7 +4923,6 @@ function AchievementsRoot() {
                                 dynamicTrackedListSentinelRootMargin={dynamicTrackedListSentinelRootMargin}
                                 dynamicTrackedGames={dynamicTrackedGames}
                                 trackedIds={trackedIds}
-                                listResetToken={listResetToken}
                                 checkingGame={checkingGame}
                                 activeTrackedTab={lastTrackedTab}
                                 trackedSelectedGameId={trackedSelectedGameId}
@@ -5006,7 +4997,6 @@ function AchievementsRoot() {
                             <GuidesPage
                                 state={{
                                     view,
-                                    focusScopeResetToken,
                                     language,
                                     buttonSpacing,
                                     showIcons,
@@ -5049,7 +5039,6 @@ function AchievementsRoot() {
                             <UtilsPage
                                 state={{
                                     view,
-                                    focusScopeResetToken,
                                     language,
                                     buttonSpacing,
                                     restoreFocusKey: utilsFocusReturn,
@@ -5072,7 +5061,6 @@ function AchievementsRoot() {
                             <QamGuardPage
                                 state={{
                                     view,
-                                    focusScopeResetToken,
                                     language,
                                     buttonSpacing,
                                     loading: optionsState.loading,
@@ -5096,7 +5084,6 @@ function AchievementsRoot() {
                             <DolphinMapperPage
                                 view={view}
                                 language={language}
-                                focusScopeResetToken={focusScopeResetToken}
                                 buttonSpacing={buttonSpacing}
                                 mouseKeyboardMode={mouseKeyboardMode}
                                 controllerGlyphStyle={controllerGlyphStyle}
@@ -5123,7 +5110,6 @@ function AchievementsRoot() {
                             <SmbSharesPage
                                 state={{
                                     view,
-                                    focusScopeResetToken,
                                     language,
                                     buttonSpacing,
                                     panelOverlayVisible,
@@ -5140,7 +5126,6 @@ function AchievementsRoot() {
                             <CheevoCheckPage
                                 state={{
                                     view,
-                                    focusScopeResetToken,
                                     language,
                                     buttonSpacing,
                                     batterySaver,
@@ -5161,7 +5146,6 @@ function AchievementsRoot() {
                             <MemoriesPage
                                 state={{
                                     view,
-                                    focusScopeResetToken,
                                     language,
                                     buttonSpacing,
                                     glyphStyle: controllerGlyphStyle,
@@ -5190,7 +5174,6 @@ function AchievementsRoot() {
                             <FileWatcherPage
                                 state={{
                                     view,
-                                    focusScopeResetToken,
                                     language,
                                     buttonSpacing,
                                     dynamicAllGames,
@@ -5212,7 +5195,6 @@ function AchievementsRoot() {
                             <MemoriesTransferPage
                                 state={{
                                     view,
-                                    focusScopeResetToken,
                                     language,
                                     buttonSpacing,
                                     panelOverlayVisible,
@@ -5236,7 +5218,6 @@ function AchievementsRoot() {
                                     buttonSpacing,
                                     uiSize,
                                     notesHeaderStyle,
-                                    focusScopeResetToken,
                                     payload,
                                     gameNotesGameId,
                                     notes: gameNotesState.notes,
@@ -5300,7 +5281,6 @@ function AchievementsRoot() {
                                 view={view}
                                 language={language}
                                 panelOverlayVisible={panelOverlayVisible}
-                                focusScopeResetToken={focusScopeResetToken}
                                 socialEntryToken={socialEntryToken}
                                 socialEntryView={socialEntryViewOverride ?? lastSocialView}
                                 savedComments={{
@@ -5410,7 +5390,6 @@ function AchievementsRoot() {
                             <ComparePickerPage
                                 state={{
                                     view,
-                                    focusScopeResetToken,
                                     language,
                                     buttonSpacing,
                                     friendsRows,
@@ -5659,7 +5638,6 @@ function AchievementsRoot() {
                                 state={{
                                     view,
                                     language,
-                                    focusScopeResetToken,
                                     friendGamePayload,
                                     selectedFriend,
                                     buttonSpacing,
@@ -5679,7 +5657,6 @@ function AchievementsRoot() {
                                     dynamicRowStep,
                                     dynamicPrefetchDistance,
                                     dynamicSentinelRootMargin,
-                                    listResetToken,
                                     friendAchievementFilter,
                                     friendAchievementSort,
                                     friendShowAllAchievements,
@@ -5867,7 +5844,6 @@ function AchievementsRoot() {
                             <FriendCompareGamePage
                                 state={{
                                     view,
-                                    focusScopeResetToken,
                                     language,
                                     buttonSpacing,
                                     selectedFriend,

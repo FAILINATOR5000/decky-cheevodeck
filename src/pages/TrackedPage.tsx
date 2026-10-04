@@ -133,7 +133,6 @@ const TRACKED_TABS: TrackedTabDef[] = [
 type TrackedPageProps = {
     view: ViewKey;
     language: LanguageCode;
-    focusScopeResetToken: number;
     buttonSpacing: ButtonSpacing;
     payload: Payload | null;
     trackedIdsLoadedForGameId: number | null;
@@ -165,7 +164,6 @@ type TrackedPageProps = {
     dynamicTrackedListSentinelRootMargin: number;
     dynamicTrackedGames: boolean;
     trackedIds: number[];
-    listResetToken: number;
     checkingGame: boolean;
     activeTrackedTab: TrackedTab;
     trackedSelectedGameId: number | null;
@@ -210,7 +208,6 @@ function TrackedPage(props: TrackedPageProps) {
     const {
         view,
         language,
-        focusScopeResetToken,
         buttonSpacing,
         payload,
         trackedIdsLoadedForGameId,
@@ -242,7 +239,6 @@ function TrackedPage(props: TrackedPageProps) {
         dynamicTrackedListSentinelRootMargin,
         dynamicTrackedGames,
         trackedIds,
-        listResetToken,
         checkingGame,
         activeTrackedTab,
         trackedSelectedGameId,
@@ -682,8 +678,6 @@ function TrackedPage(props: TrackedPageProps) {
                     uiSize={uiSize}
                     topPadding={topPadding}
                     blockPadding={blockPadding}
-                    listResetToken={listResetToken}
-                    focusScopeResetToken={focusScopeResetToken}
                     title={t(language, "Tracked ({{count}})", { count: trackedAchievements.length })}
                     emptyMessage={
                         <TrackedEmptyMessage
@@ -883,7 +877,7 @@ function TrackedPage(props: TrackedPageProps) {
                 )}
             </PanelSection>
 
-            <div key={`tracked:body:${activeTrackedTab}:${focusScopeResetToken}`}>
+            <div key={`tracked:body:${activeTrackedTab}`}>
                 {activeTrackedTab === "thisGame" && renderThisGameBody()}
                 {activeTrackedTab === "otherGames" && (
                     <Focusable
@@ -919,8 +913,6 @@ function TrackedPage(props: TrackedPageProps) {
                             dynamicTrackedListRowStep={dynamicTrackedListRowStep}
                             dynamicTrackedListPrefetchDistance={dynamicTrackedListPrefetchDistance}
                             dynamicTrackedListSentinelRootMargin={dynamicTrackedListSentinelRootMargin}
-                            listResetToken={listResetToken}
-                            focusScopeResetToken={focusScopeResetToken}
                             showAButtonModeTracked={showAButtonModeTracked}
                             showRetroPoints={showRetroPoints}
                             trackedAchievementAction={trackedAchievementAction}
@@ -1049,8 +1041,6 @@ type OtherGamesTabBodyProps = {
     dynamicTrackedListRowStep: number;
     dynamicTrackedListPrefetchDistance: number;
     dynamicTrackedListSentinelRootMargin: number;
-    listResetToken: number;
-    focusScopeResetToken: number;
     showAButtonModeTracked: boolean;
     showRetroPoints: boolean;
     trackedAchievementAction: TrackedAchievementAction;
@@ -1085,8 +1075,6 @@ function OtherGamesTabBody(props: OtherGamesTabBodyProps) {
         dynamicTrackedListRowStep,
         dynamicTrackedListPrefetchDistance,
         dynamicTrackedListSentinelRootMargin,
-        listResetToken,
-        focusScopeResetToken,
         showAButtonModeTracked,
         showRetroPoints,
         trackedAchievementAction,
@@ -1138,8 +1126,6 @@ function OtherGamesTabBody(props: OtherGamesTabBodyProps) {
             uiSize={uiSize}
             topPadding={topPadding}
             blockPadding={blockPadding}
-            listResetToken={listResetToken}
-            focusScopeResetToken={focusScopeResetToken}
             dynamicLoading={dynamicTrackedListLoading}
             dynamicInitialRows={dynamicTrackedListInitialRows}
             dynamicRowStep={dynamicTrackedListRowStep}

@@ -53,8 +53,6 @@ type OtherGamesDrillInBodyProps = {
     uiSize: UiSize;
     topPadding: number;
     blockPadding: number;
-    listResetToken: number;
-    focusScopeResetToken: number;
     dynamicLoading: boolean;
     dynamicInitialRows: number;
     dynamicRowStep: number;
@@ -105,8 +103,6 @@ export function OtherGamesDrillInBody(props: OtherGamesDrillInBodyProps) {
         uiSize,
         topPadding,
         blockPadding,
-        listResetToken,
-        focusScopeResetToken,
         dynamicLoading,
         dynamicInitialRows,
         dynamicRowStep,
@@ -243,8 +239,6 @@ export function OtherGamesDrillInBody(props: OtherGamesDrillInBodyProps) {
                     uiSize={uiSize}
                     topPadding={topPadding}
                     blockPadding={blockPadding}
-                    listResetToken={listResetToken}
-                    focusScopeResetToken={focusScopeResetToken}
                     title={sectionTitle}
                     emptyMessage={
                         <TrackedEmptyMessage

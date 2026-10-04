@@ -64,7 +64,6 @@ const FILE_WATCHER_RESTORE_SEED_CEILING = 300;
 
 type FileWatcherPageState = {
     view: ViewKey;
-    focusScopeResetToken: number;
     language: LanguageCode;
     buttonSpacing: ButtonSpacing;
 
@@ -372,7 +371,7 @@ function FileWatcherPage(props: FileWatcherPageProps) {
         rowClaim.claimSlot(Math.min(Math.max(removedIndex, 0), remaining - 1));
     }
 
-    const scopeKey = `fileWatcher:${busy ? "scan" : "idle"}:${state.focusScopeResetToken}`;
+    const scopeKey = `fileWatcher:${busy ? "scan" : "idle"}`;
 
     function claimTarget(control: ReactElement<{ focusKey?: string }>): ReactNode {
         const claim = rowClaim.claim;

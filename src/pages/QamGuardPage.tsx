@@ -13,7 +13,6 @@ const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
 type QamGuardPageState = {
     view: ViewKey;
-    focusScopeResetToken: number;
     language: LanguageCode;
     buttonSpacing: ButtonSpacing;
     loading: boolean;
@@ -50,7 +49,7 @@ function QamGuardPage(props: QamGuardPageProps) {
     const buttonOuterStyle = regularButtonSpacingStyle(state.buttonSpacing);
 
     return (
-        <PanelSection key={`qamGuard:view:${state.focusScopeResetToken}`}>
+        <PanelSection key="qamGuard:view">
             <PageNavStrip
                 title={t(state.language, "Stormbreaker")}
                 buttonSpacing={state.buttonSpacing}

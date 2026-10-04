@@ -20,7 +20,6 @@ const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
 type UtilsPageState = {
     view: ViewKey;
-    focusScopeResetToken: number;
     language: LanguageCode;
     buttonSpacing: ButtonSpacing;
     restoreFocusKey: string | null;
@@ -91,7 +90,7 @@ function UtilsPage(props: UtilsPageProps) {
     }
 
     const page = (
-        <PanelSection key={`utils:view:${state.focusScopeResetToken}`}>
+        <PanelSection key="utils:view">
             <PageNavStrip
                 title={t(state.language, "Utilities")}
                 buttonSpacing={state.buttonSpacing}

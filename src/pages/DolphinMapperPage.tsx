@@ -90,7 +90,6 @@ function GamepadIcon() {
 type DolphinMapperPageProps = {
     view: ViewKey;
     language: LanguageCode;
-    focusScopeResetToken: number;
     buttonSpacing: ButtonSpacing;
     mouseKeyboardMode: boolean;
     controllerGlyphStyle: ControllerGlyphStyle;
@@ -124,7 +123,6 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
     const {
         view,
         language,
-        focusScopeResetToken,
         buttonSpacing,
         mouseKeyboardMode,
         controllerGlyphStyle,
@@ -570,7 +568,7 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
     const restoreSettled = restoreAbandoned || restoreSettledRef.current;
 
     const page = (
-        <PanelSection key={`dolphinMapper:view:${focusScopeResetToken}`}>
+        <PanelSection key="dolphinMapper:view">
             <PageNavStrip
                 title={t(language, "Dolphin Mapper")}
                 buttonSpacing={buttonSpacing}

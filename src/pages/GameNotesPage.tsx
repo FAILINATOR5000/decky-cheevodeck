@@ -44,7 +44,6 @@ type GameNotesPageState = {
     buttonSpacing: ButtonSpacing;
     uiSize: UiSize;
     notesHeaderStyle: HeaderStyle;
-    focusScopeResetToken: number;
     payload: Payload | null;
     gameNotesGameId?: number | null;
     notes: GameNote[];
@@ -197,7 +196,6 @@ export function GameNotesPage(props: GameNotesPageProps) {
         buttonSpacing,
         uiSize,
         notesHeaderStyle,
-        focusScopeResetToken,
         payload,
         gameNotesGameId,
         notes,
@@ -655,7 +653,7 @@ export function GameNotesPage(props: GameNotesPageProps) {
             onButtonDown={handlePageButtonDown}
         >
             <PanelSection
-                key={`game-notes:view:${focusScopeResetToken}`}
+                key="game-notes:view"
             >
                 <PageNavStrip
                     title={t(language, "Game Notes")}

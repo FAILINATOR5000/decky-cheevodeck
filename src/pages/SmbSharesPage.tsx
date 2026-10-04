@@ -62,7 +62,6 @@ const LAST_ROW_STYLE = {
 
 type SmbSharesPageState = {
     view: ViewKey;
-    focusScopeResetToken: number;
     language: LanguageCode;
     buttonSpacing: ButtonSpacing;
     panelOverlayVisible: boolean;
@@ -359,7 +358,7 @@ function SmbSharesPage(props: SmbSharesPageProps) {
     const restoreSettled = restoreAbandoned || restoreSettledRef.current;
 
     const page = (
-        <PanelSection key={`smbShares:view:${state.focusScopeResetToken}`}>
+        <PanelSection key="smbShares:view">
             <PageNavStrip
                 title={t(language, "SMB Shares")}
                 buttonSpacing={state.buttonSpacing}

@@ -34,7 +34,6 @@ const FILTER_OPTIONS: { value: NowPlayingCompareFilter; labelKey: string }[] = [
 
 type FriendCompareGamePageState = {
     view: ViewKey;
-    focusScopeResetToken: number;
     language: LanguageCode;
     buttonSpacing: ButtonSpacing;
     selectedFriend: FriendRow | null;
@@ -95,7 +94,6 @@ function FriendCompareGamePage(props: FriendCompareGamePageProps) {
     const { state, actions } = props;
     const {
         view,
-        focusScopeResetToken,
         language,
         buttonSpacing,
         selectedFriend,
@@ -356,7 +354,7 @@ function FriendCompareGamePage(props: FriendCompareGamePageProps) {
         : t(language, "Compare");
 
     return (
-        <React.Fragment key={`friendcompare:view:${focusScopeResetToken}`}>
+        <React.Fragment key="friendcompare:view">
             <PanelSection>
                 <PageNavStrip
                     title={headerTitle}

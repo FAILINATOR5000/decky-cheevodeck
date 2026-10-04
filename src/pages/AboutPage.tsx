@@ -57,7 +57,6 @@ const GPL_3_LICENSE_URL = "https://github.com/spdx/license-list-data/blob/main/t
 
 type AboutPageState = {
     view: ViewKey;
-    focusScopeResetToken: number;
     language: LanguageCode;
     buttonSpacing: ButtonSpacing;
     version: string;
@@ -226,7 +225,7 @@ function AboutPage(props: AboutPageProps) {
         : null;
 
     return (
-        <PanelSection key={`about:view:${state.focusScopeResetToken}`}>
+        <PanelSection key="about:view">
             <PageNavStrip
                 title={t(state.language, "About CheevoDeck")}
                 buttonSpacing={state.buttonSpacing}

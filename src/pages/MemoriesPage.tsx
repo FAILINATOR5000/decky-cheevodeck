@@ -157,7 +157,6 @@ const CONTROL_CLAIM_SLOTS: Record<string, number> = {
 
 type MemoriesPageState = {
     view: ViewKey;
-    focusScopeResetToken: number;
     language: LanguageCode;
     buttonSpacing: ButtonSpacing;
     glyphStyle: ControllerGlyphStyle;
@@ -192,7 +191,6 @@ function MemoriesPage(props: MemoriesPageProps) {
     const { state, actions } = props;
     const {
         view,
-        focusScopeResetToken,
         language,
         buttonSpacing,
         glyphStyle,
@@ -776,7 +774,7 @@ function MemoriesPage(props: MemoriesPageProps) {
 
     const page = (
         <Focusable onButtonDown={handlePageButtonDown}>
-            <PanelSection key={`memories:view:${focusScopeResetToken}`}>
+            <PanelSection key="memories:view">
                 <PageNavStrip
                     title={t(language, "Memories")}
                     buttonSpacing={buttonSpacing}

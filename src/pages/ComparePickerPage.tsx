@@ -18,7 +18,6 @@ import { bodyTextStyle, headerCase, regularButtonSpacingStyle, smallTextStyle } 
 
 type ComparePickerPageState = {
     view: ViewKey;
-    focusScopeResetToken: number;
     language: LanguageCode;
     buttonSpacing: ButtonSpacing;
     friendsRows: FriendRow[];
@@ -229,7 +228,7 @@ function ComparePickerPage(props: ComparePickerPageProps) {
     }
 
     return (
-        <React.Fragment key={`comparepicker:view:${state.focusScopeResetToken}`}>
+        <React.Fragment key="comparepicker:view">
             <PanelSection>
                 <PageNavStrip
                     title={t(language, "Compare to Friend:")}

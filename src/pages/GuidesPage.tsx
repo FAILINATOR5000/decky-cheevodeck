@@ -26,7 +26,6 @@ import { bodyTextStyle, regularButtonSpacingStyle } from "../utils/style";
 
 type GuidesPageState = {
     view: ViewKey;
-    focusScopeResetToken: number;
     language: LanguageCode;
     buttonSpacing: ButtonSpacing;
     showIcons: boolean;
@@ -210,7 +209,7 @@ export function GuidesPage(props: GuidesPageProps) {
         ));
     }
 
-    const scopeKey = `guides:${g.subView}:${g.openFaqId ?? "list"}:${state.focusScopeResetToken}`;
+    const scopeKey = `guides:${g.subView}:${g.openFaqId ?? "list"}`;
 
     function pressBack() {
         playOkSound();

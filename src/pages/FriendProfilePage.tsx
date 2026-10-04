@@ -251,7 +251,6 @@ type FriendProfilePageProps = {
     state: {
         view: ViewKey;
         language: LanguageCode;
-        focusScopeResetToken: number;
         friendGamePayload: FriendGamePayload | null;
         selectedFriend: FriendRow | null;
         buttonSpacing: ButtonSpacing;
@@ -271,7 +270,6 @@ type FriendProfilePageProps = {
         dynamicRowStep: number;
         dynamicPrefetchDistance: number;
         dynamicSentinelRootMargin: number;
-        listResetToken: number;
         friendAchievementFilter: FriendAchievementFilter;
         friendAchievementSort: AchievementSort;
         friendShowAllAchievements: boolean;
@@ -337,7 +335,6 @@ function FriendProfilePage(props: FriendProfilePageProps) {
     const {
         view,
         language,
-        focusScopeResetToken,
         friendGamePayload,
         selectedFriend,
         buttonSpacing,
@@ -357,7 +354,6 @@ function FriendProfilePage(props: FriendProfilePageProps) {
         dynamicRowStep,
         dynamicPrefetchDistance,
         dynamicSentinelRootMargin,
-        listResetToken,
         friendAchievementFilter,
         friendAchievementSort,
         friendShowAllAchievements,
@@ -655,7 +651,7 @@ function FriendProfilePage(props: FriendProfilePageProps) {
         && !wallRestoreClaim?.armed;
 
     const page = (
-        <React.Fragment key={`friendgame:${friendGamePayload?.selectedGameId ?? "none"}:${focusScopeResetToken}`}>
+        <React.Fragment key={`friendgame:${friendGamePayload?.selectedGameId ?? "none"}`}>
             <style>{FADE_IN_KEYFRAMES}</style>
             <PanelSection>
                 <PageNavStrip
@@ -1202,7 +1198,7 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                         )}
                     </PanelSection>
                     <AchievementList
-                        key={`friend:${selectedFriend?.username ?? "friend"}:${friendGamePayload?.selectedGameId ?? "none"}:${listResetToken}`}
+                        key={`friend:${selectedFriend?.username ?? "friend"}:${friendGamePayload?.selectedGameId ?? "none"}`}
                         payload={friendGamePayload.payload}
                         language={language}
                         showIcons={showIcons}
@@ -1214,7 +1210,6 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                         showAll={showAllToggleFriend ? friendShowAllAchievements : true}
                         mode="friend"
                         filterScopeKey={`${selectedFriend?.username ?? "friend"}:${friendGamePayload?.selectedGameId ?? "none"}`}
-                        resetToken={listResetToken}
                         friendFilter={friendAchievementFilter}
                         friendSort={friendAchievementSort}
                         showRetroPoints={showRetroPoints}

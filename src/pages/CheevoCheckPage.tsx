@@ -88,7 +88,6 @@ function sectionForRestoreTarget(focusKey: string): FoldableSection | null {
 
 type CheevoCheckPageState = {
     view: ViewKey;
-    focusScopeResetToken: number;
     language: LanguageCode;
     buttonSpacing: ButtonSpacing;
 
@@ -327,7 +326,7 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
         })));
     }
 
-    const scopeKey = `cheevoCheck:view:${busy ? "scan" : "idle"}:${state.focusScopeResetToken}`;
+    const scopeKey = `cheevoCheck:view:${busy ? "scan" : "idle"}`;
 
     const restoreSettled = restoreAbandoned
         || ((restoreClaim.claim?.token ?? 0) > 0 && !restoreClaim.claim?.armed);

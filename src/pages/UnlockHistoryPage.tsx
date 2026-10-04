@@ -25,7 +25,6 @@ export type UnlockHistorySource = "main" | "friendGame";
 
 type UnlockHistoryPageState = {
     view: ViewKey;
-    focusScopeResetToken: number;
     language: LanguageCode;
     buttonSpacing: ButtonSpacing;
     payload: Payload | null;
@@ -158,7 +157,7 @@ function UnlockHistoryPage(props: UnlockHistoryPageProps) {
         return () => {
             cancelled = true;
         };
-    }, [state.view, gameId, state.unlockHistoryDays, state.focusScopeResetToken, isFriendSource]);
+    }, [state.view, gameId, state.unlockHistoryDays, isFriendSource]);
 
     const historyAchievements = useMemo(() => {
         if (isFriendSource) {
@@ -208,7 +207,7 @@ function UnlockHistoryPage(props: UnlockHistoryPageProps) {
 
     if (!historyPayload) {
         return (
-            <PanelSection key={`unlockhistory:view:${state.focusScopeResetToken}`}>
+            <PanelSection key="unlockhistory:view">
                 <PageNavStrip
                     title={t(state.language, "Unlock History")}
                     buttonSpacing={state.buttonSpacing}
@@ -231,7 +230,7 @@ function UnlockHistoryPage(props: UnlockHistoryPageProps) {
 
     return (
         <>
-            <PanelSection key={`unlockhistory:view:${state.focusScopeResetToken}`}>
+            <PanelSection key="unlockhistory:view">
                 <PageNavStrip
                     title={t(state.language, "Unlock History")}
                     buttonSpacing={state.buttonSpacing}
@@ -269,7 +268,6 @@ function UnlockHistoryPage(props: UnlockHistoryPageProps) {
                 showAll={true}
                 mode="tracked"
                 filterScopeKey={`unlockhistory:${state.source}:${gameId ?? "none"}:${history?.refreshedAt ?? 0}`}
-                resetToken={state.focusScopeResetToken}
                 showRetroPoints={state.showRetroPoints}
                 emptyMessageOverride={emptyMessage}
                 getAchievementExtraLabel={renderUnlockStamp}

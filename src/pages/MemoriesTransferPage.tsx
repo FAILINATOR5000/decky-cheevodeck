@@ -76,7 +76,6 @@ function transferFraction(status: MemoriesTransferStatus): number | null {
 
 type MemoriesTransferPageState = {
     view: ViewKey;
-    focusScopeResetToken: number;
     language: LanguageCode;
     buttonSpacing: ButtonSpacing;
 
@@ -290,7 +289,7 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
     const nothingToExport = (counts?.memories ?? 0) <= 0
         || (!includeVideos && weight !== null && weight.memoriesNoVideos <= 0);
 
-    const scopeKey = `memoriesTransfer:view:${busy ? "run" : "idle"}:${state.focusScopeResetToken}`;
+    const scopeKey = `memoriesTransfer:view:${busy ? "run" : "idle"}`;
 
     const restoreSettled = restoreAbandoned
         || ((restoreClaim.claim?.token ?? 0) > 0 && !restoreClaim.claim?.armed);

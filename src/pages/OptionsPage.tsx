@@ -179,7 +179,6 @@ const OPTIONS_TABS: OptionsTabDef[] = [
 
 // Page shapes
 type OptionsPageState = {
-    focusScopeResetToken: number;
     activeOptionsTab: OptionsTab;
     language: LanguageCode;
     buttonSpacing: ButtonSpacing;
@@ -833,7 +832,7 @@ function OptionsPage(props: OptionsPageProps) {
                 </div>
             </PanelSectionRow>
 
-            <div key={`options:tab:${state.activeOptionsTab}:${state.focusScopeResetToken}`}>
+            <div key={`options:tab:${state.activeOptionsTab}`}>
                 {state.activeOptionsTab === "system" && (
                     <SystemTab state={state} actions={actions} buttonOuterStyle={buttonOuterStyle} disabled={disabled} claimTarget={claimTarget} />
                 )}

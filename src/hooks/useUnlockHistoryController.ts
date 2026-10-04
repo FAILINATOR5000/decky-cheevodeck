@@ -6,7 +6,6 @@ import type { UnlockHistorySource } from "../pages/UnlockHistoryPage";
 type UseUnlockHistoryControllerArgs = {
     language: LanguageCode;
     buttonSpacing: ButtonSpacing;
-    focusScopeResetToken: number;
     payload: Payload | null;
     unlockHistoryDays: number;
     showIcons: boolean;
@@ -29,7 +28,6 @@ type UseUnlockHistoryControllerArgs = {
 export function useUnlockHistoryController({
     language,
     buttonSpacing,
-    focusScopeResetToken,
     payload,
     unlockHistoryDays,
     showIcons,
@@ -51,7 +49,6 @@ export function useUnlockHistoryController({
     const state = useMemo(() => ({
         language,
         buttonSpacing,
-        focusScopeResetToken,
         payload,
         unlockHistoryDays,
         showIcons,
@@ -75,7 +72,6 @@ export function useUnlockHistoryController({
         dynamicPrefetchDistance,
         dynamicRowStep,
         dynamicSentinelRootMargin,
-        focusScopeResetToken,
         language,
         payload,
         unlockHistoryDays,

@@ -38,8 +38,6 @@ export function useFocusController({
     const lastViewRef = useRef<ViewKey>("achievements");
     const needsViewportResetRef = useRef(false);
 
-    const listResetToken = 0;
-    const focusScopeResetToken = 0;
     const [achievementsInitialAutoFocusDone, setAchievementsInitialAutoFocusDone] = useState(false);
     const [mainEntryToken, setMainEntryToken] = useState(0);
     const [mainEntryFromView, setMainEntryFromView] = useState<ViewKey | null>(null);
@@ -230,14 +228,11 @@ export function useFocusController({
         friendProfileOverlayText,
         focusByKey,
         currentFocusKeyInRoot,
-        scrollViewportToTop,
-        focusScopeResetToken
+        scrollViewportToTop
     ]);
 
     return {
         state: {
-            listResetToken,
-            focusScopeResetToken,
             achievementsInitialAutoFocusDone,
             mainEntryToken,
             mainEntryFromView

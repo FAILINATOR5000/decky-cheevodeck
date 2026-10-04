@@ -28,14 +28,12 @@ const DEFAULT_SAVE_DIR = "/home/deck/Downloads";
 type UseAboutControllerArgs = {
     language: LanguageCode;
     buttonSpacing: ButtonSpacing;
-    focusScopeResetToken: number;
     onBack: () => void | Promise<void>;
 };
 
 export function useAboutController({
     language,
     buttonSpacing,
-    focusScopeResetToken,
     onBack
 }: UseAboutControllerArgs) {
     const [version, setVersion] = useState("");
@@ -221,7 +219,6 @@ export function useAboutController({
     const state = useMemo(() => ({
         language,
         buttonSpacing,
-        focusScopeResetToken,
         version,
         updateAvailable: updateStatus?.updateAvailable ?? false,
         latestVersion: updateStatus?.latestVersion ?? "",
@@ -236,7 +233,6 @@ export function useAboutController({
         buttonSpacing,
         checkingForUpdate,
         downloadingZip,
-        focusScopeResetToken,
         installUrl,
         language,
         patchNotesUrl,

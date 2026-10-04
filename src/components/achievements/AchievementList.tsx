@@ -74,7 +74,6 @@ export function AchievementList(props: {
     titleOverride?: string;
     titleNode?: ReactNode;
     collapsed?: boolean;
-    resetToken?: number;
     preRows?: React.ReactNode;
     onAchievementTrackToggle?: (achievement: AchievementRow) => void;
     onAchievementNote?: (achievement: AchievementRow) => void;
@@ -125,7 +124,6 @@ export function AchievementList(props: {
     const coldScopeKey = [
         props.filterScopeKey,
         props.showAll,
-        props.resetToken,
         currentMode,
         effectiveFriendFilter,
         effectiveMainFilter,
@@ -380,7 +378,7 @@ export function AchievementList(props: {
         rowStep: dynamicRowStep,
         prefetchDistance: dynamicPrefetchDistance,
         sentinelRootMargin: dynamicSentinelRootMargin,
-        resetKey: `${props.payload?.gameId}|${props.filterScopeKey}|${props.showAll}|${props.resetToken}|${currentMode}|${effectiveFriendFilter}|${effectiveMainFilter}|${activeSort}`,
+        resetKey: `${props.payload?.gameId}|${props.filterScopeKey}|${props.showAll}|${currentMode}|${effectiveFriendFilter}|${effectiveMainFilter}|${activeSort}`,
         seedRows: props.seedRows,
         debugLabel: currentMode === "tracked" ? `tracked:${props.titleOverride || "list"}` : undefined
     });

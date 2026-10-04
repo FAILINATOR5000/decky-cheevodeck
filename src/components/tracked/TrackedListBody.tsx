@@ -32,8 +32,6 @@ type TrackedListBodyProps = {
     uiSize: UiSize;
     topPadding: number;
     blockPadding: number;
-    listResetToken: number;
-    focusScopeResetToken: number;
     title: string;
     dynamicLoading: boolean;
     dynamicInitialRows: number;
@@ -141,8 +139,6 @@ export function TrackedListBody(props: TrackedListBodyProps) {
         uiSize,
         topPadding,
         blockPadding,
-        listResetToken,
-        focusScopeResetToken,
         title,
         dynamicLoading,
         dynamicInitialRows,
@@ -203,7 +199,7 @@ export function TrackedListBody(props: TrackedListBodyProps) {
         rowStep: dynamicRowStep,
         prefetchDistance: dynamicPrefetchDistance,
         sentinelRootMargin: `${Math.max(0, dynamicSentinelRootMargin)}px 0px`,
-        resetKey: `tracked:${payload.gameId ?? "none"}:${listResetToken}:${focusScopeResetToken}`,
+        resetKey: `tracked:${payload.gameId ?? "none"}`,
         seedRows: seedIndex < 0 ? 0 : seedIndex + 1,
         debugLabel: "tracked:flat"
     });
@@ -222,7 +218,7 @@ export function TrackedListBody(props: TrackedListBodyProps) {
     if (groups.length === 0) {
         return (
             <AchievementList
-                key={`tracked:${payload.gameId ?? "none"}:empty:${listResetToken}:${focusScopeResetToken}`}
+                key={`tracked:${payload.gameId ?? "none"}:empty`}
                 language={language}
                 payload={{
                     ...payload,
@@ -242,7 +238,6 @@ export function TrackedListBody(props: TrackedListBodyProps) {
                 notesByAchievementId={notesByAchievementId}
                 notesColorByAchievementId={notesColorByAchievementId}
                 titleOverride={title}
-                resetToken={listResetToken}
                 dynamicLoading={dynamicLoading}
                 dynamicInitialRows={dynamicInitialRows}
                 dynamicRowStep={dynamicRowStep}
@@ -291,7 +286,7 @@ export function TrackedListBody(props: TrackedListBodyProps) {
                     ? t(language, "Tracked ({{count}})", { count: group.achievements.length })
                     : `${group.tag} (${group.achievements.length})`;
                 const groupKey = group.tagKey === null ? "_untagged_" : group.tagKey;
-                const listKey = `tracked:${payload.gameId ?? "none"}:${groupKey}:${listResetToken}:${focusScopeResetToken}`;
+                const listKey = `tracked:${payload.gameId ?? "none"}:${groupKey}`;
                 const collapseKey = collapseKeyForGroup(group);
                 const slice = groupSlices[index];
                 const collapsed = slice.collapsed;
@@ -337,7 +332,6 @@ export function TrackedListBody(props: TrackedListBodyProps) {
                             />
                         }
                         collapsed={collapsed}
-                        resetToken={listResetToken}
                         dynamicLoading={false}
                         dynamicInitialRows={dynamicInitialRows}
                         dynamicRowStep={dynamicRowStep}

@@ -537,7 +537,6 @@ type UseOptionsControllerArgs = {
     socialHubCardAction: ActivityCardAction;
     gameNotesAButtonMode: GameNoteAButtonMode;
     error: string | null;
-    focusScopeResetToken: number;
     activeOptionsTab: OptionsTab;
     onSelectOptionsTab: (tab: OptionsTab) => void;
     setActiveOptionsTab: Dispatch<SetStateAction<OptionsTab>>;
@@ -999,7 +998,6 @@ export function useOptionsController({
     socialHubCardAction,
     gameNotesAButtonMode,
     error,
-    focusScopeResetToken,
     activeOptionsTab,
     onSelectOptionsTab,
     setActiveOptionsTab,
@@ -3646,7 +3644,6 @@ export function useOptionsController({
 
     // Returned state
     const optionsState = {
-        focusScopeResetToken,
         activeOptionsTab,
         language,
         buttonSpacing,

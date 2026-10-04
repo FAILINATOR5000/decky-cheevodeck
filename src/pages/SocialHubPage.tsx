@@ -242,7 +242,6 @@ type SocialHubPageProps = {
     view: ViewKey;
     language: LanguageCode;
     panelOverlayVisible: boolean;
-    focusScopeResetToken: number;
     socialEntryToken: number;
     socialEntryView: SocialView;
     friendsPayload: FriendsPayload | null;
@@ -1146,7 +1145,7 @@ function SocialHubPage(props: SocialHubPageProps) {
 
     // Render
     const page = (
-        <React.Fragment key={`social:view:${props.focusScopeResetToken}`}>
+        <React.Fragment key="social:view">
             <style>{FADE_IN_KEYFRAMES}</style>
             <PanelSection>
                 <div>

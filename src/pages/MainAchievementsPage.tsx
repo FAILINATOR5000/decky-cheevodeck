@@ -570,7 +570,6 @@ type MainAchievementsPageProps = {
         notesByAchievementId: TrackedNotes;
         notesColorByAchievementId: TrackedNotesColor;
         error: string | null;
-        focusScopeResetToken: number;
         achievementsResumeToken: number;
         showAllAchievements: boolean;
         showAllToggleMain: boolean;
@@ -608,7 +607,6 @@ type MainAchievementsPageProps = {
         dynamicRowStep: number;
         dynamicPrefetchDistance: number;
         dynamicSentinelRootMargin: number;
-        listResetToken: number;
         notesPendingReminderBadge: boolean;
         showNotesDot: boolean;
         notificationsHasUnread: boolean;
@@ -881,7 +879,6 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
             notesByAchievementId,
             notesColorByAchievementId,
             error,
-            focusScopeResetToken,
             achievementsResumeToken,
             showAllAchievements,
             showAllToggleMain,
@@ -919,7 +916,6 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
             dynamicRowStep,
             dynamicPrefetchDistance,
             dynamicSentinelRootMargin,
-            listResetToken,
             mainEntryToken,
             mainStripClaim,
             mainEntryFromView,
@@ -2363,7 +2359,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
 
             {payload && (
                 <PanelSection
-                    key={`achievements:game:${payload.gameId ?? "none"}:${focusScopeResetToken}`}
+                    key={`achievements:game:${payload.gameId ?? "none"}`}
                     title={t(language, "Currently Playing")}
                 >
                     <PanelSectionRow>
@@ -2719,7 +2715,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                         </PanelSection>
                         {listMounted && !waitingForResumePaint && (
                             <AchievementList
-                                key={`achievements:${payload.gameId ?? "none"}:${listResetToken}:${focusScopeResetToken}`}
+                                key={`achievements:${payload.gameId ?? "none"}`}
                                 payload={payload}
                                 language={language}
                                 showIcons={showIcons}
@@ -2737,7 +2733,6 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                 showRetroPoints={showRetroPoints}
                                 mainFilter={mainAchievementFilter}
                                 mainSort={mainAchievementSort}
-                                resetToken={listResetToken}
                                 dynamicLoading={dynamicLoading}
                                 dynamicInitialRows={dynamicInitialRows}
                                 dynamicRowStep={dynamicRowStep}
