@@ -1,4 +1,4 @@
-import { definePlugin, addEventListener, removeEventListener, toaster } from "@decky/api";
+import { definePlugin, addEventListener, removeEventListener } from "@decky/api";
 // Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
 import { FaTrophy } from "react-icons/fa";
 import AchievementsRoot from "./pages/AchievementsRoot";
@@ -7,6 +7,7 @@ import { t, getCurrentLanguage, setCurrentLanguage } from "./locales";
 import { setCurrentGuideModalZoom, setDeviceIsSteamMachine } from "./utils/scale";
 import { setSnapshotHotkey } from "./utils/snapshotHotkey";
 import { logError } from "./utils/errors";
+import { toastAfterQuickAccessReturn } from "./utils/modalRegistry";
 import { quickAccessMenuClasses } from "@decky/ui";
 import { disableLibraryBadge, enableLibraryBadge } from "./components/library/libraryBadgePatch";
 import { registerScreenDarken, unregisterScreenDarken } from "./components/darken/screenDarken";
@@ -46,7 +47,7 @@ export default definePlugin(() => {
         const body = payload.lineKey
             ? t(language, payload.lineKey, payload.vars)
             : (payload.body || "");
-        toaster.toast({ title, body });
+        toastAfterQuickAccessReturn({ title, body });
     };
     addEventListener(NOTIFICATION_EVENT, onNotificationToast);
 

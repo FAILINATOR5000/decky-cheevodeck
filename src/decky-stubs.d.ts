@@ -18,7 +18,7 @@ declare module "@decky/api" {
             title?: string;
             body?: string;
             duration?: number;
-        }) => void;
+        }) => { dismiss: () => void };
     };
 
     export function executeInTab(

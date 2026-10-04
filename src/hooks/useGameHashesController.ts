@@ -1,9 +1,9 @@
-import { toaster } from "@decky/api";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { downloadGamePatch, getGameHashes, type GameHashRow } from "../api";
 import { t, type LanguageCode } from "../locales";
 import { openPathPicker } from "../components/pickers/FilePickerModal";
 import { logError } from "../utils/errors";
+import { toastAfterQuickAccessReturn } from "../utils/modalRegistry";
 
 export type UseGameHashesControllerOptions = {
     isActive: boolean;
@@ -120,13 +120,13 @@ export function useGameHashesController(options: UseGameHashesControllerOptions)
         setDownloadingMd5(row.md5);
         try {
             const saved = await downloadGamePatch(row.patchUrl, folder);
-            toaster.toast(saved.ok
+            toastAfterQuickAccessReturn(saved.ok
                 ? { title: t(language, "Patch saved"), body: saved.name ?? "" }
                 : { title: t(language, "Patch not saved"), body: t(language, patchErrorKey(saved.error)) });
         }
         catch (e) {
             logError("downloadGamePatch", e);
-            toaster.toast({
+            toastAfterQuickAccessReturn({
                 title: t(language, "Patch not saved"),
                 body: t(language, patchErrorKey(null))
             });

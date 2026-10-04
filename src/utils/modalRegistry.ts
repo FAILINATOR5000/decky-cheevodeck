@@ -1,3 +1,4 @@
+import { toaster } from "@decky/api";
 import { Navigation, QuickAccessTab, showModal } from "@decky/ui";
 import { cloneElement, createElement, useEffect, type ReactElement } from "react";
 import { logFocusDebug } from "../api";
@@ -28,6 +29,8 @@ export function setQamReturnDelay(ms: number): void {
     qamReopenDelayMs = ms;
 }
 
+const QAM_SETTLE_MS = 500;
+
 let qamReopenOwed = false;
 
 let qamReopenTimer = 0;
@@ -36,6 +39,7 @@ export function cancelQuickAccessReturn(): void {
     window.clearTimeout(qamReopenTimer);
     qamReopenTimer = 0;
     qamReopenOwed = false;
+    showHeldToasts(0);
 }
 
 function takeOverQuickAccessReopen(skipReturn: boolean): boolean {
@@ -74,11 +78,13 @@ function reopenQuickAccessSoon(): void {
     qamReopenTimer = window.setTimeout(() => {
         qamReopenTimer = 0;
         if (SteamUIStore?.WindowStore?.GamepadUIMainWindowInstance?.MenuStore?.GetOpenSideMenu?.() === SIDE_MENU_QUICK_ACCESS) {
+            noteQuickAccessReturned();
             return;
         }
         if (mountedModals + pendingModals > 0) {
             qamReopenOwed = true;
             logFocusDebug("modal-close", "QAM reopen held", "another modal is open");
+            showHeldToasts(0);
             return;
         }
         try {
@@ -86,11 +92,69 @@ function reopenQuickAccessSoon(): void {
             focusOurPlugin();
             Navigation.OpenQuickAccessMenu(QuickAccessTab.Decky);
             markCloseTrace("reopen called");
+            noteQuickAccessReturned();
         }
         catch (e) {
             logError("modalRegistry: couldn't open the QAM again", e);
+            showHeldToasts(0);
         }
     }, qamReopenDelayMs);
+}
+
+type ToastData = Parameters<typeof toaster.toast>[0];
+
+const DECKY_TOAST_MS = 5000;
+
+let heldToasts: ToastData[] = [];
+
+let shownToast: { toast: ToastData; until: number; dismiss: () => void } | null = null;
+
+let qamReturnedAt = 0;
+
+function showToast(toast: ToastData): void {
+    const shown = toaster.toast({ ...toast });
+    const menus = SteamUIStore?.WindowStore?.GamepadUIMainWindowInstance?.MenuStore;
+    shownToast = menus?.GetOpenSideMenu?.() === SIDE_MENU_QUICK_ACCESS
+        ? null
+        : { toast, until: Date.now() + (toast.duration ?? DECKY_TOAST_MS), dismiss: shown.dismiss };
+}
+
+function showHeldToasts(delayMs: number): void {
+    const due = heldToasts;
+    heldToasts = [];
+    if (due.length === 0) {
+        return;
+    }
+    window.setTimeout(() => {
+        for (const toast of due) {
+            toastAfterQuickAccessReturn(toast);
+        }
+    }, delayMs);
+}
+
+function noteQuickAccessReturned(): void {
+    qamReturnedAt = Date.now();
+    if (shownToast && shownToast.until > qamReturnedAt) {
+        shownToast.dismiss();
+        heldToasts.unshift(shownToast.toast);
+        logFocusDebug("modal-close", "toast raised again", "it was on screen as the QAM came back");
+    }
+    shownToast = null;
+    showHeldToasts(QAM_SETTLE_MS);
+}
+
+export function toastAfterQuickAccessReturn(toast: ToastData): void {
+    if (qamReopenTimer !== 0) {
+        heldToasts.push(toast);
+        logFocusDebug("modal-close", "toast held", "until the QAM is back");
+        return;
+    }
+    const settling = qamReturnedAt + QAM_SETTLE_MS - Date.now();
+    if (settling > 0) {
+        window.setTimeout(() => toastAfterQuickAccessReturn(toast), settling);
+        return;
+    }
+    showToast(toast);
 }
 
 let lastModalCloseAt = 0;
@@ -164,6 +228,9 @@ function showCountedModal(element: ReactElement): { Close: () => void } {
 }
 
 export function drainOpenModals(): OpenModal[] {
+    if (qamReopenTimer !== 0 || shownToast) {
+        noteQuickAccessReturned();
+    }
     qamReopenOwed = false;
     window.clearTimeout(qamReopenTimer);
     qamReopenTimer = 0;

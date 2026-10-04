@@ -7,6 +7,7 @@ import { checkForUpdateNow, downloadUpdateZip, getPluginVersion, getUpdateStatus
 import { copyTextToClipboard } from "../utils/clipboard";
 import { openExternalUrl } from "../utils/navigation";
 import { logError } from "../utils/errors";
+import { toastAfterQuickAccessReturn } from "../utils/modalRegistry";
 
 const GITHUB_OWNER = "FAILINATOR5000";
 const GITHUB_REPO = "decky-cheevodeck";
@@ -163,13 +164,13 @@ export function useAboutController({
             setUpdateNotice("");
             try {
                 const saved = await downloadUpdateZip(folder);
-                toaster.toast(saved?.ok
+                toastAfterQuickAccessReturn(saved?.ok
                     ? { title: t(language, "Update saved"), body: saved.name ?? "" }
                     : { title: t(language, "Update not saved"), body: t(language, downloadErrorKey(saved?.error)) });
             }
             catch (err) {
                 logError("download update zip", err);
-                toaster.toast({
+                toastAfterQuickAccessReturn({
                     title: t(language, "Update not saved"),
                     body: t(language, downloadErrorKey(null))
                 });

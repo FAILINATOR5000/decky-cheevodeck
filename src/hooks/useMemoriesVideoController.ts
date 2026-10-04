@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toaster } from "@decky/api";
 import { getMemoriesVideoMoveStatus, startMemoriesVideoMove } from "../api";
 import { t, type LanguageCode } from "../locales";
 import type { MemoriesVideoMoveStatus } from "../types";
 import { logError } from "../utils/errors";
+import { toastAfterQuickAccessReturn } from "../utils/modalRegistry";
 import { videoMoveErrorKey } from "../utils/memoriesTransferErrors";
 import { openPathPicker } from "../components/pickers/FilePickerModal";
 import { openMemoriesVideoMoveModal } from "../components/memories/MemoriesVideoMoveModal";
@@ -28,7 +28,7 @@ const IDLE: MemoriesVideoMoveStatus = {
 };
 
 function toastRefusal(language: LanguageCode, error: string) {
-    toaster.toast({
+    toastAfterQuickAccessReturn({
         title: t(language, "Video Clip Location"),
         body: t(language, videoMoveErrorKey(error)),
         duration: TOAST_DURATION_MS

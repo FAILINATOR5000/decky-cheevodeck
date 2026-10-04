@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { toaster } from "@decky/api";
 
 import {
     cancelMemoriesTransfer,
@@ -36,6 +35,7 @@ import { clearMemoriesTransferFocusReturn } from "../utils/memoriesTransferFocus
 import { exportRefusalKey } from "../utils/memoriesTransferErrors";
 import { announceMemoriesCaptureOn, announceMemoriesChanged } from "../utils/memoriesChanged";
 import { logError } from "../utils/errors";
+import { toastAfterQuickAccessReturn } from "../utils/modalRegistry";
 import { openPathPicker } from "../components/pickers/FilePickerModal";
 
 type UseMemoriesTransferControllerArgs = {
@@ -56,7 +56,7 @@ function isRunning(status: MemoriesTransferStatus | null): boolean {
 }
 
 function toastExportRefusal(language: LanguageCode, error: string) {
-    toaster.toast({
+    toastAfterQuickAccessReturn({
         title: t(language, "Export"),
         body: t(language, exportRefusalKey(error)),
         duration: TOAST_DURATION_MS

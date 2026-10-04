@@ -1,4 +1,3 @@
-import { toaster } from "@decky/api";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -22,6 +21,7 @@ import { t, type LanguageCode } from "../locales";
 import { openPathPicker } from "../components/pickers/FilePickerModal";
 import type { FileWatcherBucket, FileWatcherFinding, FileWatcherSpeed, FileWatcherState } from "../types";
 import { logError } from "../utils/errors";
+import { toastAfterQuickAccessReturn } from "../utils/modalRegistry";
 import { quickAccessIsHidden } from "../utils/quickAccess";
 import { REPORTED_BUCKETS, buildFileWatcherReport } from "../utils/fileWatcher";
 
@@ -329,13 +329,13 @@ export function useFileWatcherController({ isActive, language }: UseFileWatcherC
             const excluded = await collectRows(getFileWatcherExcluded);
             const report = buildFileWatcherReport({ watcher: state, rows, excluded, language });
             const saved = await saveFileWatcherReport(folder, report);
-            toaster.toast(saved.ok
+            toastAfterQuickAccessReturn(saved.ok
                 ? { title: t(language, "Report saved"), body: saved.name ?? "" }
                 : { title: t(language, "Report not saved"), body: t(language, "Couldn't save there. Pick another folder.") });
         }
         catch (e) {
             logError("saveFileWatcherReport", e);
-            toaster.toast({
+            toastAfterQuickAccessReturn({
                 title: t(language, "Report not saved"),
                 body: t(language, "Couldn't save there. Pick another folder.")
             });

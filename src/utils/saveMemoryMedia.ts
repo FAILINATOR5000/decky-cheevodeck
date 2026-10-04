@@ -1,9 +1,8 @@
-import { toaster } from "@decky/api";
-
 import { saveMemoryBookmarkClip, saveMemoryMedia } from "../api";
 import { openPathPicker } from "../components/pickers/FilePickerModal";
 import { t, type LanguageCode } from "../locales";
 import { logError } from "./errors";
+import { toastAfterQuickAccessReturn } from "./modalRegistry";
 
 const TOAST_DURATION_MS = 3000;
 
@@ -45,7 +44,7 @@ async function pickFolder(language: LanguageCode): Promise<string | null> {
 }
 
 function saveFailed(language: LanguageCode, error: string | undefined): void {
-    toaster.toast({
+    toastAfterQuickAccessReturn({
         title: t(language, "Save Failed"),
         body: t(language, failureLine(error)),
         duration: TOAST_DURATION_MS
@@ -77,7 +76,7 @@ export async function saveMemoryToFolder(
         return;
     }
 
-    toaster.toast({
+    toastAfterQuickAccessReturn({
         title: t(language, "Memory Saved"),
         body: result.name || "",
         duration: TOAST_DURATION_MS
@@ -110,7 +109,7 @@ export async function saveBookmarkSnippetToFolder(
         return;
     }
 
-    toaster.toast({
+    toastAfterQuickAccessReturn({
         title: t(language, "Snippet Saved"),
         body: result.name || "",
         duration: TOAST_DURATION_MS

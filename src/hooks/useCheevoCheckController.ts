@@ -1,4 +1,3 @@
-import { toaster } from "@decky/api";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -13,6 +12,7 @@ import { t, type LanguageCode } from "../locales";
 import type { CheevoCheckState } from "../types";
 import { clearCheevoCheckFocusReturn } from "../utils/cheevoCheckFocusReturn";
 import { logError } from "../utils/errors";
+import { toastAfterQuickAccessReturn } from "../utils/modalRegistry";
 import { quickAccessIsHidden } from "../utils/quickAccess";
 import { openPathPicker } from "../components/pickers/FilePickerModal";
 
@@ -159,13 +159,13 @@ export function useCheevoCheckController({ isActive, language }: UseCheevoCheckC
         setSavingReport(true);
         try {
             const saved = await saveCheevoCheckReport(folder, report);
-            toaster.toast(saved.ok
+            toastAfterQuickAccessReturn(saved.ok
                 ? { title: t(language, "Report saved"), body: saved.name ?? "" }
                 : { title: t(language, "Report not saved"), body: t(language, "Couldn't save there. Pick another folder.") });
         }
         catch (e) {
             logError("saveCheevoCheckReport", e);
-            toaster.toast({
+            toastAfterQuickAccessReturn({
                 title: t(language, "Report not saved"),
                 body: t(language, "Couldn't save there. Pick another folder.")
             });
