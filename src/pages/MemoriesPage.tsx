@@ -10,7 +10,6 @@ import { FadeImage } from "../components/ui/FadeImage";
 import { useResilientGameIcon } from "../hooks/useResilientGameIcon";
 import { ButtonHints } from "../components/ui/ButtonHints";
 import { ToggleRow } from "../components/ui/ToggleRow";
-import { InlineSpinner } from "../components/ui/InlineSpinner";
 import { RestoreCurtain } from "../components/ui/RestoreCurtain";
 import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
 import { FocusClaim } from "../components/ui/FocusClaim";
@@ -53,26 +52,28 @@ function MemoryGameValue(props: { gameId: number | null; label: string; imageIco
         "MemoryGameValue getGameIconCached"
     );
 
-    if (!iconDataUri) {
+    if (!iconDataUri && !(realGame && showIcons)) {
         return <>{label}</>;
     }
     return (
         <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
             <span
                 style={{
-                    width: "22px",
-                    height: "22px",
+                    width: `${textSize(22)}px`,
+                    height: `${textSize(22)}px`,
                     borderRadius: "5px",
                     overflow: "hidden",
                     flexShrink: 0,
                     display: "inline-flex"
                 }}
             >
-                <FadeImage
-                    src={iconDataUri}
-                    fadeOnLoad={false}
-                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                />
+                {iconDataUri && (
+                    <FadeImage
+                        src={iconDataUri}
+                        fadeOnLoad={false}
+                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                    />
+                )}
             </span>
             <span
                 style={{
@@ -142,6 +143,10 @@ const MEMORIES_GUIDE_URL = "https://github.com/FAILINATOR5000/decky-cheevodeck/b
 type PageStripPlace = "top" | "bottom";
 
 const NAV_ENTER_FIRST = 0;
+
+let lastGameRow: { ulid: string; gameId: number | null; label: string; imageIcon: string } | null = null;
+
+let lastList: { ulid: string; gameId: number | null; pageIndex: number; totalPages: number; empty: boolean } | null = null;
 
 const GAME_CLAIM_SLOT = -2;
 const FILTER_CLAIM_SLOT = -3;
@@ -336,14 +341,41 @@ function MemoriesPage(props: MemoriesPageProps) {
         return null;
     }
 
-    const selectedGame = memories.games.find((row) => row.gameId === memories.gameId) ?? null;
-    let gameLabel = "";
-    if (memories.ready) {
-        gameLabel = memories.gameId === ALL_GAMES_ID || selectedGame === null
-            ? t(language, "All Games")
-            : (selectedGame.gameId === MISC_GAME_ID
+    function gameRowFor(gameId: number | null) {
+        const game = memories.games.find((row) => row.gameId === gameId) ?? null;
+        let label = t(language, "All Games");
+        if (gameId !== ALL_GAMES_ID && game !== null) {
+            label = game.gameId === MISC_GAME_ID
                 ? t(language, "Uncategorized")
-                : (selectedGame.gameTitle || t(language, "Unknown game")));
+                : (game.gameTitle || t(language, "Unknown game"));
+        }
+        return { ulid: activeUlid, gameId, label, imageIcon: game?.imageIcon || "" };
+    }
+
+    let gameRow = { ulid: activeUlid, gameId: memories.gameId, label: "", imageIcon: "" };
+    if (memories.ready && memories.indexLoaded) {
+        gameRow = gameRowFor(memories.gameId);
+        lastGameRow = gameRow;
+    }
+    else if (lastGameRow?.ulid === activeUlid) {
+        gameRow = lastGameRow;
+    }
+
+    const listPending = !memories.ready
+        || !memories.indexLoaded
+        || memories.loadedForGameId !== memories.gameId;
+    let list = {
+        ulid: activeUlid,
+        gameId: memories.gameId,
+        pageIndex: memories.pageIndex,
+        totalPages: memories.totalPages,
+        empty: memories.pageMemories.length === 0
+    };
+    if (!listPending) {
+        lastList = list;
+    }
+    else if (lastList?.ulid === activeUlid && lastList.gameId === gameRow.gameId) {
+        list = lastList;
     }
 
     const filterRuleColor = memories.colorFilter
@@ -366,7 +398,10 @@ function MemoriesPage(props: MemoriesPageProps) {
                 selected={memories.gameId}
                 language={language}
                 showIcons={showIcons}
-                onSelect={actions.memories.selectGame}
+                onSelect={(gameId) => {
+                    lastGameRow = gameRowFor(gameId);
+                    actions.memories.selectGame(gameId);
+                }}
                 close={close}
             />
         ));
@@ -654,7 +689,7 @@ function MemoriesPage(props: MemoriesPageProps) {
         );
     }
 
-    function pageStripContent(place: PageStripPlace) {
+    function pageStripContent(place: PageStripPlace, pageIndex: number, totalPages: number) {
         return (
             <>
                 {renderPageArrow(place, "prev", -1)}
@@ -667,7 +702,7 @@ function MemoriesPage(props: MemoriesPageProps) {
                         textAlign: "center"
                     }}
                 >
-                    {`${memories.pageIndex + 1} / ${memories.totalPages}`}
+                    {`${pageIndex + 1} / ${totalPages}`}
                 </span>
                 {renderPageArrow(place, "next", 1)}
             </>
@@ -678,7 +713,7 @@ function MemoriesPage(props: MemoriesPageProps) {
         && memories.pageMemories.length >= memories.perPage;
 
     function renderPageStrip() {
-        if (memories.totalPages <= 1) {
+        if (list.totalPages <= 1) {
             return null;
         }
         return (
@@ -687,19 +722,15 @@ function MemoriesPage(props: MemoriesPageProps) {
                     flow-children="row"
                     style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px" }}
                 >
-                    {pageStripContent("top")}
+                    {pageStripContent("top", list.pageIndex, list.totalPages)}
                 </Focusable>
             </PanelSectionRow>
         );
     }
 
     function renderGrid() {
-        if (memories.loading && memories.pageMemories.length === 0) {
-            return (
-                <PanelSectionRow>
-                    <InlineSpinner />
-                </PanelSectionRow>
-            );
+        if (memories.pageMemories.length === 0 && (listPending || memories.loading)) {
+            return null;
         }
         if (memories.pageMemories.length === 0) {
             return (
@@ -764,7 +795,7 @@ function MemoriesPage(props: MemoriesPageProps) {
                                 marginTop: "4px"
                             }}
                         >
-                            {pageStripContent("bottom")}
+                            {pageStripContent("bottom", memories.pageIndex, memories.totalPages)}
                         </div>
                     )}
                 </Focusable>
@@ -823,9 +854,10 @@ function MemoriesPage(props: MemoriesPageProps) {
                             label={t(language, "Game")}
                             value={(
                                 <MemoryGameValue
-                                    gameId={memories.gameId}
-                                    label={gameLabel}
-                                    imageIcon={selectedGame?.imageIcon || ""}
+                                    key={String(gameRow.gameId)}
+                                    gameId={gameRow.gameId}
+                                    label={gameRow.label}
+                                    imageIcon={gameRow.imageIcon}
                                     showIcons={showIcons}
                                 />
                             )}
@@ -845,18 +877,20 @@ function MemoriesPage(props: MemoriesPageProps) {
                         />
                         </ClaimedRow>
 
-                        {memories.pageMemories.length > 0 && (
-                            <ButtonHints
-                                style={glyphStyle}
-                                hints={[
-                                    { button: "a", label: t(language, "View") },
-                                    { button: "y", label: t(language, "Edit") },
-                                    { button: "x", label: t(language, "Delete") },
-                                    { button: "l1", label: t(language, "Move") },
-                                    { button: "r1", label: t(language, "Save Media") },
-                                    { button: "r2", label: t(language, "share_memory_action") }
-                                ]}
-                            />
+                        {!list.empty && (
+                            <div style={{ visibility: memories.pageMemories.length > 0 ? "visible" : "hidden" }}>
+                                <ButtonHints
+                                    style={glyphStyle}
+                                    hints={[
+                                        { button: "a", label: t(language, "View") },
+                                        { button: "y", label: t(language, "Edit") },
+                                        { button: "x", label: t(language, "Delete") },
+                                        { button: "l1", label: t(language, "Move") },
+                                        { button: "r1", label: t(language, "Save Media") },
+                                        { button: "r2", label: t(language, "share_memory_action") }
+                                    ]}
+                                />
+                            </div>
                         )}
 
                         {renderPageStrip()}

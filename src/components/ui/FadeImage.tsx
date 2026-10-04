@@ -6,12 +6,13 @@ export type FadeImageProps = {
     src: string;
     alt?: string;
     fadeOnLoad?: boolean;
+    fadeMs?: number;
     decoding?: "async" | "sync" | "auto";
     style?: CSSProperties;
 };
 
 export function FadeImage(props: FadeImageProps) {
-    const { src, alt, fadeOnLoad, decoding, style } = props;
+    const { src, alt, fadeOnLoad, fadeMs, decoding, style } = props;
     const shouldFade = useRef(fadeOnLoad === true);
     const [fadeDone, setFadeDone] = useState(false);
     const fading = shouldFade.current && !fadeDone;
@@ -31,7 +32,7 @@ export function FadeImage(props: FadeImageProps) {
             style={{
                 ...style,
                 animation: fading
-                    ? `da-fade-in ${FADE_MS}ms ease-out`
+                    ? `da-fade-in ${fadeMs ?? FADE_MS}ms ease-out`
                     : undefined
             }}
             onAnimationEnd={fading ? handleAnimationEnd : undefined}

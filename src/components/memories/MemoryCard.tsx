@@ -6,6 +6,8 @@ import { formatClipLength } from "../../utils/memories";
 import { textSize } from "../../utils/scale";
 import type { MemoryRecord } from "../../types";
 
+const THUMB_FADE_MS = 500;
+
 const DENSE_COLUMN_THRESHOLD = 3;
 
 const ARMED_BORDER_COLOR = "#ef4444";
@@ -90,6 +92,7 @@ export const MemoryCard = React.memo(function MemoryCard(props: MemoryCardProps)
                         <FadeImage
                             src={thumbDataUri}
                             fadeOnLoad={cold}
+                            fadeMs={THUMB_FADE_MS}
                             decoding="async"
                             style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
                         />
