@@ -50,14 +50,17 @@ export default definePlugin(() => {
     };
     addEventListener(NOTIFICATION_EVENT, onNotificationToast);
 
+    let disposed = false;
     void getSettings()
         .then((settings) => {
+            if (disposed) {
+                return;
+            }
             if (settings?.language) {
                 setCurrentLanguage(settings.language);
             }
             setDeviceIsSteamMachine(settings?.isSteamMachine ?? false);
             setClipMuted(Boolean(settings?.memoriesMuted ?? false));
-            setStormbreakerEnabled(Boolean(settings?.stormbreaker ?? true));
             setWebBrowserForLinks(settings?.linksOpenInWebBrowser ?? true);
             if (settings?.shortcutBindings) {
                 setSnapshotHotkey(settings.shortcutBindings);
@@ -65,8 +68,19 @@ export default definePlugin(() => {
             if (settings?.guideModalZoom) {
                 setCurrentGuideModalZoom(settings.guideModalZoom);
             }
-            if (settings?.libraryBadge) {
-                enableLibraryBadge();
+            try {
+                setStormbreakerEnabled(Boolean(settings?.stormbreaker ?? true));
+            }
+            catch (e) {
+                logError("index: couldn't start Stormbreaker", e);
+            }
+            try {
+                if (settings?.libraryBadge) {
+                    enableLibraryBadge();
+                }
+            }
+            catch (e) {
+                logError("index: couldn't set up the library badge", e);
             }
         })
         .catch((e) => {
@@ -94,6 +108,7 @@ export default definePlugin(() => {
         content: <AchievementsRoot />,
         icon: <FaTrophy />,
         onDismount() {
+            disposed = true;
             removeEventListener(NOTIFICATION_EVENT, onNotificationToast);
             removeEventListener(AVATAR_HEALED_EVENT, onAvatarHealed);
             unregisterBrowserDownloads();
