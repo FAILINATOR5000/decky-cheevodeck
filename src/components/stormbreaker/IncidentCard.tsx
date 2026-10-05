@@ -6,8 +6,7 @@ import { FocusableItem } from "../ui/FocusableItem";
 import { t, type LanguageCode } from "../../locales";
 import type { FreezeIncident } from "../../types";
 import { formatUnlockDate } from "../../utils/achievements";
-import { formatRelativeTime } from "../../utils/format";
-import { achievementGreen, bodyTextStyle, masteredGold, smallTextStyle } from "../../utils/style";
+import { achievementGreen, bodyTextStyle, masteredGold } from "../../utils/style";
 import { textSize } from "../../utils/scale";
 
 export type IncidentCardProps = {
@@ -18,55 +17,60 @@ export type IncidentCardProps = {
 };
 
 const CONTROLLER_LINES: Record<string, string> = {
-    deck: "Held on the Steam Deck's controls",
-    controller: "Held on a Steam Controller",
-    ally: "Held on the ROG Ally's controls"
+    deck: "Button combo held on the Steam Deck",
+    controller: "Button combo held on a Steam Controller",
+    ally: "Button combo held on the ROG Ally"
 };
 
 function confirmationLabel(language: LanguageCode, name: string, rssGrowthMb: number): string {
     if (name === "fresh") {
-        return t(language, "no fresh connection");
+        return t(language, "no response on a new connection");
     }
     if (name === "cpu") {
-        return t(language, "busy CPU");
+        return t(language, "high CPU use");
     }
     if (name === "memory") {
-        return t(language, "memory +{{mb}} MB", { mb: rssGrowthMb });
+        return t(language, "memory growth of {{mb}} MB", { mb: rssGrowthMb });
     }
-    return t(language, "focus errors");
+    return t(language, "repeated focus errors");
 }
 
 function captureLine(language: LanguageCode, capture: string | null): string {
-    return capture ? t(language, "Recovery log: {{name}}", { name: capture }) : t(language, "No recovery log");
+    return capture ? t(language, "Recovery log: {{name}}", { name: capture }) : t(language, "Recovery log: none");
+}
+
+function cardDate(at: number, language: LanguageCode): string {
+    const iso = new Date(at * 1000).toISOString();
+    return formatUnlockDate(iso, { includeYear: true, numericDate: true, shortYear: true }, language).replace(", ", " ");
 }
 
 function statLines(language: LanguageCode, incident: FreezeIncident): string[] {
     if (incident.kind === "prevented") {
-        const lines = [t(language, "{{count}} focus changes in {{ms}} ms", { count: incident.changes, ms: incident.spanMs })];
+        const lines = [t(language, "Detected: {{count}} focus changes in {{ms}} ms", { count: incident.changes, ms: incident.spanMs })];
         if (incident.afterHiding > 0) {
-            lines.push(t(language, "Held back {{count}} more", { count: incident.afterHiding }));
+            lines.push(t(language, "Focus changes while hidden: {{count}}", { count: incident.afterHiding }));
         }
         lines.push(incident.endedBy === "quiet"
-            ? t(language, "Storm ended by itself, menu hidden {{ms}} ms", { ms: incident.hiddenMs })
-            : t(language, "Stopped after {{seconds}} s", { seconds: Math.max(1, Math.round(incident.hiddenMs / 1000)) }));
+            ? t(language, "Menu hidden for {{ms}} ms, until the storm stopped", { ms: incident.hiddenMs })
+            : t(language, "Menu hidden for {{seconds}} s; storm still active when restored", { seconds: Math.max(1, Math.round(incident.hiddenMs / 1000)) }));
         if (incident.game) {
-            lines.push(t(language, "While playing {{game}}", { game: incident.game }));
+            lines.push(t(language, "Game: {{game}}", { game: incident.game }));
         }
         return lines;
     }
     if (incident.kind === "recovered") {
-        const lines = [t(language, "Steam silent {{seconds}} s", { seconds: incident.silenceS })];
+        const lines = [t(language, "No response to pings for {{seconds}} s", { seconds: incident.silenceS })];
         if (incident.confirmations.length > 0) {
             const signals = incident.confirmations.map((name) => confirmationLabel(language, name, incident.rssGrowthMb));
-            lines.push(t(language, "Confirmed by: {{signals}}", { signals: signals.join(", ") }));
+            lines.push(t(language, "Also confirmed by: {{signals}}", { signals: signals.join(", ") }));
         }
-        lines.push(t(language, "Restarted {{count}} Steam processes", { count: incident.killed }));
+        lines.push(t(language, "Steam processes restarted: {{count}}", { count: incident.killed }));
         if (incident.backAfterS !== null) {
-            lines.push(t(language, "Back in {{seconds}} s", { seconds: incident.backAfterS }));
+            lines.push(t(language, "Responding again {{seconds}} s after the restart", { seconds: incident.backAfterS }));
         }
         lines.push(captureLine(language, incident.capture));
         if (incident.pausedAfter) {
-            lines.push(t(language, "Automatic Recovery paused until reload"));
+            lines.push(t(language, "Automatic Recovery paused until the plugin reloads"));
         }
         return lines;
     }
@@ -77,7 +81,7 @@ function statLines(language: LanguageCode, incident: FreezeIncident): string[] {
     if (held) {
         lines.push(t(language, held));
     }
-    lines.push(t(language, "Restarted {{count}} Steam processes", { count: incident.killed }));
+    lines.push(t(language, "Steam processes restarted: {{count}}", { count: incident.killed }));
     lines.push(captureLine(language, incident.capture));
     return lines;
 }
@@ -95,8 +99,6 @@ function heading(language: LanguageCode, incident: FreezeIncident) {
 export const IncidentCard = React.memo(function IncidentCard(props: IncidentCardProps) {
     const { incident, language } = props;
     const { icon, title, color } = heading(language, incident);
-    const when = new Date(incident.at * 1000).toISOString();
-
     function handleFocus() {
         props.onCardFocus(props.index);
     }
@@ -123,12 +125,13 @@ export const IncidentCard = React.memo(function IncidentCard(props: IncidentCard
                     {icon}
                     <span>{title}</span>
                 </div>
-                <div style={smallTextStyle()}>
-                    {formatUnlockDate(when, {}, language)} · {formatRelativeTime(when, language)}
+                <div style={{ ...bodyTextStyle(), fontWeight: 700, opacity: 1 }}>
+                    {cardDate(incident.at, language)}
                 </div>
                 {statLines(language, incident).map((line) => (
-                    <div key={line} style={{ ...bodyTextStyle(), minWidth: 0, wordBreak: "break-word" }}>
-                        {line}
+                    <div key={line} style={{ ...bodyTextStyle(), display: "flex", gap: "6px", minWidth: 0 }}>
+                        <span>•</span>
+                        <span style={{ minWidth: 0, wordBreak: "break-word" }}>{line}</span>
                     </div>
                 ))}
             </div>

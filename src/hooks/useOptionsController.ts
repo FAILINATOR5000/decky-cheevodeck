@@ -1,4 +1,5 @@
 import { type Dispatch, type RefObject, type SetStateAction } from "react";
+import { toaster } from "@decky/api";
 import {
     resetOptionSettings,
     applySetupProfile,
@@ -192,7 +193,7 @@ import {
     saveUnlockLookbackMinutes
 } from "../api";
 import { applyLibraryBadge } from "../components/library/libraryBadgePatch";
-import { DEFAULT_LANGUAGE, ensureLanguageLoaded, setCurrentLanguage, type LanguageCode } from "../locales";
+import { DEFAULT_LANGUAGE, ensureLanguageLoaded, setCurrentLanguage, t, type LanguageCode } from "../locales";
 import type {
     ButtonSpacing,
     AchievementStyle,
@@ -3428,6 +3429,7 @@ export function useOptionsController({
         setError(null);
         try {
             await clearRecoveryLogs();
+            toaster.toast({ title: t(language, "Recovery Logs"), body: t(language, "Recovery logs cleared.") });
         } catch (e: any) {
             logError("onClearRecoveryLogs", e);
             if (!mountedRef.current) {
