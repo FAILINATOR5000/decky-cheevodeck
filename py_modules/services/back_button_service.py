@@ -290,8 +290,9 @@ class _OpenNode:
 
 
 class BackButtonService:
-    def __init__(self, *, settings_store, debug_logging, emit, user_home, game_mode):
+    def __init__(self, *, settings_store, debug_logging, emit, user_home, game_mode, incidents):
         self._settings_store = settings_store
+        self._incidents = incidents
         self._debug_logging = debug_logging
         self._emit = emit
         self._user_home = user_home
@@ -549,7 +550,8 @@ class BackButtonService:
             return
         self._combo_fired_at = now
         capture = "off"
-        if self._recovery_logs:
+        logs_on = self._recovery_logs
+        if logs_on:
             capture = write_capture(
                 source="combo",
                 summary=(
@@ -567,6 +569,7 @@ class BackButtonService:
             killed,
             capture,
         )
+        self._incidents.add_manual(controller=node.fmt, killed=killed, capture=capture if logs_on else None)
 
     def _on_menu_combo(self, node: _OpenNode, key: str) -> None:
         cfg = self._settings_store.load_config()

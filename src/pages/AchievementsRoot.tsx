@@ -86,7 +86,7 @@ import EventViewerPage from "./EventViewerPage";
 import AchievementOverviewPage from "./AchievementOverviewPage";
 import SetupPage from "./SetupPage";
 import UtilsPage from "./UtilsPage";
-import QamGuardPage from "./QamGuardPage";
+import QamGuardPage, { openStormbreakerOnStatus } from "./QamGuardPage";
 import DolphinMapperPage from "./DolphinMapperPage";
 import SmbSharesPage from "./SmbSharesPage";
 import CheevoCheckPage from "./CheevoCheckPage";
@@ -3655,6 +3655,7 @@ function AchievementsRoot() {
 
     function goToQamGuard() {
         friendGameSessionRefreshKeysRef.current = new Set();
+        openStormbreakerOnStatus();
         setView("qamGuard");
         setPendingFocusKey("qamGuard:back");
     }
@@ -5060,7 +5061,11 @@ function AchievementsRoot() {
                                     automaticRecovery: optionsState.automaticRecovery,
                                     recoveryButtonCombo: optionsState.recoveryButtonCombo,
                                     recoveryLogs: optionsState.recoveryLogs,
-                                    stormbreaker: optionsState.stormbreaker
+                                    stormbreaker: optionsState.stormbreaker,
+                                    dynamicInitialRows,
+                                    dynamicRowStep,
+                                    dynamicPrefetchDistance,
+                                    dynamicSentinelRootMargin
                                 }}
                                 actions={{
                                     onBack: backFromUtilityTool,

@@ -52,6 +52,7 @@ SUSPEND_JUMP = 1.0
 HEALTHY_TO_REARM = 30.0
 KILL_CAP = 4
 KILL_CAP_WINDOW = 1800.0
+BACK_WAIT_MAX = 600.0
 
 STACK_TIMEOUT = 3.0
 SOURCE_TIMEOUT = 3.0
@@ -288,6 +289,18 @@ class _Episode:
         if self.rss_base is None:
             return 0
         return (self.rss_now - self.rss_base) // MB
+
+    def confirmations(self) -> list:
+        fired = []
+        if self.fresh_failed:
+            fired.append("fresh")
+        if self.busiest_cores >= CPU_BUSY_CORES:
+            fired.append("cpu")
+        if self.rss_growth_mb() >= RSS_GROWTH_MB:
+            fired.append("memory")
+        if self.focus_lines >= FOCUS_BURST:
+            fired.append("focus")
+        return fired
 
     def stats(self) -> str:
         return "fresh=%s, busiest helper %.2f cores pid %d, biggest helper %dMB %+dMB, focus lines %d%s" % (
@@ -725,7 +738,8 @@ class _Watch:
         line = "Steam UI silent %.0fs, score %d (%s)" % (silence, episode.score, episode.stats())
         capture = "off"
         verdict = "not captured (Save Recovery Logs is off)"
-        if self.service.recovery_logs():
+        logs_on = self.service.recovery_logs()
+        if logs_on:
             stack = self.grab_stack()
             verdict = stack_verdict(stack)
             summary = "\n".join(
@@ -745,6 +759,7 @@ class _Watch:
                 extra_files={"js_stack.json": json.dumps(stack, indent=1) + "\n"},
             )
         killed = kill_steamwebhelper()
+        killed_at = time.monotonic()
         decky.logger.info(
             "freeze watchdog: %s, stack %s, killed %d steamwebhelper processes, capture %s",
             line,
@@ -755,7 +770,16 @@ class _Watch:
         self.episode = None
         self.last_answer_at = None
         self.drop_connection()
-        self.service.note_kill(now)
+        paused = self.service.note_kill(now)
+        self.service.record_recovery(
+            episode,
+            silence=silence,
+            killed=killed,
+            verdict=verdict if logs_on else None,
+            capture=capture if logs_on else None,
+            paused_after=paused,
+            killed_at=killed_at,
+        )
 
     def grab_stack(self) -> dict:
         result = {"pause": None, "paused": None, "sources": {}, "heap": None, "error": None}
@@ -918,10 +942,12 @@ class _Watch:
 
 
 class FreezeWatchdogService:
-    def __init__(self, *, settings_store, user_home, game_mode):
+    def __init__(self, *, settings_store, user_home, game_mode, incidents):
         self._settings_store = settings_store
         self.user_home = Path(user_home)
         self._game_mode = game_mode
+        self._incidents = incidents
+        self._pending_back = None
         self._recovery_logs = False
         self._lock = threading.Lock()
         self._generation = 0
@@ -957,6 +983,7 @@ class FreezeWatchdogService:
         decky.logger.info("freeze watchdog: started (generation %d)", generation)
 
     def stop(self) -> None:
+        self._pending_back = None
         with self._lock:
             stop_event = self._stop_event
             if stop_event is None:
@@ -974,6 +1001,12 @@ class FreezeWatchdogService:
             decky.logger.info("freeze watchdog: " + message, *args)
 
     def note_healthy(self, now: float) -> None:
+        pending = self._pending_back
+        if pending is not None:
+            entry_id, killed_at = pending
+            self._pending_back = None
+            if now - killed_at <= BACK_WAIT_MAX:
+                self._incidents.mark_back(entry_id, now - killed_at)
         if self._healthy_since is None:
             self._healthy_since = now
         if not self._rearmed and now - self._healthy_since >= HEALTHY_TO_REARM:
@@ -990,7 +1023,7 @@ class FreezeWatchdogService:
             return f"not healthy for {HEALTHY_TO_REARM:.0f}s since the last recovery"
         return None
 
-    def note_kill(self, now: float) -> None:
+    def note_kill(self, now: float) -> bool:
         self._rearmed = False
         self._healthy_since = None
         self._kill_times = [stamp for stamp in self._kill_times if now - stamp < KILL_CAP_WINDOW]
@@ -1002,3 +1035,22 @@ class FreezeWatchdogService:
                 len(self._kill_times),
                 KILL_CAP_WINDOW / 60,
             )
+            return True
+        return False
+
+    def standing_down(self) -> bool:
+        return self._stood_down
+
+    def record_recovery(self, episode, *, silence, killed, verdict, capture, paused_after, killed_at) -> None:
+        entry_id = self._incidents.add_recovered(
+            silenceS=silence,
+            score=episode.score,
+            confirmations=episode.confirmations(),
+            busiestCores=episode.busiest_cores,
+            rssGrowthMb=episode.rss_growth_mb(),
+            killed=killed,
+            verdict=verdict,
+            capture=capture,
+            pausedAfter=paused_after,
+        )
+        self._pending_back = (entry_id, killed_at) if entry_id else None

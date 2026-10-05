@@ -85,7 +85,6 @@ import { videoMoveErrorKey } from "../utils/memoriesTransferErrors";
 import { listenForOptionsLanding, takeOptionsLanding } from "../utils/optionsFocusReturn";
 import { BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT, BUTTON_SECONDARY } from "../utils/gamepadButtons";
 import { playOkSound } from "../utils/navSound";
-import { standaloneClaim } from "../utils/stormbreaker";
 import { bodyTextStyle, regularButtonSpacingStyle, smallTextStyle } from "../utils/style";
 
 type TabIconProps = { size?: number };
@@ -247,10 +246,6 @@ type OptionsPageState = {
     deferModalCleanup: boolean;
     backButtonsGlobal: boolean;
     browserSnapshot: boolean;
-    automaticRecovery: boolean;
-    recoveryButtonCombo: boolean;
-    recoveryLogs: boolean;
-    stormbreaker: boolean;
     libraryBadge: boolean;
     memoriesAutoCapture: boolean;
     memoriesDeleteSource: boolean;
@@ -500,11 +495,6 @@ type OptionsPageActions = {
     onToggleDeferModalCleanup: (nextValue: boolean) => void | Promise<void>;
     onToggleBackButtonsGlobal: (nextValue: boolean) => void | Promise<void>;
     onToggleBrowserSnapshot: (nextValue: boolean) => void | Promise<void>;
-    onToggleAutomaticRecovery: (nextValue: boolean) => void | Promise<void>;
-    onToggleRecoveryButtonCombo: (nextValue: boolean) => void | Promise<void>;
-    onToggleRecoveryLogs: (nextValue: boolean) => void | Promise<void>;
-    onToggleStormbreaker: (nextValue: boolean) => void | Promise<void>;
-    onClearRecoveryLogs: () => void | Promise<void>;
     onToggleLibraryBadge: (nextValue: boolean) => void | Promise<void>;
     onToggleLegacyCommentsLoading: (nextValue: boolean) => void | Promise<void>;
     onToggleBatterySaverDisablesSocialActivity: (nextValue: boolean) => void | Promise<void>;
@@ -2432,57 +2422,6 @@ function AdvancedTab(props: TabContentProps) {
 
     return (
         <>
-            <SectionTitle label={t(state.language, "Stormbreaker")} />
-            <OptionToggle
-                outerStyle={buttonOuterStyle}
-                label={t(state.language, "Stormbreaker")}
-                value={state.stormbreaker}
-                onChange={actions.onToggleStormbreaker}
-                disabled={disabled}
-                help={t(state.language, "help_stormbreaker")}
-            />
-            {standaloneClaim()?.stormbreaker && (
-                <PanelSectionRow>
-                    <InfoText>{t(state.language, "Handled by the Stormbreaker plugin")}</InfoText>
-                </PanelSectionRow>
-            )}
-            <OptionToggle
-                outerStyle={buttonOuterStyle}
-                label={t(state.language, "Automatic Recovery")}
-                value={state.automaticRecovery}
-                onChange={actions.onToggleAutomaticRecovery}
-                disabled={disabled}
-                help={t(state.language, "help_automatic_recovery")}
-            />
-            {standaloneClaim()?.automaticRecovery && (
-                <PanelSectionRow>
-                    <InfoText>{t(state.language, "Handled by the Stormbreaker plugin")}</InfoText>
-                </PanelSectionRow>
-            )}
-            <OptionToggle
-                outerStyle={buttonOuterStyle}
-                label={t(state.language, "Recovery Button Combo")}
-                value={state.recoveryButtonCombo}
-                onChange={actions.onToggleRecoveryButtonCombo}
-                disabled={disabled}
-                help={t(state.language, "help_recovery_button_combo")}
-            />
-            <OptionToggle
-                outerStyle={buttonOuterStyle}
-                label={t(state.language, "Save Recovery Logs")}
-                value={state.recoveryLogs}
-                onChange={actions.onToggleRecoveryLogs}
-                disabled={disabled}
-                help={t(state.language, "help_recovery_logs")}
-            />
-            <OptionButton
-                outerStyle={buttonOuterStyle}
-                focusKey="options:clear-recovery-logs"
-                onClick={actions.onClearRecoveryLogs}
-                disabled={disabled}
-                label={t(state.language, "Clear Recovery Logs")}
-                help={t(state.language, "help_clear_recovery_logs")}
-            />
             <SectionTitle label={t(state.language, "Rendering & Performance")} />
             <OptionToggle
                 outerStyle={buttonOuterStyle}

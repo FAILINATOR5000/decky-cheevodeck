@@ -3,6 +3,7 @@ import type { ButtonSpacing, UiSize } from "../types";
 import { getCurrentGeneralHeaderStyle, modalSize, textSize } from "./scale";
 
 export const achievementGreen = "#22c55e";
+export const masteredGold = "#fbbf24";
 export const errorRed = "#ff5f5f";
 export const warnAmber = "#f59e0b";
 export const skyBlue = "#0ea5e9";

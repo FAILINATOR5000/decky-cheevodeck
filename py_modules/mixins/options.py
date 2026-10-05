@@ -656,6 +656,22 @@ class OptionsMixin(PluginContext):
         decky.logger.info("stormbreaker: %s %s", stage_text, extra_text)
         return {"ok": True}
 
+    async def record_storm_broken(self, record=None):
+        entry_id = self.freeze_incidents_store.add_prevented(record)
+        return {"ok": entry_id is not None}
+
+    async def get_freeze_incidents(self):
+        snapshot = self.freeze_incidents_store.snapshot()
+        return {
+            "ok": True,
+            "totals": snapshot["totals"],
+            "entries": snapshot["entries"],
+            "standingDown": self.freeze_watchdog_service.standing_down(),
+        }
+
+    async def clear_freeze_incidents(self):
+        return {"ok": self.freeze_incidents_store.clear()}
+
     async def log_startup_event(self, stage=None, extra=None):
         stage_text = str(stage or "").strip() or "?"
         extra_text = str(extra or "").strip()

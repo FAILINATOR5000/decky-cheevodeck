@@ -145,7 +145,7 @@ declare module "@decky/ui" {
     export const appDetailsClasses: { InnerContainer: string };
 
     export const Router: {
-        MainRunningApp?: { appid: string };
+        MainRunningApp?: { appid: string; display_name?: string };
     };
 
 }
@@ -156,6 +156,9 @@ declare module "react-icons/fa" {
     export const FaTag: any;
     export const FaHistory: any;
     export const FaSyncAlt: any;
+    export const FaShieldAlt: any;
+    export const FaRedoAlt: any;
+    export const FaHandPaper: any;
     export const FaUnlock: any;
     export const FaRegCalendar: any;
     export const FaCalculator: any;

@@ -64,6 +64,7 @@ from calculator_store import CalculatorStore
 from browser_store import DEFAULT_PAGE_ZOOM, STEAM_MACHINE_PAGE_ZOOM, BrowserStore
 from file_watcher_store import FileWatcherStore
 from dolphin_mappings_store import DolphinMappingsStore
+from freeze_incidents_store import INCIDENT_EVENT, FreezeIncidentsStore
 from smb_shares_store import SmbSharesStore
 from settings_store import SettingsStore
 from notifications import NotificationsStore, NotificationsArchiveStore, NOTIFICATION_EVENT, emit_notification, is_type_enabled
@@ -355,6 +356,10 @@ class Plugin(
         self.file_watcher_store = FileWatcherStore(
             base_dir=self.file_watcher_dir,
         )
+        self.freeze_incidents_store = FreezeIncidentsStore(
+            base_dir=self.runtime_dir,
+            on_change=self._emit_freeze_incident,
+        )
         self.subscriptions_store = SubscriptionsStore(
             base_dir=self.runtime_dir,
         )
@@ -614,11 +619,13 @@ class Plugin(
             emit=self._emit_back_button,
             user_home=self.user_home,
             game_mode=self.session_mode_service.is_game_mode,
+            incidents=self.freeze_incidents_store,
         )
         self.freeze_watchdog_service = FreezeWatchdogService(
             settings_store=self.settings_store,
             user_home=self.user_home,
             game_mode=self.session_mode_service.is_game_mode,
+            incidents=self.freeze_incidents_store,
         )
         self.comments_service = CommentsService(
             game_comments_service=self.game_comments_service,
@@ -785,6 +792,12 @@ class Plugin(
             asyncio.run_coroutine_threadsafe(decky.emit(BACK_BUTTON_EVENT, payload), loop)
         except Exception as exc:
             decky.logger.warning("back buttons: event emit failed (%s: %s)", type(exc).__name__, exc)
+
+    def _emit_freeze_incident(self) -> None:
+        loop = getattr(self, "_asyncio_loop", None)
+        if loop is None:
+            return
+        asyncio.run_coroutine_threadsafe(decky.emit(INCIDENT_EVENT, {}), loop)
 
     def _sync_game_mode_services(self) -> None:
         self.back_button_service.sync()

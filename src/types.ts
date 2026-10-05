@@ -729,6 +729,61 @@ export type CheevoNotification = {
     meta: Record<string, unknown> | null;
 };
 
+export type FreezeIncident =
+    | {
+        id: string;
+        kind: "prevented";
+        at: number;
+        changes: number;
+        spanMs: number;
+        afterHiding: number;
+        lastChangeMs: number;
+        endedBy: "quiet" | "cap";
+        viewShown: boolean;
+        hiddenMs: number;
+        game: string;
+    }
+    | {
+        id: string;
+        kind: "recovered";
+        at: number;
+        silenceS: number;
+        score: number;
+        confirmations: Array<"fresh" | "cpu" | "memory" | "focus">;
+        busiestCores: number;
+        rssGrowthMb: number;
+        killed: number;
+        verdict: string | null;
+        capture: string | null;
+        pausedAfter: boolean;
+        backAfterS: number | null;
+    }
+    | {
+        id: string;
+        kind: "manual";
+        at: number;
+        controller: string;
+        killed: number;
+        capture: string | null;
+    };
+
+export type StormBrokenRecord = {
+    changes: number;
+    spanMs: number;
+    afterHiding: number;
+    lastChangeMs: number;
+    endedBy: "quiet" | "cap";
+    viewShown: boolean;
+    hiddenMs: number;
+    game: string;
+};
+
+export type FreezeIncidentTotals = {
+    prevented: number;
+    recovered: number;
+    manual: number;
+};
+
 export type NotificationsPayload = {
     notifications: CheevoNotification[];
     lastSeenAt: number;
