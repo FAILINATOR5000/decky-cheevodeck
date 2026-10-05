@@ -54,7 +54,13 @@ export function resolveBrowserComponents(): BrowserComponents | null {
         return components;
     }
     try {
-        const host = findModuleExport((e: any) => srcOf(e).includes("SetWebBrowserActionset"));
+        const host = findModuleExport((e: any) => srcOf(e).includes("SetWebBrowserActionset"))
+            ?? findModuleExport((e: any) => {
+                const source = srcOf(e);
+                return source.includes("GetGameInputSupportLevel")
+                    && source.includes("RegisterOnActionDescriptionsChangedCallback")
+                    && source.includes("BrowserContainer");
+            });
         const renderer = findModuleExport((e: any) => {
             const source = srcOf(e);
             return source.includes("animateIn") && source.includes("underlay");
