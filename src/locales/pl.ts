@@ -286,8 +286,6 @@ const PL: LocaleTable = {
     "Held on a Steam Controller": "Przytrzymano na Steam Controller",
     "Held on the ROG Ally's controls": "Przytrzymano na przyciskach ROG Ally",
     "No incidents yet.": "Na razie brak zdarzeń.",
-    "Clear Log": "Wyczyść dziennik",
-    "help_clear_incident_log": "Opróżnia listę powyżej. Liczniki na karcie Stan zostają.",
     "help_clear_recovery_logs": "Usuwa wszystkie zapisane raporty odzyskiwania z folderu dzienników wtyczki.",
     "shortcut_button_menu": "Menu",
     "shortcut_button_view": "Widok",

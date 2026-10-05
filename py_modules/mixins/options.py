@@ -669,9 +669,6 @@ class OptionsMixin(PluginContext):
             "standingDown": self.freeze_watchdog_service.standing_down(),
         }
 
-    async def clear_freeze_incidents(self):
-        return {"ok": self.freeze_incidents_store.clear()}
-
     async def log_startup_event(self, stage=None, extra=None):
         stage_text = str(stage or "").strip() or "?"
         extra_text = str(extra or "").strip()

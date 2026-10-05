@@ -274,16 +274,3 @@ class FreezeIncidentsStore:
             return False
         self._changed()
         return True
-
-    def clear(self) -> bool:
-        try:
-            with self._lock:
-                data = self._load_raw()
-                data["entries"] = []
-                if not self._save(data):
-                    return False
-        except Exception as exc:
-            decky.logger.warning("freeze incidents: clearing failed (%s: %s)", type(exc).__name__, exc)
-            return False
-        self._changed()
-        return True

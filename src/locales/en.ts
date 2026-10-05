@@ -284,8 +284,6 @@ export const EN: LocaleTable = {
     "Held on a Steam Controller": "Held on a Steam Controller",
     "Held on the ROG Ally's controls": "Held on the ROG Ally's controls",
     "No incidents yet.": "No incidents yet.",
-    "Clear Log": "Clear Log",
-    "help_clear_incident_log": "Empties the list above. The totals on the Status tab are kept.",
     "help_clear_recovery_logs": "Deletes every saved recovery record from the plugin's log folder.",
     "shortcut_button_menu": "Menu",
     "shortcut_button_view": "View",

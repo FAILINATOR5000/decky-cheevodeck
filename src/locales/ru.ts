@@ -278,8 +278,6 @@ const RU: LocaleTable = {
     "Held on a Steam Controller": "Удержано на Steam Controller",
     "Held on the ROG Ally's controls": "Удержано на ROG Ally",
     "No incidents yet.": "Происшествий пока нет.",
-    "Clear Log": "Очистить журнал",
-    "help_clear_incident_log": "Очищает список выше. Счётчики на вкладке «Состояние» сохраняются.",
     "help_clear_recovery_logs": "Удаляет все сохранённые отчёты о восстановлении из папки журналов плагина.",
     "shortcut_button_menu": "Меню",
     "shortcut_button_view": "Вид",

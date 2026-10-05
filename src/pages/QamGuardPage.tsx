@@ -2,7 +2,6 @@ import { useCallback, useRef, useState } from "react";
 import { Focusable, PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
 import { BackButton } from "../components/ui/BackButton";
-import { ConfirmRow } from "../components/ui/ConfirmRow";
 import { PageNavStrip } from "../components/ui/PageNavStrip";
 import { SubTabButton } from "../components/ui/SubTabButton";
 import { OptionButton, OptionToggle } from "../components/options/OptionRows";
@@ -191,7 +190,6 @@ function QamGuardView(props: QamGuardPageProps) {
                         state={state}
                         entries={entries}
                         loaded={loaded}
-                        onClearLog={log.actions.onClearLog}
                     />
                 )}
             </Focusable>
@@ -203,7 +201,6 @@ function IncidentLog(props: {
     state: QamGuardPageState;
     entries: FreezeIncident[];
     loaded: boolean;
-    onClearLog: () => void | Promise<void>;
 }) {
     const { state, entries } = props;
     const { language } = state;
@@ -239,15 +236,6 @@ function IncidentLog(props: {
             {mountedItems.length < entries.length && (
                 <div ref={markerRef} style={{ height: "1px" }} />
             )}
-            <ConfirmRow
-                focusKey="qamGuard:clear-log"
-                idleLabel={t(language, "Clear Log")}
-                armedLabel={t(language, "Press again to clear")}
-                disabled={entries.length === 0}
-                onConfirm={props.onClearLog}
-                buttonSpacing={state.buttonSpacing}
-                help={t(language, "help_clear_incident_log")}
-            />
         </>
     );
 }

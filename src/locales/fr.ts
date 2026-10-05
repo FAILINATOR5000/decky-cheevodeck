@@ -287,8 +287,6 @@ const FR: LocaleTable = {
     "Held on a Steam Controller": "Maintenu sur un Steam Controller",
     "Held on the ROG Ally's controls": "Maintenu sur les commandes de la ROG Ally",
     "No incidents yet.": "Aucun incident pour l'instant.",
-    "Clear Log": "Vider le journal",
-    "help_clear_incident_log": "Vide la liste ci-dessus. Les totaux de l'onglet État sont conservés.",
     "help_clear_recovery_logs": "Supprime tous les rapports de récupération enregistrés du dossier des journaux du plugin.",
     "shortcut_button_menu": "Menu",
     "shortcut_button_view": "Vue",

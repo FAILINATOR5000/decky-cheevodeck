@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { addEventListener, removeEventListener } from "@decky/api";
-import { FREEZE_INCIDENT_EVENT, clearFreezeIncidents, getFreezeIncidents } from "../api";
+import { FREEZE_INCIDENT_EVENT, getFreezeIncidents } from "../api";
 import type { FreezeIncident, FreezeIncidentTotals } from "../types";
 import { logError } from "../utils/errors";
 
@@ -46,20 +46,7 @@ export function useStormbreakerLogController(props: { isActive: boolean }) {
         };
     }, [isActive]);
 
-    async function onClearLog() {
-        try {
-            const result = await clearFreezeIncidents();
-            if (result?.ok) {
-                setEntries([]);
-            }
-        }
-        catch (e) {
-            logError("stormbreaker log: clearing the log", e);
-        }
-    }
-
     return {
-        state: { totals, entries, standingDown, loaded },
-        actions: { onClearLog }
+        state: { totals, entries, standingDown, loaded }
     };
 }

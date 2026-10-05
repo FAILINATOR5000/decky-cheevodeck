@@ -263,7 +263,6 @@ export const getFreezeIncidents = callable<
     [],
     { ok: boolean; totals: FreezeIncidentTotals; entries: FreezeIncident[]; standingDown: boolean }
 >("get_freeze_incidents");
-export const clearFreezeIncidents = callable<[], { ok: boolean }>("clear_freeze_incidents");
 export const logStartupEvent = callable<[string, string], { ok: boolean }>(
     "log_startup_event"
 );

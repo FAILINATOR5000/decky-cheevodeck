@@ -287,8 +287,6 @@ const PT: LocaleTable = {
     "Held on a Steam Controller": "Segurado num Steam Controller",
     "Held on the ROG Ally's controls": "Segurado nos controles do ROG Ally",
     "No incidents yet.": "Ainda não há incidentes.",
-    "Clear Log": "Limpar registo",
-    "help_clear_incident_log": "Esvazia a lista acima. Os totais da aba Estado são mantidos.",
     "help_clear_recovery_logs": "Apaga todos os relatórios de recuperação guardados da pasta de registos do plugin.",
     "shortcut_button_menu": "Menu",
     "shortcut_button_view": "Vista",

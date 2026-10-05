@@ -278,8 +278,6 @@ const JA: LocaleTable = {
     "Held on a Steam Controller": "Steam Controller で長押し",
     "Held on the ROG Ally's controls": "ROG Ally 本体のボタンで長押し",
     "No incidents yet.": "まだ記録はありません。",
-    "Clear Log": "ログを消去",
-    "help_clear_incident_log": "上の一覧を空にします。「状態」タブの合計は残ります。",
     "help_clear_recovery_logs": "保存されたすべての復旧記録をプラグインのログフォルダーから削除します。",
     "shortcut_button_menu": "メニュー",
     "shortcut_button_view": "ビュー",
