@@ -255,7 +255,7 @@ const ES: LocaleTable = {
     "Partially Protected": "Parcialmente protegido",
     "Unprotected": "Sin protección",
     "QAM Freezes Prevented: {{count}}": "Congelamientos del QAM evitados: {{count}}",
-    "Steam Freezes Recovered: {{count}}": "Congelamientos de Steam recuperados: {{count}}",
+    "Steam UI Freezes Recovered: {{count}}": "Bloqueos de Steam UI recuperados: {{count}}",
     "Automatic Recovery paused until the plugin reloads": "Recuperación automática en pausa hasta que se recargue el plugin",
     "Freeze Prevented": "Congelamiento evitado",
     "Freeze Recovered": "Congelamiento recuperado",

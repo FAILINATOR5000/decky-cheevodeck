@@ -48,7 +48,7 @@ export function ProtectionStatus(props: {
             </div>
             <div style={{ ...bodyTextStyle(13), visibility: props.loaded ? "visible" : "hidden" }}>
                 <div>{t(language, "QAM Freezes Prevented: {{count}}", { count: totals.prevented })}</div>
-                <div>{t(language, "Steam Freezes Recovered: {{count}}", { count: totals.recovered })}</div>
+                <div>{t(language, "Steam UI Freezes Recovered: {{count}}", { count: totals.recovered })}</div>
                 {props.standingDown && (
                     <div>{t(language, "Automatic Recovery paused until the plugin reloads")}</div>
                 )}

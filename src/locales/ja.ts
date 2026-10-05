@@ -255,7 +255,7 @@ const JA: LocaleTable = {
     "Partially Protected": "一部保護",
     "Unprotected": "未保護",
     "QAM Freezes Prevented: {{count}}": "QAMのフリーズを防止: {{count}}",
-    "Steam Freezes Recovered: {{count}}": "Steamのフリーズから復旧: {{count}}",
+    "Steam UI Freezes Recovered: {{count}}": "Steam UIのフリーズから復旧: {{count}}",
     "Automatic Recovery paused until the plugin reloads": "自動復旧はプラグインの再読み込みまで一時停止中",
     "Freeze Prevented": "フリーズを防止",
     "Freeze Recovered": "フリーズから復旧",

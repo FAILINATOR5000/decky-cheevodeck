@@ -255,7 +255,7 @@ const RU: LocaleTable = {
     "Partially Protected": "Частично защищено",
     "Unprotected": "Не защищено",
     "QAM Freezes Prevented: {{count}}": "Предотвращено зависаний QAM: {{count}}",
-    "Steam Freezes Recovered: {{count}}": "Восстановлено зависаний Steam: {{count}}",
+    "Steam UI Freezes Recovered: {{count}}": "Устранено зависаний Steam UI: {{count}}",
     "Automatic Recovery paused until the plugin reloads": "Автоматическое восстановление приостановлено до перезагрузки плагина",
     "Freeze Prevented": "Зависание предотвращено",
     "Freeze Recovered": "Восстановление после зависания",

@@ -255,7 +255,7 @@ export const EN: LocaleTable = {
     "Partially Protected": "Partially Protected",
     "Unprotected": "Unprotected",
     "QAM Freezes Prevented: {{count}}": "QAM Freezes Prevented: {{count}}",
-    "Steam Freezes Recovered: {{count}}": "Steam Freezes Recovered: {{count}}",
+    "Steam UI Freezes Recovered: {{count}}": "Steam UI Freezes Recovered: {{count}}",
     "Automatic Recovery paused until the plugin reloads": "Automatic Recovery paused until the plugin reloads",
     "Freeze Prevented": "Freeze Prevented",
     "Freeze Recovered": "Freeze Recovered",
