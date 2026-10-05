@@ -2410,7 +2410,7 @@ const RU: LocaleTable = {
     "share_start_moved_order": "Метка начала перемещена: она должна быть хотя бы на секунду раньше конца.",
     "Original quality": "Исходное качество",
     "Preparing… {{seconds}} s": "Подготовка… {{seconds}} с",
-    "Sharing needs CheevoDeck's web browser, which isn't available right now.": "Для публикации нужен веб-браузер CheevoDeck, но сейчас он недоступен.",
+    "Browser unavailable": "Браузер недоступен",
     "This memory's file is missing.": "Файл этого момента отсутствует.",
     "Couldn't prepare this memory for sharing.": "Не удалось подготовить этот момент к публикации.",
     "share_memory_action": "Поделиться",

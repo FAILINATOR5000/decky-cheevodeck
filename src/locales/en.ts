@@ -2340,7 +2340,7 @@ export const EN: LocaleTable = {
     "share_start_moved_order": "Start pin moved: it has to come at least a second before the end.",
     "Original quality": "Original quality",
     "Preparing… {{seconds}} s": "Preparing… {{seconds}} s",
-    "Sharing needs CheevoDeck's web browser, which isn't available right now.": "Sharing needs CheevoDeck's web browser, which isn't available right now.",
+    "Browser unavailable": "Browser unavailable",
     "This memory's file is missing.": "This memory's file is missing.",
     "Couldn't prepare this memory for sharing.": "Couldn't prepare this memory for sharing.",
     "share_memory_action": "Share",

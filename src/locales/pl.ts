@@ -2453,7 +2453,7 @@ const PL: LocaleTable = {
     "share_start_moved_order": "Przesunięto znacznik początku: musi być co najmniej sekundę przed końcem.",
     "Original quality": "Oryginalna jakość",
     "Preparing… {{seconds}} s": "Przygotowywanie… {{seconds}} s",
-    "Sharing needs CheevoDeck's web browser, which isn't available right now.": "Udostępnianie wymaga przeglądarki CheevoDecka, która jest teraz niedostępna.",
+    "Browser unavailable": "Brak przeglądarki",
     "This memory's file is missing.": "Brakuje pliku tego wspomnienia.",
     "Couldn't prepare this memory for sharing.": "Nie udało się przygotować tego wspomnienia do udostępnienia.",
     "share_memory_action": "Udostępnij",

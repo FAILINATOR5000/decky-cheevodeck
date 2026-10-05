@@ -2276,7 +2276,7 @@ const JA: LocaleTable = {
     "share_start_moved_order": "開始点を移動しました：終了点より1秒以上前にする必要があります。",
     "Original quality": "元の画質",
     "Preparing… {{seconds}} s": "準備中… {{seconds}}秒",
-    "Sharing needs CheevoDeck's web browser, which isn't available right now.": "共有にはCheevoDeckのウェブブラウザが必要ですが、現在は使用できません。",
+    "Browser unavailable": "ブラウザが使えません",
     "This memory's file is missing.": "この思い出のファイルが見つかりません。",
     "Couldn't prepare this memory for sharing.": "この思い出を共有用に準備できませんでした。",
     "share_memory_action": "共有",

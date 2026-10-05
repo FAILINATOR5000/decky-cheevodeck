@@ -455,7 +455,7 @@ export function MemoryShareModal(props: MemoryShareModalProps) {
         if (!BrowserViewHost.isAvailable()) {
             toastAfterQuickAccessReturn({
                 title: t(language, "Shared Memories"),
-                body: t(language, "Sharing needs CheevoDeck's web browser, which isn't available right now.")
+                body: t(language, "Browser unavailable")
             });
             return;
         }
