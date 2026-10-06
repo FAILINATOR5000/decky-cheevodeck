@@ -249,6 +249,7 @@ class BrowserStore:
         history = []
         positions = []
         anchors = []
+        visits = []
         rows = raw.get("history")
         marks = raw.get("historyScroll")
         if not isinstance(marks, list):
@@ -256,6 +257,9 @@ class BrowserStore:
         pins = raw.get("historyAnchor")
         if not isinstance(pins, list):
             pins = []
+        stamps = raw.get("historyAt")
+        if not isinstance(stamps, list):
+            stamps = []
         wanted = to_int(raw.get("historyIndex", -1), -1)
         index = -1
         if isinstance(rows, list):
@@ -263,11 +267,15 @@ class BrowserStore:
                 url = _clean_text(row, MAX_URL_LENGTH)
                 if not url:
                     continue
+                stamp = max(to_int(stamps[slot], 0), 0) if slot < len(stamps) else 0
                 if not history or history[-1] != url:
                     history.append(url)
                     mark = marks[slot] if slot < len(marks) else 0
                     positions.append(max(to_int(mark, 0), 0))
                     anchors.append(_clean_text(pins[slot], MAX_ANCHOR_LENGTH) if slot < len(pins) else "")
+                    visits.append(stamp)
+                else:
+                    visits[-1] = max(visits[-1], stamp)
                 if slot == wanted:
                     index = len(history) - 1
 
@@ -288,6 +296,7 @@ class BrowserStore:
             "history": history,
             "historyScroll": positions,
             "historyAnchor": anchors,
+            "historyAt": visits,
             "historyIndex": index,
             "scroll": scroll,
             "anchor": anchor,
@@ -351,6 +360,7 @@ class BrowserStore:
                 data["tabs"] = [tab for tab in data["tabs"] if tab["id"] != oldest["id"]]
 
             clean_url = _clean_text(url, MAX_URL_LENGTH)
+            now = int(time.time())
             tab = {
                 "id": _new_id("tab"),
                 "url": clean_url,
@@ -358,10 +368,11 @@ class BrowserStore:
                 "history": [clean_url] if clean_url else [],
                 "historyScroll": [0] if clean_url else [],
                 "historyAnchor": [""] if clean_url else [],
+                "historyAt": [now] if clean_url else [],
                 "historyIndex": 0 if clean_url else -1,
                 "scroll": 0,
                 "anchor": "",
-                "usedAt": int(time.time()),
+                "usedAt": now,
             }
             data["tabs"].append(tab)
             data["activeTabId"] = tab["id"]
@@ -457,27 +468,32 @@ class BrowserStore:
             if tab is None or not clean_url:
                 return data
 
+            now = int(time.time())
             if tab["historyIndex"] >= 0 and tab["history"][tab["historyIndex"]] == clean_url:
                 tab["title"] = _clean_text(title, MAX_TITLE_LENGTH) or tab["title"]
-                tab["usedAt"] = int(time.time())
+                tab["historyAt"][tab["historyIndex"]] = now
+                tab["usedAt"] = now
                 return self._save_tabs(data)
 
             del tab["history"][tab["historyIndex"] + 1:]
             del tab["historyScroll"][tab["historyIndex"] + 1:]
             del tab["historyAnchor"][tab["historyIndex"] + 1:]
+            del tab["historyAt"][tab["historyIndex"] + 1:]
             tab["history"].append(clean_url)
             tab["historyScroll"].append(0)
             tab["historyAnchor"].append("")
+            tab["historyAt"].append(now)
             del tab["history"][:-MAX_TAB_HISTORY]
             del tab["historyScroll"][:-MAX_TAB_HISTORY]
             del tab["historyAnchor"][:-MAX_TAB_HISTORY]
+            del tab["historyAt"][:-MAX_TAB_HISTORY]
 
             tab["historyIndex"] = len(tab["history"]) - 1
             tab["url"] = clean_url
             tab["title"] = _clean_text(title, MAX_TITLE_LENGTH)
             tab["scroll"] = 0
             tab["anchor"] = ""
-            tab["usedAt"] = int(time.time())
+            tab["usedAt"] = now
 
             return self._save_tabs(data)
 
@@ -565,6 +581,7 @@ class BrowserStore:
                 del tab["history"][index - 1]
                 del tab["historyScroll"][index - 1]
                 del tab["historyAnchor"][index - 1]
+                del tab["historyAt"][index - 1]
                 tab["historyIndex"] = index - 1
             else:
                 return data
@@ -634,7 +651,32 @@ class BrowserStore:
                 tab["history"] = [tab["url"]]
                 tab["historyScroll"] = [tab["scroll"]]
                 tab["historyAnchor"] = [tab["anchor"]]
+                tab["historyAt"] = [tab["historyAt"][tab["historyIndex"]]]
                 tab["historyIndex"] = 0
+            return self._save_tabs(data) if changed else data
+
+    def clear_recent_back_history(self, days: Any) -> dict:
+        wanted = to_int(days, 0)
+        with self._lock:
+            data = self._load_tabs()
+            if wanted <= 0:
+                return data
+            cutoff = int(time.time()) - wanted * 86400
+            changed = False
+            for offset, tab in enumerate(data["tabs"]):
+                current = tab["historyIndex"]
+                kept = [slot for slot, stamp in enumerate(tab["historyAt"]) if slot == current or stamp < cutoff]
+                if len(kept) == len(tab["history"]):
+                    continue
+                changed = True
+                data["tabs"][offset] = self._clean_tab({
+                    **tab,
+                    "history": [tab["history"][slot] for slot in kept],
+                    "historyScroll": [tab["historyScroll"][slot] for slot in kept],
+                    "historyAnchor": [tab["historyAnchor"][slot] for slot in kept],
+                    "historyAt": [tab["historyAt"][slot] for slot in kept],
+                    "historyIndex": kept.index(current) if current >= 0 else -1,
+                })
             return self._save_tabs(data) if changed else data
 
     def clear_recent_history(self, days: Any) -> dict:

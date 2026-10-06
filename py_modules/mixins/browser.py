@@ -859,7 +859,9 @@ class BrowserMixin(PluginContext):
 
     async def clear_browser_history(self, days: int = 0):
         if to_int(days, 0) > 0:
-            return _history_response(self.browser_store.clear_recent_history(days))
+            response = _history_response(self.browser_store.clear_recent_history(days))
+            response["tabs"] = _tabs_response(self.browser_store.clear_recent_back_history(days))
+            return response
         response = _history_response(self.browser_store.clear_history())
         response["tabs"] = _tabs_response(self.browser_store.clear_back_history())
         return response

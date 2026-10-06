@@ -1951,6 +1951,7 @@ export type BrowserTab = {
     history: string[];
     historyScroll: number[];
     historyAnchor: string[];
+    historyAt: number[];
     historyIndex: number;
     scroll: number;
     anchor: string;
