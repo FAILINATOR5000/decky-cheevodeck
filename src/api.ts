@@ -2866,6 +2866,13 @@ export const startBrowserDownload = callable<
 >("start_browser_download");
 export const getBrowserDownloads = callable<[], BrowserDownloadsResponse>("get_browser_downloads");
 export const cancelBrowserDownload = callable<[downloadId: string], { ok: boolean }>("cancel_browser_download");
+export const pauseBrowserDownload = callable<[downloadId: string], { ok: boolean }>("pause_browser_download");
+export const resumeBrowserDownload = callable<[downloadId: string, cookie: string, userAgent: string], BrowserDownloadsResponse>(
+    "resume_browser_download"
+);
+export const restartBrowserDownload = callable<[downloadId: string, cookie: string, userAgent: string], BrowserDownloadsResponse>(
+    "restart_browser_download"
+);
 export const removeBrowserDownload = callable<[downloadId: string], BrowserDownloadsResponse>("remove_browser_download");
 export const deleteBrowserDownloadFile = callable<[downloadId: string], BrowserDownloadsResponse>("delete_browser_download_file");
 

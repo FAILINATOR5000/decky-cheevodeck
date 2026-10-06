@@ -46,11 +46,15 @@ MAX_AD_EXEMPTIONS = 500
 
 MAX_DOWNLOADS = 100
 
-DOWNLOAD_STATES = ("downloading", "done", "failed", "canceled", "interrupted")
+DOWNLOAD_STATES = ("downloading", "done", "failed", "canceled", "interrupted", "paused")
 
 MAX_DOWNLOAD_NAME_LENGTH = 255
 
 MAX_DOWNLOAD_ERROR_LENGTH = 32
+
+MAX_DOWNLOAD_NOTE_LENGTH = 32
+
+MAX_VALIDATOR_LENGTH = 256
 
 MAX_CATEGORY_NAME_LENGTH = 48
 
@@ -134,6 +138,19 @@ def _clean_identity(value: Any, size: int) -> Optional[list]:
     if not all(isinstance(item, int) and not isinstance(item, bool) and item >= 0 for item in value):
         return None
     return list(value)
+
+
+def _clean_validator(value: Any) -> dict:
+    if not isinstance(value, dict):
+        return {}
+    found = {}
+    etag = _clean_text(value.get("etag"), MAX_VALIDATOR_LENGTH + 1)
+    if etag and not etag.startswith("W/") and len(etag) <= MAX_VALIDATOR_LENGTH:
+        found["etag"] = etag
+    modified = _clean_text(value.get("lastModified"), MAX_VALIDATOR_LENGTH + 1)
+    if modified and len(modified) <= MAX_VALIDATOR_LENGTH:
+        found["lastModified"] = modified
+    return found
 
 
 def _clean_web_url(value: Any) -> str:
@@ -1187,8 +1204,14 @@ class BrowserStore:
             "finishedAt": max(to_int(raw.get("finishedAt", 0), 0), 0),
             "run": _clean_text(raw.get("run"), MAX_ID_LENGTH),
             "part": _clean_identity(raw.get("part"), 2),
+            "partCheck": _clean_identity(raw.get("partCheck"), 2),
             "file": _clean_identity(raw.get("file"), 4),
             "fileGone": bool(raw.get("fileGone", False)),
+            "url": _clean_web_url(raw.get("url")),
+            "referer": _clean_web_url(raw.get("referer")),
+            "validator": _clean_validator(raw.get("validator")),
+            "note": _clean_text(raw.get("note"), MAX_DOWNLOAD_NOTE_LENGTH),
+            "canResume": raw.get("canResume") is not False,
         }
 
     def _load_downloads(self, path: Path) -> dict:
@@ -1223,21 +1246,24 @@ class BrowserStore:
         with self._lock:
             return self._load_downloads(path)
 
-    def add_download(self, path: Path, row: dict) -> dict:
+    def add_download(self, path: Path, row: dict) -> list:
         download = self._clean_download(row)
         with self._lock:
             data = self._load_downloads(path)
             if not download:
-                return data
+                return []
             rows = [entry for entry in data["downloads"] if entry["id"] != download["id"]]
+            dropped = []
             while len(rows) >= MAX_DOWNLOADS:
                 finished = [entry for entry in rows if entry["state"] != "downloading"]
                 if not finished:
                     break
                 oldest = min(finished, key=lambda entry: entry["startedAt"])
                 rows.remove(oldest)
+                dropped.append(oldest)
             data["downloads"] = [download] + rows
-            return self._save_downloads(path, data)
+            self._save_downloads(path, data)
+            return dropped
 
     def update_download(self, path: Path, download_id: Any, **fields: Any) -> dict:
         wanted = _clean_text(download_id, MAX_ID_LENGTH)
@@ -1250,6 +1276,18 @@ class BrowserStore:
                         data["downloads"][index] = updated
                         return self._save_downloads(path, data)
             return data
+
+    def forget_part(self, path: Path, folder: str, name: str, keep_id: Any) -> None:
+        with self._lock:
+            data = self._load_downloads(path)
+            changed = False
+            for entry in data["downloads"]:
+                if entry["id"] != keep_id and entry["folder"] == folder and entry["name"] == name and entry["part"] is not None:
+                    entry["part"] = None
+                    entry["partCheck"] = None
+                    changed = True
+            if changed:
+                self._save_downloads(path, data)
 
     def remove_download(self, path: Path, download_id: Any) -> dict:
         wanted = _clean_text(download_id, MAX_ID_LENGTH)

@@ -61,7 +61,7 @@ from resolved_avatar_store import ResolvedAvatarStore
 from developer_message_store import DeveloperMessageStore
 from cheevo_check_store import CheevoCheckStore
 from calculator_store import CalculatorStore
-from browser_store import DEFAULT_PAGE_ZOOM, STEAM_MACHINE_PAGE_ZOOM, BrowserStore
+from browser_store import DEFAULT_PAGE_ZOOM, DOWNLOADS_FILENAME, STEAM_MACHINE_PAGE_ZOOM, BrowserStore
 from file_watcher_store import FileWatcherStore
 from dolphin_mappings_store import DolphinMappingsStore
 from freeze_incidents_store import INCIDENT_EVENT, FreezeIncidentsStore
@@ -1694,6 +1694,10 @@ class Plugin(
             for media_root in (self.memories_store.pictures_root(), self.memories_store.videos_root()):
                 shutil.rmtree(media_root / entry.name, ignore_errors=True)
             try:
+                self._drop_download_parts(entry / "browser" / DOWNLOADS_FILENAME)
+            except Exception as exc:
+                decky.logger.warning("cleanup: download .part files not removed (%s)", type(exc).__name__)
+            try:
                 shutil.rmtree(entry)
                 removed += 1
             except FileNotFoundError:
@@ -1771,6 +1775,11 @@ class Plugin(
         self.players_near_you_service.note_cache_cleared()
 
         await asyncio.to_thread(self.file_watcher_service.quiesce)
+
+        try:
+            await asyncio.to_thread(self._clear_downloads_for_reset)
+        except Exception as exc:
+            decky.logger.warning("factory reset: downloads not cleared (%s)", type(exc).__name__)
 
         await asyncio.to_thread(self._run_factory_reset_locked)
         return {"ok": True}

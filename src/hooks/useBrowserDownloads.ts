@@ -1,6 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { cancelBrowserDownload, deleteBrowserDownloadFile, getBrowserDownloads, removeBrowserDownload } from "../api";
-import { subscribeDownloads } from "../components/browser/browserDownloads";
+import {
+    cancelBrowserDownload,
+    deleteBrowserDownloadFile,
+    getBrowserDownloads,
+    pauseBrowserDownload,
+    removeBrowserDownload,
+    restartBrowserDownload,
+    resumeBrowserDownload
+} from "../api";
+import { subscribeDownloads, toastDownload } from "../components/browser/browserDownloads";
+import { requestHeadersFor } from "../components/browser/browserSession";
 import { logError } from "../utils/errors";
 import type { BrowserDownload, BrowserDownloadsResponse } from "../types";
 
@@ -9,9 +18,14 @@ export type BrowserDownloads = {
     loaded: boolean;
     notice: { id: string; text: string } | null;
     cancel: (downloadId: string) => void;
+    pause: (downloadId: string) => void;
+    resume: (downloadId: string) => void;
+    restart: (downloadId: string) => void;
     remove: (downloadId: string) => void;
     deleteFile: (downloadId: string) => void;
 };
+
+const UNAVAILABLE = "The file's folder isn't available right now.";
 
 export function useBrowserDownloads(isActive: boolean): BrowserDownloads {
     const [downloads, setDownloads] = useState<BrowserDownload[]>([]);
@@ -22,6 +36,19 @@ export function useBrowserDownloads(isActive: boolean): BrowserDownloads {
 
     const knownRef = useRef(new Set<string>());
 
+    const pausingRef = useRef(new Set<string>());
+
+    const asShown = (row: BrowserDownload): BrowserDownload => {
+        if (!pausingRef.current.has(row.id)) {
+            return row;
+        }
+        if (row.state !== "downloading") {
+            pausingRef.current.delete(row.id);
+            return row;
+        }
+        return { ...row, state: "paused", action: "pausing" };
+    };
+
     const requestRef = useRef(0);
 
     const take = (request: number, state: BrowserDownloadsResponse | null | undefined) => {
@@ -29,7 +56,7 @@ export function useBrowserDownloads(isActive: boolean): BrowserDownloads {
             for (const row of state.downloads) {
                 knownRef.current.add(row.id);
             }
-            setDownloads(state.downloads);
+            setDownloads(state.downloads.map(asShown));
             setLoaded(true);
         }
     };
@@ -66,13 +93,69 @@ export function useBrowserDownloads(isActive: boolean): BrowserDownloads {
 
     const cancel = (downloadId: string) => {
         setNotice(null);
-        cancelBrowserDownload(downloadId).catch((e) => logError("useBrowserDownloads.cancel", e));
+        cancelBrowserDownload(downloadId)
+            .then((answer) => {
+                if (answer?.ok === false) {
+                    reload();
+                }
+            })
+            .catch((e) => logError("useBrowserDownloads.cancel", e));
+    };
+
+    const pause = (downloadId: string) => {
+        setNotice(null);
+        pausingRef.current.add(downloadId);
+        setDownloads((current) => current.map(asShown));
+        pauseBrowserDownload(downloadId)
+            .then((answer) => {
+                if (answer?.ok === false) {
+                    pausingRef.current.delete(downloadId);
+                    reload();
+                }
+            })
+            .catch((e) => {
+                logError("useBrowserDownloads.pause", e);
+                pausingRef.current.delete(downloadId);
+                reload();
+            });
+    };
+
+    const runAgain = (downloadId: string, restart: boolean) => {
+        setNotice(null);
+        const row = downloads.find((entry) => entry.id === downloadId);
+        if (!row?.url) {
+            return;
+        }
+        const request = ++requestRef.current;
+        (async () => {
+            try {
+                const { cookie, userAgent } = await requestHeadersFor(row.url);
+                const state = await (restart ? restartBrowserDownload : resumeBrowserDownload)(downloadId, cookie, userAgent);
+                take(request, state);
+                if (state?.ok === false && state.error === "busy") {
+                    toastDownload("Download Failed", row.name, "busy");
+                }
+                else if (state?.ok === false && state.error === "unavailable") {
+                    setNotice({ id: downloadId, text: UNAVAILABLE });
+                }
+            }
+            catch (e) {
+                logError(restart ? "useBrowserDownloads.restart" : "useBrowserDownloads.resume", e);
+            }
+        })();
     };
 
     const remove = (downloadId: string) => {
         setNotice(null);
         const request = ++requestRef.current;
-        removeBrowserDownload(downloadId).then((state) => take(request, state)).catch((e) => logError("useBrowserDownloads.remove", e));
+        removeBrowserDownload(downloadId)
+            .then((state) => {
+                take(request, state);
+                if (state?.ok === false && state.error === "unavailable") {
+                    setNotice({ id: downloadId, text: UNAVAILABLE });
+                }
+            })
+            .catch((e) => logError("useBrowserDownloads.remove", e));
     };
 
     const deleteFile = (downloadId: string) => {
@@ -85,11 +168,21 @@ export function useBrowserDownloads(isActive: boolean): BrowserDownloads {
                     setNotice({ id: downloadId, text: "The file has changed since it was downloaded, so it was left alone." });
                 }
                 else if (state?.ok === false && state.error === "unavailable") {
-                    setNotice({ id: downloadId, text: "The file's folder isn't available right now." });
+                    setNotice({ id: downloadId, text: UNAVAILABLE });
                 }
             })
             .catch((e) => logError("useBrowserDownloads.deleteFile", e));
     };
 
-    return { downloads, loaded, notice, cancel, remove, deleteFile };
+    return {
+        downloads,
+        loaded,
+        notice,
+        cancel,
+        pause,
+        resume: (downloadId: string) => runAgain(downloadId, false),
+        restart: (downloadId: string) => runAgain(downloadId, true),
+        remove,
+        deleteFile
+    };
 }

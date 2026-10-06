@@ -3,6 +3,7 @@ from typing import Optional
 from urllib.parse import unquote, urlparse
 
 import asyncio
+import errno
 import http.client
 import os
 import re
@@ -17,8 +18,8 @@ import uuid
 
 import decky
 
-from browser_store import MAX_AD_EXEMPTIONS, MAX_BOOKMARK_CATEGORIES, MAX_BOOKMARKS, MAX_TABS, clean_site
-from utils import atomic_file, child_owner, open_dir, ssl_context, to_int
+from browser_store import DOWNLOADS_FILENAME, MAX_AD_EXEMPTIONS, MAX_BOOKMARK_CATEGORIES, MAX_BOOKMARKS, MAX_TABS, clean_site
+from utils import child_owner, chown_to_data_owner, open_dir, ssl_context, to_int
 from mixins._context import PluginContext
 
 
@@ -35,6 +36,10 @@ BROWSER_DOWNLOAD_STALL_SECONDS = 60
 BROWSER_DOWNLOAD_STALL_BYTES = 32 * 1024
 
 BROWSER_DOWNLOAD_PROGRESS_SECONDS = 1.0
+
+BROWSER_DOWNLOAD_CHECKPOINT_SECONDS = 10
+
+BROWSER_DOWNLOAD_RESET_WAIT_SECONDS = 3.0
 
 BROWSER_DOWNLOAD_HEADERS_SECONDS = 60
 
@@ -57,9 +62,13 @@ _CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
 _FAT_CHARS = re.compile(r'[:?*"<>|]')
 _DISPOSITION_STAR = re.compile(r"filename\*\s*=\s*([^';]*)'[^']*'([^;]+)", re.IGNORECASE)
 _DISPOSITION_PLAIN = re.compile(r'filename\s*=\s*(?:"((?:[^"\\]|\\.)*)"|([^;]+))', re.IGNORECASE)
+_RANGE_ANSWER = re.compile(r"bytes\s+(\d+)-(\d+)/(\d+|\*)", re.IGNORECASE)
+_RANGE_UNSATISFIED = re.compile(r"bytes\s+\*/(\d+)", re.IGNORECASE)
 
 _active_downloads: dict = {}
 _active_lock = threading.Lock()
+
+_removing: set = set()
 
 
 def _fit_bytes(text: str, limit: int) -> str:
@@ -121,7 +130,7 @@ def _hold(entry: dict, sock) -> None:
             entry["fd"] = os.dup(sock.fileno())
         except OSError:
             return
-        if entry["canceled"] or entry.get("stalled"):
+        if _halted(entry) or entry.get("stalled"):
             _shut(entry["fd"])
 
 
@@ -212,6 +221,61 @@ def _claim_destination(folder: Path, name: str, download_id: str) -> Path:
     return candidate
 
 
+class _StartOver(Exception):
+    pass
+
+
+class _RangeEnded(Exception):
+    def __init__(self, total: int):
+        super().__init__(total)
+        self.total = total
+
+
+class _HeldPart:
+    def __init__(self):
+        self.dir_fd = None
+        self.fd = None
+        self.name = ""
+        self.size = 0
+        self.touched = False
+        self.done = False
+
+    def write(self, data: bytes) -> None:
+        self.touched = True
+        view = memoryview(data)
+        while view:
+            view = view[os.write(self.fd, view):]
+        self.size += len(data)
+
+    def close(self) -> None:
+        for fd in (self.fd, self.dir_fd):
+            if fd is not None:
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
+        self.fd = self.dir_fd = None
+
+
+def _halted(entry: dict) -> str:
+    if entry.get("canceled"):
+        return "canceled"
+    if entry.get("paused"):
+        return "paused"
+    return ""
+
+
+def _validator_of(response) -> dict:
+    found = {}
+    etag = (response.headers.get("ETag") or "").strip()
+    if etag and not etag.startswith("W/") and len(etag) <= 256:
+        found["etag"] = etag
+    modified = (response.headers.get("Last-Modified") or "").strip()
+    if modified and len(modified) <= 256:
+        found["lastModified"] = modified
+    return found
+
+
 class _DownloadError(Exception):
     def __init__(self, code: str, detail: str = "", why: str = ""):
         super().__init__(detail or code)
@@ -248,6 +312,21 @@ class _DownloadRedirect(urllib.request.HTTPRedirectHandler):
         return follow
 
 
+def _download_action(row: dict) -> str:
+    state = row["state"]
+    if not row["url"]:
+        return ""
+    if state == "downloading":
+        return "pause"
+    if state == "paused":
+        return "resume"
+    if state in ("failed", "interrupted"):
+        return "continue" if row["part"] is not None else "restart"
+    if state == "canceled":
+        return "restart"
+    return ""
+
+
 def _public_download(row: dict) -> dict:
     return {
         "id": row["id"],
@@ -257,8 +336,13 @@ def _public_download(row: dict) -> dict:
         "received": row["received"],
         "total": row["total"],
         "startedAt": row["startedAt"],
+        "finishedAt": row["finishedAt"],
         "canDelete": row["state"] == "done" and row["file"] is not None and not row["fileGone"],
         "fileGone": row["fileGone"],
+        "url": row["url"],
+        "note": row["note"],
+        "canResume": row["canResume"],
+        "action": _download_action(row),
     }
 
 
@@ -342,20 +426,78 @@ def _delete_download_file(home: Path, row: dict) -> str:
         os.close(dir_fd)
 
 
-def _remove_stale_part(home: Path, row: dict) -> None:
+def _claimed_elsewhere(path: Path, download_id) -> bool:
+    return any(key != download_id and entry.get("path") == path for key, entry in _active_downloads.items())
+
+
+def _same_part(st, row: dict, fat: bool) -> bool:
+    if not stat.S_ISREG(st.st_mode) or row.get("part") is None:
+        return False
+    check = row.get("partCheck")
+    if not fat:
+        return [st.st_dev, st.st_ino] == list(row["part"]) and (check is None or st.st_size >= check[0])
+    if check is None:
+        return False
+    owner = child_owner()
+    if owner is not None and st.st_uid != owner[0]:
+        return False
+    return st.st_size >= check[0] and st.st_mtime_ns >= check[1] - BROWSER_DOWNLOAD_MTIME_SLACK * 1e9
+
+
+def _find_part(home: Path, row: dict):
     name = row.get("name") or ""
-    if not name or "/" in name or row.get("part") is None:
-        return
+    if not name or name in (".", "..") or "/" in name or row.get("part") is None:
+        return "gone", None
+    folder = row.get("folder") or ""
+    with _active_lock:
+        if _claimed_elsewhere(Path(folder) / name, row.get("id")):
+            return "changed", None
+    if _unmounted(folder):
+        return "unavailable", None
     dir_fd = _open_download_dir(home, row)
     if dir_fd is None:
-        return
+        return ("unavailable" if not os.path.isdir(folder) else "changed"), None
     try:
-        if _matches(dir_fd, name + ".part", row["part"]) == "match":
-            os.unlink(name + ".part", dir_fd=dir_fd)
-    except OSError as exc:
-        decky.logger.warning("browser download: leftover .part not removed (%s)", _why(exc))
+        st = os.stat(name + ".part", dir_fd=dir_fd, follow_symlinks=False)
+    except FileNotFoundError:
+        return "gone", None
+    except OSError:
+        return "unavailable", None
     finally:
         os.close(dir_fd)
+    return ("match", st) if _same_part(st, row, _on_fat(folder)) else ("changed", None)
+
+
+def _delete_part(home: Path, row: dict) -> str:
+    found, _ = _find_part(home, row)
+    if found != "match":
+        return found
+    dir_fd = _open_download_dir(home, row)
+    if dir_fd is None:
+        return "unavailable"
+    name = row["name"] + ".part"
+    try:
+        st = os.stat(name, dir_fd=dir_fd, follow_symlinks=False)
+        if not _same_part(st, row, _on_fat(row["folder"])):
+            return "changed"
+        os.unlink(name, dir_fd=dir_fd)
+        return "deleted"
+    except FileNotFoundError:
+        return "gone"
+    except OSError as exc:
+        decky.logger.warning("browser download: .part not removed (%s)", _why(exc))
+        return "failed"
+    finally:
+        os.close(dir_fd)
+
+
+def _delete_parts(home: Path, rows: list) -> None:
+    unavailable = 0
+    for row in rows:
+        if row.get("part") is not None and _delete_part(home, row) == "unavailable":
+            unavailable += 1
+    if unavailable:
+        decky.logger.info("browser download: %d .part file(s) left on a folder that isn't available", unavailable)
 
 
 def _tabs_response(state: dict, reason: str = "") -> dict:
@@ -539,27 +681,39 @@ class BrowserMixin(PluginContext):
         self.browser_store.set_last_download_folder(str(folder).strip())
 
         record = self.browser_store.downloads_path()
+        with _active_lock:
+            _active_downloads[download_id]["record"] = record
         name = _scrub_name(chosen_name) or _scrub_name(suggested_name) or "download"
-        try:
-            self.browser_store.add_download(record, {
-                "id": download_id,
-                "name": name,
-                "folder": str(destination),
-                "state": "downloading",
-                "startedAt": int(time.time()),
-                "run": _RUN_ID,
-            })
-        except Exception as exc:
-            decky.logger.warning("browser download: couldn't record the download (%s)", type(exc).__name__)
+        self._add_download_row(record, {
+            "id": download_id,
+            "name": name,
+            "folder": str(destination),
+            "state": "downloading",
+            "startedAt": int(time.time()),
+            "run": _RUN_ID,
+            "url": "" if is_data else target,
+            "referer": headers.get("Referer", ""),
+        })
+        self._start_worker(download_id, target, destination, str(suggested_name or ""), str(chosen_name or ""), headers, record)
+        return {"ok": True, "id": download_id}
 
-        worker = threading.Thread(
+    def _start_worker(self, download_id, url, folder, suggested, chosen, headers, record, resume=None) -> None:
+        threading.Thread(
             target=self._run_browser_download,
-            args=(download_id, target, destination, str(suggested_name or ""), str(chosen_name or ""), headers, record),
+            args=(download_id, url, folder, suggested, chosen, headers, record, resume),
             name=f"browser-download-{download_id[:8]}",
             daemon=True,
-        )
-        worker.start()
-        return {"ok": True, "id": download_id}
+        ).start()
+
+    def _add_download_row(self, record: Path, row: dict) -> None:
+        try:
+            dropped = self.browser_store.add_download(record, row)
+        except Exception as exc:
+            decky.logger.warning("browser download: couldn't record the download (%s)", type(exc).__name__)
+            return
+        if any(entry["part"] is not None for entry in dropped):
+            home = self.user_home
+            threading.Thread(target=_delete_parts, args=(home, dropped), name="browser-download-rotate", daemon=True).start()
 
     def _record_download(self, record: Path, download_id: str, **fields) -> None:
         try:
@@ -567,26 +721,26 @@ class BrowserMixin(PluginContext):
         except Exception as exc:
             decky.logger.warning("browser download: couldn't update the list (%s)", type(exc).__name__)
 
-    def _run_browser_download(self, download_id, url, folder, suggested, chosen, headers, record):
+    def _run_browser_download(self, download_id, url, folder, suggested, chosen, headers, record, resume=None):
         host = urlparse(url).hostname or ""
         name = _scrub_name(chosen) or _scrub_name(suggested) or "download"
         result = {"id": download_id, "ok": False, "name": name, "folder": str(folder), "error": ""}
         fields = {}
         try:
-            path, written, identity = self._fetch_browser_download(download_id, url, folder, suggested, chosen, headers, host, record)
+            path, written, identity = self._fetch_browser_download(download_id, url, folder, suggested, chosen, headers, host, record, resume)
             result["ok"] = True
             result["name"] = path.name
-            fields = {"state": "done", "name": path.name, "received": written, "file": identity}
+            fields = {"state": "done", "name": path.name, "received": written, "file": identity, "part": None, "partCheck": None}
         except _DownloadError as exc:
             result["error"] = exc.code
             claimed = _active_downloads.get(download_id, {}).get("path")
             if claimed is not None:
                 result["name"] = claimed.name
-            state = "canceled" if exc.code == "canceled" else "failed"
-            fields = {"state": state, "error": exc.code, "name": result["name"]}
-            if state == "canceled":
-                decky.logger.info("browser download canceled")
+            if exc.code in ("canceled", "paused"):
+                fields = {"state": exc.code, "error": "" if exc.code == "paused" else exc.code, "name": result["name"]}
+                decky.logger.info("browser download %s", exc.code)
             else:
+                fields = {"state": "failed", "error": exc.code, "name": result["name"]}
                 decky.logger.error("browser download failed: %s%s", exc.code, f" ({exc.why})" if exc.why else "")
             if getattr(self, "_debug_logging", False):
                 decky.logger.info("browser download failed: %s from %s: %s", result["name"], host, exc.detail)
@@ -604,9 +758,55 @@ class BrowserMixin(PluginContext):
             self._record_download(record, download_id, **fields)
         self._emit_browser_download(result)
 
-    def _fetch_browser_download(self, download_id, url, folder, suggested, chosen, headers, host, record):
+    def _fetch_browser_download(self, download_id, url, folder, suggested, chosen, headers, host, record, resume=None):
         is_data = url.startswith("data:")
         entry = _active_downloads[download_id]
+        held = _HeldPart()
+        try:
+            if resume is not None:
+                self._reopen_part(held, folder, resume, download_id, record)
+            offset = held.size
+            validator = (resume or {}).get("validator") or {}
+            known_total = to_int((resume or {}).get("total", -1), -1)
+            ranged = offset > 0 and (bool(validator) or known_total >= 0)
+            if offset > 0 and not ranged:
+                self._start_part_over(held, record, download_id)
+            while True:
+                request_headers = dict(headers)
+                if ranged:
+                    request_headers["Range"] = f"bytes={held.size}-"
+                    if validator.get("etag"):
+                        request_headers["If-Range"] = validator["etag"]
+                    elif validator.get("lastModified"):
+                        request_headers["If-Range"] = validator["lastModified"]
+                try:
+                    response = self._open_download(url, request_headers, entry, is_data)
+                except _RangeEnded as ended:
+                    total = known_total if known_total >= 0 else ended.total
+                    if total >= 0 and held.size == total:
+                        entry["total"] = total
+                        return self._finish_part(held, folder, download_id)
+                    self._start_part_over(held, record, download_id)
+                    ranged = False
+                    continue
+                try:
+                    with response:
+                        return self._save_response(
+                            response, entry, download_id, folder, suggested, chosen, host, record, is_data, held, ranged, known_total
+                        )
+                except _StartOver:
+                    self._start_part_over(held, record, download_id)
+                    ranged = False
+                finally:
+                    with _active_lock:
+                        _release(entry)
+        except _DownloadError as exc:
+            self._leave_part(held, exc.code, record, download_id)
+            raise
+        finally:
+            held.close()
+
+    def _open_download(self, url, headers, entry, is_data):
         request = urllib.request.Request(url, headers=headers)
         opener = urllib.request.build_opener(
             _RecordingHTTP(entry), _RecordingHTTPS(entry, ssl_context()), _DownloadRedirect()
@@ -619,16 +819,23 @@ class BrowserMixin(PluginContext):
                     if entry.get("fd") is not None:
                         _shut(entry["fd"])
 
+        with _active_lock:
+            entry["answered"] = False
         deadline = threading.Timer(BROWSER_DOWNLOAD_HEADERS_SECONDS, headers_overdue)
         deadline.daemon = True
         deadline.start()
         try:
-            response = opener.open(request, timeout=BROWSER_DOWNLOAD_TIMEOUT_SECONDS)
+            return opener.open(request, timeout=BROWSER_DOWNLOAD_TIMEOUT_SECONDS)
         except urllib.error.HTTPError as exc:
+            if exc.code == 416 and "Range" in headers:
+                match = _RANGE_UNSATISFIED.search(exc.headers.get("Content-Range", "") if exc.headers else "")
+                exc.close()
+                raise _RangeEnded(to_int(match.group(1), -1) if match else -1) from exc
             raise _DownloadError("refused" if 400 <= exc.code < 500 else "failed", f"HTTP {exc.code}") from exc
         except (urllib.error.URLError, OSError, ValueError, http.client.HTTPException) as exc:
-            if entry["canceled"]:
-                raise _DownloadError("canceled") from exc
+            halted = _halted(entry)
+            if halted:
+                raise _DownloadError(halted) from exc
             if entry.get("stalled"):
                 raise _DownloadError("stalled", "no headers in time") from exc
             raise _DownloadError("bad_link" if is_data else "failed", f"{type(exc).__name__}: {exc}", _why(exc)) from exc
@@ -637,19 +844,13 @@ class BrowserMixin(PluginContext):
                 entry["answered"] = True
             deadline.cancel()
 
-        try:
-            with response:
-                return self._save_response(response, entry, download_id, folder, suggested, chosen, host, record, is_data)
-        finally:
-            with _active_lock:
-                _release(entry)
-
-    def _save_response(self, response, entry, download_id, folder, suggested, chosen, host, record, is_data):
+    def _save_response(self, response, entry, download_id, folder, suggested, chosen, host, record, is_data, held=None, ranged=False, known_total=-1):
+        held = held or _HeldPart()
         with _active_lock:
-            canceled = entry["canceled"]
+            halted = _halted(entry)
             stalled = entry.get("stalled", False)
-        if canceled:
-            raise _DownloadError("canceled")
+        if halted:
+            raise _DownloadError(halted)
         if stalled:
             raise _DownloadError("stalled", "no headers in time")
 
@@ -657,7 +858,13 @@ class BrowserMixin(PluginContext):
         if not is_data and urlparse(final).scheme not in ("http", "https"):
             raise _DownloadError("bad_link", "redirected off http(s)")
         status = getattr(response, "status", None)
-        if not is_data and status is not None and (status < 200 or status >= 300 or status in (204, 205, 206)):
+        partial = ranged and status == 206
+        if partial:
+            match = _RANGE_ANSWER.search(response.headers.get("Content-Range", ""))
+            whole = to_int(match.group(3), -1) if match else -1
+            if match is None or to_int(match.group(1), -1) != held.size or (known_total >= 0 and whole >= 0 and whole != known_total):
+                raise _StartOver()
+        elif not is_data and status is not None and (status < 200 or status >= 300 or status in (204, 205, 206)):
             raise _DownloadError("failed", f"HTTP {status}")
 
         expected = _scrub_name(suggested) or _download_name("", "", final)
@@ -666,8 +873,14 @@ class BrowserMixin(PluginContext):
             raise _DownloadError("web_page", f"{content_type} for {expected}")
 
         length = to_int(response.headers.get("Content-Length"), -1)
-        if length > BROWSER_DOWNLOAD_MAX_BYTES:
-            raise _DownloadError("too_big", f"{length} bytes")
+        if partial:
+            total = whole if whole >= 0 else (held.size + length if length >= 0 else -1)
+        else:
+            total = length
+        if total > BROWSER_DOWNLOAD_MAX_BYTES:
+            raise _DownloadError("too_big", f"{total} bytes")
+        if held.fd is not None and not partial and held.size > 0:
+            self._start_part_over(held, record, download_id)
         if length > 0:
             try:
                 free = shutil.disk_usage(folder).free
@@ -676,61 +889,203 @@ class BrowserMixin(PluginContext):
             if free is not None and free < length:
                 raise _DownloadError("no_space", f"{length} bytes, {free} free")
 
-        name = _scrub_name(chosen) or _download_name(response.headers.get("Content-Disposition", ""), suggested, final)
+        validator = {} if is_data else _validator_of(response)
+        can_resume = partial or "bytes" in (response.headers.get("Accept-Ranges") or "").lower()
+        if held.fd is None:
+            name = _scrub_name(chosen) or _download_name(response.headers.get("Content-Disposition", ""), suggested, final)
+            with _active_lock:
+                path = _claim_destination(folder, name, download_id)
+            self._create_part(held, path, record, download_id)
+        else:
+            path = folder / held.name
         with _active_lock:
-            path = _claim_destination(folder, name, download_id)
-            entry["total"] = length
-        decky.logger.info("browser download started (%s)", f"{length} bytes" if length >= 0 else "size unknown")
+            entry["total"] = total
+        decky.logger.info("browser download %s (%s)", "continued" if partial else "started", f"{total} bytes" if total >= 0 else "size unknown")
         if getattr(self, "_debug_logging", False):
             decky.logger.info("browser download from %s to %s", host, path)
 
+        offset = held.size
+        part = os.fstat(held.fd)
+        self._record_download(
+            record, download_id, name=path.name, total=total, part=[part.st_dev, part.st_ino],
+            partCheck=[part.st_size, part.st_mtime_ns], validator=validator, canResume=can_resume,
+        )
+        os.lseek(held.fd, offset, os.SEEK_SET)
+
         read = getattr(response, "read1", None) or response.read
         written = 0
-        try:
-            with atomic_file(path, trusted=_ROOT, suffix=".part") as out:
-                part = os.fstat(out.fileno())
-                self._record_download(record, download_id, name=path.name, total=length, part=[part.st_dev, part.st_ino])
-                window_start = last_report = time.monotonic()
+        window_start = last_report = last_checkpoint = time.monotonic()
+        window_bytes = 0
+        while True:
+            try:
+                chunk = read(BROWSER_DOWNLOAD_READ)
+            except (OSError, ValueError) as exc:
+                halted = _halted(entry)
+                if halted:
+                    raise _DownloadError(halted) from exc
+                raise _DownloadError("failed", f"{type(exc).__name__}: {exc}", _why(exc)) from exc
+            halted = _halted(entry)
+            if halted:
+                raise _DownloadError(halted)
+            if not chunk:
+                break
+            if offset + written + len(chunk) > BROWSER_DOWNLOAD_MAX_BYTES:
+                raise _DownloadError("too_big", f"over {BROWSER_DOWNLOAD_MAX_BYTES} bytes")
+            try:
+                held.write(chunk)
+            except OSError as exc:
+                code = "no_space" if exc.errno == errno.ENOSPC else "write_failed"
+                raise _DownloadError(code, f"{type(exc).__name__}: {exc}", _why(exc)) from exc
+            written += len(chunk)
+            window_bytes += len(chunk)
+            entry["received"] = offset + written
+            now = time.monotonic()
+            if now - window_start >= BROWSER_DOWNLOAD_STALL_SECONDS:
+                if window_bytes < BROWSER_DOWNLOAD_STALL_BYTES:
+                    raise _DownloadError("stalled", f"{window_bytes} bytes in {int(now - window_start)}s")
+                window_start = now
                 window_bytes = 0
-                while True:
+            if now - last_report >= BROWSER_DOWNLOAD_PROGRESS_SECONDS:
+                last_report = now
+                self._emit_browser_event(BROWSER_DOWNLOAD_PROGRESS_EVENT, {"id": download_id, "received": offset + written, "total": total})
+            if now - last_checkpoint >= BROWSER_DOWNLOAD_CHECKPOINT_SECONDS:
+                last_checkpoint = now
+                check = os.fstat(held.fd)
+                self._record_download(record, download_id, received=offset + written, partCheck=[check.st_size, check.st_mtime_ns])
+        if length >= 0 and written < length:
+            raise _DownloadError("failed", f"ended at {offset + written} of {total} bytes")
+        if partial and total >= 0 and offset + written != total:
+            raise _DownloadError("failed", f"ended at {offset + written} of {total} bytes")
+        return self._finish_part(held, folder, download_id)
+
+    def _reopen_part(self, held, folder, resume, download_id, record) -> None:
+        name = resume.get("name") or ""
+        if not name or name in (".", "..") or "/" in name or resume.get("part") is None:
+            return
+        with _active_lock:
+            elsewhere = _claimed_elsewhere(folder / name, download_id)
+            _active_downloads[download_id]["path"] = None
+        if elsewhere:
+            self._note_restart(record, download_id, "missing")
+            return
+        try:
+            dir_fd = open_dir(folder, trusted=_ROOT)
+        except OSError as exc:
+            raise _DownloadError("bad_folder", f"{type(exc).__name__}: {exc}", _why(exc)) from exc
+        try:
+            st = os.stat(name + ".part", dir_fd=dir_fd, follow_symlinks=False)
+            if not _same_part(st, resume, _on_fat(str(folder))):
+                raise FileNotFoundError(name)
+            fd = os.open(name + ".part", os.O_WRONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC, dir_fd=dir_fd)
+        except OSError:
+            os.close(dir_fd)
+            decky.logger.warning("browser download: the .part is gone or is not this download's, starting over")
+            self._note_restart(record, download_id, "missing")
+            return
+        opened = os.fstat(fd)
+        if not stat.S_ISREG(opened.st_mode) or (opened.st_dev, opened.st_ino) != (st.st_dev, st.st_ino):
+            os.close(fd)
+            os.close(dir_fd)
+            self._note_restart(record, download_id, "missing")
+            return
+        held.dir_fd, held.fd, held.name, held.size = dir_fd, fd, name, opened.st_size
+        with _active_lock:
+            _active_downloads[download_id]["path"] = folder / name
+            _active_downloads[download_id]["received"] = opened.st_size
+
+    def _create_part(self, held, path: Path, record, download_id) -> None:
+        dir_fd = open_dir(path.parent, trusted=_ROOT)
+        try:
+            fd = os.open(path.name + ".part", os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o666, dir_fd=dir_fd)
+        except OSError as exc:
+            os.close(dir_fd)
+            raise _DownloadError("write_failed", f"{type(exc).__name__}: {exc}", _why(exc)) from exc
+        held.dir_fd, held.fd, held.name, held.size, held.touched = dir_fd, fd, path.name, 0, True
+        chown_to_data_owner(fd)
+        records = {record}
+        try:
+            records.update(Path(self.runtime_dir).glob(f"*/browser/{DOWNLOADS_FILENAME}"))
+        except OSError:
+            pass
+        for other in records:
+            try:
+                self.browser_store.forget_part(other, str(path.parent), path.name, download_id)
+            except Exception as exc:
+                decky.logger.warning("browser download: couldn't update other rows (%s)", type(exc).__name__)
+
+    def _start_part_over(self, held, record, download_id) -> None:
+        if held.fd is not None and held.size > 0:
+            os.ftruncate(held.fd, 0)
+            os.lseek(held.fd, 0, os.SEEK_SET)
+            held.size = 0
+        held.touched = True
+        self._note_restart(record, download_id)
+
+    def _note_restart(self, record, download_id, note: str = "restarted") -> None:
+        with _active_lock:
+            entry = _active_downloads.get(download_id)
+            if entry is not None:
+                entry["received"] = 0
+        if note == "missing":
+            self._record_download(record, download_id, note=note, received=0, part=None, partCheck=None)
+        else:
+            self._record_download(record, download_id, note=note, received=0)
+
+    def _finish_part(self, held, folder, download_id):
+        done = os.fstat(held.fd)
+        part = held.name + ".part"
+        name = held.name
+        try:
+            while True:
+                try:
+                    os.link(part, name, src_dir_fd=held.dir_fd, dst_dir_fd=held.dir_fd, follow_symlinks=False)
+                    os.unlink(part, dir_fd=held.dir_fd)
+                    break
+                except FileExistsError:
+                    pass
+                except OSError as exc:
+                    if exc.errno not in (errno.EPERM, errno.EOPNOTSUPP, errno.ENOTSUP):
+                        raise
                     try:
-                        chunk = read(BROWSER_DOWNLOAD_READ)
-                    except (OSError, ValueError) as exc:
-                        if entry["canceled"]:
-                            raise _DownloadError("canceled") from exc
-                        raise _DownloadError("failed", f"{type(exc).__name__}: {exc}", _why(exc)) from exc
-                    if entry["canceled"]:
-                        raise _DownloadError("canceled")
-                    if not chunk:
+                        os.stat(name, dir_fd=held.dir_fd, follow_symlinks=False)
+                    except FileNotFoundError:
+                        os.replace(part, name, src_dir_fd=held.dir_fd, dst_dir_fd=held.dir_fd)
                         break
-                    written += len(chunk)
-                    window_bytes += len(chunk)
-                    if written > BROWSER_DOWNLOAD_MAX_BYTES:
-                        raise _DownloadError("too_big", f"over {BROWSER_DOWNLOAD_MAX_BYTES} bytes")
-                    try:
-                        out.write(chunk)
-                    except OSError as exc:
-                        raise _DownloadError("write_failed", f"{type(exc).__name__}: {exc}", _why(exc)) from exc
-                    now = time.monotonic()
-                    if now - window_start >= BROWSER_DOWNLOAD_STALL_SECONDS:
-                        if window_bytes < BROWSER_DOWNLOAD_STALL_BYTES:
-                            raise _DownloadError("stalled", f"{window_bytes} bytes in {int(now - window_start)}s")
-                        window_start = now
-                        window_bytes = 0
-                    if now - last_report >= BROWSER_DOWNLOAD_PROGRESS_SECONDS:
-                        last_report = now
-                        entry["received"] = written
-                        self._emit_browser_event(BROWSER_DOWNLOAD_PROGRESS_EVENT, {"id": download_id, "received": written, "total": length})
-                entry["received"] = written
-                if length >= 0 and written < length:
-                    raise _DownloadError("failed", f"ended at {written} of {length} bytes")
-                out.flush()
-                done = os.fstat(out.fileno())
+                with _active_lock:
+                    name = _claim_destination(folder, held.name, download_id).name
         except OSError as exc:
             raise _DownloadError("write_failed", f"{type(exc).__name__}: {exc}", _why(exc)) from exc
+        held.done = True
+        size = done.st_size
+        decky.logger.info("browser download saved (%d bytes)", size)
+        return folder / name, size, [done.st_dev, done.st_ino, size, done.st_mtime_ns]
 
-        decky.logger.info("browser download saved (%d bytes)", written)
-        return path, written, [done.st_dev, done.st_ino, written, done.st_mtime_ns]
+    def _leave_part(self, held, code: str, record, download_id) -> None:
+        if held.fd is None or held.done:
+            return
+        if code != "canceled" and not held.touched:
+            return
+        try:
+            size = os.fstat(held.fd).st_size
+            keep = code not in ("canceled", "too_big", "web_page", "bad_link", "bad_folder") and size > 0
+            if keep:
+                os.fsync(held.fd)
+                st = os.fstat(held.fd)
+                with _active_lock:
+                    entry = _active_downloads.get(download_id)
+                    if entry is not None:
+                        entry["received"] = st.st_size
+                self._record_download(
+                    record, download_id, received=st.st_size, part=[st.st_dev, st.st_ino], partCheck=[st.st_size, st.st_mtime_ns]
+                )
+                return
+            os.unlink(held.name + ".part", dir_fd=held.dir_fd)
+        except FileNotFoundError:
+            pass
+        except OSError as exc:
+            decky.logger.warning("browser download: .part not settled (%s)", _why(exc))
+            return
+        self._record_download(record, download_id, part=None, partCheck=None)
 
     def _emit_browser_event(self, event: str, payload: dict) -> None:
         loop = getattr(self, "_asyncio_loop", None)
@@ -761,19 +1116,121 @@ class BrowserMixin(PluginContext):
         return self._downloads_response(record)
 
     async def cancel_browser_download(self, download_id: str = ""):
+        return self._halt_download(download_id, "canceled")
+
+    async def pause_browser_download(self, download_id: str = ""):
+        return self._halt_download(download_id, "paused")
+
+    def _halt_download(self, download_id, how: str) -> dict:
         wanted = str(download_id or "")
         with _active_lock:
             entry = _active_downloads.get(wanted)
             if entry is None:
                 return {"ok": False}
-            entry["canceled"] = True
+            entry[how] = True
             if entry.get("fd") is not None:
                 _shut(entry["fd"])
         return {"ok": True}
 
+    async def resume_browser_download(self, download_id: str = "", cookie: str = "", user_agent: str = ""):
+        record = self.browser_store.downloads_path()
+        row = self._download_row(record, download_id)
+        if row is None or not row["url"] or row["state"] not in ("paused", "failed", "interrupted"):
+            return {**self._downloads_response(record), "ok": False, "error": "gone"}
+        return await self._run_again(record, row, cookie, user_agent, restart=False)
+
+    async def restart_browser_download(self, download_id: str = "", cookie: str = "", user_agent: str = ""):
+        record = self.browser_store.downloads_path()
+        row = self._download_row(record, download_id)
+        restartable = row is not None and row["url"] and (
+            row["state"] == "canceled" or (row["state"] in ("failed", "interrupted") and row["part"] is None)
+        )
+        if not restartable:
+            return {**self._downloads_response(record), "ok": False, "error": "gone"}
+        return await self._run_again(record, row, cookie, user_agent, restart=True)
+
+    def _download_row(self, record: Path, download_id) -> Optional[dict]:
+        wanted = str(download_id or "")
+        return next((entry for entry in self.browser_store.list_downloads(record)["downloads"] if entry["id"] == wanted), None)
+
+    async def _run_again(self, record: Path, row: dict, cookie, user_agent, *, restart: bool) -> dict:
+        folder = Path(row["folder"])
+        if not row["folder"] or _download_folder(self.user_home, folder) != folder:
+            return {**self._downloads_response(record), "ok": False, "error": "unavailable"}
+        limit = self.browser_store.list_settings()["maxDownloads"]
+        download_id = row["id"]
+        resume = None if restart or row["part"] is None else {
+            "name": row["name"], "part": row["part"], "partCheck": row["partCheck"], "validator": row["validator"], "total": row["total"],
+        }
+        refused = ""
+        with _active_lock:
+            if download_id in _active_downloads or download_id in _removing:
+                refused = "gone"
+            elif len(_active_downloads) >= limit:
+                decky.logger.warning("browser download refused, %d already running", len(_active_downloads))
+                refused = "busy"
+            else:
+                _active_downloads[download_id] = {
+                    "path": None,
+                    "canceled": False,
+                    "received": row["received"] if resume else 0,
+                    "total": row["total"] if resume else -1,
+                    "record": record,
+                }
+        if refused:
+            return {**self._downloads_response(record), "ok": False, "error": refused}
+
+        headers = {}
+        if cookie:
+            headers["Cookie"] = str(cookie)
+        if user_agent:
+            headers["User-Agent"] = str(user_agent)
+        if row["referer"]:
+            headers["Referer"] = row["referer"]
+
+        if restart:
+            if row["part"] is not None:
+                outcome = await asyncio.to_thread(_delete_part, self.user_home, row)
+                if outcome == "unavailable":
+                    with _active_lock:
+                        _active_downloads.pop(download_id, None)
+                    return {**self._downloads_response(record), "ok": False, "error": "unavailable"}
+            self._add_download_row(record, {
+                "id": download_id,
+                "name": row["name"],
+                "folder": row["folder"],
+                "state": "downloading",
+                "startedAt": int(time.time()),
+                "run": _RUN_ID,
+                "url": row["url"],
+                "referer": row["referer"],
+            })
+        else:
+            note = "missing" if resume is None and row["received"] > 0 else ""
+            self._record_download(record, download_id, state="downloading", run=_RUN_ID, note=note, error="", finishedAt=0)
+        decky.logger.info("browser download %s", "restarted" if restart else "resumed")
+        self._start_worker(download_id, row["url"], folder, row["name"], row["name"], headers, record, resume)
+        return {**self._downloads_response(record), "ok": True}
+
     async def remove_browser_download(self, download_id: str = ""):
         record = self.browser_store.downloads_path()
-        self.browser_store.remove_download(record, download_id)
+        wanted = str(download_id or "")
+        with _active_lock:
+            busy = wanted in _active_downloads or wanted in _removing
+            if not busy:
+                _removing.add(wanted)
+        if busy:
+            return {**self._downloads_response(record), "ok": False, "error": "gone"}
+        try:
+            row = self._download_row(record, wanted)
+            if row is not None and row["state"] != "downloading" and row["part"] is not None:
+                outcome = await asyncio.to_thread(_delete_part, self.user_home, row)
+                if outcome in ("unavailable", "failed"):
+                    return {**self._downloads_response(record), "ok": False, "error": outcome}
+            self.browser_store.remove_download(record, wanted)
+        finally:
+            with _active_lock:
+                _removing.discard(wanted)
         return self._downloads_response(record)
 
     async def delete_browser_download_file(self, download_id: str = ""):
@@ -792,20 +1249,68 @@ class BrowserMixin(PluginContext):
         return response
 
     def _sweep_interrupted_downloads(self, record: Optional[Path] = None) -> None:
+        path = record or self.browser_store.downloads_path()
         try:
-            stale = self.browser_store.settle_interrupted(record or self.browser_store.downloads_path(), _RUN_ID)
+            stale = self.browser_store.settle_interrupted(path, _RUN_ID)
         except Exception as exc:
             decky.logger.warning("browser download: interrupted sweep failed (%s)", type(exc).__name__)
             return
         if not stale:
             return
         decky.logger.info("browser download: %d left unfinished by an earlier run", len(stale))
-        home = self.user_home
-        threading.Thread(
-            target=lambda: [_remove_stale_part(home, row) for row in stale],
-            name="browser-download-sweep",
-            daemon=True,
-        ).start()
+        threading.Thread(target=self._check_stale_parts, args=(path, stale), name="browser-download-sweep", daemon=True).start()
+
+    def _check_stale_parts(self, record: Path, rows: list) -> None:
+        for row in rows:
+            if row["part"] is None:
+                continue
+            found, st = _find_part(self.user_home, row)
+            if found == "match" and not row["url"]:
+                _delete_part(self.user_home, row)
+                self._record_download(record, row["id"], part=None, partCheck=None)
+            elif found == "match":
+                self._record_download(
+                    record, row["id"], received=st.st_size, part=[st.st_dev, st.st_ino], partCheck=[st.st_size, st.st_mtime_ns]
+                )
+            elif found in ("gone", "changed"):
+                self._record_download(record, row["id"], part=None, partCheck=None)
+
+    def _stop_downloads(self, wait: float, under: Optional[Path] = None) -> None:
+        def chosen(entry):
+            record = entry.get("record")
+            return under is None or (record is not None and Path(record).is_relative_to(under))
+
+        with _active_lock:
+            for entry in _active_downloads.values():
+                if chosen(entry):
+                    entry["canceled"] = True
+                    if entry.get("fd") is not None:
+                        _shut(entry["fd"])
+        deadline = time.monotonic() + wait
+        while time.monotonic() < deadline:
+            with _active_lock:
+                if not any(chosen(entry) for entry in _active_downloads.values()):
+                    return
+            time.sleep(0.05)
+        decky.logger.warning("browser download: still stopping after %.0fs", wait)
+
+    def _drop_download_parts(self, record: Path) -> None:
+        self._stop_downloads(BROWSER_DOWNLOAD_RESET_WAIT_SECONDS, under=record.parent)
+        try:
+            rows = self.browser_store.list_downloads(record)["downloads"]
+        except Exception as exc:
+            decky.logger.warning("browser download: couldn't read a download list (%s)", type(exc).__name__)
+            return
+        _delete_parts(self.user_home, rows)
+
+    def _clear_downloads_for_reset(self) -> None:
+        self._stop_downloads(BROWSER_DOWNLOAD_RESET_WAIT_SECONDS)
+        try:
+            records = sorted(self.runtime_dir.glob(f"*/browser/{DOWNLOADS_FILENAME}"))
+        except OSError:
+            records = []
+        for record in records:
+            self._drop_download_parts(record)
 
     async def get_browser_tabs(self):
         return _tabs_response(self.browser_store.list_tabs())

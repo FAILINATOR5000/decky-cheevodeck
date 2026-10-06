@@ -9,8 +9,11 @@ import {
     FaFolder,
     FaFolderPlus,
     FaMinus,
+    FaPause,
     FaPen,
+    FaPlay,
     FaPlus,
+    FaRedo,
     FaRegCircle,
     FaTimes,
     FaTrash
@@ -210,21 +213,39 @@ function sizeLabel(bytes: number): string {
     return `${Math.max(0, bytes)} B`;
 }
 
+function progressLabel(row: BrowserDownload, percent: boolean): string {
+    if (row.total <= 0) {
+        return sizeLabel(row.received);
+    }
+    const sizes = `${sizeLabel(row.received)} / ${sizeLabel(row.total)}`;
+    return percent ? `${sizes} · ${Math.min(100, Math.floor((row.received / row.total) * 100))}%` : sizes;
+}
+
 function downloadStatus(row: BrowserDownload, language: LanguageCode): string {
+    const kept = row.action === "continue" && row.canResume;
     switch (row.state) {
         case "downloading":
-            return row.total > 0
-                ? `${t(language, "Downloading")} · ${sizeLabel(row.received)} / ${sizeLabel(row.total)} · ${Math.min(100, Math.floor((row.received / row.total) * 100))}%`
-                : `${t(language, "Downloading")} · ${sizeLabel(row.received)}`;
+            return `${t(language, "Downloading")} · ${progressLabel(row, true)}`;
+        case "paused":
+            return row.canResume ? `${t(language, "Paused")} · ${progressLabel(row, true)}` : t(language, "Paused");
         case "done":
             return row.fileGone ? t(language, "File deleted") : `${t(language, "Done")} · ${sizeLabel(row.received)}`;
         case "failed":
-            return `${t(language, "Failed")} · ${downloadFailure(row.error) || row.error}`;
+            return kept
+                ? `${t(language, "Failed")} · ${downloadFailure(row.error) || row.error} · ${progressLabel(row, false)}`
+                : `${t(language, "Failed")} · ${downloadFailure(row.error) || row.error}`;
         case "canceled":
             return t(language, "Canceled");
         default:
-            return t(language, "Interrupted");
+            return kept ? `${t(language, "Interrupted")} · ${progressLabel(row, false)}` : t(language, "Interrupted");
     }
+}
+
+function endedAt(row: BrowserDownload, language: LanguageCode): string {
+    if (row.state === "downloading" || row.state === "paused") {
+        return "";
+    }
+    return ` · ${formatDateTime(row.finishedAt || row.startedAt, language)}`;
 }
 
 type BrowserPanelProps = {
@@ -610,6 +631,41 @@ export function BrowserPanel(props: BrowserPanelProps) {
                         </span>
                     </DialogButton>
                 </div>
+            </div>
+        );
+    };
+
+    const downloadButton = (row: BrowserDownload) => {
+        let press: ReturnType<typeof act> | null = null;
+        let icon = null;
+        if (row.canDelete) {
+            press = act("download:delete", () => openEditor("deletefile", row.id, ""));
+            icon = <FaTrash size={modalSize(12)} />;
+        }
+        else if (row.action === "pause") {
+            press = act("download:pause", () => downloads.pause(row.id));
+            icon = <FaPause size={modalSize(12)} />;
+        }
+        else if (row.action === "pausing") {
+            press = act("download:pause", () => undefined);
+            icon = <FaPause size={modalSize(12)} />;
+        }
+        else if (row.action === "resume" || row.action === "continue") {
+            press = act("download:resume", () => downloads.resume(row.id));
+            icon = <FaPlay size={modalSize(12)} />;
+        }
+        else if (row.action === "restart") {
+            press = act("download:restart", () => downloads.restart(row.id));
+            icon = <FaRedo size={modalSize(12)} />;
+        }
+        if (!press) {
+            return ghostSlot("trash");
+        }
+        return (
+            <div style={cellStyle}>
+                <DialogButton {...press} style={{ ...squareStyle(ACTION_PX), height: "100%" }}>
+                    {icon}
+                </DialogButton>
             </div>
         );
     };
@@ -1385,7 +1441,11 @@ export function BrowserPanel(props: BrowserPanelProps) {
                             </div>
                         );
                     }
-                    const notice = downloads.notice?.id === row.id ? downloads.notice.text : "";
+                    const running = row.state === "downloading" || row.action === "pausing";
+                    const startsOver = !row.canResume && (row.action === "resume" || row.action === "continue");
+                    const notice = downloads.notice?.id === row.id
+                        ? downloads.notice.text
+                        : startsOver ? "This download can't resume. Press Play to start it over." : "";
                     return (
                         <div key={row.id} style={actionRowStyle(ROW_HEIGHT_PX, notice !== "")}>
                             <div
@@ -1404,7 +1464,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                                     {row.name}
                                 </div>
                                 <div style={{ fontSize: `${modalSize(11)}px`, opacity: 0.6, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                    {`${downloadStatus(row, language)} · ${formatDateTime(row.startedAt, language)}`}
+                                    {`${downloadStatus(row, language)}${endedAt(row, language)}`}
                                 </div>
                                 {notice && (
                                     <div style={{ fontSize: `${modalSize(11)}px`, padding: `${modalSize(2)}px 0 ${modalSize(4)}px`, overflowWrap: "anywhere" }}>
@@ -1412,20 +1472,11 @@ export function BrowserPanel(props: BrowserPanelProps) {
                                     </div>
                                 )}
                             </div>
-                            {row.canDelete ? (
-                                <div style={cellStyle}>
-                                    <DialogButton
-                                        {...act("download:delete", () => openEditor("deletefile", row.id, ""))}
-                                        style={{ ...squareStyle(ACTION_PX), height: "100%" }}
-                                    >
-                                        <FaTrash size={modalSize(12)} />
-                                    </DialogButton>
-                                </div>
-                            ) : ghostSlot("trash")}
+                            {downloadButton(row)}
                             <div style={cellStyle}>
                                 <DialogButton
-                                    {...act(row.state === "downloading" ? "download:cancel" : "download:remove", () => (
-                                        row.state === "downloading" ? downloads.cancel(row.id) : downloads.remove(row.id)
+                                    {...act(running ? "download:cancel" : "download:remove", () => (
+                                        running ? downloads.cancel(row.id) : downloads.remove(row.id)
                                     ))}
                                     style={{ ...squareStyle(ACTION_PX), height: "100%" }}
                                 >

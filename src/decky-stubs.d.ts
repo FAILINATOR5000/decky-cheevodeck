@@ -203,4 +203,7 @@ declare module "react-icons/fa" {
     export const FaRegCircle: any;
     export const FaFolderPlus: any;
     export const FaPen: any;
+    export const FaPause: any;
+    export const FaPlay: any;
+    export const FaRedo: any;
 }

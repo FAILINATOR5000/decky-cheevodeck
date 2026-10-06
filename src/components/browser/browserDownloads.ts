@@ -16,7 +16,7 @@ const FAILURES: Record<string, string> = {
     bad_link: "This link can't be downloaded.",
     bad_folder: "Downloads can't go there.",
     too_big: "The file is too large.",
-    no_space: "Not enough free space.",
+    no_space: "Disk is full.",
     write_failed: "The file couldn't be saved.",
     web_page: "Got a web page, not the file.",
     stalled: "The download stalled.",
@@ -34,7 +34,7 @@ export function toastDownload(title: DownloadToast, name: string, code = ""): vo
 }
 
 const onDownloadFinished = (payload: DownloadFinished) => {
-    if (payload?.error === "canceled") {
+    if (payload?.error === "canceled" || payload?.error === "paused") {
         return;
     }
     toastDownload(payload?.ok ? "Download Complete" : "Download Failed", String(payload?.name ?? ""), payload?.ok ? "" : String(payload?.error ?? ""));

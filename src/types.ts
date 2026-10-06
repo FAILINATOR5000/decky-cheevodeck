@@ -1960,7 +1960,9 @@ export type BrowserTab = {
 
 export type BrowserPanelTab = "bookmarks" | "history" | "options" | "adblock" | "downloads";
 
-type BrowserDownloadState = "downloading" | "done" | "failed" | "canceled" | "interrupted";
+type BrowserDownloadState = "downloading" | "done" | "failed" | "canceled" | "interrupted" | "paused";
+
+type BrowserDownloadAction = "pause" | "pausing" | "resume" | "continue" | "restart" | "";
 
 export type BrowserDownload = {
     id: string;
@@ -1970,8 +1972,13 @@ export type BrowserDownload = {
     received: number;
     total: number;
     startedAt: number;
+    finishedAt: number;
     canDelete: boolean;
     fileGone: boolean;
+    url: string;
+    note: string;
+    canResume: boolean;
+    action: BrowserDownloadAction;
 };
 
 export type BrowserDownloadsResponse = {
