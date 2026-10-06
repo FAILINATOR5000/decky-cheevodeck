@@ -1979,6 +1979,7 @@ export type BrowserDownload = {
     note: string;
     canResume: boolean;
     action: BrowserDownloadAction;
+    location: string;
 };
 
 export type BrowserDownloadsResponse = {

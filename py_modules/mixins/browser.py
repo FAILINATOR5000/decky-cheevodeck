@@ -327,7 +327,19 @@ def _download_action(row: dict) -> str:
     return ""
 
 
-def _public_download(row: dict) -> dict:
+def _display_location(row: dict, home_real: str) -> str:
+    folder = row["folder"]
+    if not folder:
+        return ""
+    home = home_real.rstrip("/")
+    if folder == home:
+        folder = "~"
+    elif folder.startswith(home + "/"):
+        folder = "~" + folder[len(home):]
+    return folder.rstrip("/") + "/" + row["name"]
+
+
+def _public_download(row: dict, home_real: str) -> dict:
     return {
         "id": row["id"],
         "name": row["name"],
@@ -343,6 +355,7 @@ def _public_download(row: dict) -> dict:
         "note": row["note"],
         "canResume": row["canResume"],
         "action": _download_action(row),
+        "location": _display_location(row, home_real),
     }
 
 
@@ -1108,7 +1121,8 @@ class BrowserMixin(PluginContext):
             if entry is not None and row["state"] == "downloading":
                 row["received"] = entry.get("received", row["received"])
                 row["total"] = entry.get("total", row["total"])
-        return {"ok": True, "downloads": [_public_download(row) for row in rows]}
+        home_real = os.path.realpath(self.user_home)
+        return {"ok": True, "downloads": [_public_download(row, home_real) for row in rows]}
 
     async def get_browser_downloads(self):
         record = self.browser_store.downloads_path()

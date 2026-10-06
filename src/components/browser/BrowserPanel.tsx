@@ -43,6 +43,8 @@ import type {
 
 const ROW_HEIGHT_PX = 44;
 
+const DOWNLOAD_ROW_HEIGHT_PX = 60;
+
 const INITIAL_ROWS = 20;
 
 const ROW_STEP = 20;
@@ -246,6 +248,20 @@ function endedAt(row: BrowserDownload, language: LanguageCode): string {
         return "";
     }
     return ` · ${formatDateTime(row.finishedAt || row.startedAt, language)}`;
+}
+
+function locationLine(location: string) {
+    if (!location) {
+        return null;
+    }
+    const cut = location.lastIndexOf("/") + 1;
+    const nowrap: Record<string, string> = { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
+    return (
+        <div style={{ display: "flex", minWidth: "0", fontSize: `${modalSize(11)}px`, opacity: 0.6 }}>
+            <span style={{ ...nowrap, minWidth: "0", flexShrink: "1" }}>{location.slice(0, cut)}</span>
+            <span style={{ ...nowrap, flexShrink: "0", maxWidth: "70%" }}>{location.slice(cut)}</span>
+        </div>
+    );
 }
 
 type BrowserPanelProps = {
@@ -480,7 +496,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
     });
 
     const mountedCount = window_.mountedItems.length;
-    const unmountedPx = (rows.length - mountedCount) * modalSize(ROW_HEIGHT_PX + 3);
+    const rowHeight = tab === "downloads" ? DOWNLOAD_ROW_HEIGHT_PX : ROW_HEIGHT_PX;
+    const unmountedPx = (rows.length - mountedCount) * modalSize(rowHeight + 3);
 
     let flatStart = 0;
     const categorySlices = grouped.map((group) => {
@@ -1408,7 +1425,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                 {downloads.downloads.slice(0, mountedCount).map((row) => {
                     if (editing?.kind === "deletefile" && editing.id === row.id) {
                         return (
-                            <div key={row.id} style={actionRowStyle(ROW_HEIGHT_PX, true)}>
+                            <div key={row.id} style={actionRowStyle(DOWNLOAD_ROW_HEIGHT_PX, true)}>
                                 <div
                                     style={{
                                         flex: "1 1 auto",
@@ -1422,7 +1439,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                                 >
                                     {t(language, "Delete {{name}}?", { name: row.name })}
                                 </div>
-                                <div style={cellStyle}>
+                                <div style={{ ...cellStyle, alignSelf: "center" }}>
                                     <DialogButton
                                         {...act("download:confirm", () => {
                                             closeEditor();
@@ -1433,7 +1450,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                                         {t(language, "Delete")}
                                     </DialogButton>
                                 </div>
-                                <div style={cellStyle}>
+                                <div style={{ ...cellStyle, alignSelf: "center" }}>
                                     <DialogButton {...act("download:keep", closeEditor)} style={wideActionStyle}>
                                         {t(language, "Cancel")}
                                     </DialogButton>
@@ -1447,7 +1464,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                         ? downloads.notice.text
                         : startsOver ? "This download can't resume. Press Play to start it over." : "";
                     return (
-                        <div key={row.id} style={actionRowStyle(ROW_HEIGHT_PX, notice !== "")}>
+                        <div key={row.id} style={actionRowStyle(DOWNLOAD_ROW_HEIGHT_PX, notice !== "")}>
                             <div
                                 style={{
                                     flex: "1 1 auto",
@@ -1463,6 +1480,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                                 <div style={{ fontSize: `${modalSize(13)}px`, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                                     {row.name}
                                 </div>
+                                {locationLine(row.location)}
                                 <div style={{ fontSize: `${modalSize(11)}px`, opacity: 0.6, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                                     {`${downloadStatus(row, language)}${endedAt(row, language)}`}
                                 </div>
