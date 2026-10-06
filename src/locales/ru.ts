@@ -2302,7 +2302,7 @@ const RU: LocaleTable = {
     "The browser can't save this.": "Браузер не может это сохранить.",
     "File name": "Имя файла",
     "Download Folder": "Папка загрузок",
-    "help_browser_download_folder": "Где открывается просмотр папок, когда страница начинает загрузку. Куда сохранить каждый файл, по-прежнему выбираете вы.",
+    "help_browser_download_folder": "Место по умолчанию для загружаемых файлов.",
     "Remember Last Folder": "Запоминать последнюю папку",
     "help_browser_remember_download_folder": "Открывает просмотр папок в папке, куда была сохранена последняя загрузка, а не в папке загрузок.",
     "Max Simultaneous Downloads": "Макс. одновременных загрузок",

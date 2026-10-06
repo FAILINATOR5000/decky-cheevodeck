@@ -2337,7 +2337,7 @@ const PL: LocaleTable = {
     "The browser can't save this.": "Przeglądarka tego nie zapisze.",
     "File name": "Nazwa pliku",
     "Download Folder": "Folder pobierania",
-    "help_browser_download_folder": "Gdzie otwiera się widok folderów, gdy strona zaczyna pobieranie. Miejsce zapisu każdego pliku nadal wybierasz sam.",
+    "help_browser_download_folder": "Domyślne miejsce pobierania plików.",
     "Remember Last Folder": "Zapamiętaj ostatni folder",
     "help_browser_remember_download_folder": "Otwiera widok folderów w folderze, do którego zapisano ostatnie pobieranie, zamiast w folderze pobierania.",
     "Max Simultaneous Downloads": "Maks. jednoczesnych pobierań",

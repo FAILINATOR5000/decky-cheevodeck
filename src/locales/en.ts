@@ -2226,7 +2226,7 @@ export const EN: LocaleTable = {
     "The browser can't save this.": "The browser can't save this.",
     "File name": "File name",
     "Download Folder": "Download Folder",
-    "help_browser_download_folder": "Where the folder view opens when a page starts a download. You still choose where each file is saved.",
+    "help_browser_download_folder": "The default location for your file downloads.",
     "Remember Last Folder": "Remember Last Folder",
     "help_browser_remember_download_folder": "Opens the folder view in the folder the last download was saved to, instead of the Download Folder.",
     "Max Simultaneous Downloads": "Max Simultaneous Downloads",

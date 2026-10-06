@@ -2232,7 +2232,7 @@ const PT: LocaleTable = {
     "The browser can't save this.": "O navegador não pode salvar.",
     "File name": "Nome do arquivo",
     "Download Folder": "Pasta de downloads",
-    "help_browser_download_folder": "Onde a visualização de pastas abre quando uma página inicia um download. Você continua escolhendo onde cada arquivo é salvo.",
+    "help_browser_download_folder": "O local padrão dos seus downloads.",
     "Remember Last Folder": "Lembrar a última pasta",
     "help_browser_remember_download_folder": "Abre a visualização de pastas na pasta onde o último download foi salvo, em vez da pasta de downloads.",
     "Max Simultaneous Downloads": "Máx. de downloads simultâneos",

@@ -2232,7 +2232,7 @@ const DE: LocaleTable = {
     "The browser can't save this.": "Der Browser kann das nicht.",
     "File name": "Dateiname",
     "Download Folder": "Download-Ordner",
-    "help_browser_download_folder": "Wo die Ordneransicht öffnet, wenn eine Seite einen Download startet. Wohin jede Datei gespeichert wird, wählst du weiterhin selbst.",
+    "help_browser_download_folder": "Der Standardort für deine Downloads.",
     "Remember Last Folder": "Letzten Ordner merken",
     "help_browser_remember_download_folder": "Öffnet die Ordneransicht in dem Ordner, in den der letzte Download gespeichert wurde, statt im Download-Ordner.",
     "Max Simultaneous Downloads": "Max. gleichzeitige Downloads",

@@ -2243,7 +2243,7 @@ const ES: LocaleTable = {
     "The browser can't save this.": "El navegador no puede.",
     "File name": "Nombre del archivo",
     "Download Folder": "Carpeta de descargas",
-    "help_browser_download_folder": "Dónde se abre la vista de carpetas cuando una página inicia una descarga. Sigues eligiendo dónde se guarda cada archivo.",
+    "help_browser_download_folder": "La ubicación predeterminada de tus descargas.",
     "Remember Last Folder": "Recordar la última carpeta",
     "help_browser_remember_download_folder": "Abre la vista de carpetas en la carpeta donde se guardó la última descarga, en lugar de la carpeta de descargas.",
     "Max Simultaneous Downloads": "Máx. descargas simultáneas",

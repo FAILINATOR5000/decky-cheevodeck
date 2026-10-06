@@ -2166,7 +2166,7 @@ const JA: LocaleTable = {
     "The browser can't save this.": "このブラウザでは保存できません。",
     "File name": "ファイル名",
     "Download Folder": "ダウンロードフォルダー",
-    "help_browser_download_folder": "ページがダウンロードを始めたときに、フォルダー表示が開く場所です。各ファイルの保存先はこれまでどおり自分で選びます。",
+    "help_browser_download_folder": "ファイルのダウンロード先の既定の場所です。",
     "Remember Last Folder": "最後のフォルダーを記憶",
     "help_browser_remember_download_folder": "ダウンロードフォルダーの代わりに、最後のダウンロードを保存したフォルダーでフォルダー表示を開きます。",
     "Max Simultaneous Downloads": "同時ダウンロード数の上限",
