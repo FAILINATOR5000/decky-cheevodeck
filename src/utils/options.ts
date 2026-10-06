@@ -758,6 +758,16 @@ export function nextBrowserActiveTabs(current: number): number {
     return BROWSER_ACTIVE_TABS_OPTIONS[(currentIndex + 1) % BROWSER_ACTIVE_TABS_OPTIONS.length];
 }
 
+const BROWSER_MAX_DOWNLOADS_OPTIONS = [4, 8, 12, 16, 20, 24, 30] as const;
+
+export const DEFAULT_BROWSER_MAX_DOWNLOADS = 16;
+
+export function nextBrowserMaxDownloads(current: number): number {
+    const currentIndex = BROWSER_MAX_DOWNLOADS_OPTIONS.indexOf(current as any);
+
+    return BROWSER_MAX_DOWNLOADS_OPTIONS[(currentIndex + 1) % BROWSER_MAX_DOWNLOADS_OPTIONS.length];
+}
+
 const BROWSER_SEARCH_ENGINE_OPTIONS = ["google", "brave", "duckduckgo", "youtube", "retroachievements", "custom"] as const;
 
 export function nextBrowserSearchEngine(current: BrowserSearchEngine): BrowserSearchEngine {
@@ -788,7 +798,8 @@ export function browserOptionLabels(language: LanguageCode = DEFAULT_LANGUAGE): 
         ...BROWSER_SEARCH_ENGINE_OPTIONS.map((value) => browserSiteLabel(value, language)),
         ...BROWSER_NEW_TAB_PAGE_OPTIONS.map((value) => browserSiteLabel(value, language)),
         ...BROWSER_HISTORY_RETENTION_OPTIONS.map((value) => browserHistoryRetentionLabel(value, language)),
-        ...BROWSER_ACTIVE_TABS_OPTIONS.map((value) => String(value))
+        ...BROWSER_ACTIVE_TABS_OPTIONS.map((value) => String(value)),
+        ...BROWSER_MAX_DOWNLOADS_OPTIONS.map((value) => String(value))
     ];
     return [...new Set(labels)];
 }

@@ -27,7 +27,6 @@ BROWSER_DOWNLOAD_EVENT = "cheevodeck_browser_download"
 BROWSER_DOWNLOAD_PROGRESS_EVENT = "cheevodeck_browser_download_progress"
 
 BROWSER_DOWNLOAD_MAX_BYTES = 4 * 1024 * 1024 * 1024
-BROWSER_DOWNLOAD_MAX_ACTIVE = 2
 BROWSER_DOWNLOAD_TIMEOUT_SECONDS = 30
 
 BROWSER_DOWNLOAD_READ = 64 * 1024
@@ -420,6 +419,7 @@ def _settings_response(home: Path, state: dict) -> dict:
         "fastForwardYouTubeAds": state["fastForwardYouTubeAds"],
         "activeTabs": state["activeTabs"],
         "pauseMediaOnTabSwitch": state["pauseMediaOnTabSwitch"],
+        "maxDownloads": state["maxDownloads"],
         "downloadFolder": str(_default_download_folder(home, state["downloadFolder"])),
         "rememberDownloadFolder": state["rememberDownloadFolder"],
         "expanded": state["expanded"],
@@ -466,6 +466,9 @@ class BrowserMixin(PluginContext):
 
     async def save_browser_active_tabs(self, value: int = 3):
         return _settings_response(self.user_home, self.browser_store.set_active_tabs(value))
+
+    async def save_browser_max_downloads(self, value: int = 16):
+        return _settings_response(self.user_home, self.browser_store.set_max_downloads(value))
 
     async def save_browser_pause_media_on_tab_switch(self, value: bool = False):
         return _settings_response(self.user_home, self.browser_store.set_pause_media_on_tab_switch(value))
@@ -516,9 +519,10 @@ class BrowserMixin(PluginContext):
         if destination is None:
             return {"ok": False, "error": "bad_folder"}
 
+        limit = self.browser_store.list_settings()["maxDownloads"]
         download_id = uuid.uuid4().hex
         with _active_lock:
-            if len(_active_downloads) >= BROWSER_DOWNLOAD_MAX_ACTIVE:
+            if len(_active_downloads) >= limit:
                 decky.logger.warning("browser download refused, %d already running", len(_active_downloads))
                 return {"ok": False, "error": "busy"}
             _active_downloads[download_id] = {"path": None, "canceled": False, "received": 0, "total": -1}

@@ -61,6 +61,7 @@ import {
     saveBrowserRememberDownloadFolder,
     saveBrowserFastForwardYouTubeAds,
     saveBrowserActiveTabs,
+    saveBrowserMaxDownloads,
     saveBrowserPauseMediaOnTabSwitch,
     saveBrowserOpenLinksInNewTab,
     saveBrowserPageZoom,
@@ -70,7 +71,16 @@ import {
 import { requestHeadersFor, setAdBlock, setAdExemptions, setFastForward, setZoomPercent, type DownloadRequest } from "../components/browser/browserSession";
 import { exemptEntryFor, siteOf } from "../components/browser/adExemptions";
 import { downloadFailure, toastDownload } from "../components/browser/browserDownloads";
-import { defaultBrowserPageZoom, nextBrowserActiveTabs, nextBrowserHistoryRetention, nextBrowserNewTabPage, nextBrowserSearchEngine, stepBrowserPageZoom } from "../utils/options";
+import {
+    DEFAULT_BROWSER_MAX_DOWNLOADS,
+    defaultBrowserPageZoom,
+    nextBrowserActiveTabs,
+    nextBrowserHistoryRetention,
+    nextBrowserMaxDownloads,
+    nextBrowserNewTabPage,
+    nextBrowserSearchEngine,
+    stepBrowserPageZoom
+} from "../utils/options";
 import { logError } from "../utils/errors";
 import type {
     BrowserAdExemptionsResponse,
@@ -274,6 +284,8 @@ export type BrowserController = {
     cycleActiveTabs: () => void;
     pauseMediaOnTabSwitch: boolean;
     togglePauseMediaOnTabSwitch: () => void;
+    maxDownloads: number;
+    cycleMaxDownloads: () => void;
     downloadFolder: string;
     setDownloadFolder: (path: string) => void;
     rememberDownloadFolder: boolean;
@@ -320,6 +332,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
     const [adExemptionsFull, setAdExemptionsFull] = useState(false);
     const [activeTabs, setActiveTabs] = useState(DEFAULT_ACTIVE_TABS);
     const [pauseMediaOnTabSwitch, setPauseMediaOnTabSwitch] = useState(false);
+    const [maxDownloads, setMaxDownloads] = useState(DEFAULT_BROWSER_MAX_DOWNLOADS);
     const [pendingDownload, setPendingDownload] = useState<PendingDownload | null>(null);
     const [downloadFolder, setDownloadFolderState] = useState("");
     const [rememberDownloadFolder, setRememberDownloadFolder] = useState(false);
@@ -500,6 +513,9 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         queueTabAction("trimViews", () => trimViewsRef.current());
         pauseOnSwitchRef.current = saved.pauseMediaOnTabSwitch === true;
         setPauseMediaOnTabSwitch(saved.pauseMediaOnTabSwitch === true);
+        const downloadsLive = typeof saved.maxDownloads === "number" ? saved.maxDownloads : DEFAULT_BROWSER_MAX_DOWNLOADS;
+        maxDownloadsRef.current = downloadsLive;
+        setMaxDownloads(downloadsLive);
     }, [queueTabAction]);
 
     const saveSetting = useCallback((label: string, save: () => Promise<BrowserSettingsResponse>) => {
@@ -584,6 +600,15 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         queueTabAction("trimViews", () => trimViewsRef.current());
         saveSetting("cycleActiveTabs", () => saveBrowserActiveTabs(nextValue));
     }, [queueTabAction, saveSetting]);
+
+    const maxDownloadsRef = useRef(DEFAULT_BROWSER_MAX_DOWNLOADS);
+
+    const cycleMaxDownloads = useCallback(() => {
+        const nextValue = nextBrowserMaxDownloads(maxDownloadsRef.current);
+        maxDownloadsRef.current = nextValue;
+        setMaxDownloads(nextValue);
+        saveSetting("cycleMaxDownloads", () => saveBrowserMaxDownloads(nextValue));
+    }, [saveSetting]);
 
     const togglePauseMediaOnTabSwitch = useCallback(() => {
         const nextValue = !pauseOnSwitchRef.current;
@@ -1687,6 +1712,8 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         cycleActiveTabs,
         pauseMediaOnTabSwitch,
         togglePauseMediaOnTabSwitch,
+        maxDownloads,
+        cycleMaxDownloads,
         downloadFolder,
         setDownloadFolder,
         rememberDownloadFolder,

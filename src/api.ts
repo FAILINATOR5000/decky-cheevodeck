@@ -2848,6 +2848,9 @@ export const saveBrowserActiveTabs = callable<[number], BrowserSettingsResponse>
 export const saveBrowserPauseMediaOnTabSwitch = callable<[boolean], BrowserSettingsResponse>(
     "save_browser_pause_media_on_tab_switch"
 );
+export const saveBrowserMaxDownloads = callable<[number], BrowserSettingsResponse>(
+    "save_browser_max_downloads"
+);
 export const saveBrowserDownloadFolder = callable<[string], BrowserSettingsResponse>(
     "save_browser_download_folder"
 );

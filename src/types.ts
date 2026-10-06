@@ -2002,6 +2002,7 @@ export type BrowserSettingsResponse = {
     fastForwardYouTubeAds: boolean;
     activeTabs: number;
     pauseMediaOnTabSwitch: boolean;
+    maxDownloads: number;
     downloadFolder: string;
     rememberDownloadFolder: boolean;
     expanded: boolean;

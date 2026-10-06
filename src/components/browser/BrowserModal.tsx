@@ -712,6 +712,8 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
                                 onCycleActiveTabs={browser.cycleActiveTabs}
                                 pauseMediaOnTabSwitch={browser.pauseMediaOnTabSwitch}
                                 onTogglePauseMediaOnTabSwitch={browser.togglePauseMediaOnTabSwitch}
+                                maxDownloads={browser.maxDownloads}
+                                onCycleMaxDownloads={browser.cycleMaxDownloads}
                                 downloadFolder={browser.downloadFolder}
                                 onSetDownloadFolder={browser.setDownloadFolder}
                                 rememberDownloadFolder={browser.rememberDownloadFolder}

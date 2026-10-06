@@ -280,6 +280,8 @@ type BrowserPanelProps = {
     onCycleActiveTabs: () => void;
     pauseMediaOnTabSwitch: boolean;
     onTogglePauseMediaOnTabSwitch: () => void;
+    maxDownloads: number;
+    onCycleMaxDownloads: () => void;
     downloadFolder: string;
     onSetDownloadFolder: (path: string) => void;
     rememberDownloadFolder: boolean;
@@ -299,6 +301,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
         blockAds, onToggleBlockAds, fastForwardYouTubeAds, onToggleFastForwardYouTubeAds,
         adExemptions, maxAdExemptions, adExemptionsFull, currentSite, currentExemption, onToggleCurrentExemption, onRemoveExemption,
         activeTabs, onCycleActiveTabs, pauseMediaOnTabSwitch, onTogglePauseMediaOnTabSwitch,
+        maxDownloads, onCycleMaxDownloads,
         downloadFolder, onSetDownloadFolder, rememberDownloadFolder, onToggleRememberDownloadFolder
     } = props;
 
@@ -936,6 +939,19 @@ export function BrowserPanel(props: BrowserPanelProps) {
                             </div>
                         </div>
                         <div style={noteStyle}>{t(language, "help_browser_remember_download_folder")}</div>
+                    </div>
+
+                    <div style={settingCardStyle}>
+                        <div style={settingRowStyle}>
+                            <span style={{ opacity: 0.8, minWidth: "0" }}>{t(language, "Max Simultaneous Downloads")}</span>
+                            <div style={{ flex: "1 1 auto" }} />
+                            <div style={cellStyle}>
+                                <DialogButton {...act("maxdownloads:cycle", onCycleMaxDownloads)} style={optionStyle}>
+                                    {sizedLabel(String(maxDownloads))}
+                                </DialogButton>
+                            </div>
+                        </div>
+                        <div style={noteStyle}>{t(language, "help_browser_max_downloads")}</div>
                     </div>
 
                     {canWipe && (

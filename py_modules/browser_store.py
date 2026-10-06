@@ -87,6 +87,10 @@ ALLOWED_ACTIVE_TABS = (1, 2, 3, 4, 5, 6, 7)
 
 DEFAULT_ACTIVE_TABS = 3
 
+ALLOWED_MAX_DOWNLOADS = (4, 8, 12, 16, 20, 24, 30)
+
+DEFAULT_MAX_DOWNLOADS = 16
+
 DEFAULT_PANEL_TAB = "bookmarks"
 
 ALLOWED_SEARCH_ENGINES = ("google", "brave", "duckduckgo", "youtube", "retroachievements", "custom")
@@ -940,6 +944,7 @@ class BrowserStore:
             "fastForwardYouTubeAds": True,
             "activeTabs": DEFAULT_ACTIVE_TABS,
             "pauseMediaOnTabSwitch": False,
+            "maxDownloads": DEFAULT_MAX_DOWNLOADS,
             "downloadFolder": "",
             "rememberDownloadFolder": False,
             "lastDownloadFolder": "",
@@ -960,6 +965,7 @@ class BrowserStore:
         fast_forward = raw.get("fastForwardYouTubeAds", True)
         active_tabs = to_int(raw.get("activeTabs", DEFAULT_ACTIVE_TABS), DEFAULT_ACTIVE_TABS)
         pause_media = raw.get("pauseMediaOnTabSwitch", False)
+        max_downloads = to_int(raw.get("maxDownloads", DEFAULT_MAX_DOWNLOADS), DEFAULT_MAX_DOWNLOADS)
         remember_folder = raw.get("rememberDownloadFolder", False)
         expanded = raw.get("expanded", True)
 
@@ -976,6 +982,7 @@ class BrowserStore:
             "fastForwardYouTubeAds": fast_forward if isinstance(fast_forward, bool) else True,
             "activeTabs": active_tabs if active_tabs in ALLOWED_ACTIVE_TABS else DEFAULT_ACTIVE_TABS,
             "pauseMediaOnTabSwitch": pause_media if isinstance(pause_media, bool) else False,
+            "maxDownloads": max_downloads if max_downloads in ALLOWED_MAX_DOWNLOADS else DEFAULT_MAX_DOWNLOADS,
             "downloadFolder": _clean_folder(raw.get("downloadFolder")),
             "rememberDownloadFolder": remember_folder if isinstance(remember_folder, bool) else False,
             "lastDownloadFolder": _clean_folder(raw.get("lastDownloadFolder")),
@@ -1067,6 +1074,15 @@ class BrowserStore:
             if wanted not in ALLOWED_ACTIVE_TABS:
                 return data
             data["activeTabs"] = wanted
+            return self._save_settings(data)
+
+    def set_max_downloads(self, value: Any) -> dict:
+        wanted = to_int(value, DEFAULT_MAX_DOWNLOADS)
+        with self._lock:
+            data = self._load_settings()
+            if wanted not in ALLOWED_MAX_DOWNLOADS:
+                return data
+            data["maxDownloads"] = wanted
             return self._save_settings(data)
 
     def set_pause_media_on_tab_switch(self, value: Any) -> dict:

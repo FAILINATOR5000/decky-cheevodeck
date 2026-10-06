@@ -20,7 +20,7 @@ const FAILURES: Record<string, string> = {
     write_failed: "The file couldn't be saved.",
     web_page: "Got a web page, not the file.",
     stalled: "The download stalled.",
-    busy: "Two downloads already running.",
+    busy: "Too many downloads.",
     unsupported: "The browser can't save this."
 };
 
