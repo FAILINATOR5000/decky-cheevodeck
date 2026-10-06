@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { DialogButton, Focusable, TextField } from "@decky/ui";
 // Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
-import { FaArrowUp, FaCheck, FaFolder, FaPen, FaTimes } from "react-icons/fa";
+import { FaArrowUp, FaCheck, FaEye, FaEyeSlash, FaFolder, FaPen, FaTimes } from "react-icons/fa";
 import { t, type LanguageCode } from "../../locales";
 import { modalSize } from "../../utils/scale";
 import { getBrowserDownloadFolder, listDirectory } from "../../api";
@@ -56,6 +56,10 @@ export function BrowserDownloadFolder(props: BrowserDownloadFolderProps) {
     const loadingRef = useRef(false);
     const pathRef = useRef("");
     pathRef.current = path;
+
+    const [showHidden, setShowHidden] = useState(false);
+    const showHiddenRef = useRef(false);
+    showHiddenRef.current = showHidden;
     const headerRef = useRef<HTMLDivElement | null>(null);
 
     const [name, setName] = useState(fileName ?? "");
@@ -117,9 +121,10 @@ export function BrowserDownloadFolder(props: BrowserDownloadFolderProps) {
 
     const loadPage = async (folder: string, page: number) => {
         loadingRef.current = true;
+        const hidden = showHiddenRef.current;
         try {
-            const result = await listDirectory(folder, false, true, null, false, "name_asc", page);
-            if (pathRef.current !== folder) {
+            const result = await listDirectory(folder, false, true, null, hidden, "name_asc", page);
+            if (pathRef.current !== folder || showHiddenRef.current !== hidden) {
                 return;
             }
             const entries = Array.isArray(result?.entries) ? result.entries : [];
@@ -149,7 +154,7 @@ export function BrowserDownloadFolder(props: BrowserDownloadFolderProps) {
             scroller.scrollTop = 0;
         }
         void loadPage(path, 1);
-    }, [path]);
+    }, [path, showHidden]);
 
     const entries = listing?.entries ?? [];
     const total = listing?.total ?? 0;
@@ -311,6 +316,11 @@ export function BrowserDownloadFolder(props: BrowserDownloadFolderProps) {
                 >
                     {path}
                 </span>
+                <div style={cellStyle}>
+                    <DialogButton {...act("download:hidden", () => setShowHidden(!showHidden))} style={squareStyle}>
+                        {showHidden ? <FaEye size={modalSize(12)} /> : <FaEyeSlash size={modalSize(12)} />}
+                    </DialogButton>
+                </div>
             </div>
         </div>
     );

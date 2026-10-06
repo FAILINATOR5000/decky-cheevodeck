@@ -206,4 +206,6 @@ declare module "react-icons/fa" {
     export const FaPause: any;
     export const FaPlay: any;
     export const FaRedo: any;
+    export const FaEye: any;
+    export const FaEyeSlash: any;
 }
