@@ -2876,7 +2876,7 @@ export const restartBrowserDownload = callable<[downloadId: string, cookie: stri
 export const removeBrowserDownload = callable<[downloadId: string], BrowserDownloadsResponse>("remove_browser_download");
 export const deleteBrowserDownloadFile = callable<[downloadId: string], BrowserDownloadsResponse>("delete_browser_download_file");
 
-export const getBrowserTabs = callable<[], BrowserTabsResponse>("get_browser_tabs");
+export const getBrowserTabs = callable<[prune?: boolean], BrowserTabsResponse>("get_browser_tabs");
 export const addBrowserTab = callable<
     [url: string, title: string, evictOldest: boolean],
     BrowserTabsResponse

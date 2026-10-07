@@ -679,26 +679,37 @@ class BrowserStore:
     def clear_recent_back_history(self, days: Any) -> dict:
         wanted = to_int(days, 0)
         with self._lock:
-            data = self._load_tabs()
             if wanted <= 0:
-                return data
+                return self._load_tabs()
             cutoff = int(time.time()) - wanted * 86400
-            changed = False
-            for offset, tab in enumerate(data["tabs"]):
-                current = tab["historyIndex"]
-                kept = [slot for slot, stamp in enumerate(tab["historyAt"]) if slot == current or stamp < cutoff]
-                if len(kept) == len(tab["history"]):
-                    continue
-                changed = True
-                data["tabs"][offset] = self._clean_tab({
-                    **tab,
-                    "history": [tab["history"][slot] for slot in kept],
-                    "historyScroll": [tab["historyScroll"][slot] for slot in kept],
-                    "historyAnchor": [tab["historyAnchor"][slot] for slot in kept],
-                    "historyAt": [tab["historyAt"][slot] for slot in kept],
-                    "historyIndex": kept.index(current) if current >= 0 else -1,
-                })
-            return self._save_tabs(data) if changed else data
+            return self._keep_back_pages(lambda stamp: stamp < cutoff)
+
+    def prune_back_history(self, max_age_days: Any) -> dict:
+        days = to_int(max_age_days, 0)
+        with self._lock:
+            if days <= 0:
+                return self._load_tabs()
+            cutoff = int(time.time()) - days * 86400
+            return self._keep_back_pages(lambda stamp: stamp == 0 or stamp >= cutoff)
+
+    def _keep_back_pages(self, keep) -> dict:
+        data = self._load_tabs()
+        changed = False
+        for offset, tab in enumerate(data["tabs"]):
+            current = tab["historyIndex"]
+            kept = [slot for slot, stamp in enumerate(tab["historyAt"]) if slot == current or keep(stamp)]
+            if len(kept) == len(tab["history"]):
+                continue
+            changed = True
+            data["tabs"][offset] = self._clean_tab({
+                **tab,
+                "history": [tab["history"][slot] for slot in kept],
+                "historyScroll": [tab["historyScroll"][slot] for slot in kept],
+                "historyAnchor": [tab["historyAnchor"][slot] for slot in kept],
+                "historyAt": [tab["historyAt"][slot] for slot in kept],
+                "historyIndex": kept.index(current) if current >= 0 else -1,
+            })
+        return self._save_tabs(data) if changed else data
 
     def clear_recent_history(self, days: Any) -> dict:
         wanted = to_int(days, 0)

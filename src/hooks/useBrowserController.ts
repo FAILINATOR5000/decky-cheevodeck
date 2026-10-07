@@ -934,7 +934,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
                     logError("useBrowserController.adExemptions", e);
                     return null;
                 });
-                const [loadedTabs, exemptions] = await Promise.all([getBrowserTabs(), exemptionsLoad]);
+                const [loadedTabs, exemptions] = await Promise.all([getBrowserTabs(true), exemptionsLoad]);
                 if (exemptions) {
                     applyExemptions(exemptions);
                 }

@@ -1329,7 +1329,10 @@ class BrowserMixin(PluginContext):
         for record in records:
             self._drop_download_parts(record)
 
-    async def get_browser_tabs(self):
+    async def get_browser_tabs(self, prune: bool = False):
+        days = _RETENTION_DAYS.get(self._history_retention(), 0) if prune else 0
+        if days:
+            return _tabs_response(self.browser_store.prune_back_history(days))
         return _tabs_response(self.browser_store.list_tabs())
 
     async def add_browser_tab(self, url: str = "", title: str = "", evict_oldest: bool = False):
