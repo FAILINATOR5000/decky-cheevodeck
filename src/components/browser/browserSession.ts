@@ -1,5 +1,5 @@
 import { logFocusDebug } from "../../api";
-import { AD_SKIP_BINDING, AD_SKIP_SELECTOR, claimTarget, releaseTarget, setActiveTarget, socketOfTarget, targetForUrl, YOUTUBE_HOST } from "./browserScroll";
+import { AD_SKIP_BINDING, AD_SKIP_SELECTOR, AD_SLOT_EARLY, claimTarget, releaseTarget, setActiveTarget, socketOfTarget, targetForUrl, YOUTUBE_HOST } from "./browserScroll";
 import { AD_BLOCK_HOSTS, AD_BLOCK_PATTERNS } from "./adBlockHosts";
 import { isAdExempt, replaceAdExemptionHosts } from "./adExemptions";
 import { AD_LIBRARY_STAND_IN } from "./adStandIns";
@@ -421,7 +421,7 @@ export class ViewSession {
 
     private async applyStandIns(wanted: boolean) {
         if (wanted && this.standInId === null) {
-            const result = await this.send("Page.addScriptToEvaluateOnNewDocument", { source: AD_LIBRARY_STAND_IN });
+            const result = await this.send("Page.addScriptToEvaluateOnNewDocument", { source: `${AD_SLOT_EARLY}\n${AD_LIBRARY_STAND_IN}` });
             this.standInId = String(result?.identifier ?? "") || null;
         }
         else if (!wanted && this.standInId !== null) {

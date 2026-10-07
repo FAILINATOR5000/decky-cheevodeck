@@ -612,6 +612,18 @@ const AD_SLOT_CSS = [
 
 const AD_SLOT_STYLE_ID = "__cheevodeckAdHide";
 
+const AD_SHEET_KEY = "__cheevodeckAdSheet";
+
+export const AD_SLOT_EARLY = `(() => {
+    if (window !== window.top || window.${AD_SHEET_KEY}) {
+        return;
+    }
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(${JSON.stringify(AD_SLOT_CSS)});
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+    window.${AD_SHEET_KEY} = sheet;
+})();`;
+
 const YOUTUBE_STYLE_ID = "__cheevodeckYouTube";
 
 const YOUTUBE_CSS = "ytd-watch-flexy[theater] #full-bleed-container { min-height: 0 !important; }";
@@ -758,14 +770,20 @@ export async function preparePage(url: string, percent: number, blockAds: boolea
         }
         document.documentElement.style.zoom = ${JSON.stringify(cssZoom(percent))};
         let adStyle = document.getElementById(${JSON.stringify(AD_SLOT_STYLE_ID)});
-        if (${hideAdSlots} && !adStyle) {
+        const adSheet = document.adoptedStyleSheets.includes(window.${AD_SHEET_KEY}) ? window.${AD_SHEET_KEY} : null;
+        if (${hideAdSlots} && !adStyle && !adSheet) {
             adStyle = document.createElement("style");
             adStyle.id = ${JSON.stringify(AD_SLOT_STYLE_ID)};
             adStyle.textContent = ${JSON.stringify(AD_SLOT_CSS)};
             (document.head || document.documentElement).appendChild(adStyle);
         }
-        else if (!${hideAdSlots} && adStyle) {
-            adStyle.remove();
+        else if (!${hideAdSlots}) {
+            if (adStyle) {
+                adStyle.remove();
+            }
+            if (adSheet) {
+                document.adoptedStyleSheets = document.adoptedStyleSheets.filter((sheet) => sheet !== adSheet);
+            }
         }
         if (!document.getElementById(${JSON.stringify(VALVE_SCROLLBAR_STYLE_ID)})) {
             const scrollbarStyle = document.createElement("style");
