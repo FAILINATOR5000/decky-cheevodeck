@@ -616,6 +616,10 @@ const YOUTUBE_STYLE_ID = "__cheevodeckYouTube";
 
 const YOUTUBE_CSS = "ytd-watch-flexy[theater] #full-bleed-container { min-height: 0 !important; }";
 
+const VALVE_SCROLLBAR_STYLE_ID = "__cheevodeckScrollbar";
+
+const VALVE_SCROLLBAR_CSS = "html.GamepadMode ::-webkit-scrollbar { display: block !important; }";
+
 const AD_SPEED = 16;
 
 export const AD_SKIP_BINDING = "__cheevodeckSkip";
@@ -762,6 +766,12 @@ export async function preparePage(url: string, percent: number, blockAds: boolea
         }
         else if (!${hideAdSlots} && adStyle) {
             adStyle.remove();
+        }
+        if (!document.getElementById(${JSON.stringify(VALVE_SCROLLBAR_STYLE_ID)})) {
+            const scrollbarStyle = document.createElement("style");
+            scrollbarStyle.id = ${JSON.stringify(VALVE_SCROLLBAR_STYLE_ID)};
+            scrollbarStyle.textContent = ${JSON.stringify(VALVE_SCROLLBAR_CSS)};
+            (document.head || document.documentElement).appendChild(scrollbarStyle);
         }
         window.__cheevodeckFastForward = ${fastForward};
         if (${YOUTUBE_HOST}.test(location.hostname)) {

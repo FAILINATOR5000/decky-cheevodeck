@@ -17,13 +17,13 @@ import type { GameGuidesRecord, ShortcutAction } from "../../types";
 import { GLOBAL_SHORTCUT_ACTIONS } from "../../utils/options";
 import { logError } from "../../utils/errors";
 import { lastOpenedGuide } from "../../utils/guidesResolve";
-import { cheevoModalOpen, showManagedModal } from "../../utils/modalRegistry";
+import { cheevoModalCount, cheevoModalOpen, showManagedModal } from "../../utils/modalRegistry";
 import type { PanelEntry } from "../../utils/pendingPanelEntry";
 import { captureSnapshot } from "../../utils/snapshot";
 import { startupSettingsSettled } from "../../utils/frontendSettings";
 import { showToggleToast } from "../../utils/toggleToast";
 import { openPanelOn, quickAccessIsHidden } from "../../utils/quickAccess";
-import { browserModalOpen, openBrowserModal } from "../browser/BrowserModal";
+import { browserModalOpen, minimizeBrowserModal, openBrowserModal } from "../browser/BrowserModal";
 import { openCalculatorModal } from "../calculator/CalculatorModal";
 import { GuidesReaderModal } from "../guides/GuidesReaderModal";
 import { openLastMemory } from "../memories/openLastMemory";
@@ -253,6 +253,10 @@ async function onBackButton(payload: { action?: string | null; browserSnapshot?:
     }
     const action = payload?.action;
     if (typeof action !== "string" || !GLOBAL_SHORTCUT_ACTIONS.includes(action as ShortcutAction)) {
+        return;
+    }
+    if (action === "browser" && browserModalOpen() && quickAccessIsHidden() && cheevoModalCount() === 1) {
+        logFocusDebug("backButtons", action, minimizeBrowserModal() ? "minimized" : "nothing to minimize");
         return;
     }
     if (!mayOpen(action)) {

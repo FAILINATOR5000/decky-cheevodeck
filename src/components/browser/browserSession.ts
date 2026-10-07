@@ -34,6 +34,28 @@ const FIND_SKIP = `(() => {
 
 const IN_FULLSCREEN = "document.fullscreenElement !== null";
 
+const GAMEPAD_AGENT = "Valve Steam Gamepad";
+
+const DESKTOP_AGENT = "Valve Steam Client";
+
+const gamepadHosts = new Set<string>();
+
+const GAMEPAD_RELOAD_GAP_MS = 30000;
+
+const GAMEPAD_PAGE = `(() => {
+    const root = document.documentElement;
+    return root ? { gamepad: root.classList.contains("GamepadMode"), navigating: root.classList.contains("gpnav_active") } : null;
+})()`;
+
+function hostOf(url: string): string {
+    try {
+        return new URL(url).hostname;
+    }
+    catch {
+        return "";
+    }
+}
+
 function isYouTube(url: string): boolean {
     try {
         return YOUTUBE_HOST.test(new URL(url).hostname);
@@ -92,6 +114,13 @@ export class ViewSession {
     private pendingUrl = "";
     private pendingRequestId = "";
     private blockQueue: Promise<void> = Promise.resolve();
+    private steamAgent = "";
+    private agentSent: string | null = null;
+    private agentQueue: Promise<void> = Promise.resolve();
+    private readonly reloadedAt = new Map<string, number>();
+    private pendingPost = false;
+    private committedPost = false;
+    private committedFree = false;
     private pageDpr = 0;
     private metricsSent: string | null = null;
     private skipAt = 0;
@@ -188,7 +217,8 @@ export class ViewSession {
             if (msg.params?.type === "Document" && this.mainFrameId && msg.params?.frameId === this.mainFrameId) {
                 this.pendingUrl = String(msg.params?.request?.url ?? "");
                 this.pendingRequestId = String(msg.params?.requestId ?? "");
-                void this.applyBlocking();
+                this.pendingPost = String(msg.params?.request?.method ?? "").toUpperCase() === "POST";
+                this.pageChanged();
             }
             return;
         }
@@ -197,10 +227,21 @@ export class ViewSession {
             if (frame && !frame.parentId) {
                 this.mainFrameId = String(frame.id ?? "") || this.mainFrameId;
                 this.committedUrl = String(frame.url ?? "");
+                const restored = msg.params?.type === "BackForwardCacheRestore";
+                this.committedFree = restored || !!this.agentSent;
+                this.committedPost = !restored && this.pendingPost;
+                this.pendingPost = false;
                 this.pendingUrl = "";
                 this.pendingRequestId = "";
-                void this.applyBlocking();
+                this.pageChanged();
+                if (restored) {
+                    void this.checkGamepadPage();
+                }
             }
+            return;
+        }
+        if (msg.method === "Page.domContentEventFired" || msg.method === "Page.loadEventFired") {
+            void this.checkGamepadPage();
             return;
         }
         if (msg.method === "Network.loadingFailed") {
@@ -246,6 +287,11 @@ export class ViewSession {
         this.pendingUrl = "";
         this.pendingRequestId = "";
         this.blockQueue = Promise.resolve();
+        this.agentSent = null;
+        this.agentQueue = Promise.resolve();
+        this.pendingPost = false;
+        this.committedPost = false;
+        this.committedFree = false;
         this.metricsSent = null;
         this.pageDpr = 0;
         for (const entry of this.waiting.values()) {
@@ -261,7 +307,13 @@ export class ViewSession {
         }
         this.pendingUrl = "";
         this.pendingRequestId = "";
+        this.pendingPost = false;
+        this.pageChanged();
+    }
+
+    private pageChanged() {
         void this.applyBlocking();
+        void this.applyUserAgent();
     }
 
     applyBlocking(): Promise<void> {
@@ -285,6 +337,85 @@ export class ViewSession {
         catch (e) {
             this.blockingSent = null;
             logFocusDebug("browser-session", "blocking failed", String((e as Error)?.message ?? e));
+        }
+    }
+
+    private applyUserAgent(): Promise<void> {
+        this.agentQueue = this.agentQueue.then(() => this.syncUserAgent());
+        return this.agentQueue;
+    }
+
+    private async syncUserAgent() {
+        if (!this.socket || !this.steamAgent.includes(GAMEPAD_AGENT)) {
+            return;
+        }
+        const url = this.pendingUrl || this.committedUrl;
+        const wanted = gamepadHosts.has(hostOf(url)) ? this.steamAgent.replace(GAMEPAD_AGENT, DESKTOP_AGENT) : "";
+        if (this.agentSent === wanted) {
+            return;
+        }
+        try {
+            await this.send("Network.setUserAgentOverride", { userAgent: wanted });
+            this.agentSent = wanted;
+            logFocusDebug("browser-session", "user agent", `${wanted ? "desktop" : "steam"} ${url.slice(0, 60)}`);
+        }
+        catch (e) {
+            this.agentSent = null;
+            logFocusDebug("browser-session", "user agent failed", String((e as Error)?.message ?? e));
+        }
+    }
+
+    private async checkGamepadPage() {
+        const url = this.committedUrl;
+        const host = hostOf(url);
+        const free = this.committedFree;
+        const posted = this.committedPost;
+        if (!host) {
+            return;
+        }
+        if (!this.steamAgent) {
+            await this.readSteamAgent();
+        }
+        if (!this.steamAgent.includes(GAMEPAD_AGENT)) {
+            return;
+        }
+        let page: { gamepad?: unknown; navigating?: unknown } | null = null;
+        try {
+            page = (await this.evaluateIsolated(GAMEPAD_PAGE)) as { gamepad?: unknown; navigating?: unknown } | null;
+        }
+        catch (e) {
+            logFocusDebug("browser-session", "gamepad check failed", String((e as Error)?.message ?? e));
+            return;
+        }
+        if (page?.gamepad !== true || url !== this.committedUrl) {
+            return;
+        }
+        const newHost = !gamepadHosts.has(host);
+        if (newHost) {
+            gamepadHosts.add(host);
+            logFocusDebug("browser-session", "gamepad site", host);
+        }
+        if (free && !newHost && page.navigating !== true) {
+            return;
+        }
+        await this.applyUserAgent();
+        const last = this.reloadedAt.get(host) ?? 0;
+        if (!this.agentSent || url !== this.committedUrl || this.pendingUrl || posted || Date.now() - last < GAMEPAD_RELOAD_GAP_MS) {
+            return;
+        }
+        this.reloadedAt.set(host, Date.now());
+        logFocusDebug("browser-session", "gamepad site reloaded", url.slice(0, 80));
+        try {
+            await this.send("Page.reload");
+        }
+        catch (e) {
+            logFocusDebug("browser-session", "reload failed", String((e as Error)?.message ?? e));
+        }
+    }
+
+    recheckGamepadPage(): void {
+        if (this.ready) {
+            void this.checkGamepadPage();
         }
     }
 
@@ -374,6 +505,7 @@ export class ViewSession {
         catch (e) {
             logFocusDebug("browser-session", "frame tree failed", String((e as Error)?.message ?? e));
         }
+        await this.readSteamAgent();
         try {
             await this.send("Runtime.addBinding", { name: FULLSCREEN_BINDING });
             await this.send("Runtime.addBinding", { name: AD_SKIP_BINDING });
@@ -391,11 +523,13 @@ export class ViewSession {
             logFocusDebug("browser-session", "overlay fix failed", String((e as Error)?.message ?? e));
         }
         await this.applyBlocking();
+        await this.applyUserAgent();
         await this.applyMetrics();
         this.ready = true;
         for (const waiter of this.readyWaiters.splice(0)) {
             waiter(true);
         }
+        void this.checkGamepadPage();
     }
 
     whenAttached(ms: number): Promise<boolean> {
@@ -496,6 +630,18 @@ export class ViewSession {
         }
     }
 
+    private async readSteamAgent() {
+        if (this.steamAgent) {
+            return;
+        }
+        try {
+            this.steamAgent = String((await this.evaluateIsolated("navigator.userAgent")) ?? "");
+        }
+        catch (e) {
+            logFocusDebug("browser-session", "user agent read failed", String((e as Error)?.message ?? e));
+        }
+    }
+
     private async evaluateIsolated(expression: string): Promise<unknown> {
         const world = await this.send("Page.createIsolatedWorld", { frameId: this.mainFrameId, worldName: ISOLATED_WORLD });
         const contextId = world?.executionContextId;
@@ -580,6 +726,9 @@ export class ViewSession {
         catch (e) {
             logFocusDebug("browser-download", "cookies failed", String((e as Error)?.message ?? e));
         }
+        if (this.steamAgent) {
+            return { cookie, userAgent: this.steamAgent };
+        }
         try {
             const result = await this.send("Runtime.evaluate", { expression: "navigator.userAgent", returnByValue: true });
             userAgent = String(result?.result?.value ?? "");
@@ -621,6 +770,7 @@ export class ViewSession {
 export function setActiveSession(session: ViewSession | null): void {
     activeSession = session;
     setActiveTarget(session?.targetId ?? "");
+    session?.recheckGamepadPage();
 }
 
 export function setAdBlock(enabled: boolean): void {

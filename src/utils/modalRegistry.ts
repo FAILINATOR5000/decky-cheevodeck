@@ -216,6 +216,10 @@ export function cheevoModalOpen(): boolean {
     return mountedModals > 0 || pendingModals > 0;
 }
 
+export function cheevoModalCount(): number {
+    return mountedModals + pendingModals;
+}
+
 function showCountedModal(element: ReactElement): { Close: () => void } {
     pendingModals += 1;
     try {

@@ -241,6 +241,16 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
         });
     };
 
+    useEffect(() => {
+        const minimize = () => closeFromPointer(true);
+        minimizeShown = minimize;
+        return () => {
+            if (minimizeShown === minimize) {
+                minimizeShown = null;
+            }
+        };
+    }, []);
+
     const paintedRef = useRef(true);
 
     const loadUrl = useCallback((url: string) => {
@@ -766,6 +776,8 @@ function announceClosed(): void {
 
 let minimizeRequested = false;
 
+let minimizeShown: (() => void) | null = null;
+
 let heldTabLimitUrl = "";
 
 const tabLimitCancelListeners = new Set<(url: string) => void>();
@@ -807,6 +819,14 @@ let mountedBrowsers = 0;
 
 export function browserModalOpen(): boolean {
     return mountedBrowsers > 0;
+}
+
+export function minimizeBrowserModal(): boolean {
+    if (!minimizeShown) {
+        return false;
+    }
+    minimizeShown();
+    return true;
 }
 
 export function closeBrowserForUnload(): void {
