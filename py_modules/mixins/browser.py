@@ -18,7 +18,7 @@ import uuid
 
 import decky
 
-from browser_store import DOWNLOADS_FILENAME, MAX_AD_EXEMPTIONS, MAX_BOOKMARK_CATEGORIES, MAX_BOOKMARKS, MAX_TABS, clean_site
+from browser_store import DOWNLOADS_FILENAME, MAX_AD_EXEMPTIONS, MAX_BOOKMARK_CATEGORIES, MAX_BOOKMARKS, MAX_TABS, clean_referer, clean_site
 from utils import child_owner, chown_to_data_owner, open_dir, ssl_context, to_int
 from mixins._context import PluginContext
 
@@ -277,11 +277,12 @@ def _validator_of(response) -> dict:
 
 
 class _DownloadError(Exception):
-    def __init__(self, code: str, detail: str = "", why: str = ""):
+    def __init__(self, code: str, detail: str = "", why: str = "", before_body: bool = False):
         super().__init__(detail or code)
         self.code = code
         self.detail = detail or code
         self.why = why or (detail if detail.startswith("HTTP ") else "")
+        self.before_body = before_body
 
 
 def _site_of(url: str):
@@ -314,7 +315,7 @@ class _DownloadRedirect(urllib.request.HTTPRedirectHandler):
 
 def _download_action(row: dict) -> str:
     state = row["state"]
-    if not row["url"]:
+    if not (row["url"] or row["origin"]):
         return ""
     if state == "downloading":
         return "pause"
@@ -352,6 +353,7 @@ def _public_download(row: dict, home_real: str) -> dict:
         "canDelete": row["state"] == "done" and row["file"] is not None and not row["fileGone"],
         "fileGone": row["fileGone"],
         "url": row["url"],
+        "origin": row["origin"],
         "note": row["note"],
         "canResume": row["canResume"],
         "action": _download_action(row),
@@ -665,6 +667,7 @@ class BrowserMixin(PluginContext):
         user_agent: str = "",
         referer: str = "",
         chosen_name: str = "",
+        origin: str = "",
     ):
         target = str(url or "").strip()
         parsed = urlparse(target)
@@ -692,7 +695,7 @@ class BrowserMixin(PluginContext):
                 headers["Cookie"] = str(cookie)
             if user_agent:
                 headers["User-Agent"] = str(user_agent)
-            if referer and urlparse(str(referer)).scheme in ("http", "https"):
+            if clean_referer(referer):
                 headers["Referer"] = str(referer)
 
         self.browser_store.set_last_download_folder(str(folder).strip())
@@ -709,15 +712,16 @@ class BrowserMixin(PluginContext):
             "startedAt": int(time.time()),
             "run": _RUN_ID,
             "url": "" if is_data else target,
+            "origin": "" if is_data or origin == target else str(origin or ""),
             "referer": headers.get("Referer", ""),
         })
         self._start_worker(download_id, target, destination, str(suggested_name or ""), str(chosen_name or ""), headers, record)
         return {"ok": True, "id": download_id}
 
-    def _start_worker(self, download_id, url, folder, suggested, chosen, headers, record, resume=None) -> None:
+    def _start_worker(self, download_id, url, folder, suggested, chosen, headers, record, resume=None, fallback=None) -> None:
         threading.Thread(
             target=self._run_browser_download,
-            args=(download_id, url, folder, suggested, chosen, headers, record, resume),
+            args=(download_id, url, folder, suggested, chosen, headers, record, resume, fallback),
             name=f"browser-download-{download_id[:8]}",
             daemon=True,
         ).start()
@@ -738,13 +742,23 @@ class BrowserMixin(PluginContext):
         except Exception as exc:
             decky.logger.warning("browser download: couldn't update the list (%s)", type(exc).__name__)
 
-    def _run_browser_download(self, download_id, url, folder, suggested, chosen, headers, record, resume=None):
+    def _run_browser_download(self, download_id, url, folder, suggested, chosen, headers, record, resume=None, fallback=None):
         host = urlparse(url).hostname or ""
         name = _scrub_name(chosen) or _scrub_name(suggested) or "download"
         result = {"id": download_id, "ok": False, "name": name, "folder": str(folder), "error": ""}
         fields = {}
         try:
-            path, written, identity = self._fetch_browser_download(download_id, url, folder, suggested, chosen, headers, host, record, resume)
+            try:
+                path, written, identity = self._fetch_browser_download(download_id, url, folder, suggested, chosen, headers, host, record, resume)
+            except _DownloadError as exc:
+                if fallback is None or not exc.before_body or exc.code in ("canceled", "paused"):
+                    raise
+                decky.logger.info("browser download: the starting address failed (%s), trying the address it led to", exc.code)
+                url, headers = fallback
+                host = urlparse(url).hostname or ""
+                with _active_lock:
+                    _active_downloads[download_id]["stalled"] = False
+                path, written, identity = self._fetch_browser_download(download_id, url, folder, suggested, chosen, headers, host, record, resume)
             result["ok"] = True
             result["name"] = path.name
             fields = {"state": "done", "name": path.name, "received": written, "file": identity, "part": None, "partCheck": None}
@@ -789,8 +803,6 @@ class BrowserMixin(PluginContext):
             validator = (resume or {}).get("validator") or {}
             known_total = to_int((resume or {}).get("total", -1), -1)
             ranged = offset > 0 and (bool(validator) or known_total >= 0)
-            if offset > 0 and not ranged:
-                self._start_part_over(held, record, download_id)
             while True:
                 request_headers = dict(headers)
                 if ranged:
@@ -801,12 +813,14 @@ class BrowserMixin(PluginContext):
                         request_headers["If-Range"] = validator["lastModified"]
                 try:
                     response = self._open_download(url, request_headers, entry, is_data)
+                except _DownloadError as exc:
+                    exc.before_body = True
+                    raise
                 except _RangeEnded as ended:
                     total = known_total if known_total >= 0 else ended.total
                     if total >= 0 and held.size == total:
                         entry["total"] = total
                         return self._finish_part(held, folder, download_id)
-                    self._start_part_over(held, record, download_id)
                     ranged = False
                     continue
                 try:
@@ -815,7 +829,6 @@ class BrowserMixin(PluginContext):
                             response, entry, download_id, folder, suggested, chosen, host, record, is_data, held, ranged, known_total
                         )
                 except _StartOver:
-                    self._start_part_over(held, record, download_id)
                     ranged = False
                 finally:
                     with _active_lock:
@@ -885,12 +898,12 @@ class BrowserMixin(PluginContext):
             if match is None or to_int(match.group(1), -1) != held.size or (known_total >= 0 and whole >= 0 and whole != known_total):
                 raise _StartOver()
         elif not is_data and status is not None and (status < 200 or status >= 300 or status in (204, 205, 206)):
-            raise _DownloadError("failed", f"HTTP {status}")
+            raise _DownloadError("failed", f"HTTP {status}", before_body=True)
 
         expected = _scrub_name(suggested) or _download_name("", "", final)
         content_type = response.headers.get_content_type()
         if not is_data and content_type in _WEB_PAGE_TYPES and not expected.lower().endswith(_WEB_PAGE_SUFFIXES):
-            raise _DownloadError("web_page", f"{content_type} for {expected}")
+            raise _DownloadError("web_page", f"{content_type} for {expected}", before_body=True)
 
         length = to_int(response.headers.get("Content-Length"), -1)
         if partial:
@@ -1153,28 +1166,28 @@ class BrowserMixin(PluginContext):
                 _shut(entry["fd"])
         return {"ok": True}
 
-    async def resume_browser_download(self, download_id: str = "", cookie: str = "", user_agent: str = ""):
+    async def resume_browser_download(self, download_id: str = "", cookie: str = "", user_agent: str = "", fallback_cookie: str = ""):
         record = self.browser_store.downloads_path()
         row = self._download_row(record, download_id)
-        if row is None or not row["url"] or row["state"] not in ("paused", "failed", "interrupted"):
+        if row is None or not (row["url"] or row["origin"]) or row["state"] not in ("paused", "failed", "interrupted"):
             return {**self._downloads_response(record), "ok": False, "error": "gone"}
-        return await self._run_again(record, row, cookie, user_agent, restart=False)
+        return await self._run_again(record, row, cookie, user_agent, fallback_cookie, restart=False)
 
-    async def restart_browser_download(self, download_id: str = "", cookie: str = "", user_agent: str = ""):
+    async def restart_browser_download(self, download_id: str = "", cookie: str = "", user_agent: str = "", fallback_cookie: str = ""):
         record = self.browser_store.downloads_path()
         row = self._download_row(record, download_id)
-        restartable = row is not None and row["url"] and (
+        restartable = row is not None and (row["url"] or row["origin"]) and (
             row["state"] == "canceled" or (row["state"] in ("failed", "interrupted") and row["part"] is None)
         )
         if not restartable:
             return {**self._downloads_response(record), "ok": False, "error": "gone"}
-        return await self._run_again(record, row, cookie, user_agent, restart=True)
+        return await self._run_again(record, row, cookie, user_agent, fallback_cookie, restart=True)
 
     def _download_row(self, record: Path, download_id) -> Optional[dict]:
         wanted = str(download_id or "")
         return next((entry for entry in self.browser_store.list_downloads(record)["downloads"] if entry["id"] == wanted), None)
 
-    async def _run_again(self, record: Path, row: dict, cookie, user_agent, *, restart: bool) -> dict:
+    async def _run_again(self, record: Path, row: dict, cookie, user_agent, fallback_cookie, *, restart: bool) -> dict:
         folder = Path(row["folder"])
         if not row["folder"] or _download_folder(self.user_home, folder) != folder:
             return {**self._downloads_response(record), "ok": False, "error": "unavailable"}
@@ -1208,6 +1221,12 @@ class BrowserMixin(PluginContext):
             headers["User-Agent"] = str(user_agent)
         if row["referer"]:
             headers["Referer"] = row["referer"]
+        fallback = None
+        if row["origin"] and row["url"] and row["origin"] != row["url"]:
+            second = {key: value for key, value in headers.items() if key != "Cookie"}
+            if fallback_cookie:
+                second["Cookie"] = str(fallback_cookie)
+            fallback = (row["url"], second)
 
         if restart:
             if row["part"] is not None:
@@ -1224,13 +1243,14 @@ class BrowserMixin(PluginContext):
                 "startedAt": int(time.time()),
                 "run": _RUN_ID,
                 "url": row["url"],
+                "origin": row["origin"],
                 "referer": row["referer"],
             })
         else:
             note = "missing" if resume is None and row["received"] > 0 else ""
             self._record_download(record, download_id, state="downloading", run=_RUN_ID, note=note, error="", finishedAt=0)
         decky.logger.info("browser download %s", "restarted" if restart else "resumed")
-        self._start_worker(download_id, row["url"], folder, row["name"], row["name"], headers, record, resume)
+        self._start_worker(download_id, row["origin"] or row["url"], folder, row["name"], row["name"], headers, record, resume, fallback)
         return {**self._downloads_response(record), "ok": True}
 
     async def remove_browser_download(self, download_id: str = ""):
@@ -1286,7 +1306,7 @@ class BrowserMixin(PluginContext):
             if row["part"] is None:
                 continue
             found, st = _find_part(self.user_home, row)
-            if found == "match" and not row["url"]:
+            if found == "match" and not (row["url"] or row["origin"]):
                 _delete_part(self.user_home, row)
                 self._record_download(record, row["id"], part=None, partCheck=None)
             elif found == "match":

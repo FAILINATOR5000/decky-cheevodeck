@@ -160,6 +160,11 @@ def _clean_web_url(value: Any) -> str:
     return text
 
 
+def clean_referer(value: Any) -> str:
+    text = _clean_web_url(value)
+    return text if text and urlsplit(text).hostname not in (None, "error") else ""
+
+
 def _clean_search_url(value: Any) -> str:
     text = _clean_web_url(value)
     return text if "%s" in text else ""
@@ -1228,7 +1233,8 @@ class BrowserStore:
             "file": _clean_identity(raw.get("file"), 4),
             "fileGone": bool(raw.get("fileGone", False)),
             "url": _clean_web_url(raw.get("url")),
-            "referer": _clean_web_url(raw.get("referer")),
+            "origin": _clean_web_url(raw.get("origin")),
+            "referer": clean_referer(raw.get("referer")),
             "validator": _clean_validator(raw.get("validator")),
             "note": _clean_text(raw.get("note"), MAX_DOWNLOAD_NOTE_LENGTH),
             "canResume": raw.get("canResume") is not False,

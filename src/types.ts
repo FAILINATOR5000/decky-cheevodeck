@@ -1976,6 +1976,7 @@ export type BrowserDownload = {
     canDelete: boolean;
     fileGone: boolean;
     url: string;
+    origin: string;
     note: string;
     canResume: boolean;
     action: BrowserDownloadAction;

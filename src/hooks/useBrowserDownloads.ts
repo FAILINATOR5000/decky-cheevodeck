@@ -123,14 +123,15 @@ export function useBrowserDownloads(isActive: boolean): BrowserDownloads {
     const runAgain = (downloadId: string, restart: boolean) => {
         setNotice(null);
         const row = downloads.find((entry) => entry.id === downloadId);
-        if (!row?.url) {
+        if (!row?.url && !row?.origin) {
             return;
         }
         const request = ++requestRef.current;
         (async () => {
             try {
-                const { cookie, userAgent } = await requestHeadersFor(row.url);
-                const state = await (restart ? restartBrowserDownload : resumeBrowserDownload)(downloadId, cookie, userAgent);
+                const { cookie, userAgent } = await requestHeadersFor(row.origin || row.url);
+                const second = row.origin && row.url && row.origin !== row.url ? (await requestHeadersFor(row.url)).cookie : "";
+                const state = await (restart ? restartBrowserDownload : resumeBrowserDownload)(downloadId, cookie, userAgent, second);
                 take(request, state);
                 if (state?.ok === false && state.error === "busy") {
                     toastDownload("Download Failed", row.name, "busy");

@@ -197,6 +197,7 @@ type PendingDownload = {
     url: string;
     name: string;
     referer: string;
+    origin: string;
 };
 
 function typedToUrl(text: string): string {
@@ -685,7 +686,8 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         const held = {
             url: request.url,
             name: request.suggestedFilename || fileNameOf(request.url) || "download",
-            referer: liveUrlRef.current
+            referer: liveUrlRef.current,
+            origin: request.origin
         };
         pendingDownloadRef.current = held;
         setPendingDownload(held);
@@ -707,7 +709,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
             try {
                 const { cookie, userAgent } = await requestHeadersFor(held.url);
                 const chosen = fileName && fileName !== held.name ? fileName : "";
-                const started = await startBrowserDownload(held.url, folder, held.name, cookie, userAgent, held.referer, chosen);
+                const started = await startBrowserDownload(held.url, folder, held.name, cookie, userAgent, held.referer, chosen, held.origin);
                 logFocusDebug("browser-download", started?.ok ? "started" : "refused", String(started?.error ?? started?.id ?? ""));
                 toastDownload(started?.ok ? "Downloading" : "Download Failed", chosen || held.name, started?.ok ? "" : String(started?.error ?? ""));
             }

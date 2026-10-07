@@ -2864,16 +2864,16 @@ export const getBrowserDownloadFolder = callable<[], { ok: boolean; path: string
     "get_browser_download_folder"
 );
 export const startBrowserDownload = callable<
-    [url: string, folder: string, suggestedName: string, cookie: string, userAgent: string, referer: string, chosenName: string],
+    [url: string, folder: string, suggestedName: string, cookie: string, userAgent: string, referer: string, chosenName: string, origin: string],
     { ok: boolean; id?: string; error?: string }
 >("start_browser_download");
 export const getBrowserDownloads = callable<[], BrowserDownloadsResponse>("get_browser_downloads");
 export const cancelBrowserDownload = callable<[downloadId: string], { ok: boolean }>("cancel_browser_download");
 export const pauseBrowserDownload = callable<[downloadId: string], { ok: boolean }>("pause_browser_download");
-export const resumeBrowserDownload = callable<[downloadId: string, cookie: string, userAgent: string], BrowserDownloadsResponse>(
+export const resumeBrowserDownload = callable<[downloadId: string, cookie: string, userAgent: string, fallbackCookie: string], BrowserDownloadsResponse>(
     "resume_browser_download"
 );
-export const restartBrowserDownload = callable<[downloadId: string, cookie: string, userAgent: string], BrowserDownloadsResponse>(
+export const restartBrowserDownload = callable<[downloadId: string, cookie: string, userAgent: string, fallbackCookie: string], BrowserDownloadsResponse>(
     "restart_browser_download"
 );
 export const removeBrowserDownload = callable<[downloadId: string], BrowserDownloadsResponse>("remove_browser_download");

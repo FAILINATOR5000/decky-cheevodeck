@@ -69,6 +69,7 @@ export type DownloadRequest = {
     url: string;
     suggestedFilename: string;
     posted: boolean;
+    origin: string;
 };
 
 const POSTS_KEPT = 20;
@@ -128,6 +129,9 @@ export class ViewSession {
     private ready = false;
     private readyWaiters: Array<(ready: boolean) => void> = [];
     private posts: string[] = [];
+    private docRequestId = "";
+    private docOrigin = "";
+    private docLastUrl = "";
     private fileChooserHandler: ((backendNodeId: number) => void) | null = null;
 
     constructor() {
@@ -217,6 +221,11 @@ export class ViewSession {
             if (msg.params?.type === "Document" && this.mainFrameId && msg.params?.frameId === this.mainFrameId) {
                 this.pendingUrl = String(msg.params?.request?.url ?? "");
                 this.pendingRequestId = String(msg.params?.requestId ?? "");
+                if (!msg.params?.redirectResponse || this.pendingRequestId !== this.docRequestId) {
+                    this.docRequestId = this.pendingRequestId;
+                    this.docOrigin = String(msg.params?.request?.method ?? "").toUpperCase() === "POST" ? "" : this.pendingUrl;
+                }
+                this.docLastUrl = this.pendingUrl;
                 this.pendingPost = String(msg.params?.request?.method ?? "").toUpperCase() === "POST";
                 this.pageChanged();
             }
@@ -233,6 +242,8 @@ export class ViewSession {
                 this.pendingPost = false;
                 this.pendingUrl = "";
                 this.pendingRequestId = "";
+                this.docOrigin = "";
+                this.docLastUrl = "";
                 this.pageChanged();
                 if (restored) {
                     void this.checkGamepadPage();
@@ -270,9 +281,11 @@ export class ViewSession {
             const url = String(msg.params?.url ?? "");
             const suggestedFilename = String(msg.params?.suggestedFilename ?? "");
             const posted = this.posts.includes(url);
-            logFocusDebug("browser-download", "caught", `${url.slice(0, 80)} name=${suggestedFilename} posted=${posted}`);
+            const origin = url === this.docLastUrl && this.docOrigin !== url ? this.docOrigin : "";
+            this.docLastUrl = "";
+            logFocusDebug("browser-download", "caught", `${url.slice(0, 80)} name=${suggestedFilename} posted=${posted}${origin ? ` from ${hostOf(origin)}` : ""}`);
             if (url && downloadHandler) {
-                downloadHandler({ url, suggestedFilename, posted });
+                downloadHandler({ url, suggestedFilename, posted, origin });
             }
         }
     }
@@ -292,6 +305,9 @@ export class ViewSession {
         this.pendingPost = false;
         this.committedPost = false;
         this.committedFree = false;
+        this.docRequestId = "";
+        this.docOrigin = "";
+        this.docLastUrl = "";
         this.metricsSent = null;
         this.pageDpr = 0;
         for (const entry of this.waiting.values()) {
