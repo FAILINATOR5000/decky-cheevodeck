@@ -60,6 +60,7 @@ import {
     saveBrowserDownloadFolder,
     saveBrowserRememberDownloadFolder,
     saveBrowserFastForwardYouTubeAds,
+    saveBrowserFastForwardPrerollAds,
     saveBrowserActiveTabs,
     saveBrowserMaxDownloads,
     saveBrowserPauseMediaOnTabSwitch,
@@ -273,6 +274,8 @@ export type BrowserController = {
     toggleBlockAds: () => void;
     fastForwardYouTubeAds: boolean;
     toggleFastForwardYouTubeAds: () => void;
+    fastForwardPrerollAds: boolean;
+    toggleFastForwardPrerollAds: () => void;
     adExemptions: string[];
     maxAdExemptions: number;
     adExemptionsFull: boolean;
@@ -327,6 +330,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
     const [openLinksInNewTab, setOpenLinksInNewTab] = useState(true);
     const [blockAds, setBlockAds] = useState(true);
     const [fastForwardYouTubeAds, setFastForwardYouTubeAds] = useState(true);
+    const [fastForwardPrerollAds, setFastForwardPrerollAds] = useState(false);
     const [adExemptions, setAdExemptionList] = useState<string[]>([]);
     const [maxAdExemptions, setMaxAdExemptions] = useState(DEFAULT_MAX_AD_EXEMPTIONS);
     const [adExemptionsFull, setAdExemptionsFull] = useState(false);
@@ -373,10 +377,12 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
     blockAdsRef.current = blockAds;
     const fastForwardRef = useRef(fastForwardYouTubeAds);
     fastForwardRef.current = fastForwardYouTubeAds;
+    const prerollRef = useRef(fastForwardPrerollAds);
+    prerollRef.current = fastForwardPrerollAds;
 
     const settle = useCallback((url: string): Promise<unknown> => {
         if (!url) return Promise.resolve();
-        return preparePage(url, zoomRef.current, blockAdsRef.current, fastForwardRef.current, undefined, activeView()?.session);
+        return preparePage(url, zoomRef.current, blockAdsRef.current, fastForwardRef.current, prerollRef.current, undefined, activeView()?.session);
     }, []);
 
     const pendingRestoreRef = useRef<{ url: string; place: ScrollPlace; token: string } | null>(null);
@@ -502,6 +508,8 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         setFastForwardYouTubeAds(saved.fastForwardYouTubeAds !== false);
         fastForwardRef.current = saved.fastForwardYouTubeAds !== false;
         setFastForward(saved.fastForwardYouTubeAds !== false);
+        setFastForwardPrerollAds(saved.fastForwardPrerollAds === true);
+        prerollRef.current = saved.fastForwardPrerollAds === true;
         setDownloadFolderState(saved.downloadFolder ?? "");
         setRememberDownloadFolder(saved.rememberDownloadFolder === true);
         setExpanded(saved.expanded !== false);
@@ -618,9 +626,9 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
     }, [saveSetting]);
 
     useEffect(() => {
-        setHiddenPageSettings(pageZoom, blockAds, fastForwardYouTubeAds);
+        setHiddenPageSettings(pageZoom, blockAds, fastForwardYouTubeAds, fastForwardPrerollAds);
         refreshHiddenPages();
-    }, [pageZoom, blockAds, fastForwardYouTubeAds]);
+    }, [pageZoom, blockAds, fastForwardYouTubeAds, fastForwardPrerollAds]);
 
     const toggleFastForwardYouTubeAds = useCallback(() => {
         const nextValue = !fastForwardRef.current;
@@ -629,6 +637,14 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         setFastForward(nextValue);
         void settle(liveUrlRef.current);
         saveSetting("toggleFastForwardYouTubeAds", () => saveBrowserFastForwardYouTubeAds(nextValue));
+    }, [saveSetting, settle]);
+
+    const toggleFastForwardPrerollAds = useCallback(() => {
+        const nextValue = !prerollRef.current;
+        prerollRef.current = nextValue;
+        setFastForwardPrerollAds(nextValue);
+        void settle(liveUrlRef.current);
+        saveSetting("toggleFastForwardPrerollAds", () => saveBrowserFastForwardPrerollAds(nextValue));
     }, [saveSetting, settle]);
 
     const applyExemptions = useCallback((state: BrowserAdExemptionsResponse) => {
@@ -1701,6 +1717,8 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         toggleBlockAds,
         fastForwardYouTubeAds,
         toggleFastForwardYouTubeAds,
+        fastForwardPrerollAds,
+        toggleFastForwardPrerollAds,
         adExemptions,
         maxAdExemptions,
         adExemptionsFull,

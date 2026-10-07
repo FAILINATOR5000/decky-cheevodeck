@@ -307,6 +307,8 @@ type BrowserPanelProps = {
     onToggleBlockAds: () => void;
     fastForwardYouTubeAds: boolean;
     onToggleFastForwardYouTubeAds: () => void;
+    fastForwardPrerollAds: boolean;
+    onToggleFastForwardPrerollAds: () => void;
     adExemptions: string[];
     maxAdExemptions: number;
     adExemptionsFull: boolean;
@@ -336,7 +338,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
         searchEngine, onCycleSearchEngine, customSearchUrl, onSetCustomSearchUrl,
         newTabPage, customNewTabUrl, onCycleNewTabPage, onSetCustomNewTabUrl,
         openLinksInNewTab, onToggleOpenLinksInNewTab,
-        blockAds, onToggleBlockAds, fastForwardYouTubeAds, onToggleFastForwardYouTubeAds,
+        blockAds, onToggleBlockAds, fastForwardYouTubeAds, onToggleFastForwardYouTubeAds, fastForwardPrerollAds, onToggleFastForwardPrerollAds,
         adExemptions, maxAdExemptions, adExemptionsFull, currentSite, currentExemption, onToggleCurrentExemption, onRemoveExemption,
         activeTabs, onCycleActiveTabs, pauseMediaOnTabSwitch, onTogglePauseMediaOnTabSwitch,
         maxDownloads, onCycleMaxDownloads,
@@ -1249,6 +1251,19 @@ export function BrowserPanel(props: BrowserPanelProps) {
                                 </div>
                             </div>
                             <div style={noteStyle}>{t(language, "help_browser_fast_forward_youtube_ads")}</div>
+                        </div>
+
+                        <div style={settingCardStyle}>
+                            <div style={settingRowStyle}>
+                                <span style={{ opacity: 0.8, minWidth: "0" }}>{t(language, "Fast-forward Pre-roll Ads")}</span>
+                                <div style={{ flex: "1 1 auto" }} />
+                                <div style={cellStyle}>
+                                    <DialogButton {...act("prerollads:toggle", onToggleFastForwardPrerollAds)} style={optionStyle}>
+                                        {sizedLabel(t(language, fastForwardPrerollAds ? "On" : "Off"))}
+                                    </DialogButton>
+                                </div>
+                            </div>
+                            <div style={noteStyle}>{t(language, "help_browser_fast_forward_preroll_ads")}</div>
                         </div>
 
                     <div style={settingCardStyle}>

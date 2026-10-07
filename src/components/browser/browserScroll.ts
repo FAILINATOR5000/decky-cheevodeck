@@ -646,6 +646,7 @@ const AD_SKIP = `
     const skipSelector = ${JSON.stringify(AD_SKIP_SELECTOR)};
     let saved = null;
     let userRate = 0;
+    let startedFor = "";
     let skipTimer = 0;
     let lastPress = 0;
     const pressSkip = () => {
@@ -666,6 +667,7 @@ const AD_SKIP = `
             return;
         }
     };
+    const contentKey = () => location.pathname + "?" + (new URLSearchParams(location.search).get("v") || "");
     const isMuted = (node, video) => typeof node.isMuted === "function" ? node.isMuted() : video.volume === 0;
     const mute = (node, video, state) => {
         if (typeof node.mute === "function") {
@@ -693,13 +695,15 @@ const AD_SKIP = `
         const showing = node.classList.contains("ad-showing");
         if (showing && window.__cheevodeckFastForward) {
             if (!saved) {
-                saved = { muted: isMuted(node, video), volume: 0 };
+                saved = { ours: false, volume: 0 };
             }
-            if (!isMuted(node, video)) {
+            const speed = window.__cheevodeckFastForwardPreroll || startedFor === contentKey() ? ${AD_SPEED} : 1;
+            if (speed === ${AD_SPEED} && !isMuted(node, video)) {
                 mute(node, video, saved);
+                saved.ours = true;
             }
-            if (video.playbackRate !== ${AD_SPEED}) {
-                video.playbackRate = ${AD_SPEED};
+            if (video.playbackRate !== speed) {
+                video.playbackRate = speed;
             }
             pressSkip();
             if (!skipTimer) {
@@ -719,7 +723,7 @@ const AD_SKIP = `
         if (video.playbackRate === ${AD_SPEED} || (userRate && video.playbackRate !== userRate)) {
             video.playbackRate = userRate || 1;
         }
-        if (!was.muted) {
+        if (was.ours) {
             unmute(node, video, was);
         }
     };
@@ -743,6 +747,12 @@ const AD_SKIP = `
             userRate = event.target.playbackRate;
         }
     }, true);
+    document.addEventListener("timeupdate", (event) => {
+        const node = player();
+        if (node && event.target === videoOf(node) && !node.classList.contains("ad-showing") && !event.target.paused && event.target.currentTime > 1) {
+            startedFor = contentKey();
+        }
+    }, true);
     document.addEventListener("volumechange", (event) => {
         const node = player();
         if (saved && node && event.target === videoOf(node)) {
@@ -757,7 +767,7 @@ function cssZoom(percent: number): string {
     return percent > 100 ? String(percent / 100) : "";
 }
 
-export async function preparePage(url: string, percent: number, blockAds: boolean, fastForward: boolean, targetId = activeTarget, session?: PageSession | null): Promise<boolean> {
+export async function preparePage(url: string, percent: number, blockAds: boolean, fastForward: boolean, fastForwardPreroll: boolean, targetId = activeTarget, session?: PageSession | null): Promise<boolean> {
     const run = await runnerFor(session, url, targetId);
     if (!run) {
         return false;
@@ -792,6 +802,7 @@ export async function preparePage(url: string, percent: number, blockAds: boolea
             (document.head || document.documentElement).appendChild(scrollbarStyle);
         }
         window.__cheevodeckFastForward = ${fastForward};
+        window.__cheevodeckFastForwardPreroll = ${fastForwardPreroll};
         if (${YOUTUBE_HOST}.test(location.hostname)) {
             if (!document.getElementById(${JSON.stringify(YOUTUBE_STYLE_ID)})) {
                 const youTubeStyle = document.createElement("style");

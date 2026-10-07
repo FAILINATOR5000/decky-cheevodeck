@@ -970,6 +970,7 @@ class BrowserStore:
             "openLinksInNewTab": True,
             "blockAds": True,
             "fastForwardYouTubeAds": True,
+            "fastForwardPrerollAds": False,
             "activeTabs": DEFAULT_ACTIVE_TABS,
             "pauseMediaOnTabSwitch": False,
             "maxDownloads": DEFAULT_MAX_DOWNLOADS,
@@ -991,6 +992,7 @@ class BrowserStore:
         open_links = raw.get("openLinksInNewTab", True)
         block_ads = raw.get("blockAds", True)
         fast_forward = raw.get("fastForwardYouTubeAds", True)
+        fast_forward_preroll = raw.get("fastForwardPrerollAds", False)
         active_tabs = to_int(raw.get("activeTabs", DEFAULT_ACTIVE_TABS), DEFAULT_ACTIVE_TABS)
         pause_media = raw.get("pauseMediaOnTabSwitch", False)
         max_downloads = to_int(raw.get("maxDownloads", DEFAULT_MAX_DOWNLOADS), DEFAULT_MAX_DOWNLOADS)
@@ -1008,6 +1010,7 @@ class BrowserStore:
             "openLinksInNewTab": open_links if isinstance(open_links, bool) else True,
             "blockAds": block_ads if isinstance(block_ads, bool) else True,
             "fastForwardYouTubeAds": fast_forward if isinstance(fast_forward, bool) else True,
+            "fastForwardPrerollAds": fast_forward_preroll if isinstance(fast_forward_preroll, bool) else False,
             "activeTabs": active_tabs if active_tabs in ALLOWED_ACTIVE_TABS else DEFAULT_ACTIVE_TABS,
             "pauseMediaOnTabSwitch": pause_media if isinstance(pause_media, bool) else False,
             "maxDownloads": max_downloads if max_downloads in ALLOWED_MAX_DOWNLOADS else DEFAULT_MAX_DOWNLOADS,
@@ -1093,6 +1096,12 @@ class BrowserStore:
         with self._lock:
             data = self._load_settings()
             data["fastForwardYouTubeAds"] = bool(value)
+            return self._save_settings(data)
+
+    def set_fast_forward_preroll_ads(self, value: Any) -> dict:
+        with self._lock:
+            data = self._load_settings()
+            data["fastForwardPrerollAds"] = bool(value)
             return self._save_settings(data)
 
     def set_active_tabs(self, value: Any) -> dict:

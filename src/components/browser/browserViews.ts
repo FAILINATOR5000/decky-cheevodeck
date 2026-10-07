@@ -37,7 +37,7 @@ let events: ViewEvents | null = null;
 let limit = DEFAULT_ACTIVE_TABS;
 let nextKey = 1;
 let usedClock = 0;
-let pageSettings = { zoom: 100, blockAds: true, fastForward: true };
+let pageSettings = { zoom: 100, blockAds: true, fastForward: true, preroll: false };
 
 function bind(view: LiveView) {
     const { host, session } = view;
@@ -65,7 +65,7 @@ function bind(view: LiveView) {
             events?.load(host, url, title, loading, finished);
         }
         else if (finished && url && session.targetId) {
-            void preparePage(url, pageSettings.zoom, pageSettings.blockAds, pageSettings.fastForward, session.targetId, session);
+            void preparePage(url, pageSettings.zoom, pageSettings.blockAds, pageSettings.fastForward, pageSettings.preroll, session.targetId, session);
         }
     });
     host.setLoadingHandler((loading) => {
@@ -143,15 +143,15 @@ export function setViewLimit(value: number): void {
     limit = Math.max(1, Math.round(value) || DEFAULT_ACTIVE_TABS);
 }
 
-export function setHiddenPageSettings(zoom: number, blockAds: boolean, fastForward: boolean): void {
-    pageSettings = { zoom, blockAds, fastForward };
+export function setHiddenPageSettings(zoom: number, blockAds: boolean, fastForward: boolean, preroll: boolean): void {
+    pageSettings = { zoom, blockAds, fastForward, preroll };
 }
 
 export function refreshHiddenPages(): void {
     for (const view of liveViews()) {
         const url = view.host.currentUrl;
         if (view !== active && url && view.session.targetId) {
-            void preparePage(url, pageSettings.zoom, pageSettings.blockAds, pageSettings.fastForward, view.session.targetId, view.session);
+            void preparePage(url, pageSettings.zoom, pageSettings.blockAds, pageSettings.fastForward, pageSettings.preroll, view.session.targetId, view.session);
         }
     }
 }

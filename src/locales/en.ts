@@ -2190,6 +2190,8 @@ export const EN: LocaleTable = {
     "Fast-forward YouTube Ads": "Fast-forward YouTube Ads",
     "help_browser_block_ads": "Stops pages from loading ads from known ad and tracking servers, allowing pages to load fast with less intrusion from ads blocking the small view on the Steam Deck screen and on other devices.",
     "help_browser_fast_forward_youtube_ads": "When an ad plays on YouTube, mutes it and plays it at 16 times speed, pressing Skip as soon as it appears. The video itself is untouched.",
+    "Fast-forward Pre-roll Ads": "Fast-forward Pre-roll Ads",
+    "help_browser_fast_forward_preroll_ads": "When on, ads that play before a video starts are fast-forwarded too, but there is a tradeoff with this. YouTube buffers the video for as long as the full ad would be after the fast-forward. It's recommended to keep this off, so that the full ad plays before the video. It will still be skipped whenever YouTube offers a Skip button, and the best part is the ads in the middle of the video will still fast-forward just fine with no issues.",
     "Ad Block": "Ad Block",
     "Exempt Sites": "Exempt Sites",
     "help_browser_ad_exemptions": "Sites on this list load their ads. Use it for a site that stops working, or refuses to play, while ads are blocked.",

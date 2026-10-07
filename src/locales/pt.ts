@@ -2196,6 +2196,8 @@ const PT: LocaleTable = {
     "Fast-forward YouTube Ads": "Acelerar anúncios do YouTube",
     "help_browser_block_ads": "Impede que as páginas carreguem anúncios de servidores de publicidade e rastreamento conhecidos, para que carreguem rápido e com menos anúncios cobrindo a pequena visualização na tela do Steam Deck e em outros dispositivos.",
     "help_browser_fast_forward_youtube_ads": "Quando um anúncio toca no YouTube, deixa-o mudo e o reproduz a 16 vezes a velocidade, apertando Pular assim que ele aparece. O vídeo em si não é alterado.",
+    "Fast-forward Pre-roll Ads": "Acelerar anúncios antes do vídeo",
+    "help_browser_fast_forward_preroll_ads": "Quando ativado, os anúncios que tocam antes de um vídeo começar também são acelerados, mas há uma desvantagem. Depois da aceleração, o YouTube fica carregando o vídeo pelo tempo que o anúncio completo duraria. É recomendado deixar isto desativado, para que o anúncio completo toque antes do vídeo. Ele ainda será pulado sempre que o YouTube oferecer um botão Pular, e o melhor é que os anúncios no meio do vídeo continuam sendo acelerados sem nenhum problema.",
     "Ad Block": "Anúncios",
     "Exempt Sites": "Sites liberados",
     "help_browser_ad_exemptions": "Os sites desta lista carregam seus anúncios. Use-a para um site que para de funcionar, ou se recusa a reproduzir, enquanto os anúncios são bloqueados.",

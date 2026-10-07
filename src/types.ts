@@ -2008,6 +2008,7 @@ export type BrowserSettingsResponse = {
     openLinksInNewTab: boolean;
     blockAds: boolean;
     fastForwardYouTubeAds: boolean;
+    fastForwardPrerollAds: boolean;
     activeTabs: number;
     pauseMediaOnTabSwitch: boolean;
     maxDownloads: number;
