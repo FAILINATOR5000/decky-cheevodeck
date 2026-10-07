@@ -1033,6 +1033,15 @@ class BrowserStore:
         with self._lock:
             return self._load_settings()
 
+    def reset_settings(self) -> dict:
+        with self._lock:
+            data = self._load_settings()
+            return self._save_settings({
+                **self._empty_settings(),
+                "lastDownloadFolder": data["lastDownloadFolder"],
+                "expanded": data["expanded"],
+            })
+
     def set_page_zoom(self, value: Any) -> dict:
         with self._lock:
             data = self._load_settings()

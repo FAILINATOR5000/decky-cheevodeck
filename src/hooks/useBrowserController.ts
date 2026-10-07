@@ -51,6 +51,7 @@ import {
 import {
     loadBrowserSettings,
     logFocusDebug,
+    resetBrowserSettings,
     saveBrowserCustomNewTabUrl,
     saveBrowserCustomSearchUrl,
     saveBrowserExpanded,
@@ -277,6 +278,7 @@ export type BrowserController = {
     toggleFastForwardYouTubeAds: () => void;
     fastForwardPrerollAds: boolean;
     toggleFastForwardPrerollAds: () => void;
+    resetOptions: () => void;
     adExemptions: string[];
     maxAdExemptions: number;
     adExemptionsFull: boolean;
@@ -647,6 +649,18 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         void settle(liveUrlRef.current);
         saveSetting("toggleFastForwardPrerollAds", () => saveBrowserFastForwardPrerollAds(nextValue));
     }, [saveSetting, settle]);
+
+    const resetOptions = useCallback(() => {
+        (async () => {
+            try {
+                applySettings(await resetBrowserSettings());
+                void settle(liveUrlRef.current);
+            }
+            catch (e) {
+                logError("useBrowserController.resetOptions", e);
+            }
+        })();
+    }, [applySettings, settle]);
 
     const applyExemptions = useCallback((state: BrowserAdExemptionsResponse) => {
         const hosts = Array.isArray(state.hosts) ? state.hosts : [];
@@ -1722,6 +1736,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         toggleFastForwardYouTubeAds,
         fastForwardPrerollAds,
         toggleFastForwardPrerollAds,
+        resetOptions,
         adExemptions,
         maxAdExemptions,
         adExemptionsFull,

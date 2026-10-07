@@ -53,6 +53,7 @@ const ROW_STEP = 20;
 const SENTINEL_ROOT_MARGIN = "400px";
 
 const cellStyle: Record<string, string> = { flex: "0 0 auto", minWidth: "0" };
+const centeredCellStyle: Record<string, string> = { ...cellStyle, display: "flex", alignItems: "center" };
 
 function squareStyle(size: number): Record<string, string> {
     return {
@@ -201,7 +202,7 @@ function hostOf(url: string): string {
     }
 }
 
-type EditKind = "add" | "rename" | "delete" | "mark" | "clear" | "home" | "search" | "wipe" | "deletefile";
+type EditKind = "add" | "rename" | "delete" | "mark" | "clear" | "home" | "search" | "wipe" | "reset" | "deletefile";
 
 function sizeLabel(bytes: number): string {
     if (bytes >= 1024 * 1024 * 1024) {
@@ -318,6 +319,7 @@ type BrowserPanelProps = {
     onToggleFastForwardYouTubeAds: () => void;
     fastForwardPrerollAds: boolean;
     onToggleFastForwardPrerollAds: () => void;
+    onResetOptions: () => void;
     adExemptions: string[];
     maxAdExemptions: number;
     adExemptionsFull: boolean;
@@ -347,7 +349,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
         searchEngine, onCycleSearchEngine, customSearchUrl, onSetCustomSearchUrl,
         newTabPage, customNewTabUrl, onCycleNewTabPage, onSetCustomNewTabUrl,
         openLinksInNewTab, onToggleOpenLinksInNewTab,
-        blockAds, onToggleBlockAds, fastForwardYouTubeAds, onToggleFastForwardYouTubeAds, fastForwardPrerollAds, onToggleFastForwardPrerollAds,
+        blockAds, onToggleBlockAds, fastForwardYouTubeAds, onToggleFastForwardYouTubeAds, fastForwardPrerollAds, onToggleFastForwardPrerollAds, onResetOptions,
         adExemptions, maxAdExemptions, adExemptionsFull, currentSite, currentExemption, onToggleCurrentExemption, onRemoveExemption,
         activeTabs, onCycleActiveTabs, pauseMediaOnTabSwitch, onTogglePauseMediaOnTabSwitch,
         maxDownloads, onCycleMaxDownloads,
@@ -485,7 +487,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
             ))}
         </span>
     );
-    const optionLabels = [...browserOptionLabels(language), t(language, "On"), t(language, "Off"), t(language, "Close All Tabs"), t(language, "Clear")];
+    const optionLabels = [...browserOptionLabels(language), t(language, "On"), t(language, "Off"), t(language, "Close All Tabs"), t(language, "Clear"), t(language, "Reset")];
     const sizedLabel = (current: string) => stackedLabel(optionLabels, current);
     const exemptLabels = [...optionLabels, t(language, "Add This Site"), t(language, "Remove This Site")];
 
@@ -639,6 +641,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     );
 
     const [wiped, setWiped] = useState(false);
+    const [optionsReset, setOptionsReset] = useState(false);
     const canWipe = canClearBrowsingData();
 
     const customUrlRow = (kind: "home" | "search", url: string, placeholder: string) => {
@@ -1094,6 +1097,56 @@ export function BrowserPanel(props: BrowserPanelProps) {
                             <div style={noteStyle}>{t(language, "help_browser_clear_data")}</div>
                         </div>
                     )}
+
+                    <div style={settingCardStyle}>
+                        <div style={settingRowStyle}>
+                            <span style={{ opacity: 0.8, minWidth: "0" }}>{t(language, "Reset Options")}</span>
+                            <div style={{ flex: "1 1 auto" }} />
+                            {editing?.kind !== "reset" && (
+                                <div style={cellStyle}>
+                                    <DialogButton {...act("reset:open", () => openEditor("reset", "", ""))} style={optionStyle}>
+                                        {sizedLabel(t(language, "Reset"))}
+                                    </DialogButton>
+                                </div>
+                            )}
+                        </div>
+                        {editing?.kind === "reset" && (
+                            <div style={actionRowStyle(CATEGORY_HEIGHT_PX, true)}>
+                                <div
+                                    style={{
+                                        flex: "1 1 auto",
+                                        minWidth: "0",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        fontSize: `${modalSize(12)}px`,
+                                        padding: `${modalSize(4)}px 0`,
+                                        overflowWrap: "anywhere"
+                                    }}
+                                >
+                                    {t(language, "Reset all browser options to their defaults?")}
+                                </div>
+                                <div style={centeredCellStyle}>
+                                    <DialogButton
+                                        {...act("reset:confirm", () => {
+                                            closeEditor();
+                                            onResetOptions();
+                                            setOptionsReset(true);
+                                        })}
+                                        style={optionStyle}
+                                    >
+                                        {t(language, "Reset")}
+                                    </DialogButton>
+                                </div>
+                                <div style={centeredCellStyle}>
+                                    <DialogButton {...act("reset:keep", closeEditor)} style={optionStyle}>
+                                        {t(language, "Cancel")}
+                                    </DialogButton>
+                                </div>
+                            </div>
+                        )}
+                        {optionsReset && <div style={noteStyle}>{t(language, "Options reset.")}</div>}
+                        <div style={noteStyle}>{t(language, "help_browser_reset_options")}</div>
+                    </div>
                 </BrowserScrollArea>
             )}
 

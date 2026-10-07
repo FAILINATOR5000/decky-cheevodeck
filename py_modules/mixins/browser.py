@@ -640,6 +640,11 @@ class BrowserMixin(PluginContext):
         await asyncio.to_thread(self._start_queued)
         return _settings_response(self.user_home, state)
 
+    async def reset_browser_settings(self):
+        state = self.browser_store.reset_settings()
+        await asyncio.to_thread(self._start_queued)
+        return _settings_response(self.user_home, state)
+
     async def save_browser_pause_media_on_tab_switch(self, value: bool = False):
         return _settings_response(self.user_home, self.browser_store.set_pause_media_on_tab_switch(value))
 

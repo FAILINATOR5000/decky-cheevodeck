@@ -2813,6 +2813,7 @@ export const addCalculatorHistoryEntry = callable<
 export const clearCalculatorHistory = callable<[], CalculatorHistoryResponse>("clear_calculator_history");
 
 export const loadBrowserSettings = callable<[], BrowserSettingsResponse>("load_browser_settings");
+export const resetBrowserSettings = callable<[], BrowserSettingsResponse>("reset_browser_settings");
 export const saveBrowserPageZoom = callable<[number], BrowserSettingsResponse>("save_browser_page_zoom");
 export const saveBrowserHistoryRetention = callable<
     [BrowserHistoryRetention],

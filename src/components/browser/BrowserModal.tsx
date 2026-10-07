@@ -713,6 +713,7 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
                                 onToggleFastForwardYouTubeAds={browser.toggleFastForwardYouTubeAds}
                                 fastForwardPrerollAds={browser.fastForwardPrerollAds}
                                 onToggleFastForwardPrerollAds={browser.toggleFastForwardPrerollAds}
+                                onResetOptions={browser.resetOptions}
                                 adExemptions={browser.adExemptions}
                                 maxAdExemptions={browser.maxAdExemptions}
                                 adExemptionsFull={browser.adExemptionsFull}
