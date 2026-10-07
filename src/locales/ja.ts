@@ -2108,6 +2108,7 @@ const JA: LocaleTable = {
     "Last 90 Days": "過去90日間",
     "All Time": "すべての期間",
     "Nothing to clear in this range.": "この期間に削除する履歴はありません。",
+    "Clear the Back pages?": "「戻る」のページを消去しますか？",
     "Clear {{count}} visits?": {
         other: "{{count}} 件の履歴を削除しますか？"
     },

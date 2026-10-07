@@ -692,7 +692,7 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
                                     closePanel();
                                     browser.closeAllTabs();
                                 }}
-                                tabCount={browser.tabs.length}
+                                tabs={browser.tabs}
                                 pageZoom={browser.pageZoom}
                                 onStepZoom={browser.stepZoom}
                                 historyRetention={browser.historyRetention}

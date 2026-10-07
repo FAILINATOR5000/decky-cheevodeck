@@ -2167,6 +2167,7 @@ export const EN: LocaleTable = {
     "Last 90 Days": "Last 90 Days",
     "All Time": "All Time",
     "Nothing to clear in this range.": "Nothing to clear in this range.",
+    "Clear the Back pages?": "Clear the Back pages?",
     "Clear {{count}} visits?": {
         one: "Clear {{count}} visit?",
         other: "Clear {{count}} visits?"

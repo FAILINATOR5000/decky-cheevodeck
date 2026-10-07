@@ -38,7 +38,8 @@ import type {
     BrowserHistoryRetention,
     BrowserNewTabPage,
     BrowserPanelTab,
-    BrowserSearchEngine
+    BrowserSearchEngine,
+    BrowserTab
 } from "../../types";
 
 const ROW_HEIGHT_PX = 44;
@@ -287,7 +288,7 @@ type BrowserPanelProps = {
     onRemoveHistoryEntry: (entryId: string) => void;
     onClearHistory: (days: number) => void;
     onCloseAllTabs: () => void;
-    tabCount: number;
+    tabs: BrowserTab[];
     pageZoom: number;
     onStepZoom: (direction: number) => void;
     historyRetention: BrowserHistoryRetention;
@@ -330,7 +331,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     const {
         language, tab, bookmarks, categories, defaultCategoryId, collapsed, maxCategories, history, onPick, onPickHistory, onSetTab,
         onRemoveBookmark, onRenameBookmark, onAddCategory, onRenameCategory, onRemoveCategory, onMakeDefaultCategory, onSetCategoryCollapsed,
-        onRemoveHistoryEntry, onClearHistory, onCloseAllTabs, tabCount, keyboardOpen,
+        onRemoveHistoryEntry, onClearHistory, onCloseAllTabs, tabs, keyboardOpen,
         pageZoom, onStepZoom, historyRetention, onCycleHistoryRetention, onClose,
         searchEngine, onCycleSearchEngine, customSearchUrl, onSetCustomSearchUrl,
         newTabPage, customNewTabUrl, onCycleNewTabPage, onSetCustomNewTabUrl,
@@ -529,11 +530,16 @@ export function BrowserPanel(props: BrowserPanelProps) {
     const clearDays = CLEAR_RANGE_DAYS[clearRange];
     const clearCutoff = Math.floor(Date.now() / 1000) - clearDays * 86400;
     let clearCount = 0;
+    let clearBack = false;
     if (editing?.kind === "clear") {
         clearCount = clearDays === 0
             ? history.length
             : history.filter((entry) => entry.visitedAt >= clearCutoff).length;
+        const inRange = (stamp: number) => clearDays === 0 || stamp >= clearCutoff;
+        clearBack = tabs.some((row) => row.historyAt.some((stamp, slot) => slot !== row.historyIndex && inRange(stamp)));
     }
+    const canClear = clearCount > 0 || clearBack;
+    const hasBackPages = tabs.some((row) => row.history.length > 1);
 
     const atCategoryLimit = maxCategories > 0 && categories.length >= maxCategories;
 
@@ -810,7 +816,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
             <div style={{ flex: "1 1 auto" }} />
 
-            {tab === "history" && history.length > 0 && (
+            {tab === "history" && (history.length > 0 || hasBackPages) && (
                 <div style={cellStyle}>
                     <DialogButton
                         {...act("clearhistory", () => {
@@ -866,11 +872,11 @@ export function BrowserPanel(props: BrowserPanelProps) {
                             <div style={cellStyle}>
                                 <DialogButton
                                     {...act("closealltabs", () => {
-                                        if (tabCount > 1) {
+                                        if (tabs.length > 1) {
                                             onCloseAllTabs();
                                         }
                                     })}
-                                    style={{ ...optionStyle, opacity: tabCount > 1 ? "1" : "0.35" }}
+                                    style={{ ...optionStyle, opacity: tabs.length > 1 ? "1" : "0.35" }}
                                 >
                                     {sizedLabel(t(language, "Close All Tabs"))}
                                 </DialogButton>
@@ -1345,9 +1351,9 @@ export function BrowserPanel(props: BrowserPanelProps) {
                                 overflowWrap: "anywhere"
                             }}
                         >
-                            {clearCount === 0
-                                ? t(language, "Nothing to clear in this range.")
-                                : t(language, "Clear {{count}} visits?", { count: clearCount })}
+                            {clearCount > 0
+                                ? t(language, "Clear {{count}} visits?", { count: clearCount })
+                                : clearBack ? t(language, "Clear the Back pages?") : t(language, "Nothing to clear in this range.")}
                         </div>
                         <div style={cellStyle}>
                             <DialogButton
@@ -1361,11 +1367,11 @@ export function BrowserPanel(props: BrowserPanelProps) {
                             <DialogButton
                                 {...act("clear:confirm", () => {
                                     closeEditor();
-                                    if (clearCount > 0) {
+                                    if (canClear) {
                                         onClearHistory(clearDays);
                                     }
                                 })}
-                                style={{ ...wideActionStyle, opacity: clearCount === 0 ? "0.35" : "1" }}
+                                style={{ ...wideActionStyle, opacity: canClear ? "1" : "0.35" }}
                             >
                                 {t(language, "Clear")}
                             </DialogButton>

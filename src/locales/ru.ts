@@ -2242,6 +2242,7 @@ const RU: LocaleTable = {
     "Last 90 Days": "Последние 90 дней",
     "All Time": "За всё время",
     "Nothing to clear in this range.": "За этот период очищать нечего.",
+    "Clear the Back pages?": "Очистить страницы «Назад»?",
     "Clear {{count}} visits?": {
         one: "Очистить {{count}} посещение?",
         few: "Очистить {{count}} посещения?",

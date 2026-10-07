@@ -2184,6 +2184,7 @@ const ES: LocaleTable = {
     "Last 90 Days": "Últimos 90 días",
     "All Time": "Todo",
     "Nothing to clear in this range.": "No hay nada que limpiar en este periodo.",
+    "Clear the Back pages?": "¿Limpiar las páginas de Atrás?",
     "Clear {{count}} visits?": {
         one: "¿Limpiar {{count}} visita?",
         other: "¿Limpiar {{count}} visitas?"
