@@ -711,7 +711,8 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
                 const chosen = fileName && fileName !== held.name ? fileName : "";
                 const started = await startBrowserDownload(held.url, folder, held.name, cookie, userAgent, held.referer, chosen, held.origin);
                 logFocusDebug("browser-download", started?.ok ? "started" : "refused", String(started?.error ?? started?.id ?? ""));
-                toastDownload(started?.ok ? "Downloading" : "Download Failed", chosen || held.name, started?.ok ? "" : String(started?.error ?? ""));
+                const title = !started?.ok ? "Download Failed" : started.queued ? "Queued" : "Downloading";
+                toastDownload(title, chosen || held.name, started?.ok ? "" : String(started?.error ?? ""));
             }
             catch (e) {
                 logError("useBrowserController.downloadTo", e);

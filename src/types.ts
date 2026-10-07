@@ -1960,7 +1960,7 @@ export type BrowserTab = {
 
 export type BrowserPanelTab = "bookmarks" | "history" | "options" | "adblock" | "downloads";
 
-type BrowserDownloadState = "downloading" | "done" | "failed" | "canceled" | "interrupted" | "paused";
+type BrowserDownloadState = "downloading" | "done" | "failed" | "canceled" | "interrupted" | "paused" | "queued";
 
 type BrowserDownloadAction = "pause" | "pausing" | "resume" | "continue" | "restart" | "";
 

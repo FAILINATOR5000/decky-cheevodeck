@@ -239,13 +239,22 @@ function downloadStatus(row: BrowserDownload, language: LanguageCode): string {
                 : `${t(language, "Failed")} · ${downloadFailure(row.error) || row.error}`;
         case "canceled":
             return t(language, "Canceled");
+        case "queued":
+            return queuedStatus(row, language);
         default:
             return kept ? `${t(language, "Interrupted")} · ${progressLabel(row, false)}` : t(language, "Interrupted");
     }
 }
 
+function queuedStatus(row: BrowserDownload, language: LanguageCode): string {
+    if (row.received > 0) {
+        return `${t(language, "Queued")} · ${progressLabel(row, false)}`;
+    }
+    return row.total > 0 ? `${t(language, "Queued")} · ${sizeLabel(row.total)}` : t(language, "Queued");
+}
+
 function endedAt(row: BrowserDownload, language: LanguageCode): string {
-    if (row.state === "downloading" || row.state === "paused") {
+    if (row.state === "downloading" || row.state === "paused" || row.state === "queued") {
         return "";
     }
     return ` · ${formatDateTime(row.finishedAt || row.startedAt, language)}`;

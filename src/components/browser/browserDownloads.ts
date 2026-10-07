@@ -4,7 +4,7 @@ import { getCurrentLanguage, t } from "../../locales";
 const BROWSER_DOWNLOAD_EVENT = "cheevodeck_browser_download";
 const BROWSER_DOWNLOAD_PROGRESS_EVENT = "cheevodeck_browser_download_progress";
 
-type DownloadToast = "Downloading" | "Download Complete" | "Download Failed";
+type DownloadToast = "Downloading" | "Queued" | "Download Complete" | "Download Failed";
 
 export type DownloadFinished = { id?: string; ok?: boolean; name?: string; error?: string };
 
@@ -20,7 +20,6 @@ const FAILURES: Record<string, string> = {
     write_failed: "The file couldn't be saved.",
     web_page: "Got a web page, not the file.",
     stalled: "The download stalled.",
-    busy: "Too many downloads.",
     unsupported: "The browser can't save this."
 };
 

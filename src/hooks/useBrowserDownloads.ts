@@ -8,7 +8,7 @@ import {
     restartBrowserDownload,
     resumeBrowserDownload
 } from "../api";
-import { subscribeDownloads, toastDownload } from "../components/browser/browserDownloads";
+import { subscribeDownloads } from "../components/browser/browserDownloads";
 import { requestHeadersFor } from "../components/browser/browserSession";
 import { logError } from "../utils/errors";
 import type { BrowserDownload, BrowserDownloadsResponse } from "../types";
@@ -36,6 +36,8 @@ export function useBrowserDownloads(isActive: boolean): BrowserDownloads {
 
     const knownRef = useRef(new Set<string>());
 
+    const queuedRef = useRef(new Set<string>());
+
     const pausingRef = useRef(new Set<string>());
 
     const asShown = (row: BrowserDownload): BrowserDownload => {
@@ -53,8 +55,12 @@ export function useBrowserDownloads(isActive: boolean): BrowserDownloads {
 
     const take = (request: number, state: BrowserDownloadsResponse | null | undefined) => {
         if (request === requestRef.current && activeRef.current && Array.isArray(state?.downloads)) {
+            queuedRef.current.clear();
             for (const row of state.downloads) {
                 knownRef.current.add(row.id);
+                if (row.state === "queued") {
+                    queuedRef.current.add(row.id);
+                }
             }
             setDownloads(state.downloads.map(asShown));
             setLoaded(true);
@@ -76,8 +82,9 @@ export function useBrowserDownloads(isActive: boolean): BrowserDownloads {
                 if (!progress?.id) {
                     return;
                 }
-                if (!knownRef.current.has(progress.id)) {
+                if (!knownRef.current.has(progress.id) || queuedRef.current.has(progress.id)) {
                     knownRef.current.add(progress.id);
+                    queuedRef.current.delete(progress.id);
                     reload();
                     return;
                 }
@@ -133,10 +140,7 @@ export function useBrowserDownloads(isActive: boolean): BrowserDownloads {
                 const second = row.origin && row.url && row.origin !== row.url ? (await requestHeadersFor(row.url)).cookie : "";
                 const state = await (restart ? restartBrowserDownload : resumeBrowserDownload)(downloadId, cookie, userAgent, second);
                 take(request, state);
-                if (state?.ok === false && state.error === "busy") {
-                    toastDownload("Download Failed", row.name, "busy");
-                }
-                else if (state?.ok === false && state.error === "unavailable") {
+                if (state?.ok === false && state.error === "unavailable") {
                     setNotice({ id: downloadId, text: UNAVAILABLE });
                 }
             }

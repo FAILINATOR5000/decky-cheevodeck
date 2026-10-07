@@ -2865,7 +2865,7 @@ export const getBrowserDownloadFolder = callable<[], { ok: boolean; path: string
 );
 export const startBrowserDownload = callable<
     [url: string, folder: string, suggestedName: string, cookie: string, userAgent: string, referer: string, chosenName: string, origin: string],
-    { ok: boolean; id?: string; error?: string }
+    { ok: boolean; id?: string; queued?: boolean; error?: string }
 >("start_browser_download");
 export const getBrowserDownloads = callable<[], BrowserDownloadsResponse>("get_browser_downloads");
 export const cancelBrowserDownload = callable<[downloadId: string], { ok: boolean }>("cancel_browser_download");

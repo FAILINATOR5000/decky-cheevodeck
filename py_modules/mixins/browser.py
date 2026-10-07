@@ -58,6 +58,11 @@ _ROOT = Path("/")
 
 _RUN_ID = uuid.uuid4().hex
 
+
+def _queue_stamp() -> int:
+    return int(time.time() * 1000)
+
+
 _CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
 _FAT_CHARS = re.compile(r'[:?*"<>|]')
 _DISPOSITION_STAR = re.compile(r"filename\*\s*=\s*([^';]*)'[^']*'([^;]+)", re.IGNORECASE)
@@ -69,6 +74,8 @@ _active_downloads: dict = {}
 _active_lock = threading.Lock()
 
 _removing: set = set()
+
+_queued: dict = {}
 
 
 def _fit_bytes(text: str, limit: int) -> str:
@@ -629,7 +636,9 @@ class BrowserMixin(PluginContext):
         return _settings_response(self.user_home, self.browser_store.set_active_tabs(value))
 
     async def save_browser_max_downloads(self, value: int = 16):
-        return _settings_response(self.user_home, self.browser_store.set_max_downloads(value))
+        state = self.browser_store.set_max_downloads(value)
+        await asyncio.to_thread(self._start_queued)
+        return _settings_response(self.user_home, state)
 
     async def save_browser_pause_media_on_tab_switch(self, value: bool = False):
         return _settings_response(self.user_home, self.browser_store.set_pause_media_on_tab_switch(value))
@@ -684,10 +693,9 @@ class BrowserMixin(PluginContext):
         limit = self.browser_store.list_settings()["maxDownloads"]
         download_id = uuid.uuid4().hex
         with _active_lock:
-            if len(_active_downloads) >= limit:
-                decky.logger.warning("browser download refused, %d already running", len(_active_downloads))
-                return {"ok": False, "error": "busy"}
-            _active_downloads[download_id] = {"path": None, "canceled": False, "received": 0, "total": -1}
+            queue = len(_active_downloads) >= limit or bool(_queued)
+            if not queue:
+                _active_downloads[download_id] = {"path": None, "canceled": False, "received": 0, "total": -1}
 
         headers = {}
         if not is_data:
@@ -701,20 +709,32 @@ class BrowserMixin(PluginContext):
         self.browser_store.set_last_download_folder(str(folder).strip())
 
         record = self.browser_store.downloads_path()
-        with _active_lock:
-            _active_downloads[download_id]["record"] = record
+        if not queue:
+            with _active_lock:
+                _active_downloads[download_id]["record"] = record
         name = _scrub_name(chosen_name) or _scrub_name(suggested_name) or "download"
+        queued_at = _queue_stamp()
         self._add_download_row(record, {
             "id": download_id,
             "name": name,
             "folder": str(destination),
-            "state": "downloading",
+            "state": "queued" if queue else "downloading",
             "startedAt": int(time.time()),
+            "queuedAt": queued_at if queue else 0,
             "run": _RUN_ID,
             "url": "" if is_data else target,
             "origin": "" if is_data or origin == target else str(origin or ""),
             "referer": headers.get("Referer", ""),
         })
+        if queue:
+            self._enqueue(download_id, {
+                "record": record, "at": queued_at, "headers": headers, "kind": "start",
+                "url": target, "suggested": str(suggested_name or ""), "chosen": str(chosen_name or ""),
+            })
+            await asyncio.to_thread(self._start_queued)
+            with _active_lock:
+                waiting = download_id in _queued
+            return {"ok": True, "id": download_id, "queued": waiting}
         self._start_worker(download_id, target, destination, str(suggested_name or ""), str(chosen_name or ""), headers, record)
         return {"ok": True, "id": download_id}
 
@@ -790,6 +810,7 @@ class BrowserMixin(PluginContext):
             fields["total"] = entry.get("total", -1)
             fields["finishedAt"] = int(time.time())
             self._record_download(record, download_id, **fields)
+        self._start_queued()
         self._emit_browser_download(result)
 
     def _fetch_browser_download(self, download_id, url, folder, suggested, chosen, headers, host, record, resume=None):
@@ -1134,6 +1155,11 @@ class BrowserMixin(PluginContext):
 
     def _downloads_response(self, record: Path) -> dict:
         rows = self.browser_store.list_downloads(record)["downloads"]
+        rows = (
+            [row for row in rows if row["state"] == "downloading"]
+            + sorted((row for row in rows if row["state"] == "queued"), key=lambda row: row["queuedAt"])
+            + [row for row in rows if row["state"] not in ("downloading", "queued")]
+        )
         with _active_lock:
             live = {key: dict(entry) for key, entry in _active_downloads.items()}
         for row in rows:
@@ -1193,27 +1219,6 @@ class BrowserMixin(PluginContext):
             return {**self._downloads_response(record), "ok": False, "error": "unavailable"}
         limit = self.browser_store.list_settings()["maxDownloads"]
         download_id = row["id"]
-        resume = None if restart or row["part"] is None else {
-            "name": row["name"], "part": row["part"], "partCheck": row["partCheck"], "validator": row["validator"], "total": row["total"],
-        }
-        refused = ""
-        with _active_lock:
-            if download_id in _active_downloads or download_id in _removing:
-                refused = "gone"
-            elif len(_active_downloads) >= limit:
-                decky.logger.warning("browser download refused, %d already running", len(_active_downloads))
-                refused = "busy"
-            else:
-                _active_downloads[download_id] = {
-                    "path": None,
-                    "canceled": False,
-                    "received": row["received"] if resume else 0,
-                    "total": row["total"] if resume else -1,
-                    "record": record,
-                }
-        if refused:
-            return {**self._downloads_response(record), "ok": False, "error": refused}
-
         headers = {}
         if cookie:
             headers["Cookie"] = str(cookie)
@@ -1227,14 +1232,42 @@ class BrowserMixin(PluginContext):
             if fallback_cookie:
                 second["Cookie"] = str(fallback_cookie)
             fallback = (row["url"], second)
+        refused = queue = False
+        with _active_lock:
+            if download_id in _active_downloads or download_id in _removing or download_id in _queued:
+                refused = True
+            elif len(_active_downloads) >= limit or _queued:
+                queue = True
+            else:
+                _active_downloads[download_id] = {"path": None, "canceled": False, "received": 0, "total": -1, "record": record}
+        if refused:
+            return {**self._downloads_response(record), "ok": False, "error": "gone"}
+        if queue:
+            at = _queue_stamp()
+            self._record_download(record, download_id, state="queued", queuedAt=at, run=_RUN_ID, error="", finishedAt=0)
+            self._enqueue(download_id, {"record": record, "at": at, "headers": headers, "fallback": fallback, "kind": "restart" if restart else "resume"})
+            await asyncio.to_thread(self._start_queued)
+            return {**self._downloads_response(record), "ok": True}
+        if await asyncio.to_thread(self._launch_again, record, row, headers, restart, fallback) == "unavailable":
+            with _active_lock:
+                _active_downloads.pop(download_id, None)
+            await asyncio.to_thread(self._start_queued)
+            return {**self._downloads_response(record), "ok": False, "error": "unavailable"}
+        return {**self._downloads_response(record), "ok": True}
 
+    def _launch_again(self, record: Path, row: dict, headers: dict, restart: bool, fallback=None) -> str:
+        download_id = row["id"]
+        folder = Path(row["folder"])
+        resume = None if restart or row["part"] is None else {
+            "name": row["name"], "part": row["part"], "partCheck": row["partCheck"], "validator": row["validator"], "total": row["total"],
+        }
+        if resume:
+            with _active_lock:
+                _active_downloads[download_id]["received"] = row["received"]
+                _active_downloads[download_id]["total"] = row["total"]
         if restart:
-            if row["part"] is not None:
-                outcome = await asyncio.to_thread(_delete_part, self.user_home, row)
-                if outcome == "unavailable":
-                    with _active_lock:
-                        _active_downloads.pop(download_id, None)
-                    return {**self._downloads_response(record), "ok": False, "error": "unavailable"}
+            if row["part"] is not None and _delete_part(self.user_home, row) == "unavailable":
+                return "unavailable"
             self._add_download_row(record, {
                 "id": download_id,
                 "name": row["name"],
@@ -1248,30 +1281,103 @@ class BrowserMixin(PluginContext):
             })
         else:
             note = "missing" if resume is None and row["received"] > 0 else ""
-            self._record_download(record, download_id, state="downloading", run=_RUN_ID, note=note, error="", finishedAt=0)
+            self._record_download(record, download_id, state="downloading", run=_RUN_ID, note=note, error="", finishedAt=0, queuedAt=0)
         decky.logger.info("browser download %s", "restarted" if restart else "resumed")
         self._start_worker(download_id, row["origin"] or row["url"], folder, row["name"], row["name"], headers, record, resume, fallback)
-        return {**self._downloads_response(record), "ok": True}
+        return ""
+
+    def _enqueue(self, download_id: str, job: dict) -> None:
+        with _active_lock:
+            _queued[download_id] = job
+        decky.logger.info("browser download queued")
+
+    def _start_queued(self) -> None:
+        limit = self.browser_store.list_settings()["maxDownloads"]
+        while True:
+            picked = []
+            with _active_lock:
+                for download_id in sorted(_queued, key=lambda key: _queued[key]["at"]):
+                    if len(_active_downloads) >= limit:
+                        break
+                    if download_id in _active_downloads or download_id in _removing:
+                        continue
+                    job = _queued.pop(download_id)
+                    _active_downloads[download_id] = {"path": None, "canceled": False, "received": 0, "total": -1, "record": job["record"]}
+                    picked.append((download_id, job))
+            if not picked:
+                return
+            missed = False
+            for download_id, job in picked:
+                try:
+                    started = self._launch_queued(download_id, job)
+                except Exception as exc:
+                    decky.logger.warning("browser download: a queued download couldn't start (%s)", _why(exc))
+                    self._fail_queued(job["record"], download_id, "failed")
+                    started = False
+                if not started:
+                    missed = True
+                    with _active_lock:
+                        entry = _active_downloads.pop(download_id, None) or {}
+                        _release(entry)
+            if not missed:
+                return
+
+    def _fail_queued(self, record: Path, download_id: str, error: str) -> None:
+        row = self._download_row(record, download_id)
+        if row is None:
+            return
+        self._record_download(record, download_id, state="failed", error=error, finishedAt=int(time.time()), queuedAt=0)
+        self._emit_browser_download({"id": download_id, "ok": False, "name": row["name"], "folder": row["folder"], "error": error})
+
+    def _launch_queued(self, download_id: str, job: dict) -> bool:
+        record = job["record"]
+        row = self._download_row(record, download_id)
+        if row is None:
+            return False
+        folder = Path(row["folder"])
+        if not row["folder"] or _download_folder(self.user_home, folder) != folder:
+            self._fail_queued(record, download_id, "bad_folder")
+            return False
+        if job["kind"] == "start":
+            self._record_download(record, download_id, state="downloading", startedAt=int(time.time()), queuedAt=0, run=_RUN_ID)
+            self._start_worker(download_id, job["url"], folder, job["suggested"], job["chosen"], job["headers"], record)
+            return True
+        if self._launch_again(record, row, job["headers"], job["kind"] == "restart", job.get("fallback")) == "unavailable":
+            self._fail_queued(record, download_id, "bad_folder")
+            return False
+        return True
 
     async def remove_browser_download(self, download_id: str = ""):
         record = self.browser_store.downloads_path()
         wanted = str(download_id or "")
         with _active_lock:
             busy = wanted in _active_downloads or wanted in _removing
+            job = None
             if not busy:
                 _removing.add(wanted)
+                job = _queued.pop(wanted, None)
         if busy:
             return {**self._downloads_response(record), "ok": False, "error": "gone"}
+        refused = ""
+        removed = False
         try:
             row = self._download_row(record, wanted)
             if row is not None and row["state"] != "downloading" and row["part"] is not None:
                 outcome = await asyncio.to_thread(_delete_part, self.user_home, row)
                 if outcome in ("unavailable", "failed"):
-                    return {**self._downloads_response(record), "ok": False, "error": outcome}
-            self.browser_store.remove_download(record, wanted)
+                    refused = outcome
+            if not refused:
+                self.browser_store.remove_download(record, wanted)
+                removed = True
         finally:
             with _active_lock:
                 _removing.discard(wanted)
+                if job is not None and not removed:
+                    _queued[wanted] = job
+            if job is not None and not removed:
+                await asyncio.to_thread(self._start_queued)
+        if refused:
+            return {**self._downloads_response(record), "ok": False, "error": refused}
         return self._downloads_response(record)
 
     async def delete_browser_download_file(self, download_id: str = ""):
@@ -1322,6 +1428,8 @@ class BrowserMixin(PluginContext):
             return under is None or (record is not None and Path(record).is_relative_to(under))
 
         with _active_lock:
+            for download_id in [key for key, job in _queued.items() if chosen(job)]:
+                del _queued[download_id]
             for entry in _active_downloads.values():
                 if chosen(entry):
                     entry["canceled"] = True

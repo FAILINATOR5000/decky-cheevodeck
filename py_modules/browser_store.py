@@ -46,7 +46,7 @@ MAX_AD_EXEMPTIONS = 500
 
 MAX_DOWNLOADS = 100
 
-DOWNLOAD_STATES = ("downloading", "done", "failed", "canceled", "interrupted", "paused")
+DOWNLOAD_STATES = ("downloading", "done", "failed", "canceled", "interrupted", "paused", "queued")
 
 MAX_DOWNLOAD_NAME_LENGTH = 255
 
@@ -1226,6 +1226,7 @@ class BrowserStore:
             "received": max(to_int(raw.get("received", 0), 0), 0),
             "total": max(to_int(raw.get("total", -1), -1), -1),
             "startedAt": max(to_int(raw.get("startedAt", 0), 0), 0),
+            "queuedAt": max(to_int(raw.get("queuedAt", 0), 0), 0),
             "finishedAt": max(to_int(raw.get("finishedAt", 0), 0), 0),
             "run": _clean_text(raw.get("run"), MAX_ID_LENGTH),
             "part": _clean_identity(raw.get("part"), 2),
@@ -1253,11 +1254,14 @@ class BrowserStore:
             return empty
         downloads = []
         seen = set()
-        for row in rows[:MAX_DOWNLOADS]:
+        for index, row in enumerate(rows[:MAX_DOWNLOADS * 2]):
             download = self._clean_download(row)
-            if download and download["id"] not in seen:
-                seen.add(download["id"])
-                downloads.append(download)
+            if not download or download["id"] in seen:
+                continue
+            if index >= MAX_DOWNLOADS and download["state"] not in ("downloading", "queued"):
+                continue
+            seen.add(download["id"])
+            downloads.append(download)
         return {"schemaVersion": CURRENT_SCHEMA_VERSION, "downloads": downloads}
 
     def _save_downloads(self, path: Path, data: dict) -> dict:
@@ -1281,7 +1285,7 @@ class BrowserStore:
             rows = [entry for entry in data["downloads"] if entry["id"] != download["id"]]
             dropped = []
             while len(rows) >= MAX_DOWNLOADS:
-                finished = [entry for entry in rows if entry["state"] != "downloading"]
+                finished = [entry for entry in rows if entry["state"] not in ("downloading", "queued")]
                 if not finished:
                     break
                 oldest = min(finished, key=lambda entry: entry["startedAt"])
@@ -1328,7 +1332,7 @@ class BrowserStore:
     def settle_interrupted(self, path: Path, run: str) -> list:
         with self._lock:
             data = self._load_downloads(path)
-            stale = [entry for entry in data["downloads"] if entry["state"] == "downloading" and entry["run"] != run]
+            stale = [entry for entry in data["downloads"] if entry["state"] in ("downloading", "queued") and entry["run"] != run]
             if not stale:
                 return []
             for entry in stale:
