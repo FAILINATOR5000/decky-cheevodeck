@@ -749,14 +749,17 @@ class BrowserMixin(PluginContext):
             claimed = _active_downloads.get(download_id, {}).get("path")
             if claimed is not None:
                 result["name"] = claimed.name
+            debug = getattr(self, "_debug_logging", False)
             if exc.code in ("canceled", "paused"):
                 fields = {"state": exc.code, "error": "" if exc.code == "paused" else exc.code, "name": result["name"]}
                 decky.logger.info("browser download %s", exc.code)
+                if debug:
+                    decky.logger.info("browser download %s: %s from %s", exc.code, result["name"], host)
             else:
                 fields = {"state": "failed", "error": exc.code, "name": result["name"]}
                 decky.logger.error("browser download failed: %s%s", exc.code, f" ({exc.why})" if exc.why else "")
-            if getattr(self, "_debug_logging", False):
-                decky.logger.info("browser download failed: %s from %s: %s", result["name"], host, exc.detail)
+                if debug:
+                    decky.logger.info("browser download failed: %s from %s: %s", result["name"], host, exc.detail)
         except Exception as exc:
             result["error"] = "failed"
             fields = {"state": "failed", "error": "failed"}
