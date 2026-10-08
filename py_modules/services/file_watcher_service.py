@@ -68,6 +68,10 @@ GATE_CACHE_SECONDS = 2.0
 
 RATE_WINDOW_SECONDS = 30.0
 
+RATE_SAMPLE_SECONDS = 1.0
+
+ETA_MIN_BYTES = 512 * 1024 * 1024
+
 DEAD_MOUNT_FAILURES = 12
 
 WAITING_WINDOW = "window"
@@ -262,6 +266,9 @@ class FileWatcherService:
         self._rate_samples = deque()
         self._rate_bytes = 0
         self._rate_span = 0.0
+        self._rate_seen = 0
+        self._rate_pending = 0
+        self._rate_mark = 0.0
 
         self._ready_at = 0
         self._cold_boot = False
@@ -372,8 +379,8 @@ class FileWatcherService:
         Suppressed rather than frozen whenever a pass isn't actually reading:
         "about four hours left" is a lie if fifteen of them are spent parked for
         the blackout window, and a number that stops moving reads as a hung
-        scan. The walk has no denominator yet, and a rate of zero means no
-        checkpoint has landed since the pass began.
+        scan. The walk has no denominator yet, and a rate of zero means nothing
+        has been read since the pass began.
 
         Called with the lock already held, since the pass it measures is read
         under it and threading.Lock doesn't nest.
@@ -384,7 +391,7 @@ class FileWatcherService:
             return None
         if self._rate <= 0:
             return None
-        if self._pass["doneBytes"] * 100 < self._pass["totalBytes"]:
+        if self._rate_seen * 100 < self._pass["totalBytes"] and self._rate_seen < ETA_MIN_BYTES:
             return None
         remaining = max(0, self._pass["totalBytes"] - self._pass["doneBytes"])
         return int(remaining / self._rate)
@@ -774,6 +781,8 @@ class FileWatcherService:
             self._rate_samples.clear()
             self._rate_bytes = 0
             self._rate_span = 0.0
+            self._rate_seen = 0
+            self._rate_pending = 0
             self._due_unstarted = False
 
     def _set_pass_field(self, **fields) -> None:
@@ -976,6 +985,9 @@ class FileWatcherService:
         done_keys = []
         done_bytes = 0
         last_commit = time.monotonic()
+        with self._lock:
+            self._rate_pending = 0
+            self._rate_mark = last_commit
         failures = {}
         current_root = None
         speed = self._read_speed()
@@ -988,7 +1000,7 @@ class FileWatcherService:
                 done_keys=done_keys,
                 done_bytes=done_bytes,
             )
-            self._bump_progress(done_bytes, time.monotonic() - last_commit)
+            self._log_checkpoint(done_bytes, time.monotonic() - last_commit)
             mapped_rows.clear()
             finding_rows.clear()
             done_keys.clear()
@@ -1186,9 +1198,17 @@ class FileWatcherService:
         """
         if size <= 0:
             return
+        now = time.monotonic()
         with self._lock:
-            if self._pass is not None:
-                self._pass["doneBytes"] += size
+            if self._pass is None:
+                return
+            self._pass["doneBytes"] += size
+            self._rate_pending += size
+            seconds = now - self._rate_mark
+            if seconds >= RATE_SAMPLE_SECONDS:
+                self._sample_rate(self._rate_pending, seconds)
+                self._rate_pending = 0
+                self._rate_mark = now
 
     def _add_files(self, count: int) -> None:
         """Credit files as they finish, not as they commit.
@@ -1202,22 +1222,24 @@ class FileWatcherService:
             if self._pass is not None:
                 self._pass["doneFiles"] += count
 
-    def _bump_progress(self, size: int, seconds: float) -> None:
+    def _sample_rate(self, size: int, seconds: float) -> None:
+        self._rate_samples.append((size, seconds))
+        self._rate_bytes += size
+        self._rate_span += seconds
+        self._rate_seen += size
+        while len(self._rate_samples) > 1 and self._rate_span > RATE_WINDOW_SECONDS:
+            old_size, old_seconds = self._rate_samples.popleft()
+            self._rate_bytes -= old_size
+            self._rate_span -= old_seconds
+        self._rate = self._rate_bytes / self._rate_span
+
+    def _log_checkpoint(self, size: int, seconds: float) -> None:
+        if size <= 0 or seconds <= 0:
+            return
         with self._lock:
-            if size <= 0 or seconds <= 0:
-                return
-            sample = size / seconds
-            self._rate_samples.append((size, seconds))
-            self._rate_bytes += size
-            self._rate_span += seconds
-            while len(self._rate_samples) > 1 and self._rate_span > RATE_WINDOW_SECONDS:
-                old_size, old_seconds = self._rate_samples.popleft()
-                self._rate_bytes -= old_size
-                self._rate_span -= old_seconds
-            self._rate = self._rate_bytes / self._rate_span
             self._debug(
                 "checkpoint: %.1f MB in %.1fs (%.0f MB/s sample, %.0f MB/s smoothed), %s left",
-                size / 1048576.0, seconds, sample / 1048576.0, self._rate / 1048576.0,
+                size / 1048576.0, seconds, size / seconds / 1048576.0, self._rate / 1048576.0,
                 self._remaining_seconds(),
             )
 
