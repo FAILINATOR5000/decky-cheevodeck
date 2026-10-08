@@ -607,6 +607,7 @@ const AD_SLOT_CSS = [
     "iframe[src*=\"doubleclick.net\"]",
     "iframe[src*=\"googlesyndication.com\"]",
     "ytd-ad-slot-renderer",
+    "ytd-rich-item-renderer:has(ytd-ad-slot-renderer)",
     "ytd-watch-flexy #player-ads"
 ].join(", ") + " { display: none !important; }";
 
