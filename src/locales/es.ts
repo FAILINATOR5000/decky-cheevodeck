@@ -2206,6 +2206,8 @@ const ES: LocaleTable = {
     "Block Ads": "Bloquear anuncios",
     "Fast-forward YouTube Ads": "Adelantar anuncios de YouTube",
     "help_browser_block_ads": "Impide que las páginas carguen anuncios de servidores de publicidad y rastreo conocidos, para que carguen rápido y con menos anuncios tapando la pequeña vista en la pantalla de la Steam Deck y en otros dispositivos.",
+    "Block YouTube Ads": "Bloquear anuncios de YouTube",
+    "help_browser_block_youtube_ads": "Elimina por completo los anuncios de los vídeos de YouTube. Los datos de bloqueo se actualizan dos veces al día para que siga funcionando. Si los datos dejan de funcionar antes de que el repositorio los actualice, se usarán las opciones de abajo. Esto funciona mientras las reglas de bloqueo del repositorio estén actualizadas, así que si YouTube cambia algo, me aseguraré de actualizar las reglas en cuanto pueda.",
     "help_browser_fast_forward_youtube_ads": "Cuando se reproduce un anuncio en YouTube, lo silencia y lo reproduce a 16 veces la velocidad, pulsando Saltar en cuanto aparece. El vídeo en sí no se toca.",
     "Fast-forward Pre-roll Ads": "Adelantar anuncios antes del vídeo",
     "help_browser_fast_forward_preroll_ads": "Si está activado, los anuncios que se reproducen antes de que empiece un vídeo también se adelantan, pero tiene un inconveniente. Después del adelanto, YouTube carga el vídeo durante lo que habría durado el anuncio completo. Se recomienda dejarlo desactivado para que el anuncio completo se reproduzca antes del vídeo. Se seguirá saltando siempre que YouTube ofrezca un botón de Saltar, y lo mejor es que los anuncios a mitad del vídeo se seguirán adelantando sin ningún problema.",

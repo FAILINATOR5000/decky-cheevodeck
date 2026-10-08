@@ -1,0 +1,45 @@
+{
+  "format": 1,
+  "revision": 1,
+  "enabled": true,
+  "marker": [
+    "playabilityStatus",
+    "playerResponse"
+  ],
+  "within": [
+    "playerResponse"
+  ],
+  "remove": [
+    "adPlacements"
+  ],
+  "removeWithDisguise": [
+    "adSlots",
+    "playerAds",
+    "adBreakHeartbeatParams"
+  ],
+  "removeAllOnNavigation": true,
+  "globals": [
+    "ytInitialPlayerResponse"
+  ],
+  "textPaths": [
+    "/youtubei/v1/player",
+    "/youtubei/v1/get_watch"
+  ],
+  "disguises": [
+    {
+      "name": "params-8aub",
+      "set": {
+        "params": "8AUB"
+      }
+    },
+    {
+      "name": "instream-context",
+      "set": {
+        "playbackContext.contentPlaybackContext.adPlaybackContext": {
+          "adType": "AD_TYPE_INSTREAM"
+        }
+      }
+    }
+  ],
+  "holdSeconds": 6
+}

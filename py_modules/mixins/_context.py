@@ -28,6 +28,7 @@ from services.memories_video_service import MemoriesVideoService
 from services.comments_service import CommentsService
 from services.new_sets_service import NewSetsService
 from services.tracked_sets_monitor_service import TrackedSetsMonitorService
+from services.video_filter_service import VideoFilterService
 from guides_store import GuidesStore
 from memories_store import MemoriesStore
 from notes_store import NotesStore
@@ -45,6 +46,7 @@ from resolved_avatar_store import ResolvedAvatarStore
 from cheevo_check_store import CheevoCheckStore
 from calculator_store import CalculatorStore
 from browser_store import BrowserStore
+from video_filter_store import VideoFilterStore
 from file_watcher_store import FileWatcherStore
 from dolphin_mappings_store import DolphinMappingsStore
 from smb_shares_store import SmbSharesStore
@@ -77,6 +79,7 @@ class PluginContext:
     tracked_sets_store: TrackedSetsStore
     dolphin_mappings_store: DolphinMappingsStore
     smb_shares_store: SmbSharesStore
+    video_filter_store: VideoFilterStore
     _ssl_ctx: ssl.SSLContext
     dolphin_defaults_dir: Path
     help_dir: Path
@@ -103,6 +106,7 @@ class PluginContext:
     social_activity_cache_service: SocialActivityCacheService
     social_activity_trickle_service: SocialActivityTrickleService
     tracked_sets_monitor_service: TrackedSetsMonitorService
+    video_filter_service: VideoFilterService
     _asyncio_loop: asyncio.AbstractEventLoop | None
     _comments_cache: dict
     _comments_cache_lock: threading.Lock

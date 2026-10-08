@@ -189,6 +189,7 @@ import type {
     BrowserHistoryResponse,
     BrowserBookmarksResponse,
     BrowserAdExemptionsResponse,
+    VideoFilterResponse,
     BrowserDownloadsResponse,
     OkResult,
     SocialView,
@@ -2840,6 +2841,9 @@ export const saveBrowserOpenLinksInNewTab = callable<[boolean], BrowserSettingsR
 export const saveBrowserBlockAds = callable<[boolean], BrowserSettingsResponse>(
     "save_browser_block_ads"
 );
+export const saveBrowserBlockYouTubeAds = callable<[boolean], BrowserSettingsResponse>(
+    "save_browser_block_youtube_ads"
+);
 export const saveBrowserFastForwardYouTubeAds = callable<[boolean], BrowserSettingsResponse>(
     "save_browser_fast_forward_youtube_ads"
 );
@@ -2959,6 +2963,8 @@ export const setBrowserCategoryCollapsed = callable<
 export const getBrowserAdExemptions = callable<[], BrowserAdExemptionsResponse>("get_browser_ad_exemptions");
 export const addBrowserAdExemption = callable<[host: string], BrowserAdExemptionsResponse>("add_browser_ad_exemption");
 export const removeBrowserAdExemption = callable<[host: string], BrowserAdExemptionsResponse>("remove_browser_ad_exemption");
+export const getVideoFilters = callable<[], VideoFilterResponse>("get_video_filters");
+export const reportVideoFilter = callable<[revision: number, name: string], OkResult>("report_video_filter");
 
 type EventsWriteError = { ok: false; error: string };
 

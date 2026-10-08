@@ -7,6 +7,7 @@ import {
     addBrowserTab,
     clearBrowserHistory,
     getBrowserAdExemptions,
+    getVideoFilters,
     getBrowserBookmarks,
     getBrowserHistory,
     removeBrowserAdExemption,
@@ -60,6 +61,7 @@ import {
     saveBrowserBlockAds,
     saveBrowserDownloadFolder,
     saveBrowserRememberDownloadFolder,
+    saveBrowserBlockYouTubeAds,
     saveBrowserFastForwardYouTubeAds,
     saveBrowserFastForwardPrerollAds,
     saveBrowserActiveTabs,
@@ -70,7 +72,7 @@ import {
     saveBrowserSearchEngine,
     startBrowserDownload
 } from "../api";
-import { requestHeadersFor, setAdBlock, setAdExemptions, setFastForward, setZoomPercent, type DownloadRequest } from "../components/browser/browserSession";
+import { requestHeadersFor, setAdBlock, setAdExemptions, setFastForward, setVideoFilters, setYouTubeAdBlock, setZoomPercent, type DownloadRequest } from "../components/browser/browserSession";
 import { exemptEntryFor, siteOf } from "../components/browser/adExemptions";
 import { downloadFailure, toastDownload } from "../components/browser/browserDownloads";
 import {
@@ -274,6 +276,8 @@ export type BrowserController = {
     toggleOpenLinksInNewTab: () => void;
     blockAds: boolean;
     toggleBlockAds: () => void;
+    blockYouTubeAds: boolean;
+    toggleBlockYouTubeAds: () => void;
     fastForwardYouTubeAds: boolean;
     toggleFastForwardYouTubeAds: () => void;
     fastForwardPrerollAds: boolean;
@@ -332,6 +336,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
     const [customSearchUrl, setCustomSearchUrlState] = useState("");
     const [openLinksInNewTab, setOpenLinksInNewTab] = useState(true);
     const [blockAds, setBlockAds] = useState(true);
+    const [blockYouTubeAds, setBlockYouTubeAds] = useState(true);
     const [fastForwardYouTubeAds, setFastForwardYouTubeAds] = useState(true);
     const [fastForwardPrerollAds, setFastForwardPrerollAds] = useState(false);
     const [adExemptions, setAdExemptionList] = useState<string[]>([]);
@@ -378,6 +383,8 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
     zoomRef.current = pageZoom;
     const blockAdsRef = useRef(blockAds);
     blockAdsRef.current = blockAds;
+    const blockYouTubeAdsRef = useRef(blockYouTubeAds);
+    blockYouTubeAdsRef.current = blockYouTubeAds;
     const fastForwardRef = useRef(fastForwardYouTubeAds);
     fastForwardRef.current = fastForwardYouTubeAds;
     const prerollRef = useRef(fastForwardPrerollAds);
@@ -508,6 +515,9 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         setBlockAds(saved.blockAds !== false);
         blockAdsRef.current = saved.blockAds !== false;
         setAdBlock(saved.blockAds !== false);
+        setBlockYouTubeAds(saved.blockYouTubeAds !== false);
+        blockYouTubeAdsRef.current = saved.blockYouTubeAds !== false;
+        setYouTubeAdBlock(saved.blockYouTubeAds !== false);
         setFastForwardYouTubeAds(saved.fastForwardYouTubeAds !== false);
         fastForwardRef.current = saved.fastForwardYouTubeAds !== false;
         setFastForward(saved.fastForwardYouTubeAds !== false);
@@ -632,6 +642,14 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         setHiddenPageSettings(pageZoom, blockAds, fastForwardYouTubeAds, fastForwardPrerollAds);
         refreshHiddenPages();
     }, [pageZoom, blockAds, fastForwardYouTubeAds, fastForwardPrerollAds]);
+
+    const toggleBlockYouTubeAds = useCallback(() => {
+        const nextValue = !blockYouTubeAdsRef.current;
+        blockYouTubeAdsRef.current = nextValue;
+        setBlockYouTubeAds(nextValue);
+        setYouTubeAdBlock(nextValue);
+        saveSetting("toggleBlockYouTubeAds", () => saveBrowserBlockYouTubeAds(nextValue));
+    }, [saveSetting]);
 
     const toggleFastForwardYouTubeAds = useCallback(() => {
         const nextValue = !fastForwardRef.current;
@@ -967,7 +985,15 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
                     logError("useBrowserController.adExemptions", e);
                     return null;
                 });
-                const [loadedTabs, exemptions] = await Promise.all([getBrowserTabs(true), exemptionsLoad]);
+                const filtersLoad = getVideoFilters()
+                    .then((filters) => {
+                        const dead = Array.isArray(filters?.dead) ? filters.dead.filter((name) => typeof name === "string") : [];
+                        setVideoFilters(filters?.doc && typeof filters.doc === "object" ? filters.doc : null, dead);
+                    })
+                    .catch((e) => {
+                        logError("useBrowserController.videoFilters", e);
+                    });
+                const [loadedTabs, exemptions] = await Promise.all([getBrowserTabs(true), exemptionsLoad, filtersLoad]);
                 if (exemptions) {
                     applyExemptions(exemptions);
                 }
@@ -1732,6 +1758,8 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         toggleOpenLinksInNewTab,
         blockAds,
         toggleBlockAds,
+        blockYouTubeAds,
+        toggleBlockYouTubeAds,
         fastForwardYouTubeAds,
         toggleFastForwardYouTubeAds,
         fastForwardPrerollAds,

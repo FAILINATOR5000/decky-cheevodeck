@@ -974,6 +974,7 @@ class BrowserStore:
             "customSearchUrl": DEFAULT_CUSTOM_SEARCH_URL,
             "openLinksInNewTab": True,
             "blockAds": True,
+            "blockYouTubeAds": True,
             "fastForwardYouTubeAds": True,
             "fastForwardPrerollAds": False,
             "activeTabs": DEFAULT_ACTIVE_TABS,
@@ -996,6 +997,7 @@ class BrowserStore:
         new_tab = _clean_text(raw.get("newTabPage"), MAX_ID_LENGTH)
         open_links = raw.get("openLinksInNewTab", True)
         block_ads = raw.get("blockAds", True)
+        block_youtube_ads = raw.get("blockYouTubeAds", True)
         fast_forward = raw.get("fastForwardYouTubeAds", True)
         fast_forward_preroll = raw.get("fastForwardPrerollAds", False)
         active_tabs = to_int(raw.get("activeTabs", DEFAULT_ACTIVE_TABS), DEFAULT_ACTIVE_TABS)
@@ -1014,6 +1016,7 @@ class BrowserStore:
             "customSearchUrl": _clean_search_url(raw.get("customSearchUrl")) or DEFAULT_CUSTOM_SEARCH_URL,
             "openLinksInNewTab": open_links if isinstance(open_links, bool) else True,
             "blockAds": block_ads if isinstance(block_ads, bool) else True,
+            "blockYouTubeAds": block_youtube_ads if isinstance(block_youtube_ads, bool) else True,
             "fastForwardYouTubeAds": fast_forward if isinstance(fast_forward, bool) else True,
             "fastForwardPrerollAds": fast_forward_preroll if isinstance(fast_forward_preroll, bool) else False,
             "activeTabs": active_tabs if active_tabs in ALLOWED_ACTIVE_TABS else DEFAULT_ACTIVE_TABS,
@@ -1104,6 +1107,12 @@ class BrowserStore:
         with self._lock:
             data = self._load_settings()
             data["blockAds"] = bool(value)
+            return self._save_settings(data)
+
+    def set_block_youtube_ads(self, value: Any) -> dict:
+        with self._lock:
+            data = self._load_settings()
+            data["blockYouTubeAds"] = bool(value)
             return self._save_settings(data)
 
     def set_fast_forward_youtube_ads(self, value: Any) -> dict:

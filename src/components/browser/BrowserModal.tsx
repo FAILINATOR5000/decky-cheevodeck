@@ -709,6 +709,8 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
                                 onToggleOpenLinksInNewTab={browser.toggleOpenLinksInNewTab}
                                 blockAds={browser.blockAds}
                                 onToggleBlockAds={browser.toggleBlockAds}
+                                blockYouTubeAds={browser.blockYouTubeAds}
+                                onToggleBlockYouTubeAds={browser.toggleBlockYouTubeAds}
                                 fastForwardYouTubeAds={browser.fastForwardYouTubeAds}
                                 onToggleFastForwardYouTubeAds={browser.toggleFastForwardYouTubeAds}
                                 fastForwardPrerollAds={browser.fastForwardPrerollAds}

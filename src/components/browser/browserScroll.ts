@@ -1,6 +1,7 @@
 import { fetchNoCors } from "@decky/api";
 import { logError } from "../../utils/errors";
 import { isAdExempt } from "./adExemptions";
+import { YOUTUBE_HOST } from "./videoFilter";
 
 const CDP_TAB_LIST = "http://localhost:8080/json";
 
@@ -638,8 +639,6 @@ const AD_SPEED = 16;
 export const AD_SKIP_BINDING = "__cheevodeckSkip";
 
 export const AD_SKIP_SELECTOR = ".ytp-skip-ad-button, .ytp-ad-skip-button, .ytp-ad-skip-button-modern, button[id^='skip-button']";
-
-export const YOUTUBE_HOST = /(^|\.)youtube\.com$/;
 
 const AD_SKIP = `
     const player = () => document.getElementById("movie_player") || document.querySelector(".html5-video-player");

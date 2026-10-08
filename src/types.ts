@@ -1,5 +1,6 @@
 import type { FocusClaimController } from "./hooks/useFocusClaim";
 import type { LanguageCode } from "./locales";
+import type { VideoFilterDoc } from "./components/browser/videoFilter";
 
 type RaPayloadResponse<T> = {
     needsSettings?: boolean;
@@ -2008,6 +2009,7 @@ export type BrowserSettingsResponse = {
     customSearchUrl: string;
     openLinksInNewTab: boolean;
     blockAds: boolean;
+    blockYouTubeAds: boolean;
     fastForwardYouTubeAds: boolean;
     fastForwardPrerollAds: boolean;
     activeTabs: number;
@@ -2061,6 +2063,13 @@ export type BrowserAdExemptionsResponse = {
     reason: string;
     hosts: string[];
     maxHosts: number;
+};
+
+export type VideoFilterResponse = {
+    ok: boolean;
+    doc: VideoFilterDoc | null;
+    revision: number;
+    dead: string[];
 };
 
 export type SavedCommentsResponse = {

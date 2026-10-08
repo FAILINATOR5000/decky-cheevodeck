@@ -1,10 +1,11 @@
-import { logFocusDebug } from "../../api";
-import { AD_SKIP_BINDING, AD_SKIP_SELECTOR, AD_SLOT_EARLY, claimTarget, releaseTarget, setActiveTarget, socketOfTarget, targetForUrl, YOUTUBE_HOST } from "./browserScroll";
+import { logFocusDebug, reportVideoFilter } from "../../api";
+import { AD_SKIP_BINDING, AD_SKIP_SELECTOR, AD_SLOT_EARLY, claimTarget, releaseTarget, setActiveTarget, socketOfTarget, targetForUrl } from "./browserScroll";
 import { AD_BLOCK_HOSTS, AD_BLOCK_PATTERNS } from "./adBlockHosts";
 import { isAdExempt, replaceAdExemptionHosts } from "./adExemptions";
 import { AD_LIBRARY_STAND_IN } from "./adStandIns";
 import { FULLSCREEN_BINDING, FULLSCREEN_WATCH } from "./fullscreenWatch";
 import { OVERLAY_FIX } from "./overlayFix";
+import { VIDEO_FILTER_BINDING, videoFilterScript, YOUTUBE_HOST, type VideoFilterDoc } from "./videoFilter";
 
 const COMMAND_TIMEOUT_MS = 4000;
 
@@ -74,11 +75,15 @@ export type DownloadRequest = {
 
 const POSTS_KEPT = 20;
 
+const YOUTUBE_HOME = "https://www.youtube.com/";
+
 const sessions = new Set<ViewSession>();
 let activeSession: ViewSession | null = null;
 
 let blockAds = true;
+let blockYouTubeAds = true;
 let fastForward = true;
+let videoFilter: { doc: VideoFilterDoc; dead: string[] } | null = null;
 let downloadHandler: ((request: DownloadRequest) => void) | null = null;
 let fullscreenHandler: ((fullscreen: boolean) => void) | null = null;
 
@@ -110,6 +115,8 @@ export class ViewSession {
     private readonly waiting = new Map<number, { resolve: (value: any) => void; reject: (reason: Error) => void; timer: number }>();
     private blockingSent: boolean | null = null;
     private standInId: string | null = null;
+    private videoFilterId: string | null = null;
+    private videoFilterSource = "";
     private mainFrameId = "";
     private committedUrl = "";
     private pendingUrl = "";
@@ -210,6 +217,10 @@ export class ViewSession {
             void this.pressSkip();
             return;
         }
+        if (msg.method === "Runtime.bindingCalled" && msg.params?.name === VIDEO_FILTER_BINDING) {
+            videoFilterReported(String(msg.params?.payload ?? ""));
+            return;
+        }
         if (msg.method === "Page.fileChooserOpened") {
             this.fileChooserHandler?.(Number(msg.params?.backendNodeId));
             return;
@@ -295,6 +306,8 @@ export class ViewSession {
         this.ready = false;
         this.blockingSent = null;
         this.standInId = null;
+        this.videoFilterId = null;
+        this.videoFilterSource = "";
         this.mainFrameId = "";
         this.committedUrl = "";
         this.pendingUrl = "";
@@ -349,6 +362,7 @@ export class ViewSession {
                 logFocusDebug("browser-session", "blocking", `${wanted ? patterns().length : 0} patterns ${(this.pendingUrl || this.committedUrl).slice(0, 60)}`);
             }
             await this.applyStandIns(wanted);
+            await this.applyVideoFilter();
         }
         catch (e) {
             this.blockingSent = null;
@@ -447,6 +461,25 @@ export class ViewSession {
         }
     }
 
+    private async applyVideoFilter() {
+        const source = blockYouTubeAds && videoFilter && !isAdExempt(YOUTUBE_HOME) ? videoFilterScript(videoFilter.doc, videoFilter.dead) : "";
+        if (source === this.videoFilterSource) {
+            return;
+        }
+        if (this.videoFilterId !== null) {
+            const identifier = this.videoFilterId;
+            this.videoFilterId = null;
+            this.videoFilterSource = "";
+            await this.send("Page.removeScriptToEvaluateOnNewDocument", { identifier });
+        }
+        if (source && videoFilter) {
+            const result = await this.send("Page.addScriptToEvaluateOnNewDocument", { source });
+            this.videoFilterId = String(result?.identifier ?? "") || null;
+            this.videoFilterSource = source;
+            logFocusDebug("browser-session", "video filter", `revision ${videoFilter.doc.revision} dead=${videoFilter.dead.join(",") || "none"}`);
+        }
+    }
+
     async applyMetrics() {
         if (!this.socket || !viewSize || viewSize.width <= 0 || viewSize.height <= 0) {
             return;
@@ -525,6 +558,7 @@ export class ViewSession {
         try {
             await this.send("Runtime.addBinding", { name: FULLSCREEN_BINDING });
             await this.send("Runtime.addBinding", { name: AD_SKIP_BINDING });
+            await this.send("Runtime.addBinding", { name: VIDEO_FILTER_BINDING });
             await this.send("Page.addScriptToEvaluateOnNewDocument", { source: FULLSCREEN_WATCH });
             await this.send("Runtime.evaluate", { expression: FULLSCREEN_WATCH });
         }
@@ -639,7 +673,7 @@ export class ViewSession {
         if (!this.socket) {
             return;
         }
-        for (const name of [FULLSCREEN_BINDING, AD_SKIP_BINDING]) {
+        for (const name of [FULLSCREEN_BINDING, AD_SKIP_BINDING, VIDEO_FILTER_BINDING]) {
             this.send("Runtime.addBinding", { name }).catch((e) => {
                 logFocusDebug("browser-session", "binding failed", `${name} ${String((e as Error)?.message ?? e)}`);
             });
@@ -798,6 +832,51 @@ export function setAdBlock(enabled: boolean): void {
 
 export function setFastForward(enabled: boolean): void {
     fastForward = enabled;
+}
+
+export function setYouTubeAdBlock(enabled: boolean): void {
+    blockYouTubeAds = enabled;
+    for (const session of sessions) {
+        void session.applyBlocking();
+    }
+}
+
+export function setVideoFilters(doc: VideoFilterDoc | null, dead: string[]): void {
+    videoFilter = doc ? { doc, dead: [...dead] } : null;
+    for (const session of sessions) {
+        void session.applyBlocking();
+    }
+}
+
+const REPORT_KINDS = ["reload", "ok", "failed", "ad", "skipped"];
+
+function videoFilterReported(payload: string) {
+    let report: { kind?: unknown; revision?: unknown; name?: unknown; videoId?: unknown; ms?: unknown };
+    try {
+        report = JSON.parse(payload);
+    }
+    catch {
+        return;
+    }
+    const kind = String(report?.kind ?? "");
+    const filter = videoFilter;
+    if (!REPORT_KINDS.includes(kind) || !filter || report.revision !== filter.doc.revision) {
+        return;
+    }
+    const name = filter.doc.disguises.some((entry) => entry.name === report.name) ? String(report.name) : "";
+    const videoId = /^[A-Za-z0-9_-]{1,16}$/.test(String(report.videoId)) ? String(report.videoId) : "?";
+    const ms = Math.round(Number(report.ms) || 0);
+    logFocusDebug("browser-session", "video filter", `${kind} ${name || "-"} revision ${filter.doc.revision} ${videoId}${ms ? ` ${ms}ms` : ""}`);
+    if (kind !== "failed" || !name || filter.dead.includes(name)) {
+        return;
+    }
+    filter.dead.push(name);
+    for (const session of sessions) {
+        void session.applyBlocking();
+    }
+    reportVideoFilter(filter.doc.revision, name).catch((e) => {
+        logFocusDebug("browser-session", "video filter report failed", String((e as Error)?.message ?? e));
+    });
 }
 
 export function setAdExemptions(hosts: string[]): void {

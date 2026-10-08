@@ -41,6 +41,7 @@ from services.new_sets_service import NewSetsService
 from services.tracked_sets_monitor_service import TrackedSetsMonitorService
 from services.update_checker_service import UpdateCheckerService, installed_version
 from services.developer_message_service import DeveloperMessageService
+from services.video_filter_service import VideoFilterService
 from services.repair_service import RepairService
 from services.emulator_login_sync_service import EmulatorLoginSyncService
 from memories_store import MemoriesStore, is_media_folder_name
@@ -59,6 +60,7 @@ from events_cache_store import EventsCacheStore
 from comment_baselines_store import CommentBaselinesStore
 from resolved_avatar_store import ResolvedAvatarStore
 from developer_message_store import DeveloperMessageStore
+from video_filter_store import VideoFilterStore
 from cheevo_check_store import CheevoCheckStore
 from calculator_store import CalculatorStore
 from browser_store import DEFAULT_PAGE_ZOOM, DOWNLOADS_FILENAME, STEAM_MACHINE_PAGE_ZOOM, BrowserStore
@@ -383,6 +385,13 @@ class Plugin(
             store_dir=self.events_cache_dir,
             seed_path=events_seed,
         )
+        self.video_filter_store = VideoFilterStore(
+            base_dir=self.runtime_dir / "video_filters",
+            seed_paths=(
+                self.plugin_dir / "filters" / "v1" / "video.json",
+                self.plugin_dir / "defaults" / "filters" / "v1" / "video.json",
+            ),
+        )
         self.notifications_store = NotificationsStore(
             base_dir=self.runtime_dir,
         )
@@ -511,6 +520,12 @@ class Plugin(
             message_store=self.developer_message_store,
             ssl_context=self._ssl_ctx,
             notifications_store=self.notifications_store,
+        )
+        self.video_filter_service = VideoFilterService(
+            settings_store=self.settings_store,
+            browser_store=self.browser_store,
+            filter_store=self.video_filter_store,
+            ssl_context=self._ssl_ctx,
         )
         self.emulator_login_sync_service = EmulatorLoginSyncService(
             debug_logging_provider=lambda: getattr(self, "_debug_logging", False),
@@ -846,6 +861,7 @@ class Plugin(
         self.update_checker_service.start()
         self.developer_message_service.set_event_loop(self._asyncio_loop)
         self.developer_message_service.start()
+        self.video_filter_service.start()
 
         self.cheevo_check_service.set_event_loop(self._asyncio_loop)
         self.memories_transfer_service.set_event_loop(self._asyncio_loop)
@@ -987,6 +1003,7 @@ class Plugin(
         self.tracked_sets_monitor_service.stop()
         self.update_checker_service.stop()
         self.developer_message_service.stop()
+        self.video_filter_service.stop()
         self.file_watcher_service.stop()
         self.session_mode_service.stop()
         self.back_button_service.stop()

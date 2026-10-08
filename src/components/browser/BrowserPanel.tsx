@@ -315,6 +315,8 @@ type BrowserPanelProps = {
     onToggleOpenLinksInNewTab: () => void;
     blockAds: boolean;
     onToggleBlockAds: () => void;
+    blockYouTubeAds: boolean;
+    onToggleBlockYouTubeAds: () => void;
     fastForwardYouTubeAds: boolean;
     onToggleFastForwardYouTubeAds: () => void;
     fastForwardPrerollAds: boolean;
@@ -349,7 +351,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
         searchEngine, onCycleSearchEngine, customSearchUrl, onSetCustomSearchUrl,
         newTabPage, customNewTabUrl, onCycleNewTabPage, onSetCustomNewTabUrl,
         openLinksInNewTab, onToggleOpenLinksInNewTab,
-        blockAds, onToggleBlockAds, fastForwardYouTubeAds, onToggleFastForwardYouTubeAds, fastForwardPrerollAds, onToggleFastForwardPrerollAds, onResetOptions,
+        blockAds, onToggleBlockAds, blockYouTubeAds, onToggleBlockYouTubeAds, fastForwardYouTubeAds, onToggleFastForwardYouTubeAds, fastForwardPrerollAds, onToggleFastForwardPrerollAds, onResetOptions,
         adExemptions, maxAdExemptions, adExemptionsFull, currentSite, currentExemption, onToggleCurrentExemption, onRemoveExemption,
         activeTabs, onCycleActiveTabs, pauseMediaOnTabSwitch, onTogglePauseMediaOnTabSwitch,
         maxDownloads, onCycleMaxDownloads,
@@ -1300,6 +1302,19 @@ export function BrowserPanel(props: BrowserPanelProps) {
                                 </div>
                             </div>
                             <div style={noteStyle}>{t(language, "help_browser_block_ads")}</div>
+                        </div>
+
+                        <div style={settingCardStyle}>
+                            <div style={settingRowStyle}>
+                                <span style={{ opacity: 0.8, minWidth: "0" }}>{t(language, "Block YouTube Ads")}</span>
+                                <div style={{ flex: "1 1 auto" }} />
+                                <div style={cellStyle}>
+                                    <DialogButton {...act("ytblock:toggle", onToggleBlockYouTubeAds)} style={optionStyle}>
+                                        {sizedLabel(t(language, blockYouTubeAds ? "On" : "Off"))}
+                                    </DialogButton>
+                                </div>
+                            </div>
+                            <div style={noteStyle}>{t(language, "help_browser_block_youtube_ads")}</div>
                         </div>
 
                         <div style={settingCardStyle}>

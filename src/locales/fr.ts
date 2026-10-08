@@ -2195,6 +2195,8 @@ const FR: LocaleTable = {
     "Block Ads": "Bloquer les publicités",
     "Fast-forward YouTube Ads": "Accélérer les publicités YouTube",
     "help_browser_block_ads": "Empêche les pages de charger des publicités depuis des serveurs publicitaires et de pistage connus, pour que les pages se chargent vite et que moins de publicités encombrent la petite vue sur l'écran du Steam Deck et sur d'autres appareils.",
+    "Block YouTube Ads": "Bloquer les publicités YouTube",
+    "help_browser_block_youtube_ads": "Supprime complètement les publicités des vidéos YouTube. Les données de blocage sont mises à jour deux fois par jour pour que cela continue de fonctionner. Si les données cessent de fonctionner avant que le dépôt ne les mette à jour, les options ci-dessous prennent le relais. Cela fonctionne tant que les règles de blocage du dépôt sont à jour, donc si YouTube change quelque chose, je mettrai les règles à jour dès que possible.",
     "help_browser_fast_forward_youtube_ads": "Quand une publicité passe sur YouTube, la coupe et la lit à 16 fois la vitesse, en appuyant sur Ignorer dès qu'il apparaît. La vidéo elle-même n'est pas modifiée.",
     "Fast-forward Pre-roll Ads": "Accélérer les publicités avant la vidéo",
     "help_browser_fast_forward_preroll_ads": "Activé, les publicités diffusées avant le début d'une vidéo sont aussi accélérées, mais il y a une contrepartie. Après l'accélération, YouTube charge la vidéo aussi longtemps que la publicité complète aurait duré. Il est recommandé de laisser cette option désactivée, pour que la publicité complète passe avant la vidéo. Elle sera quand même ignorée dès que YouTube propose un bouton Ignorer, et le mieux, c'est que les publicités au milieu de la vidéo restent accélérées sans aucun problème.",

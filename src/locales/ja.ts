@@ -2129,6 +2129,8 @@ const JA: LocaleTable = {
     "Block Ads": "広告をブロック",
     "Fast-forward YouTube Ads": "YouTube広告を早送り",
     "help_browser_block_ads": "既知の広告・トラッキングサーバーからページが広告を読み込むのを防ぎます。ページの読み込みが速くなり、Steam Deckの画面やその他のデバイスで小さな表示領域を広告にふさがれることが減ります。",
+    "Block YouTube Ads": "YouTube広告をブロック",
+    "help_browser_block_youtube_ads": "YouTube動画の広告を完全に取り除きます。ブロック用のデータは動作し続けるよう1日2回更新されます。リポジトリが更新する前にデータが機能しなくなった場合は、下のオプションに切り替わります。これはリポジトリのブロックルールが最新である限り機能します。YouTubeが仕様を変えた場合は、できるだけ早くルールを更新します。",
     "help_browser_fast_forward_youtube_ads": "YouTubeで広告が再生されると、ミュートして16倍速で再生し、スキップボタンが表示されたらすぐに押します。動画本体には手を加えません。",
     "Fast-forward Pre-roll Ads": "動画前の広告を早送り",
     "help_browser_fast_forward_preroll_ads": "オンにすると、動画の開始前に流れる広告も早送りされますが、代償があります。早送りの後、YouTube は広告本来の長さの分だけ動画を読み込み続けます。オフのままにして、動画の前に広告を最後まで再生させることをおすすめします。YouTube がスキップボタンを表示したときは引き続きスキップされ、さらに動画の途中の広告はこれまでどおり問題なく早送りされます。",

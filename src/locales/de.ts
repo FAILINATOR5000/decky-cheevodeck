@@ -2195,6 +2195,8 @@ const DE: LocaleTable = {
     "Block Ads": "Werbung blockieren",
     "Fast-forward YouTube Ads": "YouTube-Werbung vorspulen",
     "help_browser_block_ads": "Verhindert, dass Seiten Werbung von bekannten Werbe- und Tracking-Servern laden. So laden Seiten schnell, und weniger Werbung verdeckt die kleine Ansicht auf dem Bildschirm des Steam Deck und auf anderen Geräten.",
+    "Block YouTube Ads": "YouTube-Werbung blockieren",
+    "help_browser_block_youtube_ads": "Entfernt Werbung aus YouTube-Videos vollständig. Die Blockierdaten werden zweimal täglich aktualisiert, damit das weiter funktioniert. Hören die Daten auf zu funktionieren, bevor das Repo sie aktualisiert hat, kommen stattdessen die Optionen unten zum Einsatz. Das funktioniert, solange die Blockierregeln im Repo aktuell sind. Wenn YouTube also etwas ändert, werde ich die Regeln so bald wie möglich aktualisieren.",
     "help_browser_fast_forward_youtube_ads": "Läuft auf YouTube eine Werbung, wird sie stummgeschaltet und mit 16-facher Geschwindigkeit abgespielt, und Überspringen wird gedrückt, sobald es erscheint. Das Video selbst bleibt unberührt.",
     "Fast-forward Pre-roll Ads": "Werbung vor dem Video vorspulen",
     "help_browser_fast_forward_preroll_ads": "Wenn aktiviert, wird auch Werbung vor dem Start eines Videos vorgespult, aber das hat einen Haken. YouTube lädt das Video nach dem Vorspulen so lange, wie die ganze Werbung gedauert hätte. Es wird empfohlen, dies deaktiviert zu lassen, damit die ganze Werbung vor dem Video läuft. Sie wird trotzdem übersprungen, sobald YouTube einen Überspringen-Button anbietet, und das Beste ist: Werbung mitten im Video wird weiterhin problemlos vorgespult.",

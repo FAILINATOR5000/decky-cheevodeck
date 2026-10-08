@@ -2300,6 +2300,8 @@ const PL: LocaleTable = {
     "Block Ads": "Blokuj reklamy",
     "Fast-forward YouTube Ads": "Przewijaj reklamy YouTube",
     "help_browser_block_ads": "Nie pozwala stronom wczytywać reklam ze znanych serwerów reklamowych i śledzących, dzięki czemu strony ładują się szybko, a reklamy rzadziej zasłaniają mały widok na ekranie Steam Decka i innych urządzeń.",
+    "Block YouTube Ads": "Blokuj reklamy YouTube",
+    "help_browser_block_youtube_ads": "Całkowicie usuwa reklamy z filmów YouTube. Dane blokowania są aktualizowane dwa razy dziennie, aby wszystko nadal działało. Jeśli dane przestaną działać, zanim repozytorium je zaktualizuje, zostaną użyte opcje poniżej. Działa to, dopóki reguły blokowania w repozytorium są aktualne, więc jeśli YouTube coś zmieni, zaktualizuję reguły tak szybko, jak to możliwe.",
     "help_browser_fast_forward_youtube_ads": "Gdy na YouTube leci reklama, wycisza ją i odtwarza z szesnastokrotną prędkością, a przycisk Pomiń naciska, gdy tylko się pojawi. Sam film pozostaje nietknięty.",
     "Fast-forward Pre-roll Ads": "Przewijaj reklamy przed filmem",
     "help_browser_fast_forward_preroll_ads": "Gdy włączone, reklamy przed rozpoczęciem filmu też są przewijane, ale ma to swoją cenę. Po przewinięciu YouTube buforuje film tak długo, jak trwałaby cała reklama. Zaleca się pozostawienie tej opcji wyłączonej, aby cała reklama odtworzyła się przed filmem. Nadal zostanie pominięta, gdy tylko YouTube pokaże przycisk Pomiń, a co najlepsze, reklamy w środku filmu dalej będą przewijane bez żadnych problemów.",

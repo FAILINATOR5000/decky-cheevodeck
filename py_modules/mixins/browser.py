@@ -580,6 +580,7 @@ def _settings_response(home: Path, state: dict) -> dict:
         "customSearchUrl": state["customSearchUrl"],
         "openLinksInNewTab": state["openLinksInNewTab"],
         "blockAds": state["blockAds"],
+        "blockYouTubeAds": state["blockYouTubeAds"],
         "fastForwardYouTubeAds": state["fastForwardYouTubeAds"],
         "fastForwardPrerollAds": state["fastForwardPrerollAds"],
         "activeTabs": state["activeTabs"],
@@ -626,6 +627,12 @@ class BrowserMixin(PluginContext):
     async def save_browser_block_ads(self, value: bool = True):
         return _settings_response(self.user_home, self.browser_store.set_block_ads(value))
 
+    async def save_browser_block_youtube_ads(self, value: bool = True):
+        state = self.browser_store.set_block_youtube_ads(value)
+        if state["blockYouTubeAds"]:
+            self.video_filter_service.poke()
+        return _settings_response(self.user_home, state)
+
     async def save_browser_fast_forward_youtube_ads(self, value: bool = True):
         return _settings_response(self.user_home, self.browser_store.set_fast_forward_youtube_ads(value))
 
@@ -643,7 +650,24 @@ class BrowserMixin(PluginContext):
     async def reset_browser_settings(self):
         state = self.browser_store.reset_settings()
         await asyncio.to_thread(self._start_queued)
+        self.video_filter_service.poke()
         return _settings_response(self.user_home, state)
+
+    async def get_video_filters(self):
+        state = await asyncio.to_thread(self.video_filter_store.load)
+        doc = state["doc"]
+        return {
+            "ok": True,
+            "doc": doc if doc is not None and doc["enabled"] else None,
+            "revision": state["revision"],
+            "dead": state["dead"],
+        }
+
+    async def report_video_filter(self, revision: int = 0, name: str = ""):
+        marked = await asyncio.to_thread(self.video_filter_store.mark_dead, revision, name)
+        if marked:
+            decky.logger.info("video filters: disguise %s failed on revision %s, not tried again", name, revision)
+        return {"ok": marked}
 
     async def save_browser_pause_media_on_tab_switch(self, value: bool = False):
         return _settings_response(self.user_home, self.browser_store.set_pause_media_on_tab_switch(value))
