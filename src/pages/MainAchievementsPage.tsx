@@ -85,10 +85,10 @@ const NAV_ENTER_PREFERRED_CHILD = 4;
 const TAB_UNDER_QUICK_ACTION: Record<QuickActionId, MainAchievementsTab> = {
     tracked: "achievements",
     notes: "comments",
-    guides: "comments",
+    memories: "comments",
+    guides: "activity",
     history: "activity",
-    leaderboards: "compare",
-    memories: "compare"
+    leaderboards: "compare"
 };
 const QUICK_ACTION_ABOVE_TAB: Record<MainAchievementsTab, QuickActionId> = {
     achievements: "tracked",
@@ -466,10 +466,10 @@ function BookmarkIcon(props: { size?: number }) {
 const QUICK_ACTIONS: QuickAction[] = [
     { id: "tracked", Icon: FaThumbtack, labelKey: "View Tracked", focusKey: "quick:tab:tracked" },
     { id: "notes", Icon: NotesIcon, labelKey: "Notes", focusKey: "quick:tab:notes" },
+    { id: "memories", Icon: FaImage, labelKey: "Memories", focusKey: "quick:tab:memories" },
     { id: "guides", Icon: GuidesIcon, labelKey: "Guides", focusKey: "quick:tab:guides" },
     { id: "history", Icon: FaHistory, labelKey: "Unlock History", focusKey: "quick:tab:history" },
-    { id: "leaderboards", Icon: LeaderboardIcon, labelKey: "Leaderboards", focusKey: "quick:tab:leaderboards" },
-    { id: "memories", Icon: FaImage, labelKey: "Memories", focusKey: "quick:tab:memories" }
+    { id: "leaderboards", Icon: LeaderboardIcon, labelKey: "Leaderboards", focusKey: "quick:tab:leaderboards" }
 ];
 
 const TAB_STRIP_END_RADIUS = "6px";
