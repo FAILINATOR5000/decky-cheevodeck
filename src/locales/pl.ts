@@ -318,6 +318,7 @@ const PL: LocaleTable = {
     "help_quick_shortcut_cheevo_check": "Narzędzie sprawdzające, które z twoich ROM-ów są wspierane przez RetroAchievements.",
     "help_quick_shortcut_smb_shares": "Łatwe montowanie udziałów SMB.",
     "help_quick_shortcut_file_watcher": "Narzędzie, które pilnuje twoich plików i sprawdza ich spójność. Dobre dla archiwistów, którzy chcą mieć pewność, że pliki zostaną całe i nieuszkodzone.",
+    "help_quick_shortcut_stormbreaker": "Otwiera stronę Stormbreaker, na której sprawdzisz stan i dziennik.",
     "help_quick_shortcut_social_activity": "Podejrzyj tablicę aktywności znajomych w Centrum społecznym.",
     "help_quick_shortcut_visit_ra": "Otwiera retroachievements.org w przeglądarce Steama.",
     "help_quick_shortcut_ui_default": "Ustawia interfejs na widok domyślny.",

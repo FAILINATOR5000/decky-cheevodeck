@@ -71,6 +71,7 @@ SUMMON_ACTIONS = (
     "savedcomments",
     "trackedsets",
     "dolphinMapper",
+    "stormbreaker",
 )
 
 _SUMMON_BUTTONS = ("l4", "r4", "l5", "r5")

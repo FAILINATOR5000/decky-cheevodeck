@@ -361,6 +361,9 @@ function panelEntryOverlay(entry: PanelEntry): Partial<ResumeState> & Pick<Resum
             return { view: "memories", focusKey: "memories:back" };
         case "dolphinMapper":
             return { view: "dolphinMapper", focusKey: "dolphinMapper:back" };
+        case "stormbreaker":
+            openStormbreakerOnStatus();
+            return { view: "qamGuard", focusKey: "qamGuard:back" };
         case "socialTab":
             if (entry.newsSub) {
                 return { view: "social", newsEventsSubView: entry.newsSub, focusKey: "social:back" };
@@ -4694,6 +4697,10 @@ function AchievementsRoot() {
             void goToFileWatcher();
             return;
         }
+        if (action === "stormbreaker") {
+            goToQamGuard();
+            return;
+        }
         if (action === "memories") {
             void goToMemories();
             return;
@@ -4854,6 +4861,7 @@ function AchievementsRoot() {
                                     openCheevoCheck: goToCheevoCheck,
                                     openSmbShares: goToSmbShares,
                                     openFileWatcher: goToFileWatcher,
+                                    openStormbreaker: goToQamGuard,
                                     openMemories: goToMemories,
                                     openRaSite: () => { void openExternalUrl(raHomeUrl()); },
                                     onApplyMainUiPreset: optionsActions.onApplyMainUiPreset,

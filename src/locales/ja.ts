@@ -314,6 +314,7 @@ const JA: LocaleTable = {
     "help_quick_shortcut_cheevo_check": "手持ちのROMのうち、どれが RetroAchievements に対応しているか調べるツールです。",
     "help_quick_shortcut_smb_shares": "SMB共有を手軽にマウントできます。",
     "help_quick_shortcut_file_watcher": "ファイルを見張り、壊れていないか確かめるツールです。手元のファイルを健全なまま保ちたいアーカイブ派に向いています。",
+    "help_quick_shortcut_stormbreaker": "Stormbreakerを開きます。状態とログを確認できます。",
     "help_quick_shortcut_social_activity": "ソーシャルハブでフレンドの活動履歴を見ます。",
     "help_quick_shortcut_visit_ra": "retroachievements.org を Steam のブラウザで開きます。",
     "help_quick_shortcut_ui_default": "画面表示を標準表示にします。",

@@ -2,7 +2,7 @@ import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
 // Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
-import { FaCalculator, FaClipboardCheck, FaClock, FaCompressArrowsAlt, FaExchangeAlt, FaExpandAlt, FaFileAlt, FaGamepad, FaGlobe, FaHistory, FaImage, FaNetworkWired, FaSyncAlt, FaThumbtack, FaTrophy } from "react-icons/fa";
+import { FaBolt, FaCalculator, FaClipboardCheck, FaClock, FaCompressArrowsAlt, FaExchangeAlt, FaExpandAlt, FaFileAlt, FaGamepad, FaGlobe, FaHistory, FaImage, FaNetworkWired, FaSyncAlt, FaThumbtack, FaTrophy } from "react-icons/fa";
 import { AchievementList } from "../components/achievements/AchievementList";
 import { openCalculatorModal } from "../components/calculator/CalculatorModal";
 import { openBrowserModal } from "../components/browser/BrowserModal";
@@ -519,6 +519,7 @@ const QUICK_MENU_SHORTCUT_ICONS: Record<QuickMenuShortcut, ComponentType<{ size?
     cheevoCheck: FaClipboardCheck,
     smbShares: FaNetworkWired,
     fileWatcher: FaFileAlt,
+    stormbreaker: FaBolt,
     memories: FaImage,
     calculator: FaCalculator,
     browser: FaGlobe,
@@ -641,6 +642,7 @@ type MainAchievementsPageProps = {
         openCheevoCheck: () => void | Promise<void>;
         openSmbShares: () => void | Promise<void>;
         openFileWatcher: () => void | Promise<void>;
+        openStormbreaker: () => void;
         openMemories: () => void | Promise<void>;
         openRaSite: () => void | Promise<void>;
         onApplyMainUiPreset: (preset: MainUiPreset) => void | Promise<void>;
@@ -953,6 +955,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
             openCheevoCheck,
             openSmbShares,
             openFileWatcher,
+            openStormbreaker,
             openMemories,
             openRaSite,
             onApplyMainUiPreset,
@@ -1301,6 +1304,10 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
         }
         if (id === "fileWatcher") {
             void openFileWatcher();
+            return;
+        }
+        if (id === "stormbreaker") {
+            openStormbreaker();
             return;
         }
         if (id === "memories") {

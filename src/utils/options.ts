@@ -245,6 +245,7 @@ export const QUICK_MENU_SHORTCUTS: { id: QuickMenuShortcut; labelKey: string; he
     { id: "cheevoCheck", labelKey: "Cheevo Check", helpKey: "help_quick_shortcut_cheevo_check" },
     { id: "smbShares", labelKey: "SMB Shares", helpKey: "help_quick_shortcut_smb_shares" },
     { id: "fileWatcher", labelKey: "File Watcher", helpKey: "help_quick_shortcut_file_watcher" },
+    { id: "stormbreaker", labelKey: "Stormbreaker", helpKey: "help_quick_shortcut_stormbreaker" },
     { id: "memories", labelKey: "Memories", helpKey: "help_quick_shortcut_memories" },
     { id: "calculator", labelKey: "Calculator", helpKey: "help_quick_shortcut_calculator" },
     { id: "browser", labelKey: "Web Browser", helpKey: "help_quick_shortcut_browser" },
@@ -320,7 +321,8 @@ export const GLOBAL_SHORTCUT_ACTIONS: readonly ShortcutAction[] = [
     "subscribeddiscussions",
     "savedcomments",
     "trackedsets",
-    "dolphinMapper"
+    "dolphinMapper",
+    "stormbreaker"
 ];
 
 export function worksOutsidePanel(button: ShortcutButton, action: ShortcutAction): boolean {
@@ -353,6 +355,7 @@ const SHORTCUT_ACTIONS: { id: ShortcutAction; labelKey: string }[] = [
     { id: "cheevoCheck", labelKey: "Cheevo Check" },
     { id: "smbShares", labelKey: "SMB Shares" },
     { id: "fileWatcher", labelKey: "File Watcher" },
+    { id: "stormbreaker", labelKey: "Stormbreaker" },
     { id: "memories", labelKey: "Memories" },
     { id: "lastMemory", labelKey: "View Last Memory" },
     { id: "calculator", labelKey: "Calculator" },

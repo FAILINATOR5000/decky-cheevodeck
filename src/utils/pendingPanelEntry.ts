@@ -4,6 +4,7 @@ export type PanelEntry =
     | { kind: "guides" }
     | { kind: "memories" }
     | { kind: "dolphinMapper" }
+    | { kind: "stormbreaker" }
     | { kind: "socialTab"; tab: SocialView | null; newsSub?: NewsEventsSubView }
     | { kind: "aotw" }
     | { kind: "trackedSets" }

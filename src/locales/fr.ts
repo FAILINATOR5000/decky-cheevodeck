@@ -317,6 +317,7 @@ const FR: LocaleTable = {
     "help_quick_shortcut_cheevo_check": "Outil pour vérifier lesquelles de tes ROM sont prises en charge par RetroAchievements.",
     "help_quick_shortcut_smb_shares": "Monte facilement des partages SMB.",
     "help_quick_shortcut_file_watcher": "Un outil qui surveille tes fichiers et vérifie leur intégrité. Pratique pour qui archive et veut s'assurer que ses fichiers restent sains et sans corruption.",
+    "help_quick_shortcut_stormbreaker": "Ouvre Stormbreaker, où tu peux consulter son état et son journal.",
     "help_quick_shortcut_social_activity": "Consulte le fil d'activité de tes amis dans le Hub social.",
     "help_quick_shortcut_visit_ra": "Ouvre retroachievements.org dans le navigateur Steam.",
     "help_quick_shortcut_ui_default": "Met l'interface en vue par défaut.",
