@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "revision": 1,
+  "revision": 2,
   "enabled": true,
   "marker": [
     "playabilityStatus",
@@ -41,5 +41,5 @@
       }
     }
   ],
-  "holdSeconds": 6
+  "holdSeconds": 5
 }
