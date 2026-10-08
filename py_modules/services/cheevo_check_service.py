@@ -1431,7 +1431,7 @@ class CheevoCheckService:
             self._reset_scratch(scratch, for_user=as_user)
             extract_started = time.monotonic()
             code, _, err = subprocess_util.run_command(
-                ["7z", "x", "-y", f"-o{scratch}", str(path)],
+                ["7z", "x", "-y", "-p", f"-o{scratch}", str(path)],
                 as_data_owner=as_user,
                 timeout=ARCHIVE_EXTRACT_TIMEOUT_SECONDS,
                 cancel=self._cancel,
@@ -1515,7 +1515,7 @@ class CheevoCheckService:
                 return [(item.filename, item.file_size) for item in archive.infolist() if not item.is_dir()]
 
         code, out, _ = subprocess_util.run_command(
-            ["7z", "l", "-slt", str(path)], timeout=ARCHIVE_LIST_TIMEOUT_SECONDS,
+            ["7z", "l", "-slt", "-p", str(path)], timeout=ARCHIVE_LIST_TIMEOUT_SECONDS,
             as_data_owner=self._user_can_read(path) if as_user is None else as_user,
         )
         if code != 0:
