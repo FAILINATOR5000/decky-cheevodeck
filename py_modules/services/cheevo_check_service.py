@@ -14,6 +14,7 @@ rather than on disk so a reload or a reboot can never leave a stale one behind.
 
 from pathlib import Path
 
+import errno
 import hashlib
 import os
 import re
@@ -129,6 +130,9 @@ VERIFY_TIMEOUT_PER_GB = 240
 _LOGICAL_SIZE_RE = re.compile(r"^Logical size:\s+([0-9,]+)", re.MULTILINE)
 
 _SIGNATURE_WORDS = ("signed", "signature", "common key", "certificate")
+
+_ZIP_ENTRY_ERRORS = (zipfile.BadZipFile, zlib.error, EOFError, KeyError)
+_ZIP_UNOPENABLE = (RuntimeError, NotImplementedError)
 
 _ARCHIVE_VERIFY_REASONS = {
     FAILED_AMBIGUOUS: VERIFY_NO_SINGLE_ROM,
@@ -1343,9 +1347,10 @@ class CheevoCheckService:
 
         A single-entry zip goes straight through. RAHasher reads it natively
         and hashes it identically to the raw ROM, which is faster than
-        unpacking. Anything else answers here, including the failures: falling
-        back to handing the zip over is precisely the mistake this exists to
-        stop.
+        unpacking. A CHD is the exception: RAHasher can't read one out of a
+        zip, so it is unpacked like a zip with several entries. Anything else
+        answers here, including the failures: falling back to handing the zip
+        over is precisely the mistake this exists to stop.
         """
         path = candidate["path"]
         try:
@@ -1357,7 +1362,8 @@ class CheevoCheckService:
         except Exception:
             return FAILED_UNREADABLE
 
-        if len(entries) <= 1:
+        single_chd = len(entries) == 1 and Path(entries[0][0]).suffix.lower() == ".chd"
+        if len(entries) <= 1 and not single_chd:
             return PASS_THROUGH
 
         picked = self._pick_rom_entry(
@@ -1375,11 +1381,11 @@ class CheevoCheckService:
         try:
             self._reset_scratch(scratch)
             extracted = scratch / (Path(picked.replace("\\", "/")).name or "rom")
-            with zipfile.ZipFile(path) as archive, archive.open(picked) as reader, exclusive_file(extracted) as out:
-                shutil.copyfileobj(reader, out)
+            if not self._unzip_entry(path, picked, extracted):
+                return FAILED_UNREADABLE
             digests = self._run_hasher(console_id, [extracted])
             return digests[0] if digests and digests[0] else FAILED_UNREADABLE
-        except OSError:
+        except (OSError, *_ZIP_ENTRY_ERRORS, *_ZIP_UNOPENABLE):
             return FAILED_UNREADABLE
         finally:
             self._remove_scratch(scratch)
@@ -1461,15 +1467,23 @@ class CheevoCheckService:
         """
         if not self._verify_hashes_enabled():
             return
-        crc = self._file_crc(extracted, self._verify_speed())
-        if crc is None:
-            result["verifyReason"] = VERIFY_READ_FAILED
-            return
         try:
             size = extracted.stat().st_size
         except OSError:
             result["verifyReason"] = VERIFY_READ_FAILED
             return
+        if Path(entry_name).suffix.lower() == ".chd":
+            outcome, stamped = self._verify_unpacked_chd(extracted, size)
+            result["verifyStamped"] = stamped
+            if isinstance(outcome, str):
+                result["verifyReason"] = outcome
+                return
+            crc = outcome[0]
+        else:
+            crc = self._file_crc(extracted, self._verify_speed())
+            if crc is None:
+                result["verifyReason"] = VERIFY_READ_FAILED
+                return
         result["verifyCrc"] = crc
         result["verifyName"] = Path(entry_name).name
         result["verifySize"] = size
@@ -1600,7 +1614,7 @@ class CheevoCheckService:
                 return b""
         return peek
 
-    def _scratch_base(self, needed: int):
+    def _scratch_base(self, needed: int, ram: bool = True):
         """Where an extraction of this size should go, or None if nowhere fits.
 
         RAM only when the user asked for it and the thing genuinely fits, and
@@ -1609,7 +1623,7 @@ class CheevoCheckService:
         memory, so the toggle must never be able to turn a game that scans fine
         into a "not enough free space" row.
         """
-        if self._extract_to_ram_enabled() and self._has_room_in(self._ram_scratch_dir, needed):
+        if ram and self._extract_to_ram_enabled() and self._has_room_in(self._ram_scratch_dir, needed):
             return self._ram_scratch_dir
         if self._has_room_in(self._scratch_dir, needed):
             return self._scratch_dir
@@ -2179,7 +2193,7 @@ class CheevoCheckService:
 
         if row.get("signatureProblem"):
             return self._unverifiable(row, VERIFY_SIGNATURE)
-        if item["path"].suffix.lower() == ".chd":
+        if Path(name).suffix.lower() == ".chd":
             return self._unverifiable(row, VERIFY_CHD_NO_MATCH)
 
         return {**row, "bucket": "unrecognised"}
@@ -2324,8 +2338,9 @@ class CheevoCheckService:
             row["trimmed"] = True
 
         if item["kind"] == "zip":
-            return self._verify_zip(path)
+            return self._verify_zip(path, row, system.console_id)
         if item["kind"] == "archive":
+            row.update(item.get("verifyStamped") or {})
             carried = item.get("verifyCrc")
             if isinstance(carried, str):
                 return (carried, item.get("verifyName") or path.name,
@@ -2440,13 +2455,15 @@ class CheevoCheckService:
         row["selfCheckCount"] = len(wanted)
         return True
 
-    def _verify_zip(self, path: Path):
-        """A zip needs no decompressing at all.
+    def _verify_zip(self, path: Path, row, console_id=None):
+        """A zip needs no decompressing, unless the game in it is a CHD.
 
         The central directory already stores the CRC32 of every entry, so this
-        is a header read whatever the archive weighs. _pick_rom_entry decides
-        which entry is the game, the same one the hashing pass uses, so the two
-        paths can't disagree about what they are talking about.
+        is a header read whatever the archive weighs. A CHD is the exception:
+        the CRC stored for it is the container's, so it is unpacked and checked
+        the way a loose CHD is. _pick_rom_entry decides which entry is the game,
+        the same one the hashing pass uses, so the two paths can't disagree
+        about what they are talking about.
         """
         try:
             with zipfile.ZipFile(path) as archive:
@@ -2463,13 +2480,15 @@ class CheevoCheckService:
             picked = entries[0][0]
         else:
             picked = self._pick_rom_entry(
-                [name for name, _size, _crc in entries], peek=self._archive_peek(path, "zip")
+                [name for name, _size, _crc in entries], console_id, self._archive_peek(path, "zip")
             )
         if picked is None:
             return VERIFY_NO_SINGLE_ROM
 
         for name, size, crc in entries:
             if name == picked:
+                if Path(name).suffix.lower() == ".chd":
+                    return self._verify_zipped_chd(path, name, size, row)
                 return (format(crc & 0xFFFFFFFF, "08x"), Path(name).name, size)
         return VERIFY_READ_FAILED
 
@@ -2567,7 +2586,7 @@ class CheevoCheckService:
     def _verify_timeout(self, size: int) -> int:
         return VERIFY_TIMEOUT_SECONDS + int(size / (1024 ** 3)) * VERIFY_TIMEOUT_PER_GB
 
-    def _verify_chd(self, path: Path, row):
+    def _verify_chd(self, path: Path, row, ram: bool = True):
         """Unpack a CHD and compare what comes out against the catalogue.
 
         Two things about this tier are counter-intuitive and both are load
@@ -2622,7 +2641,7 @@ class CheevoCheckService:
         needed = self._chd_logical_size(path, as_user)
         if needed <= 0:
             return VERIFY_NO_TOOL if self._chdman_fault is not None else VERIFY_CHD_EXTRACT_FAILED
-        base = self._scratch_base(needed)
+        base = self._scratch_base(needed, ram=ram)
         if base is None:
             return VERIFY_NO_SPACE
 
@@ -2660,6 +2679,47 @@ class CheevoCheckService:
             return VERIFY_CHD_EXTRACT_FAILED
         finally:
             self._remove_scratch(scratch)
+
+    def _verify_unpacked_chd(self, chd: Path, size: int):
+        if self._skip_disc_verify_enabled():
+            return VERIFY_DISCS_OFF, {}
+        stamped = {"size": size}
+        outcome = self._verify_chd(chd, stamped, ram=self._ram_scratch_dir not in chd.parents)
+        return outcome, {key: stamped[key] for key in ("selfCheck", "problems") if key in stamped}
+
+    def _verify_zipped_chd(self, path: Path, name: str, size: int, row):
+        if self._skip_disc_verify_enabled():
+            return VERIFY_DISCS_OFF
+        base = self._scratch_base(size)
+        if base is None:
+            return VERIFY_NO_SPACE
+        scratch = base / "zip"
+        try:
+            self._reset_scratch(scratch)
+            extracted = scratch / (Path(name.replace("\\", "/")).name or "disc.chd")
+            if not self._unzip_entry(path, name, extracted):
+                return VERIFY_READ_FAILED
+            outcome, stamped = self._verify_unpacked_chd(extracted, size)
+            row.update(stamped)
+            return outcome
+        except OSError as exc:
+            return VERIFY_NO_SPACE if exc.errno == errno.ENOSPC else VERIFY_READ_FAILED
+        except _ZIP_UNOPENABLE:
+            return VERIFY_NO_TOOL
+        except _ZIP_ENTRY_ERRORS:
+            return VERIFY_READ_FAILED
+        finally:
+            self._remove_scratch(scratch)
+
+    def _unzip_entry(self, path: Path, name: str, target: Path) -> bool:
+        with zipfile.ZipFile(path) as archive, archive.open(name) as reader, exclusive_file(target) as out:
+            while True:
+                block = reader.read(VERIFY_CHUNK_BYTES)
+                if not block:
+                    return True
+                if self._cancel.is_set():
+                    return False
+                out.write(block)
 
     def _chd_self_check(self, path: Path, row, as_user=None):
         """Re-derive the CHD's own whole-image SHA-1, or None if it holds up.
