@@ -663,11 +663,13 @@ class BrowserMixin(PluginContext):
             "dead": state["dead"],
         }
 
-    async def report_video_filter(self, revision: int = 0, name: str = ""):
-        marked = await asyncio.to_thread(self.video_filter_store.mark_dead, revision, name)
-        if marked:
-            decky.logger.info("video filters: disguise %s failed on revision %s, not tried again", name, revision)
-        return {"ok": marked}
+    async def report_video_filter(self, revision: int = 0, name: str = "", video_id: str = ""):
+        dead = await asyncio.to_thread(self.video_filter_store.record_failure, revision, name, video_id)
+        if dead is True:
+            decky.logger.info("video filters: disguise %s failed on two videos in revision %s, not tried again", name, revision)
+        elif dead is False:
+            decky.logger.info("video filters: disguise %s failed once on revision %s, a second video marks it dead", name, revision)
+        return {"ok": dead is not None, "dead": dead is True}
 
     async def save_browser_pause_media_on_tab_switch(self, value: bool = False):
         return _settings_response(self.user_home, self.browser_store.set_pause_media_on_tab_switch(value))

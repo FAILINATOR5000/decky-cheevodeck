@@ -2964,7 +2964,7 @@ export const getBrowserAdExemptions = callable<[], BrowserAdExemptionsResponse>(
 export const addBrowserAdExemption = callable<[host: string], BrowserAdExemptionsResponse>("add_browser_ad_exemption");
 export const removeBrowserAdExemption = callable<[host: string], BrowserAdExemptionsResponse>("remove_browser_ad_exemption");
 export const getVideoFilters = callable<[], VideoFilterResponse>("get_video_filters");
-export const reportVideoFilter = callable<[revision: number, name: string], OkResult>("report_video_filter");
+export const reportVideoFilter = callable<[revision: number, name: string, videoId: string], { ok: boolean; dead: boolean }>("report_video_filter");
 
 type EventsWriteError = { ok: false; error: string };
 

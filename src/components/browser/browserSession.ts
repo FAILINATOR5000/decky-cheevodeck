@@ -870,13 +870,19 @@ function videoFilterReported(payload: string) {
     if (kind !== "failed" || !name || filter.dead.includes(name)) {
         return;
     }
-    filter.dead.push(name);
-    for (const session of sessions) {
-        void session.applyBlocking();
-    }
-    reportVideoFilter(filter.doc.revision, name).catch((e) => {
-        logFocusDebug("browser-session", "video filter report failed", String((e as Error)?.message ?? e));
-    });
+    reportVideoFilter(filter.doc.revision, name, videoId === "?" ? "" : videoId)
+        .then((reply) => {
+            if (reply?.dead !== true || videoFilter !== filter || filter.dead.includes(name)) {
+                return;
+            }
+            filter.dead.push(name);
+            for (const session of sessions) {
+                void session.applyBlocking();
+            }
+        })
+        .catch((e) => {
+            logFocusDebug("browser-session", "video filter report failed", String((e as Error)?.message ?? e));
+        });
 }
 
 export function setAdExemptions(hosts: string[]): void {

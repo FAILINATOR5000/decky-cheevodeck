@@ -27,12 +27,15 @@ MAX_PATH_SEGMENTS = 6
 MAX_VALUE_LENGTH = 64
 MAX_OBJECT_ENTRIES = 8
 
+STRIKES_TO_DEAD = 2
+
 MIN_HOLD_SECONDS = 2
 MAX_HOLD_SECONDS = 20
 
 _IDENTIFIER = re.compile(r"[A-Za-z_$][A-Za-z0-9_$]{0,63}")
 _TEXT_PATH = re.compile(r"/[A-Za-z0-9_/.-]{1,63}")
 _NAME = re.compile(r"[a-z0-9-]{1,32}")
+_VIDEO_ID = re.compile(r"[A-Za-z0-9_-]{1,16}")
 
 _UNSAFE_NAMES = ("__proto__", "prototype", "constructor")
 
@@ -181,12 +184,25 @@ def parse_video_filters(raw: bytes) -> Optional[dict]:
 
 def _clean_dead(raw: Any) -> dict:
     if not isinstance(raw, dict):
-        return {"revision": 0, "names": []}
+        return {"revision": 0, "names": [], "strikes": {}}
     names = []
     for name in raw.get("names") if isinstance(raw.get("names"), list) else []:
         if isinstance(name, str) and _NAME.fullmatch(name) and name not in names:
             names.append(name)
-    return {"revision": to_int(raw.get("revision"), 0), "names": names[:MAX_DISGUISES]}
+    strikes = {}
+    raw_strikes = raw.get("strikes") if isinstance(raw.get("strikes"), dict) else {}
+    for name, videos in raw_strikes.items():
+        if len(strikes) >= MAX_DISGUISES:
+            break
+        if not isinstance(name, str) or not _NAME.fullmatch(name) or not isinstance(videos, list):
+            continue
+        clean = []
+        for video in videos:
+            if isinstance(video, str) and _VIDEO_ID.fullmatch(video) and video not in clean:
+                clean.append(video)
+        if clean:
+            strikes[name] = clean[:STRIKES_TO_DEAD]
+    return {"revision": to_int(raw.get("revision"), 0), "names": names[:MAX_DISGUISES], "strikes": strikes}
 
 
 class VideoFilterStore:
@@ -277,17 +293,23 @@ class VideoFilterStore:
             state["attemptAt"] = now
             self._save_state(state)
 
-    def mark_dead(self, revision: Any, name: Any) -> bool:
+    def record_failure(self, revision: Any, name: Any, video_id: Any) -> Optional[bool]:
         with self._lock:
             state = self._load_state()
             doc = self._current(state)
             if doc is None or type(revision) is not int or revision != doc["revision"]:
-                return False
+                return None
             if not any(entry["name"] == name for entry in doc["disguises"]):
-                return False
-            dead = state["dead"] if state["dead"]["revision"] == revision else {"revision": revision, "names": []}
+                return None
+            if not isinstance(video_id, str) or not _VIDEO_ID.fullmatch(video_id):
+                return None
+            dead = state["dead"] if state["dead"]["revision"] == revision else {"revision": revision, "names": [], "strikes": {}}
             if name not in dead["names"]:
-                dead["names"].append(name)
+                videos = dead["strikes"].setdefault(name, [])
+                if video_id not in videos:
+                    videos.append(video_id)
+                if len(videos) >= STRIKES_TO_DEAD:
+                    dead["names"].append(name)
             state["dead"] = dead
             self._save_state(state)
-            return True
+            return name in dead["names"]
