@@ -648,6 +648,9 @@ const AD_SKIP = `
     let saved = null;
     let userRate = 0;
     let startedFor = "";
+    let seenFor = "";
+    let seenAt = 0;
+    let progress = 0;
     let skipTimer = 0;
     let lastPress = 0;
     const pressSkip = () => {
@@ -750,9 +753,22 @@ const AD_SKIP = `
     }, true);
     document.addEventListener("timeupdate", (event) => {
         const node = player();
-        if (node && event.target === videoOf(node) && !node.classList.contains("ad-showing") && !event.target.paused && event.target.currentTime > 1) {
-            startedFor = contentKey();
+        if (!node || event.target !== videoOf(node) || node.classList.contains("ad-showing") || event.target.paused) {
+            return;
         }
+        const key = contentKey();
+        const now = event.target.currentTime;
+        if (seenFor !== key) {
+            seenFor = key;
+            progress = 0;
+        }
+        else if (now > seenAt && now - seenAt < 2) {
+            progress += now - seenAt;
+            if (progress > 1) {
+                startedFor = key;
+            }
+        }
+        seenAt = now;
     }, true);
     document.addEventListener("volumechange", (event) => {
         const node = player();
