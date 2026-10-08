@@ -133,6 +133,7 @@ _SIGNATURE_WORDS = ("signed", "signature", "common key", "certificate")
 
 _ZIP_ENTRY_ERRORS = (zipfile.BadZipFile, zlib.error, EOFError, KeyError)
 _ZIP_UNOPENABLE = (RuntimeError, NotImplementedError)
+_ZIP_METHODS = frozenset((zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED, zipfile.ZIP_BZIP2, zipfile.ZIP_LZMA))
 
 _ARCHIVE_VERIFY_REASONS = {
     FAILED_AMBIGUOUS: VERIFY_NO_SINGLE_ROM,
@@ -902,6 +903,10 @@ class CheevoCheckService:
                 if self._cancel.is_set() or not root.is_dir():
                     aborted = True
                     return None
+                if (candidate["kind"] == "zip"
+                        and not systems.hashes_the_name(candidate["systems"][0])
+                        and self._zip_needs_7z(candidate["path"])):
+                    candidate = {**candidate, "kind": "archive"}
                 cached = cache_on and not (verifying and candidate["kind"] == "archive")
                 hit = self._cached_hash_any(cache, candidate) if cached else None
                 if hit is not None:
@@ -1457,6 +1462,16 @@ class CheevoCheckService:
             return result
         finally:
             self._remove_scratch(scratch)
+
+    def _zip_needs_7z(self, path: Path) -> bool:
+        try:
+            with zipfile.ZipFile(path) as archive:
+                return any(
+                    item.compress_type not in _ZIP_METHODS and not item.flag_bits & 0x1
+                    for item in archive.infolist() if not item.is_dir()
+                )
+        except Exception:
+            return False
 
     def _verify_extracted(self, result: dict, extracted: Path, entry_name: str) -> None:
         """Record the CRC of an archive's ROM while it is still unpacked.
