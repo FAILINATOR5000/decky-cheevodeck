@@ -421,7 +421,7 @@ class CheevoCheckService:
         candidates = self._add_console_fallbacks(candidates, stored)
 
         hash_started = time.monotonic()
-        hashed = self._hash_all(root, candidates)
+        hashed = self._hash_all(root, candidates, verifying)
         self._debug("phase hash: %.1fs", time.monotonic() - hash_started)
         if self._cancel.is_set():
             return ABORT_CANCELLED
@@ -881,7 +881,7 @@ class CheevoCheckService:
             out.append({**candidate, "systems": candidate["systems"] + extra} if extra else candidate)
         return out
 
-    def _hash_all(self, root: Path, candidates: list):
+    def _hash_all(self, root: Path, candidates: list, verifying: bool = False):
         """Hash every candidate, or None if the scan root went away mid-run.
 
         Aborting on a lost root is not tidiness. If an SD card is ejected or an
@@ -902,7 +902,8 @@ class CheevoCheckService:
                 if self._cancel.is_set() or not root.is_dir():
                     aborted = True
                     return None
-                hit = self._cached_hash_any(cache, candidate) if cache_on else None
+                cached = cache_on and not (verifying and candidate["kind"] == "archive")
+                hit = self._cached_hash_any(cache, candidate) if cached else None
                 if hit is not None:
                     cache_hits += 1
                     system, digest = hit
