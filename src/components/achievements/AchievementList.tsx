@@ -65,7 +65,10 @@ export function AchievementList(props: {
     reorderTargetId?: number | null;
     tagMarkedIds?: ReadonlySet<number>;
     reorderViaSwap?: boolean;
-    seedRows?: number;
+    windowId?: string;
+    windowed?: boolean;
+    openAtKey?: string;
+    onOpenAtHeld?: () => void;
     mountedRowCount?: number;
     onRowFocus?: (index: number) => void;
     claimedRow?: {
@@ -373,7 +376,8 @@ export function AchievementList(props: {
 
     const windowResetKey = `${props.payload?.gameId}|${props.filterScopeKey}|${props.showAll}|${currentMode}|${effectiveFriendFilter}|${effectiveMainFilter}|${activeSort}`;
 
-    const slides = currentMode === "main";
+    const slides = currentMode !== "tracked" || Boolean(props.windowed);
+    const windowId = props.windowId ?? `${currentMode}:achievements`;
     const windowed = useWindowedList({
         items: slides ? NO_ROWS : visibleAchievements,
         dynamicLoading,
@@ -382,16 +386,15 @@ export function AchievementList(props: {
         prefetchDistance: dynamicPrefetchDistance,
         sentinelRootMargin: dynamicSentinelRootMargin,
         resetKey: windowResetKey,
-        seedRows: props.seedRows,
-        debugLabel: currentMode === "tracked" ? `tracked:${props.titleOverride || "list"}` : undefined
+        debugLabel: slides ? undefined : `tracked:${props.titleOverride || "list"}`
     });
     const sliding = useSlidingWindow({
         items: slides ? visibleAchievements : NO_ROWS,
         itemKey: (achievement) => String(achievement.id),
         focusKeyFor: (achievement) => `achievement:${achievement.id}`,
-        windowId: "main:achievements",
+        windowId,
         heightScope: [
-            "main:achievements",
+            windowId,
             props.uiSize,
             achievementBodySize(1),
             props.blockPadding,
@@ -407,13 +410,13 @@ export function AchievementList(props: {
         prefetchDistance: dynamicPrefetchDistance,
         sentinelRootMarginPx: dynamicSentinelRootMarginPx,
         resetKey: windowResetKey,
-        debugLabel: slides ? "main:achievements" : undefined
+        debugLabel: slides ? windowId : undefined
     });
     const mountedAchievements = slides ? sliding.mountedItems : windowed.mountedItems;
     const windowStart = slides ? sliding.start : 0;
 
     useLayoutEffect(function openFromTestHook() {
-        if (!slides) {
+        if (currentMode !== "main") {
             return;
         }
         const target = takeMainListOpenAt();
@@ -423,6 +426,29 @@ export function AchievementList(props: {
         const row = visibleAchievements[mainListOpenIndex(target, visibleAchievements.length)];
         sliding.openAt(`achievement:${row.id}`);
     }, []);
+
+    const openRequestedRef = useRef<string | undefined>(undefined);
+    useLayoutEffect(function openForCaller() {
+        const key = props.openAtKey;
+        if (!key || openRequestedRef.current === key) {
+            return;
+        }
+        openRequestedRef.current = key;
+        sliding.openAt(key);
+    }, [props.openAtKey]);
+
+    const openHeldRef = useRef<string | undefined>(undefined);
+    useLayoutEffect(function reportOpenAtHeld() {
+        const key = props.openAtKey;
+        if (!key || openHeldRef.current === key) {
+            return;
+        }
+        if (!mountedAchievements.some((achievement) => `achievement:${achievement.id}` === key)) {
+            return;
+        }
+        openHeldRef.current = key;
+        props.onOpenAtHeld?.();
+    }, [props.openAtKey, mountedAchievements]);
 
     const bodyAchievements = props.collapsed
         ? NO_ROWS
@@ -667,7 +693,7 @@ export function AchievementList(props: {
         const badgeName = String(achievement.badgeName || "").trim();
         const labels = rowLabels.get(achievement.id);
         const note = rowNote(achievement);
-        const rowKey = currentMode === "tracked" ? index : achievement.id;
+        const rowKey = slides ? achievement.id : index;
         const absoluteIndex = windowStart + index;
 
         const row = (

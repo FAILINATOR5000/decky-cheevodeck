@@ -1209,6 +1209,7 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                         buttonSpacing={buttonSpacing}
                         showAll={showAllToggleFriend ? friendShowAllAchievements : true}
                         mode="friend"
+                        windowId="friend:achievements"
                         filterScopeKey={`${selectedFriend?.username ?? "friend"}:${friendGamePayload?.selectedGameId ?? "none"}`}
                         friendFilter={friendAchievementFilter}
                         friendSort={friendAchievementSort}

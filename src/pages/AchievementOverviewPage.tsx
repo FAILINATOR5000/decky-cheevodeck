@@ -350,6 +350,7 @@ function AchievementOverviewPage(props: AchievementOverviewPageProps) {
                     blockPadding={blockPadding}
                     showAll={true}
                     mode="overview"
+                    windowId="achievementoverview:achievements"
                     trackedIds={[]}
                     showRetroPoints={showRetroPoints}
                     titleOverride={t(language, "Achievement Info")}

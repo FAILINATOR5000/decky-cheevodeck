@@ -194,7 +194,7 @@ export function EventAchievementsBody(props: EventAchievementsBodyProps) {
 
     const claim = useFocusClaim();
     const firedRef = useRef(false);
-    const [seedRows, setSeedRows] = useState<number | undefined>(undefined);
+    const [restore, setRestore] = useState<{ key: string; index: number } | null>(null);
     useEffect(() => {
         if (props.restoreAchievementId === null || firedRef.current || !displayPayload) {
             return;
@@ -206,16 +206,22 @@ export function EventAchievementsBody(props: EventAchievementsBodyProps) {
             props.onRequestFocus("eventviewer:back");
             return;
         }
-        setSeedRows(index + 1 + settings.dynamicRowStep);
-        claim.claimSlot(index);
-        props.onRequestFocus(`achievement:${props.restoreAchievementId}`);
+        setRestore({ key: `achievement:${props.restoreAchievementId}`, index });
     }, [displayPayload, ordered, props.restoreAchievementId]);
+
+    function claimRestoredRow() {
+        if (!restore) {
+            return;
+        }
+        claim.claimSlot(restore.index);
+        props.onRequestFocus(restore.key);
+    }
 
     const spent = firedRef.current && (claim.claim?.token ?? 0) > 0 && !claim.claim?.armed;
     useEffect(() => {
         if (spent) {
             props.onRestoreSettled();
-            setSeedRows(undefined);
+            setRestore(null);
         }
     }, [spent]);
 
@@ -296,7 +302,9 @@ export function EventAchievementsBody(props: EventAchievementsBodyProps) {
                     />
                 </PanelSectionRow>
             )}
-            seedRows={seedRows}
+            windowId="eventviewer:achievements"
+            openAtKey={restore?.key}
+            onOpenAtHeld={claimRestoredRow}
             claimedRow={claim.claim ? { ...claim.claim, onSpent: claim.spend } : undefined}
         />
     );

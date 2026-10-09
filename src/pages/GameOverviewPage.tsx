@@ -1022,6 +1022,7 @@ function GameOverviewPage(props: GameOverviewPageProps) {
                             blockPadding={blockPadding}
                             showAll={true}
                             mode="overview"
+                            windowId="gameoverview:achievements"
                             trackedIds={[]}
                             mainFilter={achievementFilter}
                             mainSort={achievementSort}
