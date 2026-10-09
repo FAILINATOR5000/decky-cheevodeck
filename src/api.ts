@@ -2778,7 +2778,7 @@ export const reorderSetGames = callable<[string, (string | number)[], TrackedSet
 export const clearAllTrackedSets = callable<[], ClearAllTrackedSetsResponse>("clear_all_tracked_sets");
 export const getSetConsoleList = callable<[], TrackedSetConsoleListResponse>("get_set_console_list");
 export const getSetGameList = callable<[number, boolean?], TrackedSetGameListResponse>("get_set_game_list");
-export const checkSetCompletion = callable<[string], TrackedSetResponse>("check_set_completion");
+export const checkSetCompletion = callable<[string, boolean], TrackedSetResponse>("check_set_completion");
 export const checkAllSetsCompletion = callable<[], CheckAllSetsResponse>("check_all_sets_completion");
 export const saveTrackedSetsAutoCheck = callable<[boolean], { ok: boolean; trackedSetsAutoCheck: boolean }>(
     "save_tracked_sets_auto_check",

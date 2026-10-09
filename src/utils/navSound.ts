@@ -33,7 +33,7 @@ export function playOkSound(): void {
     }
 }
 
-const PRESS_TOAST_DELAY_MS = 500;
+export const PRESS_TOAST_DELAY_MS = 500;
 
 export function toastAfterPress(toast: Parameters<typeof toaster.toast>[0]): void {
     window.setTimeout(() => {

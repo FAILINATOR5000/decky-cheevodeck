@@ -92,7 +92,7 @@ export function useTrackedSetsController(args: UseTrackedSetsControllerArgs) {
         void loadSets();
     }, [isActive, setsLoaded, loadSets]);
 
-    const runCompletionCheck = async (setId: string) => {
+    const runCompletionCheck = async (setId: string, fresh = true) => {
         if (!setId) {
             return;
         }
@@ -102,7 +102,7 @@ export function useTrackedSetsController(args: UseTrackedSetsControllerArgs) {
         setCheckError(null);
 
         try {
-            const result = await checkSetCompletion(setId);
+            const result = await checkSetCompletion(setId, fresh);
             if (checkRunIdRef.current !== runId) {
                 return;
             }
@@ -206,7 +206,7 @@ export function useTrackedSetsController(args: UseTrackedSetsControllerArgs) {
             if (result.ok && result.set) {
                 spliceSet(result.set);
                 if (autoCheckEnabled && !result.alreadyPresent) {
-                    void runCompletionCheck(setId);
+                    void runCompletionCheck(setId, false);
                 }
             }
             return result;

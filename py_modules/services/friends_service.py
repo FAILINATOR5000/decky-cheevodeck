@@ -993,11 +993,16 @@ class FriendsService:
     def get_friend_all_games_full(self, web_api_key: str, user: str, ulid: str = "", page_size: int = 500) -> dict:
         query = str(ulid or "").strip() or user
         try:
+            started_at = int(time.time())
             raw_rows = []
             offset = 0
             total = None
             while True:
                 raw = self._fetch_completion_page_with_backoff(query, web_api_key, page_size, offset)
+                if total is None:
+                    first_rows = raw.get("Results", raw.get("results")) if isinstance(raw, dict) else None
+                    if not isinstance(first_rows, list):
+                        raise ValueError("completion progress page 1 came back malformed")
                 page_rows = raw.get("Results", raw.get("results", [])) or []
                 raw_rows.extend(page_rows)
                 if total is None:
@@ -1007,6 +1012,7 @@ class FriendsService:
                 if got <= 0 or (total is not None and offset >= total):
                     break
             payload = self.build_friend_all_games_payload(user, raw_rows, total=total)
+            payload["refreshedAt"] = started_at
             return {"needsSettings": False, "payload": payload, "error": None, "changed": True}
         except Exception as e:
             return {

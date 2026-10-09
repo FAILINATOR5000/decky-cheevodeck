@@ -117,6 +117,7 @@ class PluginContext:
     _events_site_attempt_at: float
     _completion_walk_lock: threading.Lock
     _last_completion_walk: tuple | None
+    _account_switch_lock: threading.Lock
     _memories_adopt_lock: asyncio.Lock
     _memories_job_ended: asyncio.Event
     _memory_share_lock: threading.Lock

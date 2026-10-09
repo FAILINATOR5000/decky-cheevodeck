@@ -7,6 +7,7 @@ import { t, ensureLanguageLoaded, getCurrentLanguage } from "./locales";
 import { readSettingsAtStartup, startupSettingsSettled } from "./utils/frontendSettings";
 import { logError } from "./utils/errors";
 import { toastAfterQuickAccessReturn } from "./utils/modalRegistry";
+import { PRESS_TOAST_DELAY_MS } from "./utils/navSound";
 import { quickAccessMenuClasses } from "@decky/ui";
 import { disableLibraryBadge } from "./components/library/libraryBadgePatch";
 import { registerScreenDarken, unregisterScreenDarken } from "./components/darken/screenDarken";
@@ -35,6 +36,7 @@ export default definePlugin(() => {
         title?: string;
         body?: string;
         toast?: boolean;
+        afterPress?: boolean;
     }) => {
         if (!payload?.toast) {
             return;
@@ -51,7 +53,12 @@ export default definePlugin(() => {
             const body = payload.lineKey
                 ? t(language, payload.lineKey, payload.vars)
                 : (payload.body || "");
-            toastAfterQuickAccessReturn({ title, body });
+            if (payload.afterPress) {
+                window.setTimeout(() => toastAfterQuickAccessReturn({ title, body }), PRESS_TOAST_DELAY_MS);
+            }
+            else {
+                toastAfterQuickAccessReturn({ title, body });
+            }
         }).catch((e) => {
             logError("index: couldn't raise a notification toast", e);
         });

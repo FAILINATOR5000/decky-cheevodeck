@@ -1780,6 +1780,7 @@ class Plugin(
 
                 self._apply_user_scope("")
                 self.notes_reminder_service.reset_pending()
+                self._last_completion_walk = None
             self.file_watcher_service.prepare()
             self.file_watcher_service.start()
             self.back_button_service.sync()

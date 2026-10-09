@@ -6,6 +6,7 @@ import decky
 
 from utils import format_completion_percent, frontend_error, norm_game_id, to_int
 from notifications import emit_notification, is_type_enabled
+from services.friends_service import _parse_ra_utc_timestamp
 
 
 class CurrentGameService:
@@ -27,11 +28,47 @@ class CurrentGameService:
     def set_tracked_sets_monitor(self, monitor):
         self._tracked_sets_monitor = monitor
 
-    def _nudge_tracked_sets_monitor(self, game_id):
+    def _nudge_tracked_sets_monitor(self, game_id, payload, account_key, data_at, kind, recent_items=None):
         monitor = self._tracked_sets_monitor
-        if monitor is None:
+        game_id = norm_game_id(game_id)
+        if monitor is None or game_id is None:
             return
-        monitor.request_check(game_id)
+        if kind == "full":
+            counts = self.full_counts_from_payload(payload, game_id)
+            if counts is not None:
+                monitor.request_check(game_id, account_key, data_at, counts=counts)
+            return
+
+        if not isinstance(payload, dict) or norm_game_id(payload.get("gameId")) != game_id:
+            return
+        earned = set()
+        for achievement in payload.get("achievements") or []:
+            if achievement.get("dateEarned") or achievement.get("dateEarnedHardcore"):
+                earned.add(str(achievement.get("id")))
+        candidates = []
+        for item in recent_items or []:
+            if norm_game_id(item.get("GameID", item.get("gameId"))) != game_id:
+                continue
+            achievement_id = item.get("AchievementID", item.get("achievementId"))
+            if achievement_id is None or str(achievement_id) in earned:
+                continue
+            unlocked_at = _parse_ra_utc_timestamp(item.get("Date", item.get("date")))
+            if unlocked_at is None:
+                continue
+            candidates.append((str(achievement_id), unlocked_at))
+        if candidates:
+            monitor.request_check(game_id, account_key, data_at, candidates=candidates)
+
+    def full_counts_from_payload(self, payload, game_id):
+        if not isinstance(payload, dict) or norm_game_id(payload.get("gameId")) != norm_game_id(game_id):
+            return None
+        if to_int(payload.get("numAchievements"), 0) <= 0 or not payload.get("achievements"):
+            return None
+        return {
+            "numAwarded": to_int(payload.get("numAwardedToUser"), 0),
+            "maxPossible": to_int(payload.get("numAchievements"), 0),
+            "highestAward": payload.get("highestAwardKind"),
+        }
 
     def _forget_memories_seed(self):
         store = self._memories_store
@@ -467,6 +504,7 @@ class CurrentGameService:
                 }
 
             if same_game and auto_refresh:
+                data_at = int(time.time())
                 recent = self._ra.get_recent_achievements(username, web_api_key, unlock_lookback_minutes)
                 recent_same_game = self._recent_items_for_game(recent, current_game_id)
                 latest_recent_same_game = self._find_latest_unlock_for_game(recent_same_game, current_game_id)
@@ -491,7 +529,9 @@ class CurrentGameService:
                         cleanup = self._settings_store.cleanup_tracked_against_payload(payload, tracked_dir=tracked_dir)
                         self._cache_store.save_payload(payload, self._build_meta(current_game_id, current_recent_marker))
                     self._emit_tracked_unlock_notifications(payload, cleanup.get("removedIds"))
-                    self._nudge_tracked_sets_monitor(current_game_id)
+                    self._nudge_tracked_sets_monitor(
+                        current_game_id, fresh_cached, account_key, data_at, "unlock", recent_same_game,
+                    )
 
             return {
                 "needsSettings": False,
@@ -524,6 +564,7 @@ class CurrentGameService:
             cached_game_id = norm_game_id(cached_meta.get("gameId"))
 
             if not force and cached and current_game_id is not None and current_game_id == cached_game_id:
+                data_at = int(time.time())
                 recent = self._ra.get_recent_achievements(username, web_api_key, unlock_lookback_minutes)
                 recent_same_game = self._recent_items_for_game(recent, current_game_id)
                 latest_recent_same_game = self._find_latest_unlock_for_game(recent_same_game, current_game_id)
@@ -542,7 +583,9 @@ class CurrentGameService:
                     cleanup = self._settings_store.cleanup_tracked_against_payload(patched_payload, tracked_dir=tracked_dir)
                     self._cache_store.save_payload(patched_payload, self._build_meta(current_game_id, current_recent_marker))
                 self._emit_tracked_unlock_notifications(patched_payload, cleanup.get("removedIds"))
-                self._nudge_tracked_sets_monitor(current_game_id)
+                self._nudge_tracked_sets_monitor(
+                    current_game_id, fresh_cached, account_key, data_at, "unlock", recent_same_game,
+                )
                 return {"payload": patched_payload, "changed": True}
 
             if cached_game_id is not None and cached_game_id != current_game_id:
@@ -557,6 +600,7 @@ class CurrentGameService:
                     self._cache_store.save_payload(payload, self._build_meta(None, None))
                 return {"payload": payload, "changed": True}
 
+            data_at = int(time.time())
             game = self._ra.get_game_info_and_user_progress(username, current_game_id, web_api_key)
             payload = self.normalize_game_payload(game, fallback_game_id=current_game_id)
 
@@ -571,7 +615,7 @@ class CurrentGameService:
                 cleanup = self._settings_store.cleanup_tracked_against_payload(payload, tracked_dir=tracked_dir)
                 self._cache_store.save_payload(payload, self._build_meta(payload["gameId"], current_recent_marker))
             self._emit_tracked_unlock_notifications(payload, cleanup.get("removedIds"))
-            self._nudge_tracked_sets_monitor(current_game_id)
+            self._nudge_tracked_sets_monitor(current_game_id, payload, account_key, data_at, "full")
 
             return {"payload": payload, "changed": True}
         except Exception as e:

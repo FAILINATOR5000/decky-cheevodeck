@@ -487,7 +487,7 @@ class FriendsSocialMixin(PluginContext):
             result = await asyncio.to_thread(
                 self.friends_service.get_friend_all_games_full, web_api_key, user, ulid
             )
-        if ulid and result.get("payload") and not result.get("error"):
+        if ulid and not result.get("error") and self._usable_games_payload(result.get("payload")):
             try:
                 await asyncio.to_thread(
                     self.games_list_cache_store.save, ulid, result["payload"], gen0

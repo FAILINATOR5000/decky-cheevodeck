@@ -11,7 +11,6 @@ from services._tick_common import GenerationFence
 from notifications import (
     emit_notification,
     is_type_enabled,
-    is_type_toast,
     push_debug_notification,
 )
 from utils import WalkBusy, WalkYieldedForClear, norm_game_id, to_int
@@ -28,52 +27,11 @@ MOSAIC_ENTRY_COUNT = 4
 
 WALK_RESULT_TIMEOUT_SECONDS = 120
 
-WALK_BUSY_RETRY_SECONDS = 10
-
-_WALK_BUSY = object()
-
 
 _generation_fence = GenerationFence()
 
 
 class TrackedSetsMonitorService:
-    """Event-driven daemon that fires a one-time notification when a tracked set
-    completes.
-
-    The companion piece to current_game_service: every time an own-unlock is
-    validated there, it hands this service a baton, request_check, naming the
-    game that moved. The service collapses a burst of batons into one walk,
-    checks locally whether any of those games even sit in a tracked set that
-    isn't already 100%, and only then spends a single RA slot on the user-wide
-    completion endpoint. If that walk tips a set from incomplete into complete,
-    it posts the "set completed" row and pops the toast.
-
-    One walk is one IPC and one slot. The paginated completion fetch runs
-    inside a single run_ra_call_for_trickle slot, held under the shared trickle
-    lock so it serializes against the roster, activity and comments daemons. A
-    429 or 503 arms a backoff and the walk bails.
-
-    Dedupe is the cache itself. apply_completion_results_with_transitions only
-    reports a set as just-completed when it was incomplete in the old cache and
-    complete in the new one, so once a flip is written the next walk reads
-    done-before and stays silent. There is no "congratulated" flag to keep.
-
-    The loop wakes two ways: a baton sets the wake event on an own-unlock
-    burst, and the refresh interval lapsing wakes it on a timer, which is the
-    periodic tick that catches a set finished on the website where no Deck
-    unlock ever fires. The baton path is game-scoped, walking only if a moved
-    game sits in an unfinished set; the tick is set-wide, walking only if some
-    set still reads incomplete. The master toggle gates both, and with it off
-    the service is inert.
-
-    Threading: the loop runs on its own daemon thread. request_check is called
-    from current_game_service's worker thread and only touches the pending set,
-    under _pending_lock, before poking the wake event, so it is cheap and safe
-    to call from anywhere. The walk never touches RA directly: it bridges onto
-    the plugin's asyncio loop via run_coroutine_threadsafe, the same way the
-    other trickle daemons take a real slot from off-loop.
-    """
-
     def __init__(self, *, tracked_sets_store, settings_store, notifications_store=None, plugin=None):
         self._tracked_sets_store = tracked_sets_store
         self._settings_store = settings_store
@@ -95,7 +53,9 @@ class TrackedSetsMonitorService:
         self._wake_event = threading.Event()
 
         self._pending_lock = threading.Lock()
-        self._pending_game_ids: set[int] = set()
+        self._pending = {}
+
+        self._last_applied_as_of = 0
 
         self._backoff_until_ts = None
 
@@ -113,6 +73,11 @@ class TrackedSetsMonitorService:
         with lock:
             yield
 
+    def _switch_lock(self):
+        plugin = self._plugin
+        lock = getattr(plugin, "_account_switch_lock", None) if plugin is not None else None
+        return lock if lock is not None else contextlib.nullcontext()
+
     def _clear_is_pending(self):
         plugin = self._plugin
         return bool(plugin is not None and getattr(plugin, "_clear_waiting", 0) > 0)
@@ -124,12 +89,6 @@ class TrackedSetsMonitorService:
             return False
         current = str(cfg.get("activeUlid") or "").strip()
         return current != str(tick_ulid or "").strip()
-
-    def _any_medium_on(self):
-        return (
-            is_type_enabled("trackedSet", self._settings_store)
-            or is_type_toast("trackedSet", self._settings_store)
-        )
 
     def _service_enabled(self):
         try:
@@ -153,7 +112,7 @@ class TrackedSetsMonitorService:
             return 15 * 60
         return self._settings_store.get_tracked_sets_refresh_minutes(cfg) * 60
 
-    def request_check(self, game_id):
+    def request_check(self, game_id, ulid, data_at, *, counts=None, candidates=None):
         self._debug_baton_ping(
             "Baton received",
             "current_game_service handed over a baton for game %s." % game_id,
@@ -162,14 +121,45 @@ class TrackedSetsMonitorService:
 
         if not self._service_enabled():
             return
-        if not self._any_medium_on():
+        normalized = norm_game_id(game_id)
+        if normalized is None or (counts is None and not candidates):
             return
-        normalised = norm_game_id(game_id)
-        if normalised is None:
-            return
+        ulid = str(ulid or "").strip()
+        data_at = to_int(data_at, 0)
+
         with self._pending_lock:
-            self._pending_game_ids.add(normalised)
+            entry = self._pending.get(normalized)
+            if entry is None or entry["ulid"] != ulid:
+                entry = {"ulid": ulid, "full": None, "unlock": None}
+                self._pending[normalized] = entry
+
+            if counts is not None:
+                if entry["full"] is None or data_at > entry["full"][0]:
+                    entry["full"] = (data_at, counts)
+                if entry["unlock"] is not None and entry["unlock"][0] <= entry["full"][0]:
+                    entry["unlock"] = None
+            elif entry["full"] is None or data_at > entry["full"][0]:
+                merged = dict(entry["unlock"][1]) if entry["unlock"] is not None else {}
+                for achievement_id, unlocked_at in candidates:
+                    key = str(achievement_id)
+                    if key not in merged or unlocked_at < merged[key]:
+                        merged[key] = unlocked_at
+                newest = max(data_at, entry["unlock"][0]) if entry["unlock"] is not None else data_at
+                entry["unlock"] = (newest, merged)
         self._wake_event.set()
+
+    def announce_completed(self, sets):
+        if not sets or not self._service_enabled():
+            return
+        for set_dict in sets:
+            try:
+                self._fire(set_dict, after_press=True)
+            except Exception as exc:
+                decky.logger.warning(
+                    "tracked sets monitor: completion notification failed: %s (%s)",
+                    type(exc).__name__,
+                    exc,
+                )
 
     def set_event_loop(self, loop):
         self._event_loop = loop
@@ -207,6 +197,8 @@ class TrackedSetsMonitorService:
             threading.get_ident(),
         )
 
+        next_tick_at = time.monotonic() + self._refresh_interval_seconds()
+
         while not self._stop_event.is_set():
             if not _generation_fence.is_live(my_generation):
                 self._debug_log(
@@ -216,25 +208,25 @@ class TrackedSetsMonitorService:
                 )
                 return
 
-            woke_from_baton = self._wake_event.wait(timeout=self._refresh_interval_seconds())
+            woke_from_baton = self._wake_event.wait(timeout=max(0.0, next_tick_at - time.monotonic()))
             if self._stop_event.is_set():
                 return
             self._wake_event.clear()
+            tick_due = time.monotonic() >= next_tick_at
+            if tick_due:
+                next_tick_at = time.monotonic() + self._refresh_interval_seconds()
 
             if not self._service_enabled():
                 continue
-
-            if self._battery_saver_active():
-                self._battery_saver_tick_ping(running=False)
-                continue
-            self._battery_saver_tick_ping(running=True)
 
             try:
                 if woke_from_baton:
                     if self._stop_event.wait(random.uniform(WALK_DEBOUNCE_MIN_SECONDS, WALK_DEBOUNCE_MAX_SECONDS)):
                         return
-                    self._run_one_walk()
-                else:
+                    if not _generation_fence.is_live(my_generation):
+                        return
+                    self._apply_pending_batons()
+                if tick_due:
                     self._run_periodic_walk()
             except Exception as exc:
                 decky.logger.exception(
@@ -256,50 +248,116 @@ class TrackedSetsMonitorService:
             tick_ulid = ""
         return username, web_api_key, tick_ulid
 
-    def _run_one_walk(self):
+    def _apply_pending_batons(self):
         username, web_api_key, tick_ulid = self._read_walk_credentials()
-
-        self._debug_log(
-            "tracked sets monitor: walk gen=%d tid=%d",
-            self._generation,
-            threading.get_ident(),
-        )
-
-        if not username or not web_api_key:
-            self._drain_pending()
-            return
-
-        if not self._any_medium_on():
-            self._drain_pending()
-            return
-
-        if self._is_in_backoff():
-            self._debug_log("tracked sets monitor: in backoff, leaving pending and skipping walk")
-            return
 
         drained = self._drain_pending()
         if not drained:
             return
 
-        if not self._any_drained_id_in_unfinished_set(drained):
-            self._debug_log(
-                "tracked sets monitor: no drained id in an unfinished set, skipping walk"
-            )
-            return
+        cards = 0
+        for game_id, entry in drained.items():
+            try:
+                cards += self._apply_drained_entry(game_id, entry, username, web_api_key, tick_ulid)
+            except Exception as exc:
+                decky.logger.warning(
+                    "tracked sets monitor: baton apply failed for game %s: %s (%s)",
+                    game_id,
+                    type(exc).__name__,
+                    exc,
+                )
 
+        self._debug_log(
+            "tracked sets monitor: baton applied games=%s cards=%d",
+            sorted(drained),
+            cards,
+        )
         self._debug_baton_ping(
-            "Baton walk",
-            "Baton cleared the in-set gate; taking a slot now for games %s."
-            % sorted(drained),
-            "Baton walking",
+            "Baton applied",
+            "Applied batons for games %s; %d cards moved." % (sorted(drained), cards),
+            "Baton applied",
         )
 
-        if self._walk_and_apply(username, web_api_key, tick_ulid) is _WALK_BUSY:
-            with self._pending_lock:
-                self._pending_game_ids.update(drained)
-            retry = threading.Timer(WALK_BUSY_RETRY_SECONDS, self._wake_event.set)
-            retry.daemon = True
-            retry.start()
+    def _apply_drained_entry(self, game_id, entry, username, web_api_key, tick_ulid):
+        ulid = entry["ulid"]
+        cards = 0
+        if entry["full"] is not None:
+            data_at, counts = entry["full"]
+            cards += self._apply_baton(game_id, ulid, data_at, counts=counts).get("cards", 0)
+        if entry["unlock"] is not None:
+            data_at, earliest = entry["unlock"]
+            outcome = self._apply_baton(game_id, ulid, data_at, candidates=list(earliest.items()))
+            if outcome.get("needsConfirm"):
+                confirmed = self._confirm_fetch(game_id, ulid, username, web_api_key, tick_ulid)
+                if confirmed is not None:
+                    outcome = self._apply_baton(game_id, ulid, confirmed[0], counts=confirmed[1])
+            cards += outcome.get("cards", 0)
+        return cards
+
+    def _apply_baton(self, game_id, ulid, data_at, *, counts=None, candidates=None):
+        with self._switch_lock():
+            if self._active_account_changed(ulid):
+                self._debug_log("tracked sets monitor: baton for another account, dropping game=%s", game_id)
+                return {}
+            outcome = self._tracked_sets_store.apply_game_counts(
+                game_id,
+                data_at=data_at,
+                counts=counts,
+                candidates=candidates,
+            )
+            for set_dict in outcome.get("completedSets") or []:
+                self._fire(set_dict)
+        return outcome
+
+    def _confirm_fetch(self, game_id, ulid, username, web_api_key, tick_ulid):
+        if not username or not web_api_key or self._is_in_backoff():
+            return None
+        if tick_ulid != str(ulid or "").strip():
+            return None
+        plugin = self._plugin
+        loop = self._event_loop
+        if plugin is None or loop is None:
+            return None
+
+        data_at = int(time.time())
+        try:
+            future = asyncio.run_coroutine_threadsafe(
+                plugin.run_ra_call_for_trickle(
+                    plugin.ra.get_game_info_and_user_progress,
+                    tick_ulid or username,
+                    game_id,
+                    web_api_key,
+                ),
+                loop,
+            )
+            game = future.result(timeout=WALK_RESULT_TIMEOUT_SECONDS)
+            payload = plugin.current_game_service.normalize_game_payload(game, fallback_game_id=game_id)
+        except urllib.error.HTTPError as exc:
+            self._handle_http_error(exc, username)
+            return None
+        except Exception as exc:
+            decky.logger.warning(
+                "tracked sets monitor: completion confirm fetch failed: %s (%s)",
+                type(exc).__name__,
+                exc,
+            )
+            return None
+
+        counts = plugin.current_game_service.full_counts_from_payload(payload, game_id)
+        self._debug_log(
+            "tracked sets monitor: confirm fetch game=%s counts=%s",
+            game_id,
+            counts,
+        )
+        if counts is None:
+            return None
+        return data_at, counts
+
+    def _drain_pending(self):
+        with self._pending_lock:
+            drained = self._pending
+            self._pending = {}
+        return drained
 
     def _run_periodic_walk(self):
         username, web_api_key, tick_ulid = self._read_walk_credentials()
@@ -313,27 +371,32 @@ class TrackedSetsMonitorService:
         if not username or not web_api_key:
             return
 
-        if self._is_in_backoff():
-            self._debug_log("tracked sets monitor: in backoff, skipping periodic tick")
-            return
-
         if not self._any_unfinished_set():
             self._debug_log("tracked sets monitor: no unfinished set, skipping periodic tick")
             return
 
-        self._walk_and_apply(username, web_api_key, tick_ulid)
+        fetched = self._tick_results_from_cache(tick_ulid)
+        from_cache = fetched is not None
+        if fetched is None:
+            if self._battery_saver_active():
+                self._battery_saver_tick_ping(running=False)
+                return
+            self._battery_saver_tick_ping(running=True)
 
-    def _walk_and_apply(self, username, web_api_key, tick_ulid):
+            if self._is_in_backoff():
+                self._debug_log("tracked sets monitor: in backoff, skipping periodic tick")
+                return
+
         with self._maybe_hold_trickle_lock():
             if self._clear_is_pending():
                 self._debug_log("tracked sets monitor: clear pending, yielding walk")
                 return
-            user_ref = tick_ulid or username
-            results = self._walk_completion_through_slot(user_ref, web_api_key, username)
-            if results is _WALK_BUSY:
-                return _WALK_BUSY
-            if results is None:
-                return
+
+            if fetched is None:
+                fetched = self._walk_completion_through_slot(tick_ulid or username, web_api_key, username)
+                if fetched is None:
+                    return
+            results, as_of, complete = fetched
 
             if self._active_account_changed(tick_ulid):
                 self._debug_log(
@@ -341,29 +404,28 @@ class TrackedSetsMonitorService:
                 )
                 return
 
-            outcome = self._tracked_sets_store.apply_completion_results_with_transitions(results)
-            completed = outcome.get("completedSets") or [] if isinstance(outcome, dict) else []
-            for set_dict in completed:
+            outcome = self._tracked_sets_store.apply_completion(results, as_of=as_of, complete=complete)
+            self._last_applied_as_of = max(self._last_applied_as_of, as_of)
+            if from_cache:
+                self._debug_log(
+                    "tracked sets monitor: tick applied from games-list cache, age=%ds",
+                    int(time.time()) - as_of,
+                )
+            for set_dict in outcome.get("completedSets") or []:
                 self._fire(set_dict)
 
-    def _drain_pending(self):
-        with self._pending_lock:
-            drained = set(self._pending_game_ids)
-            self._pending_game_ids.clear()
-        return drained
-
-    def _any_drained_id_in_unfinished_set(self, drained):
-        try:
-            data = self._tracked_sets_store.load_all()
-        except Exception:
-            return False
-        for target in data.get("sets", []) or []:
-            if self._tracked_sets_store._is_set_completed(target):
-                continue
-            for card in target.get("games", []) or []:
-                if norm_game_id(card.get("gameId")) in drained:
-                    return True
-        return False
+    def _tick_results_from_cache(self, tick_ulid):
+        plugin = self._plugin
+        if plugin is None or not tick_ulid:
+            return None
+        cached = plugin.games_list_cache_store.load(tick_ulid, self._refresh_interval_seconds())
+        if not cached.get("hit") or not plugin._usable_games_payload(cached["payload"]):
+            return None
+        payload = cached["payload"]
+        as_of = to_int(payload.get("refreshedAt"), 0)
+        if as_of <= self._last_applied_as_of:
+            return None
+        return plugin._results_from_payload(payload), as_of, True
 
     def _any_unfinished_set(self):
         try:
@@ -399,7 +461,7 @@ class TrackedSetsMonitorService:
             return None
         except WalkBusy:
             self._debug_log("tracked sets monitor: a walk is already running, skipping this one")
-            return _WALK_BUSY
+            return None
         except urllib.error.HTTPError as exc:
             self._handle_http_error(exc, username)
             return None
@@ -411,7 +473,7 @@ class TrackedSetsMonitorService:
             )
             return None
 
-    def _fire(self, set_dict):
+    def _fire(self, set_dict, after_press=False):
         set_id = set_dict.get("id")
         set_name = str(set_dict.get("name") or "").strip()
         awarded, possible = self._summed_counts(set_dict)
@@ -440,6 +502,7 @@ class TrackedSetsMonitorService:
             template_vars={"name": set_name},
             settings_store=self._settings_store,
             event_loop=self._event_loop,
+            after_press=after_press,
         )
 
     def fire_test_completion(self):

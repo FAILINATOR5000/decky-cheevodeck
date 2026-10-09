@@ -153,7 +153,7 @@ class TrackedSetsMixin(PluginContext):
             decky.logger.warning("get_set_game_list: cache save failed: %s", type(e).__name__)
         return {"ok": True, "games": games, "cached": False}
 
-    async def check_set_completion(self, set_id: str = ""):
+    async def check_set_completion(self, set_id: str = "", fresh: bool = True):
         if not isinstance(set_id, str) or not set_id:
             return {"ok": False, "error": "invalid_set_id"}
 
@@ -167,14 +167,27 @@ class TrackedSetsMixin(PluginContext):
                 "error": "Please enter your RetroAchievements username and Web API key.",
             }
 
-        async with self._ra_slot():
-            results = await asyncio.to_thread(
-                self._completion_results,
-                self._active_ra_user(cfg),
-                web_api_key,
-            )
+        fresh = bool(fresh)
+        if fresh:
+            async with self._ra_slot():
+                fetched = await asyncio.to_thread(
+                    self._completion_results,
+                    self._active_ra_user(cfg),
+                    web_api_key,
+                )
+        else:
+            fetched = await self._cached_completion_results(cfg, web_api_key)
 
-        return self.tracked_sets_store.apply_completion_results(set_id, results)
+        results, as_of, complete = fetched
+        return await asyncio.to_thread(
+            self._apply_tracked_sets_check,
+            str(cfg.get("activeUlid") or "").strip(),
+            results,
+            as_of,
+            complete,
+            set_id,
+            not fresh,
+        )
 
     async def check_all_sets_completion(self):
         cfg = self.settings_store.ensure_display_settings(self.settings_store.load_config())
@@ -187,14 +200,31 @@ class TrackedSetsMixin(PluginContext):
                 "error": "Please enter your RetroAchievements username and Web API key.",
             }
 
-        async with self._ra_slot():
-            results = await asyncio.to_thread(
-                self._completion_results,
-                self._active_ra_user(cfg),
-                web_api_key,
-            )
+        results, as_of, complete = await self._cached_completion_results(cfg, web_api_key)
+        return await asyncio.to_thread(
+            self._apply_tracked_sets_check,
+            str(cfg.get("activeUlid") or "").strip(),
+            results,
+            as_of,
+            complete,
+            None,
+            True,
+        )
 
-        return self.tracked_sets_store.apply_completion_results_all(results)
+    def _apply_tracked_sets_check(self, ulid, results, as_of, complete, set_id, honor_lag_grace):
+        with self._account_switch_lock:
+            current = str(self.settings_store.load_config().get("activeUlid") or "").strip()
+            if current != ulid:
+                return {"ok": False}
+            outcome = self.tracked_sets_store.apply_completion(
+                results,
+                as_of=as_of,
+                complete=complete,
+                set_id=set_id,
+                honor_lag_grace=honor_lag_grace,
+            )
+            self.tracked_sets_monitor_service.announce_completed(outcome.get("completedSets") or [])
+        return outcome
 
     def _shape_console_list(self, raw) -> list:
         if not isinstance(raw, list):

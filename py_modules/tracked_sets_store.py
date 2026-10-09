@@ -49,6 +49,10 @@ ORDER_FIELD_BY_VIEW = {
 
 CURRENT_SCHEMA_VERSION = 1
 
+CLOCK_SKEW_SECONDS = 300
+
+LAG_GRACE_SECONDS = 600
+
 
 class TrackedSetsStore:
     """Whole-game completion goals, grouped into user-created sets.
@@ -535,25 +539,90 @@ class TrackedSetsStore:
 
         return {"ok": True, "set": target}
 
-    def _write_counts_onto_set(self, target, results, now):
+    def _trusted_stamp(self, card, now):
+        stamp = card.get("lastCheckedAt")
+        if stamp is None or stamp > now + CLOCK_SKEW_SECONDS:
+            return None
+        return stamp
+
+    def _write_counts_onto_set(self, target, results, as_of, complete, honor_lag_grace, now) -> bool:
+        changed = False
         for card in target["games"]:
-            entry = results.get(str(card["gameId"]))
-            if not isinstance(entry, dict):
-                card["numAwarded"] = 0
-                card["highestAward"] = None
-                card["lastCheckedAt"] = now
+            stamp = self._trusted_stamp(card, now)
+            if stamp is not None and stamp > as_of:
                 continue
 
-            awarded = to_int(entry.get("numAwarded"), 0)
-            max_possible = to_int(entry.get("maxPossible"), 0)
+            entry = results.get(str(card["gameId"]))
+            if isinstance(entry, dict):
+                awarded = to_int(entry.get("numAwarded"), 0)
+                max_possible = to_int(entry.get("maxPossible"), 0)
+                award = self._opt_award(entry.get("highestAward"))
+                title = self._clean_title(entry.get("title"))
+            elif complete:
+                awarded = 0
+                max_possible = 0
+                award = None
+                title = ""
+            else:
+                continue
+
+            if (
+                honor_lag_grace
+                and stamp is not None
+                and as_of - stamp <= LAG_GRACE_SECONDS
+                and card["numAwarded"] is not None
+                and awarded < card["numAwarded"]
+            ):
+                continue
+
+            before = (card["numAwarded"], card["maxPossible"], card["highestAward"], card["lastCheckedAt"], card["title"])
             card["numAwarded"] = awarded
-            title = self._clean_title(entry.get("title"))
             if len(title) > len(card["title"]) and title.startswith(card["title"]):
                 card["title"] = title
             if max_possible > 0:
                 card["maxPossible"] = max_possible
-            card["highestAward"] = self._opt_award(entry.get("highestAward"))
-            card["lastCheckedAt"] = now
+            card["highestAward"] = award
+            card["lastCheckedAt"] = as_of
+            if (card["numAwarded"], card["maxPossible"], card["highestAward"], card["lastCheckedAt"], card["title"]) != before:
+                changed = True
+        return changed
+
+    def _write_game_counts(self, card, counts, data_at, now) -> bool:
+        stamp = self._trusted_stamp(card, now)
+        if stamp is not None and stamp > data_at:
+            return False
+        before = (card["numAwarded"], card["maxPossible"], card["highestAward"], card["lastCheckedAt"])
+        card["numAwarded"] = to_int(counts.get("numAwarded"), 0)
+        max_possible = to_int(counts.get("maxPossible"), 0)
+        if max_possible > 0:
+            card["maxPossible"] = max_possible
+        award = self._opt_award(counts.get("highestAward"))
+        if award in ("mastered", "completed"):
+            card["highestAward"] = award
+        elif card["highestAward"] in ("mastered", "completed"):
+            card["highestAward"] = None
+        card["lastCheckedAt"] = data_at
+        return (card["numAwarded"], card["maxPossible"], card["highestAward"], card["lastCheckedAt"]) != before
+
+    def _add_unlocks(self, card, candidates, now):
+        if card["numAwarded"] is None:
+            return False, False
+        stamp = self._trusted_stamp(card, now)
+        if stamp is None:
+            return False, False
+        earliest = {}
+        for achievement_id, epoch in candidates:
+            key = str(achievement_id)
+            epoch = to_int(epoch, 0)
+            if key not in earliest or epoch < earliest[key]:
+                earliest[key] = epoch
+        counted = [epoch for epoch in earliest.values() if epoch > stamp]
+        if not counted:
+            return False, False
+        card["numAwarded"] += len(counted)
+        card["lastCheckedAt"] = min(max(counted), now)
+        max_possible = card["maxPossible"]
+        return True, max_possible is not None and max_possible > 0 and card["numAwarded"] >= max_possible
 
     def _is_set_completed(self, target) -> bool:
         awarded = 0
@@ -570,58 +639,71 @@ class TrackedSetsStore:
         return any_checked and possible > 0 and awarded >= possible
 
     @refuses_newer_schema
-    def apply_completion_results(self, set_id: str, results: dict) -> dict:
-        if not isinstance(set_id, str) or not set_id:
-            return {"ok": False, "error": "invalid_set_id"}
-        if not isinstance(results, dict):
-            return {"ok": False, "error": "invalid_results"}
-
-        now = int(time.time())
-        with self._lock:
-            data = self._load_raw()
-            target = self._find_set(data, set_id)
-            if target is None:
-                return {"ok": False, "error": "not_found"}
-
-            self._write_counts_onto_set(target, results, now)
-            self._save_raw(data)
-
-        return {"ok": True, "set": target}
-
-    @refuses_newer_schema
-    def apply_completion_results_all(self, results: dict) -> dict:
-        if not isinstance(results, dict):
-            return {"ok": False, "error": "invalid_results"}
-
-        now = int(time.time())
-        with self._lock:
-            data = self._load_raw()
-            for target in data["sets"]:
-                self._write_counts_onto_set(target, results, now)
-
-            self._save_raw(data)
-
-        return {"ok": True, "sets": data["sets"]}
-
-    @refuses_newer_schema
-    def apply_completion_results_with_transitions(self, results: dict) -> dict:
+    def apply_completion(self, results, *, as_of, complete, set_id=None, honor_lag_grace=True) -> dict:
         if not isinstance(results, dict):
             return {"ok": False, "error": "invalid_results", "completedSets": []}
+        if set_id is not None and (not isinstance(set_id, str) or not set_id):
+            return {"ok": False, "error": "invalid_set_id", "completedSets": []}
 
+        as_of = to_int(as_of, 0)
         now = int(time.time())
         completed = []
         with self._lock:
             data = self._load_raw()
-            for target in data["sets"]:
+            if set_id is None:
+                targets = data["sets"]
+            else:
+                target = self._find_set(data, set_id)
+                if target is None:
+                    return {"ok": False, "error": "not_found", "completedSets": []}
+                targets = [target]
+
+            changed = False
+            for target in targets:
                 before = self._is_set_completed(target)
-                self._write_counts_onto_set(target, results, now)
-                after = self._is_set_completed(target)
-                if after and not before:
+                if self._write_counts_onto_set(target, results, as_of, complete, honor_lag_grace, now):
+                    changed = True
+                if self._is_set_completed(target) and not before:
                     completed.append(target)
+            if changed:
+                self._save_raw(data)
 
-            self._save_raw(data)
+        if set_id is None:
+            return {"ok": True, "sets": data["sets"], "completedSets": completed}
+        return {"ok": True, "set": targets[0], "completedSets": completed}
 
-        return {"ok": True, "completedSets": completed}
+    @refuses_newer_schema
+    def apply_game_counts(self, game_id, *, data_at, counts=None, candidates=None) -> dict:
+        normalized = norm_game_id(game_id)
+        if normalized is None:
+            return {"ok": False, "error": "invalid_game_id", "completedSets": []}
+
+        data_at = to_int(data_at, 0)
+        now = int(time.time())
+        with self._lock:
+            data = self._load_raw()
+            done_before = {s["id"] for s in data["sets"] if self._is_set_completed(s)}
+            moved = 0
+            finishes_card = False
+            for target in data["sets"]:
+                for card in target["games"]:
+                    if card["gameId"] != normalized:
+                        continue
+                    if counts is not None:
+                        changed = self._write_game_counts(card, counts, data_at, now)
+                    else:
+                        changed, finished = self._add_unlocks(card, candidates or [], now)
+                        finishes_card = finishes_card or finished
+                    if changed:
+                        moved += 1
+
+            completed = [s for s in data["sets"] if s["id"] not in done_before and self._is_set_completed(s)]
+            if counts is None and (finishes_card or completed):
+                return {"ok": True, "needsConfirm": True, "completedSets": [], "cards": 0}
+            if moved:
+                self._save_raw(data)
+
+        return {"ok": True, "completedSets": completed, "cards": moved}
 
     @refuses_newer_schema
     def clear_all_tracked_sets(self) -> dict:
