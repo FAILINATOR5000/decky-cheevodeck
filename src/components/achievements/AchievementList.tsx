@@ -28,11 +28,14 @@ import { communityCompletionLabel, earned, metricSortComparator, isMissable, not
 import { bodyTextStyle, FADE_IN_KEYFRAMES } from "../../utils/style";
 import { logError } from "../../utils/errors";
 import { useWindowedList } from "../../hooks/useWindowedList";
+import { useSlidingWindow } from "../../hooks/useSlidingWindow";
+import { achievementBodySize } from "../../utils/scale";
+import { mainListOpenIndex, takeMainListOpenAt } from "../../utils/mainListOpenAt";
 import { UnlockStamp } from "./UnlockStamp";
 import { POINTS_LABEL_STYLES } from "./PointsLabel";
 import { PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../ui/PanelSection";
-import React, { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 const NO_ROWS: AchievementRow[] = [];
 
@@ -113,7 +116,8 @@ export function AchievementList(props: {
     const dynamicInitialRows = Math.max(1, props.dynamicInitialRows ?? 30);
     const dynamicRowStep = Math.max(1, props.dynamicRowStep ?? 30);
     const dynamicPrefetchDistance = Math.max(1, props.dynamicPrefetchDistance ?? 12);
-    const dynamicSentinelRootMargin = `${Math.max(0, props.dynamicSentinelRootMargin ?? 600)}px 0px`;
+    const dynamicSentinelRootMarginPx = Math.max(0, props.dynamicSentinelRootMargin ?? 600);
+    const dynamicSentinelRootMargin = `${dynamicSentinelRootMarginPx}px 0px`;
 
     const effectiveMainFilter: MainAchievementFilter = props.mainFilter ?? "all";
     const effectiveFriendFilter: FriendAchievementFilter = props.friendFilter ?? "all";
@@ -367,21 +371,58 @@ export function AchievementList(props: {
         return labels;
     }, [visibleAchievements, currentMode, props.language, communityPlayerCount, props.getAchievementExtraLabel, props.getAchievementHeaderLabel]);
 
-    const {
-        mountedItems: mountedAchievements,
-        markerRef: loadMoreMarkerRef,
-        onItemFocus: handleAchievementFocus
-    } = useWindowedList({
-        items: visibleAchievements,
+    const windowResetKey = `${props.payload?.gameId}|${props.filterScopeKey}|${props.showAll}|${currentMode}|${effectiveFriendFilter}|${effectiveMainFilter}|${activeSort}`;
+
+    const slides = currentMode === "main";
+    const windowed = useWindowedList({
+        items: slides ? NO_ROWS : visibleAchievements,
         dynamicLoading,
         initialRows: dynamicInitialRows,
         rowStep: dynamicRowStep,
         prefetchDistance: dynamicPrefetchDistance,
         sentinelRootMargin: dynamicSentinelRootMargin,
-        resetKey: `${props.payload?.gameId}|${props.filterScopeKey}|${props.showAll}|${currentMode}|${effectiveFriendFilter}|${effectiveMainFilter}|${activeSort}`,
+        resetKey: windowResetKey,
         seedRows: props.seedRows,
         debugLabel: currentMode === "tracked" ? `tracked:${props.titleOverride || "list"}` : undefined
     });
+    const sliding = useSlidingWindow({
+        items: slides ? visibleAchievements : NO_ROWS,
+        itemKey: (achievement) => String(achievement.id),
+        focusKeyFor: (achievement) => `achievement:${achievement.id}`,
+        windowId: "main:achievements",
+        heightScope: [
+            "main:achievements",
+            props.uiSize,
+            achievementBodySize(1),
+            props.blockPadding,
+            props.achievementStyle ?? "left",
+            props.showIcons,
+            Boolean(props.showRetroPoints),
+            Boolean(props.showTrackedNotesMain),
+            props.language
+        ].join("|"),
+        dynamicLoading,
+        initialRows: dynamicInitialRows,
+        rowStep: dynamicRowStep,
+        prefetchDistance: dynamicPrefetchDistance,
+        sentinelRootMarginPx: dynamicSentinelRootMarginPx,
+        resetKey: windowResetKey,
+        debugLabel: slides ? "main:achievements" : undefined
+    });
+    const mountedAchievements = slides ? sliding.mountedItems : windowed.mountedItems;
+    const windowStart = slides ? sliding.start : 0;
+
+    useLayoutEffect(function openFromTestHook() {
+        if (!slides) {
+            return;
+        }
+        const target = takeMainListOpenAt();
+        if (target === null || visibleAchievements.length === 0) {
+            return;
+        }
+        const row = visibleAchievements[mainListOpenIndex(target, visibleAchievements.length)];
+        sliding.openAt(`achievement:${row.id}`);
+    }, []);
 
     const bodyAchievements = props.collapsed
         ? NO_ROWS
@@ -403,6 +444,20 @@ export function AchievementList(props: {
 
         return { ...iconMap, ...getCachedAchievementIcons(props.payload?.gameId ?? null, missingBadgeNames) };
     }, [bodyAchievements, iconMap, props.payload?.gameId]);
+
+    const previouslyMountedRef = useRef<AchievementRow[]>(NO_ROWS);
+    useLayoutEffect(function forgetFadesOfEvictedRows() {
+        if (!slides) {
+            return;
+        }
+        const stillMounted = new Set(mountedAchievements.map((achievement) => achievement.id));
+        for (const achievement of previouslyMountedRef.current) {
+            if (!stillMounted.has(achievement.id)) {
+                coldBadgesRef.current.delete(String(achievement.badgeName || "").trim());
+            }
+        }
+        previouslyMountedRef.current = mountedAchievements;
+    }, [slides, mountedAchievements]);
 
     useEffect(function scrollReorderTargetIntoView() {
         if (currentMode !== "tracked") {
@@ -535,8 +590,8 @@ export function AchievementList(props: {
 
     const clickRef = useRef(props.onAchievementClick);
     clickRef.current = props.onAchievementClick;
-    const focusRef = useRef(handleAchievementFocus);
-    focusRef.current = handleAchievementFocus;
+    const focusRef = useRef(windowed.onItemFocus);
+    focusRef.current = slides ? sliding.onItemFocus : windowed.onItemFocus;
     const rowFocusRef = useRef(props.onRowFocus);
     rowFocusRef.current = props.onRowFocus;
 
@@ -608,6 +663,57 @@ export function AchievementList(props: {
         props.onAchievementTagMark
     ]);
 
+    function renderRow(achievement: AchievementRow, index: number) {
+        const badgeName = String(achievement.badgeName || "").trim();
+        const labels = rowLabels.get(achievement.id);
+        const note = rowNote(achievement);
+        const rowKey = currentMode === "tracked" ? index : achievement.id;
+        const absoluteIndex = windowStart + index;
+
+        const row = (
+            <AchievementListRow
+                key={rowKey}
+                achievement={achievement}
+                index={absoluteIndex}
+                list={rowList}
+                iconSrc={badgeName ? mountedIcons[badgeName] || "" : ""}
+                fadeOnLoad={coldBadgesRef.current.has(badgeName)}
+                isTracked={trackedIdSet.has(achievement.id) && !earned(achievement)}
+                isReorderTarget={
+                    currentMode === "tracked"
+                    && props.reorderTargetId != null
+                    && props.reorderTargetId === achievement.id
+                }
+                isTagMarked={
+                    currentMode === "tracked"
+                    && Boolean(props.tagMarkedIds?.has(achievement.id))
+                }
+                communityLabel={labels?.communityLabel ?? null}
+                extraLabel={labels?.extraLabel ?? null}
+                headerLabel={labels?.headerLabel}
+                noteText={note?.body}
+                noteColor={note?.color}
+                onGamepadDirection={slides ? sliding.guardTopRow(absoluteIndex) : undefined}
+            />
+        );
+
+        const claimedRow = props.claimedRow;
+        if (claimedRow && claimedRow.slotIndex === absoluteIndex) {
+            return (
+                <FocusClaim
+                    key={rowKey}
+                    token={claimedRow.token}
+                    armed={claimedRow.armed}
+                    onSpent={claimedRow.onSpent}
+                >
+                    {row}
+                </FocusClaim>
+            );
+        }
+
+        return row;
+    }
+
     return (
         <PanelSection title={panelTitle}>
             <div ref={listRootRef}>
@@ -635,58 +741,19 @@ export function AchievementList(props: {
                             <BottomFocusAnchor focusKey={props.emptyFocusAnchorKey} />
                         )}
                     </>
+                ) : slides ? (
+                    <div ref={sliding.holderRef} style={{ display: "flow-root", overflowAnchor: "none" }}>
+                        <div style={{ height: `${sliding.topSpacerPx}px` }} />
+                        <div ref={sliding.upMarkerRef} />
+                        {bodyAchievements.map(renderRow)}
+                        <div ref={sliding.downMarkerRef} />
+                        <div style={{ height: `${sliding.bottomSpacerPx}px` }} />
+                    </div>
                 ) : (
                     <>
-                        {bodyAchievements.map((achievement, index) => {
-                            const badgeName = String(achievement.badgeName || "").trim();
-                            const labels = rowLabels.get(achievement.id);
-                            const note = rowNote(achievement);
-                            const rowKey = currentMode === "tracked" ? index : achievement.id;
-
-                            const row = (
-                                <AchievementListRow
-                                    key={rowKey}
-                                    achievement={achievement}
-                                    index={index}
-                                    list={rowList}
-                                    iconSrc={badgeName ? mountedIcons[badgeName] || "" : ""}
-                                    fadeOnLoad={coldBadgesRef.current.has(badgeName)}
-                                    isTracked={trackedIdSet.has(achievement.id) && !earned(achievement)}
-                                    isReorderTarget={
-                                        currentMode === "tracked"
-                                        && props.reorderTargetId != null
-                                        && props.reorderTargetId === achievement.id
-                                    }
-                                    isTagMarked={
-                                        currentMode === "tracked"
-                                        && Boolean(props.tagMarkedIds?.has(achievement.id))
-                                    }
-                                    communityLabel={labels?.communityLabel ?? null}
-                                    extraLabel={labels?.extraLabel ?? null}
-                                    headerLabel={labels?.headerLabel}
-                                    noteText={note?.body}
-                                    noteColor={note?.color}
-                                />
-                            );
-
-                            const claimedRow = props.claimedRow;
-                            if (claimedRow && claimedRow.slotIndex === index) {
-                                return (
-                                    <FocusClaim
-                                        key={rowKey}
-                                        token={claimedRow.token}
-                                        armed={claimedRow.armed}
-                                        onSpent={claimedRow.onSpent}
-                                    >
-                                        {row}
-                                    </FocusClaim>
-                                );
-                            }
-
-                            return row;
-                        })}
+                        {bodyAchievements.map(renderRow)}
                         {dynamicLoading && !props.collapsed && mountedAchievements.length < visibleAchievements.length && (
-                            <div ref={loadMoreMarkerRef} style={{ height: "1px" }} />
+                            <div ref={windowed.markerRef} style={{ height: "1px" }} />
                         )}
                     </>
                 )}

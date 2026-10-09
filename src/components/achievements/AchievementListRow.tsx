@@ -56,6 +56,7 @@ export const AchievementListRow = React.memo(function AchievementListRow(props: 
     headerLabel?: ReactNode;
     noteText?: string;
     noteColor?: string;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 }) {
     const { achievement, list } = props;
     const { metrics, language, mode, useLeftStyle, blockPaddingStyle, trackedBarColor, showRetroPoints } = list;
@@ -225,6 +226,7 @@ export const AchievementListRow = React.memo(function AchievementListRow(props: 
             onClick={handleClick}
             onFocus={handleFocus}
             onGamepadFocus={handleGamepadFocus}
+            onGamepadDirection={props.onGamepadDirection}
             onButtonDown={handleButtonDown}
         >
             {withHeader(list.showIcons ? (

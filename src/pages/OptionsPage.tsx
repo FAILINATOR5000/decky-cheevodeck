@@ -83,6 +83,7 @@ import { trackedColorHex, trackedColorLabelKey } from "../utils/achievements";
 import { resolveGlyphStyle } from "../utils/controllerGlyphs";
 import { videoMoveErrorKey } from "../utils/memoriesTransferErrors";
 import { listenForOptionsLanding, takeOptionsLanding } from "../utils/optionsFocusReturn";
+import { armMainListOpenAt, type MainListOpenTarget } from "../utils/mainListOpenAt";
 import { BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT, BUTTON_SECONDARY } from "../utils/gamepadButtons";
 import { playOkSound } from "../utils/navSound";
 import { bodyTextStyle, regularButtonSpacingStyle, smallTextStyle } from "../utils/style";
@@ -174,6 +175,12 @@ const OPTIONS_TABS: OptionsTabDef[] = [
     { id: "social", Icon: UsersIcon, labelKey: "tab_social", focusKey: "options:tab:social" },
     { id: "cache", Icon: DatabaseIcon, labelKey: "tab_cache", focusKey: "options:tab:cache" },
     { id: "advanced", Icon: SlidersIcon, labelKey: "tab_advanced", focusKey: "options:tab:advanced" }
+];
+
+const MAIN_LIST_OPEN_HOOKS: { target: MainListOpenTarget; label: string }[] = [
+    { target: "middle", label: "Open Main List at Middle Row" },
+    { target: "last", label: "Open Main List at Last Row" },
+    { target: "row689", label: "Open Main List at Row 689" }
 ];
 
 // Page shapes
@@ -3092,6 +3099,20 @@ function AdvancedTab(props: TabContentProps) {
                 label={t(state.language, "Wipe Loaded Game")}
                 help={t(state.language, "help_simulate_no_game")}
             />
+            {state.debugLogging && MAIN_LIST_OPEN_HOOKS.map((hook) => (
+                <OptionButton
+                    key={hook.target}
+                    outerStyle={buttonOuterStyle}
+                    focusKey={`options:open-main-list-${hook.target}`}
+                    onClick={() => {
+                        armMainListOpenAt(hook.target);
+                        void actions.onBack();
+                    }}
+                    disabled={disabled}
+                    label={t(state.language, hook.label)}
+                    help={t(state.language, "help_open_main_list_at_row")}
+                />
+            ))}
                 </>
             )}
         </>

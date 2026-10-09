@@ -64,6 +64,7 @@ declare module "@decky/ui" {
     type NoDomFocusEvents = {
         onGamepadFocus?: () => void;
         onGamepadBlur?: () => void;
+        onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
         onFocus?: never;
         onBlur?: never;
         [prop: string]: any;

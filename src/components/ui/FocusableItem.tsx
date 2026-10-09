@@ -11,6 +11,7 @@ export type FocusableItemProps = {
     onGamepadFocus?: () => void;
     onGamepadBlur?: () => void;
     onButtonDown?: (evt: { detail?: { button?: number } }) => void;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
     onMenuButton?: () => void;
     actionDescriptionMap?: Record<number, React.ReactNode>;
     onMouseEnter?: () => void;
@@ -26,7 +27,7 @@ export type FocusableItemProps = {
 };
 
 export function FocusableItem(props: FocusableItemProps) {
-    const { children, onClick, onFocus, onBlur, onGamepadFocus, onGamepadBlur, onButtonDown, onMenuButton, actionDescriptionMap, onMouseEnter, onMouseLeave, disabled, skipWhenDisabled, autoFocus, focusKey, outerStyle, scrollMarginTop, bottomSeparator = "standard", help, modalHelp } = props;
+    const { children, onClick, onFocus, onBlur, onGamepadFocus, onGamepadBlur, onButtonDown, onGamepadDirection, onMenuButton, actionDescriptionMap, onMouseEnter, onMouseLeave, disabled, skipWhenDisabled, autoFocus, focusKey, outerStyle, scrollMarginTop, bottomSeparator = "standard", help, modalHelp } = props;
     const wrapperRef = useRef<HTMLDivElement | null>(null);
 
     function handleFocusCapture() {
@@ -85,6 +86,7 @@ export function FocusableItem(props: FocusableItemProps) {
                 onGamepadFocus={onGamepadFocus}
                 onGamepadBlur={onGamepadBlur}
                 onButtonDown={onButtonDown}
+                onGamepadDirection={onGamepadDirection}
                 onMenuButton={onMenuButton}
                 actionDescriptionMap={actionDescriptionMap}
                 disabled={disabled}
