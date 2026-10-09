@@ -14,6 +14,7 @@ export type IncidentCardProps = {
     language: LanguageCode;
     index: number;
     onCardFocus: (index: number) => void;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 const CONTROLLER_LINES: Record<string, string> = {
@@ -108,6 +109,7 @@ export const IncidentCard = React.memo(function IncidentCard(props: IncidentCard
             focusKey={`qamGuard:card:${incident.id}`}
             onFocus={handleFocus}
             onGamepadFocus={handleFocus}
+            onGamepadDirection={props.onGamepadDirection}
             outerStyle={{ width: "100%", minWidth: 0 }}
         >
             <div

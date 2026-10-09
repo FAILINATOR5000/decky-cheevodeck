@@ -10,6 +10,8 @@ import {
 } from "../api";
 import { useFocusClaim } from "../hooks/useFocusClaim";
 import { useWindowedList } from "../hooks/useWindowedList";
+import { useSlidingWindow } from "../hooks/useSlidingWindow";
+import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
 import { AddGameToSetModal } from "../components/pickers/AddGameToSetModal";
 import { ButtonHints } from "../components/ui/ButtonHints";
 import { ErrorText } from "../components/ui/ErrorText";
@@ -60,7 +62,7 @@ import {
 } from "../utils/achievements";
 import { showManagedModal } from "../utils/modalRegistry";
 import { achievementUiMetrics, regularButtonSpacingStyle, bodyTextStyle, FADE_IN_KEYFRAMES } from "../utils/style";
-import { modalSize } from "../utils/scale";
+import { modalSize, textSize } from "../utils/scale";
 import { armTrackedSetFocusReturn, type TrackedSetFocusReturn } from "../utils/trackedSetFocusReturn";
 import { SaveOnStart } from "../components/ui/SaveOnStart";
 import { SnapshotHotkey } from "../components/ui/SnapshotHotkey";
@@ -887,26 +889,28 @@ function SelectorView(props: SelectorViewProps) {
     const setsInitialRows = Math.max(1, dynamicInitialRows ?? 10);
     const setsRowStep = Math.max(1, dynamicRowStep ?? 10);
     const setsPrefetchDistance = Math.max(1, dynamicPrefetchDistance ?? 12);
-    const setsSentinelRootMargin = `${Math.max(0, dynamicSentinelRootMargin ?? 600)}px 0px`;
+    const setsSentinelRootMargin = Math.max(0, dynamicSentinelRootMargin ?? 600);
 
-    const {
-        mountedItems: mountedSets,
-        markerRef: loadMoreSetsMarkerRef,
-        onItemFocus: handleSetFocus
-    } = useWindowedList({
+    const setWindow = useSlidingWindow({
         items: orderedSets,
+        itemKey: (set) => set.id,
+        focusKeyFor: (set) => `trackedset:${set.id}`,
+        windowId: "trackedsets:goals",
+        heightScope: ["trackedsets:goals", rowMosaicSize, showIcons, language, String(buttonOuterStyle.marginBottom), textSize(12)].join("|"),
         dynamicLoading: setsDynamicLoading,
         initialRows: setsInitialRows,
         rowStep: setsRowStep,
         prefetchDistance: setsPrefetchDistance,
-        sentinelRootMargin: setsSentinelRootMargin,
-        resetKey: `${selectorSort}|${selectorFilter}`
+        sentinelRootMarginPx: setsSentinelRootMargin,
+        resetKey: `${selectorSort}|${selectorFilter}`,
+        debugLabel: "trackedsets:goals"
     });
+    const mountedSets = setWindow.mountedItems;
 
     const openSetRef = useRef(onOpenSet);
     openSetRef.current = onOpenSet;
-    const rowFocusRef = useRef(handleSetFocus);
-    rowFocusRef.current = handleSetFocus;
+    const rowFocusRef = useRef(setWindow.onItemFocus);
+    rowFocusRef.current = setWindow.onItemFocus;
 
     const rowList = useMemo<TrackedSetRowListProps>(() => ({
         language,
@@ -988,18 +992,17 @@ function SelectorView(props: SelectorViewProps) {
                         </PanelSectionRow>
                     )}
 
-                    {mountedSets.map((set, index) => (
-                        <TrackedSetRow
-                            key={`trackedset:${set.id}`}
-                            set={set}
-                            index={index}
-                            list={rowList}
-                        />
-                    ))}
-
-                    {setsDynamicLoading && mountedSets.length < orderedSets.length && (
-                        <div ref={loadMoreSetsMarkerRef} style={{ height: "1px" }} />
-                    )}
+                    <SlidingWindowRows list={setWindow}>
+                        {mountedSets.map((set, index) => (
+                            <TrackedSetRow
+                                key={`trackedset:${set.id}`}
+                                set={set}
+                                index={setWindow.start + index}
+                                list={rowList}
+                                onGamepadDirection={setWindow.guardTopRow(setWindow.start + index)}
+                            />
+                        ))}
+                    </SlidingWindowRows>
                 </PanelSection>
             )}
         </>
@@ -1020,6 +1023,7 @@ type TrackedSetRowProps = {
     set: TrackedSet;
     index: number;
     list: TrackedSetRowListProps;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 const TrackedSetRow = React.memo(function TrackedSetRow(props: TrackedSetRowProps) {
@@ -1052,6 +1056,7 @@ const TrackedSetRow = React.memo(function TrackedSetRow(props: TrackedSetRowProp
             onClick={handleClick}
             onFocus={handleFocus}
             onGamepadFocus={handleFocus}
+            onGamepadDirection={props.onGamepadDirection}
         >
             <SetMosaicBanner entries={mosaicEntries} mosaicSize={list.mosaicSize}>
                 <span style={{ fontWeight: 800 }}>{set.name}</span>

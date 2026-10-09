@@ -21,10 +21,11 @@ export type CommentCardProps = {
     onGamepadFocusIndex?: (index: number) => void;
     outerStyle?: CSSProperties;
     contentPaddingRight?: number;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 export const CommentCard = React.memo(function CommentCard(props: CommentCardProps) {
-    const { comment, language, metrics, showIcons, focusKey, onClick, index, onGamepadFocusIndex, outerStyle, contentPaddingRight } = props;
+    const { comment, language, metrics, showIcons, focusKey, onClick, index, onGamepadFocusIndex, outerStyle, contentPaddingRight, onGamepadDirection } = props;
 
     const username = String(comment.user || "").trim() || t(language, "Someone");
     const dateText = formatUnlockDate(comment.submitted, { includeYear: true }, language);
@@ -42,6 +43,7 @@ export const CommentCard = React.memo(function CommentCard(props: CommentCardPro
             focusKey={focusKey}
             onClick={handleClick}
             onGamepadFocus={onGamepadFocusIndex && index != null ? () => onGamepadFocusIndex(index) : undefined}
+            onGamepadDirection={onGamepadDirection}
             outerStyle={outerStyle}
         >
             <div

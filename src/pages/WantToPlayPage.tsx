@@ -19,9 +19,13 @@ import type {
 import { logError } from "../utils/errors";
 import { formatInteger } from "../utils/format";
 import { achievementUiMetrics, type AchievementUiMetrics, smallTextStyle, bodyTextStyle } from "../utils/style";
-import { useWindowedList } from "../hooks/useWindowedList";
+import { useSlidingWindow } from "../hooks/useSlidingWindow";
+import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
+import { textSize } from "../utils/scale";
 import { localizeRuntimeText, t, type LanguageCode } from "../locales";
 
+
+const NO_ROWS: WantToPlayRow[] = [];
 
 type WantToPlayPageProps = {
     view: ViewKey;
@@ -49,9 +53,9 @@ function WantToPlayPage(props: WantToPlayPageProps) {
     const dynamicInitialRows = Math.max(1, props.dynamicInitialRows ?? 30);
     const dynamicRowStep = Math.max(1, props.dynamicRowStep ?? 30);
     const dynamicPrefetchDistance = Math.max(1, props.dynamicPrefetchDistance ?? 12);
-    const dynamicSentinelRootMargin = `${Math.max(0, props.dynamicSentinelRootMargin ?? 600)}px 0px`;
+    const dynamicSentinelRootMargin = Math.max(0, props.dynamicSentinelRootMargin ?? 600);
 
-    const rows = props.wantToPlayPayload?.results ?? [];
+    const rows = props.wantToPlayPayload?.results ?? NO_ROWS;
     const username = props.wantToPlayPayload?.username ?? "";
     const totalLoaded = rows.length;
 
@@ -62,24 +66,25 @@ function WantToPlayPage(props: WantToPlayPageProps) {
         return rows;
     }, [dynamicAllGames, rows]);
 
-    const {
-        mountedItems: mountedRows,
-        markerRef: loadMoreMarkerRef,
-        onItemFocus: maybeLoadMoreFromFocus
-    } = useWindowedList({
+    const rowWindow = useSlidingWindow({
         items: visibleRows,
+        itemKey: (row) => String(row.gameId),
+        focusKeyFor: (row) => `wanttoplay:item:${row.gameId}`,
+        windowId: "wanttoplay:games",
+        heightScope: ["wanttoplay:games", props.uiSize, props.showIcons, props.language, textSize(12)].join("|"),
         dynamicLoading: dynamicAllGames,
         initialRows: dynamicInitialRows,
         rowStep: dynamicRowStep,
         prefetchDistance: dynamicPrefetchDistance,
-        sentinelRootMargin: dynamicSentinelRootMargin,
-        resetKey: username
+        sentinelRootMarginPx: dynamicSentinelRootMargin,
+        resetKey: username,
+        debugLabel: "wanttoplay:games"
     });
 
     const gameClickRef = useRef(props.onGameClick);
     gameClickRef.current = props.onGameClick;
-    const rowFocusRef = useRef(maybeLoadMoreFromFocus);
-    rowFocusRef.current = maybeLoadMoreFromFocus;
+    const rowFocusRef = useRef(rowWindow.onItemFocus);
+    rowFocusRef.current = rowWindow.onItemFocus;
 
     const rowList = useMemo<WantToPlayRowListProps>(() => ({
         language: props.language,
@@ -144,20 +149,17 @@ function WantToPlayPage(props: WantToPlayPageProps) {
                         </div>
                     </PanelSectionRow>
                 ) : (
-                    <>
-                        {mountedRows.map((row, index) => (
+                    <SlidingWindowRows list={rowWindow}>
+                        {rowWindow.mountedItems.map((row, index) => (
                             <WantToPlayRowView
                                 key={`wanttoplay:item:${row.gameId}`}
                                 row={row}
-                                index={index}
+                                index={rowWindow.start + index}
                                 list={rowList}
+                                onGamepadDirection={rowWindow.guardTopRow(rowWindow.start + index)}
                             />
                         ))}
-
-                        {dynamicAllGames && mountedRows.length < visibleRows.length && (
-                            <div ref={loadMoreMarkerRef} style={{ height: "1px" }} />
-                        )}
-                    </>
+                    </SlidingWindowRows>
                 )}
             </PanelSection>
         </>
@@ -177,6 +179,7 @@ type WantToPlayRowViewProps = {
     row: WantToPlayRow;
     index: number;
     list: WantToPlayRowListProps;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 const WantToPlayRowView = React.memo(function WantToPlayRowView(props: WantToPlayRowViewProps) {
@@ -230,6 +233,8 @@ const WantToPlayRowView = React.memo(function WantToPlayRowView(props: WantToPla
         <FocusableItem
             focusKey={`wanttoplay:item:${row.gameId}`}
             onFocus={handleFocus}
+            onGamepadFocus={handleFocus}
+            onGamepadDirection={props.onGamepadDirection}
             onClick={handleClick}
             outerStyle={{ width: "100%", minWidth: 0 }}
         >

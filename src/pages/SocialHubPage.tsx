@@ -62,13 +62,15 @@ import { filterAndSortSavedComments } from "../utils/savedComments";
 import { armSavedCommentFocusReturn } from "../utils/savedCommentFocusReturn";
 import { useFocusClaim, type FocusClaimController } from "../hooks/useFocusClaim";
 import { useGameIcon } from "../hooks/useGameIcon";
-import { useWindowedList } from "../hooks/useWindowedList";
+import { useSlidingWindow } from "../hooks/useSlidingWindow";
+import { useWhenHeld } from "../hooks/useWhenHeld";
+import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
 import { UserAvatar } from "../components/ui/UserAvatar";
 import { FriendListRow, type FriendRowListProps } from "../components/social/FriendListRow";
 import { ActivityFeedRow, type ActivityRowListProps } from "../components/social/ActivityFeedRow";
 import { localizeRuntimeText, t } from "../locales";
 import { FADE_IN_KEYFRAMES, achievementUiMetrics, bodyTextStyle, headerCase, smallTextStyle, type AchievementUiMetrics } from "../utils/style";
-import { bannerSize, textSize } from "../utils/scale";
+import { bannerSize, commentsTextSize, textSize } from "../utils/scale";
 import { beginGuardedRun } from "../utils/runGuard";
 
 type TabIconProps = { size?: number };
@@ -192,9 +194,15 @@ const COMMUNITY_SUB_TABS: { value: CommunitySubTab; labelKey: string; focusKey: 
 const SAVED_COMMENTS_INITIAL_ROWS = 30;
 const SAVED_COMMENTS_ROW_STEP = 50;
 
-const SAVED_COMMENT_RESTORE_SEED_CEILING = 200;
-
 const SAVED_COMMENT_CARD_FOCUS_PREFIX = "savedcomment:card:";
+
+function savedCardFocusKey(comment: SavedComment) {
+    return `${SAVED_COMMENT_CARD_FOCUS_PREFIX}${comment.id}`;
+}
+
+function friendFocusKey(friend: FriendRow) {
+    return `friend:${friend.username}`;
+}
 
 const SAVED_COMMENT_FACET_CLAIM_SLOT = -2;
 
@@ -404,19 +412,22 @@ function SocialHubPage(props: SocialHubPageProps) {
         props.onSocialViewChange(nextView);
     }, [props.socialEntryToken]);
 
-    const {
-        mountedItems: visibleFriendsRows,
-        markerRef: loadMoreMarkerRef,
-        onItemFocus: maybeLoadMoreFromFocus
-    } = useWindowedList({
+    const friendWindow = useSlidingWindow({
         items: socialFriendsRows,
+        itemKey: (friend) => friend.username,
+        focusKeyFor: friendFocusKey,
+        windowId: "social:friends",
+        heightScope: ["social:friends", props.language, textSize(12)].join("|"),
         dynamicLoading: dynamicFriendLoading,
         initialRows: dynamicInitialRows,
         rowStep: dynamicRowStep,
         prefetchDistance: dynamicPrefetchDistance,
-        sentinelRootMargin: dynamicSentinelRootMargin,
-        resetKey: socialView
+        sentinelRootMarginPx: Math.max(0, props.dynamicSentinelRootMargin ?? 600),
+        resetKey: socialView,
+        debugLabel: "social:friends"
     });
+    const visibleFriendsRows = friendWindow.mountedItems;
+    const whenFriendHeld = useWhenHeld(friendWindow, socialFriendsRows, friendFocusKey);
 
     // Friend rows
     const friendClickRef = useRef(props.onFriendClick);
@@ -429,8 +440,8 @@ function SocialHubPage(props: SocialHubPageProps) {
     friendUnhoverRef.current = props.onFriendUnhover;
     const friendFavoriteRef = useRef(props.onFriendFavoriteToggle);
     friendFavoriteRef.current = props.onFriendFavoriteToggle;
-    const friendRowFocusRef = useRef(maybeLoadMoreFromFocus);
-    friendRowFocusRef.current = maybeLoadMoreFromFocus;
+    const friendRowFocusRef = useRef(friendWindow.onItemFocus);
+    friendRowFocusRef.current = friendWindow.onItemFocus;
 
     function claimFocusAfterUnstar(friend: FriendRow, next: boolean) {
         if (next || socialView !== "favorites") {
@@ -443,7 +454,8 @@ function SocialHubPage(props: SocialHubPageProps) {
             return;
         }
         const removedIndex = rows.indexOf(friend);
-        favoriteRowClaim.claimSlot(Math.min(Math.max(removedIndex, 0), rows.length - 2));
+        const heir = rows[removedIndex + 1] ?? rows[removedIndex - 1];
+        whenFriendHeld(friendFocusKey(heir), (slot) => favoriteRowClaim.claimSlot(slot), friendFocusKey(friend));
     }
 
     const unstarClaimRef = useRef(claimFocusAfterUnstar);
@@ -911,35 +923,26 @@ function SocialHubPage(props: SocialHubPageProps) {
         ? -1
         : savedIndexById.get(savedRestoreCardId) ?? -1;
 
-    const savedRestoreInReach = savedRestoreSlot >= 0
-        && savedRestoreSlot < SAVED_COMMENT_RESTORE_SEED_CEILING;
-
     const savedRestoreFiredRef = useRef(false);
     const savedRestoreSettledRef = useRef(false);
     const [savedRestoreAbandoned, setSavedRestoreAbandoned] = useState(false);
 
-    const savedRestoreClaimSpent = savedRestoreFiredRef.current
-        && (savedCommentRowClaim.claim?.token ?? 0) > 0
-        && !savedCommentRowClaim.claim?.armed;
-
-    const savedRestoreSeedRows = savedRestoreClaimSpent || !savedRestoreInReach
-        ? 0
-        : savedRestoreSlot + 1;
-
-    const {
-        mountedItems: visibleSavedComments,
-        markerRef: savedListMarkerRef,
-        onItemFocus: maybeLoadMoreSavedFromFocus
-    } = useWindowedList({
+    const savedWindow = useSlidingWindow({
         items: facetedSavedComments,
+        itemKey: (comment) => comment.id,
+        focusKeyFor: savedCardFocusKey,
+        windowId: "social:savedcomments",
+        heightScope: ["social:savedcomments", props.uiSize, props.showIcons, props.language, commentsTextSize(12), textSize(12)].join("|"),
         dynamicLoading: true,
         initialRows: SAVED_COMMENTS_INITIAL_ROWS,
         rowStep: SAVED_COMMENTS_ROW_STEP,
         prefetchDistance: 12,
-        sentinelRootMargin: "300px",
-        seedRows: savedRestoreSeedRows,
-        resetKey: `${props.savedComments.subTab}:${props.savedComments.filter}:${props.savedComments.sort}`
+        sentinelRootMarginPx: 300,
+        resetKey: `${props.savedComments.subTab}:${props.savedComments.filter}:${props.savedComments.sort}`,
+        debugLabel: "social:savedcomments"
     });
+    const visibleSavedComments = savedWindow.mountedItems;
+    const whenSavedHeld = useWhenHeld(savedWindow, facetedSavedComments, savedCardFocusKey);
 
     useEffect(() => {
         if (!savedSubTabActive || !props.showIcons) {
@@ -993,25 +996,18 @@ function SocialHubPage(props: SocialHubPageProps) {
             return;
         }
         savedRestoreFiredRef.current = true;
-        if (!savedRestoreInReach) {
+        if (savedRestoreSlot < 0) {
             setSavedRestoreAbandoned(true);
-            logFocusDebug(
-                "savedcomment-restore",
-                savedRestoreFocusKey,
-                `slot=${savedRestoreSlot} total=${facetedSavedComments.length}`
-                + ` ceiling=${SAVED_COMMENT_RESTORE_SEED_CEILING}`
-                + ` ${savedRestoreSlot < 0 ? "gone from the list" : "past the ceiling"}`
-            );
+            logFocusDebug("savedcomment-restore", savedRestoreFocusKey, `total=${facetedSavedComments.length} gone from the list`);
             props.onRequestFocus("social:back");
             return;
         }
-        logFocusDebug(
-            "savedcomment-restore",
-            savedRestoreFocusKey,
-            `slot=${savedRestoreSlot} of ${facetedSavedComments.length} seeded=${savedRestoreSeedRows}`
-        );
-        savedCommentRowClaim.claimSlot(savedRestoreSlot);
-        props.onRequestFocus(savedRestoreFocusKey);
+        logFocusDebug("savedcomment-restore", savedRestoreFocusKey, `slot=${savedRestoreSlot} of ${facetedSavedComments.length}`);
+        const key = savedRestoreFocusKey;
+        whenSavedHeld(key, (slot) => {
+            savedCommentRowClaim.claimSlot(slot);
+            props.onRequestFocus(key);
+        });
     }, [
         props.view,
         savedRestorePending,
@@ -1021,8 +1017,6 @@ function SocialHubPage(props: SocialHubPageProps) {
         props.savedComments.error,
         savedRestoreCardId,
         savedRestoreSlot,
-        savedRestoreInReach,
-        savedRestoreSeedRows,
         allSavedComments.length,
         facetedSavedComments.length,
         savedCommentRowClaim.claimSlot,
@@ -1041,14 +1035,13 @@ function SocialHubPage(props: SocialHubPageProps) {
         setArmedSavedId(null);
         void (async () => {
             const removedIndex = facetedSavedComments.findIndex((entry) => entry.id === comment.id);
+            const heir = facetedSavedComments[removedIndex + 1] ?? facetedSavedComments[removedIndex - 1];
             await props.savedComments.onTrash(comment);
             if (facetedSavedComments.length <= 1) {
                 setBackClaimToken((token) => token + 1);
                 return;
             }
-            savedCommentRowClaim.claimSlot(
-                Math.min(Math.max(removedIndex, 0), facetedSavedComments.length - 2)
-            );
+            whenSavedHeld(savedCardFocusKey(heir), (slot) => savedCommentRowClaim.claimSlot(slot), savedCardFocusKey(comment));
         })();
     };
 
@@ -1058,15 +1051,15 @@ function SocialHubPage(props: SocialHubPageProps) {
     savedTrashPressRef.current = handleSavedCommentTrashPress;
     const savedTrashBlurRef = useRef(handleSavedCommentTrashBlur);
     savedTrashBlurRef.current = handleSavedCommentTrashBlur;
-    const savedRowFocusRef = useRef(maybeLoadMoreSavedFromFocus);
-    savedRowFocusRef.current = maybeLoadMoreSavedFromFocus;
+    const savedRowFocusRef = useRef(savedWindow.onItemFocus);
+    savedRowFocusRef.current = savedWindow.onItemFocus;
 
     const savedCommentList = useMemo<SavedCommentListProps>(() => ({
         language: props.language,
         metrics: rowMetrics,
         showIcons: props.showIcons,
         onOpen: (comment) => {
-            armSavedCommentFocusReturn(`${SAVED_COMMENT_CARD_FOCUS_PREFIX}${comment.id}`);
+            armSavedCommentFocusReturn(savedCardFocusKey(comment));
             void savedOpenRef.current(comment);
         },
         onTrashPress: (comment) => {
@@ -1460,27 +1453,24 @@ function SocialHubPage(props: SocialHubPageProps) {
                                                 </div>
                                             </PanelSectionRow>
                                         ) : (
-                                            <div
-                                                style={{ width: "100%", display: "flex", flexDirection: "column", gap: "4px" }}
-                                            >
+                                            <SlidingWindowRows list={savedWindow}>
                                                 {visibleSavedComments.map((comment, index) => (
-                                                    <ClaimedRow
-                                                        key={`savedcomment:slot:${index}`}
-                                                        claim={savedCommentRowClaim}
-                                                        slotIndex={index}
-                                                    >
-                                                        <SavedCommentCard
-                                                            comment={comment}
-                                                            index={index}
-                                                            armed={armedSavedId === comment.id}
-                                                            list={savedCommentList}
-                                                        />
-                                                    </ClaimedRow>
+                                                    <div key={`savedcomment:${comment.id}`} style={{ paddingBottom: "4px" }}>
+                                                        <ClaimedRow
+                                                            claim={savedCommentRowClaim}
+                                                            slotIndex={savedWindow.start + index}
+                                                        >
+                                                            <SavedCommentCard
+                                                                comment={comment}
+                                                                index={savedWindow.start + index}
+                                                                armed={armedSavedId === comment.id}
+                                                                list={savedCommentList}
+                                                                onGamepadDirection={savedWindow.guardTopRow(savedWindow.start + index)}
+                                                            />
+                                                        </ClaimedRow>
+                                                    </div>
                                                 ))}
-                                                {visibleSavedComments.length < facetedSavedComments.length && (
-                                                    <div ref={savedListMarkerRef} style={{ height: "1px" }} />
-                                                )}
-                                            </div>
+                                            </SlidingWindowRows>
                                         )}
                                     </>
                                 )}
@@ -1754,27 +1744,25 @@ function SocialHubPage(props: SocialHubPageProps) {
                                 </div>
                             </div>
                         </PanelSectionRow>
-                        {visibleFriendsRows.map((friend, index) => (
-                            <ClaimedRow
-                                key={`${socialView}:slot:${index}`}
-                                claim={favoriteRowClaim}
-                                slotIndex={index}
-                            >
-                                <FriendListRow
-                                    friend={friend}
-                                    index={index}
-                                    favorite={favoriteFriendKeys.has(String(friend.ulid || "").trim())}
-                                    liveRefreshing={props.liveRefreshingFriendUsernames.has(friend.username)}
-                                    list={friendRowList}
-                                />
-                            </ClaimedRow>
-                        ))}
-                        {dynamicFriendLoading && visibleFriendsRows.length < socialFriendsRows.length && (
-                            <div
-                                ref={loadMoreMarkerRef}
-                                style={{ width: "100%", height: "1px", opacity: 0 }}
-                            />
-                        )}
+                        <SlidingWindowRows list={friendWindow}>
+                            {visibleFriendsRows.map((friend, index) => (
+                                <div key={`${socialView}:${friend.username}`} style={{ paddingBottom: "4px" }}>
+                                    <ClaimedRow
+                                        claim={favoriteRowClaim}
+                                        slotIndex={friendWindow.start + index}
+                                    >
+                                        <FriendListRow
+                                            friend={friend}
+                                            index={friendWindow.start + index}
+                                            favorite={favoriteFriendKeys.has(String(friend.ulid || "").trim())}
+                                            liveRefreshing={props.liveRefreshingFriendUsernames.has(friend.username)}
+                                            list={friendRowList}
+                                            onGamepadDirection={friendWindow.guardTopRow(friendWindow.start + index)}
+                                        />
+                                    </ClaimedRow>
+                                </div>
+                            ))}
+                        </SlidingWindowRows>
                     </>
                 )}
                 </div>
@@ -2000,6 +1988,7 @@ const SavedCommentCard = React.memo(function SavedCommentCard(props: {
     index: number;
     armed: boolean;
     list: SavedCommentListProps;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 }) {
     const { comment, index, armed, list } = props;
     const { language, metrics, showIcons } = list;
@@ -2023,10 +2012,11 @@ const SavedCommentCard = React.memo(function SavedCommentCard(props: {
                         language={language}
                         metrics={metrics}
                         showIcons={showIcons}
-                        focusKey={`savedcomment:card:${comment.id}`}
+                        focusKey={savedCardFocusKey(comment)}
                         onClick={() => list.onOpen(comment)}
                         index={index}
                         onGamepadFocusIndex={list.onRowFocus}
+                        onGamepadDirection={props.onGamepadDirection}
                         outerStyle={{ width: "100%", minWidth: 0 }}
                         contentPaddingRight={30}
                     />
@@ -2052,6 +2042,7 @@ const SavedCommentCard = React.memo(function SavedCommentCard(props: {
                                 setFocused(false);
                                 list.onTrashBlur(comment);
                             }}
+                            onGamepadDirection={props.onGamepadDirection}
                             style={{
                                 minWidth: 0,
                                 width: "32px",

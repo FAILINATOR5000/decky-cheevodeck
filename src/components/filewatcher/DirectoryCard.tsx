@@ -37,6 +37,7 @@ export type DirectoryCardProps = {
     armed: boolean;
     index: number;
     list: DirectoryCardListProps;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 export const DirectoryCard = React.memo(function DirectoryCard(props: DirectoryCardProps) {
@@ -83,6 +84,7 @@ export const DirectoryCard = React.memo(function DirectoryCard(props: DirectoryC
                 onClick={handleOpen}
                 onFocus={handleFocus}
                 onGamepadFocus={handleFocus}
+                onGamepadDirection={props.onGamepadDirection}
                 outerStyle={{ width: "100%", minWidth: 0 }}
             >
                 <div
@@ -134,6 +136,7 @@ export const DirectoryCard = React.memo(function DirectoryCard(props: DirectoryC
                 <DialogButton
                     onClick={handleTrashPress}
                     onGamepadFocus={handleTrashFocus}
+                    onGamepadDirection={props.onGamepadDirection}
                     onGamepadBlur={handleTrashBlur}
                     disabled={locked}
                     style={{

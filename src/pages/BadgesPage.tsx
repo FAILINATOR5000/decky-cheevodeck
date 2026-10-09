@@ -20,7 +20,9 @@ import type {
 } from "../types";
 
 import { smallTextStyle, bodyTextStyle, achievementUiMetrics, type AchievementUiMetrics, FADE_IN_KEYFRAMES } from "../utils/style";
-import { useWindowedList } from "../hooks/useWindowedList";
+import { useSlidingWindow } from "../hooks/useSlidingWindow";
+import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
+import { textSize } from "../utils/scale";
 import { cancelTabGameIcons, getCachedAwardIconDataUri, getCachedGameIconDataUri, prefetchAwardIcons, prefetchTabGameIcons, subscribeToAwardIcon, subscribeToGameIcon } from "../api";
 import {
     localizeRuntimeText,
@@ -81,8 +83,10 @@ type BadgesPageProps = {
     onHome: () => void | Promise<void>;
 };
 
-function awardRowKey(award: UserAwardRow, index: number) {
-    return `badges:item:${award.awardType}:${award.awardData}:${index}`;
+const NO_AWARDS: UserAwardRow[] = [];
+
+function awardRowKey(award: UserAwardRow) {
+    return `badges:item:${award.awardType}:${award.awardData}:${award.awardDataExtra}`;
 }
 
 function isEventAward(award: UserAwardRow) {
@@ -221,10 +225,10 @@ function BadgesPage(props: BadgesPageProps) {
     const dynamicInitialRows = Math.max(1, props.dynamicInitialRows ?? 30);
     const dynamicRowStep = Math.max(1, props.dynamicRowStep ?? 30);
     const dynamicPrefetchDistance = Math.max(1, props.dynamicPrefetchDistance ?? 12);
-    const dynamicSentinelRootMargin = `${Math.max(0, props.dynamicSentinelRootMargin ?? 600)}px 0px`;
+    const dynamicSentinelRootMargin = Math.max(0, props.dynamicSentinelRootMargin ?? 600);
 
     const sortOrder = props.sortOrder;
-    const awardRows = props.awardsPayload?.results ?? [];
+    const awardRows = props.awardsPayload?.results ?? NO_AWARDS;
     const username = props.awardsPayload?.username ?? props.username ?? "";
     const totalLoaded = awardRows.length;
 
@@ -263,24 +267,26 @@ function BadgesPage(props: BadgesPageProps) {
         return sorted;
     }, [awardRows, activeFilter, sortOrder]);
 
-    const {
-        mountedItems: visibleAwards,
-        markerRef: loadMoreMarkerRef,
-        onItemFocus: maybeLoadMoreFromFocus
-    } = useWindowedList({
+    const awardWindow = useSlidingWindow({
         items: filteredRows,
+        itemKey: awardRowKey,
+        focusKeyFor: awardRowKey,
+        windowId: "badges:awards",
+        heightScope: ["badges:awards", props.uiSize, props.showIcons, props.language, textSize(12)].join("|"),
         dynamicLoading: dynamicList,
         initialRows: dynamicInitialRows,
         rowStep: dynamicRowStep,
         prefetchDistance: dynamicPrefetchDistance,
-        sentinelRootMargin: dynamicSentinelRootMargin,
-        resetKey: `${username}|${props.view}|${activeFilter}|${sortOrder}`
+        sentinelRootMarginPx: dynamicSentinelRootMargin,
+        resetKey: `${username}|${props.view}|${activeFilter}|${sortOrder}`,
+        debugLabel: "badges:awards"
     });
+    const visibleAwards = awardWindow.mountedItems;
 
     const badgeClickRef = useRef(props.onBadgeClick);
     badgeClickRef.current = props.onBadgeClick;
-    const rowFocusRef = useRef(maybeLoadMoreFromFocus);
-    rowFocusRef.current = maybeLoadMoreFromFocus;
+    const rowFocusRef = useRef(awardWindow.onItemFocus);
+    rowFocusRef.current = awardWindow.onItemFocus;
 
     const badgeClickWired = Boolean(props.onBadgeClick);
 
@@ -515,22 +521,19 @@ function BadgesPage(props: BadgesPageProps) {
                                 </div>
                             </PanelSectionRow>
                         ) : (
-                            <>
+                            <SlidingWindowRows list={awardWindow}>
                                 {visibleAwards.map((award, index) => {
                                     return (
                                         <BadgesRow
-                                            key={awardRowKey(award, index)}
+                                            key={awardRowKey(award)}
                                             award={award}
-                                            index={index}
+                                            index={awardWindow.start + index}
                                             list={rowList}
+                                            onGamepadDirection={awardWindow.guardTopRow(awardWindow.start + index)}
                                         />
                                     );
                                 })}
-
-                                {dynamicList && visibleAwards.length < filteredRows.length && (
-                                    <div ref={loadMoreMarkerRef} style={{ height: "1px" }} />
-                                )}
-                            </>
+                            </SlidingWindowRows>
                         )}
                     </>
                 )}
@@ -552,6 +555,7 @@ type BadgesRowProps = {
     award: UserAwardRow;
     index: number;
     list: BadgesRowListProps;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 const BadgesRow = React.memo(function BadgesRow(props: BadgesRowProps) {
@@ -630,8 +634,10 @@ const BadgesRow = React.memo(function BadgesRow(props: BadgesRowProps) {
 
     return (
         <FocusableItem
-            focusKey={awardRowKey(award, props.index)}
+            focusKey={awardRowKey(award)}
             onFocus={handleFocus}
+            onGamepadFocus={handleFocus}
+            onGamepadDirection={props.onGamepadDirection}
             onClick={canDrillIn ? handleClick : undefined}
             outerStyle={{ width: "100%", minWidth: 0 }}
         >

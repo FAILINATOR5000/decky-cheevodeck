@@ -20,7 +20,9 @@ import type {
 import { logError } from "../utils/errors";
 import { formatInteger, formatRatio } from "../utils/format";
 import { achievementUiMetrics, type AchievementUiMetrics, rankGutterWidth, regularButtonSpacingStyle, smallTextStyle, bodyTextStyle } from "../utils/style";
-import { useWindowedList } from "../hooks/useWindowedList";
+import { useSlidingWindow } from "../hooks/useSlidingWindow";
+import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
+import { textSize } from "../utils/scale";
 import { t, type LanguageCode } from "../locales";
 
 
@@ -100,6 +102,8 @@ function formatMetricValue(value: number, metric: FollowedRankingMetric): string
 }
 
 
+const NO_FRIENDS: FriendRow[] = [];
+
 type FollowedRankingPageProps = {
     view: ViewKey;
     language: LanguageCode;
@@ -124,9 +128,9 @@ function FollowedRankingPage(props: FollowedRankingPageProps) {
     const dynamicInitialRows = Math.max(1, props.dynamicInitialRows ?? 30);
     const dynamicRowStep = Math.max(1, props.dynamicRowStep ?? 30);
     const dynamicPrefetchDistance = Math.max(1, props.dynamicPrefetchDistance ?? 12);
-    const dynamicSentinelRootMargin = `${Math.max(0, props.dynamicSentinelRootMargin ?? 600)}px 0px`;
+    const dynamicSentinelRootMargin = Math.max(0, props.dynamicSentinelRootMargin ?? 600);
 
-    const allFriends = props.friendsPayload?.friends ?? [];
+    const allFriends = props.friendsPayload?.friends ?? NO_FRIENDS;
 
     const sortedRows = useMemo(() => {
         const copy = allFriends.slice();
@@ -143,24 +147,26 @@ function FollowedRankingPage(props: FollowedRankingPageProps) {
         return copy;
     }, [allFriends, props.metric]);
 
-    const {
-        mountedItems: mountedRows,
-        markerRef: loadMoreMarkerRef,
-        onItemFocus: maybeLoadMoreFromFocus
-    } = useWindowedList({
+    const rankWidth = rankGutterWidth(props.uiSize, sortedRows.length);
+
+    const rowWindow = useSlidingWindow({
         items: sortedRows,
+        itemKey: (row) => row.username,
+        focusKeyFor: (row) => `followedranking:item:${row.username}`,
+        windowId: "followedranking:friends",
+        heightScope: ["followedranking:friends", props.uiSize, props.showIcons, props.language, rankWidth, textSize(12)].join("|"),
         dynamicLoading: dynamicFollowedRanking,
         initialRows: dynamicInitialRows,
         rowStep: dynamicRowStep,
         prefetchDistance: dynamicPrefetchDistance,
-        sentinelRootMargin: dynamicSentinelRootMargin,
-        resetKey: props.metric
+        sentinelRootMarginPx: dynamicSentinelRootMargin,
+        resetKey: props.metric,
+        debugLabel: "followedranking:friends"
     });
+    const mountedRows = rowWindow.mountedItems;
 
-    const rankWidth = rankGutterWidth(props.uiSize, sortedRows.length);
-
-    const rowFocusRef = useRef(maybeLoadMoreFromFocus);
-    rowFocusRef.current = maybeLoadMoreFromFocus;
+    const rowFocusRef = useRef(rowWindow.onItemFocus);
+    rowFocusRef.current = rowWindow.onItemFocus;
 
     const rowList = useMemo<FollowedRankingRowListProps>(() => ({
         metric: props.metric,
@@ -248,21 +254,18 @@ function FollowedRankingPage(props: FollowedRankingPageProps) {
                         </div>
                     </PanelSectionRow>
                 ) : (
-                    <>
+                    <SlidingWindowRows list={rowWindow}>
                         {mountedRows.map((row, index) => (
                             <FollowedRankingRowView
                                 key={`followedranking:item:${row.username}`}
                                 row={row}
-                                rank={index + 1}
-                                index={index}
+                                rank={rowWindow.start + index + 1}
+                                index={rowWindow.start + index}
                                 list={rowList}
+                                onGamepadDirection={rowWindow.guardTopRow(rowWindow.start + index)}
                             />
                         ))}
-
-                        {dynamicFollowedRanking && mountedRows.length < sortedRows.length && (
-                            <div ref={loadMoreMarkerRef} style={{ height: "1px" }} />
-                        )}
-                    </>
+                    </SlidingWindowRows>
                 )}
             </PanelSection>
         </>
@@ -284,6 +287,7 @@ type FollowedRankingRowViewProps = {
     rank: number;
     index: number;
     list: FollowedRankingRowListProps;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 
@@ -303,6 +307,8 @@ const FollowedRankingRowView = React.memo(function FollowedRankingRowView(props:
         <FocusableItem
             focusKey={`followedranking:item:${row.username}`}
             onFocus={handleFocus}
+            onGamepadFocus={handleFocus}
+            onGamepadDirection={props.onGamepadDirection}
             outerStyle={{ width: "100%", minWidth: 0 }}
         >
             <div

@@ -5,7 +5,9 @@ import { getAllTrackedGames, getCachedGameIconDataUri, prefetchTabGameIcons, sub
 import { ErrorText } from "../ui/ErrorText";
 import { FadeImage } from "../ui/FadeImage";
 import { FocusableItem } from "../ui/FocusableItem";
-import { useWindowedList } from "../../hooks/useWindowedList";
+import { useSlidingWindow } from "../../hooks/useSlidingWindow";
+import { SlidingWindowRows } from "../ui/SlidingWindowRows";
+import { textSize } from "../../utils/scale";
 import type { LanguageCode } from "../../locales";
 import { localizeRuntimeText, t } from "../../locales";
 import type { TrackedGameSummary, UiSize } from "../../types";
@@ -109,27 +111,29 @@ export function OtherGamesPicker(props: OtherGamesPickerProps) {
     const rowStep = Math.max(1, dynamicRowStep);
     const prefetchDistance = Math.max(1, dynamicPrefetchDistance);
 
-    const sentinelRootMargin = `${Math.max(0, dynamicSentinelRootMargin)}px 0px`;
+    const sentinelRootMargin = Math.max(0, dynamicSentinelRootMargin);
 
-    const {
-        mountedItems: visibleGames,
-        markerRef: loadMoreMarkerRef,
-        onItemFocus: maybeLoadMoreFromFocus
-    } = useWindowedList({
+    const gameWindow = useSlidingWindow({
         items: sortedGames,
+        itemKey: (game) => String(game.gameId),
+        focusKeyFor: (game) => `trackedgames:item:${game.gameId}`,
+        windowId: "trackedgames:othergames",
+        heightScope: ["trackedgames:othergames", uiSize, showIcons, language, textSize(12)].join("|"),
         dynamicLoading: dynamicTrackedGames,
         initialRows: initialRows,
         rowStep: rowStep,
         prefetchDistance: prefetchDistance,
-        sentinelRootMargin: sentinelRootMargin,
-        resetKey: "otherGames"
+        sentinelRootMarginPx: sentinelRootMargin,
+        resetKey: "otherGames",
+        debugLabel: "trackedgames:othergames"
     });
+    const visibleGames = gameWindow.mountedItems;
 
     const selectGameRef = useRef(onSelectGame);
     selectGameRef.current = onSelectGame;
     const selectable = Boolean(onSelectGame);
-    const rowFocusRef = useRef(maybeLoadMoreFromFocus);
-    rowFocusRef.current = maybeLoadMoreFromFocus;
+    const rowFocusRef = useRef(gameWindow.onItemFocus);
+    rowFocusRef.current = gameWindow.onItemFocus;
 
     const rowList = useMemo<OtherGameRowListProps>(() => ({
         language,
@@ -208,17 +212,17 @@ export function OtherGamesPicker(props: OtherGamesPickerProps) {
     return (
         <PanelSection title={t(language, "Other Games")}>
             <style>{FADE_IN_KEYFRAMES}</style>
-            {visibleGames.map((game, index) => (
-                <OtherGameRow
-                    key={`trackedgames:item:${game.gameId}`}
-                    game={game}
-                    index={index}
-                    list={rowList}
-                />
-            ))}
-            {dynamicTrackedGames && visibleGames.length < sortedGames.length && (
-                <div ref={loadMoreMarkerRef} style={{ height: "1px" }} />
-            )}
+            <SlidingWindowRows list={gameWindow}>
+                {visibleGames.map((game, index) => (
+                    <OtherGameRow
+                        key={`trackedgames:item:${game.gameId}`}
+                        game={game}
+                        index={gameWindow.start + index}
+                        list={rowList}
+                        onGamepadDirection={gameWindow.guardTopRow(gameWindow.start + index)}
+                    />
+                ))}
+            </SlidingWindowRows>
         </PanelSection>
     );
 }
@@ -236,6 +240,7 @@ type OtherGameRowProps = {
     game: TrackedGameSummary;
     index: number;
     list: OtherGameRowListProps;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 const OtherGameRow = React.memo(function OtherGameRow(props: OtherGameRowProps) {
@@ -288,6 +293,8 @@ const OtherGameRow = React.memo(function OtherGameRow(props: OtherGameRowProps) 
         <FocusableItem
             focusKey={`trackedgames:item:${game.gameId}`}
             onFocus={handleFocus}
+            onGamepadFocus={handleFocus}
+            onGamepadDirection={props.onGamepadDirection}
             onClick={list.selectable ? handleClick : undefined}
             outerStyle={{ width: "100%", minWidth: 0 }}
         >

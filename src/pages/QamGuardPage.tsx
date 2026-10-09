@@ -9,10 +9,12 @@ import { InfoText } from "../components/ui/InfoText";
 import { IncidentCard } from "../components/stormbreaker/IncidentCard";
 import { ProtectionStatus, protectionLevel } from "../components/stormbreaker/ProtectionStatus";
 import { useStormbreakerLogController } from "../hooks/useStormbreakerLogController";
-import { useWindowedList } from "../hooks/useWindowedList";
+import { useSlidingWindow } from "../hooks/useSlidingWindow";
+import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
 import { t, type LanguageCode } from "../locales";
 import type { ButtonSpacing, FreezeIncident, ViewKey } from "../types";
 import { regularButtonSpacingStyle } from "../utils/style";
+import { textSize } from "../utils/scale";
 import { standaloneClaim } from "../utils/stormbreaker";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
@@ -204,17 +206,22 @@ function IncidentLog(props: {
 }) {
     const { state, entries } = props;
     const { language } = state;
-    const { mountedItems, markerRef, onItemFocus } = useWindowedList({
+    const cardWindow = useSlidingWindow({
         items: entries,
+        itemKey: (incident) => incident.id,
+        focusKeyFor: (incident) => `qamGuard:card:${incident.id}`,
+        windowId: "qamguard:incidents",
+        heightScope: ["qamguard:incidents", language, textSize(12)].join("|"),
         dynamicLoading: true,
         initialRows: state.dynamicInitialRows,
         rowStep: state.dynamicRowStep,
         prefetchDistance: state.dynamicPrefetchDistance,
-        sentinelRootMargin: `${state.dynamicSentinelRootMargin}px 0px`,
-        resetKey: "qamGuard:log"
+        sentinelRootMarginPx: state.dynamicSentinelRootMargin,
+        resetKey: "qamGuard:log",
+        debugLabel: "qamguard:incidents"
     });
-    const itemFocusRef = useRef(onItemFocus);
-    itemFocusRef.current = onItemFocus;
+    const itemFocusRef = useRef(cardWindow.onItemFocus);
+    itemFocusRef.current = cardWindow.onItemFocus;
     const onCardFocus = useCallback((index: number) => itemFocusRef.current(index), []);
 
     return (
@@ -224,18 +231,18 @@ function IncidentLog(props: {
                     <InfoText>{t(language, "No incidents yet.")}</InfoText>
                 </PanelSectionRow>
             )}
-            {mountedItems.map((incident, index) => (
-                <IncidentCard
-                    key={incident.id}
-                    incident={incident}
-                    language={language}
-                    index={index}
-                    onCardFocus={onCardFocus}
-                />
-            ))}
-            {mountedItems.length < entries.length && (
-                <div ref={markerRef} style={{ height: "1px" }} />
-            )}
+            <SlidingWindowRows list={cardWindow}>
+                {cardWindow.mountedItems.map((incident, index) => (
+                    <IncidentCard
+                        key={incident.id}
+                        incident={incident}
+                        language={language}
+                        index={cardWindow.start + index}
+                        onCardFocus={onCardFocus}
+                        onGamepadDirection={cardWindow.guardTopRow(cardWindow.start + index)}
+                    />
+                ))}
+            </SlidingWindowRows>
         </>
     );
 }

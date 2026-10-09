@@ -15,7 +15,9 @@ import { DirectoryCard, type DirectoryCardListProps } from "../components/filewa
 import { FileWatcherExclusionsModal } from "../components/pickers/FileWatcherExclusionsModal";
 import { FileWatcherFindingsModal } from "../components/pickers/FileWatcherFindingsModal";
 import { SchedulePickerModal } from "../components/pickers/SchedulePickerModal";
-import { useWindowedList } from "../hooks/useWindowedList";
+import { useSlidingWindow } from "../hooks/useSlidingWindow";
+import { useWhenHeld } from "../hooks/useWhenHeld";
+import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
 import { useFocusClaim } from "../hooks/useFocusClaim";
 import { FocusClaim } from "../components/ui/FocusClaim";
 import { RestoreCurtain } from "../components/ui/RestoreCurtain";
@@ -47,6 +49,7 @@ import {
     weekdayLabel
 } from "../utils/fileWatcher";
 import { bodyTextStyle, errorRed, regularButtonSpacingStyle, warnAmber } from "../utils/style";
+import { textSize } from "../utils/scale";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
@@ -56,11 +59,13 @@ const SPEED_ORDER: FileWatcherSpeed[] = ["gentle", "balanced", "full"];
 
 const CARD_FOCUS_PREFIX = "filewatcher:card:";
 
+function cardFocusKey(root: FileWatcherRoot) {
+    return `${CARD_FOCUS_PREFIX}${root.id}`;
+}
+
 const BUCKET_FOCUS_PREFIX = "fileWatcher:bucket:";
 
 const STATIC_CLAIM_SLOT = -2;
-
-const FILE_WATCHER_RESTORE_SEED_CEILING = 300;
 
 type FileWatcherPageState = {
     view: ViewKey;
@@ -130,7 +135,7 @@ function FileWatcherPage(props: FileWatcherPageProps) {
         return () => window.clearTimeout(timer);
     }, [loaded]);
 
-    const roots = sortWatchedRoots(watcher?.roots ?? [], language);
+    const roots = useMemo(() => sortWatchedRoots(watcher?.roots ?? [], language), [watcher?.roots, language]);
 
     const { restoreFocusKey, restorePending } = state;
 
@@ -140,37 +145,32 @@ function FileWatcherPage(props: FileWatcherPageProps) {
     const restoreSlot = restoreCardId === null || !Number.isFinite(restoreCardId)
         ? -1
         : roots.findIndex((root) => root.id === restoreCardId);
-    const restoreInReach = restoreSlot >= 0 && restoreSlot < FILE_WATCHER_RESTORE_SEED_CEILING;
 
     const restoreFiredRef = useRef(false);
     const restoreSettledRef = useRef(false);
     const [restoreAbandoned, setRestoreAbandoned] = useState(false);
 
-    const restoreClaimSpent = restoreFiredRef.current
-        && (rowClaim.claim?.token ?? 0) > 0
-        && !rowClaim.claim?.armed;
-
-    const restoreSeedRows = restoreClaimSpent || !restoreInReach ? 0 : restoreSlot + 1;
-
-    const {
-        mountedItems: mountedRoots,
-        markerRef: cardsMarkerRef,
-        onItemFocus: noteCardFocus
-    } = useWindowedList({
+    const cardWindow = useSlidingWindow({
         items: roots,
+        itemKey: (root) => String(root.id),
+        focusKeyFor: cardFocusKey,
+        windowId: "filewatcher:roots",
+        heightScope: ["filewatcher:roots", language, textSize(12)].join("|"),
         dynamicLoading: state.dynamicAllGames,
         initialRows: state.dynamicInitialRows,
         rowStep: state.dynamicRowStep,
         prefetchDistance: state.dynamicPrefetchDistance,
-        sentinelRootMargin: `${state.dynamicSentinelRootMargin}px 0px`,
-        seedRows: restoreSeedRows,
-        resetKey: "fileWatcher:roots"
+        sentinelRootMarginPx: state.dynamicSentinelRootMargin,
+        resetKey: "fileWatcher:roots",
+        debugLabel: "filewatcher:roots"
     });
+    const mountedRoots = cardWindow.mountedItems;
+    const whenCardHeld = useWhenHeld(cardWindow, roots, cardFocusKey);
 
     const openExclusionsRef = useRef(openExclusions);
     openExclusionsRef.current = openExclusions;
-    const cardFocusRef = useRef(noteCardFocus);
-    cardFocusRef.current = noteCardFocus;
+    const cardFocusRef = useRef(cardWindow.onItemFocus);
+    cardFocusRef.current = cardWindow.onItemFocus;
     const trashPressRef = useRef(handleTrashPress);
     trashPressRef.current = handleTrashPress;
     const trashBlurRef = useRef(handleTrashBlur);
@@ -240,26 +240,19 @@ function FileWatcherPage(props: FileWatcherPageProps) {
             return;
         }
         restoreFiredRef.current = true;
-        if (!restoreInReach) {
+        if (restoreSlot < 0) {
             setRestoreAbandoned(true);
-            logFocusDebug(
-                "filewatcher-restore",
-                restoreFocusKey,
-                `slot=${restoreSlot} total=${roots.length}`
-                + ` ceiling=${FILE_WATCHER_RESTORE_SEED_CEILING}`
-                + ` ${restoreSlot < 0 ? "gone from the list" : "past the ceiling"}`
-            );
+            logFocusDebug("filewatcher-restore", restoreFocusKey, `total=${roots.length} gone from the list`);
             actions.onRequestFocus("fileWatcher:back");
             return;
         }
-        logFocusDebug(
-            "filewatcher-restore",
-            restoreFocusKey,
-            `slot=${restoreSlot} of ${roots.length} seeded=${restoreSeedRows}`
-        );
-        claimedKeyRef.current = restoreFocusKey;
-        rowClaim.claimSlot(restoreSlot);
-        actions.onRequestFocus(restoreFocusKey);
+        logFocusDebug("filewatcher-restore", restoreFocusKey, `slot=${restoreSlot} of ${roots.length}`);
+        const key = restoreFocusKey;
+        whenCardHeld(key, (slot) => {
+            claimedKeyRef.current = key;
+            rowClaim.claimSlot(slot);
+            actions.onRequestFocus(key);
+        });
     }, [
         state.view,
         restorePending,
@@ -268,8 +261,6 @@ function FileWatcherPage(props: FileWatcherPageProps) {
         busy,
         restoreCardId,
         restoreSlot,
-        restoreInReach,
-        restoreSeedRows,
         resultsShown,
         excludedShown,
         roots.length,
@@ -360,15 +351,15 @@ function FileWatcherPage(props: FileWatcherPageProps) {
             return;
         }
         setArmedRootId(null);
-        const removedIndex = mountedRoots.findIndex((root) => root.id === rootId);
-        const remaining = mountedRoots.length - 1;
+        const removedIndex = roots.findIndex((root) => root.id === rootId);
+        const heir = roots[removedIndex + 1] ?? roots[removedIndex - 1];
         await removeRoot(rootId);
-        if (remaining <= 0) {
+        if (!heir) {
             claimedKeyRef.current = "fileWatcher:addDirectory";
             rowClaim.claimSlot(STATIC_CLAIM_SLOT);
             return;
         }
-        rowClaim.claimSlot(Math.min(Math.max(removedIndex, 0), remaining - 1));
+        whenCardHeld(cardFocusKey(heir), (slot) => rowClaim.claimSlot(slot), `${CARD_FOCUS_PREFIX}${rootId}`);
     }
 
     const scopeKey = `fileWatcher:${busy ? "scan" : "idle"}`;
@@ -641,12 +632,12 @@ function FileWatcherPage(props: FileWatcherPageProps) {
                         {roots.length > 0 && (
                             <>
                                 <SectionTitle label={t(language, "Watched")} />
-                                <div>
+                                <SlidingWindowRows list={cardWindow}>
                                     {mountedRoots.map((root, index) => (
                                         <FocusClaim
-                                            key={`fwslot:${index}`}
-                                            token={rowClaim.claim?.slotIndex === index ? rowClaim.claim.token : 0}
-                                            armed={Boolean(rowClaim.claim?.armed) && rowClaim.claim?.slotIndex === index}
+                                            key={`fwcard:${root.id}`}
+                                            token={rowClaim.claim?.slotIndex === cardWindow.start + index ? rowClaim.claim.token : 0}
+                                            armed={Boolean(rowClaim.claim?.armed) && rowClaim.claim?.slotIndex === cardWindow.start + index}
                                             onSpent={rowClaim.spend}
                                         >
                                             <DirectoryCard
@@ -654,15 +645,13 @@ function FileWatcherPage(props: FileWatcherPageProps) {
                                                 fileCount={watcher?.rootStats?.[String(root.id)]?.files ?? 0}
                                                 unreachable={skippedIds.has(root.id)}
                                                 armed={armedRootId === root.id}
-                                                index={index}
+                                                index={cardWindow.start + index}
                                                 list={cardList}
+                                                onGamepadDirection={cardWindow.guardTopRow(cardWindow.start + index)}
                                             />
                                         </FocusClaim>
                                     ))}
-                                    {state.dynamicAllGames && mountedRoots.length < roots.length && (
-                                        <div ref={cardsMarkerRef} style={{ height: "1px" }} />
-                                    )}
-                                </div>
+                                </SlidingWindowRows>
                             </>
                         )}
 

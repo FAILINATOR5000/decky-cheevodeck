@@ -21,7 +21,9 @@ import { playOkSound } from "../utils/navSound";
 import { t, type LanguageCode } from "../locales";
 import type { ButtonSpacing, ControllerGlyphStyle, ViewKey } from "../types";
 import type { GuidesControllerActions, GuidesControllerState } from "../hooks/useGuidesController";
-import { useWindowedList } from "../hooks/useWindowedList";
+import { useSlidingWindow } from "../hooks/useSlidingWindow";
+import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
+import { textSize } from "../utils/scale";
 import { bodyTextStyle, regularButtonSpacingStyle } from "../utils/style";
 
 type GuidesPageState = {
@@ -83,7 +85,7 @@ export function GuidesPage(props: GuidesPageProps) {
     const ga = actions.guides;
     const lang = state.language;
 
-    const sentinelRootMargin = `${Math.max(0, state.dynamicSentinelRootMargin ?? 600)}px 0px`;
+    const sentinelRootMargin = Math.max(0, state.dynamicSentinelRootMargin ?? 600);
 
     const openedSignature = useMemo(() => {
         const guides = g.record?.guides;
@@ -141,14 +143,19 @@ export function GuidesPage(props: GuidesPageProps) {
     }, [allRows]);
 
 
-    const guidesWindow = useWindowedList({
+    const guidesWindow = useSlidingWindow({
         items: guideRows,
+        itemKey: (row) => row.entry.faqId,
+        focusKeyFor: (row) => `guides:card:${row.entry.faqId}`,
+        windowId: "guides:list",
+        heightScope: ["guides:list", state.showIcons, lang, textSize(12)].join("|"),
         dynamicLoading: state.dynamicLoading,
         initialRows: Math.max(8, state.dynamicInitialRows),
         rowStep: Math.max(8, state.dynamicRowStep),
         prefetchDistance: state.dynamicPrefetchDistance,
-        sentinelRootMargin,
+        sentinelRootMarginPx: sentinelRootMargin,
         resetKey: `guides:list:${state.gameId ?? "none"}:${typeFilter}`,
+        debugLabel: "guides:list"
     });
 
     const openGuideRef = useRef(ga.openGuide);
@@ -422,7 +429,7 @@ export function GuidesPage(props: GuidesPageProps) {
                                 <BottomFocusAnchor focusKey="guides:bottom:anchor" />
                             </>
                         ) : (
-                            <>
+                            <SlidingWindowRows list={guidesWindow}>
                                 {guidesWindow.mountedItems.map((row, index) => (
                                     <GuideCard
                                         key={row.entry.faqId}
@@ -433,14 +440,12 @@ export function GuidesPage(props: GuidesPageProps) {
                                         formatted={(row.entry.flair ?? []).includes("HTML")}
                                         offlineOnly={row.entry.offlineOnly === true}
                                         hasPosition={row.entry.faqId === latestFaqId}
-                                        index={index}
+                                        index={guidesWindow.start + index}
                                         list={cardList}
+                                        onGamepadDirection={guidesWindow.guardTopRow(guidesWindow.start + index)}
                                     />
                                 ))}
-                                {state.dynamicLoading && guidesWindow.mountedItems.length < guideRows.length && (
-                                    <div ref={guidesWindow.markerRef} style={{ height: "1px" }} />
-                                )}
-                            </>
+                            </SlidingWindowRows>
                         )}
                     </>
                 )}
@@ -468,6 +473,7 @@ type GuideCardProps = {
     hasPosition: boolean;
     index: number;
     list: GuideCardListProps;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 const GuideCard = React.memo(function GuideCard(props: GuideCardProps) {
@@ -488,8 +494,10 @@ const GuideCard = React.memo(function GuideCard(props: GuideCardProps) {
 
     return (
         <FocusableItem
-            focusKey="guides:card:open"
+            focusKey={`guides:card:${props.faqId}`}
             onFocus={handleFocus}
+            onGamepadFocus={handleFocus}
+            onGamepadDirection={props.onGamepadDirection}
             onClick={handleOpen}
             outerStyle={{ width: "100%", minWidth: 0 }}
         >
@@ -527,6 +535,7 @@ type GuideCandidateRowProps = {
     candidate: GuideCandidate;
     index: number;
     list: GuideCandidateListProps;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 const GuideCandidateRow = React.memo(function GuideCandidateRow(props: GuideCandidateRowProps) {
@@ -547,6 +556,8 @@ const GuideCandidateRow = React.memo(function GuideCandidateRow(props: GuideCand
         <FocusableItem
             focusKey={`guides:candidate:${candidate.url}`}
             onFocus={handleFocus}
+            onGamepadFocus={handleFocus}
+            onGamepadDirection={props.onGamepadDirection}
             onClick={handlePick}
             outerStyle={list.outerStyle}
         >
@@ -566,19 +577,24 @@ function GuidesSearchBox(props: {
     dynamicInitialRows: number;
     dynamicRowStep: number;
     dynamicPrefetchDistance: number;
-    sentinelRootMargin: string;
+    sentinelRootMargin: number;
 }) {
     const { state, actions, language } = props;
     const term = state.manualSearchTerm;
 
-    const candidateWindow = useWindowedList({
+    const candidateWindow = useSlidingWindow({
         items: state.candidates,
+        itemKey: (candidate) => candidate.url,
+        focusKeyFor: (candidate) => `guides:candidate:${candidate.url}`,
+        windowId: "guides:candidates",
+        heightScope: ["guides:candidates", props.buttonSpacing, language].join("|"),
         dynamicLoading: props.dynamicLoading,
         initialRows: Math.max(8, props.dynamicInitialRows),
         rowStep: Math.max(8, props.dynamicRowStep),
         prefetchDistance: props.dynamicPrefetchDistance,
-        sentinelRootMargin: props.sentinelRootMargin,
+        sentinelRootMarginPx: props.sentinelRootMargin,
         resetKey: `guides:candidates:${state.candidates.length}:${state.candidates[0]?.url ?? "none"}`,
+        debugLabel: "guides:candidates"
     });
 
     const pickCandidateRef = useRef(actions.pickCandidate);
@@ -640,17 +656,17 @@ function GuidesSearchBox(props: {
                     <PanelSectionRow>
                         <div style={{ ...bodyTextStyle(), fontWeight: 700 }}>{t(language, "Choose a game:")}</div>
                     </PanelSectionRow>
-                    {candidateWindow.mountedItems.map((candidate, index) => (
-                        <GuideCandidateRow
-                            key={candidate.url}
-                            candidate={candidate}
-                            index={index}
-                            list={candidateList}
-                        />
-                    ))}
-                    {props.dynamicLoading && candidateWindow.mountedItems.length < state.candidates.length && (
-                        <div ref={candidateWindow.markerRef} style={{ height: "1px" }} />
-                    )}
+                    <SlidingWindowRows list={candidateWindow}>
+                        {candidateWindow.mountedItems.map((candidate, index) => (
+                            <GuideCandidateRow
+                                key={candidate.url}
+                                candidate={candidate}
+                                index={candidateWindow.start + index}
+                                list={candidateList}
+                                onGamepadDirection={candidateWindow.guardTopRow(candidateWindow.start + index)}
+                            />
+                        ))}
+                    </SlidingWindowRows>
                 </>
             )}
         </>

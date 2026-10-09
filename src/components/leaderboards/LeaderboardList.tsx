@@ -1,10 +1,11 @@
 import { PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../ui/PanelSection";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { getLeaderboardIcons } from "../../api";
 import { logError } from "../../utils/errors";
 import { LeaderboardListRow, type LeaderboardRowListProps } from "./LeaderboardListRow";
-import { useWindowedList } from "../../hooks/useWindowedList";
+import { useSlidingWindow } from "../../hooks/useSlidingWindow";
+import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import type { GameLeaderboardsPayload, LeaderboardRow, UiSize } from "../../types";
 import { achievementUiMetrics, bodyTextStyle } from "../../utils/style"
 import {
@@ -64,7 +65,7 @@ export function LeaderboardList(props: {
     const dynamicInitialRows = Math.max(1, props.dynamicInitialRows ?? 30);
     const dynamicRowStep = Math.max(1, props.dynamicRowStep ?? 30);
     const dynamicPrefetchDistance = Math.max(1, props.dynamicPrefetchDistance ?? 12);
-    const dynamicSentinelRootMargin = `${Math.max(0, props.dynamicSentinelRootMargin ?? 600)}px 0px`;
+    const dynamicSentinelRootMargin = Math.max(0, props.dynamicSentinelRootMargin ?? 600);
     const metrics = achievementUiMetrics(props.uiSize);
     const blockPaddingStyle = `${props.blockPadding}px 0`;
     const availableRows = useMemo(
@@ -75,24 +76,26 @@ export function LeaderboardList(props: {
         () => availableRows.map((leaderboard) => leaderboard.id).join("|"),
         [availableRows]
     );
-    const {
-        mountedItems: visibleRows,
-        markerRef: loadMoreMarkerRef,
-        onItemFocus: maybeLoadMoreFromFocus
-    } = useWindowedList({
+    const boardWindow = useSlidingWindow({
         items: availableRows,
+        itemKey: (leaderboard) => String(leaderboard.id),
+        focusKeyFor: (leaderboard) => `leaderboards:item:${leaderboard.id}`,
+        windowId: "leaderboards:boards",
+        heightScope: ["leaderboards:boards", props.uiSize, props.showIcons, props.blockPadding, props.language].join("|"),
         dynamicLoading: dynamicLeaderboardLoading,
         initialRows: dynamicInitialRows,
         rowStep: dynamicRowStep,
         prefetchDistance: dynamicPrefetchDistance,
-        sentinelRootMargin: dynamicSentinelRootMargin,
-        resetKey: availableRowsKey
+        sentinelRootMarginPx: dynamicSentinelRootMargin,
+        resetKey: availableRowsKey,
+        debugLabel: "leaderboards:boards"
     });
+    const visibleRows = boardWindow.mountedItems;
 
     const boardClickRef = useRef(props.onLeaderboardClick);
     boardClickRef.current = props.onLeaderboardClick;
-    const boardFocusRef = useRef(maybeLoadMoreFromFocus);
-    boardFocusRef.current = maybeLoadMoreFromFocus;
+    const boardFocusRef = useRef(boardWindow.onItemFocus);
+    boardFocusRef.current = boardWindow.onItemFocus;
 
     const rowList = useMemo<LeaderboardRowListProps>(() => ({
         showIcons: props.showIcons,
@@ -109,6 +112,17 @@ export function LeaderboardList(props: {
     useEffect(() => {
         coldIconIdsRef.current.clear();
     }, [availableRowsKey]);
+
+    const previouslyMountedRef = useRef<LeaderboardRow[]>([]);
+    useLayoutEffect(function forgetFadesOfEvictedRows() {
+        const stillMounted = new Set(visibleRows.map((leaderboard) => leaderboard.id));
+        for (const leaderboard of previouslyMountedRef.current) {
+            if (!stillMounted.has(leaderboard.id)) {
+                coldIconIdsRef.current.delete(String(leaderboard.id));
+            }
+        }
+        previouslyMountedRef.current = visibleRows;
+    }, [visibleRows]);
 
     useEffect(() => {
         let cancelled = false;
@@ -168,24 +182,19 @@ export function LeaderboardList(props: {
                     </div>
                 </PanelSectionRow>
             ) : (
-                <>
+                <SlidingWindowRows list={boardWindow}>
                     {visibleRows.map((leaderboard, index) => (
                         <LeaderboardListRow
                             key={leaderboard.id}
                             leaderboard={leaderboard}
-                            index={index}
+                            index={boardWindow.start + index}
                             iconSrc={iconMap[String(leaderboard.id)] || ""}
                             fadeOnLoad={coldIconIdsRef.current.has(String(leaderboard.id))}
                             list={rowList}
+                            onGamepadDirection={boardWindow.guardTopRow(boardWindow.start + index)}
                         />
                     ))}
-                    {dynamicLeaderboardLoading && visibleRows.length < availableRows.length && (
-                        <div
-                            ref={loadMoreMarkerRef}
-                            style={{ width: "100%", height: "1px", opacity: 0 }}
-                        />
-                    )}
-                </>
+                </SlidingWindowRows>
             )}
         </PanelSection>
     );

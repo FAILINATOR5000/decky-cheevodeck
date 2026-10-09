@@ -9,7 +9,9 @@ import { InlineSpinner } from "../components/ui/InlineSpinner";
 import { LabeledRow } from "../components/ui/LabeledRow";
 import { PageNavStrip } from "../components/ui/PageNavStrip";
 import { UserAvatar } from "../components/ui/UserAvatar";
-import { useWindowedList } from "../hooks/useWindowedList";
+import { useSlidingWindow } from "../hooks/useSlidingWindow";
+import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
+import { textSize } from "../utils/scale";
 import type {
     ButtonSpacing,
     FriendRow,
@@ -122,12 +124,21 @@ type LeaderboardEntryRowViewProps = {
     entry: LeaderboardEntryRow;
     index: number;
     list: LeaderboardEntryListProps;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
+
+function entryUsername(entry: LeaderboardEntryRow) {
+    return String(entry.user || "").trim();
+}
+
+function entryFocusKey(entry: LeaderboardEntryRow) {
+    return `leaderboarddetail:entry:${entryUsername(entry)}`;
+}
 
 const LeaderboardEntryRowView = React.memo(function LeaderboardEntryRowView(props: LeaderboardEntryRowViewProps) {
     const { entry, list } = props;
     const { language, showIcons, metrics, selfUsername, rankWidth } = list;
-    const username = String(entry.user || "").trim();
+    const username = entryUsername(entry);
     const isSelf = username.length > 0 && username.toLowerCase() === selfUsername.trim().toLowerCase();
     const scoreText = entry.formattedScore || (entry.score != null ? String(entry.score) : "") || "-";
     const dateText = leaderboardTimeLabel(entry.dateSubmitted, language);
@@ -142,8 +153,10 @@ const LeaderboardEntryRowView = React.memo(function LeaderboardEntryRowView(prop
 
     return (
         <FocusableItem
-            focusKey={`leaderboarddetail:entry:${entry.rank}:${username}`}
+            focusKey={entryFocusKey(entry)}
             onFocus={handleFocus}
+            onGamepadFocus={handleFocus}
+            onGamepadDirection={props.onGamepadDirection}
             onClick={handleClick}
             outerStyle={{ width: "100%", minWidth: 0 }}
         >
@@ -225,7 +238,7 @@ function LeaderboardDetailPage({ state, actions }: LeaderboardDetailPageProps) {
     const dynamicInitialRows = Math.max(1, state.dynamicInitialRows ?? 30);
     const dynamicRowStep = Math.max(1, state.dynamicRowStep ?? 30);
     const dynamicPrefetchDistance = Math.max(1, state.dynamicPrefetchDistance ?? 12);
-    const dynamicSentinelRootMargin = `${Math.max(0, state.dynamicSentinelRootMargin ?? 600)}px 0px`;
+    const dynamicSentinelRootMargin = Math.max(0, state.dynamicSentinelRootMargin ?? 600);
     const userEntry = state.leaderboardUserEntryPayload?.userEntry ?? null;
     const userStats = leaderboardComparisonStats(
         userEntry?.rank,
@@ -280,24 +293,26 @@ function LeaderboardDetailPage({ state, actions }: LeaderboardDetailPageProps) {
         return widest;
     }, [audienceEntries]);
     const rankWidth = rankGutterWidth(state.uiSize, widestRank);
-    const {
-        mountedItems: visibleEntries,
-        markerRef: loadMoreMarkerRef,
-        onItemFocus: maybeLoadMoreFromFocus
-    } = useWindowedList({
+    const entryWindow = useSlidingWindow({
         items: audienceEntries,
+        itemKey: entryUsername,
+        focusKeyFor: entryFocusKey,
+        windowId: "leaderboarddetail:entries",
+        heightScope: ["leaderboarddetail:entries", state.uiSize, state.showIcons, state.language, rankWidth, textSize(12)].join("|"),
         dynamicLoading: dynamicLeaderboardResults,
         initialRows: dynamicInitialRows,
         rowStep: dynamicRowStep,
         prefetchDistance: dynamicPrefetchDistance,
-        sentinelRootMargin: dynamicSentinelRootMargin,
-        resetKey: audienceEntriesKey
+        sentinelRootMarginPx: dynamicSentinelRootMargin,
+        resetKey: audienceEntriesKey,
+        debugLabel: "leaderboarddetail:entries"
     });
+    const visibleEntries = entryWindow.mountedItems;
 
     const openProfileRef = useRef(actions.onOpenUserProfile);
     openProfileRef.current = actions.onOpenUserProfile;
-    const entryFocusRef = useRef(maybeLoadMoreFromFocus);
-    entryFocusRef.current = maybeLoadMoreFromFocus;
+    const entryFocusRef = useRef(entryWindow.onItemFocus);
+    entryFocusRef.current = entryWindow.onItemFocus;
 
     const entryRowList = useMemo<LeaderboardEntryListProps>(() => ({
         language: state.language,
@@ -481,22 +496,17 @@ function LeaderboardDetailPage({ state, actions }: LeaderboardDetailPageProps) {
                         </div>
                     </PanelSectionRow>
                 ) : (
-                    <>
+                    <SlidingWindowRows list={entryWindow}>
                         {visibleEntries.map((entry, index) => (
                             <LeaderboardEntryRowView
-                                key={`${state.selectedLeaderboard?.id ?? "lb"}:${entry.rank}:${entry.user}`}
+                                key={`${state.selectedLeaderboard?.id ?? "lb"}:${entryUsername(entry)}`}
                                 entry={entry}
-                                index={index}
+                                index={entryWindow.start + index}
                                 list={entryRowList}
+                                onGamepadDirection={entryWindow.guardTopRow(entryWindow.start + index)}
                             />
                         ))}
-                        {dynamicLeaderboardResults && visibleEntries.length < audienceEntries.length && (
-                            <div
-                                ref={loadMoreMarkerRef}
-                                style={{ width: "100%", height: "1px", opacity: 0 }}
-                            />
-                        )}
-                    </>
+                    </SlidingWindowRows>
                 )}
             </PanelSection>
         </>

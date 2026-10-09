@@ -20,6 +20,7 @@ type LeaderboardListRowProps = {
     iconSrc: string;
     fadeOnLoad: boolean;
     list: LeaderboardRowListProps;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 export const LeaderboardListRow = React.memo(function LeaderboardListRow(props: LeaderboardListRowProps) {
@@ -64,6 +65,8 @@ export const LeaderboardListRow = React.memo(function LeaderboardListRow(props: 
             focusKey={`leaderboards:item:${leaderboard.id}`}
             onClick={handleLeaderboardClick}
             onFocus={handleLeaderboardFocus}
+            onGamepadFocus={handleLeaderboardFocus}
+            onGamepadDirection={props.onGamepadDirection}
         >
             {showIcons ? (
                 <div

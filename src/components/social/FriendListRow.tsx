@@ -26,6 +26,7 @@ type FriendListRowProps = {
     favorite: boolean;
     liveRefreshing: boolean;
     list: FriendRowListProps;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 export const FriendListRow = React.memo(function FriendListRow(props: FriendListRowProps) {
@@ -40,6 +41,10 @@ export const FriendListRow = React.memo(function FriendListRow(props: FriendList
     function handleFriendFocus() {
         list.onRowFocus(props.index);
         list.onFriendFocus(friend);
+    }
+
+    function handleGamepadFocus() {
+        list.onRowFocus(props.index);
     }
 
     function handleFriendClick() {
@@ -70,6 +75,7 @@ export const FriendListRow = React.memo(function FriendListRow(props: FriendList
 
     function handleFavoriteFocus() {
         setFavoriteFocused(true);
+        list.onRowFocus(props.index);
     }
 
     function handleFavoriteBlur() {
@@ -90,6 +96,8 @@ export const FriendListRow = React.memo(function FriendListRow(props: FriendList
                 outerStyle={{ width: "100%", minWidth: 0 }}
                 focusKey={`friend:${friend.username}`}
                 onFocus={handleFriendFocus}
+                onGamepadFocus={handleGamepadFocus}
+                onGamepadDirection={props.onGamepadDirection}
                 onMouseEnter={() => list.onFriendHover(friend)}
                 onMouseLeave={() => list.onFriendUnhover(friend)}
                 onClick={handleFriendClick}
@@ -212,6 +220,7 @@ export const FriendListRow = React.memo(function FriendListRow(props: FriendList
                         onClick={handleFavoriteClick}
                         onGamepadFocus={handleFavoriteFocus}
                         onGamepadBlur={handleFavoriteBlur}
+                        onGamepadDirection={props.onGamepadDirection}
                         style={{
                             minWidth: 0,
                             width: "34px",

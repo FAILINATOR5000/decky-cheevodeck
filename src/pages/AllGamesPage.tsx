@@ -21,7 +21,9 @@ import type {
 
 import { formatInteger } from "../utils/format";
 import { achievementUiMetrics, type AchievementUiMetrics, smallTextStyle, bodyTextStyle, FADE_IN_KEYFRAMES } from "../utils/style";
-import { useWindowedList } from "../hooks/useWindowedList";
+import { useSlidingWindow } from "../hooks/useSlidingWindow";
+import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
+import { textSize } from "../utils/scale";
 import {
     DEFAULT_LANGUAGE,
     localizeRuntimeText,
@@ -107,6 +109,8 @@ export function gameMatchesStatusFilter(game: { highestAwardKind?: string | null
     return kind === filter;
 }
 
+const NO_GAMES: FriendAllGameRow[] = [];
+
 type AllGamesPageProps = {
     view: ViewKey;
     language: LanguageCode;
@@ -173,9 +177,9 @@ function AllGamesPage(props: AllGamesPageProps) {
     const dynamicInitialRows = Math.max(1, props.dynamicInitialRows ?? 30);
     const dynamicRowStep = Math.max(1, props.dynamicRowStep ?? 30);
     const dynamicPrefetchDistance = Math.max(1, props.dynamicPrefetchDistance ?? 12);
-    const dynamicSentinelRootMargin = `${Math.max(0, props.dynamicSentinelRootMargin ?? 600)}px 0px`;
+    const dynamicSentinelRootMargin = Math.max(0, props.dynamicSentinelRootMargin ?? 600);
 
-    const allGamesRows = props.friendAllGamesPayload?.results ?? [];
+    const allGamesRows = props.friendAllGamesPayload?.results ?? NO_GAMES;
     const friendUsername = props.friendAllGamesPayload?.friendUsername ?? "";
 
     const userPickedTabRef = useRef(false);
@@ -223,24 +227,26 @@ function AllGamesPage(props: AllGamesPageProps) {
 
     const totalLoaded = allGamesRows.length;
 
-    const {
-        mountedItems: visibleGames,
-        markerRef: loadMoreMarkerRef,
-        onItemFocus: maybeLoadMoreFromFocus
-    } = useWindowedList({
+    const gameWindow = useSlidingWindow({
         items: filteredGames,
+        itemKey: (game) => String(game.gameId),
+        focusKeyFor: (game) => `friendallgames:item:${game.gameId}`,
+        windowId: "friendallgames:games",
+        heightScope: ["friendallgames:games", props.uiSize, props.showIcons, props.language, textSize(12)].join("|"),
         dynamicLoading: dynamicAllGames,
         initialRows: dynamicInitialRows,
         rowStep: dynamicRowStep,
         prefetchDistance: dynamicPrefetchDistance,
-        sentinelRootMargin: dynamicSentinelRootMargin,
-        resetKey: `${activeRangeKey}|${activeStatusFilter}|${friendUsername}`
+        sentinelRootMarginPx: dynamicSentinelRootMargin,
+        resetKey: `${activeRangeKey}|${activeStatusFilter}|${friendUsername}`,
+        debugLabel: "friendallgames:games"
     });
+    const visibleGames = gameWindow.mountedItems;
 
     const gameClickRef = useRef(props.onGameClick);
     gameClickRef.current = props.onGameClick;
-    const rowFocusRef = useRef(maybeLoadMoreFromFocus);
-    rowFocusRef.current = maybeLoadMoreFromFocus;
+    const rowFocusRef = useRef(gameWindow.onItemFocus);
+    rowFocusRef.current = gameWindow.onItemFocus;
 
     const rowList = useMemo<AllGamesRowListProps>(() => ({
         language: props.language,
@@ -458,22 +464,19 @@ function AllGamesPage(props: AllGamesPageProps) {
                         </PanelSectionRow>
                     </>
                 ) : (
-                    <>
+                    <SlidingWindowRows list={gameWindow}>
                         {visibleGames.map((game, index) => {
                             return (
                                 <AllGamesRow
                                     key={`friendallgames:item:${game.gameId}`}
                                     game={game}
-                                    index={index}
+                                    index={gameWindow.start + index}
                                     list={rowList}
+                                    onGamepadDirection={gameWindow.guardTopRow(gameWindow.start + index)}
                                 />
                             );
                         })}
-
-                        {dynamicAllGames && visibleGames.length < filteredGames.length && (
-                            <div ref={loadMoreMarkerRef} style={{ height: "1px" }} />
-                        )}
-                    </>
+                    </SlidingWindowRows>
                 )}
             </PanelSection>
         </>
@@ -492,6 +495,7 @@ type AllGamesRowProps = {
     game: FriendAllGameRow;
     index: number;
     list: AllGamesRowListProps;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 const AllGamesRow = React.memo(function AllGamesRow(props: AllGamesRowProps) {
@@ -540,6 +544,8 @@ const AllGamesRow = React.memo(function AllGamesRow(props: AllGamesRowProps) {
         <FocusableItem
             focusKey={`friendallgames:item:${game.gameId}`}
             onFocus={handleFocus}
+            onGamepadFocus={handleFocus}
+            onGamepadDirection={props.onGamepadDirection}
             onClick={handleClick}
             outerStyle={{ width: "100%", minWidth: 0 }}
         >
