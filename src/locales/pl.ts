@@ -1339,7 +1339,7 @@ const PL: LocaleTable = {
     "No games match this filter.": "Żadna gra nie pasuje do tego filtra.",
     "Not found. The game may not have achievements yet, or may be listed under a different console.": "Nie znaleziono. Gra może jeszcze nie mieć osiągnięć albo być przypisana do innej konsoli.",
     "Auto-Check Mastery Goals": "Automatycznie sprawdzaj cele",
-    "help_tracked_sets_auto_check": "Po włączeniu otwarcie celów mistrzostwa automatycznie odświeża ukończenie każdego z nich. Domyślnie wyłączone. Przycisk „Sprawdź” przy każdym celu jest dostępny tak czy inaczej, a usługa celów mistrzostwa też aktualizuje je przy każdym cyklu.",
+    "help_tracked_sets_auto_check": "Po włączeniu otwarcie celów mistrzostwa automatycznie odświeża ukończenie każdego z nich. Domyślnie włączone. Przycisk „Sprawdź” przy każdym celu jest dostępny tak czy inaczej, a usługa celów mistrzostwa też aktualizuje je przy każdym cyklu.",
     "Mastery Goals Service": "Usługa celów mistrzostwa",
     "help_tracked_sets_service": "Sprawdzanie w tle, które gratuluje ci, gdy cel dobije do 100%... no dobrze, robi znacznie więcej! Przy każdym cyklu sprawdza twój postęp w grach i aktualizuje dane celów mistrzostwa. Między cyklami sprawdza też postęp w twojej bieżącej grze za każdym razem, gdy otworzysz tę wtyczkę w menu szybkiego dostępu.",
     "Mastery Goal Refresh Frequency": "Częstotliwość odświeżania celów",

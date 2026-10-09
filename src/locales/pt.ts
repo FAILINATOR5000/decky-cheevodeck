@@ -1301,7 +1301,7 @@ const PT: LocaleTable = {
     "No games match this filter.": "Nenhum jogo corresponde a este filtro.",
     "Not found. The game may not have achievements yet, or may be listed under a different console.": "Não encontrado. O jogo pode ainda não ter conquistas, ou pode estar listado em outro console.",
     "Auto-Check Mastery Goals": "Verificar Objetivos de Maestria automaticamente",
-    "help_tracked_sets_auto_check": "Quando ativado, abrir os Objetivos de Maestria atualiza a conclusão de cada objetivo automaticamente. Desativado por padrão. O botão Verificar de cada objetivo continua disponível de qualquer forma.",
+    "help_tracked_sets_auto_check": "Quando ativado, abrir os Objetivos de Maestria atualiza a conclusão de cada objetivo automaticamente. Ativado por padrão. O botão Verificar de cada objetivo continua disponível de qualquer forma.",
     "Mastery Goals Service": "Serviço de Objetivos de Maestria",
     "help_tracked_sets_service": "Verificação em segundo plano que te parabeniza quando um objetivo chega a 100%... bem, muito mais que isso! Ela verifica o seu progresso a cada ciclo e atualiza os seus dados dos Objetivos de Maestria. Entre um ciclo e outro, também verifica o progresso do seu jogo atual sempre que você abre este plugin no menu de acesso rápido.",
     "Mastery Goal Refresh Frequency": "Frequência de atualização de Objetivos de Maestria",

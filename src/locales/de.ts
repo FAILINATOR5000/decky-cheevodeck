@@ -1301,7 +1301,7 @@ const DE: LocaleTable = {
     "No games match this filter.": "Keine Spiele passen zu diesem Filter.",
     "Not found. The game may not have achievements yet, or may be listed under a different console.": "Nicht gefunden. Das Spiel hat vielleicht noch keine Erfolge oder ist unter einer anderen Konsole gelistet.",
     "Auto-Check Mastery Goals": "Meisterschaftsziele automatisch prüfen",
-    "help_tracked_sets_auto_check": "Wenn an, aktualisiert das Öffnen von Meisterschaftsziele automatisch den Abschluss jedes Ziels. Standardmäßig aus. Der Prüfen-Knopf pro Ziel ist so oder so immer verfügbar.",
+    "help_tracked_sets_auto_check": "Wenn an, aktualisiert das Öffnen von Meisterschaftsziele automatisch den Abschluss jedes Ziels. Standardmäßig an. Der Prüfen-Knopf pro Ziel ist so oder so immer verfügbar.",
     "Mastery Goals Service": "Meisterschaftsziele-Dienst",
     "help_tracked_sets_service": "Hintergrundprüfung, die dich beglückwünscht, wenn ein Ziel 100 % erreicht ... na ja, viel mehr als das! Sie prüft deinen Spielfortschritt bei jedem Tick und aktualisiert deine Daten für die Meisterschaftsziele. Zwischen den Ticks prüft sie außerdem den Fortschritt deines aktuellen Spiels, wann immer du dieses Plugin im Schnellzugriffsmenü öffnest.",
     "Mastery Goal Refresh Frequency": "Meisterschaftsziel-Aktualisierungsfrequenz",

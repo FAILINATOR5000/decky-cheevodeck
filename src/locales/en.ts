@@ -1295,7 +1295,7 @@ export const EN: LocaleTable = {
     "No games match this filter.": "No games match this filter.",
     "Not found. The game may not have achievements yet, or may be listed under a different console.": "Not found. The game may not have achievements yet, or may be listed under a different console.",
     "Auto-Check Mastery Goals": "Auto-Check Mastery Goals",
-    "help_tracked_sets_auto_check": "When on, opening Mastery Goals refreshes the completion of every goal automatically. Off by default. The per-goal Check button is always available either way and the mastery goals service will update it each tick too.",
+    "help_tracked_sets_auto_check": "When on, opening Mastery Goals refreshes the completion of every goal automatically. On by default. The per-goal Check button is always available either way and the mastery goals service will update it each tick too.",
     "Mastery Goals Service": "Mastery Goals Service",
     "help_tracked_sets_service": "Background check that congratulates you when a goal reaches 100%... well, much more than that! It checks your game progress each tick and updates your data for mastery goals. In between ticks, it also checks your current game progress whenever you open this plugin in the quick access menu.",
     "Mastery Goal Refresh Frequency": "Mastery Goal Refresh Frequency",

@@ -1301,7 +1301,7 @@ const FR: LocaleTable = {
     "No games match this filter.": "Aucun jeu ne correspond à ce filtre.",
     "Not found. The game may not have achievements yet, or may be listed under a different console.": "Introuvable. Le jeu n'a peut-être pas encore de succès, ou il est peut-être classé sous une autre console.",
     "Auto-Check Mastery Goals": "Vérifier les objectifs automatiquement",
-    "help_tracked_sets_auto_check": "Quand c'est activé, ouvrir les Objectifs de maîtrise actualise automatiquement l'achèvement de chaque objectif. Désactivé par défaut. Le bouton Vérifier de chaque objectif reste disponible dans tous les cas.",
+    "help_tracked_sets_auto_check": "Quand c'est activé, ouvrir les Objectifs de maîtrise actualise automatiquement l'achèvement de chaque objectif. Activé par défaut. Le bouton Vérifier de chaque objectif reste disponible dans tous les cas.",
     "Mastery Goals Service": "Service des objectifs de maîtrise",
     "help_tracked_sets_service": "Vérification en arrière-plan qui te félicite quand un objectif atteint 100 %... enfin, bien plus que ça ! Elle vérifie ta progression à chaque cycle et met à jour tes données pour les Objectifs de maîtrise. Entre deux cycles, elle vérifie aussi la progression de ton jeu en cours chaque fois que tu ouvres ce plugin dans le menu d'accès rapide.",
     "Mastery Goal Refresh Frequency": "Fréquence d'actualisation des objectifs",
