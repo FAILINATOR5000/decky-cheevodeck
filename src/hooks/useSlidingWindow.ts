@@ -86,6 +86,7 @@ export interface SlidingWindowOptions<T> {
     prefetchDistance: number;
     sentinelRootMarginPx: number;
     resetKey: string;
+    fullSteps?: boolean;
     debugLabel?: string;
 }
 
@@ -170,6 +171,7 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
         prefetchDistance,
         sentinelRootMarginPx,
         resetKey,
+        fullSteps,
         debugLabel
     } = options;
 
@@ -336,7 +338,7 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
         return map;
     }, [items]);
 
-    const live = { state: next, count, indexByKey, topSpacerPx, aboveSumPx: above.px, unknownAbove, scope, prefetch, rowStep, openRows };
+    const live = { state: next, count, indexByKey, topSpacerPx, aboveSumPx: above.px, unknownAbove, scope, prefetch, rowStep, openRows, fullSteps };
     const liveRef = useRef(live);
     liveRef.current = live;
 
@@ -347,11 +349,22 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
 
     function clampedStep() {
         const current = liveRef.current;
+        if (current.fullSteps) {
+            return Math.max(1, current.rowStep);
+        }
         return Math.max(1, Math.min(
             current.rowStep,
             EVICT_LEAD - current.prefetch - 1,
             WINDOW_MAX_ROWS - 2 * EVICT_LEAD - screenRowsRef.current
         ));
+    }
+
+    function maxRows() {
+        const current = liveRef.current;
+        if (!current.fullSteps) {
+            return WINDOW_MAX_ROWS;
+        }
+        return Math.max(WINDOW_MAX_ROWS, 2 * EVICT_LEAD + screenRowsRef.current + current.rowStep);
     }
 
     function keepSpan(current: WindowState<T>): { lo: number; hi: number } {
@@ -390,13 +403,14 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
         setState(function extendEnd(from) {
             const n = from.items.length;
             const keep = keepSpan(from);
+            const cap = maxRows();
             let end = Math.min(n, from.end + clampedStep());
             let start = from.start;
-            if (end - start > WINDOW_MAX_ROWS) {
-                start = Math.max(start, Math.min(end - WINDOW_MAX_ROWS, keep.lo - EVICT_LEAD));
+            if (end - start > cap) {
+                start = Math.max(start, Math.min(end - cap, keep.lo - EVICT_LEAD));
             }
-            if (end - start > WINDOW_MAX_ROWS) {
-                end = start + WINDOW_MAX_ROWS;
+            if (end - start > cap) {
+                end = start + cap;
             }
             if (end <= from.end) {
                 growthPendingRef.current = false;
@@ -414,13 +428,14 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
         growthPendingRef.current = true;
         setState(function extendStart(from) {
             const keep = keepSpan(from);
+            const cap = maxRows();
             let start = Math.max(0, from.start - clampedStep());
             let end = from.end;
-            if (end - start > WINDOW_MAX_ROWS) {
-                end = Math.min(end, Math.max(start + WINDOW_MAX_ROWS, keep.hi + 1 + EVICT_LEAD));
+            if (end - start > cap) {
+                end = Math.min(end, Math.max(start + cap, keep.hi + 1 + EVICT_LEAD));
             }
-            if (end - start > WINDOW_MAX_ROWS) {
-                start = end - WINDOW_MAX_ROWS;
+            if (end - start > cap) {
+                start = end - cap;
             }
             if (start >= from.start) {
                 growthPendingRef.current = false;

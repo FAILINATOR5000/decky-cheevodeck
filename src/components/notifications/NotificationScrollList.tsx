@@ -78,6 +78,7 @@ export function NotificationScrollList(props: NotificationScrollListProps) {
         dynamicLoading: true,
         initialRows: NOTIF_INITIAL_ROWS,
         rowStep: NOTIF_ROW_STEP,
+        fullSteps: true,
         prefetchDistance: NOTIF_PREFETCH_DISTANCE,
         sentinelRootMarginPx: NOTIF_SENTINEL_ROOT_MARGIN_PX,
         resetKey: `${keyPrefix}|${items.length > 0}`,

@@ -3,7 +3,7 @@ import { useRef, useState, type AnimationEvent, type CSSProperties } from "react
 const FADE_MS = 250;
 
 export type FadeImageProps = {
-    src: string;
+    src?: string | null;
     alt?: string;
     fadeOnLoad?: boolean;
     fadeMs?: number;
@@ -13,9 +13,12 @@ export type FadeImageProps = {
 
 export function FadeImage(props: FadeImageProps) {
     const { src, alt, fadeOnLoad, fadeMs, decoding, style } = props;
-    const shouldFade = useRef(fadeOnLoad === true);
+    const shouldFade = useRef<boolean | null>(src ? fadeOnLoad === true : null);
+    if (shouldFade.current === null && src) {
+        shouldFade.current = fadeOnLoad === true;
+    }
     const [fadeDone, setFadeDone] = useState(false);
-    const fading = shouldFade.current && !fadeDone;
+    const fading = shouldFade.current === true && !fadeDone && !!src;
 
     function handleAnimationEnd(event: AnimationEvent<HTMLImageElement>) {
         if (event.animationName === "da-fade-in") {
@@ -25,7 +28,7 @@ export function FadeImage(props: FadeImageProps) {
 
     return (
         <img
-            src={src}
+            src={src || undefined}
             alt={alt || ""}
             decoding={decoding}
             className={fading ? "da-fade-image" : undefined}

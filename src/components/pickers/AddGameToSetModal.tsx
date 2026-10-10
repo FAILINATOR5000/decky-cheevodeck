@@ -521,6 +521,7 @@ function GameStep(props: GameStepProps) {
         dynamicLoading: true,
         initialRows: INITIAL_GAME_ROWS,
         rowStep: GAME_ROW_STEP,
+        fullSteps: true,
         prefetchDistance: GAME_ROW_LOAD_AHEAD,
         sentinelRootMarginPx: GAME_SENTINEL_ROOT_MARGIN_PX,
         resetKey: `${query}|${games.length > 0}`,
@@ -754,24 +755,24 @@ const PickerGameRow = React.memo(function PickerGameRow(props: PickerGameRowProp
                             alignItems: "center",
                             justifyContent: "center",
                             fontSize: `${Math.max(16, metrics.iconSize * 0.42)}px`,
-                            fontWeight: 800
+                            fontWeight: 800,
+                            position: "relative"
                         }}
                     >
-                        {iconDataUri ? (
-                            <FadeImage
-                                src={iconDataUri}
-                                fadeOnLoad={cold}
-                                decoding="async"
-                                style={{
-                                    width: "100%",
-                                    height: "100%",
-                                    objectFit: "cover",
-                                    display: "block"
-                                }}
-                            />
-                        ) : (
-                            fallbackLetter
-                        )}
+                        {iconDataUri ? null : fallbackLetter}
+                        <FadeImage
+                            src={iconDataUri}
+                            fadeOnLoad={cold}
+                            decoding="async"
+                            style={{
+                                position: "absolute",
+                                inset: 0,
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                                display: "block"
+                            }}
+                        />
                     </div>
                 )}
                 <div

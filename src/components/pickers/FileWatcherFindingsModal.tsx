@@ -249,6 +249,7 @@ export function FileWatcherFindingsModal(props: FileWatcherFindingsModalProps) {
         dynamicLoading: true,
         initialRows: INITIAL_ROWS,
         rowStep: ROW_STEP,
+        fullSteps: true,
         prefetchDistance: ROW_LOAD_AHEAD,
         sentinelRootMarginPx: SENTINEL_ROOT_MARGIN_PX,
         resetKey: `${windowRows.length > 0}|${selectedRoot?.rootId ?? ""}|${query}`,

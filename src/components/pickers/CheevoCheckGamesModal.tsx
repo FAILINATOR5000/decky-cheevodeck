@@ -528,6 +528,7 @@ function GameStep(props: GameStepProps) {
         dynamicLoading: true,
         initialRows: INITIAL_ROWS,
         rowStep: ROW_STEP,
+        fullSteps: true,
         prefetchDistance: ROW_LOAD_AHEAD,
         sentinelRootMarginPx: SENTINEL_ROOT_MARGIN_PX,
         resetKey: `${systemName}|${query}|${rows.length > 0}`,
@@ -723,22 +724,11 @@ const ResultRow = React.memo(function ResultRow(props: ResultRowProps) {
                             alignItems: "center",
                             justifyContent: "center",
                             fontSize: `${Math.max(16, metrics.iconSize * 0.42)}px`,
-                            fontWeight: 800
+                            fontWeight: 800,
+                            position: "relative"
                         }}
                     >
-                        {iconDataUri ? (
-                            <FadeImage
-                                src={iconDataUri}
-                                fadeOnLoad={cold}
-                                decoding="async"
-                                style={{
-                                    width: "100%",
-                                    height: "100%",
-                                    objectFit: "cover",
-                                    display: "block"
-                                }}
-                            />
-                        ) : !openable && consoleIconUrl ? (
+                        {iconDataUri ? null : !openable && consoleIconUrl ? (
                             <img
                                 src={consoleIconUrl}
                                 alt=""
@@ -752,6 +742,21 @@ const ResultRow = React.memo(function ResultRow(props: ResultRowProps) {
                             />
                         ) : (
                             fallbackLetter
+                        )}
+                        {openable && (
+                            <FadeImage
+                                src={iconDataUri}
+                                fadeOnLoad={cold}
+                                decoding="async"
+                                style={{
+                                    position: "absolute",
+                                    inset: 0,
+                                    width: "100%",
+                                    height: "100%",
+                                    objectFit: "cover",
+                                    display: "block"
+                                }}
+                            />
                         )}
                     </div>
                 )}

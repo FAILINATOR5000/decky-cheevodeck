@@ -171,6 +171,7 @@ export function BrowserDownloadFolder(props: BrowserDownloadFolderProps) {
         dynamicLoading: true,
         initialRows: INITIAL_ROWS,
         rowStep: ROW_STEP,
+        fullSteps: true,
         prefetchDistance: 0,
         sentinelRootMarginPx: SENTINEL_ROOT_MARGIN_PX,
         resetKey: `${path}|${entries.length > 0}`,

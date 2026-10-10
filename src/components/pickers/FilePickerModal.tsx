@@ -252,6 +252,7 @@ function FilePickerModal(props: FilePickerModalProps) {
         dynamicLoading: true,
         initialRows: INITIAL_ROWS,
         rowStep: ROW_STEP,
+        fullSteps: true,
         prefetchDistance: PREFETCH_DISTANCE,
         sentinelRootMarginPx: SENTINEL_ROOT_MARGIN_PX,
         resetKey: rows.path,

@@ -520,6 +520,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
         dynamicLoading: true,
         initialRows: INITIAL_ROWS,
         rowStep: ROW_STEP,
+        fullSteps: true,
         prefetchDistance: 0,
         sentinelRootMarginPx: SENTINEL_ROOT_MARGIN_PX,
         resetKey: `${tab}|${windowItems.length > 0}`,

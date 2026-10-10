@@ -77,13 +77,11 @@ const GameRow = React.memo(function GameRow(props: {
                             border: "1px solid rgba(255,255,255,0.12)"
                         }}
                     >
-                        {iconDataUri ? (
-                            <FadeImage
-                                src={iconDataUri}
-                                fadeOnLoad={cold}
-                                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                            />
-                        ) : null}
+                        <FadeImage
+                            src={iconDataUri}
+                            fadeOnLoad={cold}
+                            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                        />
                     </div>
                 )}
                 <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
@@ -148,6 +146,7 @@ export function MemoryGamePickerModal(props: MemoryGamePickerModalProps) {
         dynamicLoading: true,
         initialRows: GAMES_INITIAL_ROWS,
         rowStep: GAMES_ROW_STEP,
+        fullSteps: true,
         prefetchDistance: 8,
         sentinelRootMarginPx: GAMES_SENTINEL_ROOT_MARGIN_PX,
         resetKey: `memoriesgame:${query}`,

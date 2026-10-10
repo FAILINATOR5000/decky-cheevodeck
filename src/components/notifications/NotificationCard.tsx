@@ -680,7 +680,8 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                     alignItems: "center",
                     justifyContent: "center",
                     fontSize: `${iconFontSize}px`,
-                    fontWeight: 800
+                    fontWeight: 800,
+                    position: "relative"
                 }}
             >
                 {content}
@@ -747,31 +748,29 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
 
         if (notification.iconSource === "game") {
             return renderBoxedIcon(
-                gameIconDataUri ? (
+                <>
+                    {gameIconDataUri ? null : fallbackLetter}
                     <FadeImage
                         src={gameIconDataUri}
                         fadeOnLoad={gameId != null && coldGameIds.has(gameId)}
                         decoding="async"
-                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                     />
-                ) : (
-                    fallbackLetter
-                )
+                </>
             );
         }
 
         if (notification.iconSource === "achievement") {
             return renderBoxedIcon(
-                badgeDataUri ? (
+                <>
+                    {badgeDataUri ? null : fallbackLetter}
                     <FadeImage
                         src={badgeDataUri}
                         fadeOnLoad={!badgeWasWarmAtMount.current}
                         decoding="async"
-                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                     />
-                ) : (
-                    fallbackLetter
-                )
+                </>
             );
         }
 
