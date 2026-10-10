@@ -111,8 +111,8 @@ type WindowState<T> = {
     scope: string;
     start: number;
     end: number;
-    reach: number;
     residual: number;
+    belowResidual: number;
     estimate: number;
     estimateProvisional: boolean;
     epoch: number;
@@ -202,8 +202,8 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
             scope,
             start: 0,
             end,
-            reach: end,
             residual: 0,
+            belowResidual: 0,
             estimate: mean ?? 0,
             estimateProvisional: mean === null,
             epoch: 0,
@@ -216,13 +216,13 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
 
     function collapsed(from: WindowState<T>, n: number): WindowState<T> {
         const end = Math.min(n, openRows);
-        return { ...from, start: 0, end, reach: end, residual: 0, epoch: from.epoch + 1, upBlocked: false, openTarget: null };
+        return { ...from, start: 0, end, residual: 0, belowResidual: 0, epoch: from.epoch + 1, upBlocked: false, openTarget: null };
     }
 
     function rekeyed(from: WindowState<T>, nextItems: T[]): WindowState<T> {
         const n = nextItems.length;
         if (n === 0) {
-            return { ...from, items: nextItems, start: 0, end: 0, reach: 0 };
+            return { ...from, items: nextItems, start: 0, end: 0 };
         }
         const oldItems = from.items;
         const newIndex = new Map<string, number>();
@@ -244,8 +244,7 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
         if (end - start < length) {
             start = Math.max(0, end - length);
         }
-        const reach = Math.min(n, Math.max(end, from.reach + shift));
-        return { ...from, items: nextItems, start, end, reach };
+        return { ...from, items: nextItems, start, end };
     }
 
     function survivorShift(oldItems: T[], anchorOld: number, newIndex: Map<string, number>) {
@@ -274,6 +273,7 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
             pendingOpen: null,
             openTarget: itemKey(items[index]),
             residual: 0,
+            belowResidual: 0,
             epoch: from.epoch + 1,
             upBlocked: false,
             estimate: mean ?? from.estimate,
@@ -281,11 +281,11 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
         };
         if (index < WINDOW_MAX_ROWS - OPEN_TRAIL) {
             const end = Math.min(count, Math.max(openRows, index + OPEN_TRAIL));
-            return { ...base, start: 0, end, reach: end };
+            return { ...base, start: 0, end };
         }
         const start = Math.max(0, index - OPEN_LEAD);
         const end = Math.min(count, index + OPEN_TRAIL);
-        return { ...base, start, end, reach: end };
+        return { ...base, start, end };
     }
 
     let next = state;
@@ -294,7 +294,7 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
         next = { ...collapsed(next, count), resetKey, items };
     }
     if (next.jumpToken !== jumpToken) {
-        next = next.start > 0 || next.reach > next.end
+        next = next.start > 0
             ? { ...collapsed(next, count), jumpToken }
             : { ...next, jumpToken };
     }
@@ -320,9 +320,9 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
 
     const cache = cacheFor(scope);
     const above = sumHeights(items, 0, next.start, itemKey, cache, next.estimate);
-    const below = sumHeights(items, next.end, Math.min(next.reach, count), itemKey, cache, next.estimate);
+    const below = sumHeights(items, next.end, count, itemKey, cache, next.estimate);
     const topSpacerPx = Math.max(0, above.px + next.residual);
-    const bottomSpacerPx = below.px;
+    const bottomSpacerPx = next.end >= count ? 0 : Math.max(0, below.px + next.belowResidual);
     const unknownAbove = above.unknown;
 
     const mountedItems = useMemo(
@@ -402,7 +402,7 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
                 growthPendingRef.current = false;
                 return from;
             }
-            return { ...from, start, end, reach: Math.max(from.reach, end) };
+            return { ...from, start, end };
         });
     }
 
@@ -458,6 +458,9 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
 
     const restTimerRef = useRef<number | null>(null);
     function needsRebase() {
+        return needsTopRebase() || Math.abs(liveRef.current.state.belowResidual) > 0.5;
+    }
+    function needsTopRebase() {
         const current = liveRef.current;
         if (current.state.upBlocked) {
             return true;
@@ -531,6 +534,7 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
     const pendingShiftRef = useRef<{ delta: number; from: number } | null>(null);
     const rebaseAppliedRef = useRef<number | null>(null);
     const measuredHolderRef = useRef<HTMLDivElement | null>(null);
+    const lastRangeRef = useRef<{ epoch: number; items: T[]; end: number } | null>(null);
     const [measureEpoch, setMeasureEpoch] = useState(0);
 
     useLayoutEffect(function measureAndAnchor() {
@@ -576,6 +580,20 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
         const measured = rows.length === mountedItems.length;
 
         const measuredCache = cacheFor(`${heightScope}|${measuredWidth}`);
+
+        let grownBelow = 0;
+        const lastRange = lastRangeRef.current;
+        lastRangeRef.current = { epoch: next.epoch, items, end: next.end };
+        const comparable = measured && measuredCache === cache && !next.estimateProvisional
+            && lastRange !== null && lastRange.epoch === next.epoch && lastRange.items === items;
+        if (comparable) {
+            for (let i = Math.max(lastRange.end, next.start); i < next.end; i += 1) {
+                const r = i - next.start;
+                const bottom = r + 1 < rows.length ? rowTops[r + 1] : downTop;
+                grownBelow += bottom - rowTops[r] - (cache.heights.get(itemKey(items[i])) ?? next.estimate);
+            }
+        }
+
         if (measured) {
             for (let i = 0; i < rows.length; i += 1) {
                 const bottom = i + 1 < rows.length ? rowTops[i + 1] : downTop;
@@ -620,14 +638,19 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
         if (rebaseSeenRef.current !== next.rebase) {
             rebaseSeenRef.current = next.rebase;
             const estimate = meanHeight(cacheFor(scope)) ?? next.estimate;
-            const target = next.start === 0
-                ? 0
-                : Math.max(0, sumHeights(items, 0, next.start, itemKey, cacheFor(scope), estimate).px);
-            const delta = target - topSpacerPx;
-            if (Math.abs(delta) > 0.5) {
-                pendingShiftRef.current = { delta, from: scroller.scrollTop };
+            if (!needsTopRebase()) {
+                correction = unknownAbove === 0 ? { belowResidual: 0, estimate, estimateProvisional: false } : { belowResidual: 0 };
             }
-            correction = { residual: 0, estimate, estimateProvisional: false, upBlocked: false };
+            else {
+                const target = next.start === 0
+                    ? 0
+                    : Math.max(0, sumHeights(items, 0, next.start, itemKey, cacheFor(scope), estimate).px);
+                const delta = target - topSpacerPx;
+                if (Math.abs(delta) > 0.5) {
+                    pendingShiftRef.current = { delta, from: scroller.scrollTop };
+                }
+                correction = { residual: 0, belowResidual: 0, estimate, estimateProvisional: false, upBlocked: false };
+            }
         }
         else if (next.estimateProvisional && mean !== null) {
             correction = { estimate: mean, estimateProvisional: false };
@@ -661,6 +684,11 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
                     correction = residual === wanted ? { residual } : { residual, upBlocked: true };
                 }
             }
+        }
+
+        if (Math.abs(grownBelow) > 0.5) {
+            const wanted = (correction?.belowResidual ?? next.belowResidual) - grownBelow;
+            correction = { ...correction, belowResidual: Math.max(wanted, -below.px) };
         }
 
         if (recordAnchors) {
@@ -798,7 +826,7 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
                     return from;
                 }
                 const end = Math.min(from.items.length, liveRef.current.openRows);
-                return { ...from, start: 0, end, reach: end, residual: 0, epoch: from.epoch + 1, upBlocked: false };
+                return { ...from, start: 0, end, residual: 0, belowResidual: 0, epoch: from.epoch + 1, upBlocked: false };
             });
         };
         scroller.addEventListener("scroll", onScroll, { passive: true });
@@ -841,7 +869,7 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
     function indexAtOffset(geometry: Geometry, offset: number): number | null {
         const current = liveRef.current;
         const scopeCache = cacheFor(current.scope);
-        const { items: listItems, estimate, reach } = current.state;
+        const { items: listItems, estimate } = current.state;
         if (offset < geometry.firstRowTop) {
             let position = geometry.holderTop + Math.max(0, current.topSpacerPx - current.aboveSumPx);
             for (let i = 0; i < geometry.start; i += 1) {
@@ -853,7 +881,7 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
             return Math.max(0, geometry.start - 1);
         }
         let position = geometry.downTop;
-        const last = Math.min(reach, listItems.length);
+        const last = listItems.length;
         for (let i = geometry.end; i < last; i += 1) {
             position += scopeCache.heights.get(itemKey(listItems[i])) ?? estimate;
             if (position > offset) {
@@ -868,7 +896,7 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
             const n = from.items.length;
             const start = Math.max(0, index - OPEN_LEAD);
             const end = Math.min(n, Math.max(start + 1, index + OPEN_TRAIL));
-            return { ...from, start, end, reach: Math.max(from.reach, end), epoch: from.epoch + 1, upBlocked: false };
+            return { ...from, start, end, belowResidual: 0, epoch: from.epoch + 1, upBlocked: false };
         });
     }
 
@@ -914,6 +942,7 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
     const roundedTop = Math.round(topSpacerPx);
     const roundedBottom = Math.round(bottomSpacerPx);
     const roundedResidual = Math.round(next.residual);
+    const roundedBelow = Math.round(next.belowResidual);
     useEffect(function reportWindow() {
         if (!debugLabel) {
             return;
@@ -930,8 +959,9 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
             + ` mounted=${next.end - next.start} items=${count}`
             + (rebase !== null ? ` rebase=${Math.round(rebase)}` : "")
             + (next.upBlocked ? " upBlocked" : "")
+            + (roundedBelow !== 0 ? ` below=${roundedBelow}` : "")
         );
-    }, [debugLabel, next.start, next.end, roundedTop, roundedBottom, roundedResidual, unknownAbove, count, next.upBlocked]);
+    }, [debugLabel, next.start, next.end, roundedTop, roundedBottom, roundedResidual, roundedBelow, unknownAbove, count, next.upBlocked]);
 
     return {
         mountedItems,

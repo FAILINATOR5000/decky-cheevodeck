@@ -188,7 +188,7 @@ export function BrowserDownloadFolder(props: BrowserDownloadFolderProps) {
         }
     }, [listing, windowEnd, entries.length, total]);
 
-    const unmountedPx = Math.max(0, (total - windowEnd) * modalSize(ROW_HEIGHT_PX + 3) - entryWindow.bottomSpacerPx);
+    const unmountedPx = Math.max(0, (total - entries.length) * modalSize(ROW_HEIGHT_PX + 3));
 
     const controlHeight = `${modalSize(ACTION_PX)}px`;
 

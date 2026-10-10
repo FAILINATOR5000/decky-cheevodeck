@@ -526,10 +526,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
         debugLabel: "browser:list"
     });
 
-    const rowHeight = tab === "downloads" ? DOWNLOAD_ROW_HEIGHT_PX : ROW_HEIGHT_PX;
-    const windowEnd = listWindow.start + listWindow.mountedItems.length;
-    const unmountedPx = Math.max(0, (windowItems.length - windowEnd) * modalSize(rowHeight + 3) - listWindow.bottomSpacerPx);
-
     const toggleDay = (key: string) => {
         setShutDays((current) => (current.includes(key) ? current.filter((entry) => entry !== key) : [...current, key]));
     };
@@ -1407,7 +1403,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
             )}
 
             {tab === "bookmarks" && (
-            <BrowserScrollArea railPx={RAIL_PX} gapPx={ROW_GAP_PX} rowGap={`${modalSize(3)}px`} unmountedPx={unmountedPx} header={header}>
+            <BrowserScrollArea railPx={RAIL_PX} gapPx={ROW_GAP_PX} rowGap={`${modalSize(3)}px`} unmountedPx={0} header={header}>
                 {editing?.kind === "add" ? nameField(t(language, "Category name"), CATEGORY_HEIGHT_PX) : (
                     <div style={actionRowStyle(CATEGORY_HEIGHT_PX)}>
                         <div style={{ flex: "1 1 auto", minWidth: "0" }}>
@@ -1440,7 +1436,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
             )}
 
             {tab === "adblock" && (
-            <BrowserScrollArea railPx={RAIL_PX} gapPx={ROW_GAP_PX} rowGap={`${modalSize(3)}px`} unmountedPx={unmountedPx} header={header}>
+            <BrowserScrollArea railPx={RAIL_PX} gapPx={ROW_GAP_PX} rowGap={`${modalSize(3)}px`} unmountedPx={0} header={header}>
                 <div style={{ display: "flex", flexDirection: "column", flex: "0 0 auto", gap }}>
                         <div style={settingCardStyle}>
                             <div style={settingRowStyle}>
@@ -1548,7 +1544,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
             )}
 
             {tab === "history" && (
-            <BrowserScrollArea railPx={RAIL_PX} gapPx={ROW_GAP_PX} rowGap={`${modalSize(3)}px`} unmountedPx={unmountedPx} header={header}>
+            <BrowserScrollArea railPx={RAIL_PX} gapPx={ROW_GAP_PX} rowGap={`${modalSize(3)}px`} unmountedPx={0} header={header}>
                 {editing?.kind === "clear" && (
                     <div style={actionRowStyle(CATEGORY_HEIGHT_PX, true)}>
                         <div
@@ -1606,7 +1602,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
             )}
 
             {tab === "downloads" && (
-            <BrowserScrollArea railPx={RAIL_PX} gapPx={ROW_GAP_PX} rowGap={`${modalSize(3)}px`} unmountedPx={unmountedPx} header={header}>
+            <BrowserScrollArea railPx={RAIL_PX} gapPx={ROW_GAP_PX} rowGap={`${modalSize(3)}px`} unmountedPx={0} header={header}>
                 {downloads.loaded && downloads.downloads.length === 0 && (
                     <div style={{ padding: gap, fontSize: `${modalSize(13)}px`, opacity: 0.7 }}>
                         {t(language, "No downloads yet.")}
