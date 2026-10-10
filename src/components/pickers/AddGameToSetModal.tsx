@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { DialogButton, Focusable, ModalRoot, TextField } from "@decky/ui";
 import {
     getLastConsoleId,
@@ -113,7 +113,7 @@ export function AddGameToSetModal(props: AddGameToSetModalProps) {
         };
     }, []);
 
-    useEffect(function focusTopOfListWhenReady() {
+    useLayoutEffect(function focusTopOfListWhenReady() {
         if (focusedTopForStepRef.current === step) {
             return;
         }

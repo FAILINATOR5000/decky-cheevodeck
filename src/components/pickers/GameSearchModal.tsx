@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { DialogButton, Focusable, ModalRoot, TextField } from "@decky/ui";
 
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
@@ -105,7 +105,7 @@ export function GameSearchModal(props: GameSearchModalProps) {
         };
     }, []);
 
-    useEffect(function focusTopOfListWhenReady() {
+    useLayoutEffect(function focusTopOfListWhenReady() {
         if (focusedTopForStepRef.current === step) {
             return;
         }
