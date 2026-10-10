@@ -18,6 +18,7 @@ import { releaseWebBrowserActionset } from "./components/browser/browserViewHost
 import { registerBrowserDownloads, unregisterBrowserDownloads } from "./components/browser/browserDownloads";
 import { registerGlobalBackButtons, unregisterGlobalBackButtons } from "./components/backButtons/globalBackButtons";
 import { uninstallStormbreaker } from "./utils/stormbreaker";
+import { registerPhantomMouseGuard, unregisterPhantomMouseGuard } from "./utils/phantomMouseGuard";
 
 const NOTIFICATION_EVENT = "cheevodeck_notification";
 
@@ -77,6 +78,7 @@ export default definePlugin(() => {
     addEventListener(AVATAR_HEALED_EVENT, onAvatarHealed);
     registerBrowserDownloads();
     registerGlobalBackButtons();
+    registerPhantomMouseGuard();
 
     registerScreenDarken();
     registerMemoryCapture();
@@ -93,6 +95,7 @@ export default definePlugin(() => {
             removeEventListener(AVATAR_HEALED_EVENT, onAvatarHealed);
             unregisterBrowserDownloads();
             unregisterGlobalBackButtons();
+            unregisterPhantomMouseGuard();
             uninstallStormbreaker();
             disableLibraryBadge();
             unregisterScreenDarken();

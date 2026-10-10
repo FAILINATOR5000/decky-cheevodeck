@@ -32,6 +32,7 @@ import {
 } from "./scale";
 import { setSnapshotHotkey } from "./snapshotHotkey";
 import { setStormbreakerEnabled, setStormbreakerGameMode } from "./stormbreaker";
+import { setPhantomMouseGuardGameMode } from "./phantomMouseGuard";
 
 const STARTUP_TRIES = 3;
 
@@ -78,6 +79,7 @@ export function applyFrontendSettings(settings: SettingsResponse): void {
     try {
         if (settings.gameMode !== undefined) {
             setStormbreakerGameMode(settings.gameMode);
+            setPhantomMouseGuardGameMode(settings.gameMode);
         }
         setStormbreakerEnabled(settings.stormbreaker);
     }
