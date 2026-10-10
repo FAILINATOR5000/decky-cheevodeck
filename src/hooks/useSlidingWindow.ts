@@ -530,6 +530,8 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
     const rebaseSeenRef = useRef(next.rebase);
     const pendingShiftRef = useRef<{ delta: number; from: number } | null>(null);
     const rebaseAppliedRef = useRef<number | null>(null);
+    const measuredHolderRef = useRef<HTMLDivElement | null>(null);
+    const [measureEpoch, setMeasureEpoch] = useState(0);
 
     useLayoutEffect(function measureAndAnchor() {
         const holder = holderRef.current;
@@ -537,6 +539,18 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
         const down = downMarkerRef.current;
         if (!holder || !up || !down) {
             return;
+        }
+        if (holder !== measuredHolderRef.current) {
+            measuredHolderRef.current = holder;
+            const view = holder.ownerDocument.defaultView;
+            const nothingToHold = next.start === 0 && pendingShiftRef.current === null && rebaseSeenRef.current === next.rebase;
+            if (view && nothingToHold) {
+                anchorsRef.current = null;
+                view.requestAnimationFrame(function measureNextFrame() {
+                    setMeasureEpoch((epoch) => epoch + 1);
+                });
+                return;
+            }
         }
         if (!scrollerRef.current || !scrollerRef.current.isConnected) {
             scrollerRef.current = findScroller(holder);
@@ -800,7 +814,7 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
                 restTimerRef.current = null;
             }
         };
-    }, [hasRows]);
+    }, [hasRows, measureEpoch]);
 
     function overlap(top: number, bottom: number, from: number, to: number) {
         const lo = Math.max(top, from);
@@ -894,7 +908,7 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
                 observer.disconnect();
             }
         };
-    }, [next.start, next.end, count, marginPx, prefetch, hasRows]);
+    }, [next.start, next.end, count, marginPx, prefetch, hasRows, measureEpoch]);
 
     const reportedResidualRef = useRef(next.residual);
     const roundedTop = Math.round(topSpacerPx);
