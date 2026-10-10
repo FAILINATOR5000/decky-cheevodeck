@@ -232,7 +232,7 @@ function showCountedModal(element: ReactElement): { Close: () => void } {
 }
 
 export function drainOpenModals(): OpenModal[] {
-    if (qamReopenTimer !== 0 || shownToast) {
+    if (qamReopenTimer !== 0 || (shownToast && (openModals.size > 0 || mountedModals > 0))) {
         noteQuickAccessReturned();
     }
     qamReopenOwed = false;
