@@ -1,11 +1,10 @@
 import { useMemo, type ReactNode } from "react";
 import { PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../ui/PanelSection";
-import { AchievementList } from "../achievements/AchievementList";
+import { AchievementList, type AchievementListSection } from "../achievements/AchievementList";
 import { CollapsibleTitle } from "../ui/CollapsibleTitle";
 import { InlineSpinner } from "../ui/InlineSpinner";
 import type { FocusClaimController } from "../../hooks/useFocusClaim";
-import { useWindowedList } from "../../hooks/useWindowedList";
 import type { LanguageCode } from "../../locales";
 import { t } from "../../locales";
 import type {
@@ -45,7 +44,8 @@ type TrackedListBodyProps = {
     tagMarkedIds?: ReadonlySet<number>;
     reorderViaSwap?: boolean;
     rowClaim?: FocusClaimController;
-    restoreSeedAchievementId?: number | null;
+    openAtKey?: string;
+    onOpenAtHeld?: () => void;
     collapsedKeys: ReadonlySet<string>;
     onToggleCollapsed: (key: string) => void;
     collapseDisabled?: boolean;
@@ -152,7 +152,8 @@ export function TrackedListBody(props: TrackedListBodyProps) {
         tagMarkedIds,
         reorderViaSwap,
         rowClaim,
-        restoreSeedAchievementId,
+        openAtKey,
+        onOpenAtHeld,
         collapsedKeys,
         onToggleCollapsed,
         collapseDisabled,
@@ -171,39 +172,26 @@ export function TrackedListBody(props: TrackedListBodyProps) {
         [trackedAchievements, notesByAchievementId, language]
     );
 
-    const flatRows = useMemo(() => {
-        const rows: AchievementRow[] = [];
-        for (const group of groups) {
-            if (collapsedKeys.has(collapseKeyForGroup(group))) {
-                continue;
-            }
-            for (const achievement of group.achievements) {
-                rows.push(achievement);
-            }
-        }
-        return rows;
-    }, [groups, collapsedKeys]);
+    const sections = useMemo<AchievementListSection[]>(() => groups.map((group) => {
+        const collapseKey = collapseKeyForGroup(group);
+        return {
+            key: collapseKey,
+            focusKey: `tracked:group:${collapseKey}`,
+            achievements: group.achievements,
+            collapsed: collapsedKeys.has(collapseKey)
+        };
+    }), [groups, collapsedKeys]);
 
-    const seedIndex = restoreSeedAchievementId == null
-        ? -1
-        : flatRows.findIndex((row) => row.id === restoreSeedAchievementId);
-
-    const {
-        mountedItems: mountedRows,
-        markerRef: loadMoreMarkerRef,
-        onItemFocus
-    } = useWindowedList({
-        items: flatRows,
-        dynamicLoading,
-        initialRows: dynamicInitialRows,
-        rowStep: dynamicRowStep,
-        prefetchDistance: dynamicPrefetchDistance,
-        sentinelRootMargin: `${Math.max(0, dynamicSentinelRootMargin)}px 0px`,
-        resetKey: `tracked:${payload.gameId ?? "none"}`,
-        seedRows: seedIndex < 0 ? 0 : seedIndex + 1,
-        debugLabel: "tracked:flat"
-    });
-    const mountedCount = mountedRows.length;
+    const listPayload = useMemo(() => {
+        const achievements = groups.flatMap((group) => group.achievements);
+        return {
+            ...payload,
+            achievements,
+            numAchievements: achievements.length,
+            numAwardedToUser: 0,
+            numAwardedToUserHardcore: 0
+        };
+    }, [payload, groups]);
 
     if (!trackedReady) {
         return (
@@ -215,154 +203,99 @@ export function TrackedListBody(props: TrackedListBodyProps) {
         );
     }
 
-    if (groups.length === 0) {
-        return (
-            <AchievementList
-                key={`tracked:${payload.gameId ?? "none"}:empty`}
-                language={language}
-                payload={{
-                    ...payload,
-                    achievements: [],
-                    numAchievements: 0,
-                    numAwardedToUser: 0,
-                    numAwardedToUserHardcore: 0
-                }}
-                showIcons={showIcons}
-                achievementStyle={achievementStyle}
-                uiSize={uiSize}
-                topPadding={topPadding}
-                blockPadding={blockPadding}
-                showAll={true}
-                mode="tracked"
-                trackedIds={trackedIds}
-                notesByAchievementId={notesByAchievementId}
-                notesColorByAchievementId={notesColorByAchievementId}
-                titleOverride={title}
-                dynamicLoading={dynamicLoading}
-                dynamicInitialRows={dynamicInitialRows}
-                dynamicRowStep={dynamicRowStep}
-                dynamicPrefetchDistance={dynamicPrefetchDistance}
-                dynamicSentinelRootMargin={dynamicSentinelRootMargin}
-                showRetroPoints={showRetroPoints}
-                emptyMessageOverride={emptyMessage}
-                emptyFocusAnchorKey="tracked:empty-anchor"
-                reorderTargetId={reorderTargetId}
-                tagMarkedIds={tagMarkedIds}
-                reorderViaSwap={reorderViaSwap}
-                onAchievementClick={async (achievement) => {
-                    if (trackedValidating || busy) {
-                        return;
-                    }
-                    await onAchievementClick(achievement, trackedAchievements);
-                }}
-                onAchievementTrackToggle={onAchievementTrackToggle}
-                onAchievementNote={onAchievementNote}
-                onAchievementReorderPick={onAchievementReorderPick}
-                onAchievementTagMark={onAchievementTagMark}
-                onAchievementReorderToward={onAchievementReorderToward}
-            />
-        );
-    }
-
     const claimedSlot = rowClaim?.claim ?? null;
     const claimSpend = rowClaim?.spend;
-    let flatStart = 0;
-    const groupSlices = groups.map((group) => {
-        const collapsed = collapsedKeys.has(collapseKeyForGroup(group));
-        const start = flatStart;
-        if (!collapsed) {
-            flatStart += group.achievements.length;
+    const claimedEntry = claimedSlot ? entryIndexForRowSlot(sections, claimedSlot.slotIndex) : -1;
+    const claimedRow = claimedSlot && claimSpend && claimedEntry >= 0
+        ? {
+            slotIndex: claimedEntry,
+            token: claimedSlot.token,
+            armed: claimedSlot.armed,
+            onSpent: claimSpend
         }
-        const reach = collapsed
-            ? 0
-            : Math.max(0, Math.min(group.achievements.length, mountedCount - start));
-        return { start, collapsed, reach };
-    });
+        : undefined;
 
     return (
-        <>
-            {groups.map((group, index) => {
-                const sectionTitle = group.tagKey === null
-                    ? t(language, "Tracked ({{count}})", { count: group.achievements.length })
-                    : `${group.tag} (${group.achievements.length})`;
-                const groupKey = group.tagKey === null ? "_untagged_" : group.tagKey;
-                const listKey = `tracked:${payload.gameId ?? "none"}:${groupKey}`;
-                const collapseKey = collapseKeyForGroup(group);
-                const slice = groupSlices[index];
-                const collapsed = slice.collapsed;
-                const slotInGroup = claimedSlot ? claimedSlot.slotIndex - slice.start : -1;
-                const claimedRow = claimedSlot && claimSpend && slotInGroup >= 0 && slotInGroup < slice.reach
-                    ? {
-                        slotIndex: slotInGroup,
-                        token: claimedSlot.token,
-                        armed: claimedSlot.armed,
-                        onSpent: claimSpend
-                    }
-                    : undefined;
+        <AchievementList
+            key={`tracked:${payload.gameId ?? "none"}`}
+            language={language}
+            payload={listPayload}
+            showIcons={showIcons}
+            achievementStyle={achievementStyle}
+            uiSize={uiSize}
+            topPadding={topPadding}
+            blockPadding={blockPadding}
+            showAll={true}
+            mode="tracked"
+            windowId="tracked:rows"
+            trackedIds={trackedIds}
+            notesByAchievementId={notesByAchievementId}
+            notesColorByAchievementId={notesColorByAchievementId}
+            titleOverride={groups.length === 0 ? title : ""}
+            sections={sections}
+            renderSectionHeader={(section, row) => {
+                const group = groups.find((candidate) => collapseKeyForGroup(candidate) === section.key);
+                const label = !group || group.tagKey === null
+                    ? t(language, "Tracked ({{count}})", { count: section.achievements.length })
+                    : `${group.tag} (${section.achievements.length})`;
                 return (
-                    <AchievementList
-                        key={listKey}
-                        language={language}
-                        payload={{
-                            ...payload,
-                            achievements: group.achievements,
-                            numAchievements: group.achievements.length,
-                            numAwardedToUser: 0,
-                            numAwardedToUserHardcore: 0
-                        }}
-                        showIcons={showIcons}
-                        achievementStyle={achievementStyle}
-                        uiSize={uiSize}
-                        topPadding={index === 0 ? topPadding : 0}
-                        blockPadding={blockPadding}
-                        showAll={true}
-                        mode="tracked"
-                        trackedIds={trackedIds}
-                        notesByAchievementId={notesByAchievementId}
-                        notesColorByAchievementId={notesColorByAchievementId}
-                        titleOverride={sectionTitle}
-                        titleNode={
-                            <CollapsibleTitle
-                                label={sectionTitle}
-                                collapsed={collapsed}
-                                focusKey={`tracked:group:${collapseKey}`}
-                                disabled={collapseDisabled}
-                                preserveCase={headerStyle === "typed"}
-                                onToggle={() => onToggleCollapsed(collapseKey)}
-                            />
-                        }
-                        collapsed={collapsed}
-                        dynamicLoading={false}
-                        dynamicInitialRows={dynamicInitialRows}
-                        dynamicRowStep={dynamicRowStep}
-                        dynamicPrefetchDistance={dynamicPrefetchDistance}
-                        dynamicSentinelRootMargin={dynamicSentinelRootMargin}
-                        showRetroPoints={showRetroPoints}
-                        reorderTargetId={reorderTargetId}
-                        tagMarkedIds={tagMarkedIds}
-                        reorderViaSwap={reorderViaSwap}
-                        claimedRow={claimedRow}
-                        mountedRowCount={slice.reach}
-                        onRowFocus={(rowIndex) => onItemFocus(slice.start + rowIndex)}
-                        onAchievementClick={async (achievement) => {
-                            if (trackedValidating || busy) {
-                                return;
-                            }
-                            await onAchievementClick(achievement, trackedAchievements);
-                        }}
-                        onAchievementTrackToggle={onAchievementTrackToggle}
-                        onAchievementNote={onAchievementNote}
-                        onAchievementReorderPick={onAchievementReorderPick}
-                        onAchievementTagMark={onAchievementTagMark}
-                        onAchievementReorderToward={onAchievementReorderToward}
+                    <CollapsibleTitle
+                        label={label}
+                        collapsed={section.collapsed}
+                        focusKey={section.focusKey}
+                        disabled={collapseDisabled}
+                        preserveCase={headerStyle === "typed"}
+                        onToggle={() => onToggleCollapsed(section.key)}
+                        onGamepadFocus={row.onGamepadFocus}
+                        onGamepadDirection={row.onGamepadDirection}
                     />
                 );
-            })}
-            {dynamicLoading && mountedCount < flatRows.length && (
-                <div ref={loadMoreMarkerRef} style={{ height: "1px" }} />
-            )}
-        </>
+            }}
+            dynamicLoading={dynamicLoading}
+            dynamicInitialRows={dynamicInitialRows}
+            dynamicRowStep={dynamicRowStep}
+            dynamicPrefetchDistance={dynamicPrefetchDistance}
+            dynamicSentinelRootMargin={dynamicSentinelRootMargin}
+            showRetroPoints={showRetroPoints}
+            emptyMessageOverride={emptyMessage}
+            emptyFocusAnchorKey="tracked:empty-anchor"
+            reorderTargetId={reorderTargetId}
+            tagMarkedIds={tagMarkedIds}
+            reorderViaSwap={reorderViaSwap}
+            openAtKey={openAtKey}
+            onOpenAtHeld={onOpenAtHeld}
+            claimedRow={claimedRow}
+            onAchievementClick={async (achievement) => {
+                if (trackedValidating || busy) {
+                    return;
+                }
+                await onAchievementClick(achievement, trackedAchievements);
+            }}
+            onAchievementTrackToggle={onAchievementTrackToggle}
+            onAchievementNote={onAchievementNote}
+            onAchievementReorderPick={onAchievementReorderPick}
+            onAchievementTagMark={onAchievementTagMark}
+            onAchievementReorderToward={onAchievementReorderToward}
+        />
     );
+}
+
+function entryIndexForRowSlot(sections: AchievementListSection[], rowSlot: number): number {
+    let entry = 0;
+    let rows = 0;
+    for (const section of sections) {
+        entry += 1;
+        if (section.collapsed) {
+            continue;
+        }
+        const size = section.achievements.length;
+        if (rowSlot < rows + size) {
+            return entry + (rowSlot - rows);
+        }
+        entry += size;
+        rows += size;
+    }
+    return -1;
 }
 
 export function flattenTrackedVisualOrder(

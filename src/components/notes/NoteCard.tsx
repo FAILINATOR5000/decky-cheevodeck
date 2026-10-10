@@ -48,6 +48,7 @@ export type NoteCardProps = {
     isReorderTarget: boolean;
     firing: boolean;
     list: NoteCardListProps;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 export const NoteCard = React.memo(function NoteCard(props: NoteCardProps) {
@@ -198,6 +199,7 @@ export const NoteCard = React.memo(function NoteCard(props: NoteCardProps) {
             onClick={handleClick}
             onFocus={handleCardFocused}
             onGamepadFocus={handleCardGamepadFocused}
+            onGamepadDirection={props.onGamepadDirection}
             onMouseEnter={handleCardFocused}
             onButtonDown={handleButtonDown}
             outerStyle={outerStyle}

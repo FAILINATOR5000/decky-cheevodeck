@@ -7,6 +7,8 @@ export type CollapsibleTitleProps = {
     disabled?: boolean;
     preserveCase?: boolean;
     onToggle: () => void;
+    onGamepadFocus?: () => void;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 export function CollapsibleTitle(props: CollapsibleTitleProps) {
@@ -27,6 +29,8 @@ export function CollapsibleTitle(props: CollapsibleTitleProps) {
                 focusKey={props.focusKey}
                 disabled={props.disabled}
                 onToggle={props.onToggle}
+                onGamepadFocus={props.onGamepadFocus}
+                onGamepadDirection={props.onGamepadDirection}
             />
         </div>
     );

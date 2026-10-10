@@ -202,8 +202,6 @@ type TrackedPageProps = {
     onHome: () => void | Promise<void>;
 };
 
-const TRACKED_RESTORE_SEED_CEILING = 300;
-
 function TrackedPage(props: TrackedPageProps) {
     const {
         view,
@@ -369,6 +367,7 @@ function TrackedPage(props: TrackedPageProps) {
 
     const [restoreAbandoned, setRestoreAbandoned] = useState(false);
     const [restoreFired, setRestoreFired] = useState(false);
+    const [restoreOpenKey, setRestoreOpenKey] = useState<string | undefined>(undefined);
 
     const restoreClaimSpent = restoreFired
         && (restoreClaim.claim?.token ?? 0) > 0
@@ -443,19 +442,12 @@ function TrackedPage(props: TrackedPageProps) {
         restoreFiredRef.current = true;
         setRestoreFired(true);
 
-        const reachable = activeTrackedTab !== "clear"
-            && restoreSlot !== null
-            && restoreSlot.flatIndex < TRACKED_RESTORE_SEED_CEILING;
-
-        if (!reachable) {
+        if (activeTrackedTab === "clear" || restoreSlot === null) {
             setRestoreAbandoned(true);
             logFocusDebug(
                 "tracked-restore",
                 restoreAchievementId === null ? "(none)" : String(restoreAchievementId),
-                restoreSlot === null
-                    ? `tab=${activeTrackedTab} gone from the list`
-                    : `tab=${activeTrackedTab} slot=${restoreSlot.flatIndex}`
-                        + ` ceiling=${TRACKED_RESTORE_SEED_CEILING} past the ceiling`
+                `tab=${activeTrackedTab} gone from the list`
             );
             onRequestFocus("tracked:back");
             return;
@@ -467,8 +459,7 @@ function TrackedPage(props: TrackedPageProps) {
             `tab=${activeTrackedTab} slot=${restoreSlot.flatIndex} inGroup=${restoreSlot.indexInGroup}`
                 + ` total=${restoreAchievements.length}`
         );
-        restoreClaim.claimSlot(restoreSlot.flatIndex);
-        onRequestFocus(`achievement:${restoreAchievementId}`);
+        setRestoreOpenKey(`achievement:${restoreAchievementId}`);
     }, [
         view,
         restorePending,
@@ -480,13 +471,18 @@ function TrackedPage(props: TrackedPageProps) {
         restoreTargetCollapseKey,
         restoreCollapsedSet,
         restoreToggleCollapsed,
-        restoreClaim.claimSlot,
         onRequestFocus
     ]);
 
-    const restoreSeedAchievementId = restoreOutstanding && restoreSlot !== null
-        ? restoreAchievementId
-        : null;
+    function claimRestoredRow() {
+        if (restoreSlot === null || restoreAchievementId === null) {
+            return;
+        }
+        restoreClaim.claimSlot(restoreSlot.flatIndex);
+        onRequestFocus(`achievement:${restoreAchievementId}`);
+    }
+
+    const openRestoreAt = restoreOutstanding ? restoreOpenKey : undefined;
 
     if (view !== "tracked") {
         return null;
@@ -697,7 +693,8 @@ function TrackedPage(props: TrackedPageProps) {
                     reorderTargetId={reorderTargetId}
                     reorderViaSwap={reorderViaSwap}
                     rowClaim={rowClaim}
-                    restoreSeedAchievementId={restoringDrillIn ? null : restoreSeedAchievementId}
+                    openAtKey={restoringDrillIn ? undefined : openRestoreAt}
+                    onOpenAtHeld={claimRestoredRow}
                     collapsedKeys={collapsedSet}
                     onToggleCollapsed={onToggleCollapsedTag}
                     collapseDisabled={reorderTargetId !== null}
@@ -918,7 +915,8 @@ function TrackedPage(props: TrackedPageProps) {
                             trackedAchievementAction={trackedAchievementAction}
                             onTrackedAchievementActionChange={onTrackedAchievementActionChange}
                             rowClaim={drillInRowClaim}
-                            restoreSeedAchievementId={restoringDrillIn ? restoreSeedAchievementId : null}
+                            openAtKey={restoringDrillIn ? openRestoreAt : undefined}
+                            onOpenAtHeld={claimRestoredRow}
                             onSelectGame={onSelectTrackedGame}
                         />
                     </Focusable>
@@ -1046,7 +1044,8 @@ type OtherGamesTabBodyProps = {
     trackedAchievementAction: TrackedAchievementAction;
     onTrackedAchievementActionChange: (nextValue: TrackedAchievementAction) => void | Promise<void>;
     rowClaim: FocusClaimController;
-    restoreSeedAchievementId: number | null;
+    openAtKey?: string;
+    onOpenAtHeld: () => void;
     onSelectGame: (gameId: number | null) => void;
 };
 
@@ -1080,7 +1079,8 @@ function OtherGamesTabBody(props: OtherGamesTabBodyProps) {
         trackedAchievementAction,
         onTrackedAchievementActionChange,
         rowClaim,
-        restoreSeedAchievementId,
+        openAtKey,
+        onOpenAtHeld,
         onSelectGame
     } = props;
 
@@ -1147,7 +1147,8 @@ function OtherGamesTabBody(props: OtherGamesTabBodyProps) {
             onUntrack={drillIn.onUntrack}
             onEditNote={drillIn.onEditNote}
             rowClaim={rowClaim}
-            restoreSeedAchievementId={restoreSeedAchievementId}
+            openAtKey={openAtKey}
+            onOpenAtHeld={onOpenAtHeld}
             collapsedTags={drillIn.collapsedTags}
             onToggleCollapsedTag={drillIn.onToggleCollapsedTag}
             onReorderPick={drillIn.onReorderPick}

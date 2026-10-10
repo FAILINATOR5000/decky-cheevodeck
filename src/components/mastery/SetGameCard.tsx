@@ -39,6 +39,7 @@ export type SetGameCardListProps = {
     onTrashPress?: (gameId: number) => void;
     onTrashBlur?: (gameId: number) => void;
     onCardFocus: (slotIndex: number, gameId: number) => void;
+    onTrashFocus?: (slotIndex: number) => void;
     onCardSecondary?: (game: TrackedSetGame) => void;
     onCardNote?: (game: TrackedSetGame) => void;
     onCardOptions?: (game: TrackedSetGame) => void;
@@ -54,6 +55,7 @@ type SetGameCardProps = {
     claimToken: number;
     corner?: ReactNode;
     extraLine?: ReactNode;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
     list: SetGameCardListProps;
 };
 
@@ -138,6 +140,7 @@ export const SetGameCard = React.memo(function SetGameCard(props: SetGameCardPro
 
     function handleTrashFocus() {
         setTrashFocused(true);
+        list.onTrashFocus?.(slotIndex);
     }
 
     function handleTrashBlur() {
@@ -161,6 +164,7 @@ export const SetGameCard = React.memo(function SetGameCard(props: SetGameCardPro
                 focusKey={`${focusKeyPrefix}:${game.gameId}`}
                 onClick={handleCardClick}
                 onGamepadFocus={() => list.onCardFocus(slotIndex, game.gameId)}
+                onGamepadDirection={props.onGamepadDirection}
                 onButtonDown={handleButtonDown}
             >
                 <div
@@ -302,6 +306,7 @@ export const SetGameCard = React.memo(function SetGameCard(props: SetGameCardPro
                         onClick={handleTrashPress}
                         onGamepadFocus={handleTrashFocus}
                         onGamepadBlur={handleTrashBlur}
+                        onGamepadDirection={props.onGamepadDirection}
                         style={{
                             minWidth: 0,
                             width: "32px",

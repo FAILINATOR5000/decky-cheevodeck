@@ -133,6 +133,7 @@ type Geometry = {
 };
 
 type Anchor = { key: string; top: number };
+type RowRecord = { top: number; index: number };
 
 export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWindow<T> {
     const {
@@ -503,7 +504,7 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
         });
     }
 
-    const anchorsRef = useRef<{ epoch: number; start: number; focus: Anchor | null; first: Anchor | null } | null>(null);
+    const anchorsRef = useRef<{ epoch: number; start: number; rows: Map<string, RowRecord> } | null>(null);
     const rebaseSeenRef = useRef(next.rebase);
     const pendingShiftRef = useRef<{ delta: number; from: number } | null>(null);
     const rebaseAppliedRef = useRef<number | null>(null);
@@ -567,11 +568,10 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
             const expected = pending.from + shift;
             scroller.scrollTop = expected;
             const anchors = anchorsRef.current;
-            if (anchors?.focus) {
-                anchors.focus.top += shift;
-            }
-            if (anchors?.first) {
-                anchors.first.top += shift;
+            if (anchors) {
+                for (const record of anchors.rows.values()) {
+                    record.top += shift;
+                }
             }
             verifyScrollHeld(scroller, expected, shift);
             rebaseAppliedRef.current = shift;
@@ -604,9 +604,22 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
                 for (let i = 0; i < rows.length; i += 1) {
                     topByKey.set(itemKey(mountedItems[i]), rowTops[i]);
                 }
-                const anchor = anchors.focus && topByKey.has(anchors.focus.key) ? anchors.focus
-                    : anchors.first && topByKey.has(anchors.first.key) ? anchors.first
-                        : null;
+                let first: Anchor | null = null;
+                let firstDelta = 0;
+                for (const [key, record] of anchors.rows) {
+                    const now = indexByKey.get(key);
+                    if (topByKey.has(key) && now !== undefined) {
+                        first = { key, top: record.top };
+                        firstDelta = now - record.index;
+                        break;
+                    }
+                }
+                const focusKey = focusKeyRef.current;
+                const focusRecord = focusKey === null ? undefined : anchors.rows.get(focusKey);
+                const focusNow = focusKey === null ? undefined : indexByKey.get(focusKey);
+                const focusStays = focusRecord !== undefined && focusNow !== undefined && topByKey.has(focusKey!)
+                    && focusNow - focusRecord.index === firstDelta;
+                const anchor = focusStays ? { key: focusKey!, top: focusRecord!.top } : first;
                 const moved = anchor ? topByKey.get(anchor.key)! - anchor.top : 0;
                 if (Math.abs(moved) > 0.5) {
                     const wanted = next.residual - moved;
@@ -618,14 +631,11 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
         }
 
         if (recordAnchors) {
-            const focusKey = focusKeyRef.current;
-            const focusAt = focusKey === null ? -1 : mountedItems.findIndex((item) => itemKey(item) === focusKey);
-            anchorsRef.current = {
-                epoch: next.epoch,
-                start: next.start,
-                focus: focusAt >= 0 ? { key: focusKey!, top: rowTops[focusAt] + anchorOffset } : null,
-                first: { key: itemKey(mountedItems[0]), top: rowTops[0] + anchorOffset }
-            };
+            const recorded = new Map<string, RowRecord>();
+            for (let i = 0; i < rows.length; i += 1) {
+                recorded.set(itemKey(mountedItems[i]), { top: rowTops[i] + anchorOffset, index: next.start + i });
+            }
+            anchorsRef.current = { epoch: next.epoch, start: next.start, rows: recorded };
         }
         else {
             anchorsRef.current = null;

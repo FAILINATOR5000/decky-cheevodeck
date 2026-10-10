@@ -267,7 +267,6 @@ function UnlockHistoryPage(props: UnlockHistoryPageProps) {
                 buttonSpacing={state.buttonSpacing}
                 showAll={true}
                 mode="tracked"
-                windowed={true}
                 windowId="unlockhistory:achievements"
                 filterScopeKey={`unlockhistory:${state.source}:${gameId ?? "none"}:${history?.refreshedAt ?? 0}`}
                 showRetroPoints={state.showRetroPoints}

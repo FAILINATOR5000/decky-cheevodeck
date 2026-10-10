@@ -9,7 +9,7 @@ import {
     saveTrackedSetsSelectorSort
 } from "../api";
 import { useFocusClaim } from "../hooks/useFocusClaim";
-import { useWindowedList } from "../hooks/useWindowedList";
+import { useWhenHeld } from "../hooks/useWhenHeld";
 import { useSlidingWindow } from "../hooks/useSlidingWindow";
 import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
 import { AddGameToSetModal } from "../components/pickers/AddGameToSetModal";
@@ -69,8 +69,23 @@ import { SnapshotHotkey } from "../components/ui/SnapshotHotkey";
 
 
 type DeleteFocusPlan =
-    | { kind: "claim"; slotIndex: number }
+    | { kind: "claim"; heirGameId: number }
     | { kind: "back" };
+
+type GoalGroupEntry = { group: ConsoleGroup };
+type GoalEntry = TrackedSetGame | GoalGroupEntry;
+
+function isGoalGroup(entry: GoalEntry): entry is GoalGroupEntry {
+    return "group" in entry;
+}
+
+function goalEntryKey(entry: GoalEntry): string {
+    return isGoalGroup(entry) ? `group:${entry.group.consoleName}` : String(entry.gameId);
+}
+
+function goalEntryFocusKey(entry: GoalEntry): string {
+    return isGoalGroup(entry) ? `trackedsetgroup:${entry.group.consoleName}` : `trackedsetgame:${entry.gameId}`;
+}
 
 type TrackedSetsPageProps = {
     view: ViewKey;
@@ -200,8 +215,6 @@ function visualOrderOf(set: TrackedSet, ids: number[]): number[] {
         orderFieldForView(set.viewMode)
     ).map((game) => game.gameId);
 }
-
-const TRACKED_SET_RESTORE_SEED_CEILING = 300;
 
 const ORDER_WRITE_SETTLE_MS = 250;
 
@@ -1226,14 +1239,6 @@ function OpenSetView(props: OpenSetViewProps) {
         return flat;
     }, [set.viewMode, visibleGames, visibleGroups]);
 
-    const flatIndexById = useMemo(() => {
-        const map = new Map<number, number>();
-        visualOrder.forEach((game, index) => {
-            map.set(game.gameId, index);
-        });
-        return map;
-    }, [visualOrder]);
-
     const largestReorderableGroup = useMemo(() => {
         if (set.viewMode === "all") {
             return set.games.length;
@@ -1290,8 +1295,6 @@ function OpenSetView(props: OpenSetViewProps) {
 
     const [armedTrashGameId, setArmedTrashGameId] = useState<number | null>(null);
 
-    const [cardClaim, setCardClaim] = useState<{ slotIndex: number; token: number } | null>(null);
-
     const [reorderNudgeSeq, setReorderNudgeSeq] = useState(0);
 
     const listRef = useRef<HTMLDivElement | null>(null);
@@ -1300,40 +1303,56 @@ function OpenSetView(props: OpenSetViewProps) {
 
     const restoreClaimSpent = (restoreClaim.claim?.token ?? 0) > 0 && !restoreClaim.claim?.armed;
 
-    const restoreSlot = !restoreClaimSpent && restoreTarget !== null && restoreTarget.gameId !== null
-        ? flatIndexById.get(restoreTarget.gameId) ?? null
-        : null;
+    const entries = useMemo<GoalEntry[]>(() => {
+        if (set.viewMode === "all") {
+            return visualOrder;
+        }
+        const out: GoalEntry[] = [];
+        for (const group of visibleGroups) {
+            out.push({ group });
+            out.push(...group.games);
+        }
+        return out;
+    }, [set.viewMode, visualOrder, visibleGroups]);
 
-    const reorderSlot = reorderTargetId !== null
-        ? flatIndexById.get(reorderTargetId) ?? null
-        : null;
-
-    const rowStep = Math.max(1, dynamicRowStep ?? 10);
-
-    const seedRows = Math.max(
-        restoreSlot !== null && restoreSlot < TRACKED_SET_RESTORE_SEED_CEILING
-            ? restoreSlot + 1 + rowStep
-            : 0,
-        reorderSlot !== null ? reorderSlot + 2 : 0
-    );
-
-    const {
-        mountedItems: mountedGames,
-        markerRef: growMarkerRef,
-        onItemFocus: growFromCardFocus
-    } = useWindowedList({
-        items: visualOrder,
+    const goalWindow = useSlidingWindow({
+        items: entries,
+        itemKey: goalEntryKey,
+        focusKeyFor: goalEntryFocusKey,
+        windowId: "trackedset:games",
+        heightScope: ["trackedset:games", language, uiSize, showIcons, set.viewMode].join("|"),
         dynamicLoading,
         initialRows: Math.max(1, dynamicInitialRows ?? 10),
-        rowStep,
+        rowStep: Math.max(1, dynamicRowStep ?? 10),
         prefetchDistance: Math.max(1, dynamicPrefetchDistance ?? 12),
-        sentinelRootMargin: `${Math.max(0, dynamicSentinelRootMargin ?? 600)}px 0px`,
-        seedRows,
+        sentinelRootMarginPx: Math.max(0, dynamicSentinelRootMargin ?? 600),
         resetKey: `${set.id}|${set.viewMode}|${set.gameSort}|${filter}`,
-        debugLabel: `trackedset:${set.id}`
+        debugLabel: "trackedset:games"
     });
+    const whenGoalHeld = useWhenHeld(goalWindow, entries, goalEntryFocusKey);
 
-    const mountedCount = mountedGames.length;
+    const cardSlots = useMemo(() => {
+        const slots: number[] = [];
+        let card = 0;
+        for (const entry of entries) {
+            if (isGoalGroup(entry)) {
+                slots.push(-1);
+                continue;
+            }
+            slots.push(card);
+            card += 1;
+        }
+        return slots;
+    }, [entries]);
+    const mountedGames = useMemo(() => {
+        const games: TrackedSetGame[] = [];
+        for (const entry of goalWindow.mountedItems) {
+            if (!isGoalGroup(entry)) {
+                games.push(entry);
+            }
+        }
+        return games;
+    }, [goalWindow.mountedItems]);
 
     useEffect(function prefetchSetIcons() {
         if (!showIcons || mountedGames.length === 0) {
@@ -1352,8 +1371,23 @@ function OpenSetView(props: OpenSetViewProps) {
     }, [set, showIcons]);
 
     const restoreFiredRef = useRef(false);
-    const restoreSlotRef = useRef<number | null>(null);
+    const claimedCardSlotRef = useRef<number | null>(null);
     const restoreStripKeyRef = useRef<string | null>(null);
+
+    function claimCard(slot: number) {
+        restoreStripKeyRef.current = null;
+        claimedCardSlotRef.current = slot;
+        restoreClaim.claimSlot(slot);
+    }
+
+    const cardClaimSlot = claimedCardSlotRef.current;
+    const cardClaimOvertaken = cardClaimSlot !== null && Boolean(restoreClaim.claim?.armed)
+        && (cardClaimSlot < goalWindow.start || cardClaimSlot >= goalWindow.start + goalWindow.mountedItems.length);
+    useEffect(function dropOvertakenClaim() {
+        if (cardClaimOvertaken) {
+            restoreClaim.spend();
+        }
+    }, [cardClaimOvertaken, restoreClaim.spend]);
 
     useEffect(function landRestoredCursor() {
         if (restoreTarget === null || restoreFiredRef.current) {
@@ -1369,32 +1403,22 @@ function OpenSetView(props: OpenSetViewProps) {
             return;
         }
 
-        if (restoreSlot === null || restoreSlot >= TRACKED_SET_RESTORE_SEED_CEILING) {
+        if (!visualOrder.some((game) => game.gameId === restoreTarget.gameId)) {
             onRestoreSettled();
-            logFocusDebug(
-                "trackedset-restore",
-                restoreTarget.focusKey,
-                restoreSlot === null
-                    ? "that game is not in this view"
-                    : `slot=${restoreSlot} ceiling=${TRACKED_SET_RESTORE_SEED_CEILING} past the ceiling`
-            );
+            logFocusDebug("trackedset-restore", restoreTarget.focusKey, "that game is not in this view");
             onRequestFocus("trackedsetopen:back");
             return;
         }
 
-        restoreSlotRef.current = restoreSlot;
-        logFocusDebug(
-            "trackedset-restore",
-            restoreTarget.focusKey,
-            `slot=${restoreSlot} of ${visualOrder.length} mounted=${mountedCount}`
-        );
-        restoreClaim.claimSlot(restoreSlot);
-        onRequestFocus(restoreTarget.focusKey);
+        const key = restoreTarget.focusKey;
+        whenGoalHeld(key, (slot) => {
+            logFocusDebug("trackedset-restore", key, `slot=${slot} of ${entries.length}`);
+            claimCard(slot);
+            onRequestFocus(key);
+        });
     }, [
         restoreTarget,
-        restoreSlot,
-        visualOrder.length,
-        mountedCount,
+        visualOrder,
         restoreClaim.claimSlot,
         onRestoreSettled,
         onRequestFocus
@@ -1419,16 +1443,11 @@ function OpenSetView(props: OpenSetViewProps) {
         if (reorderTargetId == null || reorderViaSwap) {
             return;
         }
-        const root = listRef.current;
-        if (!root) {
-            return;
-        }
-        const row = root.querySelector(
-            `[data-focus-key="trackedsetgame:${reorderTargetId}"]`
-        ) as HTMLElement | null;
-        if (row) {
-            row.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        }
+        const key = `trackedsetgame:${reorderTargetId}`;
+        whenGoalHeld(key, () => {
+            const row = listRef.current?.querySelector(`[data-focus-key="${key}"]`) as HTMLElement | null;
+            row?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        });
     }, [reorderNudgeSeq, reorderTargetId, reorderViaSwap]);
 
     function handleDeletePress() {
@@ -1450,7 +1469,7 @@ function OpenSetView(props: OpenSetViewProps) {
         if (remaining.length === 0) {
             return { kind: "back" };
         }
-        return { kind: "claim", slotIndex: Math.min(Math.max(removedIndex, 0), remaining.length - 1) };
+        return { kind: "claim", heirGameId: remaining[Math.min(Math.max(removedIndex, 0), remaining.length - 1)].gameId };
     }
 
     async function handleTrashPress(gameId: number) {
@@ -1468,9 +1487,7 @@ function OpenSetView(props: OpenSetViewProps) {
             onClaimBack();
             return;
         }
-        window.setTimeout(() => {
-            setCardClaim((current) => ({ slotIndex: plan.slotIndex, token: (current?.token ?? 0) + 1 }));
-        }, 0);
+        whenGoalHeld(`trackedsetgame:${plan.heirGameId}`, (slot) => claimCard(slot), `trackedsetgame:${gameId}`);
     }
 
     function renderStripButton(key: StripButtonKey, label: string, onClick: () => void, disabled: boolean) {
@@ -1540,8 +1557,8 @@ function OpenSetView(props: OpenSetViewProps) {
     trashBlurRef.current = handleTrashBlur;
     const reorderFollowRef = useRef(onReorderToward);
     reorderFollowRef.current = onReorderToward;
-    const growFocusRef = useRef(growFromCardFocus);
-    growFocusRef.current = growFromCardFocus;
+    const windowFocusRef = useRef(goalWindow.onItemFocus);
+    windowFocusRef.current = goalWindow.onItemFocus;
 
     const cardList = useMemo<SetGameCardListProps>(() => ({
         aButtonMode: effectiveAButtonMode,
@@ -1567,7 +1584,10 @@ function OpenSetView(props: OpenSetViewProps) {
         },
         onCardFocus: (slotIndex, gameId) => {
             reorderFollowRef.current(openSetSetRef.current, gameId);
-            growFocusRef.current(slotIndex);
+            windowFocusRef.current(slotIndex);
+        },
+        onTrashFocus: (slotIndex) => {
+            windowFocusRef.current(slotIndex);
         },
         onCardNote: gamepadCardActions
             ? (game: TrackedSetGame) => {
@@ -1590,33 +1610,39 @@ function OpenSetView(props: OpenSetViewProps) {
         gamepadReorderAvailable
     ]);
 
-    function renderCard(game: TrackedSetGame, slotIndex: number) {
+    function renderCard(game: TrackedSetGame, slot: number, cardSlot: number, guardSlot: number) {
         const card = (
             <SetGameCard
                 game={game}
                 done={isGameDone(game)}
-                slotIndex={slotIndex}
+                slotIndex={slot}
                 isReorderTarget={reorderTargetId === game.gameId}
                 trashArmed={armedTrashGameId === game.gameId}
-                claimToken={cardClaim?.slotIndex === slotIndex ? cardClaim.token : 0}
+                claimToken={0}
+                onGamepadDirection={slot === guardSlot ? goalWindow.guardTopRow(goalWindow.start) : undefined}
                 list={cardList}
             />
         );
 
-        const claim = restoreSlotRef.current === slotIndex ? restoreClaim.claim : null;
+        const claim = claimedCardSlotRef.current === slot ? restoreClaim.claim : null;
         if (claim === null) {
-            return <Fragment key={`trackedsetslot:${slotIndex}`}>{card}</Fragment>;
+            return <Fragment key={`trackedsetslot:${cardSlot}`}>{card}</Fragment>;
         }
         return (
             <FocusClaim
-                key={`trackedsetslot:${slotIndex}`}
+                key={`trackedsetslot:${cardSlot}`}
                 token={claim.token}
-                armed={claim.armed}
+                armed={claim.armed && !cardClaimOvertaken}
                 onSpent={restoreClaim.spend}
             >
                 {card}
             </FocusClaim>
         );
+    }
+
+    let guardSlot = goalWindow.start;
+    if (goalWindow.mountedItems.length > 0 && isGoalGroup(goalWindow.mountedItems[0])) {
+        guardSlot += 1;
     }
 
     return (
@@ -1751,35 +1777,27 @@ function OpenSetView(props: OpenSetViewProps) {
             )}
 
             <div ref={listRef}>
-                {set.viewMode === "all"
-                    ? mountedGames.map((game, index) => renderCard(game, index))
-                    : visibleGroups.map((group) => {
-                        const mounted = group.games.filter(
-                            (game) => (flatIndexById.get(game.gameId) ?? 0) < mountedCount
-                        );
-                        if (mounted.length === 0) {
-                            return null;
+                <SlidingWindowRows list={goalWindow}>
+                    {goalWindow.mountedItems.map((entry, index) => {
+                        const slot = goalWindow.start + index;
+                        if (!isGoalGroup(entry)) {
+                            return renderCard(entry, slot, cardSlots[slot], guardSlot);
                         }
                         return (
-                            <Fragment key={`trackedsetgroup:${group.consoleName}`}>
+                            <div key={`group:${entry.group.consoleName}`}>
                                 <SystemHeader
                                     viewMode={set.viewMode}
-                                    consoleName={group.consoleName}
-                                    count={group.games.length}
-                                    iconUrl={consoleIconFor(group.consoleName)}
+                                    consoleName={entry.group.consoleName}
+                                    count={entry.group.games.length}
+                                    iconUrl={consoleIconFor(entry.group.consoleName)}
                                     language={language}
                                     showIcons={showIcons}
                                     metrics={cardList.metrics}
                                 />
-                                {mounted.map((game) =>
-                                    renderCard(game, flatIndexById.get(game.gameId) ?? 0)
-                                )}
-                            </Fragment>
+                            </div>
                         );
                     })}
-                {mountedCount < visualOrder.length && (
-                    <div ref={growMarkerRef} style={{ width: "100%", height: "1px" }} />
-                )}
+                </SlidingWindowRows>
             </div>
         </>
     );

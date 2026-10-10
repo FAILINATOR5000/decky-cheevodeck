@@ -74,7 +74,8 @@ type OtherGamesDrillInBodyProps = {
     onUntrack: (achievement: AchievementRow) => void | Promise<void>;
     onEditNote: (achievement: AchievementRow) => void;
     rowClaim?: FocusClaimController;
-    restoreSeedAchievementId?: number | null;
+    openAtKey?: string;
+    onOpenAtHeld?: () => void;
     collapsedTags: string[];
     onToggleCollapsedTag: (key: string) => void;
     onReorderPick: (achievementId: number, allowSwap: boolean) => void | Promise<void>;
@@ -124,7 +125,8 @@ export function OtherGamesDrillInBody(props: OtherGamesDrillInBodyProps) {
         onUntrack,
         onEditNote,
         rowClaim,
-        restoreSeedAchievementId,
+        openAtKey,
+        onOpenAtHeld,
         collapsedTags,
         onToggleCollapsedTag,
         onReorderPick,
@@ -259,7 +261,8 @@ export function OtherGamesDrillInBody(props: OtherGamesDrillInBodyProps) {
                     tagMarkedIds={tagMarkedIds}
                     reorderViaSwap={reorderViaSwap}
                     rowClaim={rowClaim}
-                    restoreSeedAchievementId={restoreSeedAchievementId}
+                    openAtKey={openAtKey}
+                    onOpenAtHeld={onOpenAtHeld}
                     collapsedKeys={collapsedSet}
                     onToggleCollapsed={onToggleCollapsedTag}
                     collapseDisabled={reorderTargetId !== null}

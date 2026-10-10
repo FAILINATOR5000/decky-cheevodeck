@@ -5,6 +5,8 @@ type CollapseToggleButtonProps = {
     focusKey: string;
     disabled?: boolean;
     onToggle: () => void;
+    onGamepadFocus?: () => void;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 export function CollapseToggleButton(props: CollapseToggleButtonProps) {
@@ -13,6 +15,8 @@ export function CollapseToggleButton(props: CollapseToggleButtonProps) {
             <DialogButton
                 onClick={props.onToggle}
                 disabled={props.disabled}
+                onGamepadFocus={props.onGamepadFocus}
+                onGamepadDirection={props.onGamepadDirection}
                 style={{
                     minWidth: 0,
                     minHeight: 0,

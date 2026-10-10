@@ -5,15 +5,19 @@ import { BackButton } from "../components/ui/BackButton";
 import { PageNavStrip } from "../components/ui/PageNavStrip";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
 import { InfoText } from "../components/ui/InfoText";
-import { type NoteCardListProps } from "../components/notes/NoteCard";
-import { NoteSectionBody } from "../components/notes/NoteSectionBody";
+import { NoteCard, type NoteCardListProps } from "../components/notes/NoteCard";
+import { FocusClaim } from "../components/ui/FocusClaim";
+import { CollapsibleTitle } from "../components/ui/CollapsibleTitle";
+import { SectionHeaderRow } from "../components/ui/SectionHeaderRow";
+import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
 import { ReorderStrip } from "../components/ui/ReorderStrip";
 import { ButtonHints } from "../components/ui/ButtonHints";
 import { RestoreCurtain } from "../components/ui/RestoreCurtain";
 import { PencilIcon } from "../components/ui/PencilIcon";
 import { ArrowDownWideShortIcon, ArrowUpShortWideIcon } from "../components/ui/SortOrderIcons";
 import { useFocusClaim } from "../hooks/useFocusClaim";
-import { useWindowedList } from "../hooks/useWindowedList";
+import { useSlidingWindow } from "../hooks/useSlidingWindow";
+import { useWhenHeld } from "../hooks/useWhenHeld";
 import { logFocusDebug } from "../api";
 import { t, type LanguageCode } from "../locales";
 import type {
@@ -30,7 +34,6 @@ import type {
 } from "../types";
 import {
     buildNoteSections,
-    flattenNoteVisualOrder,
     noteSectionCollapseKey,
     type NoteSection
 } from "../utils/noteSections";
@@ -161,7 +164,20 @@ const GAMEPAD_STRIP_ENTRIES: StripEntryDef[] = NOTE_STRIP_ENTRIES
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
-const NOTE_RESTORE_SEED_CEILING = 300;
+type NoteHeading = { heading: NoteSection; collapseKey: string; collapsed: boolean };
+type NoteEntry = NoteHeading | GameNote;
+
+function isNoteHeading(entry: NoteEntry): entry is NoteHeading {
+    return "heading" in entry;
+}
+
+function noteEntryKey(entry: NoteEntry): string {
+    return isNoteHeading(entry) ? `section:${entry.collapseKey}` : entry.id;
+}
+
+function noteEntryFocusKey(entry: NoteEntry): string {
+    return isNoteHeading(entry) ? `gn:section:${entry.collapseKey}` : `gn:card:${entry.id}`;
+}
 
 function sectionIdsForReorderTarget(sections: NoteSection[], targetId: string | null): string[] | null {
     if (targetId === null) {
@@ -230,61 +246,74 @@ export function GameNotesPage(props: GameNotesPageProps) {
 
     const collapsedSet = useMemo(() => new Set(collapsedTags), [collapsedTags]);
 
-    const sentinelRootMargin = `${Math.max(0, dynamicSentinelRootMargin)}px 0px`;
-
     const restoreClaim = useFocusClaim();
 
     const restoreSlot = useMemo(() => {
         if (restoreNoteId === null) {
             return null;
         }
-        let above = 0;
         for (const section of sections) {
-            const collapseKey = noteSectionCollapseKey(section);
             const indexInSection = section.orderedNotes.findIndex((note) => note.id === restoreNoteId);
             if (indexInSection >= 0) {
-                return { collapseKey, indexInSection, flatIndex: above + indexInSection };
-            }
-            if (!collapsedSet.has(collapseKey)) {
-                above += section.orderedNotes.length;
+                return { collapseKey: noteSectionCollapseKey(section), indexInSection };
             }
         }
         return null;
-    }, [restoreNoteId, sections, collapsedSet]);
+    }, [restoreNoteId, sections]);
 
-    const restoreInReach = restoreSlot !== null
-        && restoreSlot.flatIndex < NOTE_RESTORE_SEED_CEILING;
+    const entries = useMemo(() => {
+        const out: NoteEntry[] = [];
+        for (const section of sections) {
+            const collapseKey = noteSectionCollapseKey(section);
+            const collapsed = collapsedSet.has(collapseKey);
+            out.push({ heading: section, collapseKey, collapsed });
+            if (!collapsed) {
+                out.push(...section.orderedNotes);
+            }
+        }
+        return out;
+    }, [sections, collapsedSet]);
 
-    const restoreClaimSpent =
-        (restoreClaim.claim?.token ?? 0) > 0 && !restoreClaim.claim?.armed;
-
-    const restoreSeedNoteId = restoreClaimSpent || !restoreInReach ? null : restoreNoteId;
-
-    const flatNotes = useMemo(
-        () => flattenNoteVisualOrder(sections, collapsedSet),
-        [sections, collapsedSet]
-    );
-
-    const seedIndex = restoreSeedNoteId === null
-        ? -1
-        : flatNotes.findIndex((note) => note.id === restoreSeedNoteId);
-
-    const {
-        mountedItems: mountedNotes,
-        markerRef: loadMoreMarkerRef,
-        onItemFocus
-    } = useWindowedList({
-        items: flatNotes,
+    const noteWindow = useSlidingWindow({
+        items: entries,
+        itemKey: noteEntryKey,
+        focusKeyFor: noteEntryFocusKey,
+        windowId: "notes:entries",
+        heightScope: ["notes:entries", language, uiSize, showIcons, notesHeaderStyle].join("|"),
         dynamicLoading,
         initialRows: dynamicInitialRows,
         rowStep: dynamicRowStep,
         prefetchDistance: dynamicPrefetchDistance,
-        sentinelRootMargin,
+        sentinelRootMarginPx: dynamicSentinelRootMargin,
         resetKey: `${gameId}|${sortMode}`,
-        seedRows: seedIndex < 0 ? 0 : seedIndex + 1,
-        debugLabel: "notes:flat"
+        debugLabel: "notes:entries"
     });
-    const mountedCount = mountedNotes.length;
+    const whenNoteHeld = useWhenHeld(noteWindow, entries, noteEntryFocusKey);
+
+    const noteClaim = restoreClaim.claim;
+    const noteClaimOvertaken = noteClaim !== null && noteClaim.armed
+        && (noteClaim.slotIndex < noteWindow.start
+            || noteClaim.slotIndex >= noteWindow.start + noteWindow.mountedItems.length);
+    useEffect(function dropOvertakenClaim() {
+        if (noteClaimOvertaken) {
+            restoreClaim.spend();
+        }
+    }, [noteClaimOvertaken, restoreClaim.spend]);
+
+    const cardSlots = useMemo(() => {
+        const slots: number[] = [];
+        let card = 0;
+        for (const entry of entries) {
+            if (isNoteHeading(entry)) {
+                slots.push(-1);
+                continue;
+            }
+            slots.push(card);
+            card += 1;
+        }
+        return slots;
+    }, [entries]);
+    const onItemFocus = noteWindow.onItemFocus;
 
     const cardClickRef = useRef(handleCardClick);
     cardClickRef.current = handleCardClick;
@@ -294,12 +323,14 @@ export function GameNotesPage(props: GameNotesPageProps) {
     cardFollowRef.current = handleReorderFollow;
     const cardReorderPickRef = useRef(handleCardReorderPick);
     cardReorderPickRef.current = handleCardReorderPick;
+    const itemFocusRef = useRef(onItemFocus);
+    itemFocusRef.current = onItemFocus;
 
     const notesReady = gameId !== null && loadedForGameId === gameId;
     const reorderAvailable = sortMode === "manual" && largestReorderableSection(sections) >= 2;
     const gamepadCardActions = !mouseKeyboardMode && notesReady;
 
-    const cardList = useMemo<Omit<NoteCardListProps, "onFocusIndex">>(() => ({
+    const cardList = useMemo<NoteCardListProps>(() => ({
         language,
         metrics: achievementUiMetrics(uiSize),
         gameIconDataUri,
@@ -313,6 +344,9 @@ export function GameNotesPage(props: GameNotesPageProps) {
         },
         onCardGamepadFocused: (noteId) => {
             cardFollowRef.current(noteId);
+        },
+        onFocusIndex: (index) => {
+            itemFocusRef.current(index);
         },
         onReorderPick: gamepadCardActions && reorderAvailable
             ? (note) => {
@@ -351,8 +385,6 @@ export function GameNotesPage(props: GameNotesPageProps) {
 
     const restoreFiredRef = useRef(false);
 
-    const claimSlotRef = useRef<{ collapseKey: string; indexInSection: number } | null>(null);
-
     const restoreUnfoldedRef = useRef(false);
 
     const entryAtRef = useRef(performance.now());
@@ -379,16 +411,10 @@ export function GameNotesPage(props: GameNotesPageProps) {
         if (!notesReady) {
             return;
         }
-        if (restoreSlot === null || !restoreInReach) {
+        if (restoreSlot === null) {
             restoreFiredRef.current = true;
             setRestoreAbandoned(true);
-            logFocusDebug(
-                "note-restore",
-                restoreNoteId,
-                `slot=${restoreSlot === null ? -1 : restoreSlot.flatIndex}`
-                + ` total=${notes.length} ceiling=${NOTE_RESTORE_SEED_CEILING}`
-                + ` -- ${restoreSlot === null ? "gone from the list" : "past the ceiling"}`
-            );
+            logFocusDebug("note-restore", restoreNoteId, `total=${notes.length} -- gone from the list`);
             actions.onRequestFocus("gn:back");
             return;
         }
@@ -410,27 +436,26 @@ export function GameNotesPage(props: GameNotesPageProps) {
             return;
         }
         restoreFiredRef.current = true;
-        const mountStartedAt = performance.now();
-        window.requestAnimationFrame(() => {
+        const key = `gn:card:${restoreNoteId}`;
+        const openStartedAt = performance.now();
+        whenNoteHeld(key, (slot) => {
             logFocusDebug(
                 "note-restore",
                 restoreNoteId,
-                `section=${restoreSlot.collapseKey} inSection=${restoreSlot.indexInSection}`
+                `section=${restoreSlot.collapseKey} inSection=${restoreSlot.indexInSection} slot=${slot}`
                 + ` total=${notes.length}`
-                + ` notes=${Math.round(performance.now() - entryAtRef.current)}ms`
-                + ` mount=${Math.round(performance.now() - mountStartedAt)}ms`
+                + ` notes=${Math.round(openStartedAt - entryAtRef.current)}ms`
+                + ` held=${Math.round(performance.now() - openStartedAt)}ms`
             );
+            restoreClaim.claimSlot(slot);
+            actions.onRequestFocus(key);
         });
-        claimSlotRef.current = restoreSlot;
-        restoreClaim.claimSlot(restoreSlot.indexInSection);
-        actions.onRequestFocus(`gn:card:${restoreNoteId}`);
     }, [
         state.view,
         restorePending,
         restoreNoteId,
         gameId,
         notesReady,
-        restoreInReach,
         restoreSlot,
         collapsedSet,
         notes.length,
@@ -544,73 +569,71 @@ export function GameNotesPage(props: GameNotesPageProps) {
             );
         }
 
-        const claimSlot = claimSlotRef.current;
-        const claimedToken = restoreClaim.claim?.token ?? 0;
-
-        let flatStart = 0;
-        const sectionSlices = new Map<string, { start: number; notes: GameNote[] }>();
-        for (const section of sections) {
-            const key = noteSectionCollapseKey(section);
-            const folded = collapsedSet.has(key);
-            const start = flatStart;
-            if (!folded) {
-                flatStart += section.orderedNotes.length;
-            }
-            const reach = folded
-                ? 0
-                : Math.max(0, Math.min(section.orderedNotes.length, mountedCount - start));
-            sectionSlices.set(key, {
-                start,
-                notes: reach === section.orderedNotes.length
-                    ? section.orderedNotes
-                    : section.orderedNotes.slice(0, reach)
-            });
-        }
+        const claim = restoreClaim.claim;
 
         return (
-            <div ref={cardListRef}>
-                {sections.map((section) => {
-                    const collapseKey = noteSectionCollapseKey(section);
-                    const sectionCount = section.orderedNotes.length;
-                    const sectionTitle = section.isCompleted
-                        ? t(language, "Completed ({{count}})", { count: sectionCount })
-                        : section.tagKey === null
-                            ? t(language, "Notes ({{count}})", { count: sectionCount })
-                            : `${section.tag ?? ""} (${sectionCount})`;
+            <PanelSection>
+                <div ref={cardListRef}>
+                    <SlidingWindowRows list={noteWindow}>
+                        {noteWindow.mountedItems.map((entry, index) => {
+                            const slot = noteWindow.start + index;
+                            if (isNoteHeading(entry)) {
+                                return renderHeading(entry, slot);
+                            }
+                            const cardKey = `slot:${cardSlots[slot]}`;
+                            const card = (
+                                <NoteCard
+                                    key={cardKey}
+                                    note={entry}
+                                    rowIndex={slot}
+                                    focusKey={`gn:card:${entry.id}`}
+                                    isReorderTarget={reorderTargetId === entry.id}
+                                    firing={entry.showFiredDot}
+                                    list={cardList}
+                                    onGamepadDirection={noteWindow.guardTopRow(slot)}
+                                />
+                            );
+                            if (claim && claim.slotIndex === slot) {
+                                return (
+                                    <FocusClaim
+                                        key={cardKey}
+                                        token={claim.token}
+                                        armed={claim.armed && !noteClaimOvertaken}
+                                        onSpent={restoreClaim.spend}
+                                    >
+                                        {card}
+                                    </FocusClaim>
+                                );
+                            }
+                            return card;
+                        })}
+                    </SlidingWindowRows>
+                </div>
+            </PanelSection>
+        );
+    }
 
-                    const slice = sectionSlices.get(collapseKey) ?? { start: 0, notes: section.orderedNotes };
-                    const claimedRow = claimSlot !== null
-                        && claimSlot.collapseKey === collapseKey
-                        && claimSlot.indexInSection < slice.notes.length
-                        ? {
-                            slotIndex: claimSlot.indexInSection,
-                            token: claimedToken,
-                            armed: Boolean(restoreClaim.claim?.armed),
-                            onSpent: restoreClaim.spend
-                        }
-                        : undefined;
-
-                    return (
-                        <NoteSectionBody
-                            key={`gn:section:${collapseKey}`}
-                            title={sectionTitle}
-                            collapseKey={collapseKey}
-                            collapsed={collapsedSet.has(collapseKey)}
-                            collapseDisabled={reorderTargetId !== null}
-                            headerStyle={notesHeaderStyle}
-                            onToggleCollapsed={actions.onToggleCollapsedTag}
-                            notes={slice.notes}
-                            cardList={cardList}
-                            reorderTargetId={reorderTargetId}
-                            onRowFocus={(index) => onItemFocus(slice.start + index)}
-                            claimedRow={claimedRow}
-                        />
-                    );
-                })}
-                {dynamicLoading && mountedCount < flatNotes.length && (
-                    <div ref={loadMoreMarkerRef} style={{ height: "1px" }} />
-                )}
-            </div>
+    function renderHeading(entry: NoteHeading, slot: number) {
+        const section = entry.heading;
+        const sectionCount = section.orderedNotes.length;
+        const sectionTitle = section.isCompleted
+            ? t(language, "Completed ({{count}})", { count: sectionCount })
+            : section.tagKey === null
+                ? t(language, "Notes ({{count}})", { count: sectionCount })
+                : `${section.tag ?? ""} (${sectionCount})`;
+        return (
+            <SectionHeaderRow key={`section:${entry.collapseKey}`} first={slot === 0}>
+                <CollapsibleTitle
+                    label={sectionTitle}
+                    collapsed={entry.collapsed}
+                    focusKey={`gn:section:${entry.collapseKey}`}
+                    disabled={reorderTargetId !== null}
+                    preserveCase={notesHeaderStyle === "typed"}
+                    onToggle={() => actions.onToggleCollapsedTag(entry.collapseKey)}
+                    onGamepadFocus={() => onItemFocus(slot)}
+                    onGamepadDirection={noteWindow.guardTopRow(slot)}
+                />
+            </SectionHeaderRow>
         );
     }
 
