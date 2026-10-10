@@ -211,6 +211,22 @@ const NEW_SETS_FILTER_TABS: { value: NewSetsFilter; labelKey: string; focusKey: 
     { value: "revision", labelKey: "Revisions", focusKey: "newsets:filter:revision" }
 ];
 
+function newSetKey(entry: NewSetEntry) {
+    if (entry.id != null) {
+        return String(entry.id);
+    }
+    return `${entry.gameId ?? "nogame"}:${entry.userUlid || entry.user}:${entry.doneTimeUnix}`;
+}
+
+function newSetFocusKey(entry: NewSetEntry) {
+    return `newsets:${newSetKey(entry)}`;
+}
+
+const NO_ACTIVITY_EVENTS: SocialActivityEvent[] = [];
+const NO_NEW_SETS: NewSetEntry[] = [];
+const NO_FRIENDS: FriendRow[] = [];
+const NO_SAVED_COMMENTS: SavedComment[] = [];
+
 // Page props
 type NewsEventsProps = {
     subView: NewsEventsSubView;
@@ -298,14 +314,12 @@ type SocialHubPageProps = {
 function SocialHubPage(props: SocialHubPageProps) {
 
     // Page state
-    const activityLoadMoreMarkerRef = useRef<HTMLDivElement | null>(null);
-    const newSetsLoadMoreMarkerRef = useRef<HTMLDivElement | null>(null);
     const dynamicFriendLoading = props.dynamicFriendLoading ?? true;
     const dynamicActivityFeed = props.dynamicActivityFeed ?? true;
     const dynamicInitialRows = Math.max(1, props.dynamicInitialRows ?? 30);
     const dynamicRowStep = Math.max(1, props.dynamicRowStep ?? 30);
     const dynamicPrefetchDistance = Math.max(1, props.dynamicPrefetchDistance ?? 12);
-    const dynamicSentinelRootMargin = `${Math.max(0, props.dynamicSentinelRootMargin ?? 600)}px 0px`;
+    const dynamicSentinelRootMarginPx = Math.max(0, props.dynamicSentinelRootMargin ?? 600);
     const dynamicNewSets = props.dynamicComments ?? true;
     const dynamicNewSetsInitialRows = Math.max(1, props.dynamicCommentsInitialRows ?? 10);
     const dynamicNewSetsRowStep = Math.max(1, props.dynamicCommentsRowStep ?? 10);
@@ -339,18 +353,6 @@ function SocialHubPage(props: SocialHubPageProps) {
     const [activityLoaded, setActivityLoaded] = useState(false);
     const [activityError, setActivityError] = useState<string | null>(null);
     const [activityRequestToken, setActivityRequestToken] = useState(0);
-    const [activityMountedCount, setActivityMountedCount] = useState(() => {
-        if (!dynamicActivityFeed) {
-            return 0;
-        }
-        return dynamicInitialRows;
-    });
-    const [newSetsMountedCount, setNewSetsMountedCount] = useState(() => {
-        if (!dynamicNewSets) {
-            return 0;
-        }
-        return dynamicNewSetsInitialRows;
-    });
     const activityEventsRef = useRef<SocialActivityEvent[]>([]);
     const activityLoadRunIdRef = useRef(0);
 
@@ -412,8 +414,11 @@ function SocialHubPage(props: SocialHubPageProps) {
         props.onSocialViewChange(nextView);
     }, [props.socialEntryToken]);
 
+    const friendListShown = (socialView === "friends" || socialView === "favorites")
+        && props.friendsLoaded
+        && socialFriendsRows.length > 0;
     const friendWindow = useSlidingWindow({
-        items: socialFriendsRows,
+        items: friendListShown ? socialFriendsRows : NO_FRIENDS,
         itemKey: (friend) => friend.username,
         focusKeyFor: friendFocusKey,
         windowId: "social:friends",
@@ -422,8 +427,8 @@ function SocialHubPage(props: SocialHubPageProps) {
         initialRows: dynamicInitialRows,
         rowStep: dynamicRowStep,
         prefetchDistance: dynamicPrefetchDistance,
-        sentinelRootMarginPx: Math.max(0, props.dynamicSentinelRootMargin ?? 600),
-        resetKey: socialView,
+        sentinelRootMarginPx: dynamicSentinelRootMarginPx,
+        resetKey: `${socialView}:${friendListShown}`,
         debugLabel: "social:friends"
     });
     const visibleFriendsRows = friendWindow.mountedItems;
@@ -529,13 +534,23 @@ function SocialHubPage(props: SocialHubPageProps) {
     }, [props.view, socialView, visibleFriendsRows, kickAvatarWarm]);
 
 
-    const visibleActivityEvents = useMemo(() => {
-        if (!dynamicActivityFeed) {
-            return activityEvents;
-        }
-
-        return activityEvents.slice(0, activityMountedCount);
-    }, [dynamicActivityFeed, activityEvents, activityMountedCount]);
+    const activityListShown = socialView === "activity" && activityEvents.length > 0;
+    const activityWindow = useSlidingWindow({
+        items: activityListShown ? activityEvents : NO_ACTIVITY_EVENTS,
+        itemKey: (event) => event.id,
+        focusKeyFor: (event) => `activity:${event.id}`,
+        windowId: "social:activity",
+        heightScope: ["social:activity", props.uiSize, props.showIcons, props.language].join("|"),
+        dynamicLoading: dynamicActivityFeed,
+        initialRows: dynamicInitialRows,
+        rowStep: dynamicRowStep,
+        prefetchDistance: dynamicPrefetchDistance,
+        sentinelRootMarginPx: dynamicSentinelRootMarginPx,
+        resetKey: String(activityListShown),
+        debugLabel: "social:activity"
+    });
+    const activityRowFocusRef = useRef(activityWindow.onItemFocus);
+    activityRowFocusRef.current = activityWindow.onItemFocus;
 
     const rowMetrics = useMemo(() => {
         return achievementUiMetrics(props.uiSize);
@@ -565,140 +580,29 @@ function SocialHubPage(props: SocialHubPageProps) {
             ? (event: SocialActivityEvent) => {
                 activityTertiaryRef.current(event);
             }
-            : undefined
+            : undefined,
+        onRowFocus: (index) => {
+            activityRowFocusRef.current(index);
+        }
     }), [props.language, props.showIcons, rowMetrics, gamepadCardActions]);
 
     // Loading and effects
-    const loadMoreActivity = useCallback(() => {
-        if (!dynamicActivityFeed) {
-            return;
-        }
-
-        setActivityMountedCount((current) => {
-            if (current >= activityEvents.length) {
-                return current;
-            }
-
-            return Math.min(current + dynamicRowStep, activityEvents.length);
-        });
-    }, [dynamicActivityFeed, dynamicRowStep, activityEvents.length]);
-
-    useEffect(() => {
-        if (!dynamicActivityFeed) {
-            setActivityMountedCount(activityEvents.length);
-            return;
-        }
-
-        setActivityMountedCount(Math.min(dynamicInitialRows, activityEvents.length));
-    }, [dynamicActivityFeed, dynamicInitialRows, activityEvents.length]);
-
-    useEffect(() => {
-        if (!dynamicActivityFeed) {
-            return;
-        }
-        if (socialView !== "activity") {
-            return;
-        }
-        if (activityMountedCount >= activityEvents.length) {
-            return;
-        }
-
-        const marker = activityLoadMoreMarkerRef.current;
-        if (!marker) {
-            return;
-        }
-
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries.some((entry) => entry.isIntersecting)) {
-                    loadMoreActivity();
-                }
-            },
-            { root: null, rootMargin: dynamicSentinelRootMargin, threshold: 0 }
-        );
-
-        observer.observe(marker);
-
-        return () => {
-            observer.disconnect();
-        };
-    }, [dynamicActivityFeed, dynamicSentinelRootMargin, activityEvents.length, activityMountedCount, loadMoreActivity, socialView]);
-
-    const newSetsRowCount = props.newsEvents.newSetsResponse?.payload?.length ?? 0;
-
-    const loadMoreNewSets = useCallback(() => {
-        if (!dynamicNewSets) {
-            return;
-        }
-
-        setNewSetsMountedCount((current) => {
-            if (current >= newSetsRowCount) {
-                return current;
-            }
-            return Math.min(current + dynamicNewSetsRowStep, newSetsRowCount);
-        });
-    }, [dynamicNewSets, dynamicNewSetsRowStep, newSetsRowCount]);
-
-    useEffect(() => {
-        if (!dynamicNewSets) {
-            setNewSetsMountedCount(newSetsRowCount);
-            return;
-        }
-        setNewSetsMountedCount(Math.min(dynamicNewSetsInitialRows, newSetsRowCount));
-    }, [
-        dynamicNewSets,
-        dynamicNewSetsInitialRows,
-        newSetsRowCount,
-        props.newsEvents.newSetsFilter,
-        props.newsEvents.newSetsResponse
-    ]);
-
-    useEffect(() => {
-        if (!dynamicNewSets) {
-            return;
-        }
-        if (socialView !== "newsEvents") {
-            return;
-        }
-        if (props.newsEvents.subView !== "newSets") {
-            return;
-        }
-        if (newSetsMountedCount >= newSetsRowCount) {
-            return;
-        }
-
-        const marker = newSetsLoadMoreMarkerRef.current;
-        if (!marker) {
-            return;
-        }
-
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries.some((entry) => entry.isIntersecting)) {
-                    loadMoreNewSets();
-                }
-            },
-            {
-                root: null,
-                rootMargin: `${dynamicNewSetsSentinelRootMargin}px 0px`,
-                threshold: 0
-            }
-        );
-
-        observer.observe(marker);
-
-        return () => {
-            observer.disconnect();
-        };
-    }, [
-        dynamicNewSets,
-        dynamicNewSetsSentinelRootMargin,
-        newSetsRowCount,
-        newSetsMountedCount,
-        loadMoreNewSets,
-        socialView,
-        props.newsEvents.subView
-    ]);
+    const newSetsRows = props.newsEvents.newSetsResponse?.payload ?? NO_NEW_SETS;
+    const newSetsListShown = socialView === "newsEvents" && props.newsEvents.subView === "newSets" && newSetsRows.length > 0;
+    const newSetsWindow = useSlidingWindow({
+        items: newSetsListShown ? newSetsRows : NO_NEW_SETS,
+        itemKey: newSetKey,
+        focusKeyFor: newSetFocusKey,
+        windowId: "social:newsets",
+        heightScope: ["social:newsets", props.uiSize, props.showIcons, props.language].join("|"),
+        dynamicLoading: dynamicNewSets,
+        initialRows: dynamicNewSetsInitialRows,
+        rowStep: dynamicNewSetsRowStep,
+        prefetchDistance: dynamicPrefetchDistance,
+        sentinelRootMarginPx: dynamicNewSetsSentinelRootMargin,
+        resetKey: `${props.newsEvents.newSetsFilter}:${newSetsListShown}`,
+        debugLabel: "social:newsets"
+    });
 
     useEffect(() => {
         if (socialView !== "activity") {
@@ -927,8 +831,9 @@ function SocialHubPage(props: SocialHubPageProps) {
     const savedRestoreSettledRef = useRef(false);
     const [savedRestoreAbandoned, setSavedRestoreAbandoned] = useState(false);
 
+    const savedListShown = savedSubTabActive && facetedSavedComments.length > 0;
     const savedWindow = useSlidingWindow({
-        items: facetedSavedComments,
+        items: savedListShown ? facetedSavedComments : NO_SAVED_COMMENTS,
         itemKey: (comment) => comment.id,
         focusKeyFor: savedCardFocusKey,
         windowId: "social:savedcomments",
@@ -938,7 +843,7 @@ function SocialHubPage(props: SocialHubPageProps) {
         rowStep: SAVED_COMMENTS_ROW_STEP,
         prefetchDistance: 12,
         sentinelRootMarginPx: 300,
-        resetKey: `${props.savedComments.subTab}:${props.savedComments.filter}:${props.savedComments.sort}`,
+        resetKey: `${props.savedComments.subTab}:${props.savedComments.filter}:${props.savedComments.sort}:${savedListShown}`,
         debugLabel: "social:savedcomments"
     });
     const visibleSavedComments = savedWindow.mountedItems;
@@ -1308,19 +1213,18 @@ function SocialHubPage(props: SocialHubPageProps) {
                                         />
                                     </PanelSectionRow>
                                 )}
-                                {visibleActivityEvents.map((event) => (
-                                    <ActivityFeedRow
-                                        key={event.id}
-                                        event={event}
-                                        list={activityRowList}
-                                    />
-                                ))}
-                                {dynamicActivityFeed && activityMountedCount < activityEvents.length && (
-                                    <div
-                                        ref={activityLoadMoreMarkerRef}
-                                        style={{ width: "100%", height: "1px", opacity: 0 }}
-                                    />
-                                )}
+                                <SlidingWindowRows list={activityWindow}>
+                                    {activityWindow.mountedItems.map((event, index) => (
+                                        <div key={event.id} style={{ paddingBottom: "4px" }}>
+                                            <ActivityFeedRow
+                                                event={event}
+                                                index={activityWindow.start + index}
+                                                list={activityRowList}
+                                                onGamepadDirection={activityWindow.guardTopRow(activityWindow.start + index)}
+                                            />
+                                        </div>
+                                    ))}
+                                </SlidingWindowRows>
                             </>
                         )}
                     </>
@@ -1623,8 +1527,7 @@ function SocialHubPage(props: SocialHubPageProps) {
                                         <InlineSpinner label={t(props.language, "Loading...")} />
                                     </PanelSectionRow>
                                 ) : (() => {
-                                    const allRows = props.newsEvents.newSetsResponse?.payload ?? [];
-                                    if (allRows.length === 0) {
+                                    if (newSetsRows.length === 0) {
                                         const emptyKey = props.newsEvents.newSetsFilter === "revision"
                                             ? "No revisions right now."
                                             : "No new sets right now.";
@@ -1647,29 +1550,23 @@ function SocialHubPage(props: SocialHubPageProps) {
                                             </PanelSectionRow>
                                         );
                                     }
-                                    const visibleRows: NewSetEntry[] = dynamicNewSets
-                                        ? allRows.slice(0, newSetsMountedCount)
-                                        : allRows;
                                     return (
-                                        <>
-                                            {visibleRows.map((entry, index) => (
-                                                <NewSetCard
-                                                    key={`${entry.id ?? "noid"}:${entry.gameId ?? "nogame"}:${index}`}
-                                                    entry={entry}
-                                                    language={props.language}
-                                                    metrics={rowMetrics}
-                                                    showIcons={props.showIcons}
-                                                    focusKey={`newsets:${entry.id ?? index}`}
-                                                    onOpen={(gameId) => props.newsEvents.onOpenNewSetGame(gameId)}
-                                                />
+                                        <SlidingWindowRows list={newSetsWindow}>
+                                            {newSetsWindow.mountedItems.map((entry, index) => (
+                                                <div key={newSetKey(entry)} style={{ paddingBottom: "4px" }}>
+                                                    <NewSetCard
+                                                        entry={entry}
+                                                        language={props.language}
+                                                        metrics={rowMetrics}
+                                                        showIcons={props.showIcons}
+                                                        focusKey={newSetFocusKey(entry)}
+                                                        onOpen={(gameId) => props.newsEvents.onOpenNewSetGame(gameId)}
+                                                        onGamepadFocus={() => newSetsWindow.onItemFocus(newSetsWindow.start + index)}
+                                                        onGamepadDirection={newSetsWindow.guardTopRow(newSetsWindow.start + index)}
+                                                    />
+                                                </div>
                                             ))}
-                                            {dynamicNewSets && newSetsMountedCount < allRows.length && (
-                                                <div
-                                                    ref={newSetsLoadMoreMarkerRef}
-                                                    style={{ width: "100%", height: "1px" }}
-                                                />
-                                            )}
-                                        </>
+                                        </SlidingWindowRows>
                                     );
                                 })()}
                             </>

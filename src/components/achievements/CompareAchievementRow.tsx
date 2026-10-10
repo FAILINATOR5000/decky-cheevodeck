@@ -38,6 +38,7 @@ type CompareAchievementRowProps = {
     friendAchievement: AchievementRow | null;
     index: number;
     list: CompareRowListProps;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 export function compareBorderFor(
@@ -165,6 +166,7 @@ export const CompareAchievementRow = React.memo(function CompareAchievementRow(p
             onClick={handleClick}
             onFocus={handleRowFocus}
             onGamepadFocus={handleRowFocus}
+            onGamepadDirection={props.onGamepadDirection}
         >
             <div
                 style={{

@@ -1,4 +1,4 @@
-import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../ui/PanelSection";
 import {
@@ -54,11 +54,18 @@ import {
 } from "../../utils/options";
 import { ButtonHints } from "../ui/ButtonHints";
 import { CollapsibleTitle } from "../ui/CollapsibleTitle";
+import { SlidingWindowRows } from "../ui/SlidingWindowRows";
+import { useSlidingWindow } from "../../hooks/useSlidingWindow";
 import { beginGuardedRun } from "../../utils/runGuard";
 
 const COMMENTS_STRIP_TOP_MARGIN = "10px";
 
 const ACTIVITY_MAX_ROWS = 500;
+
+type CompareEntry = { achievement: AchievementRow; friendAchievement: AchievementRow | null };
+
+const NO_COMPARE_ROWS: CompareEntry[] = [];
+const NO_ACTIVITY_EVENTS: SocialActivityEvent[] = [];
 
 export type NowPlayingTabBodyProps = {
     language: LanguageCode;
@@ -241,7 +248,7 @@ export function NowPlayingTabBody(props: NowPlayingTabBodyProps) {
     const dynamicInitialRows = Math.max(1, props.dynamicInitialRows ?? 30);
     const dynamicRowStep = Math.max(1, props.dynamicRowStep ?? 30);
     const dynamicPrefetchDistance = Math.max(0, props.dynamicPrefetchDistance ?? 12);
-    const dynamicSentinelRootMargin = `${Math.max(0, props.dynamicSentinelRootMargin ?? 600)}px 0px`;
+    const dynamicSentinelRootMarginPx = Math.max(0, props.dynamicSentinelRootMargin ?? 600);
 
     const currentGameId = currentPayload?.gameId ?? null;
 
@@ -334,91 +341,40 @@ export function NowPlayingTabBody(props: NowPlayingTabBodyProps) {
         comparePayload!.friendUsername.trim().toLowerCase() ===
             compareFriendUsername!.trim().toLowerCase();
 
-    const [mountedCount, setMountedCount] = useState(() => {
-        if (!dynamicCompare) {
-            return filteredCompareRows.length;
-        }
-        return Math.min(dynamicInitialRows, filteredCompareRows.length);
+    const compareListShown = subView === "compare"
+        && Boolean(compareFriendUsername)
+        && !compareLoading
+        && !(compareError && !comparePayloadIsForSelectedFriend)
+        && filteredCompareRows.length > 0;
+    const compareFriendKey = (compareFriendUsername || "").trim().toLowerCase();
+    const compareWindow = useSlidingWindow({
+        items: compareListShown ? filteredCompareRows : NO_COMPARE_ROWS,
+        itemKey: (entry) => String(entry.achievement.id),
+        focusKeyFor: (entry) => `compare:achievement:${entry.achievement.id}`,
+        windowId: "nowplaying:compare",
+        heightScope: [
+            "nowplaying:compare",
+            compareFriendKey,
+            uiSize,
+            blockPadding,
+            achievementStyle,
+            showIcons,
+            showRetroPoints,
+            language
+        ].join("|"),
+        dynamicLoading: dynamicCompare,
+        initialRows: dynamicInitialRows,
+        rowStep: dynamicRowStep,
+        prefetchDistance: dynamicPrefetchDistance,
+        sentinelRootMarginPx: dynamicSentinelRootMarginPx,
+        resetKey: `${currentGameId}:${compareFriendKey}:${compareFilter}:${compareListShown}`,
+        debugLabel: "nowplaying:compare"
     });
-    const [loadMoreMarker, setLoadMoreMarker] = useState<HTMLDivElement | null>(null);
-
-    useEffect(() => {
-        if (!dynamicCompare) {
-            setMountedCount(filteredCompareRows.length);
-            return;
-        }
-        setMountedCount(Math.min(dynamicInitialRows, filteredCompareRows.length));
-    }, [
-        dynamicCompare,
-        currentGameId,
-        compareFriendUsername,
-        compareFilter,
-        dynamicInitialRows,
-        filteredCompareRows.length
-    ]);
-
-    const loadMoreCompareRows = useCallback(() => {
-        if (!dynamicCompare) {
-            return;
-        }
-        setMountedCount((current) => {
-            if (current >= filteredCompareRows.length) {
-                return current;
-            }
-            return Math.min(current + dynamicRowStep, filteredCompareRows.length);
-        });
-    }, [dynamicCompare, dynamicRowStep, filteredCompareRows.length]);
-
-    useEffect(() => {
-        if (!dynamicCompare) {
-            return;
-        }
-        if (subView !== "compare") {
-            return;
-        }
-        if (mountedCount >= filteredCompareRows.length) {
-            return;
-        }
-        if (!loadMoreMarker) {
-            return;
-        }
-
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries.some((entry) => entry.isIntersecting)) {
-                    loadMoreCompareRows();
-                }
-            },
-            { root: null, rootMargin: dynamicSentinelRootMargin, threshold: 0 }
-        );
-        observer.observe(loadMoreMarker);
-
-        return () => {
-            observer.disconnect();
-        };
-    }, [dynamicCompare, subView, mountedCount, filteredCompareRows.length, dynamicSentinelRootMargin, loadMoreCompareRows, loadMoreMarker]);
-
-    const visibleCompareRows = useMemo(() => {
-        if (!dynamicCompare) {
-            return filteredCompareRows;
-        }
-        return filteredCompareRows.slice(0, mountedCount);
-    }, [dynamicCompare, filteredCompareRows, mountedCount]);
-
-    function handleCompareRowFocus(index: number) {
-        if (!dynamicCompare) {
-            return;
-        }
-        if (index < mountedCount - dynamicPrefetchDistance) {
-            return;
-        }
-        loadMoreCompareRows();
-    }
 
     const compareClickRef = useRef(onAchievementClick);
     compareClickRef.current = onAchievementClick;
-    const compareFocusRef = useRef(handleCompareRowFocus);
-    compareFocusRef.current = handleCompareRowFocus;
+    const compareFocusRef = useRef(compareWindow.onItemFocus);
+    compareFocusRef.current = compareWindow.onItemFocus;
 
     const compareRowList = useMemo<CompareRowListProps>(() => ({
         language,
@@ -516,84 +472,27 @@ export function NowPlayingTabBody(props: NowPlayingTabBodyProps) {
         return filtered;
     }, [activityEvents, currentGameId, historyEvents, historyEventsForGameId]);
 
-    const [activityMountedCount, setActivityMountedCount] = useState(() => {
-        if (!dynamicActivityFeed) {
-            return activityEventsForGame.length;
-        }
-        return Math.min(dynamicInitialRows, activityEventsForGame.length);
+    const activityListShown = subView === "activity" && activitySettled && activityEventsForGame.length > 0;
+    const activityWindow = useSlidingWindow({
+        items: activityListShown ? activityEventsForGame : NO_ACTIVITY_EVENTS,
+        itemKey: (event) => event.id,
+        focusKeyFor: (event) => `nowplaying:activity:${event.id}`,
+        windowId: "nowplaying:activity",
+        heightScope: ["nowplaying:activity", uiSize, showIcons, language].join("|"),
+        dynamicLoading: dynamicActivityFeed,
+        initialRows: dynamicInitialRows,
+        rowStep: dynamicRowStep,
+        prefetchDistance: dynamicPrefetchDistance,
+        sentinelRootMarginPx: dynamicSentinelRootMarginPx,
+        resetKey: `${currentGameId}:${activityListShown}`,
+        debugLabel: "nowplaying:activity"
     });
-    const [activityLoadMoreMarker, setActivityLoadMoreMarker] = useState<HTMLDivElement | null>(null);
-
-    useEffect(() => {
-        if (!dynamicActivityFeed) {
-            setActivityMountedCount(activityEventsForGame.length);
-            return;
-        }
-        setActivityMountedCount(Math.min(dynamicInitialRows, activityEventsForGame.length));
-    }, [dynamicActivityFeed, dynamicInitialRows, currentGameId, activityEventsForGame.length]);
-
-    const loadMoreActivityRows = useCallback(() => {
-        if (!dynamicActivityFeed) {
-            return;
-        }
-        setActivityMountedCount((current) => {
-            if (current >= activityEventsForGame.length) {
-                return current;
-            }
-            return Math.min(current + dynamicRowStep, activityEventsForGame.length);
-        });
-    }, [dynamicActivityFeed, dynamicRowStep, activityEventsForGame.length]);
-
-    useEffect(() => {
-        if (!dynamicActivityFeed) {
-            return;
-        }
-        if (subView !== "activity") {
-            return;
-        }
-        if (activityMountedCount >= activityEventsForGame.length) {
-            return;
-        }
-        if (!activityLoadMoreMarker) {
-            return;
-        }
-
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries.some((entry) => entry.isIntersecting)) {
-                    loadMoreActivityRows();
-                }
-            },
-            { root: null, rootMargin: dynamicSentinelRootMargin, threshold: 0 }
-        );
-        observer.observe(activityLoadMoreMarker);
-
-        return () => {
-            observer.disconnect();
-        };
-    }, [dynamicActivityFeed, dynamicSentinelRootMargin, subView, activityMountedCount, activityEventsForGame.length, loadMoreActivityRows, activityLoadMoreMarker]);
-
-    const visibleActivityEvents = useMemo(() => {
-        if (!dynamicActivityFeed) {
-            return activityEventsForGame;
-        }
-        return activityEventsForGame.slice(0, activityMountedCount);
-    }, [dynamicActivityFeed, activityEventsForGame, activityMountedCount]);
-
-    function handleActivityRowFocus(index: number) {
-        if (!dynamicActivityFeed) {
-            return;
-        }
-        if (index < activityMountedCount - dynamicPrefetchDistance) {
-            return;
-        }
-        loadMoreActivityRows();
-    }
+    const visibleActivityEvents = activityWindow.mountedItems;
 
     const activityClickRef = useRef(onActivityClick);
     activityClickRef.current = onActivityClick;
-    const activityFocusRef = useRef(handleActivityRowFocus);
-    activityFocusRef.current = handleActivityRowFocus;
+    const activityFocusRef = useRef(activityWindow.onItemFocus);
+    activityFocusRef.current = activityWindow.onItemFocus;
 
     const activitySecondaryRef = useRef(onFriendFeedCardSecondary);
     activitySecondaryRef.current = onFriendFeedCardSecondary;
@@ -818,21 +717,18 @@ export function NowPlayingTabBody(props: NowPlayingTabBodyProps) {
                             </>
                         ) : (
                             <>
-                                {visibleActivityEvents.map((event, index) => (
-                                    <NowPlayingActivityCard
-                                        key={event.id}
-                                        event={event}
-                                        focusKey={`nowplaying:activity:${event.id}`}
-                                        index={index}
-                                        list={activityRowList}
-                                    />
-                                ))}
-                                {dynamicActivityFeed && activityMountedCount < activityEventsForGame.length && (
-                                    <div
-                                        ref={setActivityLoadMoreMarker}
-                                        style={{ width: "100%", height: "1px", opacity: 0 }}
-                                    />
-                                )}
+                                <SlidingWindowRows list={activityWindow}>
+                                    {visibleActivityEvents.map((event, index) => (
+                                        <NowPlayingActivityCard
+                                            key={event.id}
+                                            event={event}
+                                            focusKey={`nowplaying:activity:${event.id}`}
+                                            index={activityWindow.start + index}
+                                            list={activityRowList}
+                                            onGamepadDirection={activityWindow.guardTopRow(activityWindow.start + index)}
+                                        />
+                                    ))}
+                                </SlidingWindowRows>
                             </>
                         )}
                     </PanelSection>
@@ -1115,21 +1011,18 @@ export function NowPlayingTabBody(props: NowPlayingTabBodyProps) {
                             ) : (
                                 <>
                                     <style>{POINTS_LABEL_STYLES}</style>
-                                    {visibleCompareRows.map(({ achievement, friendAchievement }, index) => (
-                                        <CompareAchievementRow
-                                            key={`compare:${achievement.id}`}
-                                            yourAchievement={achievement}
-                                            friendAchievement={friendAchievement}
-                                            index={index}
-                                            list={compareRowList}
-                                        />
-                                    ))}
-                                    {dynamicCompare && mountedCount < filteredCompareRows.length && (
-                                        <div
-                                            ref={setLoadMoreMarker}
-                                            style={{ width: "100%", height: "1px", opacity: 0 }}
-                                        />
-                                    )}
+                                    <SlidingWindowRows list={compareWindow}>
+                                        {compareWindow.mountedItems.map(({ achievement, friendAchievement }, index) => (
+                                            <CompareAchievementRow
+                                                key={`compare:${achievement.id}`}
+                                                yourAchievement={achievement}
+                                                friendAchievement={friendAchievement}
+                                                index={compareWindow.start + index}
+                                                list={compareRowList}
+                                                onGamepadDirection={compareWindow.guardTopRow(compareWindow.start + index)}
+                                            />
+                                        ))}
+                                    </SlidingWindowRows>
                                 </>
                             )}
                         </>

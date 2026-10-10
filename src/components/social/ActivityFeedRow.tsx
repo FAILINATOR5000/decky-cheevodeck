@@ -102,11 +102,14 @@ export type ActivityRowListProps = {
     onActivityCardClick: (event: SocialActivityEvent) => void;
     onCardSecondary?: (event: SocialActivityEvent) => void;
     onCardTertiary?: (event: SocialActivityEvent) => void;
+    onRowFocus: (index: number) => void;
 };
 
 type ActivityFeedRowProps = {
     event: SocialActivityEvent;
+    index: number;
     list: ActivityRowListProps;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 export const ActivityFeedRow = React.memo(function ActivityFeedRow(props: ActivityFeedRowProps) {
@@ -133,11 +136,17 @@ export const ActivityFeedRow = React.memo(function ActivityFeedRow(props: Activi
         }
     }
 
+    function handleFocus() {
+        list.onRowFocus(props.index);
+    }
+
     return (
         <FocusableItem
             focusKey={`activity:${event.id}`}
             onClick={handleClick}
             onButtonDown={handleButtonDown}
+            onGamepadFocus={handleFocus}
+            onGamepadDirection={props.onGamepadDirection}
             outerStyle={{ width: "100%", minWidth: 0 }}
         >
             <div

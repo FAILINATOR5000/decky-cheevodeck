@@ -135,6 +135,28 @@ type Geometry = {
 type Anchor = { key: string; top: number };
 type RowRecord = { top: number; index: number };
 
+function keptItsPlace(rows: Map<string, RowRecord>, indexByKey: Map<string, number>, was: number, now: number) {
+    let above: number | undefined;
+    let aboveWas = -Infinity;
+    let below: number | undefined;
+    let belowWas = Infinity;
+    for (const [key, record] of rows) {
+        const current = indexByKey.get(key);
+        if (current === undefined || record.index === was) {
+            continue;
+        }
+        if (record.index < was && record.index > aboveWas) {
+            aboveWas = record.index;
+            above = current;
+        }
+        if (record.index > was && record.index < belowWas) {
+            belowWas = record.index;
+            below = current;
+        }
+    }
+    return (above === undefined || above < now) && (below === undefined || below > now);
+}
+
 export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWindow<T> {
     const {
         items,
@@ -605,12 +627,9 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
                     topByKey.set(itemKey(mountedItems[i]), rowTops[i]);
                 }
                 let first: Anchor | null = null;
-                let firstDelta = 0;
                 for (const [key, record] of anchors.rows) {
-                    const now = indexByKey.get(key);
-                    if (topByKey.has(key) && now !== undefined) {
+                    if (topByKey.has(key) && indexByKey.has(key)) {
                         first = { key, top: record.top };
-                        firstDelta = now - record.index;
                         break;
                     }
                 }
@@ -618,7 +637,7 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
                 const focusRecord = focusKey === null ? undefined : anchors.rows.get(focusKey);
                 const focusNow = focusKey === null ? undefined : indexByKey.get(focusKey);
                 const focusStays = focusRecord !== undefined && focusNow !== undefined && topByKey.has(focusKey!)
-                    && focusNow - focusRecord.index === firstDelta;
+                    && keptItsPlace(anchors.rows, indexByKey, focusRecord.index, focusNow);
                 const anchor = focusStays ? { key: focusKey!, top: focusRecord!.top } : first;
                 const moved = anchor ? topByKey.get(anchor.key)! - anchor.top : 0;
                 if (Math.abs(moved) > 0.5) {

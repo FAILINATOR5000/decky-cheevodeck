@@ -15,6 +15,8 @@ export type NewSetCardProps = {
     showIcons: boolean;
     focusKey: string;
     onOpen: (gameId: number) => void | Promise<void>;
+    onGamepadFocus?: () => void;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 export function NewSetCard(props: NewSetCardProps) {
@@ -37,7 +39,12 @@ export function NewSetCard(props: NewSetCardProps) {
     }
 
     return (
-        <FocusableItem focusKey={focusKey} onClick={handleClick}>
+        <FocusableItem
+            focusKey={focusKey}
+            onClick={handleClick}
+            onGamepadFocus={props.onGamepadFocus}
+            onGamepadDirection={props.onGamepadDirection}
+        >
             <div
                 style={{
                     width: "100%",

@@ -96,6 +96,7 @@ type NowPlayingActivityCardProps = {
     focusKey: string;
     index: number;
     list: NowPlayingActivityListProps;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 export const NowPlayingActivityCard = React.memo(function NowPlayingActivityCard(props: NowPlayingActivityCardProps) {
@@ -129,7 +130,9 @@ export const NowPlayingActivityCard = React.memo(function NowPlayingActivityCard
                 focusKey={props.focusKey}
                 onClick={handleClick}
                 onFocus={handleFocus}
+                onGamepadFocus={handleFocus}
                 onButtonDown={handleButtonDown}
+                onGamepadDirection={props.onGamepadDirection}
             >
                 <div
                     style={{

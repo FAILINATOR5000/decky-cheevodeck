@@ -9,6 +9,8 @@ import { PageNavStrip } from "../components/ui/PageNavStrip";
 import { ErrorText } from "../components/ui/ErrorText";
 import { FocusableItem } from "../components/ui/FocusableItem";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
+import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
+import { useSlidingWindow } from "../hooks/useSlidingWindow";
 import { getGamePayload } from "../api";
 import { earned } from "../utils/achievements";
 import { achievementUiMetrics, bodyTextStyle } from "../utils/style";
@@ -31,6 +33,10 @@ const FILTER_OPTIONS: { value: NowPlayingCompareFilter; labelKey: string }[] = [
     { value: "onlyThem", labelKey: "Losses" },
     { value: "shared", labelKey: "Shared" }
 ];
+
+type CompareEntry = { achievement: AchievementRow; friendAchievement: AchievementRow | null };
+
+const NO_COMPARE_ROWS: CompareEntry[] = [];
 
 type FriendCompareGamePageState = {
     view: ViewKey;
@@ -111,7 +117,6 @@ function FriendCompareGamePage(props: FriendCompareGamePageProps) {
         showRetroPoints,
     } = state;
 
-    const rootMargin = `${Math.max(0, dynamicSentinelRootMargin)}px 0px`;
     const initialRows = Math.max(1, dynamicInitialRows);
     const rowStep = Math.max(1, dynamicRowStep);
     const prefetchDistance = Math.max(1, dynamicPrefetchDistance ?? 12);
@@ -229,55 +234,35 @@ function FriendCompareGamePage(props: FriendCompareGamePageProps) {
 
     const friendHasGameData = Boolean(friendGamePayload?.payload);
 
-    const [mountedCount, setMountedCount] = useState(() => {
-        if (!dynamicCompare) {
-            return filteredCompareRows.length;
-        }
-        return Math.min(initialRows, filteredCompareRows.length);
-    });
-    const loadMoreMarkerRef = useRef<HTMLDivElement | null>(null);
-
-    useEffect(() => {
-        if (!dynamicCompare) {
-            setMountedCount(filteredCompareRows.length);
-            return;
-        }
-        setMountedCount(Math.min(initialRows, filteredCompareRows.length));
-    }, [
-        dynamicCompare,
-        friendUsername,
-        friendGameId,
-        compareFilter,
+    const compareListShown = view === "friendCompare" && filteredCompareRows.length > 0;
+    const compareWindow = useSlidingWindow({
+        items: compareListShown ? filteredCompareRows : NO_COMPARE_ROWS,
+        itemKey: (entry) => String(entry.achievement.id),
+        focusKeyFor: (entry) => `compare:achievement:${entry.achievement.id}`,
+        windowId: "friendcompare:compare",
+        heightScope: [
+            "friendcompare:compare",
+            friendUsername.toLowerCase(),
+            uiSize,
+            blockPadding,
+            achievementStyle,
+            showIcons,
+            showRetroPoints,
+            language
+        ].join("|"),
+        dynamicLoading: dynamicCompare,
         initialRows,
-        filteredCompareRows.length
-    ]);
-
-    const loadMoreCompareRows = useCallback(() => {
-        if (!dynamicCompare) {
-            return;
-        }
-        setMountedCount((current) => {
-            if (current >= filteredCompareRows.length) {
-                return current;
-            }
-            return Math.min(current + rowStep, filteredCompareRows.length);
-        });
-    }, [dynamicCompare, rowStep, filteredCompareRows.length]);
-
-    function handleCompareRowFocus(index: number) {
-        if (!dynamicCompare) {
-            return;
-        }
-        if (index < mountedCount - prefetchDistance) {
-            return;
-        }
-        loadMoreCompareRows();
-    }
+        rowStep,
+        prefetchDistance,
+        sentinelRootMarginPx: Math.max(0, dynamicSentinelRootMargin),
+        resetKey: `${friendUsername.toLowerCase()}:${friendGameId}:${compareFilter}:${compareListShown}`,
+        debugLabel: "friendcompare:compare"
+    });
 
     const compareClickRef = useRef(actions.onAchievementClick);
     compareClickRef.current = actions.onAchievementClick;
-    const compareFocusRef = useRef(handleCompareRowFocus);
-    compareFocusRef.current = handleCompareRowFocus;
+    const compareFocusRef = useRef(compareWindow.onItemFocus);
+    compareFocusRef.current = compareWindow.onItemFocus;
 
     const compareRowList = useMemo<CompareRowListProps>(() => ({
         language,
@@ -306,43 +291,6 @@ function FriendCompareGamePage(props: FriendCompareGamePageProps) {
         friendHasGameData,
         showRetroPoints
     ]);
-
-    useEffect(() => {
-        if (!dynamicCompare) {
-            return;
-        }
-        if (view !== "friendCompare") {
-            return;
-        }
-        if (mountedCount >= filteredCompareRows.length) {
-            return;
-        }
-        const marker = loadMoreMarkerRef.current;
-        if (!marker) {
-            return;
-        }
-
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries.some((entry) => entry.isIntersecting)) {
-                    loadMoreCompareRows();
-                }
-            },
-            { root: null, rootMargin, threshold: 0 }
-        );
-        observer.observe(marker);
-
-        return () => {
-            observer.disconnect();
-        };
-    }, [dynamicCompare, view, mountedCount, filteredCompareRows.length, rootMargin, loadMoreCompareRows]);
-
-    const visibleCompareRows = useMemo(() => {
-        if (!dynamicCompare) {
-            return filteredCompareRows;
-        }
-        return filteredCompareRows.slice(0, mountedCount);
-    }, [dynamicCompare, filteredCompareRows, mountedCount]);
 
     if (view !== "friendCompare") {
         return null;
@@ -430,21 +378,18 @@ function FriendCompareGamePage(props: FriendCompareGamePageProps) {
                 ) : (
                     <>
                         <style>{POINTS_LABEL_STYLES}</style>
-                        {visibleCompareRows.map(({ achievement, friendAchievement }, index) => (
-                            <CompareAchievementRow
-                                key={`friendcompare:${achievement.id}`}
-                                yourAchievement={achievement}
-                                friendAchievement={friendAchievement}
-                                index={index}
-                                list={compareRowList}
-                            />
-                        ))}
-                        {dynamicCompare && mountedCount < filteredCompareRows.length && (
-                            <div
-                                ref={loadMoreMarkerRef}
-                                style={{ width: "100%", height: "1px", opacity: 0 }}
-                            />
-                        )}
+                        <SlidingWindowRows list={compareWindow}>
+                            {compareWindow.mountedItems.map(({ achievement, friendAchievement }, index) => (
+                                <CompareAchievementRow
+                                    key={`friendcompare:${achievement.id}`}
+                                    yourAchievement={achievement}
+                                    friendAchievement={friendAchievement}
+                                    index={compareWindow.start + index}
+                                    list={compareRowList}
+                                    onGamepadDirection={compareWindow.guardTopRow(compareWindow.start + index)}
+                                />
+                            ))}
+                        </SlidingWindowRows>
                     </>
                 )}
             </PanelSection>
