@@ -6,7 +6,7 @@ import { refreshHealedUserAvatar } from "./api";
 import { t, ensureLanguageLoaded, getCurrentLanguage } from "./locales";
 import { readSettingsAtStartup, startupSettingsSettled } from "./utils/frontendSettings";
 import { logError } from "./utils/errors";
-import { toastAfterQuickAccessReturn } from "./utils/modalRegistry";
+import { showToastAfter } from "./utils/delayedToast";
 import { PRESS_TOAST_DELAY_MS } from "./utils/navSound";
 import { quickAccessMenuClasses } from "@decky/ui";
 import { disableLibraryBadge } from "./components/library/libraryBadgePatch";
@@ -54,12 +54,7 @@ export default definePlugin(() => {
             const body = payload.lineKey
                 ? t(language, payload.lineKey, payload.vars)
                 : (payload.body || "");
-            if (payload.afterPress) {
-                window.setTimeout(() => toastAfterQuickAccessReturn({ title, body }), PRESS_TOAST_DELAY_MS);
-            }
-            else {
-                toastAfterQuickAccessReturn({ title, body });
-            }
+            showToastAfter({ title, body }, payload.afterPress ? PRESS_TOAST_DELAY_MS : 0);
         }).catch((e) => {
             logError("index: couldn't raise a notification toast", e);
         });

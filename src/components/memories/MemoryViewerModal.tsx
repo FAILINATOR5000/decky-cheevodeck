@@ -1,3 +1,4 @@
+import { toaster } from "@decky/api";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { transportLabel } from "./transportLabel";
 import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
@@ -51,7 +52,7 @@ import {
     BUTTON_TRIGGER_LEFT,
     BUTTON_TRIGGER_RIGHT
 } from "../../utils/gamepadButtons";
-import { showManagedModal, toastAfterQuickAccessReturn } from "../../utils/modalRegistry";
+import { showManagedModal } from "../../utils/modalRegistry";
 import { logError } from "../../utils/errors";
 import { formatUnlockDate, noteBodyColor } from "../../utils/achievements";
 import { BOOKMARK_FLASH_MS, formatClipLength } from "../../utils/memories";
@@ -512,7 +513,7 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
         setArmedDelete(false);
         void addMemoryBookmark(gameId, memory.id, momentOnScreen()).then((result) => {
             if (!result.ok || !result.bookmark) {
-                toastAfterQuickAccessReturn({
+                toaster.toast({
                     title: t(language, "Couldn't Add Bookmark"),
                     body: result.error === "too_many"
                         ? t(language, "This clip is holding as many bookmarks as it can.")

@@ -1,3 +1,4 @@
+import { toaster } from "@decky/api";
 import { DialogButton, Focusable, ModalRoot, TextField } from "@decky/ui";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import {
@@ -20,7 +21,6 @@ import { SharePartBar } from "./SharePartBar";
 import { transportLabel } from "./transportLabel";
 import { consoleForumTag } from "../../utils/consoles";
 import { logError } from "../../utils/errors";
-import { toastAfterQuickAccessReturn } from "../../utils/modalRegistry";
 import {
     BUTTON_BUMPER_LEFT,
     BUTTON_BUMPER_RIGHT,
@@ -453,7 +453,7 @@ export function MemoryShareModal(props: MemoryShareModalProps) {
             return;
         }
         if (!BrowserViewHost.isAvailable()) {
-            toastAfterQuickAccessReturn({
+            toaster.toast({
                 title: t(language, "Shared Memories"),
                 body: t(language, "Browser unavailable")
             });
@@ -475,7 +475,7 @@ export function MemoryShareModal(props: MemoryShareModalProps) {
             if (!result?.ok || !result.path) {
                 setPreparing(false);
                 if (result?.error !== "cancelled") {
-                    toastAfterQuickAccessReturn({
+                    toaster.toast({
                         title: t(language, "Shared Memories"),
                         body: result?.error === "no_source"
                             ? t(language, "This memory's file is missing.")

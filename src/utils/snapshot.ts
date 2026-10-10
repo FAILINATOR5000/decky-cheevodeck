@@ -1,7 +1,8 @@
+import { toaster } from "@decky/api";
+
 import { takeSnapshot } from "../api";
 import { t, type LanguageCode } from "../locales";
 import { logError } from "./errors";
-import { toastAfterQuickAccessReturn } from "./modalRegistry";
 
 const TOAST_DURATION_MS = 2000;
 
@@ -12,7 +13,7 @@ export async function captureSnapshot(language: LanguageCode) {
     }
     catch (e) {
         logError("takeSnapshot", e);
-        toastAfterQuickAccessReturn({
+        toaster.toast({
             title: t(language, "Screenshot Failed"),
             body: t(language, "Couldn't save"),
             duration: TOAST_DURATION_MS
@@ -20,14 +21,14 @@ export async function captureSnapshot(language: LanguageCode) {
         return;
     }
     if (!shot.ok) {
-        toastAfterQuickAccessReturn({
+        toaster.toast({
             title: t(language, "Screenshot Failed"),
             body: t(language, shot.error === "no_socket" ? "Game Mode only" : "Couldn't save"),
             duration: TOAST_DURATION_MS
         });
         return;
     }
-    toastAfterQuickAccessReturn({
+    toaster.toast({
         title: t(language, "Screenshot Saved"),
         body: t(language, "Pictures/CheevoDeck"),
         duration: TOAST_DURATION_MS

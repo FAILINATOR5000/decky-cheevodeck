@@ -35,7 +35,7 @@ import { clearMemoriesTransferFocusReturn } from "../utils/memoriesTransferFocus
 import { exportRefusalKey } from "../utils/memoriesTransferErrors";
 import { announceMemoriesCaptureOn, announceMemoriesChanged } from "../utils/memoriesChanged";
 import { logError } from "../utils/errors";
-import { toastAfterQuickAccessReturn } from "../utils/modalRegistry";
+import { AFTER_DIALOG_TOAST_DELAY_MS, showToastAfter } from "../utils/delayedToast";
 import { openPathPicker } from "../components/pickers/FilePickerModal";
 
 type UseMemoriesTransferControllerArgs = {
@@ -56,11 +56,11 @@ function isRunning(status: MemoriesTransferStatus | null): boolean {
 }
 
 function toastExportRefusal(language: LanguageCode, error: string) {
-    toastAfterQuickAccessReturn({
+    showToastAfter({
         title: t(language, "Export"),
         body: t(language, exportRefusalKey(error)),
         duration: TOAST_DURATION_MS
-    });
+    }, AFTER_DIALOG_TOAST_DELAY_MS);
 }
 
 export function useMemoriesTransferController({ isActive, language }: UseMemoriesTransferControllerArgs) {

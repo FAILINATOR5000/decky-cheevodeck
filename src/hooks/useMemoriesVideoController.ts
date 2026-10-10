@@ -3,7 +3,7 @@ import { getMemoriesVideoMoveStatus, startMemoriesVideoMove } from "../api";
 import { t, type LanguageCode } from "../locales";
 import type { MemoriesVideoMoveStatus } from "../types";
 import { logError } from "../utils/errors";
-import { toastAfterQuickAccessReturn } from "../utils/modalRegistry";
+import { AFTER_DIALOG_TOAST_DELAY_MS, showToastAfter } from "../utils/delayedToast";
 import { videoMoveErrorKey } from "../utils/memoriesTransferErrors";
 import { openPathPicker } from "../components/pickers/FilePickerModal";
 import { openMemoriesVideoMoveModal } from "../components/memories/MemoriesVideoMoveModal";
@@ -28,11 +28,11 @@ const IDLE: MemoriesVideoMoveStatus = {
 };
 
 function toastRefusal(language: LanguageCode, error: string) {
-    toastAfterQuickAccessReturn({
+    showToastAfter({
         title: t(language, "Video Clip Location"),
         body: t(language, videoMoveErrorKey(error)),
         duration: TOAST_DURATION_MS
-    });
+    }, AFTER_DIALOG_TOAST_DELAY_MS);
 }
 
 function isRunning(state: MemoriesVideoMoveStatus["state"]): boolean {

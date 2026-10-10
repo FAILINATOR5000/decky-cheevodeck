@@ -3,7 +3,7 @@ import { downloadGamePatch, getGameHashes, type GameHashRow } from "../api";
 import { t, type LanguageCode } from "../locales";
 import { openPathPicker } from "../components/pickers/FilePickerModal";
 import { logError } from "../utils/errors";
-import { toastAfterQuickAccessReturn } from "../utils/modalRegistry";
+import { AFTER_DIALOG_TOAST_DELAY_MS, showToastAfter } from "../utils/delayedToast";
 
 export type UseGameHashesControllerOptions = {
     isActive: boolean;
@@ -120,16 +120,19 @@ export function useGameHashesController(options: UseGameHashesControllerOptions)
         setDownloadingMd5(row.md5);
         try {
             const saved = await downloadGamePatch(row.patchUrl, folder);
-            toastAfterQuickAccessReturn(saved.ok
-                ? { title: t(language, "Patch saved"), body: saved.name ?? "" }
-                : { title: t(language, "Patch not saved"), body: t(language, patchErrorKey(saved.error)) });
+            showToastAfter(
+                saved.ok
+                    ? { title: t(language, "Patch saved"), body: saved.name ?? "" }
+                    : { title: t(language, "Patch not saved"), body: t(language, patchErrorKey(saved.error)) },
+                AFTER_DIALOG_TOAST_DELAY_MS
+            );
         }
         catch (e) {
             logError("downloadGamePatch", e);
-            toastAfterQuickAccessReturn({
+            showToastAfter({
                 title: t(language, "Patch not saved"),
                 body: t(language, patchErrorKey(null))
-            });
+            }, AFTER_DIALOG_TOAST_DELAY_MS);
         }
         finally {
             setDownloadingMd5(null);

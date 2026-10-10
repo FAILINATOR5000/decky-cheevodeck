@@ -2,7 +2,7 @@ import { saveMemoryBookmarkClip, saveMemoryMedia } from "../api";
 import { openPathPicker } from "../components/pickers/FilePickerModal";
 import { t, type LanguageCode } from "../locales";
 import { logError } from "./errors";
-import { toastAfterQuickAccessReturn } from "./modalRegistry";
+import { AFTER_DIALOG_TOAST_DELAY_MS, showToastAfter } from "./delayedToast";
 
 const TOAST_DURATION_MS = 3000;
 
@@ -44,11 +44,11 @@ async function pickFolder(language: LanguageCode): Promise<string | null> {
 }
 
 function saveFailed(language: LanguageCode, error: string | undefined): void {
-    toastAfterQuickAccessReturn({
+    showToastAfter({
         title: t(language, "Save Failed"),
         body: t(language, failureLine(error)),
         duration: TOAST_DURATION_MS
-    });
+    }, AFTER_DIALOG_TOAST_DELAY_MS);
 }
 
 export async function saveMemoryToFolder(
@@ -76,11 +76,11 @@ export async function saveMemoryToFolder(
         return;
     }
 
-    toastAfterQuickAccessReturn({
+    showToastAfter({
         title: t(language, "Memory Saved"),
         body: result.name || "",
         duration: TOAST_DURATION_MS
-    });
+    }, AFTER_DIALOG_TOAST_DELAY_MS);
 }
 
 export async function saveBookmarkSnippetToFolder(
@@ -109,9 +109,9 @@ export async function saveBookmarkSnippetToFolder(
         return;
     }
 
-    toastAfterQuickAccessReturn({
+    showToastAfter({
         title: t(language, "Snippet Saved"),
         body: result.name || "",
         duration: TOAST_DURATION_MS
-    });
+    }, AFTER_DIALOG_TOAST_DELAY_MS);
 }

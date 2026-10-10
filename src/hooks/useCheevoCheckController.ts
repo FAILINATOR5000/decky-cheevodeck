@@ -12,7 +12,7 @@ import { t, type LanguageCode } from "../locales";
 import type { CheevoCheckState } from "../types";
 import { clearCheevoCheckFocusReturn } from "../utils/cheevoCheckFocusReturn";
 import { logError } from "../utils/errors";
-import { toastAfterQuickAccessReturn } from "../utils/modalRegistry";
+import { AFTER_DIALOG_TOAST_DELAY_MS, showToastAfter } from "../utils/delayedToast";
 import { quickAccessIsHidden } from "../utils/quickAccess";
 import { openPathPicker } from "../components/pickers/FilePickerModal";
 
@@ -159,16 +159,19 @@ export function useCheevoCheckController({ isActive, language }: UseCheevoCheckC
         setSavingReport(true);
         try {
             const saved = await saveCheevoCheckReport(folder, report);
-            toastAfterQuickAccessReturn(saved.ok
-                ? { title: t(language, "Report saved"), body: saved.name ?? "" }
-                : { title: t(language, "Report not saved"), body: t(language, "Couldn't save there. Pick another folder.") });
+            showToastAfter(
+                saved.ok
+                    ? { title: t(language, "Report saved"), body: saved.name ?? "" }
+                    : { title: t(language, "Report not saved"), body: t(language, "Couldn't save there. Pick another folder.") },
+                AFTER_DIALOG_TOAST_DELAY_MS
+            );
         }
         catch (e) {
             logError("saveCheevoCheckReport", e);
-            toastAfterQuickAccessReturn({
+            showToastAfter({
                 title: t(language, "Report not saved"),
                 body: t(language, "Couldn't save there. Pick another folder.")
-            });
+            }, AFTER_DIALOG_TOAST_DELAY_MS);
         }
         finally {
             setSavingReport(false);
