@@ -16,7 +16,7 @@ import {
 
 import { listDirectory } from "../../api";
 import { NETWORK_WAIT_MS, useSlowWait } from "../../hooks/useSlowWait";
-import { useWindowedList } from "../../hooks/useWindowedList";
+import { useSlidingWindow } from "../../hooks/useSlidingWindow";
 import { t, type LanguageCode } from "../../locales";
 import type { DirectoryEntry, DirectoryListing, DirectorySort } from "../../types";
 import { logError } from "../../utils/errors";
@@ -24,12 +24,13 @@ import { playOkSound } from "../../utils/navSound";
 import { BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT } from "../../utils/gamepadButtons";
 import { MODAL_ECHO_WINDOW_MS, showManagedModal } from "../../utils/modalRegistry";
 import { FADE_IN_KEYFRAMES, smallTextStyle, warnAmber } from "../../utils/style";
+import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 
 const INITIAL_ROWS = 40;
 const ROW_STEP = 60;
 const PREFETCH_DISTANCE = 8;
-const SENTINEL_ROOT_MARGIN = "300px";
+const SENTINEL_ROOT_MARGIN_PX = 600;
 
 const RING_ROOM_PX = 5;
 
@@ -242,15 +243,21 @@ function FilePickerModal(props: FilePickerModalProps) {
             });
     }, [path, includeFiles, includeFolders, showHidden, sort]);
 
-    const { mountedItems, markerRef, onItemFocus } = useWindowedList({
+    const entryWindow = useSlidingWindow({
         items: rows.entries,
+        itemKey: (entry) => entry.name,
+        focusKeyFor: (entry) => `picker:entry:${entry.name}`,
+        windowId: "picker:entries",
+        heightScope: ["picker:entries", language].join("|"),
         dynamicLoading: true,
         initialRows: INITIAL_ROWS,
         rowStep: ROW_STEP,
         prefetchDistance: PREFETCH_DISTANCE,
-        sentinelRootMargin: SENTINEL_ROOT_MARGIN,
-        resetKey: rows.path
+        sentinelRootMarginPx: SENTINEL_ROOT_MARGIN_PX,
+        resetKey: rows.path,
+        debugLabel: "picker:entries"
     });
+    const { mountedItems, onItemFocus } = entryWindow;
 
     const slowListing = useSlowWait(loading && rows.entries.length === 0, NETWORK_WAIT_MS);
 
@@ -354,45 +361,46 @@ function FilePickerModal(props: FilePickerModalProps) {
             actionDescriptionMap={modalLegend}
             style={{ display: "flex", flexDirection: "column", padding: `${RING_ROOM_PX}px` }}
         >
-            {mountedItems.map((entry, index) => {
-                const Glyph = iconFor(entry);
-                return (
-                    <Focusable
-                        key={entry.name}
-                        data-focus-key={`picker:entry:${entry.name}`}
-                        focusable={entry.isDir}
-                        onActivate={() => openEntry(entry)}
-                        onGamepadFocus={() => {
-                            onItemFocus(index);
-                            setPreferredName(entry.name);
-                        }}
-                        preferredFocus={preferredName ? entry.name === preferredName : index === 0}
-                        style={ENTRY_ROW_STYLE}
-                    >
-                        <div style={{ width: "100%", display: "flex", alignItems: "center", gap: "10px", opacity: entry.isDir ? 1 : 0.6 }}>
-                            <Glyph size={iconSize} style={{ flexShrink: 0, opacity: 0.85 }} />
-                            <span
-                                style={{
-                                    flex: 1,
-                                    minWidth: 0,
-                                    textAlign: "left",
-                                    fontSize: "14px",
-                                    fontWeight: entry.isDir ? 700 : 500,
-                                    wordBreak: "break-word"
-                                }}
-                            >
-                                {entry.name}
-                            </span>
-                            <span style={{ ...smallTextStyle(), flexShrink: 0 }}>
-                                {rowMeta(entry, language)}
-                            </span>
-                        </div>
-                    </Focusable>
-                );
-            })}
-            {mountedItems.length < rows.entries.length && (
-                <div ref={markerRef} style={{ height: "1px" }} />
-            )}
+            <SlidingWindowRows list={entryWindow}>
+                {mountedItems.map((entry, index) => {
+                    const Glyph = iconFor(entry);
+                    const position = entryWindow.start + index;
+                    return (
+                        <Focusable
+                            key={entry.name}
+                            data-focus-key={`picker:entry:${entry.name}`}
+                            focusable={entry.isDir}
+                            onActivate={() => openEntry(entry)}
+                            onGamepadFocus={() => {
+                                onItemFocus(position);
+                                setPreferredName(entry.name);
+                            }}
+                            onGamepadDirection={entryWindow.guardTopRow(position)}
+                            preferredFocus={preferredName ? entry.name === preferredName : position === 0}
+                            style={ENTRY_ROW_STYLE}
+                        >
+                            <div style={{ width: "100%", display: "flex", alignItems: "center", gap: "10px", opacity: entry.isDir ? 1 : 0.6 }}>
+                                <Glyph size={iconSize} style={{ flexShrink: 0, opacity: 0.85 }} />
+                                <span
+                                    style={{
+                                        flex: 1,
+                                        minWidth: 0,
+                                        textAlign: "left",
+                                        fontSize: "14px",
+                                        fontWeight: entry.isDir ? 700 : 500,
+                                        wordBreak: "break-word"
+                                    }}
+                                >
+                                    {entry.name}
+                                </span>
+                                <span style={{ ...smallTextStyle(), flexShrink: 0 }}>
+                                    {rowMeta(entry, language)}
+                                </span>
+                            </div>
+                        </Focusable>
+                    );
+                })}
+            </SlidingWindowRows>
         </Focusable>
     );
 

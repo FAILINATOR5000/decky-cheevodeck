@@ -36,3 +36,11 @@ export function useWhenHeld<T>(list: SlidingWindow<T>, items: T[], focusKeyFor: 
         setRequest({ key, after, onHeld });
     };
 }
+
+export function focusHeldRow<T>(list: SlidingWindow<T>, focusKey: string) {
+    const holder = list.holderRef.current;
+    const row = [...(holder?.querySelectorAll("[data-focus-key]") ?? [])]
+        .find((element) => element.getAttribute("data-focus-key") === focusKey);
+    const target = row?.querySelector("button, [tabindex]") as HTMLElement | null | undefined;
+    target?.focus();
+}

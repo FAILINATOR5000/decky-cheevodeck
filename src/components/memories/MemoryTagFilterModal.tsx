@@ -1,8 +1,7 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
 import { LabeledRow } from "../ui/LabeledRow";
 import { NoteColorPicker } from "../notes/NoteColorPicker";
-import { useWindowedList } from "../../hooks/useWindowedList";
 import { MEDIA_FILTER_CHOICES } from "../../utils/memories";
 import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
@@ -10,10 +9,6 @@ import { t, type LanguageCode } from "../../locales";
 import { modalSize } from "../../utils/scale";
 import { compactButtonStyle } from "../../utils/style";
 import type { MemoryTagRow, MemoryTagSort, NoteColor } from "../../types";
-
-const TAGS_INITIAL_ROWS = 30;
-const TAGS_ROW_STEP = 50;
-const TAGS_SENTINEL_ROOT_MARGIN = "300px";
 
 const SECTION_HEADING_STYLE: React.CSSProperties = {
     fontSize: `${modalSize(15)}px`,
@@ -44,14 +39,12 @@ function TagChip(props: {
     selected: boolean;
     preferred: boolean;
     onSelect: () => void;
-    onFocus?: () => void;
 }) {
-    const { label, count, focusKey, selected, preferred, onSelect, onFocus } = props;
+    const { label, count, focusKey, selected, preferred, onSelect } = props;
     return (
         <div data-focus-key={focusKey}>
             <DialogButton
                 onClick={onSelect}
-                onGamepadFocus={onFocus}
                 autoFocus={preferred || undefined}
                 style={{
                     ...compactButtonStyle,
@@ -87,20 +80,7 @@ export function MemoryTagFilterModal(props: MemoryTagFilterModalProps) {
         return next;
     }, [tags, sort]);
 
-    const { mountedItems: visibleTags, markerRef, onItemFocus } = useWindowedList({
-        items: rows,
-        dynamicLoading: true,
-        initialRows: TAGS_INITIAL_ROWS,
-        rowStep: TAGS_ROW_STEP,
-        prefetchDistance: 8,
-        sentinelRootMargin: TAGS_SENTINEL_ROOT_MARGIN,
-        resetKey: "memoriestag"
-    });
-
-    const focusRef = useRef(onItemFocus);
-    focusRef.current = onItemFocus;
-
-    const preferredTag = visibleTags.some((row) => row.tag === selected) ? selected : "";
+    const preferredTag = rows.some((row) => row.tag === selected) ? selected : "";
 
     function toggleSort() {
         const next: MemoryTagSort = sort === "recent" ? "alpha" : "recent";
@@ -161,7 +141,7 @@ export function MemoryTagFilterModal(props: MemoryTagFilterModalProps) {
                         preferred={preferredTag === ""}
                         onSelect={() => pick("")}
                     />
-                    {visibleTags.map((row, index) => (
+                    {rows.map((row) => (
                         <TagChip
                             key={row.tag}
                             label={row.tag}
@@ -170,12 +150,8 @@ export function MemoryTagFilterModal(props: MemoryTagFilterModalProps) {
                             selected={tag === row.tag}
                             preferred={preferredTag === row.tag}
                             onSelect={() => pick(row.tag)}
-                            onFocus={() => focusRef.current(index)}
                         />
                     ))}
-                    {visibleTags.length < rows.length && (
-                        <div ref={markerRef} style={{ width: "1px", height: "1px" }} />
-                    )}
                 </Focusable>
                 <div style={SECTION_HEADING_STYLE}>
                     {t(language, "Color Filter")}

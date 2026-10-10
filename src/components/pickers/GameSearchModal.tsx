@@ -10,6 +10,8 @@ import {
     saveLastConsoleId
 } from "../../api";
 import { useResilientGameIcon } from "../../hooks/useResilientGameIcon";
+import { useSlidingWindow } from "../../hooks/useSlidingWindow";
+import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { ErrorText } from "../ui/ErrorText";
 import { FadeImage } from "../ui/FadeImage";
 import { FocusableItem } from "../ui/FocusableItem";
@@ -22,7 +24,7 @@ import type {
 } from "../../types";
 import { logError } from "../../utils/errors";
 import { modalBodyStyle, smallTextStyle, compactButtonStyle, FADE_IN_KEYFRAMES } from "../../utils/style";
-import { modalSize } from "../../utils/scale";
+import { getCurrentModalScale, modalSize } from "../../utils/scale";
 import { searchKey } from "../../utils/searchText";
 
 export type GameSearchModalProps = {
@@ -463,6 +465,11 @@ type GameStepProps = {
     onBack: () => void;
 };
 
+const INITIAL_GAME_ROWS = 40;
+const GAME_ROW_STEP = 40;
+const GAME_ROW_LOAD_AHEAD = 12;
+const GAME_SENTINEL_ROOT_MARGIN_PX = 600;
+
 function GameStep(props: GameStepProps) {
     const {
         consoleName,
@@ -480,30 +487,21 @@ function GameStep(props: GameStepProps) {
         onBack
     } = props;
 
-    const INITIAL_GAME_ROWS = 40;
-    const GAME_ROW_STEP = 40;
-    const GAME_ROW_LOAD_AHEAD = 12;
-
-    const [mountedCount, setMountedCount] = useState(function getInitialMountedCount() {
-        return Math.min(INITIAL_GAME_ROWS, games.length);
+    const gameWindow = useSlidingWindow({
+        items: games,
+        itemKey: (game) => String(game.gameId),
+        focusKeyFor: (game) => `searchgame:${game.gameId}`,
+        windowId: "gamesearch:games",
+        heightScope: ["gamesearch:games", getCurrentModalScale(), showIcons, language].join("|"),
+        dynamicLoading: true,
+        initialRows: INITIAL_GAME_ROWS,
+        rowStep: GAME_ROW_STEP,
+        prefetchDistance: GAME_ROW_LOAD_AHEAD,
+        sentinelRootMarginPx: GAME_SENTINEL_ROOT_MARGIN_PX,
+        resetKey: `searchgame:${query}:${games.length > 0}`,
+        debugLabel: "gamesearch:games"
     });
-
-    useEffect(function resetMountedRowsOnListChange() {
-        setMountedCount(Math.min(INITIAL_GAME_ROWS, games.length));
-    }, [query, games.length]);
-
-    const loadMoreGames = function loadMoreGames() {
-        setMountedCount(function updateMountedCount(current) {
-            if (current >= games.length) {
-                return current;
-            }
-            return Math.min(current + GAME_ROW_STEP, games.length);
-        });
-    };
-
-    const mountedGames = useMemo(() => {
-        return games.slice(0, mountedCount);
-    }, [games, mountedCount]);
+    const mountedGames = gameWindow.mountedItems;
 
     const warmedGameIdsRef = useRef<Set<number>>(new Set());
 
@@ -546,17 +544,10 @@ function GameStep(props: GameStepProps) {
         void kickIconPrefetch();
     }, [mountedGames, showIcons, kickIconPrefetch]);
 
-    function handleGameFocus(index: number) {
-        if (index < mountedCount - GAME_ROW_LOAD_AHEAD) {
-            return;
-        }
-        loadMoreGames();
-    }
-
     const gamePickRef = useRef(onPickGame);
     gamePickRef.current = onPickGame;
-    const gameFocusRef = useRef(handleGameFocus);
-    gameFocusRef.current = handleGameFocus;
+    const gameFocusRef = useRef(gameWindow.onItemFocus);
+    gameFocusRef.current = gameWindow.onItemFocus;
 
     const gameRowList = useMemo<PickerGameRowListProps>(() => ({
         language,
@@ -649,14 +640,18 @@ function GameStep(props: GameStepProps) {
 
             {games.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                    {mountedGames.map((game, index) => (
-                        <PickerGameRow
-                            key={`searchgame:${game.gameId}`}
-                            game={game}
-                            index={index}
-                            list={gameRowList}
-                        />
-                    ))}
+                    <SlidingWindowRows list={gameWindow}>
+                        {mountedGames.map((game, index) => (
+                            <div key={`searchgame:${game.gameId}`} style={{ paddingBottom: "4px" }}>
+                                <PickerGameRow
+                                    game={game}
+                                    index={gameWindow.start + index}
+                                    list={gameRowList}
+                                    onGamepadDirection={gameWindow.guardTopRow(gameWindow.start + index)}
+                                />
+                            </div>
+                        ))}
+                    </SlidingWindowRows>
                     {refreshRow}
                 </div>
             )}
@@ -676,6 +671,7 @@ type PickerGameRowProps = {
     game: TrackedSetPickerGame;
     index: number;
     list: PickerGameRowListProps;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 const PickerGameRow = React.memo(function PickerGameRow(props: PickerGameRowProps) {
@@ -699,6 +695,8 @@ const PickerGameRow = React.memo(function PickerGameRow(props: PickerGameRowProp
             focusKey={`searchgame:${game.gameId}`}
             onClick={handleClick}
             onFocus={handleFocus}
+            onGamepadFocus={handleFocus}
+            onGamepadDirection={props.onGamepadDirection}
             outerStyle={{ width: "100%", minWidth: 0 }}
         >
             <div

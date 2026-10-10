@@ -5,13 +5,14 @@ import { FadeImage } from "../ui/FadeImage";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { GameSearchModal } from "../pickers/GameSearchModal";
 import { useResilientGameIcon } from "../../hooks/useResilientGameIcon";
-import { useWindowedList } from "../../hooks/useWindowedList";
+import { useSlidingWindow } from "../../hooks/useSlidingWindow";
+import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { moveMemory, prefetchGameIcons } from "../../api";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { armMemoriesFocusKey, armMemoriesFocusReturn } from "../../utils/memoriesFocusReturn";
 import { logError } from "../../utils/errors";
 import { t, type LanguageCode } from "../../locales";
-import { modalSize } from "../../utils/scale";
+import { getCurrentModalScale, modalSize } from "../../utils/scale";
 import { FADE_IN_KEYFRAMES } from "../../utils/style";
 import { MISC_GAME_ID } from "../../utils/memories";
 import { searchKey } from "../../utils/searchText";
@@ -20,7 +21,7 @@ import type { MemoryGameRow, MemoryRecord } from "../../types";
 
 const GAMES_INITIAL_ROWS = 30;
 const GAMES_ROW_STEP = 50;
-const GAMES_SENTINEL_ROOT_MARGIN = "300px";
+const GAMES_SENTINEL_ROOT_MARGIN_PX = 600;
 
 const SEARCH_THRESHOLD = 12;
 
@@ -62,6 +63,7 @@ const DestinationRow = React.memo(function DestinationRow(props: {
     game: MemoryGameRow;
     index: number;
     list: RowListProps;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 }) {
     const { game, index, list } = props;
     const iconGameId = list.showIcons && game.gameId !== MISC_GAME_ID ? game.gameId : null;
@@ -82,6 +84,7 @@ const DestinationRow = React.memo(function DestinationRow(props: {
             })}
             onFocus={() => list.onRowFocus(index)}
             onGamepadFocus={() => list.onRowFocus(index)}
+            onGamepadDirection={props.onGamepadDirection}
         >
             <div style={{ width: "100%", display: "flex", alignItems: "center", gap: "10px", padding: "4px 0" }}>
                 {list.showIcons && (
@@ -165,15 +168,22 @@ export function MemoryMoveModal(props: MemoryMoveModalProps) {
         return candidates.filter((_game, index) => titleKeys[index].includes(wanted));
     }, [candidates, titleKeys, query]);
 
-    const { mountedItems: visibleGames, markerRef, onItemFocus } = useWindowedList({
+    const gameWindow = useSlidingWindow({
         items: filtered,
+        itemKey: (game) => String(game.gameId),
+        focusKeyFor: (game) => `memories:move:${game.gameId}`,
+        windowId: "memories:move",
+        heightScope: ["memories:move", getCurrentModalScale(), showIcons, language].join("|"),
         dynamicLoading: true,
         initialRows: GAMES_INITIAL_ROWS,
         rowStep: GAMES_ROW_STEP,
         prefetchDistance: 8,
-        sentinelRootMargin: GAMES_SENTINEL_ROOT_MARGIN,
-        resetKey: `memoriesmove:${query}`
+        sentinelRootMarginPx: GAMES_SENTINEL_ROOT_MARGIN_PX,
+        resetKey: `memoriesmove:${query}`,
+        debugLabel: "memories:move"
     });
+    const visibleGames = gameWindow.mountedItems;
+    const onItemFocus = gameWindow.onItemFocus;
 
     useEffect(() => {
         if (!showIcons || visibleGames.length === 0) {
@@ -307,17 +317,21 @@ export function MemoryMoveModal(props: MemoryMoveModalProps) {
                         {t(language, "No games match that search.")}
                     </div>
                 )}
-                {visibleGames.map((game, index) => (
-                    <React.Fragment key={game.gameId}>
-                        <DestinationRow game={game} index={index} list={rowList} />
-                        {pinnedCount === 1 && index === 0 && !query && (
-                            <div style={{ height: "1px", background: "rgba(255,255,255,0.14)", margin: "6px 0" }} />
-                        )}
-                    </React.Fragment>
-                ))}
-                {visibleGames.length < filtered.length && (
-                    <div ref={markerRef} style={{ height: "1px" }} />
-                )}
+                <SlidingWindowRows list={gameWindow}>
+                    {visibleGames.map((game, index) => (
+                        <div key={game.gameId} style={{ paddingBottom: "2px" }}>
+                            <DestinationRow
+                                game={game}
+                                index={gameWindow.start + index}
+                                list={rowList}
+                                onGamepadDirection={gameWindow.guardTopRow(gameWindow.start + index)}
+                            />
+                            {pinnedCount === 1 && gameWindow.start + index === 0 && !query && (
+                                <div style={{ height: "1px", background: "rgba(255,255,255,0.14)", margin: "8px 0 6px" }} />
+                            )}
+                        </div>
+                    ))}
+                </SlidingWindowRows>
             </div>
             <Focusable style={{ display: "flex", marginTop: "14px" }}>
                 <DialogButton onClick={close} style={{ width: "100%" }}>

@@ -127,6 +127,7 @@ type NotificationCardProps = {
     list: NotificationCardListProps;
     archived: boolean;
     archiveError: string | null;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 function metaString(notification: CheevoNotification, key: string): string {
@@ -812,6 +813,10 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
         }
         list.onTabButtons?.(evt);
     }
+    function handleArchiveFocus() {
+        setArchiveFocused(true);
+        list.onRowFocus(props.index);
+    }
     function handleArchiveBlur() {
         setArchiveFocused(false);
         setTrashArmed(false);
@@ -822,6 +827,7 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
             focusKey={`notif:${notification.id}`}
             onClick={handleClick}
             onGamepadFocus={handleRowFocus}
+            onGamepadDirection={props.onGamepadDirection}
             onMenuButton={list.onMenuButton}
             onButtonDown={handleCardButtonDown}
             actionDescriptionMap={archiveMode === "star"
@@ -1003,7 +1009,8 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
         >
             <DialogButton
                 onClick={isStar ? handleStarPress : handleTrashPress}
-                onGamepadFocus={() => setArchiveFocused(true)}
+                onGamepadFocus={handleArchiveFocus}
+                onGamepadDirection={props.onGamepadDirection}
                 onGamepadBlur={handleArchiveBlur}
                 style={{
                     minWidth: 0,

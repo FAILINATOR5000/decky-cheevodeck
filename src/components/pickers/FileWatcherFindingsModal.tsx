@@ -9,6 +9,9 @@ import {
 } from "../../api";
 import { ButtonPrompt } from "../ui/ButtonPrompt";
 import { FocusableItem } from "../ui/FocusableItem";
+import { SlidingWindowRows } from "../ui/SlidingWindowRows";
+import { useSlidingWindow } from "../../hooks/useSlidingWindow";
+import { focusHeldRow, useWhenHeld } from "../../hooks/useWhenHeld";
 import { t, type LanguageCode } from "../../locales";
 import type {
     FileWatcherBucket,
@@ -27,19 +30,26 @@ import {
     verifiedAgoLabel
 } from "../../utils/fileWatcher";
 import { compactButtonStyle, modalBodyStyle, smallTextStyle } from "../../utils/style";
-import { modalSize } from "../../utils/scale";
+import { getCurrentModalScale, modalSize } from "../../utils/scale";
 import { searchKey } from "../../utils/searchText";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 
 const INITIAL_ROWS = 40;
 const ROW_STEP = 40;
 const ROW_LOAD_AHEAD = 12;
+const SENTINEL_ROOT_MARGIN_PX = 600;
 
 const FETCH_PAGE_ROWS = 1000;
 
 const MAX_LOADED_ROWS = 20000;
 
 const ALL_ROOTS_ID = -1;
+
+const NO_ROWS: FileWatcherListRow[] = [];
+
+function findingFocusKey(row: FileWatcherListRow): string {
+    return `filewatcher:finding:${row.rootId}:${row.relPath}`;
+}
 
 type Step = "roots" | "rows";
 
@@ -90,7 +100,6 @@ export function FileWatcherFindingsModal(props: FileWatcherFindingsModalProps) {
     const [truncated, setTruncated] = useState(false);
     const [query, setQuery] = useState("");
     const [armedKey, setArmedKey] = useState<string | null>(null);
-    const [mountedCount, setMountedCount] = useState(INITIAL_ROWS);
 
     const bodyRef = useRef<HTMLDivElement | null>(null);
     const focusedTopForStepRef = useRef<Step | null>(null);
@@ -229,9 +238,24 @@ export function FileWatcherFindingsModal(props: FileWatcherFindingsModalProps) {
         return rows.filter((_row, index) => rowKeys[index].includes(trimmed));
     }, [rows, rowKeys, query]);
 
-    useEffect(() => {
-        setMountedCount(INITIAL_ROWS);
-    }, [query]);
+    const rowsShown = step === "rows";
+    const windowRows = rowsShown ? filteredRows : NO_ROWS;
+    const rowWindow = useSlidingWindow({
+        items: windowRows,
+        itemKey: (row) => `${row.rootId}:${row.relPath}`,
+        focusKeyFor: findingFocusKey,
+        windowId: "filewatcher:findings",
+        heightScope: ["filewatcher:findings", getCurrentModalScale(), language].join("|"),
+        dynamicLoading: true,
+        initialRows: INITIAL_ROWS,
+        rowStep: ROW_STEP,
+        prefetchDistance: ROW_LOAD_AHEAD,
+        sentinelRootMarginPx: SENTINEL_ROOT_MARGIN_PX,
+        resetKey: `${windowRows.length > 0}|${selectedRoot?.rootId ?? ""}|${query}`,
+        debugLabel: "filewatcher:findings"
+    });
+
+    const whenRowHeld = useWhenHeld(rowWindow, windowRows, findingFocusKey);
 
     const action = bucketAction(bucket);
 
@@ -245,7 +269,12 @@ export function FileWatcherFindingsModal(props: FileWatcherFindingsModalProps) {
             return;
         }
         setArmedKey(null);
+        const at = filteredRows.findIndex((item) => `${item.rootId}:${item.relPath}` === key);
+        const heir = filteredRows[at + 1] ?? filteredRows[at - 1];
         setRows((current) => current.filter((item) => `${item.rootId}:${item.relPath}` !== key));
+        if (heir) {
+            whenRowHeld(findingFocusKey(heir), () => focusHeldRow(rowWindow, findingFocusKey(heir)), findingFocusKey(row));
+        }
         await props.onDismiss(row.rootId, row.relPath, action);
     }
 
@@ -254,13 +283,6 @@ export function FileWatcherFindingsModal(props: FileWatcherFindingsModalProps) {
         setSelectedRoot(group);
         setStep("rows");
         setQuery("");
-    }
-
-    function maybeLoadMoreFromFocus(index: number) {
-        if (index < mountedCount - ROW_LOAD_AHEAD) {
-            return;
-        }
-        setMountedCount((current) => Math.min(current + ROW_STEP, filteredRows.length));
     }
 
     function handleBackToRoots() {
@@ -273,8 +295,8 @@ export function FileWatcherFindingsModal(props: FileWatcherFindingsModalProps) {
 
     const rowPressRef = useRef(handleRowPress);
     rowPressRef.current = handleRowPress;
-    const rowFocusRef = useRef(maybeLoadMoreFromFocus);
-    rowFocusRef.current = maybeLoadMoreFromFocus;
+    const rowFocusRef = useRef(rowWindow.onItemFocus);
+    rowFocusRef.current = rowWindow.onItemFocus;
 
     const findingRowList = useMemo<FindingRowListProps>(() => ({
         bucket,
@@ -387,18 +409,20 @@ export function FileWatcherFindingsModal(props: FileWatcherFindingsModalProps) {
                             </div>
                         )}
 
-                        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                            {filteredRows.slice(0, mountedCount).map((row, index) => (
-                                <FindingRow
-                                    key={`${row.rootId}:${row.relPath}`}
-                                    row={row}
-                                    rootPath={pathsById.get(row.rootId) ?? ""}
-                                    armed={armedKey === `${row.rootId}:${row.relPath}`}
-                                    index={index}
-                                    list={findingRowList}
-                                />
+                        <SlidingWindowRows list={rowWindow}>
+                            {rowWindow.mountedItems.map((row, index) => (
+                                <div key={`${row.rootId}:${row.relPath}`} style={{ paddingBottom: "4px" }}>
+                                    <FindingRow
+                                        row={row}
+                                        rootPath={pathsById.get(row.rootId) ?? ""}
+                                        armed={armedKey === `${row.rootId}:${row.relPath}`}
+                                        index={rowWindow.start + index}
+                                        list={findingRowList}
+                                        onGamepadDirection={rowWindow.guardTopRow(rowWindow.start + index)}
+                                    />
+                                </div>
                             ))}
-                        </div>
+                        </SlidingWindowRows>
                     </div>
                 )}
             </div>
@@ -455,6 +479,7 @@ type FindingRowProps = {
     armed: boolean;
     index: number;
     list: FindingRowListProps;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 const FindingRow = React.memo(function FindingRow(props: FindingRowProps) {
@@ -484,6 +509,8 @@ const FindingRow = React.memo(function FindingRow(props: FindingRowProps) {
             focusKey={`filewatcher:finding:${row.rootId}:${row.relPath}`}
             onClick={handlePress}
             onFocus={handleFocus}
+            onGamepadFocus={handleFocus}
+            onGamepadDirection={props.onGamepadDirection}
             outerStyle={{ width: "100%", minWidth: 0 }}
             bottomSeparator="none"
         >

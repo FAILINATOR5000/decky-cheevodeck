@@ -4,10 +4,11 @@ import { FocusableItem } from "../ui/FocusableItem";
 import { FadeImage } from "../ui/FadeImage";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { useGameIcon } from "../../hooks/useGameIcon";
-import { useWindowedList } from "../../hooks/useWindowedList";
+import { useSlidingWindow } from "../../hooks/useSlidingWindow";
+import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { prefetchGameIcons } from "../../api";
 import { t, type LanguageCode } from "../../locales";
-import { modalSize } from "../../utils/scale";
+import { getCurrentModalScale, modalSize } from "../../utils/scale";
 import { FADE_IN_KEYFRAMES } from "../../utils/style";
 import { ALL_GAMES_ID, MISC_GAME_ID } from "../../utils/memories";
 import { searchKey } from "../../utils/searchText";
@@ -16,7 +17,7 @@ import type { MemoryGameRow } from "../../types";
 
 const GAMES_INITIAL_ROWS = 30;
 const GAMES_ROW_STEP = 50;
-const GAMES_SENTINEL_ROOT_MARGIN = "300px";
+const GAMES_SENTINEL_ROOT_MARGIN_PX = 600;
 
 const SEARCH_THRESHOLD = 12;
 
@@ -42,6 +43,7 @@ const GameRow = React.memo(function GameRow(props: {
     index: number;
     selected: boolean;
     list: GameRowListProps;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 }) {
     const { game, index, selected, list } = props;
     const iconGameId = list.showIcons && game.gameId !== MISC_GAME_ID ? game.gameId : null;
@@ -60,6 +62,7 @@ const GameRow = React.memo(function GameRow(props: {
             onClick={() => list.onSelect(game.gameId)}
             onFocus={() => list.onRowFocus(index)}
             onGamepadFocus={() => list.onRowFocus(index)}
+            onGamepadDirection={props.onGamepadDirection}
         >
             <div style={{ width: "100%", display: "flex", alignItems: "center", gap: "10px", padding: "4px 0" }}>
                 {list.showIcons && (
@@ -136,15 +139,22 @@ export function MemoryGamePickerModal(props: MemoryGamePickerModalProps) {
         return games.filter((_game, index) => titleKeys[index].includes(wanted));
     }, [games, titleKeys, query]);
 
-    const { mountedItems: visibleGames, markerRef, onItemFocus } = useWindowedList({
+    const gameWindow = useSlidingWindow({
         items: filteredGames,
+        itemKey: (game) => String(game.gameId),
+        focusKeyFor: (game) => `memories:game:${game.gameId}`,
+        windowId: "memories:gamepicker",
+        heightScope: ["memories:gamepicker", getCurrentModalScale(), showIcons, language].join("|"),
         dynamicLoading: true,
         initialRows: GAMES_INITIAL_ROWS,
         rowStep: GAMES_ROW_STEP,
         prefetchDistance: 8,
-        sentinelRootMargin: GAMES_SENTINEL_ROOT_MARGIN,
-        resetKey: `memoriesgame:${query}`
+        sentinelRootMarginPx: GAMES_SENTINEL_ROOT_MARGIN_PX,
+        resetKey: `memoriesgame:${query}`,
+        debugLabel: "memories:gamepicker"
     });
+    const visibleGames = gameWindow.mountedItems;
+    const onItemFocus = gameWindow.onItemFocus;
 
     useEffect(() => {
         if (!showIcons || visibleGames.length === 0) {
@@ -221,18 +231,19 @@ export function MemoryGamePickerModal(props: MemoryGamePickerModalProps) {
                         {t(language, "No games match that search.")}
                     </div>
                 )}
-                {visibleGames.map((game, index) => (
-                    <GameRow
-                        key={game.gameId}
-                        game={game}
-                        index={index}
-                        selected={selected === game.gameId}
-                        list={rowList}
-                    />
-                ))}
-                {visibleGames.length < filteredGames.length && (
-                    <div ref={markerRef} style={{ height: "1px" }} />
-                )}
+                <SlidingWindowRows list={gameWindow}>
+                    {visibleGames.map((game, index) => (
+                        <div key={game.gameId} style={{ paddingBottom: "2px" }}>
+                            <GameRow
+                                game={game}
+                                index={gameWindow.start + index}
+                                selected={selected === game.gameId}
+                                list={rowList}
+                                onGamepadDirection={gameWindow.guardTopRow(gameWindow.start + index)}
+                            />
+                        </div>
+                    ))}
+                </SlidingWindowRows>
             </div>
             <Focusable style={{ display: "flex", marginTop: "14px" }}>
                 <DialogButton onClick={close} style={{ width: "100%" }}>

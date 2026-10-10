@@ -7,9 +7,10 @@ import { FocusableItem } from "../ui/FocusableItem";
 import { SubTabButton } from "../ui/SubTabButton";
 import { FadeImage } from "../ui/FadeImage";
 import { useGameIcon } from "../../hooks/useGameIcon";
-import { useWindowedList } from "../../hooks/useWindowedList";
+import { useSlidingWindow } from "../../hooks/useSlidingWindow";
+import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { prefetchGameIcons } from "../../api";
-import { modalSize } from "../../utils/scale";
+import { getCurrentModalScale, modalSize } from "../../utils/scale";
 import { FADE_IN_KEYFRAMES } from "../../utils/style";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { searchKey } from "../../utils/searchText";
@@ -18,7 +19,7 @@ import { isEventConsole } from "../../utils/events";
 
 const GAMES_INITIAL_ROWS = 30;
 const GAMES_ROW_STEP = 50;
-const GAMES_SENTINEL_ROOT_MARGIN = "300px";
+const GAMES_SENTINEL_ROOT_MARGIN_PX = 600;
 
 const SEARCH_THRESHOLD = 12;
 
@@ -69,6 +70,7 @@ type GameRowProps = {
     index: number;
     selected: boolean;
     list: GameRowListProps;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 const GameRow = React.memo(function GameRow(props: GameRowProps) {
@@ -94,6 +96,7 @@ const GameRow = React.memo(function GameRow(props: GameRowProps) {
             onClick={handleSelect}
             onFocus={() => list.onRowFocus(index)}
             onGamepadFocus={() => list.onRowFocus(index)}
+            onGamepadDirection={props.onGamepadDirection}
         >
             <div style={{ width: "100%", display: "flex", alignItems: "center", gap: "10px", padding: "4px 0" }}>
                 {showIcons && (
@@ -185,15 +188,22 @@ export function SavedCommentsFilterModal(props: SavedCommentsFilterModalProps) {
         return tabRows.filter((_game, index) => gameKeys[index].includes(wanted));
     }, [tabRows, gameKeys, query]);
 
-    const { mountedItems: visibleGames, markerRef: gamesMarkerRef, onItemFocus } = useWindowedList({
+    const gameWindow = useSlidingWindow({
         items: filteredGames,
+        itemKey: (game) => String(game.gameId),
+        focusKeyFor: (game) => `savedfilter:game:${game.gameId}`,
+        windowId: "savedfilter:games",
+        heightScope: ["savedfilter:games", getCurrentModalScale(), showIcons, language].join("|"),
         dynamicLoading: true,
         initialRows: GAMES_INITIAL_ROWS,
         rowStep: GAMES_ROW_STEP,
         prefetchDistance: 8,
-        sentinelRootMargin: GAMES_SENTINEL_ROOT_MARGIN,
-        resetKey: `savedfilter:${tab}:${query}`
+        sentinelRootMarginPx: GAMES_SENTINEL_ROOT_MARGIN_PX,
+        resetKey: `savedfilter:${tab}:${query}`,
+        debugLabel: "savedfilter:games"
     });
+    const visibleGames = gameWindow.mountedItems;
+    const onItemFocus = gameWindow.onItemFocus;
 
     useEffect(() => {
         if (!showIcons || visibleGames.length === 0) {
@@ -296,18 +306,19 @@ export function SavedCommentsFilterModal(props: SavedCommentsFilterModalProps) {
                         }}
                     />
                 )}
-                {visibleGames.map((game, index) => (
-                    <GameRow
-                        key={game.gameId}
-                        game={game}
-                        index={index}
-                        selected={selected === game.gameId}
-                        list={rowList}
-                    />
-                ))}
-                {visibleGames.length < filteredGames.length && (
-                    <div ref={gamesMarkerRef} style={{ height: "1px" }} />
-                )}
+                <SlidingWindowRows list={gameWindow}>
+                    {visibleGames.map((game, index) => (
+                        <div key={game.gameId} style={{ paddingBottom: "2px" }}>
+                            <GameRow
+                                game={game}
+                                index={gameWindow.start + index}
+                                selected={selected === game.gameId}
+                                list={rowList}
+                                onGamepadDirection={gameWindow.guardTopRow(gameWindow.start + index)}
+                            />
+                        </div>
+                    ))}
+                </SlidingWindowRows>
             </div>
             <Focusable style={{ display: "flex", marginTop: "14px" }}>
                 <DialogButton onClick={close} style={{ width: "100%" }}>

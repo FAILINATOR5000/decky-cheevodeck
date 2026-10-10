@@ -19,13 +19,14 @@ import {
     FaTrash
 } from "react-icons/fa";
 import { t, type LanguageCode } from "../../locales";
-import { modalSize } from "../../utils/scale";
+import { getCurrentModalScale, modalSize } from "../../utils/scale";
 import { browserHistoryRetentionLabel, browserOptionLabels, browserSiteLabel } from "../../utils/options";
 import { canClearBrowsingData, clearBrowsingData } from "./browserViewHost";
 import { useBrowserPress } from "../../hooks/useBrowserPress";
 import { BrowserScrollArea } from "./BrowserScrollArea";
 import { BrowserDownloadFolder } from "./BrowserDownloadFolder";
-import { useWindowedList } from "../../hooks/useWindowedList";
+import { useSlidingWindow } from "../../hooks/useSlidingWindow";
+import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { DEFAULT_BOOKMARK_CATEGORY_ID } from "../../hooks/useBrowserController";
 import { useBrowserDownloads } from "../../hooks/useBrowserDownloads";
 import { downloadFailure } from "./browserDownloads";
@@ -50,7 +51,18 @@ const INITIAL_ROWS = 20;
 
 const ROW_STEP = 20;
 
-const SENTINEL_ROOT_MARGIN = "400px";
+const SENTINEL_ROOT_MARGIN_PX = 600;
+
+type BookmarkGroup = { category: BrowserBookmarkCategory; rows: BrowserBookmark[] };
+
+type HistoryDay = { key: string; label: string; rows: BrowserHistoryEntry[] };
+
+type WindowItem =
+    | { kind: "category"; id: string; group: BookmarkGroup; collapsed: boolean }
+    | { kind: "day"; id: string; day: HistoryDay; collapsed: boolean }
+    | { kind: "link"; id: string; row: { id: string; url: string; title: string } }
+    | { kind: "exemption"; id: string; host: string }
+    | { kind: "download"; id: string; row: BrowserDownload };
 
 const cellStyle: Record<string, string> = { flex: "0 0 auto", minWidth: "0" };
 const centeredCellStyle: Record<string, string> = { ...cellStyle, display: "flex", alignItems: "center" };
@@ -412,17 +424,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
         return categories.map((category) => ({ category, rows: byCategory.get(category.id) ?? [] }));
     }, [bookmarks, categories]);
 
-    const flatMarks = useMemo(() => {
-        const out: BrowserBookmark[] = [];
-        for (const group of grouped) {
-            if (collapsed.includes(group.category.id)) {
-                continue;
-            }
-            out.push(...group.rows);
-        }
-        return out;
-    }, [collapsed, grouped]);
-
     const days = useMemo(() => {
         const now = new Date();
         const byDay = new Map<string, { key: string; label: string; rows: BrowserHistoryEntry[] }>();
@@ -441,33 +442,42 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
     const [shutDays, setShutDays] = useState<string[]>([]);
 
-    const flatVisits = useMemo(() => {
-        const out: BrowserHistoryEntry[] = [];
-        for (const day of days) {
-            if (!shutDays.includes(day.key)) {
-                out.push(...day.rows);
+    const windowItems = useMemo<WindowItem[]>(() => {
+        const out: WindowItem[] = [];
+        if (tab === "bookmarks") {
+            for (const group of grouped) {
+                const folded = collapsed.includes(group.category.id);
+                out.push({ kind: "category", id: `category:${group.category.id}`, group, collapsed: folded });
+                if (!folded) {
+                    for (const row of group.rows) {
+                        out.push({ kind: "link", id: `bookmark:${row.id}`, row });
+                    }
+                }
+            }
+        }
+        else if (tab === "history") {
+            for (const day of days) {
+                const folded = shutDays.includes(day.key);
+                out.push({ kind: "day", id: `day:${day.key}`, day, collapsed: folded });
+                if (!folded) {
+                    for (const row of day.rows) {
+                        out.push({ kind: "link", id: `visit:${row.id}`, row });
+                    }
+                }
+            }
+        }
+        else if (tab === "adblock") {
+            for (const host of adExemptions) {
+                out.push({ kind: "exemption", id: `exemption:${host}`, host });
+            }
+        }
+        else if (tab === "downloads") {
+            for (const row of downloads.downloads) {
+                out.push({ kind: "download", id: `download:${row.id}`, row });
             }
         }
         return out;
-    }, [days, shutDays]);
-
-    const exemptionRows = useMemo(() => adExemptions.map((host) => ({ id: host, url: host, title: host })), [adExemptions]);
-
-    const downloadRows = useMemo(() => downloads.downloads.map((row) => ({ id: row.id, url: "", title: row.name })), [downloads.downloads]);
-
-    let rows: { id: string; url: string; title: string }[] = [];
-    if (tab === "bookmarks") {
-        rows = flatMarks;
-    }
-    else if (tab === "history") {
-        rows = flatVisits;
-    }
-    else if (tab === "adblock") {
-        rows = exemptionRows;
-    }
-    else if (tab === "downloads") {
-        rows = downloadRows;
-    }
+    }, [tab, grouped, collapsed, days, shutDays, adExemptions, downloads.downloads]);
 
     const controlHeight = `${modalSize(ACTION_PX)}px`;
 
@@ -501,41 +511,24 @@ export function BrowserPanel(props: BrowserPanelProps) {
         opacity: selected ? "1" : "0.55"
     });
 
-    const window_ = useWindowedList({
-        items: rows,
+    const listWindow = useSlidingWindow({
+        items: windowItems,
+        itemKey: (item) => item.id,
+        focusKeyFor: (item) => item.id,
+        windowId: "browser:list",
+        heightScope: ["browser:list", getCurrentModalScale(), language].join("|"),
         dynamicLoading: true,
         initialRows: INITIAL_ROWS,
         rowStep: ROW_STEP,
         prefetchDistance: 0,
-        sentinelRootMargin: SENTINEL_ROOT_MARGIN,
-        resetKey: tab
+        sentinelRootMarginPx: SENTINEL_ROOT_MARGIN_PX,
+        resetKey: `${tab}|${windowItems.length > 0}`,
+        debugLabel: "browser:list"
     });
 
-    const mountedCount = window_.mountedItems.length;
     const rowHeight = tab === "downloads" ? DOWNLOAD_ROW_HEIGHT_PX : ROW_HEIGHT_PX;
-    const unmountedPx = (rows.length - mountedCount) * modalSize(rowHeight + 3);
-
-    let flatStart = 0;
-    const categorySlices = grouped.map((group) => {
-        const isCollapsed = collapsed.includes(group.category.id);
-        const start = flatStart;
-        if (!isCollapsed) {
-            flatStart += group.rows.length;
-        }
-        const reach = isCollapsed ? 0 : Math.max(0, Math.min(group.rows.length, mountedCount - start));
-        return { collapsed: isCollapsed, reach };
-    });
-
-    let visitStart = 0;
-    const daySlices = days.map((day) => {
-        const isShut = shutDays.includes(day.key);
-        const start = visitStart;
-        if (!isShut) {
-            visitStart += day.rows.length;
-        }
-        const reach = isShut ? 0 : Math.max(0, Math.min(day.rows.length, mountedCount - start));
-        return { collapsed: isShut, reach };
-    });
+    const windowEnd = listWindow.start + listWindow.mountedItems.length;
+    const unmountedPx = Math.max(0, (windowItems.length - windowEnd) * modalSize(rowHeight + 3) - listWindow.bottomSpacerPx);
 
     const toggleDay = (key: string) => {
         setShutDays((current) => (current.includes(key) ? current.filter((entry) => entry !== key) : [...current, key]));
@@ -865,6 +858,267 @@ export function BrowserPanel(props: BrowserPanelProps) {
         );
     }
 
+    const categoryHeading = (group: BookmarkGroup, folded: boolean) => {
+        const category = group.category;
+        const reserved = category.id === DEFAULT_BOOKMARK_CATEGORY_ID;
+        const name = reserved ? t(language, "Default") : category.name;
+        const renaming = editing?.kind === "rename" && editing.id === category.id;
+        const confirming = editing?.kind === "delete" && editing.id === category.id;
+        return (
+            <>
+                {confirming && (
+                    <div style={actionRowStyle(CATEGORY_HEIGHT_PX, true)}>
+                        <div
+                            style={{
+                                flex: "1 1 auto",
+                                minWidth: "0",
+                                display: "flex",
+                                alignItems: "center",
+                                fontSize: `${modalSize(12)}px`,
+                                padding: `${modalSize(4)}px 0`,
+                                overflowWrap: "anywhere"
+                            }}
+                        >
+                            {group.rows.length === 0
+                                ? t(language, "Delete {{name}}?", { name })
+                                : t(language, "Delete {{name}} and the {{count}} bookmarks in it?", { name, count: group.rows.length })}
+                        </div>
+                        <div style={cellStyle}>
+                            <DialogButton
+                                {...act("cat:confirm", () => {
+                                    closeEditor();
+                                    onRemoveCategory(category.id);
+                                })}
+                                style={wideActionStyle}
+                            >
+                                {t(language, "Delete")}
+                            </DialogButton>
+                        </div>
+                        <div style={cellStyle}>
+                            <DialogButton {...act("cat:keep", closeEditor)} style={wideActionStyle}>
+                                {t(language, "Cancel")}
+                            </DialogButton>
+                        </div>
+                    </div>
+                )}
+
+                {renaming && nameField(t(language, "Category name"), CATEGORY_HEIGHT_PX)}
+
+                {!confirming && !renaming && (
+                    <div style={actionRowStyle(CATEGORY_HEIGHT_PX)}>
+                        <div style={{ flex: "1 1 auto", minWidth: "0" }}>
+                            <DialogButton {...act("cat:toggle", () => toggleCollapsed(category.id))} style={categoryButtonStyle}>
+                                {folded
+                                    ? <FaChevronRight size={modalSize(10)} />
+                                    : <FaChevronDown size={modalSize(10)} />}
+                                <span style={{ flex: "1 1 auto", minWidth: "0", textAlign: "left", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                    {name}
+                                </span>
+                                <span style={{ flex: "0 0 auto", opacity: 0.6 }}>{group.rows.length}</span>
+                            </DialogButton>
+                        </div>
+                        <div style={cellStyle}>
+                            <DialogButton {...act("cat:default", () => onMakeDefaultCategory(category.id))} style={categoryIconStyle()}>
+                                {category.id === defaultCategoryId
+                                    ? <FaCheckCircle size={modalSize(13)} />
+                                    : <FaRegCircle size={modalSize(13)} />}
+                            </DialogButton>
+                        </div>
+                        <div style={cellStyle}>
+                            <DialogButton
+                                {...act("cat:rename", () => {
+                                    if (!reserved) {
+                                        openEditor("rename", category.id, category.name);
+                                    }
+                                })}
+                                style={categoryIconStyle(reserved)}
+                            >
+                                <FaPen size={modalSize(11)} />
+                            </DialogButton>
+                        </div>
+                        <div style={cellStyle}>
+                            <DialogButton
+                                {...act("cat:remove", () => {
+                                    if (!reserved) {
+                                        openEditor("delete", category.id, "");
+                                    }
+                                })}
+                                style={categoryIconStyle(reserved)}
+                            >
+                                <FaTrash size={modalSize(11)} />
+                            </DialogButton>
+                        </div>
+                    </div>
+                )}
+            </>
+        );
+    };
+
+    const dayHeading = (day: HistoryDay, folded: boolean) => (
+        <div style={actionRowStyle(CATEGORY_HEIGHT_PX)}>
+            <div style={{ flex: "1 1 auto", minWidth: "0" }}>
+                <DialogButton {...act("day:toggle", () => toggleDay(day.key))} style={categoryButtonStyle}>
+                    {folded
+                        ? <FaChevronRight size={modalSize(10)} />
+                        : <FaChevronDown size={modalSize(10)} />}
+                    <span style={{ flex: "1 1 auto", minWidth: "0", textAlign: "left", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {day.label}
+                    </span>
+                    <span style={{ flex: "0 0 auto", opacity: 0.6 }}>{day.rows.length}</span>
+                </DialogButton>
+            </div>
+        </div>
+    );
+
+    const exemptionRow = (host: string) => (
+        <div style={actionRowStyle(ROW_HEIGHT_PX)}>
+            <div
+                style={{
+                    flex: "1 1 auto",
+                    minWidth: "0",
+                    display: "flex",
+                    alignItems: "center",
+                    padding: `0 ${modalSize(10)}px`,
+                    borderRadius: `${modalSize(4)}px`,
+                    background: "rgba(255, 255, 255, 0.05)"
+                }}
+            >
+                <span style={{ minWidth: "0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize: `${modalSize(13)}px` }}>
+                    {host}
+                </span>
+            </div>
+            <div style={cellStyle}>
+                <DialogButton
+                    {...act("exempt:remove", () => onRemoveExemption(host))}
+                    style={{ ...squareStyle(ACTION_PX), height: "100%" }}
+                >
+                    <FaTrash size={modalSize(12)} />
+                </DialogButton>
+            </div>
+        </div>
+    );
+
+    const downloadRow = (row: BrowserDownload) => {
+        if (editing?.kind === "deletefile" && editing.id === row.id) {
+            return (
+                <div style={actionRowStyle(DOWNLOAD_ROW_HEIGHT_PX, true)}>
+                    <div
+                        style={{
+                            flex: "1 1 auto",
+                            minWidth: "0",
+                            display: "flex",
+                            alignItems: "center",
+                            fontSize: `${modalSize(12)}px`,
+                            padding: `${modalSize(4)}px 0`,
+                            overflowWrap: "anywhere"
+                        }}
+                    >
+                        {t(language, "Delete {{name}}?", { name: row.name })}
+                    </div>
+                    <div style={{ ...cellStyle, alignSelf: "center" }}>
+                        <DialogButton
+                            {...act("download:confirm", () => {
+                                closeEditor();
+                                downloads.deleteFile(row.id);
+                            })}
+                            style={wideActionStyle}
+                        >
+                            {t(language, "Delete")}
+                        </DialogButton>
+                    </div>
+                    <div style={{ ...cellStyle, alignSelf: "center" }}>
+                        <DialogButton {...act("download:keep", closeEditor)} style={wideActionStyle}>
+                            {t(language, "Cancel")}
+                        </DialogButton>
+                    </div>
+                </div>
+            );
+        }
+        const running = row.state === "downloading" || row.action === "pausing";
+        const startsOver = !row.canResume && (row.action === "resume" || row.action === "continue");
+        const notice = downloads.notice?.id === row.id
+            ? downloads.notice.text
+            : startsOver ? "This download can't resume. Press Play to start it over." : "";
+        return (
+            <div style={actionRowStyle(DOWNLOAD_ROW_HEIGHT_PX, notice !== "")}>
+                <div
+                    style={{
+                        flex: "1 1 auto",
+                        minWidth: "0",
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "center",
+                        padding: `0 ${modalSize(10)}px`,
+                        borderRadius: `${modalSize(4)}px`,
+                        background: "rgba(255, 255, 255, 0.05)"
+                    }}
+                >
+                    <div style={{ fontSize: `${modalSize(13)}px`, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {row.name}
+                    </div>
+                    {locationLine(row.location)}
+                    <div style={{ fontSize: `${modalSize(11)}px`, opacity: 0.6, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {`${downloadStatus(row, language)}${endedAt(row, language)}`}
+                    </div>
+                    {notice && (
+                        <div style={{ fontSize: `${modalSize(11)}px`, padding: `${modalSize(2)}px 0 ${modalSize(4)}px`, overflowWrap: "anywhere" }}>
+                            {t(language, notice)}
+                        </div>
+                    )}
+                </div>
+                {downloadButton(row)}
+                <div style={cellStyle}>
+                    <DialogButton
+                        {...act(running ? "download:cancel" : "download:remove", () => (
+                            running ? downloads.cancel(row.id) : downloads.remove(row.id)
+                        ))}
+                        style={{ ...squareStyle(ACTION_PX), height: "100%" }}
+                    >
+                        <FaTimes size={modalSize(12)} />
+                    </DialogButton>
+                </div>
+            </div>
+        );
+    };
+
+    const windowItem = (item: WindowItem) => {
+        if (item.kind === "category") {
+            return categoryHeading(item.group, item.collapsed);
+        }
+        if (item.kind === "day") {
+            return dayHeading(item.day, item.collapsed);
+        }
+        if (item.kind === "exemption") {
+            return exemptionRow(item.host);
+        }
+        if (item.kind === "download") {
+            return downloadRow(item.row);
+        }
+        return linkRow(item.row);
+    };
+
+    const windowItemStyle = (item: WindowItem): Record<string, string> => {
+        const step = `${modalSize(3)}px`;
+        if (item.kind === "category" || item.kind === "day") {
+            const rowsShown = !item.collapsed && (item.kind === "category" ? item.group.rows : item.day.rows).length > 0;
+            return { paddingBottom: rowsShown ? step : `${modalSize(6)}px` };
+        }
+        if (item.kind === "download") {
+            return { paddingBottom: step };
+        }
+        return { paddingBottom: step, paddingLeft: `${modalSize(10)}px` };
+    };
+
+    const windowRows = (
+        <SlidingWindowRows list={listWindow}>
+            {listWindow.mountedItems.map((item) => (
+                <div key={item.id} style={windowItemStyle(item)}>
+                    {windowItem(item)}
+                </div>
+            ))}
+        </SlidingWindowRows>
+    );
+
     return (
         <Focusable
             focusable={false}
@@ -1175,115 +1429,12 @@ export function BrowserPanel(props: BrowserPanelProps) {
                     </div>
                 )}
 
-                {grouped.map((group, index) => {
-                    const category = group.category;
-                    const slice = categorySlices[index];
-                    const reserved = category.id === DEFAULT_BOOKMARK_CATEGORY_ID;
-                    const name = reserved ? t(language, "Default") : category.name;
-                    const renaming = editing?.kind === "rename" && editing.id === category.id;
-                    const confirming = editing?.kind === "delete" && editing.id === category.id;
-                    return (
-                        <div key={category.id} style={{ display: "flex", flexDirection: "column", flex: "0 0 auto", gap: `${modalSize(3)}px` }}>
-                            {confirming && (
-                                <div style={actionRowStyle(CATEGORY_HEIGHT_PX, true)}>
-                                    <div
-                                        style={{
-                                            flex: "1 1 auto",
-                                            minWidth: "0",
-                                            display: "flex",
-                                            alignItems: "center",
-                                            fontSize: `${modalSize(12)}px`,
-                                            padding: `${modalSize(4)}px 0`,
-                                            overflowWrap: "anywhere"
-                                        }}
-                                    >
-                                        {group.rows.length === 0
-                                            ? t(language, "Delete {{name}}?", { name })
-                                            : t(language, "Delete {{name}} and the {{count}} bookmarks in it?", { name, count: group.rows.length })}
-                                    </div>
-                                    <div style={cellStyle}>
-                                        <DialogButton
-                                            {...act("cat:confirm", () => {
-                                                closeEditor();
-                                                onRemoveCategory(category.id);
-                                            })}
-                                            style={wideActionStyle}
-                                        >
-                                            {t(language, "Delete")}
-                                        </DialogButton>
-                                    </div>
-                                    <div style={cellStyle}>
-                                        <DialogButton {...act("cat:keep", closeEditor)} style={wideActionStyle}>
-                                            {t(language, "Cancel")}
-                                        </DialogButton>
-                                    </div>
-                                </div>
-                            )}
-
-                            {renaming && nameField(t(language, "Category name"), CATEGORY_HEIGHT_PX)}
-
-                            {!confirming && !renaming && (
-                                <div style={actionRowStyle(CATEGORY_HEIGHT_PX)}>
-                                    <div style={{ flex: "1 1 auto", minWidth: "0" }}>
-                                        <DialogButton {...act("cat:toggle", () => toggleCollapsed(category.id))} style={categoryButtonStyle}>
-                                            {slice.collapsed
-                                                ? <FaChevronRight size={modalSize(10)} />
-                                                : <FaChevronDown size={modalSize(10)} />}
-                                            <span style={{ flex: "1 1 auto", minWidth: "0", textAlign: "left", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                                {name}
-                                            </span>
-                                            <span style={{ flex: "0 0 auto", opacity: 0.6 }}>{group.rows.length}</span>
-                                        </DialogButton>
-                                    </div>
-                                    <div style={cellStyle}>
-                                        <DialogButton {...act("cat:default", () => onMakeDefaultCategory(category.id))} style={categoryIconStyle()}>
-                                            {category.id === defaultCategoryId
-                                                ? <FaCheckCircle size={modalSize(13)} />
-                                                : <FaRegCircle size={modalSize(13)} />}
-                                        </DialogButton>
-                                    </div>
-                                    <div style={cellStyle}>
-                                        <DialogButton
-                                            {...act("cat:rename", () => {
-                                                if (!reserved) {
-                                                    openEditor("rename", category.id, category.name);
-                                                }
-                                            })}
-                                            style={categoryIconStyle(reserved)}
-                                        >
-                                            <FaPen size={modalSize(11)} />
-                                        </DialogButton>
-                                    </div>
-                                    <div style={cellStyle}>
-                                        <DialogButton
-                                            {...act("cat:remove", () => {
-                                                if (!reserved) {
-                                                    openEditor("delete", category.id, "");
-                                                }
-                                            })}
-                                            style={categoryIconStyle(reserved)}
-                                        >
-                                            <FaTrash size={modalSize(11)} />
-                                        </DialogButton>
-                                    </div>
-                                </div>
-                            )}
-
-                            <div style={{ display: "flex", flexDirection: "column", gap: `${modalSize(3)}px`, paddingLeft: `${modalSize(10)}px` }}>
-                                {group.rows.slice(0, slice.reach).map(linkRow)}
-                            </div>
-                        </div>
-                    );
-                })}
+                {windowRows}
 
                 {bookmarks.length === 0 && (
                     <div style={{ padding: gap, fontSize: `${modalSize(13)}px`, opacity: 0.7 }}>
                         {t(language, "No bookmarks yet. Use the star to add a site to your bookmarks.")}
                     </div>
-                )}
-
-                {mountedCount < rows.length && (
-                    <div ref={window_.markerRef} style={{ flex: "0 0 auto", height: "1px" }} />
                 )}
             </BrowserScrollArea>
             )}
@@ -1392,39 +1543,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                     </div>
                 )}
 
-                <div style={{ display: "flex", flexDirection: "column", gap: `${modalSize(3)}px`, paddingLeft: `${modalSize(10)}px` }}>
-                    {adExemptions.slice(0, mountedCount).map((host) => (
-                        <div key={host} style={actionRowStyle(ROW_HEIGHT_PX)}>
-                            <div
-                                style={{
-                                    flex: "1 1 auto",
-                                    minWidth: "0",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    padding: `0 ${modalSize(10)}px`,
-                                    borderRadius: `${modalSize(4)}px`,
-                                    background: "rgba(255, 255, 255, 0.05)"
-                                }}
-                            >
-                                <span style={{ minWidth: "0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontSize: `${modalSize(13)}px` }}>
-                                    {host}
-                                </span>
-                            </div>
-                            <div style={cellStyle}>
-                                <DialogButton
-                                    {...act("exempt:remove", () => onRemoveExemption(host))}
-                                    style={{ ...squareStyle(ACTION_PX), height: "100%" }}
-                                >
-                                    <FaTrash size={modalSize(12)} />
-                                </DialogButton>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-                {mountedCount < rows.length && (
-                    <div ref={window_.markerRef} style={{ flex: "0 0 auto", height: "1px" }} />
-                )}
+                {windowRows}
             </BrowserScrollArea>
             )}
 
@@ -1482,33 +1601,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                     </div>
                 )}
 
-                {days.map((day, index) => {
-                    const slice = daySlices[index];
-                    return (
-                        <div key={day.key} style={{ display: "flex", flexDirection: "column", flex: "0 0 auto", gap: `${modalSize(3)}px` }}>
-                            <div style={actionRowStyle(CATEGORY_HEIGHT_PX)}>
-                                <div style={{ flex: "1 1 auto", minWidth: "0" }}>
-                                    <DialogButton {...act("day:toggle", () => toggleDay(day.key))} style={categoryButtonStyle}>
-                                        {slice.collapsed
-                                            ? <FaChevronRight size={modalSize(10)} />
-                                            : <FaChevronDown size={modalSize(10)} />}
-                                        <span style={{ flex: "1 1 auto", minWidth: "0", textAlign: "left", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                            {day.label}
-                                        </span>
-                                        <span style={{ flex: "0 0 auto", opacity: 0.6 }}>{day.rows.length}</span>
-                                    </DialogButton>
-                                </div>
-                            </div>
-                            <div style={{ display: "flex", flexDirection: "column", gap: `${modalSize(3)}px`, paddingLeft: `${modalSize(10)}px` }}>
-                                {day.rows.slice(0, slice.reach).map(linkRow)}
-                            </div>
-                        </div>
-                    );
-                })}
-
-                {mountedCount < rows.length && (
-                    <div ref={window_.markerRef} style={{ flex: "0 0 auto", height: "1px" }} />
-                )}
+                {windowRows}
             </BrowserScrollArea>
             )}
 
@@ -1520,92 +1613,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
                     </div>
                 )}
 
-                {downloads.downloads.slice(0, mountedCount).map((row) => {
-                    if (editing?.kind === "deletefile" && editing.id === row.id) {
-                        return (
-                            <div key={row.id} style={actionRowStyle(DOWNLOAD_ROW_HEIGHT_PX, true)}>
-                                <div
-                                    style={{
-                                        flex: "1 1 auto",
-                                        minWidth: "0",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        fontSize: `${modalSize(12)}px`,
-                                        padding: `${modalSize(4)}px 0`,
-                                        overflowWrap: "anywhere"
-                                    }}
-                                >
-                                    {t(language, "Delete {{name}}?", { name: row.name })}
-                                </div>
-                                <div style={{ ...cellStyle, alignSelf: "center" }}>
-                                    <DialogButton
-                                        {...act("download:confirm", () => {
-                                            closeEditor();
-                                            downloads.deleteFile(row.id);
-                                        })}
-                                        style={wideActionStyle}
-                                    >
-                                        {t(language, "Delete")}
-                                    </DialogButton>
-                                </div>
-                                <div style={{ ...cellStyle, alignSelf: "center" }}>
-                                    <DialogButton {...act("download:keep", closeEditor)} style={wideActionStyle}>
-                                        {t(language, "Cancel")}
-                                    </DialogButton>
-                                </div>
-                            </div>
-                        );
-                    }
-                    const running = row.state === "downloading" || row.action === "pausing";
-                    const startsOver = !row.canResume && (row.action === "resume" || row.action === "continue");
-                    const notice = downloads.notice?.id === row.id
-                        ? downloads.notice.text
-                        : startsOver ? "This download can't resume. Press Play to start it over." : "";
-                    return (
-                        <div key={row.id} style={actionRowStyle(DOWNLOAD_ROW_HEIGHT_PX, notice !== "")}>
-                            <div
-                                style={{
-                                    flex: "1 1 auto",
-                                    minWidth: "0",
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    justifyContent: "center",
-                                    padding: `0 ${modalSize(10)}px`,
-                                    borderRadius: `${modalSize(4)}px`,
-                                    background: "rgba(255, 255, 255, 0.05)"
-                                }}
-                            >
-                                <div style={{ fontSize: `${modalSize(13)}px`, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                    {row.name}
-                                </div>
-                                {locationLine(row.location)}
-                                <div style={{ fontSize: `${modalSize(11)}px`, opacity: 0.6, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                    {`${downloadStatus(row, language)}${endedAt(row, language)}`}
-                                </div>
-                                {notice && (
-                                    <div style={{ fontSize: `${modalSize(11)}px`, padding: `${modalSize(2)}px 0 ${modalSize(4)}px`, overflowWrap: "anywhere" }}>
-                                        {t(language, notice)}
-                                    </div>
-                                )}
-                            </div>
-                            {downloadButton(row)}
-                            <div style={cellStyle}>
-                                <DialogButton
-                                    {...act(running ? "download:cancel" : "download:remove", () => (
-                                        running ? downloads.cancel(row.id) : downloads.remove(row.id)
-                                    ))}
-                                    style={{ ...squareStyle(ACTION_PX), height: "100%" }}
-                                >
-                                    <FaTimes size={modalSize(12)} />
-                                </DialogButton>
-                            </div>
-                        </div>
-                    );
-                })}
-
-                {mountedCount < rows.length && (
-                    <div ref={window_.markerRef} style={{ flex: "0 0 auto", height: "1px" }} />
-                )}
+                {windowRows}
             </BrowserScrollArea>
             )}
 

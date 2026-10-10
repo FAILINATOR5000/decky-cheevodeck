@@ -7,6 +7,8 @@ import {
     saveCheevoCheckLastSystemId
 } from "../../api";
 import { useResilientGameIcon } from "../../hooks/useResilientGameIcon";
+import { useSlidingWindow } from "../../hooks/useSlidingWindow";
+import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { consolesWithoutRecent, RecentConsoleSection, resolveRecentConsole } from "./RecentConsoleSection";
 import { FadeImage } from "../ui/FadeImage";
 import { FocusableItem } from "../ui/FocusableItem";
@@ -14,7 +16,7 @@ import { t, type LanguageCode } from "../../locales";
 import type { CheevoCheckBrowseRow, CheevoCheckListKind } from "../../types";
 import { logError } from "../../utils/errors";
 import { modalBodyStyle, smallTextStyle, compactButtonStyle, FADE_IN_KEYFRAMES } from "../../utils/style";
-import { modalSize } from "../../utils/scale";
+import { getCurrentModalScale, modalSize } from "../../utils/scale";
 import { searchKey } from "../../utils/searchText";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 
@@ -41,6 +43,7 @@ const ALL_CONSOLES_ID = -1;
 const INITIAL_ROWS = 40;
 const ROW_STEP = 40;
 const ROW_LOAD_AHEAD = 12;
+const SENTINEL_ROOT_MARGIN_PX = 600;
 
 function AllSystemsIcon(props: { size?: number }) {
     const size = props.size ?? 18;
@@ -516,26 +519,21 @@ function GameStep(props: GameStepProps) {
         onBack
     } = props;
 
-    const [mountedCount, setMountedCount] = useState(function getInitialMountedCount() {
-        return Math.min(INITIAL_ROWS, rows.length);
+    const rowWindow = useSlidingWindow({
+        items: rows,
+        itemKey: (row) => row.key,
+        focusKeyFor: (row) => `searchgame:${row.key}`,
+        windowId: "cheevocheck:games",
+        heightScope: ["cheevocheck:games", getCurrentModalScale(), showIcons, language].join("|"),
+        dynamicLoading: true,
+        initialRows: INITIAL_ROWS,
+        rowStep: ROW_STEP,
+        prefetchDistance: ROW_LOAD_AHEAD,
+        sentinelRootMarginPx: SENTINEL_ROOT_MARGIN_PX,
+        resetKey: `${systemName}|${query}|${rows.length > 0}`,
+        debugLabel: "cheevocheck:games"
     });
-
-    useEffect(function resetMountedRowsOnListChange() {
-        setMountedCount(Math.min(INITIAL_ROWS, rows.length));
-    }, [query, rows.length]);
-
-    const loadMoreRows = function loadMoreRows() {
-        setMountedCount(function updateMountedCount(current) {
-            if (current >= rows.length) {
-                return current;
-            }
-            return Math.min(current + ROW_STEP, rows.length);
-        });
-    };
-
-    const mountedRows = useMemo(() => {
-        return rows.slice(0, mountedCount);
-    }, [rows, mountedCount]);
+    const mountedRows = rowWindow.mountedItems;
 
     const warmedGameIdsRef = useRef<Set<number>>(new Set());
 
@@ -578,17 +576,10 @@ function GameStep(props: GameStepProps) {
         void kickIconPrefetch();
     }, [mountedRows, showIcons, kickIconPrefetch]);
 
-    function handleRowFocus(index: number) {
-        if (index < mountedCount - ROW_LOAD_AHEAD) {
-            return;
-        }
-        loadMoreRows();
-    }
-
     const rowPickRef = useRef(onPickRow);
     rowPickRef.current = onPickRow;
-    const rowFocusRef = useRef(handleRowFocus);
-    rowFocusRef.current = handleRowFocus;
+    const rowFocusRef = useRef(rowWindow.onItemFocus);
+    rowFocusRef.current = rowWindow.onItemFocus;
 
     const resultRowList = useMemo<ResultRowListProps>(() => ({
         language,
@@ -639,15 +630,19 @@ function GameStep(props: GameStepProps) {
 
             {rows.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                    {mountedRows.map((row, index) => (
-                        <ResultRow
-                            key={row.key}
-                            row={row}
-                            consoleIconUrl={consoleIcons[row.systemId] ?? null}
-                            index={index}
-                            list={resultRowList}
-                        />
-                    ))}
+                    <SlidingWindowRows list={rowWindow}>
+                        {mountedRows.map((row, index) => (
+                            <div key={row.key} style={{ paddingBottom: "4px" }}>
+                                <ResultRow
+                                    row={row}
+                                    consoleIconUrl={consoleIcons[row.systemId] ?? null}
+                                    index={rowWindow.start + index}
+                                    list={resultRowList}
+                                    onGamepadDirection={rowWindow.guardTopRow(rowWindow.start + index)}
+                                />
+                            </div>
+                        ))}
+                    </SlidingWindowRows>
                 </div>
             )}
         </div>
@@ -667,6 +662,7 @@ type ResultRowProps = {
     consoleIconUrl: string | null;
     index: number;
     list: ResultRowListProps;
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 const ResultRow = React.memo(function ResultRow(props: ResultRowProps) {
@@ -699,6 +695,8 @@ const ResultRow = React.memo(function ResultRow(props: ResultRowProps) {
             focusKey={`searchgame:${row.key}`}
             onClick={handleClick}
             onFocus={handleFocus}
+            onGamepadFocus={handleFocus}
+            onGamepadDirection={props.onGamepadDirection}
             outerStyle={{ width: "100%", minWidth: 0 }}
         >
             <div

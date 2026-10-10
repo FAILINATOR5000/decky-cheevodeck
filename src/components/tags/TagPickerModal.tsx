@@ -1,15 +1,9 @@
-import { useRef } from "react";
 import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
-import { useWindowedList } from "../../hooks/useWindowedList";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { t, type LanguageCode } from "../../locales";
 import { modalSize } from "../../utils/scale";
 import { compactButtonStyle } from "../../utils/style";
 import { unusedTagSeeds, type TagSeed } from "../../utils/tags";
-
-const TAGS_INITIAL_ROWS = 40;
-const TAGS_ROW_STEP = 60;
-const TAGS_SENTINEL_ROOT_MARGIN = "300px";
 
 export type TagPickerModalProps = {
     tags: string[];
@@ -28,14 +22,12 @@ function TagChip(props: {
     selected: boolean;
     preferred: boolean;
     onSelect: () => void;
-    onFocus?: () => void;
 }) {
-    const { label, focusKey, selected, preferred, onSelect, onFocus } = props;
+    const { label, focusKey, selected, preferred, onSelect } = props;
     return (
         <div data-focus-key={focusKey}>
             <DialogButton
                 onClick={onSelect}
-                onGamepadFocus={onFocus}
                 autoFocus={preferred || undefined}
                 style={{
                     ...compactButtonStyle,
@@ -61,24 +53,11 @@ function SectionLabel(props: { text: string }) {
 export function TagPickerModal(props: TagPickerModalProps) {
     const { tags, seeds: allSeeds, selected, language, focusPrefix, caseSensitive, onSelect, close } = props;
 
-    const { mountedItems: visibleTags, markerRef, onItemFocus } = useWindowedList({
-        items: tags,
-        dynamicLoading: true,
-        initialRows: TAGS_INITIAL_ROWS,
-        rowStep: TAGS_ROW_STEP,
-        prefetchDistance: 8,
-        sentinelRootMargin: TAGS_SENTINEL_ROOT_MARGIN,
-        resetKey: "tagpicker:alltags"
-    });
-
-    const focusRef = useRef(onItemFocus);
-    focusRef.current = onItemFocus;
-
     const seeds = unusedTagSeeds(allSeeds, tags, caseSensitive);
 
-    const preferredTag = visibleTags.includes(selected)
+    const preferredTag = tags.includes(selected)
         ? selected
-        : (visibleTags[0] ?? "");
+        : (tags[0] ?? "");
     const preferredSeed = preferredTag ? "" : (seeds[0]?.tag ?? "");
 
     function pick(tag: string) {
@@ -100,7 +79,7 @@ export function TagPickerModal(props: TagPickerModalProps) {
                         flow-children="grid"
                         style={{ display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" }}
                     >
-                        {visibleTags.map((tag, index) => (
+                        {tags.map((tag) => (
                             <TagChip
                                 key={tag}
                                 label={tag}
@@ -108,12 +87,8 @@ export function TagPickerModal(props: TagPickerModalProps) {
                                 selected={tag === selected}
                                 preferred={tag === preferredTag}
                                 onSelect={() => pick(tag)}
-                                onFocus={() => focusRef.current(index)}
                             />
                         ))}
-                        {visibleTags.length < tags.length && (
-                            <div ref={markerRef} style={{ width: "1px", height: "1px" }} />
-                        )}
                     </Focusable>
                 </div>
             )}

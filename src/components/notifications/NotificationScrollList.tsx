@@ -9,19 +9,26 @@ import {
 } from "../../api";
 import { NotificationCard, notificationCardMetrics, type NotificationCardListProps } from "./NotificationCard";
 import { useCardChrome } from "../../hooks/useCardChrome";
-import { useWindowedList } from "../../hooks/useWindowedList";
+import { useSlidingWindow } from "../../hooks/useSlidingWindow";
+import { focusHeldRow, useWhenHeld } from "../../hooks/useWhenHeld";
+import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import type { NotificationNav } from "../../notifications/registry";
 import type { LanguageCode } from "../../locales";
 import type { ArchivedNotification, CheevoNotification } from "../../types";
 import { logError } from "../../utils/errors";
+import { getCurrentModalScale } from "../../utils/scale";
 import { modalBodyStyle } from "../../utils/style";
 
 const NOTIF_INITIAL_ROWS = 30;
 const NOTIF_ROW_STEP = 50;
-const NOTIF_SENTINEL_ROOT_MARGIN = "300px";
+const NOTIF_SENTINEL_ROOT_MARGIN_PX = 600;
 const NOTIF_PREFETCH_DISTANCE = 10;
 
 type NotificationRow = CheevoNotification | ArchivedNotification;
+
+function notificationFocusKey(item: NotificationRow): string {
+    return `notif:${item.id}`;
+}
 
 export type NotificationScrollListProps = {
     onMenuButton?: () => void;
@@ -50,15 +57,45 @@ export function NotificationScrollList(props: NotificationScrollListProps) {
         onArchiveToggle, onArchiveRemove, close, onMenuButton, onTabButtons, tabLegend
     } = props;
 
-    const { mountedItems: visible, markerRef, onItemFocus } = useWindowedList({
+    const rowKeys = useMemo(() => {
+        const seen = new Map<string, number>();
+        const keys = new Map<NotificationRow, string>();
+        for (const item of items) {
+            const count = seen.get(item.id) ?? 0;
+            seen.set(item.id, count + 1);
+            keys.set(item, count === 0 ? item.id : `${item.id}#${count}`);
+        }
+        return keys;
+    }, [items]);
+
+    const windowId = `notifications:${keyPrefix}`;
+    const cardWindow = useSlidingWindow({
         items,
+        itemKey: (item) => rowKeys.get(item) ?? item.id,
+        focusKeyFor: notificationFocusKey,
+        windowId,
+        heightScope: ["notifications", getCurrentModalScale(), showIcons, language].join("|"),
         dynamicLoading: true,
         initialRows: NOTIF_INITIAL_ROWS,
         rowStep: NOTIF_ROW_STEP,
         prefetchDistance: NOTIF_PREFETCH_DISTANCE,
-        sentinelRootMargin: NOTIF_SENTINEL_ROOT_MARGIN,
-        resetKey: keyPrefix
+        sentinelRootMarginPx: NOTIF_SENTINEL_ROOT_MARGIN_PX,
+        resetKey: `${keyPrefix}|${items.length > 0}`,
+        debugLabel: windowId
     });
+    const visible = cardWindow.mountedItems;
+    const onItemFocus = cardWindow.onItemFocus;
+
+    const whenCardHeld = useWhenHeld(cardWindow, items, notificationFocusKey);
+
+    function removeArchived(id: string) {
+        const at = items.findIndex((item) => item.id === id);
+        const heir = items[at + 1] ?? items[at - 1];
+        onArchiveRemove(id);
+        if (heir) {
+            whenCardHeld(notificationFocusKey(heir), () => focusHeldRow(cardWindow, notificationFocusKey(heir)), `notif:${id}`);
+        }
+    }
 
     const warmedGameIdsRef = useRef<Set<number>>(new Set());
     const warmedBadgeKeysRef = useRef<Set<string>>(new Set());
@@ -189,8 +226,8 @@ export function NotificationScrollList(props: NotificationScrollListProps) {
 
     const toggleRef = useRef(onArchiveToggle);
     toggleRef.current = onArchiveToggle;
-    const removeRef = useRef(onArchiveRemove);
-    removeRef.current = onArchiveRemove;
+    const removeRef = useRef(removeArchived);
+    removeRef.current = removeArchived;
     const focusRef = useRef(onItemFocus);
     focusRef.current = onItemFocus;
     const closeRef = useRef(close);
@@ -231,21 +268,22 @@ export function NotificationScrollList(props: NotificationScrollListProps) {
     }
 
     return (
-        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+        <div>
             <div ref={chromeMarkerRef} style={{ display: "none" }} />
-            {visible.map((notification, index) => (
-                <NotificationCard
-                    key={`${keyPrefix}:${index}:notif:${notification.id}`}
-                    notification={notification}
-                    index={index}
-                    list={cardList}
-                    archived={archiveMode === "star" && archivedIds.has(notification.id)}
-                    archiveError={archiveErrorId === notification.id ? archiveErrorMessage : null}
-                />
-            ))}
-            {visible.length < items.length && (
-                <div ref={markerRef} style={{ height: "1px" }} />
-            )}
+            <SlidingWindowRows list={cardWindow}>
+                {visible.map((notification, index) => (
+                    <div key={`notif:${rowKeys.get(notification) ?? notification.id}`} style={{ paddingBottom: "4px" }}>
+                        <NotificationCard
+                            notification={notification}
+                            index={cardWindow.start + index}
+                            list={cardList}
+                            archived={archiveMode === "star" && archivedIds.has(notification.id)}
+                            archiveError={archiveErrorId === notification.id ? archiveErrorMessage : null}
+                            onGamepadDirection={cardWindow.guardTopRow(cardWindow.start + index)}
+                        />
+                    </div>
+                ))}
+            </SlidingWindowRows>
         </div>
     );
 }

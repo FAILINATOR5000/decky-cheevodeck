@@ -3,11 +3,12 @@ import { DialogButton, Focusable, TextField } from "@decky/ui";
 // Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
 import { FaArrowUp, FaCheck, FaEye, FaEyeSlash, FaFolder, FaPen, FaTimes } from "react-icons/fa";
 import { t, type LanguageCode } from "../../locales";
-import { modalSize } from "../../utils/scale";
+import { getCurrentModalScale, modalSize } from "../../utils/scale";
 import { getBrowserDownloadFolder, listDirectory } from "../../api";
 import { logError } from "../../utils/errors";
 import { useBrowserPress } from "../../hooks/useBrowserPress";
-import { useWindowedList } from "../../hooks/useWindowedList";
+import { useSlidingWindow } from "../../hooks/useSlidingWindow";
+import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { BrowserScrollArea } from "./BrowserScrollArea";
 import type { DirectoryEntry } from "../../types";
 
@@ -23,9 +24,11 @@ const INITIAL_ROWS = 20;
 
 const ROW_STEP = 20;
 
-const SENTINEL_ROOT_MARGIN = "400px";
+const SENTINEL_ROOT_MARGIN_PX = 600;
 
 const cellStyle: Record<string, string> = { flex: "0 0 auto", minWidth: "0" };
+
+const NO_ENTRIES: DirectoryEntry[] = [];
 
 type BrowserDownloadFolderProps = {
     language: LanguageCode;
@@ -156,31 +159,36 @@ export function BrowserDownloadFolder(props: BrowserDownloadFolderProps) {
         void loadPage(path, 1);
     }, [path, showHidden]);
 
-    const entries = listing?.entries ?? [];
+    const entries = listing?.entries ?? NO_ENTRIES;
     const total = listing?.total ?? 0;
 
-    const window_ = useWindowedList({
+    const entryWindow = useSlidingWindow({
         items: entries,
+        itemKey: (entry) => entry.name,
+        focusKeyFor: (entry) => entry.name,
+        windowId: "browser:downloadfolder",
+        heightScope: ["browser:downloadfolder", getCurrentModalScale()].join("|"),
         dynamicLoading: true,
         initialRows: INITIAL_ROWS,
         rowStep: ROW_STEP,
         prefetchDistance: 0,
-        sentinelRootMargin: SENTINEL_ROOT_MARGIN,
-        resetKey: path
+        sentinelRootMarginPx: SENTINEL_ROOT_MARGIN_PX,
+        resetKey: `${path}|${entries.length > 0}`,
+        debugLabel: "browser:downloadfolder"
     });
 
-    const mountedCount = window_.mountedItems.length;
+    const windowEnd = entryWindow.start + entryWindow.mountedItems.length;
 
     useEffect(() => {
         if (!listing || loadingRef.current || entries.length >= total) {
             return;
         }
-        if (mountedCount >= entries.length - ROW_STEP) {
+        if (windowEnd >= entries.length - ROW_STEP) {
             void loadPage(listing.path, listing.page + 1);
         }
-    }, [listing, mountedCount, entries.length, total]);
+    }, [listing, windowEnd, entries.length, total]);
 
-    const unmountedPx = Math.max(0, total - mountedCount) * modalSize(ROW_HEIGHT_PX + 3);
+    const unmountedPx = Math.max(0, (total - windowEnd) * modalSize(ROW_HEIGHT_PX + 3) - entryWindow.bottomSpacerPx);
 
     const controlHeight = `${modalSize(ACTION_PX)}px`;
 
@@ -341,34 +349,34 @@ export function BrowserDownloadFolder(props: BrowserDownloadFolderProps) {
             }}
         >
             <BrowserScrollArea railPx={RAIL_PX} gapPx={ROW_GAP_PX} rowGap={`${modalSize(3)}px`} unmountedPx={unmountedPx} header={header}>
-                {window_.mountedItems.map((entry) => (
-                    <div key={entry.name} style={{ display: "flex", flex: "0 0 auto", height: `${modalSize(ROW_HEIGHT_PX)}px` }}>
-                        <DialogButton
-                            {...act("download:enter", () => setPath(`${path.replace(/\/+$/, "")}/${entry.name}`))}
-                            style={{
-                                minWidth: "0",
-                                width: "100%",
-                                height: "100%",
-                                boxSizing: "border-box",
-                                padding: `0 ${modalSize(10)}px`,
-                                display: "flex",
-                                alignItems: "center",
-                                gap: `${modalSize(8)}px`,
-                                fontSize: `${modalSize(13)}px`,
-                                overflow: "hidden"
-                            }}
-                        >
-                            <FaFolder size={modalSize(13)} />
-                            <span style={{ flex: "1 1 auto", minWidth: "0", textAlign: "left", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                {entry.name}
-                            </span>
-                        </DialogButton>
-                    </div>
-                ))}
-
-                {mountedCount < entries.length && (
-                    <div ref={window_.markerRef} style={{ flex: "0 0 auto", height: "1px" }} />
-                )}
+                <SlidingWindowRows list={entryWindow}>
+                    {entryWindow.mountedItems.map((entry) => (
+                        <div key={entry.name} style={{ paddingBottom: `${modalSize(3)}px` }}>
+                            <div style={{ display: "flex", flex: "0 0 auto", height: `${modalSize(ROW_HEIGHT_PX)}px` }}>
+                                <DialogButton
+                                    {...act("download:enter", () => setPath(`${path.replace(/\/+$/, "")}/${entry.name}`))}
+                                    style={{
+                                        minWidth: "0",
+                                        width: "100%",
+                                        height: "100%",
+                                        boxSizing: "border-box",
+                                        padding: `0 ${modalSize(10)}px`,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: `${modalSize(8)}px`,
+                                        fontSize: `${modalSize(13)}px`,
+                                        overflow: "hidden"
+                                    }}
+                                >
+                                    <FaFolder size={modalSize(13)} />
+                                    <span style={{ flex: "1 1 auto", minWidth: "0", textAlign: "left", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                        {entry.name}
+                                    </span>
+                                </DialogButton>
+                            </div>
+                        </div>
+                    ))}
+                </SlidingWindowRows>
             </BrowserScrollArea>
         </Focusable>
     );
