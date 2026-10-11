@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
+import { startTransition, useEffect, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { logFocusDebug } from "../api";
 import { currentJumpToTopToken, subscribeJumpToTop } from "../utils/jumpToTop";
 
@@ -12,6 +12,8 @@ const REST_MS = 200;
 const REBASE_VERIFY_MS = 500;
 const SPACER_FRAMES_BEFORE_REOPEN = 3;
 const FOCUS_SCROLL_GRACE_MS = 600;
+
+const STEP_FALLBACK_ROWS = 3;
 
 const DIR_UP = 9;
 
@@ -121,6 +123,7 @@ type WindowState<T> = {
     openTarget: string | null;
     rebase: number;
     upBlocked: boolean;
+    stepApplied: number;
 };
 
 type Geometry = {
@@ -212,7 +215,8 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
             pendingOpen: null,
             openTarget: null,
             rebase: 0,
-            upBlocked: false
+            upBlocked: false,
+            stepApplied: 0
         };
     });
 
@@ -340,7 +344,12 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
 
     const live = { state: next, count, indexByKey, topSpacerPx, aboveSumPx: above.px, unknownAbove, scope, prefetch, rowStep, openRows, fullSteps };
     const liveRef = useRef(live);
-    liveRef.current = live;
+    if (!fullSteps) {
+        liveRef.current = live;
+    }
+    useLayoutEffect(function publishCommitted() {
+        liveRef.current = live;
+    });
 
     const geometryRef = useRef<Geometry | null>(null);
     const scrollerRef = useRef<HTMLElement | null>(null);
@@ -394,13 +403,58 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
         growthPendingRef.current = false;
     }, [next.start, next.end]);
 
+    const stepCountRef = useRef(0);
+    const waitingStepRef = useRef<(() => void) | null>(null);
+    function requestStep(update: (from: WindowState<T>) => WindowState<T>) {
+        if (!liveRef.current.fullSteps) {
+            setState(update);
+            return;
+        }
+        stepCountRef.current += 1;
+        const step = stepCountRef.current;
+        let superseded = false;
+        startTransition(() => setState(function queuedStep(from) {
+            if (superseded || from.stepApplied >= step) {
+                return from;
+            }
+            const to = update(from);
+            return to === from ? from : { ...to, stepApplied: step };
+        }));
+        waitingStepRef.current = function commitInPress() {
+            superseded = true;
+            let decided: Pick<WindowState<T>, "start" | "end" | "upBlocked"> | null = null;
+            setState(function stepInPress(from) {
+                if (from.stepApplied >= step) {
+                    return from;
+                }
+                if (decided === null) {
+                    const to = update(from);
+                    if (to === from) {
+                        return from;
+                    }
+                    decided = { start: to.start, end: to.end, upBlocked: to.upBlocked };
+                }
+                return { ...from, ...decided, stepApplied: step };
+            });
+        };
+    }
+
+    function commitWaitingStep() {
+        const commit = waitingStepRef.current;
+        if (!commit || liveRef.current.state.stepApplied >= stepCountRef.current) {
+            return;
+        }
+        waitingStepRef.current = null;
+        commit();
+    }
+
     function growDown() {
         const current = liveRef.current.state;
         if (growthPendingRef.current || current.end >= current.items.length) {
             return;
         }
         growthPendingRef.current = true;
-        setState(function extendEnd(from) {
+        requestStep(function extendEnd(from) {
             const n = from.items.length;
             const keep = keepSpan(from);
             const cap = maxRows();
@@ -426,7 +480,7 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
             return;
         }
         growthPendingRef.current = true;
-        setState(function extendStart(from) {
+        requestStep(function extendStart(from) {
             const keep = keepSpan(from);
             const cap = maxRows();
             let start = Math.max(0, from.start - clampedStep());
@@ -468,6 +522,9 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
         }
         if (current.start > 0 && absoluteIndex <= current.start + liveRef.current.prefetch) {
             growUp();
+        }
+        if (absoluteIndex >= current.end - 1 - STEP_FALLBACK_ROWS || (current.start > 0 && absoluteIndex <= current.start + STEP_FALLBACK_ROWS)) {
+            commitWaitingStep();
         }
     }
 
@@ -520,6 +577,7 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
         const current = liveRef.current;
         if (current.state.start > 0) {
             growUp();
+            commitWaitingStep();
             armRestCheck();
             return;
         }
