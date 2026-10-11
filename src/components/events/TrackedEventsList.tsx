@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState, type ReactElement } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { PanelSectionRow } from "@decky/ui";
 import { CollapsibleTitle } from "../ui/CollapsibleTitle";
 import { InfoText } from "../ui/InfoText";
@@ -7,10 +7,11 @@ import { ClaimedRow } from "./ClaimedRow";
 import { EventNoteEditModal } from "./EventNoteEditModal";
 import { EventRow, type EventRowList } from "./EventRow";
 import { useEvents } from "./EventsContext";
-import { EventsListHead, EventsListStatus, useEventsRestore, type EventsListProps } from "./EventsListParts";
+import { EVENTS_FILTER_FOCUS_KEY, EVENTS_LIST_TOGGLE_FOCUS_KEY, EventsListHead, EventsListStatus, type EventsListProps } from "./EventsListParts";
 import { prefetchGameIcons } from "../../api";
 import { useFocusClaim } from "../../hooks/useFocusClaim";
-import { useWindowedList } from "../../hooks/useWindowedList";
+import { useSlidingWindow } from "../../hooks/useSlidingWindow";
+import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { t } from "../../locales";
 import type { EventCompletion, EventListRow, NoteColor, ReorderDirection } from "../../types";
 import { noteBodyColor, parseNoteTag, trackedColorHex } from "../../utils/achievements";
@@ -26,7 +27,6 @@ import {
     sortEvents,
     trackedEventsClickActionLabel
 } from "../../utils/events";
-import { armEventsRowReturn } from "../../utils/eventsFocusReturn";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { landOn, orderAfterGroupMove, stepTo } from "../../utils/reorderOrder";
 import { orderedTagsByRecency } from "../../utils/tags";
@@ -52,6 +52,18 @@ type Section = {
 };
 
 type FlatRow = { row: EventListRow; section: Section; indexInSection: number };
+
+type TrackedEntry = { header: Section } | FlatRow;
+
+function entryKey(entry: TrackedEntry): string {
+    return "header" in entry ? `group:${entry.header.key}` : String(entry.row.gameId);
+}
+
+function entryFocusKey(entry: TrackedEntry): string {
+    return "header" in entry ? `events:group:${entry.header.key}` : `${ROW_KEY_PREFIX}${entry.row.gameId}`;
+}
+
+const HEADER_FALLBACK = [EVENTS_FILTER_FOCUS_KEY];
 
 export function TrackedEventsList(props: EventsListProps & {
     onListEmptied: () => void;
@@ -148,45 +160,60 @@ export function TrackedEventsList(props: EventsListProps & {
     }, [sections, collapsed]);
 
     const rowClaim = useFocusClaim();
-    const filterClaim = useFocusClaim();
 
-    const restoreTarget = props.restore?.eventGameId ?? null;
-    const restoreSection = restoreTarget === null
-        ? null
-        : sections?.find((section) => section.rows.some((row) => row.gameId === restoreTarget)) ?? null;
-    const restoreFolded = restoreSection !== null && collapsed.has(restoreSection.key);
-    const unfoldedRef = useRef(false);
-    useEffect(() => {
-        if (restoreFolded && restoreSection !== null && !unfoldedRef.current) {
-            unfoldedRef.current = true;
-            actions.toggleCollapsed(restoreSection.key);
+    const entries = useMemo<TrackedEntry[]>(() => {
+        const out: TrackedEntry[] = [];
+        for (const section of sections ?? []) {
+            out.push({ header: section });
+            if (!collapsed.has(section.key)) {
+                section.rows.forEach((row, indexInSection) => out.push({ row, section, indexInSection }));
+            }
         }
-    }, [restoreFolded]);
+        return out;
+    }, [sections, collapsed]);
 
-    const flatIds = useMemo(() => (flat === null ? null : flat.map((entry) => entry.row.gameId)), [flat]);
-    const seedRows = useEventsRestore({
-        restore: props.restore,
-        listView: "tracked",
-        ready: user !== null && (!restoreFolded || unfoldedRef.current),
-        ids: flatIds,
-        rowStep: settings.dynamicRowStep,
-        rowKeyPrefix: ROW_KEY_PREFIX,
-        rowClaim,
-        filterClaim,
-        onSettled: props.onRestoreSettled,
-        onRequestFocus: props.onRequestFocus
-    });
+    const rowSlots = useMemo(() => {
+        const slots: number[] = [];
+        let slot = 0;
+        for (const entry of entries) {
+            slots.push("header" in entry ? -1 : slot);
+            if (!("header" in entry)) {
+                slot += 1;
+            }
+        }
+        return slots;
+    }, [entries]);
 
-    const { mountedItems, markerRef, onItemFocus } = useWindowedList({
-        items: flat ?? [],
+    const rowFallbacks = useMemo(() => {
+        const bySection = new Map<string, string[]>();
+        for (const section of sections ?? []) {
+            bySection.set(section.key, [`events:group:${section.key}`, EVENTS_LIST_TOGGLE_FOCUS_KEY]);
+        }
+        return bySection;
+    }, [sections]);
+
+    const trackedWindow = useSlidingWindow({
+        items: entries,
+        itemKey: entryKey,
+        focusKeyFor: entryFocusKey,
+        windowId: "events:tracked",
+        heightScope: ["events:tracked", settings.uiSize, settings.showIcons, language].join("|"),
         dynamicLoading: settings.dynamicLoading,
         initialRows: settings.dynamicInitialRows,
         rowStep: settings.dynamicRowStep,
         prefetchDistance: settings.dynamicPrefetchDistance,
-        sentinelRootMargin: `${settings.dynamicSentinelRootMargin}px 0px`,
+        sentinelRootMarginPx: settings.dynamicSentinelRootMargin,
         resetKey: `${prefs.show}|${prefs.type}|${prefs.sort}|tracked`,
-        seedRows
+        debugLabel: "events:tracked"
     });
+    const mountedItems = useMemo(
+        () => trackedWindow.mountedItems.filter((entry): entry is FlatRow => !("header" in entry)),
+        [trackedWindow.mountedItems]
+    );
+    props.landingWindowsRef.current = {
+        holds: (key) => entries.some((entry) => entryFocusKey(entry) === key),
+        open: (key) => trackedWindow.openAt(key)
+    };
 
     useEffect(function prefetchEventIcons() {
         if (!settings.showIcons || mountedItems.length === 0) {
@@ -261,7 +288,6 @@ export function TrackedEventsList(props: EventsListProps & {
         if (!item) {
             return;
         }
-        armEventsRowReturn(row.gameId, "tracked", `${ROW_KEY_PREFIX}${row.gameId}`, state.owner);
         const allTags = orderedTagsByRecency(
             Object.values(items).map((entry) => ({ tag: parseNoteTag(entry.note).tag, at: entry.noteEditedAt }))
         );
@@ -292,7 +318,7 @@ export function TrackedEventsList(props: EventsListProps & {
 
     function handleClick(row: EventListRow) {
         if (gamepad || clickAction === "open") {
-            props.onOpenEvent(row, `${ROW_KEY_PREFIX}${row.gameId}`);
+            props.onOpenEvent(row);
             return;
         }
         if (clickAction === "untrack") {
@@ -325,8 +351,8 @@ export function TrackedEventsList(props: EventsListProps & {
     markRef.current = props.onToggleTagMark;
     const followRef = useRef(handleFollow);
     followRef.current = handleFollow;
-    const focusRef = useRef(onItemFocus);
-    focusRef.current = onItemFocus;
+    const focusRef = useRef(trackedWindow.onItemFocus);
+    focusRef.current = trackedWindow.onItemFocus;
 
     const metrics = useMemo(() => achievementUiMetrics(settings.uiSize), [settings.uiSize]);
     const list = useMemo<EventRowList>(() => ({
@@ -355,58 +381,52 @@ export function TrackedEventsList(props: EventsListProps & {
         }
         : null;
 
-    const mountedCount = mountedItems.length;
-    const rendered: ReactElement[] = [];
-    let flatIndex = 0;
-    for (const section of sections ?? []) {
-        const folded = collapsed.has(section.key);
-        if (!folded && flatIndex >= mountedCount) {
-            break;
-        }
-        rendered.push(
-            <PanelSectionRow key={`events:section:${section.key}`}>
-                <div style={GROUP_TITLE_STYLE}>
-                    <CollapsibleTitle
-                        label={section.title}
-                        collapsed={folded}
-                        focusKey={`events:group:${section.key}`}
-                        disabled={heldId !== null}
-                        preserveCase={settings.trackedHeaderStyle === "typed"}
-                        onToggle={() => actions.toggleCollapsed(section.key)}
-                    />
-                </div>
-            </PanelSectionRow>
-        );
-        if (folded) {
-            continue;
-        }
-        for (const row of section.rows) {
-            if (flatIndex >= mountedCount) {
-                break;
-            }
-            const index = flatIndex;
-            const item = items[String(row.gameId)];
-            const parsed = parseNoteTag(item?.note ?? "");
-            const noteText = section.completed ? (item?.note ?? "") : parsed.body.trim();
-            rendered.push(
-                <ClaimedRow key={`events:tracked:slot:${index}`} claim={rowClaim} slotIndex={index}>
-                    <EventRow
-                        row={row}
-                        index={index}
-                        list={list}
-                        marked={false}
-                        completion={completions.get(row.gameId) ?? null}
-                        progress={user?.activity[String(row.gameId)]?.lastProgress ?? null}
-                        noteText={noteText}
-                        noteColor={item?.noteColor ? noteBodyColor(item.noteColor) : undefined}
-                        isReorderTarget={heldId === row.gameId}
-                        isTagMarked={props.tagMarks.has(row.gameId)}
-                    />
-                </ClaimedRow>
+    const rendered = trackedWindow.mountedItems.map((entry, offset) => {
+        const index = trackedWindow.start + offset;
+        if ("header" in entry) {
+            const section = entry.header;
+            return (
+                <PanelSectionRow key={`events:section:${section.key}`}>
+                    <div style={GROUP_TITLE_STYLE}>
+                        <CollapsibleTitle
+                            label={section.title}
+                            collapsed={collapsed.has(section.key)}
+                            focusKey={`events:group:${section.key}`}
+                            focusFallback={HEADER_FALLBACK}
+                            disabled={heldId !== null}
+                            preserveCase={settings.trackedHeaderStyle === "typed"}
+                            onToggle={() => actions.toggleCollapsed(section.key)}
+                            onGamepadFocus={() => focusRef.current(index)}
+                            onGamepadDirection={trackedWindow.guardTopRow(index)}
+                        />
+                    </div>
+                </PanelSectionRow>
             );
-            flatIndex += 1;
         }
-    }
+        const { row, section } = entry;
+        const slot = rowSlots[index];
+        const item = items[String(row.gameId)];
+        const parsed = parseNoteTag(item?.note ?? "");
+        const noteText = section.completed ? (item?.note ?? "") : parsed.body.trim();
+        return (
+            <ClaimedRow key={`events:tracked:slot:${slot}`} claim={rowClaim} slotIndex={slot}>
+                <EventRow
+                    row={row}
+                    index={index}
+                    list={list}
+                    marked={false}
+                    completion={completions.get(row.gameId) ?? null}
+                    progress={user?.activity[String(row.gameId)]?.lastProgress ?? null}
+                    noteText={noteText}
+                    noteColor={item?.noteColor ? noteBodyColor(item.noteColor) : undefined}
+                    isReorderTarget={heldId === row.gameId}
+                    isTagMarked={props.tagMarks.has(row.gameId)}
+                    focusFallback={rowFallbacks.get(section.key)}
+                    onGamepadDirection={trackedWindow.guardTopRow(index)}
+                />
+            </ClaimedRow>
+        );
+    });
 
     const reordering = !gamepad && clickAction === "reorder" && reorderAvailable;
 
@@ -416,7 +436,6 @@ export function TrackedEventsList(props: EventsListProps & {
                 language={language}
                 filterValue={props.filterValue}
                 onOpenFilter={props.onOpenFilter}
-                filterClaim={filterClaim}
                 clickRow={clickRow}
                 hints={[
                     { button: "a", label: t(language, "View Info") },
@@ -447,10 +466,7 @@ export function TrackedEventsList(props: EventsListProps & {
                     ? t(language, "No tracked events yet.")
                     : t(language, "No events match these filters.")}
             />
-            {rendered}
-            {flat !== null && mountedItems.length < flat.length && (
-                <div ref={markerRef} style={{ height: "1px" }} />
-            )}
+            <SlidingWindowRows list={trackedWindow}>{rendered}</SlidingWindowRows>
         </>
     );
 }

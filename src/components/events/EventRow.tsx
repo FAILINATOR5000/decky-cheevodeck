@@ -39,6 +39,8 @@ type EventRowProps = {
     noteColor?: string;
     isReorderTarget: boolean;
     isTagMarked?: boolean;
+    focusFallback?: string[];
+    onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 function completionLine(props: EventRowProps, language: LanguageCode): React.ReactNode {
@@ -118,6 +120,8 @@ export const EventRow = React.memo(function EventRow(props: EventRowProps) {
     return (
         <FocusableItem
             focusKey={`${list.focusKeyPrefix}${row.gameId}`}
+            focusFallback={props.focusFallback}
+            onGamepadDirection={props.onGamepadDirection}
             onFocus={() => list.onFocusIndex(index)}
             onGamepadFocus={handleGamepadFocus}
             onClick={() => list.onClick(row, index)}

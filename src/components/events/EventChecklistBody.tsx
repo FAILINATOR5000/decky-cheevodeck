@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
+import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { PanelSectionRow } from "@decky/ui";
 import { BottomFocusAnchor } from "../ui/BottomFocusAnchor";
 import { ButtonHints } from "../ui/ButtonHints";
@@ -9,12 +9,12 @@ import { LabeledRow } from "../ui/LabeledRow";
 import { SystemHeader } from "../mastery/SystemHeader";
 import { SetGameCard, type SetGameCardListProps } from "../mastery/SetGameCard";
 import { groupGamesByConsole } from "../mastery/setGameGrouping";
-import { ClaimedRow } from "./ClaimedRow";
 import { useEvents } from "./EventsContext";
 import { prefetchGameIcons } from "../../api";
 import { useConsoleIcons } from "../../hooks/useConsoleIcons";
-import { useFocusClaim } from "../../hooks/useFocusClaim";
-import { useWindowedList } from "../../hooks/useWindowedList";
+import { useSlidingWindow } from "../../hooks/useSlidingWindow";
+import { SlidingWindowRows } from "../ui/SlidingWindowRows";
+import type { LandingWindows } from "../../focusRecords";
 import { localizeRuntimeText, t, type LanguageCode } from "../../locales";
 import type {
     ChecklistFilter,
@@ -32,12 +32,22 @@ import { textSize } from "../../utils/scale";
 
 type ChecklistClick = "open" | "tick" | "master";
 
-const RESTORE_SEED_CEILING = 300;
-
 const TICK_MARK = <span style={{ color: achievementGreen, fontSize: "20px", fontWeight: 800 }}>{"✔"}</span>;
 const MASTERED_MARK = <span style={{ color: "#fbbf24", fontSize: "20px", fontWeight: 800 }}>{"✔"}</span>;
 
 type Group = { key: string; label: string; consoleName: string | null; games: TrackedSetGame[] };
+
+type ChecklistEntry = { group: Group } | TrackedSetGame;
+
+function entryKey(entry: ChecklistEntry): string {
+    return "group" in entry ? `group:${entry.group.key}` : String(entry.gameId);
+}
+
+function entryFocusKey(entry: ChecklistEntry): string {
+    return "group" in entry ? `eventchecklistgroup:${entry.group.key}` : `eventchecklist:${entry.gameId}`;
+}
+
+const CARD_FALLBACK = ["eventchecklist:view"];
 
 type EventChecklistBodyProps = {
     language: LanguageCode;
@@ -50,11 +60,9 @@ type EventChecklistBodyProps = {
     ruleText: string;
     masteryMarkable: boolean;
     undated: boolean;
-    restoreGameId: number | null;
-    onRestoreSettled: () => void;
     onOpenGame: (gameId: number) => void;
     onSetTick: (gameId: number, value: ChecklistTick | null) => void;
-    onRequestFocus: (focusKey: string) => void;
+    landingWindowsRef: MutableRefObject<LandingWindows | null>;
 };
 
 function cardGame(card: ChecklistCard, index: number, games: Record<string, EventChecklistGame>, progress: Record<string, ChecklistGameProgress> | null): TrackedSetGame {
@@ -122,43 +130,30 @@ export function EventChecklistBody(props: EventChecklistBodyProps) {
     }, [cards, games, progress, view, filter]);
 
     const flat = useMemo(() => groups.flatMap((group) => group.games), [groups]);
+    const entries = useMemo<ChecklistEntry[]>(() => groups.flatMap((group) => [{ group }, ...group.games]), [groups]);
 
-    const claim = useFocusClaim();
-    const firedRef = useRef(false);
-    const [seedRows, setSeedRows] = useState<number | undefined>(undefined);
-    useEffect(() => {
-        if (props.restoreGameId === null || firedRef.current || progress === null) {
-            return;
-        }
-        firedRef.current = true;
-        const index = flat.findIndex((game) => game.gameId === props.restoreGameId);
-        if (index < 0 || index >= RESTORE_SEED_CEILING) {
-            props.onRestoreSettled();
-            props.onRequestFocus("eventviewer:back");
-            return;
-        }
-        setSeedRows(index + 1 + settings.dynamicRowStep);
-        claim.claimSlot(index);
-        props.onRequestFocus(`eventchecklist:${props.restoreGameId}`);
-    }, [progress, flat, props.restoreGameId]);
-    const spent = firedRef.current && (claim.claim?.token ?? 0) > 0 && !claim.claim?.armed;
-    useEffect(() => {
-        if (spent) {
-            props.onRestoreSettled();
-            setSeedRows(undefined);
-        }
-    }, [spent]);
-
-    const { mountedItems, markerRef, onItemFocus } = useWindowedList({
-        items: flat,
+    const checklistWindow = useSlidingWindow({
+        items: entries,
+        itemKey: entryKey,
+        focusKeyFor: entryFocusKey,
+        windowId: "eventchecklist:games",
+        heightScope: ["eventchecklist:games", settings.uiSize, settings.showIcons, language, view].join("|"),
         dynamicLoading: settings.dynamicLoading,
         initialRows: settings.dynamicInitialRows,
         rowStep: settings.dynamicRowStep,
         prefetchDistance: settings.dynamicPrefetchDistance,
-        sentinelRootMargin: `${settings.dynamicSentinelRootMargin}px 0px`,
+        sentinelRootMarginPx: settings.dynamicSentinelRootMargin,
         resetKey: `${props.eventGameId}|${view}|${filter}`,
-        seedRows
+        debugLabel: "eventchecklist:games"
     });
+    const mountedItems = useMemo(
+        () => checklistWindow.mountedItems.filter((entry): entry is TrackedSetGame => !("group" in entry)),
+        [checklistWindow.mountedItems]
+    );
+    props.landingWindowsRef.current = {
+        holds: (key) => flat.some((game) => `eventchecklist:${game.gameId}` === key),
+        open: (key) => checklistWindow.openAt(key)
+    };
 
     useEffect(function prefetchChecklistIcons() {
         if (!settings.showIcons || mountedItems.length === 0) {
@@ -185,8 +180,8 @@ export function EventChecklistBody(props: EventChecklistBodyProps) {
     markRef.current = mark;
     const clickRef = useRef(clickAction);
     clickRef.current = gamepad ? "open" : clickAction;
-    const focusRef = useRef(onItemFocus);
-    focusRef.current = onItemFocus;
+    const focusRef = useRef(checklistWindow.onItemFocus);
+    focusRef.current = checklistWindow.onItemFocus;
 
     const metrics = useMemo(() => achievementUiMetrics(settings.uiSize), [settings.uiSize]);
     const buttonOuterStyle = useMemo(() => regularButtonSpacingStyle(settings.buttonSpacing), [settings.buttonSpacing]);
@@ -198,6 +193,7 @@ export function EventChecklistBody(props: EventChecklistBodyProps) {
         metrics,
         buttonOuterStyle,
         focusKeyPrefix: "eventchecklist",
+        focusFallback: CARD_FALLBACK,
         onOpenGameOverview: (gameId) => {
             if (clickRef.current !== "open") {
                 markRef.current(gameId, clickRef.current);
@@ -219,57 +215,50 @@ export function EventChecklistBody(props: EventChecklistBodyProps) {
         ? t(language, "All")
         : filter === "todo" ? t(language, "To Do") : t(language, "Checked");
 
-    const rendered: ReactElement[] = [];
-    let slot = 0;
-    for (const group of groups) {
-        if (slot >= mountedItems.length) {
-            break;
-        }
-        rendered.push(
-            <Fragment key={group.key}>
-                {group.consoleName !== null ? (
-                    <SystemHeader
-                        viewMode={view as TrackedSetViewMode}
-                        consoleName={group.consoleName}
-                        count={group.games.length}
-                        iconUrl={consoleIconFor(group.consoleName)}
-                        language={language}
-                        showIcons={settings.showIcons}
-                        metrics={metrics}
-                    />
-                ) : (
-                    <PanelSectionRow>
-                        <div style={{ fontSize: `${textSize(15)}px`, fontWeight: 800, margin: "8px 0 2px 0" }}>
-                            {`${group.label} (${group.games.length})`}
-                        </div>
-                    </PanelSectionRow>
-                )}
-            </Fragment>
-        );
-        for (const game of group.games) {
-            if (slot >= mountedItems.length) {
-                break;
-            }
-            const card = byId.get(game.gameId);
-            const index = slot;
-            rendered.push(
-                <ClaimedRow key={`eventchecklist:slot:${index}`} claim={claim} slotIndex={index}>
-                    <SetGameCard
-                        game={game}
-                        done={Boolean(card?.ticked)}
-                        slotIndex={index}
-                        isReorderTarget={false}
-                        trashArmed={false}
-                        claimToken={0}
-                        corner={card?.level === 2 ? MASTERED_MARK : card?.ticked ? TICK_MARK : undefined}
-                        extraLine={card?.beforeEvent && !card.ticked ? t(language, "Before event") : undefined}
-                        list={list}
-                    />
-                </ClaimedRow>
-            );
-            slot += 1;
-        }
+    let guardSlot = checklistWindow.start;
+    if (checklistWindow.mountedItems.length > 0 && "group" in checklistWindow.mountedItems[0]) {
+        guardSlot += 1;
     }
+    const rendered = checklistWindow.mountedItems.map((entry, offset) => {
+        const index = checklistWindow.start + offset;
+        if ("group" in entry) {
+            const group = entry.group;
+            return group.consoleName !== null ? (
+                <SystemHeader
+                    key={group.key}
+                    viewMode={view as TrackedSetViewMode}
+                    consoleName={group.consoleName}
+                    count={group.games.length}
+                    iconUrl={consoleIconFor(group.consoleName)}
+                    language={language}
+                    showIcons={settings.showIcons}
+                    metrics={metrics}
+                />
+            ) : (
+                <PanelSectionRow key={group.key}>
+                    <div style={{ fontSize: `${textSize(15)}px`, fontWeight: 800, margin: "8px 0 2px 0" }}>
+                        {`${group.label} (${group.games.length})`}
+                    </div>
+                </PanelSectionRow>
+            );
+        }
+        const card = byId.get(entry.gameId);
+        return (
+            <SetGameCard
+                key={entry.gameId}
+                game={entry}
+                done={Boolean(card?.ticked)}
+                slotIndex={index}
+                isReorderTarget={false}
+                trashArmed={false}
+                claimToken={0}
+                corner={card?.level === 2 ? MASTERED_MARK : card?.ticked ? TICK_MARK : undefined}
+                extraLine={card?.beforeEvent && !card.ticked ? t(language, "Before event") : undefined}
+                list={list}
+                onGamepadDirection={index === guardSlot ? checklistWindow.guardTopRow(index) : undefined}
+            />
+        );
+    });
 
     return (
         <>
@@ -353,8 +342,7 @@ export function EventChecklistBody(props: EventChecklistBodyProps) {
                             </div>
                         </PanelSectionRow>
                     )}
-                    {rendered}
-                    {mountedItems.length < flat.length && <div ref={markerRef} style={{ height: "1px" }} />}
+                    <SlidingWindowRows list={checklistWindow}>{rendered}</SlidingWindowRows>
                 </>
             )}
         </>

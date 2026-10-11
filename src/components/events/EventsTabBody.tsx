@@ -1,24 +1,23 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from "react";
 import { DialogButton, Focusable } from "@decky/ui";
 // Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
 import { FaList, FaTag, FaThumbtack } from "react-icons/fa";
 import { ButtonPrompt } from "../ui/ButtonPrompt";
-import { ClaimedRow } from "./ClaimedRow";
 import { EventRow, type EventRowList } from "./EventRow";
 import { EventsFilterModal } from "./EventsFilterModal";
 import {
-    EVENTS_FILTER_FOCUS_KEY,
     EVENTS_LIST_TOGGLE_FOCUS_KEY,
     EventsListHead,
     EventsListStatus,
-    useEventsRestore,
     type EventsListProps
 } from "./EventsListParts";
 import { TrackedEventsList } from "./TrackedEventsList";
 import { useEvents } from "./EventsContext";
 import { prefetchGameIcons } from "../../api";
-import { useFocusClaim } from "../../hooks/useFocusClaim";
-import { useWindowedList } from "../../hooks/useWindowedList";
+import { useSlidingWindow } from "../../hooks/useSlidingWindow";
+import { FocusTarget } from "../ui/FocusTarget";
+import { SlidingWindowRows } from "../ui/SlidingWindowRows";
+import type { LandingWindows } from "../../focusRecords";
 import { t, type LanguageCode } from "../../locales";
 import type { EventCompletion, EventListRow, EventsListView } from "../../types";
 import { parseNoteTag, trackedColorHex } from "../../utils/achievements";
@@ -31,7 +30,6 @@ import {
     nextEventsClickAction,
     sortEvents
 } from "../../utils/events";
-import { armEventsFocusKey, armEventsRowReturn, type EventsFocusReturn } from "../../utils/eventsFocusReturn";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { playOkSound } from "../../utils/navSound";
 import { orderedTagsByRecency } from "../../utils/tags";
@@ -40,11 +38,8 @@ import { textSize } from "../../utils/scale";
 
 const EVENTS_AOTW_FOCUS_KEY = "events:header:aotw";
 const EVENTS_APPLY_TAG_FOCUS_KEY = "events:header:applytag";
-
-const HEADER_CLAIM_SLOTS: Record<string, number> = {
-    [EVENTS_LIST_TOGGLE_FOCUS_KEY]: -3,
-    [EVENTS_AOTW_FOCUS_KEY]: -4
-};
+const ALL_EVENTS_ROW_FALLBACK = [EVENTS_LIST_TOGGLE_FOCUS_KEY];
+const NO_EVENTS: EventListRow[] = [];
 
 // Font Awesome Free icon path, CC BY 4.0. See ATTRIBUTIONS.md.
 function MedalIcon(props: { size?: number }) {
@@ -64,16 +59,15 @@ function MedalIcon(props: { size?: number }) {
 
 export type EventsTabBodyProps = {
     language: LanguageCode;
-    restore: EventsFocusReturn | null;
-    onRestoreSettled: (abandoned?: boolean) => void;
     onOpenEvent?: (eventGameId: number) => void;
     onOpenAotw?: () => void;
     onRequestFocus: (focusKey: string) => void;
     onListEmptied: () => void;
+    landingWindowsRef: MutableRefObject<LandingWindows | null>;
 };
 
 export function EventsTabBody(props: EventsTabBodyProps) {
-    const { language, restore } = props;
+    const { language } = props;
     const { state, actions, settings } = useEvents();
     const listView: EventsListView = state.user?.prefs.listView ?? "all";
 
@@ -81,32 +75,10 @@ export function EventsTabBody(props: EventsTabBodyProps) {
         actions.enter();
     }, [actions.enter]);
 
-    const headerSlot = restore !== null && restore.eventGameId === null
-        ? HEADER_CLAIM_SLOTS[restore.focusKey]
-        : undefined;
-    const listRestore = headerSlot === undefined ? restore : null;
-    const headerClaim = useFocusClaim();
-    const headerFiredRef = useRef(false);
-    useEffect(() => {
-        if (headerSlot === undefined || headerFiredRef.current || restore === null) {
-            return;
-        }
-        headerFiredRef.current = true;
-        headerClaim.claimSlot(headerSlot);
-        props.onRequestFocus(restore.focusKey);
-    }, [headerSlot]);
-    const headerSpent = headerFiredRef.current && (headerClaim.claim?.token ?? 0) > 0 && !headerClaim.claim?.armed;
-    useEffect(() => {
-        if (headerSpent) {
-            props.onRestoreSettled();
-        }
-    }, [headerSpent]);
-
     function openAotw() {
         if (!props.onOpenAotw) {
             return;
         }
-        armEventsFocusKey(EVENTS_AOTW_FOCUS_KEY, listView);
         props.onOpenAotw();
     }
 
@@ -115,7 +87,6 @@ export function EventsTabBody(props: EventsTabBodyProps) {
         if (user === null) {
             return;
         }
-        armEventsFocusKey(EVENTS_FILTER_FOCUS_KEY, listView);
         showManagedModal((close) => (
             <EventsFilterModal
                 view={listView}
@@ -133,12 +104,8 @@ export function EventsTabBody(props: EventsTabBodyProps) {
         actions.setListView(listView === "all" ? "tracked" : "all");
     }
 
-    function openEvent(row: EventListRow, focusKey: string) {
-        if (!props.onOpenEvent) {
-            return;
-        }
-        armEventsRowReturn(row.gameId, listView, focusKey, state.owner);
-        props.onOpenEvent(row.gameId);
+    function openEvent(row: EventListRow) {
+        props.onOpenEvent?.(row.gameId);
     }
 
     const filterValue = state.user ? eventsPrefsSummary(state.user.prefs[listView], language) : "";
@@ -208,7 +175,7 @@ export function EventsTabBody(props: EventsTabBodyProps) {
     function renderHeaderButton(focusKey: string, icon: ReactNode, onClick: () => void, dimmed = false) {
         const focused = focusedHeaderKey === focusKey;
         return (
-            <div data-focus-key={focusKey} style={{ display: "flex" }}>
+            <FocusTarget focusKey={focusKey} style={{ display: "flex" }}>
                 <DialogButton
                     onClick={onClick}
                     disabled={state.user === null}
@@ -232,7 +199,7 @@ export function EventsTabBody(props: EventsTabBodyProps) {
                 >
                     {icon}
                 </DialogButton>
-            </div>
+            </FocusTarget>
         );
     }
 
@@ -258,18 +225,12 @@ export function EventsTabBody(props: EventsTabBodyProps) {
                         () => void applyTag(),
                         !canApplyTag
                     )}
-                    <ClaimedRow claim={headerClaim} slotIndex={HEADER_CLAIM_SLOTS[EVENTS_LIST_TOGGLE_FOCUS_KEY]}>
-                        {renderHeaderButton(
-                            EVENTS_LIST_TOGGLE_FOCUS_KEY,
-                            listView === "tracked" ? <FaList size={16} /> : <FaThumbtack size={16} />,
-                            toggleListView
-                        )}
-                    </ClaimedRow>
-                    {props.onOpenAotw && (
-                        <ClaimedRow claim={headerClaim} slotIndex={HEADER_CLAIM_SLOTS[EVENTS_AOTW_FOCUS_KEY]}>
-                            {renderHeaderButton(EVENTS_AOTW_FOCUS_KEY, <MedalIcon size={16} />, openAotw)}
-                        </ClaimedRow>
+                    {renderHeaderButton(
+                        EVENTS_LIST_TOGGLE_FOCUS_KEY,
+                        listView === "tracked" ? <FaList size={16} /> : <FaThumbtack size={16} />,
+                        toggleListView
                     )}
+                    {props.onOpenAotw && renderHeaderButton(EVENTS_AOTW_FOCUS_KEY, <MedalIcon size={16} />, openAotw)}
                 </Focusable>
             </div>
             <div
@@ -289,12 +250,11 @@ export function EventsTabBody(props: EventsTabBodyProps) {
                 {listView === "all" ? (
                     <AllEventsList
                         language={language}
-                        restore={listRestore}
                         filterValue={filterValue}
                         onOpenFilter={openFilter}
                         onOpenEvent={openEvent}
-                        onRestoreSettled={props.onRestoreSettled}
                         onRequestFocus={props.onRequestFocus}
+                        landingWindowsRef={props.landingWindowsRef}
                     />
                 ) : (
                     <TrackedEventsList
@@ -302,13 +262,12 @@ export function EventsTabBody(props: EventsTabBodyProps) {
                         lastTag={lastTag}
                         tagMarks={tagMarks}
                         onToggleTagMark={toggleTagMark}
-                        restore={listRestore}
                         filterValue={filterValue}
                         onOpenFilter={openFilter}
                         onOpenEvent={openEvent}
-                        onRestoreSettled={props.onRestoreSettled}
                         onRequestFocus={props.onRequestFocus}
                         onListEmptied={props.onListEmptied}
+                        landingWindowsRef={props.landingWindowsRef}
                     />
                 )}
             </Focusable>
@@ -343,32 +302,26 @@ function AllEventsList(props: EventsListProps) {
         return sortEvents(kept, events, prefs.sort, user, completions, null);
     }, [events, user, completions, prefs.show, prefs.type, prefs.sort, state.newestSiteGameId]);
 
-    const rowClaim = useFocusClaim();
-    const filterClaim = useFocusClaim();
-    const sortedIds = useMemo(() => (sorted === null ? null : sorted.map((row) => row.gameId)), [sorted]);
-    const seedRows = useEventsRestore({
-        restore: props.restore,
-        listView: "all",
-        ready: user !== null,
-        ids: sortedIds,
-        rowStep: settings.dynamicRowStep,
-        rowKeyPrefix: "events:row:",
-        rowClaim,
-        filterClaim,
-        onSettled: props.onRestoreSettled,
-        onRequestFocus: props.onRequestFocus
-    });
-
-    const { mountedItems, markerRef, onItemFocus } = useWindowedList({
-        items: sorted ?? [],
+    const rows = sorted ?? NO_EVENTS;
+    const eventsWindow = useSlidingWindow({
+        items: rows,
+        itemKey: (row) => String(row.gameId),
+        focusKeyFor: (row) => `events:row:${row.gameId}`,
+        windowId: "events:all",
+        heightScope: ["events:all", settings.uiSize, settings.showIcons, language].join("|"),
         dynamicLoading: settings.dynamicLoading,
         initialRows: settings.dynamicInitialRows,
         rowStep: settings.dynamicRowStep,
         prefetchDistance: settings.dynamicPrefetchDistance,
-        sentinelRootMargin: `${settings.dynamicSentinelRootMargin}px 0px`,
+        sentinelRootMarginPx: settings.dynamicSentinelRootMargin,
         resetKey: `${prefs.show}|${prefs.type}|${prefs.sort}|all`,
-        seedRows
+        debugLabel: "events:all"
     });
+    const mountedItems = eventsWindow.mountedItems;
+    props.landingWindowsRef.current = {
+        holds: (key) => rows.some((row) => `events:row:${row.gameId}` === key),
+        open: (key) => eventsWindow.openAt(key)
+    };
 
     useEffect(function prefetchEventIcons() {
         if (!settings.showIcons || mountedItems.length === 0) {
@@ -384,8 +337,8 @@ function AllEventsList(props: EventsListProps) {
     openRef.current = props.onOpenEvent;
     const clickRef = useRef(clickAction);
     clickRef.current = clickAction;
-    const focusRef = useRef(onItemFocus);
-    focusRef.current = onItemFocus;
+    const focusRef = useRef(eventsWindow.onItemFocus);
+    focusRef.current = eventsWindow.onItemFocus;
     const toggleRef = useRef(actions.toggleTracked);
     toggleRef.current = actions.toggleTracked;
 
@@ -403,7 +356,7 @@ function AllEventsList(props: EventsListProps) {
                 toggleRef.current(row.gameId);
                 return;
             }
-            openRef.current(row, `events:row:${row.gameId}`);
+            openRef.current(row);
         },
         onSecondary: gamepad ? (row) => toggleRef.current(row.gameId) : undefined
     }), [language, settings.showIcons, metrics, settings.trackedColor, state.newestSiteGameId, gamepad]);
@@ -416,7 +369,6 @@ function AllEventsList(props: EventsListProps) {
                 language={language}
                 filterValue={props.filterValue}
                 onOpenFilter={props.onOpenFilter}
-                filterClaim={filterClaim}
                 clickRow={settings.showClickRow
                     ? {
                         value: eventsClickActionLabel(settings.clickAction, language),
@@ -433,23 +385,26 @@ function AllEventsList(props: EventsListProps) {
                 empty={sorted !== null && sorted.length === 0}
                 emptyText={t(language, "No events match these filters.")}
             />
-            {mountedItems.map((row, index) => (
-                <ClaimedRow key={`events:slot:${index}`} claim={rowClaim} slotIndex={index}>
-                    <EventRow
-                        row={row}
-                        index={index}
-                        list={list}
-                        marked={Boolean(trackedItems[String(row.gameId)])}
-                        completion={completions.get(row.gameId) ?? null}
-                        progress={user?.activity[String(row.gameId)]?.lastProgress ?? null}
-                        noteText=""
-                        isReorderTarget={false}
-                    />
-                </ClaimedRow>
-            ))}
-            {sorted !== null && mountedItems.length < sorted.length && (
-                <div ref={markerRef} style={{ height: "1px" }} />
-            )}
+            <SlidingWindowRows list={eventsWindow}>
+                {mountedItems.map((row, offset) => {
+                    const index = eventsWindow.start + offset;
+                    return (
+                        <EventRow
+                            key={`events:slot:${index}`}
+                            row={row}
+                            index={index}
+                            list={list}
+                            marked={Boolean(trackedItems[String(row.gameId)])}
+                            completion={completions.get(row.gameId) ?? null}
+                            progress={user?.activity[String(row.gameId)]?.lastProgress ?? null}
+                            noteText=""
+                            isReorderTarget={false}
+                            focusFallback={ALL_EVENTS_ROW_FALLBACK}
+                            onGamepadDirection={eventsWindow.guardTopRow(index)}
+                        />
+                    );
+                })}
+            </SlidingWindowRows>
         </>
     );
 }

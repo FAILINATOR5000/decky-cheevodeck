@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { DialogButton, Focusable } from "@decky/ui";
 import { FocusableItem } from "../ui/FocusableItem";
+import { FocusTarget } from "../ui/FocusTarget";
 import { UserAvatar } from "../ui/UserAvatar";
 import { t, type LanguageCode } from "../../locales";
 import type { FriendRow } from "../../types";
@@ -11,6 +12,7 @@ import { bodyTextStyle } from "../../utils/style";
 
 export type FriendRowListProps = {
     language: LanguageCode;
+    focusFallback?: string[];
     onFriendClick: (friend: FriendRow) => void;
     onFriendFocus: (friend: FriendRow) => void;
     onFriendHover: (friend: FriendRow) => void;
@@ -95,6 +97,7 @@ export const FriendListRow = React.memo(function FriendListRow(props: FriendList
             <FocusableItem
                 outerStyle={{ width: "100%", minWidth: 0 }}
                 focusKey={`friend:${friend.username}`}
+                focusFallback={list.focusFallback}
                 onFocus={handleFriendFocus}
                 onGamepadFocus={handleGamepadFocus}
                 onGamepadDirection={props.onGamepadDirection}
@@ -204,8 +207,9 @@ export const FriendListRow = React.memo(function FriendListRow(props: FriendList
                 </div>
             ) : null}
             {canFavorite ? (
-                <div
-                    data-focus-key={`friend-favorite:${favoriteKey}`}
+                <FocusTarget
+                    focusKey={`friend-favorite:${favoriteKey}`}
+                    focusFallback={[`friend:${friend.username}`, ...(list.focusFallback ?? [])]}
                     style={{
                         position: "absolute",
                         top: "17px",
@@ -260,7 +264,7 @@ export const FriendListRow = React.memo(function FriendListRow(props: FriendList
                     >
                         {favorite ? "★" : "☆"}
                     </DialogButton>
-                </div>
+                </FocusTarget>
             ) : null}
         </Focusable>
     );

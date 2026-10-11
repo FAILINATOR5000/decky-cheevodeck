@@ -7,7 +7,6 @@ import { FocusClaim } from "../ui/FocusClaim";
 import { InlineSpinner } from "../ui/InlineSpinner";
 import { LabeledRow } from "../ui/LabeledRow";
 import { PageNavStrip } from "../ui/PageNavStrip";
-import { RestoreCurtain } from "../ui/RestoreCurtain";
 import { SubTabButton } from "../ui/SubTabButton";
 import { AotwHeader } from "../social/AotwHeader";
 import { AotwUnlockRow } from "../social/AotwUnlockRow";
@@ -15,6 +14,7 @@ import { CommentActionStrip } from "../comments/CommentActionStrip";
 import { CommentsList } from "../comments/CommentsList";
 import type { RestoredCommentsWindow } from "../../hooks/useCommentsWindow";
 import { useThreadSubscription } from "../../hooks/useThreadSubscription";
+import { usePageLanding } from "../../focusRecords";
 import { localizeRuntimeText, t, type LanguageCode } from "../../locales";
 import type {
     AchievementOfTheWeekResponse,
@@ -76,7 +76,6 @@ type AotwViewPageProps = {
     buttonSpacing: ButtonSpacing;
     dynamicComments: boolean;
     dynamicCommentsSentinelRootMargin: number;
-    panelOverlayVisible: boolean;
     onBack: () => void | Promise<void>;
     onHome: () => void | Promise<void>;
 };
@@ -123,7 +122,24 @@ export function AotwView(props: AotwViewPageProps) {
         && (aotwCardClaim?.token ?? 0) > 0
         && !aotwCardClaim?.armed;
 
-    const page = (
+    usePageLanding({
+        view: "eventViewer",
+        subject: "aotw",
+        tabPath: [aotw.aotwSubView],
+        defaultKey: "eventviewer:back",
+        ready: aotw.aotwResponse !== null || aotw.aotwError !== null,
+        restoreTabPath: (tabs) => {
+            const tab = tabs[0] === "unlocks" || tabs[0] === "comments" ? tabs[0] : null;
+            if (tab === null || tab === aotw.aotwSubView) {
+                return false;
+            }
+            aotw.onChangeAotwSubView(tab);
+            return true;
+        },
+        ownLanding: { pending: aotw.aotwRestorePending, settled: restoreSettled }
+    });
+
+    return (
         <PanelSection>
             <PageNavStrip
                 title={t(language, "Achievement of the Week")}
@@ -133,7 +149,7 @@ export function AotwView(props: AotwViewPageProps) {
             <BackButton
                 label={t(language, "← Back")}
                 focusKey="eventviewer:back"
-                navAutoFocus={!aotw.aotwRestorePending}
+                navAutoFocus
                 buttonSpacing={props.buttonSpacing}
                 onClick={props.onBack}
             />
@@ -331,11 +347,5 @@ export function AotwView(props: AotwViewPageProps) {
                 ) : null}
             </>
         </PanelSection>
-    );
-
-    return (
-        <RestoreCurtain armed={aotw.aotwRestorePending} settled={restoreSettled} covered={props.panelOverlayVisible}>
-            {page}
-        </RestoreCurtain>
     );
 }

@@ -97,6 +97,7 @@ function activitySubtitle(event: SocialActivityEvent, language: LanguageCode) {
 
 export type ActivityRowListProps = {
     language: LanguageCode;
+    focusFallback?: string[];
     showIcons: boolean;
     metrics: AchievementUiMetrics;
     onActivityCardClick: (event: SocialActivityEvent) => void;
@@ -143,6 +144,7 @@ export const ActivityFeedRow = React.memo(function ActivityFeedRow(props: Activi
     return (
         <FocusableItem
             focusKey={`activity:${event.id}`}
+            focusFallback={list.focusFallback}
             onClick={handleClick}
             onButtonDown={handleButtonDown}
             onGamepadFocus={handleFocus}

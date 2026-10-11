@@ -6,7 +6,6 @@ import { ErrorText } from "../components/ui/ErrorText";
 import { FocusClaim } from "../components/ui/FocusClaim";
 import { LabeledRow } from "../components/ui/LabeledRow";
 import { PageNavStrip } from "../components/ui/PageNavStrip";
-import { RestoreCurtain } from "../components/ui/RestoreCurtain";
 import { SubTabButton } from "../components/ui/SubTabButton";
 import { CommentActionStrip } from "../components/comments/CommentActionStrip";
 import { CommentsList } from "../components/comments/CommentsList";
@@ -16,7 +15,6 @@ import { EventViewerHeader, type EventHeaderButton } from "../components/events/
 import { useEvents } from "../components/events/EventsContext";
 import { AotwView, type AotwViewProps } from "../components/events/AotwView";
 import { useEventViewerController } from "../hooks/useEventViewerController";
-import { useFocusClaim } from "../hooks/useFocusClaim";
 import { useThreadSubscription } from "../hooks/useThreadSubscription";
 import { localizeRuntimeText, t, type LanguageCode } from "../locales";
 import type { AchievementRow, EventViewerTab, EventViewerTarget, GameComment, ViewKey } from "../types";
@@ -24,7 +22,6 @@ import type { SavedCommentSourceInput } from "../utils/savedComments";
 import { gameCommentSource } from "../utils/savedComments";
 import { unlockedHardcore } from "../utils/achievements";
 import { canMarkComplete, checklistCards, checklistMasteryMarkable, checklistPoints, eventCompletion, EVENTS_CONSOLE_NAME } from "../utils/events";
-import { armEventViewerButtonReturn, armEventViewerRowReturn, takeEventViewerReturn } from "../utils/eventViewerFocusReturn";
 import {
     clearCommentsSnapshot,
     hasCommentsPostReturnFor,
@@ -37,7 +34,7 @@ import { BUTTON_SECONDARY } from "../utils/gamepadButtons";
 import { openExternalUrl, raForumTopicUrl, raGameCommentsUrl } from "../utils/navigation";
 import { playOkSound } from "../utils/navSound";
 import { bodyTextStyle } from "../utils/style";
-import { usePageLanding } from "../focusRecords";
+import { usePageLanding, type LandingWindows } from "../focusRecords";
 
 const TABS: { value: EventViewerTab; labelKey: string; focusKey: string }[] = [
     { value: "achievements", labelKey: "Achievements", focusKey: "eventviewer:tab:achievements" },
@@ -49,7 +46,6 @@ type EventViewerPageState = {
     language: LanguageCode;
     target: EventViewerTarget;
     tab: EventViewerTab;
-    panelOverlayVisible: boolean;
 };
 
 type EventViewState = Omit<EventViewerPageState, "target"> & { eventGameId: number };
@@ -67,11 +63,6 @@ type EventViewerPageActions = {
 function EventViewerPage(props: { state: EventViewerPageState; actions: EventViewerPageActions; aotw: AotwViewProps }) {
     const { state, actions } = props;
     const { settings } = useEvents();
-    usePageLanding({
-        view: "eventViewer",
-        subject: state.target,
-        tabPath: [state.target === "aotw" ? props.aotw.aotwSubView : state.tab]
-    });
     if (state.view !== "eventViewer") {
         return null;
     }
@@ -85,7 +76,6 @@ function EventViewerPage(props: { state: EventViewerPageState; actions: EventVie
                 buttonSpacing={settings.buttonSpacing}
                 dynamicComments={settings.dynamicComments}
                 dynamicCommentsSentinelRootMargin={settings.dynamicCommentsSentinelRootMargin}
-                panelOverlayVisible={state.panelOverlayVisible}
                 onBack={actions.onBack}
                 onHome={actions.onHome}
             />
@@ -120,14 +110,9 @@ function EventView(props: { state: EventViewState; actions: EventViewerPageActio
         }
     }, []);
 
-    const [restore] = useState(() => takeEventViewerReturn(eventGameId, events.state.owner));
-    const restoreRowId = restore?.achievementId ?? null;
-    const restoreButtonKey = restore?.buttonKey ?? null;
     const [commentsRestore] = useState(() =>
         hasCommentsSnapshotFor("comments:event", eventGameId) || hasCommentsPostReturnFor("comments:event", eventGameId)
     );
-    const [rowRestoreSettled, setRowRestoreSettled] = useState(restoreRowId === null);
-    const restorePending = restoreRowId !== null || restoreButtonKey !== null || commentsRestore;
 
     const row = events.state.events?.find((entry) => entry.gameId === eventGameId) ?? null;
     const detail = viewer.detail;
@@ -217,7 +202,6 @@ function EventView(props: { state: EventViewState; actions: EventViewerPageActio
 
     function openChecklistGame(gameId: number) {
         playOkSound();
-        armEventViewerRowReturn(eventGameId, gameId, events.state.owner);
         actions.onOpenGame(gameId);
     }
 
@@ -230,7 +214,6 @@ function EventView(props: { state: EventViewState; actions: EventViewerPageActio
             return;
         }
         playOkSound();
-        armEventViewerRowReturn(eventGameId, achievement.id, events.state.owner);
         const source = sources[String(achievement.id)];
         if (source && !source.obfuscated) {
             actions.onOpenAchievement(
@@ -248,7 +231,6 @@ function EventView(props: { state: EventViewState; actions: EventViewerPageActio
             return false;
         }
         playOkSound();
-        armEventViewerRowReturn(eventGameId, achievement.id, events.state.owner);
         actions.onOpenGame(source.gameId);
         return true;
     }
@@ -288,50 +270,20 @@ function EventView(props: { state: EventViewState; actions: EventViewerPageActio
         buttons.push({
             key: "thread",
             label: t(language, "Event Thread"),
-            onClick: () => openHeaderLink("thread", raForumTopicUrl(forumTopicId))
+            onClick: () => void openExternalUrl(raForumTopicUrl(forumTopicId))
         });
     }
     if (detail?.infoUrl) {
         const infoUrl = detail.infoUrl;
-        buttons.push({ key: "info", label: t(language, "More Info"), onClick: () => openHeaderLink("info", infoUrl) });
+        buttons.push({ key: "info", label: t(language, "More Info"), onClick: () => void openExternalUrl(infoUrl) });
     }
     for (const link of detail?.links ?? []) {
         buttons.push({
             key: `link:${link.url}`,
             label: link.label || t(language, "Open Sheet"),
-            onClick: () => openHeaderLink(`link:${link.url}`, link.url)
+            onClick: () => void openExternalUrl(link.url)
         });
     }
-
-    function openHeaderLink(key: string, url: string) {
-        armEventViewerButtonReturn(eventGameId, key, events.state.owner);
-        void openExternalUrl(url);
-    }
-
-    const buttonClaim = useFocusClaim();
-    const [buttonRestoreSettled, setButtonRestoreSettled] = useState(restoreButtonKey === null);
-    const buttonFiredRef = useRef(false);
-    const buttonsKnown = viewer.detailLoaded && events.state.events !== null;
-    const restoreButtonIndex = restoreButtonKey === null ? -1 : buttons.findIndex((button) => button.key === restoreButtonKey);
-    useEffect(() => {
-        if (restoreButtonKey === null || buttonFiredRef.current || !buttonsKnown) {
-            return;
-        }
-        buttonFiredRef.current = true;
-        if (restoreButtonIndex < 0) {
-            setButtonRestoreSettled(true);
-            actions.onRequestFocus("eventviewer:back");
-            return;
-        }
-        buttonClaim.claimSlot(restoreButtonIndex);
-        actions.onRequestFocus(`eventviewer:${restoreButtonKey}`);
-    }, [buttonsKnown, restoreButtonIndex]);
-    const buttonClaimSpent = buttonFiredRef.current && (buttonClaim.claim?.token ?? 0) > 0 && !buttonClaim.claim?.armed;
-    useEffect(() => {
-        if (buttonClaimSpent) {
-            setButtonRestoreSettled(true);
-        }
-    }, [buttonClaimSpent]);
 
     const { isSubscribed, subscribeError, onToggleSubscribe } = useThreadSubscription({
         language,
@@ -400,8 +352,31 @@ function EventView(props: { state: EventViewState; actions: EventViewerPageActio
     const commentClaim = comments.commentsCardClaim ?? comments.commentsPostClaim;
     const commentsSettled = !commentsRestore
         || ((commentClaim?.token ?? 0) > 0 && !commentClaim?.armed);
-    const curtainArmed = restorePending && !state.panelOverlayVisible;
-    const curtainSettled = (rowRestoreSettled || tab !== "achievements") && buttonRestoreSettled && commentsSettled;
+
+    const landingWindowsRef = useRef<LandingWindows | null>(null);
+    const tabContentHere = tab === "comments"
+        ? comments.commentsLoaded || comments.commentsError !== null
+        : checklist
+            ? viewer.checklistProgress !== null || viewer.checklistError !== null
+            : payloadHere || viewer.payloadError !== null;
+    usePageLanding({
+        view: "eventViewer",
+        subject: eventGameId,
+        tabPath: [tab],
+        defaultKey: "eventviewer:back",
+        ready: viewer.detailLoaded && events.state.events !== null && tabContentHere,
+        restoreTabPath: (tabs) => {
+            const next = tabs[0] === "achievements" || tabs[0] === "comments" ? tabs[0] : null;
+            if (next === null || next === tab) {
+                return false;
+            }
+            actions.onChangeTab(next);
+            return true;
+        },
+        holds: (key) => Boolean(landingWindowsRef.current?.holds(key)),
+        open: (key) => landingWindowsRef.current?.open(key),
+        ownLanding: { pending: commentsRestore, settled: commentsSettled }
+    });
 
     const commentsEmpty = comments.commentsLoaded && comments.comments.length === 0 && !comments.commentsError;
 
@@ -499,7 +474,7 @@ function EventView(props: { state: EventViewState; actions: EventViewerPageActio
 
     const tabKey = `eventviewer:tab:${tab}`;
 
-    const page = (
+    return (
         <Focusable flow-children="column" onButtonDown={handleButtonDown}>
             <div ref={pageRef}>
                 <PanelSection>
@@ -511,7 +486,7 @@ function EventView(props: { state: EventViewState; actions: EventViewerPageActio
                     <BackButton
                         label={t(language, "← Back")}
                         focusKey="eventviewer:back"
-                        navAutoFocus={!restorePending}
+                        navAutoFocus
                         buttonSpacing={settings.buttonSpacing}
                         onClick={actions.onBack}
                     />
@@ -535,7 +510,6 @@ function EventView(props: { state: EventViewState; actions: EventViewerPageActio
                         progressFraction={progressFraction}
                         progressPending={progressPending}
                         buttons={buttons}
-                        buttonClaim={buttonClaim}
                         tabs={tabs}
                     />
                     {tab === "achievements" && checklist && (
@@ -551,11 +525,9 @@ function EventView(props: { state: EventViewState; actions: EventViewerPageActio
                                 ruleText={checklist.rule.text}
                                 masteryMarkable={checklistMasteryMarkable(checklist.rule)}
                                 undated={activeFrom === null}
-                                restoreGameId={rowRestoreSettled ? null : restoreRowId}
-                                onRestoreSettled={() => setRowRestoreSettled(true)}
                                 onOpenGame={openChecklistGame}
                                 onSetTick={(gameId, value) => events.actions.setTick(eventGameId, gameId, value)}
-                                onRequestFocus={actions.onRequestFocus}
+                                landingWindowsRef={landingWindowsRef}
                             />
                         </Focusable>
                     )}
@@ -571,23 +543,15 @@ function EventView(props: { state: EventViewState; actions: EventViewerPageActio
                             sources={sources}
                             sourceGames={viewer.games}
                             sourceBanners={sourceBanners}
-                            restoreAchievementId={rowRestoreSettled ? null : restoreRowId}
-                            onRestoreSettled={() => setRowRestoreSettled(true)}
                             onOpenAchievement={openAchievement}
                             onOpenGame={(achievement) => void openSourceGame(achievement)}
-                            onRequestFocus={actions.onRequestFocus}
+                            landingWindowsRef={landingWindowsRef}
                         />
                     </Focusable>
                 )}
                 {tab === "comments" && <Focusable key={tabKey}>{commentsBody}</Focusable>}
             </div>
         </Focusable>
-    );
-
-    return (
-        <RestoreCurtain armed={curtainArmed} settled={curtainSettled} covered={state.panelOverlayVisible}>
-            {page}
-        </RestoreCurtain>
     );
 }
 

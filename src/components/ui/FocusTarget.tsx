@@ -10,10 +10,13 @@ type FocusTargetProps = HTMLAttributes<HTMLDivElement> & {
 };
 
 function claimWrapperStyle(style: CSSProperties | undefined): CSSProperties | undefined {
-    if (!style || style.flex === undefined) {
-        return undefined;
+    if (style?.flex !== undefined) {
+        return { display: "flex", flex: style.flex, minWidth: style.minWidth };
     }
-    return { display: "flex", flex: style.flex, minWidth: style.minWidth };
+    if (style?.gridColumn !== undefined) {
+        return { display: "grid", gridColumn: style.gridColumn, minWidth: style.minWidth };
+    }
+    return undefined;
 }
 
 function assignRef(ref: Ref<HTMLDivElement> | undefined, node: HTMLDivElement | null) {

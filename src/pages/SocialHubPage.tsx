@@ -5,7 +5,6 @@ import { BackButton } from "../components/ui/BackButton";
 import { ButtonHints } from "../components/ui/ButtonHints";
 import { FocusableItem } from "../components/ui/FocusableItem";
 import { FocusClaim } from "../components/ui/FocusClaim";
-import { RestoreCurtain } from "../components/ui/RestoreCurtain";
 import { ErrorText } from "../components/ui/ErrorText";
 import { FadeImage } from "../components/ui/FadeImage";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
@@ -18,7 +17,6 @@ import { NewSetCard } from "../components/social/NewSetCard";
 import { SubTabButton } from "../components/ui/SubTabButton";
 import { EventsTabBody } from "../components/events/EventsTabBody";
 import { isEventConsole } from "../utils/events";
-import { takeEventsFocusReturn, type EventsFocusReturn } from "../utils/eventsFocusReturn";
 import { PageNavStrip } from "../components/ui/PageNavStrip";
 import { activityCardActionLabel } from "../utils/options";
 import type {
@@ -53,13 +51,11 @@ import {
     getCachedAchievementIcons,
     getSocialActivity,
     getSubscriptions,
-    logFocusDebug,
     prefetchGameIcons,
     prefetchUserAvatars,
     removeSubscription
 } from "../api";
 import { filterAndSortSavedComments } from "../utils/savedComments";
-import { armSavedCommentFocusReturn } from "../utils/savedCommentFocusReturn";
 import { useFocusClaim, type FocusClaimController } from "../hooks/useFocusClaim";
 import { useGameIcon } from "../hooks/useGameIcon";
 import { useSlidingWindow } from "../hooks/useSlidingWindow";
@@ -72,7 +68,9 @@ import { localizeRuntimeText, t } from "../locales";
 import { FADE_IN_KEYFRAMES, achievementUiMetrics, bodyTextStyle, headerCase, smallTextStyle, type AchievementUiMetrics } from "../utils/style";
 import { bannerSize, commentsTextSize, textSize } from "../utils/scale";
 import { beginGuardedRun } from "../utils/runGuard";
-import { usePageLanding } from "../focusRecords";
+import { usePageLanding, type LandingWindows } from "../focusRecords";
+import { useEvents } from "../components/events/EventsContext";
+import { FocusTarget } from "../components/ui/FocusTarget";
 
 type TabIconProps = { size?: number };
 
@@ -196,6 +194,10 @@ const SAVED_COMMENTS_INITIAL_ROWS = 30;
 const SAVED_COMMENTS_ROW_STEP = 50;
 
 const SAVED_COMMENT_CARD_FOCUS_PREFIX = "savedcomment:card:";
+const SAVED_CARD_LAST_FALLBACK = ["savedcomment:facet:filter"];
+const FRIENDS_ROW_FALLBACK = ["social:tab:friends"];
+const FAVORITES_ROW_FALLBACK = ["social:tab:favorites"];
+const ACTIVITY_ROW_FALLBACK = ["social:tab:activity"];
 
 function savedCardFocusKey(comment: SavedComment) {
     return `${SAVED_COMMENT_CARD_FOCUS_PREFIX}${comment.id}`;
@@ -205,7 +207,6 @@ function friendFocusKey(friend: FriendRow) {
     return `friend:${friend.username}`;
 }
 
-const SAVED_COMMENT_FACET_CLAIM_SLOT = -2;
 
 const NEW_SETS_FILTER_TABS: { value: NewSetsFilter; labelKey: string; focusKey: string }[] = [
     { value: "new", labelKey: "New Sets", focusKey: "newsets:filter:new" },
@@ -259,14 +260,11 @@ type SavedCommentsPanelProps = {
     games: SavedCommentGame[];
     onCycleSort: () => void;
     onOpenFilterPicker: () => void;
-    restoreFocusKey: string | null;
-    restorePending: boolean;
 };
 
 type SocialHubPageProps = {
     view: ViewKey;
     language: LanguageCode;
-    panelOverlayVisible: boolean;
     socialEntryToken: number;
     socialEntryView: SocialView;
     friendsPayload: FriendsPayload | null;
@@ -327,34 +325,10 @@ function SocialHubPage(props: SocialHubPageProps) {
     const dynamicNewSetsSentinelRootMargin = Math.max(0, props.dynamicCommentsSentinelRootMargin ?? 400);
 
     const [socialView, setSocialView] = useState<SocialView>(props.socialEntryView);
-    usePageLanding({
-        view: "social",
-        tabPath: [
-            socialView,
-            socialView === "newsEvents" ? props.newsEvents.subView
-                : socialView === "subscribedDiscussions" ? props.savedComments.subTab : null
-        ]
-    });
     const [focusedSocialView, setFocusedSocialView] = useState<SocialView | null>(null);
     const [hoveredSocialView, setHoveredSocialView] = useState<SocialView | null>(null);
 
     const [backClaimToken, setBackClaimToken] = useState(0);
-    const [eventsRestore] = useState<EventsFocusReturn | null>(() =>
-        props.view === "social" ? takeEventsFocusReturn() : null
-    );
-    const [eventsRestoreSettled, setEventsRestoreSettled] = useState(false);
-    const eventsRestorePending = eventsRestore !== null;
-    const onEventsTab = socialView === "newsEvents" && props.newsEvents.subView === "events";
-    useEffect(() => {
-        if (!eventsRestorePending || eventsRestoreSettled) {
-            return;
-        }
-        const timer = window.setTimeout(() => {
-            setEventsRestoreSettled(true);
-            setBackClaimToken((current) => current + 1);
-        }, onEventsTab ? 5000 : 600);
-        return () => window.clearTimeout(timer);
-    }, [eventsRestorePending, eventsRestoreSettled, onEventsTab]);
     const favoriteRowClaim = useFocusClaim();
     const subscriptionRowClaim = useFocusClaim();
     const savedCommentRowClaim = useFocusClaim();
@@ -482,6 +456,7 @@ function SocialHubPage(props: SocialHubPageProps) {
 
     const friendRowList = useMemo<FriendRowListProps>(() => ({
         language: props.language,
+        focusFallback: socialView === "favorites" ? FAVORITES_ROW_FALLBACK : FRIENDS_ROW_FALLBACK,
         onFriendClick: (friend) => {
             void friendClickRef.current(friend);
         },
@@ -506,7 +481,7 @@ function SocialHubPage(props: SocialHubPageProps) {
                 void friendResolveAvatarRef.current(friend);
             }
             : undefined
-    }), [props.language, gamepadCardActions]);
+    }), [props.language, gamepadCardActions, socialView]);
 
     const avatarWarmInFlightRef = useRef(false);
     const desiredAvatarNamesRef = useRef<string[] | null>(null);
@@ -575,6 +550,7 @@ function SocialHubPage(props: SocialHubPageProps) {
 
     const activityRowList = useMemo<ActivityRowListProps>(() => ({
         language: props.language,
+        focusFallback: ACTIVITY_ROW_FALLBACK,
         showIcons: props.showIcons,
         metrics: rowMetrics,
         onActivityCardClick: (event) => {
@@ -817,29 +793,6 @@ function SocialHubPage(props: SocialHubPageProps) {
         [allSavedComments, props.savedComments.sort, props.savedComments.filter]
     );
 
-    const savedRestorePending = props.savedComments.restorePending;
-    const savedRestoreFocusKey = props.savedComments.restoreFocusKey;
-
-    const savedIndexById = useMemo(() => {
-        const byId = new Map<string, number>();
-        facetedSavedComments.forEach((comment, index) => byId.set(comment.id, index));
-        return byId;
-    }, [facetedSavedComments]);
-
-    const savedRestoreCardId = savedRestorePending
-        && savedRestoreFocusKey !== null
-        && savedRestoreFocusKey.startsWith(SAVED_COMMENT_CARD_FOCUS_PREFIX)
-        ? savedRestoreFocusKey.slice(SAVED_COMMENT_CARD_FOCUS_PREFIX.length)
-        : null;
-
-    const savedRestoreSlot = savedRestoreCardId === null
-        ? -1
-        : savedIndexById.get(savedRestoreCardId) ?? -1;
-
-    const savedRestoreFiredRef = useRef(false);
-    const savedRestoreSettledRef = useRef(false);
-    const [savedRestoreAbandoned, setSavedRestoreAbandoned] = useState(false);
-
     const savedListShown = savedSubTabActive && facetedSavedComments.length > 0;
     const savedWindow = useSlidingWindow({
         items: savedListShown ? facetedSavedComments : NO_SAVED_COMMENTS,
@@ -856,6 +809,19 @@ function SocialHubPage(props: SocialHubPageProps) {
         debugLabel: "social:savedcomments"
     });
     const visibleSavedComments = savedWindow.mountedItems;
+    const savedFallbacks = useMemo(() => {
+        const byId = new Map<string, string[]>();
+        facetedSavedComments.forEach((comment, index) => {
+            const next = facetedSavedComments[index + 1];
+            const previous = facetedSavedComments[index - 1];
+            byId.set(comment.id, [
+                ...(next ? [savedCardFocusKey(next)] : []),
+                ...(previous ? [savedCardFocusKey(previous)] : []),
+                ...SAVED_CARD_LAST_FALLBACK
+            ]);
+        });
+        return byId;
+    }, [facetedSavedComments]);
     const whenSavedHeld = useWhenHeld(savedWindow, facetedSavedComments, savedCardFocusKey);
 
     useEffect(() => {
@@ -867,75 +833,6 @@ function SocialHubPage(props: SocialHubPageProps) {
             void prefetchUserAvatars(names);
         }
     }, [savedSubTabActive, props.showIcons, visibleSavedComments]);
-
-    useEffect(function landRestoredSavedCursor() {
-        if (props.view !== "social" || !savedRestorePending || savedRestoreFiredRef.current) {
-            return;
-        }
-        if (savedRestoreFocusKey === null) {
-            savedRestoreFiredRef.current = true;
-            setSavedRestoreAbandoned(true);
-            logFocusDebug("savedcomment-restore", "(none)", "nothing armed");
-            props.onRequestFocus("social:back");
-            return;
-        }
-        if (!savedSubTabActive) {
-            savedRestoreFiredRef.current = true;
-            setSavedRestoreAbandoned(true);
-            logFocusDebug("savedcomment-restore", savedRestoreFocusKey, "the saved list is not the tab on screen");
-            props.onRequestFocus("social:back");
-            return;
-        }
-        if (!props.savedComments.loaded) {
-            if (props.savedComments.error === null) {
-                return;
-            }
-            savedRestoreFiredRef.current = true;
-            setSavedRestoreAbandoned(true);
-            logFocusDebug("savedcomment-restore", savedRestoreFocusKey, "the list would not load");
-            props.onRequestFocus("social:back");
-            return;
-        }
-        if (savedRestoreCardId === null) {
-            savedRestoreFiredRef.current = true;
-            if (allSavedComments.length === 0) {
-                setSavedRestoreAbandoned(true);
-                logFocusDebug("savedcomment-restore", savedRestoreFocusKey, "the facet bar is gone with the list");
-                props.onRequestFocus("social:back");
-                return;
-            }
-            logFocusDebug("savedcomment-restore", savedRestoreFocusKey, "claiming the facet row");
-            savedCommentRowClaim.claimSlot(SAVED_COMMENT_FACET_CLAIM_SLOT);
-            props.onRequestFocus(savedRestoreFocusKey);
-            return;
-        }
-        savedRestoreFiredRef.current = true;
-        if (savedRestoreSlot < 0) {
-            setSavedRestoreAbandoned(true);
-            logFocusDebug("savedcomment-restore", savedRestoreFocusKey, `total=${facetedSavedComments.length} gone from the list`);
-            props.onRequestFocus("social:back");
-            return;
-        }
-        logFocusDebug("savedcomment-restore", savedRestoreFocusKey, `slot=${savedRestoreSlot} of ${facetedSavedComments.length}`);
-        const key = savedRestoreFocusKey;
-        whenSavedHeld(key, (slot) => {
-            savedCommentRowClaim.claimSlot(slot);
-            props.onRequestFocus(key);
-        });
-    }, [
-        props.view,
-        savedRestorePending,
-        savedRestoreFocusKey,
-        savedSubTabActive,
-        props.savedComments.loaded,
-        props.savedComments.error,
-        savedRestoreCardId,
-        savedRestoreSlot,
-        allSavedComments.length,
-        facetedSavedComments.length,
-        savedCommentRowClaim.claimSlot,
-        props.onRequestFocus
-    ]);
 
     const handleSavedCommentTrashBlur = (comment: SavedComment) => {
         setArmedSavedId((armed) => (armed === comment.id ? null : armed));
@@ -973,7 +870,6 @@ function SocialHubPage(props: SocialHubPageProps) {
         metrics: rowMetrics,
         showIcons: props.showIcons,
         onOpen: (comment) => {
-            armSavedCommentFocusReturn(savedCardFocusKey(comment));
             void savedOpenRef.current(comment);
         },
         onTrashPress: (comment) => {
@@ -1036,22 +932,95 @@ function SocialHubPage(props: SocialHubPageProps) {
         return t(props.language, selectedSocialTab.labelKey);
     }
 
+    const eventsState = useEvents().state;
+    const eventsWindowsRef = useRef<LandingWindows | null>(null);
+    const newsEventsSub = props.newsEvents.subView;
+    const tabContentHere = socialView === "friends" || socialView === "favorites"
+        ? props.friendsLoaded
+        : socialView === "activity"
+            ? activityLoaded || activityError !== null
+            : socialView === "subscribedDiscussions"
+                ? (props.savedComments.subTab === "subscribed"
+                    ? subscriptionsLoaded
+                    : props.savedComments.loaded || props.savedComments.error !== null)
+                : newsEventsSub === "news"
+                    ? props.newsEvents.newsPayload !== null || props.newsEvents.newsError !== null
+                    : newsEventsSub === "events"
+                        ? eventsState.events !== null || eventsState.error !== null
+                        : props.newsEvents.newSetsResponse !== null || props.newsEvents.newSetsError !== null;
+    usePageLanding({
+        view: "social",
+        tabPath: [
+            socialView,
+            socialView === "newsEvents" ? newsEventsSub
+                : socialView === "subscribedDiscussions" ? props.savedComments.subTab : null,
+            socialView === "newsEvents" && newsEventsSub === "events" ? eventsState.user?.prefs.listView ?? null : null
+        ],
+        defaultKey: "social:back",
+        ready: tabContentHere,
+        restoreTabPath: (tabs) => {
+            const tab = SOCIAL_TABS.find((entry) => entry.view === tabs[0]);
+            if (!tab) {
+                return false;
+            }
+            let changed = false;
+            if (tab.view !== socialView) {
+                setSocialView(tab.view);
+                props.onSocialViewChange(tab.view);
+                changed = true;
+            }
+            const sub = NEWS_EVENTS_SUB_TABS.find((entry) => entry.value === tabs[1]);
+            if (tab.view === "newsEvents" && sub && sub.value !== newsEventsSub) {
+                props.newsEvents.onChangeSubView(sub.value);
+                changed = true;
+            }
+            const community = COMMUNITY_SUB_TABS.find((entry) => entry.value === tabs[1]);
+            if (tab.view === "subscribedDiscussions" && community && community.value !== props.savedComments.subTab) {
+                props.savedComments.onChangeSubTab(community.value);
+                changed = true;
+            }
+            return changed;
+        },
+        holds: (key) => {
+            if (key.startsWith("friend:")) {
+                return socialFriendsRows.some((friend) => friendFocusKey(friend) === key);
+            }
+            if (key.startsWith("activity:")) {
+                return activityEvents.some((event) => `activity:${event.id}` === key);
+            }
+            if (key.startsWith("newsets:")) {
+                return newSetsRows.some((entry) => newSetFocusKey(entry) === key);
+            }
+            if (key.startsWith(SAVED_COMMENT_CARD_FOCUS_PREFIX)) {
+                return facetedSavedComments.some((comment) => savedCardFocusKey(comment) === key);
+            }
+            return Boolean(eventsWindowsRef.current?.holds(key));
+        },
+        open: (key) => {
+            if (key.startsWith("friend:")) {
+                friendWindow.openAt(key);
+            }
+            else if (key.startsWith("activity:")) {
+                activityWindow.openAt(key);
+            }
+            else if (key.startsWith("newsets:")) {
+                newSetsWindow.openAt(key);
+            }
+            else if (key.startsWith(SAVED_COMMENT_CARD_FOCUS_PREFIX)) {
+                savedWindow.openAt(key);
+            }
+            else {
+                eventsWindowsRef.current?.open(key);
+            }
+        }
+    });
+
     if (props.view !== "social") {
         return null;
     }
 
-    if (savedRestoreFiredRef.current
-        && (savedCommentRowClaim.claim?.token ?? 0) > 0
-        && !savedCommentRowClaim.claim?.armed) {
-        savedRestoreSettledRef.current = true;
-    }
-    const savedRestoreSettled = savedRestoreAbandoned || savedRestoreSettledRef.current;
-    const restoreCurtainArmed = savedRestorePending || eventsRestorePending;
-    const restoreCurtainSettled = (!savedRestorePending || savedRestoreSettled)
-        && (!eventsRestorePending || eventsRestoreSettled);
-
     // Render
-    const page = (
+    return (
         <React.Fragment key="social:view">
             <style>{FADE_IN_KEYFRAMES}</style>
             <PanelSection>
@@ -1065,10 +1034,8 @@ function SocialHubPage(props: SocialHubPageProps) {
                     key={`back:${backClaimToken}`}
                     label={t(props.language, "← Back to Main")}
                     focusKey="social:back"
-                    navAutoFocus={
-                        (!savedRestorePending && !eventsRestorePending)
-                        || backClaimToken > 0
-                    }
+                    navAutoFocus
+                    reclaim={backClaimToken > 0}
                     buttonSpacing={props.buttonSpacing}
                     onClick={props.onBack}
                 />
@@ -1097,9 +1064,9 @@ function SocialHubPage(props: SocialHubPageProps) {
                                 const Icon = tab.Icon;
 
                                 return (
-                                    <div
+                                    <FocusTarget
                                         key={tab.focusKey}
-                                        data-focus-key={tab.focusKey}
+                                        focusKey={tab.focusKey}
                                         onMouseEnter={() => handleSocialTabHover(tab.view)}
                                         onMouseLeave={() => handleSocialTabUnhover(tab.view)}
                                         style={{ display: "flex" }}
@@ -1126,7 +1093,7 @@ function SocialHubPage(props: SocialHubPageProps) {
                                         >
                                             <Icon size={18} />
                                         </DialogButton>
-                                    </div>
+                                    </FocusTarget>
                                 );
                             })}
                         </Focusable>
@@ -1346,7 +1313,6 @@ function SocialHubPage(props: SocialHubPageProps) {
                                             panel={props.savedComments}
                                             language={props.language}
                                             showIcons={props.showIcons}
-                                            claim={savedCommentRowClaim}
                                         />
                                         {facetedSavedComments.length === 0 ? (
                                             <PanelSectionRow>
@@ -1378,6 +1344,7 @@ function SocialHubPage(props: SocialHubPageProps) {
                                                                 index={savedWindow.start + index}
                                                                 armed={armedSavedId === comment.id}
                                                                 list={savedCommentList}
+                                                                focusFallback={savedFallbacks.get(comment.id) ?? SAVED_CARD_LAST_FALLBACK}
                                                                 onGamepadDirection={savedWindow.guardTopRow(savedWindow.start + index)}
                                                             />
                                                         </ClaimedRow>
@@ -1482,13 +1449,6 @@ function SocialHubPage(props: SocialHubPageProps) {
                         ) : props.newsEvents.subView === "events" ? (
                             <EventsTabBody
                                 language={props.language}
-                                restore={eventsRestoreSettled ? null : eventsRestore}
-                                onRestoreSettled={(abandoned) => {
-                                    setEventsRestoreSettled(true);
-                                    if (abandoned) {
-                                        setBackClaimToken((current) => current + 1);
-                                    }
-                                }}
                                 onOpenEvent={props.newsEvents.onOpenEvent}
                                 onOpenAotw={props.newsEvents.onOpenAotw}
                                 onRequestFocus={props.onRequestFocus}
@@ -1496,6 +1456,7 @@ function SocialHubPage(props: SocialHubPageProps) {
                                     setBackClaimToken((current) => current + 1);
                                     props.onRequestFocus("social:back");
                                 }}
+                                landingWindowsRef={eventsWindowsRef}
                             />
                         ) : (
                             <>
@@ -1679,16 +1640,6 @@ function SocialHubPage(props: SocialHubPageProps) {
             </PanelSection>
         </React.Fragment>
     );
-
-    return (
-        <RestoreCurtain
-            armed={restoreCurtainArmed}
-            settled={restoreCurtainSettled}
-            covered={props.panelOverlayVisible}
-        >
-            {page}
-        </RestoreCurtain>
-    );
 }
 
 // Sub-components
@@ -1787,29 +1738,23 @@ function SavedCommentsFacetBar(props: {
     panel: SavedCommentsPanelProps;
     language: LanguageCode;
     showIcons: boolean;
-    claim: FocusClaimController;
 }) {
     const { panel, language, showIcons } = props;
     return (
         <>
-            <ClaimedRow claim={props.claim} slotIndex={SAVED_COMMENT_FACET_CLAIM_SLOT}>
-                <LabeledRow
-                    focusKey="savedcomment:facet:filter"
-                    label={t(language, "Filter")}
-                    value={(
-                        <SavedCommentsFilterValue
-                            games={panel.games}
-                            filter={panel.filter}
-                            showIcons={showIcons}
-                            language={language}
-                        />
-                    )}
-                    onClick={() => {
-                        armSavedCommentFocusReturn("savedcomment:facet:filter");
-                        panel.onOpenFilterPicker();
-                    }}
-                />
-            </ClaimedRow>
+            <LabeledRow
+                focusKey="savedcomment:facet:filter"
+                label={t(language, "Filter")}
+                value={(
+                    <SavedCommentsFilterValue
+                        games={panel.games}
+                        filter={panel.filter}
+                        showIcons={showIcons}
+                        language={language}
+                    />
+                )}
+                onClick={panel.onOpenFilterPicker}
+            />
             <LabeledRow
                 focusKey="savedcomment:facet:sort"
                 label={t(language, "Sort")}
@@ -1895,6 +1840,7 @@ const SavedCommentCard = React.memo(function SavedCommentCard(props: {
     armed: boolean;
     list: SavedCommentListProps;
     onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
+    focusFallback: string[];
 }) {
     const { comment, index, armed, list } = props;
     const { language, metrics, showIcons } = list;
@@ -1919,6 +1865,8 @@ const SavedCommentCard = React.memo(function SavedCommentCard(props: {
                         metrics={metrics}
                         showIcons={showIcons}
                         focusKey={savedCardFocusKey(comment)}
+                        focusFallback={props.focusFallback}
+                        recorded
                         onClick={() => list.onOpen(comment)}
                         index={index}
                         onGamepadFocusIndex={list.onRowFocus}
@@ -1926,8 +1874,9 @@ const SavedCommentCard = React.memo(function SavedCommentCard(props: {
                         outerStyle={{ width: "100%", minWidth: 0 }}
                         contentPaddingRight={30}
                     />
-                    <div
-                        data-focus-key={`savedcomment:trash:${comment.id}`}
+                    <FocusTarget
+                        focusKey={`savedcomment:trash:${comment.id}`}
+                        focusFallback={[savedCardFocusKey(comment), ...props.focusFallback]}
                         style={{
                             position: "absolute",
                             top: "17px",
@@ -1982,7 +1931,7 @@ const SavedCommentCard = React.memo(function SavedCommentCard(props: {
                         >
                             <TrashIcon size={15} />
                         </DialogButton>
-                    </div>
+                    </FocusTarget>
                 </Focusable>
             </div>
         </PanelSectionRow>
@@ -2109,8 +2058,9 @@ function SubscriptionCard(props: SubscriptionCardProps) {
                     </div>
                 </FocusableItem>
 
-                <div
-                    data-focus-key={`subdiscussion:trash:${subscription.key}`}
+                <FocusTarget
+                    focusKey={`subdiscussion:trash:${subscription.key}`}
+                    focusFallback={[`subdiscussion:card:${subscription.key}`]}
                     style={{
                         position: "absolute",
                         top: "17px",
@@ -2161,7 +2111,7 @@ function SubscriptionCard(props: SubscriptionCardProps) {
                     >
                         <TrashIcon size={15} />
                     </DialogButton>
-                </div>
+                </FocusTarget>
             </Focusable>
         </PanelSectionRow>
     );

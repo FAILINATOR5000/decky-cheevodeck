@@ -152,8 +152,6 @@ import { getSavedMainAchievementsTab } from "../resume/achievementsResume";
 import { getSavedGuidesSubView } from "../resume/guidesResume";
 import { computeBootView, getSavedNavStack } from "../resume/bootView";
 import { getSavedEventViewerSource, getSavedEventViewerTab, getSavedEventViewerTarget } from "../resume/eventViewerResume";
-import { clearEventsFocusReturn } from "../utils/eventsFocusReturn";
-import { clearEventViewerRowReturn } from "../utils/eventViewerFocusReturn";
 import { PanelProviders } from "../components/panel/PanelProviders";
 import { openCalculatorModal } from "../components/calculator/CalculatorModal";
 import { openLastMemory } from "../components/memories/openLastMemory";
@@ -252,7 +250,6 @@ import { takeMemoriesFocusReturn } from "../utils/memoriesFocusReturn";
 import { armOptionsLanding, takeOptionsFocusReturn } from "../utils/optionsFocusReturn";
 import { useMemoriesController } from "../hooks/useMemoriesController";
 import { useMemoriesVideoController } from "../hooks/useMemoriesVideoController";
-import { takeSavedCommentFocusReturn } from "../utils/savedCommentFocusReturn";
 import { takeSmbFocusReturn } from "../utils/smbFocusReturn";
 import { notePanelMount, notePanelUnmount, samplePanelEntryFrames } from "../utils/panelLifecycle";
 import { measureCommentWindow } from "../utils/commentGeometry";
@@ -2439,16 +2436,6 @@ function AchievementsRoot() {
     dolphinWasOpenRef.current = view === "dolphinMapper";
     const dolphinRestorePending = dolphinRestoreArmedRef.current;
 
-    const [savedCommentFocusReturn] = useState(takeSavedCommentFocusReturn);
-
-    const savedCommentRestoreArmedRef = useRef(savedCommentFocusReturn !== null);
-    const savedCommentWasOpenRef = useRef(false);
-    if (savedCommentWasOpenRef.current && view !== "social") {
-        savedCommentRestoreArmedRef.current = false;
-    }
-    savedCommentWasOpenRef.current = view === "social";
-    const savedCommentRestorePending = savedCommentRestoreArmedRef.current;
-
     const [memoriesFocusReturn] = useState(takeMemoriesFocusReturn);
 
     const memoriesRestoreArmedRef = useRef(memoriesFocusReturn !== null);
@@ -2505,7 +2492,6 @@ function AchievementsRoot() {
             { armed: trackedRestoreArmedRef, view: "tracked" },
             { armed: cheevoCheckRestoreArmedRef, view: "cheevoCheck" },
             { armed: dolphinRestoreArmedRef, view: "dolphinMapper" },
-            { armed: savedCommentRestoreArmedRef, view: "social" },
             { armed: memoriesRestoreArmedRef, view: "memories" },
             { armed: optionsRestoreArmedRef, view: "options" },
             { armed: fileWatcherRestoreArmedRef, view: "fileWatcher" },
@@ -3334,8 +3320,6 @@ function AchievementsRoot() {
     }
 
     function arriveOnAchievements(intent: NavIntent) {
-        clearEventsFocusReturn();
-        clearEventViewerRowReturn();
         friendRowRefreshRunIdRef.current += 1;
         friendGameSessionRefreshKeysRef.current = new Set();
 
@@ -5254,7 +5238,6 @@ function AchievementsRoot() {
                                 <SocialHubPage
                                     view={view}
                                     language={language}
-                                    panelOverlayVisible={panelOverlayVisible}
                                     socialEntryToken={socialEntryToken}
                                     socialEntryView={socialEntryViewOverride ?? lastSocialView}
                                     savedComments={{
@@ -5271,9 +5254,7 @@ function AchievementsRoot() {
                                         filter: savedCommentsFilter,
                                         games: savedCommentsController.savedGames,
                                         onCycleSort: () => updateSavedCommentsPrefs({ sort: nextSavedSort(savedCommentsSort) }),
-                                        onOpenFilterPicker: openSavedFilterPicker,
-                                        restoreFocusKey: savedCommentFocusReturn,
-                                        restorePending: savedCommentRestorePending
+                                        onOpenFilterPicker: openSavedFilterPicker
                                     }}
                                     friendsPayload={friendsPayload}
                                     friendsError={friendsError}
@@ -5956,8 +5937,7 @@ function AchievementsRoot() {
                                             view,
                                             language,
                                             target: eventViewerTarget,
-                                            tab: eventViewerTab,
-                                            panelOverlayVisible
+                                            tab: eventViewerTab
                                         }}
                                         aotw={{
                                             ...newsEventsState,

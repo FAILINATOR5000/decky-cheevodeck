@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type MutableRefObject, type ReactNode } from "react";
 import { PanelSectionRow } from "@decky/ui";
 import { AchievementList } from "../achievements/AchievementList";
 import { UnlockStamp } from "../achievements/UnlockStamp";
@@ -10,7 +10,7 @@ import { LabeledRow } from "../ui/LabeledRow";
 import { PanelSection } from "../ui/PanelSection";
 import { useEvents } from "./EventsContext";
 import { prefetchGameIcons } from "../../api";
-import { useFocusClaim } from "../../hooks/useFocusClaim";
+import type { LandingWindows } from "../../focusRecords";
 import { useGameIcon } from "../../hooks/useGameIcon";
 import { localizeRuntimeText, t, type LanguageCode } from "../../locales";
 import type { AchievementRow, EventChecklistGame, EventSource, Payload } from "../../types";
@@ -33,11 +33,9 @@ type EventAchievementsBodyProps = {
     sources: Record<string, EventSource>;
     sourceGames: Record<string, EventChecklistGame>;
     sourceBanners: boolean;
-    restoreAchievementId: number | null;
-    onRestoreSettled: () => void;
     onOpenAchievement: (achievement: AchievementRow) => void;
     onOpenGame: (achievement: AchievementRow) => void;
-    onRequestFocus: (focusKey: string) => void;
+    landingWindowsRef: MutableRefObject<LandingWindows | null>;
 };
 
 function SourceGameBanner(props: {
@@ -192,38 +190,11 @@ export function EventAchievementsBody(props: EventAchievementsBodyProps) {
         props.onOpenAchievement(achievement);
     }
 
-    const claim = useFocusClaim();
-    const firedRef = useRef(false);
-    const [restore, setRestore] = useState<{ key: string; index: number } | null>(null);
-    useEffect(() => {
-        if (props.restoreAchievementId === null || firedRef.current || !displayPayload) {
-            return;
-        }
-        firedRef.current = true;
-        const index = ordered.findIndex((row) => row.id === props.restoreAchievementId);
-        if (index < 0) {
-            props.onRestoreSettled();
-            props.onRequestFocus("eventviewer:back");
-            return;
-        }
-        setRestore({ key: `achievement:${props.restoreAchievementId}`, index });
-    }, [displayPayload, ordered, props.restoreAchievementId]);
-
-    function claimRestoredRow() {
-        if (!restore) {
-            return;
-        }
-        claim.claimSlot(restore.index);
-        props.onRequestFocus(restore.key);
-    }
-
-    const spent = firedRef.current && (claim.claim?.token ?? 0) > 0 && !claim.claim?.armed;
-    useEffect(() => {
-        if (spent) {
-            props.onRestoreSettled();
-            setRestore(null);
-        }
-    }, [spent]);
+    const [landingOpenKey, setLandingOpenKey] = useState<string | null>(null);
+    props.landingWindowsRef.current = {
+        holds: (key) => ordered.some((row) => `achievement:${row.id}` === key),
+        open: (key) => setLandingOpenKey(key)
+    };
 
     const waiting = !displayPayload && !props.payloadError;
     const [spinnerDue, setSpinnerDue] = useState(false);
@@ -303,9 +274,7 @@ export function EventAchievementsBody(props: EventAchievementsBodyProps) {
                 </PanelSectionRow>
             )}
             windowId="eventviewer:achievements"
-            openAtKey={restore?.key}
-            onOpenAtHeld={claimRestoredRow}
-            claimedRow={claim.claim ? { ...claim.claim, onSpent: claim.spend } : undefined}
+            openAtKey={landingOpenKey ?? undefined}
         />
     );
 }
