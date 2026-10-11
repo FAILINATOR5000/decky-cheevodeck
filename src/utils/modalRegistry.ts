@@ -22,7 +22,7 @@ export const MODAL_REAP_DELAY_MS = 80;
 
 const SIDE_MENU_QUICK_ACCESS = 2;
 
-let qamReopenDelayMs = 300;
+let qamReopenDelayMs = 150;
 
 export function setQamReturnDelay(ms: number): void {
     qamReopenDelayMs = ms;

@@ -607,7 +607,7 @@ export function qamReturnDelayMsLabel(value: number, language: LanguageCode = DE
 }
 
 export function nextQamReturnDelayMs(current: number) {
-    const normalized = QAM_RETURN_DELAY_MS_OPTIONS.includes(current as any) ? current : 300;
+    const normalized = QAM_RETURN_DELAY_MS_OPTIONS.includes(current as any) ? current : 150;
     const currentIndex = QAM_RETURN_DELAY_MS_OPTIONS.indexOf(normalized as any);
 
     return QAM_RETURN_DELAY_MS_OPTIONS[(currentIndex + 1) % QAM_RETURN_DELAY_MS_OPTIONS.length];

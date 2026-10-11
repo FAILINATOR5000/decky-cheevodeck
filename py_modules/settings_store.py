@@ -569,7 +569,7 @@ _KNOBS = (
     Knob("ipcSlowThresholdMs", default=250, normalize=True),
     Knob("largeViewportBonusEnabled", default=True, normalize=True),
     Knob("largeViewportBonus", default=8, normalize=True),
-    Knob("qamReturnDelayMs", default=300, normalize=True),
+    Knob("qamReturnDelayMs", default=150, normalize=True),
     Knob("parallelRaCalls", default=4, normalize=True),
     Knob("parallelCdnFetches", default=5, normalize=True),
     Knob("maxIconWorkers", default=6, normalize=True),
@@ -1807,7 +1807,7 @@ class SettingsStore:
         return self.get_large_viewport_bonus(cfg)
 
     def update_qam_return_delay_ms(self, value: int) -> int:
-        cfg = self._update_config("qamReturnDelayMs", to_int(value, 300))
+        cfg = self._update_config("qamReturnDelayMs", to_int(value, 150))
 
         return self.get_qam_return_delay_ms(cfg)
 
@@ -4515,8 +4515,8 @@ class SettingsStore:
         return value if value in LARGE_VIEWPORT_BONUS_OPTIONS else 8
 
     def get_qam_return_delay_ms(self, cfg: dict) -> int:
-        value = to_int(cfg.get("qamReturnDelayMs", 300), 300)
-        return value if value in QAM_RETURN_DELAY_MS_OPTIONS else 300
+        value = to_int(cfg.get("qamReturnDelayMs", 150), 150)
+        return value if value in QAM_RETURN_DELAY_MS_OPTIONS else 150
 
     def get_parallel_ra_calls(self, cfg: dict) -> int:
         value = to_int(cfg.get("parallelRaCalls", 4), 4)

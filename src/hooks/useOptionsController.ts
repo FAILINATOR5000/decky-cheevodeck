@@ -1376,7 +1376,7 @@ export function useOptionsController({
         setIpcSlowThresholdMs(result.ipcSlowThresholdMs ?? 250);
         setLargeViewportBonusEnabled(Boolean(result.largeViewportBonusEnabled ?? true));
         setLargeViewportBonus(result.largeViewportBonus ?? 8);
-        setQamReturnDelayMs(result.qamReturnDelayMs ?? 300);
+        setQamReturnDelayMs(result.qamReturnDelayMs ?? 150);
         setParallelRaCalls(result.parallelRaCalls ?? 4);
         setParallelCdnFetches(result.parallelCdnFetches ?? 5);
         setMaxIconWorkers(result.maxIconWorkers ?? 6);

@@ -221,7 +221,7 @@ export function useSettingsController({
     const [ipcSlowThresholdMs, setIpcSlowThresholdMs] = useState(250);
     const [largeViewportBonusEnabled, setLargeViewportBonusEnabled] = useState(true);
     const [largeViewportBonus, setLargeViewportBonus] = useState(8);
-    const [qamReturnDelayMs, setQamReturnDelayMs] = useState(300);
+    const [qamReturnDelayMs, setQamReturnDelayMs] = useState(150);
     const [parallelRaCalls, setParallelRaCalls] = useState(4);
     const [parallelCdnFetches, setParallelCdnFetches] = useState(5);
     const [maxIconWorkers, setMaxIconWorkers] = useState(6);
