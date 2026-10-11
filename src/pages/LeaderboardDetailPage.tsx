@@ -34,6 +34,7 @@ import {
     t,
     type LanguageCode
 } from "../locales";
+import { usePageLanding } from "../focusRecords";
 
 const MAX_LEADERBOARD_RESULTS = 500;
 
@@ -234,6 +235,7 @@ const LeaderboardEntryRowView = React.memo(function LeaderboardEntryRowView(prop
 });
 
 function LeaderboardDetailPage({ state, actions }: LeaderboardDetailPageProps) {
+    usePageLanding({ view: "leaderboardDetail", subject: state.selectedLeaderboard?.id });
     const dynamicLeaderboardResults = state.dynamicLeaderboardResults ?? true;
     const dynamicInitialRows = Math.max(1, state.dynamicInitialRows ?? 30);
     const dynamicRowStep = Math.max(1, state.dynamicRowStep ?? 30);

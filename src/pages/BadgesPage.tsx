@@ -29,6 +29,7 @@ import {
     t,
     type LanguageCode
 } from "../locales";
+import { usePageLanding } from "../focusRecords";
 
 function awardTypeLabel(award: UserAwardRow, language: LanguageCode) {
     const type = String(award.awardType || "").trim();
@@ -233,6 +234,7 @@ function BadgesPage(props: BadgesPageProps) {
     const totalLoaded = awardRows.length;
 
     const [activeFilter, setActiveFilter] = useState<BadgeFilter>(props.initialFilter ?? "all");
+    usePageLanding({ view: "badges", subject: username, tabPath: [activeFilter] });
 
     const userPickedFilterRef = useRef(false);
     useEffect(() => {

@@ -1,4 +1,5 @@
 import { DialogButton } from "@decky/ui";
+import { FocusTarget } from "./FocusTarget";
 import type { ReactNode } from "react";
 
 export type SubTabIconKind = "trophy" | "comment" | "wall" | "activity" | "scale" | "hash";
@@ -136,11 +137,12 @@ type SubTabIconButtonProps = {
     active: boolean;
     onClick: () => void;
     focusKey: string;
+    focusFallback?: string[];
 };
 
 export function SubTabIconButton(props: SubTabIconButtonProps) {
     return (
-        <div data-focus-key={props.focusKey} style={{ display: "flex", flex: 1 }}>
+        <FocusTarget focusKey={props.focusKey} focusFallback={props.focusFallback} style={{ display: "flex", flex: 1 }}>
             <DialogButton
                 onClick={props.onClick}
                 style={{
@@ -156,6 +158,6 @@ export function SubTabIconButton(props: SubTabIconButtonProps) {
             >
                 {props.icon}
             </DialogButton>
-        </div>
+        </FocusTarget>
     );
 }

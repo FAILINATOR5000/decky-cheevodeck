@@ -54,6 +54,7 @@ import { DolphinMappingModal } from "../components/mapping/DolphinMappingModal";
 import { logFocusDebug, markNextValidationSkipped } from "../api";
 import { showManagedModal } from "../utils/modalRegistry";
 import { armDolphinFocusReturn } from "../utils/dolphinFocusReturn";
+import { usePageLanding } from "../focusRecords";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
@@ -145,6 +146,7 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
         onHome,
         onRequestFocus,
     } = props;
+    usePageLanding({ view: "dolphinMapper" });
 
     const {
         mappings,

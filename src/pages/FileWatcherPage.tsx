@@ -50,6 +50,7 @@ import {
 } from "../utils/fileWatcher";
 import { bodyTextStyle, errorRed, regularButtonSpacingStyle, warnAmber } from "../utils/style";
 import { textSize } from "../utils/scale";
+import { usePageLanding } from "../focusRecords";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
@@ -96,6 +97,7 @@ type FileWatcherPageProps = {
 
 function FileWatcherPage(props: FileWatcherPageProps) {
     const { state, actions } = props;
+    usePageLanding({ view: "fileWatcher" });
     const { language } = state;
 
     const {

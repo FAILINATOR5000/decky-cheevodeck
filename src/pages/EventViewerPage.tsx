@@ -37,6 +37,7 @@ import { BUTTON_SECONDARY } from "../utils/gamepadButtons";
 import { openExternalUrl, raForumTopicUrl, raGameCommentsUrl } from "../utils/navigation";
 import { playOkSound } from "../utils/navSound";
 import { bodyTextStyle } from "../utils/style";
+import { usePageLanding } from "../focusRecords";
 
 const TABS: { value: EventViewerTab; labelKey: string; focusKey: string }[] = [
     { value: "achievements", labelKey: "Achievements", focusKey: "eventviewer:tab:achievements" },
@@ -66,6 +67,11 @@ type EventViewerPageActions = {
 function EventViewerPage(props: { state: EventViewerPageState; actions: EventViewerPageActions; aotw: AotwViewProps }) {
     const { state, actions } = props;
     const { settings } = useEvents();
+    usePageLanding({
+        view: "eventViewer",
+        subject: state.target,
+        tabPath: [state.target === "aotw" ? props.aotw.aotwSubView : state.tab]
+    });
     if (state.view !== "eventViewer") {
         return null;
     }

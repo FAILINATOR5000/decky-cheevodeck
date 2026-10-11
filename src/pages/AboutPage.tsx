@@ -13,6 +13,7 @@ import type { AboutUpdateNotice } from "../hooks/useAboutController";
 import type { ButtonSpacing, ViewKey } from "../types";
 import { achievementGreen, regularButtonSpacingStyle, bodyTextStyle } from "../utils/style";
 import { getCurrentTextScale, scaleMultiplier, textSize } from "../utils/scale";
+import { usePageLanding } from "../focusRecords";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
@@ -198,6 +199,7 @@ type AboutPageProps = {
 
 function AboutPage(props: AboutPageProps) {
     const { state, actions } = props;
+    usePageLanding({ view: "about" });
 
     if (state.view !== "about") {
         return null;

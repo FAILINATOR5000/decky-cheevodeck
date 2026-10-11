@@ -1,4 +1,5 @@
 import { DialogButton, PanelSectionRow } from "@decky/ui";
+import { FocusTarget } from "./FocusTarget";
 
 const ANCHOR_HEIGHT_PX = 2;
 
@@ -15,8 +16,8 @@ export function BottomFocusAnchor(props: BottomFocusAnchorProps) {
     return (
         <>
             <PanelSectionRow>
-                <div
-                    data-focus-key={focusKey}
+                <FocusTarget
+                    focusKey={focusKey}
                     style={{ display: "flex", width: "100%", marginTop: "8px" }}
                 >
                     <DialogButton
@@ -29,7 +30,7 @@ export function BottomFocusAnchor(props: BottomFocusAnchorProps) {
                             padding: "0"
                         }}
                     />
-                </div>
+                </FocusTarget>
             </PanelSectionRow>
             <div style={{ height: `${headroomPx}px` }} />
         </>

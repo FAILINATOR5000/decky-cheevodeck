@@ -30,6 +30,7 @@ import {
     t,
     type LanguageCode
 } from "../locales";
+import { usePageLanding } from "../focusRecords";
 
 type AllGamesLetterRange = {
     key: AllGamesLetterRangeKey;
@@ -172,6 +173,11 @@ function AllGamesPage(props: AllGamesPageProps) {
     const [activeStatusFilter, setActiveStatusFilter] = useState<AllGamesStatusFilter>(
         props.initialStatusFilter ?? "all"
     );
+    usePageLanding({
+        view: "friendAllGames",
+        subject: props.selectedFriend?.ulid || props.selectedFriend?.username,
+        tabPath: [activeRangeKey]
+    });
 
     const dynamicAllGames = props.dynamicAllGames ?? true;
     const dynamicInitialRows = Math.max(1, props.dynamicInitialRows ?? 30);

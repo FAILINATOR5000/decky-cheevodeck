@@ -4,6 +4,7 @@ export type CollapsibleTitleProps = {
     label: string;
     collapsed: boolean;
     focusKey: string;
+    focusFallback?: string[];
     disabled?: boolean;
     preserveCase?: boolean;
     onToggle: () => void;
@@ -27,6 +28,7 @@ export function CollapsibleTitle(props: CollapsibleTitleProps) {
             <CollapseToggleButton
                 collapsed={props.collapsed}
                 focusKey={props.focusKey}
+                focusFallback={props.focusFallback}
                 disabled={props.disabled}
                 onToggle={props.onToggle}
                 onGamepadFocus={props.onGamepadFocus}

@@ -20,6 +20,7 @@ import type {
 import { unlockDateLabel } from "../utils/achievements";
 import { UnlockStamp } from "../components/achievements/UnlockStamp";
 import { bodyTextStyle } from "../utils/style";
+import { usePageLanding } from "../focusRecords";
 
 export type UnlockHistorySource = "main" | "friendGame";
 
@@ -109,6 +110,7 @@ function buildFriendHistoryAchievements(payload: Payload | null): AchievementRow
 
 function UnlockHistoryPage(props: UnlockHistoryPageProps) {
     const { state, actions } = props;
+    usePageLanding({ view: "unlockHistory", subject: `${state.source}:${state.payload?.gameId ?? ""}` });
     const [history, setHistory] = useState<UnlockHistoryPayload | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);

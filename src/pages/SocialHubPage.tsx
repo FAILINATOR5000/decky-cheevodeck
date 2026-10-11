@@ -72,6 +72,7 @@ import { localizeRuntimeText, t } from "../locales";
 import { FADE_IN_KEYFRAMES, achievementUiMetrics, bodyTextStyle, headerCase, smallTextStyle, type AchievementUiMetrics } from "../utils/style";
 import { bannerSize, commentsTextSize, textSize } from "../utils/scale";
 import { beginGuardedRun } from "../utils/runGuard";
+import { usePageLanding } from "../focusRecords";
 
 type TabIconProps = { size?: number };
 
@@ -326,6 +327,14 @@ function SocialHubPage(props: SocialHubPageProps) {
     const dynamicNewSetsSentinelRootMargin = Math.max(0, props.dynamicCommentsSentinelRootMargin ?? 400);
 
     const [socialView, setSocialView] = useState<SocialView>(props.socialEntryView);
+    usePageLanding({
+        view: "social",
+        tabPath: [
+            socialView,
+            socialView === "newsEvents" ? props.newsEvents.subView
+                : socialView === "subscribedDiscussions" ? props.savedComments.subTab : null
+        ]
+    });
     const [focusedSocialView, setFocusedSocialView] = useState<SocialView | null>(null);
     const [hoveredSocialView, setHoveredSocialView] = useState<SocialView | null>(null);
 

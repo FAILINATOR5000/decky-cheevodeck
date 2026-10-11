@@ -8,6 +8,7 @@ import { PageNavStrip } from "../components/ui/PageNavStrip";
 import type { ButtonSpacing, GameLeaderboardsPayload, LeaderboardRow, UiSize, ViewKey } from "../types";
 import { localizeRuntimeText, t } from "../locales";
 import type { LanguageCode } from "../locales";
+import { usePageLanding } from "../focusRecords";
 
 type LeaderboardsPageProps = {
     state: {
@@ -39,6 +40,7 @@ type LeaderboardsPageProps = {
 };
 
 function LeaderboardsPage({ state, actions }: LeaderboardsPageProps) {
+    usePageLanding({ view: "leaderboards", subject: state.leaderboardsPayload?.gameId });
     if (state.view !== "leaderboards" || state.restoringLeaderboardDetail) {
         return null;
     }

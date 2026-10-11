@@ -160,7 +160,8 @@ import { openCalculatorModal } from "../components/calculator/CalculatorModal";
 import { openLastMemory } from "../components/memories/openLastMemory";
 import { MAP_SHORTCUTS_FOCUS_KEY } from "../utils/options";
 import { openBrowserModal } from "../components/browser/BrowserModal";
-import { describeStack, initialNav, previousView, rehydrateNav, settleNav, type NavIntent } from "../nav";
+import { describeStack, initialNav, previousView, type NavIntent } from "../nav";
+import { beginRootMount, restoreTrail, settleTrail, useFocusRecordWriter } from "../focusRecords";
 import { ROUTES, type RouteBackActions } from "../routes";
 import type {
     AchievementRow,
@@ -223,7 +224,6 @@ import { captureSnapshot } from "../utils/snapshot";
 import { playOkSound } from "../utils/navSound";
 import { guardFooterPrompts } from "../utils/footerPrompts";
 import {
-    consumeModalCloseArm,
     drainOpenModals,
     modalEchoPending,
     showManagedModal,
@@ -294,8 +294,9 @@ let pendingFriendGameSearch: { username: string; ulid: string | null; gameId: nu
 
 let pendingCheevoCheckGameId: number | null = null;
 
-function consumePendingRouteOverrides(resumeState: ResumeState | null): { resumeState: ResumeState | null; entry: PanelEntry | null } {
+function consumePendingRouteOverrides(resumeState: ResumeState | null): { resumeState: ResumeState | null; entry: PanelEntry | null; routeOverride: boolean } {
     let nextResumeState = resumeState;
+    const routeOverride = pendingSearchGameId != null || pendingFriendGameSearch != null || pendingCheevoCheckGameId != null;
     const tappedSearchGameId = pendingSearchGameId;
     pendingSearchGameId = null;
     if (tappedSearchGameId != null) {
@@ -350,7 +351,7 @@ function consumePendingRouteOverrides(resumeState: ResumeState | null): { resume
         };
     }
 
-    return { resumeState: nextResumeState, entry };
+    return { resumeState: nextResumeState, entry, routeOverride };
 }
 
 function panelEntryOverlay(entry: PanelEntry): Partial<ResumeState> & Pick<ResumeState, "view"> {
@@ -438,16 +439,20 @@ function AchievementsRoot() {
     const [settingsMode, setSettingsMode] = useState(false);
     const [view, setViewState] = useState<ViewKey>("achievements");
     const [nav, setNav] = useState(() => initialNav("achievements"));
+    const [rootMount] = useState(beginRootMount);
     const setView = useCallback((next: ViewKey, intent: NavIntent = "push") => {
-        setNav((state) => settleNav(state, { view: next }, intent));
+        const settled = settleTrail(rootMount.generation, next, intent);
+        if (settled) {
+            setNav(settled);
+        }
         setViewState(next);
     }, []);
-    const restoreNav = useCallback((saved: ViewKey[] | null, landed: ViewKey) => {
+    const restoreNav = useCallback((saved: ViewKey[] | null, landed: ViewKey, forward: { panelEntry: boolean; routeOverride: boolean }) => {
         const verdict = saved && saved.length > 0
             ? (saved[saved.length - 1] === landed ? "hit" : "miss")
             : "none";
         logNavDebug(`restore-${verdict}`, landed, `saved=${saved ? saved.join(" > ") : "(null)"}`);
-        setNav(rehydrateNav(saved, landed));
+        setNav(restoreTrail(rootMount.generation, saved, landed, forward));
         setViewState(landed);
     }, []);
     useEffect(() => {
@@ -2640,7 +2645,7 @@ function AchievementsRoot() {
         aotwCommentsController.state.commentsPostClaim
     ]);
 
-    const [modalEchoArmed, setModalEchoArmed] = useState(() => consumeModalCloseArm());
+    const [modalEchoArmed, setModalEchoArmed] = useState(rootMount.fromModal);
     useEffect(() => {
         if (!modalEchoArmed) {
             return;
@@ -2654,6 +2659,7 @@ function AchievementsRoot() {
     }, [modalEchoArmed]);
 
     useFocusPaintWake(rootRef);
+    useFocusRecordWriter(rootRef, rootMount.generation, settingsMode, activeUlid);
 
     const [mainStripClaim, setMainStripClaim] = useState<{ token: number; armed: boolean } | null>(null);
     const mainStripClaimedRef = useRef(false);
@@ -3006,7 +3012,7 @@ function AchievementsRoot() {
         if (bootView !== "achievements") {
             resumeViewFlipRef.current = true;
         }
-        restoreNav(getSavedNavStack(nextResumeState), bootView);
+        restoreNav(getSavedNavStack(nextResumeState), bootView, { panelEntry: entry !== null, routeOverride: pending.routeOverride });
         dropRestoresArmedForOtherViews(bootView);
         if (
             bootView === "trackedSetOpen"
@@ -3584,7 +3590,7 @@ function AchievementsRoot() {
         const removed = await removeTrackedSetAction(setId);
         if (removed && wasOpenSet) {
             closeTrackedSet();
-            setView("trackedSets");
+            setView("trackedSets", "back");
             setPendingFocusKey("trackedsets:back");
         }
         return removed;

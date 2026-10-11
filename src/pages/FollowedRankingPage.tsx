@@ -24,6 +24,7 @@ import { useSlidingWindow } from "../hooks/useSlidingWindow";
 import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
 import { textSize } from "../utils/scale";
 import { t, type LanguageCode } from "../locales";
+import { usePageLanding } from "../focusRecords";
 
 
 const SELF_ROW_KEYFRAMES = `
@@ -129,6 +130,8 @@ function FollowedRankingPage(props: FollowedRankingPageProps) {
     const dynamicRowStep = Math.max(1, props.dynamicRowStep ?? 30);
     const dynamicPrefetchDistance = Math.max(1, props.dynamicPrefetchDistance ?? 12);
     const dynamicSentinelRootMargin = Math.max(0, props.dynamicSentinelRootMargin ?? 600);
+
+    usePageLanding({ view: "followedRanking", tabPath: [props.metric] });
 
     const allFriends = props.friendsPayload?.friends ?? NO_FRIENDS;
 

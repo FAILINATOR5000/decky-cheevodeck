@@ -74,6 +74,7 @@ import { NOTES_DOT_KEYFRAMES, regularButtonSpacingStyle, smallTextStyle, bodyTex
 import { headerSize } from "../utils/scale";
 import { consoleInlineName } from "../utils/consoles";
 import { quickAccessWindow } from "../utils/quickAccess";
+import { usePageLanding } from "../focusRecords";
 
 // Layout constants
 const GAME_TICKER_FRESHNESS_MS = 60 * 60 * 1000;
@@ -980,6 +981,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
             onSpendMainStripClaim
         }
     } = props;
+    usePageLanding({ view: "achievements", subject: payload?.gameId, tabPath: [mainTab] });
 
     // Navigation handlers
     function handleGoToTracked() {
@@ -2094,6 +2096,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                 </div>
                 {quickMenuExpanded && (
                     <div
+                        data-focus-record-as="action:quickmenu"
                         style={{
                             ...buttonOuterStyle,
                             marginTop: "6px"

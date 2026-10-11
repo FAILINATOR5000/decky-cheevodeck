@@ -16,6 +16,7 @@ import type { ButtonSpacing, FreezeIncident, ViewKey } from "../types";
 import { regularButtonSpacingStyle } from "../utils/style";
 import { textSize } from "../utils/scale";
 import { standaloneClaim } from "../utils/stormbreaker";
+import { usePageLanding } from "../focusRecords";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
@@ -74,6 +75,7 @@ function QamGuardView(props: QamGuardPageProps) {
     const { state, actions } = props;
     const { language } = state;
     const [tab, setTab] = useState<QamGuardTab>(openTab);
+    usePageLanding({ view: "qamGuard", tabPath: [tab] });
     const log = useStormbreakerLogController({ isActive: state.view === "qamGuard" });
     const { totals, entries, standingDown, loaded } = log.state;
 

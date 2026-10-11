@@ -30,6 +30,7 @@ import type {
 import { textSize } from "../utils/scale";
 import { transferSizeLabel } from "../utils/memoriesTransferSize";
 import { bodyTextStyle, errorRed, regularButtonSpacingStyle, warnAmber } from "../utils/style";
+import { usePageLanding } from "../focusRecords";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
@@ -102,6 +103,7 @@ type MemoriesTransferPageProps = {
 
 function MemoriesTransferPage(props: MemoriesTransferPageProps) {
     const { state, actions } = props;
+    usePageLanding({ view: "memoriesTransfer" });
     const { language } = state;
 
     const {

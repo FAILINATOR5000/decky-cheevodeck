@@ -60,6 +60,7 @@ import { consoleInlineName } from "../utils/consoles";
 import { localizeRuntimeText, t } from "../locales";
 import { formatRatio, formatInteger, formatMemberSince } from "../utils/format";
 import { loadCachedImage } from "../utils/loadCachedImage";
+import { usePageLanding } from "../focusRecords";
 
 
 type FriendQuickActionId = "history" | "leaderboards" | "compare";
@@ -378,6 +379,11 @@ function FriendProfilePage(props: FriendProfilePageProps) {
         dynamicComments,
         dynamicCommentsSentinelRootMargin,
     } = state;
+    usePageLanding({
+        view: "friendGame",
+        subject: `${friendGamePayload?.ulid || selectedFriend?.ulid || selectedFriend?.username || ""}:${friendGamePayload?.selectedGameId ?? ""}`,
+        tabPath: [subView]
+    });
 
     const selectedFriendPoints = Number(friendGamePayload?.points ?? selectedFriend?.points ?? 0);
     const selectedFriendTruePoints = Number(friendGamePayload?.totalTruePoints ?? selectedFriend?.totalTruePoints ?? 0);

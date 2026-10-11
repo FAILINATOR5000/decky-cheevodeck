@@ -15,6 +15,7 @@ import { t, type LanguageCode } from "../locales";
 import type { ButtonSpacing, ViewKey } from "../types";
 import { armUtilsFocusKey } from "../utils/utilsFocusReturn";
 import { regularButtonSpacingStyle } from "../utils/style";
+import { usePageLanding } from "../focusRecords";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
@@ -46,6 +47,7 @@ type UtilsPageProps = {
 
 function UtilsPage(props: UtilsPageProps) {
     const { state, actions } = props;
+    usePageLanding({ view: "utils" });
 
     const { restoreFocusKey, restorePending } = state;
     const restoreClaim = useFocusClaim();

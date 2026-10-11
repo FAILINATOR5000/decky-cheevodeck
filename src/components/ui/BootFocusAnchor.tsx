@@ -29,6 +29,7 @@ export function BootFocusAnchor(props: { active: boolean }) {
             noFocusRing={true}
             autoFocus={active}
             onCancelButton={active ? () => { } : undefined}
+            data-focus-record="off"
             style={{ height: "1px", minHeight: 0, padding: 0, margin: 0 }}
         />
     );

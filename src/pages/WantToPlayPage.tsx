@@ -23,6 +23,7 @@ import { useSlidingWindow } from "../hooks/useSlidingWindow";
 import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
 import { textSize } from "../utils/scale";
 import { localizeRuntimeText, t, type LanguageCode } from "../locales";
+import { usePageLanding } from "../focusRecords";
 
 
 const NO_ROWS: WantToPlayRow[] = [];
@@ -54,6 +55,8 @@ function WantToPlayPage(props: WantToPlayPageProps) {
     const dynamicRowStep = Math.max(1, props.dynamicRowStep ?? 30);
     const dynamicPrefetchDistance = Math.max(1, props.dynamicPrefetchDistance ?? 12);
     const dynamicSentinelRootMargin = Math.max(0, props.dynamicSentinelRootMargin ?? 600);
+
+    usePageLanding({ view: "wantToPlay", subject: props.selectedFriend?.ulid || props.selectedFriend?.username });
 
     const rows = props.wantToPlayPayload?.results ?? NO_ROWS;
     const username = props.wantToPlayPayload?.username ?? "";

@@ -42,6 +42,7 @@ import { BUTTON_SECONDARY, BUTTON_OPTIONS, BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIG
 import { t, type LanguageCode } from "../locales";
 import type { MemoriesControllerActions, MemoriesControllerState } from "../hooks/useMemoriesController";
 import type { ButtonSpacing, ControllerGlyphStyle, NoteColor, ViewKey } from "../types";
+import { usePageLanding } from "../focusRecords";
 
 function MemoryGameValue(props: { gameId: number | null; label: string; imageIcon: string; showIcons: boolean }) {
     const { gameId, label, imageIcon, showIcons } = props;
@@ -212,6 +213,7 @@ function MemoriesPage(props: MemoriesPageProps) {
         restorePending,
         memories
     } = state;
+    usePageLanding({ view: "memories", subject: memories.gameId });
 
     const restoreClaim = useFocusClaim();
     const restoreFiredRef = useRef(false);

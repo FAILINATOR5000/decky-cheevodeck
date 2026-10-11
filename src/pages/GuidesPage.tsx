@@ -25,6 +25,7 @@ import { useSlidingWindow } from "../hooks/useSlidingWindow";
 import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
 import { textSize } from "../utils/scale";
 import { bodyTextStyle, regularButtonSpacingStyle } from "../utils/style";
+import { usePageLanding } from "../focusRecords";
 
 type GuidesPageState = {
     view: ViewKey;
@@ -84,6 +85,11 @@ export function GuidesPage(props: GuidesPageProps) {
     const g = state.guides;
     const ga = actions.guides;
     const lang = state.language;
+    usePageLanding({
+        view: "guides",
+        subject: state.gameId,
+        sub: g.subView === "list" ? [] : [{ kind: g.subView, subject: g.subView === "reader" ? g.openFaqId : null }]
+    });
 
     const sentinelRootMargin = Math.max(0, state.dynamicSentinelRootMargin ?? 600);
 

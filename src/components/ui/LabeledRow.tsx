@@ -7,6 +7,7 @@ export type LabeledRowProps = {
     label: React.ReactNode;
     value: React.ReactNode;
     focusKey?: string;
+    focusFallback?: string[];
     onClick?: () => void | Promise<void>;
     disabled?: boolean;
     autoFocus?: boolean;
@@ -50,6 +51,7 @@ export function LabeledRow(props: LabeledRowProps) {
             actionDescriptionMap={props.actionDescriptionMap}
             outerStyle={outerStyle}
             focusKey={focusKey}
+            focusFallback={props.focusFallback}
             onClick={onClick}
             disabled={disabled}
             autoFocus={autoFocus}

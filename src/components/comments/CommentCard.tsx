@@ -41,6 +41,7 @@ export const CommentCard = React.memo(function CommentCard(props: CommentCardPro
     return (
         <FocusableItem
             focusKey={focusKey}
+            recordOff={true}
             onClick={handleClick}
             onGamepadFocus={onGamepadFocusIndex && index != null ? () => onGamepadFocusIndex(index) : undefined}
             onGamepadDirection={onGamepadDirection}

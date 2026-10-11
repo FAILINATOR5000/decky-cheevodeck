@@ -30,6 +30,7 @@ import { WelcomeMainUiModal } from "../components/account/WelcomeMainUiModal";
 import { WelcomeModal } from "../components/account/WelcomeModal";
 import { t, type LanguageCode } from "../locales";
 import type { NavIntent } from "../nav";
+import { rebuildTrailFresh } from "../focusRecords";
 import type {
     SavedUser,
     SettingsResponse,
@@ -476,6 +477,7 @@ export function useAccountActions({
                 }
 
                 wipeFrontendMirrors();
+                rebuildTrailFresh("account-switch");
 
                 applySettings(result, { skipButtonToggles: true });
 

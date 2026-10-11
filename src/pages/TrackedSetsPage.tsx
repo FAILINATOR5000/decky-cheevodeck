@@ -66,6 +66,7 @@ import { modalSize, textSize } from "../utils/scale";
 import { armTrackedSetFocusReturn, type TrackedSetFocusReturn } from "../utils/trackedSetFocusReturn";
 import { SaveOnStart } from "../components/ui/SaveOnStart";
 import { SnapshotHotkey } from "../components/ui/SnapshotHotkey";
+import { usePageLanding } from "../focusRecords";
 
 
 type DeleteFocusPlan =
@@ -239,6 +240,8 @@ function mosaicEntriesForSet(set: TrackedSet): SetMosaicEntry[] {
 
 
 function TrackedSetsPage(props: TrackedSetsPageProps) {
+    usePageLanding({ view: "trackedSets" });
+    usePageLanding({ view: "trackedSetOpen", subject: props.openSetId });
     if (props.view !== "trackedSets" && props.view !== "trackedSetOpen") {
         return null;
     }

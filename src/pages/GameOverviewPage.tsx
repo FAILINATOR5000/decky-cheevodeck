@@ -50,6 +50,7 @@ import { formatReleaseDate } from "../utils/format";
 import { logError } from "../utils/errors";
 import { BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT } from "../utils/gamepadButtons";
 import { playOkSound } from "../utils/navSound";
+import { usePageLanding } from "../focusRecords";
 
 const SUB_TABS: { value: GameOverviewSubView; focusKey: string; icon: SubTabIconKind }[] = [
     { value: "achievements", focusKey: "gameoverview:subtab:achievements", icon: "trophy" },
@@ -335,6 +336,7 @@ function GameOverviewPage(props: GameOverviewPageProps) {
         dynamicCommentsSentinelRootMargin,
         onHome,
     } = props;
+    usePageLanding({ view: "gameOverview", subject: gameId, tabPath: [subView] });
 
     const { isSubscribed, subscribeError, onToggleSubscribe } = useThreadSubscription({
         language,

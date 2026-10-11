@@ -21,6 +21,7 @@ import { t, type LanguageCode } from "../locales";
 import type { ButtonSpacing, SmbShare, ViewKey } from "../types";
 import { smbBusyLabel, smbErrorLabel, smbStatusColor, smbStatusLabel, sortSharesByName } from "../utils/smb";
 import { regularButtonSpacingStyle, bodyTextStyle } from "../utils/style";
+import { usePageLanding } from "../focusRecords";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
@@ -82,6 +83,7 @@ type SmbSharesPageProps = {
 
 function SmbSharesPage(props: SmbSharesPageProps) {
     const { state, actions } = props;
+    usePageLanding({ view: "smbShares" });
     const { language } = state;
 
     const {

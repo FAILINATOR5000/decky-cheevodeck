@@ -1,5 +1,6 @@
 import { ToggleField } from "@decky/ui";
 import React, { type ReactNode } from "react";
+import { FocusTarget } from "./FocusTarget";
 import { helpDescription } from "./InfoText";
 import { getCurrentTextScale, scaleMultiplier } from "../../utils/scale";
 
@@ -28,7 +29,7 @@ export function ToggleRow(props: ToggleRowProps) {
     }
 
     return (
-        <div data-focus-key={focusKey} style={outerStyle}>
+        <FocusTarget focusKey={focusKey} style={outerStyle}>
             <ToggleField
                 label={<span style={{ fontSize: `${scaleMultiplier(getCurrentTextScale())}em` }}>{label}</span>}
                 description={helpDescription(help, modalHelp)}
@@ -38,6 +39,6 @@ export function ToggleRow(props: ToggleRowProps) {
                 bottomSeparator={bottomSeparator}
                 onChange={handleChange}
             />
-        </div>
+        </FocusTarget>
     );
 }

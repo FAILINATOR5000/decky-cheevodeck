@@ -2733,14 +2733,14 @@ class SettingsStore:
     def _normalize_nav_stack(self, raw):
         if not isinstance(raw, list) or not raw:
             return None
-        if len(raw) > _MAX_RESUME_NAV_DEPTH:
-            return None
         trail = []
         for entry in raw:
             view = str(entry or "").strip()
             if view not in _ALLOWED_RESUME_VIEWS:
                 return None
             trail.append(view)
+        if len(trail) > _MAX_RESUME_NAV_DEPTH:
+            trail = ["achievements"] + trail[-(_MAX_RESUME_NAV_DEPTH - 1):]
         return trail
 
     def _normalize_ao_snapshot(self, raw):

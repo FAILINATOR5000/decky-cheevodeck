@@ -39,6 +39,7 @@ import type {
     ViewKey
 } from "../types";
 import { achievementGreen, bodyTextStyle, errorRed, faultViolet, regularButtonSpacingStyle, warnAmber } from "../utils/style";
+import { usePageLanding } from "../focusRecords";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
@@ -113,6 +114,7 @@ type CheevoCheckPageProps = {
 
 function CheevoCheckPage(props: CheevoCheckPageProps) {
     const { state, actions } = props;
+    usePageLanding({ view: "cheevoCheck" });
     const { language } = state;
 
     const {

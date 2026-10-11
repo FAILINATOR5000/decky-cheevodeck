@@ -87,6 +87,7 @@ import { armMainListOpenAt, type MainListOpenTarget } from "../utils/mainListOpe
 import { BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT, BUTTON_SECONDARY } from "../utils/gamepadButtons";
 import { playOkSound } from "../utils/navSound";
 import { bodyTextStyle, regularButtonSpacingStyle, smallTextStyle } from "../utils/style";
+import { usePageLanding } from "../focusRecords";
 
 type TabIconProps = { size?: number };
 
@@ -630,6 +631,7 @@ type OptionsPageProps = {
 
 function OptionsPage(props: OptionsPageProps) {
     const { state, actions } = props;
+    usePageLanding({ view: "options", tabPath: [state.activeOptionsTab] });
     const disabled = state.loading || state.saving || state.clearingAllCache;
     const clearCacheDisabled = disabled || state.clearingCache;
     const buttonOuterStyle = regularButtonSpacingStyle(state.buttonSpacing);

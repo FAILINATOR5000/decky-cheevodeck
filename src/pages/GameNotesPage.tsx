@@ -40,6 +40,7 @@ import {
 import { achievementUiMetrics, smallTextStyle, bodyTextStyle } from "../utils/style";
 import { BUTTON_OPTIONS } from "../utils/gamepadButtons";
 import { playOkSound } from "../utils/navSound";
+import { usePageLanding } from "../focusRecords";
 
 type GameNotesPageState = {
     view: ViewKey;
@@ -236,6 +237,7 @@ export function GameNotesPage(props: GameNotesPageProps) {
         panelOverlayVisible,
         collapsedTags
     } = state;
+    usePageLanding({ view: "gameNotes", subject: gameNotesGameId });
 
     const gameId = gameNotesGameId ?? payload?.gameId ?? null;
 

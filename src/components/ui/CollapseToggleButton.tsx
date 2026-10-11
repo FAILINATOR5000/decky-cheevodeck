@@ -1,8 +1,10 @@
 import { DialogButton } from "@decky/ui";
+import { FocusTarget } from "./FocusTarget";
 
 type CollapseToggleButtonProps = {
     collapsed: boolean;
     focusKey: string;
+    focusFallback?: string[];
     disabled?: boolean;
     onToggle: () => void;
     onGamepadFocus?: () => void;
@@ -11,7 +13,7 @@ type CollapseToggleButtonProps = {
 
 export function CollapseToggleButton(props: CollapseToggleButtonProps) {
     return (
-        <div data-focus-key={props.focusKey} style={{ flexShrink: 0 }}>
+        <FocusTarget focusKey={props.focusKey} focusFallback={props.focusFallback} style={{ flexShrink: 0 }}>
             <DialogButton
                 onClick={props.onToggle}
                 disabled={props.disabled}
@@ -32,6 +34,6 @@ export function CollapseToggleButton(props: CollapseToggleButtonProps) {
             >
                 {props.collapsed ? "+" : "−"}
             </DialogButton>
-        </div>
+        </FocusTarget>
     );
 }

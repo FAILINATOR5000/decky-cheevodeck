@@ -52,6 +52,7 @@ import {
 } from "../utils/achievements";
 import { playOkSound } from "../utils/navSound";
 import { regularButtonSpacingStyle, smallTextStyle, bodyTextStyle } from "../utils/style";
+import { usePageLanding } from "../focusRecords";
 
 // Font Awesome Free icon path, CC BY 4.0. See ATTRIBUTIONS.md.
 type TabIconProps = { size?: number };
@@ -274,6 +275,14 @@ function TrackedPage(props: TrackedPageProps) {
         onRequestFocus,
         onHome,
     } = props;
+    usePageLanding({
+        view: "tracked",
+        subject: payload?.gameId,
+        tabPath: [activeTrackedTab],
+        sub: activeTrackedTab === "otherGames" && trackedSelectedGameId !== null
+            ? [{ kind: "drill", subject: String(trackedSelectedGameId) }]
+            : []
+    });
 
     useEffect(() => {
         if (trackedAchievementAction !== "reorder") {

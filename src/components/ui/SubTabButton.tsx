@@ -1,15 +1,17 @@
 import { DialogButton } from "@decky/ui";
+import { FocusTarget } from "./FocusTarget";
 
 export type SubTabButtonProps = {
     label: string;
     active: boolean;
     onClick: () => void;
     focusKey: string;
+    focusFallback?: string[];
 };
 
 export function SubTabButton(props: SubTabButtonProps) {
     return (
-        <div data-focus-key={props.focusKey} style={{ display: "flex", flex: 1 }}>
+        <FocusTarget focusKey={props.focusKey} focusFallback={props.focusFallback} style={{ display: "flex", flex: 1 }}>
             <DialogButton
                 onClick={props.onClick}
                 style={{
@@ -24,6 +26,6 @@ export function SubTabButton(props: SubTabButtonProps) {
             >
                 {props.label}
             </DialogButton>
-        </div>
+        </FocusTarget>
     );
 }

@@ -16,6 +16,7 @@ import { isFriendAvatarStale, sortFriendRowsForDisplay } from "../utils/friends"
 import { logError } from "../utils/errors";
 import { titleSize } from "../utils/scale";
 import { bodyTextStyle, headerCase, regularButtonSpacingStyle, smallTextStyle } from "../utils/style";
+import { usePageLanding } from "../focusRecords";
 
 type ComparePickerPageState = {
     view: ViewKey;
@@ -148,6 +149,7 @@ const FriendPickerRow = React.memo(function FriendPickerRow(props: FriendPickerR
 
 function ComparePickerPage(props: ComparePickerPageProps) {
     const { state, actions } = props;
+    usePageLanding({ view: "comparePicker" });
     const { language, buttonSpacing, friendsRows, favoriteFriends, friendsLoaded, friendsRefreshing, friendsError } = state;
 
     const dynamicFriendPicker = state.dynamicFriendPicker ?? true;

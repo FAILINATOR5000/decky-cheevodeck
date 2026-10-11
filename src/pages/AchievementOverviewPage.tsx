@@ -29,6 +29,7 @@ import type { CommentsSort } from "../hooks/useAchievementOverviewController";
 import type { RestoredCommentsWindow } from "../hooks/useCommentsWindow";
 import { useThreadSubscription } from "../hooks/useThreadSubscription";
 import { regularButtonSpacingStyle, bodyTextStyle } from "../utils/style";
+import { usePageLanding } from "../focusRecords";
 
 type AchievementOverviewPageProps = {
     view: string;
@@ -178,6 +179,7 @@ function AchievementOverviewPage(props: AchievementOverviewPageProps) {
         dynamicCommentsSentinelRootMargin,
         onHome,
     } = props;
+    usePageLanding({ view: "achievementOverview", subject: achievementId });
 
     const { isSubscribed, subscribeError, onToggleSubscribe } = useThreadSubscription({
         language,

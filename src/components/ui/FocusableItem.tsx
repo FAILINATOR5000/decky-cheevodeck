@@ -1,9 +1,12 @@
 import { ButtonItem } from "@decky/ui";
 import React, { useLayoutEffect, useRef } from "react";
+import { FocusTarget } from "./FocusTarget";
 import { helpDescription } from "./InfoText";
 
 export type FocusableItemProps = {
     focusKey?: string;
+    focusFallback?: string[];
+    recordOff?: boolean;
     children: React.ReactNode;
     onClick?: () => void | Promise<void>;
     onFocus?: () => void;
@@ -27,7 +30,7 @@ export type FocusableItemProps = {
 };
 
 export function FocusableItem(props: FocusableItemProps) {
-    const { children, onClick, onFocus, onBlur, onGamepadFocus, onGamepadBlur, onButtonDown, onGamepadDirection, onMenuButton, actionDescriptionMap, onMouseEnter, onMouseLeave, disabled, skipWhenDisabled, autoFocus, focusKey, outerStyle, scrollMarginTop, bottomSeparator = "standard", help, modalHelp } = props;
+    const { children, onClick, onFocus, onBlur, onGamepadFocus, onGamepadBlur, onButtonDown, onGamepadDirection, onMenuButton, actionDescriptionMap, onMouseEnter, onMouseLeave, disabled, skipWhenDisabled, autoFocus, focusKey, focusFallback, recordOff, outerStyle, scrollMarginTop, bottomSeparator = "standard", help, modalHelp } = props;
     const wrapperRef = useRef<HTMLDivElement | null>(null);
 
     function handleFocusCapture() {
@@ -71,9 +74,11 @@ export function FocusableItem(props: FocusableItemProps) {
     }, [scrollMarginTop]);
 
     return (
-        <div
+        <FocusTarget
             ref={wrapperRef}
-            data-focus-key={focusKey}
+            focusKey={focusKey}
+            focusFallback={focusFallback}
+            recordOff={recordOff}
             onFocusCapture={handleFocusCapture}
             onBlurCapture={handleBlurCapture}
             onMouseEnter={handleMouseEnter}
@@ -98,6 +103,6 @@ export function FocusableItem(props: FocusableItemProps) {
                     {children}
                 </div>
             </ButtonItem>
-        </div>
+        </FocusTarget>
     );
 }

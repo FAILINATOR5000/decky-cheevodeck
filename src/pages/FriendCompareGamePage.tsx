@@ -26,6 +26,7 @@ import type {
     UiSize,
     ViewKey
 } from "../types";
+import { usePageLanding } from "../focusRecords";
 
 const FILTER_OPTIONS: { value: NowPlayingCompareFilter; labelKey: string }[] = [
     { value: "all", labelKey: "All" },
@@ -116,6 +117,7 @@ function FriendCompareGamePage(props: FriendCompareGamePageProps) {
         dynamicPrefetchDistance,
         showRetroPoints,
     } = state;
+    usePageLanding({ view: "friendCompare", subject: selectedFriend?.ulid || selectedFriend?.username });
 
     const initialRows = Math.max(1, dynamicInitialRows);
     const rowStep = Math.max(1, dynamicRowStep);
