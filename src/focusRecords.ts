@@ -52,7 +52,7 @@ type OwnLanding = { entryId: number; pending: boolean; settled: boolean };
 
 type Resolved = { focusKey: string | null; fallbacks: string[] };
 
-const LANDING_VIEWS: ReadonlySet<ViewKey> = new Set<ViewKey>(["achievements"]);
+const LANDING_VIEWS: ReadonlySet<ViewKey> = new Set<ViewKey>(["achievements", "utils"]);
 const RECOVERY_OWNER = -1;
 
 let trail: NavState | null = null;

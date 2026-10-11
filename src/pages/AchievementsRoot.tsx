@@ -251,7 +251,6 @@ import { takeFileWatcherFocusReturn } from "../utils/fileWatcherFocusReturn";
 import { takeMemoriesTransferFocusReturn } from "../utils/memoriesTransferFocusReturn";
 import { takeMemoriesFocusReturn } from "../utils/memoriesFocusReturn";
 import { armOptionsLanding, takeOptionsFocusReturn } from "../utils/optionsFocusReturn";
-import { takeUtilsFocusReturn } from "../utils/utilsFocusReturn";
 import { useMemoriesController } from "../hooks/useMemoriesController";
 import { useMemoriesVideoController } from "../hooks/useMemoriesVideoController";
 import { takeSavedCommentFocusReturn } from "../utils/savedCommentFocusReturn";
@@ -2471,16 +2470,6 @@ function AchievementsRoot() {
     optionsWasOpenRef.current = view === "options";
     const optionsRestorePending = optionsRestoreArmedRef.current;
 
-    const [utilsFocusReturn] = useState(takeUtilsFocusReturn);
-
-    const utilsRestoreArmedRef = useRef(utilsFocusReturn !== null);
-    const utilsWasOpenRef = useRef(false);
-    if (utilsWasOpenRef.current && view !== "utils") {
-        utilsRestoreArmedRef.current = false;
-    }
-    utilsWasOpenRef.current = view === "utils";
-    const utilsRestorePending = utilsRestoreArmedRef.current;
-
     const [fileWatcherFocusReturn] = useState(takeFileWatcherFocusReturn);
 
     const fileWatcherRestoreArmedRef = useRef(fileWatcherFocusReturn !== null);
@@ -2531,7 +2520,6 @@ function AchievementsRoot() {
             { armed: savedCommentRestoreArmedRef, view: "social" },
             { armed: memoriesRestoreArmedRef, view: "memories" },
             { armed: optionsRestoreArmedRef, view: "options" },
-            { armed: utilsRestoreArmedRef, view: "utils" },
             { armed: fileWatcherRestoreArmedRef, view: "fileWatcher" },
             { armed: memoriesTransferRestoreArmedRef, view: "memoriesTransfer" },
             { armed: smbRestoreArmedRef, view: "smbShares" },
@@ -5039,10 +5027,7 @@ function AchievementsRoot() {
                                     state={{
                                         view,
                                         language,
-                                        buttonSpacing,
-                                        restoreFocusKey: utilsFocusReturn,
-                                        restorePending: utilsRestorePending,
-                                        panelOverlayVisible
+                                        buttonSpacing
                                     }}
                                     actions={{
                                         onBack: backFromUtils,
@@ -5052,8 +5037,7 @@ function AchievementsRoot() {
                                         onOpenCheevoCheck: () => goToCheevoCheck(),
                                         onOpenFileWatcher: () => goToFileWatcher(),
                                         onOpenMemoriesTransfer: () => goToMemoriesTransfer(),
-                                        onOpenQamGuard: () => goToQamGuard(),
-                                        onRequestFocus: setPendingFocusKey
+                                        onOpenQamGuard: () => goToQamGuard()
                                     }}
                                 />
 

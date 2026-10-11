@@ -93,15 +93,15 @@ export function PageNavStrip(props: PageNavStripProps) {
             flow-children="row"
             style={{ display: "flex", gap: "6px" }}
         >
-            <div data-focus-key="nav:home" style={{ position: "relative" }}>
+            <FocusTarget focusKey="nav:home" style={{ position: "relative" }}>
                 <DialogButton
                     onClick={() => { void props.onHome(); }}
                     style={navButtonStyle}
                 >
                     <HomeIcon size={18} />
                 </DialogButton>
-            </div>
-            <div data-focus-key="nav:bell" style={{ position: "relative" }}>
+            </FocusTarget>
+            <FocusTarget focusKey="nav:bell" style={{ position: "relative" }}>
                 <DialogButton
                     onClick={notifications.openNotifications}
                     style={navButtonStyle}
@@ -126,7 +126,7 @@ export function PageNavStrip(props: PageNavStripProps) {
                         <style>{NOTES_DOT_KEYFRAMES}</style>
                     </div>
                 )}
-            </div>
+            </FocusTarget>
             {props.help}
         </Focusable>
     );

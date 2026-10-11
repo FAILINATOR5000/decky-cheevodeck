@@ -1,5 +1,4 @@
 import { PanelSectionRow } from "@decky/ui";
-import { type ReactElement, type ReactNode, useEffect, useRef, useState } from "react";
 import { PanelSection } from "../components/ui/PanelSection";
 import { BackButton } from "../components/ui/BackButton";
 import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
@@ -7,13 +6,8 @@ import { PageNavStrip } from "../components/ui/PageNavStrip";
 import { openBrowserModal } from "../components/browser/BrowserModal";
 import { openCalculatorModal } from "../components/calculator/CalculatorModal";
 import { FocusableItem } from "../components/ui/FocusableItem";
-import { FocusClaim } from "../components/ui/FocusClaim";
-import { RestoreCurtain } from "../components/ui/RestoreCurtain";
-import { useFocusClaim } from "../hooks/useFocusClaim";
-import { logFocusDebug } from "../api";
 import { t, type LanguageCode } from "../locales";
 import type { ButtonSpacing, ViewKey } from "../types";
-import { armUtilsFocusKey } from "../utils/utilsFocusReturn";
 import { regularButtonSpacingStyle } from "../utils/style";
 import { usePageLanding } from "../focusRecords";
 
@@ -23,9 +17,6 @@ type UtilsPageState = {
     view: ViewKey;
     language: LanguageCode;
     buttonSpacing: ButtonSpacing;
-    restoreFocusKey: string | null;
-    restorePending: boolean;
-    panelOverlayVisible: boolean;
 };
 
 type UtilsPageActions = {
@@ -37,7 +28,6 @@ type UtilsPageActions = {
     onOpenFileWatcher: () => void | Promise<void>;
     onOpenMemoriesTransfer: () => void | Promise<void>;
     onOpenQamGuard: () => void | Promise<void>;
-    onRequestFocus: (focusKey: string) => void;
 };
 
 type UtilsPageProps = {
@@ -47,51 +37,13 @@ type UtilsPageProps = {
 
 function UtilsPage(props: UtilsPageProps) {
     const { state, actions } = props;
-    usePageLanding({ view: "utils" });
-
-    const { restoreFocusKey, restorePending } = state;
-    const restoreClaim = useFocusClaim();
-    const restoreFiredRef = useRef(false);
-    const claimedKeyRef = useRef<string | null>(null);
-    const [restoreAbandoned, setRestoreAbandoned] = useState(false);
-
-    useEffect(function landRestoredCursor() {
-        if (state.view !== "utils" || !restorePending || restoreFiredRef.current) {
-            return;
-        }
-        restoreFiredRef.current = true;
-        if (restoreFocusKey === null) {
-            setRestoreAbandoned(true);
-            logFocusDebug("utils-restore", "(none)", "nothing armed");
-            actions.onRequestFocus("utils:back");
-            return;
-        }
-        logFocusDebug("utils-restore", restoreFocusKey, "claiming");
-        claimedKeyRef.current = restoreFocusKey;
-        restoreClaim.claimSlot(0);
-        actions.onRequestFocus(restoreFocusKey);
-    }, [state.view, restorePending, restoreFocusKey, restoreClaim.claimSlot, actions.onRequestFocus]);
-
-    const restoreSettled = restoreAbandoned
-        || (restoreClaim.claim?.token ?? 0) > 0 && !restoreClaim.claim?.armed;
-
-    function claimTarget(control: ReactElement<{ focusKey?: string }>): ReactNode {
-        const claim = restoreClaim.claim;
-        if (!claim || control.props.focusKey !== claimedKeyRef.current) {
-            return control;
-        }
-        return (
-            <FocusClaim token={claim.token} armed={claim.armed} onSpent={restoreClaim.spend}>
-                {control}
-            </FocusClaim>
-        );
-    }
+    usePageLanding({ view: "utils", defaultKey: "utils:back" });
 
     if (state.view !== "utils") {
         return null;
     }
 
-    const page = (
+    return (
         <PanelSection key="utils:view">
             <PageNavStrip
                 title={t(state.language, "Utilities")}
@@ -102,7 +54,7 @@ function UtilsPage(props: UtilsPageProps) {
             <BackButton
                 label={t(state.language, "Back")}
                 focusKey="utils:back"
-                navAutoFocus={!restorePending}
+                navAutoFocus
                 buttonSpacing={state.buttonSpacing}
                 onClick={actions.onBack}
                 scrollMarginTop={BACK_BUTTON_SCROLL_MARGIN_PX}
@@ -169,48 +121,28 @@ function UtilsPage(props: UtilsPageProps) {
                 </FocusableItem>
             </PanelSectionRow>
             <PanelSectionRow>
-                {claimTarget(
-                    <FocusableItem
-                        outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
-                        focusKey="utils:calculator"
-                        onClick={() => {
-                            armUtilsFocusKey("utils:calculator");
-                            openCalculatorModal(state.language);
-                        }}
-                        help={t(state.language, "help_utils_calculator")}
-                    >
-                        {t(state.language, "Calculator")}
-                    </FocusableItem>
-                )}
+                <FocusableItem
+                    outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                    focusKey="utils:calculator"
+                    onClick={() => openCalculatorModal(state.language)}
+                    help={t(state.language, "help_utils_calculator")}
+                >
+                    {t(state.language, "Calculator")}
+                </FocusableItem>
             </PanelSectionRow>
             <PanelSectionRow>
-                {claimTarget(
-                    <FocusableItem
-                        outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
-                        focusKey="utils:browser"
-                        onClick={() => {
-                            armUtilsFocusKey("utils:browser");
-                            openBrowserModal(state.language);
-                        }}
-                        bottomSeparator="none"
-                        help={t(state.language, "help_utils_browser")}
-                    >
-                        {t(state.language, "Web Browser")}
-                    </FocusableItem>
-                )}
+                <FocusableItem
+                    outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                    focusKey="utils:browser"
+                    onClick={() => openBrowserModal(state.language)}
+                    bottomSeparator="none"
+                    help={t(state.language, "help_utils_browser")}
+                >
+                    {t(state.language, "Web Browser")}
+                </FocusableItem>
             </PanelSectionRow>
             <BottomFocusAnchor focusKey="utils:bottom:anchor" />
         </PanelSection>
-    );
-
-    return (
-        <RestoreCurtain
-            armed={state.restorePending}
-            settled={restoreSettled}
-            covered={state.panelOverlayVisible}
-        >
-            {page}
-        </RestoreCurtain>
     );
 }
 
