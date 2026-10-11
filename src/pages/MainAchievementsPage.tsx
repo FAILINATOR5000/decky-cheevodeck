@@ -19,7 +19,7 @@ import { GuidesIcon } from "../components/guides/GuidesIcon";
 import { InfoText } from "../components/ui/InfoText";
 import { LabeledRow } from "../components/ui/LabeledRow";
 import { subTabIcon, type SubTabIconKind } from "../components/ui/SubTabIconButton";
-import { NowPlayingTabBody, type LandingWindows, type NowPlayingTabBodyProps } from "../components/social/NowPlayingTabBody";
+import { NowPlayingTabBody, type NowPlayingTabBodyProps } from "../components/social/NowPlayingTabBody";
 import { QuickGuideColumn, QuickGuidePin } from "../components/guides/QuickGuidePin";
 import { ToggleRow } from "../components/ui/ToggleRow";
 import { UserAvatar } from "../components/ui/UserAvatar";
@@ -74,7 +74,7 @@ import { NOTES_DOT_KEYFRAMES, regularButtonSpacingStyle, smallTextStyle, bodyTex
 import { headerSize } from "../utils/scale";
 import { consoleInlineName } from "../utils/consoles";
 import { quickAccessWindow } from "../utils/quickAccess";
-import { landingOwnsTop, pendingLandingKey, usePageLanding } from "../focusRecords";
+import { landingOwnsTop, pendingLandingKey, usePageLanding, type LandingWindows } from "../focusRecords";
 
 // Layout constants
 const GAME_TICKER_FRESHNESS_MS = 60 * 60 * 1000;

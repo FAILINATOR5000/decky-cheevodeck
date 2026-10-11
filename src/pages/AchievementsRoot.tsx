@@ -244,7 +244,6 @@ import {
 } from "../utils/commentsSnapshot";
 import { clearCheevoCheckFocusReturn, takeCheevoCheckFocusReturn } from "../utils/cheevoCheckFocusReturn";
 import { armNoteFocusReturn, takeNoteFocusReturn } from "../utils/noteFocusReturn";
-import { takeTrackedSetFocusReturn } from "../utils/trackedSetFocusReturn";
 import { armTrackedFocusReturn, takeTrackedFocusReturn } from "../utils/trackedFocusReturn";
 import { takeDolphinFocusReturn } from "../utils/dolphinFocusReturn";
 import { takeFileWatcherFocusReturn } from "../utils/fileWatcherFocusReturn";
@@ -2500,17 +2499,6 @@ function AchievementsRoot() {
     smbWasOpenRef.current = view === "smbShares";
     const smbRestorePending = smbRestoreArmedRef.current;
 
-    const [trackedSetFocusReturn] = useState(takeTrackedSetFocusReturn);
-
-    const trackedSetsRestoreArmedRef = useRef(trackedSetFocusReturn !== null);
-    const trackedSetsWasOpenRef = useRef(false);
-    const trackedSetsArmedView = trackedSetFocusReturn?.view ?? null;
-    if (trackedSetsWasOpenRef.current && view !== trackedSetsArmedView) {
-        trackedSetsRestoreArmedRef.current = false;
-    }
-    trackedSetsWasOpenRef.current = trackedSetsArmedView !== null && view === trackedSetsArmedView;
-    const trackedSetsRestorePending = trackedSetsRestoreArmedRef.current;
-
     function dropRestoresArmedForOtherViews(bootView: ViewKey) {
         const latches = [
             { armed: notesRestoreArmedRef, view: "gameNotes" },
@@ -2522,8 +2510,7 @@ function AchievementsRoot() {
             { armed: optionsRestoreArmedRef, view: "options" },
             { armed: fileWatcherRestoreArmedRef, view: "fileWatcher" },
             { armed: memoriesTransferRestoreArmedRef, view: "memoriesTransfer" },
-            { armed: smbRestoreArmedRef, view: "smbShares" },
-            { armed: trackedSetsRestoreArmedRef, view: trackedSetsArmedView }
+            { armed: smbRestoreArmedRef, view: "smbShares" }
         ];
         for (const latch of latches) {
             if (latch.armed.current && latch.view !== bootView) {
@@ -5557,9 +5544,6 @@ function AchievementsRoot() {
                                     mouseKeyboardMode={mouseKeyboardMode}
                                     controllerGlyphStyle={controllerGlyphStyle}
                                     onRequestFocus={setPendingFocusKey}
-                                    restorePending={trackedSetsRestorePending}
-                                    restoreTarget={trackedSetFocusReturn}
-                                    panelOverlayVisible={panelOverlayVisible}
                                     onOpenSet={(setId) => {
                                         void trackedSetsActions.openSet(setId);
                                         setView("trackedSetOpen");

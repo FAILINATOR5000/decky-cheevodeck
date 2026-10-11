@@ -57,6 +57,7 @@ import { ButtonHints } from "../ui/ButtonHints";
 import { CollapsibleTitle } from "../ui/CollapsibleTitle";
 import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { useSlidingWindow } from "../../hooks/useSlidingWindow";
+import type { LandingWindows } from "../../focusRecords";
 import { beginGuardedRun } from "../../utils/runGuard";
 
 const COMMENTS_STRIP_TOP_MARGIN = "10px";
@@ -150,8 +151,6 @@ export type NowPlayingTabBodyProps = {
 const PLAYERS_NEAR_YOU_ROW_FALLBACK = ["nowplaying:pny:collapse", "main:tab:activity"];
 const ACTIVITY_ROW_FALLBACK = ["nowplaying:pny:collapse", "main:tab:activity"];
 const COMPARE_ROW_FALLBACK = ["nowplaying:compare-picker", "main:tab:compare"];
-
-export type LandingWindows = { holds: (key: string) => boolean; open: (key: string) => void };
 
 const FILTER_OPTIONS: { value: NowPlayingCompareFilter; labelKey: string }[] = [
     { value: "all", labelKey: "All" },

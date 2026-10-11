@@ -17,6 +17,7 @@ export type BackButtonProps = {
     scrollMarginTop?: number;
     autoFocus?: boolean;
     navAutoFocus?: boolean;
+    reclaim?: boolean;
     bottomSeparator?: "standard" | "thick" | "none";
 };
 
@@ -55,7 +56,7 @@ export function BackButton(props: BackButtonProps) {
     );
 
     const jumped = jumpToken !== initialJumpTokenRef.current;
-    if ((!props.navAutoFocus || standDown) && !jumped) {
+    if ((!props.navAutoFocus || (standDown && !props.reclaim)) && !jumped) {
         return row;
     }
 

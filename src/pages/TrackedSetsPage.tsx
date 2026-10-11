@@ -1,4 +1,4 @@
-import React, { Fragment, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { Fragment, type MutableRefObject, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { DialogButton, Focusable, ModalRoot, PanelSectionRow, TextField } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
 import {
@@ -18,11 +18,11 @@ import { ErrorText } from "../components/ui/ErrorText";
 import { BackButton } from "../components/ui/BackButton";
 import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
 import { FocusableItem } from "../components/ui/FocusableItem";
+import { FocusTarget } from "../components/ui/FocusTarget";
 import { FocusClaim } from "../components/ui/FocusClaim";
 import { LabeledRow } from "../components/ui/LabeledRow";
 import { PageNavStrip } from "../components/ui/PageNavStrip";
 import { ReorderStrip } from "../components/ui/ReorderStrip";
-import { RestoreCurtain } from "../components/ui/RestoreCurtain";
 import { SetGameNoteEditModal } from "../components/notes/SetGameNoteEditModal";
 import { SetMosaicBanner, type SetMosaicEntry } from "../components/mastery/SetMosaicBanner";
 import { SystemHeader } from "../components/mastery/SystemHeader";
@@ -63,10 +63,9 @@ import {
 import { showManagedModal } from "../utils/modalRegistry";
 import { achievementUiMetrics, regularButtonSpacingStyle, bodyTextStyle, FADE_IN_KEYFRAMES } from "../utils/style";
 import { modalSize, textSize } from "../utils/scale";
-import { armTrackedSetFocusReturn, type TrackedSetFocusReturn } from "../utils/trackedSetFocusReturn";
 import { SaveOnStart } from "../components/ui/SaveOnStart";
 import { SnapshotHotkey } from "../components/ui/SnapshotHotkey";
-import { usePageLanding } from "../focusRecords";
+import { usePageLanding, type LandingWindows } from "../focusRecords";
 
 
 type DeleteFocusPlan =
@@ -75,6 +74,8 @@ type DeleteFocusPlan =
 
 type GoalGroupEntry = { group: ConsoleGroup };
 type GoalEntry = TrackedSetGame | GoalGroupEntry;
+
+const GAME_CARD_FALLBACK = ["trackedset:open:filter"];
 
 function isGoalGroup(entry: GoalEntry): entry is GoalGroupEntry {
     return "group" in entry;
@@ -116,9 +117,6 @@ type TrackedSetsPageProps = {
     mouseKeyboardMode: boolean;
     controllerGlyphStyle: ControllerGlyphStyle;
     onRequestFocus: (focusKey: string) => void;
-    restorePending: boolean;
-    restoreTarget: TrackedSetFocusReturn | null;
-    panelOverlayVisible: boolean;
     onOpenSet: (setId: string) => void | Promise<void>;
     onCloseSet: () => void;
     onChangeGameFilter: (setId: string, filter: TrackedSetFilter) => Promise<boolean>;
@@ -240,8 +238,6 @@ function mosaicEntriesForSet(set: TrackedSet): SetMosaicEntry[] {
 
 
 function TrackedSetsPage(props: TrackedSetsPageProps) {
-    usePageLanding({ view: "trackedSets" });
-    usePageLanding({ view: "trackedSetOpen", subject: props.openSetId });
     if (props.view !== "trackedSets" && props.view !== "trackedSetOpen") {
         return null;
     }
@@ -276,9 +272,6 @@ function TrackedSetsPageBody(props: TrackedSetsPageProps) {
         mouseKeyboardMode,
         controllerGlyphStyle,
         onRequestFocus,
-        restorePending,
-        restoreTarget,
-        panelOverlayVisible,
         onOpenSet,
         onCloseSet,
         onChangeGameFilter,
@@ -376,80 +369,16 @@ function TrackedSetsPageBody(props: TrackedSetsPageProps) {
         );
     }, [openSetResolving, props.view, openSetId, openSet, setsLoading]);
 
-    const selectorRestoreClaim = useFocusClaim();
-    const restoreFiredRef = useRef(false);
-    const [restoreSettled, setRestoreSettled] = useState(false);
-
-    const settleRestore = useCallback(() => {
-        setRestoreSettled(true);
-    }, []);
-
-    const restoreForOpenSet = restoreTarget !== null && restoreTarget.view === "trackedSetOpen";
-
-    const openSetRestoreTarget =
-        restorePending && restoreForOpenSet && openSet !== null && openSet.id === restoreTarget.setId
-            ? restoreTarget
-            : null;
-
-    useEffect(function landRestoredCursor() {
-        if (!restorePending || restoreFiredRef.current) {
-            return;
-        }
-
-        const backKey = props.view === "trackedSets" ? "trackedsets:back" : "trackedsetopen:back";
-
-        if (restoreTarget === null || restoreTarget.view !== props.view) {
-            restoreFiredRef.current = true;
-            settleRestore();
-            logFocusDebug("trackedset-restore", restoreTarget?.focusKey ?? "(none)", "not armed for this view");
-            onRequestFocus(backKey);
-            return;
-        }
-
-        if (restoreForOpenSet) {
-            if (openSetRestoreTarget !== null) {
-                return;
-            }
-            if (!setsLoaded && setsError === null) {
-                return;
-            }
-            restoreFiredRef.current = true;
-            settleRestore();
-            logFocusDebug(
-                "trackedset-restore",
-                restoreTarget.focusKey,
-                setsLoaded ? "that goal is no longer open" : "the goals could not be read"
-            );
-            onRequestFocus(backKey);
-            return;
-        }
-
-        restoreFiredRef.current = true;
-        logFocusDebug("trackedset-restore", restoreTarget.focusKey, "claiming");
-        selectorRestoreClaim.claimSlot(0);
-        onRequestFocus(restoreTarget.focusKey);
-    }, [
-        restorePending,
-        restoreTarget,
-        restoreForOpenSet,
-        openSetRestoreTarget,
-        setsLoaded,
-        setsError,
-        props.view,
-        settleRestore,
-        selectorRestoreClaim.claimSlot,
-        onRequestFocus
-    ]);
-
-    const selectorClaimSpent =
-        (selectorRestoreClaim.claim?.token ?? 0) > 0 && !selectorRestoreClaim.claim?.armed;
-
-    useEffect(function settleWhenTheSelectorClaimLands() {
-        if (!selectorClaimSpent) {
-            return;
-        }
-        settleRestore();
-    }, [selectorClaimSpent, settleRestore]);
+    const landingWindowsRef = useRef<LandingWindows | null>(null);
+    const backKey = props.view === "trackedSets" ? "trackedsets:back" : "trackedsetopen:back";
+    usePageLanding({
+        view: props.view,
+        subject: props.view === "trackedSetOpen" ? openSetId : null,
+        defaultKey: backKey,
+        ready: (setsLoaded || setsError !== null) && !openSetResolving,
+        holds: (key) => Boolean(landingWindowsRef.current?.holds(key)),
+        open: (key) => landingWindowsRef.current?.open(key)
+    });
 
     function handleCycleSelectorSort() {
         const next = nextTrackedSetSelectorSort(selectorSort);
@@ -466,12 +395,6 @@ function TrackedSetsPageBody(props: TrackedSetsPageProps) {
     }
 
     function openCreateSetModal() {
-        armTrackedSetFocusReturn({
-            view: "trackedSets",
-            setId: "",
-            focusKey: "trackedsets:addset",
-            gameId: null
-        });
         showManagedModal((close) => (
             <NameSetModal
                 title={t(language, "New Goal")}
@@ -487,12 +410,6 @@ function TrackedSetsPageBody(props: TrackedSetsPageProps) {
     }
 
     function openRenameModal(set: TrackedSet) {
-        armTrackedSetFocusReturn({
-            view: "trackedSetOpen",
-            setId: set.id,
-            focusKey: "trackedsetopen:strip:rename",
-            gameId: null
-        });
         showManagedModal((close) => (
             <NameSetModal
                 title={t(language, "Rename Goal")}
@@ -505,12 +422,6 @@ function TrackedSetsPageBody(props: TrackedSetsPageProps) {
     }
 
     function openAddGameModal(set: TrackedSet) {
-        armTrackedSetFocusReturn({
-            view: "trackedSetOpen",
-            setId: set.id,
-            focusKey: "trackedsetopen:strip:addgame",
-            gameId: null
-        });
         showManagedModal((close) => (
             <AddGameToSetModal
                 setName={set.name}
@@ -523,12 +434,6 @@ function TrackedSetsPageBody(props: TrackedSetsPageProps) {
     }
 
     function openNoteModal(set: TrackedSet, game: TrackedSetGame) {
-        armTrackedSetFocusReturn({
-            view: "trackedSetOpen",
-            setId: set.id,
-            focusKey: `trackedsetgame:${game.gameId}`,
-            gameId: game.gameId
-        });
         showManagedModal((close) => (
             <SetGameNoteEditModal
                 gameTitle={game.title}
@@ -684,19 +589,7 @@ function TrackedSetsPageBody(props: TrackedSetsPageProps) {
         commitOrder(set, ordered);
     }
 
-    function claimNewGoal(control: ReactNode): ReactNode {
-        const claim = selectorRestoreClaim.claim;
-        if (claim === null) {
-            return control;
-        }
-        return (
-            <FocusClaim token={claim.token} armed={claim.armed} onSpent={selectorRestoreClaim.spend}>
-                {control}
-            </FocusClaim>
-        );
-    }
-
-    const page = (
+    return (
         <>
             <style>{FADE_IN_KEYFRAMES}</style>
             <PanelSection>
@@ -710,8 +603,9 @@ function TrackedSetsPageBody(props: TrackedSetsPageProps) {
                     label={props.view === "trackedSets"
                         ? t(language, props.backToMain ? "← Back to Main" : "← Back to Profile")
                         : t(language, "← Back to Goals")}
-                    focusKey={props.view === "trackedSets" ? "trackedsets:back" : "trackedsetopen:back"}
-                    navAutoFocus={!restorePending || backClaimToken > 0}
+                    focusKey={backKey}
+                    navAutoFocus
+                    reclaim={backClaimToken > 0}
                     buttonSpacing={buttonSpacing}
                     onClick={props.view === "trackedSets" ? onBack : onCloseSet}
                 />
@@ -724,15 +618,13 @@ function TrackedSetsPageBody(props: TrackedSetsPageProps) {
 
                 {showingSelector && !openSetResolving && (
                     <PanelSectionRow>
-                        {claimNewGoal(
-                            <FocusableItem
-                                outerStyle={buttonOuterStyle}
-                                focusKey="trackedsets:addset"
-                                onClick={openCreateSetModal}
-                            >
-                                {t(language, "New Goal")}
-                            </FocusableItem>
-                        )}
+                        <FocusableItem
+                            outerStyle={buttonOuterStyle}
+                            focusKey="trackedsets:addset"
+                            onClick={openCreateSetModal}
+                        >
+                            {t(language, "New Goal")}
+                        </FocusableItem>
                     </PanelSectionRow>
                 )}
 
@@ -761,9 +653,7 @@ function TrackedSetsPageBody(props: TrackedSetsPageProps) {
                         dynamicRowStep={dynamicTrackedSetsListRowStep}
                         dynamicPrefetchDistance={dynamicTrackedSetsListPrefetchDistance}
                         dynamicSentinelRootMargin={dynamicTrackedSetsListSentinelRootMargin}
-                        restoreTarget={openSetRestoreTarget}
-                        onRestoreSettled={settleRestore}
-                        onRequestFocus={onRequestFocus}
+                        landingWindowsRef={landingWindowsRef}
                         onClaimBack={() => {
                             setBackClaimToken((token) => token + 1);
                             onRequestFocus("trackedsetopen:back");
@@ -804,19 +694,10 @@ function TrackedSetsPageBody(props: TrackedSetsPageProps) {
                     onOpenSet={onOpenSet}
                     onCycleSelectorSort={handleCycleSelectorSort}
                     onCycleSelectorFilter={handleCycleSelectorFilter}
+                    landingWindowsRef={landingWindowsRef}
                 />
             )}
         </>
-    );
-
-    return (
-        <RestoreCurtain
-            armed={restorePending}
-            settled={restoreSettled}
-            covered={panelOverlayVisible}
-        >
-            {page}
-        </RestoreCurtain>
     );
 }
 
@@ -838,6 +719,7 @@ type SelectorViewProps = {
     onOpenSet: (setId: string) => void | Promise<void>;
     onCycleSelectorSort: () => void;
     onCycleSelectorFilter: () => void;
+    landingWindowsRef: MutableRefObject<LandingWindows | null>;
 };
 
 function SelectorView(props: SelectorViewProps) {
@@ -857,7 +739,8 @@ function SelectorView(props: SelectorViewProps) {
         dynamicSentinelRootMargin,
         onOpenSet,
         onCycleSelectorSort,
-        onCycleSelectorFilter
+        onCycleSelectorFilter,
+        landingWindowsRef
     } = props;
 
     const rowMosaicSize = achievementUiMetrics(uiSize).iconSize;
@@ -922,6 +805,10 @@ function SelectorView(props: SelectorViewProps) {
         debugLabel: "trackedsets:goals"
     });
     const mountedSets = setWindow.mountedItems;
+    landingWindowsRef.current = {
+        holds: (key) => orderedSets.some((set) => `trackedset:${set.id}` === key),
+        open: (key) => setWindow.openAt(key)
+    };
 
     const openSetRef = useRef(onOpenSet);
     openSetRef.current = onOpenSet;
@@ -1101,9 +988,7 @@ type OpenSetViewProps = {
     dynamicRowStep: number;
     dynamicPrefetchDistance: number;
     dynamicSentinelRootMargin: number;
-    restoreTarget: TrackedSetFocusReturn | null;
-    onRestoreSettled: () => void;
-    onRequestFocus: (focusKey: string) => void;
+    landingWindowsRef: MutableRefObject<LandingWindows | null>;
     onClaimBack: () => void;
     onChangeGameFilter: (set: TrackedSet) => void;
     onRunCheck: () => void;
@@ -1176,9 +1061,7 @@ function OpenSetView(props: OpenSetViewProps) {
         dynamicRowStep,
         dynamicPrefetchDistance,
         dynamicSentinelRootMargin,
-        restoreTarget,
-        onRestoreSettled,
-        onRequestFocus,
+        landingWindowsRef,
         onClaimBack,
         onChangeGameFilter,
         onRunCheck,
@@ -1304,8 +1187,6 @@ function OpenSetView(props: OpenSetViewProps) {
 
     const restoreClaim = useFocusClaim();
 
-    const restoreClaimSpent = (restoreClaim.claim?.token ?? 0) > 0 && !restoreClaim.claim?.armed;
-
     const entries = useMemo<GoalEntry[]>(() => {
         if (set.viewMode === "all") {
             return visualOrder;
@@ -1333,6 +1214,10 @@ function OpenSetView(props: OpenSetViewProps) {
         debugLabel: "trackedset:games"
     });
     const whenGoalHeld = useWhenHeld(goalWindow, entries, goalEntryFocusKey);
+    landingWindowsRef.current = {
+        holds: (key) => entries.some((entry) => !isGoalGroup(entry) && goalEntryFocusKey(entry) === key),
+        open: (key) => goalWindow.openAt(key)
+    };
 
     const cardSlots = useMemo(() => {
         const slots: number[] = [];
@@ -1373,12 +1258,9 @@ function OpenSetView(props: OpenSetViewProps) {
         void prefetchGameIcons(mosaicEntriesForSet(set));
     }, [set, showIcons]);
 
-    const restoreFiredRef = useRef(false);
     const claimedCardSlotRef = useRef<number | null>(null);
-    const restoreStripKeyRef = useRef<string | null>(null);
 
     function claimCard(slot: number) {
-        restoreStripKeyRef.current = null;
         claimedCardSlotRef.current = slot;
         restoreClaim.claimSlot(slot);
     }
@@ -1391,48 +1273,6 @@ function OpenSetView(props: OpenSetViewProps) {
             restoreClaim.spend();
         }
     }, [cardClaimOvertaken, restoreClaim.spend]);
-
-    useEffect(function landRestoredCursor() {
-        if (restoreTarget === null || restoreFiredRef.current) {
-            return;
-        }
-        restoreFiredRef.current = true;
-
-        if (restoreTarget.gameId === null) {
-            restoreStripKeyRef.current = restoreTarget.focusKey;
-            logFocusDebug("trackedset-restore", restoreTarget.focusKey, "claiming a strip button");
-            restoreClaim.claimSlot(0);
-            onRequestFocus(restoreTarget.focusKey);
-            return;
-        }
-
-        if (!visualOrder.some((game) => game.gameId === restoreTarget.gameId)) {
-            onRestoreSettled();
-            logFocusDebug("trackedset-restore", restoreTarget.focusKey, "that game is not in this view");
-            onRequestFocus("trackedsetopen:back");
-            return;
-        }
-
-        const key = restoreTarget.focusKey;
-        whenGoalHeld(key, (slot) => {
-            logFocusDebug("trackedset-restore", key, `slot=${slot} of ${entries.length}`);
-            claimCard(slot);
-            onRequestFocus(key);
-        });
-    }, [
-        restoreTarget,
-        visualOrder,
-        restoreClaim.claimSlot,
-        onRestoreSettled,
-        onRequestFocus
-    ]);
-
-    useEffect(function settleWhenTheClaimLands() {
-        if (!restoreClaimSpent) {
-            return;
-        }
-        onRestoreSettled();
-    }, [restoreClaimSpent, onRestoreSettled]);
 
     useEffect(() => {
         logFocusDebug(
@@ -1495,54 +1335,33 @@ function OpenSetView(props: OpenSetViewProps) {
 
     function renderStripButton(key: StripButtonKey, label: string, onClick: () => void, disabled: boolean) {
         const focused = focusedStripKey === key;
-        const stripFocusKey = `trackedsetopen:strip:${key}`;
-        const claim = restoreStripKeyRef.current === stripFocusKey ? restoreClaim.claim : null;
-        const button = (
-            <DialogButton
-                onClick={onClick}
-                onGamepadFocus={() => setFocusedStripKey(key)}
-                onGamepadBlur={() => {
-                    setFocusedStripKey((current) => (current === key ? null : current));
-                    if (key === "delete") {
-                        setDeleteArmed(false);
-                    }
-                }}
-                disabled={disabled}
-                style={{
-                    minWidth: 0,
-                    width: "100%",
-                    padding: "8px 4px",
-                    fontWeight: 700,
-                    textAlign: "center",
-                    opacity: disabled ? 0.5 : focused ? 1 : 0.82,
-                    boxShadow: focused
-                        ? "0 0 0 2px rgba(255,255,255,0.55), 0 2px 8px rgba(0,0,0,0.35)"
-                        : undefined
-                }}
-            >
-                <FitText text={label} maxFontSize={12} minFontSize={9} />
-            </DialogButton>
-        );
-        const cell = (
-            <div
-                data-focus-key={stripFocusKey}
-                style={{ display: "flex", flex: 1, minWidth: 0 }}
-            >
-                {button}
-            </div>
-        );
-        if (claim === null) {
-            return cell;
-        }
         return (
-            <FocusClaim
-                token={claim.token}
-                armed={claim.armed}
-                onSpent={restoreClaim.spend}
-                style={{ display: "flex", flex: 1, minWidth: 0 }}
-            >
-                {cell}
-            </FocusClaim>
+            <FocusTarget focusKey={`trackedsetopen:strip:${key}`} style={{ display: "flex", flex: 1, minWidth: 0 }}>
+                <DialogButton
+                    onClick={onClick}
+                    onGamepadFocus={() => setFocusedStripKey(key)}
+                    onGamepadBlur={() => {
+                        setFocusedStripKey((current) => (current === key ? null : current));
+                        if (key === "delete") {
+                            setDeleteArmed(false);
+                        }
+                    }}
+                    disabled={disabled}
+                    style={{
+                        minWidth: 0,
+                        width: "100%",
+                        padding: "8px 4px",
+                        fontWeight: 700,
+                        textAlign: "center",
+                        opacity: disabled ? 0.5 : focused ? 1 : 0.82,
+                        boxShadow: focused
+                            ? "0 0 0 2px rgba(255,255,255,0.55), 0 2px 8px rgba(0,0,0,0.35)"
+                            : undefined
+                    }}
+                >
+                    <FitText text={label} maxFontSize={12} minFontSize={9} />
+                </DialogButton>
+            </FocusTarget>
         );
     }
 
@@ -1565,6 +1384,7 @@ function OpenSetView(props: OpenSetViewProps) {
 
     const cardList = useMemo<SetGameCardListProps>(() => ({
         aButtonMode: effectiveAButtonMode,
+        focusFallback: GAME_CARD_FALLBACK,
         reorderMode,
         language,
         showIcons,

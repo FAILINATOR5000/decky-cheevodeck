@@ -52,7 +52,7 @@ type OwnLanding = { entryId: number; pending: boolean; settled: boolean };
 
 type Resolved = { focusKey: string | null; fallbacks: string[] };
 
-const LANDING_VIEWS: ReadonlySet<ViewKey> = new Set<ViewKey>(["achievements", "utils"]);
+const LANDING_VIEWS: ReadonlySet<ViewKey> = new Set<ViewKey>(["achievements", "utils", "trackedSets", "trackedSetOpen"]);
 const RECOVERY_OWNER = -1;
 
 let trail: NavState | null = null;
@@ -753,6 +753,8 @@ function noVersion(): number {
 function noCover(): boolean {
     return false;
 }
+
+export type LandingWindows = { holds: (key: string) => boolean; open: (key: string) => void };
 
 type PageLanding = {
     defaultKey?: string;

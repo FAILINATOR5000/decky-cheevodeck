@@ -2,6 +2,7 @@ import React, { type ReactNode, useState } from "react";
 import { DialogButton, Focusable } from "@decky/ui";
 import { FadeImage } from "../ui/FadeImage";
 import { FocusableItem } from "../ui/FocusableItem";
+import { FocusTarget } from "../ui/FocusTarget";
 import { useGameIcon } from "../../hooks/useGameIcon";
 import { t, type LanguageCode } from "../../locales";
 import type { TrackedSetAButtonMode, TrackedSetAward, TrackedSetGame } from "../../types";
@@ -33,6 +34,7 @@ export type SetGameCardListProps = {
     metrics: AchievementUiMetrics;
     buttonOuterStyle: React.CSSProperties;
     focusKeyPrefix?: string;
+    focusFallback?: string[];
     onPickOrSwap?: (gameId: number) => void;
     onEditNote?: (game: TrackedSetGame) => void;
     onOpenGameOverview: (gameId: number) => void;
@@ -162,6 +164,7 @@ export const SetGameCard = React.memo(function SetGameCard(props: SetGameCardPro
                     borderRadius: isReorderTarget ? "6px" : undefined
                 }}
                 focusKey={`${focusKeyPrefix}:${game.gameId}`}
+                focusFallback={list.focusFallback}
                 onClick={handleCardClick}
                 onGamepadFocus={() => list.onCardFocus(slotIndex, game.gameId)}
                 onGamepadDirection={props.onGamepadDirection}
@@ -290,8 +293,9 @@ export const SetGameCard = React.memo(function SetGameCard(props: SetGameCardPro
             </FocusableItem>
 
             {list.onTrashPress ? (
-                <div
-                    data-focus-key={`${focusKeyPrefix}:trash:${game.gameId}`}
+                <FocusTarget
+                    focusKey={`${focusKeyPrefix}:trash:${game.gameId}`}
+                    focusFallback={[`${focusKeyPrefix}:${game.gameId}`, ...(list.focusFallback ?? [])]}
                     style={{
                         position: "absolute",
                         top: "17px",
@@ -340,7 +344,7 @@ export const SetGameCard = React.memo(function SetGameCard(props: SetGameCardPro
                     >
                         <TrashIcon size={15} />
                     </DialogButton>
-                </div>
+                </FocusTarget>
             ) : props.corner ? (
                 <div
                     style={{
