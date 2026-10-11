@@ -17,6 +17,7 @@ import {
     loadGamesListCache,
     loadAwardsListCache,
     loadWantToPlayCache,
+    logFocusDebug,
     logFriendFetchDebug,
     logWantToPlayDebug,
     patchFriendRow,
@@ -41,6 +42,7 @@ import type {
 } from "../types";
 
 import type { NavIntent } from "../nav";
+import { topEntryId } from "../focusRecords";
 import { logError } from "../utils/errors";
 import { quickAccessIsHidden, quickAccessWindow } from "../utils/quickAccess";
 import { findFriendRowIndex, sortFriendRowsForDisplay, userRefFor } from "../utils/friends";
@@ -98,6 +100,15 @@ async function loadWarmProfilePayload<T>(
         logError(errorTag, e);
     }
     return null;
+}
+
+function stillWhereStarted(startedFor: number | null, what: string): boolean {
+    const now = topEntryId();
+    if (now === startedFor) {
+        return true;
+    }
+    logFocusDebug("load-stayed", what, `started=${startedFor ?? "(none)"} now=${now ?? "(none)"}`);
+    return false;
 }
 
 export function useFriendsController({
@@ -638,6 +649,7 @@ export function useFriendsController({
             if (friendGameBusyRef.current || !friend?.username) {
                 return;
             }
+            const startedFor = topEntryId();
             const latestFriend =
                 (friendsPayload?.friends ?? []).find((row: FriendRow) => row.username === friend.username) || friend;
             const effectiveGameId = gameId ?? null;
@@ -782,7 +794,10 @@ export function useFriendsController({
                     if (result.error) {
                         setFriendGameError(result.error);
                     }
-                    if (!suppressViewChange) {
+                    if (!suppressViewChange && !stillWhereStarted(startedFor, "friendGame")) {
+                        pendingResumeFocusKeyRef.current = null;
+                    }
+                    else if (!suppressViewChange) {
                         setView("friendGame", navIntent);
                         const nextFocusKey = pendingResumeFocusKeyRef.current || focusTarget;
                         if (nextFocusKey) {
@@ -818,11 +833,15 @@ export function useFriendsController({
     );
 
     const applyFriendAllGamesPayload = useCallback(
-        (payload: FriendAllGamesPayload) => {
+        (payload: FriendAllGamesPayload, startedFor: number | null) => {
             setFriendAllGamesPayload({
                 ...payload,
                 results: sortFriendAllGamesAlphabetically(payload.results)
             });
+            if (!stillWhereStarted(startedFor, "friendAllGames")) {
+                pendingResumeFocusKeyRef.current = null;
+                return;
+            }
             setView("friendAllGames");
             const nextFocusKey = pendingResumeFocusKeyRef.current || "friendallgames:back";
             setPendingFocusKey(nextFocusKey);
@@ -841,6 +860,7 @@ export function useFriendsController({
         friendAllGamesBusyRef.current = true;
         setFriendAllGamesError(null);
         setSelectedFriend(friend);
+        const startedFor = topEntryId();
 
         const ref = userRefFor(friend);
         const ulid = friend.ulid ?? null;
@@ -849,7 +869,7 @@ export function useFriendsController({
             if (ulid) {
                 const cached = await loadWarmProfilePayload(ulid, loadGamesListCache, "loadGamesListCache");
                 if (cached && mountedRef.current) {
-                    applyFriendAllGamesPayload(cached);
+                    applyFriendAllGamesPayload(cached, startedFor);
                     return cached.results.length;
                 }
             }
@@ -868,7 +888,7 @@ export function useFriendsController({
                 return 0;
             }
             if (result.payload) {
-                applyFriendAllGamesPayload(result.payload);
+                applyFriendAllGamesPayload(result.payload, startedFor);
                 if (result.error) {
                     setFriendAllGamesError(result.error);
                 }
@@ -903,6 +923,7 @@ export function useFriendsController({
                 return;
             }
             const awardsUlid = String(ulid || "").trim();
+            const startedFor = topEntryId();
 
             userAwardsBusyRef.current = true;
             setUserAwardsError(null);
@@ -912,7 +933,7 @@ export function useFriendsController({
                     const cached = await loadWarmProfilePayload(awardsUlid, loadAwardsListCache, "loadAwardsListCache");
                     if (cached && mountedRef.current) {
                         setUserAwardsPayload(cached);
-                        if (!suppressViewChange) {
+                        if (!suppressViewChange && stillWhereStarted(startedFor, "badges")) {
                             setView("badges", navIntent);
                             setPendingFocusKey("badges:back");
                         }
@@ -935,7 +956,7 @@ export function useFriendsController({
                 }
                 if (result.payload) {
                     setUserAwardsPayload(result.payload);
-                    if (!suppressViewChange) {
+                    if (!suppressViewChange && stillWhereStarted(startedFor, "badges")) {
                         setView("badges", navIntent);
                         setPendingFocusKey("badges:back");
                     }
@@ -978,6 +999,7 @@ export function useFriendsController({
             wantToPlayBusyRef.current = true;
             logWantToPlayDebug("open", targetUsername);
             const startedAt = Date.now();
+            const startedFor = topEntryId();
 
             try {
                 if (wantToPlayUlid) {
@@ -994,9 +1016,11 @@ export function useFriendsController({
                         );
                         setWantToPlayPayload(cached);
                         setWantToPlayError(null);
-                        setView("wantToPlay", navIntent);
-                        const warmFocusKey = pendingResumeFocusKeyRef.current || "wanttoplay:back";
-                        setPendingFocusKey(warmFocusKey);
+                        if (stillWhereStarted(startedFor, "wantToPlay")) {
+                            setView("wantToPlay", navIntent);
+                            const warmFocusKey = pendingResumeFocusKeyRef.current || "wanttoplay:back";
+                            setPendingFocusKey(warmFocusKey);
+                        }
                         pendingResumeFocusKeyRef.current = null;
                         return;
                     }
@@ -1025,9 +1049,11 @@ export function useFriendsController({
                         `results=${result.payload.results.length} total=${result.payload.total} ms=${Date.now() - startedAt}`
                     );
                     setWantToPlayPayload(result.payload);
-                    setView("wantToPlay", navIntent);
-                    const nextFocusKey = pendingResumeFocusKeyRef.current || "wanttoplay:back";
-                    setPendingFocusKey(nextFocusKey);
+                    if (stillWhereStarted(startedFor, "wantToPlay")) {
+                        setView("wantToPlay", navIntent);
+                        const nextFocusKey = pendingResumeFocusKeyRef.current || "wanttoplay:back";
+                        setPendingFocusKey(nextFocusKey);
+                    }
                     pendingResumeFocusKeyRef.current = null;
                     if (result.error) {
                         setWantToPlayError(result.error);

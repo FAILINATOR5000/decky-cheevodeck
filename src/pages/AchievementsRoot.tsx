@@ -1,7 +1,7 @@
 import { Focusable, PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
 import { addEventListener, removeEventListener, toaster } from "@decky/api";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useInsertionEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
     cleanupUserDirectories,
     clearResumeState,
@@ -160,7 +160,9 @@ import { openLastMemory } from "../components/memories/openLastMemory";
 import { MAP_SHORTCUTS_FOCUS_KEY } from "../utils/options";
 import { openBrowserModal } from "../components/browser/BrowserModal";
 import { describeStack, initialNav, previousView, type NavIntent } from "../nav";
-import { beginRootMount, restoreTrail, settleTrail, useFocusRecordWriter } from "../focusRecords";
+import { setCover } from "../covers";
+import { beginRootMount, landingOwnsTop, restoreTrail, settleTrail, useFocusRecordWriter } from "../focusRecords";
+import { LandingCurtain } from "../components/ui/LandingCurtain";
 import { ROUTES, type RouteBackActions } from "../routes";
 import type {
     AchievementRow,
@@ -439,8 +441,8 @@ function AchievementsRoot() {
     const [view, setViewState] = useState<ViewKey>("achievements");
     const [nav, setNav] = useState(() => initialNav("achievements"));
     const [rootMount] = useState(beginRootMount);
-    const setView = useCallback((next: ViewKey, intent: NavIntent = "push") => {
-        const settled = settleTrail(rootMount.generation, next, intent);
+    const setView = useCallback((next: ViewKey, intent: NavIntent = "push", options?: { land?: string }) => {
+        const settled = settleTrail(rootMount.generation, next, intent, options?.land);
         if (settled) {
             setNav(settled);
         }
@@ -550,7 +552,6 @@ function AchievementsRoot() {
         legacyCommentsLoading,
         showAllAchievements,
         unlockHistoryDays,
-        rememberLastPage,
         uiSize,
         topPadding,
         blockPadding,
@@ -1822,7 +1823,7 @@ function AchievementsRoot() {
     } = useResumeSnapshot({
         settingsLoaded,
         settingsMode,
-        rememberLastPage,
+        rememberLastPage: true,
         view,
         payload,
         selectedFriend,
@@ -1889,7 +1890,7 @@ function AchievementsRoot() {
         mountedRef,
         viewRef,
         pendingResumeFocusKeyRef,
-        rememberLastPage,
+        rememberLastPage: true,
         view,
         settingsLoaded,
         settingsMode,
@@ -2304,7 +2305,7 @@ function AchievementsRoot() {
             void backFromFriendUnlockHistory();
             return;
         }
-        backToAchievements("quick:tab:history");
+        backToAchievements();
     }
 
     function backFromGuides() {
@@ -2312,7 +2313,7 @@ function AchievementsRoot() {
             setPendingFocusKey("guides:back");
             return;
         }
-        backToAchievements("quick:tab:guides");
+        backToAchievements();
     }
 
     const unlockHistoryController = useUnlockHistoryController({
@@ -2674,11 +2675,12 @@ function AchievementsRoot() {
             return;
         }
         mainStripClaimedRef.current = true;
-        if (view !== "achievements" || nowPlayingCommentsClaimedRef.current) {
+        const landing = landingOwnsTop();
+        if (view !== "achievements" || nowPlayingCommentsClaimedRef.current || landing) {
             logFocusDebug(
                 "strip-claim",
                 "action:quickmenu",
-                `stood down view=${view} tab=${mainTab} comments=${nowPlayingCommentsClaimedRef.current}`
+                `stood down view=${view} tab=${mainTab} comments=${nowPlayingCommentsClaimedRef.current} landing=${landing}`
             );
             return;
         }
@@ -2971,7 +2973,7 @@ function AchievementsRoot() {
         const nextFriendRefreshDelayMs = settings.friendRefreshDelayMs;
         const nextPayload = cached?.payload ?? null;
         const nextFriendsPayload = cachedFriends?.payload ?? null;
-        const pending = consumePendingRouteOverrides(nextRememberLastPage ? (savedResume?.resumeState ?? null) : null);
+        const pending = consumePendingRouteOverrides(savedResume?.resumeState ?? null);
         const nextResumeState = pending.resumeState;
         const entry = pending.entry;
         const bootView = computeBootView(nextResumeState, nextPayload);
@@ -3348,15 +3350,15 @@ function AchievementsRoot() {
         );
     }
 
-    function goToAchievements(focusKey = "action:friends") {
-        arriveOnAchievements("root", focusKey);
+    function goToAchievements() {
+        arriveOnAchievements("root");
     }
 
-    function backToAchievements(focusKey = "action:friends") {
-        arriveOnAchievements("back", focusKey);
+    function backToAchievements() {
+        arriveOnAchievements("back");
     }
 
-    function arriveOnAchievements(intent: NavIntent, focusKey: string) {
+    function arriveOnAchievements(intent: NavIntent) {
         clearEventsFocusReturn();
         clearEventViewerRowReturn();
         friendRowRefreshRunIdRef.current += 1;
@@ -3367,7 +3369,7 @@ function AchievementsRoot() {
         }
 
         setView("achievements", intent);
-        setPendingFocusKey(focusKey);
+        setPendingFocusKey("action:friends");
     }
 
     function goToFriends(intent: NavIntent = "push") {
@@ -3397,7 +3399,7 @@ function AchievementsRoot() {
         setPendingFocusKey("main:tab:compare");
     }
 
-    function goToOptions(focusKey?: string, intent: NavIntent = "push") {
+    function goToOptions(focusKey?: string, intent: NavIntent = "push", land?: string) {
         friendGameSessionRefreshKeysRef.current = new Set();
         setLastOptionsTab("system");
         void saveLastOptionsTab("system").catch(() => {
@@ -3406,7 +3408,7 @@ function AchievementsRoot() {
         if (focusKey) {
             armOptionsLanding(focusKey);
         }
-        setView("options", intent);
+        setView("options", intent, land ? { land } : undefined);
         setPendingFocusKey("options:back");
     }
 
@@ -3464,7 +3466,6 @@ function AchievementsRoot() {
     async function routeBackToFriendContext(
         friendUsername: string,
         focusKey: string,
-        fallbackFocusKey = "action:friends",
         returnTo?: { gameId: number | null; source: FriendGameSource }
     ) {
         const payloadUsername = String(friendGamePayloadRef.current?.friendUsername || "").trim();
@@ -3501,7 +3502,7 @@ function AchievementsRoot() {
             return;
         }
 
-        backToAchievements(fallbackFocusKey);
+        backToAchievements();
     }
 
     async function backFromFriendUnlockHistory() {
@@ -3511,7 +3512,6 @@ function AchievementsRoot() {
         await routeBackToFriendContext(
             friendUsername,
             "friendquick:tab:history",
-            "quick:tab:history",
             { gameId: unlockHistoryReturnFriendRef.current.gameId, source: returnSource }
         );
     }
@@ -3522,7 +3522,6 @@ function AchievementsRoot() {
         await routeBackToFriendContext(
             friendUsername,
             "friendquick:tab:compare",
-            "action:friends",
             { gameId: friendCompareReturnFriendRef.current.gameId, source: returnSource }
         );
     }
@@ -3558,7 +3557,7 @@ function AchievementsRoot() {
         );
         if (friendProfileBackSourceRef.current === "main") {
             friendProfileBackSourceRef.current = "social";
-            backToAchievements("action:profilestrip");
+            backToAchievements();
             return;
         }
         if (friendProfileBackSourceRef.current === "eventViewer") {
@@ -3601,7 +3600,7 @@ function AchievementsRoot() {
     async function backFromTrackedSets() {
         if (trackedSetsBackSourceRef.current === "main") {
             trackedSetsBackSourceRef.current = "profile";
-            backToAchievements("action:quickmenu");
+            backToAchievements();
             return;
         }
 
@@ -3680,7 +3679,7 @@ function AchievementsRoot() {
             return;
         }
         if (from === "achievements") {
-            backToAchievements("quick:tab:memories");
+            backToAchievements();
             return;
         }
         backToAchievements();
@@ -3692,7 +3691,7 @@ function AchievementsRoot() {
             return;
         }
 
-        backToAchievements("action:quickmenu");
+        backToAchievements();
     }
 
     function goToGameNotes(focusKeyAfter?: string) {
@@ -4247,6 +4246,9 @@ function AchievementsRoot() {
 
     // Derived state
     const panelOverlayVisible = loading || clearingAllCache || Boolean(friendProfileOverlayText);
+    useInsertionEffect(() => {
+        setCover("root", panelOverlayVisible);
+    }, [panelOverlayVisible]);
 
     let loadingOrSetup: ReactNode = null;
     const bootCatPanel = (
@@ -4669,7 +4671,7 @@ function AchievementsRoot() {
             return;
         }
         if (action === "mapShortcuts") {
-            goToOptions(MAP_SHORTCUTS_FOCUS_KEY, "hub");
+            goToOptions(undefined, "hub", MAP_SHORTCUTS_FOCUS_KEY);
             return;
         }
         if (action === "about") {
@@ -4761,1416 +4763,1418 @@ function AchievementsRoot() {
                             }}
                             onCancelButton={cancelHandlerForView(view)}
                         >
-                            <MainAchievementsPage
-                                state={{
-                                    ...achievementsState,
-                                    view,
-                                    language,
-                                    buttonSpacing,
-                                    metrics,
-                                    pendingFocusKey,
-                                    achievementsInitialAutoFocusDone,
-                                    mainEntryToken,
-                                    mainStripClaim: mainStripClaim ?? undefined,
-                                    mainEntryFromView,
-                                    friendsPayload,
-                                    saving,
-                                    loading,
-                                    payload,
-                                    trackedIds,
-                                    notesByAchievementId,
-                                    notesColorByAchievementId,
-                                    error,
-                                    achievementsResumeToken,
-                                    showAllAchievements,
-                                    showAllToggleMain,
-                                    showTrackedNotesMain,
-                                    showRetroPoints,
-                                    showAButtonMode,
-                                    controllerGlyphStyle,
-                                    showSocialHubButton,
-                                    showTrackedSetsButton,
-                                    showOptionsButton,
-                                    quickMenuShortcuts,
-                                    achievementStyle,
-                                    trackedColor,
-                                    mainAchievementFilter,
-                                    mainAchievementSort,
-                                    mainAchievementAction,
-                                    socialGameTicker,
-                                    socialHubTicker,
-                                    showReminderTicker,
-                                    ownUsername: username,
-                                    showIcons,
-                                    gameIconDataUri: gameIconDataUri ?? getCachedGameIconDataUri(gameIconGameId),
-                                    gameIngameDataUri: gameIngameDataUri ?? getCachedGameImageDataUri(gameIconGameId, "ingame"),
-                                    gameIconCold: gameIconColdRef.current,
-                                    gameIngameCold: gameIngameColdRef.current,
-                                    uiSize,
-                                    topPadding,
-                                    blockPadding,
-                                    bigListThreshold,
-                                    alwaysStaggerMounting,
-                                    returnStaggerFrames,
-                                    dynamicLoading,
-                                    dynamicInitialRows,
-                                    dynamicRowStep,
-                                    dynamicPrefetchDistance,
-                                    dynamicSentinelRootMargin,
-                                    showNotesDot,
-                                    notesPendingReminderBadge: gameNotesState.pendingReminderBadge,
-                                    doNotDisturb,
-                                    notificationsHasUnread: notif.hasUnread,
-                                    updateAvailable: aboutState.updateAvailable,
-                                    mainTab,
-                                    nightMode,
-                                    batterySaver,
-                                    mouseKeyboardMode,
-                                    backButtonsGlobal: optionsState.backButtonsGlobal,
-                                    nowPlayingBody: nowPlayingBodyProps
-                                }}
-                                actions={{
-                                    ...achievementsActions,
-                                    goToFriends: () => goToFriends(),
-                                    onOpenProfile: () => goToOwnProfile(),
-                                    goToLeaderboards,
-                                    goToOptions,
-                                    goToAbout,
-                                    goToUnlockHistory,
-                                    goToTracked,
-                                    goToTrackedSets: () => {
-                                        trackedSetsBackSourceRef.current = "main";
-                                        goToTrackedSets();
-                                    },
-                                    openUserAccounts: () => {
-                                        openSwitchUserModal();
-                                    },
-                                    openUtils: goToUtils,
-                                    goToSocialNews,
-                                    goToSocialEvents,
-                                    goToSocialNewSets,
-                                    goToSocialSubscribed,
-                                    goToSocialSavedComments,
-                                    goToSocialActivity,
-                                    openDolphinMapper: goToDolphinMapper,
-                                    openCheevoCheck: goToCheevoCheck,
-                                    openSmbShares: goToSmbShares,
-                                    openFileWatcher: goToFileWatcher,
-                                    openStormbreaker: goToQamGuard,
-                                    openMemories: goToMemories,
-                                    openRaSite: () => { void openExternalUrl(raHomeUrl()); },
-                                    onApplyMainUiPreset: optionsActions.onApplyMainUiPreset,
-                                    goToGameNotes,
-                                    goToGuides,
-                                    onOpenNotifications: openNotificationsModal,
-                                    onManualRefresh: () => refreshGameData(true, false, t(language, "Refreshing Achievements...")),
-                                    onSocialActivityClick: (event: SocialActivityEvent, action?: ActivityCardAction) =>
-                                        handleActivityCardClick(event, "main", action),
-                                    onChangeMainTab: setMainTab,
-                                    onToggleNightMode: toggleNightMode,
-                                    onToggleDoNotDisturb: toggleDoNotDisturb,
-                                    onToggleBatterySaver: toggleBatterySaver,
-                                    onToggleMouseKeyboardMode: toggleMouseKeyboardMode,
-                                    onToggleBackButtonsGlobal: optionsActions.onToggleBackButtonsGlobal,
-                                    onOpenGameSearch: openGameSearch,
-                                    onSpendMainStripClaim: spendMainStripClaim,
-                                    onViewGameOverview: () => {
-                                        const gid = payload?.gameId;
-                                        if (gid != null) {
-                                            goToGameOverview(gid, "main", null, null);
-                                        }
-                                    }
-                                }}
-                            />
-
-                            <TrackedPage
-                                view={view}
-                                language={language}
-                                buttonSpacing={buttonSpacing}
-                                payload={payload}
-                                trackedIdsLoadedForGameId={trackedIdsLoadedForGameId}
-                                trackedValidating={trackedValidating}
-                                trackedAchievements={trackedAchievements}
-                                notesByAchievementId={notesByAchievementId}
-                                notesColorByAchievementId={notesColorByAchievementId}
-                                error={error}
-                                showAButtonModeTracked={showAButtonModeTracked}
-                                mouseKeyboardMode={mouseKeyboardMode}
-                                controllerGlyphStyle={controllerGlyphStyle}
-                                showRetroPoints={showRetroPoints}
-                                trackedAchievementAction={trackedAchievementAction}
-                                trackedAchievementSort={perGameTrackedSort}
-                                collapsedTags={trackedCollapsedTags}
-                                onToggleCollapsedTag={onTrackedToggleCollapsedTag}
-                                showIcons={showIcons}
-                                achievementStyle={achievementStyle}
-                                trackedHeaderStyle={trackedHeaderStyle}
-                                uiSize={uiSize}
-                                topPadding={topPadding}
-                                blockPadding={blockPadding}
-                                dynamicInitialRows={dynamicInitialRows}
-                                dynamicRowStep={dynamicRowStep}
-                                dynamicPrefetchDistance={dynamicPrefetchDistance}
-                                dynamicSentinelRootMargin={dynamicSentinelRootMargin}
-                                dynamicTrackedListLoading={dynamicTrackedListLoading}
-                                dynamicTrackedListInitialRows={dynamicTrackedListInitialRows}
-                                dynamicTrackedListRowStep={dynamicTrackedListRowStep}
-                                dynamicTrackedListPrefetchDistance={dynamicTrackedListPrefetchDistance}
-                                dynamicTrackedListSentinelRootMargin={dynamicTrackedListSentinelRootMargin}
-                                dynamicTrackedGames={dynamicTrackedGames}
-                                trackedIds={trackedIds}
-                                checkingGame={checkingGame}
-                                activeTrackedTab={lastTrackedTab}
-                                trackedSelectedGameId={trackedSelectedGameId}
-                                drillIn={{
-                                    ...drillInState,
-                                    ...drillInActions,
-                                    onReorderPick: drillInActions.onReorderSwap
-                                }}
-                                currentGameTrackedCount={trackedIds.length}
-                                backFromTracked={backFromTracked}
-                                onHome={goToAchievements}
-                                onSelectTrackedTab={onSelectTrackedTab}
-                                onSelectTrackedGame={onSelectTrackedGame}
-                                onTrackedAchievementActionChange={saveTrackedAchievementActionWithRollback}
-                                onTrackedAchievementSortChange={onTrackedSortChange}
-                                onAchievementClick={onTrackedViewAchievementClick}
-                                onTrackedUntrack={onTrackedUntrack}
-                                onTrackedEditNote={onTrackedEditNote}
-                                onTrackedReorderPick={onTrackedReorderPick}
-                                onClearTrackedForGame={onClearTrackedForGame}
-                                onRefreshTotalTrackedCount={refreshTotalTrackedCount}
-                                onAddAllMissable={onAddAllMissable}
-                                reorderTargetId={reorderTargetId}
-                                tagMarkedIds={trackedTagMarkedIds}
-                                tagMarkCount={trackedTagMarkCount}
-                                lastTag={trackedLastTag}
-                                canApplyTag={trackedCanApplyTag}
-                                onToggleTagMark={onTrackedToggleTagMark}
-                                onApplyMarkedTag={onTrackedApplyMarkedTag}
-                                reorderViaSwap={reorderViaSwap}
-                                onReorderMove={onReorderMove}
-                                onReorderToward={onReorderToward}
-                                backClaimToken={trackedBackClaimToken}
-                                rowClaim={trackedRowClaim}
-                                restorePending={trackedRestorePending}
-                                restoreAchievementId={trackedRestoreAchievementId}
-                                panelOverlayVisible={panelOverlayVisible}
-                                onRequestFocus={setPendingFocusKey}
-                            />
-
-                            {view === "options" && (
-                                <OptionsPage
+                            <LandingCurtain>
+                                <MainAchievementsPage
                                     state={{
-                                        ...optionsState,
+                                        ...achievementsState,
+                                        view,
+                                        language,
+                                        buttonSpacing,
+                                        metrics,
+                                        pendingFocusKey,
+                                        achievementsInitialAutoFocusDone,
+                                        mainEntryToken,
+                                        mainStripClaim: mainStripClaim ?? undefined,
+                                        mainEntryFromView,
+                                        friendsPayload,
+                                        saving,
+                                        loading,
+                                        payload,
+                                        trackedIds,
+                                        notesByAchievementId,
+                                        notesColorByAchievementId,
+                                        error,
+                                        achievementsResumeToken,
+                                        showAllAchievements,
+                                        showAllToggleMain,
+                                        showTrackedNotesMain,
+                                        showRetroPoints,
+                                        showAButtonMode,
+                                        controllerGlyphStyle,
+                                        showSocialHubButton,
+                                        showTrackedSetsButton,
+                                        showOptionsButton,
+                                        quickMenuShortcuts,
+                                        achievementStyle,
+                                        trackedColor,
+                                        mainAchievementFilter,
+                                        mainAchievementSort,
+                                        mainAchievementAction,
+                                        socialGameTicker,
+                                        socialHubTicker,
+                                        showReminderTicker,
+                                        ownUsername: username,
+                                        showIcons,
+                                        gameIconDataUri: gameIconDataUri ?? getCachedGameIconDataUri(gameIconGameId),
+                                        gameIngameDataUri: gameIngameDataUri ?? getCachedGameImageDataUri(gameIconGameId, "ingame"),
+                                        gameIconCold: gameIconColdRef.current,
+                                        gameIngameCold: gameIngameColdRef.current,
+                                        uiSize,
+                                        topPadding,
+                                        blockPadding,
+                                        bigListThreshold,
+                                        alwaysStaggerMounting,
+                                        returnStaggerFrames,
+                                        dynamicLoading,
+                                        dynamicInitialRows,
+                                        dynamicRowStep,
+                                        dynamicPrefetchDistance,
+                                        dynamicSentinelRootMargin,
+                                        showNotesDot,
+                                        notesPendingReminderBadge: gameNotesState.pendingReminderBadge,
+                                        doNotDisturb,
+                                        notificationsHasUnread: notif.hasUnread,
+                                        updateAvailable: aboutState.updateAvailable,
+                                        mainTab,
+                                        nightMode,
+                                        batterySaver,
                                         mouseKeyboardMode,
-                                        memoriesVideoMove: memoriesVideo.status,
-                                        restoreFocusKey: optionsFocusReturn,
-                                        restorePending: optionsRestorePending,
+                                        backButtonsGlobal: optionsState.backButtonsGlobal,
+                                        nowPlayingBody: nowPlayingBodyProps
+                                    }}
+                                    actions={{
+                                        ...achievementsActions,
+                                        goToFriends: () => goToFriends(),
+                                        onOpenProfile: () => goToOwnProfile(),
+                                        goToLeaderboards,
+                                        goToOptions,
+                                        goToAbout,
+                                        goToUnlockHistory,
+                                        goToTracked,
+                                        goToTrackedSets: () => {
+                                            trackedSetsBackSourceRef.current = "main";
+                                            goToTrackedSets();
+                                        },
+                                        openUserAccounts: () => {
+                                            openSwitchUserModal();
+                                        },
+                                        openUtils: goToUtils,
+                                        goToSocialNews,
+                                        goToSocialEvents,
+                                        goToSocialNewSets,
+                                        goToSocialSubscribed,
+                                        goToSocialSavedComments,
+                                        goToSocialActivity,
+                                        openDolphinMapper: goToDolphinMapper,
+                                        openCheevoCheck: goToCheevoCheck,
+                                        openSmbShares: goToSmbShares,
+                                        openFileWatcher: goToFileWatcher,
+                                        openStormbreaker: goToQamGuard,
+                                        openMemories: goToMemories,
+                                        openRaSite: () => { void openExternalUrl(raHomeUrl()); },
+                                        onApplyMainUiPreset: optionsActions.onApplyMainUiPreset,
+                                        goToGameNotes,
+                                        goToGuides,
+                                        onOpenNotifications: openNotificationsModal,
+                                        onManualRefresh: () => refreshGameData(true, false, t(language, "Refreshing Achievements...")),
+                                        onSocialActivityClick: (event: SocialActivityEvent, action?: ActivityCardAction) =>
+                                            handleActivityCardClick(event, "main", action),
+                                        onChangeMainTab: setMainTab,
+                                        onToggleNightMode: toggleNightMode,
+                                        onToggleDoNotDisturb: toggleDoNotDisturb,
+                                        onToggleBatterySaver: toggleBatterySaver,
+                                        onToggleMouseKeyboardMode: toggleMouseKeyboardMode,
+                                        onToggleBackButtonsGlobal: optionsActions.onToggleBackButtonsGlobal,
+                                        onOpenGameSearch: openGameSearch,
+                                        onSpendMainStripClaim: spendMainStripClaim,
+                                        onViewGameOverview: () => {
+                                            const gid = payload?.gameId;
+                                            if (gid != null) {
+                                                goToGameOverview(gid, "main", null, null);
+                                            }
+                                        }
+                                    }}
+                                />
+
+                                <TrackedPage
+                                    view={view}
+                                    language={language}
+                                    buttonSpacing={buttonSpacing}
+                                    payload={payload}
+                                    trackedIdsLoadedForGameId={trackedIdsLoadedForGameId}
+                                    trackedValidating={trackedValidating}
+                                    trackedAchievements={trackedAchievements}
+                                    notesByAchievementId={notesByAchievementId}
+                                    notesColorByAchievementId={notesColorByAchievementId}
+                                    error={error}
+                                    showAButtonModeTracked={showAButtonModeTracked}
+                                    mouseKeyboardMode={mouseKeyboardMode}
+                                    controllerGlyphStyle={controllerGlyphStyle}
+                                    showRetroPoints={showRetroPoints}
+                                    trackedAchievementAction={trackedAchievementAction}
+                                    trackedAchievementSort={perGameTrackedSort}
+                                    collapsedTags={trackedCollapsedTags}
+                                    onToggleCollapsedTag={onTrackedToggleCollapsedTag}
+                                    showIcons={showIcons}
+                                    achievementStyle={achievementStyle}
+                                    trackedHeaderStyle={trackedHeaderStyle}
+                                    uiSize={uiSize}
+                                    topPadding={topPadding}
+                                    blockPadding={blockPadding}
+                                    dynamicInitialRows={dynamicInitialRows}
+                                    dynamicRowStep={dynamicRowStep}
+                                    dynamicPrefetchDistance={dynamicPrefetchDistance}
+                                    dynamicSentinelRootMargin={dynamicSentinelRootMargin}
+                                    dynamicTrackedListLoading={dynamicTrackedListLoading}
+                                    dynamicTrackedListInitialRows={dynamicTrackedListInitialRows}
+                                    dynamicTrackedListRowStep={dynamicTrackedListRowStep}
+                                    dynamicTrackedListPrefetchDistance={dynamicTrackedListPrefetchDistance}
+                                    dynamicTrackedListSentinelRootMargin={dynamicTrackedListSentinelRootMargin}
+                                    dynamicTrackedGames={dynamicTrackedGames}
+                                    trackedIds={trackedIds}
+                                    checkingGame={checkingGame}
+                                    activeTrackedTab={lastTrackedTab}
+                                    trackedSelectedGameId={trackedSelectedGameId}
+                                    drillIn={{
+                                        ...drillInState,
+                                        ...drillInActions,
+                                        onReorderPick: drillInActions.onReorderSwap
+                                    }}
+                                    currentGameTrackedCount={trackedIds.length}
+                                    backFromTracked={backFromTracked}
+                                    onHome={goToAchievements}
+                                    onSelectTrackedTab={onSelectTrackedTab}
+                                    onSelectTrackedGame={onSelectTrackedGame}
+                                    onTrackedAchievementActionChange={saveTrackedAchievementActionWithRollback}
+                                    onTrackedAchievementSortChange={onTrackedSortChange}
+                                    onAchievementClick={onTrackedViewAchievementClick}
+                                    onTrackedUntrack={onTrackedUntrack}
+                                    onTrackedEditNote={onTrackedEditNote}
+                                    onTrackedReorderPick={onTrackedReorderPick}
+                                    onClearTrackedForGame={onClearTrackedForGame}
+                                    onRefreshTotalTrackedCount={refreshTotalTrackedCount}
+                                    onAddAllMissable={onAddAllMissable}
+                                    reorderTargetId={reorderTargetId}
+                                    tagMarkedIds={trackedTagMarkedIds}
+                                    tagMarkCount={trackedTagMarkCount}
+                                    lastTag={trackedLastTag}
+                                    canApplyTag={trackedCanApplyTag}
+                                    onToggleTagMark={onTrackedToggleTagMark}
+                                    onApplyMarkedTag={onTrackedApplyMarkedTag}
+                                    reorderViaSwap={reorderViaSwap}
+                                    onReorderMove={onReorderMove}
+                                    onReorderToward={onReorderToward}
+                                    backClaimToken={trackedBackClaimToken}
+                                    rowClaim={trackedRowClaim}
+                                    restorePending={trackedRestorePending}
+                                    restoreAchievementId={trackedRestoreAchievementId}
+                                    panelOverlayVisible={panelOverlayVisible}
+                                    onRequestFocus={setPendingFocusKey}
+                                />
+
+                                {view === "options" && (
+                                    <OptionsPage
+                                        state={{
+                                            ...optionsState,
+                                            mouseKeyboardMode,
+                                            memoriesVideoMove: memoriesVideo.status,
+                                            restoreFocusKey: optionsFocusReturn,
+                                            restorePending: optionsRestorePending,
+                                            panelOverlayVisible
+                                        }}
+                                        actions={{
+                                            ...optionsActions,
+                                            onHome: goToAchievements,
+                                            onPickMemoriesVideoPath: memoriesVideo.pickLocation,
+                                            onUseDefaultMemoriesVideoPath: memoriesVideo.useDefaultLocation,
+                                            onRequestFocus: setPendingFocusKey
+                                        }}
+                                    />
+                                )}
+
+                                <UnlockHistoryPage
+                                    state={{
+                                        ...unlockHistoryState,
+                                        view,
+                                    }}
+                                    actions={{
+                                        ...unlockHistoryActions,
+                                        onHome: goToAchievements,
+                                    }}
+                                />
+
+                                <GuidesPage
+                                    state={{
+                                        view,
+                                        language,
+                                        buttonSpacing,
+                                        showIcons,
+                                        gameId: payload?.gameId ?? null,
+                                        title: payload?.title ?? null,
+                                        imageIcon: payload?.imageIcon ?? null,
+                                        consoleName: payload?.consoleName ?? null,
+                                        mouseKeyboardMode,
+                                        controllerGlyphStyle,
+                                        dynamicLoading,
+                                        dynamicInitialRows,
+                                        dynamicRowStep,
+                                        dynamicPrefetchDistance,
+                                        dynamicSentinelRootMargin,
+                                        pinLatestGuides,
+                                        keepGuidesOffline,
+                                        guides: guidesState
+                                    }}
+                                    actions={{
+                                        onBack: backFromGuides,
+                                        onHome: goToAchievements,
+                                        onTogglePinLatestGuides,
+                                        onToggleKeepGuidesOffline,
+                                        guides: guidesActions
+                                    }}
+                                />
+
+                                <AboutPage
+                                    state={{
+                                        ...aboutState,
+                                        view,
+                                        backTarget: previousView(nav.stack) === "options" ? "options" : "main"
+                                    }}
+                                    actions={{
+                                        ...aboutActions,
+                                        onHome: goToAchievements,
+                                    }}
+                                />
+
+                                <UtilsPage
+                                    state={{
+                                        view,
+                                        language,
+                                        buttonSpacing,
+                                        restoreFocusKey: utilsFocusReturn,
+                                        restorePending: utilsRestorePending,
                                         panelOverlayVisible
                                     }}
                                     actions={{
-                                        ...optionsActions,
+                                        onBack: backFromUtils,
                                         onHome: goToAchievements,
-                                        onPickMemoriesVideoPath: memoriesVideo.pickLocation,
-                                        onUseDefaultMemoriesVideoPath: memoriesVideo.useDefaultLocation,
+                                        onOpenDolphinMapper: () => goToDolphinMapper(),
+                                        onOpenSmbShares: () => goToSmbShares(),
+                                        onOpenCheevoCheck: () => goToCheevoCheck(),
+                                        onOpenFileWatcher: () => goToFileWatcher(),
+                                        onOpenMemoriesTransfer: () => goToMemoriesTransfer(),
+                                        onOpenQamGuard: () => goToQamGuard(),
                                         onRequestFocus: setPendingFocusKey
                                     }}
                                 />
-                            )}
 
-                            <UnlockHistoryPage
-                                state={{
-                                    ...unlockHistoryState,
-                                    view,
-                                }}
-                                actions={{
-                                    ...unlockHistoryActions,
-                                    onHome: goToAchievements,
-                                }}
-                            />
+                                <QamGuardPage
+                                    state={{
+                                        view,
+                                        language,
+                                        buttonSpacing,
+                                        loading: optionsState.loading,
+                                        saving: optionsState.saving,
+                                        automaticRecovery: optionsState.automaticRecovery,
+                                        recoveryButtonCombo: optionsState.recoveryButtonCombo,
+                                        recoveryLogs: optionsState.recoveryLogs,
+                                        stormbreaker: optionsState.stormbreaker,
+                                        dynamicInitialRows,
+                                        dynamicRowStep,
+                                        dynamicPrefetchDistance,
+                                        dynamicSentinelRootMargin
+                                    }}
+                                    actions={{
+                                        onBack: backFromUtilityTool,
+                                        onHome: goToAchievements,
+                                        onToggleAutomaticRecovery: optionsActions.onToggleAutomaticRecovery,
+                                        onToggleRecoveryButtonCombo: optionsActions.onToggleRecoveryButtonCombo,
+                                        onToggleRecoveryLogs: optionsActions.onToggleRecoveryLogs,
+                                        onToggleStormbreaker: optionsActions.onToggleStormbreaker,
+                                        onClearRecoveryLogs: optionsActions.onClearRecoveryLogs
+                                    }}
+                                />
 
-                            <GuidesPage
-                                state={{
-                                    view,
-                                    language,
-                                    buttonSpacing,
-                                    showIcons,
-                                    gameId: payload?.gameId ?? null,
-                                    title: payload?.title ?? null,
-                                    imageIcon: payload?.imageIcon ?? null,
-                                    consoleName: payload?.consoleName ?? null,
-                                    mouseKeyboardMode,
-                                    controllerGlyphStyle,
-                                    dynamicLoading,
-                                    dynamicInitialRows,
-                                    dynamicRowStep,
-                                    dynamicPrefetchDistance,
-                                    dynamicSentinelRootMargin,
-                                    pinLatestGuides,
-                                    keepGuidesOffline,
-                                    guides: guidesState
-                                }}
-                                actions={{
-                                    onBack: backFromGuides,
-                                    onHome: goToAchievements,
-                                    onTogglePinLatestGuides,
-                                    onToggleKeepGuidesOffline,
-                                    guides: guidesActions
-                                }}
-                            />
+                                <DolphinMapperPage
+                                    view={view}
+                                    language={language}
+                                    buttonSpacing={buttonSpacing}
+                                    mouseKeyboardMode={mouseKeyboardMode}
+                                    controllerGlyphStyle={controllerGlyphStyle}
+                                    dolphinMapperMode={dolphinMapperMode}
+                                    onModeChange={saveDolphinMapperModeWithRollback}
+                                    dolphinBluetoothPassthrough={dolphinBluetoothPassthrough}
+                                    onBluetoothPassthroughChange={saveDolphinBluetoothPassthroughWithRollback}
+                                    dolphinContinuousScanning={dolphinContinuousScanning}
+                                    onContinuousScanningChange={saveDolphinContinuousScanningWithRollback}
+                                    dolphinBalanceBoard={dolphinBalanceBoard}
+                                    onBalanceBoardChange={saveDolphinBalanceBoardWithRollback}
+                                    advancedCollapsed={dolphinAdvancedCollapsed}
+                                    onAdvancedCollapsedChange={handleDolphinAdvancedCollapsedChange}
+                                    dolphinSystemFilter={dolphinSystemFilter}
+                                    onSystemFilterChange={handleDolphinSystemFilterChange}
+                                    restoreFocusKey={dolphinFocusReturn}
+                                    restorePending={dolphinRestorePending}
+                                    panelOverlayVisible={panelOverlayVisible}
+                                    onBack={backFromUtilityTool}
+                                    onHome={goToAchievements}
+                                    onRequestFocus={setPendingFocusKey}
+                                />
 
-                            <AboutPage
-                                state={{
-                                    ...aboutState,
-                                    view,
-                                    backTarget: previousView(nav.stack) === "options" ? "options" : "main"
-                                }}
-                                actions={{
-                                    ...aboutActions,
-                                    onHome: goToAchievements,
-                                }}
-                            />
+                                <SmbSharesPage
+                                    state={{
+                                        view,
+                                        language,
+                                        buttonSpacing,
+                                        panelOverlayVisible,
+                                        restoreFocusKey: smbFocusReturn,
+                                        restorePending: smbRestorePending
+                                    }}
+                                    actions={{
+                                        onBack: backFromUtilityTool,
+                                        onHome: goToAchievements,
+                                        onRequestFocus: setPendingFocusKey
+                                    }}
+                                />
 
-                            <UtilsPage
-                                state={{
-                                    view,
-                                    language,
-                                    buttonSpacing,
-                                    restoreFocusKey: utilsFocusReturn,
-                                    restorePending: utilsRestorePending,
-                                    panelOverlayVisible
-                                }}
-                                actions={{
-                                    onBack: backFromUtils,
-                                    onHome: goToAchievements,
-                                    onOpenDolphinMapper: () => goToDolphinMapper(),
-                                    onOpenSmbShares: () => goToSmbShares(),
-                                    onOpenCheevoCheck: () => goToCheevoCheck(),
-                                    onOpenFileWatcher: () => goToFileWatcher(),
-                                    onOpenMemoriesTransfer: () => goToMemoriesTransfer(),
-                                    onOpenQamGuard: () => goToQamGuard(),
-                                    onRequestFocus: setPendingFocusKey
-                                }}
-                            />
+                                <CheevoCheckPage
+                                    state={{
+                                        view,
+                                        language,
+                                        buttonSpacing,
+                                        batterySaver,
+                                        mouseKeyboardMode,
+                                        restoreFocusKey: cheevoCheckFocusReturn,
+                                        restorePending: cheevoCheckRestorePending,
+                                        panelOverlayVisible
+                                    }}
+                                    actions={{
+                                        onBack: backFromUtilityTool,
+                                        onHome: goToAchievements,
+                                        onToggleBatterySaver: toggleBatterySaver,
+                                        onBrowse: openCheevoCheckBrowseModal,
+                                        onRequestFocus: setPendingFocusKey
+                                    }}
+                                />
 
-                            <QamGuardPage
-                                state={{
-                                    view,
-                                    language,
-                                    buttonSpacing,
-                                    loading: optionsState.loading,
-                                    saving: optionsState.saving,
-                                    automaticRecovery: optionsState.automaticRecovery,
-                                    recoveryButtonCombo: optionsState.recoveryButtonCombo,
-                                    recoveryLogs: optionsState.recoveryLogs,
-                                    stormbreaker: optionsState.stormbreaker,
-                                    dynamicInitialRows,
-                                    dynamicRowStep,
-                                    dynamicPrefetchDistance,
-                                    dynamicSentinelRootMargin
-                                }}
-                                actions={{
-                                    onBack: backFromUtilityTool,
-                                    onHome: goToAchievements,
-                                    onToggleAutomaticRecovery: optionsActions.onToggleAutomaticRecovery,
-                                    onToggleRecoveryButtonCombo: optionsActions.onToggleRecoveryButtonCombo,
-                                    onToggleRecoveryLogs: optionsActions.onToggleRecoveryLogs,
-                                    onToggleStormbreaker: optionsActions.onToggleStormbreaker,
-                                    onClearRecoveryLogs: optionsActions.onClearRecoveryLogs
-                                }}
-                            />
+                                <MemoriesPage
+                                    state={{
+                                        view,
+                                        language,
+                                        buttonSpacing,
+                                        glyphStyle: controllerGlyphStyle,
+                                        mouseKeyboardMode,
+                                        showIcons,
+                                        showRetroPoints,
+                                        panelOverlayVisible,
+                                        autoCapture: memoriesAutoCapture,
+                                        activeUlid,
+                                        restoreMemoryId: memoriesFocusReturn?.memoryId ?? null,
+                                        restoreFocusKey: memoriesFocusReturn?.focusKey ?? null,
+                                        restoreGameId: memoriesFocusReturn?.gameId ?? null,
+                                        restoreUlid: memoriesFocusReturn?.ulid ?? null,
+                                        restorePending: memoriesRestorePending,
+                                        memories: memoriesState
+                                    }}
+                                    actions={{
+                                        onBack: backFromMemories,
+                                        onHome: goToAchievements,
+                                        onRequestFocus: setPendingFocusKey,
+                                        onEnableCapture: optionsActions.onToggleMemoriesAutoCapture,
+                                        memories: memoriesActions
+                                    }}
+                                />
 
-                            <DolphinMapperPage
-                                view={view}
-                                language={language}
-                                buttonSpacing={buttonSpacing}
-                                mouseKeyboardMode={mouseKeyboardMode}
-                                controllerGlyphStyle={controllerGlyphStyle}
-                                dolphinMapperMode={dolphinMapperMode}
-                                onModeChange={saveDolphinMapperModeWithRollback}
-                                dolphinBluetoothPassthrough={dolphinBluetoothPassthrough}
-                                onBluetoothPassthroughChange={saveDolphinBluetoothPassthroughWithRollback}
-                                dolphinContinuousScanning={dolphinContinuousScanning}
-                                onContinuousScanningChange={saveDolphinContinuousScanningWithRollback}
-                                dolphinBalanceBoard={dolphinBalanceBoard}
-                                onBalanceBoardChange={saveDolphinBalanceBoardWithRollback}
-                                advancedCollapsed={dolphinAdvancedCollapsed}
-                                onAdvancedCollapsedChange={handleDolphinAdvancedCollapsedChange}
-                                dolphinSystemFilter={dolphinSystemFilter}
-                                onSystemFilterChange={handleDolphinSystemFilterChange}
-                                restoreFocusKey={dolphinFocusReturn}
-                                restorePending={dolphinRestorePending}
-                                panelOverlayVisible={panelOverlayVisible}
-                                onBack={backFromUtilityTool}
-                                onHome={goToAchievements}
-                                onRequestFocus={setPendingFocusKey}
-                            />
+                                <FileWatcherPage
+                                    state={{
+                                        view,
+                                        language,
+                                        buttonSpacing,
+                                        dynamicAllGames,
+                                        dynamicInitialRows,
+                                        dynamicRowStep,
+                                        dynamicPrefetchDistance,
+                                        dynamicSentinelRootMargin,
+                                        panelOverlayVisible,
+                                        restoreFocusKey: fileWatcherFocusReturn,
+                                        restorePending: fileWatcherRestorePending
+                                    }}
+                                    actions={{
+                                        onBack: backFromUtilityTool,
+                                        onHome: goToAchievements,
+                                        onRequestFocus: setPendingFocusKey
+                                    }}
+                                />
 
-                            <SmbSharesPage
-                                state={{
-                                    view,
-                                    language,
-                                    buttonSpacing,
-                                    panelOverlayVisible,
-                                    restoreFocusKey: smbFocusReturn,
-                                    restorePending: smbRestorePending
-                                }}
-                                actions={{
-                                    onBack: backFromUtilityTool,
-                                    onHome: goToAchievements,
-                                    onRequestFocus: setPendingFocusKey
-                                }}
-                            />
+                                <MemoriesTransferPage
+                                    state={{
+                                        view,
+                                        language,
+                                        buttonSpacing,
+                                        panelOverlayVisible,
+                                        activeUlid,
+                                        memoriesCount,
+                                        restoreFocusKey: memoriesTransferFocusReturn,
+                                        restorePending: memoriesTransferRestorePending
+                                    }}
+                                    actions={{
+                                        onBack: backFromUtilityTool,
+                                        onHome: goToAchievements,
+                                        onRequestFocus: setPendingFocusKey,
+                                        onDeleteAllMemories
+                                    }}
+                                />
 
-                            <CheevoCheckPage
-                                state={{
-                                    view,
-                                    language,
-                                    buttonSpacing,
-                                    batterySaver,
-                                    mouseKeyboardMode,
-                                    restoreFocusKey: cheevoCheckFocusReturn,
-                                    restorePending: cheevoCheckRestorePending,
-                                    panelOverlayVisible
-                                }}
-                                actions={{
-                                    onBack: backFromUtilityTool,
-                                    onHome: goToAchievements,
-                                    onToggleBatterySaver: toggleBatterySaver,
-                                    onBrowse: openCheevoCheckBrowseModal,
-                                    onRequestFocus: setPendingFocusKey
-                                }}
-                            />
+                                <GameNotesPage
+                                    state={{
+                                        view,
+                                        language,
+                                        buttonSpacing,
+                                        uiSize,
+                                        notesHeaderStyle,
+                                        payload,
+                                        gameNotesGameId,
+                                        notes: gameNotesState.notes,
+                                        sortMode: gameNotesState.sortMode,
+                                        aButtonMode: gameNotesAButtonMode,
+                                        reorderTargetId: gameNotesState.reorderTargetId,
+                                        reorderViaSwap: gameNotesState.reorderViaSwap,
+                                        validating: gameNotesState.validating,
+                                        loadedForGameId: gameNotesState.loadedForGameId,
+                                        dynamicLoading: dynamicGameNotesLoading,
+                                        dynamicInitialRows: dynamicGameNotesInitialRows,
+                                        dynamicRowStep: dynamicGameNotesRowStep,
+                                        dynamicPrefetchDistance: dynamicGameNotesPrefetchDistance,
+                                        dynamicSentinelRootMargin: dynamicGameNotesSentinelRootMargin,
+                                        gameIconDataUri: gameNotesGameId != null
+                                            ? (notesGameIconDataUri ?? getCachedGameIconDataUri(gameNotesGameId))
+                                            : (gameIconDataUri ?? getCachedGameIconDataUri(gameIconGameId)),
+                                        gameIconCold: gameNotesGameId != null
+                                            ? notesGameIconColdRef.current
+                                            : gameIconColdRef.current,
+                                        showIcons,
+                                        mouseKeyboardMode,
+                                        controllerGlyphStyle,
+                                        restoreNoteId: notesRestoreNoteId,
+                                        restorePending: notesRestorePending,
+                                        panelOverlayVisible,
+                                        collapsedTags: gameNotesState.collapsedTags
+                                    }}
+                                    actions={{
+                                        onBack: backFromGameNotes,
+                                        onHome: goToAchievements,
+                                        onRequestFocus: setPendingFocusKey,
+                                        onAddNote: () => {
+                                            gameNotesActions.clearReorderSelection();
+                                            openGameNoteModal(null);
+                                        },
+                                        onEditNote: (note) => {
+                                            gameNotesActions.clearReorderSelection();
+                                            openGameNoteModal(note);
+                                        },
+                                        onSortModeChange: async (next) => {
+                                            if (next !== "manual" && gameNotesAButtonMode === "moveNote") {
+                                                void optionsActions.onSaveGameNotesAButtonMode("editNote");
+                                            }
+                                            return gameNotesActions.onSortModeChange(next);
+                                        },
+                                        onAButtonModeChange: (next) =>
+                                            optionsActions.onSaveGameNotesAButtonMode(next),
+                                        onReorderSwap: (pressedId, sectionIds, allowSwap) =>
+                                            gameNotesActions.onReorderSwap(pressedId, sectionIds, allowSwap),
+                                        onReorderToward: (landedNoteId, sectionIds) =>
+                                            gameNotesActions.onReorderToward(landedNoteId, sectionIds),
+                                        onReorderMove: (direction, sectionIds) =>
+                                            gameNotesActions.onReorderMove(direction, sectionIds ?? null),
+                                        onCardFocused: gameNotesActions.onCardFocused,
+                                        onToggleCollapsedTag: gameNotesActions.onToggleCollapsedTag
+                                    }}
+                                />
 
-                            <MemoriesPage
-                                state={{
-                                    view,
-                                    language,
-                                    buttonSpacing,
-                                    glyphStyle: controllerGlyphStyle,
-                                    mouseKeyboardMode,
-                                    showIcons,
-                                    showRetroPoints,
-                                    panelOverlayVisible,
-                                    autoCapture: memoriesAutoCapture,
-                                    activeUlid,
-                                    restoreMemoryId: memoriesFocusReturn?.memoryId ?? null,
-                                    restoreFocusKey: memoriesFocusReturn?.focusKey ?? null,
-                                    restoreGameId: memoriesFocusReturn?.gameId ?? null,
-                                    restoreUlid: memoriesFocusReturn?.ulid ?? null,
-                                    restorePending: memoriesRestorePending,
-                                    memories: memoriesState
-                                }}
-                                actions={{
-                                    onBack: backFromMemories,
-                                    onHome: goToAchievements,
-                                    onRequestFocus: setPendingFocusKey,
-                                    onEnableCapture: optionsActions.onToggleMemoriesAutoCapture,
-                                    memories: memoriesActions
-                                }}
-                            />
-
-                            <FileWatcherPage
-                                state={{
-                                    view,
-                                    language,
-                                    buttonSpacing,
-                                    dynamicAllGames,
-                                    dynamicInitialRows,
-                                    dynamicRowStep,
-                                    dynamicPrefetchDistance,
-                                    dynamicSentinelRootMargin,
-                                    panelOverlayVisible,
-                                    restoreFocusKey: fileWatcherFocusReturn,
-                                    restorePending: fileWatcherRestorePending
-                                }}
-                                actions={{
-                                    onBack: backFromUtilityTool,
-                                    onHome: goToAchievements,
-                                    onRequestFocus: setPendingFocusKey
-                                }}
-                            />
-
-                            <MemoriesTransferPage
-                                state={{
-                                    view,
-                                    language,
-                                    buttonSpacing,
-                                    panelOverlayVisible,
-                                    activeUlid,
-                                    memoriesCount,
-                                    restoreFocusKey: memoriesTransferFocusReturn,
-                                    restorePending: memoriesTransferRestorePending
-                                }}
-                                actions={{
-                                    onBack: backFromUtilityTool,
-                                    onHome: goToAchievements,
-                                    onRequestFocus: setPendingFocusKey,
-                                    onDeleteAllMemories
-                                }}
-                            />
-
-                            <GameNotesPage
-                                state={{
-                                    view,
-                                    language,
-                                    buttonSpacing,
-                                    uiSize,
-                                    notesHeaderStyle,
-                                    payload,
-                                    gameNotesGameId,
-                                    notes: gameNotesState.notes,
-                                    sortMode: gameNotesState.sortMode,
-                                    aButtonMode: gameNotesAButtonMode,
-                                    reorderTargetId: gameNotesState.reorderTargetId,
-                                    reorderViaSwap: gameNotesState.reorderViaSwap,
-                                    validating: gameNotesState.validating,
-                                    loadedForGameId: gameNotesState.loadedForGameId,
-                                    dynamicLoading: dynamicGameNotesLoading,
-                                    dynamicInitialRows: dynamicGameNotesInitialRows,
-                                    dynamicRowStep: dynamicGameNotesRowStep,
-                                    dynamicPrefetchDistance: dynamicGameNotesPrefetchDistance,
-                                    dynamicSentinelRootMargin: dynamicGameNotesSentinelRootMargin,
-                                    gameIconDataUri: gameNotesGameId != null
-                                        ? (notesGameIconDataUri ?? getCachedGameIconDataUri(gameNotesGameId))
-                                        : (gameIconDataUri ?? getCachedGameIconDataUri(gameIconGameId)),
-                                    gameIconCold: gameNotesGameId != null
-                                        ? notesGameIconColdRef.current
-                                        : gameIconColdRef.current,
-                                    showIcons,
-                                    mouseKeyboardMode,
-                                    controllerGlyphStyle,
-                                    restoreNoteId: notesRestoreNoteId,
-                                    restorePending: notesRestorePending,
-                                    panelOverlayVisible,
-                                    collapsedTags: gameNotesState.collapsedTags
-                                }}
-                                actions={{
-                                    onBack: backFromGameNotes,
-                                    onHome: goToAchievements,
-                                    onRequestFocus: setPendingFocusKey,
-                                    onAddNote: () => {
-                                        gameNotesActions.clearReorderSelection();
-                                        openGameNoteModal(null);
-                                    },
-                                    onEditNote: (note) => {
-                                        gameNotesActions.clearReorderSelection();
-                                        openGameNoteModal(note);
-                                    },
-                                    onSortModeChange: async (next) => {
-                                        if (next !== "manual" && gameNotesAButtonMode === "moveNote") {
-                                            void optionsActions.onSaveGameNotesAButtonMode("editNote");
+                                <SocialHubPage
+                                    view={view}
+                                    language={language}
+                                    panelOverlayVisible={panelOverlayVisible}
+                                    socialEntryToken={socialEntryToken}
+                                    socialEntryView={socialEntryViewOverride ?? lastSocialView}
+                                    savedComments={{
+                                        subTab: communitySubTab,
+                                        onChangeSubTab: (tab) => updateSavedCommentsPrefs({ subTab: tab }),
+                                        comments: savedCommentsController.savedComments,
+                                        loaded: savedCommentsController.savedCommentsLoaded,
+                                        error: savedCommentsController.savedCommentsError,
+                                        onOpen: handleOpenSavedComment,
+                                        onTrash: async (record) => {
+                                            await savedCommentsController.unsaveComment(record.id);
+                                        },
+                                        sort: savedCommentsSort,
+                                        filter: savedCommentsFilter,
+                                        games: savedCommentsController.savedGames,
+                                        onCycleSort: () => updateSavedCommentsPrefs({ sort: nextSavedSort(savedCommentsSort) }),
+                                        onOpenFilterPicker: openSavedFilterPicker,
+                                        restoreFocusKey: savedCommentFocusReturn,
+                                        restorePending: savedCommentRestorePending
+                                    }}
+                                    friendsPayload={friendsPayload}
+                                    friendsError={friendsError}
+                                    friendsLoaded={friendsLoaded}
+                                    friendAutoRefresh={friendAutoRefresh}
+                                    friendsRows={friendsRows}
+                                    buttonSpacing={buttonSpacing}
+                                    uiSize={uiSize}
+                                    showIcons={showIcons}
+                                    liveRefreshingFriendUsernames={liveRefreshingFriendUsernames}
+                                    dynamicFriendLoading={dynamicFriendLoading}
+                                    dynamicActivityFeed={dynamicActivityFeed}
+                                    dynamicInitialRows={dynamicInitialRows}
+                                    dynamicRowStep={dynamicRowStep}
+                                    dynamicPrefetchDistance={dynamicPrefetchDistance}
+                                    dynamicSentinelRootMargin={dynamicSentinelRootMargin}
+                                    dynamicComments={dynamicComments}
+                                    dynamicCommentsInitialRows={dynamicCommentsInitialRows}
+                                    dynamicCommentsRowStep={dynamicCommentsRowStep}
+                                    dynamicCommentsSentinelRootMargin={dynamicCommentsSentinelRootMargin}
+                                    favoriteFriends={favoriteFriends}
+                                    newsEvents={{
+                                        ...newsEventsState,
+                                        onChangeSubView: newsEventsActions.setSubView,
+                                        onOpenNewsLink: async (url: string) => {
+                                            setError(null);
+                                            await openExternalUrl(url);
+                                        },
+                                        onChangeNewSetsFilter: newsEventsActions.changeNewSetsFilter,
+                                        onOpenEvent: (eventGameId: number) => goToEventViewer(eventGameId, "events"),
+                                        onOpenAotw: () => goToEventViewer("aotw", "events"),
+                                        onOpenNewSetGame: async (gameId: number) => {
+                                            if (legacyGameLinks) {
+                                                await openExternalUrl(raGameUrl(gameId));
+                                                return;
+                                            }
+                                            goToGameOverview(gameId, "newsEvents", null, null);
                                         }
-                                        return gameNotesActions.onSortModeChange(next);
-                                    },
-                                    onAButtonModeChange: (next) =>
-                                        optionsActions.onSaveGameNotesAButtonMode(next),
-                                    onReorderSwap: (pressedId, sectionIds, allowSwap) =>
-                                        gameNotesActions.onReorderSwap(pressedId, sectionIds, allowSwap),
-                                    onReorderToward: (landedNoteId, sectionIds) =>
-                                        gameNotesActions.onReorderToward(landedNoteId, sectionIds),
-                                    onReorderMove: (direction, sectionIds) =>
-                                        gameNotesActions.onReorderMove(direction, sectionIds ?? null),
-                                    onCardFocused: gameNotesActions.onCardFocused,
-                                    onToggleCollapsedTag: gameNotesActions.onToggleCollapsedTag
-                                }}
-                            />
-
-                            <SocialHubPage
-                                view={view}
-                                language={language}
-                                panelOverlayVisible={panelOverlayVisible}
-                                socialEntryToken={socialEntryToken}
-                                socialEntryView={socialEntryViewOverride ?? lastSocialView}
-                                savedComments={{
-                                    subTab: communitySubTab,
-                                    onChangeSubTab: (tab) => updateSavedCommentsPrefs({ subTab: tab }),
-                                    comments: savedCommentsController.savedComments,
-                                    loaded: savedCommentsController.savedCommentsLoaded,
-                                    error: savedCommentsController.savedCommentsError,
-                                    onOpen: handleOpenSavedComment,
-                                    onTrash: async (record) => {
-                                        await savedCommentsController.unsaveComment(record.id);
-                                    },
-                                    sort: savedCommentsSort,
-                                    filter: savedCommentsFilter,
-                                    games: savedCommentsController.savedGames,
-                                    onCycleSort: () => updateSavedCommentsPrefs({ sort: nextSavedSort(savedCommentsSort) }),
-                                    onOpenFilterPicker: openSavedFilterPicker,
-                                    restoreFocusKey: savedCommentFocusReturn,
-                                    restorePending: savedCommentRestorePending
-                                }}
-                                friendsPayload={friendsPayload}
-                                friendsError={friendsError}
-                                friendsLoaded={friendsLoaded}
-                                friendAutoRefresh={friendAutoRefresh}
-                                friendsRows={friendsRows}
-                                buttonSpacing={buttonSpacing}
-                                uiSize={uiSize}
-                                showIcons={showIcons}
-                                liveRefreshingFriendUsernames={liveRefreshingFriendUsernames}
-                                dynamicFriendLoading={dynamicFriendLoading}
-                                dynamicActivityFeed={dynamicActivityFeed}
-                                dynamicInitialRows={dynamicInitialRows}
-                                dynamicRowStep={dynamicRowStep}
-                                dynamicPrefetchDistance={dynamicPrefetchDistance}
-                                dynamicSentinelRootMargin={dynamicSentinelRootMargin}
-                                dynamicComments={dynamicComments}
-                                dynamicCommentsInitialRows={dynamicCommentsInitialRows}
-                                dynamicCommentsRowStep={dynamicCommentsRowStep}
-                                dynamicCommentsSentinelRootMargin={dynamicCommentsSentinelRootMargin}
-                                favoriteFriends={favoriteFriends}
-                                newsEvents={{
-                                    ...newsEventsState,
-                                    onChangeSubView: newsEventsActions.setSubView,
-                                    onOpenNewsLink: async (url: string) => {
-                                        setError(null);
-                                        await openExternalUrl(url);
-                                    },
-                                    onChangeNewSetsFilter: newsEventsActions.changeNewSetsFilter,
-                                    onOpenEvent: (eventGameId: number) => goToEventViewer(eventGameId, "events"),
-                                    onOpenAotw: () => goToEventViewer("aotw", "events"),
-                                    onOpenNewSetGame: async (gameId: number) => {
-                                        if (legacyGameLinks) {
-                                            await openExternalUrl(raGameUrl(gameId));
-                                            return;
-                                        }
-                                        goToGameOverview(gameId, "newsEvents", null, null);
-                                    }
-                                }}
-                                onRequestFocus={setPendingFocusKey}
-                                onBack={() => backToAchievements()}
-                                onHome={goToAchievements}
-                                onFriendFocus={scheduleFriendPauseRefresh}
-                                onFriendHover={noteFriendRowHover}
-                                onFriendUnhover={clearFriendRowHover}
-                                onFriendClick={(friend) => {
-                                    cancelPendingFriendPauseRefresh();
-                                    clearFriendRowHover(friend);
-                                    friendGameReturnGameIdRef.current = null;
-                                    setFriendGameSource("recentGames");
-                                    setFriendGameSelectionMode("auto");
-                                    friendProfileBackSourceRef.current = "social";
-                                    return loadFriendGame(friend, undefined, false, "friendgame:back");
-                                }}
-                                onActivityCardClick={(event) => handleActivityCardClick(
-                                    event,
-                                    "socialActivity",
-                                    mouseKeyboardMode ? undefined : "achievement"
-                                )}
-                                onActivityCardSecondary={(event: SocialActivityEvent) => {
-                                    void handleActivityCardClick(event, "socialActivity", "game");
-                                }}
-                                onActivityCardTertiary={(event: SocialActivityEvent) => {
-                                    void handleActivityCardClick(event, "socialActivity", "profile");
-                                }}
-                                socialHubCardAction={socialHubCardAction}
-                                onCycleSocialHubCardAction={optionsActions.onCycleSocialHubCardAction}
-                                mouseKeyboardMode={mouseKeyboardMode}
-                                controllerGlyphStyle={controllerGlyphStyle}
-                                onOpenSubscription={(subscription) => handleOpenSubscription(subscription)}
-                                onFriendFavoriteToggle={(friend, favorite) => {
-                                    if (friend.isSelf) {
-                                        return;
-                                    }
-
-                                    return toggleFriendFavorite(friend.ulid ?? "", favorite);
-                                }}
-                                onFriendResolveAvatar={resolveFriendAvatarNow}
-                                onSocialViewChange={(nextView) => {
-                                    setSocialView(nextView);
-                                    setLastSocialView(nextView);
-                                    void saveLastSocialView(nextView).catch(() => {
-                                    });
-                                }}
-                                onSocialTabClick={suppressFriendFocusDetectionForTabSwitch}
-                            />
-
-                            <ComparePickerPage
-                                state={{
-                                    view,
-                                    language,
-                                    buttonSpacing,
-                                    friendsRows,
-                                    favoriteFriends,
-                                    friendsLoaded,
-                                    friendsRefreshing,
-                                    friendsError,
-                                    selectedFriendUsername: compareFriendUsername,
-                                    dynamicFriendPicker,
-                                    dynamicInitialRows,
-                                    dynamicRowStep,
-                                    dynamicPrefetchDistance,
-                                    dynamicSentinelRootMargin,
-                                }}
-                                actions={{
-                                    onBack: backFromComparePicker,
-                                    onHome: goToAchievements,
-                                    onPickFriend: (friend) => {
-                                        selectCompareFriend(friend.username);
-                                        backFromComparePicker();
-                                    }
-                                }}
-                            />
-
-                            <LeaderboardsPage
-                                state={{
-                                    view,
-                                    restoringLeaderboardDetail,
-                                    language,
-                                    buttonSpacing,
-                                    leaderboardsSourceView,
-                                    leaderboardsLoading,
-                                    saving,
-                                    checkingGame,
-                                    leaderboardsPayload,
-                                    leaderboardsError,
-                                    showIcons,
-                                    uiSize,
-                                    topPadding,
-                                    blockPadding,
-                                    dynamicLeaderboardLoading,
-                                    dynamicInitialRows,
-                                    dynamicRowStep,
-                                    dynamicPrefetchDistance,
-                                    dynamicSentinelRootMargin,
-                                }}
-                                actions={{
-                                    onBack: async () => {
-                                        await backToLeaderboardsSource();
-                                    },
-                                    onHome: goToAchievements,
-                                    onLeaderboardClick: openLeaderboardDetail
-                                }}
-                            />
-
-                            <LeaderboardDetailPage
-                                state={{
-                                    view,
-                                    language,
-                                    selectedLeaderboard,
-                                    buttonSpacing,
-                                    leaderboardEntriesPayload,
-                                    leaderboardEntriesLoading,
-                                    leaderboardEntriesError,
-                                    leaderboardUserEntryPayload,
-                                    leaderboardUserEntryLoading,
-                                    leaderboardUserEntryError,
-                                    leaderboardAudience,
-                                    dynamicLeaderboardResults,
-                                    dynamicInitialRows,
-                                    dynamicRowStep,
-                                    dynamicPrefetchDistance,
-                                    dynamicSentinelRootMargin,
-                                    showIcons,
-                                    uiSize,
-                                    friendsByUsername,
-                                    selfUsername: username,
-                                }}
-                                actions={{
-                                    onBack: backToLeaderboardsList,
-                                    onHome: goToAchievements,
-                                    onAudienceChange: setLeaderboardAudience,
-                                    onOpenUserProfile: onOpenLeaderboardUserProfile
-                                }}
-                            />
-
-                            <AllGamesPage
-                                view={view}
-                                language={language}
-                                selectedFriend={selectedFriend}
-                                buttonSpacing={buttonSpacing}
-                                showIcons={showIcons}
-                                uiSize={uiSize}
-                                friendAllGamesError={friendAllGamesError}
-                                friendAllGamesLoading={friendAllGamesLoading}
-                                friendAllGamesPayload={friendAllGamesPayload}
-                                dynamicAllGames={dynamicAllGames}
-                                dynamicInitialRows={dynamicInitialRows}
-                                dynamicRowStep={dynamicRowStep}
-                                dynamicPrefetchDistance={dynamicPrefetchDistance}
-                                dynamicSentinelRootMargin={dynamicSentinelRootMargin}
-                                initialRangeKey={allGamesLetterRange}
-                                initialStatusFilter={allGamesStatusFilter}
-                                onRangeChange={setAllGamesLetterRange}
-                                onStatusFilterChange={setAllGamesStatusFilter}
-                                onBack={backFromAllGames}
-                                onHome={goToAchievements}
-                                onGameClick={(gameId) => {
-                                    if (!selectedFriend) {
-                                        return;
-                                    }
-                                    friendGameReturnGameIdRef.current = gameId;
-                                    setFriendGameSource("allGames");
-                                    setFriendGameSelectionMode("explicit");
-                                    return loadFriendGame(selectedFriend, gameId, false, "friendgame:games", false, "back");
-                                }}
-                                onOpenGameSearch={openFriendGamesSearch}
-                            />
-
-                            <WantToPlayPage
-                                view={view}
-                                language={language}
-                                selectedFriend={selectedFriend}
-                                buttonSpacing={buttonSpacing}
-                                showIcons={showIcons}
-                                uiSize={uiSize}
-                                wantToPlayError={wantToPlayError}
-                                wantToPlayLoading={wantToPlayLoading}
-                                wantToPlayPayload={wantToPlayPayload}
-                                dynamicAllGames={dynamicAllGames}
-                                dynamicInitialRows={dynamicInitialRows}
-                                dynamicRowStep={dynamicRowStep}
-                                dynamicPrefetchDistance={dynamicPrefetchDistance}
-                                dynamicSentinelRootMargin={dynamicSentinelRootMargin}
-                                onBack={backFromWantToPlay}
-                                onHome={goToAchievements}
-                                onGameClick={(gameId) => {
-                                    goToGameOverview(gameId, "wantToPlay", null, null);
-                                }}
-                            />
-
-                            <FollowedRankingPage
-                                view={view}
-                                language={language}
-                                buttonSpacing={buttonSpacing}
-                                showIcons={showIcons}
-                                uiSize={uiSize}
-                                friendsPayload={friendsPayload}
-                                metric={followedRankingMetric}
-                                setMetric={setFollowedRankingMetric}
-                                dynamicFollowedRanking={dynamicFollowedRanking}
-                                dynamicInitialRows={dynamicInitialRows}
-                                dynamicRowStep={dynamicRowStep}
-                                dynamicPrefetchDistance={dynamicPrefetchDistance}
-                                dynamicSentinelRootMargin={dynamicSentinelRootMargin}
-                                onBack={backFromFollowedRanking}
-                                onHome={goToAchievements}
-                            />
-
-                            <TrackedSetsPage
-                                {...trackedSetsState}
-                                view={view}
-                                language={language}
-                                buttonSpacing={buttonSpacing}
-                                showIcons={showIcons}
-                                uiSize={uiSize}
-                                dynamicTrackedSetsListLoading={dynamicTrackedSetsListLoading}
-                                dynamicTrackedSetsListInitialRows={dynamicTrackedSetsListInitialRows}
-                                dynamicTrackedSetsListRowStep={dynamicTrackedSetsListRowStep}
-                                dynamicTrackedSetsListPrefetchDistance={dynamicTrackedSetsListPrefetchDistance}
-                                dynamicTrackedSetsListSentinelRootMargin={dynamicTrackedSetsListSentinelRootMargin}
-                                selectorSort={trackedSetsSelectorSort}
-                                setSelectorSort={setTrackedSetsSelectorSort}
-                                selectorFilter={trackedSetsSelectorFilter}
-                                setSelectorFilter={setTrackedSetsSelectorFilter}
-                                aButtonMode={trackedSetAButtonMode}
-                                onChangeAButtonMode={saveTrackedSetAButtonModeWithRollback}
-                                mouseKeyboardMode={mouseKeyboardMode}
-                                controllerGlyphStyle={controllerGlyphStyle}
-                                onRequestFocus={setPendingFocusKey}
-                                restorePending={trackedSetsRestorePending}
-                                restoreTarget={trackedSetFocusReturn}
-                                panelOverlayVisible={panelOverlayVisible}
-                                onOpenSet={(setId) => {
-                                    void trackedSetsActions.openSet(setId);
-                                    setView("trackedSetOpen");
-                                    setPendingFocusKey("trackedsetopen:back");
-                                }}
-                                onCloseSet={closeTrackedSetToSelector}
-                                onChangeGameFilter={trackedSetsActions.changeGameFilter}
-                                onCreateSet={trackedSetsActions.createSet}
-                                onRenameSet={trackedSetsActions.renameSet}
-                                onRemoveSet={removeTrackedSetAndRoute}
-                                onAddGame={trackedSetsActions.addGame}
-                                onRemoveGame={trackedSetsActions.removeGame}
-                                onSaveGameNote={trackedSetsActions.saveGameNote}
-                                onReorderGames={trackedSetsActions.reorderGames}
-                                onChangeGameSort={trackedSetsActions.changeGameSort}
-                                onChangeViewMode={trackedSetsActions.changeViewMode}
-                                onRunCheck={trackedSetsActions.runCompletionCheck}
-                                onOpenGameOverview={(gameId) => goToGameOverview(gameId, "trackedSet", null, null)}
-                                onBack={backFromTrackedSets}
-                                onHome={goToAchievements}
-                                backToMain={trackedSetsBackSourceRef.current === "main"}
-                            />
-
-                            <BadgesPage
-                                view={view}
-                                username={selectedFriend?.username ?? ""}
-                                language={language}
-                                buttonSpacing={buttonSpacing}
-                                showIcons={showIcons}
-                                uiSize={uiSize}
-                                awardsError={userAwardsError}
-                                awardsLoading={userAwardsLoading}
-                                awardsPayload={userAwardsPayload}
-                                dynamicList={dynamicBadges}
-                                dynamicInitialRows={dynamicInitialRows}
-                                dynamicRowStep={dynamicRowStep}
-                                dynamicPrefetchDistance={dynamicPrefetchDistance}
-                                dynamicSentinelRootMargin={dynamicSentinelRootMargin}
-                                initialFilter={badgeFilter}
-                                onFilterChange={(filter) => {
-                                    setBadgeFilter(filter);
-                                }}
-                                sortOrder={badgesSortOrder}
-                                onSortOrderChange={(order) => {
-                                    setBadgesSortOrder(order);
-                                    void saveBadgesSortOrder(order).catch(() => {
-                                    });
-                                }}
-                                onBadgeClick={async (gameId) => {
-                                    const viewedSelf = Boolean(selectedFriend?.isSelf);
-                                    const friendUsername = viewedSelf ? null : (selectedFriend?.username ?? null);
-                                    if (legacyGameLinks) {
-                                        await openExternalUrl(raGameUrl(gameId));
-                                        return;
-                                    }
-                                    goToGameOverview(gameId, "badges", friendUsername, viewedSelf ? null : (selectedFriend ? userRefFor(selectedFriend) : null));
-                                }}
-                                onBack={backFromBadges}
-                                onHome={goToAchievements}
-                            />
-
-                            <FriendProfilePage
-                                state={{
-                                    view,
-                                    language,
-                                    friendGamePayload,
-                                    selectedFriend,
-                                    buttonSpacing,
-                                    recentGamesExpanded,
-                                    friendGameError,
-                                    friendGameLoading,
-                                    friendAllGamesLoading,
-                                    wantToPlayLoading,
-                                    wantToPlayError,
-                                    showIcons,
-                                    achievementStyle,
-                                    uiSize,
-                                    topPadding,
-                                    blockPadding,
-                                    dynamicLoading,
-                                    dynamicInitialRows,
-                                    dynamicRowStep,
-                                    dynamicPrefetchDistance,
-                                    dynamicSentinelRootMargin,
-                                    friendAchievementFilter,
-                                    friendAchievementSort,
-                                    friendShowAllAchievements,
-                                    showAllToggleFriend,
-                                    showRetroPoints,
-                                    backToMain: friendProfileBackSourceRef.current === "main",
-                                    backToEvent: friendProfileBackSourceRef.current === "eventViewer",
-                                    friendProfileSubView,
-                                    wallComments,
-                                    wallCommentsLoading,
-                                    wallCommentsLoadingMore,
-                                    wallCommentsHasMore,
-                                    wallCommentsSort,
-                                    wallCommentsLoaded,
-                                    wallRestricted,
-                                    wallCommentsCardClaim: wallCommentsController.state.commentsCardClaim ?? undefined,
-                                    wallCommentsPostClaim: wallCommentsController.state.commentsPostClaim ?? undefined,
-                                    panelOverlayVisible,
-                                    wallRestorePending,
-                                    wallHoldCommentsBody,
-                                    wallCommentsWindow: wallCommentsController.state.commentsWindow,
-                                    dynamicComments,
-                                    dynamicCommentsSentinelRootMargin,
-                                }}
-                                actions={{
-                                    onFriendAchievementFilterChange,
-                                    onFriendAchievementSortChange,
-                                    onFriendShowAllAchievementsChange,
-                                    onBack: backFromFriendProfile,
-                                    onHome: goToAchievements,
-                                    onOpenLeaderboards: () => goToLeaderboards(friendGamePayload?.selectedGameId ?? null, "friendGame"),
-                                    onOpenUnlockHistory: () => goToFriendUnlockHistory(),
-                                    onOpenCompare: () => goToFriendCompare(),
-                                    onOpenExternalProfile: async () => {
-                                        if (!selectedFriend) {
-                                            return;
-                                        }
-                                        const profileName = (friendGamePayload?.friendUsername || selectedFriend.username || "").trim();
-                                        const profileUrl = raUserUrl(profileName);
-                                        await openExternalUrl(profileUrl);
-                                    },
-                                    onOpenAllGames: () => {
-                                        if (!selectedFriend) {
-                                            return;
-                                        }
-                                        friendGameReturnGameIdRef.current =
-                                            friendGamePayloadRef.current?.selectedGameId ?? friendGameReturnGameIdRef.current ?? null;
-                                        setAllGamesLetterRange("a-f");
-                                        void loadFriendAllGames(selectedFriend, 0, 500);
-                                    },
-                                    onOpenBadges: () => {
-                                        if (!selectedFriend) {
-                                            return;
-                                        }
-                                        setBadgeFilter("all");
-                                        void loadUserAwards(userRefFor(selectedFriend), selectedFriend.ulid ?? "");
-                                    },
-                                    onOpenWantToPlay: () => {
-                                        if (!selectedFriend) {
-                                            return;
-                                        }
-                                        void loadUserWantToPlay(userRefFor(selectedFriend), selectedFriend.ulid ?? "");
-                                    },
-                                    onOpenFollowedRanking: () => {
-                                        if (!selectedFriend?.isSelf) {
-                                            return;
-                                        }
-                                        goToFollowedRanking();
-                                    },
-                                    onOpenTrackedSets: () => {
-                                        if (!selectedFriend?.isSelf) {
-                                            return;
-                                        }
-                                        trackedSetsBackSourceRef.current = "profile";
-                                        goToTrackedSets();
-                                    },
-                                    onToggleRecentGames: () => {
+                                    }}
+                                    onRequestFocus={setPendingFocusKey}
+                                    onBack={() => backToAchievements()}
+                                    onHome={goToAchievements}
+                                    onFriendFocus={scheduleFriendPauseRefresh}
+                                    onFriendHover={noteFriendRowHover}
+                                    onFriendUnhover={clearFriendRowHover}
+                                    onFriendClick={(friend) => {
+                                        cancelPendingFriendPauseRefresh();
+                                        clearFriendRowHover(friend);
+                                        friendGameReturnGameIdRef.current = null;
                                         setFriendGameSource("recentGames");
-                                        setRecentGamesExpanded((value) => !value);
-                                    },
-                                    onPickRecentGame: (gameId) => {
+                                        setFriendGameSelectionMode("auto");
+                                        friendProfileBackSourceRef.current = "social";
+                                        return loadFriendGame(friend, undefined, false, "friendgame:back");
+                                    }}
+                                    onActivityCardClick={(event) => handleActivityCardClick(
+                                        event,
+                                        "socialActivity",
+                                        mouseKeyboardMode ? undefined : "achievement"
+                                    )}
+                                    onActivityCardSecondary={(event: SocialActivityEvent) => {
+                                        void handleActivityCardClick(event, "socialActivity", "game");
+                                    }}
+                                    onActivityCardTertiary={(event: SocialActivityEvent) => {
+                                        void handleActivityCardClick(event, "socialActivity", "profile");
+                                    }}
+                                    socialHubCardAction={socialHubCardAction}
+                                    onCycleSocialHubCardAction={optionsActions.onCycleSocialHubCardAction}
+                                    mouseKeyboardMode={mouseKeyboardMode}
+                                    controllerGlyphStyle={controllerGlyphStyle}
+                                    onOpenSubscription={(subscription) => handleOpenSubscription(subscription)}
+                                    onFriendFavoriteToggle={(friend, favorite) => {
+                                        if (friend.isSelf) {
+                                            return;
+                                        }
+
+                                        return toggleFriendFavorite(friend.ulid ?? "", favorite);
+                                    }}
+                                    onFriendResolveAvatar={resolveFriendAvatarNow}
+                                    onSocialViewChange={(nextView) => {
+                                        setSocialView(nextView);
+                                        setLastSocialView(nextView);
+                                        void saveLastSocialView(nextView).catch(() => {
+                                        });
+                                    }}
+                                    onSocialTabClick={suppressFriendFocusDetectionForTabSwitch}
+                                />
+
+                                <ComparePickerPage
+                                    state={{
+                                        view,
+                                        language,
+                                        buttonSpacing,
+                                        friendsRows,
+                                        favoriteFriends,
+                                        friendsLoaded,
+                                        friendsRefreshing,
+                                        friendsError,
+                                        selectedFriendUsername: compareFriendUsername,
+                                        dynamicFriendPicker,
+                                        dynamicInitialRows,
+                                        dynamicRowStep,
+                                        dynamicPrefetchDistance,
+                                        dynamicSentinelRootMargin,
+                                    }}
+                                    actions={{
+                                        onBack: backFromComparePicker,
+                                        onHome: goToAchievements,
+                                        onPickFriend: (friend) => {
+                                            selectCompareFriend(friend.username);
+                                            backFromComparePicker();
+                                        }
+                                    }}
+                                />
+
+                                <LeaderboardsPage
+                                    state={{
+                                        view,
+                                        restoringLeaderboardDetail,
+                                        language,
+                                        buttonSpacing,
+                                        leaderboardsSourceView,
+                                        leaderboardsLoading,
+                                        saving,
+                                        checkingGame,
+                                        leaderboardsPayload,
+                                        leaderboardsError,
+                                        showIcons,
+                                        uiSize,
+                                        topPadding,
+                                        blockPadding,
+                                        dynamicLeaderboardLoading,
+                                        dynamicInitialRows,
+                                        dynamicRowStep,
+                                        dynamicPrefetchDistance,
+                                        dynamicSentinelRootMargin,
+                                    }}
+                                    actions={{
+                                        onBack: async () => {
+                                            await backToLeaderboardsSource();
+                                        },
+                                        onHome: goToAchievements,
+                                        onLeaderboardClick: openLeaderboardDetail
+                                    }}
+                                />
+
+                                <LeaderboardDetailPage
+                                    state={{
+                                        view,
+                                        language,
+                                        selectedLeaderboard,
+                                        buttonSpacing,
+                                        leaderboardEntriesPayload,
+                                        leaderboardEntriesLoading,
+                                        leaderboardEntriesError,
+                                        leaderboardUserEntryPayload,
+                                        leaderboardUserEntryLoading,
+                                        leaderboardUserEntryError,
+                                        leaderboardAudience,
+                                        dynamicLeaderboardResults,
+                                        dynamicInitialRows,
+                                        dynamicRowStep,
+                                        dynamicPrefetchDistance,
+                                        dynamicSentinelRootMargin,
+                                        showIcons,
+                                        uiSize,
+                                        friendsByUsername,
+                                        selfUsername: username,
+                                    }}
+                                    actions={{
+                                        onBack: backToLeaderboardsList,
+                                        onHome: goToAchievements,
+                                        onAudienceChange: setLeaderboardAudience,
+                                        onOpenUserProfile: onOpenLeaderboardUserProfile
+                                    }}
+                                />
+
+                                <AllGamesPage
+                                    view={view}
+                                    language={language}
+                                    selectedFriend={selectedFriend}
+                                    buttonSpacing={buttonSpacing}
+                                    showIcons={showIcons}
+                                    uiSize={uiSize}
+                                    friendAllGamesError={friendAllGamesError}
+                                    friendAllGamesLoading={friendAllGamesLoading}
+                                    friendAllGamesPayload={friendAllGamesPayload}
+                                    dynamicAllGames={dynamicAllGames}
+                                    dynamicInitialRows={dynamicInitialRows}
+                                    dynamicRowStep={dynamicRowStep}
+                                    dynamicPrefetchDistance={dynamicPrefetchDistance}
+                                    dynamicSentinelRootMargin={dynamicSentinelRootMargin}
+                                    initialRangeKey={allGamesLetterRange}
+                                    initialStatusFilter={allGamesStatusFilter}
+                                    onRangeChange={setAllGamesLetterRange}
+                                    onStatusFilterChange={setAllGamesStatusFilter}
+                                    onBack={backFromAllGames}
+                                    onHome={goToAchievements}
+                                    onGameClick={(gameId) => {
                                         if (!selectedFriend) {
                                             return;
                                         }
                                         friendGameReturnGameIdRef.current = gameId;
-                                        setFriendGameSource("recentGames");
+                                        setFriendGameSource("allGames");
                                         setFriendGameSelectionMode("explicit");
-                                        return loadFriendGame(selectedFriend, gameId, false, "friendgame:back");
-                                    },
-                                    onOpenAchievement: async (achievement) => {
-                                        setFriendGameError(null);
-                                        if (legacyAchievementLinks) {
-                                            await openExternalUrl(raAchievementUrl(achievement.id));
-                                            return;
-                                        }
-                                        friendEntrySourceRef.current = "profile";
-                                        const parentGameId = friendGamePayload?.payload?.gameId ?? null;
+                                        return loadFriendGame(selectedFriend, gameId, false, "friendgame:games", false, "back");
+                                    }}
+                                    onOpenGameSearch={openFriendGamesSearch}
+                                />
+
+                                <WantToPlayPage
+                                    view={view}
+                                    language={language}
+                                    selectedFriend={selectedFriend}
+                                    buttonSpacing={buttonSpacing}
+                                    showIcons={showIcons}
+                                    uiSize={uiSize}
+                                    wantToPlayError={wantToPlayError}
+                                    wantToPlayLoading={wantToPlayLoading}
+                                    wantToPlayPayload={wantToPlayPayload}
+                                    dynamicAllGames={dynamicAllGames}
+                                    dynamicInitialRows={dynamicInitialRows}
+                                    dynamicRowStep={dynamicRowStep}
+                                    dynamicPrefetchDistance={dynamicPrefetchDistance}
+                                    dynamicSentinelRootMargin={dynamicSentinelRootMargin}
+                                    onBack={backFromWantToPlay}
+                                    onHome={goToAchievements}
+                                    onGameClick={(gameId) => {
+                                        goToGameOverview(gameId, "wantToPlay", null, null);
+                                    }}
+                                />
+
+                                <FollowedRankingPage
+                                    view={view}
+                                    language={language}
+                                    buttonSpacing={buttonSpacing}
+                                    showIcons={showIcons}
+                                    uiSize={uiSize}
+                                    friendsPayload={friendsPayload}
+                                    metric={followedRankingMetric}
+                                    setMetric={setFollowedRankingMetric}
+                                    dynamicFollowedRanking={dynamicFollowedRanking}
+                                    dynamicInitialRows={dynamicInitialRows}
+                                    dynamicRowStep={dynamicRowStep}
+                                    dynamicPrefetchDistance={dynamicPrefetchDistance}
+                                    dynamicSentinelRootMargin={dynamicSentinelRootMargin}
+                                    onBack={backFromFollowedRanking}
+                                    onHome={goToAchievements}
+                                />
+
+                                <TrackedSetsPage
+                                    {...trackedSetsState}
+                                    view={view}
+                                    language={language}
+                                    buttonSpacing={buttonSpacing}
+                                    showIcons={showIcons}
+                                    uiSize={uiSize}
+                                    dynamicTrackedSetsListLoading={dynamicTrackedSetsListLoading}
+                                    dynamicTrackedSetsListInitialRows={dynamicTrackedSetsListInitialRows}
+                                    dynamicTrackedSetsListRowStep={dynamicTrackedSetsListRowStep}
+                                    dynamicTrackedSetsListPrefetchDistance={dynamicTrackedSetsListPrefetchDistance}
+                                    dynamicTrackedSetsListSentinelRootMargin={dynamicTrackedSetsListSentinelRootMargin}
+                                    selectorSort={trackedSetsSelectorSort}
+                                    setSelectorSort={setTrackedSetsSelectorSort}
+                                    selectorFilter={trackedSetsSelectorFilter}
+                                    setSelectorFilter={setTrackedSetsSelectorFilter}
+                                    aButtonMode={trackedSetAButtonMode}
+                                    onChangeAButtonMode={saveTrackedSetAButtonModeWithRollback}
+                                    mouseKeyboardMode={mouseKeyboardMode}
+                                    controllerGlyphStyle={controllerGlyphStyle}
+                                    onRequestFocus={setPendingFocusKey}
+                                    restorePending={trackedSetsRestorePending}
+                                    restoreTarget={trackedSetFocusReturn}
+                                    panelOverlayVisible={panelOverlayVisible}
+                                    onOpenSet={(setId) => {
+                                        void trackedSetsActions.openSet(setId);
+                                        setView("trackedSetOpen");
+                                        setPendingFocusKey("trackedsetopen:back");
+                                    }}
+                                    onCloseSet={closeTrackedSetToSelector}
+                                    onChangeGameFilter={trackedSetsActions.changeGameFilter}
+                                    onCreateSet={trackedSetsActions.createSet}
+                                    onRenameSet={trackedSetsActions.renameSet}
+                                    onRemoveSet={removeTrackedSetAndRoute}
+                                    onAddGame={trackedSetsActions.addGame}
+                                    onRemoveGame={trackedSetsActions.removeGame}
+                                    onSaveGameNote={trackedSetsActions.saveGameNote}
+                                    onReorderGames={trackedSetsActions.reorderGames}
+                                    onChangeGameSort={trackedSetsActions.changeGameSort}
+                                    onChangeViewMode={trackedSetsActions.changeViewMode}
+                                    onRunCheck={trackedSetsActions.runCompletionCheck}
+                                    onOpenGameOverview={(gameId) => goToGameOverview(gameId, "trackedSet", null, null)}
+                                    onBack={backFromTrackedSets}
+                                    onHome={goToAchievements}
+                                    backToMain={trackedSetsBackSourceRef.current === "main"}
+                                />
+
+                                <BadgesPage
+                                    view={view}
+                                    username={selectedFriend?.username ?? ""}
+                                    language={language}
+                                    buttonSpacing={buttonSpacing}
+                                    showIcons={showIcons}
+                                    uiSize={uiSize}
+                                    awardsError={userAwardsError}
+                                    awardsLoading={userAwardsLoading}
+                                    awardsPayload={userAwardsPayload}
+                                    dynamicList={dynamicBadges}
+                                    dynamicInitialRows={dynamicInitialRows}
+                                    dynamicRowStep={dynamicRowStep}
+                                    dynamicPrefetchDistance={dynamicPrefetchDistance}
+                                    dynamicSentinelRootMargin={dynamicSentinelRootMargin}
+                                    initialFilter={badgeFilter}
+                                    onFilterChange={(filter) => {
+                                        setBadgeFilter(filter);
+                                    }}
+                                    sortOrder={badgesSortOrder}
+                                    onSortOrderChange={(order) => {
+                                        setBadgesSortOrder(order);
+                                        void saveBadgesSortOrder(order).catch(() => {
+                                        });
+                                    }}
+                                    onBadgeClick={async (gameId) => {
                                         const viewedSelf = Boolean(selectedFriend?.isSelf);
-                                        goToAchievementOverview(
-                                            achievement,
-                                            parentGameId,
-                                            "friend",
-                                            viewedSelf ? null : (selectedFriend?.username ?? friendGamePayload?.friendUsername ?? null),
-                                            viewedSelf ? null : (selectedFriend ? userRefFor(selectedFriend) : (friendGamePayload?.friendUsername ?? null))
-                                        );
-                                    },
-                                    onOpenGameOnRetroAchievements: async () => {
-                                        const gameId = friendGamePayload?.payload?.gameId ?? null;
-                                        if (!gameId) {
-                                            return;
-                                        }
-                                        setFriendGameError(null);
+                                        const friendUsername = viewedSelf ? null : (selectedFriend?.username ?? null);
                                         if (legacyGameLinks) {
                                             await openExternalUrl(raGameUrl(gameId));
                                             return;
                                         }
-                                        friendEntrySourceRef.current = "profile";
-                                        const viewedSelf = Boolean(selectedFriend?.isSelf);
-                                        goToGameOverview(
-                                            gameId,
-                                            "friend",
-                                            viewedSelf ? null : (selectedFriend?.username ?? friendGamePayload?.friendUsername ?? null),
-                                            viewedSelf ? null : (selectedFriend ? userRefFor(selectedFriend) : (friendGamePayload?.friendUsername ?? null))
-                                        );
-                                    },
-                                    onChangeSubView: setFriendProfileSubView,
-                                    onChangeWallCommentsSort: setWallCommentsSort,
-                                    onLoadMoreWallComments: loadMoreWallComments,
-                                    onSpendWallCommentsCardClaim: wallCommentsController.actions.spendCommentsCardClaim,
-                                    onSpendWallCommentsPostClaim: wallCommentsController.actions.spendCommentsPostClaim,
-                                    onWallCommentClick: (comment) => {
-                                        const wallUser =
-                                            friendGamePayload?.friendUsername ??
-                                            selectedFriend?.username ??
-                                            null;
-                                        const url = wallUser
-                                            ? raUserCommentsUrl(wallUser)
-                                            : null;
-                                        const captured = wallThreadId == null
-                                            ? null
-                                            : wallCommentsController.actions.captureComments(comment);
-                                        if (wallThreadId != null && captured) {
-                                            const geometry = measureCommentWindow(
-                                                rootRef.current,
-                                                "friendwall:comment",
-                                                captured.focusIndex
-                                            );
-                                            putCommentsSnapshot({
-                                                surfaceKey: "comments:wall",
-                                                threadId: wallThreadId,
-                                                ulid: activeUlid,
-                                                ...captured,
-                                                windowStart: geometry?.windowStart ?? 0,
-                                                spacerPx: geometry?.spacerPx ?? 0
-                                            });
-                                        }
-                                        else {
-                                            logCommentsDebug(
-                                                "press-nocapture",
-                                                wallThreadId ?? "null",
-                                                `surface=comments:wall ref=${wallThreadId ?? "null"}`
-                                            );
-                                            clearCommentsSnapshot();
-                                        }
-                                        openCommentModal(comment, url, wallCommentSource(wallUser));
-                                    },
-                                    onPostComment: async () => {
-                                        const wallUser =
-                                            friendGamePayload?.friendUsername ??
-                                            selectedFriend?.username ??
-                                            null;
-                                        if (!wallUser) {
-                                            return;
-                                        }
-                                        setFriendGameError(null);
-                                        clearCommentsSnapshot();
-                                        if (wallThreadId != null) {
-                                            putCommentsPostReturn("comments:wall", wallThreadId, activeUlid);
-                                        }
-                                        await openExternalUrl(raUserCommentsUrl(wallUser));
-                                    }
-                                }}
-                            />
-
-                            <FriendCompareGamePage
-                                state={{
-                                    view,
-                                    language,
-                                    buttonSpacing,
-                                    selectedFriend,
-                                    friendGamePayload,
-                                    friendGameLoading,
-                                    showIcons,
-                                    achievementStyle,
-                                    uiSize,
-                                    blockPadding,
-                                    dynamicCompare,
-                                    dynamicInitialRows,
-                                    dynamicRowStep,
-                                    dynamicPrefetchDistance,
-                                    dynamicSentinelRootMargin,
-                                    showRetroPoints,
-                                }}
-                                actions={{
-                                    onBack: backFromFriendCompare,
-                                    onHome: goToAchievements,
-                                    onAchievementClick: async (achievement) => {
-                                        setFriendGameError(null);
-                                        if (legacyAchievementLinks) {
-                                            await openExternalUrl(raAchievementUrl(achievement.id));
-                                            return;
-                                        }
-                                        friendEntrySourceRef.current = "compareGame";
-                                        const parentGameId = friendGamePayload?.payload?.gameId ?? null;
-                                        goToAchievementOverview(
-                                            achievement,
-                                            parentGameId,
-                                            "friend",
-                                            selectedFriend?.username ?? friendGamePayload?.friendUsername ?? null,
-                                            selectedFriend ? userRefFor(selectedFriend) : (friendGamePayload?.friendUsername ?? null)
-                                        );
-                                    }
-                                }}
-                            />
-
-                            {view === "gameOverview" && (
-                                <GameOverviewPage
-                                    {...goState}
-                                    view={view}
-                                    language={language}
-                                    uiSize={uiSize}
-                                    blockPadding={blockPadding}
-                                    buttonSpacing={buttonSpacing}
-                                    showIcons={showIcons}
-                                    showRetroPoints={showRetroPoints}
-                                    achievementStyle={achievementStyle}
-                                    viewedUsername={viewingBannerUsernameFor(gameOverviewViewedUsername, gameOverviewViewedUserRef)}
-                                    gameId={gameOverviewGameId}
-                                    subView={gameOverviewSubView}
-                                    onChangeSubView={setGameOverviewSubView}
-                                    onBack={backFromGameOverview}
+                                        goToGameOverview(gameId, "badges", friendUsername, viewedSelf ? null : (selectedFriend ? userRefFor(selectedFriend) : null));
+                                    }}
+                                    onBack={backFromBadges}
                                     onHome={goToAchievements}
-                                    commentsCardClaim={goState.commentsCardClaim ?? undefined}
-                                    onSpendCommentsCardClaim={goActions.spendCommentsCardClaim}
-                                    commentsPostClaim={goState.commentsPostClaim ?? undefined}
-                                    onSpendCommentsPostClaim={goActions.spendCommentsPostClaim}
-                                    restorePending={gameOverviewRestorePending}
-                                    holdCommentsBody={gameOverviewHoldCommentsBody}
-                                    panelOverlayVisible={panelOverlayVisible}
-                                    achievementFilter={gameOverviewAchievementFilter}
-                                    achievementSort={gameOverviewAchievementSort}
-                                    onChangeAchievementFilter={onGameOverviewAchievementFilterChange}
-                                    onChangeAchievementSort={onGameOverviewAchievementSortChange}
-                                    onChangeCommentsSort={goActions.setCommentsSort}
-                                    onLoadMoreComments={goActions.loadMoreComments}
-                                    onDownloadHashPatch={goActions.downloadHashPatch}
-                                    onCommentClick={(comment) => {
-                                        const gid = gameOverviewGameIdRef.current ?? gameOverviewGameId;
-                                        const url = gid != null
-                                            ? raGameCommentsUrl(gid)
-                                            : null;
-                                        const captured = gid == null
-                                            ? null
-                                            : goActions.captureComments(comment);
-                                        if (gid != null && captured) {
-                                            const geometry = measureCommentWindow(
-                                                rootRef.current,
-                                                "gameoverview:comment",
-                                                captured.focusIndex
-                                            );
-                                            putCommentsSnapshot({
-                                                surfaceKey: "comments:overview",
-                                                threadId: gid,
-                                                ulid: activeUlid,
-                                                ...captured,
-                                                windowStart: geometry?.windowStart ?? 0,
-                                                spacerPx: geometry?.spacerPx ?? 0
-                                            });
-                                        }
-                                        else {
-                                            logCommentsDebug(
-                                                "press-nocapture",
-                                                gid ?? "null",
-                                                `surface=comments:overview gid=${gid ?? "null"}`
-                                            );
-                                            clearCommentsSnapshot();
-                                        }
-                                        openCommentModal(comment, url, gameCommentSource(gid, goState.loadedPayload?.title, goState.loadedPayload?.imageIcon, goState.loadedPayload?.consoleName));
-                                    }}
-                                    onPostComment={async () => {
-                                        const gid = gameOverviewGameIdRef.current ?? gameOverviewGameId;
-                                        if (gid == null) {
-                                            return;
-                                        }
-                                        setError(null);
-                                        clearCommentsSnapshot();
-                                        putCommentsPostReturn("comments:overview", gid, activeUlid);
-                                        await openExternalUrl(raGameCommentsUrl(gid));
-                                    }}
-                                    onAchievementClick={async (achievement) => {
-                                        const gid = gameOverviewGameIdRef.current ?? gameOverviewGameId;
-                                        if (legacyAchievementLinks) {
-                                            await openExternalUrl(raAchievementUrl(achievement.id));
-                                            return;
-                                        }
-                                        goToAchievementOverview(achievement, gid, "gameOverview", gameOverviewViewedUsernameRef.current, gameOverviewViewedUserRefRef.current);
-                                    }}
-                                    onGameClick={async () => {
-                                        const gid = gameOverviewGameIdRef.current ?? gameOverviewGameId;
-                                        if (gid == null) {
-                                            return;
-                                        }
-                                        await openExternalUrl(raGameUrl(gid));
-                                    }}
-                                    onOpenGameSearch={() => openGameSearch(gameOverviewSourceRef.current ?? "main")}
-                                    onOpenLeaderboards={() => goToLeaderboards(gameOverviewGameIdRef.current ?? gameOverviewGameId, "gameOverview")}
-                                    dynamicComments={dynamicComments}
-                                    dynamicCommentsSentinelRootMargin={dynamicCommentsSentinelRootMargin}
                                 />
-                            )}
 
-                            {view === "eventViewer" && eventViewerTarget !== null && (
-                                <EventViewerPage
-                                    key={String(eventViewerTarget)}
+                                <FriendProfilePage
                                     state={{
                                         view,
                                         language,
-                                        target: eventViewerTarget,
-                                        tab: eventViewerTab,
-                                        panelOverlayVisible
+                                        friendGamePayload,
+                                        selectedFriend,
+                                        buttonSpacing,
+                                        recentGamesExpanded,
+                                        friendGameError,
+                                        friendGameLoading,
+                                        friendAllGamesLoading,
+                                        wantToPlayLoading,
+                                        wantToPlayError,
+                                        showIcons,
+                                        achievementStyle,
+                                        uiSize,
+                                        topPadding,
+                                        blockPadding,
+                                        dynamicLoading,
+                                        dynamicInitialRows,
+                                        dynamicRowStep,
+                                        dynamicPrefetchDistance,
+                                        dynamicSentinelRootMargin,
+                                        friendAchievementFilter,
+                                        friendAchievementSort,
+                                        friendShowAllAchievements,
+                                        showAllToggleFriend,
+                                        showRetroPoints,
+                                        backToMain: friendProfileBackSourceRef.current === "main",
+                                        backToEvent: friendProfileBackSourceRef.current === "eventViewer",
+                                        friendProfileSubView,
+                                        wallComments,
+                                        wallCommentsLoading,
+                                        wallCommentsLoadingMore,
+                                        wallCommentsHasMore,
+                                        wallCommentsSort,
+                                        wallCommentsLoaded,
+                                        wallRestricted,
+                                        wallCommentsCardClaim: wallCommentsController.state.commentsCardClaim ?? undefined,
+                                        wallCommentsPostClaim: wallCommentsController.state.commentsPostClaim ?? undefined,
+                                        panelOverlayVisible,
+                                        wallRestorePending,
+                                        wallHoldCommentsBody,
+                                        wallCommentsWindow: wallCommentsController.state.commentsWindow,
+                                        dynamicComments,
+                                        dynamicCommentsSentinelRootMargin,
                                     }}
-                                    aotw={{
-                                        ...newsEventsState,
-                                        onChangeAotwSubView: newsEventsActions.setAotwSubView,
-                                        onOpenUserProfile: (username: string, ulid?: string | null) =>
-                                            handleOpenUserProfile(username, ulid, "eventViewer"),
-                                        onOpenAotwComment: (comment, achievementId) => {
-                                            const url = achievementId != null
-                                                ? raAchievementCommentsUrl(achievementId)
+                                    actions={{
+                                        onFriendAchievementFilterChange,
+                                        onFriendAchievementSortChange,
+                                        onFriendShowAllAchievementsChange,
+                                        onBack: backFromFriendProfile,
+                                        onHome: goToAchievements,
+                                        onOpenLeaderboards: () => goToLeaderboards(friendGamePayload?.selectedGameId ?? null, "friendGame"),
+                                        onOpenUnlockHistory: () => goToFriendUnlockHistory(),
+                                        onOpenCompare: () => goToFriendCompare(),
+                                        onOpenExternalProfile: async () => {
+                                            if (!selectedFriend) {
+                                                return;
+                                            }
+                                            const profileName = (friendGamePayload?.friendUsername || selectedFriend.username || "").trim();
+                                            const profileUrl = raUserUrl(profileName);
+                                            await openExternalUrl(profileUrl);
+                                        },
+                                        onOpenAllGames: () => {
+                                            if (!selectedFriend) {
+                                                return;
+                                            }
+                                            friendGameReturnGameIdRef.current =
+                                                friendGamePayloadRef.current?.selectedGameId ?? friendGameReturnGameIdRef.current ?? null;
+                                            setAllGamesLetterRange("a-f");
+                                            void loadFriendAllGames(selectedFriend, 0, 500);
+                                        },
+                                        onOpenBadges: () => {
+                                            if (!selectedFriend) {
+                                                return;
+                                            }
+                                            setBadgeFilter("all");
+                                            void loadUserAwards(userRefFor(selectedFriend), selectedFriend.ulid ?? "");
+                                        },
+                                        onOpenWantToPlay: () => {
+                                            if (!selectedFriend) {
+                                                return;
+                                            }
+                                            void loadUserWantToPlay(userRefFor(selectedFriend), selectedFriend.ulid ?? "");
+                                        },
+                                        onOpenFollowedRanking: () => {
+                                            if (!selectedFriend?.isSelf) {
+                                                return;
+                                            }
+                                            goToFollowedRanking();
+                                        },
+                                        onOpenTrackedSets: () => {
+                                            if (!selectedFriend?.isSelf) {
+                                                return;
+                                            }
+                                            trackedSetsBackSourceRef.current = "profile";
+                                            goToTrackedSets();
+                                        },
+                                        onToggleRecentGames: () => {
+                                            setFriendGameSource("recentGames");
+                                            setRecentGamesExpanded((value) => !value);
+                                        },
+                                        onPickRecentGame: (gameId) => {
+                                            if (!selectedFriend) {
+                                                return;
+                                            }
+                                            friendGameReturnGameIdRef.current = gameId;
+                                            setFriendGameSource("recentGames");
+                                            setFriendGameSelectionMode("explicit");
+                                            return loadFriendGame(selectedFriend, gameId, false, "friendgame:back");
+                                        },
+                                        onOpenAchievement: async (achievement) => {
+                                            setFriendGameError(null);
+                                            if (legacyAchievementLinks) {
+                                                await openExternalUrl(raAchievementUrl(achievement.id));
+                                                return;
+                                            }
+                                            friendEntrySourceRef.current = "profile";
+                                            const parentGameId = friendGamePayload?.payload?.gameId ?? null;
+                                            const viewedSelf = Boolean(selectedFriend?.isSelf);
+                                            goToAchievementOverview(
+                                                achievement,
+                                                parentGameId,
+                                                "friend",
+                                                viewedSelf ? null : (selectedFriend?.username ?? friendGamePayload?.friendUsername ?? null),
+                                                viewedSelf ? null : (selectedFriend ? userRefFor(selectedFriend) : (friendGamePayload?.friendUsername ?? null))
+                                            );
+                                        },
+                                        onOpenGameOnRetroAchievements: async () => {
+                                            const gameId = friendGamePayload?.payload?.gameId ?? null;
+                                            if (!gameId) {
+                                                return;
+                                            }
+                                            setFriendGameError(null);
+                                            if (legacyGameLinks) {
+                                                await openExternalUrl(raGameUrl(gameId));
+                                                return;
+                                            }
+                                            friendEntrySourceRef.current = "profile";
+                                            const viewedSelf = Boolean(selectedFriend?.isSelf);
+                                            goToGameOverview(
+                                                gameId,
+                                                "friend",
+                                                viewedSelf ? null : (selectedFriend?.username ?? friendGamePayload?.friendUsername ?? null),
+                                                viewedSelf ? null : (selectedFriend ? userRefFor(selectedFriend) : (friendGamePayload?.friendUsername ?? null))
+                                            );
+                                        },
+                                        onChangeSubView: setFriendProfileSubView,
+                                        onChangeWallCommentsSort: setWallCommentsSort,
+                                        onLoadMoreWallComments: loadMoreWallComments,
+                                        onSpendWallCommentsCardClaim: wallCommentsController.actions.spendCommentsCardClaim,
+                                        onSpendWallCommentsPostClaim: wallCommentsController.actions.spendCommentsPostClaim,
+                                        onWallCommentClick: (comment) => {
+                                            const wallUser =
+                                                friendGamePayload?.friendUsername ??
+                                                selectedFriend?.username ??
+                                                null;
+                                            const url = wallUser
+                                                ? raUserCommentsUrl(wallUser)
                                                 : null;
-                                            const captured = achievementId == null
+                                            const captured = wallThreadId == null
                                                 ? null
-                                                : aotwCommentsController.actions.captureComments(comment);
-                                            if (achievementId != null && captured) {
+                                                : wallCommentsController.actions.captureComments(comment);
+                                            if (wallThreadId != null && captured) {
                                                 const geometry = measureCommentWindow(
                                                     rootRef.current,
-                                                    "aotw:comment",
+                                                    "friendwall:comment",
                                                     captured.focusIndex
                                                 );
                                                 putCommentsSnapshot({
-                                                    surfaceKey: "comments:aotw",
-                                                    threadId: achievementId,
+                                                    surfaceKey: "comments:wall",
+                                                    threadId: wallThreadId,
                                                     ulid: activeUlid,
                                                     ...captured,
                                                     windowStart: geometry?.windowStart ?? 0,
                                                     spacerPx: geometry?.spacerPx ?? 0
                                                 });
-                                                putAotwCarry(aotwResponse, activeUlid);
                                             }
                                             else {
                                                 logCommentsDebug(
                                                     "press-nocapture",
-                                                    achievementId ?? "null",
-                                                    `surface=comments:aotw aid=${achievementId ?? "null"}`
+                                                    wallThreadId ?? "null",
+                                                    `surface=comments:wall ref=${wallThreadId ?? "null"}`
                                                 );
                                                 clearCommentsSnapshot();
-                                                clearAotwCarry();
                                             }
-                                            openCommentModal(comment, url);
+                                            openCommentModal(comment, url, wallCommentSource(wallUser));
                                         },
-                                        aotwComments,
-                                        aotwCommentsLoading,
-                                        aotwCommentsLoadingMore,
-                                        aotwCommentsError,
-                                        aotwCommentsHasMore,
-                                        aotwCommentsSort,
-                                        aotwCommentsLoaded,
-                                        aotwCommentsCardClaim: aotwCommentsController.state.commentsCardClaim ?? undefined,
-                                        onSpendAotwCommentsCardClaim: aotwCommentsController.actions.spendCommentsCardClaim,
-                                        aotwCommentsPostClaim: aotwCommentsController.state.commentsPostClaim ?? undefined,
-                                        onSpendAotwCommentsPostClaim: aotwCommentsController.actions.spendCommentsPostClaim,
-                                        aotwRestorePending,
-                                        aotwHoldCommentsBody,
-                                        aotwCommentsWindow: aotwCommentsController.state.commentsWindow,
-                                        onChangeAotwCommentsSort: setAotwCommentsSort,
-                                        onLoadMoreAotwComments: loadMoreAotwComments,
-                                        onPostAotwComment: async () => {
-                                            const aid = aotwResponse?.payload?.achievement?.id ?? null;
+                                        onPostComment: async () => {
+                                            const wallUser =
+                                                friendGamePayload?.friendUsername ??
+                                                selectedFriend?.username ??
+                                                null;
+                                            if (!wallUser) {
+                                                return;
+                                            }
+                                            setFriendGameError(null);
+                                            clearCommentsSnapshot();
+                                            if (wallThreadId != null) {
+                                                putCommentsPostReturn("comments:wall", wallThreadId, activeUlid);
+                                            }
+                                            await openExternalUrl(raUserCommentsUrl(wallUser));
+                                        }
+                                    }}
+                                />
+
+                                <FriendCompareGamePage
+                                    state={{
+                                        view,
+                                        language,
+                                        buttonSpacing,
+                                        selectedFriend,
+                                        friendGamePayload,
+                                        friendGameLoading,
+                                        showIcons,
+                                        achievementStyle,
+                                        uiSize,
+                                        blockPadding,
+                                        dynamicCompare,
+                                        dynamicInitialRows,
+                                        dynamicRowStep,
+                                        dynamicPrefetchDistance,
+                                        dynamicSentinelRootMargin,
+                                        showRetroPoints,
+                                    }}
+                                    actions={{
+                                        onBack: backFromFriendCompare,
+                                        onHome: goToAchievements,
+                                        onAchievementClick: async (achievement) => {
+                                            setFriendGameError(null);
+                                            if (legacyAchievementLinks) {
+                                                await openExternalUrl(raAchievementUrl(achievement.id));
+                                                return;
+                                            }
+                                            friendEntrySourceRef.current = "compareGame";
+                                            const parentGameId = friendGamePayload?.payload?.gameId ?? null;
+                                            goToAchievementOverview(
+                                                achievement,
+                                                parentGameId,
+                                                "friend",
+                                                selectedFriend?.username ?? friendGamePayload?.friendUsername ?? null,
+                                                selectedFriend ? userRefFor(selectedFriend) : (friendGamePayload?.friendUsername ?? null)
+                                            );
+                                        }
+                                    }}
+                                />
+
+                                {view === "gameOverview" && (
+                                    <GameOverviewPage
+                                        {...goState}
+                                        view={view}
+                                        language={language}
+                                        uiSize={uiSize}
+                                        blockPadding={blockPadding}
+                                        buttonSpacing={buttonSpacing}
+                                        showIcons={showIcons}
+                                        showRetroPoints={showRetroPoints}
+                                        achievementStyle={achievementStyle}
+                                        viewedUsername={viewingBannerUsernameFor(gameOverviewViewedUsername, gameOverviewViewedUserRef)}
+                                        gameId={gameOverviewGameId}
+                                        subView={gameOverviewSubView}
+                                        onChangeSubView={setGameOverviewSubView}
+                                        onBack={backFromGameOverview}
+                                        onHome={goToAchievements}
+                                        commentsCardClaim={goState.commentsCardClaim ?? undefined}
+                                        onSpendCommentsCardClaim={goActions.spendCommentsCardClaim}
+                                        commentsPostClaim={goState.commentsPostClaim ?? undefined}
+                                        onSpendCommentsPostClaim={goActions.spendCommentsPostClaim}
+                                        restorePending={gameOverviewRestorePending}
+                                        holdCommentsBody={gameOverviewHoldCommentsBody}
+                                        panelOverlayVisible={panelOverlayVisible}
+                                        achievementFilter={gameOverviewAchievementFilter}
+                                        achievementSort={gameOverviewAchievementSort}
+                                        onChangeAchievementFilter={onGameOverviewAchievementFilterChange}
+                                        onChangeAchievementSort={onGameOverviewAchievementSortChange}
+                                        onChangeCommentsSort={goActions.setCommentsSort}
+                                        onLoadMoreComments={goActions.loadMoreComments}
+                                        onDownloadHashPatch={goActions.downloadHashPatch}
+                                        onCommentClick={(comment) => {
+                                            const gid = gameOverviewGameIdRef.current ?? gameOverviewGameId;
+                                            const url = gid != null
+                                                ? raGameCommentsUrl(gid)
+                                                : null;
+                                            const captured = gid == null
+                                                ? null
+                                                : goActions.captureComments(comment);
+                                            if (gid != null && captured) {
+                                                const geometry = measureCommentWindow(
+                                                    rootRef.current,
+                                                    "gameoverview:comment",
+                                                    captured.focusIndex
+                                                );
+                                                putCommentsSnapshot({
+                                                    surfaceKey: "comments:overview",
+                                                    threadId: gid,
+                                                    ulid: activeUlid,
+                                                    ...captured,
+                                                    windowStart: geometry?.windowStart ?? 0,
+                                                    spacerPx: geometry?.spacerPx ?? 0
+                                                });
+                                            }
+                                            else {
+                                                logCommentsDebug(
+                                                    "press-nocapture",
+                                                    gid ?? "null",
+                                                    `surface=comments:overview gid=${gid ?? "null"}`
+                                                );
+                                                clearCommentsSnapshot();
+                                            }
+                                            openCommentModal(comment, url, gameCommentSource(gid, goState.loadedPayload?.title, goState.loadedPayload?.imageIcon, goState.loadedPayload?.consoleName));
+                                        }}
+                                        onPostComment={async () => {
+                                            const gid = gameOverviewGameIdRef.current ?? gameOverviewGameId;
+                                            if (gid == null) {
+                                                return;
+                                            }
+                                            setError(null);
+                                            clearCommentsSnapshot();
+                                            putCommentsPostReturn("comments:overview", gid, activeUlid);
+                                            await openExternalUrl(raGameCommentsUrl(gid));
+                                        }}
+                                        onAchievementClick={async (achievement) => {
+                                            const gid = gameOverviewGameIdRef.current ?? gameOverviewGameId;
+                                            if (legacyAchievementLinks) {
+                                                await openExternalUrl(raAchievementUrl(achievement.id));
+                                                return;
+                                            }
+                                            goToAchievementOverview(achievement, gid, "gameOverview", gameOverviewViewedUsernameRef.current, gameOverviewViewedUserRefRef.current);
+                                        }}
+                                        onGameClick={async () => {
+                                            const gid = gameOverviewGameIdRef.current ?? gameOverviewGameId;
+                                            if (gid == null) {
+                                                return;
+                                            }
+                                            await openExternalUrl(raGameUrl(gid));
+                                        }}
+                                        onOpenGameSearch={() => openGameSearch(gameOverviewSourceRef.current ?? "main")}
+                                        onOpenLeaderboards={() => goToLeaderboards(gameOverviewGameIdRef.current ?? gameOverviewGameId, "gameOverview")}
+                                        dynamicComments={dynamicComments}
+                                        dynamicCommentsSentinelRootMargin={dynamicCommentsSentinelRootMargin}
+                                    />
+                                )}
+
+                                {view === "eventViewer" && eventViewerTarget !== null && (
+                                    <EventViewerPage
+                                        key={String(eventViewerTarget)}
+                                        state={{
+                                            view,
+                                            language,
+                                            target: eventViewerTarget,
+                                            tab: eventViewerTab,
+                                            panelOverlayVisible
+                                        }}
+                                        aotw={{
+                                            ...newsEventsState,
+                                            onChangeAotwSubView: newsEventsActions.setAotwSubView,
+                                            onOpenUserProfile: (username: string, ulid?: string | null) =>
+                                                handleOpenUserProfile(username, ulid, "eventViewer"),
+                                            onOpenAotwComment: (comment, achievementId) => {
+                                                const url = achievementId != null
+                                                    ? raAchievementCommentsUrl(achievementId)
+                                                    : null;
+                                                const captured = achievementId == null
+                                                    ? null
+                                                    : aotwCommentsController.actions.captureComments(comment);
+                                                if (achievementId != null && captured) {
+                                                    const geometry = measureCommentWindow(
+                                                        rootRef.current,
+                                                        "aotw:comment",
+                                                        captured.focusIndex
+                                                    );
+                                                    putCommentsSnapshot({
+                                                        surfaceKey: "comments:aotw",
+                                                        threadId: achievementId,
+                                                        ulid: activeUlid,
+                                                        ...captured,
+                                                        windowStart: geometry?.windowStart ?? 0,
+                                                        spacerPx: geometry?.spacerPx ?? 0
+                                                    });
+                                                    putAotwCarry(aotwResponse, activeUlid);
+                                                }
+                                                else {
+                                                    logCommentsDebug(
+                                                        "press-nocapture",
+                                                        achievementId ?? "null",
+                                                        `surface=comments:aotw aid=${achievementId ?? "null"}`
+                                                    );
+                                                    clearCommentsSnapshot();
+                                                    clearAotwCarry();
+                                                }
+                                                openCommentModal(comment, url);
+                                            },
+                                            aotwComments,
+                                            aotwCommentsLoading,
+                                            aotwCommentsLoadingMore,
+                                            aotwCommentsError,
+                                            aotwCommentsHasMore,
+                                            aotwCommentsSort,
+                                            aotwCommentsLoaded,
+                                            aotwCommentsCardClaim: aotwCommentsController.state.commentsCardClaim ?? undefined,
+                                            onSpendAotwCommentsCardClaim: aotwCommentsController.actions.spendCommentsCardClaim,
+                                            aotwCommentsPostClaim: aotwCommentsController.state.commentsPostClaim ?? undefined,
+                                            onSpendAotwCommentsPostClaim: aotwCommentsController.actions.spendCommentsPostClaim,
+                                            aotwRestorePending,
+                                            aotwHoldCommentsBody,
+                                            aotwCommentsWindow: aotwCommentsController.state.commentsWindow,
+                                            onChangeAotwCommentsSort: setAotwCommentsSort,
+                                            onLoadMoreAotwComments: loadMoreAotwComments,
+                                            onPostAotwComment: async () => {
+                                                const aid = aotwResponse?.payload?.achievement?.id ?? null;
+                                                if (aid == null) {
+                                                    return;
+                                                }
+                                                setError(null);
+                                                clearCommentsSnapshot();
+                                                putCommentsPostReturn("comments:aotw", aid, activeUlid);
+                                                putAotwCarry(aotwResponse, activeUlid);
+                                                await openExternalUrl(raAchievementCommentsUrl(aid));
+                                            },
+                                            onOpenGameOverview: async (gameId: number) => {
+                                                if (legacyGameLinks) {
+                                                    await openExternalUrl(raGameUrl(gameId));
+                                                    return;
+                                                }
+                                                goToGameOverview(gameId, "eventViewer", null, null);
+                                            },
+                                        }}
+                                        actions={{
+                                            onBack: backFromEventViewer,
+                                            onHome: goToAchievements,
+                                            onChangeTab: setEventViewerTab,
+                                            onOpenAchievement: (achievement, parentGameId) =>
+                                                goToAchievementOverview(achievement, parentGameId, "eventViewer", null, null),
+                                            onOpenGame: (gameId) => {
+                                                if (legacyGameLinks) {
+                                                    void openExternalUrl(raGameUrl(gameId));
+                                                    return;
+                                                }
+                                                goToGameOverview(gameId, "eventViewer", null, null);
+                                            },
+                                            onOpenCommentModal: openCommentModal,
+                                            onRequestFocus: setPendingFocusKey
+                                        }}
+                                    />
+                                )}
+
+                                {view === "achievementOverview" && (
+                                    <AchievementOverviewPage
+                                        {...aoState}
+                                        view={view}
+                                        language={language}
+                                        uiSize={uiSize}
+                                        blockPadding={blockPadding}
+                                        buttonSpacing={buttonSpacing}
+                                        showIcons={showIcons}
+                                        showRetroPoints={showRetroPoints}
+                                        achievementStyle={achievementStyle}
+                                        viewedUsername={viewingBannerUsernameFor(aoViewedUsername, aoViewedUserRef)}
+                                        achievementId={aoAchievementId}
+                                        achievementSnapshot={aoSnapshot}
+                                        gameId={aoGameId}
+                                        onBack={backFromAchievementOverview}
+                                        onHome={goToAchievements}
+                                        commentsCardClaim={aoState.commentsCardClaim ?? undefined}
+                                        onSpendCommentsCardClaim={aoActions.spendCommentsCardClaim}
+                                        commentsPostClaim={aoState.commentsPostClaim ?? undefined}
+                                        onSpendCommentsPostClaim={aoActions.spendCommentsPostClaim}
+                                        restorePending={aoRestorePending}
+                                        holdCommentsBody={aoHoldCommentsBody}
+                                        panelOverlayVisible={panelOverlayVisible}
+                                        commentsWindow={aoState.commentsWindow}
+                                        onChangeCommentsSort={aoActions.setCommentsSort}
+                                        onLoadMoreComments={aoActions.loadMoreComments}
+                                        onCommentClick={(comment) => {
+                                            const aid = aoAchievementIdRef.current ?? aoAchievementId;
+                                            const url = aid != null
+                                                ? raAchievementCommentsUrl(aid)
+                                                : null;
+                                            const captured = aid == null
+                                                ? null
+                                                : aoActions.captureComments(comment);
+                                            if (aid != null && captured) {
+                                                const geometry = measureCommentWindow(
+                                                    rootRef.current,
+                                                    "ao:comment",
+                                                    captured.focusIndex
+                                                );
+                                                putCommentsSnapshot({
+                                                    surfaceKey: "comments:ao",
+                                                    threadId: aid,
+                                                    ulid: activeUlid,
+                                                    ...captured,
+                                                    windowStart: geometry?.windowStart ?? 0,
+                                                    spacerPx: geometry?.spacerPx ?? 0
+                                                });
+                                            }
+                                            else {
+                                                logCommentsDebug(
+                                                    "press-nocapture",
+                                                    aid ?? "null",
+                                                    `surface=comments:ao aid=${aid ?? "null"}`
+                                                );
+                                                clearCommentsSnapshot();
+                                            }
+                                            openCommentModal(comment, url, achievementCommentSource(
+                                                aid,
+                                                aoSnapshot?.title,
+                                                aoSnapshot?.imageIcon,
+                                                aoSnapshot?.badgeName,
+                                                aoGameIdRef.current ?? aoGameId,
+                                                aoState.loadedPayload?.title,
+                                                aoState.loadedPayload?.imageIcon,
+                                                aoState.loadedPayload?.consoleName
+                                            ));
+                                        }}
+                                        onPostComment={async () => {
+                                            const aid = aoAchievementIdRef.current ?? aoAchievementId;
                                             if (aid == null) {
                                                 return;
                                             }
                                             setError(null);
                                             clearCommentsSnapshot();
-                                            putCommentsPostReturn("comments:aotw", aid, activeUlid);
-                                            putAotwCarry(aotwResponse, activeUlid);
+                                            putCommentsPostReturn("comments:ao", aid, activeUlid);
                                             await openExternalUrl(raAchievementCommentsUrl(aid));
-                                        },
-                                        onOpenGameOverview: async (gameId: number) => {
-                                            if (legacyGameLinks) {
-                                                await openExternalUrl(raGameUrl(gameId));
+                                        }}
+                                        onAchievementClick={async () => {
+                                            const aid = aoAchievementIdRef.current ?? aoAchievementId;
+                                            if (aid == null) {
                                                 return;
                                             }
-                                            goToGameOverview(gameId, "eventViewer", null, null);
-                                        },
-                                    }}
-                                    actions={{
-                                        onBack: backFromEventViewer,
-                                        onHome: goToAchievements,
-                                        onChangeTab: setEventViewerTab,
-                                        onOpenAchievement: (achievement, parentGameId) =>
-                                            goToAchievementOverview(achievement, parentGameId, "eventViewer", null, null),
-                                        onOpenGame: (gameId) => {
-                                            if (legacyGameLinks) {
-                                                void openExternalUrl(raGameUrl(gameId));
-                                                return;
-                                            }
-                                            goToGameOverview(gameId, "eventViewer", null, null);
-                                        },
-                                        onOpenCommentModal: openCommentModal,
-                                        onRequestFocus: setPendingFocusKey
-                                    }}
-                                />
-                            )}
-
-                            {view === "achievementOverview" && (
-                                <AchievementOverviewPage
-                                    {...aoState}
-                                    view={view}
-                                    language={language}
-                                    uiSize={uiSize}
-                                    blockPadding={blockPadding}
-                                    buttonSpacing={buttonSpacing}
-                                    showIcons={showIcons}
-                                    showRetroPoints={showRetroPoints}
-                                    achievementStyle={achievementStyle}
-                                    viewedUsername={viewingBannerUsernameFor(aoViewedUsername, aoViewedUserRef)}
-                                    achievementId={aoAchievementId}
-                                    achievementSnapshot={aoSnapshot}
-                                    gameId={aoGameId}
-                                    onBack={backFromAchievementOverview}
-                                    onHome={goToAchievements}
-                                    commentsCardClaim={aoState.commentsCardClaim ?? undefined}
-                                    onSpendCommentsCardClaim={aoActions.spendCommentsCardClaim}
-                                    commentsPostClaim={aoState.commentsPostClaim ?? undefined}
-                                    onSpendCommentsPostClaim={aoActions.spendCommentsPostClaim}
-                                    restorePending={aoRestorePending}
-                                    holdCommentsBody={aoHoldCommentsBody}
-                                    panelOverlayVisible={panelOverlayVisible}
-                                    commentsWindow={aoState.commentsWindow}
-                                    onChangeCommentsSort={aoActions.setCommentsSort}
-                                    onLoadMoreComments={aoActions.loadMoreComments}
-                                    onCommentClick={(comment) => {
-                                        const aid = aoAchievementIdRef.current ?? aoAchievementId;
-                                        const url = aid != null
-                                            ? raAchievementCommentsUrl(aid)
-                                            : null;
-                                        const captured = aid == null
-                                            ? null
-                                            : aoActions.captureComments(comment);
-                                        if (aid != null && captured) {
-                                            const geometry = measureCommentWindow(
-                                                rootRef.current,
-                                                "ao:comment",
-                                                captured.focusIndex
-                                            );
-                                            putCommentsSnapshot({
-                                                surfaceKey: "comments:ao",
-                                                threadId: aid,
-                                                ulid: activeUlid,
-                                                ...captured,
-                                                windowStart: geometry?.windowStart ?? 0,
-                                                spacerPx: geometry?.spacerPx ?? 0
-                                            });
-                                        }
-                                        else {
-                                            logCommentsDebug(
-                                                "press-nocapture",
-                                                aid ?? "null",
-                                                `surface=comments:ao aid=${aid ?? "null"}`
-                                            );
-                                            clearCommentsSnapshot();
-                                        }
-                                        openCommentModal(comment, url, achievementCommentSource(
-                                            aid,
-                                            aoSnapshot?.title,
-                                            aoSnapshot?.imageIcon,
-                                            aoSnapshot?.badgeName,
-                                            aoGameIdRef.current ?? aoGameId,
-                                            aoState.loadedPayload?.title,
-                                            aoState.loadedPayload?.imageIcon,
-                                            aoState.loadedPayload?.consoleName
-                                        ));
-                                    }}
-                                    onPostComment={async () => {
-                                        const aid = aoAchievementIdRef.current ?? aoAchievementId;
-                                        if (aid == null) {
-                                            return;
-                                        }
-                                        setError(null);
-                                        clearCommentsSnapshot();
-                                        putCommentsPostReturn("comments:ao", aid, activeUlid);
-                                        await openExternalUrl(raAchievementCommentsUrl(aid));
-                                    }}
-                                    onAchievementClick={async () => {
-                                        const aid = aoAchievementIdRef.current ?? aoAchievementId;
-                                        if (aid == null) {
-                                            return;
-                                        }
-                                        await openExternalUrl(raAchievementUrl(aid));
-                                    }}
-                                    dynamicComments={dynamicComments}
-                                    dynamicCommentsSentinelRootMargin={dynamicCommentsSentinelRootMargin}
-                                />
-                            )}
+                                            await openExternalUrl(raAchievementUrl(aid));
+                                        }}
+                                        dynamicComments={dynamicComments}
+                                        dynamicCommentsSentinelRootMargin={dynamicCommentsSentinelRootMargin}
+                                    />
+                                )}
+                            </LandingCurtain>
                         </Focusable>
                     )}
                     </div>

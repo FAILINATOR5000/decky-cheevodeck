@@ -1,8 +1,11 @@
-import { useInsertionEffect, useLayoutEffect, type RefObject } from "react";
+import { useInsertionEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import { logFocusDebug } from "./api";
+import { isCovered, setCover, subscribeCovers } from "./covers";
+import { armKeyClaim, disarmKeyClaims, onKeyClaimSpent } from "./focusClaims";
 import { initialNav, rehydrateNav, settleNav, type NavIntent, type NavState, type Route } from "./nav";
 import type { ViewKey } from "./types";
-import { consumeModalCloseArm } from "./utils/modalRegistry";
+import { LANDING_TIMING, PRESS_GUARD_CEILING_MS, type LandingTiming } from "./utils/landingTiming";
+import { consumeModalCloseArm, modalEchoPending } from "./utils/modalRegistry";
 
 type FocusRecord = {
     accountUlid: string;
@@ -20,11 +23,37 @@ type TrailEntry = { id: number; view: ViewKey; record: FocusRecord | null; sub: 
 
 type MountReason = "modalReturn" | "qamOpen" | "panelEntry" | "boot";
 
-type PageRegistration = { subject: string | null; tabPath: string[] };
+type PageRegistration = {
+    subject: string | null;
+    tabPath: string[];
+    placeholderKey: string | null;
+    defaultKey: string | null;
+    timing: Partial<LandingTiming> | null;
+};
+
+type LandingKind = "pop" | "remount" | "forward";
+
+type Echo = { button: number; at: number } | "modal" | null;
+
+type PendingLanding = {
+    entryId: number;
+    view: ViewKey;
+    kind: LandingKind;
+    record: FocusRecord;
+    echo: Echo;
+    placeholderKey: string | null;
+    claimedKey: string | null;
+    revealedEarly: boolean;
+};
+
+type LandingOutcome = { entryId: number; how: "settled" | "canceled" | "dropped" };
+
+type OwnLanding = { entryId: number; pending: boolean; settled: boolean };
 
 type Resolved = { focusKey: string | null; fallbacks: string[] };
 
-const LANDING_VIEWS: ReadonlySet<ViewKey> = new Set<ViewKey>();
+const LANDING_VIEWS: ReadonlySet<ViewKey> = new Set<ViewKey>(["achievements"]);
+const RECOVERY_OWNER = -1;
 
 let trail: NavState | null = null;
 let entries = new Map<Route, TrailEntry>();
@@ -41,7 +70,13 @@ let panelEntryMarked = false;
 let rootElement: HTMLElement | null = null;
 let accountUlid = "";
 let setupShowing = false;
-let pendingEntryId: number | null = null;
+let pending: PendingLanding | null = null;
+let ownedEntryId: number | null = null;
+let lastOutcome: LandingOutcome | null = null;
+let ownLanding: OwnLanding | null = null;
+let lastPress: { button: number; at: number } | null = null;
+let landingVersion = 0;
+const landingListeners = new Set<() => void>();
 
 const pages = new Map<ViewKey, PageRegistration>();
 
@@ -169,7 +204,7 @@ function freeze(entry: TrailEntry, why: string) {
     const last = topRecord(entry);
     let found: Resolved | null = last ? { focusKey: last.focusKey, fallbacks: last.fallbacks } : null;
     let seen = "(not read)";
-    if (writerLive() && pendingEntryId !== entry.id && rootElement) {
+    if (writerLive() && pending?.entryId !== entry.id && rootElement) {
         const active = rootElement.ownerDocument.activeElement;
         if (active && rootElement.contains(active)) {
             const now = resolve(active, rootElement);
@@ -190,8 +225,218 @@ function freeze(entry: TrailEntry, why: string) {
 
 function landingWouldTake(entry: TrailEntry, why: string) {
     logFocusDebug("record", "would-land", `${nameEntry(entry)} ${describeRecord(topRecord(entry))} via=${why}`);
-    if (LANDING_VIEWS.has(entry.view) && topRecord(entry)) {
-        pendingEntryId = entry.id;
+    const record = topRecord(entry);
+    if (!LANDING_VIEWS.has(entry.view) || !record || entry.sub.length > 0) {
+        return;
+    }
+    const kind: LandingKind = why === "qamOpen" || why === "modalReturn" ? "remount" : "pop";
+    const echo: Echo = why === "modalReturn" ? "modal" : why === "qamOpen" ? null : recentPress();
+    startLanding(entry, kind, { ...record, fallbacks: [...record.fallbacks], tabPath: [...record.tabPath] }, echo);
+}
+
+function notifyLanding() {
+    landingVersion += 1;
+    queueMicrotask(() => {
+        for (const listener of landingListeners) {
+            listener();
+        }
+    });
+}
+
+function nudgeLanding(frames: number) {
+    const view = rootElement?.ownerDocument.defaultView;
+    if (!view || frames <= 0 || !pending) {
+        return;
+    }
+    view.requestAnimationFrame(() => {
+        notifyLanding();
+        nudgeLanding(frames - 1);
+    });
+}
+
+function subscribeLanding(listener: () => void): () => void {
+    landingListeners.add(listener);
+    return () => {
+        landingListeners.delete(listener);
+    };
+}
+
+function readLandingVersion(): number {
+    return landingVersion;
+}
+
+function recentPress(): Echo {
+    if (!lastPress || Date.now() - lastPress.at > PRESS_GUARD_CEILING_MS) {
+        return null;
+    }
+    return { ...lastPress };
+}
+
+function startLanding(entry: TrailEntry, kind: LandingKind, record: FocusRecord, echo: Echo) {
+    if (pending && pending.entryId !== entry.id) {
+        endLanding(pending.entryId, "dropped", "superseded");
+    }
+    const placeholderKey = pages.get(entry.view)?.placeholderKey ?? null;
+    pending = { entryId: entry.id, view: entry.view, kind, record, echo, placeholderKey, claimedKey: null, revealedEarly: false };
+    ownedEntryId = entry.id;
+    lastOutcome = null;
+    logFocusDebug("landing", "pending", `${kind} ${nameEntry(entry)} ${describeRecord(record)} placeholder=${placeholderKey ?? "(none)"}`
+        + ` echo=${echo === null ? "none" : echo === "modal" ? "modal" : echo.button}`);
+    if (placeholderKey) {
+        armKeyClaim(placeholderKey, entry.id);
+    }
+    notifyLanding();
+}
+
+function endLanding(entryId: number, how: LandingOutcome["how"], why: string) {
+    if (!pending || pending.entryId !== entryId) {
+        return;
+    }
+    pending = null;
+    lastOutcome = { entryId, how };
+    disarmKeyClaims(entryId);
+    logFocusDebug("landing", how === "canceled" ? "cancel" : how === "dropped" ? "drop" : "settled", `${entryId} ${why}`);
+    notifyLanding();
+}
+
+function notePress(button: number) {
+    const now = Date.now();
+    if (pending) {
+        const echo = pending.echo;
+        if (echo === "modal" && modalEchoPending()) {
+            logFocusDebug("landing", "echo", `${pending.entryId} button=${button} modal`);
+        }
+        else if (echo && echo !== "modal" && echo.button === button && now - echo.at < curtainTiming().pressGuardCeilingMs) {
+            logFocusDebug("landing", "echo", `${pending.entryId} button=${button} after=${now - echo.at}ms`);
+        }
+        else {
+            endLanding(pending.entryId, "canceled", `press ${button}`);
+        }
+    }
+    lastPress = { button, at: now };
+}
+
+function escapeKey(key: string): string {
+    return key.replace(/["\\]/g, "\\$&");
+}
+
+function keyedElement(key: string): HTMLElement | null {
+    return rootElement?.querySelector(`[data-focus-key="${escapeKey(key)}"]`) as HTMLElement | null;
+}
+
+function keyedDisabled(element: HTMLElement): boolean {
+    const control = (element.querySelector("button, [tabindex]") as HTMLElement | null) ?? element;
+    return control.hasAttribute("disabled") || control.getAttribute("aria-disabled") === "true";
+}
+
+function cursorIn(element: HTMLElement): boolean {
+    const active = element.ownerDocument.activeElement;
+    return Boolean(active && element.contains(active));
+}
+
+function nothingFocused(): boolean {
+    if (!rootElement) {
+        return false;
+    }
+    const active = rootElement.ownerDocument.activeElement;
+    return !active || active === rootElement.ownerDocument.body;
+}
+
+function confirmLanded(entryId: number, key: string, tries: number) {
+    const view = rootElement?.ownerDocument.defaultView;
+    if (!view) {
+        return;
+    }
+    view.requestAnimationFrame(() => {
+        if (pending?.entryId !== entryId || pending.claimedKey !== key) {
+            return;
+        }
+        const element = keyedElement(key);
+        if (element && cursorIn(element)) {
+            endLanding(entryId, "settled", `landed ${key}`);
+            return;
+        }
+        if (tries >= 4) {
+            endLanding(entryId, "settled", `unlanded ${key} active=${describeActive()}`);
+            return;
+        }
+        confirmLanded(entryId, key, tries + 1);
+    });
+}
+
+function describeActive(): string {
+    const active = rootElement?.ownerDocument.activeElement;
+    if (!active || !rootElement) {
+        return "(nothing)";
+    }
+    const keyed = active.closest("[data-focus-key]");
+    return keyed ? (keyed.getAttribute("data-focus-key") ?? "?") : active.tagName.toLowerCase();
+}
+
+onKeyClaimSpent((key) => {
+    if (pending && pending.claimedKey === key) {
+        confirmLanded(pending.entryId, key, 0);
+    }
+});
+
+function recoverLostCursor(why: string) {
+    const entry = topEntry();
+    if (!entry || pending || isCovered() || !LANDING_VIEWS.has(entry.view) || !nothingFocused()) {
+        return;
+    }
+    const key = pages.get(entry.view)?.placeholderKey;
+    if (!key || !keyedElement(key)) {
+        return;
+    }
+    logFocusDebug("lost", "recover", `${nameEntry(entry)} ${key} ${why}`);
+    armKeyClaim(key, RECOVERY_OWNER, true);
+}
+
+export function landingOwnsTop(): boolean {
+    return ownedEntryId !== null && ownedEntryId === topEntry()?.id;
+}
+
+export function useLandingPendingEntry(): number | null {
+    useSyncExternalStore(subscribeLanding, readLandingVersion);
+    return pending?.entryId ?? null;
+}
+
+export function pendingLandingKey(view: ViewKey): string | null {
+    return takeablePending(view)?.record.focusKey ?? null;
+}
+
+export function topEntryId(): number | null {
+    return topEntry()?.id ?? null;
+}
+
+export function curtainEntryAtMount(): { entryId: number | null; armed: boolean } {
+    const entryId = topEntry()?.id ?? null;
+    return { entryId, armed: entryId !== null && pending?.entryId === entryId };
+}
+
+export function curtainState(entryId: number | null): { own: boolean; settled: boolean; canceled: boolean } {
+    const own = entryId !== null && ownLanding?.entryId === entryId && (ownLanding.pending || ownLanding.settled);
+    if (own && ownLanding) {
+        return { own, settled: ownLanding.settled, canceled: false };
+    }
+    const outcome = lastOutcome && lastOutcome.entryId === entryId ? lastOutcome.how : null;
+    return { own: false, settled: outcome === "settled" || outcome === "dropped", canceled: outcome === "canceled" };
+}
+
+export function curtainTiming(): LandingTiming {
+    const view = topEntry()?.view;
+    const own = view ? pages.get(view)?.timing : null;
+    return own ? { ...LANDING_TIMING, ...own } : LANDING_TIMING;
+}
+
+export function useLandingVersion(): number {
+    return useSyncExternalStore(subscribeLanding, readLandingVersion);
+}
+
+export function markCurtainRevealed(entryId: number | null) {
+    if (pending && pending.entryId === entryId) {
+        pending.revealedEarly = true;
+        logFocusDebug("landing", "revealed-early", `${entryId}`);
     }
 }
 
@@ -199,7 +444,9 @@ export function beginRootMount(): { generation: number; fromModal: boolean } {
     generation += 1;
     liveGeneration = generation;
     preRestore = initialNav("achievements");
-    pendingEntryId = null;
+    pending = null;
+    ownedEntryId = null;
+    ownLanding = null;
     mountReason = null;
     mountedFromModal = consumeModalCloseArm();
     return { generation, fromModal: mountedFromModal };
@@ -228,6 +475,7 @@ export function restoreTrail(
     const top = topEntry();
     logFocusDebug("record", "mount", `${reason} gen=${rootGeneration} landed=${landed}`);
 
+    ownedEntryId = null;
     if (trail && top && top.view === landed && saved !== null && reason !== "panelEntry" && !forward.routeOverride) {
         const state: NavState = { stack: trail.stack, step: { view: landed, intent: "restore", agreed: true } };
         const list = adopt(state);
@@ -248,7 +496,7 @@ export function restoreTrail(
     return state;
 }
 
-export function settleTrail(rootGeneration: number, next: ViewKey, intent: NavIntent): NavState | null {
+export function settleTrail(rootGeneration: number, next: ViewKey, intent: NavIntent, land?: string): NavState | null {
     if (rootGeneration !== generation || rootGeneration !== liveGeneration) {
         logFocusDebug("record", "ignore-dead-root", `${intent} ${next} gen=${rootGeneration} live=${generation}`);
         return null;
@@ -273,6 +521,12 @@ export function settleTrail(rootGeneration: number, next: ViewKey, intent: NavIn
     const kept = new Set(list);
     const dropped = countRecords([...previous].filter((entry) => !kept.has(entry)));
     const top = list[list.length - 1];
+    if (pending && pending.entryId !== top.id) {
+        endLanding(pending.entryId, "dropped", "superseded");
+    }
+    if (ownedEntryId !== top.id) {
+        ownedEntryId = null;
+    }
 
     if (intent === "push") {
         logFocusDebug("record", "push", `${nameEntry(top)} depth=${list.length}`);
@@ -287,6 +541,9 @@ export function settleTrail(rootGeneration: number, next: ViewKey, intent: NavIn
     else {
         logFocusDebug("record", `drop-${intent}`, `dropped=${dropped} ${describeTrail(list)}`);
     }
+    if (land) {
+        startLanding(top, "forward", { accountUlid, subject: null, tabPath: [], focusKey: land, fallbacks: [] }, recentPress());
+    }
     return settled;
 }
 
@@ -295,7 +552,10 @@ export function rebuildTrailFresh(why: string) {
     for (const [route] of entries) {
         entries.set(route, freshEntry(route));
     }
-    pendingEntryId = null;
+    if (pending) {
+        endLanding(pending.entryId, "dropped", "account-switch");
+    }
+    ownedEntryId = null;
     logFocusDebug("record", "rebuild-fresh", `${why} dropped=${dropped} ${describeTrail([...entries.values()])}`);
 }
 
@@ -345,9 +605,15 @@ function write(rootGeneration: number, root: HTMLElement, target: Element) {
         logFocusDebug("record", "skip-setup", keyName(found));
         return;
     }
-    if (pendingEntryId === entry.id) {
-        logFocusDebug("record", "skip-pending", nameEntry(entry));
-        return;
+    if (pending?.entryId === entry.id) {
+        const key = found?.focusKey ?? null;
+        if (pending.revealedEarly && key !== null && key !== pending.placeholderKey && key !== pending.claimedKey) {
+            endLanding(pending.entryId, "canceled", `moved to ${key}`);
+        }
+        else {
+            logFocusDebug("record", "skip-pending", `${nameEntry(entry)} ${keyName(found)}`);
+            return;
+        }
     }
     if (!found) {
         logFocusDebug("record", "skip-off", nameEntry(entry));
@@ -379,12 +645,45 @@ export function useFocusRecordWriter(
             return;
         }
         rootElement = root;
+        const doc = root.ownerDocument;
         function onFocus(event: Event) {
             write(rootGeneration, root as HTMLElement, event.target as Element);
         }
+        function onButtonDown(event: Event) {
+            const button = (event as CustomEvent<{ button?: number }>).detail?.button;
+            if (typeof button === "number") {
+                notePress(button);
+            }
+        }
+        function onPointerDown() {
+            if (pending) {
+                endLanding(pending.entryId, "canceled", "pointer");
+            }
+        }
+        function onFocusOut(event: Event) {
+            if ((event as FocusEvent).relatedTarget) {
+                return;
+            }
+            doc.defaultView?.requestAnimationFrame(() => recoverLostCursor("focusout"));
+        }
+        let wasCovered = isCovered();
+        const stopCovers = subscribeCovers(() => {
+            const covered = isCovered();
+            if (wasCovered && !covered) {
+                doc.defaultView?.requestAnimationFrame(() => recoverLostCursor("cover-lift"));
+            }
+            wasCovered = covered;
+        });
         root.addEventListener("vgp_onfocus", onFocus);
+        root.addEventListener("focusout", onFocusOut);
+        root.addEventListener("pointerdown", onPointerDown, true);
+        doc.addEventListener("vgp_onbuttondown", onButtonDown, true);
         return () => {
             root.removeEventListener("vgp_onfocus", onFocus);
+            root.removeEventListener("focusout", onFocusOut);
+            root.removeEventListener("pointerdown", onPointerDown, true);
+            doc.removeEventListener("vgp_onbuttondown", onButtonDown, true);
+            stopCovers();
             const entry = topEntry();
             if (entry && rootGeneration === generation && restoredGeneration === rootGeneration) {
                 freeze(entry, "unmount");
@@ -399,20 +698,252 @@ export function useFocusRecordWriter(
     }, [rootGeneration]);
 }
 
+type ActiveLanding = {
+    entryId: number;
+    kind: LandingKind;
+    record: FocusRecord;
+    candidates: string[];
+    next: number;
+    opened: Map<string, number>;
+    revealed: Set<string>;
+    commits: number;
+    checked: boolean;
+    claimed: boolean;
+    done: boolean;
+    waitLogged: string | null;
+};
+
+function takeablePending(view: ViewKey): PendingLanding | null {
+    const top = topEntry();
+    return pending && top && pending.view === view && pending.entryId === top.id ? pending : null;
+}
+
+function activeFrom(landing: PendingLanding, defaultKey: string): ActiveLanding {
+    const candidates: string[] = [];
+    for (const key of [landing.record.focusKey, ...landing.record.fallbacks, defaultKey]) {
+        if (key && !candidates.includes(key)) {
+            candidates.push(key);
+        }
+    }
+    logFocusDebug("landing", "take", `${landing.kind} ${landing.entryId} ${landing.view} candidates=${candidates.join(",")}`);
+    return {
+        entryId: landing.entryId,
+        kind: landing.kind,
+        record: landing.record,
+        candidates,
+        next: 0,
+        opened: new Map(),
+        revealed: new Set(),
+        commits: 0,
+        checked: false,
+        claimed: false,
+        done: false,
+        waitLogged: null
+    };
+}
+
+function noSubscribe(): () => void {
+    return () => {};
+}
+
+function noVersion(): number {
+    return 0;
+}
+
+function noCover(): boolean {
+    return false;
+}
+
+type PageLanding = {
+    defaultKey?: string;
+    placeholderKey?: string;
+    ready?: boolean;
+    restoreTabPath?: (tabPath: string[]) => boolean;
+    holds?: (key: string) => boolean;
+    open?: (key: string) => void;
+    reveal?: (key: string) => boolean;
+    cover?: boolean;
+    timing?: Partial<LandingTiming>;
+    ownLanding?: { pending: boolean; settled: boolean };
+};
+
 export function usePageLanding(registration: {
     view: ViewKey;
     subject?: string | number | null;
     tabPath?: (string | null | undefined)[];
     sub?: SubView[];
-}) {
-    const { view, subject, tabPath, sub } = registration;
+} & PageLanding) {
+    const { view, subject, tabPath, sub, defaultKey, ready = true, restoreTabPath, holds, open, reveal, cover, timing, ownLanding: own } = registration;
+    const adopted = defaultKey !== undefined;
+    const placeholderKey = registration.placeholderKey ?? defaultKey ?? null;
+
+    const [atMount] = useState(() => {
+        const landing = adopted && defaultKey ? takeablePending(view) : null;
+        return landing && defaultKey ? activeFrom(landing, defaultKey) : null;
+    });
+    const activeRef = useRef<ActiveLanding | null>(atMount);
+    const ownAtMountRef = useRef<boolean | null>(null);
+    useSyncExternalStore(adopted ? subscribeLanding : noSubscribe, adopted ? readLandingVersion : noVersion);
+    useSyncExternalStore(adopted ? subscribeCovers : noSubscribe, adopted ? isCovered : noCover);
+
     useInsertionEffect(() => {
         pages.set(view, {
             subject: subject == null ? null : String(subject),
-            tabPath: (tabPath ?? []).filter((tab): tab is string => typeof tab === "string" && tab !== "")
+            tabPath: (tabPath ?? []).filter((tab): tab is string => typeof tab === "string" && tab !== ""),
+            placeholderKey: adopted ? placeholderKey : null,
+            defaultKey: defaultKey ?? null,
+            timing: timing ?? null
         });
         if (sub) {
             syncSubViews(view, sub);
         }
+        const top = topEntry();
+        const onTop = Boolean(top && top.view === view);
+        if (cover !== undefined) {
+            setCover(`page:${view}`, cover && onTop);
+        }
+        if (own && top && onTop) {
+            if (ownAtMountRef.current === null) {
+                ownAtMountRef.current = own.pending;
+                if (own.pending) {
+                    ownedEntryId = top.id;
+                    const active = activeRef.current;
+                    if (active && !active.done) {
+                        active.done = true;
+                        endLanding(active.entryId, "dropped", "own landing");
+                    }
+                }
+            }
+            if (ownAtMountRef.current) {
+                const next: OwnLanding = { entryId: top.id, pending: own.pending, settled: own.settled };
+                if (!ownLanding || ownLanding.entryId !== next.entryId || ownLanding.pending !== next.pending || ownLanding.settled !== next.settled) {
+                    ownLanding = next;
+                    logFocusDebug("landing", "own", `${top.id} pending=${next.pending} settled=${next.settled}`);
+                    notifyLanding();
+                }
+            }
+        }
     });
+
+    useLayoutEffect(() => {
+        if (!adopted || !defaultKey) {
+            return;
+        }
+        let active = activeRef.current;
+        const live = takeablePending(view);
+        if (live && (!active || active.entryId !== live.entryId) && ownAtMountRef.current !== true) {
+            active = activeFrom(live, defaultKey);
+            activeRef.current = active;
+        }
+        if (!active || active.done) {
+            return;
+        }
+        if (pending?.entryId !== active.entryId) {
+            active.done = true;
+            return;
+        }
+        if (active.claimed) {
+            return;
+        }
+        active.commits += 1;
+        const landing: PendingLanding = pending;
+
+        if (!active.claimed && placeholderKey && landing.placeholderKey !== placeholderKey) {
+            logFocusDebug("landing", "placeholder", `${active.entryId} ${placeholderKey} was=${landing.placeholderKey ?? "(none)"}`);
+            landing.placeholderKey = placeholderKey;
+            armKeyClaim(placeholderKey, active.entryId);
+        }
+
+        const wait = (why: string) => {
+            if (active && active.waitLogged !== why) {
+                active.waitLogged = why;
+                logFocusDebug("landing", "wait", `${active.entryId} ${why}`);
+            }
+        };
+        const target = active.record.focusKey;
+        const targetElement = active.next === 0 && target && target === active.candidates[0] ? keyedElement(target) : null;
+        const targetHere = Boolean(targetElement && !keyedDisabled(targetElement));
+        if (!ready && !targetHere) {
+            wait("ready");
+            return;
+        }
+        if (!active.checked) {
+            active.checked = true;
+            const record = active.record;
+            const page = pages.get(view);
+            if (active.kind !== "forward" && record.subject !== null && page?.subject !== record.subject) {
+                logFocusDebug("landing", "drop", `${active.entryId} subject ${record.subject} now ${page?.subject ?? "(none)"}`);
+                active.candidates = [defaultKey];
+            }
+            else if (active.kind !== "forward" && record.accountUlid && accountUlid && record.accountUlid !== accountUlid) {
+                logFocusDebug("landing", "drop", `${active.entryId} account`);
+                active.candidates = [defaultKey];
+            }
+            else if (record.tabPath.length > 0 && restoreTabPath && restoreTabPath(record.tabPath)) {
+                logFocusDebug("landing", "tabs", `${active.entryId} ${record.tabPath.join("/")}`);
+                return;
+            }
+            logFocusDebug("landing", "ready", `${active.entryId} after ${active.commits} commit(s)`);
+        }
+
+        while (active.next < active.candidates.length) {
+            const key = active.candidates[active.next];
+            const element = keyedElement(key);
+            if (element) {
+                if (keyedDisabled(element)) {
+                    if (isCovered()) {
+                        wait(`disabled ${key} under a cover`);
+                        return;
+                    }
+                    logFocusDebug("landing", "candidate", `${active.entryId} ${key} disabled`);
+                    active.next += 1;
+                    continue;
+                }
+                active.claimed = true;
+                landing.claimedKey = key;
+                if (key === landing.placeholderKey && cursorIn(element)) {
+                    active.done = true;
+                    endLanding(active.entryId, "settled", `already on ${key}`);
+                    return;
+                }
+                logFocusDebug("landing", "candidate", `${active.entryId} ${key} claimed`);
+                armKeyClaim(key, active.entryId);
+                return;
+            }
+            const askedAt = active.opened.get(key);
+            if (askedAt === undefined && holds?.(key) && open) {
+                active.opened.set(key, active.commits);
+                logFocusDebug("landing", "candidate", `${active.entryId} ${key} opened`);
+                open(key);
+                nudgeLanding(3);
+                return;
+            }
+            if (askedAt !== undefined && active.commits - askedAt < 3) {
+                wait(`open ${key}`);
+                return;
+            }
+            if (reveal && !active.revealed.has(key)) {
+                active.revealed.add(key);
+                if (reveal(key)) {
+                    logFocusDebug("landing", "candidate", `${active.entryId} ${key} revealed`);
+                    return;
+                }
+            }
+            logFocusDebug("landing", "candidate", `${active.entryId} ${key} missing`);
+            active.next += 1;
+        }
+        active.done = true;
+        endLanding(active.entryId, "settled", "no candidate");
+    });
+
+    useLayoutEffect(() => () => {
+        const active = activeRef.current;
+        if (active && !active.done) {
+            active.done = true;
+            endLanding(active.entryId, "dropped", "unmount");
+        }
+        if (cover !== undefined) {
+            setCover(`page:${view}`, false);
+        }
+    }, []);
 }

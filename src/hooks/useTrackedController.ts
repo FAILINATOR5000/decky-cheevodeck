@@ -77,7 +77,7 @@ type UseTrackedControllerArgs = {
         currentColor: NoteColor | null,
         saveNote: (achievementId: number, note: string, color: NoteColor) => Promise<OkResult>
     ) => void;
-    backToAchievements: (focusKey?: string) => void;
+    backToAchievements: () => void;
     legacyAchievementLinks: boolean;
     goToAchievementOverviewRef: RefObject<
         ((achievement: AchievementRow, parentGameId: number | null, source: AOSource, viewedUsername: string | null, viewedUserRef: string | null) => void) | null
@@ -345,7 +345,7 @@ export function useTrackedController({
 
     const backFromTracked = async () => {
         clearReorderSelection();
-        backToAchievements("quick:tab:tracked");
+        backToAchievements();
     };
 
     const restorePendingFocusNextTick = useCallback((key: string) => {

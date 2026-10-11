@@ -21,6 +21,7 @@ export type CompareAchievementBorder = "green" | "red" | "neutral";
 
 export type CompareRowListProps = {
     language: LanguageCode;
+    focusFallback?: string[];
     showIcons: boolean;
     metrics: AchievementUiMetrics;
     blockPadding: number;
@@ -163,6 +164,7 @@ export const CompareAchievementRow = React.memo(function CompareAchievementRow(p
     return (
         <FocusableItem
             focusKey={`compare:achievement:${yourAchievement.id}`}
+            focusFallback={list.focusFallback}
             onClick={handleClick}
             onFocus={handleRowFocus}
             onGamepadFocus={handleRowFocus}

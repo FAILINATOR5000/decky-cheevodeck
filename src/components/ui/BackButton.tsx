@@ -6,6 +6,7 @@ import type { ButtonSpacing } from "../../types";
 import { currentJumpToTopToken, subscribeJumpToTop } from "../../utils/jumpToTop";
 import { regularButtonSpacingStyle } from "../../utils/style";
 import { logFocusDebug } from "../../api";
+import { landingOwnsTop } from "../../focusRecords";
 
 export type BackButtonProps = {
     label: string;
@@ -21,6 +22,7 @@ export type BackButtonProps = {
 
 export function BackButton(props: BackButtonProps) {
     const curtainHiding = useCurtainHiding();
+    const [standDown] = useState(landingOwnsTop);
 
     const [jumpToken, setJumpToken] = useState(currentJumpToTopToken);
     const initialJumpTokenRef = useRef(jumpToken);
@@ -43,7 +45,7 @@ export function BackButton(props: BackButtonProps) {
                 focusKey={props.focusKey}
                 onClick={handleClick}
                 disabled={props.disabled}
-                autoFocus={props.autoFocus}
+                autoFocus={props.autoFocus && !standDown}
                 scrollMarginTop={props.scrollMarginTop}
                 bottomSeparator={props.bottomSeparator}
             >
@@ -53,7 +55,7 @@ export function BackButton(props: BackButtonProps) {
     );
 
     const jumped = jumpToken !== initialJumpTokenRef.current;
-    if (!props.navAutoFocus && !jumped) {
+    if ((!props.navAutoFocus || standDown) && !jumped) {
         return row;
     }
 

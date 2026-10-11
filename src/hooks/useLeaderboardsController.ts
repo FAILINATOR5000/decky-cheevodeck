@@ -48,7 +48,7 @@ type UseLeaderboardsControllerArgs = {
         navIntent?: NavIntent
     ) => void | Promise<void>;
     goToFriends: (intent?: NavIntent) => void;
-    backToAchievements: (focusTarget?: string) => void;
+    backToAchievements: () => void;
     returnToGameOverview: () => void;
     onBeforeEnterLeaderboards?: () => void;
 };
@@ -322,7 +322,7 @@ export function useLeaderboardsController({
             return;
         }
 
-        backToAchievements("quick:tab:leaderboards");
+        backToAchievements();
     }, [
         backToAchievements,
         friendGamePayloadRef,

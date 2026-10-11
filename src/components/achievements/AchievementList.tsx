@@ -99,6 +99,7 @@ export function AchievementList(props: {
     renderSectionHeader?: (section: AchievementListSection, window: SectionHeaderWindow) => ReactNode;
     openAtKey?: string;
     onOpenAtHeld?: () => void;
+    openFirstKey?: string;
     claimedRow?: {
         slotIndex: number;
         token: number;
@@ -455,6 +456,7 @@ export function AchievementList(props: {
         prefetchDistance: dynamicPrefetchDistance,
         sentinelRootMarginPx: dynamicSentinelRootMarginPx,
         resetKey: windowResetKey,
+        openFirst: props.openFirstKey,
         debugLabel: windowId
     });
     const mountedEntries = sliding.mountedItems;

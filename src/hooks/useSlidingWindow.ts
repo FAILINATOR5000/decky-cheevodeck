@@ -89,6 +89,7 @@ export interface SlidingWindowOptions<T> {
     sentinelRootMarginPx: number;
     resetKey: string;
     fullSteps?: boolean;
+    openFirst?: string;
     debugLabel?: string;
 }
 
@@ -175,6 +176,7 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
         sentinelRootMarginPx,
         resetKey,
         fullSteps,
+        openFirst,
         debugLabel
     } = options;
 
@@ -212,7 +214,7 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
             estimate: mean ?? 0,
             estimateProvisional: mean === null,
             epoch: 0,
-            pendingOpen: null,
+            pendingOpen: openFirst && items.some((item) => focusKeyFor(item) === openFirst) ? openFirst : null,
             openTarget: null,
             rebase: 0,
             upBlocked: false,

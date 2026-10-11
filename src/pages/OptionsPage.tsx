@@ -631,7 +631,7 @@ type OptionsPageProps = {
 
 function OptionsPage(props: OptionsPageProps) {
     const { state, actions } = props;
-    usePageLanding({ view: "options", tabPath: [state.activeOptionsTab] });
+    usePageLanding({ view: "options", tabPath: [state.activeOptionsTab], defaultKey: "options:back" });
     const disabled = state.loading || state.saving || state.clearingAllCache;
     const clearCacheDisabled = disabled || state.clearingCache;
     const buttonOuterStyle = regularButtonSpacingStyle(state.buttonSpacing);

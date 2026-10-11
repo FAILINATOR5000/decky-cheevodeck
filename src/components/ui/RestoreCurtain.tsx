@@ -1,18 +1,11 @@
 import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react";
+import { PRESS_GUARD_CEILING_MS, REVEAL_DEADLINE_MS, REVEAL_FADE_MS, REVEAL_GRACE_MS } from "../../utils/landingTiming";
 
-const REVEAL_GRACE_MS = 60;
-
-const REVEAL_FADE_MS = 240;
-
-const REVEAL_DEADLINE_MS = 400;
-
-const CurtainHidingContext = createContext(false);
+export const CurtainHidingContext = createContext(false);
 
 export function useCurtainHiding(): boolean {
     return useContext(CurtainHidingContext);
 }
-
-const PRESS_GUARD_CEILING_MS = 600;
 
 type RestoreCurtainProps = {
     armed: boolean;

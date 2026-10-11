@@ -9,6 +9,8 @@ import {
     type SetStateAction
 } from "react";
 import { logFocusDebug } from "../api";
+import { isCovered, useCovered } from "../covers";
+import { landingOwnsTop, useLandingPendingEntry } from "../focusRecords";
 import { ROUTES } from "../routes";
 import type { ViewKey } from "../types";
 
@@ -37,6 +39,10 @@ export function useFocusController({
 }: UseFocusControllerArgs) {
     const lastViewRef = useRef<ViewKey>("achievements");
     const needsViewportResetRef = useRef(false);
+
+    const covered = useCovered();
+    const landingEntry = useLandingPendingEntry();
+    const keysWhileLandingRef = useRef<Set<string>>(new Set());
 
     const [achievementsInitialAutoFocusDone, setAchievementsInitialAutoFocusDone] = useState(false);
     const [mainEntryToken, setMainEntryToken] = useState(0);
@@ -102,11 +108,36 @@ export function useFocusController({
     }, [pendingFocusKey, view, loading, friendProfileOverlayText]);
 
     useEffect(() => {
-        if (loading || Boolean(friendProfileOverlayText)) {
+        if (pendingFocusKey && landingEntry !== null) {
+            keysWhileLandingRef.current.add(pendingFocusKey);
+        }
+    }, [pendingFocusKey, landingEntry]);
+
+    useEffect(() => {
+        if (landingEntry !== null || keysWhileLandingRef.current.size === 0) {
+            return;
+        }
+        if (!pendingFocusKey || !keysWhileLandingRef.current.has(pendingFocusKey)) {
+            keysWhileLandingRef.current = new Set();
+            return;
+        }
+        const held = keysWhileLandingRef.current;
+        logFocusDebug("landing-clear", [...held].join(","), `view=${view}`);
+        setPendingFocusKey((current) => (current !== null && held.has(current) ? null : current));
+    }, [landingEntry, pendingFocusKey]);
+
+    useEffect(() => {
+        if (loading || Boolean(friendProfileOverlayText) || isCovered()) {
             return;
         }
 
         const lastView = lastViewRef.current;
+        if (lastView !== view && landingOwnsTop()) {
+            logFocusDebug("viewchange", "(stood down)", `from=${lastView} to=${view} landing`);
+            resumeViewFlipRef.current = false;
+            lastViewRef.current = view;
+            return;
+        }
         if (lastView !== view) {
             if (view !== "achievements") {
                 const key = topLevelFocusKeyForView(view);
@@ -127,7 +158,7 @@ export function useFocusController({
             }
         }
         lastViewRef.current = view;
-    }, [view, loading, friendProfileOverlayText, topLevelFocusKeyForView]);
+    }, [view, loading, friendProfileOverlayText, covered, topLevelFocusKeyForView]);
 
     useEffect(() => {
         if (view !== "achievements") {
@@ -166,7 +197,7 @@ export function useFocusController({
             pendingFocusKey === "memories:back" ||
             pendingFocusKey === "guides:back" ||
             pendingFocusKey === "comparepicker:back";
-        if (!isFastPathKey) {
+        if (!isFastPathKey || landingEntry !== null || keysWhileLandingRef.current.has(pendingFocusKey)) {
             return;
         }
         if (loading || Boolean(friendProfileOverlayText)) {
@@ -180,10 +211,10 @@ export function useFocusController({
         const claimed = focusByKey(pendingFocusKey);
         const landed = claimed ? currentFocusKeyInRoot() : null;
         logFocusDebug("fastpath", pendingFocusKey, `claimed=${claimed} landed=${landed ?? "(none)"}`);
-    }, [pendingFocusKey, loading, friendProfileOverlayText, focusByKey, currentFocusKeyInRoot]);
+    }, [pendingFocusKey, loading, friendProfileOverlayText, landingEntry, focusByKey, currentFocusKeyInRoot]);
 
     useEffect(() => {
-        if (!pendingFocusKey) {
+        if (!pendingFocusKey || landingEntry !== null || keysWhileLandingRef.current.has(pendingFocusKey)) {
             return;
         }
         if (loading || Boolean(friendProfileOverlayText)) {
@@ -226,6 +257,7 @@ export function useFocusController({
         pendingFocusKey,
         loading,
         friendProfileOverlayText,
+        landingEntry,
         focusByKey,
         currentFocusKeyInRoot,
         scrollViewportToTop

@@ -9,6 +9,7 @@ import {
 } from "react";
 import { clearResumeState, saveResumeState } from "../api";
 import type { NavIntent } from "../nav";
+import { landingOwnsTop } from "../focusRecords";
 import {
     getAchievementsResumeFocusKey,
     getSavedMainAchievementsTab,
@@ -578,7 +579,9 @@ export function useResumeController({
 
                 setView(resolvedPrimaryView.view);
                 const resumeFocusKey = pendingResumeFocusKeyRef.current;
-                setPendingFocusKey(resumeFocusKey || resolvedPrimaryView.focusKey);
+                if (!landingOwnsTop()) {
+                    setPendingFocusKey(resumeFocusKey || resolvedPrimaryView.focusKey);
+                }
                 pendingResumeFocusKeyRef.current = null;
             } catch (e) {
                 logError("resume restore (primary view)", e);

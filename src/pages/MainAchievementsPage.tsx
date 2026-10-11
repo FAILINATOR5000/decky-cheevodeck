@@ -14,12 +14,12 @@ import { ErrorText } from "../components/ui/ErrorText";
 import { FadeImage } from "../components/ui/FadeImage";
 import { FocusClaim } from "../components/ui/FocusClaim";
 import { FocusableItem } from "../components/ui/FocusableItem";
+import { FocusTarget } from "../components/ui/FocusTarget";
 import { GuidesIcon } from "../components/guides/GuidesIcon";
 import { InfoText } from "../components/ui/InfoText";
 import { LabeledRow } from "../components/ui/LabeledRow";
 import { subTabIcon, type SubTabIconKind } from "../components/ui/SubTabIconButton";
-import { NowPlayingTabBody, type NowPlayingTabBodyProps } from "../components/social/NowPlayingTabBody";
-import { RestoreCurtain } from "../components/ui/RestoreCurtain";
+import { NowPlayingTabBody, type LandingWindows, type NowPlayingTabBodyProps } from "../components/social/NowPlayingTabBody";
 import { QuickGuideColumn, QuickGuidePin } from "../components/guides/QuickGuidePin";
 import { ToggleRow } from "../components/ui/ToggleRow";
 import { UserAvatar } from "../components/ui/UserAvatar";
@@ -74,7 +74,7 @@ import { NOTES_DOT_KEYFRAMES, regularButtonSpacingStyle, smallTextStyle, bodyTex
 import { headerSize } from "../utils/scale";
 import { consoleInlineName } from "../utils/consoles";
 import { quickAccessWindow } from "../utils/quickAccess";
-import { usePageLanding } from "../focusRecords";
+import { landingOwnsTop, pendingLandingKey, usePageLanding } from "../focusRecords";
 
 // Layout constants
 const GAME_TICKER_FRESHNESS_MS = 60 * 60 * 1000;
@@ -981,7 +981,8 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
             onSpendMainStripClaim
         }
     } = props;
-    usePageLanding({ view: "achievements", subject: payload?.gameId, tabPath: [mainTab] });
+    const [landingAtMount] = useState(() => pendingLandingKey("achievements"));
+    const [entryOwned] = useState(landingOwnsTop);
 
     // Navigation handlers
     function handleGoToTracked() {
@@ -1027,7 +1028,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
         alwaysStaggerMounting || (effectiveShowAll && initialAchievementCount > bigListThreshold);
 
     // Page state
-    const [listMounted, setListMounted] = useState<boolean>(!shouldDeferList);
+    const [listMounted, setListMounted] = useState<boolean>(!shouldDeferList || landingAtMount !== null);
     const [, setResumeMountReadyToken] = useState(0);
     const lastResumeTokenRef = useRef(achievementsResumeToken);
 
@@ -1072,6 +1073,46 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
 
     const waitingForResumePaint =
         returnStaggerFrames > 0 && achievementsResumeToken !== lastResumeTokenRef.current;
+
+    const [landingOpenKey, setLandingOpenKey] = useState<string | null>(null);
+    const [, setLandingOpenHeld] = useState(0);
+    const [bodySettledFor, setBodySettledFor] = useState<NowPlayingSubView | null>(null);
+    const bodyWindowsRef = useRef<LandingWindows | null>(null);
+    const hamburgerDisabled = saving || loading;
+    const mainDefaultKey = hamburgerDisabled ? `main:tab:${mainTab}` : "action:quickmenu";
+    usePageLanding({
+        view: "achievements",
+        subject: payload?.gameId,
+        tabPath: [mainTab],
+        defaultKey: mainDefaultKey,
+        ready: (payload != null || !loading)
+            && (mainTab === "achievements" ? listMounted && !waitingForResumePaint : bodySettledFor === mainTab),
+        restoreTabPath: (tabs) => {
+            const tab = MAIN_TABS.find((entry) => entry.value === tabs[0]);
+            if (!tab || tab.value === mainTab) {
+                return false;
+            }
+            onChangeMainTab(tab.value);
+            return true;
+        },
+        holds: (key) => (mainTab === "achievements"
+            ? key.startsWith("achievement:") && Boolean(payload?.achievements?.some((achievement) => `achievement:${achievement.id}` === key))
+            : Boolean(bodyWindowsRef.current?.holds(key))),
+        open: (key) => {
+            if (mainTab === "achievements") {
+                setLandingOpenKey(key);
+            }
+            else {
+                bodyWindowsRef.current?.open(key);
+            }
+        },
+        ownLanding: {
+            pending: Boolean(nowPlayingBody.restorePending) && mainTab === "comments",
+            settled: !nowPlayingBody.holdCommentsBody
+                && ((nowPlayingBody.commentsCardClaim ?? nowPlayingBody.commentsPostClaim)?.token ?? 0) > 0
+                && !(nowPlayingBody.commentsCardClaim ?? nowPlayingBody.commentsPostClaim)?.armed
+        }
+    });
 
     // Quick action handlers
     function handleQuickActionClick(id: QuickActionId) {
@@ -1244,8 +1285,8 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
     ) {
         const previewed = previewStripButton === id;
         return (
-            <div
-                data-focus-key={`action:${id}`}
+            <FocusTarget
+                focusKey={`action:${id}`}
                 onMouseEnter={() => hoverStripButton(id)}
                 onMouseLeave={() => unhoverStripButton(id)}
                 style={{
@@ -1277,7 +1318,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                 >
                     {icon}
                 </DialogButton>
-            </div>
+            </FocusTarget>
         );
     }
 
@@ -1341,9 +1382,9 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
         const Icon = QUICK_MENU_SHORTCUT_ICONS[entry.id];
         const previewed = previewStripButton === entry.id;
         return (
-            <div
+            <FocusTarget
                 key={entry.id}
-                data-focus-key={`action:${entry.id}`}
+                focusKey={`action:${entry.id}`}
                 onMouseEnter={() => hoverStripButton(entry.id)}
                 onMouseLeave={() => unhoverStripButton(entry.id)}
                 style={{
@@ -1374,7 +1415,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                 >
                     <Icon size={18} />
                 </DialogButton>
-            </div>
+            </FocusTarget>
         );
     }
 
@@ -1382,9 +1423,9 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
         const Icon = entry.Icon;
         const focused = previewStripButton === entry.id;
         return (
-            <div
+            <FocusTarget
                 key={entry.focusKey}
-                data-focus-key={entry.focusKey}
+                focusKey={entry.focusKey}
                 onMouseEnter={() => hoverStripButton(entry.id)}
                 onMouseLeave={() => unhoverStripButton(entry.id)}
                 style={{
@@ -1490,7 +1531,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                         <style>{NOTES_DOT_KEYFRAMES}</style>
                     </div>
                 )}
-            </div>
+            </FocusTarget>
         );
     }
 
@@ -1892,8 +1933,8 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
 
     // Header buttons
     const profileButton = (
-        <div
-            data-focus-key="action:profilestrip"
+        <FocusTarget
+            focusKey="action:profilestrip"
             onMouseEnter={() => hoverStripButton("profile")}
             onMouseLeave={() => unhoverStripButton("profile")}
             style={{ position: "relative" }}
@@ -1925,7 +1966,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                     fontSize={13}
                 />
             </DialogButton>
-        </div>
+        </FocusTarget>
     );
 
     const quickMenuButton = (
@@ -1934,8 +1975,8 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
             armed={Boolean(mainStripClaim?.armed)}
             onSpent={onSpendMainStripClaim}
         >
-            <div
-                data-focus-key="action:quickmenu"
+            <FocusTarget
+                focusKey="action:quickmenu"
                 onMouseEnter={() => hoverStripButton("quickmenu")}
                 onMouseLeave={() => unhoverStripButton("quickmenu")}
                 style={{ position: "relative" }}
@@ -1965,13 +2006,13 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                 >
                     <QuickMenuIcon size={18} />
                 </DialogButton>
-            </div>
+            </FocusTarget>
         </FocusClaim>
     );
 
     const notificationsButton = (
-        <div
-            data-focus-key="action:notifications"
+        <FocusTarget
+            focusKey="action:notifications"
             onMouseEnter={() => hoverStripButton("notifications")}
             onMouseLeave={() => unhoverStripButton("notifications")}
             style={{ position: "relative" }}
@@ -2018,7 +2059,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                     <style>{NOTES_DOT_KEYFRAMES}</style>
                 </div>
             )}
-        </div>
+        </FocusTarget>
     );
 
     const iconRow = (
@@ -2027,7 +2068,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
             flow-children="row"
             navEntryPreferPosition={NAV_ENTER_PREFERRED_CHILD}
             resetNavOnEntry={true}
-            autoFocus={drawerReturnToken > 0 || tickerReturnToken > 0 || entryFromNavigation || undefined}
+            autoFocus={drawerReturnToken > 0 || tickerReturnToken > 0 || (entryFromNavigation && !entryOwned) || undefined}
             style={{ display: "flex", gap: "6px" }}
         >
             {profileButton}
@@ -2038,8 +2079,8 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
 
     const headerIconRow = quickGuide.visible ? (
         <QuickGuideColumn>
-            <div
-                data-focus-key="action:quickguide"
+            <FocusTarget
+                focusKey="action:quickguide"
                 onMouseEnter={() => hoverStripButton("quickguide")}
                 onMouseLeave={() => unhoverStripButton("quickguide")}
                 style={{ display: "flex", justifyContent: "flex-end" }}
@@ -2053,20 +2094,14 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                         previewed={previewStripButton === "quickguide"}
                     />
                 </div>
-            </div>
+            </FocusTarget>
             {iconRow}
         </QuickGuideColumn>
     ) : iconRow;
 
     // Render
-    const restoreCurtainClaim = nowPlayingBody.commentsCardClaim ?? nowPlayingBody.commentsPostClaim;
-    const restoreCurtainArmed = nowPlayingBody.restorePending && mainTab === "comments";
-    const restoreCurtainSettled = !nowPlayingBody.holdCommentsBody
-        && (restoreCurtainClaim?.token ?? 0) > 0
-        && !restoreCurtainClaim?.armed;
-
     return (
-        <RestoreCurtain armed={restoreCurtainArmed} settled={restoreCurtainSettled}>
+        <>
             <PanelSection>
                 <div
                     style={{
@@ -2195,8 +2230,8 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                 </div>
                                 {QUICK_MENU_TOP_ROW.map((entry) => renderQuickMenuTile(entry))}
                                 {QUICK_MENU_BOTTOM_ROW.map((entry) => renderQuickMenuTile(entry, QUICK_MENU_ROW_GAP))}
-                                <div
-                                    data-focus-key="action:refresh"
+                                <FocusTarget
+                                    focusKey="action:refresh"
                                     onMouseEnter={() => hoverStripButton("refresh")}
                                     onMouseLeave={() => unhoverStripButton("refresh")}
                                     style={{
@@ -2236,7 +2271,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                             <FaSyncAlt size={20} />
                                         </span>
                                     </DialogButton>
-                                </div>
+                                </FocusTarget>
                                 <div style={{ gridColumn: "1 / -1" }}>
                                     {renderQuickMenuCaption(bottomRowMenuLabel, "4px")}
                                     {pillRows.map((row, index) => (
@@ -2432,8 +2467,8 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                         />
                                     )}
                                     {payload?.gameId != null && (
-                                        <div
-                                            data-focus-key="main:currentgame:overview"
+                                        <FocusTarget
+                                            focusKey="main:currentgame:overview"
                                             style={{
                                                 alignSelf: "stretch",
                                                 display: "flex",
@@ -2454,7 +2489,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                             >
                                                 <ChevronRightIcon />
                                             </DialogButton>
-                                        </div>
+                                        </FocusTarget>
                                     )}
                                 </div>
                             )}
@@ -2523,9 +2558,9 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                             const Icon = action.Icon;
 
                                             return (
-                                                <div
+                                                <FocusTarget
                                                     key={action.focusKey}
-                                                    data-focus-key={action.focusKey}
+                                                    focusKey={action.focusKey}
                                                     onMouseEnter={() => handleQuickActionHover(action.id)}
                                                     onMouseLeave={() => handleQuickActionUnhover(action.id)}
                                                     style={{
@@ -2579,7 +2614,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                                             <style>{NOTES_DOT_KEYFRAMES}</style>
                                                         </div>
                                                     )}
-                                                </div>
+                                                </FocusTarget>
                                             );
                                         })}
                                     </Focusable>
@@ -2615,9 +2650,9 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                 const startRadius = index === 0 ? TAB_STRIP_END_RADIUS : 0;
                                 const endRadius = index === MAIN_TABS.length - 1 ? TAB_STRIP_END_RADIUS : 0;
                                 return (
-                                    <div
+                                    <FocusTarget
                                         key={tab.value}
-                                        data-focus-key={tab.focusKey}
+                                        focusKey={tab.focusKey}
                                         style={{
                                             display: "flex",
                                             flex: 1,
@@ -2652,7 +2687,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                         >
                                             {subTabIcon(tab.icon)}
                                         </DialogButton>
-                                    </div>
+                                    </FocusTarget>
                                 );
                             })}
                         </Focusable>
@@ -2751,6 +2786,9 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                 dynamicSentinelRootMargin={dynamicSentinelRootMargin}
                                 onAchievementClick={onAchievementClick}
                                 onAchievementTrackToggle={mouseKeyboardMode ? undefined : onAchievementTrackToggle}
+                                openFirstKey={landingAtMount ?? undefined}
+                                openAtKey={landingOpenKey ?? undefined}
+                                onOpenAtHeld={() => setLandingOpenHeld((count) => count + 1)}
                                 preRows={!mouseKeyboardMode && (
                                     <PanelSectionRow>
                                         <ButtonHints
@@ -2771,11 +2809,13 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                     <NowPlayingTabBody
                         {...nowPlayingBody}
                         subView={mainTab as NowPlayingSubView}
-                        comparePickerEntryToken={entryFromComparePicker ? mainEntryToken : 0}
+                        comparePickerEntryToken={entryFromComparePicker && !entryOwned ? mainEntryToken : 0}
+                        onContentSettled={setBodySettledFor}
+                        landingWindowsRef={bodyWindowsRef}
                     />
                 )}
             </div>
-        </RestoreCurtain>
+        </>
     );
 }
 

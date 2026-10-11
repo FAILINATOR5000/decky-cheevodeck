@@ -83,6 +83,7 @@ function timestampTextFor(language: LanguageCode, event: SocialActivityEvent) {
 
 export type NowPlayingActivityListProps = {
     language: LanguageCode;
+    focusFallback?: string[];
     showIcons: boolean;
     metrics: AchievementUiMetrics;
     onCardClick: (event: SocialActivityEvent) => void;
@@ -128,6 +129,7 @@ export const NowPlayingActivityCard = React.memo(function NowPlayingActivityCard
         <PanelSectionRow>
             <FocusableItem
                 focusKey={props.focusKey}
+                focusFallback={list.focusFallback}
                 onClick={handleClick}
                 onFocus={handleFocus}
                 onGamepadFocus={handleFocus}

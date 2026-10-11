@@ -39,13 +39,14 @@ export type PlayersNearYouRowProps = {
     uiSize: UiSize;
     showIcons: boolean;
     focusKey: string;
+    focusFallback?: string[];
     onClick: (item: PlayersNearYouItem) => void | Promise<void>;
     onSecondary?: (item: PlayersNearYouItem) => void | Promise<void>;
     onTertiary?: (item: PlayersNearYouItem) => void | Promise<void>;
 };
 
 export function PlayersNearYouRow(props: PlayersNearYouRowProps) {
-    const { item, language, uiSize, showIcons, focusKey, onClick, onSecondary, onTertiary } = props;
+    const { item, language, uiSize, showIcons, focusKey, focusFallback, onClick, onSecondary, onTertiary } = props;
     const metrics = achievementUiMetrics(uiSize);
 
     const username = String(item.user || "").trim() || t(language, "Someone");
@@ -83,6 +84,7 @@ export function PlayersNearYouRow(props: PlayersNearYouRowProps) {
     return (
         <FocusableItem
             focusKey={focusKey}
+            focusFallback={focusFallback}
             onClick={handleClick}
             onButtonDown={handleButtonDown}
             outerStyle={{ width: "100%", minWidth: 0 }}

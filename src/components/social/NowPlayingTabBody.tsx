@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, type MutableRefObject, useEffect, useMemo, useRef, useState } from "react";
 import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../ui/PanelSection";
 import {
@@ -11,6 +11,7 @@ import { CompareHeader } from "../achievements/CompareHeader";
 import { ErrorText } from "../ui/ErrorText";
 import { FocusableItem } from "../ui/FocusableItem";
 import { FocusClaim } from "../ui/FocusClaim";
+import { FocusTarget } from "../ui/FocusTarget";
 import { CommentActionStrip } from "../comments/CommentActionStrip";
 import { CommentsList } from "../comments/CommentsList";
 import { InlineSpinner } from "../ui/InlineSpinner";
@@ -91,6 +92,8 @@ export type NowPlayingTabBodyProps = {
     subView: NowPlayingSubView;
     onOpenComparePicker: () => void;
     comparePickerEntryToken?: number;
+    onContentSettled?: (subView: NowPlayingSubView) => void;
+    landingWindowsRef?: MutableRefObject<LandingWindows | null>;
     onChangeCompareFilter: (filter: NowPlayingCompareFilter) => void;
     onAchievementClick?: (achievement: AchievementRow) => void | Promise<void>;
     onActivityClick?: (event: SocialActivityEvent) => void | Promise<void>;
@@ -144,6 +147,12 @@ export type NowPlayingTabBodyProps = {
     onCycleFriendFeedCardAction: () => void | Promise<void>;
 };
 
+const PLAYERS_NEAR_YOU_ROW_FALLBACK = ["nowplaying:pny:collapse", "main:tab:activity"];
+const ACTIVITY_ROW_FALLBACK = ["nowplaying:pny:collapse", "main:tab:activity"];
+const COMPARE_ROW_FALLBACK = ["nowplaying:compare-picker", "main:tab:compare"];
+
+export type LandingWindows = { holds: (key: string) => boolean; open: (key: string) => void };
+
 const FILTER_OPTIONS: { value: NowPlayingCompareFilter; labelKey: string }[] = [
     { value: "all", labelKey: "All" },
     { value: "onlyYou", labelKey: "Gains" },
@@ -159,7 +168,7 @@ function FilterChip(props: {
     wrapperStyle?: CSSProperties;
 }) {
     return (
-        <div data-focus-key={props.focusKey} style={{ display: "flex", ...props.wrapperStyle }}>
+        <FocusTarget focusKey={props.focusKey} style={{ display: "flex", ...props.wrapperStyle }}>
             <DialogButton
                 onClick={props.onClick}
                 style={{
@@ -175,7 +184,7 @@ function FilterChip(props: {
             >
                 {props.label}
             </DialogButton>
-        </div>
+        </FocusTarget>
     );
 }
 
@@ -200,6 +209,8 @@ export function NowPlayingTabBody(props: NowPlayingTabBodyProps) {
         subView,
         onOpenComparePicker,
         comparePickerEntryToken = 0,
+        onContentSettled,
+        landingWindowsRef,
         onChangeCompareFilter,
         onAchievementClick,
         onActivityClick,
@@ -386,6 +397,7 @@ export function NowPlayingTabBody(props: NowPlayingTabBodyProps) {
         friendUsername: friendUsernameForDisplay,
         friendHasGameData,
         showRetroPoints,
+        focusFallback: COMPARE_ROW_FALLBACK,
         onAchievementClick: (achievement: AchievementRow) => {
             void compareClickRef.current?.(achievement);
         },
@@ -454,6 +466,17 @@ export function NowPlayingTabBody(props: NowPlayingTabBodyProps) {
 
     const playersNearYouShowRows = playersNearYouMode !== "off" && playersNearYouItems.length > 0;
 
+    const contentSettled = subView === "activity"
+        ? activitySettled
+        : subView === "comments"
+            ? commentsLoaded || commentsError !== null || commentsNeedsSettings
+            : !compareLoading;
+    useEffect(() => {
+        if (contentSettled) {
+            onContentSettled?.(subView);
+        }
+    }, [contentSettled, subView]);
+
     const activityEventsForGame = useMemo(() => {
         if (currentGameId == null) {
             return [];
@@ -488,6 +511,13 @@ export function NowPlayingTabBody(props: NowPlayingTabBodyProps) {
         debugLabel: "nowplaying:activity"
     });
     const visibleActivityEvents = activityWindow.mountedItems;
+    if (landingWindowsRef) {
+        landingWindowsRef.current = {
+            holds: (key) => (activityListShown && activityEventsForGame.some((event) => `nowplaying:activity:${event.id}` === key))
+                || (compareListShown && filteredCompareRows.some((entry) => `compare:achievement:${entry.achievement.id}` === key)),
+            open: (key) => (key.startsWith("compare:") ? compareWindow.openAt(key) : activityWindow.openAt(key))
+        };
+    }
 
     const activityClickRef = useRef(onActivityClick);
     activityClickRef.current = onActivityClick;
@@ -503,6 +533,7 @@ export function NowPlayingTabBody(props: NowPlayingTabBodyProps) {
         language,
         showIcons,
         metrics: achievementUiMetrics(uiSize),
+        focusFallback: ACTIVITY_ROW_FALLBACK,
         onCardClick: (event: SocialActivityEvent) => {
             void activityClickRef.current?.(event);
         },
@@ -659,6 +690,7 @@ export function NowPlayingTabBody(props: NowPlayingTabBodyProps) {
                                             showIcons={showIcons}
                                             language={language}
                                             focusKey={`nowplaying:pny:${item.id}`}
+                                            focusFallback={PLAYERS_NEAR_YOU_ROW_FALLBACK}
                                             onClick={onPlayersNearYouClick}
                                             onSecondary={mouseKeyboardMode ? undefined : onPlayersNearYouSecondary}
                                             onTertiary={mouseKeyboardMode ? undefined : onPlayersNearYouTertiary}
@@ -698,8 +730,9 @@ export function NowPlayingTabBody(props: NowPlayingTabBodyProps) {
                                     </div>
                                 </PanelSectionRow>
                                 <PanelSectionRow>
-                                    <div
-                                        data-focus-key="nowplaying:friendfeed:anchor"
+                                    <FocusTarget
+                                        focusKey="nowplaying:friendfeed:anchor"
+                                        focusFallback={ACTIVITY_ROW_FALLBACK}
                                         style={{ display: "flex", width: "100%" }}
                                     >
                                         <DialogButton
@@ -712,7 +745,7 @@ export function NowPlayingTabBody(props: NowPlayingTabBodyProps) {
                                                 padding: "0"
                                             }}
                                         />
-                                    </div>
+                                    </FocusTarget>
                                 </PanelSectionRow>
                             </>
                         ) : (
