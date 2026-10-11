@@ -26,7 +26,6 @@ import {
     getSocialActivity,
     getUserComments,
     loadGameGuides,
-    markNextValidationSkipped,
     manualRefreshFriends,
     deepRefreshFriends,
     NOTIFICATION_EVENT,
@@ -1619,7 +1618,6 @@ function AchievementsRoot() {
             currentColor: NoteColor | null,
             saveNote: SaveTrackedNoteFn
         ) => {
-            markNextValidationSkipped();
             armTrackedFocusReturn(achievement.id, activeUlid);
             showManagedModal((close) => (
                 <NoteEditModal
@@ -1661,7 +1659,6 @@ function AchievementsRoot() {
     });
 
     const openCheevoCheckBrowseModal = (kind: CheevoCheckListKind, rows: CheevoCheckBrowseRow[]) => {
-        markNextValidationSkipped();
         showManagedModal((close) => (
             <CheevoCheckGamesModal
                 language={language}
@@ -2856,7 +2853,6 @@ function AchievementsRoot() {
     };
 
     const openGameNoteModal = (existing: GameNote | null) => {
-        markNextValidationSkipped();
 
         const notesGameId = gameNotesGameId ?? payload?.gameId ?? null;
         if (existing !== null && notesGameId !== null) {
@@ -3727,7 +3723,6 @@ function AchievementsRoot() {
     );
 
     function openGameSearch(backSource: GameOverviewSource = "search", navIntent?: NavIntent) {
-        markNextValidationSkipped();
         showManagedModal((close) => (
             <GameSearchModal
                 language={language}

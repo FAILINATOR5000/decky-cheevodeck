@@ -2724,20 +2724,6 @@ export function clearTrackedCountMemoryCache() {
     lastKnownTrackedNotesColorByGame.clear();
 }
 
-let nextValidationSkipped = false;
-
-export function markNextValidationSkipped() {
-    nextValidationSkipped = true;
-}
-
-export function consumeValidationSkip(): boolean {
-    if (!nextValidationSkipped) {
-        return false;
-    }
-    nextValidationSkipped = false;
-    return true;
-}
-
 export const loadGamesListCache = callable<[string], GamesListCacheResult>("load_games_list_cache");
 export const loadAwardsListCache = callable<[string], AwardsListCacheResult>("load_awards_list_cache");
 export const loadWantToPlayCache = callable<[string], WantToPlayCacheResult>("load_want_to_play_cache");

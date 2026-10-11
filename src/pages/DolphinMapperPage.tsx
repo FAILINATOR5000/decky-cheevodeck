@@ -51,7 +51,7 @@ import { textSize } from "../utils/scale";
 import { useFocusClaim } from "../hooks/useFocusClaim";
 import { useDolphinMapper } from "../components/mapping/DolphinMapperContext";
 import { DolphinMappingModal } from "../components/mapping/DolphinMappingModal";
-import { logFocusDebug, markNextValidationSkipped } from "../api";
+import { logFocusDebug } from "../api";
 import { showManagedModal } from "../utils/modalRegistry";
 import { armDolphinFocusReturn } from "../utils/dolphinFocusReturn";
 import { usePageLanding } from "../focusRecords";
@@ -183,7 +183,6 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
 
     const openMappingModal = (existing: DolphinMapping | null) => {
         armDolphinFocusReturn(existing ? `${CARD_FOCUS_PREFIX}${existing.id}` : "dolphinMapper:add");
-        markNextValidationSkipped();
         showManagedModal((close) => (
             <DolphinMappingModal
                 existing={existing}

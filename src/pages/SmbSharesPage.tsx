@@ -10,7 +10,7 @@ import { SmbShareEditModal } from "../components/smb/SmbShareEditModal";
 import { useSmbShares } from "../components/smb/SmbSharesContext";
 import { ErrorText } from "../components/ui/ErrorText";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
-import { linkSmbMountsToDesktop, logFocusDebug, markNextValidationSkipped, testSmbShare } from "../api";
+import { linkSmbMountsToDesktop, logFocusDebug, testSmbShare } from "../api";
 import { logError } from "../utils/errors";
 import { FocusClaim } from "../components/ui/FocusClaim";
 import { RestoreCurtain } from "../components/ui/RestoreCurtain";
@@ -107,7 +107,6 @@ function SmbSharesPage(props: SmbSharesPageProps) {
 
     const openShareModal = (existing: SmbShare | null) => {
         armSmbFocusReturn(existing ? `${SHARE_EDIT_FOCUS_PREFIX}${existing.id}` : "smbShares:add");
-        markNextValidationSkipped();
         showManagedModal((close) => (
             <SmbShareEditModal
                 existing={existing}

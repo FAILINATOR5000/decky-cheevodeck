@@ -6,7 +6,8 @@ import {
     type RefObject,
     type SetStateAction
 } from "react";
-import { checkCurrentGame, clearResumeState, consumeValidationSkip, refreshCurrentGame, saveResumeState } from "../api";
+import { checkCurrentGame, clearResumeState, logFocusDebug, refreshCurrentGame, saveResumeState } from "../api";
+import { rootMountReason } from "../focusRecords";
 import type { LanguageCode } from "../locales";
 import type { Payload, ResumeState, ViewKey } from "../types";
 import { logError } from "../utils/errors"
@@ -159,7 +160,8 @@ export function useGameDataController({
             return;
         }
 
-        if (consumeValidationSkip()) {
+        if (rootMountReason() === "modalReturn") {
+            logFocusDebug("check", "skipped", "modal return");
             return;
         }
 

@@ -3,7 +3,6 @@ import { DialogButton, Focusable, ModalRoot, TextField } from "@decky/ui";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import {
     cancelMemoryShare,
-    markNextValidationSkipped,
     prepareMemoryShare,
     probeMemoryShare,
     saveMemoriesMuted
@@ -437,7 +436,6 @@ export function MemoryShareModal(props: MemoryShareModalProps) {
 
     function finish() {
         closedRef.current = true;
-        markNextValidationSkipped();
         close();
     }
 

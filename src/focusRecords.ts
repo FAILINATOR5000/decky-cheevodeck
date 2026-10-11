@@ -35,6 +35,7 @@ let restoredGeneration = 0;
 let liveGeneration = 0;
 let preRestore: NavState = initialNav("achievements");
 let mountedFromModal = false;
+let mountReason: MountReason | null = null;
 let panelEntryMarked = false;
 
 let rootElement: HTMLElement | null = null;
@@ -199,8 +200,13 @@ export function beginRootMount(): { generation: number; fromModal: boolean } {
     liveGeneration = generation;
     preRestore = initialNav("achievements");
     pendingEntryId = null;
+    mountReason = null;
     mountedFromModal = consumeModalCloseArm();
     return { generation, fromModal: mountedFromModal };
+}
+
+export function rootMountReason(): MountReason | null {
+    return mountReason;
 }
 
 export function markPanelEntry() {
@@ -217,6 +223,7 @@ export function restoreTrail(
         ? "panelEntry"
         : mountedFromModal ? "modalReturn" : trail ? "qamOpen" : "boot";
     panelEntryMarked = false;
+    mountReason = reason;
     restoredGeneration = rootGeneration;
     const top = topEntry();
     logFocusDebug("record", "mount", `${reason} gen=${rootGeneration} landed=${landed}`);

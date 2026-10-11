@@ -1,6 +1,6 @@
 import { DialogButton, Focusable, ModalRoot, TextField } from "@decky/ui";
 import { useState } from "react";
-import { markNextValidationSkipped, updateMemory } from "../../api";
+import { updateMemory } from "../../api";
 import { armMemoriesFocusKey, armMemoriesFocusReturn } from "../../utils/memoriesFocusReturn";
 import { ErrorText } from "../ui/ErrorText";
 import { SaveOnStart } from "../ui/SaveOnStart";
@@ -98,7 +98,6 @@ export function MemoryEditorModal(props: MemoryEditorModalProps) {
         }
         setSaving(true);
         setError(null);
-        markNextValidationSkipped();
         try {
             const result = await updateMemory(gameId, memory.id, caption, tag, color);
             if (!result?.ok) {

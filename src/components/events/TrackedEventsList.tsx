@@ -8,7 +8,7 @@ import { EventNoteEditModal } from "./EventNoteEditModal";
 import { EventRow, type EventRowList } from "./EventRow";
 import { useEvents } from "./EventsContext";
 import { EventsListHead, EventsListStatus, useEventsRestore, type EventsListProps } from "./EventsListParts";
-import { markNextValidationSkipped, prefetchGameIcons } from "../../api";
+import { prefetchGameIcons } from "../../api";
 import { useFocusClaim } from "../../hooks/useFocusClaim";
 import { useWindowedList } from "../../hooks/useWindowedList";
 import { t } from "../../locales";
@@ -266,7 +266,6 @@ export function TrackedEventsList(props: EventsListProps & {
             Object.values(items).map((entry) => ({ tag: parseNoteTag(entry.note).tag, at: entry.noteEditedAt }))
         );
         const completion = completions.get(row.gameId) ?? null;
-        markNextValidationSkipped();
         showManagedModal((close) => (
             <EventNoteEditModal
                 eventTitle={row.title}
