@@ -4,7 +4,6 @@ import { DialogButton, Focusable, ModalRoot, TextField } from "@decky/ui";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import {
     getLastConsoleId,
-    getSetConsoleList,
     getSetGameList,
     prefetchGameIcons,
     saveLastConsoleId
@@ -22,6 +21,7 @@ import type {
     TrackedSetConsole,
     TrackedSetPickerGame
 } from "../../types";
+import { cachedConsoles, getCurrentLastConsoleId, loadConsoles, setCurrentLastConsoleId } from "../../utils/consoleCatalog";
 import { logError } from "../../utils/errors";
 import { modalBodyStyle, smallTextStyle, compactButtonStyle, FADE_IN_KEYFRAMES } from "../../utils/style";
 import { getCurrentModalScale, modalSize } from "../../utils/scale";
@@ -41,8 +41,8 @@ export function GameSearchModal(props: GameSearchModalProps) {
 
     const [step, setStep] = useState<Step>("console");
 
-    const [consoles, setConsoles] = useState<TrackedSetConsole[]>([]);
-    const [consolesLoading, setConsolesLoading] = useState(true);
+    const [consoles, setConsoles] = useState<TrackedSetConsole[]>(() => cachedConsoles() ?? []);
+    const [consolesLoading, setConsolesLoading] = useState(() => cachedConsoles() === null);
     const [consolesError, setConsolesError] = useState<string | null>(null);
 
     const [selectedConsole, setSelectedConsole] = useState<TrackedSetConsole | null>(null);
@@ -54,7 +54,7 @@ export function GameSearchModal(props: GameSearchModalProps) {
 
     const [refreshState, setRefreshState] = useState<"idle" | "refreshing" | "updated" | "nonew">("idle");
 
-    const [recentConsoleId, setRecentConsoleId] = useState(0);
+    const [recentConsoleId, setRecentConsoleId] = useState(getCurrentLastConsoleId);
 
     const gamesRunIdRef = useRef(0);
 
@@ -65,15 +65,15 @@ export function GameSearchModal(props: GameSearchModalProps) {
         let cancelled = false;
         void (async () => {
             try {
-                const result = await getSetConsoleList();
+                const list = await loadConsoles();
                 if (cancelled) {
                     return;
                 }
-                setConsoles(result.consoles ?? []);
+                setConsoles(list);
                 setConsolesError(null);
             } catch (e) {
                 logError("getSetConsoleList (search)", e);
-                if (cancelled) {
+                if (cancelled || cachedConsoles() !== null) {
                     return;
                 }
                 setConsolesError("Couldn't load the console list.");
@@ -168,6 +168,7 @@ export function GameSearchModal(props: GameSearchModalProps) {
         if (gamesLoading) {
             return;
         }
+        setCurrentLastConsoleId(item.id);
         void saveLastConsoleId(item.id).catch((e) => logError("saveLastConsoleId (search)", e));
         setSelectedConsole(item);
         setQuery("");

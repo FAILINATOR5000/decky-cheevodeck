@@ -5,6 +5,7 @@ import AchievementsRoot from "./pages/AchievementsRoot";
 import { refreshHealedUserAvatar } from "./api";
 import { t, ensureLanguageLoaded, getCurrentLanguage } from "./locales";
 import { readSettingsAtStartup, startupSettingsSettled } from "./utils/frontendSettings";
+import { warmConsoleCatalog } from "./utils/consoleCatalog";
 import { logError } from "./utils/errors";
 import { showToastAfter } from "./utils/delayedToast";
 import { PRESS_TOAST_DELAY_MS } from "./utils/navSound";
@@ -62,6 +63,12 @@ export default definePlugin(() => {
     addEventListener(NOTIFICATION_EVENT, onNotificationToast);
 
     readSettingsAtStartup(() => disposed);
+
+    void startupSettingsSettled().then(() => {
+        if (!disposed) {
+            warmConsoleCatalog();
+        }
+    });
 
     const onAvatarHealed = (payload: { username?: string }) => {
         const username = payload?.username;

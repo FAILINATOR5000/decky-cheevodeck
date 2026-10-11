@@ -10,6 +10,7 @@ import { applyLibraryBadge } from "../components/library/libraryBadgePatch";
 import { setClipMuted } from "../components/memories/clipMute";
 import { setCurrentLanguage } from "../locales";
 import type { SettingsResponse } from "../types";
+import { setCurrentLastConsoleId } from "./consoleCatalog";
 import { setCurrentColoredGlyphs, setCurrentControllerGlyphStyle } from "./controllerGlyphs";
 import { logError } from "./errors";
 import { setModalAutoCleanup, setQamReturnDelay } from "./modalRegistry";
@@ -71,6 +72,7 @@ export function applyFrontendSettings(settings: SettingsResponse): void {
     setCurrentControllerGlyphStyle(settings.controllerGlyphStyle);
     setCurrentColoredGlyphs(settings.coloredGlyphs);
     setQamReturnDelay(settings.qamReturnDelayMs);
+    setCurrentLastConsoleId(settings.lastConsoleId);
     setModalAutoCleanup(settings.deferModalCleanup);
     setAccurateAvatarDebug(settings.debugLogging);
     applyGameArtCacheCap(settings.gameArtCacheCap);
