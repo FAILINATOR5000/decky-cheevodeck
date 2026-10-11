@@ -2682,7 +2682,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                                 borderBottomLeftRadius: startRadius,
                                                 borderTopRightRadius: endRadius,
                                                 borderBottomRightRadius: endRadius,
-                                                opacity: selected ? 1 : 0.6
+                                                opacity: selected || focusedMainTab === tab.value ? 1 : 0.6
                                             }}
                                         >
                                             {subTabIcon(tab.icon)}
