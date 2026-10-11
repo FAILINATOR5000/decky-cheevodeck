@@ -1192,6 +1192,7 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                                     onChange={handleShowAllToggle}
                                     disabled={friendGameLoading}
                                     outerStyle={regularButtonSpacingStyle(buttonSpacing)}
+                                    focusKey="friend:toggle:friendShowAllAchievements"
                                     bottomSeparator="none"
                                 />
                             </PanelSectionRow>

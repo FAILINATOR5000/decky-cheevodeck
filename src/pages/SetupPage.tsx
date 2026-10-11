@@ -77,6 +77,7 @@ function SetupPage(props: SetupPageProps) {
             />
             <OptionToggle
                 outerStyle={regularButtonSpacingStyle(buttonSpacing)}
+                focusKey="setup:toggle:putUpdaterOnDesktop"
                 label={t(language, "Add Updater to Desktop")}
                 value={putUpdaterOnDesktop}
                 onChange={onTogglePutUpdaterOnDesktop}
@@ -85,6 +86,7 @@ function SetupPage(props: SetupPageProps) {
             />
             <OptionToggle
                 outerStyle={regularButtonSpacingStyle(buttonSpacing)}
+                focusKey="setup:toggle:libraryBadge"
                 label={t(language, "Steam Library Badges")}
                 value={libraryBadge}
                 onChange={onToggleLibraryBadge}

@@ -424,22 +424,27 @@ function AllGamesPage(props: AllGamesPageProps) {
                             const active = activeRangeKey === range.key;
 
                             return (
-                                <DialogButton
+                                <div
                                     key={`friendallgames:range:${range.key}`}
-                                    onClick={() => handleRangeClick(range.key)}
-                                    style={{
-                                        minWidth: 0,
-                                        width: "36px",
-                                        height: "30px",
-                                        padding: "4px 2px",
-                                        fontSize: "11px",
-                                        fontWeight: active ? 800 : 600,
-                                        opacity: active ? 1 : 0.72,
-                                        outline: active ? "1px solid rgba(255,255,255,0.55)" : undefined
-                                    }}
+                                    data-focus-key={`friendallgames:range:${range.key}`}
+                                    style={{ display: "flex" }}
                                 >
-                                    {range.label}
-                                </DialogButton>
+                                    <DialogButton
+                                        onClick={() => handleRangeClick(range.key)}
+                                        style={{
+                                            minWidth: 0,
+                                            width: "36px",
+                                            height: "30px",
+                                            padding: "4px 2px",
+                                            fontSize: "11px",
+                                            fontWeight: active ? 800 : 600,
+                                            opacity: active ? 1 : 0.72,
+                                            outline: active ? "1px solid rgba(255,255,255,0.55)" : undefined
+                                        }}
+                                    >
+                                        {range.label}
+                                    </DialogButton>
+                                </div>
                             );
                         })}
                     </Focusable>

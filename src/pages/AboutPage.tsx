@@ -85,7 +85,7 @@ type AboutPageActions = {
     onViewPatchNotes: () => void;
 };
 
-function AttributionLink(props: { url: string; children: ReactNode }) {
+function AttributionLink(props: { url: string; focusKey: string; children: ReactNode }) {
     const [reactFocused, setReactFocused] = useState(false);
     const [gpFocused, setGpFocused] = useState(false);
     const focused = reactFocused || gpFocused;
@@ -96,6 +96,7 @@ function AttributionLink(props: { url: string; children: ReactNode }) {
 
     return (
         <div
+            data-focus-key={props.focusKey}
             onFocusCapture={() => setReactFocused(true)}
             onBlurCapture={() => setReactFocused(false)}
             style={{ display: "block", width: "100%" }}
@@ -389,7 +390,7 @@ function AboutPage(props: AboutPageProps) {
                             {t(state.language, "Icons from Font Awesome Free, redrawn as inline SVG, under the CC BY 4.0 license.")}
                         </div>
                         <div style={{ ...bodyTextStyle(), marginTop: "2px" }}>
-                            <AttributionLink url={CC_BY_LICENSE_URL}>
+                            <AttributionLink url={CC_BY_LICENSE_URL} focusKey="about:license:cc-by">
                                 {t(state.language, "View the CC BY 4.0 license")}
                             </AttributionLink>
                         </div>
@@ -400,7 +401,7 @@ function AboutPage(props: AboutPageProps) {
                             {t(state.language, "Two Welcome screen glyphs are from Material Design Icons by Google, redrawn as inline SVG, under the Apache License 2.0.")}
                         </div>
                         <div style={{ ...bodyTextStyle(), marginTop: "2px" }}>
-                            <AttributionLink url={APACHE_LICENSE_URL}>
+                            <AttributionLink url={APACHE_LICENSE_URL} focusKey="about:license:apache">
                                 {t(state.language, "View the Apache 2.0 license")}
                             </AttributionLink>
                         </div>
@@ -411,7 +412,7 @@ function AboutPage(props: AboutPageProps) {
                             {t(state.language, "The Ko-fi and Patreon marks are from Simple Icons, redrawn as inline SVG, released under CC0 1.0.")}
                         </div>
                         <div style={{ ...bodyTextStyle(), marginTop: "2px" }}>
-                            <AttributionLink url={CC0_LICENSE_URL}>
+                            <AttributionLink url={CC0_LICENSE_URL} focusKey="about:license:cc0">
                                 {t(state.language, "View the CC0 1.0 dedication")}
                             </AttributionLink>
                         </div>
@@ -422,7 +423,7 @@ function AboutPage(props: AboutPageProps) {
                             {t(state.language, "Also uses react-icons (MIT), plus @decky/ui and @decky/api (both LGPL-2.1) via Decky Loader.")}
                         </div>
                         <div style={{ ...bodyTextStyle(), marginTop: "2px" }}>
-                            <AttributionLink url={LGPL_LICENSE_URL}>
+                            <AttributionLink url={LGPL_LICENSE_URL} focusKey="about:license:lgpl">
                                 {t(state.language, "View the LGPL-2.1 license")}
                             </AttributionLink>
                         </div>
@@ -433,12 +434,12 @@ function AboutPage(props: AboutPageProps) {
                             {t(state.language, "Bundles RAHasher (GPL-3.0) and chdman from MAME (GPL-2.0), both run as separate programs. Their license texts ship with the plugin.")}
                         </div>
                         <div style={{ ...bodyTextStyle(), marginTop: "2px" }}>
-                            <AttributionLink url={GPL_3_LICENSE_URL}>
+                            <AttributionLink url={GPL_3_LICENSE_URL} focusKey="about:license:gpl-3">
                                 {t(state.language, "View the GPL-3.0 license")}
                             </AttributionLink>
                         </div>
                         <div style={{ ...bodyTextStyle(), marginTop: "2px" }}>
-                            <AttributionLink url={GPL_2_LICENSE_URL}>
+                            <AttributionLink url={GPL_2_LICENSE_URL} focusKey="about:license:gpl-2">
                                 {t(state.language, "View the GPL-2.0 license")}
                             </AttributionLink>
                         </div>
@@ -449,7 +450,7 @@ function AboutPage(props: AboutPageProps) {
                             {t(state.language, "Reference hashes from libretro-database, compacted and re-saved as gzipped JSON, under the CC BY-SA 4.0 license. Originally compiled by No-Intro, Redump and TOSEC.")}
                         </div>
                         <div style={{ ...bodyTextStyle(), marginTop: "2px" }}>
-                            <AttributionLink url={CC_BY_SA_LICENSE_URL}>
+                            <AttributionLink url={CC_BY_SA_LICENSE_URL} focusKey="about:license:cc-by-sa">
                                 {t(state.language, "View the CC BY-SA 4.0 license")}
                             </AttributionLink>
                         </div>
@@ -460,7 +461,7 @@ function AboutPage(props: AboutPageProps) {
                             {t(state.language, "Game data from RetroAchievements.")}
                         </div>
                         <div style={{ ...bodyTextStyle(), marginTop: "2px" }}>
-                            <AttributionLink url={state.attributionsUrl}>
+                            <AttributionLink url={state.attributionsUrl} focusKey="about:credits">
                                 {t(state.language, "Full credits on GitHub")}
                             </AttributionLink>
                         </div>

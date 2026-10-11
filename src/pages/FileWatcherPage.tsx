@@ -451,7 +451,7 @@ function FileWatcherPage(props: FileWatcherPageProps) {
                             speed={settings.speed}
                             onSaveSpeed={settings.saveSpeed}
                         />
-                        <DarkenScreenRow language={language} buttonSpacing={state.buttonSpacing} />
+                        <DarkenScreenRow focusKey="fileWatcher:toggle:darkenScreen" language={language} buttonSpacing={state.buttonSpacing} />
                         <RunDuringGamesRow
                             language={language}
                             runDuringGames={settings.runDuringGames}
@@ -598,7 +598,7 @@ function FileWatcherPage(props: FileWatcherPageProps) {
                             speed={settings.speed}
                             onSaveSpeed={settings.saveSpeed}
                         />
-                        <DarkenScreenRow language={language} buttonSpacing={state.buttonSpacing} />
+                        <DarkenScreenRow focusKey="fileWatcher:toggle:darkenScreen" language={language} buttonSpacing={state.buttonSpacing} />
                         <RunDuringGamesRow
                             language={language}
                             runDuringGames={settings.runDuringGames}
@@ -742,6 +742,7 @@ function RunDuringGamesRow(props: {
         <PanelSectionRow>
             <ToggleRow
                 outerStyle={regularButtonSpacingStyle(props.buttonSpacing)}
+                focusKey="fileWatcher:toggle:runDuringGames"
                 label={t(language, "Run during games")}
                 value={props.runDuringGames}
                 onChange={props.onSaveRunDuringGames}

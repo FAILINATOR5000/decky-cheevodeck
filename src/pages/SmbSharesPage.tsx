@@ -307,6 +307,7 @@ function SmbSharesPage(props: SmbSharesPageProps) {
                         void toggleEnabled(share, next);
                     }}
                     outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                    focusKey={`smbShares:toggle:${share.id}`}
                     bottomSeparator="none"
                 />
 

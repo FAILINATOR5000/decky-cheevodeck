@@ -2218,7 +2218,7 @@ function AchievementsRoot() {
         clearPendingResumeState,
         enableRememberLastPagePersistence,
         disableRememberLastPagePersistence,
-        onBack: backToAchievements,
+        onBack: () => backToAchievements(),
         onGoToAbout: () => goToAbout(),
         onRefreshNow: () => refreshGameData(true, false, t(language, "Refreshing Achievements...")),
         onAfterSelfRename: async () => {
@@ -5339,7 +5339,7 @@ function AchievementsRoot() {
                                     }
                                 }}
                                 onRequestFocus={setPendingFocusKey}
-                                onBack={backToAchievements}
+                                onBack={() => backToAchievements()}
                                 onHome={goToAchievements}
                                 onFriendFocus={scheduleFriendPauseRefresh}
                                 onFriendHover={noteFriendRowHover}

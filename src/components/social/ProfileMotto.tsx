@@ -26,6 +26,7 @@ export function ProfileMotto(props: { text: string }) {
                 }}
             />
             <div
+                data-focus-key="friendprofile:motto"
                 onFocusCapture={() => setFocused(true)}
                 onBlurCapture={() => setFocused(false)}
                 style={{ width: "100%" }}

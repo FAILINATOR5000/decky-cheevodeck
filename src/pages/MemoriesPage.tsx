@@ -838,6 +838,7 @@ function MemoriesPage(props: MemoriesPageProps) {
                 {firstRun ? (
                     <PanelSectionRow>
                         <ToggleRow
+                            focusKey="memories:toggle:autoCapture"
                             label={t(language, "Enable Memories")}
                             value={autoCapture}
                             onChange={(next) => void actions.onEnableCapture(next)}

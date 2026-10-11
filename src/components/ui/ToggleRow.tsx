@@ -13,10 +13,11 @@ export type ToggleRowProps = {
     help?: ReactNode;
     modalHelp?: boolean;
     controlled?: boolean;
+    focusKey?: string;
 };
 
 export function ToggleRow(props: ToggleRowProps) {
-    const { label, value, onChange, disabled, outerStyle, bottomSeparator = "standard", help, modalHelp, controlled } = props;
+    const { label, value, onChange, disabled, outerStyle, bottomSeparator = "standard", help, modalHelp, controlled, focusKey } = props;
 
     function handleChange(nextValue: boolean) {
         if (disabled) {
@@ -27,7 +28,7 @@ export function ToggleRow(props: ToggleRowProps) {
     }
 
     return (
-        <div style={outerStyle}>
+        <div data-focus-key={focusKey} style={outerStyle}>
             <ToggleField
                 label={<span style={{ fontSize: `${scaleMultiplier(getCurrentTextScale())}em` }}>{label}</span>}
                 description={helpDescription(help, modalHelp)}

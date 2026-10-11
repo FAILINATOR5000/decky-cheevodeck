@@ -1463,7 +1463,7 @@ function SocialHubPage(props: SocialHubPageProps) {
                                                 entry={entry}
                                                 language={props.language}
                                                 metrics={rowMetrics}
-                                                focusKey={`news:${entry.id ?? index}`}
+                                                focusKey={`news:${entry.id ?? entry.link}`}
                                                 onOpen={props.newsEvents.onOpenNewsLink}
                                             />
                                         ))}

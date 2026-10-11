@@ -36,6 +36,8 @@ const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 const LOADING_SPINNER_DELAY_MS = 500;
 
 const BUNDLE_FOCUS_PREFIX = "memoriesTransfer:bundle:";
+const IMPORT_FOCUS_KEY = "memoriesTransfer:import";
+const IMPORT_AGAIN_FOCUS_KEY = "memoriesTransfer:import:another";
 
 const HELP_TEXT_BASE_PX = 12;
 
@@ -177,12 +179,12 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
             return;
         }
         let target = restoreFocusKey;
-        if (target === "memoriesTransfer:import") {
+        if (target === IMPORT_FOCUS_KEY) {
             if (listing) {
                 return;
             }
-            if (bundles !== null && bundles.length > 0) {
-                target = `${BUNDLE_FOCUS_PREFIX}0`;
+            if (bundles !== null) {
+                target = bundles.length > 0 ? BUNDLE_FOCUS_PREFIX + bundles[0].path : IMPORT_AGAIN_FOCUS_KEY;
             }
         }
         restoreFiredRef.current = true;
@@ -226,7 +228,7 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
 
     function importFromButton() {
         setBackClaimToken((token) => token + 1);
-        armMemoriesTransferFocusReturn("memoriesTransfer:import");
+        armMemoriesTransferFocusReturn(IMPORT_FOCUS_KEY);
         return browseForBundles();
     }
 
@@ -263,10 +265,13 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
     function keepWhatIHave() {
         const returning = pendingBundle;
         setPendingBundle(null);
-        const index = returning === null
-            ? -1
-            : (bundles ?? []).findIndex((row) => row.path === returning.path);
-        claim(index >= 0 ? `${BUNDLE_FOCUS_PREFIX}${index}` : "memoriesTransfer:import");
+        const stillListed = returning !== null && (bundles ?? []).some((row) => row.path === returning.path);
+        if (stillListed) {
+            claim(BUNDLE_FOCUS_PREFIX + returning.path);
+        }
+        else {
+            claim(bundles === null ? IMPORT_FOCUS_KEY : IMPORT_AGAIN_FOCUS_KEY);
+        }
     }
 
     async function deleteAllFromButton() {
@@ -475,6 +480,7 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
                         label={t(language, "Include Clip Videos")}
                         value={includeVideos}
                         outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                        focusKey="memoriesTransfer:toggle:includeVideos"
                         onChange={setIncludeVideos}
                         help={t(language, "help_memories_transfer_include_videos")}
                     />
@@ -499,6 +505,7 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
                         label={t(language, "Replace My Library")}
                         value={mode === "replace"}
                         outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                        focusKey="memoriesTransfer:toggle:mode"
                         onChange={(next) => setMode(next ? "replace" : "merge")}
                         help={t(language, "help_memories_transfer_replace")}
                     />
@@ -543,7 +550,7 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
                             {claimTarget(
                                 <FocusableItem
                                     outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
-                                    focusKey="memoriesTransfer:import"
+                                    focusKey={IMPORT_FOCUS_KEY}
                                     onClick={importFromButton}
                                     bottomSeparator="none"
                                     help={
@@ -573,13 +580,13 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
                                     </div>
                                 </PanelSectionRow>
                             )}
-                            {bundles.map((row, index) => (
+                            {bundles.map((row) => (
                                 <Fragment key={row.path}>
                                 <PanelSectionRow>
                                     {claimTarget(
                                         <FocusableItem
                                             outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
-                                            focusKey={`${BUNDLE_FOCUS_PREFIX}${index}`}
+                                            focusKey={BUNDLE_FOCUS_PREFIX + row.path}
                                             onClick={() => pickBundle(row)}
                                         >
                                             <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
@@ -613,7 +620,7 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
                                 {claimTarget(
                                     <FocusableItem
                                         outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
-                                        focusKey="memoriesTransfer:import"
+                                        focusKey={IMPORT_AGAIN_FOCUS_KEY}
                                         onClick={chooseAnotherFolder}
                                         bottomSeparator="none"
                                     >

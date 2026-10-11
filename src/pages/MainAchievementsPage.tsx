@@ -2347,7 +2347,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                     <LabeledRow
                         outerStyle={buttonOuterStyle}
                         focusKey="action:options"
-                        onClick={goToOptions}
+                        onClick={() => goToOptions()}
                         disabled={loading || saving}
                         label={t(language, "Options")}
                         value={t(language, "Open")}
@@ -2706,6 +2706,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                         onChange={onShowAllChange}
                                         disabled={loading || saving}
                                         outerStyle={buttonOuterStyle}
+                                        focusKey="achievements:toggle:showAllAchievements"
                                         bottomSeparator="none"
                                     />
                                 </PanelSectionRow>

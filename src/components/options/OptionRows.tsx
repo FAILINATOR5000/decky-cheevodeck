@@ -51,6 +51,7 @@ export function OptionButton(props: OptionButtonProps) {
 }
 
 export type OptionToggleProps = {
+    focusKey: string;
     label: string;
     help?: React.ReactNode;
     separator?: boolean;
@@ -62,12 +63,13 @@ export type OptionToggleProps = {
 };
 
 export function OptionToggle(props: OptionToggleProps) {
-    const { label, help, separator, value, onChange, disabled, outerStyle, controlled } = props;
+    const { focusKey, label, help, separator, value, onChange, disabled, outerStyle, controlled } = props;
 
     return (
         <PanelSectionRow>
             <ToggleRow
                 outerStyle={outerStyle}
+                focusKey={focusKey}
                 bottomSeparator={separatorFor(separator)}
                 label={label}
                 help={help}

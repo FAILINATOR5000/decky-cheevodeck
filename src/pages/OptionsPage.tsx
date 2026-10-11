@@ -977,6 +977,7 @@ function SystemTab(props: SystemTabProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:autoPurgeService"
                 label={t(state.language, "Auto-Purge Service")}
                 value={state.autoPurgeService}
                 onChange={actions.onToggleAutoPurgeService}
@@ -985,6 +986,7 @@ function SystemTab(props: SystemTabProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:libraryBadge"
                 label={t(state.language, "Steam Library Badges")}
                 value={state.libraryBadge}
                 onChange={actions.onToggleLibraryBadge}
@@ -1003,6 +1005,7 @@ function SystemTab(props: SystemTabProps) {
             <SectionTitle label={t(state.language, "Memories")} />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:memoriesAutoCapture"
                 label={t(state.language, "Enable Memories")}
                 value={state.memoriesAutoCapture}
                 onChange={actions.onToggleMemoriesAutoCapture}
@@ -1020,6 +1023,7 @@ function SystemTab(props: SystemTabProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:memoriesDeleteSource"
                 label={t(state.language, "Delete Source Screenshot")}
                 value={state.memoriesDeleteSource}
                 onChange={actions.onToggleMemoriesDeleteSource}
@@ -1028,6 +1032,7 @@ function SystemTab(props: SystemTabProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:memoriesVideo"
                 label={t(state.language, "Save Clips as Memories")}
                 value={state.memoriesVideo}
                 onChange={actions.onToggleMemoriesVideo}
@@ -1064,6 +1069,7 @@ function SystemTab(props: SystemTabProps) {
             )}
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:memoriesDeleteSteamClip"
                 label={t(state.language, "Delete Source Clip")}
                 value={state.memoriesDeleteSteamClip}
                 onChange={actions.onToggleMemoriesDeleteSteamClip}
@@ -1072,6 +1078,7 @@ function SystemTab(props: SystemTabProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:memoriesRemux"
                 label={t(state.language, "Remux Clips")}
                 value={state.memoriesRemux}
                 onChange={actions.onToggleMemoriesRemux}
@@ -1109,6 +1116,7 @@ function SystemTab(props: SystemTabProps) {
             <SectionTitle label={t(state.language, "Mastery Goals")} />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:trackedSetsServiceEnabled"
                 label={t(state.language, "Mastery Goals Service")}
                 value={state.trackedSetsServiceEnabled}
                 onChange={actions.onToggleTrackedSetsServiceEnabled}
@@ -1117,6 +1125,7 @@ function SystemTab(props: SystemTabProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:trackedSetsAutoCheck"
                 label={t(state.language, "Auto-Check Mastery Goals")}
                 value={state.trackedSetsAutoCheck}
                 onChange={actions.onToggleTrackedSetsAutoCheck}
@@ -1130,6 +1139,7 @@ function SystemTab(props: SystemTabProps) {
             </PanelSectionRow>
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:doNotDisturbDisablesDot"
                 label={t(state.language, "Notification Dot")}
                 value={state.doNotDisturbDisablesDot}
                 onChange={actions.onToggleDoNotDisturbDisablesDot}
@@ -1138,6 +1148,7 @@ function SystemTab(props: SystemTabProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:doNotDisturbDisablesToast"
                 label={t(state.language, "Notification Toasts")}
                 value={state.doNotDisturbDisablesToast}
                 onChange={actions.onToggleDoNotDisturbDisablesToast}
@@ -1162,6 +1173,7 @@ function SystemTab(props: SystemTabProps) {
             </PanelSectionRow>
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:batterySaverDisablesSocialActivity"
                 label={t(state.language, "Social Activity")}
                 value={state.batterySaverDisablesSocialActivity}
                 onChange={actions.onToggleBatterySaverDisablesSocialActivity}
@@ -1170,6 +1182,7 @@ function SystemTab(props: SystemTabProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:batterySaverDisablesComments"
                 label={t(state.language, "Comments")}
                 value={state.batterySaverDisablesComments}
                 onChange={actions.onToggleBatterySaverDisablesComments}
@@ -1178,6 +1191,7 @@ function SystemTab(props: SystemTabProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:batterySaverDisablesFriendAvatars"
                 label={t(state.language, "Friend Avatars")}
                 value={state.batterySaverDisablesFriendAvatars}
                 onChange={actions.onToggleBatterySaverDisablesFriendAvatars}
@@ -1186,6 +1200,7 @@ function SystemTab(props: SystemTabProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:batterySaverDisablesPlayersNearYou"
                 label={t(state.language, "Players Near You")}
                 value={state.batterySaverDisablesPlayersNearYou}
                 onChange={actions.onToggleBatterySaverDisablesPlayersNearYou}
@@ -1194,6 +1209,7 @@ function SystemTab(props: SystemTabProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:batterySaverDisablesTrackedSets"
                 label={t(state.language, "Mastery Goals")}
                 value={state.batterySaverDisablesTrackedSets}
                 onChange={actions.onToggleBatterySaverDisablesTrackedSets}
@@ -1202,6 +1218,7 @@ function SystemTab(props: SystemTabProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:batterySaverDisablesFileWatcher"
                 label={t(state.language, "File Watcher")}
                 value={state.batterySaverDisablesFileWatcher}
                 onChange={actions.onToggleBatterySaverDisablesFileWatcher}
@@ -1210,6 +1227,7 @@ function SystemTab(props: SystemTabProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:batterySaverDisablesMemories"
                 label={t(state.language, "Memories")}
                 value={state.batterySaverDisablesMemories}
                 onChange={actions.onToggleBatterySaverDisablesMemories}
@@ -1223,6 +1241,7 @@ function SystemTab(props: SystemTabProps) {
             </PanelSectionRow>
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:backButtonsGlobal"
                 label={t(state.language, "Global Buttons")}
                 value={state.backButtonsGlobal}
                 onChange={actions.onToggleBackButtonsGlobal}
@@ -1232,6 +1251,7 @@ function SystemTab(props: SystemTabProps) {
             {state.showDeveloperOptions && (
                 <OptionToggle
                     outerStyle={buttonOuterStyle}
+                    focusKey="options:toggle:browserSnapshot"
                     label={t(state.language, "Browser Snapshot")}
                     value={state.browserSnapshot}
                     onChange={actions.onToggleBrowserSnapshot}
@@ -1299,6 +1319,7 @@ function SystemTab(props: SystemTabProps) {
             <SectionTitle label={t(state.language, "Developer Options")} />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:showDeveloperOptions"
                 label={t(state.language, "Show Developer Options")}
                 value={state.showDeveloperOptions}
                 onChange={actions.onToggleShowDeveloperOptions}
@@ -1366,6 +1387,7 @@ function GuiTab(props: TabContentProps) {
                 <Fragment key={entry.id}>
                     <OptionToggle
                         outerStyle={buttonOuterStyle}
+                        focusKey={`options:toggle:quickMenuShortcuts:${entry.id}`}
                         label={t(state.language, entry.labelKey)}
                         value={state.quickMenuShortcuts.includes(entry.id)}
                         controlled
@@ -1474,6 +1496,7 @@ function GuiTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:coloredGlyphs"
                 label={t(state.language, "Colored Glyphs")}
                 value={state.coloredGlyphs}
                 onChange={actions.onToggleColoredGlyphs}
@@ -1484,6 +1507,7 @@ function GuiTab(props: TabContentProps) {
             <SectionTitle label={t(state.language, "Appearance")} />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:showRetroPoints"
                 label={t(state.language, "Show RetroPoints")}
                 value={state.showRetroPoints}
                 onChange={actions.onToggleShowRetroPoints}
@@ -1560,6 +1584,7 @@ function GuiTab(props: TabContentProps) {
             <SectionTitle label={t(state.language, "Main Menu / Profile")} />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:showSocialHubButton"
                 label={t(state.language, "Show Social Hub Button")}
                 value={state.showSocialHubButton}
                 onChange={actions.onToggleShowSocialHubButton}
@@ -1568,6 +1593,7 @@ function GuiTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:showTrackedSetsButton"
                 label={t(state.language, "Show Mastery Goals Button")}
                 value={state.showTrackedSetsButton}
                 onChange={actions.onToggleShowTrackedSetsButton}
@@ -1576,6 +1602,7 @@ function GuiTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:showOptionsButton"
                 label={t(state.language, "Show Options Button")}
                 value={state.showOptionsButton}
                 onChange={actions.onToggleShowOptionsButton}
@@ -1584,6 +1611,7 @@ function GuiTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:showAllToggleMain"
                 label={t(state.language, "Main Show All Toggle")}
                 value={state.showAllToggleMain}
                 onChange={actions.onToggleShowAllToggleMain}
@@ -1592,6 +1620,7 @@ function GuiTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:showAllToggleFriend"
                 label={t(state.language, "Friend Show All Toggle")}
                 value={state.showAllToggleFriend}
                 onChange={actions.onToggleShowAllToggleFriend}
@@ -1600,6 +1629,7 @@ function GuiTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:showTrackedNotesMain"
                 label={t(state.language, "Show Tracked Notes - Main")}
                 value={state.showTrackedNotesMain}
                 onChange={actions.onToggleShowTrackedNotesMain}
@@ -1610,6 +1640,7 @@ function GuiTab(props: TabContentProps) {
             <SectionTitle label={t(state.language, "Notifications")} />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:showBellDot"
                 label={t(state.language, "Show Dot on Notifications Bell")}
                 value={state.showBellDot}
                 onChange={actions.onToggleShowBellDot}
@@ -1619,6 +1650,7 @@ function GuiTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:notifyNoteReminderEnabled"
                 label={t(state.language, "Note Reminder Notifications")}
                 value={state.notifyNoteReminderEnabled}
                 onChange={actions.onToggleNotifyNoteReminderEnabled}
@@ -1627,6 +1659,7 @@ function GuiTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:notifyNoteReminderToast"
                 label={t(state.language, "Note Reminder Toasts")}
                 value={state.notifyNoteReminderToast}
                 onChange={actions.onToggleNotifyNoteReminderToast}
@@ -1635,6 +1668,7 @@ function GuiTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:showReminderTicker"
                 label={t(state.language, "Show Reminder Ticker")}
                 value={state.showReminderTicker}
                 onChange={actions.onToggleShowReminderTicker}
@@ -1643,6 +1677,7 @@ function GuiTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:showNotesDot"
                 label={t(state.language, "Show Dot on Notes")}
                 value={state.showNotesDot}
                 onChange={actions.onToggleShowNotesDot}
@@ -1652,6 +1687,7 @@ function GuiTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:notifyTrackedSetEnabled"
                 label={t(state.language, "Mastery Goal Notifications")}
                 value={state.notifyTrackedSetEnabled}
                 onChange={actions.onToggleNotifyTrackedSetEnabled}
@@ -1660,6 +1696,7 @@ function GuiTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:notifyTrackedSetToast"
                 label={t(state.language, "Mastery Goal Toasts")}
                 value={state.notifyTrackedSetToast}
                 onChange={actions.onToggleNotifyTrackedSetToast}
@@ -1669,6 +1706,7 @@ function GuiTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:notifyCommentTrackerEnabled"
                 label={t(state.language, "Comment Tracker Notifications")}
                 value={state.notifyCommentTrackerEnabled}
                 onChange={actions.onToggleNotifyCommentTrackerEnabled}
@@ -1677,6 +1715,7 @@ function GuiTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:notifyCommentTrackerToast"
                 label={t(state.language, "Comment Tracker Toasts")}
                 value={state.notifyCommentTrackerToast}
                 onChange={actions.onToggleNotifyCommentTrackerToast}
@@ -1686,6 +1725,7 @@ function GuiTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:notifyWallEnabled"
                 label={t(state.language, "Wall Notifications")}
                 value={state.notifyWallEnabled}
                 onChange={actions.onToggleNotifyWallEnabled}
@@ -1694,6 +1734,7 @@ function GuiTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:notifyWallToast"
                 label={t(state.language, "Wall Toasts")}
                 value={state.notifyWallToast}
                 onChange={actions.onToggleNotifyWallToast}
@@ -1703,6 +1744,7 @@ function GuiTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:notifySystemEnabled"
                 label={t(state.language, "System Notifications")}
                 value={state.notifySystemEnabled}
                 onChange={actions.onToggleNotifySystemEnabled}
@@ -1711,6 +1753,7 @@ function GuiTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:notifySystemToast"
                 label={t(state.language, "System Toasts")}
                 value={state.notifySystemToast}
                 onChange={actions.onToggleNotifySystemToast}
@@ -1720,6 +1763,7 @@ function GuiTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:notifyTrackedEnabled"
                 label={t(state.language, "Tracked Achievement Notifications")}
                 value={state.notifyTrackedEnabled}
                 onChange={actions.onToggleNotifyTrackedEnabled}
@@ -1728,6 +1772,7 @@ function GuiTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:notifyTrackedToast"
                 label={t(state.language, "Tracked Achievement Toasts")}
                 value={state.notifyTrackedToast}
                 onChange={actions.onToggleNotifyTrackedToast}
@@ -1737,6 +1782,7 @@ function GuiTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:notifySocialUnlockEnabled"
                 label={t(state.language, "Social Activity Notifications")}
                 value={state.notifySocialUnlockEnabled}
                 onChange={actions.onToggleNotifySocialUnlockEnabled}
@@ -1745,6 +1791,7 @@ function GuiTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:notifySocialUnlockToast"
                 label={t(state.language, "Social Activity Toasts")}
                 value={state.notifySocialUnlockToast}
                 onChange={actions.onToggleNotifySocialUnlockToast}
@@ -1753,6 +1800,7 @@ function GuiTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:socialGameTicker"
                 label={t(state.language, "Social Game Ticker")}
                 value={state.socialGameTicker}
                 onChange={actions.onToggleSocialGameTicker}
@@ -1761,6 +1809,7 @@ function GuiTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:socialHubTicker"
                 label={t(state.language, "Social Hub Ticker")}
                 value={state.socialHubTicker}
                 onChange={actions.onToggleSocialHubTicker}
@@ -1770,6 +1819,7 @@ function GuiTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:notifyNearYouEnabled"
                 label={t(state.language, "Players Near You Notifications")}
                 value={state.notifyNearYouEnabled}
                 onChange={actions.onToggleNotifyNearYouEnabled}
@@ -1778,6 +1828,7 @@ function GuiTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:notifyNearYouToast"
                 label={t(state.language, "Players Near You Toasts")}
                 value={state.notifyNearYouToast}
                 onChange={actions.onToggleNotifyNearYouToast}
@@ -1816,6 +1867,7 @@ function SocialTab(props: TabContentProps) {
             <SectionTitle label={t(state.language, "Friends")} />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:friendAutoRefresh"
                 label={t(state.language, "Auto-refresh friend info")}
                 value={state.friendAutoRefresh}
                 onChange={actions.onToggleFriendAutoRefresh}
@@ -1859,6 +1911,7 @@ function SocialTab(props: TabContentProps) {
             <SectionTitle label={t(state.language, "Friend Roster Service")} />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:friendImageService"
                 label={t(state.language, "Roster Sync")}
                 value={state.friendImageService}
                 onChange={actions.onToggleFriendImageService}
@@ -1885,6 +1938,7 @@ function SocialTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:fisVerifyFavoriteAvatars"
                 label={t(state.language, "Roster - Verify Favorites")}
                 value={state.fisVerifyFavoriteAvatars}
                 onChange={actions.onToggleFisVerifyFavoriteAvatars}
@@ -1893,6 +1947,7 @@ function SocialTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:fisVerifyAllAvatars"
                 label={t(state.language, "Roster - Verify All")}
                 value={state.fisVerifyAllAvatars}
                 onChange={actions.onToggleFisVerifyAllAvatars}
@@ -1903,6 +1958,7 @@ function SocialTab(props: TabContentProps) {
             <SectionTitle label={t(state.language, "Activity Feed")} />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:socialActivityTrickleService"
                 label={t(state.language, "Social Activity Trickle Service")}
                 value={state.socialActivityTrickleService}
                 onChange={actions.onToggleSocialActivityTrickleService}
@@ -1911,6 +1967,7 @@ function SocialTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:trickleFavoritesOnly"
                 label={t(state.language, "Limit Service to Favorites")}
                 value={state.trickleFavoritesOnly}
                 onChange={actions.onToggleTrickleFavoritesOnly}
@@ -1948,6 +2005,7 @@ function SocialTab(props: TabContentProps) {
             <SectionTitle label={t(state.language, "Comments")} />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:commentsServiceWallCheck"
                 label={t(state.language, "Comments Service Wall Check")}
                 value={state.commentsServiceWallCheck}
                 onChange={actions.onToggleCommentsServiceWallCheck}
@@ -1958,6 +2016,7 @@ function SocialTab(props: TabContentProps) {
             <SectionTitle label={t(state.language, "Players Near You")} />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:playersNearYouEnabled"
                 label={t(state.language, "Players Near You Feed")}
                 value={state.playersNearYouEnabled}
                 onChange={actions.onTogglePlayersNearYouEnabled}
@@ -2232,6 +2291,7 @@ function CacheTab(props: CacheTabProps) {
             <SectionTitle label={t(state.language, "Guides Data")} />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:keepGuidesOffline"
                 label={t(state.language, "Offline Guides")}
                 value={state.keepGuidesOffline}
                 onChange={actions.onToggleKeepGuidesOffline}
@@ -2432,6 +2492,7 @@ function AdvancedTab(props: TabContentProps) {
             <SectionTitle label={t(state.language, "Rendering & Performance")} />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:deferModalCleanup"
                 label={t(state.language, "Modal Auto-Cleanup")}
                 value={state.deferModalCleanup}
                 onChange={actions.onToggleDeferModalCleanup}
@@ -2451,6 +2512,7 @@ function AdvancedTab(props: TabContentProps) {
             )}
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:largeViewportBonusEnabled"
                 label={t(state.language, "Notification Body - Large Viewport Bonus")}
                 value={state.largeViewportBonusEnabled}
                 onChange={actions.onToggleLargeViewportBonusEnabled}
@@ -2573,6 +2635,7 @@ function AdvancedTab(props: TabContentProps) {
             <SectionTitle label={t(state.language, "Behavior & Legacy")} />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:rememberLastPage"
                 label={t(state.language, "Remember Last Page")}
                 value={state.rememberLastPage}
                 onChange={actions.onToggleRememberLastPage}
@@ -2581,6 +2644,7 @@ function AdvancedTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:autoRefresh"
                 label={t(state.language, "Auto-Refresh")}
                 value={state.autoRefresh}
                 onChange={actions.onToggleAutoRefresh}
@@ -2599,6 +2663,7 @@ function AdvancedTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:legacyAchievementLinks"
                 label={t(state.language, "Legacy Achievement Links")}
                 value={state.legacyAchievementLinks}
                 onChange={actions.onToggleLegacyAchievementLinks}
@@ -2607,6 +2672,7 @@ function AdvancedTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:legacyGameLinks"
                 label={t(state.language, "Legacy Game Links")}
                 value={state.legacyGameLinks}
                 onChange={actions.onToggleLegacyGameLinks}
@@ -2615,6 +2681,7 @@ function AdvancedTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:legacyCommentsLoading"
                 label={t(state.language, "Legacy Comments Loading")}
                 value={state.legacyCommentsLoading}
                 onChange={actions.onToggleLegacyCommentsLoading}
@@ -2623,6 +2690,7 @@ function AdvancedTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:showIcons"
                 label={t(state.language, "Show Icons")}
                 value={state.showIcons}
                 onChange={actions.onToggleShowIcons}
@@ -2631,6 +2699,7 @@ function AdvancedTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:showAButtonMode"
                 label={t(state.language, "Show Click Row - Main")}
                 value={state.showAButtonMode}
                 onChange={actions.onToggleShowAButtonMode}
@@ -2639,6 +2708,7 @@ function AdvancedTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:showAButtonModeTracked"
                 label={t(state.language, "Show Click Row - Tracked")}
                 value={state.showAButtonModeTracked}
                 onChange={actions.onToggleShowAButtonModeTracked}
@@ -2647,6 +2717,7 @@ function AdvancedTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:showAButtonModeEvents"
                 label={t(state.language, "Show Click Row - Events")}
                 value={state.showAButtonModeEvents}
                 onChange={actions.onToggleShowAButtonModeEvents}
@@ -2670,6 +2741,7 @@ function AdvancedTab(props: TabContentProps) {
             <SectionTitle label={t(state.language, "Dynamic Loading")} />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:dynamicLoading"
                 label={t(state.language, "Dynamic Achievement Loading")}
                 value={state.dynamicLoading}
                 onChange={actions.onToggleDynamicLoading}
@@ -2678,6 +2750,7 @@ function AdvancedTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:dynamicFriendLoading"
                 label={t(state.language, "Dynamic Friend Loading")}
                 value={state.dynamicFriendLoading}
                 onChange={actions.onToggleDynamicFriendLoading}
@@ -2686,6 +2759,7 @@ function AdvancedTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:dynamicFriendPicker"
                 label={t(state.language, "Dynamic Friend Picker")}
                 value={state.dynamicFriendPicker}
                 onChange={actions.onToggleDynamicFriendPicker}
@@ -2694,6 +2768,7 @@ function AdvancedTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:dynamicLeaderboardLoading"
                 label={t(state.language, "Dynamic Leaderboard Loading")}
                 value={state.dynamicLeaderboardLoading}
                 onChange={actions.onToggleDynamicLeaderboardLoading}
@@ -2702,6 +2777,7 @@ function AdvancedTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:dynamicLeaderboardResults"
                 label={t(state.language, "Dynamic Leaderboard Results")}
                 value={state.dynamicLeaderboardResults}
                 onChange={actions.onToggleDynamicLeaderboardResults}
@@ -2710,6 +2786,7 @@ function AdvancedTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:dynamicCompare"
                 label={t(state.language, "Dynamic Compare")}
                 value={state.dynamicCompare}
                 onChange={actions.onToggleDynamicCompare}
@@ -2718,6 +2795,7 @@ function AdvancedTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:dynamicActivityFeed"
                 label={t(state.language, "Dynamic Activity Feed")}
                 value={state.dynamicActivityFeed}
                 onChange={actions.onToggleDynamicActivityFeed}
@@ -2726,6 +2804,7 @@ function AdvancedTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:dynamicAllGames"
                 label={t(state.language, "Dynamic All Games")}
                 value={state.dynamicAllGames}
                 onChange={actions.onToggleDynamicAllGames}
@@ -2734,6 +2813,7 @@ function AdvancedTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:dynamicFollowedRanking"
                 label={t(state.language, "Dynamic Followed Ranking")}
                 value={state.dynamicFollowedRanking}
                 onChange={actions.onToggleDynamicFollowedRanking}
@@ -2742,6 +2822,7 @@ function AdvancedTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:dynamicTrackedGames"
                 label={t(state.language, "Dynamic Other Games List")}
                 value={state.dynamicTrackedGames}
                 onChange={actions.onToggleDynamicTrackedGames}
@@ -2750,6 +2831,7 @@ function AdvancedTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:dynamicBadges"
                 label={t(state.language, "Dynamic Badges")}
                 value={state.dynamicBadges}
                 onChange={actions.onToggleDynamicBadges}
@@ -2759,6 +2841,7 @@ function AdvancedTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:alwaysStaggerMounting"
                 label={t(state.language, "Always Stagger Mounting")}
                 value={state.alwaysStaggerMounting}
                 onChange={actions.onToggleAlwaysStaggerMounting}
@@ -2823,6 +2906,7 @@ function AdvancedTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:dynamicTrackedListLoading"
                 label={t(state.language, "Dynamic Tracked List Loading")}
                 value={state.dynamicTrackedListLoading}
                 onChange={actions.onToggleDynamicTrackedListLoading}
@@ -2868,6 +2952,7 @@ function AdvancedTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:dynamicTrackedSetsListLoading"
                 label={t(state.language, "Dynamic Mastery Goals List Loading")}
                 value={state.dynamicTrackedSetsListLoading}
                 onChange={actions.onToggleDynamicTrackedSetsListLoading}
@@ -2913,6 +2998,7 @@ function AdvancedTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:dynamicGameNotesLoading"
                 label={t(state.language, "Dynamic Game Notes Loading")}
                 value={state.dynamicGameNotesLoading}
                 onChange={actions.onToggleDynamicGameNotesLoading}
@@ -2958,6 +3044,7 @@ function AdvancedTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:dynamicComments"
                 label={t(state.language, "Dynamic Comments")}
                 value={state.dynamicComments}
                 onChange={actions.onToggleDynamicComments}
@@ -2998,6 +3085,7 @@ function AdvancedTab(props: TabContentProps) {
             <SectionTitle label={t(state.language, "Diagnostics")} />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:debugLogging"
                 label={t(state.language, "Debug Logging")}
                 value={state.debugLogging}
                 onChange={actions.onToggleDebugLogging}
@@ -3006,6 +3094,7 @@ function AdvancedTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:notifyDebugEnabled"
                 label={t(state.language, "Debug Notifications")}
                 value={state.notifyDebugEnabled}
                 onChange={actions.onToggleNotifyDebugEnabled}
@@ -3014,6 +3103,7 @@ function AdvancedTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:notifyDebugToast"
                 label={t(state.language, "Debug Toasts")}
                 value={state.notifyDebugToast}
                 onChange={actions.onToggleNotifyDebugToast}
@@ -3069,6 +3159,7 @@ function AdvancedTab(props: TabContentProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:validateFriendsRoster"
                 label={t(state.language, "Validate Friends Roster")}
                 value={state.validateFriendsRoster}
                 onChange={actions.onToggleValidateFriendsRoster}

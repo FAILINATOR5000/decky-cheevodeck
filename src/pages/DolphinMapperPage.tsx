@@ -622,6 +622,7 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
                                     value={deckControllerStatus.disabled}
                                     onChange={(next) => { void setDeckDisabled(next); }}
                                     outerStyle={regularButtonSpacingStyle(buttonSpacing)}
+                                    focusKey="dolphinMapper:toggle:deckControllerDisabled"
                                     help={t(language, "help_deck_controller_disable")}
                                 />
                             </PanelSectionRow>
@@ -637,6 +638,7 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
                             value={dolphinBluetoothPassthrough}
                             onChange={handlePassthroughChange}
                             outerStyle={regularButtonSpacingStyle(buttonSpacing)}
+                            focusKey="dolphinMapper:toggle:dolphinBluetoothPassthrough"
                             help={t(language, "help_dolphin_passthrough")}
                         />
                     </PanelSectionRow>
@@ -646,9 +648,11 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
                         </PanelSectionRow>
                     )}
                     <PanelSectionRow>
-                        <ExternalLink block url={BT_PASSTHROUGH_GUIDE_URL}>
-                            {t(language, "Bluetooth passthrough setup guide")}
-                        </ExternalLink>
+                        <div data-focus-key="dolphinMapper:passthrough-guide">
+                            <ExternalLink block url={BT_PASSTHROUGH_GUIDE_URL}>
+                                {t(language, "Bluetooth passthrough setup guide")}
+                            </ExternalLink>
+                        </div>
                     </PanelSectionRow>
 
                     <PanelSectionRow>
@@ -657,6 +661,7 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
                             value={dolphinContinuousScanning}
                             onChange={handleContinuousScanningChange}
                             outerStyle={regularButtonSpacingStyle(buttonSpacing)}
+                            focusKey="dolphinMapper:toggle:dolphinContinuousScanning"
                             help={t(language, "help_dolphin_continuous_scanning")}
                         />
                     </PanelSectionRow>
@@ -671,6 +676,7 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
                             value={dolphinBalanceBoard}
                             onChange={handleBalanceBoardChange}
                             outerStyle={regularButtonSpacingStyle(buttonSpacing)}
+                            focusKey="dolphinMapper:toggle:dolphinBalanceBoard"
                             help={t(language, "help_dolphin_balance_board")}
                         />
                     </PanelSectionRow>

@@ -50,6 +50,11 @@ const COMPACT_BUTTON_STYLE = {
     flex: "0 0 auto",
 };
 
+const KEYED_BUTTON_WRAPPER_STYLE = {
+    display: "flex",
+    flex: "0 0 auto",
+};
+
 // Font Awesome Free icon path, CC BY 4.0. See ATTRIBUTIONS.md.
 function BookmarkIcon({ size = 13 }: { size?: number }) {
     return (
@@ -378,20 +383,24 @@ export function GuidesQamReader(props: GuidesQamReaderProps) {
                 >
                     {knownKind === "formatted" && (
                         <>
-                            <DialogButton
-                                onClick={() => turnPage(-1)}
-                                disabled={atStart || controlsBusy}
-                                style={COMPACT_BUTTON_STYLE}
-                            >
-                                ‹
-                            </DialogButton>
-                            <DialogButton
-                                onClick={() => turnPage(1)}
-                                disabled={atEnd || controlsBusy}
-                                style={COMPACT_BUTTON_STYLE}
-                            >
-                                ›
-                            </DialogButton>
+                            <div data-focus-key="guides:reader:prev" style={KEYED_BUTTON_WRAPPER_STYLE}>
+                                <DialogButton
+                                    onClick={() => turnPage(-1)}
+                                    disabled={atStart || controlsBusy}
+                                    style={COMPACT_BUTTON_STYLE}
+                                >
+                                    ‹
+                                </DialogButton>
+                            </div>
+                            <div data-focus-key="guides:reader:next" style={KEYED_BUTTON_WRAPPER_STYLE}>
+                                <DialogButton
+                                    onClick={() => turnPage(1)}
+                                    disabled={atEnd || controlsBusy}
+                                    style={COMPACT_BUTTON_STYLE}
+                                >
+                                    ›
+                                </DialogButton>
+                            </div>
                             <div
                                 style={{
                                     width: "1px",
@@ -403,23 +412,27 @@ export function GuidesQamReader(props: GuidesQamReaderProps) {
                             />
                         </>
                     )}
-                    <DialogButton
-                        onClick={() => bookmarkHere(
-                            lineRef.current ?? g.restoreLine ?? 0,
-                            intoRef.current
-                        )}
-                        disabled={!g.openFaqId}
-                        style={COMPACT_BUTTON_STYLE}
-                    >
-                        <BookmarkIcon />
-                    </DialogButton>
-                    <DialogButton
-                        onClick={handleUpdateGuide}
-                        disabled={updating || !g.openFaqId}
-                        style={COMPACT_BUTTON_STYLE}
-                    >
-                        <FaSyncAlt size={12} />
-                    </DialogButton>
+                    <div data-focus-key="guides:reader:bookmark" style={KEYED_BUTTON_WRAPPER_STYLE}>
+                        <DialogButton
+                            onClick={() => bookmarkHere(
+                                lineRef.current ?? g.restoreLine ?? 0,
+                                intoRef.current
+                            )}
+                            disabled={!g.openFaqId}
+                            style={COMPACT_BUTTON_STYLE}
+                        >
+                            <BookmarkIcon />
+                        </DialogButton>
+                    </div>
+                    <div data-focus-key="guides:reader:update" style={KEYED_BUTTON_WRAPPER_STYLE}>
+                        <DialogButton
+                            onClick={handleUpdateGuide}
+                            disabled={updating || !g.openFaqId}
+                            style={COMPACT_BUTTON_STYLE}
+                        >
+                            <FaSyncAlt size={12} />
+                        </DialogButton>
+                    </div>
                     {knownKind === "formatted" && (
                         <div style={{ ...bodyTextStyle(), flex: 1, textAlign: "right", opacity: 0.85 }}>
                             {!g.content
@@ -447,29 +460,31 @@ export function GuidesQamReader(props: GuidesQamReaderProps) {
                             ...regularButtonSpacingStyle(props.buttonSpacing),
                         }}
                     >
-                        <DialogButton
-                            focusKey="guides:reader:prev"
-                            disabled={atStart || controlsBusy}
-                            focusable={!(atStart || controlsBusy)}
-                            onClick={() => turnPage(-1)}
-                            style={STEP_BUTTON_STYLE}
-                        >
-                            ‹
-                        </DialogButton>
+                        <div data-focus-key="guides:reader:prev" style={KEYED_BUTTON_WRAPPER_STYLE}>
+                            <DialogButton
+                                disabled={atStart || controlsBusy}
+                                focusable={!(atStart || controlsBusy)}
+                                onClick={() => turnPage(-1)}
+                                style={STEP_BUTTON_STYLE}
+                            >
+                                ‹
+                            </DialogButton>
+                        </div>
                         <div style={{ ...bodyTextStyle(), flex: 1, textAlign: "center", opacity: 0.85 }}>
                             {!g.content
                                 ? ""
                                 : t(lang, "Page {{n}} of {{m}}", { n: Math.max(1, pageNumber), m: Math.max(1, pageCount) })}
                         </div>
-                        <DialogButton
-                            focusKey="guides:reader:next"
-                            disabled={atEnd || controlsBusy}
-                            focusable={!(atEnd || controlsBusy)}
-                            onClick={() => turnPage(1)}
-                            style={STEP_BUTTON_STYLE}
-                        >
-                            ›
-                        </DialogButton>
+                        <div data-focus-key="guides:reader:next" style={KEYED_BUTTON_WRAPPER_STYLE}>
+                            <DialogButton
+                                disabled={atEnd || controlsBusy}
+                                focusable={!(atEnd || controlsBusy)}
+                                onClick={() => turnPage(1)}
+                                style={STEP_BUTTON_STYLE}
+                            >
+                                ›
+                            </DialogButton>
+                        </div>
                     </Focusable>
                 </PanelSectionRow>
             )}
@@ -522,6 +537,7 @@ export function GuidesQamReader(props: GuidesQamReaderProps) {
                 <GuidesReaderBody
                     key={`qam-${g.openFaqId ?? ""}`}
                     content={pageContent}
+                    focusKey="guides:reader:body"
                     pages={sectionPaged ? g.formattedPages : (wholeGuide ? g.chunks : undefined)}
                     language={lang}
                     surface="panel"

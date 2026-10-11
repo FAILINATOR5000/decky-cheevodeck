@@ -223,7 +223,7 @@ export function AotwView(props: AotwViewPageProps) {
                                                 language={language}
                                                 metrics={rowMetrics}
                                                 showIcons={showIcons}
-                                                focusKey={`aotw:unlock:${index}`}
+                                                focusKey={`aotw:unlock:${unlock.ulid || unlock.user}`}
                                                 onClick={(u: AotwUnlock) =>
                                                     aotw.onOpenUserProfile(u.user, u.ulid)
                                                 }

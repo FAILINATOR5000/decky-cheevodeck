@@ -103,6 +103,7 @@ function QamGuardView(props: QamGuardPageProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="qamGuard:toggle:stormbreaker"
                 label={t(language, "Stormbreaker")}
                 value={state.stormbreaker}
                 onChange={actions.onToggleStormbreaker}
@@ -116,6 +117,7 @@ function QamGuardView(props: QamGuardPageProps) {
             )}
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="qamGuard:toggle:automaticRecovery"
                 label={t(language, "Automatic Recovery")}
                 value={state.automaticRecovery}
                 onChange={actions.onToggleAutomaticRecovery}
@@ -129,6 +131,7 @@ function QamGuardView(props: QamGuardPageProps) {
             )}
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="qamGuard:toggle:recoveryButtonCombo"
                 label={t(language, "Recovery Button Combo")}
                 value={state.recoveryButtonCombo}
                 onChange={actions.onToggleRecoveryButtonCombo}
@@ -137,6 +140,7 @@ function QamGuardView(props: QamGuardPageProps) {
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
+                focusKey="qamGuard:toggle:recoveryLogs"
                 label={t(language, "Save Recovery Logs")}
                 value={state.recoveryLogs}
                 onChange={actions.onToggleRecoveryLogs}

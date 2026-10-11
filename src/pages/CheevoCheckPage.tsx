@@ -371,7 +371,7 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                             onSaveSpeed={settings.saveVerifySpeed}
                         />
                     )}
-                    <DarkenScreenRow language={language} buttonSpacing={state.buttonSpacing} />
+                    <DarkenScreenRow focusKey="cheevocheck:toggle:darkenScreen" language={language} buttonSpacing={state.buttonSpacing} />
                 </>
             )}
 
@@ -812,7 +812,7 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                     {!settings.optionsCollapsed && (
                     <>
 
-                    <DarkenScreenRow language={language} buttonSpacing={state.buttonSpacing} />
+                    <DarkenScreenRow focusKey="cheevocheck:toggle:darkenScreen" language={language} buttonSpacing={state.buttonSpacing} />
 
                     <PanelSectionRow>
                         <ToggleRow
@@ -820,6 +820,7 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                             value={state.batterySaver}
                             onChange={actions.onToggleBatterySaver}
                             outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                            focusKey="cheevocheck:toggle:batterySaver"
                             bottomSeparator="standard"
                             help={t(language, "help_cheevo_check_pause_services")}
                         />
@@ -830,6 +831,7 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                             value={settings.libraryBadge}
                             onChange={settings.saveLibraryBadge}
                             outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                            focusKey="cheevocheck:toggle:libraryBadge"
                             bottomSeparator="standard"
                             help={t(language, "help_library_badge")}
                         />
@@ -840,6 +842,7 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                             value={settings.cacheHashes}
                             onChange={settings.saveCacheHashes}
                             outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                            focusKey="cheevocheck:toggle:cacheHashes"
                             bottomSeparator="standard"
                             help={t(language, "help_cheevo_check_cache_hashes")}
                         />
@@ -850,6 +853,7 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                             value={settings.extractToRam}
                             onChange={settings.saveExtractToRam}
                             outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                            focusKey="cheevocheck:toggle:extractToRam"
                             bottomSeparator="standard"
                             help={t(language, "help_cheevo_check_extract_to_ram")}
                         />
@@ -860,6 +864,7 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                             value={settings.verifyHashes}
                             onChange={settings.saveVerifyHashes}
                             outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                            focusKey="cheevocheck:toggle:verifyHashes"
                             bottomSeparator="standard"
                             help={t(language, "help_cheevo_check_verify_hashes")}
                         />
@@ -963,6 +968,7 @@ function VerifyControls(props: {
                     value={props.skipDiscVerify}
                     onChange={props.onToggleSkipDiscVerify}
                     outerStyle={regularButtonSpacingStyle(props.buttonSpacing)}
+                    focusKey="cheevocheck:toggle:skipDiscVerify"
                     bottomSeparator="standard"
                     help={t(language, "help_cheevo_check_skip_disc_verify")}
                 />
@@ -973,6 +979,7 @@ function VerifyControls(props: {
                     value={props.skipCartVerify}
                     onChange={props.onToggleSkipCartVerify}
                     outerStyle={regularButtonSpacingStyle(props.buttonSpacing)}
+                    focusKey="cheevocheck:toggle:skipCartVerify"
                     bottomSeparator="standard"
                     help={t(language, "help_cheevo_check_skip_cart_verify")}
                 />

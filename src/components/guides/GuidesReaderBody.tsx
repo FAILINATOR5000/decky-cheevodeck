@@ -32,6 +32,7 @@ import { debugLoggingEnabled, logGuidesDebug } from "../../api";
 type GuidesReaderBodyProps = {
     content: GuideContent | null;
     language: LanguageCode;
+    focusKey?: string;
     surface: GuideSurface;
     zoom: number;
     fullHeight: boolean;
@@ -1136,7 +1137,7 @@ export function GuidesReaderBody(props: GuidesReaderBodyProps) {
 
     if (ScrollPanelGroup) {
         return (
-            <div ref={frameRef} style={frame}>
+            <div ref={frameRef} data-focus-key={props.focusKey} style={frame}>
                 <ScrollPanelGroup focusable={false} style={scrollStyle}>
                     <Focusable
                         focusable={!released}
@@ -1243,7 +1244,7 @@ export function GuidesReaderBody(props: GuidesReaderBodyProps) {
         );
     }
     return (
-        <div ref={frameRef} style={{ ...frame, ...scrollStyle, overflowY: "auto" }}>
+        <div ref={frameRef} data-focus-key={props.focusKey} style={{ ...frame, ...scrollStyle, overflowY: "auto" }}>
             {inner}
         </div>
     );

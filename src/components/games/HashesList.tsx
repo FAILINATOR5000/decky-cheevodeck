@@ -30,7 +30,7 @@ export function HashesList(props: HashesListProps) {
             {results.map((row, index) => (
                 <FocusableItem
                     key={row.md5 || `hash:${index}`}
-                    focusKey={`gameoverview:hash:${row.md5 || index}`}
+                    focusKey={`gameoverview:hash:${row.md5}`}
                     bottomSeparator="none"
                     outerStyle={{ width: "100%", minWidth: 0 }}
                     disabled={Boolean(downloadingMd5) && downloadingMd5 !== row.md5}

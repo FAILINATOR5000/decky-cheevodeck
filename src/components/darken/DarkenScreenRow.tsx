@@ -6,6 +6,7 @@ import type { ButtonSpacing } from "../../types";
 import { regularButtonSpacingStyle } from "../../utils/style";
 
 export type DarkenScreenRowProps = {
+    focusKey: string;
     language: LanguageCode;
     buttonSpacing: ButtonSpacing;
 };
@@ -18,6 +19,7 @@ export function DarkenScreenRow(props: DarkenScreenRowProps) {
         <PanelSectionRow>
             <ToggleRow
                 outerStyle={regularButtonSpacingStyle(props.buttonSpacing)}
+                focusKey={props.focusKey}
                 label={t(language, "Darken Screen")}
                 value={darkened}
                 onChange={setDarkened}

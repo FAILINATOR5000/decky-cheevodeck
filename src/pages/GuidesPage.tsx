@@ -319,6 +319,7 @@ export function GuidesPage(props: GuidesPageProps) {
                 <PanelSectionRow>
                     <ToggleRow
                         outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                        focusKey="guides:toggle:pinLatestGuides"
                         label={t(lang, "Pin Latest Guide")}
                         value={state.pinLatestGuides}
                         onChange={actions.onTogglePinLatestGuides}
@@ -328,6 +329,7 @@ export function GuidesPage(props: GuidesPageProps) {
                 <PanelSectionRow>
                     <ToggleRow
                         outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                        focusKey="guides:toggle:keepGuidesOffline"
                         label={t(lang, "Offline Guides")}
                         value={state.keepGuidesOffline}
                         onChange={actions.onToggleKeepGuidesOffline}
@@ -623,11 +625,13 @@ function GuidesSearchBox(props: {
     return (
         <>
             <PanelSectionRow>
-                <TextField
-                    label={t(language, "Search GameFAQs")}
-                    value={term}
-                    onChange={(e: { target: { value: string } }) => actions.setManualSearchTerm(e.target.value)}
-                />
+                <div data-focus-key="guides:manualsearch:field">
+                    <TextField
+                        label={t(language, "Search GameFAQs")}
+                        value={term}
+                        onChange={(e: { target: { value: string } }) => actions.setManualSearchTerm(e.target.value)}
+                    />
+                </div>
             </PanelSectionRow>
             <PanelSectionRow>
                 <InfoText>{t(language, "Not the right game? Search manually.")}</InfoText>

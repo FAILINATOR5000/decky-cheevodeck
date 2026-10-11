@@ -289,11 +289,11 @@ function EventView(props: { state: EventViewState; actions: EventViewerPageActio
         const infoUrl = detail.infoUrl;
         buttons.push({ key: "info", label: t(language, "More Info"), onClick: () => openHeaderLink("info", infoUrl) });
     }
-    for (const [index, link] of (detail?.links ?? []).entries()) {
+    for (const link of detail?.links ?? []) {
         buttons.push({
-            key: `link:${index}`,
+            key: `link:${link.url}`,
             label: link.label || t(language, "Open Sheet"),
-            onClick: () => openHeaderLink(`link:${index}`, link.url)
+            onClick: () => openHeaderLink(`link:${link.url}`, link.url)
         });
     }
 
