@@ -2519,6 +2519,29 @@ function AchievementsRoot() {
     trackedSetsWasOpenRef.current = trackedSetsArmedView !== null && view === trackedSetsArmedView;
     const trackedSetsRestorePending = trackedSetsRestoreArmedRef.current;
 
+    function dropRestoresArmedForOtherViews(bootView: ViewKey) {
+        const latches = [
+            { armed: notesRestoreArmedRef, view: "gameNotes" },
+            { armed: trackedRestoreArmedRef, view: "tracked" },
+            { armed: cheevoCheckRestoreArmedRef, view: "cheevoCheck" },
+            { armed: dolphinRestoreArmedRef, view: "dolphinMapper" },
+            { armed: savedCommentRestoreArmedRef, view: "social" },
+            { armed: memoriesRestoreArmedRef, view: "memories" },
+            { armed: optionsRestoreArmedRef, view: "options" },
+            { armed: utilsRestoreArmedRef, view: "utils" },
+            { armed: fileWatcherRestoreArmedRef, view: "fileWatcher" },
+            { armed: memoriesTransferRestoreArmedRef, view: "memoriesTransfer" },
+            { armed: smbRestoreArmedRef, view: "smbShares" },
+            { armed: trackedSetsRestoreArmedRef, view: trackedSetsArmedView }
+        ];
+        for (const latch of latches) {
+            if (latch.armed.current && latch.view !== bootView) {
+                latch.armed.current = false;
+                logFocusDebug("restore-dropped", String(latch.view), `boot=${bootView}`);
+            }
+        }
+    }
+
 
     const { state: unlockHistoryState, actions: unlockHistoryActions } = unlockHistoryController;
     const { state: aboutState, actions: aboutActions } = aboutController;
@@ -2984,6 +3007,7 @@ function AchievementsRoot() {
             resumeViewFlipRef.current = true;
         }
         restoreNav(getSavedNavStack(nextResumeState), bootView);
+        dropRestoresArmedForOtherViews(bootView);
         if (
             bootView === "trackedSetOpen"
             || ((bootView === "gameOverview" || bootView === "achievementOverview")
