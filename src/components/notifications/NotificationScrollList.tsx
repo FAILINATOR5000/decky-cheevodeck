@@ -20,7 +20,7 @@ import { getCurrentModalScale } from "../../utils/scale";
 import { modalBodyStyle } from "../../utils/style";
 
 const NOTIF_INITIAL_ROWS = 30;
-const NOTIF_ROW_STEP = 50;
+const NOTIF_ROW_STEP = 25;
 const NOTIF_SENTINEL_ROOT_MARGIN_PX = 600;
 const NOTIF_PREFETCH_DISTANCE = 10;
 

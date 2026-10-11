@@ -351,7 +351,7 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
     const [archiveFocused, setArchiveFocused] = useState(false);
     const [trashArmed, setTrashArmed] = useState(false);
     const bodyRef = useRef<HTMLDivElement | null>(null);
-    const [bodyTruncated, setBodyTruncated] = useState(false);
+    const hintRef = useRef<HTMLDivElement | null>(null);
     const metrics = list.metrics;
 
     const largeViewportBonus = getDeviceIsSteamMachine() && getCurrentLargeViewportBonusEnabled()
@@ -580,18 +580,16 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
         || isDeveloperMessage(notification);
 
     useLayoutEffect(() => {
-        if (!isClampedBody) {
-            setBodyTruncated(false);
-            return;
-        }
         const el = bodyRef.current;
-        if (!el) {
-            setBodyTruncated(false);
+        const hint = hintRef.current;
+        if (!isClampedBody || !el || !hint) {
             return;
         }
         const measure = () => {
-            const over = el.scrollHeight > el.clientHeight + 1;
-            setBodyTruncated((prev) => (prev === over ? prev : over));
+            const display = el.scrollHeight > el.clientHeight + 1 ? "" : "none";
+            if (hint.style.display !== display) {
+                hint.style.display = display;
+            }
         };
         measure();
         let cancelled = false;
@@ -908,14 +906,16 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                             {templatedBody ?? withInlineTags(notification.body)}
                         </div>
                     )}
-                    {isClampedBody && bodyTruncated && (
+                    {isClampedBody && (
                         <div
+                            ref={hintRef}
                             style={{
                                 ...smallTextStyle(),
                                 fontSize: `${metrics.pointsFontSize}px`,
                                 lineHeight: metrics.pointsLineHeight,
                                 opacity: 0.9,
-                                fontWeight: 800
+                                fontWeight: 800,
+                                display: "none"
                             }}
                         >
                             <ButtonPrompt
