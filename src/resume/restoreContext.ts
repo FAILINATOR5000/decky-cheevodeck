@@ -1,4 +1,5 @@
 import type { Dispatch, RefObject, SetStateAction } from "react";
+import type { NavIntent } from "../nav";
 import type {
     AllGamesLetterRangeKey,
     AllGamesStatusFilter,
@@ -21,7 +22,7 @@ export type RestoreContext = {
     markResumeApplied: () => void;
     setPendingPrimaryViewRestoreGameId: Dispatch<SetStateAction<number | null | undefined>>;
 
-    setView: (next: ViewKey) => void;
+    setView: (next: ViewKey, intent?: NavIntent) => void;
     setPendingFocusKey: Dispatch<SetStateAction<string | null>>;
     pendingResumeFocusKeyRef: RefObject<string | null>;
     mountedRef: RefObject<boolean>;

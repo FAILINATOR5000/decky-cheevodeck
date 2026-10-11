@@ -34,6 +34,13 @@ export function settleNav(state: NavState, next: Route, intent: NavIntent): NavS
         return { stack: landed, step: step(true) };
     }
     if (intent === "back") {
+        if (next.view === "achievements") {
+            const bottom = stack[0];
+            if (bottom && bottom.view === "achievements") {
+                return { stack: [bottom], step: step(true) };
+            }
+            return { stack: [next], step: step(false) };
+        }
         const popped = stack.slice(0, -1);
         const uncovered = popped[popped.length - 1];
         if (uncovered && uncovered.view === next.view) {

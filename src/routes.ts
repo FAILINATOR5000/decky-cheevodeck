@@ -3,7 +3,7 @@ import type { ViewKey } from "./types";
 type BackAction = () => void | Promise<void>;
 
 export interface RouteBackActions {
-    goToAchievements: BackAction;
+    backToAchievements: BackAction;
     backFromTracked: BackAction;
     backFromFriendProfile: BackAction;
     backFromAllGames: BackAction;
@@ -37,7 +37,7 @@ export interface RouteRow {
 export const ROUTES: Record<ViewKey, RouteRow> = {
     achievements: { focusKey: "action:friends", mount: "always" },
     tracked: { focusKey: "tracked:back", mount: "always", back: (nav) => nav.backFromTracked() },
-    social: { focusKey: "social:back", mount: "always", back: (nav) => nav.goToAchievements() },
+    social: { focusKey: "social:back", mount: "always", back: (nav) => nav.backToAchievements() },
     friendGame: { focusKey: "friendgame:back", mount: "always", back: (nav) => nav.backFromFriendProfile() },
     friendAllGames: { focusKey: "friendallgames:back", mount: "always", back: (nav) => nav.backFromAllGames() },
     friendCompare: { focusKey: "friendcompare:back", mount: "always", back: (nav) => nav.backFromFriendCompare() },

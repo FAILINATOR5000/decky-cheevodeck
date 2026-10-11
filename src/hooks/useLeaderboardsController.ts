@@ -37,17 +37,18 @@ type UseLeaderboardsControllerArgs = {
     setFriendGameSource: Dispatch<SetStateAction<FriendGameSource>>;
     setRecentGamesExpanded: Dispatch<SetStateAction<boolean>>;
     setSettingsMode: Dispatch<SetStateAction<boolean>>;
-    setView: (next: ViewKey) => void;
-    navIntentRef: RefObject<NavIntent | null>;
+    setView: (next: ViewKey, intent?: NavIntent) => void;
     setPendingFocusKey: Dispatch<SetStateAction<string | null>>;
     loadFriendGame: (
         friend: FriendRow,
         gameId?: number | null,
         force?: boolean,
-        focusTarget?: string
+        focusTarget?: string,
+        suppressViewChange?: boolean,
+        navIntent?: NavIntent
     ) => void | Promise<void>;
-    goToFriends: () => void;
-    goToAchievements: (focusTarget?: string) => void;
+    goToFriends: (intent?: NavIntent) => void;
+    backToAchievements: (focusTarget?: string) => void;
     returnToGameOverview: () => void;
     onBeforeEnterLeaderboards?: () => void;
 };
@@ -64,11 +65,10 @@ export function useLeaderboardsController({
     setRecentGamesExpanded,
     setSettingsMode,
     setView,
-    navIntentRef,
     setPendingFocusKey,
     loadFriendGame,
     goToFriends,
-    goToAchievements,
+    backToAchievements,
     returnToGameOverview,
     onBeforeEnterLeaderboards
 }: UseLeaderboardsControllerArgs) {
@@ -271,7 +271,6 @@ export function useLeaderboardsController({
     );
 
     const backToLeaderboardsSource = useCallback(async () => {
-        navIntentRef.current = "back";
         if (leaderboardsSourceViewRef.current === "gameOverview") {
             returnToGameOverview();
             return;
@@ -295,7 +294,7 @@ export function useLeaderboardsController({
                 payloadUsername.toLowerCase() === friendUsername.toLowerCase();
             if (friendUsername && payloadStillLoaded) {
                 setFriendGameSource(returnSource);
-                setView("friendGame");
+                setView("friendGame", "back");
                 setPendingFocusKey(returnFocusKey);
                 return;
             }
@@ -312,21 +311,23 @@ export function useLeaderboardsController({
                     { username: friendUsername } as FriendRow,
                     friendGameId,
                     true,
-                    returnFocusKey
+                    returnFocusKey,
+                    false,
+                    "back"
                 );
             }
             else {
-                goToFriends();
+                goToFriends("back");
             }
             return;
         }
 
-        goToAchievements("quick:tab:leaderboards");
+        backToAchievements("quick:tab:leaderboards");
     }, [
+        backToAchievements,
         friendGamePayloadRef,
         friendGameReturnGameIdRef,
         friendGameSourceRef,
-        goToAchievements,
         goToFriends,
         loadFriendGame,
         returnToGameOverview,
@@ -338,10 +339,9 @@ export function useLeaderboardsController({
     ]);
 
     const backToLeaderboardsList = useCallback(() => {
-        navIntentRef.current = "back";
-        setView("leaderboards");
+        setView("leaderboards", "back");
         setPendingFocusKey(`leaderboards:item:${selectedLeaderboardRef.current?.id ?? ""}`);
-    }, [navIntentRef, setPendingFocusKey, setView]);
+    }, [setPendingFocusKey, setView]);
 
     const onOpenLeaderboardUserProfile = async (username: string) => {
         if (!username) {

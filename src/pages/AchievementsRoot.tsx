@@ -438,10 +438,7 @@ function AchievementsRoot() {
     const [settingsMode, setSettingsMode] = useState(false);
     const [view, setViewState] = useState<ViewKey>("achievements");
     const [nav, setNav] = useState(() => initialNav("achievements"));
-    const navIntentRef = useRef<NavIntent | null>(null);
-    const setView = useCallback((next: ViewKey) => {
-        const intent = navIntentRef.current ?? "push";
-        navIntentRef.current = null;
+    const setView = useCallback((next: ViewKey, intent: NavIntent = "push") => {
         setNav((state) => settleNav(state, { view: next }, intent));
         setViewState(next);
     }, []);
@@ -735,7 +732,6 @@ function AchievementsRoot() {
         settingsLoaded,
         settingsMode,
         mountedRef,
-        navIntentRef,
         viewRef,
         pendingResumeFocusKeyRef,
         rootRef,
@@ -1472,10 +1468,7 @@ function AchievementsRoot() {
         pressingQuickGuideRef.current = true;
 
         function fallBackToGuidesPage() {
-            if (navIntent) {
-                navIntentRef.current = navIntent;
-            }
-            goToGuides();
+            goToGuides(navIntent);
         }
 
         try {
@@ -1657,7 +1650,7 @@ function AchievementsRoot() {
         setTrackedSelectedGameId,
         saveTrackedAchievementActionWithRollback,
         openNoteModal,
-        goToAchievements,
+        backToAchievements,
         legacyAchievementLinks,
         goToAchievementOverviewRef
     });
@@ -1736,7 +1729,6 @@ function AchievementsRoot() {
     const { state: drillInState, actions: drillInActions } = trackedForGameController;
 
     const leaderboardsController = useLeaderboardsController({
-        navIntentRef,
         mountedRef,
         payloadRef,
         selectedFriend,
@@ -1751,9 +1743,9 @@ function AchievementsRoot() {
         setPendingFocusKey,
         loadFriendGame,
         goToFriends,
-        goToAchievements,
+        backToAchievements,
         returnToGameOverview: () => {
-            setView("gameOverview");
+            setView("gameOverview", "back");
             setPendingFocusKey("gameoverview:leaderboards");
         },
         onBeforeEnterLeaderboards: () => {
@@ -2160,7 +2152,6 @@ function AchievementsRoot() {
         setFriendGameSelectionMode,
         mountedRef,
         friendGameReturnGameIdRef,
-        navIntentRef,
         friendProfileBackSourceRef,
         setError,
         resolveViewedUser,
@@ -2227,8 +2218,8 @@ function AchievementsRoot() {
         clearPendingResumeState,
         enableRememberLastPagePersistence,
         disableRememberLastPagePersistence,
-        onBack: goToAchievements,
-        onGoToAbout: goToAbout,
+        onBack: backToAchievements,
+        onGoToAbout: () => goToAbout(),
         onRefreshNow: () => refreshGameData(true, false, t(language, "Refreshing Achievements...")),
         onAfterSelfRename: async () => {
             const fresh = await getSettings();
@@ -2307,21 +2298,19 @@ function AchievementsRoot() {
     const unlockHistoryDaysForPage = isFriendUnlockHistory ? -1 : unlockHistoryDays;
 
     function backFromUnlockHistory() {
-        navIntentRef.current = "back";
         if (unlockHistorySource === "friendGame") {
             void backFromFriendUnlockHistory();
             return;
         }
-        goToAchievements("quick:tab:history");
+        backToAchievements("quick:tab:history");
     }
 
     function backFromGuides() {
-        navIntentRef.current = "back";
         if (guidesActions.handleBack()) {
             setPendingFocusKey("guides:back");
             return;
         }
-        goToAchievements("quick:tab:guides");
+        backToAchievements("quick:tab:guides");
     }
 
     const unlockHistoryController = useUnlockHistoryController({
@@ -2376,11 +2365,10 @@ function AchievementsRoot() {
         language,
         buttonSpacing,
         onBack: () => {
-            navIntentRef.current = "back";
             if (previousView(nav.stack) === "options") {
-                goToOptions("options:about");
+                goToOptions("options:about", "back");
             } else {
-                goToAchievements();
+                backToAchievements();
             }
         }
     });
@@ -3335,7 +3323,14 @@ function AchievementsRoot() {
     }
 
     function goToAchievements(focusKey = "action:friends") {
-        navIntentRef.current = "root";
+        arriveOnAchievements("root", focusKey);
+    }
+
+    function backToAchievements(focusKey = "action:friends") {
+        arriveOnAchievements("back", focusKey);
+    }
+
+    function arriveOnAchievements(intent: NavIntent, focusKey: string) {
         clearEventsFocusReturn();
         clearEventViewerRowReturn();
         friendRowRefreshRunIdRef.current += 1;
@@ -3345,11 +3340,11 @@ function AchievementsRoot() {
             setAchievementsResumeToken((current) => current + 1);
         }
 
-        setView("achievements");
+        setView("achievements", intent);
         setPendingFocusKey(focusKey);
     }
 
-    function goToFriends() {
+    function goToFriends(intent: NavIntent = "push") {
         friendGameReturnGameIdRef.current = null;
         friendGameSessionRefreshKeysRef.current = new Set();
         friendsRefreshedThisSessionRef.current = false;
@@ -3362,7 +3357,7 @@ function AchievementsRoot() {
             setSocialEntryViewOverride(socialEntryDefault);
         }
         setSocialEntryToken((current) => current + 1);
-        goToFriendsBase();
+        goToFriendsBase(intent);
     }
 
     function goToComparePicker() {
@@ -3371,13 +3366,12 @@ function AchievementsRoot() {
     }
 
     function backFromComparePicker() {
-        navIntentRef.current = "back";
         setMainTab("compare");
-        setView("achievements");
+        setView("achievements", "back");
         setPendingFocusKey("main:tab:compare");
     }
 
-    function goToOptions(focusKey?: string) {
+    function goToOptions(focusKey?: string, intent: NavIntent = "push") {
         friendGameSessionRefreshKeysRef.current = new Set();
         setLastOptionsTab("system");
         void saveLastOptionsTab("system").catch(() => {
@@ -3386,7 +3380,7 @@ function AchievementsRoot() {
         if (focusKey) {
             armOptionsLanding(focusKey);
         }
-        setView("options");
+        setView("options", intent);
         setPendingFocusKey("options:back");
     }
 
@@ -3397,10 +3391,10 @@ function AchievementsRoot() {
         setPendingFocusKey("unlockhistory:back");
     }
 
-    function goToGuides() {
+    function goToGuides(intent: NavIntent = "push") {
         setGuidesResumeTarget(null);
         guidesActions.goToList();
-        setView("guides");
+        setView("guides", intent);
         setPendingFocusKey("guides:back");
     }
 
@@ -3455,7 +3449,7 @@ function AchievementsRoot() {
             if (returnTo) {
                 setFriendGameSource(returnTo.source);
             }
-            setView("friendGame");
+            setView("friendGame", "back");
             setPendingFocusKey(focusKey);
             return;
         }
@@ -3481,11 +3475,10 @@ function AchievementsRoot() {
             return;
         }
 
-        goToAchievements(fallbackFocusKey);
+        backToAchievements(fallbackFocusKey);
     }
 
     async function backFromFriendUnlockHistory() {
-        navIntentRef.current = "back";
         const friendUsername = String(unlockHistoryReturnFriendRef.current.username || friendUsernameFromRefs() || "").trim();
         const returnSource = unlockHistoryReturnFriendRef.current.source || friendGameSourceRef.current;
         setUnlockHistorySource("main");
@@ -3498,7 +3491,6 @@ function AchievementsRoot() {
     }
 
     async function backFromFriendCompare() {
-        navIntentRef.current = "back";
         const friendUsername = String(friendCompareReturnFriendRef.current.username || friendUsernameFromRefs() || "").trim();
         const returnSource = friendCompareReturnFriendRef.current.source || friendGameSourceRef.current;
         await routeBackToFriendContext(
@@ -3510,19 +3502,16 @@ function AchievementsRoot() {
     }
 
     async function backFromBadges() {
-        navIntentRef.current = "back";
         const friendUsername = String(friendUsernameFromRefs() || "").trim();
         await routeBackToFriendContext(friendUsername, "friendprofile:tab:awards");
     }
 
     async function backFromWantToPlay() {
-        navIntentRef.current = "back";
         const friendUsername = String(friendUsernameFromRefs() || "").trim();
         await routeBackToFriendContext(friendUsername, "friendprofile:tab:wanttoplay");
     }
 
     function backFromAllGames() {
-        navIntentRef.current = "back";
         if (!selectedFriend) {
             return;
         }
@@ -3530,11 +3519,10 @@ function AchievementsRoot() {
         const returnGameId =
             friendGamePayloadRef.current?.selectedGameId ?? friendGameReturnGameIdRef.current ?? null;
         setFriendGameSelectionMode(returnGameId != null ? "explicit" : "auto");
-        return loadFriendGame(selectedFriend, returnGameId, true, "friendgame:games");
+        return loadFriendGame(selectedFriend, returnGameId, true, "friendgame:games", false, "back");
     }
 
     function backFromFriendProfile() {
-        navIntentRef.current = "back";
         const trailSays = previousView(nav.stack);
         const trailWouldSay = trailSays === "achievements" ? "main" : trailSays === "eventViewer" ? "eventViewer" : "social";
         logNavDebug(
@@ -3544,7 +3532,7 @@ function AchievementsRoot() {
         );
         if (friendProfileBackSourceRef.current === "main") {
             friendProfileBackSourceRef.current = "social";
-            goToAchievements("action:profilestrip");
+            backToAchievements("action:profilestrip");
             return;
         }
         if (friendProfileBackSourceRef.current === "eventViewer") {
@@ -3552,7 +3540,7 @@ function AchievementsRoot() {
             returnToEventViewer();
             return;
         }
-        routeBackToSocialTab(null, "social:back");
+        routeBackToSocialTab(null, "social:back", "back");
     }
 
     function goToFollowedRanking() {
@@ -3560,10 +3548,10 @@ function AchievementsRoot() {
         setPendingFocusKey("followedranking:back");
     }
 
-    function goToTrackedSets() {
+    function goToTrackedSets(intent: NavIntent = "push") {
         setTrackedSetOpenId(null);
         armTrackedSetsFullCheck();
-        setView("trackedSets");
+        setView("trackedSets", intent);
         setPendingFocusKey("trackedsets:back");
     }
 
@@ -3579,17 +3567,15 @@ function AchievementsRoot() {
     }
 
     function closeTrackedSetToSelector() {
-        navIntentRef.current = "back";
         closeTrackedSet();
-        setView("trackedSets");
+        setView("trackedSets", "back");
         setPendingFocusKey("trackedsets:back");
     }
 
     async function backFromTrackedSets() {
-        navIntentRef.current = "back";
         if (trackedSetsBackSourceRef.current === "main") {
             trackedSetsBackSourceRef.current = "profile";
-            goToAchievements("action:quickmenu");
+            backToAchievements("action:quickmenu");
             return;
         }
 
@@ -3598,93 +3584,89 @@ function AchievementsRoot() {
     }
 
     async function backFromFollowedRanking() {
-        navIntentRef.current = "back";
         const friendUsername = String(friendUsernameFromRefs() || "").trim();
         await routeBackToFriendContext(friendUsername, "friendprofile:tab:ranking");
     }
 
-    function goToAbout() {
+    function goToAbout(intent: NavIntent = "push") {
         friendGameSessionRefreshKeysRef.current = new Set();
-        setView("about");
+        setView("about", intent);
         setPendingFocusKey("about:back");
     }
 
-    function goToUtils() {
+    function goToUtils(intent: NavIntent = "push") {
         friendGameSessionRefreshKeysRef.current = new Set();
-        setView("utils");
+        setView("utils", intent);
         setPendingFocusKey("utils:back");
     }
 
     function backFromUtils() {
-        navIntentRef.current = "back";
-        goToAchievements();
+        backToAchievements();
     }
 
-    function goToDolphinMapper() {
+    function goToDolphinMapper(intent: NavIntent = "push") {
         friendGameSessionRefreshKeysRef.current = new Set();
-        setView("dolphinMapper");
+        setView("dolphinMapper", intent);
         setPendingFocusKey("dolphinMapper:back");
     }
 
-    function goToSmbShares() {
+    function goToSmbShares(intent: NavIntent = "push") {
         friendGameSessionRefreshKeysRef.current = new Set();
-        setView("smbShares");
+        setView("smbShares", intent);
         setPendingFocusKey("smbShares:back");
     }
 
-    function goToCheevoCheck() {
+    function goToCheevoCheck(intent: NavIntent = "push") {
         friendGameSessionRefreshKeysRef.current = new Set();
-        setView("cheevoCheck");
+        setView("cheevoCheck", intent);
         setPendingFocusKey("cheevocheck:back");
     }
 
-    function goToFileWatcher() {
+    function goToFileWatcher(intent: NavIntent = "push") {
         friendGameSessionRefreshKeysRef.current = new Set();
-        setView("fileWatcher");
+        setView("fileWatcher", intent);
         setPendingFocusKey("fileWatcher:back");
     }
 
-    function goToMemories() {
+    function goToMemories(intent: NavIntent = "push") {
         friendGameSessionRefreshKeysRef.current = new Set();
-        setView("memories");
+        setView("memories", intent);
         setPendingFocusKey("memories:back");
     }
 
-    function goToMemoriesTransfer() {
+    function goToMemoriesTransfer(intent: NavIntent = "push") {
         friendGameSessionRefreshKeysRef.current = new Set();
-        setView("memoriesTransfer");
+        setView("memoriesTransfer", intent);
         setPendingFocusKey("memoriesTransfer:back");
     }
 
-    function goToQamGuard() {
+    function goToQamGuard(intent: NavIntent = "push") {
         friendGameSessionRefreshKeysRef.current = new Set();
         openStormbreakerOnStatus();
-        setView("qamGuard");
+        setView("qamGuard", intent);
         setPendingFocusKey("qamGuard:back");
     }
 
     function backFromMemories() {
-        navIntentRef.current = "back";
         const from = previousView(nav.stack);
         if (from === "utils") {
-            goToUtils();
+            goToUtils("back");
             return;
         }
         if (from === "achievements") {
-            goToAchievements("quick:tab:memories");
+            backToAchievements("quick:tab:memories");
             return;
         }
-        goToAchievements();
+        backToAchievements();
     }
 
     function backFromUtilityTool() {
-        navIntentRef.current = "back";
         if (previousView(nav.stack) === "utils") {
-            goToUtils();
+            goToUtils("back");
             return;
         }
 
-        goToAchievements("action:quickmenu");
+        backToAchievements("action:quickmenu");
     }
 
     function goToGameNotes(focusKeyAfter?: string) {
@@ -3696,20 +3678,19 @@ function AchievementsRoot() {
     }
 
     function backFromGameNotes() {
-        navIntentRef.current = "back";
         gameNotesActions.clearReorderSelection();
-        goToAchievements();
+        backToAchievements();
     }
 
     // Deep links
     const goToGameOverview = useCallback(
-        (targetGameId: number, source: GameOverviewSource, viewedUsername: string | null, viewedUserRef: string | null, subView: GameOverviewSubView = "achievements") => {
+        (targetGameId: number, source: GameOverviewSource, viewedUsername: string | null, viewedUserRef: string | null, subView: GameOverviewSubView = "achievements", intent: NavIntent = "push") => {
             setGameOverviewGameId(targetGameId);
             setGameOverviewSource(source);
             setGameOverviewViewedUsername(viewedUsername);
             setGameOverviewViewedUserRef(viewedUserRef);
             setGameOverviewSubView(subView);
-            setView("gameOverview");
+            setView("gameOverview", intent);
             setPendingFocusKey("gameoverview:back");
         },
         []
@@ -3725,10 +3706,7 @@ function AchievementsRoot() {
                     pendingSearchGameId = game.gameId;
                     pendingSearchBackSource = backSource;
                     close();
-                    if (navIntent) {
-                        navIntentRef.current = navIntent;
-                    }
-                    goToGameOverview(game.gameId, backSource, null, null);
+                    goToGameOverview(game.gameId, backSource, null, null, "achievements", navIntent);
                 }}
                 close={close}
             />
@@ -3800,18 +3778,15 @@ function AchievementsRoot() {
         },
         openCheevoCheck: () => {
             requestPanelEntry({ kind: "cheevoCheck" });
-            navIntentRef.current = "hub";
-            goToCheevoCheck();
+            goToCheevoCheck("hub");
         },
         openFileWatcher: () => {
             requestPanelEntry({ kind: "fileWatcher" });
-            navIntentRef.current = "hub";
-            goToFileWatcher();
+            goToFileWatcher("hub");
         },
         openMemoriesTransfer: () => {
             requestPanelEntry({ kind: "memoriesTransfer" });
-            navIntentRef.current = "hub";
-            goToMemoriesTransfer();
+            goToMemoriesTransfer("hub");
         },
         openMessage: (body: string) => {
             showManagedModal((close) => (
@@ -3837,8 +3812,7 @@ function AchievementsRoot() {
         },
         openAbout: () => {
             requestPanelEntry({ kind: "about" });
-            navIntentRef.current = "hub";
-            goToAbout();
+            goToAbout("hub");
         },
         openExternalUrl: (url) => {
             void openExternalUrl(url);
@@ -3925,84 +3899,82 @@ function AchievementsRoot() {
         );
     }
 
-    function routeBackToSocialTab(entryOverride: SocialView | null, focusKey: string) {
+    function routeBackToSocialTab(entryOverride: SocialView | null, focusKey: string, intent: NavIntent = "push") {
         setSocialEntryViewOverride(entryOverride);
         setSocialEntryToken((current) => current + 1);
-        setView("social");
+        setView("social", intent);
         setPendingFocusKey(focusKey);
     }
 
-    function goToSocialNews() {
+    function goToSocialNews(intent: NavIntent = "push") {
         setNewsEventsSubView("news");
-        routeBackToSocialTab("newsEvents", "social:back");
+        routeBackToSocialTab("newsEvents", "social:back", intent);
     }
-    function goToSocialAotw() {
-        goToEventViewer("aotw", "main");
+    function goToSocialAotw(intent: NavIntent = "push") {
+        goToEventViewer("aotw", "main", "achievements", intent);
     }
-    function goToSocialNewSets() {
+    function goToSocialNewSets(intent: NavIntent = "push") {
         setNewsEventsSubView("newSets");
-        routeBackToSocialTab("newsEvents", "social:back");
+        routeBackToSocialTab("newsEvents", "social:back", intent);
     }
-    function goToSocialEvents() {
+    function goToSocialEvents(intent: NavIntent = "push") {
         setNewsEventsSubView("events");
-        routeBackToSocialTab("newsEvents", "social:back");
+        routeBackToSocialTab("newsEvents", "social:back", intent);
     }
-    function goToEventViewer(target: EventViewerTarget, source: EventViewerSource, tab: EventViewerTab = "achievements") {
+    function goToEventViewer(target: EventViewerTarget, source: EventViewerSource, tab: EventViewerTab = "achievements", intent: NavIntent = "push") {
         setEventViewerTarget(target);
         setEventViewerTab(tab);
         setEventViewerSource(source);
-        setView("eventViewer");
+        setView("eventViewer", intent);
         setPendingFocusKey("eventviewer:back");
     }
     function returnToEventViewer() {
         if (eventViewerTarget === null) {
             setNewsEventsSubView("events");
-            routeBackToSocialTab("newsEvents", "social:back");
+            routeBackToSocialTab("newsEvents", "social:back", "back");
             return;
         }
-        setView("eventViewer");
+        setView("eventViewer", "back");
         setPendingFocusKey("eventviewer:back");
     }
     function backFromEventViewer() {
-        navIntentRef.current = "back";
         if (eventViewerSource === "main") {
-            goToAchievements();
+            backToAchievements();
             return;
         }
         if (eventViewerSource === "subscribedDiscussions") {
-            routeBackToSocialTab("subscribedDiscussions", "social:tab:subscribeddiscussions");
+            routeBackToSocialTab("subscribedDiscussions", "social:tab:subscribeddiscussions", "back");
             return;
         }
         setNewsEventsSubView("events");
-        routeBackToSocialTab("newsEvents", "social:back");
+        routeBackToSocialTab("newsEvents", "social:back", "back");
     }
-    function goToSocialSubscribed() {
+    function goToSocialSubscribed(intent: NavIntent = "push") {
         updateSavedCommentsPrefs({ subTab: "subscribed" });
-        routeBackToSocialTab("subscribedDiscussions", "social:back");
+        routeBackToSocialTab("subscribedDiscussions", "social:back", intent);
     }
-    function goToSocialSavedComments() {
+    function goToSocialSavedComments(intent: NavIntent = "push") {
         updateSavedCommentsPrefs({ subTab: "savedComments" });
-        routeBackToSocialTab("subscribedDiscussions", "social:back");
+        routeBackToSocialTab("subscribedDiscussions", "social:back", intent);
     }
-    function goToSocialActivity() {
-        routeBackToSocialTab("activity", "social:back");
+    function goToSocialActivity(intent: NavIntent = "push") {
+        routeBackToSocialTab("activity", "social:back", intent);
     }
 
     function backFromGameOverview() {
-        navIntentRef.current = "back";
         const source = gameOverviewSourceRef.current ?? "main";
         if (source === "main" || source === "search") {
-            goToAchievements();
+            backToAchievements();
             return;
         }
         if (source === "trackedSet") {
             logFocusDebug("go-back-trackedset", "trackedsetopen:back");
-            setView("trackedSetOpen");
+            setView("trackedSetOpen", "back");
             setPendingFocusKey("trackedsetopen:back");
             return;
         }
         if (source === "cheevoCheck") {
-            setView("cheevoCheck");
+            setView("cheevoCheck", "back");
             setPendingFocusKey("cheevocheck:back");
             return;
         }
@@ -4013,10 +3985,10 @@ function AchievementsRoot() {
                 String(friendGamePayloadRef.current?.friendUsername || "").trim();
             const needsReload = friendRef && (!userAwardsPayload || userAwardsError);
             if (needsReload) {
-                void loadUserAwards(friendRef, friendRow?.ulid ?? "");
+                void loadUserAwards(friendRef, friendRow?.ulid ?? "", false, "back");
                 return;
             }
-            setView("badges");
+            setView("badges", "back");
             setPendingFocusKey("badges:back");
             return;
         }
@@ -4028,33 +4000,33 @@ function AchievementsRoot() {
             const needsReload = friendRef && (!wantToPlayPayload || wantToPlayError);
             if (needsReload) {
                 pendingResumeFocusKeyRef.current = "wanttoplay:back";
-                void loadUserWantToPlay(friendRef, friendRow?.ulid ?? "");
+                void loadUserWantToPlay(friendRef, friendRow?.ulid ?? "", "back");
                 return;
             }
-            setView("wantToPlay");
+            setView("wantToPlay", "back");
             setPendingFocusKey("wanttoplay:back");
             return;
         }
         if (source === "mainNowPlaying") {
-            setView("achievements");
+            setView("achievements", "back");
             setPendingFocusKey("main:tab:activity");
             return;
         }
         if (source === "socialActivity") {
-            routeBackToSocialTab(null, "social:back");
+            routeBackToSocialTab(null, "social:back", "back");
             return;
         }
         if (source === "subscribedDiscussions") {
-            routeBackToSocialTab("subscribedDiscussions", "social:tab:subscribeddiscussions");
+            routeBackToSocialTab("subscribedDiscussions", "social:tab:subscribeddiscussions", "back");
             return;
         }
         if (source === "friend") {
             if (friendEntrySourceRef.current === "compareGame") {
-                setView("friendCompare");
+                setView("friendCompare", "back");
                 setPendingFocusKey("friendcompare:back");
                 return;
             }
-            setView("friendGame");
+            setView("friendGame", "back");
             setPendingFocusKey("friendgame:back");
             return;
         }
@@ -4063,10 +4035,10 @@ function AchievementsRoot() {
             return;
         }
         if (source === "newsEvents") {
-            routeBackToSocialTab("newsEvents", "social:tab:newsEvents");
+            routeBackToSocialTab("newsEvents", "social:tab:newsEvents", "back");
             return;
         }
-        goToAchievements();
+        backToAchievements();
     }
 
     const goToAchievementOverview = useCallback(
@@ -4100,30 +4072,29 @@ function AchievementsRoot() {
     }, [goToAchievementOverview]);
 
     function backFromAchievementOverview() {
-        navIntentRef.current = "back";
         const source = aoSourceRef.current ?? "main";
         if (source === "gameOverview") {
-            setView("gameOverview");
+            setView("gameOverview", "back");
             setPendingFocusKey("gameoverview:back");
             return;
         }
         if (source === "tracked") {
-            setView("tracked");
+            setView("tracked", "back");
             setPendingFocusKey("tracked:tab:thisGame");
             return;
         }
         if (source === "unlockHistory") {
-            setView("unlockHistory");
+            setView("unlockHistory", "back");
             setPendingFocusKey("unlockhistory:back");
             return;
         }
         if (source === "mainNowPlaying") {
-            setView("achievements");
+            setView("achievements", "back");
             setPendingFocusKey("main:tab:activity");
             return;
         }
         if (source === "socialActivity") {
-            routeBackToSocialTab(null, "social:back");
+            routeBackToSocialTab(null, "social:back", "back");
             return;
         }
         if (source === "eventViewer") {
@@ -4131,24 +4102,24 @@ function AchievementsRoot() {
             return;
         }
         if (source === "newsEvents") {
-            routeBackToSocialTab("newsEvents", "social:tab:newsEvents");
+            routeBackToSocialTab("newsEvents", "social:tab:newsEvents", "back");
             return;
         }
         if (source === "subscribedDiscussions") {
-            routeBackToSocialTab("subscribedDiscussions", "social:tab:subscribeddiscussions");
+            routeBackToSocialTab("subscribedDiscussions", "social:tab:subscribeddiscussions", "back");
             return;
         }
         if (source === "friend") {
             if (friendEntrySourceRef.current === "compareGame") {
-                setView("friendCompare");
+                setView("friendCompare", "back");
                 setPendingFocusKey("friendcompare:back");
                 return;
             }
-            setView("friendGame");
+            setView("friendGame", "back");
             setPendingFocusKey("friendgame:back");
             return;
         }
-        goToAchievements();
+        backToAchievements();
     }
 
     const gameIconGameId = payload?.gameId ?? null;
@@ -4498,7 +4469,7 @@ function AchievementsRoot() {
             return undefined;
         }
         const nav: RouteBackActions = {
-            goToAchievements,
+            backToAchievements,
             backFromTracked,
             backFromFriendProfile,
             backFromAllGames,
@@ -4619,50 +4590,49 @@ function AchievementsRoot() {
             return;
         }
 
-        navIntentRef.current = "hub";
         if (action === "notifications") {
             openNotificationsModal();
             return;
         }
         if (action === "profile") {
-            goToOwnProfile();
+            goToOwnProfile("hub");
             return;
         }
         if (action === "socialhub") {
-            goToFriends();
+            goToFriends("hub");
             return;
         }
         if (action === "news") {
-            goToSocialNews();
+            goToSocialNews("hub");
             return;
         }
         if (action === "aotw") {
-            goToSocialAotw();
+            goToSocialAotw("hub");
             return;
         }
         if (action === "events") {
-            goToSocialEvents();
+            goToSocialEvents("hub");
             return;
         }
         if (action === "newsets") {
-            goToSocialNewSets();
+            goToSocialNewSets("hub");
             return;
         }
         if (action === "subscribeddiscussions") {
-            goToSocialSubscribed();
+            goToSocialSubscribed("hub");
             return;
         }
         if (action === "savedcomments") {
-            goToSocialSavedComments();
+            goToSocialSavedComments("hub");
             return;
         }
         if (action === "trackedsets") {
             trackedSetsBackSourceRef.current = "main";
-            goToTrackedSets();
+            goToTrackedSets("hub");
             return;
         }
         if (action === "utilities") {
-            goToUtils();
+            goToUtils("hub");
             return;
         }
         if (action === "useraccounts") {
@@ -4670,43 +4640,43 @@ function AchievementsRoot() {
             return;
         }
         if (action === "options") {
-            goToOptions();
+            goToOptions(undefined, "hub");
             return;
         }
         if (action === "mapShortcuts") {
-            goToOptions(MAP_SHORTCUTS_FOCUS_KEY);
+            goToOptions(MAP_SHORTCUTS_FOCUS_KEY, "hub");
             return;
         }
         if (action === "about") {
-            goToAbout();
+            goToAbout("hub");
             return;
         }
         if (action === "dolphinMapper") {
-            void goToDolphinMapper();
+            void goToDolphinMapper("hub");
             return;
         }
         if (action === "cheevoCheck") {
-            void goToCheevoCheck();
+            void goToCheevoCheck("hub");
             return;
         }
         if (action === "smbShares") {
-            void goToSmbShares();
+            void goToSmbShares("hub");
             return;
         }
         if (action === "fileWatcher") {
-            void goToFileWatcher();
+            void goToFileWatcher("hub");
             return;
         }
         if (action === "stormbreaker") {
-            goToQamGuard();
+            goToQamGuard("hub");
             return;
         }
         if (action === "memories") {
-            void goToMemories();
+            void goToMemories("hub");
             return;
         }
         if (action === "socialActivity") {
-            goToSocialActivity();
+            goToSocialActivity("hub");
             return;
         }
     }
@@ -4836,8 +4806,8 @@ function AchievementsRoot() {
                                 }}
                                 actions={{
                                     ...achievementsActions,
-                                    goToFriends,
-                                    onOpenProfile: goToOwnProfile,
+                                    goToFriends: () => goToFriends(),
+                                    onOpenProfile: () => goToOwnProfile(),
                                     goToLeaderboards,
                                     goToOptions,
                                     goToAbout,
@@ -5049,12 +5019,12 @@ function AchievementsRoot() {
                                 actions={{
                                     onBack: backFromUtils,
                                     onHome: goToAchievements,
-                                    onOpenDolphinMapper: goToDolphinMapper,
-                                    onOpenSmbShares: goToSmbShares,
-                                    onOpenCheevoCheck: goToCheevoCheck,
-                                    onOpenFileWatcher: goToFileWatcher,
-                                    onOpenMemoriesTransfer: goToMemoriesTransfer,
-                                    onOpenQamGuard: goToQamGuard,
+                                    onOpenDolphinMapper: () => goToDolphinMapper(),
+                                    onOpenSmbShares: () => goToSmbShares(),
+                                    onOpenCheevoCheck: () => goToCheevoCheck(),
+                                    onOpenFileWatcher: () => goToFileWatcher(),
+                                    onOpenMemoriesTransfer: () => goToMemoriesTransfer(),
+                                    onOpenQamGuard: () => goToQamGuard(),
                                     onRequestFocus: setPendingFocusKey
                                 }}
                             />
@@ -5345,7 +5315,7 @@ function AchievementsRoot() {
                                     }
                                 }}
                                 onRequestFocus={setPendingFocusKey}
-                                onBack={goToAchievements}
+                                onBack={backToAchievements}
                                 onHome={goToAchievements}
                                 onFriendFocus={scheduleFriendPauseRefresh}
                                 onFriendHover={noteFriendRowHover}

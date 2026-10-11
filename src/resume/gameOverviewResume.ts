@@ -78,7 +78,7 @@ export async function restoreGameOverview(savedState: ResumeState, savedView: Vi
     if (savedView === "gameOverview") {
         const savedGameId = getSavedGameOverviewGameId(savedState);
         if (savedGameId == null) {
-            ctx.setView("achievements");
+            ctx.setView("achievements", "root");
             ctx.setPendingPrimaryViewRestoreGameId(undefined);
             ctx.markResumeApplied();
             return true;

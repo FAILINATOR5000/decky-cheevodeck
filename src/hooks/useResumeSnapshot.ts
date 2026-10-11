@@ -307,6 +307,7 @@ export function useResumeSnapshot(args: ResumeSnapshotArgs) {
         settingsMode,
         rememberLastPage,
         view,
+        navStack,
         payload?.gameId,
         selectedFriend?.username,
         friendGamePayload?.selectedGameId,

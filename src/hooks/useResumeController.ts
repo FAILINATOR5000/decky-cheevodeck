@@ -8,6 +8,7 @@ import {
     type SetStateAction
 } from "react";
 import { clearResumeState, saveResumeState } from "../api";
+import type { NavIntent } from "../nav";
 import {
     getAchievementsResumeFocusKey,
     getSavedMainAchievementsTab,
@@ -136,7 +137,7 @@ type UseResumeControllerArgs = {
     ) => void | Promise<void>;
     openLeaderboardDetail: (row: LeaderboardRow) => void | Promise<void>;
     setRestoringLeaderboardDetail: Dispatch<SetStateAction<boolean>>;
-    setView: (next: ViewKey) => void;
+    setView: (next: ViewKey, intent?: NavIntent) => void;
     setPendingFocusKey: Dispatch<SetStateAction<string | null>>;
     selectCompareFriend: (username: string | null) => void;
     setCompareFilter: Dispatch<SetStateAction<NowPlayingCompareFilter>>;
@@ -519,7 +520,7 @@ export function useResumeController({
                 || viewRef.current === "wantToPlay"
                 || viewRef.current === "followedRanking"
             ) {
-                setView("achievements");
+                setView("achievements", "root");
             }
             return;
         }
@@ -559,7 +560,7 @@ export function useResumeController({
                     if (cancelled || !mountedRef.current) {
                         return;
                     }
-                    setView("achievements");
+                    setView("achievements", "root");
                     setPendingFocusKey(pendingResumeFocusKeyRef.current || null);
                     pendingResumeFocusKeyRef.current = null;
                     return;
@@ -584,7 +585,7 @@ export function useResumeController({
                 if (cancelled || !mountedRef.current) {
                     return;
                 }
-                setView("achievements");
+                setView("achievements", "root");
                 setPendingFocusKey(pendingResumeFocusKeyRef.current || null);
                 pendingResumeFocusKeyRef.current = null;
             } finally {

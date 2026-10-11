@@ -62,12 +62,11 @@ type UseFriendsControllerArgs = {
     settingsLoaded: boolean;
     settingsMode: boolean;
     mountedRef: RefObject<boolean>;
-    navIntentRef: RefObject<NavIntent | null>;
     viewRef: RefObject<ViewKey>;
     pendingResumeFocusKeyRef: RefObject<string | null>;
     rootRef: RefObject<HTMLDivElement | null>;
     setSettingsMode: Dispatch<SetStateAction<boolean>>;
-    setView: (next: ViewKey) => void;
+    setView: (next: ViewKey, intent?: NavIntent) => void;
     setPendingFocusKey: Dispatch<SetStateAction<string | null>>;
 };
 
@@ -112,7 +111,6 @@ export function useFriendsController({
     settingsLoaded,
     settingsMode,
     mountedRef,
-    navIntentRef,
     viewRef,
     pendingResumeFocusKeyRef,
     rootRef,
@@ -635,7 +633,7 @@ export function useFriendsController({
             force = false,
             focusTarget: string = "friendgame:back",
             suppressViewChange = false,
-            navIntent: NavIntent | null = null
+            navIntent: NavIntent = "push"
         ) => {
             if (friendGameBusyRef.current || !friend?.username) {
                 return;
@@ -656,10 +654,7 @@ export function useFriendsController({
             if (!force && sameLoadedProfile) {
                 setSelectedFriend(latestFriend);
                 if (!suppressViewChange) {
-                    if (navIntent) {
-                        navIntentRef.current = navIntent;
-                    }
-                    setView("friendGame");
+                    setView("friendGame", navIntent);
                     setPendingFocusKey(focusTarget || "friendgame:back");
                 }
                 return;
@@ -788,10 +783,7 @@ export function useFriendsController({
                         setFriendGameError(result.error);
                     }
                     if (!suppressViewChange) {
-                        if (navIntent) {
-                            navIntentRef.current = navIntent;
-                        }
-                        setView("friendGame");
+                        setView("friendGame", navIntent);
                         const nextFocusKey = pendingResumeFocusKeyRef.current || focusTarget;
                         if (nextFocusKey) {
                             setPendingFocusKey(nextFocusKey);
@@ -817,7 +809,6 @@ export function useFriendsController({
             friendsPayload,
             language,
             mountedRef,
-            navIntentRef,
             pendingResumeFocusKeyRef,
             setPendingFocusKey,
             setSettingsMode,
@@ -903,7 +894,7 @@ export function useFriendsController({
     };
 
     const loadUserAwards = useCallback(
-        async (awardsUsername: string, ulid: string = "", suppressViewChange = false): Promise<void> => {
+        async (awardsUsername: string, ulid: string = "", suppressViewChange = false, navIntent: NavIntent = "push"): Promise<void> => {
             const targetUsername = String(awardsUsername || "").trim();
             if (!targetUsername) {
                 return;
@@ -922,7 +913,7 @@ export function useFriendsController({
                     if (cached && mountedRef.current) {
                         setUserAwardsPayload(cached);
                         if (!suppressViewChange) {
-                            setView("badges");
+                            setView("badges", navIntent);
                             setPendingFocusKey("badges:back");
                         }
                         return;
@@ -945,7 +936,7 @@ export function useFriendsController({
                 if (result.payload) {
                     setUserAwardsPayload(result.payload);
                     if (!suppressViewChange) {
-                        setView("badges");
+                        setView("badges", navIntent);
                         setPendingFocusKey("badges:back");
                     }
                     if (result.error) {
@@ -973,7 +964,7 @@ export function useFriendsController({
     );
 
     const loadUserWantToPlay = useCallback(
-        async (wantToPlayUsername: string, ulid: string = ""): Promise<void> => {
+        async (wantToPlayUsername: string, ulid: string = "", navIntent: NavIntent = "push"): Promise<void> => {
             const targetUsername = String(wantToPlayUsername || "").trim();
             if (!targetUsername) {
                 return;
@@ -1003,7 +994,7 @@ export function useFriendsController({
                         );
                         setWantToPlayPayload(cached);
                         setWantToPlayError(null);
-                        setView("wantToPlay");
+                        setView("wantToPlay", navIntent);
                         const warmFocusKey = pendingResumeFocusKeyRef.current || "wanttoplay:back";
                         setPendingFocusKey(warmFocusKey);
                         pendingResumeFocusKeyRef.current = null;
@@ -1034,7 +1025,7 @@ export function useFriendsController({
                         `results=${result.payload.results.length} total=${result.payload.total} ms=${Date.now() - startedAt}`
                     );
                     setWantToPlayPayload(result.payload);
-                    setView("wantToPlay");
+                    setView("wantToPlay", navIntent);
                     const nextFocusKey = pendingResumeFocusKeyRef.current || "wanttoplay:back";
                     setPendingFocusKey(nextFocusKey);
                     pendingResumeFocusKeyRef.current = null;
@@ -1065,11 +1056,11 @@ export function useFriendsController({
         [language, mountedRef, pendingResumeFocusKeyRef, setPendingFocusKey, setSettingsMode, setView]
     );
 
-    const goToFriends = useCallback(() => {
+    const goToFriends = useCallback((intent: NavIntent = "push") => {
         cancelPendingFriendPauseRefresh();
         friendRowRefreshQueueRef.current = [];
         setLiveRefreshingFriendUsernames(new Set());
-        setView("social");
+        setView("social", intent);
         setPendingFocusKey("social:back");
         friendRowsRefreshedThisEntryRef.current = new Set();
         lastDetectedFriendSelectionKeyRef.current = null;

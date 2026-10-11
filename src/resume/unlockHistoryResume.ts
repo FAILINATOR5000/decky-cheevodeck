@@ -36,7 +36,7 @@ export async function restoreUnlockHistory(savedState: ResumeState, savedView: V
         if (!friendUsername || !cachedFriend) {
             ctx.setUnlockHistorySource("main");
             ctx.markResumeApplied();
-            ctx.setView("achievements");
+            ctx.setView("achievements", "root");
             return true;
         }
 

@@ -38,7 +38,8 @@ type UseSocialIntentsArgs = {
         gameId?: number | null,
         force?: boolean,
         focusTarget?: string,
-        suppressViewChange?: boolean
+        suppressViewChange?: boolean,
+        navIntent?: NavIntent
     ) => Promise<void>;
     cancelPendingFriendPauseRefresh: () => void;
     resetFriendEntryRefreshTracking: () => void;
@@ -46,7 +47,6 @@ type UseSocialIntentsArgs = {
     setFriendGameSelectionMode: Dispatch<SetStateAction<FriendGameSelectionMode>>;
     mountedRef: RefObject<boolean>;
     friendGameReturnGameIdRef: RefObject<number | null>;
-    navIntentRef: RefObject<NavIntent | null>;
     friendProfileBackSourceRef: RefObject<FriendProfileBackSource>;
     setError: Dispatch<SetStateAction<string | null>>;
     resolveViewedUser: (viewedName?: string | null, viewedUlid?: string | null) => {
@@ -89,7 +89,6 @@ export function useSocialIntents({
     setFriendGameSelectionMode,
     mountedRef,
     friendGameReturnGameIdRef,
-    navIntentRef,
     friendProfileBackSourceRef,
     setError,
     resolveViewedUser,
@@ -108,7 +107,7 @@ export function useSocialIntents({
         friendProfileBackSourceRef.current = backSource;
     }
 
-    function goToOwnProfile() {
+    function goToOwnProfile(intent: NavIntent = "push") {
         const ownUsername = username.trim();
         if (!ownUsername) {
             return;
@@ -125,7 +124,7 @@ export function useSocialIntents({
             : { username: ownUsername, ulid: activeUlid || null, isSelf: true };
 
         beginProfileOpen("main");
-        void loadFriendGame(selfRow, undefined, false, "friendgame:back");
+        void loadFriendGame(selfRow, undefined, false, "friendgame:back", false, intent);
     }
 
     async function handleActivityCardClick(
@@ -291,10 +290,9 @@ export function useSocialIntents({
         };
 
         beginProfileOpen("main");
-        navIntentRef.current = "hub";
         stashPendingNotificationProfile({ username: trimmed, ulid: ulid ?? null });
         try {
-            await loadFriendGame(friend, undefined, false, "friendgame:back");
+            await loadFriendGame(friend, undefined, false, "friendgame:back", false, "hub");
         }
         catch (e) {
             logError("openNotificationProfile", e);

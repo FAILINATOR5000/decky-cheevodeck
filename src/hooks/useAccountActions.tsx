@@ -29,6 +29,7 @@ import { WelcomeFollowupModal } from "../components/account/WelcomeFollowupModal
 import { WelcomeMainUiModal } from "../components/account/WelcomeMainUiModal";
 import { WelcomeModal } from "../components/account/WelcomeModal";
 import { t, type LanguageCode } from "../locales";
+import type { NavIntent } from "../nav";
 import type {
     SavedUser,
     SettingsResponse,
@@ -73,7 +74,7 @@ type UseAccountActionsArgs = {
     setInjectEmulatorLogin: Dispatch<SetStateAction<boolean>>;
     setHasApiKey: Dispatch<SetStateAction<boolean>>;
     setViewedIntro: Dispatch<SetStateAction<boolean>>;
-    setView: (next: ViewKey) => void;
+    setView: (next: ViewKey, intent?: NavIntent) => void;
     setPendingFocusKey: Dispatch<SetStateAction<string | null>>;
     setSettingsMode: Dispatch<SetStateAction<boolean>>;
     setSaving: Dispatch<SetStateAction<boolean>>;
@@ -351,7 +352,7 @@ export function useAccountActions({
                 return;
             }
             setHasApiKey(false);
-            setView("achievements");
+            setView("achievements", "root");
             setPendingFocusKey(null);
             setSettingsMode(true);
         } catch (e) {
@@ -389,7 +390,7 @@ export function useAccountActions({
 
             clearPendingResumeState();
 
-            setView("achievements");
+            setView("achievements", "root");
             setPendingFocusKey(null);
 
             const fresh = await getSettings();

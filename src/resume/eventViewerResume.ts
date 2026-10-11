@@ -24,7 +24,7 @@ export function restoreEventViewer(savedState: ResumeState, savedView: ViewKey, 
         return false;
     }
     if (getSavedEventViewerTarget(savedState) === null) {
-        ctx.setView("achievements");
+        ctx.setView("achievements", "root");
         ctx.setPendingPrimaryViewRestoreGameId(undefined);
         ctx.markResumeApplied();
         return true;

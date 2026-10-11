@@ -15,7 +15,7 @@ export function restoreSelfOnlyView(savedState: ResumeState, savedView: ViewKey,
         const cachedFriend = friendUsername ? findResumeFriendRow(savedState, ctx.friendsPayload) : null;
         if (!friendUsername || !cachedFriend) {
             ctx.markResumeApplied();
-            ctx.setView("achievements");
+            ctx.setView("achievements", "root");
             return true;
         }
 

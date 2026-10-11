@@ -102,13 +102,13 @@ export async function restoreFriendAllGames(savedState: ResumeState, savedView: 
         const friendUsername = getSavedFriendUsername(savedState);
         if (!friendUsername) {
             ctx.markResumeApplied();
-            ctx.setView("achievements");
+            ctx.setView("achievements", "root");
             return true;
         }
         const cachedFriend = findResumeFriendRow(savedState, ctx.friendsPayload);
         if (!cachedFriend) {
             ctx.markResumeApplied();
-            ctx.setView("achievements");
+            ctx.setView("achievements", "root");
             return true;
         }
         const desiredCount = 500;
@@ -136,7 +136,7 @@ export async function restoreFriendCompare(savedState: ResumeState, savedView: V
         const cachedFriend = friendUsername ? findResumeFriendRow(savedState, ctx.friendsPayload) : null;
         if (!friendUsername || !cachedFriend) {
             ctx.markResumeApplied();
-            ctx.setView("achievements");
+            ctx.setView("achievements", "root");
             return true;
         }
 
@@ -174,7 +174,7 @@ export async function restoreWantToPlay(savedState: ResumeState, savedView: View
         const cachedFriend = friendUsername ? findResumeFriendRow(savedState, ctx.friendsPayload) : null;
         if (!friendUsername || !cachedFriend) {
             ctx.markResumeApplied();
-            ctx.setView("achievements");
+            ctx.setView("achievements", "root");
             return true;
         }
 
@@ -206,13 +206,13 @@ export async function restoreFriendGame(savedState: ResumeState, savedView: View
         const friendUsername = getSavedFriendUsername(savedState);
         if (!friendUsername) {
             ctx.markResumeApplied();
-            ctx.setView("achievements");
+            ctx.setView("achievements", "root");
             return true;
         }
         const cachedFriend = findResumeFriendRow(savedState, ctx.friendsPayload);
         if (!cachedFriend) {
             ctx.markResumeApplied();
-            ctx.setView("achievements");
+            ctx.setView("achievements", "root");
             return true;
         }
         const friend = cachedFriend.ulid && cachedFriend.ulid === ctx.activeUlid

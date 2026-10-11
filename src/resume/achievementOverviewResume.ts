@@ -92,7 +92,7 @@ export async function restoreAchievementOverview(savedState: ResumeState, savedV
         const savedAchievementId = getSavedAoAchievementId(savedState);
         const savedSnapshot = getSavedAoSnapshot(savedState);
         if (savedAchievementId == null || savedSnapshot == null) {
-            ctx.setView("achievements");
+            ctx.setView("achievements", "root");
             ctx.setPendingPrimaryViewRestoreGameId(undefined);
             ctx.markResumeApplied();
             return true;
