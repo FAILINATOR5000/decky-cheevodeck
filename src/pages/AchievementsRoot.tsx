@@ -159,7 +159,7 @@ import { MAP_SHORTCUTS_FOCUS_KEY } from "../utils/options";
 import { openBrowserModal } from "../components/browser/BrowserModal";
 import { describeStack, initialNav, previousView, type NavIntent } from "../nav";
 import { setCover } from "../covers";
-import { beginRootMount, landingOwnsTop, restoreTrail, settleTrail, topEntryId, useFocusRecordWriter } from "../focusRecords";
+import { beginRootMount, landingOwnsTop, restoreTrail, settleTrail, subPopWouldLand, topEntryId, useFocusRecordWriter } from "../focusRecords";
 import { LandingCurtain } from "../components/ui/LandingCurtain";
 import { ROUTES, type RouteBackActions } from "../routes";
 import type {
@@ -242,7 +242,6 @@ import {
 } from "../utils/commentsSnapshot";
 import { clearCheevoCheckFocusReturn, takeCheevoCheckFocusReturn } from "../utils/cheevoCheckFocusReturn";
 import { armNoteFocusReturn, takeNoteFocusReturn } from "../utils/noteFocusReturn";
-import { armTrackedFocusReturn, takeTrackedFocusReturn } from "../utils/trackedFocusReturn";
 import { takeDolphinFocusReturn } from "../utils/dolphinFocusReturn";
 import { takeFileWatcherFocusReturn } from "../utils/fileWatcherFocusReturn";
 import { takeMemoriesTransferFocusReturn } from "../utils/memoriesTransferFocusReturn";
@@ -1614,14 +1613,14 @@ function AchievementsRoot() {
             currentColor: NoteColor | null,
             saveNote: SaveTrackedNoteFn
         ) => {
-            armTrackedFocusReturn(achievement.id, activeUlid);
+            const entryId = topEntryId();
             showManagedModal((close) => (
                 <NoteEditModal
                     gameId={gameId}
                     achievement={achievement}
                     currentNote={currentNote}
                     currentColor={currentColor}
-                    saveNote={saveNote}
+                    saveNote={(achievementId, note, color) => saveNote(achievementId, note, color, entryId)}
                     close={close}
                     language={language}
                     defaultNoteColor={defaultNoteColor}
@@ -1629,7 +1628,7 @@ function AchievementsRoot() {
                 />
             ));
         },
-        [language, defaultNoteColor, setDefaultNoteColor, activeUlid]
+        [language, defaultNoteColor, setDefaultNoteColor]
     );
 
     const trackedController = useTrackedController({
@@ -1687,7 +1686,7 @@ function AchievementsRoot() {
             setNotesByAchievementId,
             setNotesColorByAchievementId,
             goToTracked,
-            backFromTracked,
+            backFromTracked: leaveTracked,
             onTrackedViewAchievementClick,
             onTrackedUntrack,
             onTrackedEditNote,
@@ -2004,9 +2003,20 @@ function AchievementsRoot() {
 
     // Cache and account
     const onSelectTrackedGame = useCallback((nextGameId: number | null) => {
+        const landing = nextGameId === null && subPopWouldLand("tracked", 0);
         setTrackedSelectedGameId(nextGameId);
-        setPendingFocusKey("tracked:tab:otherGames");
+        if (!landing) {
+            setPendingFocusKey("tracked:tab:otherGames");
+        }
     }, [setPendingFocusKey]);
+
+    const backFromTracked = () => {
+        if (lastTrackedTab === "otherGames" && trackedSelectedGameId !== null) {
+            onSelectTrackedGame(null);
+            return;
+        }
+        void leaveTracked();
+    };
 
     const wipeFrontendMirrors = useFrontendMirrorWipe({
         setPayload,
@@ -2402,21 +2412,6 @@ function AchievementsRoot() {
             ? noteFocusReturn.noteId
             : null;
 
-    const [trackedFocusReturn] = useState(takeTrackedFocusReturn);
-
-    const trackedRestoreArmedRef = useRef(trackedFocusReturn !== null);
-    const trackedWasOpenRef = useRef(false);
-    if (trackedWasOpenRef.current && view !== "tracked") {
-        trackedRestoreArmedRef.current = false;
-    }
-    trackedWasOpenRef.current = view === "tracked";
-    const trackedRestorePending = trackedRestoreArmedRef.current;
-
-    const trackedRestoreAchievementId =
-        trackedFocusReturn && activeUlid && trackedFocusReturn.ulid === activeUlid
-            ? trackedFocusReturn.achievementId
-            : null;
-
     const [cheevoCheckFocusReturn] = useState(takeCheevoCheckFocusReturn);
 
     const cheevoCheckRestoreArmedRef = useRef(cheevoCheckFocusReturn !== null);
@@ -2490,7 +2485,6 @@ function AchievementsRoot() {
     function dropRestoresArmedForOtherViews(bootView: ViewKey) {
         const latches = [
             { armed: notesRestoreArmedRef, view: "gameNotes" },
-            { armed: trackedRestoreArmedRef, view: "tracked" },
             { armed: cheevoCheckRestoreArmedRef, view: "cheevoCheck" },
             { armed: dolphinRestoreArmedRef, view: "dolphinMapper" },
             { armed: memoriesRestoreArmedRef, view: "memories" },
@@ -4921,10 +4915,7 @@ function AchievementsRoot() {
                                     onReorderToward={onReorderToward}
                                     backClaimToken={trackedBackClaimToken}
                                     rowClaim={trackedRowClaim}
-                                    restorePending={trackedRestorePending}
-                                    restoreAchievementId={trackedRestoreAchievementId}
                                     panelOverlayVisible={panelOverlayVisible}
-                                    onRequestFocus={setPendingFocusKey}
                                 />
 
                                 {view === "options" && (

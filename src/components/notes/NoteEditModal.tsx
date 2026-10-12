@@ -21,7 +21,8 @@ const SUGGESTION_COUNT = 10;
 export type SaveTrackedNoteFn = (
     achievementId: number,
     note: string,
-    color: NoteColor
+    color: NoteColor,
+    entryId?: number | null
 ) => Promise<OkResult>;
 
 export type NoteEditModalProps = {

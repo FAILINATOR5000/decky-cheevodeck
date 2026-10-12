@@ -75,6 +75,7 @@ type OtherGamesDrillInBodyProps = {
     onEditNote: (achievement: AchievementRow) => void;
     rowClaim?: FocusClaimController;
     openAtKey?: string;
+    openFirstKey?: string;
     onOpenAtHeld?: () => void;
     collapsedTags: string[];
     onToggleCollapsedTag: (key: string) => void;
@@ -126,6 +127,7 @@ export function OtherGamesDrillInBody(props: OtherGamesDrillInBodyProps) {
         onEditNote,
         rowClaim,
         openAtKey,
+        openFirstKey,
         onOpenAtHeld,
         collapsedTags,
         onToggleCollapsedTag,
@@ -263,6 +265,8 @@ export function OtherGamesDrillInBody(props: OtherGamesDrillInBodyProps) {
                     rowClaim={rowClaim}
                     openAtKey={openAtKey}
                     onOpenAtHeld={onOpenAtHeld}
+                    openFirstKey={openFirstKey}
+                    sortFocusKey="tracked:drillin:sort"
                     collapsedKeys={collapsedSet}
                     onToggleCollapsed={onToggleCollapsedTag}
                     collapseDisabled={reorderTargetId !== null}

@@ -44,7 +44,7 @@ import {
     TRACKED_UNTAGGED_COLLAPSE_KEY
 } from "../components/tracked/TrackedListBody";
 import { noteSaveErrorKey } from "../utils/noteSaveErrors";
-import { retargetTrackedFocusReturn } from "../utils/trackedFocusReturn";
+import { overrideRecord } from "../focusRecords";
 import { useFocusClaim } from "./useFocusClaim";
 
 type TrackedWriteResult = {
@@ -421,7 +421,7 @@ export function useTrackedController({
     landingInputsRef.current = { trackedAchievements, notesByAchievementId, collapsedTagSet, language };
 
     const onSaveTrackedNote = useCallback(
-        async (achievementId: number, note: string, color: NoteColor): Promise<OkResult> => {
+        async (achievementId: number, note: string, color: NoteColor, entryId?: number | null): Promise<OkResult> => {
             if (!payload?.gameId) {
                 return { ok: false, error: "No current game loaded." };
             }
@@ -445,8 +445,8 @@ export function useTrackedController({
             if (!result?.ok) {
                 return { ok: false, error: noteSaveErrorKey(result?.error, "Couldn't save your note.") };
             }
-            if (landingId !== null) {
-                retargetTrackedFocusReturn(landingId);
+            if (landingId !== null && entryId != null) {
+                overrideRecord(entryId, { focusKey: `achievement:${landingId}` });
             }
             const nextNotes = result.notes ?? {};
             const nextNotesColor = result.notesColor ?? {};

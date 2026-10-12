@@ -46,6 +46,8 @@ type TrackedListBodyProps = {
     rowClaim?: FocusClaimController;
     openAtKey?: string;
     onOpenAtHeld?: () => void;
+    openFirstKey?: string;
+    sortFocusKey: string;
     collapsedKeys: ReadonlySet<string>;
     onToggleCollapsed: (key: string) => void;
     collapseDisabled?: boolean;
@@ -154,6 +156,8 @@ export function TrackedListBody(props: TrackedListBodyProps) {
         rowClaim,
         openAtKey,
         onOpenAtHeld,
+        openFirstKey,
+        sortFocusKey,
         collapsedKeys,
         onToggleCollapsed,
         collapseDisabled,
@@ -178,9 +182,11 @@ export function TrackedListBody(props: TrackedListBodyProps) {
             key: collapseKey,
             focusKey: `tracked:group:${collapseKey}`,
             achievements: group.achievements,
-            collapsed: collapsedKeys.has(collapseKey)
+            collapsed: collapsedKeys.has(collapseKey),
+            rowFocusFallback: [`tracked:group:${collapseKey}`, sortFocusKey]
         };
-    }), [groups, collapsedKeys]);
+    }), [groups, collapsedKeys, sortFocusKey]);
+    const headingFallback = useMemo(() => [sortFocusKey], [sortFocusKey]);
 
     const listPayload = useMemo(() => {
         const achievements = groups.flatMap((group) => group.achievements);
@@ -243,6 +249,7 @@ export function TrackedListBody(props: TrackedListBodyProps) {
                         label={label}
                         collapsed={section.collapsed}
                         focusKey={section.focusKey}
+                        focusFallback={headingFallback}
                         disabled={collapseDisabled}
                         preserveCase={headerStyle === "typed"}
                         onToggle={() => onToggleCollapsed(section.key)}
@@ -264,6 +271,7 @@ export function TrackedListBody(props: TrackedListBodyProps) {
             reorderViaSwap={reorderViaSwap}
             openAtKey={openAtKey}
             onOpenAtHeld={onOpenAtHeld}
+            openFirstKey={openFirstKey}
             claimedRow={claimedRow}
             onAchievementClick={async (achievement) => {
                 if (trackedValidating || busy) {
@@ -408,7 +416,7 @@ export function trackedRetagLanding(
     ).landingId;
 }
 
-export function trackedRowGroupSlot(
+function trackedRowGroupSlot(
     trackedAchievements: AchievementRow[],
     notesByAchievementId: TrackedNotes,
     achievementId: number

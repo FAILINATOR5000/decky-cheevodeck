@@ -36,6 +36,7 @@ type LandingKind = "pop" | "remount" | "forward";
 type Echo = { button: number; at: number } | "modal" | null;
 
 type PendingLanding = {
+    seq: number;
     entryId: number;
     view: ViewKey;
     kind: LandingKind;
@@ -70,7 +71,8 @@ const LANDING_VIEWS: ReadonlySet<ViewKey> = new Set<ViewKey>([
     "unlockHistory",
     "comparePicker",
     "gameOverview",
-    "achievementOverview"
+    "achievementOverview",
+    "tracked"
 ]);
 const RECOVERY_OWNER = -1;
 const CLAIM_SETTLE_MS = 250;
@@ -97,6 +99,7 @@ let lastOutcome: LandingOutcome | null = null;
 let unlandedEntryId: number | null = null;
 let ownLanding: OwnLanding | null = null;
 let lastPress: { button: number; at: number } | null = null;
+let landingSeq = 0;
 let landingVersion = 0;
 const landingListeners = new Set<() => void>();
 
@@ -255,7 +258,7 @@ function freeze(entry: TrailEntry, why: string) {
 function landingWouldTake(entry: TrailEntry, why: string) {
     logFocusDebug("record", "would-land", `${nameEntry(entry)} ${describeRecord(topRecord(entry))} via=${why}`);
     const record = topRecord(entry);
-    if (!LANDING_VIEWS.has(entry.view) || !record || entry.sub.length > 0) {
+    if (!LANDING_VIEWS.has(entry.view) || !record) {
         return;
     }
     const kind: LandingKind = why === "qamOpen" || why === "modalReturn" ? "remount" : "pop";
@@ -302,11 +305,12 @@ function recentPress(): Echo {
 }
 
 function startLanding(entry: TrailEntry, kind: LandingKind, record: FocusRecord, echo: Echo) {
-    if (pending && pending.entryId !== entry.id) {
+    if (pending) {
         endLanding(pending.entryId, "dropped", "superseded");
     }
     const placeholderKey = pages.get(entry.view)?.placeholderKey ?? null;
-    pending = { entryId: entry.id, view: entry.view, kind, record, echo, placeholderKey, claimedKey: null, claimToken: null, claimSpent: false, revealedEarly: false };
+    landingSeq += 1;
+    pending = { seq: landingSeq, entryId: entry.id, view: entry.view, kind, record, echo, placeholderKey, claimedKey: null, claimToken: null, claimSpent: false, revealedEarly: false };
     ownedEntryId = entry.id;
     lastOutcome = null;
     logFocusDebug("landing", "pending", `${kind} ${nameEntry(entry)} ${describeRecord(record)} placeholder=${placeholderKey ?? "(none)"}`
@@ -509,6 +513,29 @@ export function pendingLandingKey(view: ViewKey): string | null {
 
 export function topEntryId(): number | null {
     return topEntry()?.id ?? null;
+}
+
+export function subPopWouldLand(view: ViewKey, depth: number): boolean {
+    const entry = topEntry();
+    if (!entry || entry.view !== view || !LANDING_VIEWS.has(view) || entry.sub.length <= depth) {
+        return false;
+    }
+    return Boolean(depth === 0 ? entry.record : entry.sub[depth - 1].record);
+}
+
+export function overrideRecord(entryId: number | null, target: { focusKey: string; fallbacks?: string[] }) {
+    const entry = [...entries.values()].find((candidate) => candidate.id === entryId);
+    if (!entry) {
+        logFocusDebug("record", "override-gone", `${entryId} ${target.focusKey}`);
+        return;
+    }
+    if (pending?.entryId === entry.id) {
+        logFocusDebug("record", "override-late", `${nameEntry(entry)} ${target.focusKey}`);
+        return;
+    }
+    const record = topRecord(entry) ?? recordFor(entry.view, { focusKey: null, fallbacks: [] });
+    store(entry, { ...record, focusKey: target.focusKey, fallbacks: target.fallbacks ?? record.fallbacks });
+    logFocusDebug("record", "override", `${nameEntry(entry)} ${describeRecord(topRecord(entry))}`);
 }
 
 export function curtainEntryAtMount(): { entryId: number | null; armed: boolean } {
@@ -803,6 +830,7 @@ export function useFocusRecordWriter(
 }
 
 type ActiveLanding = {
+    seq: number;
     entryId: number;
     kind: LandingKind;
     record: FocusRecord;
@@ -831,6 +859,7 @@ function activeFrom(landing: PendingLanding, defaultKey: string): ActiveLanding 
     }
     logFocusDebug("landing", "take", `${landing.kind} ${landing.entryId} ${landing.view} candidates=${candidates.join(",")}`);
     return {
+        seq: landing.seq,
         entryId: landing.entryId,
         kind: landing.kind,
         record: landing.record,
@@ -946,14 +975,14 @@ export function usePageLanding(registration: {
         }
         let active = activeRef.current;
         const live = takeablePending(view);
-        if (live && (!active || active.entryId !== live.entryId) && ownAtMountRef.current !== true) {
+        if (live && (!active || active.seq !== live.seq) && ownAtMountRef.current !== true) {
             active = activeFrom(live, defaultKey);
             activeRef.current = active;
         }
         if (!active || active.done) {
             return;
         }
-        if (pending?.entryId !== active.entryId) {
+        if (pending?.seq !== active.seq) {
             active.done = true;
             return;
         }

@@ -45,6 +45,7 @@ export type AchievementListSection = {
     focusKey: string;
     achievements: AchievementRow[];
     collapsed: boolean;
+    rowFocusFallback?: string[];
 };
 
 type DirectionHandler = (evt: { detail?: { button?: number } }) => boolean | void;
@@ -435,6 +436,18 @@ export function AchievementList(props: {
         return slots;
     }, [entries, props.sections]);
 
+    const sectionChains = useMemo(() => {
+        const chains = new Map<number, string[]>();
+        for (const section of props.sections ?? []) {
+            if (section.rowFocusFallback) {
+                for (const achievement of section.achievements) {
+                    chains.set(achievement.id, section.rowFocusFallback);
+                }
+            }
+        }
+        return chains;
+    }, [props.sections]);
+
     const windowId = props.windowId ?? `${currentMode}:achievements`;
     const sliding = useSlidingWindow({
         items: entries,
@@ -759,6 +772,7 @@ export function AchievementList(props: {
                 achievement={achievement}
                 index={absoluteIndex}
                 list={rowList}
+                focusFallback={sectionChains.get(achievement.id)}
                 iconSrc={badgeName ? mountedIcons[badgeName] || "" : ""}
                 fadeOnLoad={coldBadgesRef.current.has(badgeName)}
                 isTracked={trackedIdSet.has(achievement.id) && !earned(achievement)}

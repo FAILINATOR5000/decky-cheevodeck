@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../ui/PanelSection";
 import { getAllTrackedGames, getCachedGameIconDataUri, prefetchTabGameIcons, subscribeToGameIcon } from "../../api";
@@ -13,6 +13,11 @@ import { localizeRuntimeText, t } from "../../locales";
 import type { TrackedGameSummary, UiSize } from "../../types";
 import { logError } from "../../utils/errors";
 import { achievementUiMetrics, type AchievementUiMetrics, smallTextStyle, bodyTextStyle, FADE_IN_KEYFRAMES } from "../../utils/style";
+import type { LandingWindows } from "../../focusRecords";
+
+let lastGames: TrackedGameSummary[] | null = null;
+
+const PICKER_ROW_FALLBACK = ["tracked:tab:otherGames"];
 
 type OtherGamesPickerProps = {
     language: LanguageCode;
@@ -25,6 +30,7 @@ type OtherGamesPickerProps = {
     dynamicPrefetchDistance: number;
     dynamicSentinelRootMargin: number;
     onSelectGame?: (gameId: number) => void;
+    landingWindowsRef?: MutableRefObject<LandingWindows | null>;
 };
 
 export function OtherGamesPicker(props: OtherGamesPickerProps) {
@@ -41,8 +47,8 @@ export function OtherGamesPicker(props: OtherGamesPickerProps) {
         onSelectGame
     } = props;
 
-    const [games, setGames] = useState<TrackedGameSummary[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [games, setGames] = useState<TrackedGameSummary[]>(() => lastGames ?? []);
+    const [loading, setLoading] = useState(lastGames === null);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -54,7 +60,8 @@ export function OtherGamesPicker(props: OtherGamesPickerProps) {
                 if (cancelled) {
                     return;
                 }
-                setGames(result.games ?? []);
+                lastGames = result.games ?? [];
+                setGames(lastGames);
                 setError(null);
             } catch (e) {
                 logError("getAllTrackedGames", e);
@@ -128,6 +135,12 @@ export function OtherGamesPicker(props: OtherGamesPickerProps) {
         debugLabel: "trackedgames:othergames"
     });
     const visibleGames = gameWindow.mountedItems;
+    if (props.landingWindowsRef) {
+        props.landingWindowsRef.current = {
+            holds: (key) => sortedGames.some((game) => `trackedgames:item:${game.gameId}` === key),
+            open: (key) => gameWindow.openAt(key)
+        };
+    }
 
     const selectGameRef = useRef(onSelectGame);
     selectGameRef.current = onSelectGame;
@@ -292,6 +305,7 @@ const OtherGameRow = React.memo(function OtherGameRow(props: OtherGameRowProps) 
     return (
         <FocusableItem
             focusKey={`trackedgames:item:${game.gameId}`}
+            focusFallback={PICKER_ROW_FALLBACK}
             onFocus={handleFocus}
             onGamepadFocus={handleFocus}
             onGamepadDirection={props.onGamepadDirection}
