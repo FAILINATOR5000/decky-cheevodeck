@@ -2,6 +2,7 @@ import { type CSSProperties } from "react";
 import { DialogButton, Focusable } from "@decky/ui";
 
 import { t, type LanguageCode } from "../../locales";
+import { FocusTarget } from "../ui/FocusTarget";
 
 export type CommentActionStripProps = {
     language: LanguageCode;
@@ -36,16 +37,16 @@ export function CommentActionStrip(props: CommentActionStripProps) {
             flow-children="row"
             style={topMargin === undefined ? ROW_STYLE : { ...ROW_STYLE, marginTop: topMargin }}
         >
-            <div data-focus-key={postFocusKey} style={{ display: "flex", flex: 1 }}>
+            <FocusTarget focusKey={postFocusKey} style={{ display: "flex", flex: 1 }}>
                 <DialogButton onClick={onPost} style={BUTTON_STYLE}>
                     {t(language, "Post")}
                 </DialogButton>
-            </div>
-            <div data-focus-key={subscribeFocusKey} style={{ display: "flex", flex: 1 }}>
+            </FocusTarget>
+            <FocusTarget focusKey={subscribeFocusKey} style={{ display: "flex", flex: 1 }}>
                 <DialogButton onClick={onToggleSubscribe} style={BUTTON_STYLE}>
                     {t(language, isSubscribed ? "Unsubscribe" : "Subscribe")}
                 </DialogButton>
-            </div>
+            </FocusTarget>
         </Focusable>
     );
 }

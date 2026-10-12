@@ -94,6 +94,7 @@ export function useGameOverviewController(options: UseGameOverviewControllerOpti
 
     const {
         results: hashes,
+        loaded: hashesLoaded,
         loading: hashesLoading,
         error: hashesError,
         needsSettings: hashesNeedsSettings,
@@ -125,6 +126,7 @@ export function useGameOverviewController(options: UseGameOverviewControllerOpti
             commentsPostClaim,
             commentsWindow,
             hashes,
+            hashesLoaded,
             hashesLoading,
             hashesError,
             hashesDownloadingMd5

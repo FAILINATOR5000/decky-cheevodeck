@@ -141,6 +141,7 @@ export function useGameHashesController(options: UseGameHashesControllerOptions)
 
     return {
         results,
+        loaded: hashesForGameId !== null && hashesForGameId === gameId,
         loading,
         error,
         needsSettings,

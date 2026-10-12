@@ -22,6 +22,8 @@ type HashesListProps = {
     onDownloadPatch: (row: GameHashRow) => void;
 };
 
+const HASH_ROW_FALLBACK = ["gameoverview:subtab:hashes"];
+
 export function HashesList(props: HashesListProps) {
     const { results, language, downloadingMd5, onDownloadPatch } = props;
 
@@ -31,6 +33,7 @@ export function HashesList(props: HashesListProps) {
                 <FocusableItem
                     key={row.md5 || `hash:${index}`}
                     focusKey={`gameoverview:hash:${row.md5}`}
+                    focusFallback={HASH_ROW_FALLBACK}
                     bottomSeparator="none"
                     outerStyle={{ width: "100%", minWidth: 0 }}
                     disabled={Boolean(downloadingMd5) && downloadingMd5 !== row.md5}

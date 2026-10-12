@@ -7,7 +7,6 @@ import { CommentsList } from "../components/comments/CommentsList";
 import { CommentActionStrip } from "../components/comments/CommentActionStrip";
 import { ErrorText } from "../components/ui/ErrorText";
 import { FocusClaim } from "../components/ui/FocusClaim";
-import { RestoreCurtain } from "../components/ui/RestoreCurtain";
 import { GameContextBanner } from "../components/social/GameContextBanner";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
 import { LabeledRow } from "../components/ui/LabeledRow";
@@ -71,7 +70,6 @@ type AchievementOverviewPageProps = {
         armed: boolean;
     };
     onSpendCommentsPostClaim: () => void;
-    panelOverlayVisible: boolean;
     restorePending: boolean;
     holdCommentsBody: boolean;
     commentsWindow: RestoredCommentsWindow | null;
@@ -168,7 +166,6 @@ function AchievementOverviewPage(props: AchievementOverviewPageProps) {
         onSpendCommentsCardClaim,
         commentsPostClaim,
         onSpendCommentsPostClaim,
-        panelOverlayVisible,
         restorePending,
         holdCommentsBody,
         commentsWindow,
@@ -179,7 +176,6 @@ function AchievementOverviewPage(props: AchievementOverviewPageProps) {
         dynamicCommentsSentinelRootMargin,
         onHome,
     } = props;
-    usePageLanding({ view: "achievementOverview", subject: achievementId });
 
     const { isSubscribed, subscribeError, onToggleSubscribe } = useThreadSubscription({
         language,
@@ -218,6 +214,24 @@ function AchievementOverviewPage(props: AchievementOverviewPageProps) {
             setSettledAchievementId(achievementId);
         }
     }, [commentsLoaded, achievementId]);
+
+    const commentsSettled = achievementId != null
+        && (commentsLoaded || settledAchievementId === achievementId);
+
+    const commentsRegionReady = commentsSettled || Boolean(commentsError) || restorePending;
+
+    const restoreClaim = commentsCardClaim ?? commentsPostClaim;
+    const restoreSettled = !holdCommentsBody
+        && (restoreClaim?.token ?? 0) > 0
+        && !restoreClaim?.armed;
+    usePageLanding({
+        view: "achievementOverview",
+        subject: achievementId,
+        defaultKey: "ao:back",
+        ready: needsSettings || commentsRegionReady,
+        cover: restorePending && commentsLoading && !commentsLoaded,
+        ownLanding: { pending: restorePending, settled: restoreSettled }
+    });
 
     if (view !== "achievementOverview") {
         return null;
@@ -268,19 +282,8 @@ function AchievementOverviewPage(props: AchievementOverviewPageProps) {
         marginTop: "8px"
     };
 
-    const commentsSettled = achievementId != null
-        && (commentsLoaded || settledAchievementId === achievementId);
-
-    const commentsRegionReady = commentsSettled || Boolean(commentsError) || restorePending;
 
     const commentsEmpty = commentsSettled && comments.length === 0 && !commentsLoading && !commentsError;
-
-    const restoreCurtainArmed = restorePending && !panelOverlayVisible;
-    const restoreCurtainCovered = panelOverlayVisible || (commentsLoading && !commentsLoaded);
-    const restoreCurtainClaim = commentsCardClaim ?? commentsPostClaim;
-    const restoreCurtainSettled = !holdCommentsBody
-        && (restoreCurtainClaim?.token ?? 0) > 0
-        && !restoreCurtainClaim?.armed;
 
     if (holdCommentsBody && !commentsLoaded) {
         const restoreShell = (
@@ -301,18 +304,10 @@ function AchievementOverviewPage(props: AchievementOverviewPageProps) {
                 </PanelSectionRow>
             </PanelSection>
         );
-        return (
-            <RestoreCurtain
-                armed={restoreCurtainArmed}
-                settled={restoreCurtainSettled}
-                covered={restoreCurtainCovered}
-            >
-                {restoreShell}
-            </RestoreCurtain>
-        );
+        return restoreShell;
     }
 
-    const page = (
+    return (
         <>
             <PanelSection>
                 <PageNavStrip
@@ -323,7 +318,7 @@ function AchievementOverviewPage(props: AchievementOverviewPageProps) {
                 <BackButton
                     label={t(language, "← Back")}
                     focusKey="ao:back"
-                    navAutoFocus={!restorePending}
+                    navAutoFocus
                     buttonSpacing={buttonSpacing}
                     onClick={onBack}
                 />
@@ -460,16 +455,6 @@ function AchievementOverviewPage(props: AchievementOverviewPageProps) {
                 </>
             )}
         </>
-    );
-
-    return (
-        <RestoreCurtain
-            armed={restoreCurtainArmed}
-            settled={restoreCurtainSettled}
-            covered={restoreCurtainCovered}
-        >
-            {page}
-        </RestoreCurtain>
     );
 }
 

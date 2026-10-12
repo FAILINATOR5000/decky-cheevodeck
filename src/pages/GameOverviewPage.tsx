@@ -7,10 +7,10 @@ import { BackButton } from "../components/ui/BackButton";
 import { ErrorText } from "../components/ui/ErrorText";
 import { FadeImage } from "../components/ui/FadeImage";
 import { FocusableItem } from "../components/ui/FocusableItem";
+import { FocusTarget } from "../components/ui/FocusTarget";
 import { CommentsList } from "../components/comments/CommentsList";
 import { CommentActionStrip } from "../components/comments/CommentActionStrip";
 import { FocusClaim } from "../components/ui/FocusClaim";
-import { RestoreCurtain } from "../components/ui/RestoreCurtain";
 import { HashesList } from "../components/games/HashesList";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
 import { LabeledRow } from "../components/ui/LabeledRow";
@@ -50,7 +50,13 @@ import { formatReleaseDate } from "../utils/format";
 import { logError } from "../utils/errors";
 import { BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT } from "../utils/gamepadButtons";
 import { playOkSound } from "../utils/navSound";
-import { usePageLanding } from "../focusRecords";
+import { pendingLandingKey, usePageLanding } from "../focusRecords";
+
+const GO_ROW_FALLBACK = [
+    "gameoverview:achievements:filter",
+    "gameoverview:achievements:sort",
+    "gameoverview:subtab:achievements"
+];
 
 const SUB_TABS: { value: GameOverviewSubView; focusKey: string; icon: SubTabIconKind }[] = [
     { value: "achievements", focusKey: "gameoverview:subtab:achievements", icon: "trophy" },
@@ -252,12 +258,12 @@ type GameOverviewPageProps = {
         armed: boolean;
     };
     onSpendCommentsPostClaim: () => void;
-    panelOverlayVisible: boolean;
     restorePending: boolean;
     holdCommentsBody: boolean;
     commentsWindow: RestoredCommentsWindow | null;
     hashes: GameHashRow[];
     hashesLoading: boolean;
+    hashesLoaded: boolean;
     hashesError: string | null;
     hashesDownloadingMd5: string | null;
 
@@ -313,11 +319,11 @@ function GameOverviewPage(props: GameOverviewPageProps) {
         onSpendCommentsCardClaim,
         commentsPostClaim,
         onSpendCommentsPostClaim,
-        panelOverlayVisible,
         restorePending,
         holdCommentsBody,
         commentsWindow,
         hashes,
+        hashesLoaded,
         hashesLoading,
         hashesError,
         hashesDownloadingMd5,
@@ -336,7 +342,37 @@ function GameOverviewPage(props: GameOverviewPageProps) {
         dynamicCommentsSentinelRootMargin,
         onHome,
     } = props;
-    usePageLanding({ view: "gameOverview", subject: gameId, tabPath: [subView] });
+    const [landingOpenKey, setLandingOpenKey] = useState<string | null>(null);
+    const [, setLandingOpenHeld] = useState(0);
+    const payloadHere = loadedPayload?.gameId === gameId;
+    const restoreClaim = commentsCardClaim ?? commentsPostClaim;
+    const restoreSettled = !holdCommentsBody
+        && (restoreClaim?.token ?? 0) > 0
+        && !restoreClaim?.armed;
+    usePageLanding({
+        view: "gameOverview",
+        subject: gameId,
+        tabPath: [subView],
+        defaultKey: "gameoverview:back",
+        ready: needsSettings || (subView === "comments"
+            ? commentsLoaded || commentsError !== null
+            : subView === "hashes"
+                ? hashesLoaded || hashesError !== null
+                : payloadHere || payloadError !== null || (!payloadLoading && gameId == null)),
+        restoreTabPath: (tabs) => {
+            const tab = SUB_TABS.find((entry) => entry.value === tabs[0]);
+            if (!tab || tab.value === subView) {
+                return false;
+            }
+            onChangeSubView(tab.value);
+            return true;
+        },
+        holds: (key) => subView === "achievements"
+            && key.startsWith("achievement:")
+            && Boolean(loadedPayload?.achievements?.some((achievement) => `achievement:${achievement.id}` === key)),
+        open: (key) => setLandingOpenKey(key),
+        ownLanding: { pending: restorePending, settled: restoreSettled }
+    });
 
     const { isSubscribed, subscribeError, onToggleSubscribe } = useThreadSubscription({
         language,
@@ -558,15 +594,6 @@ function GameOverviewPage(props: GameOverviewPageProps) {
         void openExternalUrl(youtubeSearchUrl(system ? `${title} ${system}` : title));
     }
 
-    const alreadyCovered = panelOverlayVisible || (payloadLoading && !loadedPayload);
-    const restoreCurtainArmed = restorePending
-        && subView === "comments"
-        && !alreadyCovered;
-    const restoreCurtainClaim = commentsCardClaim ?? commentsPostClaim;
-    const restoreCurtainSettled = !holdCommentsBody
-        && (restoreCurtainClaim?.token ?? 0) > 0
-        && !restoreCurtainClaim?.armed;
-
     if (holdCommentsBody && subView === "comments" && !commentsLoaded) {
         const restoreShell = (
             <PanelSection>
@@ -586,15 +613,7 @@ function GameOverviewPage(props: GameOverviewPageProps) {
                 </PanelSectionRow>
             </PanelSection>
         );
-        return (
-            <RestoreCurtain
-                armed={restoreCurtainArmed}
-                settled={restoreCurtainSettled}
-                covered={panelOverlayVisible}
-            >
-                {restoreShell}
-            </RestoreCurtain>
-        );
+        return restoreShell;
     }
 
     if (needsSettings) {
@@ -636,7 +655,7 @@ function GameOverviewPage(props: GameOverviewPageProps) {
 
     const headerStripPageable = showIcons && !!(loadedPayload?.imageBoxArt || boxArtDataUri);
 
-    const page = (
+    return (
         <Focusable
             flow-children="column"
             onButtonDown={headerStripPageable ? handleHeaderButtonDown : undefined}
@@ -650,7 +669,7 @@ function GameOverviewPage(props: GameOverviewPageProps) {
                 <BackButton
                     label={t(language, "← Back")}
                     focusKey="gameoverview:back"
-                    navAutoFocus={!restorePending}
+                    navAutoFocus
                     buttonSpacing={buttonSpacing}
                     onClick={onBack}
                 />
@@ -692,7 +711,7 @@ function GameOverviewPage(props: GameOverviewPageProps) {
                                             alignItems: "center"
                                         }}
                                     >
-                                        <div data-focus-key="gameoverview:header:prev" style={{ display: "flex", flexShrink: 0 }}>
+                                        <FocusTarget focusKey="gameoverview:header:prev" style={{ display: "flex", flexShrink: 0 }}>
                                             <DialogButton
                                                 onClick={() => { stepHeaderImage(-1); }}
                                                 style={{
@@ -707,9 +726,9 @@ function GameOverviewPage(props: GameOverviewPageProps) {
                                             >
                                                 <ChevronLeftIcon />
                                             </DialogButton>
-                                        </div>
+                                        </FocusTarget>
 
-                                        <div data-focus-key="gameoverview:header" style={{ display: "flex", flex: 1, minWidth: 0 }}>
+                                        <FocusTarget focusKey="gameoverview:header" style={{ display: "flex", flex: 1, minWidth: 0 }}>
                                             <DialogButton
                                                 preferredFocus={true}
                                                 onClick={() => {
@@ -759,9 +778,9 @@ function GameOverviewPage(props: GameOverviewPageProps) {
                                                     />
                                                 )}
                                             </DialogButton>
-                                        </div>
+                                        </FocusTarget>
 
-                                        <div data-focus-key="gameoverview:header:next" style={{ display: "flex", flexShrink: 0 }}>
+                                        <FocusTarget focusKey="gameoverview:header:next" style={{ display: "flex", flexShrink: 0 }}>
                                             <DialogButton
                                                 onClick={() => { stepHeaderImage(1); }}
                                                 style={{
@@ -776,7 +795,7 @@ function GameOverviewPage(props: GameOverviewPageProps) {
                                             >
                                                 <ChevronRightIcon />
                                             </DialogButton>
-                                        </div>
+                                        </FocusTarget>
                                     </Focusable>
                                 ) : (
                                     <FocusableItem
@@ -1029,7 +1048,11 @@ function GameOverviewPage(props: GameOverviewPageProps) {
                             mainFilter={achievementFilter}
                             mainSort={achievementSort}
                             showRetroPoints={showRetroPoints}
+                            rowFocusFallback={GO_ROW_FALLBACK}
                             onAchievementClick={onAchievementClick}
+                            openFirstKey={pendingLandingKey("gameOverview") ?? undefined}
+                            openAtKey={landingOpenKey ?? undefined}
+                            onOpenAtHeld={() => setLandingOpenHeld((count) => count + 1)}
                         />
                     )}
                 </>
@@ -1150,16 +1173,6 @@ function GameOverviewPage(props: GameOverviewPageProps) {
                 </>
             )}
         </Focusable>
-    );
-
-    return (
-        <RestoreCurtain
-            armed={restoreCurtainArmed}
-            settled={restoreCurtainSettled}
-            covered={panelOverlayVisible}
-        >
-            {page}
-        </RestoreCurtain>
     );
 }
 

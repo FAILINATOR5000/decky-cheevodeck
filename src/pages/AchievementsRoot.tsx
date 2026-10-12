@@ -5863,7 +5863,6 @@ function AchievementsRoot() {
                                         onSpendCommentsPostClaim={goActions.spendCommentsPostClaim}
                                         restorePending={gameOverviewRestorePending}
                                         holdCommentsBody={gameOverviewHoldCommentsBody}
-                                        panelOverlayVisible={panelOverlayVisible}
                                         achievementFilter={gameOverviewAchievementFilter}
                                         achievementSort={gameOverviewAchievementSort}
                                         onChangeAchievementFilter={onGameOverviewAchievementFilterChange}
@@ -6061,7 +6060,6 @@ function AchievementsRoot() {
                                         onSpendCommentsPostClaim={aoActions.spendCommentsPostClaim}
                                         restorePending={aoRestorePending}
                                         holdCommentsBody={aoHoldCommentsBody}
-                                        panelOverlayVisible={panelOverlayVisible}
                                         commentsWindow={aoState.commentsWindow}
                                         onChangeCommentsSort={aoActions.setCommentsSort}
                                         onLoadMoreComments={aoActions.loadMoreComments}
