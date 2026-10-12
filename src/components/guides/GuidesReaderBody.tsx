@@ -1,5 +1,6 @@
 import { DialogButton, Focusable, ScrollPanelGroup } from "@decky/ui";
 import { legendGlyph } from "../ui/legendGlyph";
+import { FocusTarget } from "../ui/FocusTarget";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { t, type LanguageCode } from "../../locales";
@@ -1137,7 +1138,7 @@ export function GuidesReaderBody(props: GuidesReaderBodyProps) {
 
     if (ScrollPanelGroup) {
         return (
-            <div ref={frameRef} data-focus-key={props.focusKey} style={frame}>
+            <FocusTarget ref={frameRef} focusKey={props.focusKey} style={frame}>
                 <ScrollPanelGroup focusable={false} style={scrollStyle}>
                     <Focusable
                         focusable={!released}
@@ -1240,12 +1241,12 @@ export function GuidesReaderBody(props: GuidesReaderBodyProps) {
                         />
                     </Focusable>
                 )}
-            </div>
+            </FocusTarget>
         );
     }
     return (
-        <div ref={frameRef} data-focus-key={props.focusKey} style={{ ...frame, ...scrollStyle, overflowY: "auto" }}>
+        <FocusTarget ref={frameRef} focusKey={props.focusKey} style={{ ...frame, ...scrollStyle, overflowY: "auto" }}>
             {inner}
-        </div>
+        </FocusTarget>
     );
 }

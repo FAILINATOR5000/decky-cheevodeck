@@ -75,7 +75,8 @@ const LANDING_VIEWS: ReadonlySet<ViewKey> = new Set<ViewKey>([
     "tracked",
     "gameNotes",
     "leaderboards",
-    "leaderboardDetail"
+    "leaderboardDetail",
+    "guides"
 ]);
 const RECOVERY_OWNER = -1;
 const CLAIM_SETTLE_MS = 250;
@@ -524,6 +525,14 @@ export function subPopWouldLand(view: ViewKey, depth: number): boolean {
         return false;
     }
     return Boolean(depth === 0 ? entry.record : entry.sub[depth - 1].record);
+}
+
+export function subLandingAhead(view: ViewKey, depth: number): boolean {
+    const entry = topEntry();
+    if (!entry || entry.view !== view) {
+        return false;
+    }
+    return pending?.entryId === entry.id || subPopWouldLand(view, depth);
 }
 
 export function overrideRecord(entryId: number | null, target: { focusKey: string; fallbacks?: string[] }) {

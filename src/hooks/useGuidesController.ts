@@ -46,6 +46,7 @@ import {
     saveGuideZoom,
     upsertGuideMeta,
 } from "../api";
+import { subPopWouldLand } from "../focusRecords";
 
 export type GuidesStatus =
     | "idle"
@@ -653,8 +654,11 @@ export function useGuidesController(args: UseGuidesControllerArgs) {
             setOpenFaqId(null);
             setContent(null);
             setGuideList([]);
+            const popWillLand = subPopWouldLand("guides", 0);
             setSubView("list");
-            onRequestFocus("guides:back");
+            if (!popWillLand) {
+                onRequestFocus("guides:back");
+            }
             logGuidesDebug("pick", String(gameId), `remap -> ${candidate.url} (${candidate.productName})`);
             if (!candidate.hasGuides) {
                 setStatus("noguides");
@@ -747,6 +751,7 @@ export function useGuidesController(args: UseGuidesControllerArgs) {
     const zoomOut = () => applyZoom(getCurrentGuideZoom() - GUIDE_ZOOM_STEP);
 
     const goToList = useCallback(() => {
+        const popWillLand = subPopWouldLand("guides", 0);
         setSubView("list");
         void refreshRecord();
         setStatus((current) => {
@@ -755,7 +760,9 @@ export function useGuidesController(args: UseGuidesControllerArgs) {
             }
             return guideList.length > 0 ? "resolved" : "error";
         });
-        onRequestFocus("guides:back");
+        if (!popWillLand) {
+            onRequestFocus("guides:back");
+        }
     }, [onRequestFocus, guideList.length, refreshRecord]);
 
     const goToSearch = useCallback(() => {
@@ -765,8 +772,11 @@ export function useGuidesController(args: UseGuidesControllerArgs) {
 
     const handleBack = useCallback((): boolean => {
         if (subView === "reader" || subView === "search") {
+            const popWillLand = subPopWouldLand("guides", 0);
             setSubView("list");
-            onRequestFocus("guides:back");
+            if (!popWillLand) {
+                onRequestFocus("guides:back");
+            }
             return true;
         }
         return false;

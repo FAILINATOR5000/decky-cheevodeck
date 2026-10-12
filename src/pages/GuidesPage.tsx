@@ -1,12 +1,13 @@
 import { Focusable, PanelSectionRow, TextField } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
-import React, { useMemo, useRef } from "react";
+import React, { useMemo, useRef, type MutableRefObject } from "react";
 
 import { BackButton } from "../components/ui/BackButton";
 import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
 import { PageNavStrip } from "../components/ui/PageNavStrip";
 import { FadeImage } from "../components/ui/FadeImage";
 import { FocusableItem } from "../components/ui/FocusableItem";
+import { FocusTarget } from "../components/ui/FocusTarget";
 import { useGameIcon } from "../hooks/useGameIcon";
 import { LabeledRow } from "../components/ui/LabeledRow";
 import { InfoText } from "../components/ui/InfoText";
@@ -25,7 +26,7 @@ import { useSlidingWindow } from "../hooks/useSlidingWindow";
 import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
 import { textSize } from "../utils/scale";
 import { bodyTextStyle, regularButtonSpacingStyle } from "../utils/style";
-import { usePageLanding } from "../focusRecords";
+import { subLandingAhead, usePageLanding, type LandingWindows } from "../focusRecords";
 
 type GuidesPageState = {
     view: ViewKey;
@@ -85,12 +86,6 @@ export function GuidesPage(props: GuidesPageProps) {
     const g = state.guides;
     const ga = actions.guides;
     const lang = state.language;
-    usePageLanding({
-        view: "guides",
-        subject: state.gameId,
-        sub: g.subView === "list" ? [] : [{ kind: g.subView, subject: g.subView === "reader" ? g.openFaqId : null }]
-    });
-
     const sentinelRootMargin = Math.max(0, state.dynamicSentinelRootMargin ?? 600);
 
     const openedSignature = useMemo(() => {
@@ -163,6 +158,28 @@ export function GuidesPage(props: GuidesPageProps) {
         resetKey: `guides:list:${state.gameId ?? "none"}:${typeFilter}`,
         debugLabel: "guides:list"
     });
+
+    const searchWindowsRef = useRef<LandingWindows | null>(null);
+    const subDepth = g.subView === "list" ? 0 : 1;
+    usePageLanding({
+        view: "guides",
+        subject: g.subView === "reader" ? `${state.gameId ?? ""}/${g.openFaqId ?? ""}` : state.gameId,
+        subjectSettled: state.gameId !== null,
+        sub: g.subView === "list" ? [] : [{ kind: g.subView, subject: g.subView === "reader" ? g.openFaqId : null }],
+        defaultKey: "guides:back",
+        ready: g.subView !== "list" || (g.status !== "idle" && g.status !== "resolving" && !g.listLoading),
+        holds: (key) => key.startsWith("guides:candidate:")
+            ? Boolean(searchWindowsRef.current?.holds(key))
+            : guideRows.some((row) => `guides:card:${row.entry.faqId}` === key),
+        open: (key) => {
+            if (key.startsWith("guides:candidate:")) {
+                searchWindowsRef.current?.open(key);
+                return;
+            }
+            guidesWindow.openAt(key);
+        }
+    });
+    const backStandDown = subLandingAhead("guides", subDepth);
 
     const openGuideRef = useRef(ga.openGuide);
     openGuideRef.current = ga.openGuide;
@@ -251,6 +268,7 @@ export function GuidesPage(props: GuidesPageProps) {
                         gameId={state.gameId}
                         mouseKeyboardMode={state.mouseKeyboardMode}
                         controllerGlyphStyle={state.controllerGlyphStyle}
+                        backStandDown={backStandDown}
                         onOpenModal={(startLine, sectionSlug, startInto) => {
                             if (g.openFaqId) openGuideInModal(g.openFaqId, startLine, true, sectionSlug, startInto);
                         }}
@@ -275,6 +293,7 @@ export function GuidesPage(props: GuidesPageProps) {
                         navAutoFocus
                         buttonSpacing={state.buttonSpacing}
                         autoFocus={true}
+                        standDown={backStandDown}
                         onClick={() => ga.goToList()}
                     />
                     <GuidesSearchBox
@@ -287,6 +306,7 @@ export function GuidesPage(props: GuidesPageProps) {
                             dynamicRowStep={state.dynamicRowStep}
                             dynamicPrefetchDistance={state.dynamicPrefetchDistance}
                             sentinelRootMargin={sentinelRootMargin}
+                            landingWindowsRef={searchWindowsRef}
                     />
                 </PanelSection>
             </Focusable>
@@ -311,6 +331,7 @@ export function GuidesPage(props: GuidesPageProps) {
                     navAutoFocus
                     buttonSpacing={state.buttonSpacing}
                     autoFocus={true}
+                    standDown={backStandDown}
                     onClick={actions.onBack}
                 />
 
@@ -586,6 +607,7 @@ function GuidesSearchBox(props: {
     dynamicRowStep: number;
     dynamicPrefetchDistance: number;
     sentinelRootMargin: number;
+    landingWindowsRef: MutableRefObject<LandingWindows | null>;
 }) {
     const { state, actions, language } = props;
     const term = state.manualSearchTerm;
@@ -604,6 +626,11 @@ function GuidesSearchBox(props: {
         resetKey: `guides:candidates:${state.candidates.length}:${state.candidates[0]?.url ?? "none"}`,
         debugLabel: "guides:candidates"
     });
+
+    props.landingWindowsRef.current = {
+        holds: (key) => state.candidates.some((candidate) => `guides:candidate:${candidate.url}` === key),
+        open: (key) => candidateWindow.openAt(key)
+    };
 
     const pickCandidateRef = useRef(actions.pickCandidate);
     pickCandidateRef.current = actions.pickCandidate;
@@ -631,13 +658,13 @@ function GuidesSearchBox(props: {
     return (
         <>
             <PanelSectionRow>
-                <div data-focus-key="guides:manualsearch:field">
+                <FocusTarget focusKey="guides:manualsearch:field">
                     <TextField
                         label={t(language, "Search GameFAQs")}
                         value={term}
                         onChange={(e: { target: { value: string } }) => actions.setManualSearchTerm(e.target.value)}
                     />
-                </div>
+                </FocusTarget>
             </PanelSectionRow>
             <PanelSectionRow>
                 <InfoText>{t(language, "Not the right game? Search manually.")}</InfoText>

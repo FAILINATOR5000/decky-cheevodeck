@@ -6,6 +6,7 @@ import { FaSyncAlt } from "react-icons/fa";
 import { BackButton } from "../ui/BackButton";
 import { ErrorText } from "../ui/ErrorText";
 import { FocusableItem } from "../ui/FocusableItem";
+import { FocusTarget } from "../ui/FocusTarget";
 import { GuidesReaderBody } from "./GuidesReaderBody";
 import { legendGlyph } from "../ui/legendGlyph";
 import { GuidesBookmarksModal } from "./GuidesBookmarksModal";
@@ -31,6 +32,7 @@ type GuidesQamReaderProps = {
     buttonSpacing: ButtonSpacing;
     mouseKeyboardMode: boolean;
     controllerGlyphStyle: ControllerGlyphStyle;
+    backStandDown: boolean;
     keepGuidesOffline: boolean;
     gameId: number | null;
     onOpenModal: (startLine: number, sectionSlug: string | null, startInto: number) => void;
@@ -383,7 +385,7 @@ export function GuidesQamReader(props: GuidesQamReaderProps) {
                 >
                     {knownKind === "formatted" && (
                         <>
-                            <div data-focus-key="guides:reader:prev" style={KEYED_BUTTON_WRAPPER_STYLE}>
+                            <FocusTarget focusKey="guides:reader:prev" style={KEYED_BUTTON_WRAPPER_STYLE}>
                                 <DialogButton
                                     onClick={() => turnPage(-1)}
                                     disabled={atStart || controlsBusy}
@@ -391,8 +393,8 @@ export function GuidesQamReader(props: GuidesQamReaderProps) {
                                 >
                                     ‹
                                 </DialogButton>
-                            </div>
-                            <div data-focus-key="guides:reader:next" style={KEYED_BUTTON_WRAPPER_STYLE}>
+                            </FocusTarget>
+                            <FocusTarget focusKey="guides:reader:next" style={KEYED_BUTTON_WRAPPER_STYLE}>
                                 <DialogButton
                                     onClick={() => turnPage(1)}
                                     disabled={atEnd || controlsBusy}
@@ -400,7 +402,7 @@ export function GuidesQamReader(props: GuidesQamReaderProps) {
                                 >
                                     ›
                                 </DialogButton>
-                            </div>
+                            </FocusTarget>
                             <div
                                 style={{
                                     width: "1px",
@@ -412,7 +414,7 @@ export function GuidesQamReader(props: GuidesQamReaderProps) {
                             />
                         </>
                     )}
-                    <div data-focus-key="guides:reader:bookmark" style={KEYED_BUTTON_WRAPPER_STYLE}>
+                    <FocusTarget focusKey="guides:reader:bookmark" style={KEYED_BUTTON_WRAPPER_STYLE}>
                         <DialogButton
                             onClick={() => bookmarkHere(
                                 lineRef.current ?? g.restoreLine ?? 0,
@@ -423,8 +425,8 @@ export function GuidesQamReader(props: GuidesQamReaderProps) {
                         >
                             <BookmarkIcon />
                         </DialogButton>
-                    </div>
-                    <div data-focus-key="guides:reader:update" style={KEYED_BUTTON_WRAPPER_STYLE}>
+                    </FocusTarget>
+                    <FocusTarget focusKey="guides:reader:update" style={KEYED_BUTTON_WRAPPER_STYLE}>
                         <DialogButton
                             onClick={handleUpdateGuide}
                             disabled={updating || !g.openFaqId}
@@ -432,7 +434,7 @@ export function GuidesQamReader(props: GuidesQamReaderProps) {
                         >
                             <FaSyncAlt size={12} />
                         </DialogButton>
-                    </div>
+                    </FocusTarget>
                     {knownKind === "formatted" && (
                         <div style={{ ...bodyTextStyle(), flex: 1, textAlign: "right", opacity: 0.85 }}>
                             {!g.content
@@ -460,7 +462,7 @@ export function GuidesQamReader(props: GuidesQamReaderProps) {
                             ...regularButtonSpacingStyle(props.buttonSpacing),
                         }}
                     >
-                        <div data-focus-key="guides:reader:prev" style={KEYED_BUTTON_WRAPPER_STYLE}>
+                        <FocusTarget focusKey="guides:reader:prev" style={KEYED_BUTTON_WRAPPER_STYLE}>
                             <DialogButton
                                 disabled={atStart || controlsBusy}
                                 focusable={!(atStart || controlsBusy)}
@@ -469,13 +471,13 @@ export function GuidesQamReader(props: GuidesQamReaderProps) {
                             >
                                 ‹
                             </DialogButton>
-                        </div>
+                        </FocusTarget>
                         <div style={{ ...bodyTextStyle(), flex: 1, textAlign: "center", opacity: 0.85 }}>
                             {!g.content
                                 ? ""
                                 : t(lang, "Page {{n}} of {{m}}", { n: Math.max(1, pageNumber), m: Math.max(1, pageCount) })}
                         </div>
-                        <div data-focus-key="guides:reader:next" style={KEYED_BUTTON_WRAPPER_STYLE}>
+                        <FocusTarget focusKey="guides:reader:next" style={KEYED_BUTTON_WRAPPER_STYLE}>
                             <DialogButton
                                 disabled={atEnd || controlsBusy}
                                 focusable={!(atEnd || controlsBusy)}
@@ -484,7 +486,7 @@ export function GuidesQamReader(props: GuidesQamReaderProps) {
                             >
                                 ›
                             </DialogButton>
-                        </div>
+                        </FocusTarget>
                     </Focusable>
                 </PanelSectionRow>
             )}
@@ -527,6 +529,7 @@ export function GuidesQamReader(props: GuidesQamReaderProps) {
                 navAutoFocus
                 buttonSpacing={props.buttonSpacing}
                 autoFocus={true}
+                standDown={props.backStandDown}
                 onClick={leave}
                 bottomSeparator="none"
             />

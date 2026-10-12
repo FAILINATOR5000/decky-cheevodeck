@@ -18,12 +18,13 @@ export type BackButtonProps = {
     autoFocus?: boolean;
     navAutoFocus?: boolean;
     reclaim?: boolean;
+    standDown?: boolean;
     bottomSeparator?: "standard" | "thick" | "none";
 };
 
 export function BackButton(props: BackButtonProps) {
     const curtainHiding = useCurtainHiding();
-    const [standDown] = useState(landingOwnsTop);
+    const [standDown] = useState(() => props.standDown ?? landingOwnsTop());
 
     const [jumpToken, setJumpToken] = useState(currentJumpToTopToken);
     const initialJumpTokenRef = useRef(jumpToken);
