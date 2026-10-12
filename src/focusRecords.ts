@@ -1,7 +1,7 @@
 import { useInsertionEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import { logFocusDebug } from "./api";
 import { isCovered, setCover, subscribeCovers } from "./covers";
-import { armKeyClaim, disarmKeyClaims, onKeyClaimSpent } from "./focusClaims";
+import { armKeyClaim, disarmKeyClaims, onKeyClaimSpent, withdrawKeyClaim } from "./focusClaims";
 import { initialNav, rehydrateNav, settleNav, type NavIntent, type NavState, type Route } from "./nav";
 import type { ViewKey } from "./types";
 import { LANDING_TIMING, PRESS_GUARD_CEILING_MS, type LandingTiming } from "./utils/landingTiming";
@@ -43,6 +43,8 @@ type PendingLanding = {
     echo: Echo;
     placeholderKey: string | null;
     claimedKey: string | null;
+    claimToken: number | null;
+    claimSpent: boolean;
     revealedEarly: boolean;
 };
 
@@ -284,7 +286,7 @@ function startLanding(entry: TrailEntry, kind: LandingKind, record: FocusRecord,
         endLanding(pending.entryId, "dropped", "superseded");
     }
     const placeholderKey = pages.get(entry.view)?.placeholderKey ?? null;
-    pending = { entryId: entry.id, view: entry.view, kind, record, echo, placeholderKey, claimedKey: null, revealedEarly: false };
+    pending = { entryId: entry.id, view: entry.view, kind, record, echo, placeholderKey, claimedKey: null, claimToken: null, claimSpent: false, revealedEarly: false };
     ownedEntryId = entry.id;
     lastOutcome = null;
     logFocusDebug("landing", "pending", `${kind} ${nameEntry(entry)} ${describeRecord(record)} placeholder=${placeholderKey ?? "(none)"}`
@@ -349,6 +351,37 @@ function nothingFocused(): boolean {
     return !active || active === rootElement.ownerDocument.body;
 }
 
+function claimVanished(entryId: number, key: string) {
+    if (!pending || pending.entryId !== entryId || pending.claimedKey !== key) {
+        return;
+    }
+    if (pending.claimToken !== null) {
+        withdrawKeyClaim(key, pending.claimToken, "vanished");
+    }
+    pending.claimedKey = null;
+    pending.claimToken = null;
+    pending.claimSpent = false;
+    logFocusDebug("landing", "candidate", `${entryId} ${key} vanished`);
+    notifyLanding();
+}
+
+function watchClaim(entryId: number, key: string) {
+    const view = rootElement?.ownerDocument.defaultView;
+    if (!view) {
+        return;
+    }
+    view.requestAnimationFrame(() => {
+        if (pending?.entryId !== entryId || pending.claimedKey !== key || pending.claimSpent) {
+            return;
+        }
+        if (!keyedElement(key)) {
+            claimVanished(entryId, key);
+            return;
+        }
+        watchClaim(entryId, key);
+    });
+}
+
 function confirmLanded(entryId: number, key: string, tries: number) {
     const view = rootElement?.ownerDocument.defaultView;
     if (!view) {
@@ -359,7 +392,11 @@ function confirmLanded(entryId: number, key: string, tries: number) {
             return;
         }
         const element = keyedElement(key);
-        if (element && cursorIn(element)) {
+        if (!element) {
+            claimVanished(entryId, key);
+            return;
+        }
+        if (cursorIn(element)) {
             endLanding(entryId, "settled", `landed ${key}`);
             return;
         }
@@ -382,6 +419,7 @@ function describeActive(): string {
 
 onKeyClaimSpent((key) => {
     if (pending && pending.claimedKey === key) {
+        pending.claimSpent = true;
         confirmLanded(pending.entryId, key, 0);
     }
 });
@@ -852,7 +890,11 @@ export function usePageLanding(registration: {
             return;
         }
         if (active.claimed) {
-            return;
+            if (pending.claimedKey !== null) {
+                return;
+            }
+            active.claimed = false;
+            active.next += 1;
         }
         active.commits += 1;
         const landing: PendingLanding = pending;
@@ -916,7 +958,8 @@ export function usePageLanding(registration: {
                     return;
                 }
                 logFocusDebug("landing", "candidate", `${active.entryId} ${key} claimed`);
-                armKeyClaim(key, active.entryId);
+                landing.claimToken = armKeyClaim(key, active.entryId);
+                watchClaim(active.entryId, key);
                 return;
             }
             const askedAt = active.opened.get(key);
