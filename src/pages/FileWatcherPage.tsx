@@ -48,6 +48,7 @@ import {
 } from "../utils/fileWatcher";
 import { bodyTextStyle, errorRed, regularButtonSpacingStyle, warnAmber } from "../utils/style";
 import { textSize } from "../utils/scale";
+import { expectHeirClaim } from "../focusClaims";
 import { subLandingAhead, usePageLanding } from "../focusRecords";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
@@ -256,6 +257,7 @@ function FileWatcherPage(props: FileWatcherPageProps) {
         setArmedRootId(null);
         const removedIndex = roots.findIndex((root) => root.id === rootId);
         const heir = roots[removedIndex + 1] ?? roots[removedIndex - 1];
+        expectHeirClaim();
         await removeRoot(rootId);
         if (!heir) {
             rowClaim.claimSlot(STATIC_CLAIM_SLOT);

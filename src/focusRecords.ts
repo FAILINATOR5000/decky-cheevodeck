@@ -1,7 +1,7 @@
 import { useInsertionEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import { logFocusDebug } from "./api";
 import { isCovered, setCover, subscribeCovers } from "./covers";
-import { armKeyClaim, claimSpentWithin, disarmKeyClaims, onKeyClaimSpent, withdrawKeyClaim } from "./focusClaims";
+import { armKeyClaim, claimSpentWithin, disarmKeyClaims, heirClaimExpected, onKeyClaimSpent, withdrawKeyClaim } from "./focusClaims";
 import { initialNav, rehydrateNav, settleNav, type NavIntent, type NavState, type Route } from "./nav";
 import type { ViewKey } from "./types";
 import { LANDING_TIMING, PRESS_GUARD_CEILING_MS, type LandingTiming } from "./utils/landingTiming";
@@ -495,7 +495,7 @@ function recoverLostCursor(why: string, frames = 0) {
         return;
     }
     const view = rootElement?.ownerDocument.defaultView;
-    if (view && frames < CLAIM_SETTLE_FRAMES && claimSpentWithin(CLAIM_SETTLE_MS)) {
+    if (view && ((frames < CLAIM_SETTLE_FRAMES && claimSpentWithin(CLAIM_SETTLE_MS)) || heirClaimExpected())) {
         view.requestAnimationFrame(() => recoverLostCursor(why, frames + 1));
         return;
     }

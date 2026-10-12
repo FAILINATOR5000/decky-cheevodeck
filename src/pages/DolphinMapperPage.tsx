@@ -52,6 +52,7 @@ import { useFocusClaim } from "../hooks/useFocusClaim";
 import { useDolphinMapper } from "../components/mapping/DolphinMapperContext";
 import { DolphinMappingModal } from "../components/mapping/DolphinMappingModal";
 import { showManagedModal } from "../utils/modalRegistry";
+import { expectHeirClaim, settleHeirClaim } from "../focusClaims";
 import { overrideRecord, topEntryId, usePageLanding } from "../focusRecords";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
@@ -329,8 +330,12 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
 
     async function commitDelete(mappingId: string) {
         const plan = dolphinDeleteFocusPlan(groups, visualOrder, mappingId);
+        if (plan.kind === "claim") {
+            expectHeirClaim();
+        }
         const result = await deleteMapping(mappingId);
         if (result && !result.ok) {
+            settleHeirClaim();
             return;
         }
         if (plan.kind === "back") {

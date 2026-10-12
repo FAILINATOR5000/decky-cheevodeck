@@ -20,6 +20,7 @@ import { t, type LanguageCode } from "../locales";
 import type { ButtonSpacing, SmbShare, ViewKey } from "../types";
 import { smbBusyLabel, smbErrorLabel, smbStatusColor, smbStatusLabel, sortSharesByName } from "../utils/smb";
 import { regularButtonSpacingStyle, bodyTextStyle } from "../utils/style";
+import { expectHeirClaim, settleHeirClaim } from "../focusClaims";
 import { overrideRecord, topEntryId, usePageLanding } from "../focusRecords";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
@@ -167,8 +168,12 @@ function SmbSharesPage(props: SmbSharesPageProps) {
         const force = forceDeleteId === share.id;
         setForceDeleteId(null);
         const plan = deleteFocusPlan(share);
+        if (plan.kind !== "none") {
+            expectHeirClaim();
+        }
         void Promise.resolve(removeShare(share, force)).then((ok) => {
             if (ok === false) {
+                settleHeirClaim();
                 setForceDeleteId(share.id);
                 return;
             }

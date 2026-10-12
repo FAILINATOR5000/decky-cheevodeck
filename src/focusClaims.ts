@@ -106,3 +106,18 @@ export function noteClaimSpent() {
 export function claimSpentWithin(ms: number): boolean {
     return Date.now() - lastSpentAt < ms;
 }
+
+const HEIR_EXPECT_MS = 10000;
+let heirExpectedAt = 0;
+
+export function expectHeirClaim() {
+    heirExpectedAt = Date.now();
+}
+
+export function settleHeirClaim() {
+    heirExpectedAt = 0;
+}
+
+export function heirClaimExpected(): boolean {
+    return heirExpectedAt > lastSpentAt && Date.now() - heirExpectedAt < HEIR_EXPECT_MS;
+}
