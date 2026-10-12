@@ -619,7 +619,7 @@ export function restoreTrail(
     rootGeneration: number,
     saved: ViewKey[] | null,
     landed: ViewKey,
-    forward: { panelEntry: boolean; routeOverride: boolean; land?: string | null }
+    forward: { panelEntry: boolean; routeOverride: boolean; pushOpener: boolean; land?: string | null }
 ): NavState {
     const reason: MountReason = forward.panelEntry || panelEntryMarked
         ? "panelEntry"
@@ -638,7 +638,7 @@ export function restoreTrail(
         landingWouldTake(top, reason);
         return state;
     }
-    if (trail && top && forward.routeOverride && reason !== "panelEntry" && saved !== null
+    if (trail && top && forward.pushOpener && reason !== "panelEntry" && saved !== null
         && saved[saved.length - 1] === top.view && top.view !== landed) {
         const pushed = settleNav(trail, { view: landed }, "push");
         const list = adopt(pushed);

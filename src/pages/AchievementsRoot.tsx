@@ -283,9 +283,10 @@ let pendingFriendGameSearch: { username: string; ulid: string | null; gameId: nu
 
 let pendingCheevoCheckGameId: number | null = null;
 
-function consumePendingRouteOverrides(resumeState: ResumeState | null): { resumeState: ResumeState | null; entry: PanelEntry | null; land: string | null; routeOverride: boolean } {
+function consumePendingRouteOverrides(resumeState: ResumeState | null): { resumeState: ResumeState | null; entry: PanelEntry | null; land: string | null; routeOverride: boolean; pushOpener: boolean } {
     let nextResumeState = resumeState;
     const routeOverride = pendingSearchGameId != null || pendingFriendGameSearch != null || pendingCheevoCheckGameId != null;
+    const pushOpener = pendingSearchGameId != null || pendingCheevoCheckGameId != null;
     const tappedSearchGameId = pendingSearchGameId;
     pendingSearchGameId = null;
     if (tappedSearchGameId != null) {
@@ -341,7 +342,7 @@ function consumePendingRouteOverrides(resumeState: ResumeState | null): { resume
         };
     }
 
-    return { resumeState: nextResumeState, entry, land: taken?.land ?? null, routeOverride };
+    return { resumeState: nextResumeState, entry, land: taken?.land ?? null, routeOverride, pushOpener };
 }
 
 function panelEntryOverlay(entry: PanelEntry): Partial<ResumeState> & Pick<ResumeState, "view"> {
@@ -437,7 +438,7 @@ function AchievementsRoot() {
         }
         setViewState(next);
     }, []);
-    const restoreNav = useCallback((saved: ViewKey[] | null, landed: ViewKey, forward: { panelEntry: boolean; routeOverride: boolean; land?: string | null }) => {
+    const restoreNav = useCallback((saved: ViewKey[] | null, landed: ViewKey, forward: { panelEntry: boolean; routeOverride: boolean; pushOpener: boolean; land?: string | null }) => {
         const verdict = saved && saved.length > 0
             ? (saved[saved.length - 1] === landed ? "hit" : "miss")
             : "none";
@@ -2882,7 +2883,7 @@ function AchievementsRoot() {
         if (bootView !== "achievements") {
             resumeViewFlipRef.current = true;
         }
-        restoreNav(getSavedNavStack(nextResumeState), bootView, { panelEntry: entry !== null, routeOverride: pending.routeOverride, land: pending.land });
+        restoreNav(getSavedNavStack(nextResumeState), bootView, { panelEntry: entry !== null, routeOverride: pending.routeOverride, pushOpener: pending.pushOpener, land: pending.land });
         dropRestoresArmedForOtherViews(bootView);
         if (
             bootView === "trackedSetOpen"
