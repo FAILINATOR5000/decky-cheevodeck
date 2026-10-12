@@ -7,6 +7,7 @@ import {
     getSavedFriendUsername
 } from "./friendsResume";
 import type { RestoreContext } from "./restoreContext";
+import { topEntryId } from "../focusRecords";
 
 export function getSavedBadgeFilter(savedState: ResumeState): BadgeFilter {
     const value = savedState.badgeFilter;
@@ -35,6 +36,7 @@ export async function restoreBadges(savedState: ResumeState, savedView: ViewKey,
         ctx.setBadgeFilter(getSavedBadgeFilter(savedState));
         ctx.setPendingPrimaryViewRestoreGameId(undefined);
         ctx.markResumeApplied();
+        const startedFor = topEntryId();
         await ctx.loadFriendGame(
             cachedFriend,
             savedState.friendGameId ?? null,
@@ -42,6 +44,9 @@ export async function restoreBadges(savedState: ResumeState, savedView: ViewKey,
             "friendprofile:tab:awards",
             true
         );
+        if (topEntryId() !== startedFor) {
+            return true;
+        }
         await ctx.loadUserAwards(userRefFor(cachedFriend), cachedFriend.ulid ?? "");
         return true;
     }

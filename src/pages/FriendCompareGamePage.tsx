@@ -8,6 +8,7 @@ import { BackButton } from "../components/ui/BackButton";
 import { PageNavStrip } from "../components/ui/PageNavStrip";
 import { ErrorText } from "../components/ui/ErrorText";
 import { FocusableItem } from "../components/ui/FocusableItem";
+import { FocusTarget } from "../components/ui/FocusTarget";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
 import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
 import { useSlidingWindow } from "../hooks/useSlidingWindow";
@@ -27,6 +28,8 @@ import type {
     ViewKey
 } from "../types";
 import { usePageLanding } from "../focusRecords";
+
+const COMPARE_ROW_FALLBACK = ["friendcompare:filter:all"];
 
 const FILTER_OPTIONS: { value: NowPlayingCompareFilter; labelKey: string }[] = [
     { value: "all", labelKey: "All" },
@@ -77,7 +80,7 @@ function FilterChip(props: {
     wrapperStyle?: CSSProperties;
 }) {
     return (
-        <div data-focus-key={props.focusKey} style={{ display: "flex", ...props.wrapperStyle }}>
+        <FocusTarget focusKey={props.focusKey} style={{ display: "flex", ...props.wrapperStyle }}>
             <DialogButton
                 onClick={props.onClick}
                 style={{
@@ -93,7 +96,7 @@ function FilterChip(props: {
             >
                 {props.label}
             </DialogButton>
-        </div>
+        </FocusTarget>
     );
 }
 
@@ -117,8 +120,6 @@ function FriendCompareGamePage(props: FriendCompareGamePageProps) {
         dynamicPrefetchDistance,
         showRetroPoints,
     } = state;
-    usePageLanding({ view: "friendCompare", subject: selectedFriend?.ulid || selectedFriend?.username });
-
     const initialRows = Math.max(1, dynamicInitialRows);
     const rowStep = Math.max(1, dynamicRowStep);
     const prefetchDistance = Math.max(1, dynamicPrefetchDistance ?? 12);
@@ -276,6 +277,7 @@ function FriendCompareGamePage(props: FriendCompareGamePageProps) {
         friendUsername,
         friendHasGameData,
         showRetroPoints,
+        focusFallback: COMPARE_ROW_FALLBACK,
         onAchievementClick: (achievement: AchievementRow) => {
             void compareClickRef.current?.(achievement);
         },
@@ -293,6 +295,26 @@ function FriendCompareGamePage(props: FriendCompareGamePageProps) {
         friendHasGameData,
         showRetroPoints
     ]);
+
+    usePageLanding({
+        view: "friendCompare",
+        subject: selectedFriend?.ulid || selectedFriend?.username,
+        subjectSettled: selectedFriend !== null,
+        tabPath: [compareFilter],
+        defaultKey: "friendcompare:back",
+        ready: selectedFriend !== null && !friendGameLoading
+            && (!friendGameId || yourError !== null || yourPayload?.gameId === friendGameId),
+        restoreTabPath: (tabs) => {
+            const option = FILTER_OPTIONS.find((entry) => entry.value === tabs[0]);
+            if (!option || option.value === compareFilter) {
+                return false;
+            }
+            setCompareFilter(option.value);
+            return true;
+        },
+        holds: (key) => filteredCompareRows.some((entry) => `compare:achievement:${entry.achievement.id}` === key),
+        open: (key) => compareWindow.openAt(key)
+    });
 
     if (view !== "friendCompare") {
         return null;

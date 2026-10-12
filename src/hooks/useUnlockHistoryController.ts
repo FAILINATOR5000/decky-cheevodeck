@@ -20,6 +20,7 @@ type UseUnlockHistoryControllerArgs = {
     dynamicSentinelRootMargin: number;
     source: UnlockHistorySource;
     friendUsername: string | null;
+    friendLoading: boolean;
     showRetroPoints: boolean;
     onBack: () => void | Promise<void>;
     onAchievementClick?: (achievement: AchievementRow) => void | Promise<void>;
@@ -42,6 +43,7 @@ export function useUnlockHistoryController({
     dynamicSentinelRootMargin,
     source,
     friendUsername,
+    friendLoading,
     showRetroPoints,
     onBack,
     onAchievementClick
@@ -63,6 +65,7 @@ export function useUnlockHistoryController({
         dynamicSentinelRootMargin,
         source,
         friendUsername,
+        friendLoading,
         showRetroPoints
     }), [
         blockPadding,
@@ -81,6 +84,7 @@ export function useUnlockHistoryController({
         uiSize,
         source,
         friendUsername,
+        friendLoading,
         showRetroPoints
     ]);
 

@@ -1,7 +1,6 @@
 import type { ResumeState, ViewKey } from "../types";
 import {
     findResumeFriendRow,
-    getFriendResumeFocusKey,
     getResumeFriendGameId,
     getSavedFollowedRankingMetric,
     getSavedFriendGameSelectionMode,
@@ -24,7 +23,6 @@ export function restoreSelfOnlyView(savedState: ResumeState, savedView: ViewKey,
         ctx.friendGameReturnGameIdRef.current = getResumeFriendGameId(savedState);
         ctx.setFriendGameSource(getSavedFriendGameSource(savedState));
         ctx.setFriendGameSelectionMode(getSavedFriendGameSelectionMode(savedState));
-        ctx.pendingResumeFocusKeyRef.current = getFriendResumeFocusKey(savedView);
         ctx.setPendingPrimaryViewRestoreGameId(undefined);
         ctx.markResumeApplied();
         ctx.setView("followedRanking");

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { findLinks } from "../../utils/links";
 import { openExternalUrl } from "../../utils/navigation";
 import { bodyTextStyle } from "../../utils/style";
+import { FocusTarget } from "../ui/FocusTarget";
 
 export function ProfileMotto(props: { text: string }) {
     const { text } = props;
@@ -25,8 +26,8 @@ export function ProfileMotto(props: { text: string }) {
                     marginBottom: "10px"
                 }}
             />
-            <div
-                data-focus-key="friendprofile:motto"
+            <FocusTarget
+                focusKey="friendprofile:motto"
                 onFocusCapture={() => setFocused(true)}
                 onBlurCapture={() => setFocused(false)}
                 style={{ width: "100%" }}
@@ -60,7 +61,7 @@ export function ProfileMotto(props: { text: string }) {
                         {`\u201C${text}\u201D`}
                     </div>
                 </Focusable>
-            </div>
+            </FocusTarget>
             <div
                 style={{
                     borderBottom: "1px solid rgba(255, 255, 255, 0.12)",

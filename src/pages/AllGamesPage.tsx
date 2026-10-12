@@ -3,6 +3,7 @@ import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
 import { BackButton } from "../components/ui/BackButton";
 import { FocusableItem } from "../components/ui/FocusableItem";
+import { FocusTarget } from "../components/ui/FocusTarget";
 import { FadeImage } from "../components/ui/FadeImage";
 import { LabeledRow } from "../components/ui/LabeledRow";
 import { ErrorText } from "../components/ui/ErrorText";
@@ -80,6 +81,8 @@ const ALL_GAMES_STATUS_CYCLE: AllGamesStatusFilter[] = [
     "beaten-softcore",
     "unfinished"
 ];
+
+const ALL_GAMES_ROW_FALLBACK = ["friendallgames:statusfilter"];
 
 export function nextAllGamesStatusFilter(current: AllGamesStatusFilter): AllGamesStatusFilter {
     const at = ALL_GAMES_STATUS_CYCLE.indexOf(current);
@@ -173,12 +176,6 @@ function AllGamesPage(props: AllGamesPageProps) {
     const [activeStatusFilter, setActiveStatusFilter] = useState<AllGamesStatusFilter>(
         props.initialStatusFilter ?? "all"
     );
-    usePageLanding({
-        view: "friendAllGames",
-        subject: props.selectedFriend?.ulid || props.selectedFriend?.username,
-        tabPath: [activeRangeKey]
-    });
-
     const dynamicAllGames = props.dynamicAllGames ?? true;
     const dynamicInitialRows = Math.max(1, props.dynamicInitialRows ?? 30);
     const dynamicRowStep = Math.max(1, props.dynamicRowStep ?? 30);
@@ -238,7 +235,14 @@ function AllGamesPage(props: AllGamesPageProps) {
         itemKey: (game) => String(game.gameId),
         focusKeyFor: (game) => `friendallgames:item:${game.gameId}`,
         windowId: "friendallgames:games",
-        heightScope: ["friendallgames:games", props.uiSize, props.showIcons, props.language, textSize(12)].join("|"),
+        heightScope: [
+            "friendallgames:games",
+            props.selectedFriend?.ulid || props.selectedFriend?.username || "",
+            props.uiSize,
+            props.showIcons,
+            props.language,
+            textSize(12)
+        ].join("|"),
         dynamicLoading: dynamicAllGames,
         initialRows: dynamicInitialRows,
         rowStep: dynamicRowStep,
@@ -248,6 +252,33 @@ function AllGamesPage(props: AllGamesPageProps) {
         debugLabel: "friendallgames:games"
     });
     const visibleGames = gameWindow.mountedItems;
+
+    usePageLanding({
+        view: "friendAllGames",
+        subject: props.selectedFriend?.ulid || props.selectedFriend?.username,
+        subjectSettled: props.selectedFriend !== null,
+        tabPath: [activeRangeKey, activeStatusFilter],
+        defaultKey: "friendallgames:back",
+        ready: (props.friendAllGamesPayload !== null || props.friendAllGamesError !== null) && !props.friendAllGamesLoading,
+        restoreTabPath: (tabs) => {
+            const range = ALL_GAMES_LETTER_RANGES.find((entry) => entry.key === tabs[0]);
+            const status = ALL_GAMES_STATUS_CYCLE.find((entry) => entry === tabs[1]);
+            let changed = false;
+            if (range && range.key !== activeRangeKey) {
+                setActiveRangeKey(range.key);
+                props.onRangeChange?.(range.key);
+                changed = true;
+            }
+            if (status && status !== activeStatusFilter) {
+                setActiveStatusFilter(status);
+                props.onStatusFilterChange?.(status);
+                changed = true;
+            }
+            return changed;
+        },
+        holds: (key) => filteredGames.some((game) => `friendallgames:item:${game.gameId}` === key),
+        open: (key) => gameWindow.openAt(key)
+    });
 
     const gameClickRef = useRef(props.onGameClick);
     gameClickRef.current = props.onGameClick;
@@ -430,9 +461,9 @@ function AllGamesPage(props: AllGamesPageProps) {
                             const active = activeRangeKey === range.key;
 
                             return (
-                                <div
+                                <FocusTarget
                                     key={`friendallgames:range:${range.key}`}
-                                    data-focus-key={`friendallgames:range:${range.key}`}
+                                    focusKey={`friendallgames:range:${range.key}`}
                                     style={{ display: "flex" }}
                                 >
                                     <DialogButton
@@ -450,7 +481,7 @@ function AllGamesPage(props: AllGamesPageProps) {
                                     >
                                         {range.label}
                                     </DialogButton>
-                                </div>
+                                </FocusTarget>
                             );
                         })}
                     </Focusable>
@@ -554,6 +585,7 @@ const AllGamesRow = React.memo(function AllGamesRow(props: AllGamesRowProps) {
     return (
         <FocusableItem
             focusKey={`friendallgames:item:${game.gameId}`}
+            focusFallback={ALL_GAMES_ROW_FALLBACK}
             onFocus={handleFocus}
             onGamepadFocus={handleFocus}
             onGamepadDirection={props.onGamepadDirection}

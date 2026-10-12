@@ -16,8 +16,6 @@ import { achievementBodySize } from "../../utils/scale";
 import { smallTextStyle, achievementGreen, errorRed, type AchievementUiMetrics } from "../../utils/style";
 import React, { type ReactNode } from "react";
 
-const MAIN_ROW_FALLBACK = ["achievements:filter", "achievements:sort", "main:tab:achievements"];
-
 
 function statusGlyph(a: AchievementRow, style: AchievementStyle) {
     if (earned(a)) {
@@ -35,6 +33,7 @@ export type AchievementRowListProps = {
     blockPaddingStyle: string;
     trackedBarColor: string;
     showRetroPoints: boolean;
+    focusFallback?: string[];
     onAchievementClick: (achievement: AchievementRow) => void;
     onAchievementFocus: (index: number) => void;
     onAchievementTrackToggle?: (achievement: AchievementRow) => void;
@@ -224,7 +223,7 @@ export const AchievementListRow = React.memo(function AchievementListRow(props: 
     return (
         <FocusableItem
             focusKey={`achievement:${achievement.id}`}
-            focusFallback={list.mode === "main" ? MAIN_ROW_FALLBACK : undefined}
+            focusFallback={list.focusFallback}
             outerStyle={rowOuterStyle}
             onClick={handleClick}
             onFocus={handleFocus}

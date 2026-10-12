@@ -53,6 +53,8 @@ const METRIC_ORDER: FollowedRankingMetric[] = [
 ];
 
 
+const RANKING_ROW_FALLBACK = ["followedranking:sort"];
+
 function nextRankingMetric(current: FollowedRankingMetric): FollowedRankingMetric {
     const index = METRIC_ORDER.indexOf(current);
     if (index < 0) {
@@ -131,8 +133,6 @@ function FollowedRankingPage(props: FollowedRankingPageProps) {
     const dynamicPrefetchDistance = Math.max(1, props.dynamicPrefetchDistance ?? 12);
     const dynamicSentinelRootMargin = Math.max(0, props.dynamicSentinelRootMargin ?? 600);
 
-    usePageLanding({ view: "followedRanking", tabPath: [props.metric] });
-
     const allFriends = props.friendsPayload?.friends ?? NO_FRIENDS;
 
     const sortedRows = useMemo(() => {
@@ -167,6 +167,23 @@ function FollowedRankingPage(props: FollowedRankingPageProps) {
         debugLabel: "followedranking:friends"
     });
     const mountedRows = rowWindow.mountedItems;
+
+    usePageLanding({
+        view: "followedRanking",
+        tabPath: [props.metric],
+        defaultKey: "followedranking:back",
+        ready: props.friendsPayload !== null,
+        restoreTabPath: (tabs) => {
+            const metric = METRIC_ORDER.find((entry) => entry === tabs[0]);
+            if (!metric || metric === props.metric) {
+                return false;
+            }
+            props.setMetric(metric);
+            return true;
+        },
+        holds: (key) => sortedRows.some((row) => `followedranking:item:${row.username}` === key),
+        open: (key) => rowWindow.openAt(key)
+    });
 
     const rowFocusRef = useRef(rowWindow.onItemFocus);
     rowFocusRef.current = rowWindow.onItemFocus;
@@ -309,6 +326,7 @@ const FollowedRankingRowView = React.memo(function FollowedRankingRowView(props:
     return (
         <FocusableItem
             focusKey={`followedranking:item:${row.username}`}
+            focusFallback={RANKING_ROW_FALLBACK}
             onFocus={handleFocus}
             onGamepadFocus={handleFocus}
             onGamepadDirection={props.onGamepadDirection}

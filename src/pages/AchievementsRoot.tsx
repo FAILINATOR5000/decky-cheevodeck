@@ -159,7 +159,7 @@ import { MAP_SHORTCUTS_FOCUS_KEY } from "../utils/options";
 import { openBrowserModal } from "../components/browser/BrowserModal";
 import { describeStack, initialNav, previousView, type NavIntent } from "../nav";
 import { setCover } from "../covers";
-import { beginRootMount, landingOwnsTop, restoreTrail, settleTrail, useFocusRecordWriter } from "../focusRecords";
+import { beginRootMount, landingOwnsTop, restoreTrail, settleTrail, topEntryId, useFocusRecordWriter } from "../focusRecords";
 import { LandingCurtain } from "../components/ui/LandingCurtain";
 import { ROUTES, type RouteBackActions } from "../routes";
 import type {
@@ -814,7 +814,7 @@ function AchievementsRoot() {
         if (active && !wasActive) {
             if (skipFriendTabResetRef.current) {
                 skipFriendTabResetRef.current = false;
-            } else {
+            } else if (!landingOwnsTop()) {
                 setFriendProfileSubView("game");
             }
         }
@@ -2328,6 +2328,7 @@ function AchievementsRoot() {
         dynamicSentinelRootMargin,
         source: unlockHistorySource,
         friendUsername: unlockHistoryFriendUsername,
+        friendLoading: isFriendUnlockHistory && friendGameLoading,
         showRetroPoints,
         onBack: backFromUnlockHistory,
         onAchievementClick: async (achievement) => {
@@ -3431,7 +3432,9 @@ function AchievementsRoot() {
         const payloadStillLoaded =
             friendGamePayloadRef.current != null &&
             payloadUsername.toLowerCase() === friendUsername.toLowerCase();
-        if (friendUsername && payloadStillLoaded) {
+        const loadingThisFriend = friendGameLoading
+            && String(selectedFriendRef.current?.username || "").toLowerCase() === friendUsername.toLowerCase();
+        if (friendUsername && (payloadStillLoaded || loadingThisFriend)) {
             if (returnTo) {
                 setFriendGameSource(returnTo.source);
             }
@@ -3467,12 +3470,15 @@ function AchievementsRoot() {
     async function backFromFriendUnlockHistory() {
         const friendUsername = String(unlockHistoryReturnFriendRef.current.username || friendUsernameFromRefs() || "").trim();
         const returnSource = unlockHistoryReturnFriendRef.current.source || friendGameSourceRef.current;
-        setUnlockHistorySource("main");
+        const leaving = topEntryId();
         await routeBackToFriendContext(
             friendUsername,
             "friendquick:tab:history",
             { gameId: unlockHistoryReturnFriendRef.current.gameId, source: returnSource }
         );
+        if (topEntryId() !== leaving) {
+            setUnlockHistorySource("main");
+        }
     }
 
     async function backFromFriendCompare() {
@@ -5550,7 +5556,7 @@ function AchievementsRoot() {
 
                                 <BadgesPage
                                     view={view}
-                                    username={selectedFriend?.username ?? ""}
+                                    selectedFriend={selectedFriend}
                                     language={language}
                                     buttonSpacing={buttonSpacing}
                                     showIcons={showIcons}
@@ -5623,10 +5629,10 @@ function AchievementsRoot() {
                                         wallCommentsHasMore,
                                         wallCommentsSort,
                                         wallCommentsLoaded,
+                                        wallCommentsError: wallCommentsController.state.commentsError,
                                         wallRestricted,
                                         wallCommentsCardClaim: wallCommentsController.state.commentsCardClaim ?? undefined,
                                         wallCommentsPostClaim: wallCommentsController.state.commentsPostClaim ?? undefined,
-                                        panelOverlayVisible,
                                         wallRestorePending,
                                         wallHoldCommentsBody,
                                         wallCommentsWindow: wallCommentsController.state.commentsWindow,

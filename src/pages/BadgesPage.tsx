@@ -3,6 +3,7 @@ import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
 import { BackButton } from "../components/ui/BackButton";
 import { FocusableItem } from "../components/ui/FocusableItem";
+import { FocusTarget } from "../components/ui/FocusTarget";
 import { FadeImage } from "../components/ui/FadeImage";
 import { ErrorText } from "../components/ui/ErrorText";
 import { LabeledRow } from "../components/ui/LabeledRow";
@@ -13,6 +14,7 @@ import type {
     BadgeFilter,
     BadgesSortOrder,
     ButtonSpacing,
+    FriendRow,
     UiSize,
     UserAwardRow,
     UserAwardsPayload,
@@ -62,7 +64,7 @@ function awardTypeLabel(award: UserAwardRow, language: LanguageCode) {
 
 type BadgesPageProps = {
     view: ViewKey;
-    username: string;
+    selectedFriend: FriendRow | null;
     language: LanguageCode;
     buttonSpacing: ButtonSpacing;
     showIcons: boolean;
@@ -217,6 +219,8 @@ const BADGE_FILTER_STRIP: FilterStripEntry[] = [
     { focusKey: "badges:filter:other", value: "other", Icon: OtherIcon, labelKey: "Other Awards" }
 ];
 
+const BADGE_ROW_FALLBACK = ["badges:sortorder"];
+
 function sortOrderLabel(order: BadgesSortOrder, language: LanguageCode): string {
     return t(language, order === "newest" ? "Newest" : "Oldest");
 }
@@ -230,11 +234,10 @@ function BadgesPage(props: BadgesPageProps) {
 
     const sortOrder = props.sortOrder;
     const awardRows = props.awardsPayload?.results ?? NO_AWARDS;
-    const username = props.awardsPayload?.username ?? props.username ?? "";
+    const username = props.awardsPayload?.username ?? props.selectedFriend?.username ?? "";
     const totalLoaded = awardRows.length;
 
     const [activeFilter, setActiveFilter] = useState<BadgeFilter>(props.initialFilter ?? "all");
-    usePageLanding({ view: "badges", subject: username, tabPath: [activeFilter] });
 
     const userPickedFilterRef = useRef(false);
     useEffect(() => {
@@ -274,7 +277,14 @@ function BadgesPage(props: BadgesPageProps) {
         itemKey: awardRowKey,
         focusKeyFor: awardRowKey,
         windowId: "badges:awards",
-        heightScope: ["badges:awards", props.uiSize, props.showIcons, props.language, textSize(12)].join("|"),
+        heightScope: [
+            "badges:awards",
+            props.selectedFriend?.ulid || props.selectedFriend?.username || "",
+            props.uiSize,
+            props.showIcons,
+            props.language,
+            textSize(12)
+        ].join("|"),
         dynamicLoading: dynamicList,
         initialRows: dynamicInitialRows,
         rowStep: dynamicRowStep,
@@ -284,6 +294,26 @@ function BadgesPage(props: BadgesPageProps) {
         debugLabel: "badges:awards"
     });
     const visibleAwards = awardWindow.mountedItems;
+
+    usePageLanding({
+        view: "badges",
+        subject: props.selectedFriend?.ulid || props.selectedFriend?.username,
+        subjectSettled: props.selectedFriend !== null,
+        tabPath: [activeFilter],
+        defaultKey: "badges:back",
+        ready: (props.awardsPayload !== null || props.awardsError !== null) && !props.awardsLoading,
+        restoreTabPath: (tabs) => {
+            const entry = BADGE_FILTER_STRIP.find((candidate) => candidate.value === tabs[0]);
+            if (!entry || entry.value === activeFilter) {
+                return false;
+            }
+            setActiveFilter(entry.value);
+            props.onFilterChange?.(entry.value);
+            return true;
+        },
+        holds: (key) => filteredRows.some((award) => awardRowKey(award) === key),
+        open: (key) => awardWindow.openAt(key)
+    });
 
     const badgeClickRef = useRef(props.onBadgeClick);
     badgeClickRef.current = props.onBadgeClick;
@@ -465,9 +495,9 @@ function BadgesPage(props: BadgesPageProps) {
                                         const buttonOpacity = isSelected || isPreviewed ? 1 : 0.7;
 
                                         return (
-                                            <div
+                                            <FocusTarget
                                                 key={entry.focusKey}
-                                                data-focus-key={entry.focusKey}
+                                                focusKey={entry.focusKey}
                                                 onMouseEnter={() => setHoveredFilterKey(entry.focusKey)}
                                                 onMouseLeave={() => setHoveredFilterKey((current) => current === entry.focusKey ? null : current)}
                                                 style={{
@@ -498,7 +528,7 @@ function BadgesPage(props: BadgesPageProps) {
                                                 >
                                                     <Icon size={18} />
                                                 </DialogButton>
-                                            </div>
+                                            </FocusTarget>
                                         );
                                     })}
                                 </Focusable>
@@ -637,6 +667,7 @@ const BadgesRow = React.memo(function BadgesRow(props: BadgesRowProps) {
     return (
         <FocusableItem
             focusKey={awardRowKey(award)}
+            focusFallback={BADGE_ROW_FALLBACK}
             onFocus={handleFocus}
             onGamepadFocus={handleFocus}
             onGamepadDirection={props.onGamepadDirection}

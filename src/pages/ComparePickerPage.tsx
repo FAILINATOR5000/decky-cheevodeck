@@ -149,7 +149,6 @@ const FriendPickerRow = React.memo(function FriendPickerRow(props: FriendPickerR
 
 function ComparePickerPage(props: ComparePickerPageProps) {
     const { state, actions } = props;
-    usePageLanding({ view: "comparePicker" });
     const { language, buttonSpacing, friendsRows, favoriteFriends, friendsLoaded, friendsRefreshing, friendsError } = state;
 
     const dynamicFriendPicker = state.dynamicFriendPicker ?? true;
@@ -212,6 +211,15 @@ function ComparePickerPage(props: ComparePickerPageProps) {
         debugLabel: "comparepicker:friends"
     });
     const maybeLoadMoreFromFocus = pickerWindow.onItemFocus;
+
+    usePageLanding({
+        view: "comparePicker",
+        defaultKey: "comparepicker:back",
+        ready: friendsLoaded,
+        holds: (key) => key.startsWith("comparepicker:friend:")
+            && entries.some((entry) => !isPickerHeading(entry) && pickerEntryFocusKey(entry) === key),
+        open: (key) => pickerWindow.openAt(key)
+    });
     const visibleFriends = useMemo(() => {
         const friends: FriendRow[] = [];
         for (const entry of pickerWindow.mountedItems) {

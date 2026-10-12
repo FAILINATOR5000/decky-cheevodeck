@@ -56,8 +56,6 @@ function WantToPlayPage(props: WantToPlayPageProps) {
     const dynamicPrefetchDistance = Math.max(1, props.dynamicPrefetchDistance ?? 12);
     const dynamicSentinelRootMargin = Math.max(0, props.dynamicSentinelRootMargin ?? 600);
 
-    usePageLanding({ view: "wantToPlay", subject: props.selectedFriend?.ulid || props.selectedFriend?.username });
-
     const rows = props.wantToPlayPayload?.results ?? NO_ROWS;
     const username = props.wantToPlayPayload?.username ?? "";
     const totalLoaded = rows.length;
@@ -74,7 +72,14 @@ function WantToPlayPage(props: WantToPlayPageProps) {
         itemKey: (row) => String(row.gameId),
         focusKeyFor: (row) => `wanttoplay:item:${row.gameId}`,
         windowId: "wanttoplay:games",
-        heightScope: ["wanttoplay:games", props.uiSize, props.showIcons, props.language, textSize(12)].join("|"),
+        heightScope: [
+            "wanttoplay:games",
+            props.selectedFriend?.ulid || props.selectedFriend?.username || "",
+            props.uiSize,
+            props.showIcons,
+            props.language,
+            textSize(12)
+        ].join("|"),
         dynamicLoading: dynamicAllGames,
         initialRows: dynamicInitialRows,
         rowStep: dynamicRowStep,
@@ -82,6 +87,16 @@ function WantToPlayPage(props: WantToPlayPageProps) {
         sentinelRootMarginPx: dynamicSentinelRootMargin,
         resetKey: username,
         debugLabel: "wanttoplay:games"
+    });
+
+    usePageLanding({
+        view: "wantToPlay",
+        subject: props.selectedFriend?.ulid || props.selectedFriend?.username,
+        subjectSettled: props.selectedFriend !== null,
+        defaultKey: "wanttoplay:back",
+        ready: (props.wantToPlayPayload !== null || props.wantToPlayError !== null) && !props.wantToPlayLoading,
+        holds: (key) => visibleRows.some((row) => `wanttoplay:item:${row.gameId}` === key),
+        open: (key) => rowWindow.openAt(key)
     });
 
     const gameClickRef = useRef(props.onGameClick);

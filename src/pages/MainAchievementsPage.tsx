@@ -475,6 +475,8 @@ const QUICK_ACTIONS: QuickAction[] = [
 
 const TAB_STRIP_END_RADIUS = "6px";
 
+const MAIN_ROW_FALLBACK = ["achievements:filter", "achievements:sort", "main:tab:achievements"];
+
 const MAIN_TABS: { value: MainAchievementsTab; focusKey: string; icon: SubTabIconKind }[] = [
     { value: "achievements", focusKey: "main:tab:achievements", icon: "trophy" },
     { value: "comments", focusKey: "main:tab:comments", icon: "comment" },
@@ -2772,6 +2774,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                 blockPadding={blockPadding}
                                 showAll={showAllToggleMain ? showAllAchievements : true}
                                 mode="main"
+                                rowFocusFallback={MAIN_ROW_FALLBACK}
                                 trackedIds={trackedIds}
                                 notesByAchievementId={notesByAchievementId}
                                 notesColorByAchievementId={notesColorByAchievementId}

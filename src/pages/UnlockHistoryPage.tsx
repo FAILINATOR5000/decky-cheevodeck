@@ -41,6 +41,8 @@ type UnlockHistoryPageState = {
     dynamicPrefetchDistance: number;
     dynamicSentinelRootMargin: number;
     source: UnlockHistorySource;
+    friendUsername: string | null;
+    friendLoading: boolean;
     showRetroPoints: boolean;
 };
 
@@ -110,7 +112,6 @@ function buildFriendHistoryAchievements(payload: Payload | null): AchievementRow
 
 function UnlockHistoryPage(props: UnlockHistoryPageProps) {
     const { state, actions } = props;
-    usePageLanding({ view: "unlockHistory", subject: `${state.source}:${state.payload?.gameId ?? ""}` });
     const [history, setHistory] = useState<UnlockHistoryPayload | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -183,6 +184,19 @@ function UnlockHistoryPage(props: UnlockHistoryPageProps) {
             achievements: historyAchievements
         };
     }, [state.payload, historyAchievements]);
+
+    const [landingOpenKey, setLandingOpenKey] = useState<string | null>(null);
+    const [, setLandingOpenHeld] = useState(0);
+    const friendSettled = state.payload !== null || (state.friendUsername !== null && !state.friendLoading);
+    usePageLanding({
+        view: "unlockHistory",
+        subject: `${state.source}:${isFriendSource ? state.friendUsername ?? "" : "self"}:${gameId ?? ""}`,
+        subjectSettled: !isFriendSource || friendSettled,
+        defaultKey: "unlockhistory:back",
+        ready: isFriendSource ? friendSettled : state.payload === null || history !== null || error !== null,
+        holds: (key) => historyAchievements.some((achievement) => `achievement:${achievement.id}` === key),
+        open: (key) => setLandingOpenKey(key)
+    });
 
     const renderUnlockStamp = useCallback((achievement: AchievementRow) => {
         const stamp = unlockDateLabel(achievement, state.language);
@@ -280,6 +294,8 @@ function UnlockHistoryPage(props: UnlockHistoryPageProps) {
                 dynamicRowStep={state.dynamicRowStep}
                 dynamicPrefetchDistance={state.dynamicPrefetchDistance}
                 dynamicSentinelRootMargin={state.dynamicSentinelRootMargin}
+                openAtKey={landingOpenKey ?? undefined}
+                onOpenAtHeld={() => setLandingOpenHeld((count) => count + 1)}
             />
         </>
     );

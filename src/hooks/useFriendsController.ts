@@ -42,7 +42,7 @@ import type {
 } from "../types";
 
 import type { NavIntent } from "../nav";
-import { topEntryId } from "../focusRecords";
+import { landingOwnsTop, topEntryId } from "../focusRecords";
 import { logError } from "../utils/errors";
 import { quickAccessIsHidden, quickAccessWindow } from "../utils/quickAccess";
 import { findFriendRowIndex, sortFriendRowsForDisplay, userRefFor } from "../utils/friends";
@@ -667,7 +667,9 @@ export function useFriendsController({
                 setSelectedFriend(latestFriend);
                 if (!suppressViewChange) {
                     setView("friendGame", navIntent);
-                    setPendingFocusKey(focusTarget || "friendgame:back");
+                    if (!landingOwnsTop()) {
+                        setPendingFocusKey(focusTarget || "friendgame:back");
+                    }
                 }
                 return;
             }
@@ -800,7 +802,7 @@ export function useFriendsController({
                     else if (!suppressViewChange) {
                         setView("friendGame", navIntent);
                         const nextFocusKey = pendingResumeFocusKeyRef.current || focusTarget;
-                        if (nextFocusKey) {
+                        if (nextFocusKey && !landingOwnsTop()) {
                             setPendingFocusKey(nextFocusKey);
                         }
                         pendingResumeFocusKeyRef.current = null;
@@ -844,7 +846,9 @@ export function useFriendsController({
             }
             setView("friendAllGames");
             const nextFocusKey = pendingResumeFocusKeyRef.current || "friendallgames:back";
-            setPendingFocusKey(nextFocusKey);
+            if (!landingOwnsTop()) {
+                setPendingFocusKey(nextFocusKey);
+            }
             pendingResumeFocusKeyRef.current = null;
         },
         [pendingResumeFocusKeyRef, setPendingFocusKey, setView]
@@ -935,7 +939,9 @@ export function useFriendsController({
                         setUserAwardsPayload(cached);
                         if (!suppressViewChange && stillWhereStarted(startedFor, "badges")) {
                             setView("badges", navIntent);
-                            setPendingFocusKey("badges:back");
+                            if (!landingOwnsTop()) {
+                                setPendingFocusKey("badges:back");
+                            }
                         }
                         return;
                     }
@@ -958,7 +964,9 @@ export function useFriendsController({
                     setUserAwardsPayload(result.payload);
                     if (!suppressViewChange && stillWhereStarted(startedFor, "badges")) {
                         setView("badges", navIntent);
-                        setPendingFocusKey("badges:back");
+                        if (!landingOwnsTop()) {
+                            setPendingFocusKey("badges:back");
+                        }
                     }
                     if (result.error) {
                         setUserAwardsError(result.error);
@@ -1019,7 +1027,9 @@ export function useFriendsController({
                         if (stillWhereStarted(startedFor, "wantToPlay")) {
                             setView("wantToPlay", navIntent);
                             const warmFocusKey = pendingResumeFocusKeyRef.current || "wanttoplay:back";
-                            setPendingFocusKey(warmFocusKey);
+                            if (!landingOwnsTop()) {
+                                setPendingFocusKey(warmFocusKey);
+                            }
                         }
                         pendingResumeFocusKeyRef.current = null;
                         return;
@@ -1052,7 +1062,9 @@ export function useFriendsController({
                     if (stillWhereStarted(startedFor, "wantToPlay")) {
                         setView("wantToPlay", navIntent);
                         const nextFocusKey = pendingResumeFocusKeyRef.current || "wanttoplay:back";
-                        setPendingFocusKey(nextFocusKey);
+                        if (!landingOwnsTop()) {
+                            setPendingFocusKey(nextFocusKey);
+                        }
                     }
                     pendingResumeFocusKeyRef.current = null;
                     if (result.error) {

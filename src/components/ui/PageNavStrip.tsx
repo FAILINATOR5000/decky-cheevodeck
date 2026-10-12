@@ -157,9 +157,9 @@ export function PageNavStrip(props: PageNavStripProps) {
             </div>
             {quickGuide.visible ? (
                 <QuickGuideColumn>
-                    <div data-focus-key="quickguide:pin" style={{ display: "flex" }}>
+                    <FocusTarget focusKey="quickguide:pin" style={{ display: "flex" }}>
                         <QuickGuidePin onPress={quickGuide.onPress} />
-                    </div>
+                    </FocusTarget>
                     {iconRow}
                 </QuickGuideColumn>
             ) : iconRow}

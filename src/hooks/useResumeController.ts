@@ -336,6 +336,9 @@ export function useResumeController({
                 setAoViewedUsername(getSavedAoViewedUsername(nextResumeState));
                 setAoViewedUserRef(getSavedAoViewedUserRef(nextResumeState));
             }
+            if (bootView === "unlockHistory" && nextResumeState) {
+                setUnlockHistorySource(getSavedUnlockHistorySource(nextResumeState));
+            }
         },
         [
             pendingResumeFocusKeyRef,
@@ -350,7 +353,8 @@ export function useResumeController({
             setAoGameId,
             setAoSnapshot,
             setAoViewedUsername,
-            setAoViewedUserRef
+            setAoViewedUserRef,
+            setUnlockHistorySource
         ]
     );
 
@@ -404,7 +408,6 @@ export function useResumeController({
             setPendingPrimaryViewRestoreGameId,
             setView,
             setPendingFocusKey,
-            pendingResumeFocusKeyRef,
             mountedRef,
             friendsPayload,
             activeUlid,

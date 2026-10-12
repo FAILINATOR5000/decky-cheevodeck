@@ -24,7 +24,6 @@ export type RestoreContext = {
 
     setView: (next: ViewKey, intent?: NavIntent) => void;
     setPendingFocusKey: Dispatch<SetStateAction<string | null>>;
-    pendingResumeFocusKeyRef: RefObject<string | null>;
     mountedRef: RefObject<boolean>;
 
     friendsPayload: FriendsPayload | null;

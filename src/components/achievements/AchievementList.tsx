@@ -95,6 +95,8 @@ export function AchievementList(props: {
     tagMarkedIds?: ReadonlySet<number>;
     reorderViaSwap?: boolean;
     windowId?: string;
+    heightScope?: string;
+    rowFocusFallback?: string[];
     sections?: AchievementListSection[];
     renderSectionHeader?: (section: AchievementListSection, window: SectionHeaderWindow) => ReactNode;
     openAtKey?: string;
@@ -448,7 +450,8 @@ export function AchievementList(props: {
             props.showIcons,
             Boolean(props.showRetroPoints),
             Boolean(props.showTrackedNotesMain),
-            props.language
+            props.language,
+            props.heightScope ?? ""
         ].join("|"),
         dynamicLoading,
         initialRows: dynamicInitialRows,
@@ -695,6 +698,7 @@ export function AchievementList(props: {
         blockPaddingStyle,
         trackedBarColor,
         showRetroPoints: Boolean(props.showRetroPoints),
+        focusFallback: props.rowFocusFallback,
         onAchievementClick: (achievement: AchievementRow) => {
             void clickRef.current?.(achievement);
         },
@@ -735,6 +739,7 @@ export function AchievementList(props: {
         blockPaddingStyle,
         trackedBarColor,
         props.showRetroPoints,
+        props.rowFocusFallback,
         props.onAchievementTrackToggle,
         props.onAchievementNote,
         props.onAchievementReorderPick,

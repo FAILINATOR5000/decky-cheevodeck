@@ -2,6 +2,7 @@ import type { FollowedRankingMetric, FriendGameSelectionMode, FriendGameSource, 
 import { userRefFor } from "../utils/friends";
 import { getSavedAllGamesLetterRange, getSavedAllGamesStatusFilter } from "./allGamesResume";
 import type { RestoreContext } from "./restoreContext";
+import { topEntryId } from "../focusRecords";
 
 function getFriendCompareResumeFocusKey(
     savedView: ViewKey | null | undefined,
@@ -70,24 +71,6 @@ export function getResumeFriendGameId(savedState: ResumeState): number | null {
     return getSavedFriendGameSelectionMode(savedState) === "explicit" ? (savedState.friendGameId ?? null) : null;
 }
 
-export function getFriendResumeFocusKey(view: ResumeState["view"]): string | null {
-    if (view === "friendGame") {
-        return "friendgame:back";
-    }
-    if (view === "friendAllGames") {
-        return "friendallgames:back";
-    }
-    if (view === "wantToPlay") {
-        return "wanttoplay:back";
-    }
-    if (view === "followedRanking") {
-        return "followedranking:back";
-    }
-    if (view === "social") {
-        return "social:back";
-    }
-    return null;
-}
 
 export function getSavedFollowedRankingMetric(savedState: ResumeState): FollowedRankingMetric {
     const metric = savedState.followedRankingMetric;
@@ -120,7 +103,6 @@ export async function restoreFriendAllGames(savedState: ResumeState, savedView: 
         ctx.setRecentGamesExpanded(false);
         ctx.setAllGamesLetterRange(getSavedAllGamesLetterRange(savedState));
         ctx.setAllGamesStatusFilter(getSavedAllGamesStatusFilter(savedState));
-        ctx.pendingResumeFocusKeyRef.current = getFriendResumeFocusKey(savedView);
         ctx.setPendingPrimaryViewRestoreGameId(undefined);
         ctx.markResumeApplied();
         await ctx.loadFriendAllGames(cachedFriend, 0, desiredCount);
@@ -184,9 +166,9 @@ export async function restoreWantToPlay(savedState: ResumeState, savedView: View
         ctx.setFriendGameSource(savedFriendGameSource);
         ctx.setFriendGameSelectionMode(savedFriendGameSelectionMode);
         ctx.setSelectedFriend(cachedFriend);
-        ctx.pendingResumeFocusKeyRef.current = getFriendResumeFocusKey(savedView);
         ctx.setPendingPrimaryViewRestoreGameId(undefined);
         ctx.markResumeApplied();
+        const startedFor = topEntryId();
         await ctx.loadFriendGame(
             cachedFriend,
             savedState.friendGameId ?? null,
@@ -194,6 +176,9 @@ export async function restoreWantToPlay(savedState: ResumeState, savedView: View
             "friendprofile:tab:wanttoplay",
             true
         );
+        if (topEntryId() !== startedFor) {
+            return true;
+        }
         await ctx.loadUserWantToPlay(userRefFor(cachedFriend), cachedFriend.ulid ?? "");
         return true;
     }
@@ -225,15 +210,9 @@ export async function restoreFriendGame(savedState: ResumeState, savedView: View
         ctx.setFriendGameSource(savedFriendGameSource);
         ctx.setFriendGameSelectionMode(savedFriendGameSelectionMode);
         ctx.setFriendProfileSubView(getSavedFriendProfileSubView(savedState));
-        ctx.pendingResumeFocusKeyRef.current = getFriendResumeFocusKey(savedView);
         ctx.setPendingPrimaryViewRestoreGameId(undefined);
         ctx.markResumeApplied();
-        await ctx.loadFriendGame(
-            friend,
-            resumeGameId,
-            true,
-            ctx.pendingResumeFocusKeyRef.current || "friendgame:back"
-        );
+        await ctx.loadFriendGame(friend, resumeGameId, true, "friendgame:back");
         return true;
     }
 

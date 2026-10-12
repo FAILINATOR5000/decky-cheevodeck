@@ -20,8 +20,8 @@ import { ErrorText } from "../components/ui/ErrorText";
 import { FadeImage } from "../components/ui/FadeImage";
 import { BackButton } from "../components/ui/BackButton";
 import { FocusClaim } from "../components/ui/FocusClaim";
-import { RestoreCurtain } from "../components/ui/RestoreCurtain";
 import { FocusableItem } from "../components/ui/FocusableItem";
+import { FocusTarget } from "../components/ui/FocusTarget";
 import { LabeledRow } from "../components/ui/LabeledRow";
 import { PageNavStrip } from "../components/ui/PageNavStrip";
 import { ProfileMotto } from "../components/social/ProfileMotto";
@@ -60,7 +60,7 @@ import { consoleInlineName } from "../utils/consoles";
 import { localizeRuntimeText, t } from "../locales";
 import { formatRatio, formatInteger, formatMemberSince } from "../utils/format";
 import { loadCachedImage } from "../utils/loadCachedImage";
-import { usePageLanding } from "../focusRecords";
+import { pendingLandingKey, usePageLanding } from "../focusRecords";
 
 
 type FriendQuickActionId = "history" | "leaderboards" | "compare";
@@ -248,6 +248,9 @@ const FRIEND_PROFILE_SUB_TABS: { value: FriendProfileSubView; focusKey: string; 
     { value: "wall", focusKey: "friendprofile:subtab:wall", icon: "wall" }
 ];
 
+const FRIEND_ROW_FALLBACK = ["friend:filter", "friend:sort", "friendprofile:subtab:game"];
+const RECENT_PICK_FALLBACK = ["friendgame:selected"];
+
 type FriendProfilePageProps = {
     state: {
         view: ViewKey;
@@ -285,6 +288,7 @@ type FriendProfilePageProps = {
         wallCommentsHasMore: boolean;
         wallCommentsSort: CommentsSort;
         wallCommentsLoaded: boolean;
+        wallCommentsError: string | null;
         wallRestricted: boolean;
         wallCommentsCardClaim?: {
             slotIndex: number;
@@ -295,7 +299,6 @@ type FriendProfilePageProps = {
             token: number;
             armed: boolean;
         };
-        panelOverlayVisible: boolean;
         wallRestorePending: boolean;
         wallHoldCommentsBody: boolean;
         wallCommentsWindow: RestoredCommentsWindow | null;
@@ -369,20 +372,44 @@ function FriendProfilePage(props: FriendProfilePageProps) {
         wallCommentsHasMore,
         wallCommentsSort,
         wallCommentsLoaded,
+        wallCommentsError,
         wallRestricted,
         wallCommentsCardClaim,
         wallCommentsPostClaim,
-        panelOverlayVisible,
         wallRestorePending,
         wallHoldCommentsBody,
         wallCommentsWindow,
         dynamicComments,
         dynamicCommentsSentinelRootMargin,
     } = state;
+    const profileSettled = selectedFriend !== null && !friendGameLoading;
+    const [landingOpenKey, setLandingOpenKey] = useState<string | null>(null);
+    const [, setLandingOpenHeld] = useState(0);
+    const wallRestoreClaim = wallCommentsCardClaim ?? wallCommentsPostClaim;
+    const wallRestoreSettled = !wallHoldCommentsBody
+        && (wallRestoreClaim?.token ?? 0) > 0
+        && !wallRestoreClaim?.armed;
     usePageLanding({
         view: "friendGame",
         subject: `${friendGamePayload?.ulid || selectedFriend?.ulid || selectedFriend?.username || ""}:${friendGamePayload?.selectedGameId ?? ""}`,
-        tabPath: [subView]
+        subjectSettled: profileSettled,
+        tabPath: [subView],
+        defaultKey: "friendgame:back",
+        ready: profileSettled
+            && (subView !== "wall" || wallCommentsLoaded || wallCommentsError !== null || wallRestricted),
+        restoreTabPath: (tabs) => {
+            const tab = FRIEND_PROFILE_SUB_TABS.find((entry) => entry.value === tabs[0]);
+            if (!tab || tab.value === subView) {
+                return false;
+            }
+            void actions.onChangeSubView(tab.value);
+            return true;
+        },
+        holds: (key) => subView === "game"
+            && key.startsWith("achievement:")
+            && Boolean(friendGamePayload?.payload?.achievements?.some((achievement) => `achievement:${achievement.id}` === key)),
+        open: (key) => setLandingOpenKey(key),
+        ownLanding: { pending: wallRestorePending, settled: wallRestoreSettled }
     });
 
     const selectedFriendPoints = Number(friendGamePayload?.points ?? selectedFriend?.points ?? 0);
@@ -650,13 +677,7 @@ function FriendProfilePage(props: FriendProfilePageProps) {
         return null;
     }
 
-    const wallRestoreClaim = wallCommentsCardClaim ?? wallCommentsPostClaim;
-    const restoreCurtainArmed = wallRestorePending;
-    const restoreCurtainSettled = !wallHoldCommentsBody
-        && (wallRestoreClaim?.token ?? 0) > 0
-        && !wallRestoreClaim?.armed;
-
-    const page = (
+    return (
         <React.Fragment key={`friendgame:${friendGamePayload?.selectedGameId ?? "none"}`}>
             <style>{FADE_IN_KEYFRAMES}</style>
             <PanelSection>
@@ -668,7 +689,7 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                 <BackButton
                     label={t(language, backToMain ? "← Back to Main" : backToEvent ? "← Back" : "← Back to Social")}
                     focusKey="friendgame:back"
-                    navAutoFocus={!wallRestorePending}
+                    navAutoFocus
                     buttonSpacing={buttonSpacing}
                     onClick={actions.onBack}
                 />
@@ -808,9 +829,9 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                                     const Icon = action.Icon;
 
                                     return (
-                                        <div
+                                        <FocusTarget
                                             key={action.focusKey}
-                                            data-focus-key={action.focusKey}
+                                            focusKey={action.focusKey}
                                             onMouseEnter={() => handleProfileActionHover(action.id, buttonDisabled)}
                                             onMouseLeave={() => handleProfileActionUnhover(action.id)}
                                             style={{
@@ -841,7 +862,7 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                                             >
                                                 <Icon size={18} />
                                             </DialogButton>
-                                        </div>
+                                        </FocusTarget>
                                     );
                                 })}
                             </Focusable>
@@ -911,6 +932,7 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                             <FocusableItem
                                 key={`friendgame:pick:${game.gameId}`}
                                 focusKey={`friendgame:pick:${game.gameId}`}
+                                focusFallback={RECENT_PICK_FALLBACK}
                                 onClick={handlePickRecentGame}
                                 disabled={friendGameLoading}
                             >
@@ -1014,8 +1036,8 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                                         }}
                                     />
                                 )}
-                                <div
-                                    data-focus-key="friendgame:open-on-ra"
+                                <FocusTarget
+                                    focusKey="friendgame:open-on-ra"
                                     style={{
                                         alignSelf: "stretch",
                                         display: "flex",
@@ -1037,7 +1059,7 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                                     >
                                         <ChevronRightIcon />
                                     </DialogButton>
-                                </div>
+                                </FocusTarget>
                             </div>
                         </PanelSectionRow>
                     )}
@@ -1114,9 +1136,9 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                                             const Icon = action.Icon;
 
                                             return (
-                                                <div
+                                                <FocusTarget
                                                     key={action.focusKey}
-                                                    data-focus-key={action.focusKey}
+                                                    focusKey={action.focusKey}
                                                     onMouseEnter={() => handleQuickActionHover(action.id)}
                                                     onMouseLeave={() => handleQuickActionUnhover(action.id)}
                                                     style={{
@@ -1147,7 +1169,7 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                                                     >
                                                         <Icon size={18} />
                                                     </DialogButton>
-                                                </div>
+                                                </FocusTarget>
                                             );
                                         })}
                                     </Focusable>
@@ -1217,6 +1239,8 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                         showAll={showAllToggleFriend ? friendShowAllAchievements : true}
                         mode="friend"
                         windowId="friend:achievements"
+                        heightScope={selectedFriend?.ulid || selectedFriend?.username || ""}
+                        rowFocusFallback={FRIEND_ROW_FALLBACK}
                         filterScopeKey={`${selectedFriend?.username ?? "friend"}:${friendGamePayload?.selectedGameId ?? "none"}`}
                         friendFilter={friendAchievementFilter}
                         friendSort={friendAchievementSort}
@@ -1227,6 +1251,9 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                         dynamicPrefetchDistance={dynamicPrefetchDistance}
                         dynamicSentinelRootMargin={dynamicSentinelRootMargin}
                         onAchievementClick={actions.onOpenAchievement}
+                        openFirstKey={pendingLandingKey("friendGame") ?? undefined}
+                        openAtKey={landingOpenKey ?? undefined}
+                        onOpenAtHeld={() => setLandingOpenHeld((count) => count + 1)}
                     />
                 </>
             ) : (
@@ -1344,16 +1371,6 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                 </>
             ))}
         </React.Fragment>
-    );
-
-    return (
-        <RestoreCurtain
-            armed={restoreCurtainArmed}
-            settled={restoreCurtainSettled}
-            covered={panelOverlayVisible}
-        >
-            {page}
-        </RestoreCurtain>
     );
 }
 

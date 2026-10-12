@@ -60,7 +60,15 @@ const LANDING_VIEWS: ReadonlySet<ViewKey> = new Set<ViewKey>([
     "trackedSets",
     "trackedSetOpen",
     "social",
-    "eventViewer"
+    "eventViewer",
+    "friendGame",
+    "friendAllGames",
+    "badges",
+    "wantToPlay",
+    "followedRanking",
+    "friendCompare",
+    "unlockHistory",
+    "comparePicker"
 ]);
 const RECOVERY_OWNER = -1;
 const CLAIM_SETTLE_MS = 250;
@@ -839,6 +847,7 @@ type PageLanding = {
     defaultKey?: string;
     placeholderKey?: string;
     ready?: boolean;
+    subjectSettled?: boolean;
     restoreTabPath?: (tabPath: string[]) => boolean;
     holds?: (key: string) => boolean;
     open?: (key: string) => void;
@@ -854,7 +863,7 @@ export function usePageLanding(registration: {
     tabPath?: (string | null | undefined)[];
     sub?: SubView[];
 } & PageLanding) {
-    const { view, subject, tabPath, sub, defaultKey, ready = true, restoreTabPath, holds, open, reveal, cover, timing, ownLanding: own } = registration;
+    const { view, subject, tabPath, sub, defaultKey, ready = true, subjectSettled = true, restoreTabPath, holds, open, reveal, cover, timing, ownLanding: own } = registration;
     const adopted = defaultKey !== undefined;
     const placeholderKey = registration.placeholderKey ?? defaultKey ?? null;
 
@@ -864,6 +873,7 @@ export function usePageLanding(registration: {
     });
     const activeRef = useRef<ActiveLanding | null>(atMount);
     const ownAtMountRef = useRef<boolean | null>(null);
+    const ownEntryRef = useRef<number | null>(null);
     useSyncExternalStore(adopted ? subscribeLanding : noSubscribe, adopted ? readLandingVersion : noVersion);
     useSyncExternalStore(adopted ? subscribeCovers : noSubscribe, adopted ? isCovered : noCover);
 
@@ -883,9 +893,16 @@ export function usePageLanding(registration: {
         if (cover !== undefined) {
             setCover(`page:${view}`, cover && onTop);
         }
+        if (own && !onTop && ownAtMountRef.current !== null) {
+            if (ownAtMountRef.current && ownLanding && ownLanding.entryId === ownEntryRef.current) {
+                ownLanding = null;
+            }
+            ownAtMountRef.current = null;
+        }
         if (own && top && onTop) {
             if (ownAtMountRef.current === null) {
                 ownAtMountRef.current = own.pending;
+                ownEntryRef.current = top.id;
                 if (own.pending) {
                     ownedEntryId = top.id;
                     const active = activeRef.current;
@@ -945,6 +962,10 @@ export function usePageLanding(registration: {
                 logFocusDebug("landing", "wait", `${active.entryId} ${why}`);
             }
         };
+        if (!active.checked && !subjectSettled) {
+            wait("subject");
+            return;
+        }
         const target = active.record.focusKey;
         const targetElement = active.next === 0 && target && target === active.candidates[0] ? keyedElement(target) : null;
         const targetHere = Boolean(targetElement && !keyedDisabled(targetElement));
