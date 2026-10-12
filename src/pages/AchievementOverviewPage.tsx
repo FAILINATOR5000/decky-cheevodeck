@@ -361,99 +361,75 @@ function AchievementOverviewPage(props: AchievementOverviewPageProps) {
                 </PanelSectionRow>
             )}
 
-            {commentsEmpty ? (
-                <PanelSection>
+            <PanelSection>
+                {commentsEmpty ? (
                     <PanelSectionRow>
                         <div style={bodyTextStyle()}>
                             {t(language, "No comments yet for this achievement.")}
                         </div>
                     </PanelSectionRow>
-                    {subscribeError ? (
-                        <PanelSectionRow>
-                            <ErrorText>{localizeRuntimeText(language, subscribeError)}</ErrorText>
-                        </PanelSectionRow>
-                    ) : null}
-                    <FocusClaim
-                        token={commentsPostClaim?.token ?? 0}
-                        armed={commentsPostClaim?.armed ?? false}
-                        onSpent={onSpendCommentsPostClaim}
-                    >
-                        <CommentActionStrip
-                            language={language}
-                            isSubscribed={isSubscribed}
-                            onPost={onPostComment}
-                            onToggleSubscribe={onToggleSubscribe}
-                            postFocusKey="ao:comments:post"
-                            subscribeFocusKey="ao:comments:subscribe"
-                        />
-                    </FocusClaim>
-                </PanelSection>
-            ) : (
+                ) : null}
+                {subscribeError ? (
+                    <PanelSectionRow>
+                        <ErrorText>{localizeRuntimeText(language, subscribeError)}</ErrorText>
+                    </PanelSectionRow>
+                ) : null}
+                <FocusClaim
+                    token={commentsPostClaim?.token ?? 0}
+                    armed={commentsPostClaim?.armed ?? false}
+                    onSpent={onSpendCommentsPostClaim}
+                >
+                    <CommentActionStrip
+                        language={language}
+                        isSubscribed={isSubscribed}
+                        onPost={onPostComment}
+                        onToggleSubscribe={onToggleSubscribe}
+                        postFocusKey="ao:comments:post"
+                        subscribeFocusKey="ao:comments:subscribe"
+                    />
+                </FocusClaim>
+            </PanelSection>
+
+            {!commentsEmpty && commentsRegionReady ? (
                 <>
-                    <PanelSection>
-                        {subscribeError ? (
-                            <PanelSectionRow>
-                                <ErrorText>{localizeRuntimeText(language, subscribeError)}</ErrorText>
-                            </PanelSectionRow>
-                        ) : null}
-                        <FocusClaim
-                            token={commentsPostClaim?.token ?? 0}
-                            armed={commentsPostClaim?.armed ?? false}
-                            onSpent={onSpendCommentsPostClaim}
-                        >
-                            <CommentActionStrip
-                                language={language}
-                                isSubscribed={isSubscribed}
-                                onPost={onPostComment}
-                                onToggleSubscribe={onToggleSubscribe}
-                                postFocusKey="ao:comments:post"
-                                subscribeFocusKey="ao:comments:subscribe"
-                            />
-                        </FocusClaim>
+                    <PanelSection title={t(language, "View Options")}>
+                        <LabeledRow
+                            outerStyle={firstRowOuterStyle}
+                            focusKey="ao:comments:sort"
+                            onClick={handleCommentsSortCycle}
+                            label={t(language, "Sort")}
+                            value={commentsSort === "newest"
+                                ? t(language, "Newest")
+                                : t(language, "Oldest")}
+                        />
                     </PanelSection>
 
-                    {commentsRegionReady ? (
-                        <>
-                            <PanelSection title={t(language, "View Options")}>
-                                <LabeledRow
-                                    outerStyle={firstRowOuterStyle}
-                                    focusKey="ao:comments:sort"
-                                    onClick={handleCommentsSortCycle}
-                                    label={t(language, "Sort")}
-                                    value={commentsSort === "newest"
-                                        ? t(language, "Newest")
-                                        : t(language, "Oldest")}
-                                />
-                            </PanelSection>
-
-                            <PanelSection title={t(language, "Comments")}>
-                                <CommentsList
-                                    comments={comments}
-                                    language={language}
-                                    uiSize={uiSize}
-                                    showIcons={showIcons}
-                                    focusKeyPrefix="ao:comment"
-                                    surfaceKey="comments:ao"
-                                    onCommentClick={onCommentClick}
-                                    dynamicLoading={dynamicComments}
-                                    dynamicSentinelRootMargin={dynamicCommentsSentinelRootMargin}
-                                    loading={commentsLoading}
-                                    loadingMore={commentsLoadingMore}
-                                    hasMore={commentsHasMore}
-                                    error={commentsError}
-                                    onLoadMore={onLoadMoreComments}
-                                    emptyMessage={t(language, "No comments yet for this achievement.")}
-                                    claimedCard={commentsCardClaim && {
-                                        ...commentsCardClaim,
-                                        onSpent: onSpendCommentsCardClaim
-                                    }}
-                                    restoredWindow={commentsWindow}
-                                />
-                            </PanelSection>
-                        </>
-                    ) : null}
+                    <PanelSection title={t(language, "Comments")}>
+                        <CommentsList
+                            comments={comments}
+                            language={language}
+                            uiSize={uiSize}
+                            showIcons={showIcons}
+                            focusKeyPrefix="ao:comment"
+                            surfaceKey="comments:ao"
+                            onCommentClick={onCommentClick}
+                            dynamicLoading={dynamicComments}
+                            dynamicSentinelRootMargin={dynamicCommentsSentinelRootMargin}
+                            loading={commentsLoading}
+                            loadingMore={commentsLoadingMore}
+                            hasMore={commentsHasMore}
+                            error={commentsError}
+                            onLoadMore={onLoadMoreComments}
+                            emptyMessage={t(language, "No comments yet for this achievement.")}
+                            claimedCard={commentsCardClaim && {
+                                ...commentsCardClaim,
+                                onSpent: onSpendCommentsCardClaim
+                            }}
+                            restoredWindow={commentsWindow}
+                        />
+                    </PanelSection>
                 </>
-            )}
+            ) : null}
         </>
     );
 }
