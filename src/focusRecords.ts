@@ -94,6 +94,7 @@ let setupShowing = false;
 let pending: PendingLanding | null = null;
 let ownedEntryId: number | null = null;
 let lastOutcome: LandingOutcome | null = null;
+let unlandedEntryId: number | null = null;
 let ownLanding: OwnLanding | null = null;
 let lastPress: { button: number; at: number } | null = null;
 let landingVersion = 0;
@@ -208,6 +209,9 @@ function recordFor(view: ViewKey, found: Resolved): FocusRecord {
 }
 
 function store(entry: TrailEntry, record: FocusRecord) {
+    if (entry.id === unlandedEntryId) {
+        unlandedEntryId = null;
+    }
     const level = entry.sub[entry.sub.length - 1];
     if (level) {
         level.record = record;
@@ -222,6 +226,10 @@ function writerLive(): boolean {
 }
 
 function freeze(entry: TrailEntry, why: string) {
+    if (entry.id === unlandedEntryId || pending?.entryId === entry.id) {
+        logFocusDebug("record", `freeze-${why}`, `${nameEntry(entry)} kept ${describeRecord(topRecord(entry))} landing not done`);
+        return;
+    }
     const last = topRecord(entry);
     let found: Resolved | null = last ? { focusKey: last.focusKey, fallbacks: last.fallbacks } : null;
     let seen = "(not read)";
@@ -315,6 +323,12 @@ function endLanding(entryId: number, how: LandingOutcome["how"], why: string, he
     }
     pending = null;
     lastOutcome = { entryId, how, held };
+    if (how === "dropped" && why === "unmount") {
+        unlandedEntryId = entryId;
+    }
+    else if (unlandedEntryId === entryId) {
+        unlandedEntryId = null;
+    }
     disarmKeyClaims(entryId);
     logFocusDebug("landing", how === "canceled" ? "cancel" : how === "dropped" ? "drop" : "settled", `${entryId} ${why}`);
     notifyLanding();
@@ -645,6 +659,7 @@ export function rebuildTrailFresh(why: string) {
         endLanding(pending.entryId, "dropped", "account-switch");
     }
     ownedEntryId = null;
+    unlandedEntryId = null;
     logFocusDebug("record", "rebuild-fresh", `${why} dropped=${dropped} ${describeTrail([...entries.values()])}`);
 }
 
