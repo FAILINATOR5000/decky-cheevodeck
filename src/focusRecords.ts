@@ -540,6 +540,20 @@ export function subLandingAhead(view: ViewKey, depth: number): boolean {
     return pending?.entryId === entry.id || subPopWouldLand(view, depth);
 }
 
+let landOnArrivalAt: { view: ViewKey; focusKey: string } | null = null;
+
+export function landOnArrival(view: ViewKey, focusKey: string) {
+    landOnArrivalAt = { view, focusKey };
+}
+
+export function landOnTop(view: ViewKey, focusKey: string) {
+    const top = topEntry();
+    if (!top || top.view !== view || !LANDING_VIEWS.has(view)) {
+        return;
+    }
+    startLanding(top, "forward", { accountUlid, subject: null, tabPath: [], focusKey, fallbacks: [] }, recentPress());
+}
+
 export function overrideRecord(entryId: number | null, target: { focusKey: string; fallbacks?: string[] }) {
     const entry = [...entries.values()].find((candidate) => candidate.id === entryId);
     if (!entry) {
@@ -656,7 +670,7 @@ export function restoreTrail(
     const list = adopt(state);
     logFocusDebug("record", "restore-fresh", `${why} dropped=${dropped} ${describeTrail(list)}`);
     const landedEntry = list[list.length - 1];
-    if (reason === "panelEntry" && forward.land && landedEntry && LANDING_VIEWS.has(landedEntry.view)) {
+    if ((reason === "panelEntry" || forward.routeOverride) && forward.land && landedEntry && LANDING_VIEWS.has(landedEntry.view)) {
         startLanding(landedEntry, "forward", { accountUlid, subject: null, tabPath: [], focusKey: forward.land, fallbacks: [] }, mountedFromModal ? "modal" : null);
     }
     return state;
@@ -707,8 +721,11 @@ export function settleTrail(rootGeneration: number, next: ViewKey, intent: NavIn
     else {
         logFocusDebug("record", `drop-${intent}`, `dropped=${dropped} ${describeTrail(list)}`);
     }
-    if (land) {
-        startLanding(top, "forward", { accountUlid, subject: null, tabPath: [], focusKey: land, fallbacks: [] }, recentPress());
+    const arrival = landOnArrivalAt;
+    landOnArrivalAt = null;
+    const landKey = land ?? (arrival && arrival.view === next ? arrival.focusKey : undefined);
+    if (landKey) {
+        startLanding(top, "forward", { accountUlid, subject: null, tabPath: [], focusKey: landKey, fallbacks: [] }, recentPress());
     }
     return settled;
 }

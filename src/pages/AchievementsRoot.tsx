@@ -159,7 +159,7 @@ import { MAP_SHORTCUTS_FOCUS_KEY } from "../utils/options";
 import { openBrowserModal } from "../components/browser/BrowserModal";
 import { describeStack, initialNav, previousView, type NavIntent } from "../nav";
 import { setCover } from "../covers";
-import { beginRootMount, landingOwnsTop, restoreTrail, settleTrail, subPopWouldLand, topEntryId, useFocusRecordWriter } from "../focusRecords";
+import { beginRootMount, landOnArrival, landOnTop, landingOwnsTop, restoreTrail, settleTrail, subPopWouldLand, topEntryId, useFocusRecordWriter } from "../focusRecords";
 import { LandingCurtain } from "../components/ui/LandingCurtain";
 import { ROUTES, type RouteBackActions } from "../routes";
 import type {
@@ -305,6 +305,7 @@ function consumePendingRouteOverrides(resumeState: ResumeState | null): { resume
     }
     const tappedFriendGameSearch = pendingFriendGameSearch;
     pendingFriendGameSearch = null;
+    let routeLand: string | null = null;
     if (tappedFriendGameSearch != null) {
         nextResumeState = {
             ...(nextResumeState ?? ({} as ResumeState)),
@@ -317,6 +318,7 @@ function consumePendingRouteOverrides(resumeState: ResumeState | null): { resume
             friendProfileSubView: "game",
             focusKey: "friendgame:back"
         };
+        routeLand = "friendgame:selected";
     }
     const tappedCheevoCheckGameId = pendingCheevoCheckGameId;
     pendingCheevoCheckGameId = null;
@@ -342,7 +344,7 @@ function consumePendingRouteOverrides(resumeState: ResumeState | null): { resume
         };
     }
 
-    return { resumeState: nextResumeState, entry, land: taken?.land ?? null, routeOverride, pushOpener };
+    return { resumeState: nextResumeState, entry, land: taken?.land ?? routeLand, routeOverride, pushOpener };
 }
 
 function panelEntryOverlay(entry: PanelEntry): Partial<ResumeState> & Pick<ResumeState, "view"> {
@@ -5347,6 +5349,7 @@ function AchievementsRoot() {
                                         friendGameReturnGameIdRef.current = gameId;
                                         setFriendGameSource("allGames");
                                         setFriendGameSelectionMode("explicit");
+                                        landOnArrival("friendGame", "friendgame:selected");
                                         return loadFriendGame(selectedFriend, gameId, false, "friendgame:games", false, "back");
                                     }}
                                     onOpenGameSearch={openFriendGamesSearch}
@@ -5584,7 +5587,8 @@ function AchievementsRoot() {
                                             friendGameReturnGameIdRef.current = gameId;
                                             setFriendGameSource("recentGames");
                                             setFriendGameSelectionMode("explicit");
-                                            return loadFriendGame(selectedFriend, gameId, false, "friendgame:back");
+                                            landOnTop("friendGame", "friendgame:selected");
+                                            return loadFriendGame(selectedFriend, gameId, false, "friendgame:selected");
                                         },
                                         onOpenAchievement: async (achievement) => {
                                             setFriendGameError(null);
