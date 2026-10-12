@@ -1,6 +1,6 @@
 import { Focusable, PanelSectionRow, SliderField } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
-import { useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { BackButton } from "../components/ui/BackButton";
 import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
@@ -20,10 +20,8 @@ import { useWhenHeld } from "../hooks/useWhenHeld";
 import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
 import { useFocusClaim } from "../hooks/useFocusClaim";
 import { FocusClaim } from "../components/ui/FocusClaim";
-import { RestoreCurtain } from "../components/ui/RestoreCurtain";
+import { FocusTarget } from "../components/ui/FocusTarget";
 import { useFileWatcher } from "../components/filewatcher/FileWatcherContext";
-import { armFileWatcherFocusReturn } from "../utils/fileWatcherFocusReturn";
-import { logFocusDebug } from "../api";
 import { showManagedModal } from "../utils/modalRegistry";
 import { t, type LanguageCode } from "../locales";
 import type {
@@ -50,7 +48,7 @@ import {
 } from "../utils/fileWatcher";
 import { bodyTextStyle, errorRed, regularButtonSpacingStyle, warnAmber } from "../utils/style";
 import { textSize } from "../utils/scale";
-import { usePageLanding } from "../focusRecords";
+import { subLandingAhead, usePageLanding } from "../focusRecords";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
@@ -68,6 +66,8 @@ const BUCKET_FOCUS_PREFIX = "fileWatcher:bucket:";
 
 const STATIC_CLAIM_SLOT = -2;
 
+const RESULTS_FALLBACK = ["fileWatcher:schedule"];
+
 type FileWatcherPageState = {
     view: ViewKey;
     language: LanguageCode;
@@ -79,15 +79,11 @@ type FileWatcherPageState = {
     dynamicPrefetchDistance: number;
     dynamicSentinelRootMargin: number;
 
-    panelOverlayVisible: boolean;
-    restoreFocusKey: string | null;
-    restorePending: boolean;
 };
 
 type FileWatcherPageActions = {
     onBack: () => void | Promise<void>;
     onHome: () => void | Promise<void>;
-    onRequestFocus: (focusKey: string) => void;
 };
 
 type FileWatcherPageProps = {
@@ -97,7 +93,6 @@ type FileWatcherPageProps = {
 
 function FileWatcherPage(props: FileWatcherPageProps) {
     const { state, actions } = props;
-    usePageLanding({ view: "fileWatcher" });
     const { language } = state;
 
     const {
@@ -122,7 +117,6 @@ function FileWatcherPage(props: FileWatcherPageProps) {
     const [showLoading, setShowLoading] = useState(false);
     const [armedRootId, setArmedRootId] = useState<number | null>(null);
     const rowClaim = useFocusClaim();
-    const claimedKeyRef = useRef<string | null>(null);
     const [backClaimToken, setBackClaimToken] = useState(0);
 
     const activePass = watcher?.pass ?? null;
@@ -138,19 +132,6 @@ function FileWatcherPage(props: FileWatcherPageProps) {
     }, [loaded]);
 
     const roots = useMemo(() => sortWatchedRoots(watcher?.roots ?? [], language), [watcher?.roots, language]);
-
-    const { restoreFocusKey, restorePending } = state;
-
-    const restoreCardId = restorePending && restoreFocusKey?.startsWith(CARD_FOCUS_PREFIX)
-        ? Number(restoreFocusKey.slice(CARD_FOCUS_PREFIX.length))
-        : null;
-    const restoreSlot = restoreCardId === null || !Number.isFinite(restoreCardId)
-        ? -1
-        : roots.findIndex((root) => root.id === restoreCardId);
-
-    const restoreFiredRef = useRef(false);
-    const restoreSettledRef = useRef(false);
-    const [restoreAbandoned, setRestoreAbandoned] = useState(false);
 
     const cardWindow = useSlidingWindow({
         items: roots,
@@ -168,6 +149,14 @@ function FileWatcherPage(props: FileWatcherPageProps) {
     });
     const mountedRoots = cardWindow.mountedItems;
     const whenCardHeld = useWhenHeld(cardWindow, roots, cardFocusKey);
+
+    usePageLanding({
+        view: "fileWatcher",
+        defaultKey: "fileWatcher:back",
+        ready: loaded,
+        holds: (key) => roots.some((root) => cardFocusKey(root) === key),
+        open: (key) => cardWindow.openAt(key)
+    });
 
     const openExclusionsRef = useRef(openExclusions);
     openExclusionsRef.current = openExclusions;
@@ -195,81 +184,6 @@ function FileWatcherPage(props: FileWatcherPageProps) {
         }
     }), [language, watcher?.pass]);
 
-    const resultsShown = Boolean(watcher?.hasReport && watcher?.counts);
-    const excludedShown = (watcher?.roots ?? []).length > 0
-        && ((watcher?.excludedTotal ?? 0) > 0 || resultsShown);
-
-    useEffect(function landRestoredCursor() {
-        if (state.view !== "fileWatcher" || !restorePending || restoreFiredRef.current) {
-            return;
-        }
-        if (restoreFocusKey === null) {
-            restoreFiredRef.current = true;
-            setRestoreAbandoned(true);
-            logFocusDebug("filewatcher-restore", "(none)", "nothing armed");
-            actions.onRequestFocus("fileWatcher:back");
-            return;
-        }
-        if (!loaded) {
-            return;
-        }
-        if (busy) {
-            restoreFiredRef.current = true;
-            setRestoreAbandoned(true);
-            logFocusDebug("filewatcher-restore", restoreFocusKey, "a pass is running, so the control is gone");
-            actions.onRequestFocus("fileWatcher:back");
-            return;
-        }
-        if (restoreCardId === null) {
-            restoreFiredRef.current = true;
-            let onPage = true;
-            if (restoreFocusKey === "fileWatcher:excluded") {
-                onPage = excludedShown;
-            }
-            else if (restoreFocusKey.startsWith(BUCKET_FOCUS_PREFIX)) {
-                onPage = resultsShown;
-            }
-            if (!onPage) {
-                setRestoreAbandoned(true);
-                logFocusDebug("filewatcher-restore", restoreFocusKey, "the results block went with the last finding");
-                actions.onRequestFocus("fileWatcher:back");
-                return;
-            }
-            claimedKeyRef.current = restoreFocusKey;
-            logFocusDebug("filewatcher-restore", restoreFocusKey, "claiming");
-            rowClaim.claimSlot(STATIC_CLAIM_SLOT);
-            actions.onRequestFocus(restoreFocusKey);
-            return;
-        }
-        restoreFiredRef.current = true;
-        if (restoreSlot < 0) {
-            setRestoreAbandoned(true);
-            logFocusDebug("filewatcher-restore", restoreFocusKey, `total=${roots.length} gone from the list`);
-            actions.onRequestFocus("fileWatcher:back");
-            return;
-        }
-        logFocusDebug("filewatcher-restore", restoreFocusKey, `slot=${restoreSlot} of ${roots.length}`);
-        const key = restoreFocusKey;
-        whenCardHeld(key, (slot) => {
-            claimedKeyRef.current = key;
-            rowClaim.claimSlot(slot);
-            actions.onRequestFocus(key);
-        });
-    }, [
-        state.view,
-        restorePending,
-        restoreFocusKey,
-        loaded,
-        busy,
-        restoreCardId,
-        restoreSlot,
-        resultsShown,
-        excludedShown,
-        roots.length,
-        rowClaim.claimSlot,
-        actions.onRequestFocus
-    ]);
-
     if (state.view !== "fileWatcher") {
         return null;
     }
@@ -281,7 +195,6 @@ function FileWatcherPage(props: FileWatcherPageProps) {
         if (!watcher) {
             return;
         }
-        armFileWatcherFocusReturn("fileWatcher:schedule");
         showManagedModal((close) => (
             <SchedulePickerModal
                 language={language}
@@ -295,7 +208,6 @@ function FileWatcherPage(props: FileWatcherPageProps) {
     }
 
     function openExclusions(root: FileWatcherRoot) {
-        armFileWatcherFocusReturn(`${CARD_FOCUS_PREFIX}${root.id}`);
         showManagedModal((close) => (
             <FileWatcherExclusionsModal
                 language={language}
@@ -309,8 +221,7 @@ function FileWatcherPage(props: FileWatcherPageProps) {
         ));
     }
 
-    function openFindings(bucket: FileWatcherBucket, focusKey: string) {
-        armFileWatcherFocusReturn(focusKey);
+    function openFindings(bucket: FileWatcherBucket) {
         showManagedModal((close) => (
             <FileWatcherFindingsModal
                 language={language}
@@ -321,16 +232,6 @@ function FileWatcherPage(props: FileWatcherPageProps) {
                 close={close}
             />
         ));
-    }
-
-    function addDirectory() {
-        armFileWatcherFocusReturn("fileWatcher:addDirectory");
-        return addRoot();
-    }
-
-    function saveReportToFolder() {
-        armFileWatcherFocusReturn("fileWatcher:saveReport");
-        return saveReport();
     }
 
     function startPassFromButton() {
@@ -357,7 +258,6 @@ function FileWatcherPage(props: FileWatcherPageProps) {
         const heir = roots[removedIndex + 1] ?? roots[removedIndex - 1];
         await removeRoot(rootId);
         if (!heir) {
-            claimedKeyRef.current = "fileWatcher:addDirectory";
             rowClaim.claimSlot(STATIC_CLAIM_SLOT);
             return;
         }
@@ -366,9 +266,9 @@ function FileWatcherPage(props: FileWatcherPageProps) {
 
     const scopeKey = `fileWatcher:${busy ? "scan" : "idle"}`;
 
-    function claimTarget(control: ReactElement<{ focusKey?: string }>): ReactNode {
+    function claimAddDirectory(control: ReactNode): ReactNode {
         const claim = rowClaim.claim;
-        if (!claim || claim.slotIndex !== STATIC_CLAIM_SLOT || control.props.focusKey !== claimedKeyRef.current) {
+        if (!claim || claim.slotIndex !== STATIC_CLAIM_SLOT) {
             return control;
         }
         return (
@@ -377,11 +277,6 @@ function FileWatcherPage(props: FileWatcherPageProps) {
             </FocusClaim>
         );
     }
-
-    if (restoreFiredRef.current && (rowClaim.claim?.token ?? 0) > 0 && !rowClaim.claim?.armed) {
-        restoreSettledRef.current = true;
-    }
-    const restoreSettled = restoreAbandoned || restoreSettledRef.current;
 
     const page = (
         <Focusable
@@ -399,7 +294,9 @@ function FileWatcherPage(props: FileWatcherPageProps) {
                     key={`back:${backClaimToken}`}
                     label={t(language, "Back")}
                     focusKey="fileWatcher:back"
-                    navAutoFocus={!restorePending || backClaimToken > 0}
+                    navAutoFocus
+                    reclaim={backClaimToken > 0}
+                    standDown={subLandingAhead("fileWatcher", 0)}
                     buttonSpacing={state.buttonSpacing}
                     onClick={actions.onBack}
                     scrollMarginTop={BACK_BUTTON_SCROLL_MARGIN_PX}
@@ -513,16 +410,14 @@ function FileWatcherPage(props: FileWatcherPageProps) {
                         </PanelSectionRow>
 
                         <PanelSectionRow>
-                            {claimTarget(
-                                <FocusableItem
-                                    focusKey="fileWatcher:schedule"
-                                    outerStyle={{ ...regularButtonSpacingStyle(state.buttonSpacing), marginTop: "10px" }}
-                                    onClick={openSchedule}
-                                    bottomSeparator="none"
-                                >
-                                    {scheduleSummary(watcher, language)}
-                                </FocusableItem>
-                            )}
+                            <FocusableItem
+                                focusKey="fileWatcher:schedule"
+                                outerStyle={{ ...regularButtonSpacingStyle(state.buttonSpacing), marginTop: "10px" }}
+                                onClick={openSchedule}
+                                bottomSeparator="none"
+                            >
+                                {scheduleSummary(watcher, language)}
+                            </FocusableItem>
                         </PanelSectionRow>
 
                         <PanelSectionRow>
@@ -538,16 +433,14 @@ function FileWatcherPage(props: FileWatcherPageProps) {
                             </FocusableItem>
                         </PanelSectionRow>
                         <PanelSectionRow>
-                            {claimTarget(
-                                <FocusableItem
-                                    focusKey="fileWatcher:saveReport"
-                                    outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
-                                    disabled={!watcher?.hasReport || savingReport}
-                                    onClick={saveReportToFolder}
-                                >
-                                    {t(language, savingReport ? "Saving report..." : "Save Report")}
-                                </FocusableItem>
-                            )}
+                            <FocusableItem
+                                focusKey="fileWatcher:saveReport"
+                                outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                                disabled={!watcher?.hasReport || savingReport}
+                                onClick={() => void saveReport()}
+                            >
+                                {t(language, savingReport ? "Saving report..." : "Save Report")}
+                            </FocusableItem>
                         </PanelSectionRow>
 
                         {watcher?.hasReport && counts && (
@@ -555,20 +448,19 @@ function FileWatcherPage(props: FileWatcherPageProps) {
                                 <SectionTitle label={t(language, "Results")} />
                                 {FILE_WATCHER_BUCKETS.map((bucket) => (
                                     <PanelSectionRow>
-                                        {claimTarget(
-                                            <FocusableItem
-                                                key={bucket}
-                                                focusKey={`${BUCKET_FOCUS_PREFIX}${bucket}`}
-                                                outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
-                                                disabled={(counts[bucket] ?? 0) === 0}
-                                                onClick={() => openFindings(bucket, `${BUCKET_FOCUS_PREFIX}${bucket}`)}
-                                                bottomSeparator="none"
-                                            >
-                                                <span style={{ color: bucketColor(bucket) }}>
-                                                    {`${bucketLabel(bucket, language)}  ${counts[bucket] ?? 0}`}
-                                                </span>
-                                            </FocusableItem>
-                                        )}
+                                        <FocusableItem
+                                            key={bucket}
+                                            focusKey={`${BUCKET_FOCUS_PREFIX}${bucket}`}
+                                focusFallback={RESULTS_FALLBACK}
+                                            outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                                            disabled={(counts[bucket] ?? 0) === 0}
+                                            onClick={() => openFindings(bucket)}
+                                            bottomSeparator="none"
+                                        >
+                                            <span style={{ color: bucketColor(bucket) }}>
+                                                {`${bucketLabel(bucket, language)}  ${counts[bucket] ?? 0}`}
+                                            </span>
+                                        </FocusableItem>
                                     </PanelSectionRow>
                                 ))}
                             </>
@@ -579,17 +471,16 @@ function FileWatcherPage(props: FileWatcherPageProps) {
                             <>
                                 {!(watcher?.hasReport && counts) && <SectionTitle label={t(language, "Results")} />}
                                 <PanelSectionRow>
-                                    {claimTarget(
-                                        <FocusableItem
-                                            focusKey="fileWatcher:excluded"
-                                            outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
-                                            disabled={(watcher?.excludedTotal ?? 0) === 0}
-                                            onClick={() => openFindings("excluded", "fileWatcher:excluded")}
-                                            bottomSeparator="none"
-                                        >
-                                            {`${bucketLabel("excluded", language)}  ${watcher?.excludedTotal ?? 0}`}
-                                        </FocusableItem>
-                                    )}
+                                    <FocusableItem
+                                        focusKey="fileWatcher:excluded"
+                                    focusFallback={RESULTS_FALLBACK}
+                                        outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                                        disabled={(watcher?.excludedTotal ?? 0) === 0}
+                                        onClick={() => openFindings("excluded")}
+                                        bottomSeparator="none"
+                                    >
+                                        {`${bucketLabel("excluded", language)}  ${watcher?.excludedTotal ?? 0}`}
+                                    </FocusableItem>
                                 </PanelSectionRow>
                             </>
                         )}
@@ -611,11 +502,13 @@ function FileWatcherPage(props: FileWatcherPageProps) {
                         <SectionTitle label={t(language, "Setup")} />
 
                         <PanelSectionRow>
-                            {claimTarget(
+                            {claimAddDirectory(
                                 <FocusableItem
                                     focusKey="fileWatcher:addDirectory"
                                     outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
-                                    onClick={addDirectory}
+                                    onClick={() => {
+                                        void addRoot();
+                                    }}
                                     bottomSeparator="standard"
                                     help={t(language, "help_file_watcher_add_directory")}
                                 >
@@ -664,15 +557,7 @@ function FileWatcherPage(props: FileWatcherPageProps) {
         </Focusable>
     );
 
-    return (
-        <RestoreCurtain
-            armed={restorePending}
-            settled={restoreSettled}
-            covered={state.panelOverlayVisible}
-        >
-            {page}
-        </RestoreCurtain>
-    );
+    return page;
 }
 
 function passFraction(activePass: FileWatcherPass | null): number | null {
@@ -715,7 +600,7 @@ function SpeedRow(props: {
     const { language } = props;
     return (
         <PanelSectionRow>
-            <div data-focus-key="fileWatcher:speed">
+            <FocusTarget focusKey="fileWatcher:speed">
                 <SliderField
                     label={t(language, "Speed: {{speed}}", { speed: fileWatcherSpeedLabel(props.speed, language) })}
                     value={Math.max(0, SPEED_ORDER.indexOf(props.speed))}
@@ -728,7 +613,7 @@ function SpeedRow(props: {
                     bottomSeparator="none"
                     onChange={(index) => void props.onSaveSpeed(SPEED_ORDER[index] ?? "gentle")}
                 />
-            </div>
+            </FocusTarget>
         </PanelSectionRow>
     );
 }

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { DialogButton, Focusable } from "@decky/ui";
 
 import { FocusableItem } from "../ui/FocusableItem";
+import { FocusTarget } from "../ui/FocusTarget";
 import { t, type LanguageCode } from "../../locales";
 import type { FileWatcherRoot } from "../../types";
 import { bodyTextStyle, faultViolet, smallTextStyle } from "../../utils/style";
@@ -39,6 +40,8 @@ export type DirectoryCardProps = {
     list: DirectoryCardListProps;
     onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
+
+const CARD_FALLBACK = ["fileWatcher:addDirectory"];
 
 export const DirectoryCard = React.memo(function DirectoryCard(props: DirectoryCardProps) {
     const { root, fileCount, unreachable, armed, list } = props;
@@ -81,6 +84,7 @@ export const DirectoryCard = React.memo(function DirectoryCard(props: DirectoryC
         >
             <FocusableItem
                 focusKey={`filewatcher:card:${root.id}`}
+                focusFallback={CARD_FALLBACK}
                 onClick={handleOpen}
                 onFocus={handleFocus}
                 onGamepadFocus={handleFocus}
@@ -121,8 +125,9 @@ export const DirectoryCard = React.memo(function DirectoryCard(props: DirectoryC
                 </div>
             </FocusableItem>
 
-            <div
-                data-focus-key={`filewatcher:trash:${root.id}`}
+            <FocusTarget
+                focusKey={`filewatcher:trash:${root.id}`}
+                focusFallback={[`filewatcher:card:${root.id}`, "fileWatcher:addDirectory"]}
                 style={{
                     position: "absolute",
                     top: "11px",
@@ -173,7 +178,7 @@ export const DirectoryCard = React.memo(function DirectoryCard(props: DirectoryC
                 >
                     <TrashIcon size={15} />
                 </DialogButton>
-            </div>
+            </FocusTarget>
         </Focusable>
     );
 });

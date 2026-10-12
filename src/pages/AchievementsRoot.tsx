@@ -240,7 +240,6 @@ import {
     putCommentsSnapshot,
     setCommentsSnapshotUser
 } from "../utils/commentsSnapshot";
-import { takeFileWatcherFocusReturn } from "../utils/fileWatcherFocusReturn";
 import { takeMemoriesTransferFocusReturn } from "../utils/memoriesTransferFocusReturn";
 import { takeMemoriesFocusReturn } from "../utils/memoriesFocusReturn";
 import { armOptionsLanding, takeOptionsFocusReturn } from "../utils/optionsFocusReturn";
@@ -2409,16 +2408,6 @@ function AchievementsRoot() {
     optionsWasOpenRef.current = view === "options";
     const optionsRestorePending = optionsRestoreArmedRef.current;
 
-    const [fileWatcherFocusReturn] = useState(takeFileWatcherFocusReturn);
-
-    const fileWatcherRestoreArmedRef = useRef(fileWatcherFocusReturn !== null);
-    const fileWatcherWasOpenRef = useRef(false);
-    if (fileWatcherWasOpenRef.current && view !== "fileWatcher") {
-        fileWatcherRestoreArmedRef.current = false;
-    }
-    fileWatcherWasOpenRef.current = view === "fileWatcher";
-    const fileWatcherRestorePending = fileWatcherRestoreArmedRef.current;
-
     const [memoriesTransferFocusReturn] = useState(takeMemoriesTransferFocusReturn);
 
     const memoriesTransferRestoreArmedRef = useRef(memoriesTransferFocusReturn !== null);
@@ -2433,7 +2422,6 @@ function AchievementsRoot() {
         const latches = [
             { armed: memoriesRestoreArmedRef, view: "memories" },
             { armed: optionsRestoreArmedRef, view: "options" },
-            { armed: fileWatcherRestoreArmedRef, view: "fileWatcher" },
             { armed: memoriesTransferRestoreArmedRef, view: "memoriesTransfer" }
         ];
         for (const latch of latches) {
@@ -5060,15 +5048,11 @@ function AchievementsRoot() {
                                         dynamicInitialRows,
                                         dynamicRowStep,
                                         dynamicPrefetchDistance,
-                                        dynamicSentinelRootMargin,
-                                        panelOverlayVisible,
-                                        restoreFocusKey: fileWatcherFocusReturn,
-                                        restorePending: fileWatcherRestorePending
+                                        dynamicSentinelRootMargin
                                     }}
                                     actions={{
                                         onBack: backFromUtilityTool,
-                                        onHome: goToAchievements,
-                                        onRequestFocus: setPendingFocusKey
+                                        onHome: goToAchievements
                                     }}
                                 />
 
