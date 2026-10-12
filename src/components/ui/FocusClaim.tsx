@@ -1,6 +1,7 @@
 import { Focusable } from "@decky/ui";
 import React, { type ReactNode, useEffect } from "react";
 import { logFocusDebug } from "../../api";
+import { noteClaimSpent } from "../../focusClaims";
 
 type FocusClaimProps = {
     token: number;
@@ -19,6 +20,7 @@ export function FocusClaim(props: FocusClaimProps) {
         }
 
         logFocusDebug("focus-claim", `token:${token}`, "mounted armed, spending it");
+        noteClaimSpent();
         onSpent();
     }, [token, armed, onSpent]);
 

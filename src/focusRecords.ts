@@ -1,7 +1,7 @@
 import { useInsertionEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import { logFocusDebug } from "./api";
 import { isCovered, setCover, subscribeCovers } from "./covers";
-import { armKeyClaim, disarmKeyClaims, onKeyClaimSpent, withdrawKeyClaim } from "./focusClaims";
+import { armKeyClaim, claimSpentWithin, disarmKeyClaims, onKeyClaimSpent, withdrawKeyClaim } from "./focusClaims";
 import { initialNav, rehydrateNav, settleNav, type NavIntent, type NavState, type Route } from "./nav";
 import type { ViewKey } from "./types";
 import { LANDING_TIMING, PRESS_GUARD_CEILING_MS, type LandingTiming } from "./utils/landingTiming";
@@ -63,6 +63,8 @@ const LANDING_VIEWS: ReadonlySet<ViewKey> = new Set<ViewKey>([
     "eventViewer"
 ]);
 const RECOVERY_OWNER = -1;
+const CLAIM_SETTLE_MS = 250;
+const CLAIM_SETTLE_FRAMES = 20;
 
 let trail: NavState | null = null;
 let entries = new Map<Route, TrailEntry>();
@@ -450,9 +452,14 @@ onKeyClaimSpent((key) => {
     }
 });
 
-function recoverLostCursor(why: string) {
+function recoverLostCursor(why: string, frames = 0) {
     const entry = topEntry();
     if (!entry || pending || isCovered() || !LANDING_VIEWS.has(entry.view) || !nothingFocused()) {
+        return;
+    }
+    const view = rootElement?.ownerDocument.defaultView;
+    if (view && frames < CLAIM_SETTLE_FRAMES && claimSpentWithin(CLAIM_SETTLE_MS)) {
+        view.requestAnimationFrame(() => recoverLostCursor(why, frames + 1));
         return;
     }
     const key = pages.get(entry.view)?.placeholderKey;

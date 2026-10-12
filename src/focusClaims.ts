@@ -7,6 +7,7 @@ const claims = new Map<string, KeyClaim>();
 const listeners = new Map<string, Set<() => void>>();
 const spentListeners = new Set<(key: string) => void>();
 let nextToken = 1;
+let lastSpentAt = 0;
 
 function announce(key: string) {
     const set = listeners.get(key);
@@ -96,4 +97,12 @@ export function useKeyClaim(key: string | undefined): KeyClaim | null {
     const subscribe = useCallback((listener: () => void) => (key ? subscribeKey(key, listener) : () => {}), [key]);
     const read = useCallback(() => (key ? claims.get(key) ?? null : null), [key]);
     return useSyncExternalStore(subscribe, read);
+}
+
+export function noteClaimSpent() {
+    lastSpentAt = Date.now();
+}
+
+export function claimSpentWithin(ms: number): boolean {
+    return Date.now() - lastSpentAt < ms;
 }
