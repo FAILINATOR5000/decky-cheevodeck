@@ -35,9 +35,9 @@ export function LandingCurtain(props: { children: ReactNode }) {
         const timer = window.setTimeout(() => {
             logFocusDebug("curtain", "reveal", `${mount.entryId} settled`);
             setRevealed(true);
-        }, timing.revealGraceMs);
+        }, state.held ? 0 : timing.revealGraceMs);
         return () => window.clearTimeout(timer);
-    }, [armed, revealed, covered, state.settled]);
+    }, [armed, revealed, covered, state.settled, state.held]);
 
     useEffect(function revealOnCancel() {
         if (!armed || revealed || !state.canceled) {

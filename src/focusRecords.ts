@@ -48,7 +48,7 @@ type PendingLanding = {
     revealedEarly: boolean;
 };
 
-type LandingOutcome = { entryId: number; how: "settled" | "canceled" | "dropped" };
+type LandingOutcome = { entryId: number; how: "settled" | "canceled" | "dropped"; held?: boolean };
 
 type OwnLanding = { entryId: number; pending: boolean; settled: boolean };
 
@@ -297,12 +297,12 @@ function startLanding(entry: TrailEntry, kind: LandingKind, record: FocusRecord,
     notifyLanding();
 }
 
-function endLanding(entryId: number, how: LandingOutcome["how"], why: string) {
+function endLanding(entryId: number, how: LandingOutcome["how"], why: string, held = false) {
     if (!pending || pending.entryId !== entryId) {
         return;
     }
     pending = null;
-    lastOutcome = { entryId, how };
+    lastOutcome = { entryId, how, held };
     disarmKeyClaims(entryId);
     logFocusDebug("landing", how === "canceled" ? "cancel" : how === "dropped" ? "drop" : "settled", `${entryId} ${why}`);
     notifyLanding();
@@ -382,6 +382,27 @@ function watchClaim(entryId: number, key: string) {
     });
 }
 
+function holdLanded(entryId: number, key: string, since: number) {
+    const view = rootElement?.ownerDocument.defaultView;
+    if (!view) {
+        return;
+    }
+    view.requestAnimationFrame(() => {
+        if (pending?.entryId !== entryId || pending.claimedKey !== key) {
+            return;
+        }
+        if (!keyedElement(key)) {
+            claimVanished(entryId, key);
+            return;
+        }
+        if (pending.revealedEarly || Date.now() - since >= curtainTiming().revealGraceMs) {
+            endLanding(entryId, "settled", `landed ${key}`, !pending.revealedEarly);
+            return;
+        }
+        holdLanded(entryId, key, since);
+    });
+}
+
 function confirmLanded(entryId: number, key: string, tries: number) {
     const view = rootElement?.ownerDocument.defaultView;
     if (!view) {
@@ -397,7 +418,12 @@ function confirmLanded(entryId: number, key: string, tries: number) {
             return;
         }
         if (cursorIn(element)) {
-            endLanding(entryId, "settled", `landed ${key}`);
+            if (pending.revealedEarly) {
+                endLanding(entryId, "settled", `landed ${key}`);
+            }
+            else {
+                holdLanded(entryId, key, Date.now());
+            }
             return;
         }
         if (tries >= 4) {
@@ -459,13 +485,14 @@ export function curtainEntryAtMount(): { entryId: number | null; armed: boolean 
     return { entryId, armed: entryId !== null && pending?.entryId === entryId };
 }
 
-export function curtainState(entryId: number | null): { own: boolean; settled: boolean; canceled: boolean } {
+export function curtainState(entryId: number | null): { own: boolean; settled: boolean; canceled: boolean; held: boolean } {
     const own = entryId !== null && ownLanding?.entryId === entryId && (ownLanding.pending || ownLanding.settled);
     if (own && ownLanding) {
-        return { own, settled: ownLanding.settled, canceled: false };
+        return { own, settled: ownLanding.settled, canceled: false, held: false };
     }
-    const outcome = lastOutcome && lastOutcome.entryId === entryId ? lastOutcome.how : null;
-    return { own: false, settled: outcome === "settled" || outcome === "dropped", canceled: outcome === "canceled" };
+    const outcome = lastOutcome && lastOutcome.entryId === entryId ? lastOutcome : null;
+    const how = outcome?.how ?? null;
+    return { own: false, settled: how === "settled" || how === "dropped", canceled: how === "canceled", held: Boolean(outcome?.held) };
 }
 
 export function curtainTiming(): LandingTiming {
