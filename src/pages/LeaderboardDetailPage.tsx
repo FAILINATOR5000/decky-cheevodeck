@@ -132,6 +132,8 @@ function entryUsername(entry: LeaderboardEntryRow) {
     return String(entry.user || "").trim();
 }
 
+const ENTRY_FALLBACK = ["leaderboarddetail:filter"];
+
 function entryFocusKey(entry: LeaderboardEntryRow) {
     return `leaderboarddetail:entry:${entryUsername(entry)}`;
 }
@@ -155,6 +157,7 @@ const LeaderboardEntryRowView = React.memo(function LeaderboardEntryRowView(prop
     return (
         <FocusableItem
             focusKey={entryFocusKey(entry)}
+            focusFallback={ENTRY_FALLBACK}
             onFocus={handleFocus}
             onGamepadFocus={handleFocus}
             onGamepadDirection={props.onGamepadDirection}
@@ -235,7 +238,6 @@ const LeaderboardEntryRowView = React.memo(function LeaderboardEntryRowView(prop
 });
 
 function LeaderboardDetailPage({ state, actions }: LeaderboardDetailPageProps) {
-    usePageLanding({ view: "leaderboardDetail", subject: state.selectedLeaderboard?.id });
     const dynamicLeaderboardResults = state.dynamicLeaderboardResults ?? true;
     const dynamicInitialRows = Math.max(1, state.dynamicInitialRows ?? 30);
     const dynamicRowStep = Math.max(1, state.dynamicRowStep ?? 30);
@@ -279,10 +281,6 @@ function LeaderboardDetailPage({ state, actions }: LeaderboardDetailPageProps) {
         });
     }, [allEntries, state.leaderboardAudience, friendUlids, selfUlid, selfNameLower, state.friendsByUsername]);
 
-    const audienceEntriesKey = useMemo(
-        () => audienceEntries.map((entry) => `${entry.rank}:${entry.user}`).join("|"),
-        [audienceEntries]
-    );
 
     const widestRank = useMemo(() => {
         let widest = 1;
@@ -306,10 +304,30 @@ function LeaderboardDetailPage({ state, actions }: LeaderboardDetailPageProps) {
         rowStep: dynamicRowStep,
         prefetchDistance: dynamicPrefetchDistance,
         sentinelRootMarginPx: dynamicSentinelRootMargin,
-        resetKey: audienceEntriesKey,
+        resetKey: `${state.selectedLeaderboard?.id ?? ""}|${state.leaderboardAudience}`,
         debugLabel: "leaderboarddetail:entries"
     });
     const visibleEntries = entryWindow.mountedItems;
+
+    usePageLanding({
+        view: "leaderboardDetail",
+        subject: state.selectedLeaderboard?.id,
+        subjectSettled: state.selectedLeaderboard !== null,
+        tabPath: [state.leaderboardAudience],
+        defaultKey: "leaderboarddetail:back",
+        ready: (state.leaderboardEntriesPayload !== null || state.leaderboardEntriesError !== null)
+            && !state.leaderboardEntriesLoading,
+        restoreTabPath: (tabs) => {
+            const audience = tabs[0];
+            if ((audience !== "all" && audience !== "friends") || audience === state.leaderboardAudience) {
+                return false;
+            }
+            void actions.onAudienceChange(audience);
+            return true;
+        },
+        holds: (key) => audienceEntries.some((entry) => entryFocusKey(entry) === key),
+        open: (key) => entryWindow.openAt(key)
+    });
 
     const openProfileRef = useRef(actions.onOpenUserProfile);
     openProfileRef.current = actions.onOpenUserProfile;

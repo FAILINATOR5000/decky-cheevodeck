@@ -1,12 +1,13 @@
 import { PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../ui/PanelSection";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { getLeaderboardIcons } from "../../api";
 import { logError } from "../../utils/errors";
 import { LeaderboardListRow, type LeaderboardRowListProps } from "./LeaderboardListRow";
 import { useSlidingWindow } from "../../hooks/useSlidingWindow";
 import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import type { GameLeaderboardsPayload, LeaderboardRow, UiSize } from "../../types";
+import type { LandingWindows } from "../../focusRecords";
 import { achievementUiMetrics, bodyTextStyle } from "../../utils/style"
 import {
     t,
@@ -52,6 +53,7 @@ export function LeaderboardList(props: {
     dynamicPrefetchDistance?: number;
     dynamicSentinelRootMargin?: number;
     onLeaderboardClick: (leaderboard: LeaderboardRow) => void | Promise<void>;
+    landingWindowsRef?: MutableRefObject<LandingWindows | null>;
 }) {
     const [iconMap, setIconMap] = useState<Record<string, string>>(() => {
         const gameId = props.payload?.gameId ?? null;
@@ -91,6 +93,12 @@ export function LeaderboardList(props: {
         debugLabel: "leaderboards:boards"
     });
     const visibleRows = boardWindow.mountedItems;
+    if (props.landingWindowsRef) {
+        props.landingWindowsRef.current = {
+            holds: (key) => availableRows.some((leaderboard) => `leaderboards:item:${leaderboard.id}` === key),
+            open: (key) => boardWindow.openAt(key)
+        };
+    }
 
     const boardClickRef = useRef(props.onLeaderboardClick);
     boardClickRef.current = props.onLeaderboardClick;

@@ -73,7 +73,9 @@ const LANDING_VIEWS: ReadonlySet<ViewKey> = new Set<ViewKey>([
     "gameOverview",
     "achievementOverview",
     "tracked",
-    "gameNotes"
+    "gameNotes",
+    "leaderboards",
+    "leaderboardDetail"
 ]);
 const RECOVERY_OWNER = -1;
 const CLAIM_SETTLE_MS = 250;

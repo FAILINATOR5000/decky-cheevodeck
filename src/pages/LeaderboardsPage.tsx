@@ -8,7 +8,8 @@ import { PageNavStrip } from "../components/ui/PageNavStrip";
 import type { ButtonSpacing, GameLeaderboardsPayload, LeaderboardRow, UiSize, ViewKey } from "../types";
 import { localizeRuntimeText, t } from "../locales";
 import type { LanguageCode } from "../locales";
-import { usePageLanding } from "../focusRecords";
+import { useRef } from "react";
+import { usePageLanding, type LandingWindows } from "../focusRecords";
 
 type LeaderboardsPageProps = {
     state: {
@@ -40,7 +41,17 @@ type LeaderboardsPageProps = {
 };
 
 function LeaderboardsPage({ state, actions }: LeaderboardsPageProps) {
-    usePageLanding({ view: "leaderboards", subject: state.leaderboardsPayload?.gameId });
+    const landingWindowsRef = useRef<LandingWindows | null>(null);
+    const answered = state.leaderboardsPayload !== null || state.leaderboardsError !== null;
+    usePageLanding({
+        view: "leaderboards",
+        subject: state.leaderboardsPayload?.gameId,
+        subjectSettled: answered,
+        defaultKey: "leaderboards:back",
+        ready: answered && !state.leaderboardsLoading,
+        holds: (key) => Boolean(landingWindowsRef.current?.holds(key)),
+        open: (key) => landingWindowsRef.current?.open(key)
+    });
     if (state.view !== "leaderboards" || state.restoringLeaderboardDetail) {
         return null;
     }
@@ -91,6 +102,7 @@ function LeaderboardsPage({ state, actions }: LeaderboardsPageProps) {
                     dynamicPrefetchDistance={state.dynamicPrefetchDistance}
                     dynamicSentinelRootMargin={state.dynamicSentinelRootMargin}
                     onLeaderboardClick={actions.onLeaderboardClick}
+                    landingWindowsRef={landingWindowsRef}
                 />
             )}
         </>
