@@ -80,7 +80,8 @@ const LANDING_VIEWS: ReadonlySet<ViewKey> = new Set<ViewKey>([
     "dolphinMapper",
     "cheevoCheck",
     "smbShares",
-    "fileWatcher"
+    "fileWatcher",
+    "memoriesTransfer"
 ]);
 const RECOVERY_OWNER = -1;
 const CLAIM_SETTLE_MS = 250;
@@ -546,7 +547,15 @@ export function overrideRecord(entryId: number | null, target: { focusKey: strin
         return;
     }
     if (pending?.entryId === entry.id) {
-        logFocusDebug("record", "override-late", `${nameEntry(entry)} ${target.focusKey}`);
+        if (pending.claimedKey !== null) {
+            logFocusDebug("record", "override-late", `${nameEntry(entry)} ${target.focusKey}`);
+            return;
+        }
+        const record = { ...pending.record, focusKey: target.focusKey, fallbacks: target.fallbacks ?? pending.record.fallbacks };
+        pending.record = record;
+        store(entry, record);
+        logFocusDebug("record", "override-pending", `${nameEntry(entry)} ${describeRecord(record)}`);
+        notifyLanding();
         return;
     }
     const record = topRecord(entry) ?? recordFor(entry.view, { focusKey: null, fallbacks: [] });
@@ -877,13 +886,18 @@ function takeablePending(view: ViewKey): PendingLanding | null {
     return pending && top && pending.view === view && pending.entryId === top.id ? pending : null;
 }
 
-function activeFrom(landing: PendingLanding, defaultKey: string): ActiveLanding {
+function candidatesFor(record: FocusRecord, defaultKey: string): string[] {
     const candidates: string[] = [];
-    for (const key of [landing.record.focusKey, ...landing.record.fallbacks, defaultKey]) {
+    for (const key of [record.focusKey, ...record.fallbacks, defaultKey]) {
         if (key && !candidates.includes(key)) {
             candidates.push(key);
         }
     }
+    return candidates;
+}
+
+function activeFrom(landing: PendingLanding, defaultKey: string): ActiveLanding {
+    const candidates = candidatesFor(landing.record, defaultKey);
     logFocusDebug("landing", "take", `${landing.kind} ${landing.entryId} ${landing.view} candidates=${candidates.join(",")}`);
     return {
         seq: landing.seq,
@@ -1012,6 +1026,14 @@ export function usePageLanding(registration: {
         if (pending?.seq !== active.seq) {
             active.done = true;
             return;
+        }
+        if (!active.claimed && active.record !== pending.record) {
+            active.record = pending.record;
+            active.candidates = candidatesFor(pending.record, defaultKey);
+            active.next = 0;
+            active.opened.clear();
+            active.revealed.clear();
+            logFocusDebug("landing", "retarget", `${active.entryId} candidates=${active.candidates.join(",")}`);
         }
         if (active.claimed) {
             if (pending.claimedKey !== null) {

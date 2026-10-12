@@ -240,7 +240,6 @@ import {
     putCommentsSnapshot,
     setCommentsSnapshotUser
 } from "../utils/commentsSnapshot";
-import { takeMemoriesTransferFocusReturn } from "../utils/memoriesTransferFocusReturn";
 import { takeMemoriesFocusReturn } from "../utils/memoriesFocusReturn";
 import { armOptionsLanding, takeOptionsFocusReturn } from "../utils/optionsFocusReturn";
 import { useMemoriesController } from "../hooks/useMemoriesController";
@@ -2408,21 +2407,10 @@ function AchievementsRoot() {
     optionsWasOpenRef.current = view === "options";
     const optionsRestorePending = optionsRestoreArmedRef.current;
 
-    const [memoriesTransferFocusReturn] = useState(takeMemoriesTransferFocusReturn);
-
-    const memoriesTransferRestoreArmedRef = useRef(memoriesTransferFocusReturn !== null);
-    const memoriesTransferWasOpenRef = useRef(false);
-    if (memoriesTransferWasOpenRef.current && view !== "memoriesTransfer") {
-        memoriesTransferRestoreArmedRef.current = false;
-    }
-    memoriesTransferWasOpenRef.current = view === "memoriesTransfer";
-    const memoriesTransferRestorePending = memoriesTransferRestoreArmedRef.current;
-
     function dropRestoresArmedForOtherViews(bootView: ViewKey) {
         const latches = [
             { armed: memoriesRestoreArmedRef, view: "memories" },
-            { armed: optionsRestoreArmedRef, view: "options" },
-            { armed: memoriesTransferRestoreArmedRef, view: "memoriesTransfer" }
+            { armed: optionsRestoreArmedRef, view: "options" }
         ];
         for (const latch of latches) {
             if (latch.armed.current && latch.view !== bootView) {
@@ -5061,16 +5049,12 @@ function AchievementsRoot() {
                                         view,
                                         language,
                                         buttonSpacing,
-                                        panelOverlayVisible,
                                         activeUlid,
-                                        memoriesCount,
-                                        restoreFocusKey: memoriesTransferFocusReturn,
-                                        restorePending: memoriesTransferRestorePending
+                                        memoriesCount
                                     }}
                                     actions={{
                                         onBack: backFromUtilityTool,
                                         onHome: goToAchievements,
-                                        onRequestFocus: setPendingFocusKey,
                                         onDeleteAllMemories
                                     }}
                                 />

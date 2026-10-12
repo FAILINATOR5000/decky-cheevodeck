@@ -31,7 +31,7 @@ import {
     rememberIncludeVideos,
     rememberTransferMode
 } from "../utils/memoriesTransferChoices";
-import { clearMemoriesTransferFocusReturn } from "../utils/memoriesTransferFocusReturn";
+import { overrideRecord, pendingLandingKey, topEntryId } from "../focusRecords";
 import { exportRefusalKey } from "../utils/memoriesTransferErrors";
 import { announceMemoriesCaptureOn, announceMemoriesChanged } from "../utils/memoriesChanged";
 import { logError } from "../utils/errors";
@@ -44,6 +44,9 @@ type UseMemoriesTransferControllerArgs = {
 };
 
 const RUNNING_POLL_MS = 1000;
+
+export const BUNDLE_FOCUS_PREFIX = "memoriesTransfer:bundle:";
+export const IMPORT_AGAIN_FOCUS_KEY = "memoriesTransfer:import:another";
 
 const RUNNING_STATES = ["scanning", "writing", "validating", "importing", "finishing"];
 
@@ -122,15 +125,23 @@ export function useMemoriesTransferController({ isActive, language }: UseMemorie
         }
     }, [reloadCounts]);
 
-    const listFolder = useCallback(async (folder: string) => {
+    const listFolder = useCallback(async (folder: string, landEntry: number | null = null) => {
+        const land = (rows: MemoryBundleRow[]) => {
+            if (landEntry === null || pendingLandingKey("memoriesTransfer") === null) {
+                return;
+            }
+            overrideRecord(landEntry, { focusKey: rows.length > 0 ? BUNDLE_FOCUS_PREFIX + rows[0].path : IMPORT_AGAIN_FOCUS_KEY });
+        };
         setListing(true);
         try {
             const found = await listMemoryBundles(folder);
+            land(found.bundles ?? []);
             setBundles(found.bundles ?? []);
             setBundleFolderEmpty((found.bundles ?? []).length === 0);
         }
         catch (e) {
             logError("listMemoryBundles", e);
+            land([]);
             setBundles([]);
             setBundleFolderEmpty(true);
         }
@@ -145,9 +156,9 @@ export function useMemoriesTransferController({ isActive, language }: UseMemorie
         }
         setStartError("");
         void reload();
-        const folder = takeBundleFolder();
-        if (folder !== null) {
-            void listFolder(folder);
+        const picked = takeBundleFolder();
+        if (picked !== null) {
+            void listFolder(picked.path, picked.entryId);
         }
     }, [isActive, reload, listFolder]);
 
@@ -220,7 +231,6 @@ export function useMemoriesTransferController({ isActive, language }: UseMemorie
             if (!folder) {
                 return;
             }
-            clearMemoriesTransferFocusReturn();
             const started = await startMemoriesExport(folder, includeVideos);
             if (!started.ok) {
                 toastExportRefusal(language, started.error ?? "");
@@ -235,6 +245,7 @@ export function useMemoriesTransferController({ isActive, language }: UseMemorie
     }, [language, includeVideos, reload]);
 
     const browseForBundles = useCallback(async () => {
+        const entryId = topEntryId();
         setStarting(true);
         setStartError("");
         try {
@@ -249,7 +260,7 @@ export function useMemoriesTransferController({ isActive, language }: UseMemorie
             if (!folder) {
                 return;
             }
-            rememberBundleFolder(folder);
+            rememberBundleFolder(folder, entryId);
             await listFolder(folder);
         }
         catch {

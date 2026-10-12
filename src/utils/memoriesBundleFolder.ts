@@ -1,13 +1,15 @@
 import { logFocusDebug } from "../api";
 
-let folder: string | null = null;
+type PickedFolder = { path: string; entryId: number | null };
 
-export function rememberBundleFolder(path: string): void {
+let folder: PickedFolder | null = null;
+
+export function rememberBundleFolder(path: string, entryId: number | null): void {
     logFocusDebug("memoriestransfer-folder", path, "remembered across the picker");
-    folder = path;
+    folder = { path, entryId };
 }
 
-export function takeBundleFolder(): string | null {
+export function takeBundleFolder(): PickedFolder | null {
     const held = folder;
     folder = null;
     return held;

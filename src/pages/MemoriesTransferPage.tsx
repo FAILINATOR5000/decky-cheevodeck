@@ -2,7 +2,6 @@ import { PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
 import { Fragment, useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 
-import { logFocusDebug } from "../api";
 import { BackButton } from "../components/ui/BackButton";
 import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
 import { ButtonPrompt } from "../components/ui/ButtonPrompt";
@@ -13,12 +12,11 @@ import { InlineSpinner } from "../components/ui/InlineSpinner";
 import { PageNavStrip } from "../components/ui/PageNavStrip";
 import { ProgressBar } from "../components/ui/ProgressBar";
 import { TripleConfirmRow } from "../components/ui/TripleConfirmRow";
-import { RestoreCurtain } from "../components/ui/RestoreCurtain";
 import { SectionTitle } from "../components/ui/SectionTitle";
 import { ToggleRow } from "../components/ui/ToggleRow";
 import { useFocusClaim } from "../hooks/useFocusClaim";
 import { useMemoriesTransfer } from "../components/memories/MemoriesTransferContext";
-import { armMemoriesTransferFocusReturn } from "../utils/memoriesTransferFocusReturn";
+import { BUNDLE_FOCUS_PREFIX, IMPORT_AGAIN_FOCUS_KEY } from "../hooks/useMemoriesTransferController";
 import { transferErrorKey } from "../utils/memoriesTransferErrors";
 import { t, type LanguageCode } from "../locales";
 import type {
@@ -30,15 +28,13 @@ import type {
 import { textSize } from "../utils/scale";
 import { transferSizeLabel } from "../utils/memoriesTransferSize";
 import { bodyTextStyle, errorRed, regularButtonSpacingStyle, warnAmber } from "../utils/style";
-import { usePageLanding } from "../focusRecords";
+import { subLandingAhead, usePageLanding } from "../focusRecords";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
 const LOADING_SPINNER_DELAY_MS = 500;
 
-const BUNDLE_FOCUS_PREFIX = "memoriesTransfer:bundle:";
 const IMPORT_FOCUS_KEY = "memoriesTransfer:import";
-const IMPORT_AGAIN_FOCUS_KEY = "memoriesTransfer:import:another";
 
 const HELP_TEXT_BASE_PX = 12;
 
@@ -84,15 +80,11 @@ type MemoriesTransferPageState = {
 
     activeUlid: string;
     memoriesCount: number;
-    restoreFocusKey: string | null;
-    restorePending: boolean;
-    panelOverlayVisible: boolean;
 };
 
 type MemoriesTransferPageActions = {
     onBack: () => void | Promise<void>;
     onHome: () => void | Promise<void>;
-    onRequestFocus: (focusKey: string) => void;
     onDeleteAllMemories: () => void | Promise<void>;
 };
 
@@ -103,7 +95,6 @@ type MemoriesTransferPageProps = {
 
 function MemoriesTransferPage(props: MemoriesTransferPageProps) {
     const { state, actions } = props;
-    usePageLanding({ view: "memoriesTransfer" });
     const { language } = state;
 
     const {
@@ -153,70 +144,28 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
         return () => window.clearTimeout(timer);
     }, [loaded]);
 
-    const { restoreFocusKey, restorePending } = state;
-
-    const restoreClaim = useFocusClaim();
-    const restoreFiredRef = useRef(false);
-    const [restoreAbandoned, setRestoreAbandoned] = useState(false);
+    const confirmClaim = useFocusClaim();
     const claimedKeyRef = useRef<string | null>(null);
 
     const busy = running || starting;
 
-    useEffect(function landRestoredCursor() {
-        if (state.view !== "memoriesTransfer" || !restorePending || restoreFiredRef.current) {
-            return;
-        }
-        if (!loaded) {
-            return;
-        }
-        if (restoreFocusKey === null || busy) {
-            restoreFiredRef.current = true;
-            setRestoreAbandoned(true);
-            logFocusDebug(
-                "memoriestransfer-restore",
-                restoreFocusKey ?? "(none)",
-                busy ? "a transfer is running" : "nothing armed"
-            );
-            actions.onRequestFocus("memoriesTransfer:back");
-            return;
-        }
-        let target = restoreFocusKey;
-        if (target === IMPORT_FOCUS_KEY) {
-            if (listing) {
-                return;
-            }
-            if (bundles !== null) {
-                target = bundles.length > 0 ? BUNDLE_FOCUS_PREFIX + bundles[0].path : IMPORT_AGAIN_FOCUS_KEY;
-            }
-        }
-        restoreFiredRef.current = true;
-        logFocusDebug("memoriestransfer-restore", target, "claiming");
-        claimedKeyRef.current = target;
-        restoreClaim.claimSlot(0);
-        actions.onRequestFocus(target);
-    }, [
-        state.view,
-        restorePending,
-        restoreFocusKey,
-        loaded,
-        busy,
-        listing,
-        bundles,
-        restoreClaim.claimSlot,
-        actions.onRequestFocus
-    ]);
+    usePageLanding({
+        view: "memoriesTransfer",
+        defaultKey: "memoriesTransfer:back",
+        ready: loaded && !listing
+    });
 
     if (state.view !== "memoriesTransfer") {
         return null;
     }
 
     function claimTarget(control: ReactElement<{ focusKey?: string }>): ReactNode {
-        const claim = restoreClaim.claim;
+        const claim = confirmClaim.claim;
         if (!claim || control.props.focusKey !== claimedKeyRef.current) {
             return control;
         }
         return (
-            <FocusClaim token={claim.token} armed={claim.armed} onSpent={restoreClaim.spend}>
+            <FocusClaim token={claim.token} armed={claim.armed} onSpent={confirmClaim.spend}>
                 {control}
             </FocusClaim>
         );
@@ -224,13 +173,11 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
 
     function exportFromButton() {
         setBackClaimToken((token) => token + 1);
-        armMemoriesTransferFocusReturn("memoriesTransfer:export");
         return startExport();
     }
 
     function importFromButton() {
         setBackClaimToken((token) => token + 1);
-        armMemoriesTransferFocusReturn(IMPORT_FOCUS_KEY);
         return browseForBundles();
     }
 
@@ -241,7 +188,7 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
 
     function claim(focusKey: string) {
         claimedKeyRef.current = focusKey;
-        restoreClaim.claimSlot(0);
+        confirmClaim.claimSlot(0);
     }
 
     function pickBundle(row: MemoryBundleRow) {
@@ -298,9 +245,6 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
 
     const scopeKey = `memoriesTransfer:view:${busy ? "run" : "idle"}`;
 
-    const restoreSettled = restoreAbandoned
-        || ((restoreClaim.claim?.token ?? 0) > 0 && !restoreClaim.claim?.armed);
-
     const page = (
         <PanelSection key={scopeKey}>
             <PageNavStrip
@@ -313,7 +257,9 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
                 key={`back:${backClaimToken}`}
                 label={t(language, "Back")}
                 focusKey="memoriesTransfer:back"
-                navAutoFocus={!restorePending || backClaimToken > 0}
+                navAutoFocus
+                reclaim={backClaimToken > 0}
+                standDown={subLandingAhead("memoriesTransfer", 0)}
                 buttonSpacing={state.buttonSpacing}
                 onClick={actions.onBack}
                 scrollMarginTop={BACK_BUTTON_SCROLL_MARGIN_PX}
@@ -547,7 +493,7 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
                                 />
                             </PanelSectionRow>
                         </>
-                    ) : bundles === null ? (
+                    ) : bundles === null && !listing ? (
                         <PanelSectionRow>
                             {claimTarget(
                                 <FocusableItem
@@ -582,7 +528,7 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
                                     </div>
                                 </PanelSectionRow>
                             )}
-                            {bundles.map((row) => (
+                            {(bundles ?? []).map((row) => (
                                 <Fragment key={row.path}>
                                 <PanelSectionRow>
                                     {claimTarget(
@@ -618,18 +564,20 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
                                 </PanelSectionRow>
                                 </Fragment>
                             ))}
-                            <PanelSectionRow>
-                                {claimTarget(
-                                    <FocusableItem
-                                        outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
-                                        focusKey={IMPORT_AGAIN_FOCUS_KEY}
-                                        onClick={chooseAnotherFolder}
-                                        bottomSeparator="none"
-                                    >
-                                        {t(language, "Choose a Different Folder...")}
-                                    </FocusableItem>
-                                )}
-                            </PanelSectionRow>
+                            {bundles !== null && (
+                                <PanelSectionRow>
+                                    {claimTarget(
+                                        <FocusableItem
+                                            outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                                            focusKey={IMPORT_AGAIN_FOCUS_KEY}
+                                            onClick={chooseAnotherFolder}
+                                            bottomSeparator="none"
+                                        >
+                                            {t(language, "Choose a Different Folder...")}
+                                        </FocusableItem>
+                                    )}
+                                </PanelSectionRow>
+                            )}
                         </>
                     )}
 
@@ -658,15 +606,7 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
         </PanelSection>
     );
 
-    return (
-        <RestoreCurtain
-            armed={restorePending}
-            settled={restoreSettled}
-            covered={state.panelOverlayVisible}
-        >
-            {page}
-        </RestoreCurtain>
-    );
+    return page;
 }
 
 export default MemoriesTransferPage;
