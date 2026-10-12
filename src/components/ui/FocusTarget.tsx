@@ -9,14 +9,23 @@ type FocusTargetProps = HTMLAttributes<HTMLDivElement> & {
     ref?: Ref<HTMLDivElement>;
 };
 
-function claimWrapperStyle(style: CSSProperties | undefined): CSSProperties | undefined {
-    if (style?.flex !== undefined) {
-        return { display: "flex", flex: style.flex, minWidth: style.minWidth };
+const WRAPPER_TAKES = [
+    "flex", "flexGrow", "flexShrink", "flexBasis", "alignSelf", "justifySelf", "order",
+    "gridColumn", "gridRow", "gridArea", "width", "minWidth", "maxWidth", "height", "minHeight", "maxHeight"
+] as const;
+const ABSOLUTE_PLACEMENT = ["position", "top", "right", "bottom", "left", "zIndex"] as const;
+
+function splitClaimStyle(style: CSSProperties | undefined): { wrapper: CSSProperties; control: CSSProperties } {
+    const wrapper: Record<string, unknown> = { display: "grid" };
+    const control: Record<string, unknown> = { ...style };
+    const moved = style?.position === "absolute" ? [...WRAPPER_TAKES, ...ABSOLUTE_PLACEMENT] : WRAPPER_TAKES;
+    for (const key of moved) {
+        if (style?.[key] !== undefined) {
+            wrapper[key] = style[key];
+            delete control[key];
+        }
     }
-    if (style?.gridColumn !== undefined) {
-        return { display: "grid", gridColumn: style.gridColumn, minWidth: style.minWidth };
-    }
-    return undefined;
+    return { wrapper: wrapper as CSSProperties, control: control as CSSProperties };
 }
 
 function assignRef(ref: Ref<HTMLDivElement> | undefined, node: HTMLDivElement | null) {
@@ -61,20 +70,22 @@ export function FocusTarget(props: FocusTargetProps) {
         confirmRecoveryClaim(focusKey, claim.token);
     }, [focusKey, claim]);
 
+    const claimStyle = token > 0 ? splitClaimStyle(rest.style) : null;
     const element = (
         <div
             {...rest}
+            style={claimStyle ? claimStyle.control : rest.style}
             ref={setNode}
             data-focus-key={focusKey}
             data-focus-fallback={focusFallback ? JSON.stringify(focusFallback) : undefined}
             data-focus-record={recordOff ? "off" : undefined}
         />
     );
-    if (token <= 0) {
+    if (!claimStyle) {
         return element;
     }
     return (
-        <FocusClaim token={token} armed={armed} onSpent={spend} style={claimWrapperStyle(rest.style)}>
+        <FocusClaim token={token} armed={armed} onSpent={spend} style={claimStyle.wrapper}>
             {element}
         </FocusClaim>
     );
