@@ -15,10 +15,11 @@ export type ToggleRowProps = {
     modalHelp?: boolean;
     controlled?: boolean;
     focusKey?: string;
+    focusFallback?: string[];
 };
 
 export function ToggleRow(props: ToggleRowProps) {
-    const { label, value, onChange, disabled, outerStyle, bottomSeparator = "standard", help, modalHelp, controlled, focusKey } = props;
+    const { label, value, onChange, disabled, outerStyle, bottomSeparator = "standard", help, modalHelp, controlled, focusKey, focusFallback } = props;
 
     function handleChange(nextValue: boolean) {
         if (disabled) {
@@ -29,7 +30,7 @@ export function ToggleRow(props: ToggleRowProps) {
     }
 
     return (
-        <FocusTarget focusKey={focusKey} style={outerStyle}>
+        <FocusTarget focusKey={focusKey} focusFallback={focusFallback} style={outerStyle}>
             <ToggleField
                 label={<span style={{ fontSize: `${scaleMultiplier(getCurrentTextScale())}em` }}>{label}</span>}
                 description={helpDescription(help, modalHelp)}

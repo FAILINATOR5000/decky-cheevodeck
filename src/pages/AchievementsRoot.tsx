@@ -246,7 +246,6 @@ import { takeMemoriesFocusReturn } from "../utils/memoriesFocusReturn";
 import { armOptionsLanding, takeOptionsFocusReturn } from "../utils/optionsFocusReturn";
 import { useMemoriesController } from "../hooks/useMemoriesController";
 import { useMemoriesVideoController } from "../hooks/useMemoriesVideoController";
-import { takeSmbFocusReturn } from "../utils/smbFocusReturn";
 import { notePanelMount, notePanelUnmount, samplePanelEntryFrames } from "../utils/panelLifecycle";
 import { measureCommentWindow } from "../utils/commentGeometry";
 import { currentQuickGuideVisible, setQuickGuide } from "../utils/quickGuide";
@@ -2430,23 +2429,12 @@ function AchievementsRoot() {
     memoriesTransferWasOpenRef.current = view === "memoriesTransfer";
     const memoriesTransferRestorePending = memoriesTransferRestoreArmedRef.current;
 
-    const [smbFocusReturn] = useState(takeSmbFocusReturn);
-
-    const smbRestoreArmedRef = useRef(smbFocusReturn !== null);
-    const smbWasOpenRef = useRef(false);
-    if (smbWasOpenRef.current && view !== "smbShares") {
-        smbRestoreArmedRef.current = false;
-    }
-    smbWasOpenRef.current = view === "smbShares";
-    const smbRestorePending = smbRestoreArmedRef.current;
-
     function dropRestoresArmedForOtherViews(bootView: ViewKey) {
         const latches = [
             { armed: memoriesRestoreArmedRef, view: "memories" },
             { armed: optionsRestoreArmedRef, view: "options" },
             { armed: fileWatcherRestoreArmedRef, view: "fileWatcher" },
-            { armed: memoriesTransferRestoreArmedRef, view: "memoriesTransfer" },
-            { armed: smbRestoreArmedRef, view: "smbShares" }
+            { armed: memoriesTransferRestoreArmedRef, view: "memoriesTransfer" }
         ];
         for (const latch of latches) {
             if (latch.armed.current && latch.view !== bootView) {
@@ -5011,15 +4999,11 @@ function AchievementsRoot() {
                                     state={{
                                         view,
                                         language,
-                                        buttonSpacing,
-                                        panelOverlayVisible,
-                                        restoreFocusKey: smbFocusReturn,
-                                        restorePending: smbRestorePending
+                                        buttonSpacing
                                     }}
                                     actions={{
                                         onBack: backFromUtilityTool,
-                                        onHome: goToAchievements,
-                                        onRequestFocus: setPendingFocusKey
+                                        onHome: goToAchievements
                                     }}
                                 />
 

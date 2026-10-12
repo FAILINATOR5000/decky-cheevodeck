@@ -78,7 +78,8 @@ const LANDING_VIEWS: ReadonlySet<ViewKey> = new Set<ViewKey>([
     "leaderboardDetail",
     "guides",
     "dolphinMapper",
-    "cheevoCheck"
+    "cheevoCheck",
+    "smbShares"
 ]);
 const RECOVERY_OWNER = -1;
 const CLAIM_SETTLE_MS = 250;
