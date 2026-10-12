@@ -6,19 +6,15 @@ import { PageNavStrip } from "../components/ui/PageNavStrip";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
 import { InfoText } from "../components/ui/InfoText";
 import { NoteCard, type NoteCardListProps } from "../components/notes/NoteCard";
-import { FocusClaim } from "../components/ui/FocusClaim";
+import { FocusTarget } from "../components/ui/FocusTarget";
 import { CollapsibleTitle } from "../components/ui/CollapsibleTitle";
 import { SectionHeaderRow } from "../components/ui/SectionHeaderRow";
 import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
 import { ReorderStrip } from "../components/ui/ReorderStrip";
 import { ButtonHints } from "../components/ui/ButtonHints";
-import { RestoreCurtain } from "../components/ui/RestoreCurtain";
 import { PencilIcon } from "../components/ui/PencilIcon";
 import { ArrowDownWideShortIcon, ArrowUpShortWideIcon } from "../components/ui/SortOrderIcons";
-import { useFocusClaim } from "../hooks/useFocusClaim";
 import { useSlidingWindow } from "../hooks/useSlidingWindow";
-import { useWhenHeld } from "../hooks/useWhenHeld";
-import { logFocusDebug } from "../api";
 import { t, type LanguageCode } from "../locales";
 import type {
     ButtonSpacing,
@@ -67,8 +63,6 @@ type GameNotesPageState = {
     showIcons: boolean;
     mouseKeyboardMode: boolean;
     controllerGlyphStyle: ControllerGlyphStyle;
-    restoreNoteId: string | null;
-    restorePending: boolean;
     panelOverlayVisible: boolean;
     collapsedTags: string[];
 };
@@ -84,7 +78,6 @@ type GameNotesPageActions = {
     onReorderMove: (direction: ReorderDirection, sectionIds?: string[] | null) => void | Promise<unknown>;
     onCardFocused: (noteId: string) => void | Promise<unknown>;
     onHome: () => void | Promise<void>;
-    onRequestFocus: (focusKey: string) => void;
     onToggleCollapsedTag: (key: string) => void;
 };
 
@@ -165,6 +158,8 @@ const GAMEPAD_STRIP_ENTRIES: StripEntryDef[] = NOTE_STRIP_ENTRIES
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
+const SECTION_FALLBACK = ["gn:strip:add"];
+
 type NoteHeading = { heading: NoteSection; collapseKey: string; collapsed: boolean };
 type NoteEntry = NoteHeading | GameNote;
 
@@ -232,13 +227,9 @@ export function GameNotesPage(props: GameNotesPageProps) {
         showIcons,
         mouseKeyboardMode,
         controllerGlyphStyle,
-        restoreNoteId,
-        restorePending,
         panelOverlayVisible,
         collapsedTags
     } = state;
-    usePageLanding({ view: "gameNotes", subject: gameNotesGameId });
-
     const gameId = gameNotesGameId ?? payload?.gameId ?? null;
 
     const sections = useMemo(
@@ -247,21 +238,6 @@ export function GameNotesPage(props: GameNotesPageProps) {
     );
 
     const collapsedSet = useMemo(() => new Set(collapsedTags), [collapsedTags]);
-
-    const restoreClaim = useFocusClaim();
-
-    const restoreSlot = useMemo(() => {
-        if (restoreNoteId === null) {
-            return null;
-        }
-        for (const section of sections) {
-            const indexInSection = section.orderedNotes.findIndex((note) => note.id === restoreNoteId);
-            if (indexInSection >= 0) {
-                return { collapseKey: noteSectionCollapseKey(section), indexInSection };
-            }
-        }
-        return null;
-    }, [restoreNoteId, sections]);
 
     const entries = useMemo(() => {
         const out: NoteEntry[] = [];
@@ -290,17 +266,40 @@ export function GameNotesPage(props: GameNotesPageProps) {
         resetKey: `${gameId}|${sortMode}`,
         debugLabel: "notes:entries"
     });
-    const whenNoteHeld = useWhenHeld(noteWindow, entries, noteEntryFocusKey);
 
-    const noteClaim = restoreClaim.claim;
-    const noteClaimOvertaken = noteClaim !== null && noteClaim.armed
-        && (noteClaim.slotIndex < noteWindow.start
-            || noteClaim.slotIndex >= noteWindow.start + noteWindow.mountedItems.length);
-    useEffect(function dropOvertakenClaim() {
-        if (noteClaimOvertaken) {
-            restoreClaim.spend();
+    const sectionChains = useMemo(() => {
+        const chains = new Map<string, string[]>();
+        for (const section of sections) {
+            const collapseKey = noteSectionCollapseKey(section);
+            const chain = [`gn:section:${collapseKey}`];
+            for (const note of section.orderedNotes) {
+                chains.set(note.id, chain);
+            }
         }
-    }, [noteClaimOvertaken, restoreClaim.spend]);
+        return chains;
+    }, [sections]);
+    usePageLanding({
+        view: "gameNotes",
+        subject: gameId,
+        subjectSettled: gameId !== null || !panelOverlayVisible,
+        defaultKey: "gn:back",
+        ready: gameId === null || loadedForGameId === gameId,
+        holds: (key) => entries.some((entry) => noteEntryFocusKey(entry) === key),
+        open: (key) => noteWindow.openAt(key),
+        reveal: (key) => {
+            if (!key.startsWith("gn:card:")) {
+                return false;
+            }
+            const noteId = key.slice("gn:card:".length);
+            const section = sections.find((candidate) => candidate.orderedNotes.some((note) => note.id === noteId));
+            const collapseKey = section ? noteSectionCollapseKey(section) : null;
+            if (collapseKey === null || !collapsedSet.has(collapseKey)) {
+                return false;
+            }
+            actions.onToggleCollapsedTag(collapseKey);
+            return true;
+        }
+    });
 
     const cardSlots = useMemo(() => {
         const slots: number[] = [];
@@ -384,87 +383,6 @@ export function GameNotesPage(props: GameNotesPageProps) {
         }
         row.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }, [state.view, reorderTargetId, notes, reorderViaSwap]);
-
-    const restoreFiredRef = useRef(false);
-
-    const restoreUnfoldedRef = useRef(false);
-
-    const entryAtRef = useRef(performance.now());
-
-    const [restoreAbandoned, setRestoreAbandoned] = useState(false);
-
-    useEffect(function landRestoredCursor() {
-        if (state.view !== "gameNotes") {
-            return;
-        }
-        if (!restorePending || restoreFiredRef.current) {
-            return;
-        }
-        if (gameId === null) {
-            return;
-        }
-        if (restoreNoteId === null) {
-            restoreFiredRef.current = true;
-            setRestoreAbandoned(true);
-            logFocusDebug("note-restore", "(none)", `game=${gameId} no match on the far side`);
-            actions.onRequestFocus("gn:back");
-            return;
-        }
-        if (!notesReady) {
-            return;
-        }
-        if (restoreSlot === null) {
-            restoreFiredRef.current = true;
-            setRestoreAbandoned(true);
-            logFocusDebug("note-restore", restoreNoteId, `total=${notes.length} -- gone from the list`);
-            actions.onRequestFocus("gn:back");
-            return;
-        }
-        if (collapsedSet.has(restoreSlot.collapseKey)) {
-            if (!restoreUnfoldedRef.current) {
-                restoreUnfoldedRef.current = true;
-                logFocusDebug("note-restore", restoreNoteId, `unfolding ${restoreSlot.collapseKey}`);
-                actions.onToggleCollapsedTag(restoreSlot.collapseKey);
-                return;
-            }
-            restoreFiredRef.current = true;
-            setRestoreAbandoned(true);
-            logFocusDebug(
-                "note-restore",
-                restoreNoteId,
-                `${restoreSlot.collapseKey} would not unfold`
-            );
-            actions.onRequestFocus("gn:back");
-            return;
-        }
-        restoreFiredRef.current = true;
-        const key = `gn:card:${restoreNoteId}`;
-        const openStartedAt = performance.now();
-        whenNoteHeld(key, (slot) => {
-            logFocusDebug(
-                "note-restore",
-                restoreNoteId,
-                `section=${restoreSlot.collapseKey} inSection=${restoreSlot.indexInSection} slot=${slot}`
-                + ` total=${notes.length}`
-                + ` notes=${Math.round(openStartedAt - entryAtRef.current)}ms`
-                + ` held=${Math.round(performance.now() - openStartedAt)}ms`
-            );
-            restoreClaim.claimSlot(slot);
-            actions.onRequestFocus(key);
-        });
-    }, [
-        state.view,
-        restorePending,
-        restoreNoteId,
-        gameId,
-        notesReady,
-        restoreSlot,
-        collapsedSet,
-        notes.length,
-        restoreClaim.claimSlot,
-        actions.onRequestFocus,
-        actions.onToggleCollapsedTag
-    ]);
 
     if (state.view !== "gameNotes") {
         return null;
@@ -571,8 +489,6 @@ export function GameNotesPage(props: GameNotesPageProps) {
             );
         }
 
-        const claim = restoreClaim.claim;
-
         return (
             <PanelSection>
                 <div ref={cardListRef}>
@@ -592,21 +508,10 @@ export function GameNotesPage(props: GameNotesPageProps) {
                                     isReorderTarget={reorderTargetId === entry.id}
                                     firing={entry.showFiredDot}
                                     list={cardList}
+                                    focusFallback={sectionChains.get(entry.id)}
                                     onGamepadDirection={noteWindow.guardTopRow(slot)}
                                 />
                             );
-                            if (claim && claim.slotIndex === slot) {
-                                return (
-                                    <FocusClaim
-                                        key={cardKey}
-                                        token={claim.token}
-                                        armed={claim.armed && !noteClaimOvertaken}
-                                        onSpent={restoreClaim.spend}
-                                    >
-                                        {card}
-                                    </FocusClaim>
-                                );
-                            }
                             return card;
                         })}
                     </SlidingWindowRows>
@@ -629,6 +534,7 @@ export function GameNotesPage(props: GameNotesPageProps) {
                     label={sectionTitle}
                     collapsed={entry.collapsed}
                     focusKey={`gn:section:${entry.collapseKey}`}
+                    focusFallback={SECTION_FALLBACK}
                     disabled={reorderTargetId !== null}
                     preserveCase={notesHeaderStyle === "typed"}
                     onToggle={() => actions.onToggleCollapsedTag(entry.collapseKey)}
@@ -670,8 +576,6 @@ export function GameNotesPage(props: GameNotesPageProps) {
     const previewEntry = stripEntries.find((entry) => entry.focusKey === previewStripKey);
     const stripPreviewLabel = previewEntry ? t(language, previewEntry.labelKey) : "";
 
-    const restoreSettled = restoreAbandoned
-        || ((restoreClaim.claim?.token ?? 0) > 0 && !restoreClaim.claim?.armed);
     const page = (
         <Focusable
             flow-children="column"
@@ -688,7 +592,7 @@ export function GameNotesPage(props: GameNotesPageProps) {
                 <BackButton
                     label={t(language, "← Back to Main")}
                     focusKey="gn:back"
-                    navAutoFocus={!restorePending}
+                    navAutoFocus
                     buttonSpacing={buttonSpacing}
                     onClick={actions.onBack}
                     scrollMarginTop={BACK_BUTTON_SCROLL_MARGIN_PX}
@@ -740,8 +644,8 @@ export function GameNotesPage(props: GameNotesPageProps) {
 
                                 return (
                                     <Fragment key={entry.focusKey}>
-                                        <div
-                                            data-focus-key={entry.focusKey}
+                                        <FocusTarget
+                                            focusKey={entry.focusKey}
                                             onMouseEnter={() => {
                                                 if (isDisabled) {
                                                     return;
@@ -778,7 +682,7 @@ export function GameNotesPage(props: GameNotesPageProps) {
                                             >
                                                 <Icon size={18} />
                                             </DialogButton>
-                                        </div>
+                                        </FocusTarget>
                                         {divider}
                                     </Fragment>
                                 );
@@ -831,14 +735,6 @@ export function GameNotesPage(props: GameNotesPageProps) {
         </Focusable>
     );
 
-    return (
-        <RestoreCurtain
-            armed={restorePending}
-            settled={restoreSettled}
-            covered={panelOverlayVisible}
-        >
-            {page}
-        </RestoreCurtain>
-    );
+    return page;
 }
 

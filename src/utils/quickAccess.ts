@@ -30,8 +30,8 @@ export function focusOurPlugin() {
     setActivePlugin.call(loader.deckyState, "CheevoDeck");
 }
 
-export function openPanelOn(entry: PanelEntry) {
-    requestPanelEntry(entry);
+export function openPanelOn(entry: PanelEntry, options?: { land?: string }) {
+    requestPanelEntry(entry, options);
     try {
         focusOurPlugin();
         Navigation.OpenQuickAccessMenu(QuickAccessTab.Decky);

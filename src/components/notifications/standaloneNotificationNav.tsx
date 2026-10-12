@@ -5,7 +5,6 @@ import type { AotwComment, GameComment, SaveCommentResponse, SettingsResponse } 
 import { logError } from "../../utils/errors";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { openExternalUrl } from "../../utils/navigation";
-import { armNoteFocusReturn } from "../../utils/noteFocusReturn";
 import type { PanelEntry } from "../../utils/pendingPanelEntry";
 import { openPanelOn, quickAccessIsHidden } from "../../utils/quickAccess";
 import { buildSaveCommentPayload, matchKeyForComment, type SavedCommentSourceInput } from "../../utils/savedComments";
@@ -13,10 +12,10 @@ import { CommentViewModal, type CommentSaveControl } from "../comments/CommentVi
 import { TextViewerModal } from "../ui/TextViewerModal";
 import { NotificationsMultipathModal, type MultipathOption } from "./NotificationsMultipathModal";
 
-function landLater(entry: PanelEntry) {
+function landLater(entry: PanelEntry, land?: string) {
     window.setTimeout(() => {
         if (quickAccessIsHidden()) {
-            openPanelOn(entry);
+            openPanelOn(entry, { land });
         }
     }, 0);
 }
@@ -114,10 +113,7 @@ export function buildStandaloneNotificationNav(language: LanguageCode, settings:
 
     const nav: NotificationNav = {
         openGameNotes: (gameId, noteId) => {
-            if (noteId) {
-                armNoteFocusReturn(gameId, noteId, settings.activeUlid);
-            }
-            landLater({ kind: "gameNotes", gameId });
+            landLater({ kind: "gameNotes", gameId }, noteId ? `gn:card:${noteId}` : undefined);
         },
         openGameOverview: (gameId, viewedUsername, viewedUserRef) => {
             landLater({ kind: "game", gameId, viewedUsername: viewedUsername ?? null, viewedUserRef: viewedUserRef ?? null });

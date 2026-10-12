@@ -72,7 +72,8 @@ const LANDING_VIEWS: ReadonlySet<ViewKey> = new Set<ViewKey>([
     "comparePicker",
     "gameOverview",
     "achievementOverview",
-    "tracked"
+    "tracked",
+    "gameNotes"
 ]);
 const RECOVERY_OWNER = -1;
 const CLAIM_SETTLE_MS = 250;
@@ -594,7 +595,7 @@ export function restoreTrail(
     rootGeneration: number,
     saved: ViewKey[] | null,
     landed: ViewKey,
-    forward: { panelEntry: boolean; routeOverride: boolean }
+    forward: { panelEntry: boolean; routeOverride: boolean; land?: string | null }
 ): NavState {
     const reason: MountReason = forward.panelEntry || panelEntryMarked
         ? "panelEntry"
@@ -623,6 +624,10 @@ export function restoreTrail(
     const state = rehydrateNav(saved, landed);
     const list = adopt(state);
     logFocusDebug("record", "restore-fresh", `${why} dropped=${dropped} ${describeTrail(list)}`);
+    const landedEntry = list[list.length - 1];
+    if (reason === "panelEntry" && forward.land && landedEntry && LANDING_VIEWS.has(landedEntry.view)) {
+        startLanding(landedEntry, "forward", { accountUlid, subject: null, tabPath: [], focusKey: forward.land, fallbacks: [] }, mountedFromModal ? "modal" : null);
+    }
     return state;
 }
 

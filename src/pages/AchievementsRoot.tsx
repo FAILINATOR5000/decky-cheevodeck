@@ -241,7 +241,6 @@ import {
     setCommentsSnapshotUser
 } from "../utils/commentsSnapshot";
 import { clearCheevoCheckFocusReturn, takeCheevoCheckFocusReturn } from "../utils/cheevoCheckFocusReturn";
-import { armNoteFocusReturn, takeNoteFocusReturn } from "../utils/noteFocusReturn";
 import { takeDolphinFocusReturn } from "../utils/dolphinFocusReturn";
 import { takeFileWatcherFocusReturn } from "../utils/fileWatcherFocusReturn";
 import { takeMemoriesTransferFocusReturn } from "../utils/memoriesTransferFocusReturn";
@@ -289,7 +288,7 @@ let pendingFriendGameSearch: { username: string; ulid: string | null; gameId: nu
 
 let pendingCheevoCheckGameId: number | null = null;
 
-function consumePendingRouteOverrides(resumeState: ResumeState | null): { resumeState: ResumeState | null; entry: PanelEntry | null; routeOverride: boolean } {
+function consumePendingRouteOverrides(resumeState: ResumeState | null): { resumeState: ResumeState | null; entry: PanelEntry | null; land: string | null; routeOverride: boolean } {
     let nextResumeState = resumeState;
     const routeOverride = pendingSearchGameId != null || pendingFriendGameSearch != null || pendingCheevoCheckGameId != null;
     const tappedSearchGameId = pendingSearchGameId;
@@ -337,7 +336,8 @@ function consumePendingRouteOverrides(resumeState: ResumeState | null): { resume
             focusKey: "gameoverview:back"
         };
     }
-    const entry = takePanelEntry();
+    const taken = takePanelEntry();
+    const entry = taken?.entry ?? null;
     if (entry) {
         nextResumeState = {
             ...(nextResumeState ?? ({} as ResumeState)),
@@ -346,7 +346,7 @@ function consumePendingRouteOverrides(resumeState: ResumeState | null): { resume
         };
     }
 
-    return { resumeState: nextResumeState, entry, routeOverride };
+    return { resumeState: nextResumeState, entry, land: taken?.land ?? null, routeOverride };
 }
 
 function panelEntryOverlay(entry: PanelEntry): Partial<ResumeState> & Pick<ResumeState, "view"> {
@@ -442,7 +442,7 @@ function AchievementsRoot() {
         }
         setViewState(next);
     }, []);
-    const restoreNav = useCallback((saved: ViewKey[] | null, landed: ViewKey, forward: { panelEntry: boolean; routeOverride: boolean }) => {
+    const restoreNav = useCallback((saved: ViewKey[] | null, landed: ViewKey, forward: { panelEntry: boolean; routeOverride: boolean; land?: string | null }) => {
         const verdict = saved && saved.length > 0
             ? (saved[saved.length - 1] === landed ? "hit" : "miss")
             : "none";
@@ -2389,28 +2389,8 @@ function AchievementsRoot() {
         setError,
         aButtonMode: gameNotesAButtonMode,
         refreshToken: achievementsResumeToken + notesRefreshToken,
-        activeUlid,
         language
     });
-
-    const [noteFocusReturn] = useState(takeNoteFocusReturn);
-
-    const notesRestoreArmedRef = useRef(noteFocusReturn !== null);
-    const notesWasOpenRef = useRef(false);
-    if (notesWasOpenRef.current && view !== "gameNotes") {
-        notesRestoreArmedRef.current = false;
-    }
-    notesWasOpenRef.current = view === "gameNotes";
-    const notesRestorePending = notesRestoreArmedRef.current;
-
-    const notesRestoreGameId = gameNotesGameId ?? payload?.gameId ?? null;
-    const notesRestoreNoteId =
-        noteFocusReturn
-        && notesRestoreGameId !== null
-        && noteFocusReturn.gameId === notesRestoreGameId
-        && noteFocusReturn.ulid === activeUlid
-            ? noteFocusReturn.noteId
-            : null;
 
     const [cheevoCheckFocusReturn] = useState(takeCheevoCheckFocusReturn);
 
@@ -2484,7 +2464,6 @@ function AchievementsRoot() {
 
     function dropRestoresArmedForOtherViews(bootView: ViewKey) {
         const latches = [
-            { armed: notesRestoreArmedRef, view: "gameNotes" },
             { armed: cheevoCheckRestoreArmedRef, view: "cheevoCheck" },
             { armed: dolphinRestoreArmedRef, view: "dolphinMapper" },
             { armed: memoriesRestoreArmedRef, view: "memories" },
@@ -2812,10 +2791,7 @@ function AchievementsRoot() {
 
     const openGameNoteModal = (existing: GameNote | null) => {
 
-        const notesGameId = gameNotesGameId ?? payload?.gameId ?? null;
-        if (existing !== null && notesGameId !== null) {
-            armNoteFocusReturn(notesGameId, existing.id, activeUlid);
-        }
+        const entryId = topEntryId();
 
         const saveNote = (input: {
             title: string;
@@ -2827,15 +2803,15 @@ function AchievementsRoot() {
             reminderEveryValue: number | null;
             reminderEveryUnit: "minutes" | "hours" | "days" | null;
             resetReminderTimer: boolean;
-        }) => gameNotesActions.onSaveGameNote(existing?.id ?? null, input);
+        }) => gameNotesActions.onSaveGameNote(existing?.id ?? null, input, entryId);
 
         const deleteNote = existing === null
             ? null
-            : () => gameNotesActions.onDeleteGameNote(existing.id);
+            : () => gameNotesActions.onDeleteGameNote(existing.id, entryId);
 
         const toggleCompleted = existing === null
             ? null
-            : (completed: boolean) => gameNotesActions.onToggleCompleted(existing.id, completed);
+            : (completed: boolean) => gameNotesActions.onToggleCompleted(existing.id, completed, entryId);
 
         showManagedModal((close) => (
             <GameNoteEditModal
@@ -2966,7 +2942,7 @@ function AchievementsRoot() {
         if (bootView !== "achievements") {
             resumeViewFlipRef.current = true;
         }
-        restoreNav(getSavedNavStack(nextResumeState), bootView, { panelEntry: entry !== null, routeOverride: pending.routeOverride });
+        restoreNav(getSavedNavStack(nextResumeState), bootView, { panelEntry: entry !== null, routeOverride: pending.routeOverride, land: pending.land });
         dropRestoresArmedForOtherViews(bootView);
         if (
             bootView === "trackedSetOpen"
@@ -3725,10 +3701,7 @@ function AchievementsRoot() {
     }
     const notificationNav: NotificationNav = {
         openGameNotes: (gameId, noteId) => {
-            requestPanelEntry({ kind: "gameNotes", gameId });
-            if (noteId) {
-                armNoteFocusReturn(gameId, noteId, activeUlid);
-            }
+            requestPanelEntry({ kind: "gameNotes", gameId }, { land: noteId ? `gn:card:${noteId}` : undefined });
             setGameNotesGameId(gameId);
             setView("gameNotes");
             setPendingFocusKey("gn:back");
@@ -5196,15 +5169,12 @@ function AchievementsRoot() {
                                         showIcons,
                                         mouseKeyboardMode,
                                         controllerGlyphStyle,
-                                        restoreNoteId: notesRestoreNoteId,
-                                        restorePending: notesRestorePending,
                                         panelOverlayVisible,
                                         collapsedTags: gameNotesState.collapsedTags
                                     }}
                                     actions={{
                                         onBack: backFromGameNotes,
                                         onHome: goToAchievements,
-                                        onRequestFocus: setPendingFocusKey,
                                         onAddNote: () => {
                                             gameNotesActions.clearReorderSelection();
                                             openGameNoteModal(null);

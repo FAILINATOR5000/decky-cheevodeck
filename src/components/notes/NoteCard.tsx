@@ -45,6 +45,7 @@ export type NoteCardProps = {
     note: GameNote;
     rowIndex: number;
     focusKey: string;
+    focusFallback?: string[];
     isReorderTarget: boolean;
     firing: boolean;
     list: NoteCardListProps;
@@ -196,6 +197,7 @@ export const NoteCard = React.memo(function NoteCard(props: NoteCardProps) {
     return (
         <FocusableItem
             focusKey={focusKey}
+            focusFallback={props.focusFallback}
             onClick={handleClick}
             onFocus={handleCardFocused}
             onGamepadFocus={handleCardGamepadFocused}

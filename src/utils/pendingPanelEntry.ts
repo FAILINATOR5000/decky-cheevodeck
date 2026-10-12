@@ -15,13 +15,15 @@ export type PanelEntry =
     | { kind: "profile"; username: string; ulid: string | null }
     | { kind: "about" | "cheevoCheck" | "fileWatcher" | "memoriesTransfer" };
 
-let pendingEntry: PanelEntry | null = null;
+type PanelEntryRequest = { entry: PanelEntry; land: string | null };
 
-export function requestPanelEntry(entry: PanelEntry): void {
-    pendingEntry = entry;
+let pendingEntry: PanelEntryRequest | null = null;
+
+export function requestPanelEntry(entry: PanelEntry, options?: { land?: string }): void {
+    pendingEntry = { entry, land: options?.land ?? null };
 }
 
-export function takePanelEntry(): PanelEntry | null {
+export function takePanelEntry(): PanelEntryRequest | null {
     const requested = pendingEntry;
     pendingEntry = null;
     return requested;

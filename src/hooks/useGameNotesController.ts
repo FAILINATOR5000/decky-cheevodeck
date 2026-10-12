@@ -38,7 +38,7 @@ import type { LanguageCode } from "../locales";
 const ORDER_WRITE_SETTLE_MS = 250;
 import { parseNoteTag } from "../utils/achievements";
 import { orderedTagsByRecency } from "../utils/tags";
-import { armNoteFocusReturn, clearNoteFocusReturn } from "../utils/noteFocusReturn";
+import { overrideRecord } from "../focusRecords";
 
 type UseGameNotesControllerArgs = {
     payload: Payload | null;
@@ -47,7 +47,6 @@ type UseGameNotesControllerArgs = {
     setError: Dispatch<SetStateAction<string | null>>;
     aButtonMode: GameNoteAButtonMode;
     refreshToken?: number;
-    activeUlid: string;
     language: LanguageCode;
 };
 
@@ -73,7 +72,6 @@ export function useGameNotesController({
     setError,
     aButtonMode,
     refreshToken,
-    activeUlid,
     language
 }: UseGameNotesControllerArgs) {
     const targetGameId = gameNotesGameId ?? payload?.gameId ?? null;
@@ -164,7 +162,7 @@ export function useGameNotesController({
         reminderEveryMinutes: number | null;
         reminderEveryValue: number | null;
         reminderEveryUnit: GameNoteReminderUnit | null;
-    }) => {
+    }, entryId: number | null = null) => {
         const gameId = targetGameId;
         if (!gameId) {
             return { ok: false as const, error: "No current game loaded." };
@@ -191,7 +189,7 @@ export function useGameNotesController({
         }
 
         if (result?.ok && result.note) {
-            armNoteFocusReturn(gameId, result.note.id, activeUlid);
+            overrideRecord(entryId, { focusKey: `gn:card:${result.note.id}`, fallbacks: [] });
         }
 
         adoptCollapsedTags(result);
@@ -238,7 +236,8 @@ export function useGameNotesController({
             reminderEveryValue: number | null;
             reminderEveryUnit: GameNoteReminderUnit | null;
             resetReminderTimer: boolean;
-        }
+        },
+        entryId: number | null = null
     ) => {
         const gameId = targetGameId;
         if (!gameId) {
@@ -271,7 +270,7 @@ export function useGameNotesController({
         }
 
         if (result?.ok && !result.note) {
-            armRemovalLanding(gameId, noteId);
+            landOnHeir(entryId, noteId);
         }
 
         if (result?.ok && result.note && sectionBefore !== null && noteCollapseKey(result.note) !== sectionBefore) {
@@ -283,7 +282,7 @@ export function useGameNotesController({
                 noteId
             );
             if (landingId !== null) {
-                armNoteFocusReturn(gameId, landingId, activeUlid);
+                overrideRecord(entryId, { focusKey: `gn:card:${landingId}`, fallbacks: [] });
             }
         }
 
@@ -311,7 +310,7 @@ export function useGameNotesController({
         return { ok: true as const, deleted: true };
     };
 
-    const armRemovalLanding = (gameId: number, removedNoteId: string) => {
+    const landOnHeir = (entryId: number | null, removedNoteId: string) => {
         const landingId = noteRemovalLanding(
             notes,
             sortMode,
@@ -319,14 +318,10 @@ export function useGameNotesController({
             new Set(collapsedTags),
             removedNoteId
         );
-        if (landingId === null) {
-            clearNoteFocusReturn();
-            return;
-        }
-        armNoteFocusReturn(gameId, landingId, activeUlid);
+        overrideRecord(entryId, { focusKey: landingId === null ? "gn:back" : `gn:card:${landingId}`, fallbacks: [] });
     };
 
-    const onDeleteNote = async (noteId: string) => {
+    const onDeleteNote = async (noteId: string, entryId: number | null = null) => {
         const gameId = targetGameId;
         if (!gameId) {
             return { ok: false as const, error: "No current game loaded." };
@@ -343,7 +338,7 @@ export function useGameNotesController({
         }
 
         if (result?.ok) {
-            armRemovalLanding(gameId, noteId);
+            landOnHeir(entryId, noteId);
         }
 
         adoptCollapsedTags(result);
@@ -693,7 +688,7 @@ export function useGameNotesController({
         [targetGameId, notes]
     );
 
-    const onToggleCompleted = async (noteId: string, completed: boolean): Promise<OkResult> => {
+    const onToggleCompleted = async (noteId: string, completed: boolean, entryId: number | null = null): Promise<OkResult> => {
         const gameId = targetGameId;
         if (!gameId || !noteId) {
             return { ok: false, error: "No current game loaded." };
@@ -723,7 +718,7 @@ export function useGameNotesController({
         adoptCollapsedTags(result);
 
         if (result?.ok && completed) {
-            armRemovalLanding(gameId, noteId);
+            landOnHeir(entryId, noteId);
         }
 
         if (!result || !result.ok || !result.note) {
@@ -750,7 +745,8 @@ export function useGameNotesController({
             reminderEveryValue: number | null;
             reminderEveryUnit: GameNoteReminderUnit | null;
             resetReminderTimer: boolean;
-        }
+        },
+        entryId: number | null = null
     ): Promise<OkResult> => {
         if (existingId === null) {
             const result = await onCreateNote({
@@ -762,15 +758,15 @@ export function useGameNotesController({
                 reminderEveryMinutes: input.reminderEveryMinutes,
                 reminderEveryValue: input.reminderEveryValue,
                 reminderEveryUnit: input.reminderEveryUnit
-            });
+            }, entryId);
             return { ok: result.ok, error: (result as any).error };
         }
-        const result = await onUpdateNote(existingId, input);
+        const result = await onUpdateNote(existingId, input, entryId);
         return { ok: result.ok, error: (result as any).error };
     };
 
-    const onDeleteGameNote = async (noteId: string): Promise<OkResult> => {
-        const result = await onDeleteNote(noteId);
+    const onDeleteGameNote = async (noteId: string, entryId: number | null = null): Promise<OkResult> => {
+        const result = await onDeleteNote(noteId, entryId);
         return { ok: result.ok, error: (result as any).error };
     };
 
