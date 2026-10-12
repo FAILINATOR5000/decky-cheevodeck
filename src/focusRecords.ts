@@ -77,7 +77,8 @@ const LANDING_VIEWS: ReadonlySet<ViewKey> = new Set<ViewKey>([
     "leaderboards",
     "leaderboardDetail",
     "guides",
-    "dolphinMapper"
+    "dolphinMapper",
+    "cheevoCheck"
 ]);
 const RECOVERY_OWNER = -1;
 const CLAIM_SETTLE_MS = 250;
@@ -625,6 +626,13 @@ export function restoreTrail(
         logFocusDebug("record", "restore-hit", `depth=${list.length} ${describeTrail(list)}`);
         landingWouldTake(top, reason);
         return state;
+    }
+    if (trail && top && forward.routeOverride && reason !== "panelEntry" && saved !== null
+        && saved[saved.length - 1] === top.view && top.view !== landed) {
+        const pushed = settleNav(trail, { view: landed }, "push");
+        const list = adopt(pushed);
+        logFocusDebug("record", "restore-push", `route-override depth=${list.length} ${describeTrail(list)}`);
+        return pushed;
     }
 
     const why = trail === null
