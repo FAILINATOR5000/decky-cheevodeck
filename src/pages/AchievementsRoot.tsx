@@ -241,7 +241,6 @@ import {
     setCommentsSnapshotUser
 } from "../utils/commentsSnapshot";
 import { clearCheevoCheckFocusReturn, takeCheevoCheckFocusReturn } from "../utils/cheevoCheckFocusReturn";
-import { takeDolphinFocusReturn } from "../utils/dolphinFocusReturn";
 import { takeFileWatcherFocusReturn } from "../utils/fileWatcherFocusReturn";
 import { takeMemoriesTransferFocusReturn } from "../utils/memoriesTransferFocusReturn";
 import { takeMemoriesFocusReturn } from "../utils/memoriesFocusReturn";
@@ -2403,16 +2402,6 @@ function AchievementsRoot() {
     cheevoCheckWasOpenRef.current = view === "cheevoCheck";
     const cheevoCheckRestorePending = cheevoCheckRestoreArmedRef.current;
 
-    const [dolphinFocusReturn] = useState(takeDolphinFocusReturn);
-
-    const dolphinRestoreArmedRef = useRef(dolphinFocusReturn !== null);
-    const dolphinWasOpenRef = useRef(false);
-    if (dolphinWasOpenRef.current && view !== "dolphinMapper") {
-        dolphinRestoreArmedRef.current = false;
-    }
-    dolphinWasOpenRef.current = view === "dolphinMapper";
-    const dolphinRestorePending = dolphinRestoreArmedRef.current;
-
     const [memoriesFocusReturn] = useState(takeMemoriesFocusReturn);
 
     const memoriesRestoreArmedRef = useRef(memoriesFocusReturn !== null);
@@ -2466,7 +2455,6 @@ function AchievementsRoot() {
     function dropRestoresArmedForOtherViews(bootView: ViewKey) {
         const latches = [
             { armed: cheevoCheckRestoreArmedRef, view: "cheevoCheck" },
-            { armed: dolphinRestoreArmedRef, view: "dolphinMapper" },
             { armed: memoriesRestoreArmedRef, view: "memories" },
             { armed: optionsRestoreArmedRef, view: "options" },
             { armed: fileWatcherRestoreArmedRef, view: "fileWatcher" },
@@ -5028,12 +5016,8 @@ function AchievementsRoot() {
                                     onAdvancedCollapsedChange={handleDolphinAdvancedCollapsedChange}
                                     dolphinSystemFilter={dolphinSystemFilter}
                                     onSystemFilterChange={handleDolphinSystemFilterChange}
-                                    restoreFocusKey={dolphinFocusReturn}
-                                    restorePending={dolphinRestorePending}
-                                    panelOverlayVisible={panelOverlayVisible}
                                     onBack={backFromUtilityTool}
                                     onHome={goToAchievements}
-                                    onRequestFocus={setPendingFocusKey}
                                 />
 
                                 <SmbSharesPage

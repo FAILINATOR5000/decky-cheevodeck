@@ -76,7 +76,8 @@ const LANDING_VIEWS: ReadonlySet<ViewKey> = new Set<ViewKey>([
     "gameNotes",
     "leaderboards",
     "leaderboardDetail",
-    "guides"
+    "guides",
+    "dolphinMapper"
 ]);
 const RECOVERY_OWNER = -1;
 const CLAIM_SETTLE_MS = 250;
