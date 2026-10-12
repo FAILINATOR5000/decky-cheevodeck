@@ -63,6 +63,12 @@ function cardFocusKey(root: FileWatcherRoot) {
     return `${CARD_FOCUS_PREFIX}${root.id}`;
 }
 
+const TRASH_FOCUS_PREFIX = "filewatcher:trash:";
+
+function trashFocusKey(root: FileWatcherRoot) {
+    return `${TRASH_FOCUS_PREFIX}${root.id}`;
+}
+
 const BUCKET_FOCUS_PREFIX = "fileWatcher:bucket:";
 
 const STATIC_CLAIM_SLOT = -2;
@@ -155,8 +161,8 @@ function FileWatcherPage(props: FileWatcherPageProps) {
         view: "fileWatcher",
         defaultKey: "fileWatcher:back",
         ready: loaded,
-        holds: (key) => roots.some((root) => cardFocusKey(root) === key),
-        open: (key) => cardWindow.openAt(key)
+        holds: (key) => roots.some((root) => cardFocusKey(root) === key || trashFocusKey(root) === key),
+        open: (key) => cardWindow.openAt(key.replace(TRASH_FOCUS_PREFIX, CARD_FOCUS_PREFIX))
     });
 
     const openExclusionsRef = useRef(openExclusions);
