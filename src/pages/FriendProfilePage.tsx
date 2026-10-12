@@ -405,10 +405,21 @@ function FriendProfilePage(props: FriendProfilePageProps) {
             void actions.onChangeSubView(tab.value);
             return true;
         },
-        holds: (key) => subView === "game"
-            && key.startsWith("achievement:")
-            && Boolean(friendGamePayload?.payload?.achievements?.some((achievement) => `achievement:${achievement.id}` === key)),
-        open: (key) => setLandingOpenKey(key),
+        holds: (key) => {
+            if (subView !== "game") {
+                return false;
+            }
+            if (key === "friendgame:open-on-ra") {
+                return showIcons && friendGameId !== null && !friendGameIconDataUri && !friendGameIngameDataUri;
+            }
+            return key.startsWith("achievement:")
+                && Boolean(friendGamePayload?.payload?.achievements?.some((achievement) => `achievement:${achievement.id}` === key));
+        },
+        open: (key) => {
+            if (key.startsWith("achievement:")) {
+                setLandingOpenKey(key);
+            }
+        },
         ownLanding: { pending: wallRestorePending, settled: wallRestoreSettled }
     });
 
