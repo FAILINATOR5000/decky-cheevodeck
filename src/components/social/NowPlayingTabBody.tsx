@@ -783,35 +783,15 @@ export function NowPlayingTabBody(props: NowPlayingTabBodyProps) {
                         <PanelSectionRow>
                             <InlineSpinner label={t(language, "Loading comments...")} />
                         </PanelSectionRow>
-                    ) : commentsEmpty ? (
-                        <>
-                            <PanelSectionRow>
-                                <div style={bodyTextStyle()}>
-                                    {t(language, "No comments yet for this game.")}
-                                </div>
-                            </PanelSectionRow>
-                            {subscribeError ? (
-                                <PanelSectionRow>
-                                    <ErrorText>{localizeRuntimeText(language, subscribeError)}</ErrorText>
-                                </PanelSectionRow>
-                            ) : null}
-                            <FocusClaim
-                                token={commentsPostClaim?.token ?? 0}
-                                armed={commentsPostClaim?.armed ?? false}
-                                onSpent={onSpendCommentsPostClaim}
-                            >
-                                <CommentActionStrip
-                                    language={language}
-                                    isSubscribed={isSubscribed}
-                                    onPost={onPostComment}
-                                    onToggleSubscribe={onToggleSubscribe}
-                                    postFocusKey="nowplaying:comments:post"
-                                    subscribeFocusKey="nowplaying:comments:subscribe"
-                                />
-                            </FocusClaim>
-                        </>
                     ) : (
                         <>
+                            {commentsEmpty ? (
+                                <PanelSectionRow>
+                                    <div style={bodyTextStyle()}>
+                                        {t(language, "No comments yet for this game.")}
+                                    </div>
+                                </PanelSectionRow>
+                            ) : null}
                             {subscribeError ? (
                                 <PanelSectionRow>
                                     <ErrorText>{localizeRuntimeText(language, subscribeError)}</ErrorText>
@@ -829,39 +809,43 @@ export function NowPlayingTabBody(props: NowPlayingTabBodyProps) {
                                     onToggleSubscribe={onToggleSubscribe}
                                     postFocusKey="nowplaying:comments:post"
                                     subscribeFocusKey="nowplaying:comments:subscribe"
-                                    topMargin={COMMENTS_STRIP_TOP_MARGIN}
+                                    topMargin={commentsEmpty ? undefined : COMMENTS_STRIP_TOP_MARGIN}
                                 />
                             </FocusClaim>
-                            <LabeledRow
-                                focusKey="nowplaying:comments:sort"
-                                onClick={handleCommentsSortCycle}
-                                label={t(language, "Sort")}
-                                value={commentsSort === "newest"
-                                    ? t(language, "Newest")
-                                    : t(language, "Oldest")}
-                            />
-                            <CommentsList
-                                comments={comments}
-                                language={language}
-                                uiSize={uiSize}
-                                showIcons={showIcons}
-                                focusKeyPrefix="nowplaying:comment"
-                                surfaceKey="comments:nowplaying"
-                                onCommentClick={onCommentClick}
-                                dynamicLoading={dynamicComments}
-                                dynamicSentinelRootMargin={dynamicCommentsSentinelRootMargin}
-                                loading={commentsLoading}
-                                loadingMore={commentsLoadingMore}
-                                hasMore={commentsHasMore}
-                                error={commentsError}
-                                onLoadMore={onLoadMoreComments}
-                                emptyMessage={t(language, "No comments yet for this game.")}
-                                claimedCard={commentsCardClaim && {
-                                    ...commentsCardClaim,
-                                    onSpent: onSpendCommentsCardClaim
-                                }}
-                                restoredWindow={commentsWindow}
-                            />
+                            {!commentsEmpty && (
+                                <>
+                                    <LabeledRow
+                                        focusKey="nowplaying:comments:sort"
+                                        onClick={handleCommentsSortCycle}
+                                        label={t(language, "Sort")}
+                                        value={commentsSort === "newest"
+                                            ? t(language, "Newest")
+                                            : t(language, "Oldest")}
+                                    />
+                                    <CommentsList
+                                        comments={comments}
+                                        language={language}
+                                        uiSize={uiSize}
+                                        showIcons={showIcons}
+                                        focusKeyPrefix="nowplaying:comment"
+                                        surfaceKey="comments:nowplaying"
+                                        onCommentClick={onCommentClick}
+                                        dynamicLoading={dynamicComments}
+                                        dynamicSentinelRootMargin={dynamicCommentsSentinelRootMargin}
+                                        loading={commentsLoading}
+                                        loadingMore={commentsLoadingMore}
+                                        hasMore={commentsHasMore}
+                                        error={commentsError}
+                                        onLoadMore={onLoadMoreComments}
+                                        emptyMessage={t(language, "No comments yet for this game.")}
+                                        claimedCard={commentsCardClaim && {
+                                            ...commentsCardClaim,
+                                            onSpent: onSpendCommentsCardClaim
+                                        }}
+                                        restoredWindow={commentsWindow}
+                                    />
+                                </>
+                            )}
                         </>
                     )}
                 </PanelSection>

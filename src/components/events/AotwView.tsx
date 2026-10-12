@@ -117,6 +117,11 @@ export function AotwView(props: AotwViewPageProps) {
         aotw.onChangeAotwCommentsSort(aotw.aotwCommentsSort === "newest" ? "oldest" : "newest");
     }
 
+    const aotwCommentsEmpty = aotw.aotwCommentsLoaded
+        && aotw.aotwComments.length === 0
+        && !aotw.aotwCommentsLoading
+        && !aotw.aotwCommentsError;
+
     const aotwCardClaim = aotw.aotwCommentsCardClaim ?? aotw.aotwCommentsPostClaim;
     const restoreSettled = !aotw.aotwHoldCommentsBody
         && (aotwCardClaim?.token ?? 0) > 0
@@ -253,38 +258,15 @@ export function AotwView(props: AotwViewPageProps) {
                                     <PanelSectionRow>
                                         <InlineSpinner label={t(language, "Loading comments...")} />
                                     </PanelSectionRow>
-                                ) : (aotw.aotwCommentsLoaded
-                                    && aotw.aotwComments.length === 0
-                                    && !aotw.aotwCommentsLoading
-                                    && !aotw.aotwCommentsError) ? (
-                                    <>
-                                        <PanelSectionRow>
-                                            <div style={bodyTextStyle()}>
-                                                {t(language, "No comments yet.")}
-                                            </div>
-                                        </PanelSectionRow>
-                                        {aotwSubscription.subscribeError ? (
-                                            <PanelSectionRow>
-                                                <ErrorText>{localizeRuntimeText(language, aotwSubscription.subscribeError)}</ErrorText>
-                                            </PanelSectionRow>
-                                        ) : null}
-                                        <FocusClaim
-                                            token={aotw.aotwCommentsPostClaim?.token ?? 0}
-                                            armed={aotw.aotwCommentsPostClaim?.armed ?? false}
-                                            onSpent={aotw.onSpendAotwCommentsPostClaim}
-                                        >
-                                            <CommentActionStrip
-                                                language={language}
-                                                isSubscribed={aotwSubscription.isSubscribed}
-                                                onPost={aotw.onPostAotwComment}
-                                                onToggleSubscribe={aotwSubscription.onToggleSubscribe}
-                                                postFocusKey="aotw:comments:post"
-                                                subscribeFocusKey="aotw:comments:subscribe"
-                                            />
-                                        </FocusClaim>
-                                    </>
                                 ) : (
                                     <>
+                                        {aotwCommentsEmpty ? (
+                                            <PanelSectionRow>
+                                                <div style={bodyTextStyle()}>
+                                                    {t(language, "No comments yet.")}
+                                                </div>
+                                            </PanelSectionRow>
+                                        ) : null}
                                         {aotwSubscription.subscribeError ? (
                                             <PanelSectionRow>
                                                 <ErrorText>{localizeRuntimeText(language, aotwSubscription.subscribeError)}</ErrorText>
@@ -304,41 +286,45 @@ export function AotwView(props: AotwViewPageProps) {
                                                 subscribeFocusKey="aotw:comments:subscribe"
                                             />
                                         </FocusClaim>
-                                        <LabeledRow
-                                            focusKey="aotw:comments:sort"
-                                            onClick={handleAotwSortCycle}
-                                            label={t(language, "Sort")}
-                                            value={aotw.aotwCommentsSort === "newest"
-                                                ? t(language, "Newest")
-                                                : t(language, "Oldest")}
-                                        />
-                                        <CommentsList
-                                            comments={aotw.aotwComments}
-                                            language={language}
-                                            uiSize={uiSize}
-                                            showIcons={showIcons}
-                                            focusKeyPrefix="aotw:comment"
-                                            surfaceKey="comments:aotw"
-                                            onCommentClick={(c) =>
-                                                aotw.onOpenAotwComment(
-                                                    c,
-                                                    aotw.aotwResponse?.payload?.achievement?.id ?? null
-                                                )
-                                            }
-                                            dynamicLoading={dynamicComments}
-                                            dynamicSentinelRootMargin={dynamicCommentsSentinelRootMargin}
-                                            loading={aotw.aotwCommentsLoading}
-                                            loadingMore={aotw.aotwCommentsLoadingMore}
-                                            hasMore={aotw.aotwCommentsHasMore}
-                                            error={aotw.aotwCommentsError}
-                                            onLoadMore={aotw.onLoadMoreAotwComments}
-                                            emptyMessage={t(language, "No comments yet.")}
-                                            claimedCard={aotw.aotwCommentsCardClaim && {
-                                                ...aotw.aotwCommentsCardClaim,
-                                                onSpent: aotw.onSpendAotwCommentsCardClaim
-                                            }}
-                                            restoredWindow={aotw.aotwCommentsWindow}
-                                        />
+                                        {!aotwCommentsEmpty && (
+                                            <>
+                                                <LabeledRow
+                                                    focusKey="aotw:comments:sort"
+                                                    onClick={handleAotwSortCycle}
+                                                    label={t(language, "Sort")}
+                                                    value={aotw.aotwCommentsSort === "newest"
+                                                        ? t(language, "Newest")
+                                                        : t(language, "Oldest")}
+                                                />
+                                                <CommentsList
+                                                    comments={aotw.aotwComments}
+                                                    language={language}
+                                                    uiSize={uiSize}
+                                                    showIcons={showIcons}
+                                                    focusKeyPrefix="aotw:comment"
+                                                    surfaceKey="comments:aotw"
+                                                    onCommentClick={(c) =>
+                                                        aotw.onOpenAotwComment(
+                                                            c,
+                                                            aotw.aotwResponse?.payload?.achievement?.id ?? null
+                                                        )
+                                                    }
+                                                    dynamicLoading={dynamicComments}
+                                                    dynamicSentinelRootMargin={dynamicCommentsSentinelRootMargin}
+                                                    loading={aotw.aotwCommentsLoading}
+                                                    loadingMore={aotw.aotwCommentsLoadingMore}
+                                                    hasMore={aotw.aotwCommentsHasMore}
+                                                    error={aotw.aotwCommentsError}
+                                                    onLoadMore={aotw.onLoadMoreAotwComments}
+                                                    emptyMessage={t(language, "No comments yet.")}
+                                                    claimedCard={aotw.aotwCommentsCardClaim && {
+                                                        ...aotw.aotwCommentsCardClaim,
+                                                        onSpent: aotw.onSpendAotwCommentsCardClaim
+                                                    }}
+                                                    restoredWindow={aotw.aotwCommentsWindow}
+                                                />
+                                            </>
+                                        )}
                                     </>
                                 )
                             )}

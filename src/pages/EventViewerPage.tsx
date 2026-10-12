@@ -380,34 +380,14 @@ function EventView(props: { state: EventViewState; actions: EventViewerPageActio
 
     const commentsEmpty = comments.commentsLoaded && comments.comments.length === 0 && !comments.commentsError;
 
-    const commentsBody = commentsEmpty ? (
-        <PanelSection>
-            <PanelSectionRow>
-                <div style={bodyTextStyle()}>{t(language, "No comments yet for this event.")}</div>
-            </PanelSectionRow>
-            {subscribeError ? (
-                <PanelSectionRow>
-                    <ErrorText>{localizeRuntimeText(language, subscribeError)}</ErrorText>
-                </PanelSectionRow>
-            ) : null}
-            <FocusClaim
-                token={comments.commentsPostClaim?.token ?? 0}
-                armed={comments.commentsPostClaim?.armed ?? false}
-                onSpent={commentActions.spendCommentsPostClaim}
-            >
-                <CommentActionStrip
-                    language={language}
-                    isSubscribed={isSubscribed}
-                    onPost={postComment}
-                    onToggleSubscribe={onToggleSubscribe}
-                    postFocusKey="eventviewer:comments:post"
-                    subscribeFocusKey="eventviewer:comments:subscribe"
-                />
-            </FocusClaim>
-        </PanelSection>
-    ) : (
+    const commentsBody = (
         <>
             <PanelSection>
+                {commentsEmpty ? (
+                    <PanelSectionRow>
+                        <div style={bodyTextStyle()}>{t(language, "No comments yet for this event.")}</div>
+                    </PanelSectionRow>
+                ) : null}
                 {subscribeError ? (
                     <PanelSectionRow>
                         <ErrorText>{localizeRuntimeText(language, subscribeError)}</ErrorText>
@@ -428,37 +408,41 @@ function EventView(props: { state: EventViewState; actions: EventViewerPageActio
                     />
                 </FocusClaim>
             </PanelSection>
-            <PanelSection title={t(language, "View Options")}>
-                <LabeledRow
-                    focusKey="eventviewer:comments:sort"
-                    onClick={() => commentActions.setCommentsSort(comments.commentsSort === "newest" ? "oldest" : "newest")}
-                    label={t(language, "Sort")}
-                    value={comments.commentsSort === "newest" ? t(language, "Newest") : t(language, "Oldest")}
-                />
-            </PanelSection>
-            <PanelSection title={t(language, "Comments")}>
-                <CommentsList
-                    comments={comments.comments}
-                    language={language}
-                    uiSize={settings.uiSize}
-                    showIcons={settings.showIcons}
-                    focusKeyPrefix="eventviewer:comment"
-                    surfaceKey="comments:event"
-                    onCommentClick={openComment}
-                    dynamicLoading={settings.dynamicComments}
-                    dynamicSentinelRootMargin={settings.dynamicCommentsSentinelRootMargin}
-                    loading={comments.commentsLoading}
-                    loadingMore={comments.commentsLoadingMore}
-                    hasMore={comments.commentsHasMore}
-                    error={comments.commentsError}
-                    onLoadMore={commentActions.loadMoreComments}
-                    emptyMessage={t(language, "No comments yet for this event.")}
-                    claimedCard={comments.commentsCardClaim
-                        ? { ...comments.commentsCardClaim, onSpent: commentActions.spendCommentsCardClaim }
-                        : undefined}
-                    restoredWindow={comments.commentsWindow}
-                />
-            </PanelSection>
+            {!commentsEmpty && (
+                <>
+                    <PanelSection title={t(language, "View Options")}>
+                        <LabeledRow
+                            focusKey="eventviewer:comments:sort"
+                            onClick={() => commentActions.setCommentsSort(comments.commentsSort === "newest" ? "oldest" : "newest")}
+                            label={t(language, "Sort")}
+                            value={comments.commentsSort === "newest" ? t(language, "Newest") : t(language, "Oldest")}
+                        />
+                    </PanelSection>
+                    <PanelSection title={t(language, "Comments")}>
+                        <CommentsList
+                            comments={comments.comments}
+                            language={language}
+                            uiSize={settings.uiSize}
+                            showIcons={settings.showIcons}
+                            focusKeyPrefix="eventviewer:comment"
+                            surfaceKey="comments:event"
+                            onCommentClick={openComment}
+                            dynamicLoading={settings.dynamicComments}
+                            dynamicSentinelRootMargin={settings.dynamicCommentsSentinelRootMargin}
+                            loading={comments.commentsLoading}
+                            loadingMore={comments.commentsLoadingMore}
+                            hasMore={comments.commentsHasMore}
+                            error={comments.commentsError}
+                            onLoadMore={commentActions.loadMoreComments}
+                            emptyMessage={t(language, "No comments yet for this event.")}
+                            claimedCard={comments.commentsCardClaim
+                                ? { ...comments.commentsCardClaim, onSpent: commentActions.spendCommentsCardClaim }
+                                : undefined}
+                            restoredWindow={comments.commentsWindow}
+                        />
+                    </PanelSection>
+                </>
+            )}
         </>
     );
 
