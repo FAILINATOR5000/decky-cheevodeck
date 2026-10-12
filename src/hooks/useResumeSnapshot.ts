@@ -23,6 +23,7 @@ import type {
     GameOverviewSource,
     GameOverviewSubView,
     GuidesSubView,
+    LeaderboardAudience,
     LeaderboardRow,
     MainAchievementsTab,
     NewSetsFilter,
@@ -93,6 +94,7 @@ type ResumeSnapshotArgs = {
     defaultPersistedFocusKeyForView: (currentView: ViewKey) => string;
     compareFriendUsernameRef: RefObject<string | null>;
     compareFilterRef: RefObject<NowPlayingCompareFilter>;
+    leaderboardAudience: LeaderboardAudience;
     newsEventsSubViewRef: RefObject<NewsEventsSubView>;
     aotwSubViewRef: RefObject<AotwSubView>;
     newSetsFilterRef: RefObject<NewSetsFilter>;
@@ -135,6 +137,7 @@ export function useResumeSnapshot(args: ResumeSnapshotArgs) {
         friendGameSelectionMode,
         compareFriendUsername,
         compareFilter,
+        leaderboardAudience,
         newsEventsSubView,
         aotwSubView,
         newSetsFilter,
@@ -175,6 +178,7 @@ export function useResumeSnapshot(args: ResumeSnapshotArgs) {
     const gameOverviewSubViewRef = useLatestRef(gameOverviewSubView);
     const friendProfileSubViewRef = useLatestRef(friendProfileSubView);
     const mainTabRef = useLatestRef(mainTab);
+    const leaderboardAudienceRef = useLatestRef(leaderboardAudience);
     const gameOverviewSourceRef = useLatestRef(gameOverviewSource);
     const gameOverviewGameIdRef = useLatestRef(gameOverviewGameId);
     const gameNotesGameIdRef = useLatestRef(gameNotesGameId);
@@ -223,6 +227,7 @@ export function useResumeSnapshot(args: ResumeSnapshotArgs) {
             friendProfileBackSource: friendProfileBackSourceRef.current ?? null,
             leaderboardsSourceView: leaderboardsSourceViewRef.current,
             selectedLeaderboardId: selectedLeaderboardRef.current?.id ?? null,
+            leaderboardAudience: currentView === "leaderboardDetail" ? leaderboardAudienceRef.current : null,
             nowPlayingCompareFriend: compareFriendUsernameRef.current ?? null,
             nowPlayingCompareFilter: compareFilterRef.current ?? null,
             mainAchievementsTab: mainTabRef.current ?? null,
@@ -317,6 +322,7 @@ export function useResumeSnapshot(args: ResumeSnapshotArgs) {
         friendProfileSubView,
         compareFriendUsername,
         compareFilter,
+        leaderboardAudience,
         mainTab,
         newsEventsSubView,
         aotwSubView,

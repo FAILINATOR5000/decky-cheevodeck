@@ -205,7 +205,7 @@ export function useLeaderboardsController({
     );
 
     const openLeaderboardDetail = useCallback(
-        async (leaderboard: LeaderboardRow) => {
+        async (leaderboard: LeaderboardRow, audience: LeaderboardAudience = "all") => {
             if (!leaderboard?.id) {
                 return;
             }
@@ -217,7 +217,7 @@ export function useLeaderboardsController({
             setLeaderboardEntriesError(null);
             setLeaderboardUserEntryPayload(null);
             setLeaderboardUserEntryError(null);
-            setLeaderboardAudience("all");
+            setLeaderboardAudience(audience);
             setLeaderboardEntriesLoading(true);
             setLeaderboardUserEntryLoading(true);
             try {

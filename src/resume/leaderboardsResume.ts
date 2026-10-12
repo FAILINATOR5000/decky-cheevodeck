@@ -1,4 +1,4 @@
-import type { ResumeState, ViewKey } from "../types";
+import type { LeaderboardAudience, ResumeState, ViewKey } from "../types";
 import {
     findResumeFriendRow,
     getSavedFriendGameSelectionMode,
@@ -7,6 +7,10 @@ import {
 } from "./friendsResume";
 import { getSavedGameOverviewSource } from "./gameOverviewResume";
 import type { RestoreContext } from "./restoreContext";
+
+function getSavedLeaderboardAudience(savedState: ResumeState): LeaderboardAudience {
+    return savedState.leaderboardAudience === "friends" ? "friends" : "all";
+}
 
 function getSavedLeaderboardsSourceView(savedState: ResumeState): "achievements" | "friendGame" | "gameOverview" {
     if (savedState.leaderboardsSourceView === "friendGame") {
@@ -85,7 +89,7 @@ export async function restoreLeaderboards(savedState: ResumeState, savedView: Vi
                         (row) => row.id === savedLeaderboardId
                     );
                     if (restoredLeaderboard) {
-                        await ctx.openLeaderboardDetail(restoredLeaderboard);
+                        await ctx.openLeaderboardDetail(restoredLeaderboard, getSavedLeaderboardAudience(savedState));
                     }
                 }
             }

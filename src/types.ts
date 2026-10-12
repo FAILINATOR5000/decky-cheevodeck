@@ -2489,6 +2489,7 @@ export type ResumeState = {
     guidesFaqId?: string | null;
     leaderboardsSourceView?: "achievements" | "friendGame" | "gameOverview" | null;
     selectedLeaderboardId?: number | null;
+    leaderboardAudience?: LeaderboardAudience | null;
     nowPlayingCompareFriend?: string | null;
     nowPlayingCompareFilter?: NowPlayingCompareFilter | null;
     mainAchievementsTab?: MainAchievementsTab | null;

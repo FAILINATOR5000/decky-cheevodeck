@@ -154,6 +154,7 @@ _ALLOWED_RESUME_VIEWS = {
 _ALLOWED_NOW_PLAYING_COMPARE_FILTERS = {"all", "onlyYou", "onlyThem", "shared"}
 _ALLOWED_MAIN_ACHIEVEMENTS_TABS = {"achievements", "activity", "comments", "compare"}
 _ALLOWED_LEADERBOARDS_SOURCE_VIEWS = {"achievements", "friendGame", "gameOverview"}
+_ALLOWED_LEADERBOARD_AUDIENCES = {"all", "friends"}
 _ALLOWED_UNLOCK_HISTORY_SOURCES = {"main", "friendGame"}
 _ALLOWED_BADGE_FILTERS = {"all", "mastered", "beaten", "event", "other"}
 _ALLOWED_ALL_GAMES_RANGES = {"numbers", "a-f", "g-l", "m-r", "s-u", "v-z"}
@@ -2850,6 +2851,10 @@ class SettingsStore:
         if leaderboards_source_view not in _ALLOWED_LEADERBOARDS_SOURCE_VIEWS:
             leaderboards_source_view = "achievements"
 
+        leaderboard_audience = str(raw.get("leaderboardAudience") or "").strip()
+        if leaderboard_audience not in _ALLOWED_LEADERBOARD_AUDIENCES:
+            leaderboard_audience = None
+
         ao_source = str(raw.get("aoSource") or "").strip()
         if ao_source not in _ALLOWED_AO_SOURCES:
             ao_source = None
@@ -2887,6 +2892,7 @@ class SettingsStore:
             "guidesFaqId": str(raw.get("guidesFaqId") or "").strip() or None,
             "leaderboardsSourceView": leaderboards_source_view,
             "selectedLeaderboardId": norm_game_id(raw.get("selectedLeaderboardId")),
+            "leaderboardAudience": leaderboard_audience,
             "nowPlayingCompareFriend": str(raw.get("nowPlayingCompareFriend") or "").strip() or None,
             "nowPlayingCompareFilter": compare_filter,
             "mainAchievementsTab": main_achievements_tab,
@@ -2995,6 +3001,10 @@ class SettingsStore:
             if leaderboards_source_view not in _ALLOWED_LEADERBOARDS_SOURCE_VIEWS:
                 leaderboards_source_view = "achievements"
 
+            leaderboard_audience = str(resume_state.get("leaderboardAudience") or "").strip()
+            if leaderboard_audience not in _ALLOWED_LEADERBOARD_AUDIENCES:
+                leaderboard_audience = None
+
             ao_source = str(resume_state.get("aoSource") or "").strip()
             if ao_source not in _ALLOWED_AO_SOURCES:
                 ao_source = None
@@ -3028,6 +3038,7 @@ class SettingsStore:
                 "guidesFaqId": str(resume_state.get("guidesFaqId") or "").strip() or None,
                 "leaderboardsSourceView": leaderboards_source_view,
                 "selectedLeaderboardId": norm_game_id(resume_state.get("selectedLeaderboardId")),
+                "leaderboardAudience": leaderboard_audience,
                 "nowPlayingCompareFriend": str(resume_state.get("nowPlayingCompareFriend") or "").strip() or None,
                 "nowPlayingCompareFilter": compare_filter,
                 "mainAchievementsTab": main_achievements_tab,

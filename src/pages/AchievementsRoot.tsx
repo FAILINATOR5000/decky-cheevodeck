@@ -1827,6 +1827,7 @@ function AchievementsRoot() {
         friendGameSelectionMode,
         compareFriendUsername,
         compareFilter,
+        leaderboardAudience,
         newsEventsSubView,
         aotwSubView,
         newSetsFilter,

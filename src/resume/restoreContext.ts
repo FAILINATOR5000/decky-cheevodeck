@@ -12,6 +12,7 @@ import type {
     FriendsPayload,
     GuidesSubView,
     GameLeaderboardsPayload,
+    LeaderboardAudience,
     LeaderboardRow,
     MainAchievementsTab,
     NowPlayingSubView,
@@ -78,6 +79,6 @@ export type RestoreContext = {
         sourceView?: "achievements" | "friendGame" | "gameOverview",
         preserveCurrentView?: boolean
     ) => void | Promise<void>;
-    openLeaderboardDetail: (row: LeaderboardRow) => void | Promise<void>;
+    openLeaderboardDetail: (row: LeaderboardRow, audience?: LeaderboardAudience) => void | Promise<void>;
     setRestoringLeaderboardDetail: Dispatch<SetStateAction<boolean>>;
 };

@@ -64,6 +64,7 @@ import type {
     GameLeaderboardsPayload,
     GameOverviewSource,
     GameOverviewSubView,
+    LeaderboardAudience,
     LeaderboardRow,
     NewsEventsSubView,
     EventViewerSource,
@@ -136,7 +137,7 @@ type UseResumeControllerArgs = {
         sourceView?: "achievements" | "friendGame" | "gameOverview",
         preserveCurrentView?: boolean
     ) => void | Promise<void>;
-    openLeaderboardDetail: (row: LeaderboardRow) => void | Promise<void>;
+    openLeaderboardDetail: (row: LeaderboardRow, audience?: LeaderboardAudience) => void | Promise<void>;
     setRestoringLeaderboardDetail: Dispatch<SetStateAction<boolean>>;
     setView: (next: ViewKey, intent?: NavIntent) => void;
     setPendingFocusKey: Dispatch<SetStateAction<string | null>>;
