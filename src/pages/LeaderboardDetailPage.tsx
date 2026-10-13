@@ -239,7 +239,7 @@ const LeaderboardEntryRowView = React.memo(function LeaderboardEntryRowView(prop
 
 function LeaderboardDetailPage({ state, actions }: LeaderboardDetailPageProps) {
     const dynamicLeaderboardResults = state.dynamicLeaderboardResults ?? true;
-    const dynamicInitialRows = Math.max(1, state.dynamicInitialRows ?? 30);
+    const dynamicInitialRows = Math.max(1, state.dynamicInitialRows ?? 15);
     const dynamicRowStep = Math.max(1, state.dynamicRowStep ?? 30);
     const dynamicPrefetchDistance = Math.max(1, state.dynamicPrefetchDistance ?? 12);
     const dynamicSentinelRootMargin = Math.max(0, state.dynamicSentinelRootMargin ?? 600);

@@ -83,6 +83,15 @@ class RepairService:
             )
 
         try:
+            if self._settings_store.reset_outdated_dynamic_initial_rows():
+                fixed.append("dynamic_initial_rows")
+        except Exception as e:
+            decky.logger.warning(
+                "repair: initial row count reset failed: %s",
+                type(e).__name__,
+            )
+
+        try:
             if self._hand_back_dolphin_folders():
                 fixed.append("dolphin_folders")
         except Exception as e:

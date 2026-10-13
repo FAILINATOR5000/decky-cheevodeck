@@ -227,7 +227,7 @@ function sortOrderLabel(order: BadgesSortOrder, language: LanguageCode): string 
 
 function BadgesPage(props: BadgesPageProps) {
     const dynamicList = props.dynamicList ?? true;
-    const dynamicInitialRows = Math.max(1, props.dynamicInitialRows ?? 30);
+    const dynamicInitialRows = Math.max(1, props.dynamicInitialRows ?? 15);
     const dynamicRowStep = Math.max(1, props.dynamicRowStep ?? 30);
     const dynamicPrefetchDistance = Math.max(1, props.dynamicPrefetchDistance ?? 12);
     const dynamicSentinelRootMargin = Math.max(0, props.dynamicSentinelRootMargin ?? 600);

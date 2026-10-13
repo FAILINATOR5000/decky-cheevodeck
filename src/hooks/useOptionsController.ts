@@ -1408,7 +1408,7 @@ export function useOptionsController({
         setAlwaysStaggerMounting(Boolean(result.alwaysStaggerMounting ?? false));
         setReturnStaggerFrames(result.returnStaggerFrames ?? 0);
         setDynamicLoading(Boolean(result.dynamicLoading ?? true));
-        setDynamicInitialRows(result.dynamicInitialRows ?? 30);
+        setDynamicInitialRows(result.dynamicInitialRows ?? 15);
         setDynamicRowStep(result.dynamicRowStep ?? 5);
         setDynamicPrefetchDistance(result.dynamicPrefetchDistance ?? 12);
         setDynamicSentinelRootMargin(result.dynamicSentinelRootMargin ?? 600);

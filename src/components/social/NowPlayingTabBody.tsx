@@ -255,7 +255,7 @@ export function NowPlayingTabBody(props: NowPlayingTabBodyProps) {
         onCycleFriendFeedCardAction
     } = props;
 
-    const dynamicInitialRows = Math.max(1, props.dynamicInitialRows ?? 30);
+    const dynamicInitialRows = Math.max(1, props.dynamicInitialRows ?? 15);
     const dynamicRowStep = Math.max(1, props.dynamicRowStep ?? 30);
     const dynamicPrefetchDistance = Math.max(0, props.dynamicPrefetchDistance ?? 12);
     const dynamicSentinelRootMarginPx = Math.max(0, props.dynamicSentinelRootMargin ?? 600);

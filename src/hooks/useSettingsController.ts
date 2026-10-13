@@ -254,7 +254,7 @@ export function useSettingsController({
     const [alwaysStaggerMounting, setAlwaysStaggerMounting] = useState(false);
     const [returnStaggerFrames, setReturnStaggerFrames] = useState(0);
     const [dynamicLoading, setDynamicLoading] = useState(true);
-    const [dynamicInitialRows, setDynamicInitialRows] = useState(30);
+    const [dynamicInitialRows, setDynamicInitialRows] = useState(15);
     const [dynamicRowStep, setDynamicRowStep] = useState(5);
     const [dynamicPrefetchDistance, setDynamicPrefetchDistance] = useState(12);
     const [dynamicSentinelRootMargin, setDynamicSentinelRootMargin] = useState(600);

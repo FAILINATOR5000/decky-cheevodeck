@@ -203,7 +203,7 @@ function ComparePickerPage(props: ComparePickerPageProps) {
         windowId: "comparepicker:friends",
         heightScope: ["comparepicker:friends", language, titleSize(12)].join("|"),
         dynamicLoading: dynamicFriendPicker,
-        initialRows: Math.max(1, state.dynamicInitialRows ?? 30),
+        initialRows: Math.max(1, state.dynamicInitialRows ?? 15),
         rowStep: Math.max(1, state.dynamicRowStep ?? 30),
         prefetchDistance: Math.max(1, state.dynamicPrefetchDistance ?? 12),
         sentinelRootMarginPx: Math.max(0, state.dynamicSentinelRootMargin ?? 600),

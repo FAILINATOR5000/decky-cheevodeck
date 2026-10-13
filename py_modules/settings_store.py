@@ -242,6 +242,8 @@ QUICK_MENU_SHORTCUTS_VERSION = 2
 
 SHORTCUT_BINDINGS_VERSION = 2
 
+DYNAMIC_INITIAL_ROWS_VERSION = 2
+
 
 _MENU_COMBO_SHORTCUT_BUTTONS = ("menuUp", "menuDown", "menuLeft", "menuRight", "menuL1", "menuR1")
 
@@ -604,7 +606,8 @@ _KNOBS = (
     Knob("alwaysStaggerMounting", default=False, normalize=True),
     Knob("returnStaggerFrames", default=0, normalize=True),
     Knob("dynamicLoading", default=True, normalize=True),
-    Knob("dynamicInitialRows", default=30, normalize=True),
+    Knob("dynamicInitialRows", default=15, normalize=True),
+    Knob("dynamicInitialRowsVersion", default=DYNAMIC_INITIAL_ROWS_VERSION, reset=False, ship=False),
     Knob("dynamicRowStep", default=30, normalize=True),
     Knob("dynamicPrefetchDistance", default=12, normalize=True),
     Knob("dynamicSentinelRootMargin", default=600, normalize=True),
@@ -1897,7 +1900,7 @@ class SettingsStore:
         return self.get_dynamic_loading(cfg)
 
     def update_dynamic_initial_rows(self, value: int) -> int:
-        cfg = self._update_config("dynamicInitialRows", to_int(value, 30))
+        cfg = self._update_config("dynamicInitialRows", to_int(value, 15))
 
         return self.get_dynamic_initial_rows(cfg)
 
@@ -4105,6 +4108,22 @@ class SettingsStore:
 
             return True
 
+    def get_dynamic_initial_rows_version(self, cfg: dict) -> int:
+        return to_int(cfg.get("dynamicInitialRowsVersion"), 1)
+
+    def reset_outdated_dynamic_initial_rows(self) -> bool:
+        with self._config_lock:
+            cfg = self.ensure_display_settings(self.load_config())
+            if self.get_dynamic_initial_rows_version(cfg) >= DYNAMIC_INITIAL_ROWS_VERSION:
+                return False
+
+            cfg["dynamicInitialRows"] = 15
+            cfg["dynamicInitialRowsVersion"] = DYNAMIC_INITIAL_ROWS_VERSION
+            cfg = self.ensure_display_settings(cfg)
+            self.save_config(cfg)
+
+            return True
+
     def _normalize_shortcut_bindings(self, raw) -> dict:
         source = raw if isinstance(raw, dict) else {}
         bindings = _default_shortcut_bindings()
@@ -4655,10 +4674,10 @@ class SettingsStore:
         return bool(cfg.get("dynamicLoading", True))
 
     def get_dynamic_initial_rows(self, cfg: dict) -> int:
-        value = to_int(cfg.get("dynamicInitialRows", 30), 30)
+        value = to_int(cfg.get("dynamicInitialRows", 15), 15)
         if value in DYNAMIC_INITIAL_ROW_OPTIONS:
             return value
-        return 30
+        return 15
 
     def get_dynamic_row_step(self, cfg: dict) -> int:
         value = to_int(cfg.get("dynamicRowStep", 30), 30)

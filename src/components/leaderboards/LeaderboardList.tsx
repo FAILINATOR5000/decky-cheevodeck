@@ -64,7 +64,7 @@ export function LeaderboardList(props: {
     });
     const coldIconIdsRef = useRef(new Set<string>());
     const dynamicLeaderboardLoading = props.dynamicLeaderboardLoading ?? true;
-    const dynamicInitialRows = Math.max(1, props.dynamicInitialRows ?? 30);
+    const dynamicInitialRows = Math.max(1, props.dynamicInitialRows ?? 15);
     const dynamicRowStep = Math.max(1, props.dynamicRowStep ?? 30);
     const dynamicPrefetchDistance = Math.max(1, props.dynamicPrefetchDistance ?? 12);
     const dynamicSentinelRootMargin = Math.max(0, props.dynamicSentinelRootMargin ?? 600);
