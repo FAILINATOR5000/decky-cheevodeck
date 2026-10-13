@@ -572,6 +572,7 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
                                         <FocusableItem
                                             outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
                                             focusKey={IMPORT_AGAIN_FOCUS_KEY}
+                                            focusFallback={[IMPORT_FOCUS_KEY]}
                                             onClick={chooseAnotherFolder}
                                             bottomSeparator="none"
                                         >
