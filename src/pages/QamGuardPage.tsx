@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, type RefObject } from "react";
 import { Focusable, PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
 import { BackButton } from "../components/ui/BackButton";
@@ -75,14 +75,31 @@ function QamGuardView(props: QamGuardPageProps) {
     const { state, actions } = props;
     const { language } = state;
     const [tab, setTab] = useState<QamGuardTab>(openTab);
-    usePageLanding({ view: "qamGuard", tabPath: [tab] });
     const log = useStormbreakerLogController({ isActive: state.view === "qamGuard" });
     const { totals, entries, standingDown, loaded } = log.state;
+    const openCardRef = useRef<((key: string) => void) | null>(null);
 
     function changeTab(next: QamGuardTab) {
         openTab = next;
         setTab(next);
     }
+
+    usePageLanding({
+        view: "qamGuard",
+        tabPath: [tab],
+        restoreTabPath: ([next]) => {
+            const wanted = TABS.find((entry) => entry.value === next);
+            if (!wanted || wanted.value === tab) {
+                return false;
+            }
+            changeTab(wanted.value);
+            return true;
+        },
+        defaultKey: "qamGuard:back",
+        ready: tab === "status" || loaded,
+        holds: (key) => entries.some((incident) => `qamGuard:card:${incident.id}` === key),
+        open: (key) => openCardRef.current?.(key)
+    });
 
     const disabled = state.loading || state.saving;
     const buttonOuterStyle = regularButtonSpacingStyle(state.buttonSpacing);
@@ -198,6 +215,7 @@ function QamGuardView(props: QamGuardPageProps) {
                         state={state}
                         entries={entries}
                         loaded={loaded}
+                        openCardRef={openCardRef}
                     />
                 )}
             </Focusable>
@@ -209,6 +227,7 @@ function IncidentLog(props: {
     state: QamGuardPageState;
     entries: FreezeIncident[];
     loaded: boolean;
+    openCardRef: RefObject<((key: string) => void) | null>;
 }) {
     const { state, entries } = props;
     const { language } = state;
@@ -226,6 +245,7 @@ function IncidentLog(props: {
         resetKey: "qamGuard:log",
         debugLabel: "qamguard:incidents"
     });
+    props.openCardRef.current = cardWindow.openAt;
     const itemFocusRef = useRef(cardWindow.onItemFocus);
     itemFocusRef.current = cardWindow.onItemFocus;
     const onCardFocus = useCallback((index: number) => itemFocusRef.current(index), []);

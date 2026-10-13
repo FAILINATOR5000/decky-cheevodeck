@@ -17,6 +17,8 @@ export type IncidentCardProps = {
     onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
+const CARD_FALLBACK = ["qamGuard:tab:logs"];
+
 const CONTROLLER_LINES: Record<string, string> = {
     deck: "Button combo held on the Steam Deck",
     controller: "Button combo held on a Steam Controller",
@@ -107,6 +109,7 @@ export const IncidentCard = React.memo(function IncidentCard(props: IncidentCard
     return (
         <FocusableItem
             focusKey={`qamGuard:card:${incident.id}`}
+            focusFallback={CARD_FALLBACK}
             onFocus={handleFocus}
             onGamepadFocus={handleFocus}
             onGamepadDirection={props.onGamepadDirection}
