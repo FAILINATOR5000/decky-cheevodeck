@@ -91,14 +91,13 @@ export type MemoryShareModalProps = {
     thumbDataUri: string | null;
     mouseKeyboardMode: boolean;
     range?: ShareRange;
-    onHandOff?: () => void;
     close: () => void;
 };
 
 type Probe = { username: string; consoleName: string; originalUpTo: number };
 
 export function MemoryShareModal(props: MemoryShareModalProps) {
-    const { memory, gameId, language, thumbDataUri, mouseKeyboardMode, onHandOff, close } = props;
+    const { memory, gameId, language, thumbDataUri, mouseKeyboardMode, close } = props;
     const video = memory.video && (memory.video.clipId || memory.video.path) ? memory.video : null;
     const clipStart = video ? video.startMs / 1000 : 0;
     const clipEnd = video ? clipStart + video.durationMs / 1000 : 0;
@@ -483,7 +482,6 @@ export function MemoryShareModal(props: MemoryShareModalProps) {
                 return;
             }
             const filePath = result.path;
-            onHandOff?.();
             startDiscordShare(language, {
                 filePath,
                 title: sharePostTitle(memory.gameTitle, probe.consoleName),

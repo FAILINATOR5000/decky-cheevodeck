@@ -240,7 +240,6 @@ import {
     putCommentsSnapshot,
     setCommentsSnapshotUser
 } from "../utils/commentsSnapshot";
-import { takeMemoriesFocusReturn } from "../utils/memoriesFocusReturn";
 import { armOptionsLanding, takeOptionsFocusReturn } from "../utils/optionsFocusReturn";
 import { useMemoriesController } from "../hooks/useMemoriesController";
 import { useMemoriesVideoController } from "../hooks/useMemoriesVideoController";
@@ -2390,16 +2389,6 @@ function AchievementsRoot() {
         language
     });
 
-    const [memoriesFocusReturn] = useState(takeMemoriesFocusReturn);
-
-    const memoriesRestoreArmedRef = useRef(memoriesFocusReturn !== null);
-    const memoriesWasOpenRef = useRef(false);
-    if (memoriesWasOpenRef.current && view !== "memories") {
-        memoriesRestoreArmedRef.current = false;
-    }
-    memoriesWasOpenRef.current = view === "memories";
-    const memoriesRestorePending = memoriesRestoreArmedRef.current;
-
     const [optionsFocusReturn] = useState(takeOptionsFocusReturn);
 
     const optionsRestoreArmedRef = useRef(optionsFocusReturn !== null);
@@ -2412,7 +2401,6 @@ function AchievementsRoot() {
 
     function dropRestoresArmedForOtherViews(bootView: ViewKey) {
         const latches = [
-            { armed: memoriesRestoreArmedRef, view: "memories" },
             { armed: optionsRestoreArmedRef, view: "options" }
         ];
         for (const latch of latches) {
@@ -5011,14 +4999,8 @@ function AchievementsRoot() {
                                         mouseKeyboardMode,
                                         showIcons,
                                         showRetroPoints,
-                                        panelOverlayVisible,
                                         autoCapture: memoriesAutoCapture,
                                         activeUlid,
-                                        restoreMemoryId: memoriesFocusReturn?.memoryId ?? null,
-                                        restoreFocusKey: memoriesFocusReturn?.focusKey ?? null,
-                                        restoreGameId: memoriesFocusReturn?.gameId ?? null,
-                                        restoreUlid: memoriesFocusReturn?.ulid ?? null,
-                                        restorePending: memoriesRestorePending,
                                         memories: memoriesState
                                     }}
                                     actions={{

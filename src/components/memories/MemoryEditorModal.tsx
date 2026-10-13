@@ -1,7 +1,6 @@
 import { DialogButton, Focusable, ModalRoot, TextField } from "@decky/ui";
 import { useState } from "react";
 import { updateMemory } from "../../api";
-import { armMemoriesFocusKey, armMemoriesFocusReturn } from "../../utils/memoriesFocusReturn";
 import { ErrorText } from "../ui/ErrorText";
 import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
@@ -31,15 +30,12 @@ export type MemoryEditorModalProps = {
     gameId: number;
     language: LanguageCode;
     allTags: string[];
-    activeUlid: string;
-    tagFilter: string;
-    removalLandingId: string | null;
     onSaved?: (next: MemoryEditorSaved) => void;
     close: () => void;
 };
 
 export function MemoryEditorModal(props: MemoryEditorModalProps) {
-    const { memory, gameId, language, allTags, activeUlid, tagFilter, removalLandingId, onSaved, close } = props;
+    const { memory, gameId, language, allTags, onSaved, close } = props;
 
     const [caption, setCaption] = useState(memory.caption);
     const [tag, setTag] = useState(memory.tag ?? "");
@@ -105,7 +101,6 @@ export function MemoryEditorModal(props: MemoryEditorModalProps) {
                 setError(t(language, "Couldn't save this memory."));
                 return;
             }
-            reaimFocusReturn(tag.trim());
             onSaved?.({
                 caption,
                 tag: tag.trim() || null,
@@ -117,17 +112,6 @@ export function MemoryEditorModal(props: MemoryEditorModalProps) {
             setSaving(false);
             setError(t(language, "Couldn't save this memory."));
         }
-    }
-
-    function reaimFocusReturn(nextTag: string) {
-        if (!tagFilter || nextTag === tagFilter) {
-            return;
-        }
-        if (removalLandingId === null) {
-            armMemoriesFocusKey("memories:filter");
-            return;
-        }
-        armMemoriesFocusReturn(gameId, removalLandingId, activeUlid);
     }
 
     return (

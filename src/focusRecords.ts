@@ -81,7 +81,8 @@ const LANDING_VIEWS: ReadonlySet<ViewKey> = new Set<ViewKey>([
     "cheevoCheck",
     "smbShares",
     "fileWatcher",
-    "memoriesTransfer"
+    "memoriesTransfer",
+    "memories"
 ]);
 const RECOVERY_OWNER = -1;
 const CLAIM_SETTLE_MS = 250;
@@ -554,7 +555,7 @@ export function landOnTop(view: ViewKey, focusKey: string) {
     startLanding(top, "forward", { accountUlid, subject: null, tabPath: [], focusKey, fallbacks: [] }, recentPress());
 }
 
-export function overrideRecord(entryId: number | null, target: { focusKey: string; fallbacks?: string[] }) {
+export function overrideRecord(entryId: number | null, target: { focusKey: string; fallbacks?: string[]; subject?: string }) {
     const entry = [...entries.values()].find((candidate) => candidate.id === entryId);
     if (!entry) {
         logFocusDebug("record", "override-gone", `${entryId} ${target.focusKey}`);
@@ -565,7 +566,12 @@ export function overrideRecord(entryId: number | null, target: { focusKey: strin
             logFocusDebug("record", "override-late", `${nameEntry(entry)} ${target.focusKey}`);
             return;
         }
-        const record = { ...pending.record, focusKey: target.focusKey, fallbacks: target.fallbacks ?? pending.record.fallbacks };
+        const record = {
+            ...pending.record,
+            focusKey: target.focusKey,
+            fallbacks: target.fallbacks ?? pending.record.fallbacks,
+            subject: target.subject ?? pending.record.subject
+        };
         pending.record = record;
         store(entry, record);
         logFocusDebug("record", "override-pending", `${nameEntry(entry)} ${describeRecord(record)}`);
@@ -573,7 +579,12 @@ export function overrideRecord(entryId: number | null, target: { focusKey: strin
         return;
     }
     const record = topRecord(entry) ?? recordFor(entry.view, { focusKey: null, fallbacks: [] });
-    store(entry, { ...record, focusKey: target.focusKey, fallbacks: target.fallbacks ?? record.fallbacks });
+    store(entry, {
+        ...record,
+        focusKey: target.focusKey,
+        fallbacks: target.fallbacks ?? record.fallbacks,
+        subject: target.subject ?? record.subject
+    });
     logFocusDebug("record", "override", `${nameEntry(entry)} ${describeRecord(topRecord(entry))}`);
 }
 

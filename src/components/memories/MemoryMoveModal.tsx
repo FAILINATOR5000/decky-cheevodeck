@@ -9,7 +9,6 @@ import { useSlidingWindow } from "../../hooks/useSlidingWindow";
 import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { moveMemory, prefetchGameIcons } from "../../api";
 import { showManagedModal } from "../../utils/modalRegistry";
-import { armMemoriesFocusKey, armMemoriesFocusReturn } from "../../utils/memoriesFocusReturn";
 import { logError } from "../../utils/errors";
 import { t, type LanguageCode } from "../../locales";
 import { getCurrentModalScale, modalSize } from "../../utils/scale";
@@ -32,8 +31,6 @@ export type MemoryMoveModalProps = {
     loadedGameId: number | null;
     language: LanguageCode;
     showIcons: boolean;
-    activeUlid: string;
-    removalLandingId: string | null;
     close: () => void;
 };
 
@@ -129,8 +126,6 @@ export function MemoryMoveModal(props: MemoryMoveModalProps) {
         loadedGameId,
         language,
         showIcons,
-        activeUlid,
-        removalLandingId,
         close
     } = props;
 
@@ -211,11 +206,6 @@ export function MemoryMoveModal(props: MemoryMoveModalProps) {
         }
         catch (e) {
             logError("memories: couldn't move a memory", e);
-        }
-        if (removalLandingId === null) {
-            armMemoriesFocusKey("memories:back");
-        } else {
-            armMemoriesFocusReturn(gameId, removalLandingId, activeUlid);
         }
     }
 

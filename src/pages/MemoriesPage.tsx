@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 // Font Awesome Free icon, CC BY 4.0. See ATTRIBUTIONS.md.
 import { PanelSection } from "../components/ui/PanelSection";
@@ -10,10 +10,9 @@ import { FadeImage } from "../components/ui/FadeImage";
 import { useResilientGameIcon } from "../hooks/useResilientGameIcon";
 import { ButtonHints } from "../components/ui/ButtonHints";
 import { ToggleRow } from "../components/ui/ToggleRow";
-import { RestoreCurtain } from "../components/ui/RestoreCurtain";
 import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
 import { FocusClaim } from "../components/ui/FocusClaim";
-import type { FocusClaimController } from "../hooks/useFocusClaim";
+import { FocusTarget } from "../components/ui/FocusTarget";
 import { GridIcon } from "../components/ui/GridIcon";
 import { UsersIcon } from "../components/ui/UsersIcon";
 import { openSharedMemories } from "../components/browser/discordShare";
@@ -27,13 +26,11 @@ import { MemoryMoveModal } from "../components/memories/MemoryMoveModal";
 import { MemoryShareModal } from "../components/memories/MemoryShareModal";
 import { useFocusClaim } from "../hooks/useFocusClaim";
 import { showManagedModal } from "../utils/modalRegistry";
-import { armMemoriesFocusKey, armMemoriesFocusReturn } from "../utils/memoriesFocusReturn";
 import { requestJumpToTop } from "../utils/jumpToTop";
 import { saveMemoryToFolder } from "../utils/saveMemoryMedia";
 import { forgetNavAxisMemory, type NavAxisRef } from "../utils/navAxisMemory";
 import { playOkSound } from "../utils/navSound";
 import { openExternalUrl } from "../utils/navigation";
-import { logFocusDebug } from "../api";
 import { ALL_GAMES_ID, MISC_GAME_ID, mediaFilterKey, memoryRemovalLanding } from "../utils/memories";
 import { noteBodyColor } from "../utils/achievements";
 import { bodyTextStyle, regularButtonSpacingStyle, smallTextStyle } from "../utils/style";
@@ -42,7 +39,7 @@ import { BUTTON_SECONDARY, BUTTON_OPTIONS, BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIG
 import { t, type LanguageCode } from "../locales";
 import type { MemoriesControllerActions, MemoriesControllerState } from "../hooks/useMemoriesController";
 import type { ButtonSpacing, ControllerGlyphStyle, NoteColor, ViewKey } from "../types";
-import { usePageLanding } from "../focusRecords";
+import { overrideRecord, topEntryId, usePageLanding } from "../focusRecords";
 
 function MemoryGameValue(props: { gameId: number | null; label: string; imageIcon: string; showIcons: boolean }) {
     const { gameId, label, imageIcon, showIcons } = props;
@@ -91,27 +88,6 @@ function MemoryGameValue(props: { gameId: number | null; label: string; imageIco
     );
 }
 
-function ClaimedRow(props: {
-    claim: FocusClaimController;
-    slotIndex: number;
-    style?: CSSProperties;
-    children: ReactNode;
-}) {
-    const { claim, spend } = props.claim;
-    const mine = claim && claim.slotIndex === props.slotIndex ? claim : null;
-
-    return (
-        <FocusClaim
-            token={mine ? mine.token : 0}
-            armed={mine !== null && mine.armed}
-            onSpent={spend}
-            style={props.style}
-        >
-            {props.children}
-        </FocusClaim>
-    );
-}
-
 function PageArrowIcon(props: { size: number; back: boolean }) {
     return (
         <svg
@@ -149,18 +125,6 @@ let lastGameRow: { ulid: string; gameId: number | null; label: string; imageIcon
 
 let lastList: { ulid: string; gameId: number | null; pageIndex: number; totalPages: number; empty: boolean } | null = null;
 
-const GAME_CLAIM_SLOT = -2;
-const FILTER_CLAIM_SLOT = -3;
-const GUIDE_CLAIM_SLOT = -4;
-const SHARED_CLAIM_SLOT = -5;
-
-const CONTROL_CLAIM_SLOTS: Record<string, number> = {
-    "memories:game": GAME_CLAIM_SLOT,
-    "memories:filter": FILTER_CLAIM_SLOT,
-    "memories:guide": GUIDE_CLAIM_SLOT,
-    "memories:shared": SHARED_CLAIM_SLOT
-};
-
 type MemoriesPageState = {
     view: ViewKey;
     language: LanguageCode;
@@ -169,14 +133,8 @@ type MemoriesPageState = {
     mouseKeyboardMode: boolean;
     showIcons: boolean;
     showRetroPoints: boolean;
-    panelOverlayVisible: boolean;
     autoCapture: boolean;
     activeUlid: string;
-    restoreMemoryId: string | null;
-    restoreFocusKey: string | null;
-    restoreGameId: number | null;
-    restoreUlid: string | null;
-    restorePending: boolean;
     memories: MemoriesControllerState;
 };
 
@@ -203,21 +161,20 @@ function MemoriesPage(props: MemoriesPageProps) {
         mouseKeyboardMode,
         showIcons,
         showRetroPoints,
-        panelOverlayVisible,
         autoCapture,
         activeUlid,
-        restoreMemoryId,
-        restoreFocusKey,
-        restoreGameId,
-        restoreUlid,
-        restorePending,
         memories
     } = state;
-    usePageLanding({ view: "memories", subject: memories.gameId });
+    const gameKnown = memories.ready && memories.indexLoaded;
+    usePageLanding({
+        view: "memories",
+        subject: memories.gameId,
+        subjectSettled: gameKnown,
+        defaultKey: "memories:back",
+        ready: gameKnown && memories.loadedForGameId === memories.gameId && !memories.loading
+    });
 
-    const restoreClaim = useFocusClaim();
-    const restoreFiredRef = useRef(false);
-    const [restoreAbandoned, setRestoreAbandoned] = useState(false);
+    const rowClaim = useFocusClaim();
     const [backClaimToken, setBackClaimToken] = useState(0);
     const [focusedToggleKey, setFocusedToggleKey] = useState<string | null>(null);
 
@@ -252,68 +209,6 @@ function MemoriesPage(props: MemoriesPageProps) {
         actions.memories.blurMemory
     ]);
 
-    const restoreIndex = useMemo(() => {
-        if (!restoreMemoryId) {
-            return -1;
-        }
-        return memories.pageMemories.findIndex((memory) => memory.id === restoreMemoryId);
-    }, [restoreMemoryId, memories.pageMemories]);
-
-    useEffect(function landRestoredCursor() {
-        if (!active || !restorePending || restoreFiredRef.current) {
-            return;
-        }
-        if (restoreFocusKey === "memories:back") {
-            restoreFiredRef.current = true;
-            setBackClaimToken((current) => current + 1);
-            actions.onRequestFocus(restoreFocusKey);
-            return;
-        }
-        if (restoreFocusKey) {
-            restoreFiredRef.current = true;
-            const slot = CONTROL_CLAIM_SLOTS[restoreFocusKey];
-            if (slot === undefined) {
-                setRestoreAbandoned(true);
-            } else {
-                restoreClaim.claimSlot(slot);
-            }
-            actions.onRequestFocus(restoreFocusKey);
-            return;
-        }
-        if (!memories.ready || memories.loading || memories.loadedForGameId === null) {
-            return;
-        }
-        const mismatched = restoreUlid !== activeUlid
-            || (restoreGameId !== null
-                && memories.gameId !== ALL_GAMES_ID
-                && restoreGameId !== memories.gameId);
-        if (mismatched || restoreIndex < 0) {
-            restoreFiredRef.current = true;
-            setRestoreAbandoned(true);
-            logFocusDebug("memory-restore", restoreMemoryId ?? "(none)", "no match on the far side");
-            actions.onRequestFocus("memories:back");
-            return;
-        }
-        restoreFiredRef.current = true;
-        restoreClaim.claimSlot(restoreIndex);
-        actions.onRequestFocus(`memories:tile:${restoreMemoryId}`);
-    }, [
-        active,
-        restorePending,
-        restoreIndex,
-        restoreMemoryId,
-        restoreFocusKey,
-        restoreGameId,
-        restoreUlid,
-        activeUlid,
-        memories.ready,
-        memories.loading,
-        memories.loadedForGameId,
-        memories.gameId,
-        restoreClaim.claimSlot,
-        actions.onRequestFocus
-    ]);
-
     const firstRun = memories.ready
         && memories.indexLoaded
         && !autoCapture
@@ -336,8 +231,6 @@ function MemoriesPage(props: MemoriesPageProps) {
         requestJumpToTop();
         actions.onRequestFocus("memories:back");
     }, [active, firstRun, actions.onRequestFocus]);
-
-    const restoreSettledRef = useRef(false);
 
     if (!active) {
         return null;
@@ -393,7 +286,7 @@ function MemoriesPage(props: MemoriesPageProps) {
     }
 
     function openGamePicker() {
-        armFocusKey("memories:game");
+        const entryId = topEntryId();
         showManagedModal((close) => (
             <MemoryGamePickerModal
                 games={memories.games}
@@ -403,6 +296,7 @@ function MemoriesPage(props: MemoriesPageProps) {
                 onSelect={(gameId) => {
                     lastGameRow = gameRowFor(gameId);
                     actions.memories.selectGame(gameId);
+                    overrideRecord(entryId, { focusKey: "memories:game", subject: String(gameId) });
                 }}
                 close={close}
             />
@@ -410,7 +304,6 @@ function MemoriesPage(props: MemoriesPageProps) {
     }
 
     function openTagFilter() {
-        armFocusKey("memories:filter");
         showManagedModal((close) => (
             <MemoryTagFilterModal
                 tags={memories.tags}
@@ -428,10 +321,6 @@ function MemoriesPage(props: MemoriesPageProps) {
         ));
     }
 
-    function armFocusKey(focusKey: string) {
-        armMemoriesFocusKey(focusKey);
-    }
-
     openViewerRef.current = openViewer;
 
     function openViewer(memoryId: string) {
@@ -439,7 +328,6 @@ function MemoriesPage(props: MemoriesPageProps) {
         if (!memory) {
             return;
         }
-        armMemoriesFocusReturn(memory.gameId, memoryId, activeUlid);
         showManagedModal((close) => (
             <MemoryViewerModal
                 memory={memory}
@@ -449,9 +337,6 @@ function MemoriesPage(props: MemoriesPageProps) {
                 mouseKeyboardMode={mouseKeyboardMode}
                 showRetroPoints={showRetroPoints}
                 allTags={memories.allTags}
-                activeUlid={activeUlid}
-                tagFilter={memories.tagFilter}
-                removalLandingId={memoryRemovalLanding(memories.pageMemories, memoryId)}
                 close={close}
             />
         ));
@@ -462,16 +347,12 @@ function MemoriesPage(props: MemoriesPageProps) {
         if (!memory) {
             return;
         }
-        armMemoriesFocusReturn(memory.gameId, memoryId, activeUlid);
         showManagedModal((close) => (
             <MemoryEditorModal
                 memory={memory}
                 gameId={memory.gameId}
                 language={language}
                 allTags={memories.allTags}
-                activeUlid={activeUlid}
-                tagFilter={memories.tagFilter}
-                removalLandingId={memoryRemovalLanding(memories.pageMemories, memoryId)}
                 close={close}
             />
         ));
@@ -517,7 +398,6 @@ function MemoriesPage(props: MemoriesPageProps) {
         if (!memory) {
             return;
         }
-        armMemoriesFocusReturn(memory.gameId, memoryId, activeUlid);
         showManagedModal((close) => (
             <MemoryShareModal
                 memory={memory}
@@ -525,7 +405,6 @@ function MemoriesPage(props: MemoriesPageProps) {
                 language={language}
                 thumbDataUri={memories.thumbs[memory.path] ?? null}
                 mouseKeyboardMode={mouseKeyboardMode}
-                onHandOff={() => armMemoriesFocusReturn(memory.gameId, memoryId, activeUlid)}
                 close={close}
             />
         ));
@@ -536,7 +415,6 @@ function MemoriesPage(props: MemoriesPageProps) {
         if (!memory) {
             return;
         }
-        armMemoriesFocusReturn(memory.gameId, memoryId, activeUlid);
         showManagedModal((close) => (
             <MemoryMoveModal
                 memory={memory}
@@ -545,8 +423,6 @@ function MemoriesPage(props: MemoriesPageProps) {
                 loadedGameId={memories.loadedGameId}
                 language={language}
                 showIcons={showIcons}
-                activeUlid={activeUlid}
-                removalLandingId={memoryRemovalLanding(memories.pageMemories, memoryId)}
                 close={close}
             />
         ));
@@ -557,7 +433,6 @@ function MemoriesPage(props: MemoriesPageProps) {
         if (!memory) {
             return;
         }
-        armMemoriesFocusReturn(memory.gameId, memoryId, activeUlid);
         void saveMemoryToFolder(memory.gameId, memoryId, language);
     }
 
@@ -578,14 +453,14 @@ function MemoriesPage(props: MemoriesPageProps) {
         void actions.memories.removeMemory(memoryId);
         if (!wasLastOnPage || !wasLastPage) {
             if (landingId !== null && landingSlot >= 0) {
-                restoreClaim.claimSlot(landingSlot);
+                rowClaim.claimSlot(landingSlot);
                 actions.onRequestFocus(`memories:tile:${landingId}`);
             }
             return;
         }
         if (fallbackId) {
             actions.memories.turnPage(-1);
-            restoreClaim.claimSlot(memories.perPage - 1);
+            rowClaim.claimSlot(memories.perPage - 1);
             actions.onRequestFocus(`memories:tile:${fallbackId}`);
             return;
         }
@@ -606,11 +481,6 @@ function MemoriesPage(props: MemoriesPageProps) {
     }
 
 
-    if (restoreAbandoned || ((restoreClaim.claim?.token ?? 0) > 0 && !restoreClaim.claim?.armed)) {
-        restoreSettledRef.current = true;
-    }
-    const restoreSettled = restoreSettledRef.current;
-
     function headerCaption(): string {
         switch (focusedToggleKey) {
             case "memories:order":
@@ -627,7 +497,7 @@ function MemoriesPage(props: MemoriesPageProps) {
 
     function renderToggleButton(focusKey: string, icon: ReactNode, onClick: () => void) {
         return (
-            <div data-focus-key={focusKey} style={{ display: "flex" }}>
+            <FocusTarget focusKey={focusKey} style={{ display: "flex" }}>
                 <DialogButton
                     onClick={onClick}
                     onGamepadFocus={() => setFocusedToggleKey(focusKey)}
@@ -650,7 +520,7 @@ function MemoriesPage(props: MemoriesPageProps) {
                 >
                     {icon}
                 </DialogButton>
-            </div>
+            </FocusTarget>
         );
     }
 
@@ -658,8 +528,11 @@ function MemoriesPage(props: MemoriesPageProps) {
         const focusKey = place === "top"
             ? `memories:page:${key}`
             : `memories:page:bottom:${key}`;
+        const fallback = place === "top"
+            ? ["memories:filter"]
+            : [`memories:page:${key}`, "memories:filter"];
         return (
-            <div data-focus-key={focusKey} style={{ display: "flex" }}>
+            <FocusTarget focusKey={focusKey} focusFallback={fallback} style={{ display: "flex" }}>
                 <DialogButton
                     onClick={() => turnPage(delta, place)}
                     onGamepadFocus={() => {
@@ -687,7 +560,7 @@ function MemoriesPage(props: MemoriesPageProps) {
                 >
                     <PageArrowIcon size={12} back={delta < 0} />
                 </DialogButton>
-            </div>
+            </FocusTarget>
         );
     }
 
@@ -768,10 +641,12 @@ function MemoriesPage(props: MemoriesPageProps) {
                                 cold={memories.coldPaths.has(memory.path)}
                                 armed={memories.armedDeleteId === memory.id}
                                 focused={memories.focusedMemoryId === memory.id}
+                                nextId={memories.pageMemories[index + 1]?.id ?? null}
+                                prevId={memories.pageMemories[index - 1]?.id ?? null}
                                 list={cardList}
                             />
                         );
-                        const claim = restoreClaim.claim;
+                        const claim = rowClaim.claim;
                         if (!claim || claim.slotIndex !== index) {
                             return <div key={index}>{card}</div>;
                         }
@@ -780,7 +655,7 @@ function MemoriesPage(props: MemoriesPageProps) {
                                 key={index}
                                 token={claim.token}
                                 armed={claim.armed}
-                                onSpent={restoreClaim.spend}
+                                onSpent={rowClaim.spend}
                             >
                                 {card}
                             </FocusClaim>
@@ -805,7 +680,7 @@ function MemoriesPage(props: MemoriesPageProps) {
         );
     }
 
-    const page = (
+    return (
         <Focusable onButtonDown={handlePageButtonDown}>
             <PanelSection key="memories:view">
                 <PageNavStrip
@@ -813,25 +688,17 @@ function MemoriesPage(props: MemoriesPageProps) {
                     buttonSpacing={buttonSpacing}
                     onHome={actions.onHome}
                     help={(
-                        <ClaimedRow
-                            claim={restoreClaim}
-                            slotIndex={GUIDE_CLAIM_SLOT}
-                            style={{ display: "flex" }}
-                        >
-                            <PageHelpButton
-                                focusKey="memories:guide"
-                                onClick={() => {
-                                    armFocusKey("memories:guide");
-                                    void openExternalUrl(MEMORIES_GUIDE_URL);
-                                }}
-                            />
-                        </ClaimedRow>
+                        <PageHelpButton
+                            focusKey="memories:guide"
+                            onClick={() => void openExternalUrl(MEMORIES_GUIDE_URL)}
+                        />
                     )}
                 />
                 <BackButton
                     label={t(language, "Back")}
                     focusKey="memories:back"
-                    navAutoFocus={!restorePending || backClaimToken > 0}
+                    navAutoFocus
+                    reclaim={backClaimToken > 0}
                     buttonSpacing={buttonSpacing}
                     onClick={actions.onBack}
                     scrollMarginTop={BACK_BUTTON_SCROLL_MARGIN_PX}
@@ -850,7 +717,6 @@ function MemoriesPage(props: MemoriesPageProps) {
                     </PanelSectionRow>
                 ) : (
                     <>
-                        <ClaimedRow claim={restoreClaim} slotIndex={GAME_CLAIM_SLOT}>
                         <LabeledRow
                             outerStyle={regularButtonSpacingStyle(buttonSpacing)}
                             focusKey="memories:game"
@@ -867,8 +733,6 @@ function MemoriesPage(props: MemoriesPageProps) {
                             onClick={openGamePicker}
                             bottomSeparator="none"
                         />
-                        </ClaimedRow>
-                        <ClaimedRow claim={restoreClaim} slotIndex={FILTER_CLAIM_SLOT}>
                         <LabeledRow
                             outerStyle={regularButtonSpacingStyle(buttonSpacing)}
                             focusKey="memories:filter"
@@ -878,7 +742,6 @@ function MemoriesPage(props: MemoriesPageProps) {
                             onClick={openTagFilter}
                             bottomSeparator="none"
                         />
-                        </ClaimedRow>
 
                         {!list.empty && (
                             <div style={{ visibility: memories.pageMemories.length > 0 ? "visible" : "hidden" }}>
@@ -907,20 +770,13 @@ function MemoriesPage(props: MemoriesPageProps) {
                                     flow-children="row"
                                     style={{ display: "flex", gap: "6px", flexShrink: 0 }}
                                 >
-                                    <ClaimedRow
-                                        claim={restoreClaim}
-                                        slotIndex={SHARED_CLAIM_SLOT}
-                                        style={{ display: "flex" }}
-                                    >
                                     {renderToggleButton(
                                         "memories:shared",
                                         <UsersIcon size={16} />,
                                         () => {
-                                            armFocusKey("memories:shared");
                                             openSharedMemories(language);
                                         }
                                     )}
-                                    </ClaimedRow>
                                     {renderToggleButton(
                                         "memories:order",
                                         memories.dateOrder === "desc"
@@ -982,16 +838,6 @@ function MemoriesPage(props: MemoriesPageProps) {
                 )}
             </PanelSection>
         </Focusable>
-    );
-
-    return (
-        <RestoreCurtain
-            armed={restorePending}
-            settled={restoreSettled}
-            covered={panelOverlayVisible}
-        >
-            {page}
-        </RestoreCurtain>
     );
 }
 

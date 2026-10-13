@@ -32,10 +32,6 @@ export async function openLastMemory(language: LanguageCode, stillAllowed?: () =
                 mouseKeyboardMode={settings?.mouseKeyboardMode ?? false}
                 showRetroPoints={settings?.showRetroPoints ?? true}
                 allTags={allTags}
-                activeUlid={settings?.activeUlid ?? ""}
-                tagFilter=""
-                removalLandingId={null}
-                standalone
                 close={close}
             />
         ));

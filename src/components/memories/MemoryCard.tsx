@@ -1,6 +1,7 @@
 import React from "react";
 import { Focusable } from "@decky/ui";
 import { FadeImage } from "../ui/FadeImage";
+import { FocusTarget } from "../ui/FocusTarget";
 import { noteBodyColor } from "../../utils/achievements";
 import { formatClipLength } from "../../utils/memories";
 import { textSize } from "../../utils/scale";
@@ -33,11 +34,13 @@ type MemoryCardProps = {
     cold: boolean;
     armed: boolean;
     focused: boolean;
+    nextId: string | null;
+    prevId: string | null;
     list: MemoryCardListProps;
 };
 
 export const MemoryCard = React.memo(function MemoryCard(props: MemoryCardProps) {
-    const { memory, thumbDataUri, cold, armed, focused, list } = props;
+    const { memory, thumbDataUri, cold, armed, focused, nextId, prevId, list } = props;
     const dense = list.columns >= DENSE_COLUMN_THRESHOLD;
     const rule = noteBodyColor(memory.color);
 
@@ -52,8 +55,9 @@ export const MemoryCard = React.memo(function MemoryCard(props: MemoryCardProps)
     const dateLabel = list.dateFormatter.format(new Date(memory.capturedAt * 1000));
 
     return (
-        <div
-            data-focus-key={`memories:tile:${memory.id}`}
+        <FocusTarget
+            focusKey={`memories:tile:${memory.id}`}
+            focusFallback={[nextId, prevId].filter((id): id is string => id !== null).map((id) => `memories:tile:${id}`)}
             onFocusCapture={reportFocus}
             onBlurCapture={reportBlur}
             style={{ minWidth: 0 }}
@@ -136,6 +140,6 @@ export const MemoryCard = React.memo(function MemoryCard(props: MemoryCardProps)
                     </div>
                 ) : null}
             </Focusable>
-        </div>
+        </FocusTarget>
     );
 });

@@ -15,7 +15,6 @@ import {
     renameMemoryBookmark,
     saveMemoriesMuted
 } from "../../api";
-import { armMemoriesFocusKey, armMemoriesFocusReturn } from "../../utils/memoriesFocusReturn";
 import { ActionLink } from "../ui/ActionLink";
 import { BookmarkNameModal } from "../ui/BookmarkNameModal";
 import { ColumnsIcon } from "../ui/ColumnsIcon";
@@ -175,15 +174,11 @@ export type MemoryViewerModalProps = {
     showRetroPoints: boolean;
     mouseKeyboardMode: boolean;
     allTags: string[];
-    activeUlid: string;
-    tagFilter: string;
-    removalLandingId: string | null;
-    standalone?: boolean;
     close: () => void;
 };
 
 export function MemoryViewerModal(props: MemoryViewerModalProps) {
-    const { memory, gameId, thumbDataUri, language, showRetroPoints, mouseKeyboardMode, allTags, activeUlid, tagFilter, removalLandingId, standalone, close } = props;
+    const { memory, gameId, thumbDataUri, language, showRetroPoints, mouseKeyboardMode, allTags, close } = props;
 
     const [caption, setCaption] = useState(memory.caption);
     const [tag, setTag] = useState(memory.tag);
@@ -673,21 +668,16 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
         void saveBookmarkSnippetToFolder(gameId, memory.id, bookmark.id, language);
     }
 
-    function pressDelete() {
+    async function pressDelete() {
         if (!armedDelete) {
             setTimeline(false);
             setArmedDelete(true);
             return;
         }
-        void deleteMemory(gameId, memory.id).catch((e) => {
+        try {
+            await deleteMemory(gameId, memory.id);
+        } catch (e) {
             logError("memories: couldn't delete a memory", e);
-        });
-        if (!standalone) {
-            if (removalLandingId === null) {
-                armMemoriesFocusKey("memories:back");
-            } else {
-                armMemoriesFocusReturn(gameId, removalLandingId, activeUlid);
-            }
         }
         close();
     }
@@ -701,9 +691,6 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
                 gameId={gameId}
                 language={language}
                 allTags={knownTags}
-                activeUlid={activeUlid}
-                tagFilter={tagFilter}
-                removalLandingId={removalLandingId}
                 onSaved={(next) => {
                     setCaption(next.caption);
                     setTag(next.tag);
