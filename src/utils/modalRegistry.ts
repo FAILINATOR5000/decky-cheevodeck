@@ -38,7 +38,7 @@ export function cancelQuickAccessReturn(): void {
     qamReopenOwed = false;
 }
 
-function takeOverQuickAccessReopen(skipReturn: boolean): boolean {
+function takeOverQuickAccessReopen(): boolean {
     if (mountedModals + pendingModals > 1) {
         return false;
     }
@@ -53,12 +53,7 @@ function takeOverQuickAccessReopen(skipReturn: boolean): boolean {
             traceModalClose(0);
             return false;
         }
-        traceModalClose(skipReturn ? null : qamReopenDelayMs);
-        if (skipReturn) {
-            menus.ClearLastRequestedSideMenu();
-            logFocusDebug("modal-close", "QAM return skipped", "browser");
-            return false;
-        }
+        traceModalClose(qamReopenDelayMs);
         menus.ClearLastRequestedSideMenu();
         logFocusDebug("modal-close", "QAM held back", `reopen in ${qamReopenDelayMs}ms`);
         return true;
@@ -178,7 +173,7 @@ export function drainOpenModals(): OpenModal[] {
 
 export function showManagedModal(
     render: (close: () => void) => ReactElement,
-    opts?: { needsMarkSeen?: boolean; onClose?: () => void; skipQamReturn?: boolean }
+    opts?: { needsMarkSeen?: boolean; onClose?: () => void }
 ): { Close: () => void } {
     let closeModal = function () { };
 
@@ -188,7 +183,7 @@ export function showManagedModal(
             if (opts?.onClose) {
                 opts.onClose();
             }
-            const handOff = takeOverQuickAccessReopen(opts?.skipQamReturn ?? false);
+            const handOff = takeOverQuickAccessReopen();
             closeModal();
             if (handOff) {
                 reopenQuickAccessSoon();
@@ -206,7 +201,7 @@ export function showManagedModal(
         if (opts?.onClose) {
             opts.onClose();
         }
-        const handOff = takeOverQuickAccessReopen(opts?.skipQamReturn ?? false);
+        const handOff = takeOverQuickAccessReopen();
         closeModal();
         if (entry) {
             unregisterModal(entry);

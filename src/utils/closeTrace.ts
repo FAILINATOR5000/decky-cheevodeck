@@ -119,7 +119,7 @@ function flush(trace: Trace): void {
     logFocusDebug("close-trace", `#${trace.id}`, batch.join(" | "));
 }
 
-export function traceModalClose(reopenInMs: number | null): void {
+export function traceModalClose(reopenInMs: number): void {
     if (!debugLoggingEnabled()) {
         return;
     }
@@ -137,7 +137,7 @@ export function traceModalClose(reopenInMs: number | null): void {
     };
 
     const screenSize = windows[0] ? `${windows[0].screen.width}x${windows[0].screen.height}` : "?";
-    record(trace, `start ${new Date().toISOString()} reopenIn=${reopenInMs ?? "never"} screen=${screenSize} steamScale=${steamDisplayScale()} ${sideMenus()}`);
+    record(trace, `start ${new Date().toISOString()} reopenIn=${reopenInMs} screen=${screenSize} steamScale=${steamDisplayScale()} ${sideMenus()}`);
     for (const win of windows) {
         record(trace, `window ${geometry(win)}`);
     }
@@ -188,7 +188,7 @@ export function traceModalClose(reopenInMs: number | null): void {
         }
     }, SAMPLE_MS);
     const flusher = window.setInterval(() => flush(trace), FLUSH_MS);
-    const ender = window.setTimeout(() => trace.stop(), (reopenInMs ?? 0) + TRACE_AFTER_REOPEN_MS);
+    const ender = window.setTimeout(() => trace.stop(), reopenInMs + TRACE_AFTER_REOPEN_MS);
 
     trace.stop = () => {
         window.clearInterval(sampler);

@@ -863,7 +863,7 @@ export function openBrowserModal(language: LanguageCode, startUrl = "") {
     const address = startUrl || heldTabLimitUrl;
     const modal = showManagedModal(
         (close) => <BrowserModal language={language} close={close} startUrl={address} />,
-        { onClose: () => { closeOpenBrowser = null; }, skipQamReturn: true }
+        { onClose: () => { closeOpenBrowser = null; } }
     );
     closeOpenBrowser = modal.Close;
 }
