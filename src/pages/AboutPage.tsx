@@ -5,6 +5,7 @@ import { BackButton } from "../components/ui/BackButton";
 import { PageNavStrip } from "../components/ui/PageNavStrip";
 import { SectionTitle } from "../components/ui/SectionTitle";
 import { FocusableItem } from "../components/ui/FocusableItem";
+import { FocusTarget } from "../components/ui/FocusTarget";
 import { InfoText } from "../components/ui/InfoText";
 import { ABOUT_BANNER_IMAGE } from "../components/ui/aboutBanner";
 import { t, type LanguageCode } from "../locales";
@@ -16,6 +17,8 @@ import { getCurrentTextScale, scaleMultiplier, textSize } from "../utils/scale";
 import { usePageLanding } from "../focusRecords";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
+
+const UPDATE_ROW_FALLBACK = ["about:check-updates"];
 
 function updateNoticeSlot(notice: AboutUpdateNotice): "copy" | "check" | "" {
     if (notice === "copied" || notice === "copyFailed") {
@@ -96,8 +99,8 @@ function AttributionLink(props: { url: string; focusKey: string; children: React
     }
 
     return (
-        <div
-            data-focus-key={props.focusKey}
+        <FocusTarget
+            focusKey={props.focusKey}
             onFocusCapture={() => setReactFocused(true)}
             onBlurCapture={() => setReactFocused(false)}
             style={{ display: "block", width: "100%" }}
@@ -123,7 +126,7 @@ function AttributionLink(props: { url: string; focusKey: string; children: React
             >
                 {props.children}
             </Focusable>
-        </div>
+        </FocusTarget>
     );
 }
 
@@ -199,7 +202,7 @@ type AboutPageProps = {
 
 function AboutPage(props: AboutPageProps) {
     const { state, actions } = props;
-    usePageLanding({ view: "about" });
+    usePageLanding({ view: "about", defaultKey: "about:back" });
 
     if (state.view !== "about") {
         return null;
@@ -303,6 +306,7 @@ function AboutPage(props: AboutPageProps) {
                     <FocusableItem
                         outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
                         focusKey="about:copy-install-link"
+                        focusFallback={UPDATE_ROW_FALLBACK}
                         onClick={() => actions.onCopyInstallLink(updateBlockRef.current)}
                         help={t(state.language, "Paste this link into Decky → Settings → Developer → Install from URL.")}
                     >
@@ -318,6 +322,7 @@ function AboutPage(props: AboutPageProps) {
                     <FocusableItem
                         outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
                         focusKey="about:download-zip"
+                        focusFallback={UPDATE_ROW_FALLBACK}
                         onClick={actions.onDownloadZip}
                         help={t(state.language, "Saves the file to your Deck first, then install it from Decky → Settings → Developer → Install plugin from ZIP.")}
                     >
@@ -334,6 +339,7 @@ function AboutPage(props: AboutPageProps) {
                     <FocusableItem
                         outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
                         focusKey="about:patch-notes"
+                        focusFallback={UPDATE_ROW_FALLBACK}
                         onClick={actions.onViewPatchNotes}
                     >
                         {t(state.language, "View Patch Notes")}

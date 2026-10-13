@@ -83,7 +83,8 @@ const LANDING_VIEWS: ReadonlySet<ViewKey> = new Set<ViewKey>([
     "fileWatcher",
     "memoriesTransfer",
     "memories",
-    "options"
+    "options",
+    "about"
 ]);
 const RECOVERY_OWNER = -1;
 const CLAIM_SETTLE_MS = 250;
