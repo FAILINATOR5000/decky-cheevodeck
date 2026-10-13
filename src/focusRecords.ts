@@ -31,7 +31,7 @@ type PageRegistration = {
     timing: Partial<LandingTiming> | null;
 };
 
-type LandingKind = "pop" | "remount" | "forward";
+type LandingKind = "pop" | "remount" | "forward" | "recover";
 
 type Echo = { button: number; at: number } | "modal" | null;
 
@@ -321,7 +321,7 @@ function startLanding(entry: TrailEntry, kind: LandingKind, record: FocusRecord,
     if (pending) {
         endLanding(pending.entryId, "dropped", "superseded");
     }
-    const placeholderKey = pages.get(entry.view)?.placeholderKey ?? null;
+    const placeholderKey = kind === "recover" ? null : pages.get(entry.view)?.placeholderKey ?? null;
     landingSeq += 1;
     pending = { seq: landingSeq, entryId: entry.id, view: entry.view, kind, record, echo, placeholderKey, claimedKey: null, claimToken: null, claimSpent: false, revealedEarly: false };
     ownedEntryId = entry.id;
@@ -493,6 +493,50 @@ onKeyClaimSpent((key) => {
     }
 });
 
+type FocusSpot = { entryId: number; key: string; family: string; top: number };
+
+let lastSpot: FocusSpot | null = null;
+
+function keyFamily(key: string): string | null {
+    const cut = key.lastIndexOf(":");
+    return cut > 0 ? key.slice(0, cut + 1) : null;
+}
+
+function noteSpot(root: HTMLElement, target: Element) {
+    const entry = topEntry();
+    const keyed = target.closest("[data-focus-key]");
+    if (!entry || !keyed || !root.contains(keyed)) {
+        return;
+    }
+    const key = keyed.getAttribute("data-focus-key") ?? "";
+    const family = keyFamily(key);
+    if (family) {
+        lastSpot = { entryId: entry.id, key, family, top: keyed.getBoundingClientRect().top - root.getBoundingClientRect().top };
+    }
+}
+
+function occupantOf(spot: FocusSpot): string | null {
+    if (!rootElement) {
+        return null;
+    }
+    const rootTop = rootElement.getBoundingClientRect().top;
+    let best: string | null = null;
+    let bestGap = Infinity;
+    for (const found of rootElement.querySelectorAll(`[data-focus-key^="${escapeKey(spot.family)}"]`)) {
+        const element = found as HTMLElement;
+        const rect = element.getBoundingClientRect();
+        if (rect.height === 0 || keyedDisabled(element)) {
+            continue;
+        }
+        const gap = Math.abs(rect.top - rootTop - spot.top);
+        if (gap < bestGap) {
+            bestGap = gap;
+            best = element.getAttribute("data-focus-key");
+        }
+    }
+    return best;
+}
+
 function recoverLostCursor(why: string, frames = 0) {
     const entry = topEntry();
     if (!entry || pending || isCovered() || !LANDING_VIEWS.has(entry.view) || !nothingFocused()) {
@@ -501,6 +545,20 @@ function recoverLostCursor(why: string, frames = 0) {
     const view = rootElement?.ownerDocument.defaultView;
     if (view && ((frames < CLAIM_SETTLE_FRAMES && claimSpentWithin(CLAIM_SETTLE_MS)) || heirClaimExpected())) {
         view.requestAnimationFrame(() => recoverLostCursor(why, frames + 1));
+        return;
+    }
+    const record = topRecord(entry);
+    const spot = lastSpot && lastSpot.entryId === entry.id ? lastSpot : null;
+    const here = spot ? occupantOf(spot) : null;
+    if (spot && here && pages.get(entry.view)?.defaultKey) {
+        logFocusDebug("lost", "spot", `${nameEntry(entry)} ${spot.key} -> ${here} ${why}`);
+        const base = record ?? recordFor(entry.view, { focusKey: null, fallbacks: [] });
+        startLanding(entry, "recover", { ...base, focusKey: here, fallbacks: [...base.fallbacks], tabPath: [...base.tabPath] }, null);
+        return;
+    }
+    if (record && record.focusKey && record.fallbacks.length > 0 && pages.get(entry.view)?.defaultKey) {
+        logFocusDebug("lost", "heir", `${nameEntry(entry)} ${record.focusKey} left ${why}`);
+        startLanding(entry, "recover", { ...record, focusKey: null, fallbacks: [...record.fallbacks], tabPath: [...record.tabPath] }, null);
         return;
     }
     const key = pages.get(entry.view)?.placeholderKey;
@@ -855,6 +913,7 @@ export function useFocusRecordWriter(
         rootElement = root;
         const doc = root.ownerDocument;
         function onFocus(event: Event) {
+            noteSpot(root as HTMLElement, event.target as Element);
             write(rootGeneration, root as HTMLElement, event.target as Element);
         }
         function onButtonDown(event: Event) {
@@ -1086,7 +1145,7 @@ export function usePageLanding(registration: {
         active.commits += 1;
         const landing: PendingLanding = pending;
 
-        if (!active.claimed && placeholderKey && landing.placeholderKey !== placeholderKey) {
+        if (!active.claimed && placeholderKey && landing.kind !== "recover" && landing.placeholderKey !== placeholderKey) {
             logFocusDebug("landing", "placeholder", `${active.entryId} ${placeholderKey} was=${landing.placeholderKey ?? "(none)"}`);
             landing.placeholderKey = placeholderKey;
             armKeyClaim(placeholderKey, active.entryId);

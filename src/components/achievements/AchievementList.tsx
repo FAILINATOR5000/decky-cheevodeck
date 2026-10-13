@@ -436,6 +436,15 @@ export function AchievementList(props: {
         return slots;
     }, [entries, props.sections]);
 
+    const neighbors = useMemo(() => {
+        const rows = entries.filter((entry): entry is AchievementRow => !isSection(entry));
+        const around = new Map<number, { next: number | null; prev: number | null }>();
+        rows.forEach((achievement, index) => {
+            around.set(achievement.id, { next: rows[index + 1]?.id ?? null, prev: rows[index - 1]?.id ?? null });
+        });
+        return around;
+    }, [entries]);
+
     const sectionChains = useMemo(() => {
         const chains = new Map<number, string[]>();
         for (const section of props.sections ?? []) {
@@ -773,6 +782,8 @@ export function AchievementList(props: {
                 index={absoluteIndex}
                 list={rowList}
                 focusFallback={sectionChains.get(achievement.id)}
+                nextId={neighbors.get(achievement.id)?.next ?? null}
+                prevId={neighbors.get(achievement.id)?.prev ?? null}
                 iconSrc={badgeName ? mountedIcons[badgeName] || "" : ""}
                 fadeOnLoad={coldBadgesRef.current.has(badgeName)}
                 isTracked={trackedIdSet.has(achievement.id) && !earned(achievement)}

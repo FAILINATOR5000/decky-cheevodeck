@@ -58,6 +58,8 @@ export const AchievementListRow = React.memo(function AchievementListRow(props: 
     noteText?: string;
     noteColor?: string;
     focusFallback?: string[];
+    nextId?: number | null;
+    prevId?: number | null;
     onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 }) {
     const { achievement, list } = props;
@@ -224,7 +226,10 @@ export const AchievementListRow = React.memo(function AchievementListRow(props: 
     return (
         <FocusableItem
             focusKey={`achievement:${achievement.id}`}
-            focusFallback={props.focusFallback ?? list.focusFallback}
+            focusFallback={[
+                ...[props.nextId, props.prevId].filter((id): id is number => id != null).map((id) => `achievement:${id}`),
+                ...(props.focusFallback ?? list.focusFallback ?? [])
+            ]}
             outerStyle={rowOuterStyle}
             onClick={handleClick}
             onFocus={handleFocus}
