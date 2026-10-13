@@ -7,7 +7,6 @@ import { AFTER_DIALOG_TOAST_DELAY_MS, showToastAfter } from "../utils/delayedToa
 import { videoMoveErrorKey } from "../utils/memoriesTransferErrors";
 import { openPathPicker } from "../components/pickers/FilePickerModal";
 import { openMemoriesVideoMoveModal } from "../components/memories/MemoriesVideoMoveModal";
-import { armOptionsFocusKey } from "../utils/optionsFocusReturn";
 
 const POLL_INTERVAL_MS = 900;
 
@@ -120,17 +119,15 @@ export function useMemoriesVideoController(options: UseMemoriesVideoControllerOp
         }
     }, [language, readStatus]);
 
-    const watchMove = useCallback((focusKey: string) => {
-        armOptionsFocusKey(focusKey);
+    const watchMove = useCallback(() => {
         openMemoriesVideoMoveModal(language);
     }, [language]);
 
     const pickLocation = useCallback(async () => {
         if (isRunning(status.state)) {
-            watchMove("options:memories-video-path");
+            watchMove();
             return;
         }
-        armOptionsFocusKey("options:memories-video-path");
         let picked: string | undefined;
         try {
             const chosen = await openPathPicker({
@@ -149,17 +146,17 @@ export function useMemoriesVideoController(options: UseMemoriesVideoControllerOp
             return;
         }
         if (await moveTo(picked)) {
-            watchMove("options:memories-video-path");
+            watchMove();
         }
     }, [language, moveTo, status.state, watchMove]);
 
     const useDefaultLocation = useCallback(async () => {
         if (isRunning(status.state)) {
-            watchMove("options:memories-video-default");
+            watchMove();
             return;
         }
         if (await moveTo("")) {
-            watchMove("options:memories-video-default");
+            watchMove();
         }
     }, [moveTo, status.state, watchMove]);
 

@@ -82,7 +82,8 @@ const LANDING_VIEWS: ReadonlySet<ViewKey> = new Set<ViewKey>([
     "smbShares",
     "fileWatcher",
     "memoriesTransfer",
-    "memories"
+    "memories",
+    "options"
 ]);
 const RECOVERY_OWNER = -1;
 const CLAIM_SETTLE_MS = 250;
@@ -741,17 +742,27 @@ export function settleTrail(rootGeneration: number, next: ViewKey, intent: NavIn
     return settled;
 }
 
-export function rebuildTrailFresh(why: string) {
-    const dropped = countRecords(entries.values());
-    for (const [route] of entries) {
-        entries.set(route, freshEntry(route));
+export function rebuildTrailFresh(why: string, nextUlid?: string) {
+    const top = nextUlid ? topEntry() : null;
+    const dropped = countRecords([...entries.values()].filter((entry) => entry !== top));
+    for (const [route, entry] of entries) {
+        if (entry !== top) {
+            entries.set(route, freshEntry(route));
+        }
+    }
+    if (top && nextUlid) {
+        for (const record of [top.record, ...top.sub.map((level) => level.record)]) {
+            if (record) {
+                record.accountUlid = nextUlid;
+            }
+        }
     }
     if (pending) {
         endLanding(pending.entryId, "dropped", "account-switch");
     }
     ownedEntryId = null;
     unlandedEntryId = null;
-    logFocusDebug("record", "rebuild-fresh", `${why} dropped=${dropped} ${describeTrail([...entries.values()])}`);
+    logFocusDebug("record", "rebuild-fresh", `${why} dropped=${dropped} kept=${top ? nameEntry(top) : "(none)"} ${describeTrail([...entries.values()])}`);
 }
 
 function pushSubEntry(entry: TrailEntry, view: SubView) {

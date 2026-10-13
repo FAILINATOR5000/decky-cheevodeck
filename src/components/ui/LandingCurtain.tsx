@@ -1,8 +1,13 @@
-import { type ReactNode, useEffect, useLayoutEffect, useState } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useLayoutEffect, useState } from "react";
 import { logFocusDebug } from "../../api";
 import { useCovered } from "../../covers";
 import { curtainEntryAtMount, curtainState, curtainTiming, markCurtainRevealed, useLandingVersion } from "../../focusRecords";
-import { CurtainHidingContext } from "./RestoreCurtain";
+
+const CurtainHidingContext = createContext(false);
+
+export function useCurtainHiding(): boolean {
+    return useContext(CurtainHidingContext);
+}
 
 export function LandingCurtain(props: { children: ReactNode }) {
     const [mount] = useState(curtainEntryAtMount);

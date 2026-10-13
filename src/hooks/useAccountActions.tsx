@@ -467,6 +467,8 @@ export function useAccountActions({
 
                 outcome = result.credentialsRejected ? "credentials-rejected" : "switched";
 
+                rebuildTrailFresh("account-switch", result.activeUlid);
+
                 if (!mountedRef.current) {
                     return;
                 }
@@ -477,7 +479,6 @@ export function useAccountActions({
                 }
 
                 wipeFrontendMirrors();
-                rebuildTrailFresh("account-switch");
 
                 applySettings(result, { skipButtonToggles: true });
 

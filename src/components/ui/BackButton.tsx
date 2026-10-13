@@ -1,7 +1,7 @@
 import { Focusable, PanelSectionRow } from "@decky/ui";
 import { useEffect, useRef, useState } from "react";
 import { FocusableItem } from "./FocusableItem";
-import { useCurtainHiding } from "./RestoreCurtain";
+import { useCurtainHiding } from "./LandingCurtain";
 import type { ButtonSpacing } from "../../types";
 import { currentJumpToTopToken, subscribeJumpToTop } from "../../utils/jumpToTop";
 import { regularButtonSpacingStyle } from "../../utils/style";

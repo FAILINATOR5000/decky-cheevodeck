@@ -21,6 +21,7 @@ function separatorFor(separator: boolean | undefined): "standard" | "none" {
 
 export type OptionButtonProps = {
     focusKey: string;
+    focusFallback?: string[];
     label: string;
     help?: React.ReactNode;
     separator?: boolean;
@@ -31,7 +32,7 @@ export type OptionButtonProps = {
 };
 
 export function OptionButton(props: OptionButtonProps) {
-    const { focusKey, label, help, separator, onClick, disabled, outerStyle, onGamepadFocus } = props;
+    const { focusKey, focusFallback, label, help, separator, onClick, disabled, outerStyle, onGamepadFocus } = props;
 
     return (
         <PanelSectionRow>
@@ -39,6 +40,7 @@ export function OptionButton(props: OptionButtonProps) {
                 outerStyle={outerStyle}
                 bottomSeparator={separatorFor(separator)}
                 focusKey={focusKey}
+                focusFallback={focusFallback}
                 onClick={onClick}
                 onGamepadFocus={onGamepadFocus}
                 disabled={disabled}

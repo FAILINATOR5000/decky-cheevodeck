@@ -240,7 +240,6 @@ import {
     putCommentsSnapshot,
     setCommentsSnapshotUser
 } from "../utils/commentsSnapshot";
-import { armOptionsLanding, takeOptionsFocusReturn } from "../utils/optionsFocusReturn";
 import { useMemoriesController } from "../hooks/useMemoriesController";
 import { useMemoriesVideoController } from "../hooks/useMemoriesVideoController";
 import { notePanelMount, notePanelUnmount, samplePanelEntryFrames } from "../utils/panelLifecycle";
@@ -2372,7 +2371,7 @@ function AchievementsRoot() {
         buttonSpacing,
         onBack: () => {
             if (previousView(nav.stack) === "options") {
-                goToOptions("options:about", "back");
+                goToOptions(undefined, "back");
             } else {
                 backToAchievements();
             }
@@ -2388,29 +2387,6 @@ function AchievementsRoot() {
         refreshToken: achievementsResumeToken + notesRefreshToken,
         language
     });
-
-    const [optionsFocusReturn] = useState(takeOptionsFocusReturn);
-
-    const optionsRestoreArmedRef = useRef(optionsFocusReturn !== null);
-    const optionsWasOpenRef = useRef(false);
-    if (optionsWasOpenRef.current && view !== "options") {
-        optionsRestoreArmedRef.current = false;
-    }
-    optionsWasOpenRef.current = view === "options";
-    const optionsRestorePending = optionsRestoreArmedRef.current;
-
-    function dropRestoresArmedForOtherViews(bootView: ViewKey) {
-        const latches = [
-            { armed: optionsRestoreArmedRef, view: "options" }
-        ];
-        for (const latch of latches) {
-            if (latch.armed.current && latch.view !== bootView) {
-                latch.armed.current = false;
-                logFocusDebug("restore-dropped", String(latch.view), `boot=${bootView}`);
-            }
-        }
-    }
-
 
     const { state: unlockHistoryState, actions: unlockHistoryActions } = unlockHistoryController;
     const { state: aboutState, actions: aboutActions } = aboutController;
@@ -2874,7 +2850,6 @@ function AchievementsRoot() {
             resumeViewFlipRef.current = true;
         }
         restoreNav(getSavedNavStack(nextResumeState), bootView, { panelEntry: entry !== null, routeOverride: pending.routeOverride, pushOpener: pending.pushOpener, land: pending.land });
-        dropRestoresArmedForOtherViews(bootView);
         if (
             bootView === "trackedSetOpen"
             || ((bootView === "gameOverview" || bootView === "achievementOverview")
@@ -3260,15 +3235,12 @@ function AchievementsRoot() {
         setPendingFocusKey("main:tab:compare");
     }
 
-    function goToOptions(focusKey?: string, intent: NavIntent = "push", land?: string) {
+    function goToOptions(land?: string, intent: NavIntent = "push") {
         friendGameSessionRefreshKeysRef.current = new Set();
         setLastOptionsTab("system");
         void saveLastOptionsTab("system").catch(() => {
         });
         setQuickMenuShortcutRefused(null);
-        if (focusKey) {
-            armOptionsLanding(focusKey);
-        }
         setView("options", intent, land ? { land } : undefined);
         setPendingFocusKey("options:back");
     }
@@ -4534,7 +4506,7 @@ function AchievementsRoot() {
             return;
         }
         if (action === "mapShortcuts") {
-            goToOptions(undefined, "hub", MAP_SHORTCUTS_FOCUS_KEY);
+            goToOptions(MAP_SHORTCUTS_FOCUS_KEY, "hub");
             return;
         }
         if (action === "about") {
@@ -4827,17 +4799,13 @@ function AchievementsRoot() {
                                         state={{
                                             ...optionsState,
                                             mouseKeyboardMode,
-                                            memoriesVideoMove: memoriesVideo.status,
-                                            restoreFocusKey: optionsFocusReturn,
-                                            restorePending: optionsRestorePending,
-                                            panelOverlayVisible
+                                            memoriesVideoMove: memoriesVideo.status
                                         }}
                                         actions={{
                                             ...optionsActions,
                                             onHome: goToAchievements,
                                             onPickMemoriesVideoPath: memoriesVideo.pickLocation,
-                                            onUseDefaultMemoriesVideoPath: memoriesVideo.useDefaultLocation,
-                                            onRequestFocus: setPendingFocusKey
+                                            onUseDefaultMemoriesVideoPath: memoriesVideo.useDefaultLocation
                                         }}
                                     />
                                 )}

@@ -1,10 +1,8 @@
 import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
-import { Fragment, useEffect, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from "react";
+import { Fragment, useState, type ComponentType } from "react";
 import { BackButton } from "../components/ui/BackButton";
-import { FocusClaim } from "../components/ui/FocusClaim";
-import { RestoreCurtain } from "../components/ui/RestoreCurtain";
-import { useFocusClaim } from "../hooks/useFocusClaim";
+import { FocusTarget } from "../components/ui/FocusTarget";
 import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
 import { PageNavStrip } from "../components/ui/PageNavStrip";
 import { ErrorText } from "../components/ui/ErrorText";
@@ -82,7 +80,6 @@ import {
 import { trackedColorHex, trackedColorLabelKey } from "../utils/achievements";
 import { resolveGlyphStyle } from "../utils/controllerGlyphs";
 import { videoMoveErrorKey } from "../utils/memoriesTransferErrors";
-import { listenForOptionsLanding, takeOptionsLanding } from "../utils/optionsFocusReturn";
 import { armMainListOpenAt, type MainListOpenTarget } from "../utils/mainListOpenAt";
 import { BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT, BUTTON_SECONDARY } from "../utils/gamepadButtons";
 import { playOkSound } from "../utils/navSound";
@@ -267,9 +264,6 @@ type OptionsPageState = {
     memoriesDeleteSteamClip: boolean;
     memoriesVideoMove: MemoriesVideoMoveStatus;
     memoriesCount: number;
-    restoreFocusKey: string | null;
-    restorePending: boolean;
-    panelOverlayVisible: boolean;
     legacyCommentsLoading: boolean;
     batterySaverDisablesSocialActivity: boolean;
     batterySaverDisablesComments: boolean;
@@ -408,7 +402,6 @@ type OptionsPageActions = {
     onToggleMemoriesDeleteSteamClip: (next: boolean) => void | Promise<void>;
     onPickMemoriesVideoPath: () => void | Promise<void>;
     onUseDefaultMemoriesVideoPath: () => void | Promise<void>;
-    onRequestFocus: (focusKey: string) => void;
     onCycleMemoriesPerPage: () => void | Promise<void>;
     onToggleBatterySaverDisablesMemories: (next: boolean) => void | Promise<void>;
     onDeleteAllMemories: () => void | Promise<void>;
@@ -631,47 +624,22 @@ type OptionsPageProps = {
 
 function OptionsPage(props: OptionsPageProps) {
     const { state, actions } = props;
-    usePageLanding({ view: "options", tabPath: [state.activeOptionsTab], defaultKey: "options:back" });
+    usePageLanding({
+        view: "options",
+        tabPath: [state.activeOptionsTab],
+        restoreTabPath: ([tab]) => {
+            const next = OPTIONS_TABS.find((entry) => entry.id === tab);
+            if (!next || next.id === state.activeOptionsTab) {
+                return false;
+            }
+            actions.onSelectOptionsTab(next.id);
+            return true;
+        },
+        defaultKey: "options:back"
+    });
     const disabled = state.loading || state.saving || state.clearingAllCache;
     const clearCacheDisabled = disabled || state.clearingCache;
     const buttonOuterStyle = regularButtonSpacingStyle(state.buttonSpacing);
-
-    // Coming back from a modal
-    const [landing, setLanding] = useState(() => {
-        const key = takeOptionsLanding();
-        return key === null ? null : { key };
-    });
-    const restoreFocusKey = landing?.key ?? state.restoreFocusKey;
-    const restorePending = landing !== null || state.restorePending;
-    const restoreClaim = useFocusClaim();
-    const restoreFiredRef = useRef(false);
-    const claimedKeyRef = useRef<string | null>(null);
-    const [restoreAbandoned, setRestoreAbandoned] = useState(false);
-
-    useEffect(() => listenForOptionsLanding((key) => {
-        restoreFiredRef.current = false;
-        setLanding({ key });
-    }), []);
-
-    useEffect(function landRestoredCursor() {
-        if (!restorePending || restoreFiredRef.current) {
-            return;
-        }
-        restoreFiredRef.current = true;
-        if (restoreFocusKey === null) {
-            setRestoreAbandoned(true);
-            logFocusDebug("options-restore", "(none)", "nothing armed");
-            actions.onRequestFocus("options:back");
-            return;
-        }
-        logFocusDebug("options-restore", restoreFocusKey, "claiming");
-        claimedKeyRef.current = restoreFocusKey;
-        restoreClaim.claimSlot(0);
-        actions.onRequestFocus(restoreFocusKey);
-    }, [landing, restorePending, restoreFocusKey, restoreClaim.claimSlot, actions.onRequestFocus]);
-
-    const restoreSettled = restoreAbandoned
-        || (restoreClaim.claim?.token ?? 0) > 0 && !restoreClaim.claim?.armed;
 
     // Tab strip state
     const [focusedTab, setFocusedTab] = useState<OptionsTab | null>(null);
@@ -722,20 +690,7 @@ function OptionsPage(props: OptionsPageProps) {
     const previewedTab = OPTIONS_TABS.find((entry) => entry.id === previewedOrActive);
     const previewLabel = previewedTab ? t(state.language, previewedTab.labelKey) : "";
 
-    function claimTarget(control: ReactElement<{ focusKey?: string }>): ReactNode {
-        const claim = restoreClaim.claim;
-        if (!claim || control.props.focusKey !== claimedKeyRef.current) {
-            return control;
-        }
-
-        return (
-            <FocusClaim token={claim.token} armed={claim.armed} onSpent={restoreClaim.spend}>
-                {control}
-            </FocusClaim>
-        );
-    }
-
-    const page = (
+    return (
         <>
         <PanelSection>
             <PageNavStrip
@@ -746,7 +701,7 @@ function OptionsPage(props: OptionsPageProps) {
             <BackButton
                 label={t(state.language, "← Back to Main")}
                 focusKey="options:back"
-                navAutoFocus={!restorePending}
+                navAutoFocus
                 buttonSpacing={state.buttonSpacing}
                 onClick={actions.onBack}
                 disabled={state.loading || state.saving}
@@ -778,9 +733,9 @@ function OptionsPage(props: OptionsPageProps) {
                             const Icon = tab.Icon;
 
                             return (
-                                <div
+                                <FocusTarget
                                     key={tab.focusKey}
-                                    data-focus-key={tab.focusKey}
+                                    focusKey={tab.focusKey}
                                     onMouseEnter={() => handleTabHover(tab.id)}
                                     onMouseLeave={() => handleTabUnhover(tab.id)}
                                     style={{
@@ -812,7 +767,7 @@ function OptionsPage(props: OptionsPageProps) {
                                     >
                                         <Icon size={18} />
                                     </DialogButton>
-                                </div>
+                                </FocusTarget>
                             );
                         })}
                     </Focusable>
@@ -833,7 +788,7 @@ function OptionsPage(props: OptionsPageProps) {
 
             <div key={`options:tab:${state.activeOptionsTab}`}>
                 {state.activeOptionsTab === "system" && (
-                    <SystemTab state={state} actions={actions} buttonOuterStyle={buttonOuterStyle} disabled={disabled} claimTarget={claimTarget} />
+                    <SystemTab state={state} actions={actions} buttonOuterStyle={buttonOuterStyle} disabled={disabled} />
                 )}
                 {state.activeOptionsTab === "gui" && (
                     <GuiTab state={state} actions={actions} buttonOuterStyle={buttonOuterStyle} disabled={disabled} />
@@ -864,16 +819,6 @@ function OptionsPage(props: OptionsPageProps) {
             </div>
         </PanelSection>
         </>
-    );
-
-    return (
-        <RestoreCurtain
-            armed={restorePending}
-            settled={restoreSettled}
-            covered={state.panelOverlayVisible}
-        >
-            {page}
-        </RestoreCurtain>
     );
 }
 
@@ -906,12 +851,8 @@ function videoLocationValue(state: OptionsPageState): string {
     return t(state.language, move.picked ? "Custom" : "Default");
 }
 
-type SystemTabProps = TabContentProps & {
-    claimTarget: (control: ReactElement<{ focusKey?: string }>) => ReactNode;
-};
-
-function SystemTab(props: SystemTabProps) {
-    const { state, actions, buttonOuterStyle, disabled, claimTarget } = props;
+function SystemTab(props: TabContentProps) {
+    const { state, actions, buttonOuterStyle, disabled } = props;
     const glyphStyle = resolveGlyphStyle(state.controllerGlyphStyle);
     const showGlobalFootnote = SHORTCUT_BUTTONS.some((entry) => worksOutsidePanel(entry.id, state.shortcutBindings[entry.id]));
 
@@ -1041,17 +982,15 @@ function SystemTab(props: SystemTabProps) {
                 disabled={disabled}
                 help={t(state.language, "help_memories_video")}
             />
-            {claimTarget(
-                <OptionValueRow
-                    outerStyle={buttonOuterStyle}
-                    focusKey="options:memories-video-path"
-                    onClick={actions.onPickMemoriesVideoPath}
-                    disabled={disabled || !state.memoriesVideoMove.rootAvailable}
-                    label={t(state.language, "Video Clip Location")}
-                    value={videoLocationValue(state)}
-                    help={t(state.language, "help_memories_video_path")}
-                />
-            )}
+            <OptionValueRow
+                outerStyle={buttonOuterStyle}
+                focusKey="options:memories-video-path"
+                onClick={actions.onPickMemoriesVideoPath}
+                disabled={disabled || !state.memoriesVideoMove.rootAvailable}
+                label={t(state.language, "Video Clip Location")}
+                value={videoLocationValue(state)}
+                help={t(state.language, "help_memories_video_path")}
+            />
             {state.memoriesVideoMove.root !== "" && (
                 <PanelSectionRow>
                     <div style={{ ...bodyTextStyle(), wordBreak: "break-word" }}>
@@ -1059,10 +998,11 @@ function SystemTab(props: SystemTabProps) {
                     </div>
                 </PanelSectionRow>
             )}
-            {state.memoriesVideoPath !== "" && claimTarget(
+            {state.memoriesVideoPath !== "" && (
                 <OptionButton
                     outerStyle={buttonOuterStyle}
                     focusKey="options:memories-video-default"
+                    focusFallback={["options:memories-video-path"]}
                     onClick={actions.onUseDefaultMemoriesVideoPath}
                     disabled={disabled || !state.memoriesVideoMove.rootAvailable}
                     label={t(state.language, "Use the Default Video Location")}
@@ -1275,42 +1215,40 @@ function SystemTab(props: SystemTabProps) {
             )}
             {SHORTCUT_BUTTONS.map((entry, index) => (
                 <Fragment key={entry.id}>
-                    {claimTarget(
-                        <OptionValueRow
-                            outerStyle={buttonOuterStyle}
-                            focusKey={shortcutRowFocusKey(entry.id)}
-                            onClick={() => actions.onCycleShortcutBinding(entry.id)}
-                            onButtonDown={(evt) => {
-                                if (evt?.detail?.button === BUTTON_BUMPER_LEFT) {
-                                    playOkSound();
-                                    void actions.onCycleShortcutBindingBack(entry.id);
-                                    return;
-                                }
-                                if (evt?.detail?.button === BUTTON_BUMPER_RIGHT) {
-                                    playOkSound();
-                                    void actions.onCycleShortcutBinding(entry.id);
-                                    return;
-                                }
-                                if (evt?.detail?.button === BUTTON_SECONDARY && state.shortcutBindings[entry.id] !== "none") {
-                                    playOkSound();
-                                    void actions.onClearShortcutBinding(entry.id);
-                                }
-                            }}
-                            disabled={disabled}
-                            label={
-                                <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                                    {shortcutButtonGlyphs(entry.id).map((glyph) => (
-                                        <ButtonGlyph key={glyph} button={glyph} style={glyphStyle} size="1.2em" />
-                                    ))}
-                                    {shortcutButtonLabel(entry.id, state.language)}
-                                </span>
+                    <OptionValueRow
+                        outerStyle={buttonOuterStyle}
+                        focusKey={shortcutRowFocusKey(entry.id)}
+                        onClick={() => actions.onCycleShortcutBinding(entry.id)}
+                        onButtonDown={(evt) => {
+                            if (evt?.detail?.button === BUTTON_BUMPER_LEFT) {
+                                playOkSound();
+                                void actions.onCycleShortcutBindingBack(entry.id);
+                                return;
                             }
-                            value={shortcutActionLabel(state.shortcutBindings[entry.id], state.language)
-                                + (worksOutsidePanel(entry.id, state.shortcutBindings[entry.id]) ? "*" : "")}
-                            help={t(state.language, entry.helpKey)}
-                            separator={index === SHORTCUT_BUTTONS.length - 1 && !showGlobalFootnote}
-                        />
-                    )}
+                            if (evt?.detail?.button === BUTTON_BUMPER_RIGHT) {
+                                playOkSound();
+                                void actions.onCycleShortcutBinding(entry.id);
+                                return;
+                            }
+                            if (evt?.detail?.button === BUTTON_SECONDARY && state.shortcutBindings[entry.id] !== "none") {
+                                playOkSound();
+                                void actions.onClearShortcutBinding(entry.id);
+                            }
+                        }}
+                        disabled={disabled}
+                        label={
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                                {shortcutButtonGlyphs(entry.id).map((glyph) => (
+                                    <ButtonGlyph key={glyph} button={glyph} style={glyphStyle} size="1.2em" />
+                                ))}
+                                {shortcutButtonLabel(entry.id, state.language)}
+                            </span>
+                        }
+                        value={shortcutActionLabel(state.shortcutBindings[entry.id], state.language)
+                            + (worksOutsidePanel(entry.id, state.shortcutBindings[entry.id]) ? "*" : "")}
+                        help={t(state.language, entry.helpKey)}
+                        separator={index === SHORTCUT_BUTTONS.length - 1 && !showGlobalFootnote}
+                    />
                 </Fragment>
             ))}
             {showGlobalFootnote && (
