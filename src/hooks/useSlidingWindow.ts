@@ -140,26 +140,22 @@ type Geometry = {
 type Anchor = { key: string; top: number };
 type RowRecord = { top: number; index: number };
 
-function keptItsPlace(rows: Map<string, RowRecord>, indexByKey: Map<string, number>, was: number, now: number) {
-    let above: number | undefined;
-    let aboveWas = -Infinity;
-    let below: number | undefined;
-    let belowWas = Infinity;
+function keptItsPlace(rows: Map<string, { index: number }>, indexByKey: Map<string, number>, was: number, now: number) {
+    const crossed: number[] = [];
     for (const [key, record] of rows) {
         const current = indexByKey.get(key);
         if (current === undefined || record.index === was) {
             continue;
         }
-        if (record.index < was && record.index > aboveWas) {
-            aboveWas = record.index;
-            above = current;
-        }
-        if (record.index > was && record.index < belowWas) {
-            belowWas = record.index;
-            below = current;
+        if ((record.index < was) !== (current < now)) {
+            crossed.push(Math.abs(current - record.index));
         }
     }
-    return (above === undefined || above < now) && (below === undefined || below > now);
+    if (crossed.length === 0) {
+        return true;
+    }
+    crossed.sort((a, b) => a - b);
+    return crossed[crossed.length >> 1] > Math.abs(now - was);
 }
 
 export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWindow<T> {
@@ -238,14 +234,27 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
             newIndex.set(itemKey(nextItems[i]), i);
         }
         let anchorOld = Math.min(from.start, Math.max(0, oldItems.length - 1));
+        let skip = -1;
+        let focusMounted = false;
         const focusKey = focusKeyRef.current;
         for (let i = from.start; focusKey !== null && i < from.end && i < oldItems.length; i += 1) {
             if (itemKey(oldItems[i]) === focusKey) {
                 anchorOld = i;
+                focusMounted = true;
                 break;
             }
         }
-        const shift = survivorShift(oldItems, anchorOld, newIndex);
+        const focusNow = focusKey === null ? undefined : newIndex.get(focusKey);
+        if (focusMounted && focusNow !== undefined) {
+            const around = new Map<string, { index: number }>();
+            for (let i = from.start; i < from.end && i < oldItems.length; i += 1) {
+                around.set(itemKey(oldItems[i]), { index: i });
+            }
+            if (!keptItsPlace(around, newIndex, anchorOld, focusNow)) {
+                skip = anchorOld;
+            }
+        }
+        const shift = survivorShift(oldItems, anchorOld, newIndex, skip);
         const length = Math.max(1, from.end - from.start);
         let start = from.start === 0 ? 0 : Math.max(0, Math.min(from.start + shift, n - 1));
         const end = Math.min(n, start + length);
@@ -255,10 +264,10 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
         return { ...from, items: nextItems, start, end };
     }
 
-    function survivorShift(oldItems: T[], anchorOld: number, newIndex: Map<string, number>) {
+    function survivorShift(oldItems: T[], anchorOld: number, newIndex: Map<string, number>, skip: number) {
         for (let d = 0; anchorOld - d >= 0 || anchorOld + d < oldItems.length; d += 1) {
             for (const i of [anchorOld + d, anchorOld - d]) {
-                if (i < 0 || i >= oldItems.length) {
+                if (i < 0 || i >= oldItems.length || i === skip) {
                     continue;
                 }
                 const found = newIndex.get(itemKey(oldItems[i]));
@@ -757,6 +766,21 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
                     const residual = Math.max(wanted, -above.px);
                     anchorOffset = above.px + residual - topSpacerPx;
                     correction = residual === wanted ? { residual } : { residual, upBlocked: true };
+                }
+            }
+            else if (anchors && anchors.epoch === next.epoch && measured) {
+                const focusKey = focusKeyRef.current;
+                const focusRecord = focusKey === null ? undefined : anchors.rows.get(focusKey);
+                const focusNow = focusKey === null ? undefined : indexByKey.get(focusKey);
+                const mountedAt = focusKey === null ? -1 : mountedItems.findIndex((item) => itemKey(item) === focusKey);
+                if (focusRecord !== undefined && focusNow !== undefined && mountedAt >= 0
+                    && keptItsPlace(anchors.rows, indexByKey, focusRecord.index, focusNow)) {
+                    const moved = rowTops[mountedAt] - focusRecord.top;
+                    if (Math.abs(moved) > 0.5) {
+                        const expected = Math.max(0, scroller.scrollTop + moved);
+                        scroller.scrollTop = expected;
+                        verifyScrollHeld(scroller, expected, moved);
+                    }
                 }
             }
         }
