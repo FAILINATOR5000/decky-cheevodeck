@@ -29,6 +29,7 @@ import { textSize } from "../utils/scale";
 import { transferSizeLabel } from "../utils/memoriesTransferSize";
 import { bodyTextStyle, errorRed, regularButtonSpacingStyle, warnAmber } from "../utils/style";
 import { subLandingAhead, usePageLanding } from "../focusRecords";
+import { expectHeirClaim } from "../focusClaims";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
@@ -187,6 +188,7 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
     }
 
     function claim(focusKey: string) {
+        expectHeirClaim();
         claimedKeyRef.current = focusKey;
         confirmClaim.claimSlot(0);
     }
