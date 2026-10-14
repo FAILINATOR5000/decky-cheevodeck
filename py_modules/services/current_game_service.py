@@ -588,9 +588,14 @@ class CurrentGameService:
                 )
                 return {"payload": patched_payload, "changed": True}
 
+            recent = None
             if cached_game_id is not None and cached_game_id != current_game_id:
                 self._cache_store.clear_pending_game_ticker_event()
                 self._forget_memories_seed()
+                if cached:
+                    recent = self._ra.get_recent_achievements(username, web_api_key, unlock_lookback_minutes)
+                    self._settle_previous_game(cached, cached_game_id, recent, account_key=account_key,
+                                               tracked_dir=tracked_dir)
 
             if not current_game_id:
                 payload = self._empty_game_payload()
@@ -604,7 +609,8 @@ class CurrentGameService:
             game = self._ra.get_game_info_and_user_progress(username, current_game_id, web_api_key)
             payload = self.normalize_game_payload(game, fallback_game_id=current_game_id)
 
-            recent = self._ra.get_recent_achievements(username, web_api_key, unlock_lookback_minutes)
+            if recent is None:
+                recent = self._ra.get_recent_achievements(username, web_api_key, unlock_lookback_minutes)
             latest_recent_same_game = self._find_latest_unlock_for_game(recent, current_game_id)
             current_recent_marker = self._marker_from_item(latest_recent_same_game)
 
@@ -625,6 +631,23 @@ class CurrentGameService:
                 "payload": cached,
                 "changed": False,
             }
+
+    def _settle_previous_game(self, cached, game_id, recent, *, account_key, tracked_dir):
+        items = self._recent_items_for_game(recent, game_id)
+        if not items:
+            return
+        data_at = int(time.time())
+        with self._cache_store.payload_lock():
+            if self._account_moved(account_key):
+                return
+            patched = self._patch_recent_unlocks_into_payload(cached, items)
+            if patched is cached:
+                return
+            cleanup = self._settings_store.cleanup_tracked_against_payload(patched, tracked_dir=tracked_dir)
+        decky.logger.info("game switch: game %s settled from %d recent unlock(s) before leaving it, %d untracked",
+                          game_id, len(items), len(cleanup.get("removedIds") or []))
+        self._emit_tracked_unlock_notifications(patched, cleanup.get("removedIds"))
+        self._nudge_tracked_sets_monitor(game_id, cached, account_key, data_at, "unlock", items)
 
     def clear_current_game(self) -> dict:
         payload = self._empty_game_payload()
