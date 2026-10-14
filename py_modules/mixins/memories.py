@@ -13,6 +13,7 @@ import memories_share
 import memories_thumbs
 
 import memories_transfer
+import steam_shortcuts
 
 from services import memories_video_service
 
@@ -852,7 +853,9 @@ class MemoriesMixin(PluginContext):
             self._adopt_screenshot_sync, path, app_id, created_at, screenshot_game_id, context
         )
         if result.get("ok"):
-            self._schedule_memory_resolve(result.get("gameId"))
+            self._schedule_memory_resolve(
+                result.get("gameId"), memory_id=(result.get("memory") or {}).get("id") or "", app_id=app_id
+            )
         return result
 
     async def adopt_clip(
@@ -883,7 +886,10 @@ class MemoriesMixin(PluginContext):
         )
         if result.get("ok"):
             self._schedule_memory_resolve(
-                result.get("gameId"), forward_seconds=to_int(duration_ms, 0) // 1000
+                result.get("gameId"),
+                forward_seconds=to_int(duration_ms, 0) // 1000,
+                memory_id=(result.get("memory") or {}).get("id") or "",
+                app_id=memories_clips.appid_from_game_id(game_id),
             )
         return result
 
@@ -917,7 +923,7 @@ class MemoriesMixin(PluginContext):
                 self._memories_job_ended.clear()
                 await self._memories_job_ended.wait()
 
-    def _schedule_memory_resolve(self, game_id, forward_seconds: int = 0) -> None:
+    def _schedule_memory_resolve(self, game_id, forward_seconds: int = 0, memory_id: str = "", app_id=0) -> None:
         """Ask for the context behind a fresh capture, twice over.
 
         A forced game check runs straight away unless one just did, because the
@@ -929,6 +935,9 @@ class MemoriesMixin(PluginContext):
         """
         if game_id is None:
             return
+
+        if memory_id:
+            self._memories_switch_pending[str(memory_id)] = (norm_game_id(game_id), to_int(app_id, 0))
 
         now = _boot_seconds()
         if now - self._memories_last_resolve_at >= _RESOLVE_COOLDOWN_SECONDS:
@@ -954,14 +963,80 @@ class MemoriesMixin(PluginContext):
         except asyncio.CancelledError:
             return
         self._memories_last_resolve_at = _boot_seconds()
+        waited = list(self._memories_switch_pending)
         await self._memories_check_and_resolve(game_id)
+        for memory_id in waited:
+            self._memories_switch_pending.pop(memory_id, None)
 
     async def _memories_check_and_resolve(self, game_id) -> None:
         try:
-            await self.check_current_game()
+            result = await self.check_current_game()
+            await self._follow_game_switch(result)
         except Exception as e:
             decky.logger.warning("memories: game check for the resolver failed (%s)", type(e).__name__)
         await self.resolve_pending_memories(game_id)
+
+    async def _follow_game_switch(self, result) -> None:
+        current = norm_game_id((result or {}).get("currentGameId"))
+        cached = norm_game_id((result or {}).get("cachedGameId"))
+        waiting = {
+            memory_id: (game_id, app_id)
+            for memory_id, (game_id, app_id) in self._memories_switch_pending.items()
+            if game_id is not None and game_id > 0 and game_id != current
+        }
+        if current is None or current <= 0 or not waiting:
+            return
+        named = await asyncio.to_thread(self._shortcut_game_ids, {app_id for _, app_id in waiting.values()})
+        if named and current not in named:
+            decky.logger.info(
+                "memories: RA reports game %s but the running shortcut is game %s, so the capture stays where it was",
+                current, ",".join(str(game_id) for game_id in sorted(named)),
+            )
+            return
+        if cached != current:
+            refreshed = await self.refresh_current_game()
+            payload = (refreshed or {}).get("payload") or {}
+        else:
+            payload = (await asyncio.to_thread(self.cache_store.load_payload) or {}).get("payload") or {}
+        if norm_game_id(payload.get("gameId")) != current:
+            return
+        app_id = next(iter(waiting.values()))[1]
+        title = await asyncio.to_thread(memories_capture.resolve_title, app_id, payload.get("title"), self.user_home)
+        moved = 0
+        for memory_id, (game_id, _) in waiting.items():
+            self._memories_switch_pending.pop(memory_id, None)
+            got = await self.move_memory(
+                game_id,
+                memory_id,
+                current,
+                game_title=title,
+                console_name=str(payload.get("consoleName") or "").strip(),
+                image_icon=str(payload.get("imageIcon") or "").strip(),
+            )
+            if (got or {}).get("ok"):
+                moved += 1
+        decky.logger.info(
+            "memories: the game changed to %s with the panel closed, %d of %d capture(s) moved",
+            current, moved, len(waiting),
+        )
+        await self.resolve_pending_memories(current)
+
+    def _shortcut_game_ids(self, app_ids) -> set:
+        found = set()
+        for app_id in app_ids:
+            if not app_id:
+                continue
+            try:
+                identity = self.cheevo_check_service.identify(
+                    steam_shortcuts.rom_candidates_for_app(app_id, self.user_home)
+                )
+            except Exception as e:
+                decky.logger.warning("memories: couldn't name the running shortcut (%s)", type(e).__name__)
+                continue
+            game_id = norm_game_id((identity or {}).get("gameId"))
+            if game_id is not None:
+                found.add(game_id)
+        return found
 
     async def resolve_pending_memories(self, game_id=None):
         """Fill in progress and bound achievements for one game's memories.

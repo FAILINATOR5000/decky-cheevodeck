@@ -733,6 +733,7 @@ class Plugin(
 
         self._memories_last_resolve_at = 0.0
         self._memories_deferred_resolve = None
+        self._memories_switch_pending = {}
 
     @contextlib.asynccontextmanager
     async def _ra_slot(self, wait_for_game_check=True):
