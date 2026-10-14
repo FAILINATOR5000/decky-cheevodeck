@@ -1,6 +1,6 @@
 import { startTransition, useEffect, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { logFocusDebug } from "../api";
-import { remountLandingKey, remountTargetMoved } from "../focusRecords";
+import { landingTargetMoved, placeCheckedLanding } from "../focusRecords";
 import { currentJumpToTopToken, subscribeJumpToTop } from "../utils/jumpToTop";
 
 const WINDOW_MAX_ROWS = 55;
@@ -129,7 +129,7 @@ type WindowState<T> = {
     rebase: number;
     upBlocked: boolean;
     stepApplied: number;
-    movedTarget: { from: string; to: string } | null;
+    movedTarget: MovedTarget | null;
 };
 
 type Geometry = {
@@ -142,6 +142,7 @@ type Geometry = {
     bottomSpacerPx: number;
 };
 
+type MovedTarget = { seq: number; from: string; to: string };
 type Anchor = { key: string; top: number };
 type RowRecord = { top: number; index: number };
 
@@ -200,10 +201,15 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
     const focusKeyRef = useRef<string | null>(null);
     const lastFocusAtRef = useRef(0);
 
-    const [placeBefore] = useState(() => lastPlaceByWindow.get(windowId) ?? null);
+    const [placeBefore] = useState(() => {
+        const place = lastPlaceByWindow.get(windowId);
+        const landing = placeCheckedLanding();
+        return place && landing ? { ...place, landingSeq: landing.seq } : null;
+    });
 
-    function placeOf(focusKey: string): string | null {
-        if (!placeBefore || focusKey !== remountLandingKey()) {
+    function placeOf(focusKey: string): MovedTarget | null {
+        const landing = placeCheckedLanding();
+        if (!placeBefore || landing?.seq !== placeBefore.landingSeq || landing.focusKey !== focusKey) {
             return null;
         }
         const oldItems = placeBefore.items as T[];
@@ -254,7 +260,7 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
         for (let d = 0; d < items.length; d += 1) {
             for (const i of [base + d, base - d]) {
                 if (i >= 0 && i < items.length && i !== now && focusKeyFor(items[i]).startsWith(family)) {
-                    return focusKeyFor(items[i]);
+                    return { seq: placeBefore.landingSeq, from: focusKey, to: focusKeyFor(items[i]) };
                 }
             }
         }
@@ -265,7 +271,7 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
         const mean = meanHeight(cacheFor(scope));
         const end = Math.min(count, openRows);
         const first = openFirst && items.some((item) => focusKeyFor(item) === openFirst) ? openFirst : null;
-        const instead = first ? placeOf(first) : null;
+        const moved = first ? placeOf(first) : null;
         return {
             items,
             resetKey,
@@ -278,12 +284,12 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
             estimate: mean ?? 0,
             estimateProvisional: mean === null,
             epoch: 0,
-            pendingOpen: instead ?? first,
+            pendingOpen: moved?.to ?? first,
             openTarget: null,
             rebase: 0,
             upBlocked: false,
             stepApplied: 0,
-            movedTarget: first && instead ? { from: first, to: instead } : null
+            movedTarget: moved
         };
     });
 
@@ -349,8 +355,8 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
     }
 
     function openedAround(from: WindowState<T>, requested: string): WindowState<T> | null {
-        const instead = placeOf(requested);
-        const focusKey = instead ?? requested;
+        const moved = placeOf(requested);
+        const focusKey = moved?.to ?? requested;
         const index = items.findIndex((item) => focusKeyFor(item) === focusKey);
         if (index < 0) {
             return null;
@@ -360,7 +366,7 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
             ...from,
             pendingOpen: null,
             openTarget: itemKey(items[index]),
-            movedTarget: instead ? { from: requested, to: instead } : from.movedTarget,
+            movedTarget: moved ?? from.movedTarget,
             residual: 0,
             belowResidual: 0,
             epoch: from.epoch + 1,
@@ -443,7 +449,7 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
     useLayoutEffect(function reportMovedTarget() {
         const moved = next.movedTarget;
         if (moved) {
-            remountTargetMoved(moved.from, moved.to);
+            landingTargetMoved(moved.seq, moved.from, moved.to);
         }
     }, [next.movedTarget]);
 

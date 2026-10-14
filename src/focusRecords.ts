@@ -582,12 +582,16 @@ export function pendingLandingKey(view: ViewKey): string | null {
     return takeablePending(view)?.record.focusKey ?? null;
 }
 
-export function remountLandingKey(): string | null {
-    return pending && pending.kind === "remount" && pending.claimedKey === null ? pending.record.focusKey : null;
+export function placeCheckedLanding(): { seq: number; focusKey: string | null } | null {
+    if (!pending || (pending.kind !== "remount" && pending.kind !== "pop") || pending.claimedKey !== null) {
+        return null;
+    }
+    return { seq: pending.seq, focusKey: pending.record.focusKey };
 }
 
-export function remountTargetMoved(fromKey: string, toKey: string) {
-    if (remountLandingKey() !== fromKey || !pending) {
+export function landingTargetMoved(seq: number, fromKey: string, toKey: string) {
+    const landing = placeCheckedLanding();
+    if (!pending || landing?.seq !== seq || landing.focusKey !== fromKey) {
         return;
     }
     logFocusDebug("landing", "moved", `${pending.entryId} ${fromKey} -> ${toKey}`);
