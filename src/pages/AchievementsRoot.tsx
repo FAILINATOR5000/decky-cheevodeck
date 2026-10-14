@@ -1823,6 +1823,7 @@ function AchievementsRoot() {
         compareFriendUsername,
         compareFilter,
         leaderboardAudience,
+        selectedLeaderboardId: selectedLeaderboard?.id ?? null,
         newsEventsSubView,
         aotwSubView,
         newSetsFilter,

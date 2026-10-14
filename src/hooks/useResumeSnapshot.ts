@@ -34,6 +34,8 @@ import type {
     ViewKey
 } from "../types";
 
+let lastLeaderboardId: number | null = null;
+
 type ResumeSnapshotArgs = {
     navStack: NavStack;
     unlockHistorySource: UnlockHistorySource;
@@ -91,6 +93,7 @@ type ResumeSnapshotArgs = {
     trackedSetsBackSourceRef: RefObject<"profile" | "main">;
     leaderboardsSourceViewRef: RefObject<"achievements" | "friendGame" | "gameOverview">;
     selectedLeaderboardRef: RefObject<LeaderboardRow | null>;
+    selectedLeaderboardId: number | null;
     defaultPersistedFocusKeyForView: (currentView: ViewKey) => string;
     compareFriendUsernameRef: RefObject<string | null>;
     compareFilterRef: RefObject<NowPlayingCompareFilter>;
@@ -138,6 +141,7 @@ export function useResumeSnapshot(args: ResumeSnapshotArgs) {
         compareFriendUsername,
         compareFilter,
         leaderboardAudience,
+        selectedLeaderboardId,
         newsEventsSubView,
         aotwSubView,
         newSetsFilter,
@@ -226,7 +230,8 @@ export function useResumeSnapshot(args: ResumeSnapshotArgs) {
             guidesFaqId: currentView === "guides" ? (guidesOpenFaqIdRef.current ?? null) : null,
             friendProfileBackSource: friendProfileBackSourceRef.current ?? null,
             leaderboardsSourceView: leaderboardsSourceViewRef.current,
-            selectedLeaderboardId: selectedLeaderboardRef.current?.id ?? null,
+            selectedLeaderboardId: selectedLeaderboardRef.current?.id
+                ?? (currentView === "leaderboardDetail" ? lastLeaderboardId : null),
             leaderboardAudience: currentView === "leaderboardDetail" ? leaderboardAudienceRef.current : null,
             nowPlayingCompareFriend: compareFriendUsernameRef.current ?? null,
             nowPlayingCompareFilter: compareFilterRef.current ?? null,
@@ -306,7 +311,11 @@ export function useResumeSnapshot(args: ResumeSnapshotArgs) {
         if (!settingsLoaded || settingsMode || !rememberLastPage) {
             return;
         }
-        void saveResumeState(buildResumeState());
+        const state = buildResumeState();
+        if (state.selectedLeaderboardId) {
+            lastLeaderboardId = state.selectedLeaderboardId;
+        }
+        void saveResumeState(state);
     }, [
         settingsLoaded,
         settingsMode,
@@ -323,6 +332,7 @@ export function useResumeSnapshot(args: ResumeSnapshotArgs) {
         compareFriendUsername,
         compareFilter,
         leaderboardAudience,
+        selectedLeaderboardId,
         mainTab,
         newsEventsSubView,
         aotwSubView,
