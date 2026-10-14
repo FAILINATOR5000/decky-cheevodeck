@@ -582,6 +582,18 @@ export function pendingLandingKey(view: ViewKey): string | null {
     return takeablePending(view)?.record.focusKey ?? null;
 }
 
+export function remountLandingKey(): string | null {
+    return pending && pending.kind === "remount" && pending.claimedKey === null ? pending.record.focusKey : null;
+}
+
+export function remountTargetMoved(fromKey: string, toKey: string) {
+    if (remountLandingKey() !== fromKey || !pending) {
+        return;
+    }
+    logFocusDebug("landing", "moved", `${pending.entryId} ${fromKey} -> ${toKey}`);
+    overrideRecord(pending.entryId, { focusKey: toKey, fallbacks: [] });
+}
+
 export function topEntryId(): number | null {
     return topEntry()?.id ?? null;
 }

@@ -1,5 +1,6 @@
 import { startTransition, useEffect, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { logFocusDebug } from "../api";
+import { remountLandingKey, remountTargetMoved } from "../focusRecords";
 import { currentJumpToTopToken, subscribeJumpToTop } from "../utils/jumpToTop";
 
 const WINDOW_MAX_ROWS = 55;
@@ -21,6 +22,9 @@ type HeightCache = { heights: Map<string, number>; total: number };
 
 const heightCaches = new Map<string, HeightCache>();
 const lastWidthByWindow = new Map<string, number>();
+
+type Place = { items: readonly unknown[]; start: number; end: number; focusKey: string };
+const lastPlaceByWindow = new Map<string, Place>();
 
 function cacheFor(scope: string): HeightCache {
     let cache = heightCaches.get(scope);
@@ -125,6 +129,7 @@ type WindowState<T> = {
     rebase: number;
     upBlocked: boolean;
     stepApplied: number;
+    movedTarget: { from: string; to: string } | null;
 };
 
 type Geometry = {
@@ -195,9 +200,72 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
     const focusKeyRef = useRef<string | null>(null);
     const lastFocusAtRef = useRef(0);
 
+    const [placeBefore] = useState(() => lastPlaceByWindow.get(windowId) ?? null);
+
+    function placeOf(focusKey: string): string | null {
+        if (!placeBefore || focusKey !== remountLandingKey()) {
+            return null;
+        }
+        const oldItems = placeBefore.items as T[];
+        const oldEnd = Math.min(placeBefore.end, oldItems.length);
+        let was = -1;
+        for (let i = placeBefore.start; i < oldEnd; i += 1) {
+            if (itemKey(oldItems[i]) === placeBefore.focusKey && focusKeyFor(oldItems[i]) === focusKey) {
+                was = i;
+                break;
+            }
+        }
+        if (was < 0) {
+            return null;
+        }
+        const newIndex = new Map<string, number>();
+        for (let i = 0; i < items.length; i += 1) {
+            newIndex.set(itemKey(items[i]), i);
+        }
+        const now = newIndex.get(placeBefore.focusKey);
+        if (now === undefined) {
+            return null;
+        }
+        const around = new Map<string, { index: number }>();
+        for (let i = placeBefore.start; i < oldEnd; i += 1) {
+            around.set(itemKey(oldItems[i]), { index: i });
+        }
+        if (keptItsPlace(around, newIndex, was, now)) {
+            return null;
+        }
+        let spot: number | null = null;
+        for (let i = was - 1; i >= placeBefore.start && spot === null; i -= 1) {
+            const current = newIndex.get(itemKey(oldItems[i]));
+            if (current !== undefined && keptItsPlace(around, newIndex, i, current)) {
+                spot = current + (was - i);
+            }
+        }
+        for (let i = was + 1; i < oldEnd && spot === null; i += 1) {
+            const current = newIndex.get(itemKey(oldItems[i]));
+            if (current !== undefined && keptItsPlace(around, newIndex, i, current)) {
+                spot = current;
+            }
+        }
+        if (spot === null) {
+            return null;
+        }
+        const family = focusKey.slice(0, focusKey.lastIndexOf(":") + 1);
+        const base = Math.min(spot, items.length - 1);
+        for (let d = 0; d < items.length; d += 1) {
+            for (const i of [base + d, base - d]) {
+                if (i >= 0 && i < items.length && i !== now && focusKeyFor(items[i]).startsWith(family)) {
+                    return focusKeyFor(items[i]);
+                }
+            }
+        }
+        return null;
+    }
+
     const [state, setState] = useState<WindowState<T>>(() => {
         const mean = meanHeight(cacheFor(scope));
         const end = Math.min(count, openRows);
+        const first = openFirst && items.some((item) => focusKeyFor(item) === openFirst) ? openFirst : null;
+        const instead = first ? placeOf(first) : null;
         return {
             items,
             resetKey,
@@ -210,11 +278,12 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
             estimate: mean ?? 0,
             estimateProvisional: mean === null,
             epoch: 0,
-            pendingOpen: openFirst && items.some((item) => focusKeyFor(item) === openFirst) ? openFirst : null,
+            pendingOpen: instead ?? first,
             openTarget: null,
             rebase: 0,
             upBlocked: false,
-            stepApplied: 0
+            stepApplied: 0,
+            movedTarget: first && instead ? { from: first, to: instead } : null
         };
     });
 
@@ -279,7 +348,9 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
         return 0;
     }
 
-    function openedAround(from: WindowState<T>, focusKey: string): WindowState<T> | null {
+    function openedAround(from: WindowState<T>, requested: string): WindowState<T> | null {
+        const instead = placeOf(requested);
+        const focusKey = instead ?? requested;
         const index = items.findIndex((item) => focusKeyFor(item) === focusKey);
         if (index < 0) {
             return null;
@@ -289,6 +360,7 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
             ...from,
             pendingOpen: null,
             openTarget: itemKey(items[index]),
+            movedTarget: instead ? { from: requested, to: instead } : from.movedTarget,
             residual: 0,
             belowResidual: 0,
             epoch: from.epoch + 1,
@@ -361,6 +433,19 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
     useLayoutEffect(function publishCommitted() {
         liveRef.current = live;
     });
+
+    useLayoutEffect(function rememberPlace() {
+        if (focusKeyRef.current !== null) {
+            lastPlaceByWindow.set(windowId, { items: next.items, start: next.start, end: next.end, focusKey: focusKeyRef.current });
+        }
+    });
+
+    useLayoutEffect(function reportMovedTarget() {
+        const moved = next.movedTarget;
+        if (moved) {
+            remountTargetMoved(moved.from, moved.to);
+        }
+    }, [next.movedTarget]);
 
     const geometryRef = useRef<Geometry | null>(null);
     const scrollerRef = useRef<HTMLElement | null>(null);
