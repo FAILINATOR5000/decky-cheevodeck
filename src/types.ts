@@ -648,7 +648,7 @@ export type BrowserNewTabPage = "google" | "brave" | "duckduckgo" | "retroachiev
 
 export type ShortcutButton =
     | "menu" | "view" | "l3" | "r3" | "l4" | "l5" | "r4" | "r5"
-    | "menuUp" | "menuDown" | "menuLeft" | "menuRight" | "menuL1" | "menuR1";
+    | "menuUp" | "menuDown" | "menuLeft" | "menuRight" | "menuL1" | "menuR1" | "menuL3" | "menuR3";
 
 export type ShortcutAction =
     | "none"
@@ -666,6 +666,7 @@ export type ShortcutAction =
     | "subscribeddiscussions"
     | "savedcomments"
     | "trackedsets"
+    | "milestones"
     | "utilities"
     | "useraccounts"
     | "options"

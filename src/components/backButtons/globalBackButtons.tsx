@@ -45,6 +45,7 @@ type PageAction =
     | "subscribeddiscussions"
     | "savedcomments"
     | "trackedsets"
+    | "milestones"
     | "profile";
 
 type SummonAction =
@@ -198,6 +199,8 @@ async function pageEntry(action: PageAction): Promise<PanelEntry | null> {
             return { kind: "stormbreaker" };
         case "trackedsets":
             return { kind: "trackedSets" };
+        case "milestones":
+            return { kind: "milestones", tab: "milestones" };
         case "socialActivity":
             return { kind: "socialTab", tab: "activity" };
         case "news":

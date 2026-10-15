@@ -70,6 +70,7 @@ SUMMON_ACTIONS = (
     "subscribeddiscussions",
     "savedcomments",
     "trackedsets",
+    "milestones",
     "dolphinMapper",
     "stormbreaker",
 )
@@ -85,6 +86,8 @@ _MENU_COMBO_BITS = {
         ("right", 9, 0x02),
         ("l1", 8, 0x08),
         ("r1", 8, 0x04),
+        ("l3", 10, 0x40),
+        ("r3", 11, 0x04),
     ),
     ALLY_FORMAT: (
         ("menu", 9, 0x40),
@@ -94,6 +97,8 @@ _MENU_COMBO_BITS = {
         ("right", 9, 0x02),
         ("l1", 8, 0x08),
         ("r1", 8, 0x04),
+        ("l3", 10, 0x40),
+        ("r3", 11, 0x04),
     ),
     CONTROLLER_FORMAT: (
         ("menu", 2, 0x40),
@@ -103,6 +108,8 @@ _MENU_COMBO_BITS = {
         ("right", 3, 0x08),
         ("l1", 4, 0x08),
         ("r1", 3, 0x02),
+        ("l3", 3, 0x80),
+        ("r3", 2, 0x20),
     ),
 }
 
@@ -113,6 +120,8 @@ _MENU_COMBO_KEYS = {
     "right": "menuRight",
     "l1": "menuL1",
     "r1": "menuR1",
+    "l3": "menuL3",
+    "r3": "menuR3",
 }
 
 _CHORD_BITS = {

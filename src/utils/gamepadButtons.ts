@@ -36,7 +36,9 @@ export const MENU_COMBO_BY_CODE: Record<number, ShortcutButton> = {
     [BUTTON_DIR_LEFT]: "menuLeft",
     [BUTTON_DIR_RIGHT]: "menuRight",
     [BUTTON_BUMPER_LEFT]: "menuL1",
-    [BUTTON_BUMPER_RIGHT]: "menuR1"
+    [BUTTON_BUMPER_RIGHT]: "menuR1",
+    [BUTTON_LSTICK_CLICK]: "menuL3",
+    [BUTTON_RSTICK_CLICK]: "menuR3"
 };
 
 export const MENU_HOLD_LIMIT_MS = 10000;

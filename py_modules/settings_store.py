@@ -257,7 +257,7 @@ SHORTCUT_BINDINGS_VERSION = 2
 DYNAMIC_INITIAL_ROWS_VERSION = 2
 
 
-_MENU_COMBO_SHORTCUT_BUTTONS = ("menuUp", "menuDown", "menuLeft", "menuRight", "menuL1", "menuR1")
+_MENU_COMBO_SHORTCUT_BUTTONS = ("menuUp", "menuDown", "menuLeft", "menuRight", "menuL1", "menuR1", "menuL3", "menuR3")
 
 _ALLOWED_SHORTCUT_BUTTONS = ("menu", "view", "l3", "r3", "l4", "l5", "r4", "r5", *_MENU_COMBO_SHORTCUT_BUTTONS)
 
@@ -277,6 +277,7 @@ _ALLOWED_SHORTCUT_ACTIONS = (
     "subscribeddiscussions",
     "savedcomments",
     "trackedsets",
+    "milestones",
     "utilities",
     "useraccounts",
     "options",
@@ -321,6 +322,8 @@ def _default_shortcut_bindings() -> dict:
         "menuRight": "memories",
         "menuL1": "doNotDisturb",
         "menuR1": "notifications",
+        "menuL3": "milestones",
+        "menuR3": "none",
     }
 
 

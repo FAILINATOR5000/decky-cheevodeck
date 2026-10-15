@@ -4623,6 +4623,10 @@ function AchievementsRoot() {
             goToTrackedSets("hub");
             return;
         }
+        if (action === "milestones") {
+            goToMilestones("hub");
+            return;
+        }
         if (action === "utilities") {
             goToUtils("hub");
             return;

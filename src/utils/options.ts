@@ -274,7 +274,9 @@ export const SHORTCUT_BUTTONS: { id: ShortcutButton; helpKey: string }[] = [
     { id: "menuLeft", helpKey: "help_shortcut_menu_left" },
     { id: "menuRight", helpKey: "help_shortcut_menu_right" },
     { id: "menuL1", helpKey: "help_shortcut_menu_l1" },
-    { id: "menuR1", helpKey: "help_shortcut_menu_r1" }
+    { id: "menuR1", helpKey: "help_shortcut_menu_r1" },
+    { id: "menuL3", helpKey: "help_shortcut_menu_l3" },
+    { id: "menuR3", helpKey: "help_shortcut_menu_r3" }
 ];
 
 const MENU_COMBOS: { id: ShortcutButton; glyph: GlyphButton }[] = [
@@ -283,7 +285,9 @@ const MENU_COMBOS: { id: ShortcutButton; glyph: GlyphButton }[] = [
     { id: "menuLeft", glyph: "dpadLeft" },
     { id: "menuRight", glyph: "dpadRight" },
     { id: "menuL1", glyph: "l1" },
-    { id: "menuR1", glyph: "r1" }
+    { id: "menuR1", glyph: "r1" },
+    { id: "menuL3", glyph: "l3" },
+    { id: "menuR3", glyph: "r3" }
 ];
 
 function menuCombo(button: ShortcutButton) {
@@ -323,6 +327,7 @@ export const GLOBAL_SHORTCUT_ACTIONS: readonly ShortcutAction[] = [
     "subscribeddiscussions",
     "savedcomments",
     "trackedsets",
+    "milestones",
     "dolphinMapper",
     "stormbreaker"
 ];
@@ -347,6 +352,7 @@ const SHORTCUT_ACTIONS: { id: ShortcutAction; labelKey: string }[] = [
     { id: "subscribeddiscussions", labelKey: "Subscribed Discussions" },
     { id: "savedcomments", labelKey: "Saved Comments" },
     { id: "trackedsets", labelKey: "Mastery Goals" },
+    { id: "milestones", labelKey: "View Milestones" },
     { id: "utilities", labelKey: "Utilities" },
     { id: "useraccounts", labelKey: "User Accounts" },
     { id: "options", labelKey: "Options" },
@@ -386,7 +392,9 @@ export const DEFAULT_SHORTCUT_BINDINGS: Record<ShortcutButton, ShortcutAction> =
     menuLeft: "lastMemory",
     menuRight: "memories",
     menuL1: "doNotDisturb",
-    menuR1: "notifications"
+    menuR1: "notifications",
+    menuL3: "milestones",
+    menuR3: "none"
 };
 
 export function shortcutButtonLabel(value: ShortcutButton, language: LanguageCode = DEFAULT_LANGUAGE) {
