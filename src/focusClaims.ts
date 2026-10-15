@@ -62,6 +62,16 @@ export function spendKeyClaim(key: string, token: number) {
     }
 }
 
+export function disarmKeyClaim(key: string, owner: number) {
+    const claim = claims.get(key);
+    if (!claim || claim.owner !== owner || !(claim.armed || claim.recovery)) {
+        return;
+    }
+    claims.set(key, { ...claim, armed: false, recovery: false });
+    logFocusDebug("claim", "disarm", `${key} token=${claim.token}`);
+    announce(key);
+}
+
 export function disarmKeyClaims(owner: number) {
     for (const [key, claim] of claims) {
         if (claim.owner === owner && (claim.armed || claim.recovery)) {

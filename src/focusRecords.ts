@@ -1,7 +1,7 @@
 import { useInsertionEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import { logFocusDebug } from "./api";
 import { isCovered, setCover, subscribeCovers } from "./covers";
-import { armKeyClaim, claimSpentWithin, disarmKeyClaims, heirClaimExpected, onKeyClaimSpent, withdrawKeyClaim } from "./focusClaims";
+import { armKeyClaim, claimSpentWithin, disarmKeyClaim, disarmKeyClaims, heirClaimExpected, onKeyClaimSpent, withdrawKeyClaim } from "./focusClaims";
 import { initialNav, rehydrateNav, settleNav, type NavIntent, type NavState, type Route } from "./nav";
 import type { ViewKey } from "./types";
 import { LANDING_TIMING, PRESS_GUARD_CEILING_MS, type LandingTiming } from "./utils/landingTiming";
@@ -1226,6 +1226,9 @@ export function usePageLanding(registration: {
                 logFocusDebug("landing", "candidate", `${active.entryId} ${key} claimed`);
                 landing.claimToken = armKeyClaim(key, active.entryId);
                 watchClaim(active.entryId, key);
+                if (landing.placeholderKey !== null && landing.placeholderKey !== key) {
+                    disarmKeyClaim(landing.placeholderKey, active.entryId);
+                }
                 return;
             }
             const askedAt = active.opened.get(key);
