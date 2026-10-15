@@ -999,6 +999,10 @@ class MemoriesMixin(PluginContext):
         else:
             payload = (await asyncio.to_thread(self.cache_store.load_payload) or {}).get("payload") or {}
         if norm_game_id(payload.get("gameId")) != current:
+            waiting = {memory_id: entry for memory_id, entry in waiting.items()
+                       if memory_id in self._memories_switch_pending}
+            if not waiting:
+                return
             return
         app_id = next(iter(waiting.values()))[1]
         title = await asyncio.to_thread(memories_capture.resolve_title, app_id, payload.get("title"), self.user_home)
@@ -1016,7 +1020,7 @@ class MemoriesMixin(PluginContext):
             if (got or {}).get("ok"):
                 moved += 1
         decky.logger.info(
-            "memories: the game changed to %s with the panel closed, %d of %d capture(s) moved",
+            "memories: the game changed to %s, %d of %d capture(s) moved",
             current, moved, len(waiting),
         )
         await self.resolve_pending_memories(current)

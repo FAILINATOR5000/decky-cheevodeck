@@ -1,5 +1,5 @@
 import asyncio
-from utils import frontend_error
+from utils import frontend_error, norm_game_id
 
 from mixins._context import PluginContext
 
@@ -139,7 +139,11 @@ class GamesAchievementsMixin(PluginContext):
 
     async def refresh_current_game(self, force: bool = False):
         async with self._game_check_slot():
-            return await asyncio.to_thread(self._refresh_current_game_sync, bool(force))
+            result = await asyncio.to_thread(self._refresh_current_game_sync, bool(force))
+        if self._memories_switch_pending:
+            game_id = norm_game_id(((result or {}).get("payload") or {}).get("gameId"))
+            await self._follow_game_switch({"currentGameId": game_id, "cachedGameId": game_id})
+        return result
 
     def _refresh_current_game_sync(self, force):
         cfg = self.settings_store.load_config()
