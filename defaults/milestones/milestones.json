@@ -75,6 +75,7 @@
     {"id": "mem_10", "category": "memories", "rule": {"type": "counter", "kinds": ["memory_screenshot", "memory_clip"]}, "target": 10, "xp": 50},
     {"id": "mem_50", "category": "memories", "rule": {"type": "counter", "kinds": ["memory_screenshot", "memory_clip"]}, "target": 50, "xp": 100},
     {"id": "mem_100", "category": "memories", "rule": {"type": "counter", "kinds": ["memory_screenshot", "memory_clip"]}, "target": 100, "xp": 250},
+    {"id": "mem_200", "category": "memories", "rule": {"type": "counter", "kinds": ["memory_screenshot", "memory_clip"]}, "target": 200, "xp": 500},
     {"id": "exp_guide", "category": "explore", "rule": {"type": "counter", "kinds": ["guide_open"]}, "target": 1, "xp": 25},
     {"id": "exp_bookmark", "category": "explore", "rule": {"type": "counter", "kinds": ["guide_bookmark"]}, "target": 1, "xp": 10, "buttons": ["y"]},
     {"id": "exp_guide_search", "category": "explore", "rule": {"type": "counter", "kinds": ["guide_search"]}, "target": 1, "xp": 10},
