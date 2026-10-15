@@ -196,6 +196,11 @@ export function useGameDataController({
                     });
                 }
             }
+            else if (result.payload && result.payload.gameId !== payloadRef.current?.gameId) {
+                setError(result.error ?? null);
+                setPayload(result.payload);
+                setPendingPrimaryViewRestoreGameId(result.payload.gameId ?? null);
+            }
         } catch (e: any) {
             logError("checkForCurrentGameChange", e);
             if (mountedRef.current) {
