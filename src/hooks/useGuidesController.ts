@@ -47,6 +47,7 @@ import {
     upsertGuideMeta,
 } from "../api";
 import { subPopWouldLand } from "../focusRecords";
+import { recordMilestoneEvent } from "../utils/milestoneEvents";
 
 export type GuidesStatus =
     | "idle"
@@ -468,6 +469,7 @@ export function useGuidesController(args: UseGuidesControllerArgs) {
     const openGuide = useCallback(
         (faqId: string, sectionSlug?: string | null) => {
             if (gameId == null) return;
+            recordMilestoneEvent("guide_open");
             setOpenFaqId(faqId);
             setSubView("reader");
             setContent(null);

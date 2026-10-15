@@ -26,6 +26,8 @@ export interface RouteBackActions {
     backFromUtilityTool: BackAction;
     backFromMemories: BackAction;
     backFromEventViewer: BackAction;
+    backFromMilestones: BackAction;
+    backFromActivity: BackAction;
 }
 
 export interface RouteRow {
@@ -64,7 +66,9 @@ export const ROUTES: Record<ViewKey, RouteRow> = {
     qamGuard: { focusKey: "qamGuard:back", mount: "always", back: (nav) => nav.backFromUtilityTool() },
     memories: { focusKey: "memories:back", mount: "always", back: (nav) => nav.backFromMemories() },
     guides: { focusKey: "guides:back", mount: "always" },
-    eventViewer: { focusKey: "eventviewer:back", mount: "whenActive", back: (nav) => nav.backFromEventViewer() }
+    eventViewer: { focusKey: "eventviewer:back", mount: "whenActive", back: (nav) => nav.backFromEventViewer() },
+    milestones: { focusKey: "milestones:back", mount: "always", back: (nav) => nav.backFromMilestones() },
+    activity: { focusKey: "activity:back", mount: "whenActive", back: (nav) => nav.backFromActivity() }
 };
 
 export const ALL_VIEW_KEYS = Object.keys(ROUTES) as ViewKey[];

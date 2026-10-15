@@ -61,6 +61,7 @@ import { getDeviceIsSteamMachine, modalSize } from "../../utils/scale";
 import { errorRed } from "../../utils/style";
 import { t, type LanguageCode } from "../../locales";
 import type { AchievementRow, MemoryBookmark, MemoryRecord, ShortcutButton } from "../../types";
+import { recordMilestoneEvent } from "../../utils/milestoneEvents";
 
 const BOOKMARK_TOAST_MS = 3000;
 
@@ -453,6 +454,7 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
         }
         setArmedDelete(false);
         if (!timeline) {
+            recordMilestoneEvent("timeline");
             setVideoMissing(false);
             setTimeline(true);
             return;
@@ -583,6 +585,9 @@ export function MemoryViewerModal(props: MemoryViewerModalProps) {
             return;
         }
         pendingSeekRef.current = bookmark.mediaTime;
+        if (!timeline) {
+            recordMilestoneEvent("timeline");
+        }
         setVideoMissing(false);
         setTimeline(true);
         focusPicture();

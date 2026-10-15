@@ -157,6 +157,25 @@ class RetroAchievementsClient:
             params["m"] = minutes
         return self._get_json("API_GetUserRecentAchievements.php", params, timeout=timeout)
 
+    def get_achievements_earned_between(
+        self,
+        username: str,
+        web_api_key: str,
+        from_ts: int,
+        to_ts: int,
+        timeout: Optional[float] = None,
+    ) -> Any:
+        return self._get_json(
+            "API_GetAchievementsEarnedBetween.php",
+            {
+                "u": username,
+                "y": web_api_key,
+                "f": to_int(from_ts, 0),
+                "t": to_int(to_ts, 0),
+            },
+            timeout=timeout,
+        )
+
     def get_user_recently_played_games(
         self,
         username: str,

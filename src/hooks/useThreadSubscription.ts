@@ -10,6 +10,7 @@ import {
 import { t, type LanguageCode } from "../locales";
 import { logError } from "../utils/errors";
 import type { AddSubscriptionPayload, SubscriptionKind } from "../types";
+import { recordMilestoneEvent } from "../utils/milestoneEvents";
 
 const SEED_FETCH_COUNT = 10;
 
@@ -103,6 +104,9 @@ export function useThreadSubscription(args: ThreadSubscriptionArgs) {
                 return;
             }
             const result = await addSubscription(await withTrustedSeed(entry));
+            if (result?.ok && !result?.alreadySubscribed) {
+                recordMilestoneEvent("subscribe");
+            }
             if (result?.ok || result?.alreadySubscribed) {
                 setIsSubscribed(true);
                 setSubscribeError(null);

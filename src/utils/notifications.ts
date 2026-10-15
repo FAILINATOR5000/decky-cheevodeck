@@ -10,7 +10,8 @@ const BUCKET_BY_TYPE: Record<NotificationType, Exclude<ArchiveBucket, "all">> = 
     system: "system",
     debug: "system",
     noteReminder: "reminders",
-    trackedSet: "masteryGoals"
+    trackedSet: "masteryGoals",
+    milestones: "milestones"
 };
 
 function archiveBucketOf(type: NotificationType): Exclude<ArchiveBucket, "all"> {
@@ -40,11 +41,14 @@ export function archiveBucketLabel(value: ArchiveBucket, language: LanguageCode 
     if (value === "masteryGoals") {
         return t(language, "Mastery Goals");
     }
+    if (value === "milestones") {
+        return t(language, "Milestones");
+    }
     return t(language, "All");
 }
 
 export function nextArchiveBucket(current: ArchiveBucket): ArchiveBucket {
-    const order: ArchiveBucket[] = ["all", "unlocks", "commentPosts", "system", "reminders", "masteryGoals"];
+    const order: ArchiveBucket[] = ["all", "unlocks", "commentPosts", "system", "reminders", "masteryGoals", "milestones"];
     return order[(order.indexOf(current) + 1) % order.length];
 }
 

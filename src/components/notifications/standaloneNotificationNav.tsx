@@ -130,6 +130,9 @@ export function buildStandaloneNotificationNav(language: LanguageCode, settings:
         openTrackedSet: (setId) => {
             landLater({ kind: "trackedSet", setId });
         },
+        openMilestones: (land, tab) => {
+            landLater({ kind: "milestones", tab }, land);
+        },
         openCheevoCheck: () => {
             landLater({ kind: "cheevoCheck" });
         },

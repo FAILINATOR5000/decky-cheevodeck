@@ -15,6 +15,7 @@ import { playOkSound, playToggleSound } from "../../utils/navSound";
 import { modalSize } from "../../utils/scale";
 import { FADE_IN_KEYFRAMES, modalBodyStyle } from "../../utils/style";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
+import { recordMilestoneEvent } from "../../utils/milestoneEvents";
 
 export type CommentSaveControl = {
     saved: boolean;
@@ -172,6 +173,7 @@ export function CommentViewModal(props: CommentViewModalProps) {
             else {
                 const result = await saveControl.onSave();
                 if (result?.ok) {
+                    recordMilestoneEvent("comment_saved");
                     setSaved(true);
                     setSavedId(result.record?.id ?? null);
                     setStatusKind("saved");

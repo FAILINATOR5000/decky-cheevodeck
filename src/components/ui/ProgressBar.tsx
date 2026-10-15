@@ -9,6 +9,9 @@ const SWEEP_KEYFRAMES = `
     from { transform: translateX(-100%); }
     to { transform: translateX(400%); }
 }
+.gpfocus .da-progress-track {
+    background: rgba(0, 0, 0, 0.18) !important;
+}
 @media (prefers-reduced-motion: reduce) {
     .da-progress-sweep {
         animation: none !important;
@@ -20,18 +23,20 @@ const SWEEP_KEYFRAMES = `
 
 export type ProgressBarProps = {
     fraction: number | null;
+    height?: number;
 };
 
 export function ProgressBar(props: ProgressBarProps) {
-    const { fraction } = props;
+    const { fraction, height = TRACK_HEIGHT_PX } = props;
     const sweeping = fraction === null;
     const filled = sweeping ? SWEEP_WIDTH_PCT : Math.min(1, Math.max(0, fraction)) * 100;
 
     return (
         <div
+            className="da-progress-track"
             style={{
                 width: "100%",
-                height: `${TRACK_HEIGHT_PX}px`,
+                height: `${height}px`,
                 borderRadius: "999px",
                 background: "rgba(255, 255, 255, 0.14)",
                 overflow: "hidden"

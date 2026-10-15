@@ -31,6 +31,7 @@ import {
 import { BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT } from "../../utils/gamepadButtons";
 import { modalSize } from "../../utils/scale";
 import { FADE_IN_KEYFRAMES, NOTES_DOT_KEYFRAMES } from "../../utils/style";
+import { recordMilestoneEvent } from "../../utils/milestoneEvents";
 
 type NotifTab = "normal" | "archived";
 
@@ -70,6 +71,7 @@ export function NotificationsModal(props: NotificationsModalProps) {
 
     useEffect(function logOpen() {
         logNotificationsDebug("open", String(initialNotifications.length));
+        recordMilestoneEvent("notifications_open");
     }, []);
 
     useEffect(function loadArchive() {

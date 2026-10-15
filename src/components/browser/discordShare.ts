@@ -6,6 +6,7 @@ import { logError } from "../../utils/errors";
 import { SHARE_CREDIT_TEXT, SHARED_MEMORIES_CHANNEL_URL, SHARED_MEMORIES_INVITE_URL, SHARED_MEMORIES_PATH } from "../../utils/sharedMemories";
 import { onBrowserClosed, onTabLimitCanceled, openBrowserModal, releaseTabLimitQuestion, tabLimitQuestionOpen } from "./BrowserModal";
 import { liveViewFor, liveViews, loadInView, type LiveView } from "./browserViews";
+import { recordMilestoneEvent } from "../../utils/milestoneEvents";
 
 const POLL_MS = 1000;
 const FIRST_POLL_MS = 250;
@@ -700,6 +701,9 @@ function watchForPost(view: LiveView, filePath: string, filledAt: number) {
             return;
         }
         if (done) {
+            if (done === "posted") {
+                recordMilestoneEvent("memory_shared");
+            }
             endPostWatch();
             view.session.onFileChooser(null);
             logFocusDebug("discord-share", "finished", done);

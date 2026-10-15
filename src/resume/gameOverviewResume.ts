@@ -34,7 +34,8 @@ export function getSavedGameOverviewSource(savedState: ResumeState): GameOvervie
         value === "subscribedDiscussions" ||
         value === "search" ||
         value === "cheevoCheck" ||
-        value === "eventViewer"
+        value === "eventViewer" ||
+        value === "activity"
     ) {
         return value;
     }

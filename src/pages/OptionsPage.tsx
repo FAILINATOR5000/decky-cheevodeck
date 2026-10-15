@@ -53,6 +53,8 @@ import {
     fisTickFrequencyMinutesLabel,
     commentsCheckFrequencyLabel,
     trackedSetRefreshFrequencyLabel,
+    milestonesTickMinutesLabel,
+    activityCacheMonthsLabel,
     playersNearYouLookbehindLabel,
     playersNearYouLookaheadLabel,
     playersNearYouMinTickMinutesLabel,
@@ -239,6 +241,8 @@ type OptionsPageState = {
     notifySocialUnlockToast: boolean;
     notifyNearYouEnabled: boolean;
     notifyNearYouToast: boolean;
+    notifyMilestoneEnabled: boolean;
+    notifyMilestoneToast: boolean;
     legacyAchievementLinks: boolean;
     legacyGameLinks: boolean;
     showDeveloperOptions: boolean;
@@ -247,6 +251,9 @@ type OptionsPageState = {
     trackedSetsAutoCheck: boolean;
     trackedSetsServiceEnabled: boolean;
     trackedSetsRefreshMinutes: number;
+    milestonesServiceEnabled: boolean;
+    milestonesTickMinutes: number;
+    activityCacheMonths: number;
     debugLogging: boolean;
     deferModalCleanup: boolean;
     backButtonsGlobal: boolean;
@@ -272,6 +279,7 @@ type OptionsPageState = {
     batterySaverDisablesTrackedSets: boolean;
     batterySaverDisablesFileWatcher: boolean;
     batterySaverDisablesMemories: boolean;
+    batterySaverDisablesMilestones: boolean;
     doNotDisturbDisablesDot: boolean;
     doNotDisturbDisablesToast: boolean;
     nightModeBrightness: number;
@@ -377,6 +385,7 @@ type OptionsPageState = {
     notesHeaderStyle: HeaderStyle;
     generalHeaderStyle: HeaderStyle;
     trackedEventsHeaderStyle: HeaderStyle;
+    milestonesHeaderStyle: HeaderStyle;
     trackedColor: TrackedColor;
     socialEntryDefault: SocialEntryDefault;
     activityCardAction: ActivityCardAction;
@@ -404,6 +413,7 @@ type OptionsPageActions = {
     onUseDefaultMemoriesVideoPath: () => void | Promise<void>;
     onCycleMemoriesPerPage: () => void | Promise<void>;
     onToggleBatterySaverDisablesMemories: (next: boolean) => void | Promise<void>;
+    onToggleBatterySaverDisablesMilestones: (next: boolean) => void | Promise<void>;
     onDeleteAllMemories: () => void | Promise<void>;
     onSelectOptionsTab: (tab: OptionsTab) => void;
     onClearGameData: () => void | Promise<void>;
@@ -436,6 +446,8 @@ type OptionsPageActions = {
     onClearTracked: () => void | Promise<void>;
     onClearAllTracked: () => void | Promise<void>;
     onClearAllTrackedSets: () => void | Promise<void>;
+    onClearActivityCache: () => void | Promise<void>;
+    onClearMilestoneProgress: () => void | Promise<void>;
     onClearDolphinMappings: () => void | Promise<void>;
     onResetDolphinMappings: () => void | Promise<void>;
     onCleanupDirectory: () => void | Promise<void>;
@@ -485,6 +497,8 @@ type OptionsPageActions = {
     onCycleWantToPlayCacheMinutes: () => void | Promise<void>;
     onToggleNotifyNearYouEnabled: (nextValue: boolean) => void | Promise<void>;
     onToggleNotifyNearYouToast: (nextValue: boolean) => void | Promise<void>;
+    onToggleNotifyMilestoneEnabled: (nextValue: boolean) => void | Promise<void>;
+    onToggleNotifyMilestoneToast: (nextValue: boolean) => void | Promise<void>;
     onToggleLegacyAchievementLinks: (nextValue: boolean) => void | Promise<void>;
     onToggleLegacyGameLinks: (nextValue: boolean) => void | Promise<void>;
     onToggleShowDeveloperOptions: (nextValue: boolean) => void | Promise<void>;
@@ -492,6 +506,9 @@ type OptionsPageActions = {
     onToggleTrackedSetsAutoCheck: (nextValue: boolean) => void | Promise<void>;
     onToggleTrackedSetsServiceEnabled: (nextValue: boolean) => void | Promise<void>;
     onCycleTrackedSetsRefreshMinutes: () => void | Promise<void>;
+    onToggleMilestonesServiceEnabled: (nextValue: boolean) => void | Promise<void>;
+    onCycleMilestonesTickMinutes: () => void | Promise<void>;
+    onCycleActivityCacheMonths: () => void | Promise<void>;
     onToggleDebugLogging: (nextValue: boolean) => void | Promise<void>;
     onToggleDeferModalCleanup: (nextValue: boolean) => void | Promise<void>;
     onToggleBackButtonsGlobal: (nextValue: boolean) => void | Promise<void>;
@@ -580,6 +597,7 @@ type OptionsPageActions = {
     onCycleNotesHeaderStyle: () => void | Promise<void>;
     onCycleGeneralHeaderStyle: () => void | Promise<void>;
     onCycleTrackedEventsHeaderStyle: () => void | Promise<void>;
+    onCycleMilestonesHeaderStyle: () => void | Promise<void>;
     onCycleTrackedColor: () => void | Promise<void>;
     onCycleSocialEntryDefault: () => void | Promise<void>;
     onCycleActivityCardAction: () => void | Promise<void>;
@@ -1075,6 +1093,17 @@ function SystemTab(props: TabContentProps) {
                 help={t(state.language, "help_tracked_sets_auto_check")}
                 separator
             />
+            <SectionTitle label={t(state.language, "Milestones")} />
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:milestonesServiceEnabled"
+                label={t(state.language, "Milestones Service")}
+                value={state.milestonesServiceEnabled}
+                onChange={actions.onToggleMilestonesServiceEnabled}
+                disabled={disabled}
+                help={t(state.language, "help_milestones_service")}
+                separator
+            />
             <SectionTitle label={t(state.language, "Do Not Disturb Disabled Features")} />
             <PanelSectionRow>
                 <InfoText>{t(state.language, "help_do_not_disturb_disabled_features")}</InfoText>
@@ -1157,6 +1186,15 @@ function SystemTab(props: TabContentProps) {
                 onChange={actions.onToggleBatterySaverDisablesTrackedSets}
                 disabled={disabled}
                 help={t(state.language, "help_battery_saver_tracked_sets")}
+            />
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:batterySaverDisablesMilestones"
+                label={t(state.language, "Milestones")}
+                value={state.batterySaverDisablesMilestones}
+                onChange={actions.onToggleBatterySaverDisablesMilestones}
+                disabled={disabled}
+                help={t(state.language, "help_battery_saver_milestones")}
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
@@ -1513,6 +1551,15 @@ function GuiTab(props: TabContentProps) {
             />
             <OptionValueRow
                 outerStyle={buttonOuterStyle}
+                focusKey="options:milestones-header-style"
+                onClick={actions.onCycleMilestonesHeaderStyle}
+                disabled={disabled}
+                label={t(state.language, "Milestones Header Style")}
+                value={headerStyleLabel(state.milestonesHeaderStyle, state.language)}
+                help={t(state.language, "help_milestones_header_style")}
+            />
+            <OptionValueRow
+                outerStyle={buttonOuterStyle}
                 focusKey="options:general-header-style"
                 onClick={actions.onCycleGeneralHeaderStyle}
                 disabled={disabled}
@@ -1774,6 +1821,25 @@ function GuiTab(props: TabContentProps) {
                 onChange={actions.onToggleNotifyNearYouToast}
                 disabled={disabled}
                 help={t(state.language, "help_players_near_you_toasts")}
+                separator
+            />
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:notifyMilestoneEnabled"
+                label={t(state.language, "Milestone Notifications")}
+                value={state.notifyMilestoneEnabled}
+                onChange={actions.onToggleNotifyMilestoneEnabled}
+                disabled={disabled}
+                help={t(state.language, "help_milestone_notifications")}
+            />
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:notifyMilestoneToast"
+                label={t(state.language, "Milestone Toasts")}
+                value={state.notifyMilestoneToast}
+                onChange={actions.onToggleNotifyMilestoneToast}
+                disabled={disabled}
+                help={t(state.language, "help_milestone_toasts")}
             />
         </>
     );
@@ -2039,6 +2105,15 @@ function CacheTab(props: CacheTabProps) {
                 label={t(state.language, "Achievement icon cache")}
                 value={achievementIconCacheGamesLabel(state.achievementIconCacheGames)}
                 help={t(state.language, "help_achievement_icon_cache")}
+            />
+            <OptionValueRow
+                outerStyle={buttonOuterStyle}
+                focusKey="options:activity-cache"
+                onClick={actions.onCycleActivityCacheMonths}
+                disabled={disabled}
+                label={t(state.language, "Activity cache")}
+                value={activityCacheMonthsLabel(state.activityCacheMonths, state.language)}
+                help={t(state.language, "help_activity_cache")}
                 separator
             />
             <SectionTitle label={t(state.language, "Clear Caches")} />
@@ -2273,6 +2348,27 @@ function CacheTab(props: CacheTabProps) {
                 onConfirm={actions.onClearAllTrackedSets}
                 disabled={disabled}
                 help={t(state.language, "help_delete_all_tracked_sets")}
+                separator
+            />
+            <SectionTitle label={t(state.language, "Milestones & Activity Data")} />
+            <OptionConfirm
+                buttonSpacing={state.buttonSpacing}
+                focusKey="options:clear-activity-cache"
+                idleLabel={t(state.language, "Clear Activity Cache")}
+                armedLabel={t(state.language, "Press again to confirm")}
+                onConfirm={actions.onClearActivityCache}
+                disabled={disabled}
+                help={t(state.language, "help_clear_activity_cache")}
+            />
+            <OptionTripleConfirm
+                buttonSpacing={state.buttonSpacing}
+                focusKey="options:clear-milestone-progress"
+                idleLabel={t(state.language, "Clear Milestone Progress")}
+                armedLabel2={t(state.language, "Press again to clear your progress")}
+                armedLabel3={t(state.language, "Last chance: This clears everything")}
+                onConfirm={actions.onClearMilestoneProgress}
+                disabled={disabled}
+                help={t(state.language, "help_clear_milestone_progress")}
                 separator
             />
             <SectionTitle label={t(state.language, "Cheevo Check Data")} />
@@ -2541,6 +2637,15 @@ function AdvancedTab(props: TabContentProps) {
                 label={t(state.language, "Mastery Goal Refresh Frequency")}
                 value={trackedSetRefreshFrequencyLabel(state.trackedSetsRefreshMinutes, state.language)}
                 help={t(state.language, "help_tracked_set_refresh_frequency")}
+            />
+            <OptionValueRow
+                outerStyle={buttonOuterStyle}
+                focusKey="options:milestones-tick-frequency"
+                onClick={actions.onCycleMilestonesTickMinutes}
+                disabled={disabled}
+                label={t(state.language, "Milestones Tick Frequency")}
+                value={milestonesTickMinutesLabel(state.milestonesTickMinutes, state.language)}
+                help={t(state.language, "help_milestones_tick_frequency")}
             />
             <OptionValueRow
                 outerStyle={buttonOuterStyle}

@@ -25,6 +25,7 @@ const KNOWN_SOURCES: AOSource[] = [
     "subscribedDiscussions",
     "external",
     "eventViewer",
+    "activity",
 ];
 
 export function getSavedAoSource(savedState: ResumeState): AOSource {

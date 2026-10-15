@@ -192,6 +192,7 @@ class CheevoCheckService:
         self._store = store
         self._settings_store = settings_store
         self._notifications = notifications_store
+        self._milestone_event = None
         self._bin_dir = bin_dir
         self._hasher_path = bin_dir / cheevo_check_tools.HASHER
         self._chdman_path = bin_dir / cheevo_check_tools.CHDMAN
@@ -374,6 +375,11 @@ class CheevoCheckService:
         )
         if not cancelled:
             self._notify(results, verify_results, error)
+        if not cancelled and error is None and self._milestone_event is not None:
+            self._milestone_event("cheevo_check_done")
+
+    def set_milestone_event(self, record):
+        self._milestone_event = record
 
     def _scan(self, root: Path, offline: bool, web_api_key: str):
         verifying = self._verify_hashes_enabled()

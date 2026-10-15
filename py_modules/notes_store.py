@@ -129,6 +129,14 @@ class NotesStore:
 
         self._notes_master_lock = threading.Lock()
         self._notes_game_locks: dict[str, threading.Lock] = {}
+        self._milestone_event = None
+
+    def set_milestone_event(self, record) -> None:
+        self._milestone_event = record
+
+    def _count(self, kind) -> None:
+        if self._milestone_event is not None:
+            self._milestone_event(kind)
 
     def repoint(self, notes_dir: Path) -> None:
         with self._notes_master_lock:
@@ -454,6 +462,9 @@ class NotesStore:
             self._save_raw(key, entry, notes_dir)
             collapsed = list(entry["collapsedTags"])
 
+        self._count("note_created")
+        if mode != "off":
+            self._count("note_reminder")
         return {"ok": True, "note": new_note, "collapsedTags": collapsed}
 
     @refuses_newer_schema
@@ -529,6 +540,8 @@ class NotesStore:
             self._save_raw(key, entry, notes_dir)
             collapsed = list(entry["collapsedTags"])
 
+        if will_be_on and not was_on:
+            self._count("note_reminder")
         return {"ok": True, "note": target, "collapsedTags": collapsed}
 
     @refuses_newer_schema
@@ -726,6 +739,7 @@ class NotesStore:
                 return {"ok": False, "error": "not_found"}
 
             now = int(time.time())
+            newly_completed = flag and target["completedAt"] is None
             if flag:
                 target["completedAt"] = now
                 target["showFiredDot"] = False
@@ -737,6 +751,8 @@ class NotesStore:
             self._save_raw(key, entry, notes_dir)
             collapsed = list(entry["collapsedTags"])
 
+        if newly_completed:
+            self._count("note_completed")
         return {"ok": True, "note": target, "collapsedTags": collapsed}
 
     def delete_all_notes(self) -> dict:

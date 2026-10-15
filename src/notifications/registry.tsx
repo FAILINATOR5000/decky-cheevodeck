@@ -1,4 +1,4 @@
-import type { AotwComment, CheevoNotification, GameComment, NotificationIconSource, NotificationKind, NotificationType } from "../types";
+import type { AotwComment, CheevoNotification, GameComment, MilestonesTab, NotificationIconSource, NotificationKind, NotificationType } from "../types";
 import {
     achievementCommentSource,
     gameCommentSource,
@@ -11,6 +11,7 @@ export type NotificationNav = {
     openGameOverview?: (gameId: number, viewedUsername?: string, viewedUserRef?: string) => void;
     openAchievementOverview?: (gameId: number, achievementId: number, viewedUsername?: string, viewedUserRef?: string) => void;
     openTrackedSet?: (setId: string) => void;
+    openMilestones?: (land: string, tab: MilestonesTab) => void;
     openAbout?: () => void;
     openCheevoCheck?: () => void;
     openFileWatcher?: () => void;
@@ -218,6 +219,25 @@ export const NOTIFICATION_REGISTRY: Record<NotificationType, NotificationTypeEnt
                     badgeName: badgeName || undefined,
                     gameImageIcon: gameImageIcon || undefined
                 });
+            }
+        },
+    },
+    milestones: {
+        labelKey: "Milestone Notifications",
+        kind: "actionable",
+        onClick: (n, nav) => {
+            const target = n.target;
+            if (!target || !nav.openMilestones) {
+                return;
+            }
+            if (target.milestoneId) {
+                nav.openMilestones(`milestone:${target.milestoneId}`, "milestones");
+            }
+            else if (target.quest === "daily" || target.quest === "weekly") {
+                nav.openMilestones(`milestones:quest:${target.quest}`, "quests");
+            }
+            else {
+                nav.openMilestones("milestones:header", "milestones");
             }
         },
     },

@@ -20,6 +20,8 @@ class NotificationsMixin(PluginContext):
 
     async def save_do_not_disturb(self, do_not_disturb: bool):
         value = self.settings_store.update_do_not_disturb(do_not_disturb)
+        if value:
+            self.milestones_service.record_event("dnd_on")
 
         return {
             "ok": True,
@@ -279,6 +281,22 @@ class NotificationsMixin(PluginContext):
         return {
             "ok": True,
             "notifyTrackedSetToast": stored,
+        }
+
+    async def save_notify_milestone_enabled(self, value: bool):
+        stored = self.settings_store.update_notify_milestone_enabled(value)
+        self._log_notify_toggle("notifyMilestoneEnabled", stored)
+        return {
+            "ok": True,
+            "notifyMilestoneEnabled": stored,
+        }
+
+    async def save_notify_milestone_toast(self, value: bool):
+        stored = self.settings_store.update_notify_milestone_toast(value)
+        self._log_notify_toggle("notifyMilestoneToast", stored)
+        return {
+            "ok": True,
+            "notifyMilestoneToast": stored,
         }
 
     async def save_notify_comment_tracker_enabled(self, value: bool):

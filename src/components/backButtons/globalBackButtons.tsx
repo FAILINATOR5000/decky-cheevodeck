@@ -29,6 +29,7 @@ import { GuidesReaderModal } from "../guides/GuidesReaderModal";
 import { openLastMemory } from "../memories/openLastMemory";
 import { NotificationsModal } from "../notifications/NotificationsModal";
 import { buildStandaloneNotificationNav } from "../notifications/standaloneNotificationNav";
+import { recordMilestoneEvent } from "../../utils/milestoneEvents";
 
 const BACK_BUTTON_EVENT = "cheevodeck_back_button";
 
@@ -107,6 +108,7 @@ async function summonCurrentGuide(language: LanguageCode) {
         }
 
         const { faqId, guide, gameUrl } = last;
+        recordMilestoneEvent("global_last_guide");
         const showIcons = settings?.showIcons ?? true;
         if (showIcons) {
             void prefetchGameIcons([{ gameId, imageIcon: payload?.imageIcon ?? null }]);
@@ -276,6 +278,7 @@ async function onBackButton(payload: { action?: string | null; browserSnapshot?:
     const summon = action as SummonAction;
     switch (summon) {
         case "browser":
+            recordMilestoneEvent("global_browser");
             openBrowserModal(language);
             break;
         case "calculator":
@@ -285,10 +288,15 @@ async function onBackButton(payload: { action?: string | null; browserSnapshot?:
             void summonCurrentGuide(language);
             break;
         case "memories":
+            recordMilestoneEvent("global_memories");
             openPanelOn({ kind: "memories" });
             break;
         case "lastMemory":
-            void openLastMemory(language, () => quickAccessIsHidden() && !cheevoModalOpen());
+            void openLastMemory(language, () => quickAccessIsHidden() && !cheevoModalOpen()).then((opened) => {
+                if (opened) {
+                    recordMilestoneEvent("global_last_memory");
+                }
+            });
             break;
         case "snapshot":
             void captureSnapshot(language);

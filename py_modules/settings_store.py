@@ -56,6 +56,10 @@ ACHIEVEMENT_ICON_CACHE_GAMES_OPTIONS = {8, 16, 24, 32, 64}
 
 FIS_TICK_FREQUENCY_MINUTES_OPTIONS = {1, 2, 3, 4, 5, 10, 15, 30, 60}
 
+MILESTONES_TICK_MINUTES_OPTIONS = {5, 10, 15, 30, 60, 120}
+
+ACTIVITY_CACHE_MONTHS_OPTIONS = {2, 4, 6, 8, 12, 24, 36, 48, 60, 120}
+
 FIS_ROSTER_REFRESH_NEVER = -1
 FIS_ROSTER_REFRESH_INTERVAL_HOURS_OPTIONS = {
     1,
@@ -149,6 +153,8 @@ _ALLOWED_RESUME_VIEWS = {
     "qamGuard",
     "guides",
     "eventViewer",
+    "milestones",
+    "activity",
 }
 
 _ALLOWED_NOW_PLAYING_COMPARE_FILTERS = {"all", "onlyYou", "onlyThem", "shared"}
@@ -182,7 +188,7 @@ _ALLOWED_FRIEND_PROFILE_SUB_VIEWS = {"game", "wall"}
 
 _ALLOWED_GUIDES_SUB_VIEWS = {"list", "reader", "search"}
 
-_ALLOWED_GAME_OVERVIEW_SOURCES = {"main", "newsEvents", "socialActivity", "mainNowPlaying", "friend", "badges", "wantToPlay", "trackedSet", "subscribedDiscussions", "search", "cheevoCheck", "eventViewer"}
+_ALLOWED_GAME_OVERVIEW_SOURCES = {"main", "newsEvents", "socialActivity", "mainNowPlaying", "friend", "badges", "wantToPlay", "trackedSet", "subscribedDiscussions", "search", "cheevoCheck", "eventViewer", "activity"}
 
 _ALLOWED_AO_SOURCES = {
     "main",
@@ -197,9 +203,15 @@ _ALLOWED_AO_SOURCES = {
     "subscribedDiscussions",
     "external",
     "eventViewer",
+    "activity",
 }
 
 _ALLOWED_EVENT_VIEWER_TABS = {"achievements", "comments"}
+_ALLOWED_MILESTONES_TABS = {"milestones", "quests"}
+_RESUME_ULID_RE = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
+_RESUME_MONTH_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
+_RESUME_DAY_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$")
+_ALLOWED_MILESTONES_SORTS = ("list", "upNext")
 _ALLOWED_FRIEND_PROFILE_BACK_SOURCES = {"social", "main", "eventViewer"}
 _ALLOWED_EVENT_VIEWER_SOURCES = {"events", "main", "subscribedDiscussions"}
 
@@ -478,6 +490,8 @@ _KNOBS = (
     Knob("trackedEventsHeaderStyle", default="typed", normalize=True),
     Knob("mainAchievementFilter", default="all", normalize=True),
     Knob("mainAchievementSort", default="upNext", normalize=True),
+    Knob("milestonesSort", default="list", normalize=True),
+    Knob("milestonesHeaderStyle", default="typed", normalize=True),
     Knob("mainAchievementAction", default="track", normalize=True),
     Knob("trackedAchievementAction", default="editNote", normalize=True),
     Knob("eventsClickAction", default="open", normalize=True),
@@ -545,6 +559,7 @@ _KNOBS = (
     Knob("batterySaverDisablesTrackedSets", default=True, normalize=True),
     Knob("batterySaverDisablesFileWatcher", default=True, normalize=True),
     Knob("batterySaverDisablesMemories", default=True, normalize=True),
+    Knob("batterySaverDisablesMilestones", default=True, normalize=True),
     Knob("notifyNoteReminderEnabled", default=True),
     Knob("notifyNoteReminderToast", default=True),
     Knob("notifyTrackedSetEnabled", default=True),
@@ -561,6 +576,8 @@ _KNOBS = (
     Knob("notifySocialUnlockToast", default=False),
     Knob("notifyNearYouEnabled", default=False),
     Knob("notifyNearYouToast", default=False),
+    Knob("notifyMilestoneEnabled", default=False),
+    Knob("notifyMilestoneToast", default=False),
     Knob("notifyDebugEnabled", default=False),
     Knob("notifyDebugToast", default=False),
     Knob("legacyAchievementLinks", default=False, normalize=True),
@@ -635,6 +652,9 @@ _KNOBS = (
     Knob("trackedSetsSelectorFilter", default="all"),
     Knob("trackedSetsServiceEnabled", default=True),
     Knob("trackedSetsRefreshMinutes", default=15),
+    Knob("milestonesServiceEnabled", default=True),
+    Knob("milestonesTickMinutes", default=60),
+    Knob("activityCacheMonths", default=60),
     Knob("dynamicFriendLoading", default=True, normalize=True),
     Knob("dynamicLeaderboardLoading", default=True, normalize=True),
     Knob("dynamicLeaderboardResults", default=True, normalize=True),
@@ -729,6 +749,7 @@ class SettingsStore:
         self._config_lock = threading.RLock()
 
         self._tracked_master_lock = threading.Lock()
+        self._milestone_event = None
         self._tracked_game_locks: dict[str, threading.Lock] = {}
 
         self._favorites_lock = threading.Lock()
@@ -737,6 +758,13 @@ class SettingsStore:
     def set_tracked_dir(self, tracked_dir: Path) -> None:
         with self._tracked_master_lock:
             self._tracked_dir = tracked_dir
+
+    def set_milestone_event(self, record) -> None:
+        self._milestone_event = record
+
+    def _count_milestone(self, kind) -> None:
+        if self._milestone_event is not None:
+            self._milestone_event(kind)
 
     def set_favorites_file(self, favorites_file: Path) -> None:
         with self._favorites_lock:
@@ -1188,6 +1216,16 @@ class SettingsStore:
 
         return self.get_notify_near_you_toast(cfg)
 
+    def update_notify_milestone_enabled(self, value: bool) -> bool:
+        cfg = self._update_config("notifyMilestoneEnabled", bool(value))
+
+        return self.get_notify_milestone_enabled(cfg)
+
+    def update_notify_milestone_toast(self, value: bool) -> bool:
+        cfg = self._update_config("notifyMilestoneToast", bool(value))
+
+        return self.get_notify_milestone_toast(cfg)
+
     def update_notify_debug_enabled(self, value: bool) -> bool:
         cfg = self._update_config("notifyDebugEnabled", bool(value))
 
@@ -1270,6 +1308,31 @@ class SettingsStore:
         cfg = self._update_config("mainAchievementSort", value)
 
         return self.get_main_achievement_sort(cfg)
+
+    def update_milestones_service_enabled(self, value: bool) -> bool:
+        cfg = self._update_config("milestonesServiceEnabled", bool(value))
+
+        return self.get_milestones_service_enabled(cfg)
+
+    def update_milestones_tick_minutes(self, value: int) -> int:
+        cfg = self._update_config("milestonesTickMinutes", to_int(value, 60))
+
+        return self.get_milestones_tick_minutes(cfg)
+
+    def update_activity_cache_months(self, value: int) -> int:
+        cfg = self._update_config("activityCacheMonths", to_int(value, 60))
+
+        return self.get_activity_cache_months(cfg)
+
+    def update_milestones_header_style(self, value: str) -> str:
+        cfg = self._update_config("milestonesHeaderStyle", str(value or "typed").strip().lower())
+        return self.get_milestones_header_style(cfg)
+
+    def update_milestones_sort(self, value: str) -> str:
+        value = str(value or "list").strip()
+        cfg = self._update_config("milestonesSort", value)
+
+        return self.get_milestones_sort(cfg)
 
     def update_unlock_lookback_minutes(self, value: int) -> int:
         cfg = self._update_config(
@@ -1754,6 +1817,11 @@ class SettingsStore:
         cfg = self._update_config("batterySaverDisablesMemories", bool(value))
 
         return self.get_battery_saver_disables_memories(cfg)
+
+    def update_battery_saver_disables_milestones(self, value: bool) -> bool:
+        cfg = self._update_config("batterySaverDisablesMilestones", bool(value))
+
+        return self.get_battery_saver_disables_milestones(cfg)
 
     def update_battery_saver_disables_file_watcher(self, value: bool) -> bool:
         cfg = self._update_config("batterySaverDisablesFileWatcher", bool(value))
@@ -2768,6 +2836,24 @@ class SettingsStore:
             "dateEarned": str(raw.get("dateEarned") or "") or None,
         }
 
+    def _normalize_activity_resume(self, raw: dict) -> dict:
+        ulid = str(raw.get("activitySubjectUlid") or "").strip()
+        if not _RESUME_ULID_RE.match(ulid):
+            ulid = ""
+        name = str(raw.get("activitySubjectName") or "").strip()[:64]
+        month = str(raw.get("activityMonth") or "").strip()
+        if not _RESUME_MONTH_RE.match(month):
+            month = ""
+        day = str(raw.get("activityDay") or "").strip()
+        if not _RESUME_DAY_RE.match(day) or not month or not day.startswith(month):
+            day = ""
+        return {
+            "activitySubjectUlid": ulid or None,
+            "activitySubjectName": (name or None) if ulid else None,
+            "activityMonth": month or None,
+            "activityDay": day or None,
+        }
+
     def load_resume_state(self):
         cfg = self.load_config()
         raw = cfg.get("resumeState")
@@ -2846,6 +2932,12 @@ class SettingsStore:
         if guides_sub_view not in _ALLOWED_GUIDES_SUB_VIEWS:
             guides_sub_view = None
 
+        milestones_tab = str(raw.get("milestonesTab") or "").strip()
+        if milestones_tab not in _ALLOWED_MILESTONES_TABS:
+            milestones_tab = None
+
+        activity = self._normalize_activity_resume(raw)
+
         game_overview_source = str(raw.get("gameOverviewSource") or "").strip()
         if game_overview_source not in _ALLOWED_GAME_OVERVIEW_SOURCES:
             game_overview_source = None
@@ -2893,6 +2985,8 @@ class SettingsStore:
             "friendProfileSubView": friend_profile_sub_view,
             "guidesSubView": guides_sub_view,
             "guidesFaqId": str(raw.get("guidesFaqId") or "").strip() or None,
+            "milestonesTab": milestones_tab,
+            **activity,
             "leaderboardsSourceView": leaderboards_source_view,
             "selectedLeaderboardId": norm_game_id(raw.get("selectedLeaderboardId")),
             "leaderboardAudience": leaderboard_audience,
@@ -2996,6 +3090,12 @@ class SettingsStore:
             if guides_sub_view not in _ALLOWED_GUIDES_SUB_VIEWS:
                 guides_sub_view = None
 
+            milestones_tab = str(resume_state.get("milestonesTab") or "").strip()
+            if milestones_tab not in _ALLOWED_MILESTONES_TABS:
+                milestones_tab = None
+
+            activity = self._normalize_activity_resume(resume_state)
+
             game_overview_source = str(resume_state.get("gameOverviewSource") or "").strip()
             if game_overview_source not in _ALLOWED_GAME_OVERVIEW_SOURCES:
                 game_overview_source = None
@@ -3039,6 +3139,8 @@ class SettingsStore:
                 "friendProfileSubView": friend_profile_sub_view,
                 "guidesSubView": guides_sub_view,
                 "guidesFaqId": str(resume_state.get("guidesFaqId") or "").strip() or None,
+                "milestonesTab": milestones_tab,
+                **activity,
                 "leaderboardsSourceView": leaderboards_source_view,
                 "selectedLeaderboardId": norm_game_id(resume_state.get("selectedLeaderboardId")),
                 "leaderboardAudience": leaderboard_audience,
@@ -3223,6 +3325,8 @@ class SettingsStore:
                     image_icon=image_icon,
                 )
 
+        if action == "reorder" and saved.get("ok") and next_ids != current:
+            self._count_milestone("tracked_reorder")
         return {
             "ok": bool(saved.get("ok", False)),
             "achievementIds": list(saved.get("achievementIds", [])),
@@ -3315,6 +3419,7 @@ class SettingsStore:
             existing_notes = dict(entry.get("notes", {}) or {})
             existing_notes_color = dict(entry.get("notesColor", {}) or {})
             existing_notes_last_edited_at = dict(entry.get("notesLastEditedAt", {}) or {})
+            old_note = str(existing_notes.get(str(norm_achievement_id)) or "")
 
             tag_vocab = None
             if note_text:
@@ -3345,6 +3450,13 @@ class SettingsStore:
                 notes_last_edited_at=existing_notes_last_edited_at,
                 tag_vocabulary=tag_vocab,
             )
+        if saved.get("ok") and note_text:
+            new_tag = self._parse_tag_prefix(note_text)
+            if new_tag and new_tag != self._parse_tag_prefix(old_note):
+                self._count_milestone("tracked_tag")
+            new_body = _TAG_PREFIX_PATTERN.sub("", note_text).strip()
+            if new_body and new_body != _TAG_PREFIX_PATTERN.sub("", old_note).strip():
+                self._count_milestone("tracked_note")
         return {
             "ok": bool(saved.get("ok", False)),
             "notes": saved.get("notes", {}),
@@ -3433,6 +3545,8 @@ class SettingsStore:
                 tag_vocabulary=self._tag_vocab_with(entry.get("tagVocabulary", []) or [], clean_tag),
             )
 
+        if saved.get("ok"):
+            self._count_milestone("tracked_tag")
         return {
             "ok": bool(saved.get("ok", False)),
             "notes": saved.get("notes", {}),
@@ -4221,6 +4335,25 @@ class SettingsStore:
         value = str(cfg.get("mainAchievementSort", "upNext") or "upNext").strip()
         return value if value in _ALLOWED_ACHIEVEMENT_SORTS else "upNext"
 
+    def get_milestones_service_enabled(self, cfg: dict) -> bool:
+        return bool(cfg.get("milestonesServiceEnabled", True))
+
+    def get_milestones_tick_minutes(self, cfg: dict) -> int:
+        value = to_int(cfg.get("milestonesTickMinutes", 60), 60)
+        return value if value in MILESTONES_TICK_MINUTES_OPTIONS else 60
+
+    def get_activity_cache_months(self, cfg: dict) -> int:
+        value = to_int(cfg.get("activityCacheMonths", 60), 60)
+        return value if value in ACTIVITY_CACHE_MONTHS_OPTIONS else 60
+
+    def get_milestones_header_style(self, cfg: dict) -> str:
+        value = str(cfg.get("milestonesHeaderStyle", "typed") or "typed").strip().lower()
+        return value if value in ("typed", "capitalized") else "typed"
+
+    def get_milestones_sort(self, cfg: dict) -> str:
+        value = str(cfg.get("milestonesSort", "list") or "list").strip()
+        return value if value in _ALLOWED_MILESTONES_SORTS else "list"
+
     def get_tracked_achievement_sort(self, cfg: dict) -> str:
         value = str(cfg.get("trackedAchievementSort", "upNext") or "upNext").strip()
         return value if value in _ALLOWED_TRACKED_SORTS else "upNext"
@@ -4458,6 +4591,9 @@ class SettingsStore:
     def get_battery_saver_disables_memories(self, cfg: dict) -> bool:
         return bool(cfg.get("batterySaverDisablesMemories", False))
 
+    def get_battery_saver_disables_milestones(self, cfg: dict) -> bool:
+        return bool(cfg.get("batterySaverDisablesMilestones", True))
+
     def get_file_watcher_run_during_games(self, cfg: dict) -> bool:
         return bool(cfg.get("fileWatcherRunDuringGames", True))
 
@@ -4508,6 +4644,12 @@ class SettingsStore:
 
     def get_notify_near_you_toast(self, cfg: dict) -> bool:
         return bool(cfg.get("notifyNearYouToast", False))
+
+    def get_notify_milestone_enabled(self, cfg: dict) -> bool:
+        return bool(cfg.get("notifyMilestoneEnabled", False))
+
+    def get_notify_milestone_toast(self, cfg: dict) -> bool:
+        return bool(cfg.get("notifyMilestoneToast", False))
 
     def get_notify_debug_enabled(self, cfg: dict) -> bool:
         return bool(cfg.get("notifyDebugEnabled", False))

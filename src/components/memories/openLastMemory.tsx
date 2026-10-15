@@ -7,20 +7,20 @@ import { MemoryViewerModal } from "./MemoryViewerModal";
 
 let opening = false;
 
-export async function openLastMemory(language: LanguageCode, stillAllowed?: () => boolean): Promise<void> {
+export async function openLastMemory(language: LanguageCode, stillAllowed?: () => boolean): Promise<boolean> {
     if (opening) {
-        return;
+        return false;
     }
     opening = true;
     try {
         const latest = await loadLatestMemory();
         const memory = latest?.memory ?? null;
         if (memory === null) {
-            return;
+            return false;
         }
         const settings = await getSettings();
         if (stillAllowed && !stillAllowed()) {
-            return;
+            return false;
         }
         const allTags = orderedTagsByRecency(latest.tags ?? [], true);
         showManagedModal((close) => (
@@ -35,8 +35,10 @@ export async function openLastMemory(language: LanguageCode, stillAllowed?: () =
                 close={close}
             />
         ));
+        return true;
     } catch (e) {
         logError("memories: couldn't open the last memory", e);
+        return false;
     } finally {
         opening = false;
     }

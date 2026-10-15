@@ -59,6 +59,11 @@ class TrackedSetsMonitorService:
 
         self._backoff_until_ts = None
 
+        self._milestone_event = None
+
+    def set_milestone_event(self, record):
+        self._milestone_event = record
+
     def _debug_log(self, message, *args):
         if self._debug_logging:
             decky.logger.info(message, *args)
@@ -473,7 +478,9 @@ class TrackedSetsMonitorService:
             )
             return None
 
-    def _fire(self, set_dict, after_press=False):
+    def _fire(self, set_dict, after_press=False, count=True):
+        if count and self._milestone_event is not None:
+            self._milestone_event("goal_completed")
         set_id = set_dict.get("id")
         set_name = str(set_dict.get("name") or "").strip()
         awarded, possible = self._summed_counts(set_dict)
@@ -537,7 +544,7 @@ class TrackedSetsMonitorService:
             "games": faux_games,
         }
 
-        self._fire(faux_set)
+        self._fire(faux_set, count=False)
         return {"ok": True, "fired": True, "setName": str(first.get("name") or "")}
 
     def _debug_baton_ping(self, title, body, toast_body):

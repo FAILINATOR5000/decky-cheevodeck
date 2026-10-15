@@ -8,6 +8,7 @@ import { useQuickGuide } from "../../utils/quickGuide";
 import { useNotificationsChrome } from "../notifications/NotificationsContext";
 import type { ButtonSpacing } from "../../types";
 import { getCurrentTitleScale, scaleMultiplier } from "../../utils/scale";
+import { recordMilestoneEvent } from "../../utils/milestoneEvents";
 
 // Font Awesome Free icon path, CC BY 4.0. See ATTRIBUTIONS.md.
 function BellIcon(props: { size?: number }) {
@@ -77,7 +78,13 @@ type PageNavStripProps = {
 export function PageHelpButton(props: { focusKey: string; onClick: () => void }) {
     return (
         <FocusTarget focusKey={props.focusKey} style={{ position: "relative" }}>
-            <DialogButton onClick={props.onClick} style={navButtonStyle}>
+            <DialogButton
+                onClick={() => {
+                    recordMilestoneEvent("page_help");
+                    props.onClick();
+                }}
+                style={navButtonStyle}
+            >
                 <FaRegQuestionCircle size={18} />
             </DialogButton>
         </FocusTarget>
@@ -95,7 +102,10 @@ export function PageNavStrip(props: PageNavStripProps) {
         >
             <FocusTarget focusKey="nav:home" style={{ position: "relative" }}>
                 <DialogButton
-                    onClick={() => { void props.onHome(); }}
+                    onClick={() => {
+                        recordMilestoneEvent("home");
+                        void props.onHome();
+                    }}
                     style={navButtonStyle}
                 >
                     <HomeIcon size={18} />

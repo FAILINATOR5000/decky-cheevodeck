@@ -45,6 +45,8 @@ const FIS_TICK_FREQUENCY_MINUTES_OPTIONS = [1, 2, 3, 4, 5, 10, 15, 30, 60] as co
 const COMMENTS_CHECK_FREQUENCY_MINUTES_OPTIONS = [1, 2, 3, 4, 5, 10, 15, 30, 60, 120, 180] as const;
 const COMMENTS_SERVICE_FETCH_AMOUNT_OPTIONS = [5, 10, 15, 20, 25, 30] as const;
 const TRACKED_SETS_REFRESH_MINUTES_OPTIONS = [1, 5, 10, 15, 30, 60, 120] as const;
+const MILESTONES_TICK_MINUTES_OPTIONS = [5, 10, 15, 30, 60, 120] as const;
+const ACTIVITY_CACHE_MONTHS_OPTIONS = [2, 4, 6, 8, 12, 24, 36, 48, 60, 120] as const;
 const PLAYERS_NEAR_YOU_LOOKBEHIND_OPTIONS = [0, 1, 2, 3, 4, 5] as const;
 const PLAYERS_NEAR_YOU_LOOKAHEAD_OPTIONS = [2, 4, 6, 8, 10, 12] as const;
 const PLAYERS_NEAR_YOU_TICK_MINUTES_OPTIONS = [1, 2, 3, 5, 10, 15, 30, 60] as const;
@@ -871,6 +873,28 @@ export function nextTrackedSetRefreshMinutes(current: number) {
     const currentIndex = TRACKED_SETS_REFRESH_MINUTES_OPTIONS.indexOf(normalized as any);
 
     return TRACKED_SETS_REFRESH_MINUTES_OPTIONS[(currentIndex + 1) % TRACKED_SETS_REFRESH_MINUTES_OPTIONS.length];
+}
+
+export function milestonesTickMinutesLabel(minutes: number, language: LanguageCode = DEFAULT_LANGUAGE) {
+    return t(language, "{{minutes}} minutes", { minutes });
+}
+
+export function nextMilestonesTickMinutes(current: number) {
+    const normalized = MILESTONES_TICK_MINUTES_OPTIONS.includes(current as any) ? current : 60;
+    const currentIndex = MILESTONES_TICK_MINUTES_OPTIONS.indexOf(normalized as any);
+
+    return MILESTONES_TICK_MINUTES_OPTIONS[(currentIndex + 1) % MILESTONES_TICK_MINUTES_OPTIONS.length];
+}
+
+export function activityCacheMonthsLabel(months: number, language: LanguageCode = DEFAULT_LANGUAGE) {
+    return t(language, "{{count}} months", { count: months });
+}
+
+export function nextActivityCacheMonths(current: number) {
+    const normalized = ACTIVITY_CACHE_MONTHS_OPTIONS.includes(current as any) ? current : 60;
+    const currentIndex = ACTIVITY_CACHE_MONTHS_OPTIONS.indexOf(normalized as any);
+
+    return ACTIVITY_CACHE_MONTHS_OPTIONS[(currentIndex + 1) % ACTIVITY_CACHE_MONTHS_OPTIONS.length];
 }
 
 export function playersNearYouLookbehindLabel(value: number) {

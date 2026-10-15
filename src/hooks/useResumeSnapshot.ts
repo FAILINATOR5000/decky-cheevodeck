@@ -12,6 +12,8 @@ import type {
     BadgeFilter,
     EventViewerSource,
     EventViewerTab,
+    MilestonesTab,
+    ActivitySubject,
     EventViewerTarget,
     FollowedRankingMetric,
     FriendGamePayload,
@@ -78,6 +80,10 @@ type ResumeSnapshotArgs = {
     eventViewerTarget: EventViewerTarget | null;
     eventViewerTab: EventViewerTab;
     eventViewerSource: EventViewerSource;
+    milestonesTab: MilestonesTab;
+    activitySubject: Omit<ActivitySubject, "own"> | null;
+    activityMonth: string | null;
+    activityDay: string | null;
 
     viewRef: RefObject<ViewKey>;
     payloadRef: RefObject<Payload | null>;
@@ -149,6 +155,10 @@ export function useResumeSnapshot(args: ResumeSnapshotArgs) {
         eventViewerTarget,
         eventViewerTab,
         eventViewerSource,
+        milestonesTab,
+        activitySubject,
+        activityMonth,
+        activityDay,
         viewRef,
         payloadRef,
         defaultPersistedFocusKeyForView,
@@ -197,6 +207,10 @@ export function useResumeSnapshot(args: ResumeSnapshotArgs) {
     const trackedSelectedGameIdRef = useLatestRef(trackedSelectedGameId);
     const eventViewerTargetRef = useLatestRef(eventViewerTarget);
     const eventViewerTabRef = useLatestRef(eventViewerTab);
+    const milestonesTabRef = useLatestRef(milestonesTab);
+    const activitySubjectRef = useLatestRef(activitySubject);
+    const activityMonthRef = useLatestRef(activityMonth);
+    const activityDayRef = useLatestRef(activityDay);
     const eventViewerSourceRef = useLatestRef(eventViewerSource);
 
 
@@ -303,9 +317,14 @@ export function useResumeSnapshot(args: ResumeSnapshotArgs) {
             eventViewerTarget: heldEventTarget === null ? null : String(heldEventTarget),
             eventViewerTab: keepEventViewer ? eventViewerTabRef.current : null,
             eventViewerSource: keepEventViewer ? eventViewerSourceRef.current : null,
+            milestonesTab: currentView === "milestones" ? milestonesTabRef.current : null,
+            activitySubjectUlid: activitySubjectRef.current?.ulid ?? null,
+            activitySubjectName: activitySubjectRef.current?.username ?? null,
+            activityMonth: activitySubjectRef.current ? activityMonthRef.current : null,
+            activityDay: activitySubjectRef.current ? activityDayRef.current : null,
             savedAt: Date.now()
         };
-    }, [allGamesLetterRangeRef, allGamesStatusFilterRef, aoSourceRef, badgeFilterRef, compareFilterRef, compareFriendUsernameRef, defaultPersistedFocusKeyForView, eventViewerSourceRef, eventViewerTabRef, eventViewerTargetRef, followedRankingMetricRef, trackedSelectedGameIdRef, trackedSetOpenIdRef, trackedSetsBackSourceRef, unlockHistorySourceRef]);
+    }, [allGamesLetterRangeRef, allGamesStatusFilterRef, aoSourceRef, badgeFilterRef, compareFilterRef, compareFriendUsernameRef, defaultPersistedFocusKeyForView, eventViewerSourceRef, eventViewerTabRef, eventViewerTargetRef, followedRankingMetricRef, milestonesTabRef, activitySubjectRef, activityMonthRef, activityDayRef, trackedSelectedGameIdRef, trackedSetOpenIdRef, trackedSetsBackSourceRef, unlockHistorySourceRef]);
 
     useEffect(() => {
         if (!settingsLoaded || settingsMode || !rememberLastPage) {
@@ -357,7 +376,11 @@ export function useResumeSnapshot(args: ResumeSnapshotArgs) {
         trackedSetOpenId,
         eventViewerTarget,
         eventViewerTab,
-        eventViewerSource
+        eventViewerSource,
+        milestonesTab,
+        activitySubject,
+        activityMonth,
+        activityDay
     ]);
 
     return {

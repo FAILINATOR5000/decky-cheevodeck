@@ -33,6 +33,8 @@ import { smallTextStyle, achievementGreen, warnAmber, skyBlue } from "../../util
 import { modalSize, getCurrentModalScale, getDeviceIsSteamMachine, getCurrentLargeViewportBonusEnabled, getCurrentLargeViewportBonus } from "../../utils/scale";
 import type { CardChrome } from "../../utils/cardChrome";
 import { ButtonPrompt } from "../ui/ButtonPrompt";
+import { MilestonesIcon } from "../milestones/MilestonesIcon";
+import { RankEmblem, rankNumeral } from "../milestones/RankEmblem";
 
 const ICON_APPLY_PER_FRAME = 4;
 const iconApplyQueue: Array<() => void> = [];
@@ -138,6 +140,23 @@ function metaString(notification: CheevoNotification, key: string): string {
 function metaNumber(notification: CheevoNotification, key: string): number {
     const value = notification.meta?.[key];
     return typeof value === "number" ? value : 0;
+}
+
+const MILESTONE_CARD_TITLES: Record<string, string> = {
+    milestone: "Milestone Complete",
+    daily: "Daily Quest Complete",
+    weekly: "Weekly Quest Complete",
+    rankUp: "Rank Up"
+};
+
+function milestoneCardBody(notification: CheevoNotification, language: LanguageCode): string {
+    const sub = metaString(notification, "sub");
+    if (sub === "rankUp") {
+        return t(language, `rank_tier_${metaString(notification, "tier")}`, { numeral: rankNumeral(metaNumber(notification, "step")) });
+    }
+    const id = metaString(notification, "id");
+    const name = t(language, sub === "milestone" ? `ms_${id}_name` : `q_${id}_name`);
+    return `${name} · ${t(language, "+{{xp}} XP", { xp: metaNumber(notification, "xp") })}`;
 }
 
 function isCheevoCheckScan(notification: CheevoNotification): boolean {
@@ -551,6 +570,8 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                   })
                 : (notification.type === "commentTracker" || notification.type === "wall") && notification.meta?.bulk === true
                     ? commentBulkBody(notification, language)
+                    : notification.type === "milestones"
+                        ? milestoneCardBody(notification, language)
                     : notification.type === "trackedSet"
                         ? t(language, "Congratulations, you completed your {{name}} goal", {
                               name: metaString(notification, "setName")
@@ -622,6 +643,8 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                 ? t(language, "Unlocked Achievement")
                 : notification.type === "commentTracker" || notification.type === "wall"
                     ? commentTitle(notification, language)
+                    : notification.type === "milestones"
+                        ? t(language, MILESTONE_CARD_TITLES[metaString(notification, "sub")] ?? "Milestone Complete")
                     : notification.type === "trackedSet"
                         ? t(language, "Mastery Goal: {{name}} Completed", { name: metaString(notification, "setName") })
                         : notification.type === "noteReminder"
@@ -690,6 +713,20 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
     function renderIcon() {
         if (!showIcons) {
             return null;
+        }
+
+        if (notification.type === "milestones") {
+            const glyphSize = Math.round(iconBoxSize * 0.62);
+            if (metaString(notification, "sub") === "rankUp") {
+                const tier = metaString(notification, "tier");
+                const known = tier === "tracker" || tier === "hunter" || tier === "expert" || tier === "master" || tier === "legend";
+                return renderBoxedIcon(
+                    known
+                        ? <RankEmblem tier={tier} step={metaNumber(notification, "step")} size={Math.round(iconBoxSize * 0.85)} />
+                        : <MilestonesIcon size={glyphSize} />
+                );
+            }
+            return renderBoxedIcon(<MilestonesIcon size={glyphSize} />);
         }
 
         if (notification.type === "debug") {

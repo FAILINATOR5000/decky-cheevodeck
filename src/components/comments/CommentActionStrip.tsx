@@ -3,6 +3,7 @@ import { DialogButton, Focusable } from "@decky/ui";
 
 import { t, type LanguageCode } from "../../locales";
 import { FocusTarget } from "../ui/FocusTarget";
+import { recordMilestoneEvent } from "../../utils/milestoneEvents";
 
 export type CommentActionStripProps = {
     language: LanguageCode;
@@ -38,7 +39,13 @@ export function CommentActionStrip(props: CommentActionStripProps) {
             style={topMargin === undefined ? ROW_STYLE : { ...ROW_STYLE, marginTop: topMargin }}
         >
             <FocusTarget focusKey={postFocusKey} style={{ display: "flex", flex: 1 }}>
-                <DialogButton onClick={onPost} style={BUTTON_STYLE}>
+                <DialogButton
+                    onClick={() => {
+                        recordMilestoneEvent("post");
+                        void onPost();
+                    }}
+                    style={BUTTON_STYLE}
+                >
                     {t(language, "Post")}
                 </DialogButton>
             </FocusTarget>

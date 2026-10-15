@@ -2,6 +2,7 @@ import { useEffect, useRef, type RefObject } from "react";
 
 import type { ShortcutAction, ShortcutButton } from "../types";
 import { MENU_COMBO_BY_CODE, MENU_HOLD_LIMIT_MS, SHORTCUT_BUTTON_BY_CODE } from "../utils/gamepadButtons";
+import { recordMilestoneEvent } from "../utils/milestoneEvents";
 
 type ButtonEvent = CustomEvent<{ button?: number; is_repeat?: boolean }>;
 
@@ -48,6 +49,7 @@ export function useMenuCombos(
             }
             evt.stopPropagation();
             if (!detail.is_repeat) {
+                recordMilestoneEvent("menu_combo");
                 current.run(action);
             }
         };

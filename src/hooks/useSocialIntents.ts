@@ -22,6 +22,7 @@ import type {
     SocialActivityEvent,
     Subscription
 } from "../types";
+import { recordMilestoneEvent } from "../utils/milestoneEvents";
 
 type UseSocialIntentsArgs = {
     username: string;
@@ -184,6 +185,9 @@ export function useSocialIntents({
                 const url = raGameUrl(event.gameId);
                 await openExternalUrl(url);
                 return;
+            }
+            if (event.kind === "achievementUnlocked") {
+                recordMilestoneEvent("feed_game");
             }
             goToGameOverview(event.gameId, source, viewedUsername, viewedUserRef);
             return;

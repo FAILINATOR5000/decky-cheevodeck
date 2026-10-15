@@ -85,7 +85,9 @@ const LANDING_VIEWS: ReadonlySet<ViewKey> = new Set<ViewKey>([
     "memories",
     "options",
     "about",
-    "qamGuard"
+    "qamGuard",
+    "milestones",
+    "activity"
 ]);
 const RECOVERY_OWNER = -1;
 const CLAIM_SETTLE_MS = 250;
@@ -1224,11 +1226,11 @@ export function usePageLanding(registration: {
                     return;
                 }
                 logFocusDebug("landing", "candidate", `${active.entryId} ${key} claimed`);
-                landing.claimToken = armKeyClaim(key, active.entryId);
-                watchClaim(active.entryId, key);
                 if (landing.placeholderKey !== null && landing.placeholderKey !== key) {
                     disarmKeyClaim(landing.placeholderKey, active.entryId);
                 }
+                landing.claimToken = armKeyClaim(key, active.entryId);
+                watchClaim(active.entryId, key);
                 return;
             }
             const askedAt = active.opened.get(key);

@@ -1,4 +1,4 @@
-import type { NewsEventsSubView, SocialView } from "../types";
+import type { MilestonesTab, NewsEventsSubView, SocialView } from "../types";
 
 export type PanelEntry =
     | { kind: "guides" }
@@ -12,6 +12,7 @@ export type PanelEntry =
     | { kind: "achievement"; gameId: number; achievementId: number; viewedUsername: string | null; viewedUserRef: string | null }
     | { kind: "game"; gameId: number; viewedUsername: string | null; viewedUserRef: string | null }
     | { kind: "trackedSet"; setId: string }
+    | { kind: "milestones"; tab: MilestonesTab }
     | { kind: "profile"; username: string; ulid: string | null }
     | { kind: "about" | "cheevoCheck" | "fileWatcher" | "memoriesTransfer" };
 

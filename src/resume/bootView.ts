@@ -47,6 +47,8 @@ export function computeBootView(resumeState: ResumeState | null, payload: Payloa
     const shouldBootDirectlyToQamGuard = resumeState?.view === "qamGuard";
     const shouldBootDirectlyToGuides = resumeState?.view === "guides";
     const shouldBootDirectlyToEventViewer = resumeState?.view === "eventViewer" && Boolean(resumeState?.eventViewerTarget);
+    const shouldBootDirectlyToMilestones = resumeState?.view === "milestones";
+    const shouldBootDirectlyToActivity = resumeState?.view === "activity" && Boolean(resumeState?.activitySubjectUlid);
     return shouldBootDirectlyToFriendGame ? "friendGame" :
             shouldBootDirectlyToFriendAllGames ? "friendAllGames" :
                 shouldBootDirectlyToWantToPlay ? "wantToPlay" :
@@ -75,6 +77,8 @@ export function computeBootView(resumeState: ResumeState | null, payload: Payloa
                                                                 shouldBootDirectlyToUtils ? "utils" :
                                                                 shouldBootDirectlyToGuides ? "guides" :
                                                                 shouldBootDirectlyToEventViewer ? "eventViewer" :
+                                                                shouldBootDirectlyToMilestones ? "milestones" :
+                                                                shouldBootDirectlyToActivity ? "activity" :
                                                                 shouldBootDirectlyToTracked ? "tracked" :
                                                                     "achievements";
 }

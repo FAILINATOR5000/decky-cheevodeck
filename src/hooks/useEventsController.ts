@@ -15,6 +15,7 @@ import {
 } from "../api";
 import { logError } from "../utils/errors";
 import type { ChecklistTick, ChecklistViewPrefs, EventsPrefs, EventsTabResponse, EventsUserState, EventsViewPrefs } from "../types";
+import { recordMilestoneEvent } from "../utils/milestoneEvents";
 
 const ORDER_WRITE_SETTLE_MS = 250;
 
@@ -151,6 +152,9 @@ export function useEventsController(options: UseEventsControllerOptions) {
         const owner = ownerNow();
         const key = String(eventGameId);
         const tracked = !lastResponse?.user.tracked.items[key];
+        if (tracked) {
+            recordMilestoneEvent("event_tracked");
+        }
         patchUser(owner, (user) => {
             const items = { ...user.tracked.items };
             let order = user.tracked.order;

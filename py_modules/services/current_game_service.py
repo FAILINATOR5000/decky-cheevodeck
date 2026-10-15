@@ -7,6 +7,7 @@ import decky
 from utils import format_completion_percent, frontend_error, norm_game_id, to_int
 from notifications import emit_notification, is_type_enabled
 from services.friends_service import _parse_ra_utc_timestamp
+from local_days import day_start_ts, today
 
 
 class CurrentGameService:
@@ -24,6 +25,35 @@ class CurrentGameService:
         self._event_loop = None
 
         self._tracked_sets_monitor = None
+
+        self._milestones_service = None
+
+    def set_milestones_service(self, service):
+        self._milestones_service = service
+
+    def _nudge_milestones(self, removed_ids, payload, account_key, recent):
+        service = self._milestones_service
+        if service is None:
+            return
+        fresh = self._unlocked_today(removed_ids, payload)
+        if fresh:
+            service.record_event("tracked_unlocked", count=fresh)
+        service.note_unlocks(account_key, recent)
+
+    @staticmethod
+    def _unlocked_today(achievement_ids, payload):
+        if not achievement_ids or not isinstance(payload, dict):
+            return 0
+        wanted = {str(a) for a in achievement_ids}
+        since = day_start_ts(today()) or 0
+        count = 0
+        for achievement in payload.get("achievements") or []:
+            if not isinstance(achievement, dict) or str(achievement.get("id")) not in wanted:
+                continue
+            earned = _parse_ra_utc_timestamp(achievement.get("dateEarnedHardcore") or achievement.get("dateEarned"))
+            if earned is not None and earned >= since:
+                count += 1
+        return count
 
     def set_tracked_sets_monitor(self, monitor):
         self._tracked_sets_monitor = monitor
@@ -532,6 +562,7 @@ class CurrentGameService:
                     self._nudge_tracked_sets_monitor(
                         current_game_id, fresh_cached, account_key, data_at, "unlock", recent_same_game,
                     )
+                    self._nudge_milestones(cleanup.get("removedIds"), payload, account_key, recent)
 
             return {
                 "needsSettings": False,
@@ -586,6 +617,7 @@ class CurrentGameService:
                 self._nudge_tracked_sets_monitor(
                     current_game_id, fresh_cached, account_key, data_at, "unlock", recent_same_game,
                 )
+                self._nudge_milestones(cleanup.get("removedIds"), patched_payload, account_key, recent)
                 return {"payload": patched_payload, "changed": True}
 
             recent = None
@@ -622,6 +654,9 @@ class CurrentGameService:
                 self._cache_store.save_payload(payload, self._build_meta(payload["gameId"], current_recent_marker))
             self._emit_tracked_unlock_notifications(payload, cleanup.get("removedIds"))
             self._nudge_tracked_sets_monitor(current_game_id, payload, account_key, data_at, "full")
+            if self._milestones_service is not None and cached_game_id is not None and current_game_id != cached_game_id:
+                self._milestones_service.record_event("game_loaded")
+            self._nudge_milestones(cleanup.get("removedIds"), payload, account_key, recent)
 
             return {"payload": payload, "changed": True}
         except Exception as e:
@@ -648,6 +683,7 @@ class CurrentGameService:
                           game_id, len(items), len(cleanup.get("removedIds") or []))
         self._emit_tracked_unlock_notifications(patched, cleanup.get("removedIds"))
         self._nudge_tracked_sets_monitor(game_id, cached, account_key, data_at, "unlock", items)
+        self._nudge_milestones(cleanup.get("removedIds"), patched, account_key, recent)
 
     def clear_current_game(self) -> dict:
         payload = self._empty_game_payload()

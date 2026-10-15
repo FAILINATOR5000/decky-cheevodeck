@@ -75,6 +75,8 @@ import { headerSize } from "../utils/scale";
 import { consoleInlineName } from "../utils/consoles";
 import { quickAccessWindow } from "../utils/quickAccess";
 import { landingOwnsTop, pendingLandingKey, usePageLanding, type LandingWindows } from "../focusRecords";
+import { recordMilestoneEvent } from "../utils/milestoneEvents";
+import { MilestonesQuickMenuButton } from "../components/milestones/MilestonesQuickMenuButton";
 
 // Layout constants
 const GAME_TICKER_FRESHNESS_MS = 60 * 60 * 1000;
@@ -667,6 +669,7 @@ type MainAchievementsPageProps = {
         onToggleMouseKeyboardMode: (next: boolean) => void | Promise<void>;
         onToggleBackButtonsGlobal: (next: boolean) => void | Promise<void>;
         onOpenGameSearch: () => void;
+        onOpenMilestones: () => void;
         onSpendMainStripClaim: () => void;
     };
 };
@@ -980,6 +983,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
             onToggleMouseKeyboardMode,
             onToggleBackButtonsGlobal,
             onOpenGameSearch,
+            onOpenMilestones,
             onSpendMainStripClaim
         }
     } = props;
@@ -1985,6 +1989,9 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
             >
                 <DialogButton
                     onClick={() => {
+                        if (!quickMenuExpanded) {
+                            recordMilestoneEvent("quick_menu_open");
+                        }
                         setQuickMenuExpanded((value) => !value);
                     }}
                     onGamepadFocus={() => focusStripButton("quickmenu")}
@@ -2294,6 +2301,15 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                     {pillRows.length > 1 && renderQuickMenuCaption(lowerRowMenuLabel, "4px", "4px")}
                                 </div>
                             </Focusable>
+                            <PanelSectionRow>
+                                <MilestonesQuickMenuButton
+                                    language={language}
+                                    onOpen={() => {
+                                        setQuickMenuExpanded(false);
+                                        onOpenMilestones();
+                                    }}
+                                />
+                            </PanelSectionRow>
                         </Focusable>
                     </div>
                 )}
@@ -2667,6 +2683,9 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                     >
                                         <DialogButton
                                             onClick={() => {
+                                                if (tab.value !== "achievements" && tab.value !== mainTab) {
+                                                    recordMilestoneEvent("main_tab", tab.value);
+                                                }
                                                 holdBodyHeightThroughTabChange(tab.value);
                                                 onChangeMainTab(tab.value);
                                             }}

@@ -23,6 +23,7 @@ import { steamDisplayScale } from "../../utils/closeTrace";
 import { logError } from "../../utils/errors";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { openInSteamBrowser } from "../../utils/steamBrowser";
+import { recordMilestoneEvent } from "../../utils/milestoneEvents";
 
 const CANCELLED_REQUEST_RETRY_MS = 400;
 
@@ -857,6 +858,7 @@ export function openBrowserModal(language: LanguageCode, startUrl = "") {
         openInSteamBrowser(startUrl || BROWSER_HOME_URL);
         return;
     }
+    recordMilestoneEvent("browser_open");
     if (startUrl && heldTabLimitUrl && startUrl !== heldTabLimitUrl) {
         dropTabLimitQuestion(true);
     }

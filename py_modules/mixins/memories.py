@@ -853,6 +853,7 @@ class MemoriesMixin(PluginContext):
             self._adopt_screenshot_sync, path, app_id, created_at, screenshot_game_id, context
         )
         if result.get("ok"):
+            self.milestones_service.record_event("memory_screenshot")
             self._schedule_memory_resolve(
                 result.get("gameId"), memory_id=(result.get("memory") or {}).get("id") or "", app_id=app_id
             )
@@ -885,6 +886,8 @@ class MemoriesMixin(PluginContext):
             duration_ms, file_size, context,
         )
         if result.get("ok"):
+            if not result.get("duplicate"):
+                self.milestones_service.record_event("memory_clip")
             self._schedule_memory_resolve(
                 result.get("gameId"),
                 forward_seconds=to_int(duration_ms, 0) // 1000,
@@ -996,13 +999,13 @@ class MemoriesMixin(PluginContext):
         if cached != current:
             refreshed = await self.refresh_current_game()
             payload = (refreshed or {}).get("payload") or {}
-        else:
-            payload = (await asyncio.to_thread(self.cache_store.load_payload) or {}).get("payload") or {}
-        if norm_game_id(payload.get("gameId")) != current:
             waiting = {memory_id: entry for memory_id, entry in waiting.items()
                        if memory_id in self._memories_switch_pending}
             if not waiting:
                 return
+        else:
+            payload = (await asyncio.to_thread(self.cache_store.load_payload) or {}).get("payload") or {}
+        if norm_game_id(payload.get("gameId")) != current:
             return
         app_id = next(iter(waiting.values()))[1]
         title = await asyncio.to_thread(memories_capture.resolve_title, app_id, payload.get("title"), self.user_home)
@@ -1083,7 +1086,13 @@ class MemoriesMixin(PluginContext):
 
         if not resolved:
             return {"ok": True, "updated": 0}
-        return self.memories_store.apply_resolution(wanted, resolved)
+        result = self.memories_store.apply_resolution(wanted, resolved)
+        had = {memory["id"] for memory in pending if memory.get("achievements")}
+        moments = sum(1 for memory_id, patch in resolved.items()
+                      if memory_id not in had and (patch or {}).get("achievements"))
+        if result.get("ok") and moments:
+            self.milestones_service.record_event("memory_moment", count=moments)
+        return result
 
     def _memory_forward_window(self, memory) -> int:
         """How far past its own moment a memory still binds an unlock.

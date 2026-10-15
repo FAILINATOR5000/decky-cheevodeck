@@ -53,6 +53,8 @@ class OptionsMixin(PluginContext):
     async def save_battery_saver(self, battery_saver: bool):
         value = self.settings_store.update_battery_saver(battery_saver)
         decky.logger.info("battery saver turned %s", "ON" if value else "OFF")
+        if value:
+            self.milestones_service.record_event("standby_on")
 
         return {
             "ok": True,
@@ -105,6 +107,14 @@ class OptionsMixin(PluginContext):
         return {
             "ok": True,
             "batterySaverDisablesMemories": value,
+        }
+
+    async def save_battery_saver_disables_milestones(self, value: bool):
+        value = self.settings_store.update_battery_saver_disables_milestones(value)
+
+        return {
+            "ok": True,
+            "batterySaverDisablesMilestones": value,
         }
 
     async def save_battery_saver_disables_file_watcher(self, value: bool):

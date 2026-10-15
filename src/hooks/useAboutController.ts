@@ -8,6 +8,7 @@ import { copyTextToClipboard } from "../utils/clipboard";
 import { openExternalUrl } from "../utils/navigation";
 import { logError } from "../utils/errors";
 import { AFTER_DIALOG_TOAST_DELAY_MS, showToastAfter } from "../utils/delayedToast";
+import { recordMilestoneEvent } from "../utils/milestoneEvents";
 
 const GITHUB_OWNER = "FAILINATOR5000";
 const GITHUB_REPO = "decky-cheevodeck";
@@ -90,6 +91,7 @@ export function useAboutController({
         }
         setCheckingForUpdate(true);
         setUpdateNotice("");
+        recordMilestoneEvent("check_updates");
 
         void (async () => {
             try {

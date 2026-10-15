@@ -43,6 +43,8 @@ from services.update_checker_service import UpdateCheckerService, installed_vers
 from services.developer_message_service import DeveloperMessageService
 from services.video_filter_service import VideoFilterService
 from services.repair_service import RepairService
+from services.activity_service import ActivityService
+from services.milestones_service import MilestonesService
 from services.emulator_login_sync_service import EmulatorLoginSyncService
 from memories_store import MemoriesStore, is_media_folder_name
 from notes_store import NotesStore
@@ -53,6 +55,9 @@ from awards_list_cache_store import AwardsListCacheStore
 from want_to_play_cache_store import WantToPlayCacheStore
 from game_activity_history_store import GameActivityHistoryStore
 from tracked_sets_store import TrackedSetsStore
+from milestones_defs import load_definitions as load_milestone_definitions
+from milestones_store import MilestonesStore
+from activity_store import ActivityStore
 from subscriptions_store import SubscriptionsStore
 from saved_comments_store import SavedCommentsStore
 from events_store import EventsStore
@@ -105,6 +110,8 @@ from mixins.calculator import CalculatorMixin
 from mixins.browser import BrowserMixin
 from mixins.events import EventsMixin
 from mixins.completion_walk import CompletionWalkMixin
+from mixins.activity import ActivityMixin
+from mixins.milestones import MilestonesMixin
 
 
 DEFAULT_IPC_SLOW_THRESHOLD_MS = 250
@@ -164,6 +171,8 @@ class Plugin(
     BrowserMixin,
     EventsMixin,
     CompletionWalkMixin,
+    ActivityMixin,
+    MilestonesMixin,
 ):
     DEFAULT_LANGUAGE = "en"
     RECENT_UNLOCK_LOOKBACK_MINUTES = 1440
@@ -346,6 +355,12 @@ class Plugin(
         self.tracked_sets_store = TrackedSetsStore(
             base_dir=self.tracked_sets_dir,
         )
+        self.milestones_store = MilestonesStore(base_dir=self.runtime_dir)
+        milestones_defs_path = self.plugin_dir / "milestones" / "milestones.json"
+        if not milestones_defs_path.exists():
+            milestones_defs_path = self.plugin_dir / "defaults" / "milestones" / "milestones.json"
+        self.milestones_defs = load_milestone_definitions(milestones_defs_path)
+        self.activity_store = ActivityStore(base_dir=self.runtime_dir / "activity")
         self.dolphin_mappings_store = DolphinMappingsStore(
             base_dir=self.dolphin_mappings_dir,
         )
@@ -473,6 +488,23 @@ class Plugin(
             plugin=self,
         )
         self.current_game_service.set_tracked_sets_monitor(self.tracked_sets_monitor_service)
+        self.activity_service = ActivityService(
+            ra=self.ra,
+            activity_store=self.activity_store,
+        )
+        self.milestones_service = MilestonesService(
+            store=self.milestones_store,
+            defs=self.milestones_defs,
+            activity_service=self.activity_service,
+            activity_store=self.activity_store,
+            settings_store=self.settings_store,
+            tracked_sets_store=self.tracked_sets_store,
+            cache_store=self.cache_store,
+            awards_cache_store=self.awards_list_cache_store,
+            notifications_store=self.notifications_store,
+            plugin=self,
+        )
+        self.current_game_service.set_milestones_service(self.milestones_service)
         self.social_activity_cache_service = SocialActivityCacheService(
             ra=self.ra,
             cache_store=self.cache_store,
@@ -509,9 +541,15 @@ class Plugin(
             user_home=self.user_home,
             notifications_store=self.notifications_store,
         )
+        record_milestone = self.milestones_service.record_event
+        self.settings_store.set_milestone_event(record_milestone)
+        self.notes_store.set_milestone_event(record_milestone)
+        self.tracked_sets_monitor_service.set_milestone_event(record_milestone)
         self.repair_service = RepairService(
             update_checker_service=self.update_checker_service,
             memories_store=self.memories_store,
+            milestones_store=self.milestones_store,
+            milestones_service=self.milestones_service,
             settings_store=self.settings_store,
             user_home=self.user_home,
         )
@@ -619,6 +657,7 @@ class Plugin(
             user_home=self.user_home,
             debug_logging=lambda: getattr(self, "_debug_logging", False),
         )
+        self.cheevo_check_service.set_milestone_event(self.milestones_service.record_event)
         self.file_watcher_service = FileWatcherService(
             store=self.file_watcher_store,
             settings_store=self.settings_store,
@@ -858,6 +897,9 @@ class Plugin(
         self.tracked_sets_monitor_service.set_event_loop(self._asyncio_loop)
         self.tracked_sets_monitor_service.start()
 
+        self.milestones_service.set_event_loop(self._asyncio_loop)
+        self.milestones_service.start_with_boot_check()
+
         self.update_checker_service.set_event_loop(self._asyncio_loop)
         self.update_checker_service.start()
         self.developer_message_service.set_event_loop(self._asyncio_loop)
@@ -1002,6 +1044,7 @@ class Plugin(
         self.comments_service.stop()
         self.notes_reminder_service.stop()
         self.tracked_sets_monitor_service.stop()
+        self.milestones_service.stop()
         self.update_checker_service.stop()
         self.developer_message_service.stop()
         self.video_filter_service.stop()
@@ -1081,6 +1124,8 @@ class Plugin(
             self.players_near_you_store.repoint(base / "players_near_you")
             self.game_activity_history_store.repoint(base / "game_activity_history")
             self.tracked_sets_store.repoint(base)
+            self.milestones_store.repoint(base, user_key)
+            self.activity_store.repoint(base / "activity")
             self.subscriptions_store.repoint(base)
             self.calculator_store.repoint(base)
             browser_base = base if user_key else self.runtime_dir / GUEST_USER_DIR
@@ -1178,6 +1223,7 @@ class Plugin(
             cfg = self.settings_store.activate_user(canonical, ulid)
             self._apply_user_scope(self._user_dir_key(cfg))
             self.notes_reminder_service.reset_pending()
+            self.milestones_service.account_changed()
             return cfg
 
     def _run_clear_under_trickle_lock(self, clear_fn):
@@ -1311,6 +1357,7 @@ class Plugin(
 
             self._apply_user_scope(self._user_dir_key(cfg))
             self.notes_reminder_service.reset_pending()
+            self.milestones_service.account_changed()
 
             return cfg
 
@@ -1781,6 +1828,7 @@ class Plugin(
 
                 self._apply_user_scope("")
                 self.notes_reminder_service.reset_pending()
+                self.milestones_service.account_changed()
                 self._last_completion_walk = None
             self.file_watcher_service.prepare()
             self.file_watcher_service.start()

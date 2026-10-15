@@ -6,6 +6,7 @@ import { refreshHealedUserAvatar } from "./api";
 import { t, ensureLanguageLoaded, getCurrentLanguage } from "./locales";
 import { readSettingsAtStartup, startupSettingsSettled } from "./utils/frontendSettings";
 import { warmConsoleCatalog } from "./utils/consoleCatalog";
+import { watchMilestoneKinds } from "./utils/milestoneEvents";
 import { logError } from "./utils/errors";
 import { showToastAfter } from "./utils/delayedToast";
 import { PRESS_TOAST_DELAY_MS } from "./utils/navSound";
@@ -64,9 +65,11 @@ export default definePlugin(() => {
 
     readSettingsAtStartup(() => disposed);
 
+    let stopMilestoneKinds: (() => void) | null = null;
     void startupSettingsSettled().then(() => {
         if (!disposed) {
             warmConsoleCatalog();
+            stopMilestoneKinds = watchMilestoneKinds();
         }
     });
 
@@ -95,6 +98,7 @@ export default definePlugin(() => {
             disposed = true;
             removeEventListener(NOTIFICATION_EVENT, onNotificationToast);
             removeEventListener(AVATAR_HEALED_EVENT, onAvatarHealed);
+            stopMilestoneKinds?.();
             unregisterBrowserDownloads();
             unregisterGlobalBackButtons();
             unregisterPhantomMouseGuard();

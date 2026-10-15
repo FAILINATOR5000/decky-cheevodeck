@@ -75,6 +75,15 @@ export function restoreStandaloneView(savedState: ResumeState, savedView: ViewKe
         return true;
     }
 
+    if (savedView === "milestones") {
+        ctx.setRecentGamesExpanded(false);
+        ctx.setView("milestones");
+        ctx.setPendingPrimaryViewRestoreGameId(undefined);
+        ctx.setPendingFocusKey("milestones:back");
+        ctx.markResumeApplied();
+        return true;
+    }
+
     if (savedView === "memories") {
         ctx.setRecentGamesExpanded(false);
         ctx.setView("memories");

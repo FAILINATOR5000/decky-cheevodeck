@@ -49,6 +49,8 @@ NOTIFICATION_TYPES = {
                        "toast_key":   "notifySocialUnlockToast",     "toast_default":   False,  "advanced": False},
     "nearYou":        {"enabled_key": "notifyNearYouEnabled",        "enabled_default": False,
                        "toast_key":   "notifyNearYouToast",          "toast_default":   False,  "advanced": False},
+    "milestones":     {"enabled_key": "notifyMilestoneEnabled",      "enabled_default": False,
+                       "toast_key":   "notifyMilestoneToast",        "toast_default":   False,  "advanced": False},
     "debug":          {"enabled_key": "notifyDebugEnabled",          "enabled_default": False,
                        "toast_key":   "notifyDebugToast",            "toast_default":   False,  "advanced": True},
 }

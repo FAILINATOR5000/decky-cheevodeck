@@ -69,6 +69,8 @@ import type {
     NewsEventsSubView,
     EventViewerSource,
     EventViewerTab,
+    MilestonesTab,
+    ActivitySubject,
     EventViewerTarget,
     NewSetsFilter,
     MainAchievementsTab,
@@ -90,6 +92,8 @@ import {
 } from "../resume/eventViewerResume";
 import { logError } from "../utils/errors";
 import type { RestoreContext } from "../resume/restoreContext";
+import { getSavedMilestonesTab } from "../resume/milestonesResume";
+import { getSavedActivityDay, getSavedActivityMonth, getSavedActivitySubject, restoreActivity } from "../resume/activityResume";
 
 type UseResumeControllerArgs = {
     buildResumeState: () => ResumeState;
@@ -180,6 +184,10 @@ type UseResumeControllerArgs = {
     setEventViewerTarget: Dispatch<SetStateAction<EventViewerTarget | null>>;
     setEventViewerTab: Dispatch<SetStateAction<EventViewerTab>>;
     setEventViewerSource: Dispatch<SetStateAction<EventViewerSource>>;
+    setMilestonesTab: Dispatch<SetStateAction<MilestonesTab>>;
+    setActivitySubject: Dispatch<SetStateAction<Omit<ActivitySubject, "own"> | null>>;
+    setActivityMonth: Dispatch<SetStateAction<string | null>>;
+    setActivityDay: Dispatch<SetStateAction<string | null>>;
 };
 
 export function useResumeController({
@@ -248,7 +256,11 @@ export function useResumeController({
     setTrackedSetOpenId,
     setEventViewerTarget,
     setEventViewerTab,
-    setEventViewerSource
+    setEventViewerSource,
+    setMilestonesTab,
+    setActivitySubject,
+    setActivityMonth,
+    setActivityDay
 }: UseResumeControllerArgs) {
     const [pendingPrimaryViewRestoreGameId, setPendingPrimaryViewRestoreGameId] = useState<number | null | undefined>(
         undefined
@@ -382,6 +394,10 @@ export function useResumeController({
         setEventViewerTarget(getSavedEventViewerTarget(savedState));
         setEventViewerTab(getSavedEventViewerTab(savedState));
         setEventViewerSource(getSavedEventViewerSource(savedState));
+        setMilestonesTab(getSavedMilestonesTab(savedState));
+        setActivitySubject(getSavedActivitySubject(savedState));
+        setActivityMonth(getSavedActivityMonth(savedState));
+        setActivityDay(getSavedActivityDay(savedState));
 
         trackedSetsBackSourceRef.current = getSavedTrackedSetsBackSource(savedState);
 
@@ -458,6 +474,9 @@ export function useResumeController({
         }
 
         if (restoreEventViewer(savedState, savedView, restoreCtx)) {
+            return;
+        }
+        if (restoreActivity(savedState, savedView, restoreCtx)) {
             return;
         }
 

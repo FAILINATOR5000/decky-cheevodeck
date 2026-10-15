@@ -51,6 +51,7 @@ import {
     type LanguageCode
 } from "../locales";
 import { useLatestRef } from "./useLatestRef";
+import { recordMilestoneEvent } from "../utils/milestoneEvents";
 
 
 type UseFriendsControllerArgs = {
@@ -800,6 +801,9 @@ export function useFriendsController({
                         pendingResumeFocusKeyRef.current = null;
                     }
                     else if (!suppressViewChange) {
+                        if (gameId === undefined && !friend.isSelf) {
+                            recordMilestoneEvent("profile_open");
+                        }
                         setView("friendGame", navIntent);
                         const nextFocusKey = pendingResumeFocusKeyRef.current || focusTarget;
                         if (nextFocusKey && !landingOwnsTop()) {

@@ -71,6 +71,7 @@ import { beginGuardedRun } from "../utils/runGuard";
 import { usePageLanding, type LandingWindows } from "../focusRecords";
 import { useEvents } from "../components/events/EventsContext";
 import { FocusTarget } from "../components/ui/FocusTarget";
+import { recordMilestoneEvent } from "../utils/milestoneEvents";
 
 type TabIconProps = { size?: number };
 
@@ -236,7 +237,7 @@ type NewsEventsProps = {
     newsPayload: NewsEntry[] | null;
     newsLoading: boolean;
     newsError: string | null;
-    onOpenNewsLink: (url: string) => void | Promise<void>;
+    onOpenNewsLink: (url: string, story?: boolean) => void | Promise<void>;
     newSetsResponse: NewSetsAndRevisionsResponse | null;
     newSetsFilter: NewSetsFilter;
     newSetsLoading: boolean;
@@ -887,6 +888,9 @@ function SocialHubPage(props: SocialHubPageProps) {
 
     // Tab handlers
     function handleSocialTabClick(nextView: SocialView) {
+        if (nextView === "newsEvents" && socialView !== "newsEvents" && props.newsEvents.subView === "newSets") {
+            recordMilestoneEvent("set_feed");
+        }
         setSocialView(nextView);
         setFocusedSocialView(null);
         if (nextView === "activity") {
@@ -1373,7 +1377,12 @@ function SocialHubPage(props: SocialHubPageProps) {
                                     key={tab.value}
                                     label={t(props.language, tab.labelKey)}
                                     active={props.newsEvents.subView === tab.value}
-                                    onClick={() => props.newsEvents.onChangeSubView(tab.value)}
+                                    onClick={() => {
+                                        if (tab.value === "newSets" && props.newsEvents.subView !== "newSets") {
+                                            recordMilestoneEvent("set_feed");
+                                        }
+                                        props.newsEvents.onChangeSubView(tab.value);
+                                    }}
                                     focusKey={tab.focusKey}
                                 />
                             ))}
@@ -1382,7 +1391,7 @@ function SocialHubPage(props: SocialHubPageProps) {
                             <>
                                 <FocusableItem
                                     focusKey="news:magazine-link"
-                                    onClick={() => props.newsEvents.onOpenNewsLink("https://news.retroachievements.org/")}
+                                    onClick={() => props.newsEvents.onOpenNewsLink("https://news.retroachievements.org/", false)}
                                 >
                                     <div
                                         style={{

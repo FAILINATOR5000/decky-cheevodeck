@@ -36,6 +36,7 @@ import type {
     TrackedColor,
     TrackedSetFilter,
     TrackedSetSelectorSort,
+    MilestonesSort,
     TrackedTab,
     ScaleStep,
     UiSize,
@@ -53,6 +54,7 @@ import {
     saveBatterySaver,
     saveMouseKeyboardMode
 } from "../api";
+import { recordMilestoneEvent } from "../utils/milestoneEvents";
 
 type UseSettingsControllerArgs = {
     mountedRef: RefObject<boolean>;
@@ -119,6 +121,7 @@ export function useSettingsController({
     const [notesHeaderStyle, setNotesHeaderStyle] = useState<HeaderStyle>("typed");
     const [generalHeaderStyle, setGeneralHeaderStyle] = useState<HeaderStyle>("capitalized");
     const [trackedEventsHeaderStyle, setTrackedEventsHeaderStyle] = useState<HeaderStyle>("typed");
+    const [milestonesHeaderStyle, setMilestonesHeaderStyle] = useState<HeaderStyle>("typed");
     const [trackedColor, setTrackedColor] = useState<TrackedColor>("default");
     const [mainAchievementFilter, setMainAchievementFilter] = useState<MainAchievementFilter>("all");
     const [mainAchievementSort, setMainAchievementSort] = useState<AchievementSort>("upNext");
@@ -165,7 +168,11 @@ export function useSettingsController({
     const [trackedSetsAutoCheck, setTrackedSetsAutoCheck] = useState(true);
     const [trackedSetsServiceEnabled, setTrackedSetsServiceEnabled] = useState(true);
     const [trackedSetsRefreshMinutes, setTrackedSetsRefreshMinutes] = useState(15);
+    const [milestonesServiceEnabled, setMilestonesServiceEnabled] = useState(true);
+    const [milestonesTickMinutes, setMilestonesTickMinutes] = useState(60);
+    const [activityCacheMonths, setActivityCacheMonths] = useState(60);
     const [trackedSetsSelectorSort, setTrackedSetsSelectorSort] = useState<TrackedSetSelectorSort>("alphabetical");
+    const [milestonesSort, setMilestonesSort] = useState<MilestonesSort>("list");
     const [trackedSetsSelectorFilter, setTrackedSetsSelectorFilter] = useState<TrackedSetFilter>("all");
     const [language, setLanguage] = useState<LanguageCode>(DEFAULT_LANGUAGE);
     const [, markLocaleTableLoaded] = useState(0);
@@ -194,6 +201,7 @@ export function useSettingsController({
     const [batterySaverDisablesTrackedSets, setBatterySaverDisablesTrackedSets] = useState(true);
     const [batterySaverDisablesFileWatcher, setBatterySaverDisablesFileWatcher] = useState(true);
     const [batterySaverDisablesMemories, setBatterySaverDisablesMemories] = useState(false);
+    const [batterySaverDisablesMilestones, setBatterySaverDisablesMilestones] = useState(true);
     const [notifyNoteReminderEnabled, setNotifyNoteReminderEnabled] = useState(true);
     const [notifyNoteReminderToast, setNotifyNoteReminderToast] = useState(true);
     const [notifyTrackedSetEnabled, setNotifyTrackedSetEnabled] = useState(true);
@@ -210,6 +218,8 @@ export function useSettingsController({
     const [notifySocialUnlockToast, setNotifySocialUnlockToast] = useState(false);
     const [notifyNearYouEnabled, setNotifyNearYouEnabled] = useState(false);
     const [notifyNearYouToast, setNotifyNearYouToast] = useState(false);
+    const [notifyMilestoneEnabled, setNotifyMilestoneEnabled] = useState(false);
+    const [notifyMilestoneToast, setNotifyMilestoneToast] = useState(false);
     const [legacyAchievementLinks, setLegacyAchievementLinks] = useState(false);
     const [legacyGameLinks, setLegacyGameLinks] = useState(false);
     const [showDeveloperOptions, setShowDeveloperOptions] = useState(false);
@@ -404,6 +414,7 @@ export function useSettingsController({
         setNotesHeaderStyle(source.notesHeaderStyle);
         setGeneralHeaderStyle(source.generalHeaderStyle);
         setTrackedEventsHeaderStyle(source.trackedEventsHeaderStyle);
+        setMilestonesHeaderStyle(source.milestonesHeaderStyle);
         setTrackedColor(source.trackedColor);
         setMainAchievementFilter(source.mainAchievementFilter);
         setMainAchievementSort(source.mainAchievementSort);
@@ -450,7 +461,11 @@ export function useSettingsController({
         setTrackedSetsAutoCheck(source.trackedSetsAutoCheck);
         setTrackedSetsServiceEnabled(source.trackedSetsServiceEnabled);
         setTrackedSetsRefreshMinutes(source.trackedSetsRefreshMinutes);
+        setMilestonesServiceEnabled(source.milestonesServiceEnabled);
+        setMilestonesTickMinutes(source.milestonesTickMinutes);
+        setActivityCacheMonths(source.activityCacheMonths);
         setTrackedSetsSelectorSort(source.trackedSetsSelectorSort);
+        setMilestonesSort(source.milestonesSort);
         setTrackedSetsSelectorFilter(source.trackedSetsSelectorFilter);
         const loadedLanguage = source.language;
         setLanguage(loadedLanguage);
@@ -484,6 +499,7 @@ export function useSettingsController({
         setBatterySaverDisablesTrackedSets(source.batterySaverDisablesTrackedSets);
         setBatterySaverDisablesFileWatcher(source.batterySaverDisablesFileWatcher);
         setBatterySaverDisablesMemories(source.batterySaverDisablesMemories);
+        setBatterySaverDisablesMilestones(source.batterySaverDisablesMilestones);
         setNotifyNoteReminderEnabled(source.notifyNoteReminderEnabled);
         setNotifyNoteReminderToast(source.notifyNoteReminderToast);
         setNotifyTrackedSetEnabled(source.notifyTrackedSetEnabled);
@@ -500,6 +516,8 @@ export function useSettingsController({
         setNotifySocialUnlockToast(source.notifySocialUnlockToast);
         setNotifyNearYouEnabled(source.notifyNearYouEnabled);
         setNotifyNearYouToast(source.notifyNearYouToast);
+        setNotifyMilestoneEnabled(source.notifyMilestoneEnabled);
+        setNotifyMilestoneToast(source.notifyMilestoneToast);
         setLegacyAchievementLinks(source.legacyAchievementLinks);
         setLegacyGameLinks(source.legacyGameLinks);
         setShowDeveloperOptions(source.showDeveloperOptions);
@@ -608,6 +626,9 @@ export function useSettingsController({
 
     const nightModeSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const toggleNightMode = useCallback((next: boolean) => {
+        if (next) {
+            recordMilestoneEvent("night_on");
+        }
         setNightMode(next);
         if (nightModeSaveTimer.current !== null) {
             clearTimeout(nightModeSaveTimer.current);
@@ -674,6 +695,7 @@ export function useSettingsController({
         notesHeaderStyle,
         generalHeaderStyle,
         trackedEventsHeaderStyle,
+        milestonesHeaderStyle,
         trackedColor,
         mainAchievementFilter,
         mainAchievementSort,
@@ -725,7 +747,11 @@ export function useSettingsController({
         trackedSetsAutoCheck,
         trackedSetsServiceEnabled,
         trackedSetsRefreshMinutes,
+        milestonesServiceEnabled,
+        milestonesTickMinutes,
+        activityCacheMonths,
         trackedSetsSelectorSort,
+        milestonesSort,
         trackedSetsSelectorFilter,
         language,
         friendRefreshDelayMs,
@@ -753,6 +779,7 @@ export function useSettingsController({
         batterySaverDisablesTrackedSets,
         batterySaverDisablesFileWatcher,
         batterySaverDisablesMemories,
+        batterySaverDisablesMilestones,
         notifyNoteReminderEnabled,
         notifyNoteReminderToast,
         notifyTrackedSetEnabled,
@@ -769,6 +796,8 @@ export function useSettingsController({
         notifySocialUnlockToast,
         notifyNearYouEnabled,
         notifyNearYouToast,
+        notifyMilestoneEnabled,
+        notifyMilestoneToast,
         legacyAchievementLinks,
         legacyGameLinks,
         showDeveloperOptions,
@@ -925,6 +954,7 @@ export function useSettingsController({
         setNotesHeaderStyle,
         setGeneralHeaderStyle,
         setTrackedEventsHeaderStyle,
+        setMilestonesHeaderStyle,
         setTrackedColor,
         setMainAchievementFilter,
         setMainAchievementSort,
@@ -958,6 +988,7 @@ export function useSettingsController({
         setMemoriesDeleteSteamClip,
         setLinksOpenInWebBrowser,
         setBatterySaverDisablesMemories,
+        setBatterySaverDisablesMilestones,
         setFileWatcherSpeed,
         setFileWatcherRunDuringGames,
         setTrackedSetAButtonMode,
@@ -968,7 +999,11 @@ export function useSettingsController({
         setTrackedSetsAutoCheck,
         setTrackedSetsServiceEnabled,
         setTrackedSetsRefreshMinutes,
+        setMilestonesServiceEnabled,
+        setMilestonesTickMinutes,
+        setActivityCacheMonths,
         setTrackedSetsSelectorSort,
+        setMilestonesSort,
         setTrackedSetsSelectorFilter,
         setLanguage,
         setFriendRefreshDelayMs,
@@ -1003,6 +1038,8 @@ export function useSettingsController({
         setNotifySocialUnlockToast,
         setNotifyNearYouEnabled,
         setNotifyNearYouToast,
+        setNotifyMilestoneEnabled,
+        setNotifyMilestoneToast,
         setLegacyAchievementLinks,
         setLegacyGameLinks,
         setShowDeveloperOptions,

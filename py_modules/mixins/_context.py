@@ -37,6 +37,10 @@ from games_list_cache_store import GamesListCacheStore
 from awards_list_cache_store import AwardsListCacheStore
 from want_to_play_cache_store import WantToPlayCacheStore
 from tracked_sets_store import TrackedSetsStore
+from milestones_store import MilestonesStore
+from activity_store import ActivityStore
+from services.activity_service import ActivityService
+from services.milestones_service import MilestonesService
 from subscriptions_store import SubscriptionsStore
 from saved_comments_store import SavedCommentsStore
 from events_store import EventsStore
@@ -77,6 +81,11 @@ class PluginContext:
     events_store: EventsStore
     events_cache_store: EventsCacheStore
     tracked_sets_store: TrackedSetsStore
+    milestones_store: MilestonesStore
+    milestones_defs: dict | None
+    activity_store: ActivityStore
+    activity_service: ActivityService
+    milestones_service: MilestonesService
     dolphin_mappings_store: DolphinMappingsStore
     smb_shares_store: SmbSharesStore
     video_filter_store: VideoFilterStore

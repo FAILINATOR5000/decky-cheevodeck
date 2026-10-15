@@ -32,9 +32,12 @@ class RepairService:
     housekeeping that takes the panel down with it is worse than the mess.
     """
 
-    def __init__(self, *, update_checker_service, memories_store, settings_store, user_home):
+    def __init__(self, *, update_checker_service, memories_store, milestones_store, milestones_service,
+                 settings_store, user_home):
         self._update_checker_service = update_checker_service
         self._memories_store = memories_store
+        self._milestones_store = milestones_store
+        self._milestones_service = milestones_service
         self._settings_store = settings_store
         self._user_home = user_home
 
@@ -88,6 +91,24 @@ class RepairService:
         except Exception as e:
             decky.logger.warning(
                 "repair: initial row count reset failed: %s",
+                type(e).__name__,
+            )
+
+        try:
+            for name in self._milestones_store.repair():
+                fixed.append("milestones_" + name)
+        except Exception as e:
+            decky.logger.warning(
+                "repair: milestones file repair failed: %s",
+                type(e).__name__,
+            )
+
+        try:
+            if self._milestones_service.repair_combo():
+                fixed.append("milestones_combo")
+        except Exception as e:
+            decky.logger.warning(
+                "repair: milestones combo repair failed: %s",
                 type(e).__name__,
             )
 

@@ -30,6 +30,10 @@ import {
     saveNotifySocialUnlockToast,
     saveNotifyNearYouEnabled,
     saveNotifyNearYouToast,
+    clearActivityCache,
+    clearMilestoneProgress,
+    saveNotifyMilestoneEnabled,
+    saveNotifyMilestoneToast,
     saveNotifyDebugEnabled,
     saveNotifyDebugToast,
     fireTestDebugNotification,
@@ -113,6 +117,9 @@ import {
     saveFisTickFrequencyMinutes,
     saveCommentsServiceTickMinutes,
     saveTrackedSetsRefreshMinutes,
+    saveMilestonesServiceEnabled,
+    saveMilestonesTickMinutes,
+    saveActivityCacheMonths,
     saveCommentsServiceFetchAmount,
     saveCommentsServiceWallCheck,
     saveFisRosterRefreshIntervalHours,
@@ -132,6 +139,7 @@ import {
     saveNotesHeaderStyle,
     saveGeneralHeaderStyle,
     saveTrackedEventsHeaderStyle,
+    saveMilestonesHeaderStyle,
     saveTrackedColor,
     saveShowIcons,
     saveDeferModalCleanup,
@@ -160,6 +168,7 @@ import {
     saveBatterySaverDisablesTrackedSets,
     saveBatterySaverDisablesFileWatcher,
     saveBatterySaverDisablesMemories,
+    saveBatterySaverDisablesMilestones,
     saveDoNotDisturbDisablesDot,
     saveDoNotDisturbDisablesToast,
     saveNightModeBrightness,
@@ -276,6 +285,8 @@ import {
     nextFisTickFrequencyMinutes,
     nextCommentsCheckFrequencyMinutes,
     nextTrackedSetRefreshMinutes,
+    nextMilestonesTickMinutes,
+    nextActivityCacheMonths,
     nextCommentsServiceFetchAmount,
     nextFisRosterRefreshIntervalHours,
     nextPlayersNearYouLookbehind,
@@ -318,6 +329,7 @@ import {
 import { setCurrentColoredGlyphs, setCurrentControllerGlyphStyle } from "../utils/controllerGlyphs";
 import { setWebBrowserForLinks } from "../utils/navigation";
 import { applyFrontendSettings } from "../utils/frontendSettings";
+import { clearActivityMonths } from "../utils/activityCache";
 
 type SaveSettingWithRollback = <T>(options: {
     nextValue: T;
@@ -386,6 +398,8 @@ type UseOptionsControllerArgs = {
     notifySocialUnlockToast: boolean;
     notifyNearYouEnabled: boolean;
     notifyNearYouToast: boolean;
+    notifyMilestoneEnabled: boolean;
+    notifyMilestoneToast: boolean;
     legacyAchievementLinks: boolean;
     legacyGameLinks: boolean;
     showDeveloperOptions: boolean;
@@ -413,6 +427,9 @@ type UseOptionsControllerArgs = {
     fisTickFrequencyMinutes: number;
     commentsServiceTickMinutes: number;
     trackedSetsRefreshMinutes: number;
+    milestonesServiceEnabled: boolean;
+    milestonesTickMinutes: number;
+    activityCacheMonths: number;
     commentsServiceFetchAmount: number;
     commentsServiceWallCheck: boolean;
     fisRosterRefreshIntervalHours: number;
@@ -492,6 +509,7 @@ type UseOptionsControllerArgs = {
     memoriesDeleteSteamClip: boolean;
     linksOpenInWebBrowser: boolean;
     batterySaverDisablesMemories: boolean;
+    batterySaverDisablesMilestones: boolean;
     legacyCommentsLoading: boolean;
     batterySaverDisablesSocialActivity: boolean;
     batterySaverDisablesComments: boolean;
@@ -526,6 +544,7 @@ type UseOptionsControllerArgs = {
     notesHeaderStyle: HeaderStyle;
     generalHeaderStyle: HeaderStyle;
     trackedEventsHeaderStyle: HeaderStyle;
+    milestonesHeaderStyle: HeaderStyle;
     trackedColor: TrackedColor;
     socialEntryDefault: SocialEntryDefault;
     activityCardAction: ActivityCardAction;
@@ -566,6 +585,7 @@ type UseOptionsControllerArgs = {
     setBatterySaverDisablesTrackedSets: Dispatch<SetStateAction<boolean>>;
     setBatterySaverDisablesFileWatcher: Dispatch<SetStateAction<boolean>>;
     setBatterySaverDisablesMemories: Dispatch<SetStateAction<boolean>>;
+    setBatterySaverDisablesMilestones: Dispatch<SetStateAction<boolean>>;
     setFileWatcherSpeed: Dispatch<SetStateAction<FileWatcherSpeed>>;
     setFileWatcherRunDuringGames: Dispatch<SetStateAction<boolean>>;
     setDoNotDisturbDisablesDot: Dispatch<SetStateAction<boolean>>;
@@ -608,6 +628,7 @@ type UseOptionsControllerArgs = {
     setNotesHeaderStyle: Dispatch<SetStateAction<HeaderStyle>>;
     setGeneralHeaderStyle: Dispatch<SetStateAction<HeaderStyle>>;
     setTrackedEventsHeaderStyle: Dispatch<SetStateAction<HeaderStyle>>;
+    setMilestonesHeaderStyle: Dispatch<SetStateAction<HeaderStyle>>;
     setTrackedColor: Dispatch<SetStateAction<TrackedColor>>;
     setSocialEntryDefault: Dispatch<SetStateAction<SocialEntryDefault>>;
     setActivityCardAction: Dispatch<SetStateAction<ActivityCardAction>>;
@@ -650,6 +671,8 @@ type UseOptionsControllerArgs = {
     setNotifySocialUnlockToast: Dispatch<SetStateAction<boolean>>;
     setNotifyNearYouEnabled: Dispatch<SetStateAction<boolean>>;
     setNotifyNearYouToast: Dispatch<SetStateAction<boolean>>;
+    setNotifyMilestoneEnabled: Dispatch<SetStateAction<boolean>>;
+    setNotifyMilestoneToast: Dispatch<SetStateAction<boolean>>;
     setLegacyAchievementLinks: Dispatch<SetStateAction<boolean>>;
     setLegacyGameLinks: Dispatch<SetStateAction<boolean>>;
     setPinLatestGuides: Dispatch<SetStateAction<boolean>>;
@@ -678,6 +701,9 @@ type UseOptionsControllerArgs = {
     setFisTickFrequencyMinutes: Dispatch<SetStateAction<number>>;
     setCommentsServiceTickMinutes: Dispatch<SetStateAction<number>>;
     setTrackedSetsRefreshMinutes: Dispatch<SetStateAction<number>>;
+    setMilestonesServiceEnabled: Dispatch<SetStateAction<boolean>>;
+    setMilestonesTickMinutes: Dispatch<SetStateAction<number>>;
+    setActivityCacheMonths: Dispatch<SetStateAction<number>>;
     setCommentsServiceFetchAmount: Dispatch<SetStateAction<number>>;
     setCommentsServiceWallCheck: Dispatch<SetStateAction<boolean>>;
     setFisRosterRefreshIntervalHours: Dispatch<SetStateAction<number>>;
@@ -847,6 +873,8 @@ export function useOptionsController({
     notifySocialUnlockToast,
     notifyNearYouEnabled,
     notifyNearYouToast,
+    notifyMilestoneEnabled,
+    notifyMilestoneToast,
     legacyAchievementLinks,
     legacyGameLinks,
     showDeveloperOptions,
@@ -874,6 +902,9 @@ export function useOptionsController({
     fisTickFrequencyMinutes,
     commentsServiceTickMinutes,
     trackedSetsRefreshMinutes,
+    milestonesServiceEnabled,
+    milestonesTickMinutes,
+    activityCacheMonths,
     commentsServiceFetchAmount,
     commentsServiceWallCheck,
     fisRosterRefreshIntervalHours,
@@ -953,6 +984,7 @@ export function useOptionsController({
     memoriesDeleteSteamClip,
     linksOpenInWebBrowser,
     batterySaverDisablesMemories,
+    batterySaverDisablesMilestones,
     legacyCommentsLoading,
     batterySaverDisablesSocialActivity,
     batterySaverDisablesComments,
@@ -987,6 +1019,7 @@ export function useOptionsController({
     notesHeaderStyle,
     generalHeaderStyle,
     trackedEventsHeaderStyle,
+    milestonesHeaderStyle,
     trackedColor,
     socialEntryDefault,
     activityCardAction,
@@ -1020,6 +1053,7 @@ export function useOptionsController({
     setMemoriesDeleteSteamClip,
     setLinksOpenInWebBrowser,
     setBatterySaverDisablesMemories,
+    setBatterySaverDisablesMilestones,
     setLegacyCommentsLoading,
     setBatterySaverDisablesSocialActivity,
     setBatterySaverDisablesComments,
@@ -1069,6 +1103,7 @@ export function useOptionsController({
     setNotesHeaderStyle,
     setGeneralHeaderStyle,
     setTrackedEventsHeaderStyle,
+    setMilestonesHeaderStyle,
     setTrackedColor,
     setSocialEntryDefault,
     setActivityCardAction,
@@ -1111,6 +1146,8 @@ export function useOptionsController({
     setNotifySocialUnlockToast,
     setNotifyNearYouEnabled,
     setNotifyNearYouToast,
+    setNotifyMilestoneEnabled,
+    setNotifyMilestoneToast,
     setLegacyAchievementLinks,
     setLegacyGameLinks,
     setPinLatestGuides,
@@ -1139,6 +1176,9 @@ export function useOptionsController({
     setFisTickFrequencyMinutes,
     setCommentsServiceTickMinutes,
     setTrackedSetsRefreshMinutes,
+    setMilestonesServiceEnabled,
+    setMilestonesTickMinutes,
+    setActivityCacheMonths,
     setCommentsServiceFetchAmount,
     setCommentsServiceWallCheck,
     setFisRosterRefreshIntervalHours,
@@ -1270,6 +1310,7 @@ export function useOptionsController({
         setBatterySaverDisablesTrackedSets(Boolean(result.batterySaverDisablesTrackedSets ?? true));
         setBatterySaverDisablesFileWatcher(Boolean(result.batterySaverDisablesFileWatcher ?? true));
         setBatterySaverDisablesMemories(Boolean(result.batterySaverDisablesMemories ?? true));
+        setBatterySaverDisablesMilestones(Boolean(result.batterySaverDisablesMilestones ?? true));
         setMemoriesPerPage(result.memoriesPerPage ?? 32);
         setMemoriesDeleteSource(Boolean(result.memoriesDeleteSource));
         setMemoriesVideo(Boolean(result.memoriesVideo ?? true));
@@ -1319,6 +1360,7 @@ export function useOptionsController({
         setNotesHeaderStyle(result.notesHeaderStyle ?? "typed");
         setGeneralHeaderStyle(result.generalHeaderStyle ?? "capitalized");
         setTrackedEventsHeaderStyle(result.trackedEventsHeaderStyle ?? "typed");
+        setMilestonesHeaderStyle(result.milestonesHeaderStyle ?? "typed");
         setTrackedColor(result.trackedColor ?? "default");
         setSocialEntryDefault(result.socialEntryDefault ?? "friends");
         setActivityCardAction(result.activityCardAction ?? "achievement");
@@ -1362,6 +1404,8 @@ export function useOptionsController({
         setNotifySocialUnlockToast(Boolean(result.notifySocialUnlockToast ?? false));
         setNotifyNearYouEnabled(Boolean(result.notifyNearYouEnabled ?? false));
         setNotifyNearYouToast(Boolean(result.notifyNearYouToast ?? false));
+        setNotifyMilestoneEnabled(Boolean(result.notifyMilestoneEnabled ?? false));
+        setNotifyMilestoneToast(Boolean(result.notifyMilestoneToast ?? false));
         setLegacyAchievementLinks(Boolean(result.legacyAchievementLinks ?? false));
         setLegacyGameLinks(Boolean(result.legacyGameLinks ?? false));
         setPinLatestGuides(Boolean(result.pinLatestGuides ?? false));
@@ -1390,6 +1434,9 @@ export function useOptionsController({
         setFisTickFrequencyMinutes(result.fisTickFrequencyMinutes ?? 5);
         setCommentsServiceTickMinutes(result.commentsServiceTickMinutes ?? 5);
         setTrackedSetsRefreshMinutes(result.trackedSetsRefreshMinutes ?? 15);
+        setMilestonesServiceEnabled(Boolean(result.milestonesServiceEnabled ?? true));
+        setMilestonesTickMinutes(result.milestonesTickMinutes ?? 60);
+        setActivityCacheMonths(result.activityCacheMonths ?? 60);
         setCommentsServiceFetchAmount(result.commentsServiceFetchAmount ?? 20);
         setCommentsServiceWallCheck(Boolean(result.commentsServiceWallCheck ?? true));
         setFisRosterRefreshIntervalHours(result.fisRosterRefreshIntervalHours ?? 6);
@@ -1656,6 +1703,24 @@ export function useOptionsController({
             getSavedValue: (result, fallbackValue) => Boolean(result.notifyNearYouToast ?? fallbackValue),
         });
 
+    const onToggleNotifyMilestoneEnabled = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: notifyMilestoneEnabled,
+            applyValue: setNotifyMilestoneEnabled,
+            saveCall: saveNotifyMilestoneEnabled,
+            getSavedValue: (result, fallbackValue) => Boolean(result.notifyMilestoneEnabled ?? fallbackValue),
+        });
+
+    const onToggleNotifyMilestoneToast = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: notifyMilestoneToast,
+            applyValue: setNotifyMilestoneToast,
+            saveCall: saveNotifyMilestoneToast,
+            getSavedValue: (result, fallbackValue) => Boolean(result.notifyMilestoneToast ?? fallbackValue),
+        });
+
     const onToggleNotifyDebugEnabled = (nextValue: boolean) =>
         saveSettingWithRollback<boolean>({
             nextValue,
@@ -1789,6 +1854,18 @@ export function useOptionsController({
         });
     };
 
+    const onCycleMilestonesHeaderStyle = () => {
+        const previousValue = milestonesHeaderStyle;
+        const nextValue = nextHeaderStyle(milestonesHeaderStyle);
+        return saveSettingWithRollback<HeaderStyle>({
+            nextValue,
+            previousValue,
+            applyValue: setMilestonesHeaderStyle,
+            saveCall: saveMilestonesHeaderStyle,
+            getSavedValue: (result, fallbackValue) => result.milestonesHeaderStyle ?? fallbackValue,
+        });
+    };
+
     const onCycleUnlockLookback = () => {
         const previousValue = unlockLookbackMinutes;
         const nextValue = nextUnlockLookbackMinutes(unlockLookbackMinutes);
@@ -1917,6 +1994,39 @@ export function useOptionsController({
             applyValue: setTrackedSetsRefreshMinutes,
             saveCall: saveTrackedSetsRefreshMinutes,
             getSavedValue: (result, fallbackValue) => result.trackedSetsRefreshMinutes ?? fallbackValue,
+        });
+    };
+
+    const onToggleMilestonesServiceEnabled = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: milestonesServiceEnabled,
+            applyValue: setMilestonesServiceEnabled,
+            saveCall: saveMilestonesServiceEnabled,
+            getSavedValue: (result, fallbackValue) => Boolean(result.milestonesServiceEnabled ?? fallbackValue),
+        });
+
+    const onCycleMilestonesTickMinutes = () => {
+        const previousValue = milestonesTickMinutes;
+        const nextValue = nextMilestonesTickMinutes(milestonesTickMinutes);
+        return saveSettingWithRollback<number>({
+            nextValue,
+            previousValue,
+            applyValue: setMilestonesTickMinutes,
+            saveCall: saveMilestonesTickMinutes,
+            getSavedValue: (result, fallbackValue) => result.milestonesTickMinutes ?? fallbackValue,
+        });
+    };
+
+    const onCycleActivityCacheMonths = () => {
+        const previousValue = activityCacheMonths;
+        const nextValue = nextActivityCacheMonths(activityCacheMonths);
+        return saveSettingWithRollback<number>({
+            nextValue,
+            previousValue,
+            applyValue: setActivityCacheMonths,
+            saveCall: saveActivityCacheMonths,
+            getSavedValue: (result, fallbackValue) => result.activityCacheMonths ?? fallbackValue,
         });
     };
 
@@ -3356,6 +3466,15 @@ export function useOptionsController({
             getSavedValue: (result, fallbackValue) => Boolean(result.batterySaverDisablesMemories ?? fallbackValue),
         });
 
+    const onToggleBatterySaverDisablesMilestones = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: batterySaverDisablesMilestones,
+            applyValue: setBatterySaverDisablesMilestones,
+            saveCall: saveBatterySaverDisablesMilestones,
+            getSavedValue: (result, fallbackValue) => Boolean(result.batterySaverDisablesMilestones ?? fallbackValue),
+        });
+
     const onToggleDeferModalCleanup = (nextValue: boolean) =>
         saveSettingWithRollback<boolean>({
             nextValue,
@@ -3424,6 +3543,25 @@ export function useOptionsController({
             saveCall: saveStormbreaker,
             getSavedValue: (result, fallbackValue) => Boolean(result.stormbreaker ?? fallbackValue),
         });
+
+    const onClearActivityCache = async () => {
+        try {
+            await clearActivityCache();
+            clearActivityMonths();
+            toaster.toast({ title: t(language, "Activity"), body: t(language, "Cache cleared") });
+        } catch (e) {
+            logError("options: clearing the Activity cache", e);
+        }
+    };
+
+    const onClearMilestoneProgress = async () => {
+        try {
+            await clearMilestoneProgress();
+            toaster.toast({ title: t(language, "Milestones"), body: t(language, "Progress cleared") });
+        } catch (e) {
+            logError("options: clearing Milestones progress", e);
+        }
+    };
 
     const onClearRecoveryLogs = async () => {
         setError(null);
@@ -3670,6 +3808,8 @@ export function useOptionsController({
         notifySocialUnlockToast,
         notifyNearYouEnabled,
         notifyNearYouToast,
+        notifyMilestoneEnabled,
+        notifyMilestoneToast,
         legacyAchievementLinks,
         legacyGameLinks,
         showDeveloperOptions,
@@ -3697,6 +3837,9 @@ export function useOptionsController({
         fisTickFrequencyMinutes,
         commentsServiceTickMinutes,
         trackedSetsRefreshMinutes,
+        milestonesServiceEnabled,
+        milestonesTickMinutes,
+        activityCacheMonths,
         commentsServiceFetchAmount,
         commentsServiceWallCheck,
         fisRosterRefreshIntervalHours,
@@ -3778,6 +3921,7 @@ export function useOptionsController({
         linksOpenInWebBrowser,
         memoriesCount,
         batterySaverDisablesMemories,
+        batterySaverDisablesMilestones,
         legacyCommentsLoading,
         batterySaverDisablesSocialActivity,
         batterySaverDisablesComments,
@@ -3811,6 +3955,7 @@ export function useOptionsController({
         notesHeaderStyle,
         generalHeaderStyle,
         trackedEventsHeaderStyle,
+        milestonesHeaderStyle,
         trackedColor,
         socialEntryDefault,
         activityCardAction,
@@ -3915,6 +4060,8 @@ export function useOptionsController({
         onCycleWantToPlayCacheMinutes,
         onToggleNotifyNearYouEnabled,
         onToggleNotifyNearYouToast,
+        onToggleNotifyMilestoneEnabled,
+        onToggleNotifyMilestoneToast,
         onToggleLegacyAchievementLinks,
         onToggleLegacyGameLinks,
         onToggleShowDeveloperOptions,
@@ -3947,6 +4094,9 @@ export function useOptionsController({
         onCycleFisTickFrequencyMinutes,
         onCycleCommentsServiceTickMinutes,
         onCycleTrackedSetsRefreshMinutes,
+        onToggleMilestonesServiceEnabled,
+        onCycleMilestonesTickMinutes,
+        onCycleActivityCacheMonths,
         onCycleCommentsServiceFetchAmount,
         onToggleCommentsServiceWallCheck,
         onCycleFisRosterRefreshIntervalHours,
@@ -3995,6 +4145,7 @@ export function useOptionsController({
         onCycleNotesHeaderStyle,
         onCycleGeneralHeaderStyle,
         onCycleTrackedEventsHeaderStyle,
+        onCycleMilestonesHeaderStyle,
         onCycleTrackedColor,
         onCycleSocialEntryDefault,
         onCycleActivityCardAction,
@@ -4025,6 +4176,8 @@ export function useOptionsController({
         onToggleRecoveryLogs,
         onToggleStormbreaker,
         onClearRecoveryLogs,
+        onClearActivityCache,
+        onClearMilestoneProgress,
         onToggleLibraryBadge,
         onToggleMemoriesAutoCapture,
         onToggleMemoriesDeleteSource,
@@ -4036,6 +4189,7 @@ export function useOptionsController({
         onCycleMemoriesPerPage,
         onCycleLinksOpenInWebBrowser,
         onToggleBatterySaverDisablesMemories,
+        onToggleBatterySaverDisablesMilestones,
         onToggleLegacyCommentsLoading,
         onToggleBatterySaverDisablesSocialActivity,
         onToggleBatterySaverDisablesComments,

@@ -45,6 +45,7 @@ import {
     saveGuidePosition,
     saveGuideModalZoom,
 } from "../../api";
+import { recordMilestoneEvent } from "../../utils/milestoneEvents";
 
 // Font Awesome Free icon path, CC BY 4.0. See ATTRIBUTIONS.md.
 function BookmarkIcon({ size = 14 }: { size?: number }) {
@@ -136,6 +137,10 @@ const MODAL_WIDTH_CSS = `
 export function GuidesReaderModal(props: GuidesReaderModalProps) {
     const { language, title, gameId, faqId, gameUrl, initialContent, initialLine, initialSection, close } = props;
 
+    useEffect(() => {
+        recordMilestoneEvent("guide_large");
+    }, []);
+
     const { iconDataUri, cold } = useGameIcon(
         props.showIcons ? gameId : null,
         props.imageIcon,
@@ -195,6 +200,14 @@ export function GuidesReaderModal(props: GuidesReaderModalProps) {
     }, [searchTerm]);
 
     const liveTerm = searchQuery.trim().length >= SEARCH_MIN_TERM ? searchQuery : "";
+
+    const searchCountedRef = useRef(false);
+    useEffect(() => {
+        if (liveTerm && !searchCountedRef.current) {
+            searchCountedRef.current = true;
+            recordMilestoneEvent("guide_search");
+        }
+    }, [liveTerm]);
 
     const matches = useMemo(
         () => scanGuideHtml(content?.html ?? "", liveTerm),

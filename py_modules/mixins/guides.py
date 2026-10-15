@@ -74,7 +74,7 @@ class GuidesMixin(PluginContext):
         anchor: str = "",
         scroll=0.0,
     ):
-        return self.guides_store.add_bookmark(
+        result = self.guides_store.add_bookmark(
             game_id,
             faq_id,
             name,
@@ -82,6 +82,9 @@ class GuidesMixin(PluginContext):
             anchor=anchor,
             scroll=scroll,
         )
+        if result.get("ok"):
+            self.milestones_service.record_event("guide_bookmark")
+        return result
 
     async def remove_guide_bookmark(self, game_id=None, faq_id: str = "", bookmark_id: str = ""):
         return self.guides_store.remove_bookmark(game_id, faq_id, bookmark_id)

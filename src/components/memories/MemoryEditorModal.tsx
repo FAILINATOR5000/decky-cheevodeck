@@ -14,6 +14,7 @@ import { MEMORY_TAG_SEEDS, cleanTagInput, cleanTextInput } from "../../utils/tag
 import { TAG_MAX_LEN } from "../../utils/achievements";
 import { t, type LanguageCode } from "../../locales";
 import type { MemoryRecord, NoteColor } from "../../types";
+import { recordMilestoneEvent } from "../../utils/milestoneEvents";
 
 const CAPTION_MAX_LEN = 300;
 
@@ -100,6 +101,9 @@ export function MemoryEditorModal(props: MemoryEditorModalProps) {
                 setSaving(false);
                 setError(t(language, "Couldn't save this memory."));
                 return;
+            }
+            if (caption !== memory.caption || (tag.trim() || null) !== (memory.tag ?? null) || color !== memory.color) {
+                recordMilestoneEvent("memory_edited");
             }
             onSaved?.({
                 caption,

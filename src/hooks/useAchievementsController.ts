@@ -14,6 +14,7 @@ import type { AchievementRow, AchievementSort, AOSource, MainAchievementAction, 
 import { earned, isMissable, unlockedHardcore, unlockedSoftcore } from "../utils/achievements"
 import { logError } from "../utils/errors";
 import { raAchievementUrl } from "../utils/navigation";
+import { recordMilestoneEvent } from "../utils/milestoneEvents";
 
 type SaveSettingWithRollback = <T>(options: {
     nextValue: T;
@@ -172,6 +173,9 @@ export function useAchievementsController({
                 const notes = result.notes ?? {};
                 const notesColor = result.notesColor ?? {};
                 cacheTrackedCount(payload.gameId, achievementIds.length);
+                if (achievementIds.includes(achievement.id)) {
+                    recordMilestoneEvent("track");
+                }
                 cacheTrackedIds(payload.gameId, achievementIds);
                 cacheTrackedNotes(payload.gameId, notes);
                 cacheTrackedNotesColor(payload.gameId, notesColor);
@@ -212,6 +216,7 @@ export function useAchievementsController({
             try {
                 if (effectiveMainAchievementAction === "info") {
                     if (legacyAchievementLinks) {
+                        recordMilestoneEvent("achievement_info");
                         await openExternalUrl(raAchievementUrl(achievement.id));
                         return;
                     }

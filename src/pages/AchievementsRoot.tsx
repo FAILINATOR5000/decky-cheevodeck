@@ -32,6 +32,7 @@ import {
     clearDolphinMappings,
     resetDolphinMappings,
     saveLastOptionsTab,
+    saveMilestonesSort,
     saveLastSocialView,
     saveBadgesSortOrder,
     saveSavedCommentsPrefs,
@@ -190,6 +191,8 @@ import type {
     GameOverviewSource,
     EventViewerSource,
     EventViewerTab,
+    MilestonesTab,
+    ActivitySubject,
     EventViewerTarget,
     FriendProfileBackSource,
     GameOverviewSubView,
@@ -255,6 +258,12 @@ import { beginGuardedRun } from "../utils/runGuard";
 import { quickAccessWindow } from "../utils/quickAccess";
 import type { NotificationNav } from "../notifications/registry";
 import { t } from "../locales";
+import { BOOT_CAT_LINE_KINDS, recordMilestoneEvent } from "../utils/milestoneEvents";
+import { getSavedMilestonesTab } from "../resume/milestonesResume";
+import MilestonesPage from "./MilestonesPage";
+import { getSavedActivityDay, getSavedActivityMonth, getSavedActivitySubject } from "../resume/activityResume";
+import ActivityPage from "./ActivityPage";
+import { dropCurrentActivityMonth } from "../utils/activityCache";
 
 
 
@@ -371,6 +380,8 @@ function panelEntryOverlay(entry: PanelEntry): Partial<ResumeState> & Pick<Resum
             };
         case "trackedSets":
             return { view: "trackedSets", trackedSetOpenId: null, trackedSetsBackSource: "main", focusKey: "trackedsets:back" };
+        case "milestones":
+            return { view: "milestones", milestonesTab: entry.tab, focusKey: "milestones:back" };
         case "trackedSet":
             return { view: "trackedSetOpen", trackedSetOpenId: entry.setId, trackedSetsBackSource: "main", focusKey: "trackedsetopen:back" };
         case "gameNotes":
@@ -476,6 +487,10 @@ function AchievementsRoot() {
     const [gameOverviewGameId, setGameOverviewGameId] = useState<number | null>(null);
     const [eventViewerTarget, setEventViewerTarget] = useState<EventViewerTarget | null>(null);
     const [eventViewerTab, setEventViewerTab] = useState<EventViewerTab>("achievements");
+    const [milestonesTab, setMilestonesTab] = useState<MilestonesTab>("milestones");
+    const [activitySubject, setActivitySubject] = useState<Omit<ActivitySubject, "own"> | null>(null);
+    const [activityMonth, setActivityMonth] = useState<string | null>(null);
+    const [activityDay, setActivityDay] = useState<string | null>(null);
     const [eventViewerSource, setEventViewerSource] = useState<EventViewerSource>("events");
     const [gameNotesGameId, setGameNotesGameId] = useState<number | null>(null);
     const [gameOverviewViewedUsername, setGameOverviewViewedUsername] = useState<string | null>(null);
@@ -583,6 +598,8 @@ function AchievementsRoot() {
         trackedSetsAutoCheck,
         trackedSetsSelectorSort,
         trackedSetsSelectorFilter,
+        milestonesSort,
+        milestonesHeaderStyle,
         language,
         friendRefreshDelayMs,
         socialGameTicker,
@@ -677,6 +694,7 @@ function AchievementsRoot() {
         setFriendShowAllAchievements,
         setTrackedSetsSelectorSort,
         setTrackedSetsSelectorFilter,
+        setMilestonesSort,
         toggleDoNotDisturb,
         toggleBatterySaver,
         toggleMouseKeyboardMode,
@@ -1589,6 +1607,9 @@ function AchievementsRoot() {
                 return;
             }
 
+            if (favorite) {
+                recordMilestoneEvent("friend_favorite");
+            }
             setFavoriteFriends(result.favoriteFriends ?? optimisticFavorites);
         } catch (e: any) {
             logError("toggleFriendFavorite", e);
@@ -1830,6 +1851,10 @@ function AchievementsRoot() {
         trackedSetOpenId,
         eventViewerTarget,
         eventViewerTab,
+        milestonesTab,
+        activitySubject,
+        activityMonth,
+        activityDay,
         eventViewerSource,
         navStack: nav.stack,
         unlockHistorySource,
@@ -1942,7 +1967,11 @@ function AchievementsRoot() {
         setTrackedSetOpenId,
         setEventViewerTarget,
         setEventViewerTab,
-        setEventViewerSource
+        setEventViewerSource,
+        setMilestonesTab,
+        setActivitySubject,
+        setActivityMonth,
+        setActivityDay
     });
     const {
         actions: {
@@ -2871,6 +2900,19 @@ function AchievementsRoot() {
         if (bootView === "gameNotes") {
             setGameNotesGameId(nextResumeState?.gameNotesGameId ?? null);
         }
+        if (bootView === "milestones" && nextResumeState) {
+            setMilestonesTab(getSavedMilestonesTab(nextResumeState));
+        }
+        if (
+            nextResumeState !== null
+            && (bootView === "activity"
+                || ((bootView === "gameOverview" || bootView === "achievementOverview")
+                    && (nextResumeState.gameOverviewSource === "activity" || nextResumeState.aoSource === "activity")))
+        ) {
+            setActivitySubject(getSavedActivitySubject(nextResumeState));
+            setActivityMonth(getSavedActivityMonth(nextResumeState));
+            setActivityDay(getSavedActivityDay(nextResumeState));
+        }
         if (bootView === "achievements" && nextRememberLastPage && nextResumeState) {
             setMainTab(getSavedMainAchievementsTab(nextResumeState));
         }
@@ -2883,6 +2925,9 @@ function AchievementsRoot() {
         if (entry?.kind === "socialTab") {
             setSocialEntryViewOverride(entry.tab);
             if (entry.newsSub) {
+                if (entry.newsSub === "newSets") {
+                    recordMilestoneEvent("set_feed");
+                }
                 setNewsEventsSubView(entry.newsSub);
             }
         }
@@ -3005,8 +3050,18 @@ function AchievementsRoot() {
     }
 
     // Navigation
+    function pickBootCatLine() {
+        const index = Math.floor(Math.random() * BOOT_CAT_LINES.length);
+        setBootCatLine(BOOT_CAT_LINES[index]);
+        const kind = BOOT_CAT_LINE_KINDS[index];
+        if (kind) {
+            recordMilestoneEvent(kind);
+        }
+    }
+
     function onPreviewBootCat() {
-        setBootCatLine(BOOT_CAT_LINES[Math.floor(Math.random() * BOOT_CAT_LINES.length)]);
+        recordMilestoneEvent("bootcat_preview");
+        pickBootCatLine();
         setBootCatPreview(true);
         setTimeout(() => {
             if (mountedRef.current) {
@@ -3197,6 +3252,19 @@ function AchievementsRoot() {
         arriveOnAchievements("back");
     }
 
+    function goToMilestones(intent: NavIntent = "push", options: { land?: string; tab?: MilestonesTab } = {}) {
+        friendGameSessionRefreshKeysRef.current = new Set();
+        if (options.tab || intent !== "back") {
+            setMilestonesTab(options.tab ?? "milestones");
+        }
+        setView("milestones", intent, options.land ? { land: options.land } : undefined);
+        setPendingFocusKey("milestones:back");
+    }
+
+    function backFromMilestones() {
+        arriveOnAchievements("back");
+    }
+
     function arriveOnAchievements(intent: NavIntent) {
         friendRowRefreshRunIdRef.current += 1;
         friendGameSessionRefreshKeysRef.current = new Set();
@@ -3236,10 +3304,13 @@ function AchievementsRoot() {
         setPendingFocusKey("main:tab:compare");
     }
 
-    function goToOptions(land?: string, intent: NavIntent = "push") {
+    function goToOptions(land?: string, intent: NavIntent = "push", tab: OptionsTab = "system") {
+        if (intent !== "back") {
+            recordMilestoneEvent("options_open");
+        }
         friendGameSessionRefreshKeysRef.current = new Set();
-        setLastOptionsTab("system");
-        void saveLastOptionsTab("system").catch(() => {
+        setLastOptionsTab(tab);
+        void saveLastOptionsTab(tab).catch(() => {
         });
         setQuickMenuShortcutRefused(null);
         setView("options", intent, land ? { land } : undefined);
@@ -3247,6 +3318,7 @@ function AchievementsRoot() {
     }
 
     function goToUnlockHistory() {
+        recordMilestoneEvent("unlock_history");
         friendGameSessionRefreshKeysRef.current = new Set();
         setUnlockHistorySource("main");
         setView("unlockHistory");
@@ -3284,6 +3356,7 @@ function AchievementsRoot() {
     }
 
     function goToFriendCompare() {
+        recordMilestoneEvent("compare");
         friendCompareReturnFriendRef.current = {
             username: friendUsernameFromRefs() || null,
             gameId:
@@ -3408,6 +3481,7 @@ function AchievementsRoot() {
     }
 
     function goToFollowedRanking() {
+        recordMilestoneEvent("ranking_open");
         setView("followedRanking");
         setPendingFocusKey("followedranking:back");
     }
@@ -3566,6 +3640,7 @@ function AchievementsRoot() {
                 language={language}
                 showIcons={showIcons}
                 onPick={(game) => {
+                    recordMilestoneEvent("search_game_info");
                     pendingSearchGameId = game.gameId;
                     pendingSearchBackSource = backSource;
                     close();
@@ -3628,6 +3703,10 @@ function AchievementsRoot() {
             setAoSnapshot(notificationAoSnapshot(achievementId));
             setView("achievementOverview");
             setPendingFocusKey("ao:back");
+        },
+        openMilestones: (land, tab) => {
+            requestPanelEntry({ kind: "milestones", tab }, { land });
+            goToMilestones("push", { land, tab });
         },
         openTrackedSet: (setId) => {
             requestPanelEntry({ kind: "trackedSet", setId });
@@ -3774,6 +3853,7 @@ function AchievementsRoot() {
         goToEventViewer("aotw", "main", "achievements", intent);
     }
     function goToSocialNewSets(intent: NavIntent = "push") {
+        recordMilestoneEvent("set_feed");
         setNewsEventsSubView("newSets");
         routeBackToSocialTab("newsEvents", "social:back", intent);
     }
@@ -3788,6 +3868,36 @@ function AchievementsRoot() {
         setView("eventViewer", intent);
         setPendingFocusKey("eventviewer:back");
     }
+    function goToActivity(subject: Omit<ActivitySubject, "own">) {
+        if (subject.ulid === activeUlid) {
+            recordMilestoneEvent("activity_open");
+        }
+        dropCurrentActivityMonth(subject.ulid);
+        setActivitySubject(subject);
+        setActivityMonth(null);
+        setActivityDay(null);
+        setView("activity");
+        setPendingFocusKey("activity:back");
+    }
+
+    async function backFromActivity() {
+        if (activityDay !== null) {
+            setActivityDay(null);
+            return;
+        }
+        const name = String(activitySubject?.username || "").trim();
+        await routeBackToFriendContext(name, "friendprofile:tab:activity");
+    }
+
+    function returnToActivity() {
+        if (activitySubject === null) {
+            backToAchievements();
+            return;
+        }
+        setView("activity", "back");
+        setPendingFocusKey("activity:back");
+    }
+
     function returnToEventViewer() {
         if (eventViewerTarget === null) {
             setNewsEventsSubView("events");
@@ -3894,6 +4004,10 @@ function AchievementsRoot() {
             returnToEventViewer();
             return;
         }
+        if (source === "activity") {
+            returnToActivity();
+            return;
+        }
         if (source === "newsEvents") {
             routeBackToSocialTab("newsEvents", "social:tab:newsEvents", "back");
             return;
@@ -3920,6 +4034,7 @@ function AchievementsRoot() {
             setAoViewedUsername(viewedUsername);
             setAoViewedUserRef(viewedUserRef);
             setAoSnapshot(snapshot);
+            recordMilestoneEvent("achievement_info");
             setView("achievementOverview");
             setPendingFocusKey("ao:back");
         },
@@ -3959,6 +4074,10 @@ function AchievementsRoot() {
         }
         if (source === "eventViewer") {
             returnToEventViewer();
+            return;
+        }
+        if (source === "activity") {
+            returnToActivity();
             return;
         }
         if (source === "newsEvents") {
@@ -4059,7 +4178,7 @@ function AchievementsRoot() {
             return;
         }
         const timer = setTimeout(() => {
-            setBootCatLine(BOOT_CAT_LINES[Math.floor(Math.random() * BOOT_CAT_LINES.length)]);
+            pickBootCatLine();
             setShowBootSpinner(true);
         }, 1500);
         return () => {
@@ -4252,6 +4371,7 @@ function AchievementsRoot() {
     };
 
     const handlePlayersNearYouModeChange = (next: PlayersNearYouMode) => {
+        recordMilestoneEvent("pny_mode");
         setPlayersNearYouMode(next);
         void savePlayersNearYouMode(playersNearYouGameId, next);
     };
@@ -4322,6 +4442,7 @@ function AchievementsRoot() {
             if (modalEchoPending()) {
                 return;
             }
+            recordMilestoneEvent("back_b");
             back();
         };
     }
@@ -4354,7 +4475,9 @@ function AchievementsRoot() {
             backFromUtils,
             backFromUtilityTool,
             backFromMemories,
-            backFromEventViewer
+            backFromEventViewer,
+            backFromMilestones,
+            backFromActivity
         };
         return () => {
             playOkSound();
@@ -4362,9 +4485,9 @@ function AchievementsRoot() {
         };
     }
 
-    function jumpToTopOfPage() {
+    function jumpToTopOfPage(): boolean {
         if (view === "guides" && guidesSubViewRef.current !== "list") {
-            return;
+            return false;
         }
         playOkSound();
         if (view === "achievements") {
@@ -4373,17 +4496,20 @@ function AchievementsRoot() {
                 armed: true
             }));
             requestJumpToTop();
-            return;
+            return true;
         }
         setPendingFocusKey(defaultPersistedFocusKeyForView(view));
         requestJumpToTop();
+        return true;
     }
 
     useMenuCombos(rootRef, shortcutBindings, runShortcutAction);
 
     function runShortcutAction(action: ShortcutAction) {
         if (action === "pageUp") {
-            jumpToTopOfPage();
+            if (jumpToTopOfPage()) {
+                recordMilestoneEvent("shortcut_pageUp");
+            }
             return;
         }
         if (action === "home") {
@@ -4391,6 +4517,7 @@ function AchievementsRoot() {
                 jumpToTopOfPage();
                 return;
             }
+            recordMilestoneEvent("home");
             playOkSound();
             goToAchievements();
             return;
@@ -4433,6 +4560,7 @@ function AchievementsRoot() {
             return;
         }
         if (action === "search") {
+            recordMilestoneEvent("shortcut_search");
             openGameSearch("search", "hub");
             return;
         }
@@ -4454,6 +4582,7 @@ function AchievementsRoot() {
         }
 
         if (action === "notifications") {
+            recordMilestoneEvent("shortcut_notifications");
             openNotificationsModal();
             return;
         }
@@ -4671,7 +4800,10 @@ function AchievementsRoot() {
                                     actions={{
                                         ...achievementsActions,
                                         goToFriends: () => goToFriends(),
-                                        onOpenProfile: () => goToOwnProfile(),
+                                        onOpenProfile: () => {
+                                            recordMilestoneEvent("profile_from_avatar");
+                                            goToOwnProfile();
+                                        },
                                         goToLeaderboards,
                                         goToOptions,
                                         goToAbout,
@@ -4712,10 +4844,12 @@ function AchievementsRoot() {
                                         onToggleMouseKeyboardMode: toggleMouseKeyboardMode,
                                         onToggleBackButtonsGlobal: optionsActions.onToggleBackButtonsGlobal,
                                         onOpenGameSearch: openGameSearch,
+                                        onOpenMilestones: () => goToMilestones("push"),
                                         onSpendMainStripClaim: spendMainStripClaim,
                                         onViewGameOverview: () => {
                                             const gid = payload?.gameId;
                                             if (gid != null) {
+                                                recordMilestoneEvent("game_info_chevron");
                                                 goToGameOverview(gid, "main", null, null);
                                             }
                                         }
@@ -5120,7 +5254,10 @@ function AchievementsRoot() {
                                     newsEvents={{
                                         ...newsEventsState,
                                         onChangeSubView: newsEventsActions.setSubView,
-                                        onOpenNewsLink: async (url: string) => {
+                                        onOpenNewsLink: async (url: string, story = true) => {
+                                            if (story) {
+                                                recordMilestoneEvent("news_open");
+                                            }
                                             setError(null);
                                             await openExternalUrl(url);
                                         },
@@ -5204,6 +5341,7 @@ function AchievementsRoot() {
                                         onBack: backFromComparePicker,
                                         onHome: goToAchievements,
                                         onPickFriend: (friend) => {
+                                            recordMilestoneEvent("compare");
                                             selectCompareFriend(friend.username);
                                             backFromComparePicker();
                                         }
@@ -5237,7 +5375,10 @@ function AchievementsRoot() {
                                             await backToLeaderboardsSource();
                                         },
                                         onHome: goToAchievements,
-                                        onLeaderboardClick: openLeaderboardDetail
+                                        onLeaderboardClick: (row) => {
+                                            recordMilestoneEvent("leaderboard_open");
+                                            return openLeaderboardDetail(row);
+                                        }
                                     }}
                                 />
 
@@ -5505,6 +5646,9 @@ function AchievementsRoot() {
                                             if (!selectedFriend) {
                                                 return;
                                             }
+                                            if (selectedFriend.isSelf) {
+                                                recordMilestoneEvent("awards_open");
+                                            }
                                             setBadgeFilter("all");
                                             void loadUserAwards(userRefFor(selectedFriend), selectedFriend.ulid ?? "");
                                         },
@@ -5520,12 +5664,12 @@ function AchievementsRoot() {
                                             }
                                             goToFollowedRanking();
                                         },
-                                        onOpenTrackedSets: () => {
-                                            if (!selectedFriend?.isSelf) {
+                                        onOpenActivity: () => {
+                                            const ulid = String(selectedFriend?.ulid || friendGamePayload?.ulid || "").trim();
+                                            if (!selectedFriend || !ulid) {
                                                 return;
                                             }
-                                            trackedSetsBackSourceRef.current = "profile";
-                                            goToTrackedSets();
+                                            goToActivity({ ulid, username: selectedFriend.username });
                                         },
                                         onToggleRecentGames: () => {
                                             setFriendGameSource("recentGames");
@@ -5626,6 +5770,7 @@ function AchievementsRoot() {
                                             if (!wallUser) {
                                                 return;
                                             }
+                                            recordMilestoneEvent("post");
                                             setFriendGameError(null);
                                             clearCommentsSnapshot();
                                             if (wallThreadId != null) {
@@ -5772,6 +5917,81 @@ function AchievementsRoot() {
                                     />
                                 )}
 
+                                <MilestonesPage
+                                    state={{
+                                        view,
+                                        language,
+                                        buttonSpacing,
+                                        uiSize,
+                                        tab: milestonesTab,
+                                        sort: milestonesSort,
+                                        headerStyle: milestonesHeaderStyle,
+                                        shortcutBindings,
+                                        globalButtonsOn: optionsState.backButtonsGlobal,
+                                        dynamicLoading: dynamicTrackedListLoading,
+                                        dynamicInitialRows: dynamicTrackedListInitialRows,
+                                        dynamicRowStep: dynamicTrackedListRowStep,
+                                        dynamicPrefetchDistance: dynamicTrackedListPrefetchDistance,
+                                        dynamicSentinelRootMargin: dynamicTrackedListSentinelRootMargin,
+                                        notifyEnabled: optionsState.notifyMilestoneEnabled,
+                                        notifyToast: optionsState.notifyMilestoneToast
+                                    }}
+                                    actions={{
+                                        onBack: backFromMilestones,
+                                        onHome: goToAchievements,
+                                        onChangeTab: setMilestonesTab,
+                                        onChangeSort: (next) => {
+                                            setMilestonesSort(next);
+                                            void saveMilestonesSort(next).catch((e) => logError("milestones: saving the sort", e));
+                                        },
+                                        onToggleNotify: optionsActions.onToggleNotifyMilestoneEnabled,
+                                        onToggleToast: optionsActions.onToggleNotifyMilestoneToast
+                                    }}
+                                />
+                                {view === "activity" && activitySubject !== null && (
+                                    <ActivityPage
+                                        key={activitySubject.ulid}
+                                        state={{
+                                            view,
+                                            language,
+                                            buttonSpacing,
+                                            uiSize,
+                                            showIcons,
+                                            showRetroPoints,
+                                            controllerGlyphStyle,
+                                            mouseKeyboardMode,
+                                            subject: { ...activitySubject, own: activitySubject.ulid === activeUlid },
+                                            month: activityMonth,
+                                            day: activityDay
+                                        }}
+                                        actions={{
+                                            onBack: backFromActivity,
+                                            onHome: goToAchievements,
+                                            onChangeMonth: (next) => {
+                                                setActivityDay(null);
+                                                setActivityMonth(next);
+                                            },
+                                            onOpenDay: (picked) => {
+                                                if (picked) {
+                                                    setActivityMonth(picked.slice(0, 7));
+                                                }
+                                                setActivityDay(picked);
+                                            },
+                                            onOpenAchievement: (achievement, row) => {
+                                                const friend = activitySubject.ulid === activeUlid ? null : activitySubject;
+                                                goToAchievementOverview(achievement, row.gameId, "activity", friend?.username ?? null, friend?.ulid ?? null);
+                                            },
+                                            onOpenGame: (row) => {
+                                                if (legacyGameLinks) {
+                                                    void openExternalUrl(raGameUrl(row.gameId));
+                                                    return;
+                                                }
+                                                const friend = activitySubject.ulid === activeUlid ? null : activitySubject;
+                                                goToGameOverview(row.gameId, "activity", friend?.username ?? null, friend?.ulid ?? null);
+                                            }
+                                        }}
+                                    />
+                                )}
                                 {view === "eventViewer" && eventViewerTarget !== null && (
                                     <EventViewerPage
                                         key={String(eventViewerTarget)}

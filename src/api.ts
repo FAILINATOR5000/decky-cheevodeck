@@ -197,7 +197,11 @@ import type {
     QuickMenuShortcut,
     ScalePreset,
     ShortcutAction,
-    ShortcutButton
+    ShortcutButton,
+    ActivityMonthResponse,
+    MilestonesSort,
+    MilestonesStateResponse,
+    QuestPeriod
 } from "./types";
 
 // Settings and accounts
@@ -405,6 +409,10 @@ export const saveTrackedEventsHeaderStyle = callable<
     [HeaderStyle],
     { ok: boolean; trackedEventsHeaderStyle: HeaderStyle }
 >("save_tracked_events_header_style");
+export const saveMilestonesHeaderStyle = callable<
+    [HeaderStyle],
+    { ok: boolean; milestonesHeaderStyle: HeaderStyle }
+>("save_milestones_header_style");
 export const saveTrackedColor = callable<
     [TrackedColor],
     { ok: boolean; trackedColor: TrackedColor }
@@ -841,6 +849,10 @@ export const saveBatterySaverDisablesMemories = callable<
     [boolean],
     { ok: boolean; batterySaverDisablesMemories: boolean }
 >("save_battery_saver_disables_memories");
+export const saveBatterySaverDisablesMilestones = callable<
+    [boolean],
+    { ok: boolean; batterySaverDisablesMilestones: boolean }
+>("save_battery_saver_disables_milestones");
 export const saveFileWatcherSpeed = callable<
     [FileWatcherSpeed],
     { ok: boolean; fileWatcherSpeed: FileWatcherSpeed }
@@ -1039,6 +1051,12 @@ export const saveNotifyNearYouEnabled = callable<[boolean], { ok: boolean; notif
 );
 export const saveNotifyNearYouToast = callable<[boolean], { ok: boolean; notifyNearYouToast: boolean }>(
     "save_notify_near_you_toast"
+);
+export const saveNotifyMilestoneEnabled = callable<[boolean], { ok: boolean; notifyMilestoneEnabled: boolean }>(
+    "save_notify_milestone_enabled"
+);
+export const saveNotifyMilestoneToast = callable<[boolean], { ok: boolean; notifyMilestoneToast: boolean }>(
+    "save_notify_milestone_toast"
 );
 export const saveNotifyDebugEnabled = callable<[boolean], { ok: boolean; notifyDebugEnabled: boolean }>(
     "save_notify_debug_enabled"
@@ -2775,6 +2793,15 @@ export const saveTrackedSetsServiceEnabled = callable<[boolean], { ok: boolean; 
 export const saveTrackedSetsRefreshMinutes = callable<[number], { ok: boolean; trackedSetsRefreshMinutes: number }>(
     "save_tracked_sets_refresh_minutes",
 );
+export const saveMilestonesServiceEnabled = callable<[boolean], { ok: boolean; milestonesServiceEnabled: boolean }>(
+    "save_milestones_service_enabled",
+);
+export const saveMilestonesTickMinutes = callable<[number], { ok: boolean; milestonesTickMinutes: number }>(
+    "save_milestones_tick_minutes",
+);
+export const saveActivityCacheMonths = callable<[number], { ok: boolean; activityCacheMonths: number }>(
+    "save_activity_cache_months",
+);
 export const saveTrackedSetsSelectorSort = callable<[TrackedSetSelectorSort], SaveTrackedSetsSelectorSortResponse>(
     "save_tracked_sets_selector_sort",
 );
@@ -3004,3 +3031,20 @@ export const getChecklistProgress = callable<
     [eventGameId: number, force: boolean],
     { ok: boolean; games: Record<string, ChecklistGameProgress>; refreshedAt: number | null; error: string | null }
 >("get_checklist_progress");
+
+export const getMilestonesState = callable<[], MilestonesStateResponse>("get_milestones_state");
+export const requestMilestonesCheck = callable<[], OkResult>("request_milestones_check");
+export const recordMilestoneEventCall = callable<[kind: string, detail: string | null], { ok: boolean }>("record_milestone_event");
+export const rerollQuest = callable<[period: QuestPeriod], MilestonesStateResponse & { rerolled?: boolean }>("reroll_quest");
+export const markMilestonesSeen = callable<[], { ok: boolean }>("mark_milestones_seen");
+export const saveMilestonesCollapsed = callable<[categories: string[]], { ok: boolean; collapsed: string[] }>(
+    "save_milestones_collapsed"
+);
+export const saveMilestonesSort = callable<[sort: MilestonesSort], { ok: boolean; milestonesSort: MilestonesSort }>(
+    "save_milestones_sort"
+);
+export const clearMilestoneProgress = callable<[], { ok: boolean }>("clear_milestone_progress");
+export const getActivityMonth = callable<[ulid: string, month: string, force: boolean, savedOnly?: boolean], ActivityMonthResponse>(
+    "get_activity_month"
+);
+export const clearActivityCache = callable<[], { ok: boolean; removed: number }>("clear_activity_cache");

@@ -82,7 +82,10 @@ class TrackedSetsMixin(PluginContext):
     async def add_game_to_set(self, set_id: str = "", game=None):
         if game is None:
             game = {}
-        return self.tracked_sets_store.add_game(set_id, game)
+        result = self.tracked_sets_store.add_game(set_id, game)
+        if result.get("ok"):
+            self.milestones_service.record_event("goal_with_game")
+        return result
 
     async def remove_game_from_set(self, set_id: str = "", game_id=None):
         return self.tracked_sets_store.remove_game(set_id, game_id)

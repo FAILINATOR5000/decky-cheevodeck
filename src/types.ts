@@ -1,6 +1,7 @@
 import type { FocusClaimController } from "./hooks/useFocusClaim";
 import type { LanguageCode } from "./locales";
 import type { VideoFilterDoc } from "./components/browser/videoFilter";
+import type { GlyphButton } from "./utils/controllerGlyphs";
 
 type RaPayloadResponse<T> = {
     needsSettings?: boolean;
@@ -455,7 +456,9 @@ export type ViewKey =
     | "memoriesTransfer"
     | "qamGuard"
     | "guides"
-    | "eventViewer";
+    | "eventViewer"
+    | "milestones"
+    | "activity";
 
 // Guides
 export type GuidesSubView = "list" | "reader" | "search";
@@ -545,7 +548,7 @@ export type AotwSubView = "unlocks" | "comments";
 export type GameOverviewSubView = "achievements" | "comments" | "hashes";
 export type FriendProfileSubView = "game" | "wall";
 export type MainAchievementsTab = "achievements" | "activity" | "comments" | "compare";
-export type GameOverviewSource = "newsEvents" | "main" | "socialActivity" | "mainNowPlaying" | "friend" | "badges" | "wantToPlay" | "trackedSet" | "subscribedDiscussions" | "search" | "cheevoCheck" | "eventViewer";
+export type GameOverviewSource = "newsEvents" | "main" | "socialActivity" | "mainNowPlaying" | "friend" | "badges" | "wantToPlay" | "trackedSet" | "subscribedDiscussions" | "search" | "cheevoCheck" | "eventViewer" | "activity";
 
 export type AOSource =
     | "main"
@@ -559,7 +562,8 @@ export type AOSource =
     | "notification"
     | "subscribedDiscussions"
     | "external"
-    | "eventViewer";
+    | "eventViewer"
+    | "activity";
 
 export type AchievementOverviewSnapshot = {
     id: number;
@@ -700,6 +704,7 @@ export type NotificationType =
     | "tracked"
     | "social"
     | "nearYou"
+    | "milestones"
     | "debug";
 
 export type NotificationKind = "info" | "actionable";
@@ -709,12 +714,15 @@ export type NotificationIconSource = "game" | "achievement" | "avatar" | "setMos
 type NotificationSource = "notifications";
 
 type NotificationNavTarget = {
-    view: "gameNotes" | "trackedSetOpen" | "gameOverview" | "achievementOverview" | "cheevoCheck" | "fileWatcher" | "memoriesTransfer" | "changelog" | "message" | "external";
+    view: "gameNotes" | "trackedSetOpen" | "gameOverview" | "achievementOverview" | "cheevoCheck" | "fileWatcher" | "memoriesTransfer" | "changelog" | "message" | "external" | "milestones";
     gameId?: number | null;
     achievementId?: number | null;
     noteId?: string | null;
     setId?: string | null;
     url?: string | null;
+    milestoneId?: string | null;
+    quest?: "daily" | "weekly" | null;
+    rank?: number | null;
 };
 
 export type CheevoNotification = {
@@ -802,7 +810,8 @@ export type ArchiveBucket =
     | "commentPosts"
     | "system"
     | "reminders"
-    | "masteryGoals";
+    | "masteryGoals"
+    | "milestones";
 
 export type ArchiveSort =
     | "archivedDesc"
@@ -874,6 +883,7 @@ export type SettingsResponse = {
     batterySaverDisablesTrackedSets: boolean;
     batterySaverDisablesFileWatcher: boolean;
     batterySaverDisablesMemories: boolean;
+    batterySaverDisablesMilestones: boolean;
     notifyNoteReminderEnabled: boolean;
     notifyNoteReminderToast: boolean;
     notifyTrackedSetEnabled: boolean;
@@ -890,6 +900,8 @@ export type SettingsResponse = {
     notifySocialUnlockToast: boolean;
     notifyNearYouEnabled: boolean;
     notifyNearYouToast: boolean;
+    notifyMilestoneEnabled: boolean;
+    notifyMilestoneToast: boolean;
     notifyDebugEnabled: boolean;
     notifyDebugToast: boolean;
     legacyAchievementLinks: boolean;
@@ -1022,6 +1034,7 @@ export type SettingsResponse = {
     notesHeaderStyle: HeaderStyle;
     generalHeaderStyle: HeaderStyle;
     trackedEventsHeaderStyle: HeaderStyle;
+    milestonesHeaderStyle: HeaderStyle;
     mainAchievementFilter: MainAchievementFilter;
     mainAchievementSort: AchievementSort;
     gameOverviewAchievementFilter: MainAchievementFilter;
@@ -1068,7 +1081,11 @@ export type SettingsResponse = {
     trackedSetsAutoCheck: boolean;
     trackedSetsServiceEnabled: boolean;
     trackedSetsRefreshMinutes: number;
+    milestonesServiceEnabled: boolean;
+    milestonesTickMinutes: number;
+    activityCacheMonths: number;
     trackedSetsSelectorSort: TrackedSetSelectorSort;
+    milestonesSort: MilestonesSort;
     trackedSetsSelectorFilter: TrackedSetFilter;
     language: LanguageCode;
     viewedIntro: boolean;
@@ -2487,6 +2504,11 @@ export type ResumeState = {
     friendProfileSubView?: FriendProfileSubView | null;
     guidesSubView?: GuidesSubView | null;
     guidesFaqId?: string | null;
+    milestonesTab?: MilestonesTab | null;
+    activitySubjectUlid?: string | null;
+    activitySubjectName?: string | null;
+    activityMonth?: string | null;
+    activityDay?: string | null;
     leaderboardsSourceView?: "achievements" | "friendGame" | "gameOverview" | null;
     selectedLeaderboardId?: number | null;
     leaderboardAudience?: LeaderboardAudience | null;
@@ -2672,3 +2694,118 @@ export type ChecklistGameProgress = {
 };
 
 export type EventCompletion = { kind: "earned" | "marked"; at: number } | null;
+
+type MilestoneRuleType =
+    | "counter"
+    | "tabs"
+    | "state"
+    | "unlocks"
+    | "award"
+    | "combo"
+    | "active_days"
+    | "daily_done"
+    | "weekly_done"
+    | "finish_category"
+    | "completionist"
+    | "unlock_hour"
+    | "weekend"
+    | "all_kinds"
+    | "games_one_day";
+
+export type MilestoneCategoryIcon = "flag" | "dpad" | "padlock" | "pushpin" | "people" | "megaphone" | "camera" | "compass" | "globe" | "flame" | "egg";
+
+export type MilestoneCategory = { id: string; icon: MilestoneCategoryIcon };
+
+type MilestoneBinding = "notifications" | "pageUp" | "home" | "currentGuide" | "search" | "memories" | "lastMemory" | "browser";
+
+export type MilestoneDef = {
+    id: string;
+    category: string;
+    xp: number;
+    ruleType: MilestoneRuleType;
+    binding: MilestoneBinding | null;
+    buttons: GlyphButton[][] | null;
+    needsGlobalButtons: boolean;
+};
+
+export type RankTier = "tracker" | "hunter" | "expert" | "master" | "legend";
+
+export type MilestoneRank = { xp: number; tier: RankTier; step: number };
+
+export type QuestPeriod = "daily" | "weekly";
+
+export type QuestState = {
+    key: string;
+    quest: string;
+    progress: number;
+    target: number;
+    xp: number;
+    done: boolean;
+    rerolled: boolean;
+    canReroll: boolean;
+    ruleType: string;
+};
+
+type ComboState = { length: number; activeToday: boolean; alive: boolean; bonusToday: number };
+
+export type MilestonesState = {
+    ok: true;
+    today: string;
+    startedAt: number;
+    categories: MilestoneCategory[];
+    milestones: MilestoneDef[];
+    claims: Record<string, { at: number; xp: number }>;
+    progress: Record<string, number>;
+    targets: Record<string, number>;
+    available: string[];
+    xp: number;
+    rank: number;
+    ranks: MilestoneRank[];
+    rankXp: number;
+    nextRankXp: number | null;
+    combo: ComboState;
+    daily: QuestState | null;
+    weekly: QuestState | null;
+    newIds: string[];
+    collapsed: string[];
+    supported: boolean;
+    neededKinds: string[];
+    paddles: string[];
+    countsLoaded: boolean;
+};
+
+export type MilestonesStateResponse = MilestonesState | { ok: false; error: "definitions" | "account" | "unreadable" };
+
+export type MilestonesSort = "list" | "upNext";
+
+export type MilestonesTab = "milestones" | "quests";
+
+export type ActivityRow = {
+    achievementId: number;
+    gameId: number;
+    gameTitle: string;
+    consoleName: string;
+    title: string;
+    description: string;
+    points: number;
+    badgeName: string;
+    hardcore: boolean;
+    ts: number;
+    day: string;
+};
+
+export type ActivityMonth = {
+    ok: true;
+    ulid: string;
+    month: string;
+    today: string;
+    currentMonth: string;
+    rows: ActivityRow[];
+    dayCounts: Record<string, number>;
+    quartiles: [number, number, number];
+    fromCache: boolean;
+};
+
+export type ActivityMonthResponse = ActivityMonth | { ok: false; error?: string; needsSettings?: boolean; notSaved?: boolean };
+
+export type ActivitySubject = { ulid: string; username: string; own: boolean };
