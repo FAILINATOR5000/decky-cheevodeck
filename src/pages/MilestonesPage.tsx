@@ -33,6 +33,7 @@ import type {
     ViewKey
 } from "../types";
 import { showManagedModal } from "../utils/modalRegistry";
+import { BUTTON_OK } from "../utils/gamepadButtons";
 import { openExternalUrl } from "../utils/navigation";
 import { playOkSound } from "../utils/navSound";
 import { achievementUiMetrics, bodyTextStyle, smallTextStyle } from "../utils/style";
@@ -311,7 +312,13 @@ function MilestonesPage(props: { state: MilestonesPageState; actions: Milestones
     }
 
     const header = data ? (
-        <FocusableItem focusKey="milestones:header" outerStyle={{ width: "100%", minWidth: 0 }}>
+        <FocusableItem
+            focusKey="milestones:header"
+            outerStyle={{ width: "100%", minWidth: 0 }}
+            onClick={openRanks}
+            actionDescriptionMap={{ [BUTTON_OK]: t(language, "View Ranks") }}
+            bottomSeparator="none"
+        >
             <div style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%", minWidth: 0 }}>
                 <RankEmblem tier={data.ranks[data.rank].tier} step={data.ranks[data.rank].step} size={Math.round(metrics.iconSize * 1.1)} />
                 <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "4px", textAlign: "left" }}>
@@ -437,15 +444,6 @@ function MilestonesPage(props: { state: MilestonesPageState; actions: Milestones
                     </PanelSectionRow>
                 )}
                 {header && <PanelSectionRow>{header}</PanelSectionRow>}
-                {data && (
-                    <PanelSectionRow>
-                        <FocusTarget focusKey="milestones:ranks" style={{ width: "100%" }}>
-                            <DialogButton style={{ width: "100%", minWidth: 0 }} onClick={openRanks}>
-                                {t(language, "View Ranks")}
-                            </DialogButton>
-                        </FocusTarget>
-                    </PanelSectionRow>
-                )}
                 {comboLine !== null && (
                     <PanelSectionRow>
                         <div style={{ ...smallTextStyle(), fontSize: `${metrics.bodyFontSize}px`, opacity: 0.95, fontWeight: 700, padding: "4px 0" }}>

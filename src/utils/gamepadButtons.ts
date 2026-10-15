@@ -1,5 +1,6 @@
 import type { ShortcutButton } from "../types";
 
+export const BUTTON_OK = 1;
 export const BUTTON_SECONDARY = 3;
 export const BUTTON_OPTIONS = 4;
 export const BUTTON_BUMPER_LEFT = 5;
