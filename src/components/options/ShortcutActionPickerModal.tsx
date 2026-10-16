@@ -20,16 +20,17 @@ type ShortcutActionPickerModalProps = {
     language: LanguageCode;
     button: ShortcutButton;
     current: ShortcutAction;
+    showDeveloperOptions: boolean;
     onSelect: (action: ShortcutAction) => void | Promise<void>;
     close: () => void;
 };
 
 function ShortcutActionPickerModal(props: ShortcutActionPickerModalProps) {
-    const { language, button, current, onSelect, close } = props;
+    const { language, button, current, showDeveloperOptions, onSelect, close } = props;
 
     const [busyAction, setBusyAction] = useState<ShortcutAction | null>(null);
 
-    const groups = shortcutActionGroups(button, language);
+    const groups = shortcutActionGroups(button, language, current, showDeveloperOptions);
     const titleSize = modalSize(20);
     const buttonLabel = shortcutButtonLabel(button, language);
 

@@ -3655,10 +3655,10 @@ export function useOptionsController({
         });
 
     const onCycleShortcutBinding = (button: ShortcutButton) =>
-        applyShortcutBinding(button, nextShortcutAction(button, shortcutBindings[button], language));
+        applyShortcutBinding(button, nextShortcutAction(button, shortcutBindings[button], language, showDeveloperOptions));
 
     const onCycleShortcutBindingBack = (button: ShortcutButton) =>
-        applyShortcutBinding(button, previousShortcutAction(button, shortcutBindings[button], language));
+        applyShortcutBinding(button, previousShortcutAction(button, shortcutBindings[button], language, showDeveloperOptions));
 
     const onClearShortcutBinding = (button: ShortcutButton) =>
         applyShortcutBinding(button, "none");
@@ -3668,6 +3668,7 @@ export function useOptionsController({
             language,
             button,
             current: shortcutBindings[button],
+            showDeveloperOptions,
             onSelect: (action) => applyShortcutBinding(button, action)
         });
 

@@ -435,11 +435,16 @@ export function shortcutActionLabel(value: ShortcutAction, language: LanguageCod
     return t(language, entry ? entry.labelKey : "Not Set");
 }
 
-function actionsForButton(button: ShortcutButton) {
-    if (!menuCombo(button)) {
-        return SHORTCUT_ACTIONS;
-    }
-    return SHORTCUT_ACTIONS.filter((action) => action.id !== "snapshot");
+function actionsForButton(button: ShortcutButton, current: ShortcutAction, showDeveloperOptions: boolean) {
+    return SHORTCUT_ACTIONS.filter((action) => {
+        if (action.id !== "snapshot") {
+            return true;
+        }
+        if (menuCombo(button)) {
+            return false;
+        }
+        return showDeveloperOptions || current === "snapshot";
+    });
 }
 
 export type ShortcutActionGroup = {
@@ -447,8 +452,13 @@ export type ShortcutActionGroup = {
     actions: { id: ShortcutAction; labelKey: string }[];
 };
 
-export function shortcutActionGroups(button: ShortcutButton, language: LanguageCode): ShortcutActionGroup[] {
-    const actions = actionsForButton(button);
+export function shortcutActionGroups(
+    button: ShortcutButton,
+    language: LanguageCode,
+    current: ShortcutAction,
+    showDeveloperOptions: boolean
+): ShortcutActionGroup[] {
+    const actions = actionsForButton(button, current, showDeveloperOptions);
     const byLabel = (a: { labelKey: string }, b: { labelKey: string }) =>
         t(language, a.labelKey).localeCompare(t(language, b.labelKey), language);
 
@@ -465,19 +475,19 @@ export function shortcutActionGroups(button: ShortcutButton, language: LanguageC
     return groups.filter((group) => group.actions.length > 0);
 }
 
-function shortcutActionsFor(button: ShortcutButton, language: LanguageCode) {
-    return shortcutActionGroups(button, language).flatMap((group) => group.actions);
+function shortcutActionsFor(button: ShortcutButton, language: LanguageCode, current: ShortcutAction, showDeveloperOptions: boolean) {
+    return shortcutActionGroups(button, language, current, showDeveloperOptions).flatMap((group) => group.actions);
 }
 
-export function nextShortcutAction(button: ShortcutButton, current: ShortcutAction, language: LanguageCode) {
-    const actions = shortcutActionsFor(button, language);
+export function nextShortcutAction(button: ShortcutButton, current: ShortcutAction, language: LanguageCode, showDeveloperOptions: boolean) {
+    const actions = shortcutActionsFor(button, language, current, showDeveloperOptions);
     const currentIndex = actions.findIndex((action) => action.id === current);
 
     return actions[(currentIndex + 1) % actions.length].id;
 }
 
-export function previousShortcutAction(button: ShortcutButton, current: ShortcutAction, language: LanguageCode) {
-    const actions = shortcutActionsFor(button, language);
+export function previousShortcutAction(button: ShortcutButton, current: ShortcutAction, language: LanguageCode, showDeveloperOptions: boolean) {
+    const actions = shortcutActionsFor(button, language, current, showDeveloperOptions);
     const currentIndex = actions.findIndex((action) => action.id === current);
     const previousIndex = (currentIndex <= 0 ? actions.length : currentIndex) - 1;
 
