@@ -4,6 +4,7 @@ import { isCovered, setCover, subscribeCovers } from "./covers";
 import { armKeyClaim, claimSpentWithin, disarmKeyClaim, disarmKeyClaims, heirClaimExpected, onKeyClaimSpent, withdrawKeyClaim } from "./focusClaims";
 import { initialNav, rehydrateNav, settleNav, type NavIntent, type NavState, type Route } from "./nav";
 import type { ViewKey } from "./types";
+import { findScroller } from "./utils/guidesAnchors";
 import { LANDING_TIMING, PRESS_GUARD_CEILING_MS, type LandingTiming } from "./utils/landingTiming";
 import { consumeModalCloseArm, modalEchoPending } from "./utils/modalRegistry";
 
@@ -427,6 +428,21 @@ function watchClaim(entryId: number, key: string) {
     });
 }
 
+function revealLanded(entryId: number, key: string) {
+    const element = keyedElement(key);
+    const scroller = element ? findScroller(element.parentElement, null) : null;
+    if (!element || !scroller) {
+        return;
+    }
+    const band = scroller.getBoundingClientRect();
+    const box = element.getBoundingClientRect();
+    if (box.top >= band.top && box.bottom <= band.bottom) {
+        return;
+    }
+    logFocusDebug("landing", "reveal-scroll", `${entryId} ${key} top=${Math.round(box.top - band.top)} band=${Math.round(band.height)}`);
+    element.scrollIntoView({ block: "nearest" });
+}
+
 function holdLanded(entryId: number, key: string, since: number) {
     const view = rootElement?.ownerDocument.defaultView;
     if (!view) {
@@ -441,6 +457,7 @@ function holdLanded(entryId: number, key: string, since: number) {
             return;
         }
         if (pending.revealedEarly || Date.now() - since >= curtainTiming().revealGraceMs) {
+            revealLanded(entryId, key);
             endLanding(entryId, "settled", `landed ${key}`, !pending.revealedEarly);
             return;
         }
@@ -464,6 +481,7 @@ function confirmLanded(entryId: number, key: string, tries: number) {
         }
         if (cursorIn(element)) {
             if (pending.revealedEarly) {
+                revealLanded(entryId, key);
                 endLanding(entryId, "settled", `landed ${key}`);
             }
             else {
@@ -539,13 +557,37 @@ function occupantOf(spot: FocusSpot): string | null {
     return best;
 }
 
+function recoverySkip(entry: TrailEntry | null): string | null {
+    if (!entry) {
+        return "no entry";
+    }
+    if (pending) {
+        return "landing pending";
+    }
+    if (isCovered()) {
+        return "covered";
+    }
+    if (!LANDING_VIEWS.has(entry.view)) {
+        return `not a landing view ${entry.view}`;
+    }
+    if (!nothingFocused()) {
+        return "cursor placed";
+    }
+    return null;
+}
+
 function recoverLostCursor(why: string, frames = 0) {
     const entry = topEntry();
-    if (!entry || pending || isCovered() || !LANDING_VIEWS.has(entry.view) || !nothingFocused()) {
+    const skip = recoverySkip(entry);
+    if (skip !== null || !entry) {
+        logFocusDebug("lost", "skip", `${why} ${skip}`);
         return;
     }
     const view = rootElement?.ownerDocument.defaultView;
     if (view && ((frames < CLAIM_SETTLE_FRAMES && claimSpentWithin(CLAIM_SETTLE_MS)) || heirClaimExpected())) {
+        if (frames === 0) {
+            logFocusDebug("lost", "wait", `${why} ${heirClaimExpected() ? "heir claim expected" : "claim settling"}`);
+        }
         view.requestAnimationFrame(() => recoverLostCursor(why, frames + 1));
         return;
     }
@@ -565,6 +607,7 @@ function recoverLostCursor(why: string, frames = 0) {
     }
     const key = pages.get(entry.view)?.placeholderKey;
     if (!key || !keyedElement(key)) {
+        logFocusDebug("lost", "skip", `${why} no placeholder ${key ?? "(none)"}`);
         return;
     }
     logFocusDebug("lost", "recover", `${nameEntry(entry)} ${key} ${why}`);
@@ -951,6 +994,19 @@ export function useFocusRecordWriter(
             }
             doc.defaultView?.requestAnimationFrame(() => recoverLostCursor("focusout"));
         }
+        const view = doc.defaultView;
+        let removalQueued = false;
+        const watchRemovals = view ? new view.MutationObserver(() => {
+            if (removalQueued || pending || isCovered() || !lastSpot || !nothingFocused() || keyedElement(lastSpot.key)) {
+                return;
+            }
+            removalQueued = true;
+            view.requestAnimationFrame(() => {
+                removalQueued = false;
+                recoverLostCursor("removed");
+            });
+        }) : null;
+        watchRemovals?.observe(root, { childList: true, subtree: true });
         let wasCovered = isCovered();
         const stopCovers = subscribeCovers(() => {
             const covered = isCovered();
@@ -968,6 +1024,7 @@ export function useFocusRecordWriter(
             root.removeEventListener("focusout", onFocusOut);
             root.removeEventListener("pointerdown", onPointerDown, true);
             doc.removeEventListener("vgp_onbuttondown", onButtonDown, true);
+            watchRemovals?.disconnect();
             stopCovers();
             const entry = topEntry();
             if (entry && rootGeneration === generation && restoredGeneration === rootGeneration) {
