@@ -117,6 +117,7 @@ export function GuidesReaderBody(props: GuidesReaderBodyProps) {
     const kind: GuideKind = content?.kind ?? "plaintext";
     const isFormatted = kind === "formatted";
     const bodyFont = guideBodySize(isFormatted ? 12 : 10, props.surface);
+    const fullLegend = props.surface !== "panel";
     const bodyClassRef = useRef("cheevo-guide-body-" + Math.random().toString(36).slice(2, 8));
     const bodyClass = bodyClassRef.current;
 
@@ -1151,8 +1152,8 @@ export function GuidesReaderBody(props: GuidesReaderBodyProps) {
                         onSecondaryActionDescription={props.exitable ? t(language, "Exit Text") : undefined}
 
                         onSecondaryButton={props.exitable ? () => setReleased(true) : undefined}
-                        onOptionsActionDescription={props.onBookmark ? t(language, "Bookmark") : undefined}
-                        actionDescriptionMap={(props.onZoom || props.onPageTurn || props.onSearchStep)
+                        onOptionsActionDescription={props.onBookmark && fullLegend ? t(language, "Bookmark") : undefined}
+                        actionDescriptionMap={fullLegend && (props.onZoom || props.onPageTurn || props.onSearchStep)
                             ? {
                                 ...(props.onSearchStep
                                     ? { [BUMPER_LEFT]: legendGlyph("‹"), [BUMPER_RIGHT]: legendGlyph("›") }
