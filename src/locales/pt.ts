@@ -2358,6 +2358,8 @@ const PT: LocaleTable = {
     "Share stopped. Try again.": "Partilha parada. Tenta de novo.",
     "Finish your post in Discord.": "Termina o post no Discord.",
     "Press Attach to add your memory": "Usa Anexar para pôr a memória",
+    "Verify your email": "Verifique seu e-mail",
+    "Can't post here yet": "Postagem bloqueada",
     "Share Memory": "Partilhar memória",
     "Memory Tags": "Etiquetas da memória",
     "Name in Post": "Nome no post",

@@ -2352,6 +2352,8 @@ export const EN: LocaleTable = {
     "Share stopped. Try again.": "Share stopped. Try again.",
     "Finish your post in Discord.": "Finish your post in Discord.",
     "Press Attach to add your memory": "Press Attach to add your memory",
+    "Verify your email": "Verify your email",
+    "Can't post here yet": "Can't post here yet",
     "Share Memory": "Share Memory",
     "Memory Tags": "Memory Tags",
     "Name in Post": "Name in Post",

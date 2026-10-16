@@ -2469,6 +2469,8 @@ const PL: LocaleTable = {
     "Share stopped. Try again.": "Udostępnianie przerwane. Ponów.",
     "Finish your post in Discord.": "Dokończ post w Discordzie.",
     "Press Attach to add your memory": "Dodaj wspomnienie przez Załącz",
+    "Verify your email": "Zweryfikuj e-mail",
+    "Can't post here yet": "Posty zablokowane",
     "Share Memory": "Udostępnij wspomnienie",
     "Memory Tags": "Tagi wspomnienia",
     "Name in Post": "Nazwa w poście",

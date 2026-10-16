@@ -2291,6 +2291,8 @@ const JA: LocaleTable = {
     "Share stopped. Try again.": "共有を中止。再度お試しを。",
     "Finish your post in Discord.": "Discordで投稿を仕上げてください",
     "Press Attach to add your memory": "添付ボタンで思い出を追加",
+    "Verify your email": "メールを認証して",
+    "Can't post here yet": "まだ投稿できません",
     "Share Memory": "思い出を共有",
     "Memory Tags": "思い出のタグ",
     "Name in Post": "投稿に名前",

@@ -32,7 +32,7 @@ export type DiscordShare = {
     tags: string[];
 };
 
-type PageState = "forum" | "entry" | "elsewhere" | "away" | "loading";
+type PageState = "forum" | "locked" | "entry" | "elsewhere" | "away" | "loading";
 
 const HEADER_TEXTAREA = `[...document.querySelectorAll("textarea")].find((node) => node.parentElement !== document.body)`;
 
@@ -78,6 +78,22 @@ const FORM_STATE = `(() => {
         typed = (copy.textContent || "").replace(/\\uFEFF/g, "").trim();
     }
     return { open: true, title: title.value, typed, input: !!tight, attached: !tight && !!form.querySelector("[src^='blob:']") };
+})()`;
+
+const NEW_POST_LOCKED = `(() => {
+    ${FIND_FORM}
+    if (form || tight) return false;
+    let node = title;
+    for (let i = 0; i < 6 && node; i++) {
+        node = node.parentElement;
+        const buttons = node ? node.querySelectorAll("button") : [];
+        if (buttons.length === 1) {
+            if (!buttons[0].disabled) return false;
+            const resend = [...document.querySelectorAll("[class*='notice'] button")].some((button) => button.textContent.trim() === "Resend Email");
+            return resend ? "email" : "other";
+        }
+    }
+    return false;
 })()`;
 
 const PRESS_NEW_POST = `(() => {
@@ -230,7 +246,9 @@ async function switchToTab(tabId: string): Promise<boolean> {
 class ForumWatch {
     private tabId: string | null = null;
     private readonly known: Set<string>;
-    private readonly startedAt = Date.now();
+    private waitFrom = Date.now();
+    private lockSeen = false;
+    lockReason: "email" | "other" = "other";
     private adoptFrom = Date.now();
     private readonly stopListening = onTabLimitCanceled((url) => {
         if (this.tabId === null && url === SHARED_MEMORIES_CHANNEL_URL) {
@@ -345,7 +363,7 @@ class ForumWatch {
                 return;
             }
         }
-        if (Date.now() - this.startedAt > WAIT_CAP_MS) {
+        if (Date.now() - this.waitFrom > WAIT_CAP_MS) {
             this.stop("timed out");
             return;
         }
@@ -372,6 +390,20 @@ class ForumWatch {
             }
             if (this.stopped) {
                 return;
+            }
+            if (state === "forum") {
+                const lock = await evaluate(view, NEW_POST_LOCKED).catch(() => false);
+                if (lock) {
+                    state = "locked";
+                    this.lockReason = lock === "email" ? "email" : "other";
+                }
+            }
+            if (this.stopped) {
+                return;
+            }
+            if (state === "locked" && !this.lockSeen) {
+                this.lockSeen = true;
+                this.waitFrom = Date.now();
             }
             this.away = state === "away" && !view.host.isLoading ? this.away + 1 : 0;
             if (this.away >= SETTLE_POLLS) {
@@ -406,7 +438,7 @@ export function openSharedMemories(language: LanguageCode): void {
     }
     const watch = new ForumWatch(
         async (_view, state) => {
-            if (state === "forum") {
+            if (state === "forum" || state === "locked") {
                 watch.stop("arrived");
                 return true;
             }
@@ -426,6 +458,7 @@ type Pending = {
     share: DiscordShare;
     watch: ForumWatch;
     draftToasted: boolean;
+    lockToasted: boolean;
     reloaded: boolean;
     filling: boolean;
 };
@@ -479,13 +512,18 @@ export function startDiscordShare(language: LanguageCode, share: DiscordShare, o
             }
         }
     );
-    entry = { share, watch, draftToasted: false, reloaded: false, filling: false };
+    entry = { share, watch, draftToasted: false, lockToasted: false, reloaded: false, filling: false };
     pending = entry;
     logFocusDebug("discord-share", "started", `${share.title} tags=${share.tags.join(",")}`);
     void watch.start(language, opened);
 }
 
 async function onSharePoll(entry: Pending, view: LiveView, state: PageState): Promise<boolean> {
+    if (state === "locked" && !entry.lockToasted && !entry.filling) {
+        entry.lockToasted = true;
+        logFocusDebug("discord-share", "New Post is locked, waiting", entry.watch.lockReason);
+        toast(entry.watch.lockReason === "email" ? "Verify your email" : "Can't post here yet");
+    }
     if (state !== "forum" || entry.filling) {
         return false;
     }

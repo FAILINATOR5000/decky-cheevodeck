@@ -2433,6 +2433,8 @@ const RU: LocaleTable = {
     "Share stopped. Try again.": "Публикация прервана. Повторите.",
     "Finish your post in Discord.": "Завершите публикацию в Discord.",
     "Press Attach to add your memory": "Момент: нажмите «Прикрепить»",
+    "Verify your email": "Подтвердите почту",
+    "Can't post here yet": "Публикация закрыта",
     "Share Memory": "Поделиться моментом",
     "Memory Tags": "Теги момента",
     "Name in Post": "Имя в посте",

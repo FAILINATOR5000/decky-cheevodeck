@@ -2358,6 +2358,8 @@ const DE: LocaleTable = {
     "Share stopped. Try again.": "Teilen gestoppt. Neu versuchen.",
     "Finish your post in Discord.": "Beitrag in Discord abschließen.",
     "Press Attach to add your memory": "Anhängen drücken für Erinnerung",
+    "Verify your email": "E-Mail bestätigen",
+    "Can't post here yet": "Posten noch gesperrt",
     "Share Memory": "Erinnerung teilen",
     "Memory Tags": "Erinnerungs-Tags",
     "Name in Post": "Name im Beitrag",
