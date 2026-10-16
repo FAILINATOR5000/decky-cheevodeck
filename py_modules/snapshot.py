@@ -49,7 +49,7 @@ def _find_socket():
 
 
 def _destination(runtime_dir: Path) -> Path:
-    """~/Pictures/CheevoDeck for whoever is running the session.
+    """~/Pictures/CheevoDeck/Snapshots for whoever is running the session.
 
     Not Path.home(): the backend runs as root, so that answers /root. The
     runtime dir is named after the uid of the session gamescope belongs to,
@@ -60,7 +60,7 @@ def _destination(runtime_dir: Path) -> Path:
     survives a reinstall, which the data dirs deliberately do not.
     """
     owner = pwd.getpwuid(runtime_dir.stat().st_uid)
-    return Path(owner.pw_dir) / "Pictures" / "CheevoDeck"
+    return Path(owner.pw_dir) / "Pictures" / "CheevoDeck" / "Snapshots"
 
 
 def _filename() -> str:

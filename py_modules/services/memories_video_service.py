@@ -24,7 +24,7 @@ from utils import add_write_root, ensure_dir, exclusive_file, write_file_atomic
 
 SENTINEL_NAME = ".cheevodeck-videos"
 
-ROOT_DIR_NAME = "CheevoDeck"
+MEDIA_FOLDERS = ("CheevoDeck", "Memories", "RA")
 
 FREE_SPACE_MARGIN_BYTES = 256 * 1024 * 1024
 
@@ -45,13 +45,25 @@ ERROR_VERIFY_FAILED = "verify_failed"
 def root_for(picked: str, home: Path) -> Path:
     """Where the copies live for a given setting value.
 
-    An empty setting means ``~/Videos/CheevoDeck``. Anything else is the
-    directory the user picked with the same folder name inside it, so a card
+    An empty setting means ``~/Videos/CheevoDeck/Memories/RA``. Anything else
+    is the directory the user picked with the same folders inside it, so a card
     gets one named directory rather than a scatter of account ids.
     """
     if picked:
-        return Path(picked) / ROOT_DIR_NAME
-    return home / "Videos" / ROOT_DIR_NAME
+        return Path(picked).joinpath(*MEDIA_FOLDERS)
+    return (home / "Videos").joinpath(*MEDIA_FOLDERS)
+
+
+def remove_empty_root(root: Path) -> None:
+    folder = root
+    for _name in MEDIA_FOLDERS:
+        try:
+            folder.rmdir()
+        except FileNotFoundError:
+            pass
+        except OSError:
+            return
+        folder = folder.parent
 
 
 def write_sentinel(root: Path) -> None:
@@ -376,6 +388,7 @@ class MemoriesVideoService:
                 dropped += 1
         _remove_file(source_root / SENTINEL_NAME)
         _prune_empty_parents([source for source, _destination in copied], source_root, True)
+        remove_empty_root(source_root)
         _prune_empty_parents([destination for _source, destination in copied], target_root, False)
 
         with self._lock:

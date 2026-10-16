@@ -30,7 +30,7 @@ export async function captureSnapshot(language: LanguageCode) {
     }
     toaster.toast({
         title: t(language, "Screenshot Saved"),
-        body: t(language, "Pictures/CheevoDeck"),
+        body: t(language, "Pictures/CheevoDeck/Snapshots"),
         duration: TOAST_DURATION_MS
     });
 }

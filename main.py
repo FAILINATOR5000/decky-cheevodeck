@@ -31,9 +31,9 @@ from services.news_service import NewsService
 from services.aotw_service import AotwService
 from services.game_comments_service import GameCommentsService
 from services.game_hashes_service import GameHashesService
-from services.memories_video_service import ROOT_DIR_NAME as MEMORIES_ROOT_DIR_NAME
+from services.memories_video_service import MEDIA_FOLDERS as MEMORIES_MEDIA_FOLDERS
 from services.memories_video_service import SENTINEL_NAME as MEMORIES_VIDEO_SENTINEL
-from services.memories_video_service import MemoriesVideoService, root_for as memories_video_root
+from services.memories_video_service import MemoriesVideoService, remove_empty_root, root_for as memories_video_root
 from services.memories_transfer_service import MemoriesTransferService
 from services.smb_mount_service import SmbMountService
 from services.comments_service import CommentsService
@@ -326,7 +326,7 @@ class Plugin(
         self.memories_store = MemoriesStore(
             memories_dir=self.memories_dir,
             thumbs_dir=self.memory_thumbs_dir,
-            pictures_dir=self.user_home / "Pictures" / "CheevoDeck",
+            pictures_dir=(self.user_home / "Pictures").joinpath(*MEMORIES_MEDIA_FOLDERS),
             videos_dir=memories_video_root(picked_video_path, self.user_home),
         )
         decky.logger.info(
@@ -1791,7 +1791,7 @@ class Plugin(
                     pass
 
     def _delete_memories_media(self, root: Path) -> None:
-        if root.name != MEMORIES_ROOT_DIR_NAME:
+        if root.parts[-len(MEMORIES_MEDIA_FOLDERS):] != MEMORIES_MEDIA_FOLDERS:
             return
         try:
             children = list(root.iterdir())
@@ -1804,10 +1804,7 @@ class Plugin(
             (root / MEMORIES_VIDEO_SENTINEL).unlink()
         except OSError:
             pass
-        try:
-            root.rmdir()
-        except OSError:
-            pass
+        remove_empty_root(root)
 
     def _run_factory_reset_locked(self) -> None:
         with self._trickle_tick_lock:
