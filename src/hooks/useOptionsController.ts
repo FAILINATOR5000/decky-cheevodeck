@@ -328,6 +328,7 @@ import {
 } from "../utils/scale";
 import { setCurrentColoredGlyphs, setCurrentControllerGlyphStyle } from "../utils/controllerGlyphs";
 import { setWebBrowserForLinks } from "../utils/navigation";
+import { openShortcutActionPicker } from "../components/options/ShortcutActionPickerModal";
 import { applyFrontendSettings } from "../utils/frontendSettings";
 import { clearActivityMonths } from "../utils/activityCache";
 
@@ -3654,13 +3655,21 @@ export function useOptionsController({
         });
 
     const onCycleShortcutBinding = (button: ShortcutButton) =>
-        applyShortcutBinding(button, nextShortcutAction(button, shortcutBindings[button]));
+        applyShortcutBinding(button, nextShortcutAction(button, shortcutBindings[button], language));
 
     const onCycleShortcutBindingBack = (button: ShortcutButton) =>
-        applyShortcutBinding(button, previousShortcutAction(button, shortcutBindings[button]));
+        applyShortcutBinding(button, previousShortcutAction(button, shortcutBindings[button], language));
 
     const onClearShortcutBinding = (button: ShortcutButton) =>
         applyShortcutBinding(button, "none");
+
+    const onOpenShortcutPicker = (button: ShortcutButton) =>
+        openShortcutActionPicker({
+            language,
+            button,
+            current: shortcutBindings[button],
+            onSelect: (action) => applyShortcutBinding(button, action)
+        });
 
     const onToggleRememberLastPage = async (nextValue: boolean) => {
         setRememberLastPage(nextValue);
@@ -4167,6 +4176,7 @@ export function useOptionsController({
         onCycleShortcutBinding,
         onCycleShortcutBindingBack,
         onClearShortcutBinding,
+        onOpenShortcutPicker,
         onToggleShowIcons,
         onToggleDeferModalCleanup,
         onToggleBackButtonsGlobal,

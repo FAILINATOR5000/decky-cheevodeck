@@ -615,6 +615,7 @@ type OptionsPageActions = {
     onCycleShortcutBinding: (button: ShortcutButton) => void | Promise<void>;
     onCycleShortcutBindingBack: (button: ShortcutButton) => void | Promise<void>;
     onClearShortcutBinding: (button: ShortcutButton) => void | Promise<void>;
+    onOpenShortcutPicker: (button: ShortcutButton) => void | Promise<void>;
     onToggleShowIcons: (nextValue: boolean) => void | Promise<void>;
     onToggleAutoRefresh: (nextValue: boolean) => void | Promise<void>;
     onToggleRememberLastPage: (nextValue: boolean) => void | Promise<void>;
@@ -1244,6 +1245,7 @@ function SystemTab(props: TabContentProps) {
                     <ButtonHints
                         style={state.controllerGlyphStyle}
                         hints={[
+                            { button: "a", label: t(state.language, "Select") },
                             { button: "l1", label: t(state.language, "Previous") },
                             { button: "r1", label: t(state.language, "Next") },
                             { button: "x", label: t(state.language, "Clear") }
@@ -1256,7 +1258,7 @@ function SystemTab(props: TabContentProps) {
                     <OptionValueRow
                         outerStyle={buttonOuterStyle}
                         focusKey={shortcutRowFocusKey(entry.id)}
-                        onClick={() => actions.onCycleShortcutBinding(entry.id)}
+                        onClick={() => actions.onOpenShortcutPicker(entry.id)}
                         onButtonDown={(evt) => {
                             if (evt?.detail?.button === BUTTON_BUMPER_LEFT) {
                                 playOkSound();

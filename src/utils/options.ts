@@ -336,46 +336,58 @@ export function worksOutsidePanel(button: ShortcutButton, action: ShortcutAction
     return GLOBAL_SHORTCUT_BUTTONS.includes(button) && GLOBAL_SHORTCUT_ACTIONS.includes(action);
 }
 
-const SHORTCUT_ACTIONS: { id: ShortcutAction; labelKey: string }[] = [
-    { id: "none", labelKey: "Not Set" },
-    { id: "notifications", labelKey: "Notifications" },
-    { id: "pageUp", labelKey: "Page Up" },
-    { id: "home", labelKey: "Home" },
-    { id: "currentGuide", labelKey: "View Current Guide" },
-    { id: "search", labelKey: "Search Game" },
-    { id: "profile", labelKey: "View Profile" },
-    { id: "socialhub", labelKey: "Social Hub" },
-    { id: "news", labelKey: "News" },
-    { id: "aotw", labelKey: "Achievement of the Week" },
-    { id: "events", labelKey: "Events" },
-    { id: "newsets", labelKey: "Set Feed" },
-    { id: "subscribeddiscussions", labelKey: "Subscribed Discussions" },
-    { id: "savedcomments", labelKey: "Saved Comments" },
-    { id: "trackedsets", labelKey: "Mastery Goals" },
-    { id: "milestones", labelKey: "View Milestones" },
-    { id: "utilities", labelKey: "Utilities" },
-    { id: "useraccounts", labelKey: "User Accounts" },
-    { id: "options", labelKey: "Options" },
-    { id: "mapShortcuts", labelKey: "Map Shortcuts" },
-    { id: "about", labelKey: "About" },
-    { id: "refresh", labelKey: "Refresh" },
-    { id: "dolphinMapper", labelKey: "Dolphin Mapper" },
-    { id: "cheevoCheck", labelKey: "Cheevo Check" },
-    { id: "smbShares", labelKey: "SMB Shares" },
-    { id: "fileWatcher", labelKey: "File Watcher" },
-    { id: "stormbreaker", labelKey: "Stormbreaker" },
+type ShortcutCategory = "navigation" | "progress" | "social" | "memories" | "tools" | "toggles" | "settings";
+
+const SHORTCUT_CATEGORIES: { id: ShortcutCategory; labelKey: string }[] = [
+    { id: "navigation", labelKey: "Navigation" },
+    { id: "progress", labelKey: "Progress" },
+    { id: "social", labelKey: "Social & Community" },
     { id: "memories", labelKey: "Memories" },
-    { id: "lastMemory", labelKey: "View Last Memory" },
-    { id: "calculator", labelKey: "Calculator" },
-    { id: "browser", labelKey: "Web Browser" },
-    { id: "socialActivity", labelKey: "Social Activity Feed" },
-    { id: "visitRa", labelKey: "Visit RA" },
-    { id: "snapshot", labelKey: "Snapshot (Debug)" },
-    { id: "nightMode", labelKey: "Night Mode" },
-    { id: "doNotDisturb", labelKey: "Do Not Disturb" },
-    { id: "batterySaver", labelKey: "Standby" },
-    { id: "mouseKeyboardMode", labelKey: "Mouse & Keyboard Mode" },
-    { id: "cycleUiScale", labelKey: "Cycle UI Scale" }
+    { id: "tools", labelKey: "Tools" },
+    { id: "toggles", labelKey: "Quick Toggles" },
+    { id: "settings", labelKey: "Settings" }
+];
+
+const SHORTCUT_ACTIONS: { id: ShortcutAction; labelKey: string; category: ShortcutCategory | null }[] = [
+    { id: "none", labelKey: "Not Set", category: null },
+    { id: "notifications", labelKey: "Notifications", category: "navigation" },
+    { id: "pageUp", labelKey: "Page Up", category: "navigation" },
+    { id: "home", labelKey: "Home", category: "navigation" },
+    { id: "currentGuide", labelKey: "View Current Guide", category: "progress" },
+    { id: "search", labelKey: "Search Game", category: "navigation" },
+    { id: "profile", labelKey: "View Profile", category: "progress" },
+    { id: "socialhub", labelKey: "Social Hub", category: "social" },
+    { id: "news", labelKey: "News", category: "social" },
+    { id: "aotw", labelKey: "Achievement of the Week", category: "social" },
+    { id: "events", labelKey: "Events", category: "social" },
+    { id: "newsets", labelKey: "Set Feed", category: "social" },
+    { id: "subscribeddiscussions", labelKey: "Subscribed Discussions", category: "social" },
+    { id: "savedcomments", labelKey: "Saved Comments", category: "social" },
+    { id: "trackedsets", labelKey: "Mastery Goals", category: "progress" },
+    { id: "milestones", labelKey: "View Milestones", category: "progress" },
+    { id: "utilities", labelKey: "Utilities", category: "tools" },
+    { id: "useraccounts", labelKey: "User Accounts", category: "settings" },
+    { id: "options", labelKey: "Options", category: "settings" },
+    { id: "mapShortcuts", labelKey: "Map Shortcuts", category: "settings" },
+    { id: "about", labelKey: "About", category: "settings" },
+    { id: "refresh", labelKey: "Refresh", category: "navigation" },
+    { id: "dolphinMapper", labelKey: "Dolphin Mapper", category: "tools" },
+    { id: "cheevoCheck", labelKey: "Cheevo Check", category: "tools" },
+    { id: "smbShares", labelKey: "SMB Shares", category: "tools" },
+    { id: "fileWatcher", labelKey: "File Watcher", category: "tools" },
+    { id: "stormbreaker", labelKey: "Stormbreaker", category: "tools" },
+    { id: "memories", labelKey: "Memories", category: "memories" },
+    { id: "lastMemory", labelKey: "View Last Memory", category: "memories" },
+    { id: "calculator", labelKey: "Calculator", category: "tools" },
+    { id: "browser", labelKey: "Web Browser", category: "tools" },
+    { id: "socialActivity", labelKey: "Social Activity Feed", category: "social" },
+    { id: "visitRa", labelKey: "Visit RA", category: "social" },
+    { id: "snapshot", labelKey: "Snapshot (Debug)", category: "memories" },
+    { id: "nightMode", labelKey: "Night Mode", category: "toggles" },
+    { id: "doNotDisturb", labelKey: "Do Not Disturb", category: "toggles" },
+    { id: "batterySaver", labelKey: "Standby", category: "toggles" },
+    { id: "mouseKeyboardMode", labelKey: "Mouse & Keyboard Mode", category: "toggles" },
+    { id: "cycleUiScale", labelKey: "Cycle UI Scale", category: "toggles" }
 ];
 
 export const DEFAULT_SHORTCUT_BINDINGS: Record<ShortcutButton, ShortcutAction> = {
@@ -423,22 +435,49 @@ export function shortcutActionLabel(value: ShortcutAction, language: LanguageCod
     return t(language, entry ? entry.labelKey : "Not Set");
 }
 
-function shortcutActionsFor(button: ShortcutButton) {
+function actionsForButton(button: ShortcutButton) {
     if (!menuCombo(button)) {
         return SHORTCUT_ACTIONS;
     }
     return SHORTCUT_ACTIONS.filter((action) => action.id !== "snapshot");
 }
 
-export function nextShortcutAction(button: ShortcutButton, current: ShortcutAction) {
-    const actions = shortcutActionsFor(button);
+export type ShortcutActionGroup = {
+    labelKey: string | null;
+    actions: { id: ShortcutAction; labelKey: string }[];
+};
+
+export function shortcutActionGroups(button: ShortcutButton, language: LanguageCode): ShortcutActionGroup[] {
+    const actions = actionsForButton(button);
+    const byLabel = (a: { labelKey: string }, b: { labelKey: string }) =>
+        t(language, a.labelKey).localeCompare(t(language, b.labelKey), language);
+
+    const groups: ShortcutActionGroup[] = [
+        { labelKey: null, actions: actions.filter((action) => action.category === null) }
+    ];
+    for (const category of SHORTCUT_CATEGORIES) {
+        groups.push({
+            labelKey: category.labelKey,
+            actions: actions.filter((action) => action.category === category.id).sort(byLabel)
+        });
+    }
+
+    return groups.filter((group) => group.actions.length > 0);
+}
+
+function shortcutActionsFor(button: ShortcutButton, language: LanguageCode) {
+    return shortcutActionGroups(button, language).flatMap((group) => group.actions);
+}
+
+export function nextShortcutAction(button: ShortcutButton, current: ShortcutAction, language: LanguageCode) {
+    const actions = shortcutActionsFor(button, language);
     const currentIndex = actions.findIndex((action) => action.id === current);
 
     return actions[(currentIndex + 1) % actions.length].id;
 }
 
-export function previousShortcutAction(button: ShortcutButton, current: ShortcutAction) {
-    const actions = shortcutActionsFor(button);
+export function previousShortcutAction(button: ShortcutButton, current: ShortcutAction, language: LanguageCode) {
+    const actions = shortcutActionsFor(button, language);
     const currentIndex = actions.findIndex((action) => action.id === current);
     const previousIndex = (currentIndex <= 0 ? actions.length : currentIndex) - 1;
 
