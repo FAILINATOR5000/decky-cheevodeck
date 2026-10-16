@@ -19,7 +19,7 @@ from services import memories_video_service
 
 from memories_store import ALL_GAMES_ID, MISC_GAME_ID
 from mixins._context import PluginContext
-from utils import ensure_dir, norm_game_id, to_float, to_int
+from utils import ensure_dir, norm_game_id, to_float, to_int, write_file_atomic
 
 
 _RESOLVE_COOLDOWN_SECONDS = 5
@@ -109,6 +109,24 @@ class MemoriesMixin(PluginContext):
         return {
             "ok": True,
             "memoriesEncodePriority": self.settings_store.update_memories_encode_priority(value),
+        }
+
+    async def save_memories_share_credit(self, value: bool):
+        return {
+            "ok": True,
+            "memoriesShareCredit": self.settings_store.update_memories_share_credit(value),
+        }
+
+    async def save_memories_share_stamp_name(self, value: bool):
+        return {
+            "ok": True,
+            "memoriesShareStampName": self.settings_store.update_memories_share_stamp_name(value),
+        }
+
+    async def save_memories_share_stamp_badge(self, value: bool):
+        return {
+            "ok": True,
+            "memoriesShareStampBadge": self.settings_store.update_memories_share_stamp_badge(value),
         }
 
     async def start_memories_video_move(self, value):
@@ -581,9 +599,9 @@ class MemoriesMixin(PluginContext):
             return {"ok": False, "error": "write_failed"}
         return {"ok": True, "name": target.name}
 
-    async def prepare_memory_share(self, game_id=None, memory_id: str = "", start_s=0, end_s=0):
+    async def prepare_memory_share(self, game_id=None, memory_id: str = "", start_s=0, end_s=0, overlay: str = ""):
         return await asyncio.to_thread(
-            self._prepare_memory_share_sync, game_id, memory_id, start_s, end_s
+            self._prepare_memory_share_sync, game_id, memory_id, start_s, end_s, overlay
         )
 
     async def cancel_memory_share(self):
@@ -598,7 +616,7 @@ class MemoriesMixin(PluginContext):
     async def probe_memory_share(self, game_id=None, memory_id: str = ""):
         return await asyncio.to_thread(self._probe_memory_share_sync, game_id, memory_id)
 
-    def _prepare_memory_share_sync(self, game_id, memory_id, start_s, end_s):
+    def _prepare_memory_share_sync(self, game_id, memory_id, start_s, end_s, overlay=""):
         cancel = threading.Event()
         previous = self._memory_share_cancel
         self._memory_share_cancel = cancel
@@ -610,6 +628,10 @@ class MemoriesMixin(PluginContext):
                 return {"ok": False, "error": "cancelled"}
             memories_clips.discard_copy(self.memories_share_scratch_dir)
 
+            pill = memories_share.decode_pill(overlay)
+            if pill is None:
+                return {"ok": False, "error": "bad_overlay"}
+
             memory = self._find_memory(game_id, str(memory_id or ""))
             if memory is None:
                 return {"ok": False, "error": "not_found"}
@@ -619,9 +641,9 @@ class MemoriesMixin(PluginContext):
             video = memory.get("video") or {}
             if video.get("clipId") or video.get("path"):
                 preset = memories_share.PRESETS[self.settings_store.get_memories_share_quality(cfg)]
-                result = self._share_clip(memory, video, start_s, end_s, preset, low_priority, cancel)
+                result = self._share_clip(memory, video, start_s, end_s, preset, pill, low_priority, cancel)
             else:
-                result = self._share_picture(memory, low_priority, cancel)
+                result = self._share_picture(memory, pill, low_priority, cancel)
 
             if result["ok"] and cancel.is_set():
                 result = {"ok": False, "error": "cancelled"}
@@ -648,14 +670,23 @@ class MemoriesMixin(PluginContext):
             return None
         return folder
 
-    def _share_picture(self, memory, low_priority: bool, cancel):
+    def _share_pill(self, scratch: Path, pill: bytes):
+        path = scratch / "pill.png"
+        try:
+            write_file_atomic(path, pill)
+        except OSError as e:
+            decky.logger.warning("memories: couldn't write the share overlay (%s)", type(e).__name__)
+            return None
+        return path
+
+    def _share_picture(self, memory, pill: bytes, low_priority: bool, cancel):
         source = self.memories_store.picture_path(memory["path"])
         try:
             size = source.stat().st_size
         except OSError:
             return {"ok": False, "error": "no_source"}
 
-        if size <= memories_share.TARGET_BYTES:
+        if size <= memories_share.TARGET_BYTES and not pill:
             return {"ok": True, "path": str(source), "kind": "screenshot", "sizeBytes": size, "encoded": False}
 
         if not memories_clips.tools_available():
@@ -663,6 +694,19 @@ class MemoriesMixin(PluginContext):
         scratch = self._share_scratch()
         if scratch is None:
             return {"ok": False, "error": "write_failed"}
+
+        if pill:
+            pill_path = self._share_pill(scratch, pill)
+            if pill_path is None:
+                return {"ok": False, "error": "write_failed"}
+            stamped = memories_share.stamp_picture(
+                source, pill_path,
+                lambda suffix: scratch / memories_export.export_name(memory.get("gameTitle"), memory.get("capturedAt"), suffix),
+                low_priority, cancel,
+            )
+            if not stamped["ok"]:
+                return {"ok": False, "error": stamped["error"]}
+            return {"ok": True, "path": str(stamped["path"]), "kind": "screenshot", "sizeBytes": stamped["bytes"], "encoded": True}
 
         target = scratch / memories_export.export_name(
             memory.get("gameTitle"), memory.get("capturedAt"), ".jpg"
@@ -672,7 +716,7 @@ class MemoriesMixin(PluginContext):
             return {"ok": False, "error": shrunk["error"]}
         return {"ok": True, "path": str(target), "kind": "screenshot", "sizeBytes": shrunk["bytes"], "encoded": True}
 
-    def _share_clip(self, memory, video, start_s, end_s, preset: str, low_priority: bool, cancel):
+    def _share_clip(self, memory, video, start_s, end_s, preset: str, pill: bytes, low_priority: bool, cancel):
         in_point = max(to_int(video.get("startMs"), 0), 0) / 1000.0
         clip_end = in_point + max(to_int(video.get("durationMs"), 0), 0) / 1000.0
         start = max(to_float(start_s, in_point), in_point)
@@ -697,14 +741,20 @@ class MemoriesMixin(PluginContext):
         )
         start = memories_share.frame_at(inputs[0], start)
         span = end - start
-        shipped = self._share_clip_as_is(video, inputs, start, end, target, scratch)
-        if shipped is not None:
-            return shipped
+        pill_path = None
+        if pill:
+            pill_path = self._share_pill(scratch, pill)
+            if pill_path is None:
+                return {"ok": False, "error": "write_failed"}
+        else:
+            shipped = self._share_clip_as_is(video, inputs, start, end, target, scratch)
+            if shipped is not None:
+                return shipped
         if cancel.is_set():
             return {"ok": False, "error": "cancelled"}
 
         encoded = memories_share.encode_part(
-            inputs[0], inputs[1], start, span, target, scratch, preset, low_priority, cancel
+            inputs[0], inputs[1], start, span, target, scratch, preset, low_priority, cancel, pill_path
         )
         if not encoded["ok"]:
             return {"ok": False, "error": encoded["error"]}
@@ -752,14 +802,21 @@ class MemoriesMixin(PluginContext):
         memory = self._find_memory(game_id, str(memory_id or ""))
         if memory is None:
             return {"ok": False, "error": "not_found"}
-        username = str(self.settings_store.load_config().get("username") or "").strip()
+        cfg = self.settings_store.load_config()
+        username = str(cfg.get("username") or "").strip()
         wanted = norm_game_id(game_id)
         console_name = ""
         for row in self.memories_store.games_with_memories().get("games", []):
             if row.get("gameId") == wanted:
                 console_name = str(row.get("consoleName") or "")
                 break
-        known = {"username": username, "consoleName": console_name}
+        known = {
+            "username": username,
+            "consoleName": console_name,
+            "credit": self.settings_store.get_memories_share_credit(cfg),
+            "stampName": self.settings_store.get_memories_share_stamp_name(cfg),
+            "stampBadge": self.settings_store.get_memories_share_stamp_badge(cfg),
+        }
         video = memory.get("video") or {}
         if not video.get("clipId") and not video.get("path"):
             return {"ok": True, **known, "originalUpTo": 0}

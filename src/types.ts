@@ -1070,6 +1070,9 @@ export type SettingsResponse = {
     memoriesMuted: boolean;
     memoriesShareQuality: MemoriesShareQuality;
     memoriesEncodePriority: MemoriesEncodePriority;
+    memoriesShareCredit: boolean;
+    memoriesShareStampName: boolean;
+    memoriesShareStampBadge: boolean;
     memoriesDeleteSteamClip: boolean;
     linksOpenInWebBrowser: boolean;
     fileWatcherSpeed: FileWatcherSpeed;

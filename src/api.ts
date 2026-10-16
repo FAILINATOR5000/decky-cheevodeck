@@ -606,12 +606,30 @@ export const saveMemoriesEncodePriority = callable<
     [MemoriesEncodePriority],
     { ok: boolean; memoriesEncodePriority: MemoriesEncodePriority }
 >("save_memories_encode_priority");
+export const saveMemoriesShareCredit = callable<[boolean], { ok: boolean; memoriesShareCredit: boolean }>(
+    "save_memories_share_credit"
+);
+export const saveMemoriesShareStampName = callable<[boolean], { ok: boolean; memoriesShareStampName: boolean }>(
+    "save_memories_share_stamp_name"
+);
+export const saveMemoriesShareStampBadge = callable<[boolean], { ok: boolean; memoriesShareStampBadge: boolean }>(
+    "save_memories_share_stamp_badge"
+);
 export const probeMemoryShare = callable<
     [number, string],
-    { ok: boolean; username?: string; consoleName?: string; originalUpTo?: number; error?: string }
+    {
+        ok: boolean;
+        username?: string;
+        consoleName?: string;
+        originalUpTo?: number;
+        credit?: boolean;
+        stampName?: boolean;
+        stampBadge?: boolean;
+        error?: string;
+    }
 >("probe_memory_share");
 export const prepareMemoryShare = callable<
-    [number, string, number, number],
+    [number, string, number, number, string],
     { ok: boolean; path?: string; kind?: "screenshot" | "clip"; sizeBytes?: number; encoded?: boolean; error?: string }
 >("prepare_memory_share");
 export const cancelMemoryShare = callable<[], { ok: boolean }>("cancel_memory_share");

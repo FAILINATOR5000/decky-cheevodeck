@@ -1,4 +1,7 @@
+import base64
+import binascii
 import json
+import re
 from pathlib import Path
 
 import decky
@@ -30,6 +33,16 @@ _SCALE_FILTER = (
     "fps=30,scale=w='min(1280,iw)':h='min(800,ih)'"
     ":force_original_aspect_ratio=decrease:force_divisible_by=2"
 )
+
+PILL_HEIGHT_SHARE = 0.065
+PILL_MARGIN_SHARE = 0.025
+PILL_SIDE_MARGIN_SHARE = 0.0125
+
+DISCORD_CARD_ASPECT = 1.5
+
+_PILL_MAX_CHARS = 2_000_000
+
+_PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
 NICE = "/usr/bin/nice"
 IONICE = "/usr/bin/ionice"
@@ -87,6 +100,89 @@ def probe(source: str):
     except (TypeError, ValueError):
         duration = 0.0
     return {"video": video, "audio": audio, "duration": duration}
+
+
+def frame_size(source: str):
+    code, stdout, _stderr = subprocess_util.run_command([
+        FFPROBE, "-v", "error",
+        "-select_streams", "v:0",
+        "-show_entries", "stream=width,height",
+        "-of", "json",
+        "-i", source,
+    ], timeout=_PROBE_TIMEOUT_SECONDS, as_data_owner=True)
+    if code != 0:
+        return None
+    try:
+        stream = (json.loads(stdout).get("streams") or [{}])[0]
+        width, height = int(stream["width"]), int(stream["height"])
+    except (ValueError, KeyError, TypeError, IndexError):
+        return None
+    if width <= 0 or height <= 0:
+        return None
+    return width, height
+
+
+def decode_pill(text) -> bytes | None:
+    text = str(text or "")
+    if not text:
+        return b""
+    if len(text) > _PILL_MAX_CHARS:
+        return None
+    try:
+        data = base64.b64decode(text, validate=True)
+    except (binascii.Error, ValueError):
+        return None
+    return data if data.startswith(_PNG_SIGNATURE) else None
+
+
+def picture_area(source_args: list, size: tuple) -> tuple:
+    whole = (0.0, 0.0, 1.0, 1.0)
+    code, stdout, stderr = subprocess_util.run_command(
+        [FFMPEG, "-v", "info", "-hide_banner", *source_args,
+         "-vf", "cropdetect=round=2:skip=0", "-an", "-f", "null", "-"],
+        timeout=_PROBE_TIMEOUT_SECONDS, as_data_owner=True,
+    )
+    found = re.findall(r"crop=(\d+):(\d+):(\d+):(\d+)", f"{stdout}{stderr}")
+    if code != 0 or not found:
+        return None
+    width, height = size
+    w, h, x, y = (int(part) for part in found[-1])
+    if w < width / 2 or h < height / 2:
+        return whole
+
+    def bar(gap, whole_length):
+        return gap if whole_length * 0.005 <= gap <= whole_length * 0.25 else 0
+
+    left, top = bar(x, width), bar(y, height)
+    right, bottom = bar(width - x - w, width), bar(height - y - h, height)
+    return left / width, top / height, 1 - right / width, 1 - bottom / height
+
+
+def _pill_graph(base: str, pill_input: int, frame_size: tuple, area: tuple, blend: str) -> str:
+    width, height = frame_size
+    card_width = min(width, height * DISCORD_CARD_ASPECT)
+    card_height = min(height, width / DISCORD_CARD_ASPECT)
+    card_left = (width - card_width) / 2
+    card_top = (height - card_height) / 2
+    right = min(card_left + card_width, area[2] * width)
+    top = max(card_top, area[1] * height)
+    bottom = min(card_top + card_height, area[3] * height)
+    shown_height = max(bottom - top, 2)
+    pill_height = max(2, round(shown_height * PILL_HEIGHT_SHARE))
+    margin = round(shown_height * PILL_MARGIN_SHARE)
+    side_margin = round(shown_height * PILL_SIDE_MARGIN_SHARE)
+    x = f"{int(right) - side_margin}-w"
+    y = f"{int(top) + margin}"
+    return (
+        f"{base}[base];"
+        f"[{pill_input}:v]scale=w=-1:h={pill_height}:flags=lanczos[pill];"
+        f"[base][pill]overlay=x={x}:y={y}:format={blend}"
+    )
+
+
+def _shared_size(width: int, height: int) -> tuple:
+    factor = min(min(1280, width) / width, min(800, height) / height, 1.0)
+    return max(2, int(width * factor) // 2 * 2), max(2, int(height * factor) // 2 * 2)
 
 
 def plays_as_is(video_codec: str, audio_codec: str) -> bool:
@@ -196,31 +292,88 @@ def shrink_picture(source: Path, target: Path, low_priority: bool, cancel) -> di
     return {"ok": False, "error": "too_big"}
 
 
-def part_source(video_input: str, audio_input: str, start_s: float, span_s: float):
+def stamp_picture(source: Path, pill: Path, target_for, low_priority: bool, cancel) -> dict:
+    size = frame_size(str(source))
+    if size is None:
+        return {"ok": False, "error": "encode_failed"}
+    area = picture_area(["-i", str(source), "-frames:v", "1"], size) or (0.0, 0.0, 1.0, 1.0)
+    graph = _pill_graph("[0:v]null", 1, size, area, "auto")
+    attempts = []
+    if source.suffix.lower() == ".webp":
+        attempts.append((target_for(".webp"), ["-c:v", "libwebp", "-lossless", "1", "-compression_level", "4"]))
+    attempts.append((target_for(".png"), []))
+    attempts += [(target_for(".jpg"), ["-q:v", quality]) for quality in ("2", "4")]
+    for target, quality in attempts:
+        command = _priority_prefix(low_priority) + [
+            FFMPEG, "-y", "-v", "error",
+            "-i", str(source),
+            "-i", str(pill),
+            "-filter_complex", graph,
+            "-frames:v", "1",
+            *quality,
+            str(target),
+        ]
+        code, stdout, stderr = subprocess_util.run_command(
+            command, timeout=_PICTURE_TIMEOUT_SECONDS, cancel=cancel, as_data_owner=True
+        )
+        if cancel.is_set():
+            _discard(target)
+            return {"ok": False, "error": "cancelled"}
+        if code != 0:
+            decky.logger.warning(
+                "memories: stamping a picture to share failed (rc=%s): %s",
+                code, f"{stdout}{stderr}".strip()[:300],
+            )
+            _discard(target)
+            return {"ok": False, "error": "encode_failed"}
+        written = _size(target)
+        if 0 < written <= TARGET_BYTES:
+            return {"ok": True, "bytes": written, "path": target}
+        _discard(target)
+
+    return {"ok": False, "error": "too_big"}
+
+
+def part_source(video_input: str, audio_input: str, start_s: float, span_s: float, pill: Path | None = None):
     base = media_start_seconds(video_input)
     if base is None:
         return None
     seek = start_s - 0.0005
     source = ["-ss", f"{max(seek - base, 0.0):.6f}", "-i", video_input]
+    maps = []
     if audio_input:
         audio_base = media_start_seconds(audio_input)
         if audio_base is None:
             return None
-        source += [
-            "-ss", f"{max(seek - audio_base, 0.0):.6f}", "-i", audio_input,
-            "-map", "0:v:0", "-map", "1:a:0",
-        ]
-    return source + ["-t", f"{span_s:.6f}"]
+        source += ["-ss", f"{max(seek - audio_base, 0.0):.6f}", "-i", audio_input]
+        maps = ["-map", "0:v:0", "-map", "1:a:0"]
+    if pill is not None:
+        source += ["-i", str(pill)]
+        maps = ["-map", "[v]", "-map", "1:a:0" if audio_input else "0:a:0?"]
+    return source + maps + ["-t", f"{span_s:.6f}"]
 
 
-def encode_part(video_input: str, audio_input: str, start_s: float, span_s: float, target: Path, scratch: Path, preset: str, low_priority: bool, cancel) -> dict:
-    source = part_source(video_input, audio_input, start_s, span_s)
+def encode_part(video_input: str, audio_input: str, start_s: float, span_s: float, target: Path, scratch: Path, preset: str, low_priority: bool, cancel, pill: Path | None = None) -> dict:
+    source = part_source(video_input, audio_input, start_s, span_s, pill)
     if source is None:
         return {"ok": False, "error": "encode_failed"}
+    video_filter = ["-vf", _SCALE_FILTER]
+    if pill is not None:
+        size = frame_size(video_input)
+        if size is None:
+            return {"ok": False, "error": "encode_failed"}
+        pill_input = 2 if audio_input else 1
+        scan = part_source(video_input, "", start_s, span_s)
+        area = None
+        if scan:
+            area = picture_area(["-skip_frame", "nokey", *scan], size) or picture_area([*scan, "-frames:v", "1"], size)
+        area = area or (0.0, 0.0, 1.0, 1.0)
+        graph = _pill_graph(f"[0:v]{_SCALE_FILTER}", pill_input, _shared_size(*size), area, "yuv420")
+        video_filter = ["-filter_complex", graph + "[v]"]
 
     video_kbps = int(TARGET_BYTES * 8 / span_s / 1000) - AUDIO_KBPS
     for kbps in (video_kbps, int(video_kbps * 0.85)):
-        result = _two_pass(source, target, scratch, kbps, preset, low_priority, cancel)
+        result = _two_pass(source, video_filter, target, scratch, kbps, preset, low_priority, cancel)
         if not result["ok"] or result["bytes"] <= CEILING_BYTES:
             return result
         decky.logger.warning(
@@ -232,11 +385,11 @@ def encode_part(video_input: str, audio_input: str, start_s: float, span_s: floa
     return {"ok": False, "error": "too_big"}
 
 
-def _two_pass(source: list, target: Path, scratch: Path, kbps: int, preset: str, low_priority: bool, cancel) -> dict:
+def _two_pass(source: list, video_filter: list, target: Path, scratch: Path, kbps: int, preset: str, low_priority: bool, cancel) -> dict:
     prefix = _priority_prefix(low_priority)
     passlog = str(scratch / "x264")
     shared = [
-        "-vf", _SCALE_FILTER,
+        *video_filter,
         "-c:v", "libx264",
         "-preset", preset,
         "-b:v", f"{kbps}k",

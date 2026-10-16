@@ -92,7 +92,7 @@ function shield(tier: RankTier) {
     }
 }
 
-const NUMERAL_SPOT: Record<RankTier, { y: number; size: number; fill: string }> = {
+export const NUMERAL_SPOT: Record<RankTier, { y: number; size: number; fill: string }> = {
     tracker: { y: 22.5, size: 13, fill: "#e2e8f0" },
     hunter: { y: 22.5, size: 13, fill: "#ffffff" },
     expert: { y: 21, size: 12, fill: "#ffffff" },

@@ -3,20 +3,27 @@ import { DialogButton, Focusable, ModalRoot, TextField } from "@decky/ui";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import {
     cancelMemoryShare,
+    getMilestonesState,
     prepareMemoryShare,
     probeMemoryShare,
-    saveMemoriesMuted
+    resolveUserAvatar,
+    saveMemoriesMuted,
+    saveMemoriesShareCredit,
+    saveMemoriesShareStampBadge,
+    saveMemoriesShareStampName
 } from "../../api";
 import { BrowserViewHost } from "../browser/browserViewHost";
 import { startDiscordShare } from "../browser/discordShare";
+import { RankEmblem } from "../milestones/RankEmblem";
 import { FadeImage } from "../ui/FadeImage";
+import { FocusTarget } from "../ui/FocusTarget";
 import { InlineSpinner } from "../ui/InlineSpinner";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
-import { ToggleRow } from "../ui/ToggleRow";
 import { clipSourceFor, playClip, type ClipPlayback, type ClipPlaybackState } from "./clipPlayer";
 import { getClipMuted, setClipMuted, useClipMuted } from "./clipMute";
 import { watchRightStick } from "./rightStick";
 import { SharePartBar } from "./SharePartBar";
+import { drawSharePill } from "./sharePill";
 import { transportLabel } from "./transportLabel";
 import { consoleForumTag } from "../../utils/consoles";
 import { logError } from "../../utils/errors";
@@ -39,7 +46,7 @@ import {
 import { compactButtonStyle, FADE_IN_KEYFRAMES, warnAmber } from "../../utils/style";
 import { MEMORY_TAG_SEEDS } from "../../utils/tags";
 import { t, type LanguageCode } from "../../locales";
-import type { MemoryRecord, ShortcutButton } from "../../types";
+import type { MemoryRecord, MilestoneRank, ShortcutButton } from "../../types";
 
 const MAX_PART_SECONDS = 30;
 
@@ -96,6 +103,14 @@ export type MemoryShareModalProps = {
 
 type Probe = { username: string; consoleName: string; originalUpTo: number };
 
+type ShareToggle = "credit" | "stampName" | "stampBadge";
+
+const SAVE_TOGGLE: Record<ShareToggle, (value: boolean) => Promise<unknown>> = {
+    credit: saveMemoriesShareCredit,
+    stampName: saveMemoriesShareStampName,
+    stampBadge: saveMemoriesShareStampBadge
+};
+
 export function MemoryShareModal(props: MemoryShareModalProps) {
     const { memory, gameId, language, thumbDataUri, mouseKeyboardMode, close } = props;
     const video = memory.video && (memory.video.clipId || memory.video.path) ? memory.video : null;
@@ -116,6 +131,9 @@ export function MemoryShareModal(props: MemoryShareModalProps) {
     const [probe, setProbe] = useState<Probe | null>(null);
     const [caption, setCaption] = useState((memory.caption ?? "").slice(0, DISCORD_MESSAGE_MAX));
     const [credit, setCredit] = useState(true);
+    const [stampName, setStampName] = useState(false);
+    const [stampBadge, setStampBadge] = useState(false);
+    const [rank, setRank] = useState<MilestoneRank | null>(null);
     const [memoryTags, setMemoryTags] = useState<string[]>(() => {
         const own = (memory.tag ?? "").trim().toLowerCase();
         const seed = MEMORY_TAG_SEEDS.find((row) => row.tag.toLowerCase() === own);
@@ -136,6 +154,7 @@ export function MemoryShareModal(props: MemoryShareModalProps) {
     const closedRef = useRef(false);
     const preparingRef = useRef(false);
     const videoRef = useRef<HTMLVideoElement | null>(null);
+    const pillRef = useRef<HTMLDivElement | null>(null);
     const playbackRef = useRef<ClipPlayback | null>(null);
     const titleRef = useRef<HTMLDivElement | null>(null);
     const landedRef = useRef(false);
@@ -163,6 +182,9 @@ export function MemoryShareModal(props: MemoryShareModalProps) {
                         consoleName: String(result?.consoleName ?? ""),
                         originalUpTo: Number(result?.originalUpTo ?? 0)
                     });
+                    setCredit(result?.credit !== false);
+                    setStampName(result?.stampName === true);
+                    setStampBadge(result?.stampBadge === true);
                 }
             })
             .catch((e) => {
@@ -175,6 +197,20 @@ export function MemoryShareModal(props: MemoryShareModalProps) {
             live = false;
         };
     }, [gameId, memory.id]);
+
+    useEffect(() => {
+        let live = true;
+        getMilestonesState()
+            .then((result) => {
+                if (live && result?.ok) {
+                    setRank(result.ranks[result.rank] ?? null);
+                }
+            })
+            .catch((e) => logError("memories: couldn't read the rank for a share", e));
+        return () => {
+            live = false;
+        };
+    }, []);
 
     useEffect(() => {
         if (!preparing) {
@@ -261,7 +297,11 @@ export function MemoryShareModal(props: MemoryShareModalProps) {
     const partStart = green;
     const partEnd = red;
 
+    const stampsName = stampName && username !== "";
+    const stampsBadge = stampBadge && rank !== null;
     const originalQuality = Boolean(probe)
+        && !stampsName
+        && !stampsBadge
         && partEnd - partStart <= (probe?.originalUpTo ?? 0)
         && keyframes.some((keyframe) => {
             const lead = partStart - keyframe;
@@ -273,6 +313,51 @@ export function MemoryShareModal(props: MemoryShareModalProps) {
         if (next && username) {
             setCaption((current) => current.slice(0, DISCORD_MESSAGE_MAX - shareCreditLine(username).length - 1));
         }
+        saveToggle("credit", next, setCredit);
+    }
+
+    function saveToggle(which: ShareToggle, next: boolean, set: (value: boolean) => void) {
+        SAVE_TOGGLE[which](next).catch((e) => {
+            logError(`memories: couldn't save the share's ${which} toggle`, e);
+            if (!closedRef.current) {
+                set(!next);
+            }
+        });
+    }
+
+    function renderSwitch(key: string, labelKey: string, on: boolean, disabled: boolean, onChange: (next: boolean) => void) {
+        return (
+            <FocusTarget focusKey={`memories:share:${key}`} style={{ minWidth: 0 }}>
+                <DialogButton
+                    disabled={disabled}
+                    style={{ width: "100%", minWidth: 0, display: "flex", alignItems: "center", justifyContent: "space-between", gap: "6px", padding: "6px 10px" }}
+                    onClick={() => onChange(!on)}
+                >
+                    <span style={{ fontSize: `${modalSize(14)}px`, fontWeight: 700, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {t(language, labelKey)}
+                    </span>
+                    <span style={{ fontSize: `${modalSize(12)}px`, fontWeight: 800, flexShrink: 0, color: on ? "#22c55e" : undefined, opacity: on ? 1 : 0.6 }}>
+                        {t(language, on ? "share_switch_on" : "share_switch_off")}
+                    </span>
+                </DialogButton>
+            </FocusTarget>
+        );
+    }
+
+    async function pillFor(): Promise<string> {
+        if (!stampsName && !stampsBadge) {
+            return "";
+        }
+        const holder = pillRef.current;
+        if (!holder) {
+            throw new Error("the pill's holder is not mounted");
+        }
+        const avatar = stampsName ? (await resolveUserAvatar(username)).dataUri : null;
+        return drawSharePill(holder.ownerDocument, {
+            name: stampsName ? username : null,
+            avatarDataUri: avatar,
+            badge: stampsBadge && rank ? { svg: holder.innerHTML, tier: rank.tier, step: rank.step } : null
+        });
     }
 
     function toggleTag(tag: string) {
@@ -464,7 +549,8 @@ export function MemoryShareModal(props: MemoryShareModalProps) {
         setPreparing(true);
         preparingRef.current = true;
         try {
-            const result = await prepareMemoryShare(gameId, memory.id, partStart, partEnd);
+            const overlay = await pillFor();
+            const result = await prepareMemoryShare(gameId, memory.id, partStart, partEnd, overlay);
             preparingRef.current = false;
             if (closedRef.current) {
                 return;
@@ -498,6 +584,10 @@ export function MemoryShareModal(props: MemoryShareModalProps) {
             logError("memories: couldn't prepare a share", e);
             if (!closedRef.current) {
                 setPreparing(false);
+                toaster.toast({
+                    title: t(language, "Shared Memories"),
+                    body: t(language, "Couldn't prepare this memory for sharing.")
+                });
             }
         }
     }
@@ -815,13 +905,26 @@ export function MemoryShareModal(props: MemoryShareModalProps) {
                     </Focusable>
                 </div>
 
-                <ToggleRow
-                    label={t(language, "Include my RetroAchievements name")}
-                    value={credit}
-                    onChange={toggleCredit}
-                    disabled={preparing || !username}
-                    bottomSeparator="none"
-                />
+                <Focusable
+                    flow-children="row"
+                    style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}
+                >
+                    {renderSwitch("credit", "Name in Post", credit, preparing || !username, toggleCredit)}
+                    {renderSwitch("stamp-name", "Profile on Image", stampName, preparing || !username, (next) => {
+                        setStampName(next);
+                        saveToggle("stampName", next, setStampName);
+                    })}
+                    {renderSwitch("stamp-badge", "Badge on Image", stampBadge, preparing || !rank, (next) => {
+                        setStampBadge(next);
+                        saveToggle("stampBadge", next, setStampBadge);
+                    })}
+                </Focusable>
+                <div style={{ ...labelStyle, marginTop: "4px" }}>
+                    {t(language, "Your posts by default will include your RA username in them. Optionally, you can turn on the other two toggles above to include your profile (username and avatar) as well as your current milestone rank badge in the top corner of the image.")}
+                </div>
+                <div ref={pillRef} style={{ display: "none" }}>
+                    {rank ? <RankEmblem tier={rank.tier} step={rank.step} size={24} /> : null}
+                </div>
 
                 {preparing ? (
                     <div style={{ marginTop: "12px" }}>

@@ -526,6 +526,9 @@ _KNOBS = (
     Knob("memoriesMuted", default=False, normalize=True, read=READ_BOOL),
     Knob("memoriesShareQuality", from_attr="_default_share_quality", normalize=True),
     Knob("memoriesEncodePriority", default="low", normalize=True),
+    Knob("memoriesShareCredit", default=True, normalize=True, read=READ_BOOL),
+    Knob("memoriesShareStampName", default=False, normalize=True, read=READ_BOOL),
+    Knob("memoriesShareStampBadge", default=False, normalize=True, read=READ_BOOL),
     Knob("linksOpenInWebBrowser", default=True, normalize=True, read=READ_BOOL),
     Knob("fileWatcherSpeed", default="gentle", normalize=True),
     Knob("fileWatcherRunDuringGames", default=True, normalize=True, read=READ_BOOL),
@@ -1525,6 +1528,21 @@ class SettingsStore:
         cfg = self._update_config("memoriesEncodePriority", value)
 
         return self.get_memories_encode_priority(cfg)
+
+    def update_memories_share_credit(self, value: bool) -> bool:
+        cfg = self._update_config("memoriesShareCredit", bool(value))
+
+        return self.get_memories_share_credit(cfg)
+
+    def update_memories_share_stamp_name(self, value: bool) -> bool:
+        cfg = self._update_config("memoriesShareStampName", bool(value))
+
+        return self.get_memories_share_stamp_name(cfg)
+
+    def update_memories_share_stamp_badge(self, value: bool) -> bool:
+        cfg = self._update_config("memoriesShareStampBadge", bool(value))
+
+        return self.get_memories_share_stamp_badge(cfg)
 
     def update_cheevo_check_scan_collapsed(self, value: bool) -> bool:
         cfg = self._update_config("cheevoCheckScanCollapsed", bool(value))
@@ -4493,6 +4511,15 @@ class SettingsStore:
     def get_memories_encode_priority(self, cfg: dict) -> str:
         value = str(cfg.get("memoriesEncodePriority", "low") or "low").strip()
         return value if value in {"low", "normal"} else "low"
+
+    def get_memories_share_credit(self, cfg: dict) -> bool:
+        return bool(cfg.get("memoriesShareCredit", True))
+
+    def get_memories_share_stamp_name(self, cfg: dict) -> bool:
+        return bool(cfg.get("memoriesShareStampName", False))
+
+    def get_memories_share_stamp_badge(self, cfg: dict) -> bool:
+        return bool(cfg.get("memoriesShareStampBadge", False))
 
     def get_cheevo_check_verify_speed(self, cfg: dict) -> str:
         value = str(cfg.get("cheevoCheckVerifySpeed", "full") or "full").strip()
