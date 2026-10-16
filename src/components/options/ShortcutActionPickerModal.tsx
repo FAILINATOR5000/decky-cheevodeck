@@ -2,7 +2,7 @@ import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
 import { Fragment, useState } from "react";
 import { FocusableItem } from "../ui/FocusableItem";
 import { InlineSpinner } from "../ui/InlineSpinner";
-import { ButtonPrompt, GlyphGroup } from "../ui/ButtonPrompt";
+import { GlyphGroup } from "../ui/ButtonPrompt";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { t, type LanguageCode } from "../../locales";
 import type { ShortcutAction, ShortcutButton } from "../../types";
@@ -33,6 +33,8 @@ function ShortcutActionPickerModal(props: ShortcutActionPickerModalProps) {
     const groups = shortcutActionGroups(button, language, current, showDeveloperOptions);
     const titleSize = modalSize(20);
     const buttonLabel = shortcutButtonLabel(button, language);
+    const [titleBefore, titleAfter = ""] = t(language, "Choose an action for {{button}}:").split("{{button}}");
+    const titleRest = buttonLabel ? buttonLabel + titleAfter : titleAfter.trimStart();
 
     function handlePress(action: ShortcutAction) {
         if (busyAction !== null) {
@@ -52,18 +54,20 @@ function ShortcutActionPickerModal(props: ShortcutActionPickerModalProps) {
     return (
         <ModalRoot onCancel={close} onEscKeypress={close}>
             <SnapshotHotkey language={language} />
-            <div style={{ fontSize: `${titleSize}px`, fontWeight: 700, marginBottom: "12px" }}>
-                <ButtonPrompt
-                    language={language}
-                    textKey="Choose an action for {{button}}:"
-                    fontSize={titleSize}
-                    groups={[
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: "0.3em" }}>
-                            <GlyphGroup buttons={shortcutButtonGlyphs(button)} fontSize={titleSize} />
-                            {buttonLabel}
-                        </span>
-                    ]}
-                />
+            <div
+                style={{
+                    fontSize: `${titleSize}px`,
+                    fontWeight: 700,
+                    marginBottom: "12px",
+                    display: "flex",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: "0.3em"
+                }}
+            >
+                {titleBefore.trim() && <span>{titleBefore.trim()}</span>}
+                <GlyphGroup buttons={shortcutButtonGlyphs(button)} fontSize={titleSize} />
+                {titleRest && <span>{titleRest}</span>}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                 {groups.map((group) => (
