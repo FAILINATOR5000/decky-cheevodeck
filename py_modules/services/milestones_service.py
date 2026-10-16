@@ -61,7 +61,7 @@ _NUMERALS = ("I", "II", "III", "IV")
 _PADDLES_BY_FORMAT = {
     "deck": ("l4", "l5", "r4", "r5"),
     "controller": ("l4", "l5", "r4", "r5"),
-    "ally": ("l4", "r4"),
+    "ally": ("l4", "l5", "r4", "r5"),
 }
 
 _BEATEN_TYPES = ("game beaten",)

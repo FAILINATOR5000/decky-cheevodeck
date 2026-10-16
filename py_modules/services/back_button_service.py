@@ -39,8 +39,8 @@ _BUTTON_BITS = {
     ALLY_FORMAT: (
         ("l4", 13, 0x02),
         ("r4", 13, 0x04),
-        ("m1", 9, 0x80),
-        ("m2", 10, 0x01),
+        ("l5", 9, 0x80),
+        ("r5", 10, 0x01),
     ),
     CONTROLLER_FORMAT: (
         ("l4", 4, 0x02),
@@ -126,13 +126,13 @@ _MENU_COMBO_KEYS = {
 
 _CHORD_BITS = {
     DECK_FORMAT: ((8, 0xFF), (9, 0x7F), (10, 0x46), (11, 0x04), (14, 0x04)),
-    ALLY_FORMAT: ((8, 0xFF), (9, 0xFF), (10, 0x47), (11, 0x04), (14, 0x04)),
+    ALLY_FORMAT: ((8, 0xFF), (9, 0x7F), (10, 0x46), (11, 0x04), (14, 0x04)),
     CONTROLLER_FORMAT: ((2, 0x7F), (3, 0xFE), (4, 0x89), (5, 0x0C)),
 }
 
 _RECOVERY_COMBOS = {
     DECK_FORMAT: ("l4", "l5", "r4", "r5"),
-    ALLY_FORMAT: ("m1", "m2"),
+    ALLY_FORMAT: ("l5", "r5"),
     CONTROLLER_FORMAT: ("l4", "l5", "r4", "r5"),
 }
 

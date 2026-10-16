@@ -407,6 +407,12 @@ export function shortcutButtonLabel(value: ShortcutButton, language: LanguageCod
     if (menuCombo(value)) {
         return null;
     }
+    if (value === "l5") {
+        return "L5 / M1";
+    }
+    if (value === "r5") {
+        return "R5 / M2";
+    }
 
     return value.toUpperCase();
 }
