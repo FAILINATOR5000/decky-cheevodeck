@@ -950,6 +950,7 @@ const PT: LocaleTable = {
     "reorder_help_tracked": "Clique na conquista que você quer mover e depois clique em outra conquista para trocá-las, ou use as setas acima para movê-la um passo de cada vez.",
 
     "Back": "Voltar",
+    "Exit": "Sair",
     "Dolphin Mapper": "Dolphin Mapper",
     "Add Mapping": "Adicionar mapeamento",
     "Bluetooth Passthrough": "Passthrough de Bluetooth",

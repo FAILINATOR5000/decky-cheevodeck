@@ -951,6 +951,7 @@ const RU: LocaleTable = {
     "reorder_help_tracked": "Нажми на достижение, которое хочешь переместить, а затем либо нажми на другое, чтобы поменять их местами, либо передвигай его стрелками выше по одному шагу.",
 
     "Back": "Назад",
+    "Exit": "Выход",
     "Dolphin Mapper": "Маппер Dolphin",
     "Add Mapping": "Добавить раскладку",
     "Bluetooth Passthrough": "Проброс Bluetooth",

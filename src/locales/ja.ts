@@ -947,6 +947,7 @@ const JA: LocaleTable = {
     "reorder_help_tracked": "動かしたい実績をクリックしてから、入れ替えたい実績をクリックするか、上の矢印で 1 つずつ動かしてください。",
 
     "Back": "戻る",
+    "Exit": "終了",
     "Dolphin Mapper": "Dolphin マッパー",
     "Add Mapping": "設定を追加",
     "Bluetooth Passthrough": "Bluetooth パススルー",

@@ -224,7 +224,7 @@ import { SHORTCUT_BUTTON_BY_CODE } from "../utils/gamepadButtons";
 import { requestJumpToTop } from "../utils/jumpToTop";
 import { captureSnapshot } from "../utils/snapshot";
 import { playOkSound } from "../utils/navSound";
-import { guardFooterPrompts } from "../utils/footerPrompts";
+import { guardFooterPrompts, setFooterBack } from "../utils/footerPrompts";
 import {
     drainOpenModals,
     modalEchoPending,
@@ -715,6 +715,8 @@ function AchievementsRoot() {
         applySettings,
         saveSettingWithRollback
     } = settingsActions;
+
+    useEffect(() => setFooterBack(t(language, view === "achievements" ? "Exit" : "Back")), [view, language]);
 
     const [loadingText, setLoadingText] = useState(t(language, "Refreshing Achievements..."));
 

@@ -950,6 +950,7 @@ export const EN: LocaleTable = {
     "reorder_help_tracked": "Click the achievement you would like to move, then either click another achievement to swap the two, or use the arrows above to move it a step at a time.",
 
     "Back": "Back",
+    "Exit": "Exit",
     "Dolphin Mapper": "Dolphin Mapper",
     "Add Mapping": "Add Mapping",
     "Bluetooth Passthrough": "Bluetooth Passthrough",

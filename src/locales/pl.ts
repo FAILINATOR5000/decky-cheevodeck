@@ -971,6 +971,7 @@ const PL: LocaleTable = {
     "reorder_help_tracked": "Kliknij osiągnięcie, które chcesz przenieść, a potem kliknij inne, aby zamienić je miejscami, albo przesuwaj je strzałkami powyżej krok po kroku.",
 
     "Back": "Wstecz",
+    "Exit": "Wyjdź",
     "Dolphin Mapper": "Dolphin Mapper",
     "Add Mapping": "Dodaj mapowanie",
     "Bluetooth Passthrough": "Passthrough Bluetooth",

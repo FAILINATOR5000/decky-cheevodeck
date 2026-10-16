@@ -950,6 +950,7 @@ const FR: LocaleTable = {
     "reorder_help_tracked": "Clique sur le succès que tu veux déplacer, puis clique sur un autre succès pour les échanger, ou utilise les flèches ci-dessus pour le déplacer d'un cran à la fois.",
 
     "Back": "Retour",
+    "Exit": "Quitter",
     "Dolphin Mapper": "Dolphin Mapper",
     "Add Mapping": "Ajouter un mappage",
     "Bluetooth Passthrough": "Passthrough Bluetooth",

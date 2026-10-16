@@ -952,6 +952,7 @@ const ES: LocaleTable = {
     "reorder_help_tracked": "Haz clic en el logro que quieres mover y luego haz clic en otro logro para intercambiarlos, o usa las flechas de arriba para moverlo paso a paso.",
 
     "Back": "Atrás",
+    "Exit": "Salir",
     "Dolphin Mapper": "Dolphin Mapper",
     "Add Mapping": "Añadir asignación",
     "Bluetooth Passthrough": "Passthrough de Bluetooth",

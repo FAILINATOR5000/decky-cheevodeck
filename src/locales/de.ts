@@ -947,6 +947,7 @@ const DE: LocaleTable = {
     "reorder_help_tracked": "Klicke den Erfolg an, den du verschieben möchtest, und klicke dann einen anderen Erfolg an, um die beiden zu tauschen, oder nutze die Pfeile oben, um ihn Schritt für Schritt zu verschieben.",
 
     "Back": "Zurück",
+    "Exit": "Beenden",
     "Dolphin Mapper": "Dolphin Mapper",
     "Add Mapping": "Zuordnung hinzufügen",
     "Bluetooth Passthrough": "Bluetooth-Passthrough",
