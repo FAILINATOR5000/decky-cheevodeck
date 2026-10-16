@@ -225,6 +225,7 @@ export const FriendListRow = React.memo(function FriendListRow(props: FriendList
                         onGamepadFocus={handleFavoriteFocus}
                         onGamepadBlur={handleFavoriteBlur}
                         onGamepadDirection={props.onGamepadDirection}
+                        onButtonDown={handleButtonDown}
                         style={{
                             minWidth: 0,
                             width: "34px",
@@ -240,20 +241,14 @@ export const FriendListRow = React.memo(function FriendListRow(props: FriendList
                                     : "rgba(255,255,255,0.96)",
                             background: favoriteFocused
                                 ? "rgba(255,255,255,0.96)"
-                                : favorite
-                                    ? "rgba(52,52,52,0.92)"
-                                    : "rgba(24,24,24,0.78)",
-                            opacity: favorite || favoriteFocused ? 1 : 0.86,
+                                : "rgba(24,24,24,0.78)",
+                            opacity: favoriteFocused ? 1 : 0.86,
                             border: favoriteFocused
                                 ? "1px solid rgba(255,255,255,1)"
-                                : favorite
-                                    ? "1px solid rgba(255,255,255,0.9)"
-                                    : "1px solid rgba(255,255,255,0.36)",
+                                : "1px solid rgba(255,255,255,0.36)",
                             boxShadow: favoriteFocused
                                 ? "0 0 0 2px rgba(255,255,255,0.78), 0 0 10px rgba(255,255,255,0.45), 0 2px 8px rgba(0,0,0,0.45)"
-                                : favorite
-                                    ? "0 0 0 1px rgba(255,255,255,0.22), 0 2px 6px rgba(0,0,0,0.35)"
-                                    : "0 2px 6px rgba(0,0,0,0.35)",
+                                : "0 2px 6px rgba(0,0,0,0.35)",
                             textShadow: favorite
                                 ? "0 1px 2px rgba(0,0,0,0.55)"
                                 : favoriteFocused
