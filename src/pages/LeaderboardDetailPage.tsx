@@ -327,7 +327,8 @@ function LeaderboardDetailPage({ state, actions }: LeaderboardDetailPageProps) {
             return true;
         },
         holds: (key) => audienceEntries.some((entry) => entryFocusKey(entry) === key),
-        open: (key) => entryWindow.openAt(key)
+        open: (key) => entryWindow.openAt(key),
+        timing: { revealDeadlineMs: 1000, pressGuardCeilingMs: 1050 }
     });
 
     const openProfileRef = useRef(actions.onOpenUserProfile);

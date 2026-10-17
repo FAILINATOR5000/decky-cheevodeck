@@ -1506,7 +1506,7 @@ export type LeaderboardEntriesPayload = {
 
 export type GameLeaderboardsResponse = RaPayloadResponse<GameLeaderboardsPayload>;
 
-export type LeaderboardEntriesResponse = RaPayloadResponse<LeaderboardEntriesPayload>;
+type LeaderboardEntriesResponse = RaPayloadResponse<LeaderboardEntriesPayload>;
 
 export type LeaderboardUserEntryPayload = {
     leaderboardId: number | null;
@@ -1514,7 +1514,14 @@ export type LeaderboardUserEntryPayload = {
     refreshedAt?: number | null;
 };
 
-export type LeaderboardUserEntryResponse = RaPayloadResponse<LeaderboardUserEntryPayload>;
+type LeaderboardUserEntryResponse = RaPayloadResponse<LeaderboardUserEntryPayload>;
+
+export type LeaderboardDetailResponse = {
+    needsSettings?: boolean;
+    error?: string;
+    entries?: LeaderboardEntriesResponse | null;
+    userEntry?: LeaderboardUserEntryResponse | null;
+};
 
 // Tracked notes and sets
 export type TrackedNotes = Record<string, string>;

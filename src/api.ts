@@ -76,8 +76,7 @@ import type {
     GamesListCacheResult,
     AwardsListCacheResult,
     WantToPlayCacheResult,
-    LeaderboardEntriesResponse,
-    LeaderboardUserEntryResponse,
+    LeaderboardDetailResponse,
     MainAchievementAction,
     MainAchievementFilter,
     PlayersNearYouMode,
@@ -2417,14 +2416,10 @@ export function logCardCornerDebug(stage: string, key: string, extra?: string) {
 export const getGameLeaderboards = callable<[number | null | undefined, boolean?], GameLeaderboardsResponse>(
     "get_game_leaderboards"
 );
-export const getLeaderboardEntries = callable<
-    [number | null | undefined, number?, number?],
-    LeaderboardEntriesResponse
->("get_leaderboard_entries");
-export const getLeaderboardUserEntry = callable<
-    [number | null | undefined, number | null | undefined],
-    LeaderboardUserEntryResponse
->("get_leaderboard_user_entry");
+export const getLeaderboardDetail = callable<
+    [number | null | undefined, number?, (number | null | undefined)?],
+    LeaderboardDetailResponse
+>("get_leaderboard_detail");
 export const getLeaderboardIcons = callable<
     [
         number | null | undefined,

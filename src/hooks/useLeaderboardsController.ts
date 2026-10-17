@@ -7,7 +7,7 @@ import {
     type RefObject,
     type SetStateAction
 } from "react";
-import { getGameLeaderboards, getLeaderboardEntries, getLeaderboardUserEntry } from "../api";
+import { getGameLeaderboards, getLeaderboardDetail } from "../api";
 import type { NavIntent } from "../nav";
 import type {
     FriendGamePayload,
@@ -227,17 +227,16 @@ export function useLeaderboardsController({
                     friendGamePayloadRef.current?.selectedGameId ??
                     friendGamePayloadRef.current?.payload?.gameId ??
                     null;
-                const [entriesResult, userEntryResult] = await Promise.all([
-                    getLeaderboardEntries(leaderboard.id, MAX_LEADERBOARD_RESULTS, 0),
-                    getLeaderboardUserEntry(leaderboard.id, gameIdForUserEntry)
-                ]);
+                const result = await getLeaderboardDetail(leaderboard.id, MAX_LEADERBOARD_RESULTS, gameIdForUserEntry);
                 if (!mountedRef.current) {
                     return;
                 }
-                if (entriesResult?.needsSettings || userEntryResult?.needsSettings) {
+                if (result?.needsSettings) {
                     setSettingsMode(true);
                     return;
                 }
+                const entriesResult = result?.entries;
+                const userEntryResult = result?.userEntry;
                 setLeaderboardEntriesPayload(entriesResult?.payload ?? null);
                 setLeaderboardUserEntryPayload(userEntryResult?.payload ?? null);
                 if (entriesResult?.error) {

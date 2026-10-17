@@ -90,6 +90,19 @@ class LeaderboardsService:
         ranked = sorted(cache.items(), key=refreshed_at, reverse=True)
         return dict(ranked[:LEADERBOARDS_CACHE_MAX_GAMES])
 
+    def _is_fresh(self, payload) -> bool:
+        refreshed = to_int(payload.get("refreshedAt"), 0)
+        return bool(refreshed) and (int(time.time()) - refreshed) < self._leaderboards_cache_max_age_seconds
+
+    def cached_game_leaderboards(self, game_id):
+        game_id_int = norm_game_id(game_id)
+        if game_id_int is None:
+            return None
+        cached_payload = self._cache_store.load_leaderboards().get(str(game_id_int))
+        if not isinstance(cached_payload, dict) or not self._is_fresh(cached_payload):
+            return None
+        return {"payload": cached_payload, "changed": False}
+
     def get_game_leaderboards(self, user: str, web_api_key: str, game_id, force: bool = False) -> dict:
         game_id_int = norm_game_id(game_id)
         if game_id_int is None:
@@ -98,8 +111,7 @@ class LeaderboardsService:
         cache_snapshot = self._cache_store.load_leaderboards()
         cache_key = str(game_id_int)
         cached_payload = cache_snapshot.get(cache_key) if isinstance(cache_snapshot.get(cache_key), dict) else None
-        cached_refreshed = to_int((cached_payload or {}).get("refreshedAt"), 0)
-        if cached_payload and not force and cached_refreshed and (int(time.time()) - cached_refreshed) < self._leaderboards_cache_max_age_seconds:
+        if cached_payload and not force and self._is_fresh(cached_payload):
             return {"payload": cached_payload, "changed": False}
 
         try:
