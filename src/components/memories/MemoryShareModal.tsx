@@ -910,17 +910,17 @@ export function MemoryShareModal(props: MemoryShareModalProps) {
                     style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}
                 >
                     {renderSwitch("credit", "Name in Post", credit, preparing || !username, toggleCredit)}
-                    {renderSwitch("stamp-name", "Profile on Image", stampName, preparing || !username, (next) => {
+                    {renderSwitch("stamp-name", "Profile on Media", stampName, preparing || !username, (next) => {
                         setStampName(next);
                         saveToggle("stampName", next, setStampName);
                     })}
-                    {renderSwitch("stamp-badge", "Badge on Image", stampBadge, preparing || !rank, (next) => {
+                    {renderSwitch("stamp-badge", "Badge on Media", stampBadge, preparing || !rank, (next) => {
                         setStampBadge(next);
                         saveToggle("stampBadge", next, setStampBadge);
                     })}
                 </Focusable>
                 <div style={{ ...labelStyle, marginTop: "4px" }}>
-                    {t(language, "Your posts by default will include your RA username in them. Optionally, you can turn on the other two toggles above to include your profile (username and avatar) as well as your current milestone rank badge in the top corner of the image.")}
+                    {t(language, "Your posts by default will include your RA username in them. Optionally, you can turn on the other two toggles above to include your profile (username and avatar) as well as your current milestone rank badge in the top corner of the image/clip.")}
                 </div>
                 <div ref={pillRef} style={{ display: "none" }}>
                     {rank ? <RankEmblem tier={rank.tier} step={rank.step} size={24} /> : null}
