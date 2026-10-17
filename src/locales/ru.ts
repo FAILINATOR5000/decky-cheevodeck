@@ -2013,6 +2013,8 @@ const RU: LocaleTable = {
     "Screenshot": "Скриншот",
     "Video": "Видео",
     "Tag Filter": "Фильтр по тегу",
+    "Reset Filter": "Сбросить фильтр",
+    "Tag Order": "Порядок тегов",
     "Color Tag": "Цветной тег",
     "Tag: {{tag}}": "Тег: {{tag}}",
     "Couldn't save this memory.": "Не удалось сохранить момент.",

@@ -1996,6 +1996,8 @@ const ES: LocaleTable = {
     "Screenshot": "Captura",
     "Video": "Vídeo",
     "Tag Filter": "Filtro de etiqueta",
+    "Reset Filter": "Restablecer filtro",
+    "Tag Order": "Orden de etiquetas",
     "Color Tag": "Etiqueta de color",
     "Tag: {{tag}}": "Etiqueta: {{tag}}",
     "Couldn't save this memory.": "No se pudo guardar este recuerdo.",

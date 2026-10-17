@@ -316,6 +316,7 @@ function MemoriesPage(props: MemoriesPageProps) {
                 onSelectColor={actions.memories.selectColor}
                 onSelectMedia={actions.memories.selectMedia}
                 onChangeSort={actions.memories.selectTagSort}
+                onClearFilters={actions.memories.clearFilters}
                 close={close}
             />
         ));

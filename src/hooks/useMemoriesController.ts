@@ -488,6 +488,15 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
         persist(null, null, null, null, null, next, null, 0);
     }, [persist]);
 
+    const clearFilters = useCallback(() => {
+        setTagFilter("");
+        setColorFilter("");
+        setMediaFilter("");
+        setPageIndex(0);
+        setArmedDeleteId(null);
+        persist(null, null, null, "", "", "", null, 0);
+    }, [persist]);
+
     const selectColumns = useCallback((next: number) => {
         setGridColumns(next);
         setPageIndex(0);
@@ -631,6 +640,7 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
             selectMedia,
             selectColumns,
             selectTagSort,
+            clearFilters,
             toggleDateOrder,
             turnPage,
             armDelete,

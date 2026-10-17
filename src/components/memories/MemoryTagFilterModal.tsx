@@ -28,6 +28,7 @@ export type MemoryTagFilterModalProps = {
     onSelectColor: (color: string) => void;
     onSelectMedia: (media: string) => void;
     onChangeSort: (sort: MemoryTagSort) => void;
+    onClearFilters: () => void;
     close: () => void;
 };
 
@@ -37,15 +38,13 @@ function TagChip(props: {
     count: number | null;
     focusKey: string;
     selected: boolean;
-    preferred: boolean;
     onSelect: () => void;
 }) {
-    const { label, count, focusKey, selected, preferred, onSelect } = props;
+    const { label, count, focusKey, selected, onSelect } = props;
     return (
         <div data-focus-key={focusKey}>
             <DialogButton
                 onClick={onSelect}
-                autoFocus={preferred || undefined}
                 style={{
                     ...compactButtonStyle,
                     fontSize: `${modalSize(14)}px`,
@@ -60,7 +59,7 @@ function TagChip(props: {
 }
 
 export function MemoryTagFilterModal(props: MemoryTagFilterModalProps) {
-    const { tags, selected, language, onSelect, onSelectColor, onSelectMedia, onChangeSort, close } = props;
+    const { tags, language, onSelect, onSelectColor, onSelectMedia, onChangeSort, onClearFilters, close } = props;
 
     const [tag, setTag] = useState(props.selected);
 
@@ -80,7 +79,6 @@ export function MemoryTagFilterModal(props: MemoryTagFilterModalProps) {
         return next;
     }, [tags, sort]);
 
-    const preferredTag = rows.some((row) => row.tag === selected) ? selected : "";
 
     function toggleSort() {
         const next: MemoryTagSort = sort === "recent" ? "alpha" : "recent";
@@ -104,6 +102,13 @@ export function MemoryTagFilterModal(props: MemoryTagFilterModalProps) {
         onSelectMedia(next);
     }
 
+    function resetFilter() {
+        setTag("");
+        setColor("");
+        setMedia("");
+        onClearFilters();
+    }
+
     return (
         <ModalRoot onCancel={close} onEscKeypress={close}>
             <SaveOnStart canSave label={t(language, "Close")} onSave={close}>
@@ -113,11 +118,12 @@ export function MemoryTagFilterModal(props: MemoryTagFilterModalProps) {
                 </div>
                 <LabeledRow
                     focusKey="memories:tagsort"
-                    label={t(language, "Sort")}
+                    label={t(language, "Tag Order")}
                     value={sort === "recent"
                         ? t(language, "Recently Used")
                         : t(language, "Alphabetical")}
                     onClick={toggleSort}
+                    autoFocus
                     bottomSeparator="none"
                 />
                 <div style={SECTION_HEADING_STYLE}>
@@ -138,7 +144,6 @@ export function MemoryTagFilterModal(props: MemoryTagFilterModalProps) {
                         count={null}
                         focusKey="memories:tag:all"
                         selected={tag === ""}
-                        preferred={preferredTag === ""}
                         onSelect={() => pick("")}
                     />
                     {rows.map((row) => (
@@ -148,7 +153,6 @@ export function MemoryTagFilterModal(props: MemoryTagFilterModalProps) {
                             count={row.count}
                             focusKey={`memories:tag:${row.tag}`}
                             selected={tag === row.tag}
-                            preferred={preferredTag === row.tag}
                             onSelect={() => pick(row.tag)}
                         />
                     ))}
@@ -181,12 +185,16 @@ export function MemoryTagFilterModal(props: MemoryTagFilterModalProps) {
                             count={null}
                             focusKey={`memories:media:${choice.value || "all"}`}
                             selected={media === choice.value}
-                            preferred={false}
                             onSelect={() => pickMedia(choice.value)}
                         />
                     ))}
                 </Focusable>
                 <Focusable style={{ display: "flex", marginTop: "16px" }}>
+                    <DialogButton onClick={resetFilter} style={{ width: "100%" }}>
+                        {t(language, "Reset Filter")}
+                    </DialogButton>
+                </Focusable>
+                <Focusable style={{ display: "flex", marginTop: "8px" }}>
                     <DialogButton onClick={close} style={{ width: "100%" }}>
                         {t(language, "Close")}
                     </DialogButton>

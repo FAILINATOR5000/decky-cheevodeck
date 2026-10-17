@@ -1979,6 +1979,8 @@ export const EN: LocaleTable = {
     "Screenshot": "Screenshot",
     "Video": "Video",
     "Tag Filter": "Tag Filter",
+    "Reset Filter": "Reset Filter",
+    "Tag Order": "Tag Order",
     "Color Tag": "Color Tag",
     "Tag: {{tag}}": "Tag: {{tag}}",
     "Couldn't save this memory.": "Couldn't save this memory.",

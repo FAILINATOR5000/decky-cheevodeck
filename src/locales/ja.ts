@@ -1920,6 +1920,8 @@ const JA: LocaleTable = {
     "Screenshot": "スクリーンショット",
     "Video": "動画",
     "Tag Filter": "タグフィルター",
+    "Reset Filter": "フィルターをリセット",
+    "Tag Order": "タグの並び順",
     "Color Tag": "カラータグ",
     "Tag: {{tag}}": "タグ: {{tag}}",
     "Couldn't save this memory.": "この思い出を保存できませんでした。",
