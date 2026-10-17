@@ -3,6 +3,7 @@ import { PanelSection } from "../components/ui/PanelSection";
 import React, { useEffect, useMemo, useRef } from "react";
 import { prefetchUserAvatars } from "../api";
 import { BackButton } from "../components/ui/BackButton";
+import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
 import { ErrorText } from "../components/ui/ErrorText";
 import { FocusableItem } from "../components/ui/FocusableItem";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
@@ -388,6 +389,10 @@ function LeaderboardDetailPage({ state, actions }: LeaderboardDetailPageProps) {
     }
 
     const hasFetchedEntries = allEntries.length > 0;
+    const boardTotal = state.leaderboardEntriesPayload?.total ?? 0;
+    const topPlayersCount = state.leaderboardAudience === "friends"
+        ? (hasFetchedEntries ? audienceEntries.length : null)
+        : (boardTotal ? Math.min(boardTotal, MAX_LEADERBOARD_RESULTS) : null);
 
     return (
         <>
@@ -496,25 +501,32 @@ function LeaderboardDetailPage({ state, actions }: LeaderboardDetailPageProps) {
                 </PanelSectionRow>
             </PanelSection>
             <PanelSection
-                title={`${t(state.language, "Top Players")}${state.leaderboardEntriesPayload?.total ? ` (${Math.min(state.leaderboardEntriesPayload.total, MAX_LEADERBOARD_RESULTS)})` : ""
-                    }`}
+                title={`${t(state.language, "Top Players")}${topPlayersCount === null ? "" : ` (${topPlayersCount})`}`}
             >
                 {!hasFetchedEntries ? (
-                    <PanelSectionRow>
-                        {state.leaderboardEntriesLoading ? (
+                    state.leaderboardEntriesLoading ? (
+                        <PanelSectionRow>
                             <InlineSpinner label={t(state.language, "Loading results...")} />
-                        ) : (
-                            <div style={bodyTextStyle()}>
-                                {t(state.language, "No leaderboard entries returned.")}
-                            </div>
-                        )}
-                    </PanelSectionRow>
+                        </PanelSectionRow>
+                    ) : (
+                        <>
+                            <PanelSectionRow>
+                                <div style={bodyTextStyle()}>
+                                    {t(state.language, "No leaderboard entries returned.")}
+                                </div>
+                            </PanelSectionRow>
+                            <BottomFocusAnchor focusKey="leaderboarddetail:bottom:anchor" />
+                        </>
+                    )
                 ) : audienceEntries.length === 0 ? (
-                    <PanelSectionRow>
-                        <div style={bodyTextStyle()}>
-                            {t(state.language, "None of your friends are on this leaderboard yet.")}
-                        </div>
-                    </PanelSectionRow>
+                    <>
+                        <PanelSectionRow>
+                            <div style={bodyTextStyle()}>
+                                {t(state.language, "None of your friends are on this leaderboard yet.")}
+                            </div>
+                        </PanelSectionRow>
+                        <BottomFocusAnchor focusKey="leaderboarddetail:bottom:anchor" />
+                    </>
                 ) : (
                     <SlidingWindowRows list={entryWindow}>
                         {visibleEntries.map((entry, index) => (
