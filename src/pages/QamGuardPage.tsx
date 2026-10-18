@@ -209,7 +209,7 @@ function QamGuardView(props: QamGuardPageProps) {
                 ))}
             </Focusable>
 
-            <Focusable key={`qamGuard:tab:${tab}`}>
+            <Focusable key={`qamGuard:tab:${tab}`} resetNavOnEntry>
                 {tab === "status" ? statusBody : (
                     <IncidentLog
                         state={state}

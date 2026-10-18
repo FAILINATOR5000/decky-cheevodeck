@@ -323,6 +323,7 @@ function ComparePickerPage(props: ComparePickerPageProps) {
                     </PanelSectionRow>
                 ) : (
                     <Focusable
+                        resetNavOnEntry
                         flow-children="column"
                         style={{
                             width: "100%",

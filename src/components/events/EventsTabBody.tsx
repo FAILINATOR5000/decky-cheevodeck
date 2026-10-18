@@ -246,7 +246,7 @@ export function EventsTabBody(props: EventsTabBodyProps) {
             >
                 {caption}
             </div>
-            <Focusable key={`events:list:${listView}`} style={{ width: "100%" }}>
+            <Focusable key={`events:list:${listView}`} resetNavOnEntry style={{ width: "100%" }}>
                 {listView === "all" ? (
                     <AllEventsList
                         language={language}

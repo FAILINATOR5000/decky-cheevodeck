@@ -497,7 +497,7 @@ function EventView(props: { state: EventViewState; actions: EventViewerPageActio
                         tabs={tabs}
                     />
                     {tab === "achievements" && checklist && (
-                        <Focusable key={tabKey}>
+                        <Focusable key={tabKey} resetNavOnEntry>
                             <EventChecklistBody
                                 language={language}
                                 eventGameId={eventGameId}
@@ -517,7 +517,7 @@ function EventView(props: { state: EventViewState; actions: EventViewerPageActio
                     )}
                 </PanelSection>
                 {tab === "achievements" && !checklist && (
-                    <Focusable key={tabKey}>
+                    <Focusable key={tabKey} resetNavOnEntry>
                         <EventAchievementsBody
                             language={language}
                             eventGameId={eventGameId}
@@ -533,7 +533,7 @@ function EventView(props: { state: EventViewState; actions: EventViewerPageActio
                         />
                     </Focusable>
                 )}
-                {tab === "comments" && <Focusable key={tabKey}>{commentsBody}</Focusable>}
+                {tab === "comments" && <Focusable key={tabKey} resetNavOnEntry>{commentsBody}</Focusable>}
             </div>
         </Focusable>
     );

@@ -807,6 +807,7 @@ function TrackedPage(props: TrackedPageProps) {
                 {activeTrackedTab === "otherGames" && (
                     <Focusable
                         key={`tracked:otherbody:${trackedSelectedGameId ?? "picker"}`}
+                        resetNavOnEntry
                         onCancelButton={trackedSelectedGameId !== null
                             ? () => {
                                 playOkSound();
