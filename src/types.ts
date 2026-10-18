@@ -1057,7 +1057,6 @@ export type SettingsResponse = {
     cheevoCheckScanCollapsed: boolean;
     cheevoCheckResultsCollapsed: boolean;
     cheevoCheckVerifyCollapsed: boolean;
-    cheevoCheckHelpCollapsed: boolean;
     cheevoCheckOptionsCollapsed: boolean;
     cheevoCheckSkipDiscVerify: boolean;
     cheevoCheckSkipCartVerify: boolean;

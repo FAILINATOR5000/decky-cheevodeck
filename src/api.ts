@@ -778,11 +778,6 @@ export const saveCheevoCheckVerifyCollapsed = callable<
     { ok: boolean; cheevoCheckVerifyCollapsed: boolean }
 >("save_cheevo_check_verify_collapsed");
 
-export const saveCheevoCheckHelpCollapsed = callable<
-    [boolean],
-    { ok: boolean; cheevoCheckHelpCollapsed: boolean }
->("save_cheevo_check_help_collapsed");
-
 export const saveCheevoCheckOptionsCollapsed = callable<
     [boolean],
     { ok: boolean; cheevoCheckOptionsCollapsed: boolean }
