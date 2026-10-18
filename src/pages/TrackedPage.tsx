@@ -49,7 +49,6 @@ import {
     trackedAchievementActionLabel,
     trackedAchievementSortLabel
 } from "../utils/achievements";
-import { playOkSound } from "../utils/navSound";
 import { regularButtonSpacingStyle, smallTextStyle, bodyTextStyle } from "../utils/style";
 import { pendingLandingKey, useLandingPendingEntry, usePageLanding, type LandingWindows } from "../focusRecords";
 
@@ -808,12 +807,6 @@ function TrackedPage(props: TrackedPageProps) {
                     <Focusable
                         key={`tracked:otherbody:${trackedSelectedGameId ?? "picker"}`}
                         resetNavOnEntry
-                        onCancelButton={trackedSelectedGameId !== null
-                            ? () => {
-                                playOkSound();
-                                onSelectTrackedGame(null);
-                            }
-                            : undefined}
                     >
                         <OtherGamesTabBody
                             language={language}

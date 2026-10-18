@@ -1704,7 +1704,7 @@ function AchievementsRoot() {
             setNotesByAchievementId,
             setNotesColorByAchievementId,
             goToTracked,
-            backFromTracked: leaveTracked,
+            backFromTracked,
             onTrackedViewAchievementClick,
             onTrackedUntrack,
             onTrackedEditNote,
@@ -2037,14 +2037,6 @@ function AchievementsRoot() {
             setPendingFocusKey("tracked:tab:otherGames");
         }
     }, [setPendingFocusKey]);
-
-    const backFromTracked = () => {
-        if (lastTrackedTab === "otherGames" && trackedSelectedGameId !== null) {
-            onSelectTrackedGame(null);
-            return;
-        }
-        void leaveTracked();
-    };
 
     const wipeFrontendMirrors = useFrontendMirrorWipe({
         setPayload,
