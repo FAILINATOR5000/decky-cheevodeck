@@ -962,7 +962,7 @@ const PT: LocaleTable = {
     "Bluetooth Passthrough": "Passthrough de Bluetooth",
     "Balance Board": "Balance Board",
     "Continuous Scanning": "Busca contínua",
-    "help_dolphin_passthrough": "Permite que o Dolphin converse com Wii Remotes reais via Bluetooth, como um Wii de verdade. Enquanto ativado, os mapeamentos de controle emulados ficam desativados e seus controles Bluetooth podem desconectar. Desative quando terminar.",
+    "help_dolphin_passthrough": "Permite que o Dolphin converse com Wii Remotes reais via Bluetooth, como um Wii de verdade. Enquanto ativado, os mapeamentos de controle emulados ficam desativados e seus controles Bluetooth podem desconectar. Desative quando terminar. Funciona apenas no Steam Machine ou em dispositivos SteamOS com um adaptador Bluetooth compatível.",
     "help_dolphin_balance_board": "Ativa uma Wii Balance Board real em todo mapeamento de Wii que você aplicar. Sincronize a plataforma com o botão de ligar assim que a busca estiver ativa.",
     "help_dolphin_continuous_scanning": "Mantém o Dolphin procurando Wii Remotes e Balance Boards reais via Bluetooth. Deixe ligado enquanto sincroniza um; sem isso, um slot de Wii Remote real não conecta.",
     "help_real_wiimote_slot": "O Dolphin conversa com um Wii Remote real via Bluetooth, então não há nada para mapear neste slot. Sincronize o controle com o atalho Conectar Wii Remotes do Dolphin ou ative a busca contínua nas configurações de controle.",

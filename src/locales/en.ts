@@ -962,7 +962,7 @@ export const EN: LocaleTable = {
     "Bluetooth Passthrough": "Bluetooth Passthrough",
     "Balance Board": "Balance Board",
     "Continuous Scanning": "Continuous Scanning",
-    "help_dolphin_passthrough": "Let Dolphin talk to real Wii Remotes over Bluetooth, like a real Wii. While this is on, emulated controller mappings are disabled and your Bluetooth controllers may disconnect. Turn it off when you're done.",
+    "help_dolphin_passthrough": "Let Dolphin talk to real Wii Remotes over Bluetooth, like a real Wii. While this is on, emulated controller mappings are disabled and your Bluetooth controllers may disconnect. Turn it off when you're done. Only works on Steam Machine or SteamOS devices with compatible Bluetooth adapter.",
     "help_dolphin_balance_board": "Arms a real Wii Balance Board on every Wii mapping you apply. Sync the board with its power button once scanning is on.",
     "help_dolphin_continuous_scanning": "Keeps Dolphin looking for real Wii Remotes and Balance Boards over Bluetooth. Leave this on while you sync one; a real Wii Remote slot in a mapping won't connect without it.",
     "help_real_wiimote_slot": "Dolphin talks to a real Wii Remote over Bluetooth, so there's nothing to map on this slot. Sync the remote with Dolphin's Connect Wii Remotes hotkey, or turn on Continuous Scanning in its controller settings.",

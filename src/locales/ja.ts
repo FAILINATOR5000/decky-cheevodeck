@@ -959,7 +959,7 @@ const JA: LocaleTable = {
     "Bluetooth Passthrough": "Bluetooth パススルー",
     "Balance Board": "バランス Wii ボード",
     "Continuous Scanning": "連続スキャン",
-    "help_dolphin_passthrough": "本物の Wii と同じように、Dolphin が本物の Wii リモコンと Bluetooth で通信できるようにします。オンの間はエミュレートしたコントローラー設定が無効になり、Bluetooth 接続のコントローラーが切れることがあります。使い終わったらオフにしてください。",
+    "help_dolphin_passthrough": "本物の Wii と同じように、Dolphin が本物の Wii リモコンと Bluetooth で通信できるようにします。オンの間はエミュレートしたコントローラー設定が無効になり、Bluetooth 接続のコントローラーが切れることがあります。使い終わったらオフにしてください。Steam Machine、または対応する Bluetooth アダプターを搭載した SteamOS デバイスでのみ動作します。",
     "help_dolphin_balance_board": "適用するすべての Wii 設定で本物のバランス Wii ボードを有効にします。スキャンをオンにしたら、ボードの電源ボタンで同期してください。",
     "help_dolphin_continuous_scanning": "Dolphin が本物の Wii リモコンやバランス Wii ボードを Bluetooth で探し続けます。同期している間はオンのままにしてください。オフだと本物の Wii リモコンのスロットは接続できません。",
     "help_real_wiimote_slot": "Dolphin は本物の Wii リモコンと Bluetooth で通信するため、このスロットに割り当てるものはありません。Dolphin の Wii リモコン接続のホットキーで同期するか、コントローラー設定で連続スキャンをオンにしてください。",

@@ -963,7 +963,7 @@ const RU: LocaleTable = {
     "Bluetooth Passthrough": "Проброс Bluetooth",
     "Balance Board": "Balance Board",
     "Continuous Scanning": "Непрерывный поиск",
-    "help_dolphin_passthrough": "Позволяет Dolphin общаться с настоящими пультами Wii по Bluetooth, как настоящая Wii. Пока это включено, эмулируемые раскладки контроллеров отключены, а твои Bluetooth-контроллеры могут отсоединиться. Выключи, когда закончишь.",
+    "help_dolphin_passthrough": "Позволяет Dolphin общаться с настоящими пультами Wii по Bluetooth, как настоящая Wii. Пока это включено, эмулируемые раскладки контроллеров отключены, а твои Bluetooth-контроллеры могут отсоединиться. Выключи, когда закончишь. Работает только на Steam Machine или устройствах со SteamOS с совместимым Bluetooth-адаптером.",
     "help_dolphin_balance_board": "Включает настоящую Wii Balance Board в каждой применяемой раскладке Wii. Подключи доску кнопкой питания, когда поиск уже идёт.",
     "help_dolphin_continuous_scanning": "Dolphin продолжает искать настоящие пульты Wii и Balance Board по Bluetooth. Оставь это включённым, пока подключаешь устройство: без него слот настоящего пульта Wii не подключится.",
     "help_real_wiimote_slot": "Dolphin общается с настоящим пультом Wii по Bluetooth, поэтому в этом слоте нечего назначать. Подключи пульт горячей клавишей подключения пультов Wii в Dolphin или включи непрерывный поиск в настройках контроллеров.",

@@ -962,7 +962,7 @@ const FR: LocaleTable = {
     "Bluetooth Passthrough": "Passthrough Bluetooth",
     "Balance Board": "Balance Board",
     "Continuous Scanning": "Recherche continue",
-    "help_dolphin_passthrough": "Laisse Dolphin communiquer avec de vraies Wiimotes via Bluetooth, comme une vraie Wii. Tant que c'est activé, les mappages de manettes émulées sont désactivés et tes manettes Bluetooth peuvent se déconnecter. Désactive-le quand tu as fini.",
+    "help_dolphin_passthrough": "Laisse Dolphin communiquer avec de vraies Wiimotes via Bluetooth, comme une vraie Wii. Tant que c'est activé, les mappages de manettes émulées sont désactivés et tes manettes Bluetooth peuvent se déconnecter. Désactive-le quand tu as fini. Fonctionne uniquement sur la Steam Machine ou sur les appareils SteamOS avec un adaptateur Bluetooth compatible.",
     "help_dolphin_balance_board": "Active une vraie Wii Balance Board sur chaque mappage Wii que tu appliques. Synchronise la planche avec son bouton d'alimentation une fois la recherche activée.",
     "help_dolphin_continuous_scanning": "Fait chercher à Dolphin les vraies Wiimotes et Balance Boards via Bluetooth. Laisse ceci activé pendant la synchronisation : un emplacement de vraie Wiimote ne se connectera pas sans ça.",
     "help_real_wiimote_slot": "Dolphin communique avec une vraie Wiimote via Bluetooth, il n'y a donc rien à mapper sur cet emplacement. Synchronise la manette avec le raccourci Connecter les Wiimotes de Dolphin ou active la recherche continue dans ses réglages de manettes.",

@@ -959,7 +959,7 @@ const DE: LocaleTable = {
     "Bluetooth Passthrough": "Bluetooth-Passthrough",
     "Balance Board": "Balance Board",
     "Continuous Scanning": "Fortlaufende Suche",
-    "help_dolphin_passthrough": "Lässt Dolphin über Bluetooth mit echten Wii-Remotes sprechen, wie eine echte Wii. Solange dies aktiv ist, sind emulierte Controller-Zuordnungen deaktiviert und deine Bluetooth-Controller können getrennt werden. Schalte es aus, wenn du fertig bist.",
+    "help_dolphin_passthrough": "Lässt Dolphin über Bluetooth mit echten Wii-Remotes sprechen, wie eine echte Wii. Solange dies aktiv ist, sind emulierte Controller-Zuordnungen deaktiviert und deine Bluetooth-Controller können getrennt werden. Schalte es aus, wenn du fertig bist. Funktioniert nur auf der Steam Machine oder auf SteamOS-Geräten mit kompatiblem Bluetooth-Adapter.",
     "help_dolphin_balance_board": "Aktiviert ein echtes Wii Balance Board bei jeder Wii-Zuordnung, die du anwendest. Koppele das Board mit seinem Ein-Schalter, sobald die Suche läuft.",
     "help_dolphin_continuous_scanning": "Lässt Dolphin weiter nach echten Wii-Remotes und Balance Boards über Bluetooth suchen. Lass das an, während du eins koppelst; ein Platz für eine echte Wii-Remote verbindet sich sonst nicht.",
     "help_real_wiimote_slot": "Dolphin spricht über Bluetooth mit einer echten Wii-Remote, deshalb gibt es auf diesem Platz nichts zu belegen. Verbinde die Remote mit Dolphins Tastenkürzel zum Verbinden von Wii-Remotes oder aktiviere in den Controller-Einstellungen die fortlaufende Suche.",
