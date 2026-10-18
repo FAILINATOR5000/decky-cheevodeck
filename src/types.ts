@@ -1476,7 +1476,6 @@ export type LeaderboardRow = {
     description: string;
     format?: string | null;
     state?: string | null;
-    userEntry?: LeaderboardUserEntry | null;
 };
 
 export type GameLeaderboardsPayload = {

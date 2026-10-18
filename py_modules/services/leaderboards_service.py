@@ -1,7 +1,5 @@
 import time
 
-import decky
-
 from utils import frontend_error, norm_game_id, to_int
 
 
@@ -28,14 +26,8 @@ class LeaderboardsService:
             "dateUpdated": raw.get("DateUpdated", raw.get("dateUpdated")),
         }
 
-    def _normalize_game_leaderboards_payload(self, game_id, raw_list, raw_user_list=None):
+    def _normalize_game_leaderboards_payload(self, game_id, raw_list):
         list_results = raw_list.get("Results", raw_list.get("results", [])) or []
-        user_results = raw_user_list.get("Results", raw_user_list.get("results", [])) if isinstance(raw_user_list, dict) else []
-        user_by_id = {}
-        for item in user_results or []:
-            lid = to_int(item.get("ID", item.get("id")), 0)
-            if lid:
-                user_by_id[lid] = self._normalize_leaderboard_user_entry(item.get("UserEntry", item.get("userEntry")))
         rows = []
         for item in list_results:
             lid = to_int(item.get("ID", item.get("id")), 0)
@@ -48,7 +40,6 @@ class LeaderboardsService:
                 "description": item.get("Description", item.get("description")) or "",
                 "format": item.get("Format", item.get("format")),
                 "state": item.get("State", item.get("state")),
-                "userEntry": user_by_id.get(lid),
             })
         return {
             "gameId": norm_game_id(game_id),
@@ -103,7 +94,7 @@ class LeaderboardsService:
             return None
         return {"payload": cached_payload, "changed": False}
 
-    def get_game_leaderboards(self, user: str, web_api_key: str, game_id, force: bool = False) -> dict:
+    def get_game_leaderboards(self, web_api_key: str, game_id, force: bool = False) -> dict:
         game_id_int = norm_game_id(game_id)
         if game_id_int is None:
             return {"error": "No game selected.", "payload": None, "changed": False}
@@ -116,13 +107,7 @@ class LeaderboardsService:
 
         try:
             raw_list = self._ra.get_game_leaderboards(game_id_int, web_api_key, count=500, offset=0)
-            try:
-                raw_user_list = self._ra.get_user_game_leaderboards(user, game_id_int, web_api_key, count=500, offset=0)
-            except Exception as exc:
-                if getattr(exc, "code", None) != 422:
-                    decky.logger.warning("user-leaderboards fetch failed for game %s: %s (%s)", game_id_int, type(exc).__name__, exc)
-                raw_user_list = {"Count": 0, "Total": 0, "Results": []}
-            payload = self._normalize_game_leaderboards_payload(game_id_int, raw_list, raw_user_list)
+            payload = self._normalize_game_leaderboards_payload(game_id_int, raw_list)
             with self._cache_store.leaderboards_lock():
                 cache = self._cache_store.load_leaderboards()
                 if not isinstance(cache, dict):

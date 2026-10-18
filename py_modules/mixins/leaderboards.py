@@ -27,7 +27,7 @@ class LeaderboardsMixin(PluginContext):
         username = str(cfg.get("username", "")).strip()
         if not web_api_key or not username:
             return {"needsSettings": True, "error": "Please enter your RetroAchievements username and Web API key.", "payload": None, "changed": False}
-        return self.leaderboards_service.get_game_leaderboards(self._active_ra_user(cfg), web_api_key, game_id, force=force)
+        return self.leaderboards_service.get_game_leaderboards(web_api_key, game_id, force=force)
 
     async def get_leaderboard_detail(self, leaderboard_id, count=25, game_id=None):
         cfg = self.settings_store.ensure_display_settings(self.settings_store.load_config())
