@@ -306,7 +306,7 @@ function ActivityPage(props: { state: ActivityPageState; actions: ActivityPageAc
     ) : null;
 
     const dayView = dayPayload ? (
-        <Focusable key={`activity:${day}`}>
+        <Focusable key={`activity:${day}`} resetNavOnEntry>
             <AchievementList
                 key={`activity:day:${day}`}
                 payload={dayPayload}

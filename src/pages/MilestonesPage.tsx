@@ -454,7 +454,7 @@ function MilestonesPage(props: { state: MilestonesPageState; actions: Milestones
                 {data && <PanelSectionRow>{controls}</PanelSectionRow>}
             </PanelSection>
             {data && (
-                <Focusable key={`milestones:tab:${tab}`}>
+                <Focusable key={`milestones:tab:${tab}`} resetNavOnEntry>
                     {tab === "milestones" ? milestonesBody : questsBody}
                 </Focusable>
             )}
