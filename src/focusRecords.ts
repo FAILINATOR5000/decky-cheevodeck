@@ -251,8 +251,8 @@ function freeze(entry: TrailEntry, why: string) {
     }
     const last = topRecord(entry);
     let found: Resolved | null = last ? { focusKey: last.focusKey, fallbacks: last.fallbacks } : null;
-    let seen = "(not read)";
-    if (writerLive() && pending?.entryId !== entry.id && rootElement) {
+    let seen = isCovered() ? "(covered)" : "(not read)";
+    if (writerLive() && pending?.entryId !== entry.id && rootElement && !isCovered()) {
         const active = rootElement.ownerDocument.activeElement;
         if (active && rootElement.contains(active)) {
             const now = resolve(active, rootElement);
@@ -942,6 +942,10 @@ function write(rootGeneration: number, root: HTMLElement, target: Element) {
             return;
         }
     }
+    if (isCovered()) {
+        logFocusDebug("record", "skip-covered", `${nameEntry(entry)} ${keyName(found)}`);
+        return;
+    }
     if (!found) {
         logFocusDebug("record", "skip-off", nameEntry(entry));
         return;
@@ -1011,7 +1015,13 @@ export function useFocusRecordWriter(
         const stopCovers = subscribeCovers(() => {
             const covered = isCovered();
             if (wasCovered && !covered) {
-                doc.defaultView?.requestAnimationFrame(() => recoverLostCursor("cover-lift"));
+                doc.defaultView?.requestAnimationFrame(() => {
+                    recoverLostCursor("cover-lift");
+                    const active = doc.activeElement;
+                    if (active && root.contains(active) && !isCovered()) {
+                        write(rootGeneration, root as HTMLElement, active);
+                    }
+                });
             }
             wasCovered = covered;
         });
