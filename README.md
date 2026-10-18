@@ -10,6 +10,7 @@ A full RetroAchievements tracking and management system inside the Quick Access 
 - [Installation](#installation)
 - [Getting Started](#getting-started)
 - [Quick Start Tips](#quick-start-tips)
+- [Tutorials](#tutorials)
 - [Updating CheevoDeck](#updating-cheevodeck)
 - [Troubleshooting](#troubleshooting)
 - [Localization](#localization)
@@ -275,6 +276,10 @@ If there ever is a moment, where you think to yourself, "Can I turn this off?" o
     <td width="320" align="center"><b>Compact View</b></td>
   </tr>
 </table>
+
+## Tutorials
+
+Need help with a certain feature or page? Check out the [tutorials section](docs/tutorials.md). Also, within CheevoDeck you can select the **?** button to get help for the page you are on.
 
 ## Updating CheevoDeck
 
