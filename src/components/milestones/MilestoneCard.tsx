@@ -41,9 +41,8 @@ export const MilestoneCard = React.memo(function MilestoneCard(props: MilestoneC
     const fraction = done ? 1 : counting ? null : target > 0 ? progress / target : 0;
 
     const completed = done ? (
-        <span style={{ color: achievementGreen }}>
-            {t(language, "Completed")}
-            {" "}
+        <span style={{ color: achievementGreen, display: "inline-flex", alignItems: "center", gap: "0.35em", flexWrap: "wrap" }}>
+            <span>{t(language, "Completed")}</span>
             <AwardStamp date={formatUnlockDate(new Date(claimedAt * 1000).toISOString(), { includeYear: true, dateOnly: true }, language)} />
         </span>
     ) : null;

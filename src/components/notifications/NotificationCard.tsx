@@ -145,6 +145,8 @@ function metaNumber(notification: CheevoNotification, key: string): number {
 const MILESTONE_CARD_TITLES: Record<string, string> = {
     milestone: "Milestone Complete",
     daily: "Daily Quest Complete",
+    bonusAppeared: "Bonus Daily Quest",
+    bonus: "Bonus Daily Quest Complete",
     weekly: "Weekly Quest Complete",
     rankUp: "Rank Up"
 };

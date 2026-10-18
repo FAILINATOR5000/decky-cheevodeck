@@ -7,6 +7,17 @@ import { t, type LanguageCode } from "../../locales";
 import type { QuestPeriod, QuestState } from "../../types";
 import { achievementGreen, achievementUiMetrics, smallTextStyle } from "../../utils/style";
 
+const PERIOD_TITLES: Record<QuestPeriod, string> = {
+    daily: "Daily Quest",
+    bonus: "Bonus Daily Quest",
+    weekly: "Weekly Quest"
+};
+
+const PERIOD_FOOTERS: Record<QuestPeriod, string> = {
+    daily: "New quest at midnight",
+    bonus: "Gone at midnight",
+    weekly: "New quest on Monday"
+};
 export function QuestCard(props: {
     language: LanguageCode;
     period: QuestPeriod;
@@ -24,7 +35,7 @@ export function QuestCard(props: {
 
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%", minWidth: 0 }}>
-            <FocusTarget focusKey={focusKey} style={{ width: "100%" }}>
+            <FocusTarget focusKey={focusKey} focusFallback={period === "bonus" ? ["milestones:quest:daily"] : undefined} style={{ width: "100%" }}>
                 <DialogButton
                     style={{ width: "100%", minWidth: 0, padding: "8px 10px", textAlign: "left" }}
                     onClick={() => { }}
@@ -33,22 +44,19 @@ export function QuestCard(props: {
                         <MilestonesIcon size={Math.round(metrics.iconSize * 0.6)} />
                         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "3px" }}>
                             <div style={{ ...smallTextStyle(), fontSize: `${metrics.pointsFontSize}px`, opacity: 0.8, fontWeight: 700 }}>
-                                {t(language, period === "daily" ? "Daily Quest" : "Weekly Quest")}
+                                {t(language, PERIOD_TITLES[period])}
                             </div>
                             <div style={{ fontSize: `${metrics.titleFontSize}px`, lineHeight: metrics.titleLineHeight, fontWeight: 800 }}>
                                 {t(language, `q_${quest.quest}_name`)}
                             </div>
                             <div style={{ ...smallTextStyle(), fontSize: `${metrics.bodyFontSize}px`, lineHeight: metrics.bodyLineHeight, opacity: 1 }}>
-                                {quest.done ? (
-                                    <span style={{ color: achievementGreen }}>
-                                        {t(language, "Completed")}
-                                        {" · "}
-                                        {t(language, "+{{xp}} XP", { xp: quest.xp })}
-                                    </span>
-                                ) : (
-                                    withInlineTags(t(language, `q_${quest.quest}_how`))
-                                )}
+                                {withInlineTags(t(language, `q_${quest.quest}_how`))}
                             </div>
+                            {quest.done && (
+                                <div style={{ ...smallTextStyle(), fontSize: `${metrics.bodyFontSize}px`, lineHeight: metrics.bodyLineHeight, opacity: 1, color: achievementGreen }}>
+                                    {t(language, "Completed")}
+                                </div>
+                            )}
                             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                                 <span style={{ ...smallTextStyle(), fontSize: `${metrics.pointsFontSize}px`, fontWeight: 800, opacity: 1 }}>
                                     {counting ? "…" : `${Math.min(quest.progress, quest.target)} / ${quest.target}`}
@@ -56,14 +64,12 @@ export function QuestCard(props: {
                                 <div style={{ flex: 1, minWidth: 0 }}>
                                     <ProgressBar fraction={fraction} />
                                 </div>
-                                {!quest.done && (
-                                    <span style={{ ...smallTextStyle(), fontSize: `${metrics.pointsFontSize}px`, opacity: 0.85 }}>
-                                        {t(language, "+{{xp}} XP", { xp: quest.xp })}
-                                    </span>
-                                )}
+                                <span style={{ ...smallTextStyle(), fontSize: `${metrics.pointsFontSize}px`, opacity: 0.85 }}>
+                                    {t(language, "+{{xp}} XP", { xp: quest.xp })}
+                                </span>
                             </div>
                             <div style={{ ...smallTextStyle(), fontSize: `${metrics.pointsFontSize}px`, opacity: 0.7 }}>
-                                {t(language, period === "daily" ? "New quest at midnight" : "New quest on Monday")}
+                                {t(language, PERIOD_FOOTERS[period])}
                                 {quest.rerolled && !quest.done ? ` · ${t(language, "Rerolled")}` : ""}
                             </div>
                         </div>

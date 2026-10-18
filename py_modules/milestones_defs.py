@@ -15,7 +15,7 @@ COUNTER_KINDS = frozenset((
     "tracked_unlocked", "note_created", "note_reminder", "note_completed", "goal_with_game",
     "goal_completed", "profile_open", "friend_favorite", "compare", "ranking_open", "pny_mode",
     "feed_game", "subscribe", "comment_saved", "post", "news_open", "event_tracked", "set_feed",
-    "leaderboard_open", "memory_screenshot", "memory_clip", "memory_moment", "timeline",
+    "leaderboard_open", "memory_screenshot", "memory_clip", "memory_moment", "memory_moment_multi", "memory_moment_triple", "timeline",
     "memory_edited", "memory_shared", "guide_open", "guide_bookmark", "guide_search",
     "guide_large", "browser_open", "cheevo_check_done", "night_on", "dnd_on", "standby_on",
     "unlock_history", "awards_open", "activity_open", "global_browser", "global_memories",
@@ -197,6 +197,13 @@ def _clean_quest(raw, with_xp):
     return out
 
 
+def _clean_bonus_quest(raw):
+    out = _clean_quest(raw, False)
+    if raw.get("xp") is not None:
+        out["xp"] = _positive(raw.get("xp"), "xp")
+    return out
+
+
 def _clean_rows(rows, label, cleaner):
     out = []
     seen = set()
@@ -243,7 +250,9 @@ def load_definitions(path):
     ranks = _clean_ranks(raw.get("ranks"))
     daily = _clean_rows(raw.get("dailyQuests"), "daily quest", lambda row: _clean_quest(row, False))
     weekly = _clean_rows(raw.get("weeklyQuests"), "weekly quest", lambda row: _clean_quest(row, True))
+    bonus = _clean_rows(raw.get("bonusQuests"), "bonus quest", _clean_bonus_quest)
     combo = raw.get("comboBonus") if isinstance(raw.get("comboBonus"), dict) else {}
+    odds = raw.get("bonusQuest") if isinstance(raw.get("bonusQuest"), dict) else {}
     if not categories or not milestones or not ranks:
         decky.logger.warning("milestones: definitions at %s are missing categories, milestones or ranks", path)
         return None
@@ -254,7 +263,14 @@ def load_definitions(path):
         "ranks": ranks,
         "dailyQuests": daily,
         "weeklyQuests": weekly,
+        "bonusQuests": bonus,
         "dailyXp": max(0, to_int(raw.get("dailyXp"), 0)),
+        "bonusQuest": {
+            "baseChance": min(100, max(0, to_int(odds.get("baseChance"), 0))),
+            "perComboDay": min(100, max(0, to_int(odds.get("perComboDay"), 0))),
+            "maxChance": min(100, max(0, to_int(odds.get("maxChance"), 0))),
+            "xp": max(0, to_int(odds.get("xp"), 0)),
+        },
         "comboBonus": {
             "perDay": max(0, to_int(combo.get("perDay"), 0)),
             "capDay": max(1, to_int(combo.get("capDay"), 1)),

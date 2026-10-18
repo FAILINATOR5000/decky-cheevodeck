@@ -169,6 +169,18 @@
     {"id": "wq_dailies_5", "rule": {"type": "daily_done"}, "target": 5, "xp": 250},
     {"id": "wq_memories_10", "rule": {"type": "action", "kinds": ["memory_screenshot", "memory_clip"]}, "target": 10, "needs": "memories_on", "xp": 250}
   ],
+  "bonusQuests": [
+    {"id": "bq_unlock_8", "rule": {"type": "unlocks"}, "target": 8},
+    {"id": "bq_points_50", "rule": {"type": "points"}, "target": 50},
+    {"id": "bq_big_unlock", "rule": {"type": "unlocks", "minPoints": 25}, "target": 1},
+    {"id": "bq_three_games", "rule": {"type": "games"}, "target": 3},
+    {"id": "bq_tracked_2", "rule": {"type": "action", "kinds": ["tracked_unlocked"]}, "target": 2, "needs": "tracked_nonempty"},
+    {"id": "bq_goal_game_3", "rule": {"type": "goal_unlocks"}, "target": 3, "needs": "goal_exists"},
+    {"id": "bq_memory_5", "rule": {"type": "action", "kinds": ["memory_screenshot", "memory_clip"]}, "target": 5, "needs": "memories_on"},
+    {"id": "bq_moment", "rule": {"type": "action", "kinds": ["memory_moment_multi"]}, "target": 1, "needs": "memories_on", "xp": 100},
+    {"id": "bq_moment_3", "rule": {"type": "action", "kinds": ["memory_moment_triple"]}, "target": 1, "needs": "memories_on", "xp": 150}
+  ],
   "dailyXp": 50,
-  "comboBonus": {"perDay": 5, "capDay": 7}
+  "comboBonus": {"perDay": 5, "capDay": 7},
+  "bonusQuest": {"baseChance": 5, "perComboDay": 5, "maxChance": 40, "xp": 75}
 }

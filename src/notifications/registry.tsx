@@ -233,7 +233,7 @@ export const NOTIFICATION_REGISTRY: Record<NotificationType, NotificationTypeEnt
             if (target.milestoneId) {
                 nav.openMilestones(`milestone:${target.milestoneId}`, "milestones");
             }
-            else if (target.quest === "daily" || target.quest === "weekly") {
+            else if (target.quest === "daily" || target.quest === "bonus" || target.quest === "weekly") {
                 nav.openMilestones(`milestones:quest:${target.quest}`, "quests");
             }
             else {

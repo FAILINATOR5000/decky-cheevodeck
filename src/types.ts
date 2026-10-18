@@ -722,7 +722,7 @@ type NotificationNavTarget = {
     setId?: string | null;
     url?: string | null;
     milestoneId?: string | null;
-    quest?: "daily" | "weekly" | null;
+    quest?: QuestPeriod | null;
     rank?: number | null;
 };
 
@@ -2742,7 +2742,7 @@ export type RankTier = "tracker" | "hunter" | "expert" | "master" | "legend";
 
 export type MilestoneRank = { xp: number; tier: RankTier; step: number };
 
-export type QuestPeriod = "daily" | "weekly";
+export type QuestPeriod = "daily" | "bonus" | "weekly";
 
 export type QuestState = {
     key: string;
@@ -2775,6 +2775,7 @@ export type MilestonesState = {
     nextRankXp: number | null;
     combo: ComboState;
     daily: QuestState | null;
+    bonus: QuestState | null;
     weekly: QuestState | null;
     newIds: string[];
     collapsed: string[];

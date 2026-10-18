@@ -88,6 +88,7 @@ def total_xp(data):
         sum(claim["xp"] for claim in data["claims"].values())
         + sum(entry["xp"] for entry in data["dailyDone"].values())
         + sum(entry["xp"] for entry in data["weeklyDone"].values())
+        + sum(entry["xp"] for entry in data["bonusDone"].values())
         + data["combo"]["xpEarned"]
     )
 
@@ -181,8 +182,38 @@ def roll_periods(data, defs, ulid, needs, day, week):
     return changed
 
 
+def bonus_xp(defs, quest):
+    return quest.get("xp", defs["bonusQuest"]["xp"])
+
+
+def carried_combo(combo, day):
+    view = combo_view(combo, day)
+    return max(0, view["length"] - 1) if view["activeToday"] else view["length"]
+
+
+def bonus_chance(odds, carried):
+    return min(odds["baseChance"] + odds["perComboDay"] * carried, odds["maxChance"])
+
+
+def roll_bonus(data, defs, ulid, needs, day, outcome):
+    rolled = data["bonusRolled"]
+    if rolled is not None and rolled >= day:
+        return False
+    data["bonusRolled"] = day
+    chance = bonus_chance(defs["bonusQuest"], carried_combo(data["combo"], day))
+    if random.Random(_seed(day + ulid + "bonus")).random() * 100 < chance:
+        quest = pick_quest(eligible_quests(defs["bonusQuests"], needs), day + ulid + "bonus-quest")
+        if quest is not None:
+            data["bonus"] = _new_period("date", day, quest)
+            daily = data["daily"]
+            if daily is not None and daily["date"] == day:
+                data["bonus"]["actions"] = dict(daily["actions"])
+            outcome["bonusAppeared"] = quest
+    return True
+
+
 def _quest_def(defs, period, quest_id):
-    quests = defs["dailyQuests"] if period == "daily" else defs["weeklyQuests"]
+    quests = {"daily": defs["dailyQuests"], "weekly": defs["weeklyQuests"], "bonus": defs["bonusQuests"]}[period]
     for quest in quests:
         if quest["id"] == quest_id:
             return quest
@@ -196,7 +227,8 @@ def quest_progress(quest, record, period_start_ts, period_end_ts, data, facts):
         return sum(record["actions"].get(k, 0) for k in rule["kinds"])
     if kind == "daily_done":
         week = record.get("week")
-        return sum(1 for day in data["dailyDone"] if week_of_day(day) == week)
+        return (sum(1 for day in data["dailyDone"] if week_of_day(day) == week)
+                + sum(1 for day in data["bonusDone"] if week_of_day(day) == week))
     rows = facts.get("periodRows")
     if rows is None:
         if kind == "award" and facts.get("awards") is not None:
@@ -229,12 +261,12 @@ def _update_quest(data, defs, facts, period, outcome):
     quest = _quest_def(defs, period, record["quest"])
     if quest is None:
         return False
-    if period == "daily":
+    if period in ("daily", "bonus"):
         key = record["date"]
         start_ts = day_start_ts(key)
         end_ts = day_start_ts(add_days(key, 1))
-        done = data["dailyDone"]
-        xp = defs["dailyXp"]
+        done = data["dailyDone"] if period == "daily" else data["bonusDone"]
+        xp = defs["dailyXp"] if period == "daily" else bonus_xp(defs, quest)
     else:
         key = record["week"]
         start_ts = day_start_ts(week_start_day(key))
@@ -278,7 +310,7 @@ def milestone_progress(milestone, data, facts, claimed, available_ids):
     if kind == "active_days":
         return derived.get("activeDays", 0)
     if kind == "daily_done":
-        return len(data["dailyDone"])
+        return len(data["dailyDone"]) + len(data["bonusDone"])
     if kind == "weekly_done":
         return len(data["weeklyDone"])
     if kind == "finish_category":
@@ -389,6 +421,8 @@ def stored_periods_start(data):
     days = []
     if data["daily"] is not None:
         days.append(data["daily"]["date"])
+    if data["bonus"] is not None:
+        days.append(data["bonus"]["date"])
     if data["weekly"] is not None:
         days.append(week_start_day(data["weekly"]["week"]))
     days = [day for day in days if day]
@@ -449,7 +483,8 @@ def _apply_ra(data, facts, now):
 
 
 def evaluate(data, defs, ulid, facts, now, events=(), after_roll=None):
-    outcome = {"changed": False, "milestones": [], "daily": None, "weekly": None, "rankUp": None, "comboPaid": 0}
+    outcome = {"changed": False, "milestones": [], "daily": None, "weekly": None, "bonus": None, "bonusAppeared": None,
+               "rankUp": None, "comboPaid": 0}
     day = facts["today"]
     week = week_of_day(day)
     xp_before = total_xp(data)
@@ -462,6 +497,8 @@ def evaluate(data, defs, ulid, facts, now, events=(), after_roll=None):
 
     if data["daily"] is not None and data["daily"]["date"] < day:
         changed = _update_quest(data, defs, facts, "daily", outcome) or changed
+    if data["bonus"] is not None and data["bonus"]["date"] < day:
+        changed = _update_quest(data, defs, facts, "bonus", outcome) or changed
     if data["weekly"] is not None and data["weekly"]["week"] < week:
         changed = _update_quest(data, defs, facts, "weekly", outcome) or changed
     changed = roll_periods(data, defs, ulid, facts["needs"], day, week) or changed
@@ -481,9 +518,14 @@ def evaluate(data, defs, ulid, facts, now, events=(), after_roll=None):
             data["combo"] = combo
             outcome["comboPaid"] = paid
             changed = True
+        until = facts["ra"].get("walkUntil")
+        if until is None or until >= day:
+            changed = roll_bonus(data, defs, ulid, facts["needs"], day, outcome) or changed
 
     if data["daily"] is not None and data["daily"]["date"] == day:
         changed = _update_quest(data, defs, facts, "daily", outcome) or changed
+    if data["bonus"] is not None and data["bonus"]["date"] == day:
+        changed = _update_quest(data, defs, facts, "bonus", outcome) or changed
     if data["weekly"] is not None and data["weekly"]["week"] == week:
         changed = _update_quest(data, defs, facts, "weekly", outcome) or changed
 
@@ -514,7 +556,8 @@ def needed_kinds(data, defs):
             kinds.update(rule["kinds"])
         elif rule["type"] == "tabs":
             kinds.add("main_tab")
-    for period, done_key, key_name in (("daily", "dailyDone", "date"), ("weekly", "weeklyDone", "week")):
+    for period, done_key, key_name in (("daily", "dailyDone", "date"), ("weekly", "weeklyDone", "week"),
+                                       ("bonus", "bonusDone", "date")):
         record = data[period]
         if record is None or record[key_name] in data[done_key]:
             continue
@@ -531,11 +574,11 @@ def _quest_state(data, defs, period, day):
     quest = _quest_def(defs, period, record["quest"])
     if quest is None:
         return None
-    if period == "daily":
+    if period in ("daily", "bonus"):
         key = record["date"]
-        done = data["dailyDone"].get(key)
+        done = data["dailyDone" if period == "daily" else "bonusDone"].get(key)
         current = key == day
-        xp = defs["dailyXp"]
+        xp = defs["dailyXp"] if period == "daily" else bonus_xp(defs, quest)
     else:
         key = record["week"]
         done = data["weeklyDone"].get(key)
@@ -549,7 +592,7 @@ def _quest_state(data, defs, period, day):
         "xp": done["xp"] if done is not None else xp,
         "done": done is not None,
         "rerolled": record["rerolled"],
-        "canReroll": current and done is None and not record["rerolled"],
+        "canReroll": current and done is None and not record["rerolled"] and period != "bonus",
         "ruleType": quest["rule"]["type"],
     }
 
@@ -612,6 +655,7 @@ def build_state(data, defs, facts):
         "combo": combo,
         "daily": _quest_state(data, defs, "daily", day),
         "weekly": _quest_state(data, defs, "weekly", day),
+        "bonus": _quest_state(data, defs, "bonus", day) if data["bonus"] is not None and data["bonus"]["date"] == day else None,
         "newIds": new_ids,
         "collapsed": data["collapsed"].get(device, []),
         "supported": supported,
@@ -632,7 +676,7 @@ def apply_event(data, kind, detail, count):
     tally = data["counters"].setdefault(device, {})
     tally[kind] = tally.get(kind, 0) + count
     day = today()
-    for period, key_name, key in (("daily", "date", day), ("weekly", "week", week_of_day(day))):
+    for period, key_name, key in (("daily", "date", day), ("weekly", "week", week_of_day(day)), ("bonus", "date", day)):
         record = data[period]
         if record is not None and record[key_name] == key:
             record["actions"][kind] = record["actions"].get(kind, 0) + count
@@ -1017,9 +1061,10 @@ class MilestonesService(TickServiceBase):
         if changed:
             self._emit_changed(ra=ra is not None and not offline)
         self._debug_log(
-            "milestones: pass events=%d ra=%s claimed=%s daily=%s weekly=%s rank=%s combo+%s",
+            "milestones: pass events=%d ra=%s claimed=%s daily=%s bonus=%s appeared=%s weekly=%s rank=%s combo+%s",
             len(events), "offline" if offline else ra is not None, outcome.get("milestones"), outcome.get("daily"),
-            outcome.get("weekly"), outcome.get("rankUp"), outcome.get("comboPaid"),
+            outcome.get("bonus"), outcome.get("bonusAppeared"), outcome.get("weekly"), outcome.get("rankUp"),
+            outcome.get("comboPaid"),
         )
         return data, outcome
 
@@ -1146,8 +1191,10 @@ class MilestonesService(TickServiceBase):
         milestones = [m for m in milestones if m is not None]
         daily = outcome.get("daily")
         weekly = outcome.get("weekly")
+        bonus = outcome.get("bonus")
+        appeared = outcome.get("bonusAppeared")
         rank = outcome.get("rankUp")
-        if not milestones and daily is None and weekly is None and rank is None:
+        if not milestones and daily is None and weekly is None and bonus is None and appeared is None and rank is None:
             return
         rank_def = self._defs["ranks"][rank] if rank is not None else None
         if self._notifications is not None and is_type_enabled("milestones", self._settings_store):
@@ -1156,16 +1203,19 @@ class MilestonesService(TickServiceBase):
                                  {"view": "milestones", "milestoneId": milestone["id"]},
                                  {"id": milestone["id"], "category": milestone["category"],
                                   "xp": data["claims"].get(milestone["id"], {}).get("xp", milestone["xp"])})
-            for period, quest_id in (("daily", daily), ("weekly", weekly)):
+            if appeared is not None:
+                self._append_row("bonusAppeared", "Bonus Daily Quest", {"view": "milestones", "quest": "bonus"},
+                                 {"id": appeared, "xp": bonus_xp(self._defs, _quest_def(self._defs, "bonus", appeared) or {})})
+            titles = {"daily": "Daily Quest Complete", "bonus": "Bonus Daily Quest Complete", "weekly": "Weekly Quest Complete"}
+            for period, quest_id in (("daily", daily), ("bonus", bonus), ("weekly", weekly)):
                 if quest_id is None:
                     continue
-                done = data["dailyDone" if period == "daily" else "weeklyDone"]
+                done = data[{"daily": "dailyDone", "bonus": "bonusDone", "weekly": "weeklyDone"}[period]]
                 xp = 0
                 for entry in done.values():
                     if entry["quest"] == quest_id:
                         xp = entry["xp"]
-                self._append_row(period, "Daily Quest Complete" if period == "daily" else "Weekly Quest Complete",
-                                 {"view": "milestones", "quest": period}, {"id": quest_id, "xp": xp})
+                self._append_row(period, titles[period], {"view": "milestones", "quest": period}, {"id": quest_id, "xp": xp})
             if rank_def is not None:
                 self._append_row("rankUp", "Rank Up", {"view": "milestones", "rank": rank},
                                  {"rank": rank, "tier": rank_def["tier"], "step": rank_def["step"]})
@@ -1173,8 +1223,12 @@ class MilestonesService(TickServiceBase):
         toasts = []
         if rank_def is not None:
             toasts.append(("Rank Up", "rank_tier_%s" % rank_def["tier"], {"numeral": _numeral(rank_def["step"])}))
+        if appeared is not None:
+            toasts.append(("Bonus Daily Quest", "q_%s_name" % appeared, None))
         if daily is not None:
             toasts.append(("Daily Quest Complete", "q_%s_name" % daily, None))
+        if bonus is not None:
+            toasts.append(("Bonus Daily Quest Complete", "q_%s_name" % bonus, None))
         if weekly is not None:
             toasts.append(("Weekly Quest Complete", "q_%s_name" % weekly, None))
         ordered = sorted(milestones, key=lambda m: m["xp"], reverse=True)

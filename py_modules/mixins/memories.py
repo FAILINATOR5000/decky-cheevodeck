@@ -1149,6 +1149,12 @@ class MemoriesMixin(PluginContext):
                       if memory_id not in had and (patch or {}).get("achievements"))
         if result.get("ok") and moments:
             self.milestones_service.record_event("memory_moment", count=moments)
+        before = {memory["id"]: len(memory.get("achievements") or []) for memory in pending}
+        for floor, kind in ((2, "memory_moment_multi"), (3, "memory_moment_triple")):
+            crossed = sum(1 for memory_id, patch in resolved.items()
+                          if before.get(memory_id, 0) < floor <= len((patch or {}).get("achievements") or []))
+            if result.get("ok") and crossed:
+                self.milestones_service.record_event(kind, count=crossed)
         return result
 
     def _memory_forward_window(self, memory) -> int:

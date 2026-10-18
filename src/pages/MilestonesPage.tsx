@@ -391,7 +391,7 @@ function MilestonesPage(props: { state: MilestonesPageState; actions: Milestones
         <PanelSection>
             <PanelSectionRow>
                 <div style={{ display: "flex", flexDirection: "column", gap: "16px", width: "100%", minWidth: 0 }}>
-                    {(["daily", "weekly"] as const).map((period) => {
+                    {(["daily", "bonus", "weekly"] as const).map((period) => {
                         const quest = data[period];
                         if (!quest) {
                             return null;
