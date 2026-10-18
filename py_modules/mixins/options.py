@@ -758,6 +758,14 @@ class OptionsMixin(PluginContext):
             "showOptionsButton": value,
         }
 
+    async def save_show_milestones_button(self, show_milestones_button: bool):
+        value = self.settings_store.update_show_milestones_button(show_milestones_button)
+
+        return {
+            "ok": True,
+            "showMilestonesButton": value,
+        }
+
     async def save_quick_menu_shortcuts(self, quick_menu_shortcuts=None):
         value = self.settings_store.update_quick_menu_shortcuts(quick_menu_shortcuts or [])
 

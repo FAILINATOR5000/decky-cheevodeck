@@ -109,6 +109,7 @@ export function useSettingsController({
     const [showTrackedSetsButton, setShowTrackedSetsButton] = useState(true);
     const [putUpdaterOnDesktop, setPutUpdaterOnDesktop] = useState(true);
     const [showOptionsButton, setShowOptionsButton] = useState(false);
+    const [showMilestonesButton, setShowMilestonesButton] = useState(false);
     const [quickMenuShortcuts, setQuickMenuShortcuts] = useState<QuickMenuShortcut[]>([]);
     const [shortcutBindings, setShortcutBindings] = useState<Record<ShortcutButton, ShortcutAction>>(DEFAULT_SHORTCUT_BINDINGS);
     const [lastScalePreset, setLastScalePreset] = useState<ScalePreset>("portable");
@@ -401,6 +402,7 @@ export function useSettingsController({
             setShowTrackedSetsButton(source.showTrackedSetsButton);
             setPutUpdaterOnDesktop(source.putUpdaterOnDesktop);
             setShowOptionsButton(source.showOptionsButton);
+            setShowMilestonesButton(source.showMilestonesButton);
             setQuickMenuShortcuts(source.quickMenuShortcuts);
             setShortcutBindings(source.shortcutBindings);
             setLastScalePreset(source.lastScalePreset);
@@ -683,6 +685,7 @@ export function useSettingsController({
         showTrackedSetsButton,
         putUpdaterOnDesktop,
         showOptionsButton,
+        showMilestonesButton,
         quickMenuShortcuts,
         shortcutBindings,
         lastScalePreset,
@@ -942,6 +945,7 @@ export function useSettingsController({
         setShowTrackedSetsButton,
         setPutUpdaterOnDesktop,
         setShowOptionsButton,
+        setShowMilestonesButton,
         setQuickMenuShortcuts,
         setShortcutBindings,
         setLastScalePreset,

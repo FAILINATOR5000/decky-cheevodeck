@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { FocusableItem } from "../ui/FocusableItem";
 import { ProgressBar } from "../ui/ProgressBar";
 import { RankEmblem } from "./RankEmblem";
@@ -8,7 +9,7 @@ import { formatInteger } from "../../utils/format";
 import { textSize } from "../../utils/scale";
 import { smallTextStyle } from "../../utils/style";
 
-const SHEEN_STYLE = `
+const sheenStyle = (focusKey: string, flush: boolean) => `
 .da-ms-sheen::after {
     content: "";
     position: absolute;
@@ -29,11 +30,19 @@ const SHEEN_STYLE = `
 @media (prefers-reduced-motion: reduce) {
     .da-ms-sheen::after { animation: none; opacity: 0; }
 }
-[data-focus-key="quickmenu:milestones"] > div { padding-top: 0 !important; background: transparent !important; }
+[data-focus-key="${focusKey}"] > div { ${flush ? "padding-top: 0 !important; " : ""}background: transparent !important; }
 `;
 
-export function MilestonesQuickMenuButton(props: { language: LanguageCode; onOpen: () => void }) {
+export function MilestonesQuickMenuButton(props: {
+    language: LanguageCode;
+    onOpen: () => void;
+    focusKey?: string;
+    flush?: boolean;
+    outerStyle?: CSSProperties;
+}) {
     const { language } = props;
+    const focusKey = props.focusKey ?? "quickmenu:milestones";
+    const flush = props.flush ?? true;
     const summary = useMilestonesSummary();
     const rank = summary ? summary.ranks[summary.rank] : null;
     const newCount = summary?.newIds.length ?? 0;
@@ -43,12 +52,12 @@ export function MilestonesQuickMenuButton(props: { language: LanguageCode; onOpe
 
     return (
         <FocusableItem
-            focusKey="quickmenu:milestones"
+            focusKey={focusKey}
             bottomSeparator="none"
             onClick={props.onOpen}
-            outerStyle={{ width: "100%", minWidth: 0 }}
+            outerStyle={{ width: "100%", minWidth: 0, ...props.outerStyle }}
         >
-            <style>{SHEEN_STYLE}</style>
+            <style>{sheenStyle(focusKey, flush)}</style>
             <div
                 className="da-ms-sheen"
                 style={{

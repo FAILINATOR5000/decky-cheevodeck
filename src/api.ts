@@ -2439,6 +2439,9 @@ export const savePutUpdaterOnDesktop = callable<[boolean], { ok: boolean; putUpd
 export const saveShowOptionsButton = callable<[boolean], { ok: boolean; showOptionsButton: boolean }>(
     "save_show_options_button"
 );
+export const saveShowMilestonesButton = callable<[boolean], { ok: boolean; showMilestonesButton: boolean }>(
+    "save_show_milestones_button"
+);
 export const saveQuickMenuShortcuts = callable<
     [QuickMenuShortcut[]],
     { ok: boolean; quickMenuShortcuts: QuickMenuShortcut[] }

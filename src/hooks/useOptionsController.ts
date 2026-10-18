@@ -176,6 +176,7 @@ import {
     saveShowTrackedSetsButton,
     savePutUpdaterOnDesktop,
     saveShowOptionsButton,
+    saveShowMilestonesButton,
     saveQuickMenuShortcuts,
     saveLastScalePreset,
     saveShortcutBinding,
@@ -532,6 +533,7 @@ type UseOptionsControllerArgs = {
     showTrackedSetsButton: boolean;
     putUpdaterOnDesktop: boolean;
     showOptionsButton: boolean;
+    showMilestonesButton: boolean;
     quickMenuShortcuts: QuickMenuShortcut[];
     quickMenuShortcutRefused: QuickMenuShortcut | null;
     shortcutBindings: Record<ShortcutButton, ShortcutAction>;
@@ -616,6 +618,7 @@ type UseOptionsControllerArgs = {
     setShowTrackedSetsButton: Dispatch<SetStateAction<boolean>>;
     setPutUpdaterOnDesktop: Dispatch<SetStateAction<boolean>>;
     setShowOptionsButton: Dispatch<SetStateAction<boolean>>;
+    setShowMilestonesButton: Dispatch<SetStateAction<boolean>>;
     setQuickMenuShortcuts: Dispatch<SetStateAction<QuickMenuShortcut[]>>;
     setQuickMenuShortcutRefused: Dispatch<SetStateAction<QuickMenuShortcut | null>>;
     setShortcutBindings: Dispatch<SetStateAction<Record<ShortcutButton, ShortcutAction>>>;
@@ -1007,6 +1010,7 @@ export function useOptionsController({
     showTrackedSetsButton,
     putUpdaterOnDesktop,
     showOptionsButton,
+    showMilestonesButton,
     quickMenuShortcuts,
     quickMenuShortcutRefused,
     shortcutBindings,
@@ -1091,6 +1095,7 @@ export function useOptionsController({
     setShowTrackedSetsButton,
     setPutUpdaterOnDesktop,
     setShowOptionsButton,
+    setShowMilestonesButton,
     setQuickMenuShortcuts,
     setQuickMenuShortcutRefused,
     setShortcutBindings,
@@ -1349,6 +1354,7 @@ export function useOptionsController({
         setShowTrackedSetsButton(Boolean(result.showTrackedSetsButton ?? true));
         setPutUpdaterOnDesktop(Boolean(result.putUpdaterOnDesktop ?? true));
         setShowOptionsButton(Boolean(result.showOptionsButton ?? false));
+        setShowMilestonesButton(Boolean(result.showMilestonesButton ?? false));
         setQuickMenuShortcuts(result.quickMenuShortcuts ?? []);
         setShortcutBindings(result.shortcutBindings ?? DEFAULT_SHORTCUT_BINDINGS);
         setLastScalePreset(result.lastScalePreset ?? "portable");
@@ -3623,6 +3629,15 @@ export function useOptionsController({
             getSavedValue: (result, fallbackValue) => Boolean(result.showOptionsButton ?? fallbackValue),
         });
 
+    const onToggleShowMilestonesButton = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: showMilestonesButton,
+            applyValue: setShowMilestonesButton,
+            saveCall: saveShowMilestonesButton,
+            getSavedValue: (result, fallbackValue) => Boolean(result.showMilestonesButton ?? fallbackValue),
+        });
+
     const onToggleQuickMenuShortcut = (id: QuickMenuShortcut, nextValue: boolean) => {
         if (nextValue && quickMenuShortcuts.length >= QUICK_MENU_SHORTCUT_LIMIT) {
             setQuickMenuShortcutRefused(id);
@@ -3952,6 +3967,7 @@ export function useOptionsController({
         showSocialHubButton,
         showTrackedSetsButton,
         showOptionsButton,
+        showMilestonesButton,
         quickMenuShortcuts,
         quickMenuShortcutRefused,
         shortcutBindings,
@@ -4222,6 +4238,7 @@ export function useOptionsController({
         onToggleShowTrackedSetsButton,
         onTogglePutUpdaterOnDesktop,
         onToggleShowOptionsButton,
+        onToggleShowMilestonesButton,
         onToggleShowAllToggleMain,
         onToggleShowAllToggleFriend,
         onToggleShowTrackedNotesMain,

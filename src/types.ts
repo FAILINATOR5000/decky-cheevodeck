@@ -1022,6 +1022,7 @@ export type SettingsResponse = {
     showTrackedSetsButton: boolean;
     putUpdaterOnDesktop: boolean;
     showOptionsButton: boolean;
+    showMilestonesButton: boolean;
     quickMenuShortcuts: QuickMenuShortcut[];
     shortcutBindings: Record<ShortcutButton, ShortcutAction>;
     lastScalePreset: ScalePreset;

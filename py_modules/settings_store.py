@@ -476,6 +476,7 @@ _KNOBS = (
     Knob("showTrackedSetsButton", default=True, normalize=True),
     Knob("putUpdaterOnDesktop", default=True, normalize=True),
     Knob("showOptionsButton", default=False, normalize=True),
+    Knob("showMilestonesButton", default=False, normalize=True),
     Knob("quickMenuShortcuts", factory=_default_quick_menu_shortcuts, normalize=True),
     Knob("quickMenuShortcutsVersion", default=QUICK_MENU_SHORTCUTS_VERSION, reset=False, ship=False),
     Knob("shortcutBindings", factory=_default_shortcut_bindings, normalize=True),
@@ -2360,6 +2361,11 @@ class SettingsStore:
 
         return self.get_show_options_button(cfg)
 
+    def update_show_milestones_button(self, value: bool) -> bool:
+        cfg = self._update_config("showMilestonesButton", bool(value))
+
+        return self.get_show_milestones_button(cfg)
+
     def update_remember_last_page(self, value: bool) -> bool:
         with self._config_lock:
             cfg = self.ensure_display_settings(self.load_config())
@@ -4192,6 +4198,9 @@ class SettingsStore:
 
     def get_show_options_button(self, cfg: dict) -> bool:
         return bool(cfg.get("showOptionsButton", False))
+
+    def get_show_milestones_button(self, cfg: dict) -> bool:
+        return bool(cfg.get("showMilestonesButton", False))
 
     def get_quick_menu_shortcuts(self, cfg: dict) -> list:
         raw = cfg.get("quickMenuShortcuts")

@@ -586,6 +586,7 @@ type MainAchievementsPageProps = {
         showSocialHubButton: boolean;
         showTrackedSetsButton: boolean;
         showOptionsButton: boolean;
+        showMilestonesButton: boolean;
         quickMenuShortcuts: QuickMenuShortcut[];
         achievementStyle: AchievementStyle;
         trackedColor: TrackedColor;
@@ -897,6 +898,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
             showSocialHubButton,
             showTrackedSetsButton,
             showOptionsButton,
+            showMilestonesButton,
             quickMenuShortcuts,
             achievementStyle,
             trackedColor,
@@ -2301,15 +2303,17 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                     {pillRows.length > 1 && renderQuickMenuCaption(lowerRowMenuLabel, "4px", "4px")}
                                 </div>
                             </Focusable>
-                            <PanelSectionRow>
-                                <MilestonesQuickMenuButton
-                                    language={language}
-                                    onOpen={() => {
-                                        setQuickMenuExpanded(false);
-                                        onOpenMilestones();
-                                    }}
-                                />
-                            </PanelSectionRow>
+                            {!showMilestonesButton && (
+                                <PanelSectionRow>
+                                    <MilestonesQuickMenuButton
+                                        language={language}
+                                        onOpen={() => {
+                                            setQuickMenuExpanded(false);
+                                            onOpenMilestones();
+                                        }}
+                                    />
+                                </PanelSectionRow>
+                            )}
                         </Focusable>
                     </div>
                 )}
@@ -2370,6 +2374,15 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                             </PanelSectionRow>
                         )}
                     </>
+                )}
+                {showMilestonesButton && (
+                    <MilestonesQuickMenuButton
+                        language={language}
+                        focusKey="action:milestones"
+                        flush={false}
+                        outerStyle={buttonOuterStyle}
+                        onOpen={onOpenMilestones}
+                    />
                 )}
                 {showSocialHubButton && (
                     <LabeledRow

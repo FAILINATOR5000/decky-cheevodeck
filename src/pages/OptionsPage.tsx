@@ -374,6 +374,7 @@ type OptionsPageState = {
     showSocialHubButton: boolean;
     showTrackedSetsButton: boolean;
     showOptionsButton: boolean;
+    showMilestonesButton: boolean;
     quickMenuShortcuts: QuickMenuShortcut[];
     quickMenuShortcutRefused: QuickMenuShortcut | null;
     showAllToggleMain: boolean;
@@ -627,6 +628,7 @@ type OptionsPageActions = {
     onToggleShowSocialHubButton: (nextValue: boolean) => void | Promise<void>;
     onToggleShowTrackedSetsButton: (nextValue: boolean) => void | Promise<void>;
     onToggleShowOptionsButton: (nextValue: boolean) => void | Promise<void>;
+    onToggleShowMilestonesButton: (nextValue: boolean) => void | Promise<void>;
     onToggleShowAllToggleMain: (nextValue: boolean) => void | Promise<void>;
     onToggleShowAllToggleFriend: (nextValue: boolean) => void | Promise<void>;
     onToggleShowTrackedNotesMain: (nextValue: boolean) => void | Promise<void>;
@@ -1571,6 +1573,15 @@ function GuiTab(props: TabContentProps) {
                 separator
             />
             <SectionTitle label={t(state.language, "Main Menu / Profile")} />
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:showMilestonesButton"
+                label={t(state.language, "Show Milestones Button")}
+                value={state.showMilestonesButton}
+                onChange={actions.onToggleShowMilestonesButton}
+                disabled={disabled}
+                help={t(state.language, "help_show_milestones_button")}
+            />
             <OptionToggle
                 outerStyle={buttonOuterStyle}
                 focusKey="options:toggle:showSocialHubButton"
