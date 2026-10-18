@@ -14,7 +14,7 @@ import { FocusClaim } from "../components/ui/FocusClaim";
 import { HashesList } from "../components/games/HashesList";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
 import { LabeledRow } from "../components/ui/LabeledRow";
-import { PageNavStrip } from "../components/ui/PageNavStrip";
+import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { ViewingFriendBanner } from "../components/social/ViewingFriendBanner";
 import { SubTabIconButton, subTabIcon, type SubTabIconKind } from "../components/ui/SubTabIconButton";
 import type {
@@ -601,6 +601,7 @@ function GameOverviewPage(props: GameOverviewPageProps) {
                     title={t(language, "Game Info")}
                     buttonSpacing={buttonSpacing}
                     onHome={onHome}
+                    help={<PageHelpButton focusKey="gameoverview:guide" guide="game-info" />}
                 />
                 <BackButton
                     label={t(language, "← Back")}
@@ -623,6 +624,7 @@ function GameOverviewPage(props: GameOverviewPageProps) {
                     title={t(language, "Game Info")}
                     buttonSpacing={buttonSpacing}
                     onHome={onHome}
+                    help={<PageHelpButton focusKey="gameoverview:guide" guide="game-info" />}
                 />
                 <BackButton
                     label={t(language, "← Back")}
@@ -665,6 +667,7 @@ function GameOverviewPage(props: GameOverviewPageProps) {
                     title={t(language, "Game Info")}
                     buttonSpacing={buttonSpacing}
                     onHome={onHome}
+                    help={<PageHelpButton focusKey="gameoverview:guide" guide="game-info" />}
                 />
                 <BackButton
                     label={t(language, "← Back")}

@@ -34,11 +34,8 @@ import type {
 } from "../types";
 import { showManagedModal } from "../utils/modalRegistry";
 import { BUTTON_OK } from "../utils/gamepadButtons";
-import { openExternalUrl } from "../utils/navigation";
 import { playOkSound } from "../utils/navSound";
 import { achievementUiMetrics, bodyTextStyle, smallTextStyle } from "../utils/style";
-
-const GUIDE_URL = "https://github.com/FAILINATOR5000/decky-cheevodeck/blob/main/docs/tutorials/milestones.md";
 
 const TABS: { value: MilestonesTab; labelKey: string; focusKey: string }[] = [
     { value: "milestones", labelKey: "Milestones", focusKey: "milestones:tab:milestones" },
@@ -429,7 +426,7 @@ function MilestonesPage(props: { state: MilestonesPageState; actions: Milestones
                     title={t(language, "Milestones")}
                     buttonSpacing={state.buttonSpacing}
                     onHome={actions.onHome}
-                    help={<PageHelpButton focusKey="milestones:guide" onClick={() => void openExternalUrl(GUIDE_URL)} />}
+                    help={<PageHelpButton focusKey="milestones:guide" guide="milestones" />}
                 />
                 <BackButton
                     label={t(language, "← Back")}

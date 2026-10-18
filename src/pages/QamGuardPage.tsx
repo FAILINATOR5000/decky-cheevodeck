@@ -2,7 +2,7 @@ import { useCallback, useRef, useState, type RefObject } from "react";
 import { Focusable, PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
 import { BackButton } from "../components/ui/BackButton";
-import { PageNavStrip } from "../components/ui/PageNavStrip";
+import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { SubTabButton } from "../components/ui/SubTabButton";
 import { OptionButton, OptionToggle } from "../components/options/OptionRows";
 import { InfoText } from "../components/ui/InfoText";
@@ -183,6 +183,7 @@ function QamGuardView(props: QamGuardPageProps) {
                 title={t(language, "Stormbreaker")}
                 buttonSpacing={state.buttonSpacing}
                 onHome={actions.onHome}
+                help={<PageHelpButton focusKey="qamGuard:guide" guide="stormbreaker" />}
             />
 
             <BackButton

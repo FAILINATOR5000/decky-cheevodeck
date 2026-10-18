@@ -6,7 +6,7 @@ import { BackButton } from "../components/ui/BackButton";
 import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
 import { FocusableItem } from "../components/ui/FocusableItem";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
-import { PageNavStrip } from "../components/ui/PageNavStrip";
+import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { ProgressBar } from "../components/ui/ProgressBar";
 import { SectionTitle } from "../components/ui/SectionTitle";
 import { ToggleRow } from "../components/ui/ToggleRow";
@@ -296,6 +296,7 @@ function FileWatcherPage(props: FileWatcherPageProps) {
                     title={t(language, "File Watcher")}
                     buttonSpacing={state.buttonSpacing}
                     onHome={actions.onHome}
+                    help={<PageHelpButton focusKey="fileWatcher:guide" guide="file-watcher" />}
                 />
 
                 <BackButton

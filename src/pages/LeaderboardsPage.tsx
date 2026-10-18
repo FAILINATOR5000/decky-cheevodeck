@@ -4,7 +4,7 @@ import { BackButton } from "../components/ui/BackButton";
 import { ErrorText } from "../components/ui/ErrorText";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
 import { LeaderboardList } from "../components/leaderboards/LeaderboardList";
-import { PageNavStrip } from "../components/ui/PageNavStrip";
+import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import type { ButtonSpacing, GameLeaderboardsPayload, LeaderboardRow, UiSize, ViewKey } from "../types";
 import { localizeRuntimeText, t } from "../locales";
 import type { LanguageCode } from "../locales";
@@ -63,6 +63,7 @@ function LeaderboardsPage({ state, actions }: LeaderboardsPageProps) {
                     title={t(state.language, "Leaderboards")}
                     buttonSpacing={state.buttonSpacing}
                     onHome={actions.onHome}
+                    help={<PageHelpButton focusKey="leaderboards:guide" guide="leaderboards-list" />}
                 />
                 <BackButton
                     label={

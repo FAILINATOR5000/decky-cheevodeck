@@ -343,7 +343,6 @@ export const saveModalScale = callable<[ScaleStep], { ok: boolean; modalScale: S
 export const saveGuideZoom = callable<[number], { ok: boolean; guideZoom: number }>("save_guide_zoom");
 export const saveGuideModalZoom = callable<[number], { ok: boolean; guideModalZoom: number }>("save_guide_modal_zoom");
 export const saveTextViewerZoom = callable<[number], { ok: boolean; textViewerZoom: number }>("save_text_viewer_zoom");
-export const loadHelpDocument = callable<[string], { ok: boolean; text: string }>("load_help_document");
 export const saveKeepGuidesOffline = callable<[boolean], { ok: boolean; keepGuidesOffline: boolean }>(
     "save_keep_guides_offline"
 );

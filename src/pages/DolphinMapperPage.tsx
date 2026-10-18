@@ -4,14 +4,13 @@ import React, { useEffect, useMemo, useRef, useState, type CSSProperties } from 
 import { BackButton } from "../components/ui/BackButton";
 import { ButtonHints } from "../components/ui/ButtonHints";
 import { FocusClaim } from "../components/ui/FocusClaim";
-import { PageNavStrip } from "../components/ui/PageNavStrip";
+import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { SectionTitle } from "../components/ui/SectionTitle";
 import { FocusableItem } from "../components/ui/FocusableItem";
 import { LabeledRow } from "../components/ui/LabeledRow";
 import { ToggleRow } from "../components/ui/ToggleRow";
 import { ReorderStrip } from "../components/ui/ReorderStrip";
 import { InfoText } from "../components/ui/InfoText";
-import { TextViewerModal } from "../components/ui/TextViewerModal";
 import { ErrorText } from "../components/ui/ErrorText";
 import { CollapseChevron } from "../components/ui/CollapseChevron";
 import { CollapseToggleButton } from "../components/ui/CollapseToggleButton";
@@ -178,18 +177,6 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
                 allTags={allTags}
                 language={language}
                 saveMapping={(input) => saveMappingAndAim(input, entryId)}
-                close={close}
-            />
-        ));
-    };
-
-    const openHelp = () => {
-        showManagedModal((close) => (
-            <TextViewerModal
-                language={language}
-                mouseKeyboardMode={mouseKeyboardMode}
-                title={t(language, "Help")}
-                text={t(language, "help_dolphin_controller_order")}
                 close={close}
             />
         ));
@@ -492,9 +479,10 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
     const page = (
         <PanelSection key="dolphinMapper:view">
             <PageNavStrip
-                title={t(language, "Dolphin Mapper")}
+                title={t(language, "Mapper")}
                 buttonSpacing={buttonSpacing}
                 onHome={onHome}
+                help={<PageHelpButton focusKey="dolphinMapper:guide" guide="dolphin-mapper" />}
             />
 
             <BackButton
@@ -507,17 +495,6 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
                 onClick={onBack}
                 scrollMarginTop={BACK_BUTTON_SCROLL_MARGIN_PX}
             />
-
-            <PanelSectionRow>
-                <FocusableItem
-                    focusKey="dolphinMapper:help"
-                    outerStyle={regularButtonSpacingStyle(buttonSpacing)}
-                    onClick={openHelp}
-                    bottomSeparator="standard"
-                >
-                    {t(language, "Help")}
-                </FocusableItem>
-            </PanelSectionRow>
 
             <PanelSectionRow>
                 <FocusableItem

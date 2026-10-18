@@ -4,7 +4,7 @@ import { PanelSection } from "../components/ui/PanelSection";
 import { BackButton } from "../components/ui/BackButton";
 import { FocusableItem } from "../components/ui/FocusableItem";
 import { ErrorText } from "../components/ui/ErrorText";
-import { PageNavStrip } from "../components/ui/PageNavStrip";
+import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { FadeImage } from "../components/ui/FadeImage";
 import { getCachedGameIconDataUri, getGameIconCached } from "../api";
 import type {
@@ -130,6 +130,7 @@ function WantToPlayPage(props: WantToPlayPageProps) {
                     title={titleSection}
                     buttonSpacing={props.buttonSpacing}
                     onHome={props.onHome}
+                    help={<PageHelpButton focusKey="wanttoplay:guide" guide="want-to-play" />}
                 />
                 <BackButton
                     label={t(props.language, "← Back to Friend Profile")}

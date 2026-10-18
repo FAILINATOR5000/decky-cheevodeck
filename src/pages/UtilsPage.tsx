@@ -2,7 +2,7 @@ import { PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
 import { BackButton } from "../components/ui/BackButton";
 import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
-import { PageNavStrip } from "../components/ui/PageNavStrip";
+import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { openBrowserModal } from "../components/browser/BrowserModal";
 import { openCalculatorModal } from "../components/calculator/CalculatorModal";
 import { FocusableItem } from "../components/ui/FocusableItem";
@@ -49,6 +49,7 @@ function UtilsPage(props: UtilsPageProps) {
                 title={t(state.language, "Utilities")}
                 buttonSpacing={state.buttonSpacing}
                 onHome={actions.onHome}
+                help={<PageHelpButton focusKey="utils:guide" guide="utilities" />}
             />
 
             <BackButton

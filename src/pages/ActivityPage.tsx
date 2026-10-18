@@ -19,11 +19,9 @@ import type { AchievementRow, ActivityRow, ActivitySubject, ButtonSpacing, Contr
 import { unlockDateLabel } from "../utils/achievements";
 import { formatInteger } from "../utils/format";
 import { BUTTON_OPTIONS } from "../utils/gamepadButtons";
-import { openExternalUrl } from "../utils/navigation";
 import { playOkSound } from "../utils/navSound";
 import { achievementUiMetrics, bodyTextStyle, smallTextStyle } from "../utils/style";
 
-const GUIDE_URL = "https://github.com/FAILINATOR5000/decky-cheevodeck/blob/main/docs/tutorials/activity.md";
 const CAPTION_MAX_FONT_SIZE = achievementUiMetrics("xlarge").bodyFontSize;
 const TITLE_MAX_FONT_SIZE = achievementUiMetrics("large").titleFontSize;
 const DAY_KEY_PREFIX = "activity:day:";
@@ -369,7 +367,7 @@ function ActivityPage(props: { state: ActivityPageState; actions: ActivityPageAc
                     title={title}
                     buttonSpacing={state.buttonSpacing}
                     onHome={actions.onHome}
-                    help={<PageHelpButton focusKey="activity:guide" onClick={() => void openExternalUrl(GUIDE_URL)} />}
+                    help={<PageHelpButton focusKey="activity:guide" guide="activity-calendar" />}
                 />
                 <BackButton
                     label={t(language, "← Back")}

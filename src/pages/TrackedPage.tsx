@@ -11,7 +11,7 @@ import { GridIcon } from "../components/ui/GridIcon";
 import { LabeledRow } from "../components/ui/LabeledRow";
 import { OtherGamesDrillInBody } from "../components/tracked/OtherGamesDrillInBody";
 import { OtherGamesPicker } from "../components/tracked/OtherGamesPicker";
-import { PageNavStrip } from "../components/ui/PageNavStrip";
+import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { ReorderStrip } from "../components/ui/ReorderStrip";
 import { TrackedButtonHints } from "../components/tracked/TrackedButtonHints";
 import { TrackedEmptyMessage } from "../components/tracked/TrackedEmptyMessage";
@@ -644,6 +644,7 @@ function TrackedPage(props: TrackedPageProps) {
                     title={t(language, "Tracked")}
                     buttonSpacing={buttonSpacing}
                     onHome={onHome}
+                    help={<PageHelpButton focusKey="tracked:guide" guide="tracked-achievements" />}
                 />
                 <BackButton
                     key={`back:${backClaimToken}`}

@@ -17,7 +17,7 @@ import { NewSetCard } from "../components/social/NewSetCard";
 import { SubTabButton } from "../components/ui/SubTabButton";
 import { EventsTabBody } from "../components/events/EventsTabBody";
 import { isEventConsole } from "../utils/events";
-import { PageNavStrip } from "../components/ui/PageNavStrip";
+import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { activityCardActionLabel } from "../utils/options";
 import type {
     ActivityCardAction,
@@ -80,6 +80,7 @@ type SocialTab = {
     Icon: ComponentType<TabIconProps>;
     labelKey: string;
     focusKey: string;
+    guide: string;
 };
 
 // Icons
@@ -173,11 +174,11 @@ function NewspaperIcon({ size = 18 }: TabIconProps) {
 
 // Tabs and constants
 const SOCIAL_TABS: SocialTab[] = [
-    { view: "friends", Icon: FriendsIcon, labelKey: "Friends", focusKey: "social:tab:friends" },
-    { view: "favorites", Icon: StarIcon, labelKey: "Favorites", focusKey: "social:tab:favorites" },
-    { view: "activity", Icon: ClockIcon, labelKey: "Activity", focusKey: "social:tab:activity" },
-    { view: "subscribedDiscussions", Icon: SubscribedDiscussionsIcon, labelKey: "Community", focusKey: "social:tab:subscribeddiscussions" },
-    { view: "newsEvents", Icon: NewspaperIcon, labelKey: "News & Events", focusKey: "social:tab:newsevents" }
+    { view: "friends", Icon: FriendsIcon, labelKey: "Friends", focusKey: "social:tab:friends", guide: "social-hub-friends" },
+    { view: "favorites", Icon: StarIcon, labelKey: "Favorites", focusKey: "social:tab:favorites", guide: "social-hub-favorites" },
+    { view: "activity", Icon: ClockIcon, labelKey: "Activity", focusKey: "social:tab:activity", guide: "social-hub-activity" },
+    { view: "subscribedDiscussions", Icon: SubscribedDiscussionsIcon, labelKey: "Community", focusKey: "social:tab:subscribeddiscussions", guide: "social-hub-community" },
+    { view: "newsEvents", Icon: NewspaperIcon, labelKey: "News & Events", focusKey: "social:tab:newsevents", guide: "social-hub-news-and-events" }
 ];
 
 const NEWS_EVENTS_SUB_TABS: { value: NewsEventsSubView; labelKey: string; focusKey: string }[] = [
@@ -1033,6 +1034,7 @@ function SocialHubPage(props: SocialHubPageProps) {
                     title={t(props.language, "Social Hub")}
                     buttonSpacing={props.buttonSpacing}
                     onHome={props.onHome}
+                    help={<PageHelpButton focusKey="social:guide" guide={selectedSocialTab.guide} />}
                 />
                 <BackButton
                     key={`back:${backClaimToken}`}

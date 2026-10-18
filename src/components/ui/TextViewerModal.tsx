@@ -3,8 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { InlineSpinner } from "./InlineSpinner";
 import { withInlineTags } from "./inlineTags";
-import { loadHelpDocument, saveTextViewerZoom } from "../../api";
-import { logError } from "../../utils/errors";
+import { saveTextViewerZoom } from "../../api";
 import { t, type LanguageCode } from "../../locales";
 import { BUTTON_TRIGGER_LEFT, BUTTON_TRIGGER_RIGHT } from "../../utils/gamepadButtons";
 import { PROGRESS_MARK_PX, PROGRESS_TRACK_PX } from "../guides/GuidesReaderBody";
@@ -24,8 +23,7 @@ type TextViewerModalProps = {
     language: LanguageCode;
     mouseKeyboardMode: boolean;
     title: string;
-    documentName?: string;
-    text?: string;
+    text: string;
     close: () => void;
 };
 
@@ -80,7 +78,7 @@ function scrollOffsetIntoView(host: HTMLElement, scroller: HTMLElement, offset: 
 }
 
 export function TextViewerModal(props: TextViewerModalProps) {
-    const { language, mouseKeyboardMode, title, documentName, text: providedText, close } = props;
+    const { language, mouseKeyboardMode, title, text: providedText, close } = props;
 
     const [text, setText] = useState<string | null>(null);
     const [failed, setFailed] = useState(false);
@@ -95,41 +93,12 @@ export function TextViewerModal(props: TextViewerModalProps) {
     const restoreRatioRef = useRef<number | null>(null);
 
     useEffect(() => {
-        if (providedText !== undefined) {
-            if (providedText) {
-                setText(providedText);
-            }
-            else {
-                setFailed(true);
-            }
-            return;
+        if (providedText) {
+            setText(providedText);
         }
-        if (!documentName) {
+        else {
             setFailed(true);
-            return;
         }
-        let cancelled = false;
-        void (async () => {
-            try {
-                const result = await loadHelpDocument(documentName);
-                if (cancelled) {
-                    return;
-                }
-                if (result?.ok && result.text) {
-                    setText(result.text);
-                }
-                else {
-                    setFailed(true);
-                }
-            }
-            catch (err) {
-                logError(`TextViewerModal could not load ${documentName}`, err);
-                if (!cancelled) {
-                    setFailed(true);
-                }
-            }
-        })();
-        return () => { cancelled = true; };
     }, []);
 
     useEffect(() => {

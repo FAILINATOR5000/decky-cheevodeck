@@ -30,7 +30,6 @@ import { requestJumpToTop } from "../utils/jumpToTop";
 import { saveMemoryToFolder } from "../utils/saveMemoryMedia";
 import { forgetNavAxisMemory, type NavAxisRef } from "../utils/navAxisMemory";
 import { playOkSound } from "../utils/navSound";
-import { openExternalUrl } from "../utils/navigation";
 import { ALL_GAMES_ID, MISC_GAME_ID, mediaFilterKey, memoryRemovalLanding } from "../utils/memories";
 import { noteBodyColor } from "../utils/achievements";
 import { bodyTextStyle, regularButtonSpacingStyle, smallTextStyle } from "../utils/style";
@@ -114,8 +113,6 @@ const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 const BOTTOM_HEADROOM_PX = 80;
 
 const GRID_COLUMN_CHOICES = [1, 2, 3];
-
-const MEMORIES_GUIDE_URL = "https://github.com/FAILINATOR5000/decky-cheevodeck/blob/main/docs/tutorials/memories.md";
 
 type PageStripPlace = "top" | "bottom";
 
@@ -688,12 +685,7 @@ function MemoriesPage(props: MemoriesPageProps) {
                     title={t(language, "Memories")}
                     buttonSpacing={buttonSpacing}
                     onHome={actions.onHome}
-                    help={(
-                        <PageHelpButton
-                            focusKey="memories:guide"
-                            onClick={() => void openExternalUrl(MEMORIES_GUIDE_URL)}
-                        />
-                    )}
+                    help={<PageHelpButton focusKey="memories:guide" guide="memories" />}
                 />
                 <BackButton
                     label={t(language, "Back")}

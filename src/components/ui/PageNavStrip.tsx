@@ -9,6 +9,7 @@ import { useNotificationsChrome } from "../notifications/NotificationsContext";
 import type { ButtonSpacing } from "../../types";
 import { getCurrentTitleScale, scaleMultiplier } from "../../utils/scale";
 import { recordMilestoneEvent } from "../../utils/milestoneEvents";
+import { openExternalUrl } from "../../utils/navigation";
 
 // Font Awesome Free icon path, CC BY 4.0. See ATTRIBUTIONS.md.
 function BellIcon(props: { size?: number }) {
@@ -75,13 +76,15 @@ type PageNavStripProps = {
     help?: React.ReactNode;
 };
 
-export function PageHelpButton(props: { focusKey: string; onClick: () => void }) {
+const TUTORIALS_URL = "https://github.com/FAILINATOR5000/decky-cheevodeck/blob/main/docs/tutorials";
+
+export function PageHelpButton(props: { focusKey: string; guide: string }) {
     return (
         <FocusTarget focusKey={props.focusKey} style={{ position: "relative" }}>
             <DialogButton
                 onClick={() => {
                     recordMilestoneEvent("page_help");
-                    props.onClick();
+                    void openExternalUrl(`${TUTORIALS_URL}/${props.guide}.md`);
                 }}
                 style={navButtonStyle}
             >
@@ -111,6 +114,7 @@ export function PageNavStrip(props: PageNavStripProps) {
                     <HomeIcon size={18} />
                 </DialogButton>
             </FocusTarget>
+            {props.help}
             <FocusTarget focusKey="nav:bell" style={{ position: "relative" }}>
                 <DialogButton
                     onClick={notifications.openNotifications}
@@ -137,7 +141,6 @@ export function PageNavStrip(props: PageNavStripProps) {
                     </div>
                 )}
             </FocusTarget>
-            {props.help}
         </Focusable>
     );
 
@@ -160,7 +163,7 @@ export function PageNavStrip(props: PageNavStripProps) {
                     letterSpacing: "0.5px",
                     display: "flex",
                     alignItems: "center",
-                    height: "36px"
+                    minHeight: "36px"
                 }}
             >
                 {props.title}

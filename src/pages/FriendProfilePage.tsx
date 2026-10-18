@@ -23,7 +23,7 @@ import { FocusClaim } from "../components/ui/FocusClaim";
 import { FocusableItem } from "../components/ui/FocusableItem";
 import { FocusTarget } from "../components/ui/FocusTarget";
 import { LabeledRow } from "../components/ui/LabeledRow";
-import { PageNavStrip } from "../components/ui/PageNavStrip";
+import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { ProfileMotto } from "../components/social/ProfileMotto";
 import { ToggleRow } from "../components/ui/ToggleRow";
 import { SetMosaicBanner, type SetMosaicEntry } from "../components/mastery/SetMosaicBanner";
@@ -682,6 +682,7 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                     title={t(language, "Profile")}
                     buttonSpacing={buttonSpacing}
                     onHome={actions.onHome}
+                    help={<PageHelpButton focusKey="friendgame:guide" guide="profile" />}
                 />
                 <BackButton
                     label={t(language, backToMain ? "← Back to Main" : backToEvent ? "← Back" : "← Back to Social")}

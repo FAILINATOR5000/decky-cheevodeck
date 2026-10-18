@@ -7,7 +7,7 @@ import { FocusTarget } from "../components/ui/FocusTarget";
 import { FadeImage } from "../components/ui/FadeImage";
 import { ErrorText } from "../components/ui/ErrorText";
 import { LabeledRow } from "../components/ui/LabeledRow";
-import { PageNavStrip } from "../components/ui/PageNavStrip";
+import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { AwardStamp } from "../components/achievements/AwardStamp";
 import { formatUnlockDate } from "../utils/achievements";
 import type {
@@ -420,6 +420,7 @@ function BadgesPage(props: BadgesPageProps) {
                     title={t(props.language, "Awards")}
                     buttonSpacing={props.buttonSpacing}
                     onHome={props.onHome}
+                    help={<PageHelpButton focusKey="badges:guide" guide="awards" />}
                 />
                 <BackButton
                     label={t(props.language, "← Back to Friend Profile")}

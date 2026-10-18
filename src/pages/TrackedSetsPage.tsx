@@ -21,7 +21,7 @@ import { FocusableItem } from "../components/ui/FocusableItem";
 import { FocusTarget } from "../components/ui/FocusTarget";
 import { FocusClaim } from "../components/ui/FocusClaim";
 import { LabeledRow } from "../components/ui/LabeledRow";
-import { PageNavStrip } from "../components/ui/PageNavStrip";
+import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { ReorderStrip } from "../components/ui/ReorderStrip";
 import { SetGameNoteEditModal } from "../components/notes/SetGameNoteEditModal";
 import { SetMosaicBanner, type SetMosaicEntry } from "../components/mastery/SetMosaicBanner";
@@ -597,6 +597,7 @@ function TrackedSetsPageBody(props: TrackedSetsPageProps) {
                     title={t(language, "Mastery Goals")}
                     buttonSpacing={buttonSpacing}
                     onHome={onHome}
+                    help={<PageHelpButton focusKey="trackedsets:guide" guide="mastery-goals" />}
                 />
                 <BackButton
                     key={`back:${backClaimToken}`}

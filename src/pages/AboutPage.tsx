@@ -2,7 +2,7 @@ import { Focusable, PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
 import React, { useRef, useState, type ReactNode } from "react";
 import { BackButton } from "../components/ui/BackButton";
-import { PageNavStrip } from "../components/ui/PageNavStrip";
+import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { SectionTitle } from "../components/ui/SectionTitle";
 import { FocusableItem } from "../components/ui/FocusableItem";
 import { FocusTarget } from "../components/ui/FocusTarget";
@@ -233,9 +233,10 @@ function AboutPage(props: AboutPageProps) {
     return (
         <PanelSection key="about:view">
             <PageNavStrip
-                title={t(state.language, "About CheevoDeck")}
+                title={t(state.language, "About")}
                 buttonSpacing={state.buttonSpacing}
                 onHome={actions.onHome}
+                help={<PageHelpButton focusKey="about:guide" guide="about" />}
             />
 
             <BackButton

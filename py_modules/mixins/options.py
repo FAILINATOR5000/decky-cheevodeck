@@ -10,7 +10,6 @@ from services.update_checker_service import installed_version
 from mixins._context import PluginContext
 
 HELP_DOCUMENTS = {
-    "cheevoCheck": "cheevo-check.txt",
     "changelog": "changelog.txt",
     "welcome": "welcome.txt",
 }

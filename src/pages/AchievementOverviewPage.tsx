@@ -10,7 +10,7 @@ import { FocusClaim } from "../components/ui/FocusClaim";
 import { GameContextBanner } from "../components/social/GameContextBanner";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
 import { LabeledRow } from "../components/ui/LabeledRow";
-import { PageNavStrip } from "../components/ui/PageNavStrip";
+import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { ViewingFriendBanner } from "../components/social/ViewingFriendBanner";
 import type {
     AchievementOverviewSnapshot,
@@ -248,6 +248,7 @@ function AchievementOverviewPage(props: AchievementOverviewPageProps) {
                     title={t(language, "Overview")}
                     buttonSpacing={buttonSpacing}
                     onHome={onHome}
+                    help={<PageHelpButton focusKey="ao:guide" guide="overview-achievement" />}
                 />
                 <BackButton
                     label={t(language, "← Back")}
@@ -292,6 +293,7 @@ function AchievementOverviewPage(props: AchievementOverviewPageProps) {
                     title={t(language, "Overview")}
                     buttonSpacing={buttonSpacing}
                     onHome={onHome}
+                    help={<PageHelpButton focusKey="ao:guide" guide="overview-achievement" />}
                 />
                 <BackButton
                     label={t(language, "← Back")}
@@ -314,6 +316,7 @@ function AchievementOverviewPage(props: AchievementOverviewPageProps) {
                     title={t(language, "Overview")}
                     buttonSpacing={buttonSpacing}
                     onHome={onHome}
+                    help={<PageHelpButton focusKey="ao:guide" guide="overview-achievement" />}
                 />
                 <BackButton
                     label={t(language, "← Back")}

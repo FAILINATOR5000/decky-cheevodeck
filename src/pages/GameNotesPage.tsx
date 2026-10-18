@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, type ComponentType } fr
 import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
 import { BackButton } from "../components/ui/BackButton";
-import { PageNavStrip } from "../components/ui/PageNavStrip";
+import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
 import { InfoText } from "../components/ui/InfoText";
 import { NoteCard, type NoteCardListProps } from "../components/notes/NoteCard";
@@ -588,6 +588,7 @@ export function GameNotesPage(props: GameNotesPageProps) {
                     title={t(language, "Game Notes")}
                     buttonSpacing={buttonSpacing}
                     onHome={actions.onHome}
+                    help={<PageHelpButton focusKey="gn:guide" guide="notes" />}
                 />
                 <BackButton
                     label={t(language, "← Back to Main")}

@@ -5,7 +5,7 @@ import { CompareAchievementRow, compareBorderFor, type CompareRowListProps } fro
 import { POINTS_LABEL_STYLES } from "../components/achievements/PointsLabel";
 import { CompareHeader } from "../components/achievements/CompareHeader";
 import { BackButton } from "../components/ui/BackButton";
-import { PageNavStrip } from "../components/ui/PageNavStrip";
+import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { ErrorText } from "../components/ui/ErrorText";
 import { FocusableItem } from "../components/ui/FocusableItem";
 import { FocusTarget } from "../components/ui/FocusTarget";
@@ -321,17 +321,14 @@ function FriendCompareGamePage(props: FriendCompareGamePageProps) {
     }
 
     const isLoadingAnything = yourLoading || friendGameLoading;
-    const headerTitle = friendUsername
-        ? t(language, "Compare with {{name}}", { name: friendUsername })
-        : t(language, "Compare");
-
     return (
         <React.Fragment key="friendcompare:view">
             <PanelSection>
                 <PageNavStrip
-                    title={headerTitle}
+                    title={t(language, "Compare")}
                     buttonSpacing={buttonSpacing}
                     onHome={actions.onHome}
+                    help={<PageHelpButton focusKey="friendcompare:guide" guide="compare-achievements" />}
                 />
                 <BackButton
                     label={t(language, "← Back to Friend Profile")}

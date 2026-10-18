@@ -9,7 +9,7 @@ import { ConfirmRow } from "../components/ui/ConfirmRow";
 import { FocusClaim } from "../components/ui/FocusClaim";
 import { FocusableItem } from "../components/ui/FocusableItem";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
-import { PageNavStrip } from "../components/ui/PageNavStrip";
+import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { ProgressBar } from "../components/ui/ProgressBar";
 import { TripleConfirmRow } from "../components/ui/TripleConfirmRow";
 import { SectionTitle } from "../components/ui/SectionTitle";
@@ -253,6 +253,7 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
                 title={t(language, "Transfer")}
                 buttonSpacing={state.buttonSpacing}
                 onHome={actions.onHome}
+                help={<PageHelpButton focusKey="memoriesTransfer:guide" guide="transfer-memories" />}
             />
 
             <BackButton

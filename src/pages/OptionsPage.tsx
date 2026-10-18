@@ -4,7 +4,7 @@ import { Fragment, useState, type ComponentType } from "react";
 import { BackButton } from "../components/ui/BackButton";
 import { FocusTarget } from "../components/ui/FocusTarget";
 import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
-import { PageNavStrip } from "../components/ui/PageNavStrip";
+import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { ErrorText } from "../components/ui/ErrorText";
 import { InfoText } from "../components/ui/InfoText";
 import {
@@ -718,6 +718,7 @@ function OptionsPage(props: OptionsPageProps) {
                 title={t(state.language, "Options")}
                 buttonSpacing={state.buttonSpacing}
                 onHome={actions.onHome}
+                help={<PageHelpButton focusKey="options:guide" guide="options" />}
             />
             <BackButton
                 label={t(state.language, "← Back to Main")}

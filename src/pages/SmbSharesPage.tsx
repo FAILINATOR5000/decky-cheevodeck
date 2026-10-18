@@ -2,7 +2,7 @@ import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
 import { useEffect, useState } from "react";
 import { BackButton } from "../components/ui/BackButton";
-import { PageNavStrip } from "../components/ui/PageNavStrip";
+import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { SectionTitle } from "../components/ui/SectionTitle";
 import { FocusableItem } from "../components/ui/FocusableItem";
 import { ToggleRow } from "../components/ui/ToggleRow";
@@ -308,6 +308,7 @@ function SmbSharesPage(props: SmbSharesPageProps) {
                 title={t(language, "SMB Shares")}
                 buttonSpacing={state.buttonSpacing}
                 onHome={actions.onHome}
+                help={<PageHelpButton focusKey="smbShares:guide" guide="smb-shares" />}
             />
 
             <BackButton

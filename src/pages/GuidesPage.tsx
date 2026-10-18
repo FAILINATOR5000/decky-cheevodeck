@@ -4,7 +4,7 @@ import React, { useMemo, useRef, type MutableRefObject } from "react";
 
 import { BackButton } from "../components/ui/BackButton";
 import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
-import { PageNavStrip } from "../components/ui/PageNavStrip";
+import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { FadeImage } from "../components/ui/FadeImage";
 import { FocusableItem } from "../components/ui/FocusableItem";
 import { FocusTarget } from "../components/ui/FocusTarget";
@@ -258,6 +258,7 @@ export function GuidesPage(props: GuidesPageProps) {
                         title={t(lang, "Guides")}
                         buttonSpacing={state.buttonSpacing}
                         onHome={actions.onHome}
+                        help={<PageHelpButton focusKey="guides:guide" guide="guides" />}
                     />
                     <GuidesQamReader
                         state={g}
@@ -286,6 +287,7 @@ export function GuidesPage(props: GuidesPageProps) {
                         title={t(lang, "Guides")}
                         buttonSpacing={state.buttonSpacing}
                         onHome={actions.onHome}
+                        help={<PageHelpButton focusKey="guides:guide" guide="guides" />}
                     />
                     <BackButton
                         label={t(lang, "← Back to Guides")}
@@ -324,6 +326,7 @@ export function GuidesPage(props: GuidesPageProps) {
                     title={t(lang, "Guides")}
                     buttonSpacing={state.buttonSpacing}
                     onHome={actions.onHome}
+                    help={<PageHelpButton focusKey="guides:guide" guide="guides" />}
                 />
                 <BackButton
                     label={backLabel}

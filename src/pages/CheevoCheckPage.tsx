@@ -10,12 +10,10 @@ import { FocusableItem } from "../components/ui/FocusableItem";
 import { FocusTarget } from "../components/ui/FocusTarget";
 import { InfoText, helpDescription } from "../components/ui/InfoText";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
-import { PageNavStrip } from "../components/ui/PageNavStrip";
+import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { ProgressBar } from "../components/ui/ProgressBar";
 import { SectionTitle } from "../components/ui/SectionTitle";
-import { TextViewerModal } from "../components/ui/TextViewerModal";
 import { ToggleRow } from "../components/ui/ToggleRow";
-import { showManagedModal } from "../utils/modalRegistry";
 import { fileWatcherSpeedLabel } from "../utils/fileWatcher";
 import { DarkenScreenRow } from "../components/darken/DarkenScreenRow";
 import { useCheevoCheck } from "../components/cheevocheck/CheevoCheckContext";
@@ -61,7 +59,7 @@ const VERIFY_BUCKETS: Array<{
     { bucket: "unverifiable", label: "Can't Verify", help: "help_cheevo_check_unverifiable", colour: faultViolet }
 ];
 
-type FoldableSection = "scan" | "results" | "verify" | "help" | "options";
+type FoldableSection = "scan" | "results" | "verify" | "options";
 
 const SECTION_BY_KEY: Record<string, FoldableSection> = {
     "cheevocheck:scan": "scan",
@@ -72,7 +70,6 @@ const SECTION_BY_KEY: Record<string, FoldableSection> = {
     "cheevocheck:noachievements": "results",
     "cheevocheck:failed": "results",
     "cheevocheck:archivemismatch": "results",
-    "cheevocheck:guide": "help",
     "cheevocheck:toggle:darkenScreen": "options",
     "cheevocheck:toggle:batterySaver": "options",
     "cheevocheck:toggle:libraryBadge": "options",
@@ -152,8 +149,6 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                 return { collapsed: settings.resultsCollapsed, unfold: () => settings.saveResultsCollapsed(false) };
             case "verify":
                 return { collapsed: settings.verifyCollapsed, unfold: () => settings.saveVerifyCollapsed(false) };
-            case "help":
-                return { collapsed: settings.helpCollapsed, unfold: () => settings.saveHelpCollapsed(false) };
             case "options":
                 return { collapsed: settings.optionsCollapsed, unfold: () => settings.saveOptionsCollapsed(false) };
         }
@@ -193,18 +188,6 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
     const verify = cheevo?.verifyResults ?? null;
     const hasherProblem = cheevo?.hasherProblem ?? null;
     const canScanOffline = Boolean(cheevo?.dataAvailable) && !busy && !hasherProblem;
-
-    function openGuide() {
-        showManagedModal((close) => (
-            <TextViewerModal
-                language={language}
-                mouseKeyboardMode={state.mouseKeyboardMode}
-                title={t(language, "Cheevo Check Guide")}
-                documentName="cheevoCheck"
-                close={close}
-            />
-        ));
-    }
 
     function extendedInfo(row: CheevoCheckRow): string[] {
         const lines: string[] = [];
@@ -285,6 +268,7 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                 title={t(language, "Cheevo Check")}
                 buttonSpacing={state.buttonSpacing}
                 onHome={actions.onHome}
+                help={<PageHelpButton focusKey="cheevocheck:guide" guide="cheevo-check" />}
             />
 
             <BackButton
@@ -695,34 +679,6 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                             )}
 
                         </>
-                    )}
-
-                    <SectionTitle
-                        label={t(language, "Help")}
-                        align="start"
-                        scaled={false}
-                        action={
-                            <CollapseToggleButton
-                                collapsed={settings.helpCollapsed}
-                                focusKey="cheevocheck:help:collapse"
-                                onToggle={() => settings.saveHelpCollapsed(!settings.helpCollapsed)}
-                            />
-                        }
-                    />
-                    {!settings.helpCollapsed && (
-                    <PanelSectionRow>
-                        <FocusableItem
-                            focusKey="cheevocheck:guide"
-                            outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
-                            onClick={() => {
-                                openGuide();
-                            }}
-                            bottomSeparator="standard"
-                            help={t(language, "help_cheevo_check_guide")}
-                        >
-                            {t(language, "Guide")}
-                        </FocusableItem>
-                    </PanelSectionRow>
                     )}
 
                     <SectionTitle

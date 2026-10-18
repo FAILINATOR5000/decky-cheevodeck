@@ -8,7 +8,7 @@ import { ErrorText } from "../components/ui/ErrorText";
 import { FocusableItem } from "../components/ui/FocusableItem";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
 import { LabeledRow } from "../components/ui/LabeledRow";
-import { PageNavStrip } from "../components/ui/PageNavStrip";
+import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { UserAvatar } from "../components/ui/UserAvatar";
 import { useSlidingWindow } from "../hooks/useSlidingWindow";
 import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
@@ -403,6 +403,7 @@ function LeaderboardDetailPage({ state, actions }: LeaderboardDetailPageProps) {
                     title={t(state.language, "Leaderboard")}
                     buttonSpacing={state.buttonSpacing}
                     onHome={actions.onHome}
+                    help={<PageHelpButton focusKey="leaderboarddetail:guide" guide="leaderboard-rankings" />}
                 />
                 <BackButton
                     label={t(state.language, "← Back to Leaderboards")}

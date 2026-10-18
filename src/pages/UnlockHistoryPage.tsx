@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { getRecentUnlockHistory } from "../api";
 import { AchievementList } from "../components/achievements/AchievementList";
 import { BackButton } from "../components/ui/BackButton";
-import { PageNavStrip } from "../components/ui/PageNavStrip";
+import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { ErrorText } from "../components/ui/ErrorText";
 import { InfoText } from "../components/ui/InfoText";
 import { localizeRuntimeText, t, type LanguageCode } from "../locales";
@@ -225,9 +225,10 @@ function UnlockHistoryPage(props: UnlockHistoryPageProps) {
         return (
             <PanelSection key="unlockhistory:view">
                 <PageNavStrip
-                    title={t(state.language, "Unlock History")}
+                    title={t(state.language, "History")}
                     buttonSpacing={state.buttonSpacing}
                     onHome={actions.onHome}
+                    help={<PageHelpButton focusKey="unlockhistory:guide" guide="unlock-history" />}
                 />
                 {backButton}
                 <PanelSectionRow>
@@ -248,9 +249,10 @@ function UnlockHistoryPage(props: UnlockHistoryPageProps) {
         <>
             <PanelSection key="unlockhistory:view">
                 <PageNavStrip
-                    title={t(state.language, "Unlock History")}
+                    title={t(state.language, "History")}
                     buttonSpacing={state.buttonSpacing}
                     onHome={actions.onHome}
+                    help={<PageHelpButton focusKey="unlockhistory:guide" guide="unlock-history" />}
                 />
                 {backButton}
                 <PanelSectionRow>
