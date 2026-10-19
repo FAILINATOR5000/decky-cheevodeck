@@ -5,11 +5,14 @@ import { modalBodyStyle } from "../../utils/style";
 import { modalSize } from "../../utils/scale";
 import type { MainUiPreset } from "../../utils/options";
 import { MAIN_UI_COMPACT_PREVIEW, MAIN_UI_DEFAULT_PREVIEW } from "../ui/mainUiPreviews";
+import { BottomFocusAnchor } from "../ui/BottomFocusAnchor";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 
 type WelcomeMainUiModalProps = {
     language: LanguageCode;
     onApplyMainUiPreset: (preset: MainUiPreset) => void | Promise<void>;
+    onDone: (layout: MainUiPreset) => void;
+    onCancel: () => void;
     close: () => void;
 };
 
@@ -31,7 +34,7 @@ const LAYOUTS = [
 ];
 
 export function WelcomeMainUiModal(props: WelcomeMainUiModalProps) {
-    const { language, onApplyMainUiPreset, close } = props;
+    const { language, onApplyMainUiPreset, onDone, onCancel, close } = props;
 
     const defaultRef = useRef<HTMLDivElement | null>(null);
     const [focusedLayout, setFocusedLayout] = useState<string | null>(null);
@@ -43,27 +46,34 @@ export function WelcomeMainUiModal(props: WelcomeMainUiModalProps) {
     }, []);
 
     const shotHeight = modalSize(200);
+    const shotMaxHeight = "36vh";
 
     function pickLayout(layout: string) {
-        if (layout === "default") {
+        const preset = layout as MainUiPreset;
+
+        if (preset === "default") {
             close();
+            onDone(preset);
             return;
         }
 
         close();
-        void onApplyMainUiPreset(layout as MainUiPreset);
+        void onApplyMainUiPreset(preset);
+        onDone(preset);
     }
 
     return (
-        <ModalRoot onCancel={close} onEscKeypress={close}>
+        <ModalRoot onCancel={onCancel} onEscKeypress={onCancel}>
             <SnapshotHotkey language={language} />
-            <div style={{ fontSize: `${modalSize(22)}px`, fontWeight: 700, marginBottom: "4px" }}>
-                {t(language, "welcome_main_ui_title")}
-            </div>
+            <Focusable onActivate={() => { }} noFocusRing={true} data-focus-key="welcome-main-ui:heading">
+                <div style={{ fontSize: `${modalSize(22)}px`, fontWeight: 700, marginBottom: "4px" }}>
+                    {t(language, "welcome_main_ui_title")}
+                </div>
 
-            <div style={{ fontSize: `${modalSize(14)}px`, lineHeight: 1.4, marginBottom: "10px" }}>
-                {t(language, "welcome_main_ui_intro")}
-            </div>
+                <div style={{ fontSize: `${modalSize(14)}px`, lineHeight: 1.4, marginBottom: "10px" }}>
+                    {t(language, "welcome_main_ui_intro")}
+                </div>
+            </Focusable>
 
             <Focusable
                 flow-children="row"
@@ -126,7 +136,7 @@ export function WelcomeMainUiModal(props: WelcomeMainUiModalProps) {
                                     style={{
                                         display: "block",
                                         width: "auto",
-                                        height: `${shotHeight}px`,
+                                        height: `min(${shotHeight}px, ${shotMaxHeight})`,
                                         borderRadius: "4px",
                                         border: `1px solid rgba(${layout.accent},${isFocused ? 0.75 : 0.35})`,
                                         opacity: isFocused ? 1 : 0.5,
@@ -147,6 +157,8 @@ export function WelcomeMainUiModal(props: WelcomeMainUiModalProps) {
                 <span style={{ fontWeight: 700 }}>{t(language, "Main UI Presets")}</span>
                 {t(language, "welcome_main_ui_footer_after")}
             </div>
+
+            <BottomFocusAnchor focusKey="welcome-main-ui:bottom:anchor" headroomPx={8} />
         </ModalRoot>
     );
 }

@@ -4,12 +4,14 @@ import { t, type LanguageCode } from "../../locales";
 import { modalBodyStyle } from "../../utils/style";
 import { modalSize } from "../../utils/scale";
 import type { ScalePreset } from "../../types";
+import { BottomFocusAnchor } from "../ui/BottomFocusAnchor";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 
 type WelcomeFollowupModalProps = {
     language: LanguageCode;
     onApplyScalePreset: (preset: ScalePreset) => void | Promise<void>;
     onDone: () => void;
+    onCancel: () => void;
     close: () => void;
 };
 
@@ -76,7 +78,7 @@ const PRESETS = [
 ];
 
 export function WelcomeFollowupModal(props: WelcomeFollowupModalProps) {
-    const { language, onApplyScalePreset, onDone, close } = props;
+    const { language, onApplyScalePreset, onDone, onCancel, close } = props;
 
     const portableRef = useRef<HTMLDivElement | null>(null);
     const [focusedPreset, setFocusedPreset] = useState<string | null>(null);
@@ -103,15 +105,17 @@ export function WelcomeFollowupModal(props: WelcomeFollowupModalProps) {
     const glyphSize = modalSize(30);
 
     return (
-        <ModalRoot onCancel={close} onEscKeypress={close}>
+        <ModalRoot onCancel={onCancel} onEscKeypress={onCancel}>
             <SnapshotHotkey language={language} />
-            <div style={{ fontSize: `${modalSize(22)}px`, fontWeight: 700, marginBottom: "4px" }}>
-                {t(language, "welcome_followup_title")}
-            </div>
+            <Focusable onActivate={() => { }} noFocusRing={true} data-focus-key="welcome-followup:heading">
+                <div style={{ fontSize: `${modalSize(22)}px`, fontWeight: 700, marginBottom: "4px" }}>
+                    {t(language, "welcome_followup_title")}
+                </div>
 
-            <div style={{ fontSize: `${modalSize(14)}px`, lineHeight: 1.4, marginBottom: "10px" }}>
-                {t(language, "welcome_followup_intro")}
-            </div>
+                <div style={{ fontSize: `${modalSize(14)}px`, lineHeight: 1.4, marginBottom: "10px" }}>
+                    {t(language, "welcome_followup_intro")}
+                </div>
+            </Focusable>
 
             <Focusable
                 flow-children="row"
@@ -203,6 +207,8 @@ export function WelcomeFollowupModal(props: WelcomeFollowupModalProps) {
                 <span style={{ fontWeight: 700 }}>{t(language, "Display Scaling Presets")}</span>
                 {t(language, "welcome_followup_footer_after")}
             </div>
+
+            <BottomFocusAnchor focusKey="welcome-followup:bottom:anchor" headroomPx={8} />
         </ModalRoot>
     );
 }

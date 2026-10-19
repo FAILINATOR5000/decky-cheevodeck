@@ -13,6 +13,7 @@ type WelcomeModalProps = {
     userName: string;
     showPreserveToggle: boolean;
     onApplyProfile: (profile: string, preserveOtherSettings: boolean) => void | Promise<void>;
+    onCancel: () => void;
     close: () => void;
 };
 
@@ -101,7 +102,7 @@ function greetingKeyForHour(hour: number): string {
 }
 
 export function WelcomeModal(props: WelcomeModalProps) {
-    const { language, userName, showPreserveToggle, onApplyProfile, close } = props;
+    const { language, userName, showPreserveToggle, onApplyProfile, onCancel, close } = props;
 
     const [preserveOtherSettings, setPreserveOtherSettings] = useState(true);
 
@@ -126,17 +127,19 @@ export function WelcomeModal(props: WelcomeModalProps) {
     const glyphSize = modalSize(26);
 
     return (
-        <ModalRoot onCancel={close} onEscKeypress={close} className="cheevo-welcome-dialog">
+        <ModalRoot onCancel={onCancel} onEscKeypress={onCancel} className="cheevo-welcome-dialog">
             <SnapshotHotkey language={language} />
             <style>{MODAL_WIDTH_CSS}</style>
 
-            <div style={{ fontSize: `${modalSize(22)}px`, fontWeight: 700, marginBottom: "4px" }}>
-                {greeting}, {userName}
-            </div>
+            <Focusable onActivate={() => { }} noFocusRing={true} data-focus-key="welcome:heading">
+                <div style={{ fontSize: `${modalSize(22)}px`, fontWeight: 700, marginBottom: "4px" }}>
+                    {greeting}, {userName}
+                </div>
 
-            <div style={{ fontSize: `${modalSize(14)}px`, lineHeight: 1.4, marginBottom: "8px" }}>
-                {t(language, "welcome_intro")}
-            </div>
+                <div style={{ fontSize: `${modalSize(14)}px`, lineHeight: 1.4, marginBottom: "8px" }}>
+                    {t(language, "welcome_intro")}
+                </div>
+            </Focusable>
 
             {showPreserveToggle ? (
                 <ToggleRow
@@ -258,9 +261,7 @@ export function WelcomeModal(props: WelcomeModalProps) {
                 {t(language, "welcome_footer_after")}
             </div>
 
-            {showPreserveToggle ? (
-                <BottomFocusAnchor focusKey="welcome:bottom:anchor" headroomPx={8} />
-            ) : null}
+            <BottomFocusAnchor focusKey="welcome:bottom:anchor" headroomPx={8} />
         </ModalRoot>
     );
 }

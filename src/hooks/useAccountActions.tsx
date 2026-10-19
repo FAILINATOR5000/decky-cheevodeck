@@ -26,7 +26,9 @@ import { CredentialsModal } from "../components/account/CredentialsModal";
 import { LanguageModal } from "../components/account/LanguageModal";
 import { SwitchUserModal, type SwitchUserOutcome } from "../components/account/SwitchUserModal";
 import { WelcomeFollowupModal } from "../components/account/WelcomeFollowupModal";
+import { WelcomeGlobalButtonsModal } from "../components/account/WelcomeGlobalButtonsModal";
 import { WelcomeMainUiModal } from "../components/account/WelcomeMainUiModal";
+import { WelcomeMilestonesModal } from "../components/account/WelcomeMilestonesModal";
 import { WelcomeModal } from "../components/account/WelcomeModal";
 import { t, type LanguageCode } from "../locales";
 import type { NavIntent } from "../nav";
@@ -64,6 +66,8 @@ type UseAccountActionsArgs = {
     onApplySetupProfile: (profile: string, preserveOtherSettings: boolean) => void | Promise<void>;
     onApplyScalePreset: (preset: ScalePreset) => void | Promise<void>;
     onApplyMainUiPreset: (preset: MainUiPreset) => void | Promise<void>;
+    onApplyMilestonesButton: (show: boolean) => void | Promise<void>;
+    onApplyGlobalButtons: (enabled: boolean) => void | Promise<void>;
     onSelectLanguage: (code: LanguageCode) => void | Promise<void>;
     username: string;
     hasApiKey: boolean;
@@ -94,6 +98,8 @@ export function useAccountActions({
     onApplySetupProfile,
     onApplyScalePreset,
     onApplyMainUiPreset,
+    onApplyMilestonesButton,
+    onApplyGlobalButtons,
     onSelectLanguage,
     username,
     hasApiKey,
@@ -171,34 +177,58 @@ export function useAccountActions({
         ));
     }
 
+    function endSetup(close: () => void) {
+        close();
+        window.setTimeout(() => {
+            void announceWelcome().catch(() => {});
+        }, WELCOME_TOAST_DELAY_MS);
+    }
+
     function openScaleProfileModal() {
         showManagedModal((close) => (
             <WelcomeFollowupModal
                 language={language}
                 onApplyScalePreset={onApplyScalePreset}
                 onDone={openMainUiModal}
+                onCancel={() => endSetup(close)}
                 close={close}
             />
         ));
     }
 
     function openMainUiModal() {
-        showManagedModal((close) => {
-            function finish() {
-                close();
-                window.setTimeout(() => {
-                    void announceWelcome().catch(() => {});
-                }, WELCOME_TOAST_DELAY_MS);
-            }
+        showManagedModal((close) => (
+            <WelcomeMainUiModal
+                language={language}
+                onApplyMainUiPreset={onApplyMainUiPreset}
+                onDone={openMilestonesModal}
+                onCancel={() => endSetup(close)}
+                close={close}
+            />
+        ));
+    }
 
-            return (
-                <WelcomeMainUiModal
-                    language={language}
-                    onApplyMainUiPreset={onApplyMainUiPreset}
-                    close={finish}
-                />
-            );
-        });
+    function openMilestonesModal(layout: MainUiPreset) {
+        showManagedModal((close) => (
+            <WelcomeMilestonesModal
+                language={language}
+                layout={layout}
+                onApplyMilestonesButton={onApplyMilestonesButton}
+                onDone={openGlobalButtonsModal}
+                onCancel={() => endSetup(close)}
+                close={close}
+            />
+        ));
+    }
+
+    function openGlobalButtonsModal() {
+        showManagedModal((close) => (
+            <WelcomeGlobalButtonsModal
+                language={language}
+                onApplyGlobalButtons={onApplyGlobalButtons}
+                close={() => endSetup(close)}
+            />
+        ));
     }
 
     function openSetupProfilesModal(userName?: string) {
@@ -220,6 +250,7 @@ export function useAccountActions({
                         }
                     }
                 }}
+                onCancel={alreadyViewed ? close : () => endSetup(close)}
                 close={close}
             />
         ));

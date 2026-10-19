@@ -409,6 +409,29 @@ export const DEFAULT_SHORTCUT_BINDINGS: Record<ShortcutButton, ShortcutAction> =
     menuR3: "none"
 };
 
+type GlobalShortcutRow = { action: ShortcutAction; backButton: ShortcutButton | null; combo: ShortcutButton | null };
+
+export function defaultGlobalShortcuts(): GlobalShortcutRow[] {
+    const rows: GlobalShortcutRow[] = [];
+    for (const { id: button } of SHORTCUT_BUTTONS) {
+        const action = DEFAULT_SHORTCUT_BINDINGS[button];
+        if (!worksOutsidePanel(button, action)) {
+            continue;
+        }
+        let row = rows.find((one) => one.action === action);
+        if (!row) {
+            row = { action, backButton: null, combo: null };
+            rows.push(row);
+        }
+        if (menuCombo(button)) {
+            row.combo = button;
+            continue;
+        }
+        row.backButton = button;
+    }
+    return rows;
+}
+
 export function shortcutButtonLabel(value: ShortcutButton, language: LanguageCode = DEFAULT_LANGUAGE) {
     if (value === "menu") {
         return t(language, "shortcut_button_menu");

@@ -2136,6 +2136,8 @@ function AchievementsRoot() {
             optionsActions.onApplySetupProfile(profile, preserveOtherSettings),
         onApplyScalePreset: (preset) => optionsActions.onApplyScalePreset(preset),
         onApplyMainUiPreset: (preset) => optionsActions.onApplyMainUiPreset(preset),
+        onApplyMilestonesButton: (show) => optionsActions.onToggleShowMilestonesButton(show),
+        onApplyGlobalButtons: (enabled) => optionsActions.onToggleBackButtonsGlobal(enabled),
         onSelectLanguage: (code) => optionsActions.onSelectLanguage(code),
         username,
         hasApiKey,
