@@ -369,6 +369,8 @@ def _eviocgabs(code: int) -> int:
 RESCAN_RETRY_SECONDS = 1.0
 RESCAN_RETRY_PASSES = 5
 
+BATCH_SECONDS = 0.01
+
 
 def device_from_uevent(text: str):
     for line in text.splitlines():
@@ -729,6 +731,11 @@ class BackButtonService:
                     self._check_combo(nodes)
                     continue
 
+                time.sleep(BATCH_SECONDS)
+                ready, _, _ = select.select(watched, [], [], 0)
+                if stop_r in ready:
+                    break
+
                 if netlink is not None and netlink in ready:
                     try:
                         message = netlink.recv(NETLINK_READ_SIZE)
@@ -746,15 +753,11 @@ class BackButtonService:
                     try:
                         if node.evdev:
                             self._read_evdev(fd, node)
-                            continue
-                        data = os.read(fd, READ_SIZE)
-                    except BlockingIOError:
-                        continue
+                        else:
+                            self._read_hidraw(fd, node)
                     except OSError as exc:
                         self._drop(nodes, fd, f"{type(exc).__name__}: {exc}")
                         dropped = True
-                        continue
-                    self._decode(node, data)
 
                 if dropped:
                     retries = RESCAN_RETRY_PASSES if self._rescan(nodes) else 0
@@ -816,8 +819,27 @@ class BackButtonService:
         self._decode(node, bytes(node.report))
         return True
 
+    def _read_hidraw(self, fd: int, node: _OpenNode) -> None:
+        while True:
+            try:
+                data = os.read(fd, READ_SIZE)
+            except BlockingIOError:
+                return
+            if not data:
+                return
+            self._decode(node, data)
+
     def _read_evdev(self, fd: int, node: _OpenNode) -> None:
-        data = os.read(fd, EVDEV_READ_SIZE)
+        while True:
+            try:
+                data = os.read(fd, EVDEV_READ_SIZE)
+            except BlockingIOError:
+                return
+            if not data:
+                return
+            self._read_evdev_events(fd, node, data)
+
+    def _read_evdev_events(self, fd: int, node: _OpenNode, data: bytes) -> None:
         for offset in range(0, len(data) - INPUT_EVENT.size + 1, INPUT_EVENT.size):
             _sec, _usec, ev_type, code, value = INPUT_EVENT.unpack_from(data, offset)
             if ev_type == EV_SYN and code == SYN_DROPPED:
