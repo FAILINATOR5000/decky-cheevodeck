@@ -1581,11 +1581,30 @@ type MemoriesTransferState =
     | "validating"
     | "importing"
     | "finishing"
+    | "connecting"
+    | "preparing"
+    | "receiving"
+    | "sending"
     | "done"
     | "canceled"
     | "failed";
 
-type MemoriesTransferDirection = "" | "export" | "import";
+type MemoriesTransferDirection = "" | "export" | "import" | "send" | "receive";
+
+export type NearbyPeer = {
+    model: string;
+    host: string;
+    address: string;
+};
+
+export type NearbyDeviceRow = NearbyPeer & {
+    id: string;
+    memories: number;
+    memoriesNoVideos: number;
+    bytes: number;
+    bytesNoVideos: number;
+    includesVideo: boolean;
+};
 
 export type MemoriesTransferMode = "merge" | "replace";
 
@@ -1623,6 +1642,7 @@ export type MemoriesTransferStatus = {
     bytes: number;
     totalBytes: number;
     target: string;
+    peer: NearbyPeer | null;
     stashed: boolean;
     captureTurnedOn: boolean;
 };

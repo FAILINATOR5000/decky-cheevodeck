@@ -11,24 +11,32 @@ import { FocusableItem } from "../components/ui/FocusableItem";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
 import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { ProgressBar } from "../components/ui/ProgressBar";
+import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
 import { TripleConfirmRow } from "../components/ui/TripleConfirmRow";
 import { SectionTitle } from "../components/ui/SectionTitle";
 import { ToggleRow } from "../components/ui/ToggleRow";
 import { useFocusClaim } from "../hooks/useFocusClaim";
+import { useSlidingWindow } from "../hooks/useSlidingWindow";
 import { useMemoriesTransfer } from "../components/memories/MemoriesTransferContext";
-import { BUNDLE_FOCUS_PREFIX, IMPORT_AGAIN_FOCUS_KEY } from "../hooks/useMemoriesTransferController";
+import {
+    BUNDLE_FOCUS_PREFIX,
+    IMPORT_AGAIN_FOCUS_KEY,
+    NEARBY_FOCUS_PREFIX
+} from "../hooks/useMemoriesTransferController";
 import { transferErrorKey } from "../utils/memoriesTransferErrors";
+import { nearbyDeviceLabel, nearbyDeviceName } from "../utils/nearbyDevices";
 import { t, type LanguageCode } from "../locales";
 import type {
     ButtonSpacing,
     MemoriesTransferStatus,
     MemoryBundleRow,
+    NearbyDeviceRow,
     ViewKey
 } from "../types";
 import { textSize } from "../utils/scale";
 import { transferSizeLabel } from "../utils/memoriesTransferSize";
 import { bodyTextStyle, errorRed, regularButtonSpacingStyle, warnAmber } from "../utils/style";
-import { subLandingAhead, usePageLanding } from "../focusRecords";
+import { pendingLandingKey, subLandingAhead, usePageLanding } from "../focusRecords";
 import { expectHeirClaim } from "../focusClaims";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
@@ -38,6 +46,20 @@ const LOADING_SPINNER_DELAY_MS = 500;
 const IMPORT_FOCUS_KEY = "memoriesTransfer:import";
 
 const HELP_TEXT_BASE_PX = 12;
+
+const NEARBY_INITIAL_ROWS = 20;
+const NEARBY_ROW_STEP = 20;
+const NEARBY_SENTINEL_ROOT_MARGIN_PX = 600;
+
+const NO_NEARBY_DEVICES: NearbyDeviceRow[] = [];
+
+function nearbyKey(row: NearbyDeviceRow): string {
+    return NEARBY_FOCUS_PREFIX + row.id;
+}
+
+type PendingTarget =
+    | { kind: "bundle"; row: MemoryBundleRow }
+    | { kind: "nearby"; row: NearbyDeviceRow };
 
 function dateLabel(seconds: number, language: LanguageCode): string {
     if (seconds <= 0) {
@@ -51,7 +73,15 @@ function dateLabel(seconds: number, language: LanguageCode): string {
 }
 
 function phaseLabel(status: MemoriesTransferStatus, language: LanguageCode): string {
+    const name = status.peer ? nearbyDeviceLabel(status.peer, language) : "";
     switch (status.state) {
+        case "connecting":
+        case "preparing":
+            return t(language, "Getting it ready on {{name}}...", { name });
+        case "receiving":
+            return t(language, "Receiving from {{name}}...", { name });
+        case "sending":
+            return t(language, "Sending to {{name}}...", { name });
         case "scanning":
             return t(language, "Looking through your memories...");
         case "writing":
@@ -68,7 +98,8 @@ function phaseLabel(status: MemoriesTransferStatus, language: LanguageCode): str
 }
 
 function transferFraction(status: MemoriesTransferStatus): number | null {
-    if (status.totalBytes <= 0 || status.state === "scanning") {
+    if (status.totalBytes <= 0 || status.state === "scanning" || status.state === "connecting"
+        || status.state === "preparing") {
         return null;
     }
     return Math.min(status.bytes / status.totalBytes, 1);
@@ -120,20 +151,23 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
         browseForBundles,
         forgetBundles,
         startImport,
+        nearby,
+        nearbyClosed,
+        pullFromNearby,
         cancel,
         recoverStashed,
         discardStashed
     } = useMemoriesTransfer();
 
     const [showLoading, setShowLoading] = useState(false);
-    const [pendingBundle, setPendingBundle] = useState<MemoryBundleRow | null>(null);
+    const [pending, setPending] = useState<PendingTarget | null>(null);
     const [backClaimToken, setBackClaimToken] = useState(0);
 
     useEffect(function forgetTheConfirmationOnTheWayOut() {
         if (state.view === "memoriesTransfer") {
             return;
         }
-        setPendingBundle(null);
+        setPending(null);
     }, [state.view]);
 
     useEffect(() => {
@@ -150,10 +184,28 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
 
     const busy = running || starting;
 
+    const nearbyRows = nearby ?? NO_NEARBY_DEVICES;
+    const nearbyWindow = useSlidingWindow({
+        items: nearbyRows,
+        itemKey: (row) => row.id,
+        focusKeyFor: nearbyKey,
+        windowId: "memoriesTransfer:nearby",
+        heightScope: ["memoriesTransfer:nearby", language, textSize(12), includeVideos].join("|"),
+        dynamicLoading: true,
+        initialRows: NEARBY_INITIAL_ROWS,
+        rowStep: NEARBY_ROW_STEP,
+        prefetchDistance: 0,
+        sentinelRootMarginPx: NEARBY_SENTINEL_ROOT_MARGIN_PX,
+        resetKey: `memoriesTransfer:nearby|${nearbyRows.length > 0}`,
+        openFirst: pendingLandingKey("memoriesTransfer") ?? undefined
+    });
+
     usePageLanding({
         view: "memoriesTransfer",
         defaultKey: "memoriesTransfer:back",
-        ready: loaded && !listing
+        ready: loaded && !listing,
+        holds: (key) => nearbyRows.some((row) => nearbyKey(row) === key),
+        open: (key) => nearbyWindow.openAt(key)
     });
 
     if (state.view !== "memoriesTransfer") {
@@ -195,7 +247,7 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
 
     function pickBundle(row: MemoryBundleRow) {
         if (mode === "replace") {
-            setPendingBundle(row);
+            setPending({ kind: "bundle", row });
             void refreshCounts();
             claim("memoriesTransfer:replace:keep");
             return;
@@ -204,21 +256,39 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
         void startImport(row.path);
     }
 
-    function confirmReplace() {
-        const chosen = pendingBundle;
+    function pickNearby(row: NearbyDeviceRow) {
+        if (mode === "replace") {
+            setPending({ kind: "nearby", row });
+            void refreshCounts();
+            claim("memoriesTransfer:replace:keep");
+            return;
+        }
         setBackClaimToken((token) => token + 1);
-        setPendingBundle(null);
-        if (chosen) {
-            void startImport(chosen.path);
+        void pullFromNearby(row);
+    }
+
+    function confirmReplace() {
+        const chosen = pending;
+        setBackClaimToken((token) => token + 1);
+        setPending(null);
+        if (chosen?.kind === "bundle") {
+            void startImport(chosen.row.path);
+        }
+        else if (chosen?.kind === "nearby") {
+            void pullFromNearby(chosen.row);
         }
     }
 
     function keepWhatIHave() {
-        const returning = pendingBundle;
-        setPendingBundle(null);
-        const stillListed = returning !== null && (bundles ?? []).some((row) => row.path === returning.path);
+        const returning = pending;
+        setPending(null);
+        if (returning?.kind === "nearby" && nearbyRows.some((row) => row.id === returning.row.id)) {
+            claim(nearbyKey(returning.row));
+            return;
+        }
+        const stillListed = returning?.kind === "bundle" && (bundles ?? []).some((row) => row.path === returning.row.path);
         if (stillListed) {
-            claim(BUNDLE_FOCUS_PREFIX + returning.path);
+            claim(BUNDLE_FOCUS_PREFIX + returning.row.path);
         }
         else {
             claim(bundles === null ? IMPORT_FOCUS_KEY : IMPORT_AGAIN_FOCUS_KEY);
@@ -227,13 +297,13 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
 
     async function deleteAllFromButton() {
         setBackClaimToken((token) => token + 1);
-        setPendingBundle(null);
+        setPending(null);
         await actions.onDeleteAllMemories();
         await refreshEstimate();
     }
 
     function chooseAnotherFolder() {
-        setPendingBundle(null);
+        setPending(null);
         forgetBundles();
         return importFromButton();
     }
@@ -241,7 +311,7 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
     const failed = status?.state === "failed";
     const stashed = Boolean(status?.stashed);
     const errorCode = startError || (failed ? status?.error ?? "" : "");
-    const exporting = status?.direction === "export";
+    const exporting = status?.direction === "export" || status?.direction === "send";
     const nothingToExport = (counts?.memories ?? 0) <= 0
         || (!includeVideos && weight !== null && weight.memoriesNoVideos <= 0);
 
@@ -461,14 +531,14 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
                         help={t(language, "help_memories_transfer_replace")}
                     />
 
-                    {pendingBundle !== null && bundles !== null ? (
+                    {pending !== null && (pending.kind === "nearby" || bundles !== null) ? (
                         <>
                             <PanelSectionRow>
                                 <div style={{ ...bodyTextStyle(), color: errorRed, opacity: 1 }}>
                                     {t(language, "This will delete {{count}} memories across {{games}} games and put {{name}} in their place.", {
                                         count: counts?.memories ?? 0,
                                         games: counts?.games ?? 0,
-                                        name: pendingBundle.name
+                                        name: pending.kind === "bundle" ? pending.row.name : nearbyDeviceLabel(pending.row, language)
                                     })}
                                 </div>
                             </PanelSectionRow>
@@ -496,91 +566,156 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
                                 />
                             </PanelSectionRow>
                         </>
-                    ) : bundles === null && !listing ? (
-                        <PanelSectionRow>
-                            {claimTarget(
-                                <FocusableItem
-                                    outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
-                                    focusKey={IMPORT_FOCUS_KEY}
-                                    onClick={importFromButton}
-                                    bottomSeparator="none"
-                                    help={
-                                        <ButtonPrompt
-                                            language={language}
-                                            textKey="help_memories_transfer_import"
-                                            button="a"
-                                            fontSize={textSize(HELP_TEXT_BASE_PX)}
-                                        />
-                                    }
-                                >
-                                    {t(language, "Choose a Folder...")}
-                                </FocusableItem>
-                            )}
-                        </PanelSectionRow>
                     ) : (
                         <>
-                            {listing && (
+                            <PanelSectionRow>
+                                <div style={{ ...bodyTextStyle(), fontWeight: "bold", opacity: 1, marginTop: "8px" }}>
+                                    {t(language, "Import From Nearby Devices")}
+                                </div>
+                            </PanelSectionRow>
+                            {nearbyRows.length > 0 && (
+                                <SlidingWindowRows list={nearbyWindow}>
+                                    {nearbyWindow.mountedItems.map((row, index) => {
+                                        const at = nearbyWindow.start + index;
+                                        const neighbors = [nearbyRows[at + 1], nearbyRows[at - 1]]
+                                            .filter((other): other is NearbyDeviceRow => other !== undefined)
+                                            .map(nearbyKey);
+                                        return (
+                                            <PanelSectionRow key={row.id}>
+                                                {claimTarget(
+                                                    <FocusableItem
+                                                        outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                                                        focusKey={nearbyKey(row)}
+                                                        focusFallback={[
+                                                            ...neighbors,
+                                                            IMPORT_FOCUS_KEY,
+                                                            IMPORT_AGAIN_FOCUS_KEY
+                                                        ]}
+                                                        onGamepadFocus={() => nearbyWindow.onItemFocus(at)}
+                                                        onGamepadDirection={nearbyWindow.guardTopRow(at)}
+                                                        onClick={() => pickNearby(row)}
+                                                    >
+                                                        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                                                            <div>{nearbyDeviceName(row, language)}</div>
+                                                            <div style={bodyTextStyle()}>{row.address}</div>
+                                                            <div style={bodyTextStyle()}>
+                                                                {t(language, "{{count}} memories, {{size}}", {
+                                                                    count: includeVideos ? row.memories : row.memoriesNoVideos,
+                                                                    size: transferSizeLabel(includeVideos ? row.bytes : row.bytesNoVideos)
+                                                                })}
+                                                            </div>
+                                                            {!includeVideos && row.includesVideo && (
+                                                                <div style={bodyTextStyle()}>
+                                                                    {t(language, "No clip videos")}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </FocusableItem>
+                                                )}
+                                            </PanelSectionRow>
+                                        );
+                                    })}
+                                </SlidingWindowRows>
+                            )}
+                            {nearbyRows.length === 0 && nearby === null && !nearbyClosed && (
                                 <PanelSectionRow>
-                                    <InlineSpinner label={t(language, "Looking for bundles...")} />
+                                    <InlineSpinner label={t(language, "Looking for nearby devices...")} />
                                 </PanelSectionRow>
                             )}
-                            {!listing && bundleFolderEmpty && (
+                            {nearbyRows.length === 0 && (nearby !== null || nearbyClosed) && (
                                 <PanelSectionRow>
-                                    <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
-                                        {t(language, "No memory bundles in that folder.")}
+                                    <div style={bodyTextStyle()}>
+                                        {t(language, "No devices found. Make sure both devices are on this page.")}
                                     </div>
                                 </PanelSectionRow>
                             )}
-                            {(bundles ?? []).map((row) => (
-                                <Fragment key={row.path}>
+                            {bundles === null && !listing ? (
                                 <PanelSectionRow>
                                     {claimTarget(
                                         <FocusableItem
                                             outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
-                                            focusKey={BUNDLE_FOCUS_PREFIX + row.path}
-                                            onClick={() => pickBundle(row)}
-                                        >
-                                            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                                                <div>{row.name}</div>
-                                                <div style={bodyTextStyle()}>
-                                                    {t(language, "{{count}} memories, {{size}}", {
-                                                        count: row.total,
-                                                        size: transferSizeLabel(row.sizeBytes)
-                                                    })}
-                                                </div>
-                                                <div style={bodyTextStyle()}>
-                                                    {dateLabel(row.createdAt, language)}
-                                                </div>
-                                                {!row.includesVideo && (
-                                                    <div style={bodyTextStyle()}>
-                                                        {t(language, "No clip videos in this bundle.")}
-                                                    </div>
-                                                )}
-                                                {row.ulid !== "" && row.ulid !== state.activeUlid && (
-                                                    <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
-                                                        {t(language, "From another RetroAchievements account")}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </FocusableItem>
-                                    )}
-                                </PanelSectionRow>
-                                </Fragment>
-                            ))}
-                            {bundles !== null && (
-                                <PanelSectionRow>
-                                    {claimTarget(
-                                        <FocusableItem
-                                            outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
-                                            focusKey={IMPORT_AGAIN_FOCUS_KEY}
-                                            focusFallback={[IMPORT_FOCUS_KEY]}
-                                            onClick={chooseAnotherFolder}
+                                            focusKey={IMPORT_FOCUS_KEY}
+                                            onClick={importFromButton}
                                             bottomSeparator="none"
+                                            help={
+                                                <ButtonPrompt
+                                                    language={language}
+                                                    textKey="help_memories_transfer_import"
+                                                    button="a"
+                                                    fontSize={textSize(HELP_TEXT_BASE_PX)}
+                                                />
+                                            }
                                         >
-                                            {t(language, "Choose a Different Folder...")}
+                                            {t(language, "Choose a Folder...")}
                                         </FocusableItem>
                                     )}
                                 </PanelSectionRow>
+                            ) : (
+                                <>
+                                    {listing && (
+                                        <PanelSectionRow>
+                                            <InlineSpinner label={t(language, "Looking for bundles...")} />
+                                        </PanelSectionRow>
+                                    )}
+                                    {!listing && bundleFolderEmpty && (
+                                        <PanelSectionRow>
+                                            <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
+                                                {t(language, "No memory bundles in that folder.")}
+                                            </div>
+                                        </PanelSectionRow>
+                                    )}
+                                    {(bundles ?? []).map((row) => (
+                                        <Fragment key={row.path}>
+                                        <PanelSectionRow>
+                                            {claimTarget(
+                                                <FocusableItem
+                                                    outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                                                    focusKey={BUNDLE_FOCUS_PREFIX + row.path}
+                                                    onClick={() => pickBundle(row)}
+                                                >
+                                                    <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                                                        <div>{row.name}</div>
+                                                        <div style={bodyTextStyle()}>
+                                                            {t(language, "{{count}} memories, {{size}}", {
+                                                                count: row.total,
+                                                                size: transferSizeLabel(row.sizeBytes)
+                                                            })}
+                                                        </div>
+                                                        <div style={bodyTextStyle()}>
+                                                            {dateLabel(row.createdAt, language)}
+                                                        </div>
+                                                        {!row.includesVideo && (
+                                                            <div style={bodyTextStyle()}>
+                                                                {t(language, "No clip videos in this bundle.")}
+                                                            </div>
+                                                        )}
+                                                        {row.ulid !== "" && row.ulid !== state.activeUlid && (
+                                                            <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
+                                                                {t(language, "From another RetroAchievements account")}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </FocusableItem>
+                                            )}
+                                        </PanelSectionRow>
+                                        </Fragment>
+                                    ))}
+                                    {bundles !== null && (
+                                        <PanelSectionRow>
+                                            {claimTarget(
+                                                <FocusableItem
+                                                    outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                                                    focusKey={IMPORT_AGAIN_FOCUS_KEY}
+                                                    focusFallback={[IMPORT_FOCUS_KEY]}
+                                                    onClick={chooseAnotherFolder}
+                                                    bottomSeparator="none"
+                                                >
+                                                    {t(language, "Choose a Different Folder...")}
+                                                </FocusableItem>
+                                            )}
+                                        </PanelSectionRow>
+                                    )}
+                                </>
                             )}
                         </>
                     )}

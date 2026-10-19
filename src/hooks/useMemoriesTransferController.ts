@@ -3,13 +3,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
     cancelMemoriesTransfer,
     discardMemoriesRestore,
+    discoverNearbyDevices,
     listMemoryBundles,
     memoriesExportCounts,
     memoriesExportWeight,
     memoriesTransferStatus,
     recoverMemoriesRestore,
+    setNearbyVisible,
     startMemoriesExport,
-    startMemoriesImport
+    startMemoriesImport,
+    startNearbyImport
 } from "../api";
 import { t, type LanguageCode } from "../locales";
 import type {
@@ -17,7 +20,8 @@ import type {
     MemoriesExportWeight,
     MemoriesTransferMode,
     MemoriesTransferStatus,
-    MemoryBundleRow
+    MemoryBundleRow,
+    NearbyDeviceRow
 } from "../types";
 import {
     forgetBundleFolder,
@@ -33,6 +37,7 @@ import {
 } from "../utils/memoriesTransferChoices";
 import { overrideRecord, pendingLandingKey, topEntryId } from "../focusRecords";
 import { exportRefusalKey } from "../utils/memoriesTransferErrors";
+import { lastNearbyDevices, rememberNearbyDevices } from "../utils/nearbyDevices";
 import { announceMemoriesCaptureOn, announceMemoriesChanged } from "../utils/memoriesChanged";
 import { logError } from "../utils/errors";
 import { AFTER_DIALOG_TOAST_DELAY_MS, showToastAfter } from "../utils/delayedToast";
@@ -45,10 +50,16 @@ type UseMemoriesTransferControllerArgs = {
 
 const RUNNING_POLL_MS = 1000;
 
+const NEARBY_TICK_MS = 5000;
+
 export const BUNDLE_FOCUS_PREFIX = "memoriesTransfer:bundle:";
 export const IMPORT_AGAIN_FOCUS_KEY = "memoriesTransfer:import:another";
+export const NEARBY_FOCUS_PREFIX = "memoriesTransfer:nearby:";
 
-const RUNNING_STATES = ["scanning", "writing", "validating", "importing", "finishing"];
+const RUNNING_STATES = [
+    "scanning", "writing", "validating", "importing", "finishing",
+    "connecting", "preparing", "receiving", "sending"
+];
 
 const PICKER_START_PATH = "/home/deck";
 
@@ -89,6 +100,10 @@ export function useMemoriesTransferController({ isActive, language }: UseMemorie
     const [bundleFolderEmpty, setBundleFolderEmpty] = useState(false);
     const [listing, setListing] = useState(false);
     const [startError, setStartError] = useState("");
+    const [nearby, setNearby] = useState<NearbyDeviceRow[] | null>(lastNearbyDevices);
+    const [nearbyClosed, setNearbyClosed] = useState(false);
+    const discoveringRef = useRef(false);
+    const runningRef = useRef(false);
 
     const loadingRef = useRef(false);
 
@@ -171,10 +186,13 @@ export function useMemoriesTransferController({ isActive, language }: UseMemorie
         }
         forgetBundleFolder();
         forgetTransferChoices();
+        rememberNearbyDevices(null);
         setBundles(null);
         setBundleFolderEmpty(false);
         setIncludeVideosState(true);
         setModeState("merge");
+        setNearby(null);
+        setNearbyClosed(false);
     }, [isActive]);
 
     useEffect(() => {
@@ -185,6 +203,83 @@ export function useMemoriesTransferController({ isActive, language }: UseMemorie
     }, [isActive, reloadEstimate]);
 
     const running = isRunning(status);
+    runningRef.current = running;
+
+    const discover = useCallback(async () => {
+        if (discoveringRef.current) {
+            return;
+        }
+        discoveringRef.current = true;
+        try {
+            const found = await discoverNearbyDevices();
+            if (found.ok) {
+                const rows = found.devices ?? [];
+                rememberNearbyDevices(rows);
+                setNearby(rows);
+            }
+        }
+        catch (e) {
+            logError("discoverNearbyDevices", e);
+        }
+        finally {
+            discoveringRef.current = false;
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!isActive || nearbyClosed) {
+            return;
+        }
+        let alive = true;
+        let tick = 0;
+        const endVisit = () => {
+            alive = false;
+            rememberNearbyDevices([]);
+            setNearby([]);
+            setNearbyClosed(true);
+        };
+        void (async () => {
+            try {
+                const opened = await setNearbyVisible(true, true);
+                if (!alive) {
+                    return;
+                }
+                if (!opened.ok) {
+                    endVisit();
+                    return;
+                }
+                if (!runningRef.current) {
+                    await discover();
+                }
+            }
+            catch (e) {
+                logError("setNearbyVisible", e);
+            }
+        })();
+        const timer = window.setInterval(() => {
+            tick += 1;
+            if (tick % 2 === 0) {
+                setNearbyVisible(true, false)
+                    .then((renewed) => {
+                        if (alive && !renewed.ok) {
+                            endVisit();
+                        }
+                    })
+                    .catch((e) => logError("setNearbyVisible", e));
+            }
+            if (alive && !runningRef.current) {
+                void discover();
+                if (!loadingRef.current) {
+                    void reload();
+                }
+            }
+        }, NEARBY_TICK_MS);
+        return () => {
+            alive = false;
+            window.clearInterval(timer);
+            setNearbyVisible(false, false).catch((e) => logError("setNearbyVisible", e));
+        };
+    }, [isActive, nearbyClosed, discover, reload]);
 
     useEffect(() => {
         if (!isActive || !running) {
@@ -298,6 +393,24 @@ export function useMemoriesTransferController({ isActive, language }: UseMemorie
         }
     }, [mode, reload]);
 
+    const pullFromNearby = useCallback(async (row: NearbyDeviceRow) => {
+        setStarting(true);
+        setStartError("");
+        try {
+            const started = await startNearbyImport(row.id, includeVideos, mode);
+            if (!started.ok) {
+                setStartError(started.error ?? "");
+            }
+            await reload();
+        }
+        catch (e) {
+            logError("startNearbyImport", e);
+        }
+        finally {
+            setStarting(false);
+        }
+    }, [includeVideos, mode, reload]);
+
     const recoverStashed = useCallback(async () => {
         try {
             await recoverMemoriesRestore();
@@ -358,6 +471,9 @@ export function useMemoriesTransferController({ isActive, language }: UseMemorie
         browseForBundles,
         forgetBundles,
         startImport,
+        nearby,
+        nearbyClosed,
+        pullFromNearby,
         cancel,
         recoverStashed,
         discardStashed

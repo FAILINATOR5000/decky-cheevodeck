@@ -17,7 +17,13 @@ const TRANSFER_ERROR_KEYS: Record<string, string> = {
     media_missing: "Some of that bundle's files are missing",
     count_mismatch: "That bundle's counts don't add up",
     unreadable: "That bundle couldn't be read",
-    newer_schema: "Not Compatible"
+    newer_schema: "Not Compatible",
+    peer_gone: "That device isn't answering",
+    peer_busy: "That device is busy. Try again in a moment.",
+    peer_no_space: "That device doesn't have room to pack them",
+    peer_nothing: "That device has no memories to send",
+    transfer_interrupted: "The transfer was interrupted",
+    bundle_mismatch: "What arrived didn't match what was sent"
 };
 
 export function transferErrorKey(code: string): string {

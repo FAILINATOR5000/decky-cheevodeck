@@ -16,6 +16,7 @@ import {
     subscribeToGameIcon
 } from "../../api";
 import { transferErrorKey } from "../../utils/memoriesTransferErrors";
+import { nearbyDeviceLabel } from "../../utils/nearbyDevices";
 import { transferSizeLabel } from "../../utils/memoriesTransferSize";
 import { ErrorText } from "../ui/ErrorText";
 import { FadeImage } from "../ui/FadeImage";
@@ -246,6 +247,14 @@ function memoriesTransferBody(notification: CheevoNotification, language: Langua
         return t(language, transferErrorKey(metaString(notification, "reason")));
     }
     const files = metaNumber(notification, "files");
+    if (direction === "sent") {
+        const name = nearbyDeviceLabel({
+            model: metaString(notification, "peerModel"),
+            host: metaString(notification, "peerHost"),
+            address: metaString(notification, "peerAddress")
+        }, language);
+        return t(language, "Sent {{count}} memories to {{name}}.", { count: files, name });
+    }
     const skipped = metaNumber(notification, "skipped");
     if (direction !== "export" && files <= 0 && skipped > 0) {
         return t(language, "Every memory in that export was already here.");

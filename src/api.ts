@@ -44,6 +44,7 @@ import type {
     MemoriesVideoMoveStatus,
     MemoryBookmark,
     MemoryBundleRow,
+    NearbyDeviceRow,
     MemoryDateOrder,
     MemoryGameRow,
     MemoryRecord,
@@ -742,6 +743,18 @@ export const discardMemoriesRestore = callable<
     [],
     { ok: boolean; error?: string; removed?: number }
 >("discard_memories_restore");
+export const setNearbyVisible = callable<
+    [boolean, boolean],
+    { ok: boolean; error?: string; visible?: boolean }
+>("set_nearby_visible");
+export const discoverNearbyDevices = callable<
+    [],
+    { ok: boolean; error?: string; devices?: NearbyDeviceRow[] }
+>("discover_nearby_devices");
+export const startNearbyImport = callable<
+    [string, boolean, MemoriesTransferMode],
+    { ok: boolean; error?: string }
+>("start_nearby_import");
 
 export const loadMemoryViewPrefs = callable<[], MemoryViewPrefs>("load_memory_view_prefs");
 export const saveMemoryViewPrefs = callable<
