@@ -35,6 +35,7 @@ from services.memories_video_service import MEDIA_FOLDERS as MEMORIES_MEDIA_FOLD
 from services.memories_video_service import SENTINEL_NAME as MEMORIES_VIDEO_SENTINEL
 from services.memories_video_service import MemoriesVideoService, remove_empty_root, root_for as memories_video_root
 from services.memories_transfer_service import MemoriesTransferService
+from services.nearby_transfer_service import NearbyTransferService
 from services.smb_mount_service import SmbMountService
 from services.comments_service import CommentsService
 from services.new_sets_service import NewSetsService
@@ -630,6 +631,7 @@ class Plugin(
         for discard in (
             self.memories_transfer_service.discard_abandoned_export,
             self.memories_transfer_service.discard_abandoned_import,
+            self.memories_transfer_service.discard_abandoned_receive,
         ):
             try:
                 discard()
@@ -742,6 +744,14 @@ class Plugin(
         self._memories_adopt_lock = asyncio.Lock()
 
         self._memories_job_ended = asyncio.Event()
+
+        self.nearby_transfer_service = NearbyTransferService(
+            settings_store=self.settings_store,
+            transfer=self.memories_transfer_service,
+            video_busy=self.memories_video_service.running,
+            adopt_lock=self._memories_adopt_lock,
+            game_mode=self.session_mode_service.is_game_mode,
+        )
 
         self._memory_share_lock = threading.Lock()
         self._memory_share_cancel = None
@@ -857,6 +867,7 @@ class Plugin(
     def _sync_game_mode_services(self) -> None:
         self.back_button_service.sync()
         self.freeze_watchdog_service.sync()
+        self.nearby_transfer_service.sync()
 
     def _toast_newer_schema(self) -> None:
         emit_notification(
@@ -908,6 +919,7 @@ class Plugin(
 
         self.cheevo_check_service.set_event_loop(self._asyncio_loop)
         self.memories_transfer_service.set_event_loop(self._asyncio_loop)
+        self.nearby_transfer_service.set_event_loop(self._asyncio_loop)
         try:
             await asyncio.to_thread(self.cheevo_check_service.prepare)
         except Exception as e:
@@ -1052,6 +1064,7 @@ class Plugin(
         self.session_mode_service.stop()
         self.back_button_service.stop()
         self.freeze_watchdog_service.stop()
+        self.nearby_transfer_service.stop()
         self._restore_deck_controller_safe()
 
     def _validate_credentials_or_raise(self, username: str, web_api_key: str, *, expected_ulid: str = "", skip_name_match: bool = False):
@@ -1224,6 +1237,7 @@ class Plugin(
             self._apply_user_scope(self._user_dir_key(cfg))
             self.notes_reminder_service.reset_pending()
             self.milestones_service.account_changed()
+            self.nearby_transfer_service.account_changed()
             return cfg
 
     def _run_clear_under_trickle_lock(self, clear_fn):
@@ -1358,6 +1372,7 @@ class Plugin(
             self._apply_user_scope(self._user_dir_key(cfg))
             self.notes_reminder_service.reset_pending()
             self.milestones_service.account_changed()
+            self.nearby_transfer_service.account_changed()
 
             return cfg
 
@@ -1826,6 +1841,7 @@ class Plugin(
                 self._apply_user_scope("")
                 self.notes_reminder_service.reset_pending()
                 self.milestones_service.account_changed()
+                self.nearby_transfer_service.account_changed()
                 self._last_completion_walk = None
             self.file_watcher_service.prepare()
             self.file_watcher_service.start()

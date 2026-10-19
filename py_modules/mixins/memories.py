@@ -216,6 +216,20 @@ class MemoriesMixin(PluginContext):
     async def cancel_memories_transfer(self):
         return self.memories_transfer_service.cancel()
 
+    async def set_nearby_visible(self, visible: bool = False, entry: bool = False):
+        return await self.nearby_transfer_service.set_visible(bool(visible), bool(entry))
+
+    async def discover_nearby_devices(self):
+        return await self.nearby_transfer_service.discover()
+
+    async def start_nearby_import(self, device_id: str = "", include_videos: bool = True, mode: str = "merge"):
+        async with self._memories_adopt_lock:
+            if self.memories_video_service.running():
+                return {"ok": False, "error": memories_video_service.ERROR_BUSY}
+            return await self.nearby_transfer_service.start_pull(
+                str(device_id or ""), bool(include_videos), str(mode or "merge")
+            )
+
     async def recover_memories_restore(self):
         if self.memories_video_service.running():
             return {"ok": False, "error": memories_video_service.ERROR_BUSY}

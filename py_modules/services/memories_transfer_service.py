@@ -1,19 +1,22 @@
 from pathlib import Path
 
 import json
+import os
 import shutil
+import socket
 import threading
 import zipfile
 
 import decky
 import memories_clips
 import memories_transfer
+import nearby_protocol
 
 from memories_store import CURRENT_SCHEMA_VERSION, is_clip_folder
 
 from notifications import emit_notification
 from services import memories_video_service
-from utils import append_file, ensure_dir, to_int, write_file_atomic
+from utils import append_file, ensure_dir, exclusive_file, to_int, write_file_atomic
 
 
 FREE_SPACE_MARGIN_BYTES = 256 * 1024 * 1024
@@ -25,6 +28,9 @@ _GIGABYTE = 1024 * 1024 * 1024
 EXPORT_PART_NOTE = "export-part.txt"
 
 IMPORT_FILES_NOTE = "import-files.txt"
+
+NEARBY_SEND_DIR = "nearby-send"
+NEARBY_RECEIVE_DIR = "nearby-recv"
 
 ERROR_BUSY = "busy"
 ERROR_NOT_RUNNING = "not_running"
@@ -40,11 +46,21 @@ ERROR_STASH_FAILED = "stash_failed"
 ERROR_NOTHING_STASHED = "nothing_stashed"
 ERROR_ROOT_MISSING = "root_missing"
 ERROR_NEWER_SCHEMA = "newer_schema"
+ERROR_PEER_GONE = "peer_gone"
+ERROR_PEER_BUSY = "peer_busy"
+ERROR_PEER_NO_SPACE = "peer_no_space"
+ERROR_PEER_NOTHING = "peer_nothing"
+ERROR_INTERRUPTED = "transfer_interrupted"
+ERROR_BUNDLE_MISMATCH = "bundle_mismatch"
+ERROR_UP_TO_DATE = "up_to_date"
 
 MODE_MERGE = "merge"
 MODE_REPLACE = "replace"
 
-_RUNNING_STATES = ("scanning", "writing", "validating", "importing", "finishing")
+_RUNNING_STATES = (
+    "scanning", "writing", "validating", "importing", "finishing",
+    "connecting", "preparing", "receiving", "sending",
+)
 
 
 def _size_label(count: int) -> str:
@@ -65,14 +81,25 @@ def _fallback_body(importing: bool, nothing_new: bool, files: int, skipped: int,
     return body
 
 
-def _free_bytes(path: Path) -> int:
+def _existing(path: Path) -> Path:
     probe = path
     while not probe.exists() and probe.parent != probe:
         probe = probe.parent
+    return probe
+
+
+def _free_bytes(path: Path) -> int:
     try:
-        return shutil.disk_usage(probe).free
+        return shutil.disk_usage(_existing(path)).free
     except OSError:
         return -1
+
+
+def _same_disk(first: Path, second: Path) -> bool:
+    try:
+        return _existing(first).stat().st_dev == _existing(second).stat().st_dev
+    except OSError:
+        return True
 
 
 class MemoriesTransferService:
@@ -90,6 +117,7 @@ class MemoriesTransferService:
         self._lock = threading.Lock()
         self._thread = None
         self._stop = threading.Event()
+        self._socket = None
         self._reset("idle")
 
     def set_event_loop(self, loop) -> None:
@@ -107,6 +135,7 @@ class MemoriesTransferService:
             self._bytes = 0
             self._total_bytes = 0
             self._target = ""
+            self._peer = None
             self._result = None
 
     def status(self) -> dict:
@@ -124,6 +153,7 @@ class MemoriesTransferService:
                 "bytes": self._bytes,
                 "totalBytes": self._total_bytes,
                 "target": self._target,
+                "peer": self._peer,
                 "stashed": stashed,
                 "captureTurnedOn": bool(self._result and self._result.get("captureTurnedOn")),
             }
@@ -136,6 +166,13 @@ class MemoriesTransferService:
         if not self.running():
             return {"ok": False, "error": ERROR_NOT_RUNNING, "running": False}
         self._stop.set()
+        with self._lock:
+            held = self._socket
+        if held is not None:
+            try:
+                held.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
         decky.logger.info("memories: the transfer was canceled")
         return {"ok": True, "running": True}
 
@@ -255,7 +292,7 @@ class MemoriesTransferService:
             "memories": sum(to_int(row.get("count"), 0) for row in games),
         }
 
-    def weigh(self) -> dict:
+    def weigh(self, skip=frozenset()) -> dict:
         entries = self._store.all_entries()
         reachable = self._video_root_reachable()
         pictures = 0
@@ -271,6 +308,8 @@ class MemoriesTransferService:
 
         for entry in entries.values():
             for memory in entry["memories"]:
+                if memory["id"] in skip:
+                    continue
                 source = self._store.picture_path(memory["path"])
                 try:
                     poster_bytes = source.stat().st_size
@@ -384,30 +423,18 @@ class MemoriesTransferService:
             return {"ok": False, "error": ERROR_BAD_TARGET}
 
         wanted = MODE_REPLACE if mode == MODE_REPLACE else MODE_MERGE
-        if wanted == MODE_REPLACE:
-            if not self._store.account_key():
-                return {"ok": False, "error": ERROR_NO_ACCOUNT}
-            if self._store.any_game_file_newer():
-                return {"ok": False, "error": ERROR_NEWER_SCHEMA}
-            if self._store.stashed_trees():
-                return {"ok": False, "error": ERROR_STASH_PENDING}
+        refusal = self._mode_refusal(wanted)
+        if refusal is not None:
+            return refusal
 
         found = memories_transfer.probe(source)
         if not found["ok"]:
             return {"ok": False, "error": found["error"]}
 
         sizes = memories_transfer.bundle_sizes(source)
-        if sizes["videos"] > 0 and not self._video_root_reachable():
-            return {"ok": False, "error": ERROR_ROOT_MISSING}
-        for root, needed in (
-            (self._store.pictures_root(), sizes["pictures"]),
-            (self._store.videos_root(), sizes["videos"]),
-        ):
-            if needed <= 0:
-                continue
-            free = _free_bytes(root)
-            if free >= 0 and free < needed + FREE_SPACE_MARGIN_BYTES:
-                return {"ok": False, "error": ERROR_NO_SPACE, "needed": needed}
+        refusal = self._room_refusal(sizes)
+        if refusal is not None:
+            return refusal
 
         self._stop.clear()
         self._reset("validating")
@@ -425,6 +452,31 @@ class MemoriesTransferService:
             )
             self._thread.start()
         return {"ok": True, "manifest": found["manifest"]}
+
+    def _mode_refusal(self, mode: str):
+        if mode != MODE_REPLACE:
+            return None
+        if not self._store.account_key():
+            return {"ok": False, "error": ERROR_NO_ACCOUNT}
+        if self._store.any_game_file_newer():
+            return {"ok": False, "error": ERROR_NEWER_SCHEMA}
+        if self._store.stashed_trees():
+            return {"ok": False, "error": ERROR_STASH_PENDING}
+        return None
+
+    def _room_refusal(self, sizes: dict):
+        if sizes["videos"] > 0 and not self._video_root_reachable():
+            return {"ok": False, "error": ERROR_ROOT_MISSING}
+        for root, needed in (
+            (self._store.pictures_root(), sizes["pictures"]),
+            (self._store.videos_root(), sizes["videos"]),
+        ):
+            if needed <= 0:
+                continue
+            free = _free_bytes(root)
+            if free >= 0 and free < needed + FREE_SPACE_MARGIN_BYTES:
+                return {"ok": False, "error": ERROR_NO_SPACE, "needed": needed}
+        return None
 
     def recover_stashed(self) -> dict:
         if self.running():
@@ -446,6 +498,252 @@ class MemoriesTransferService:
         removed = self._store.discard_stashed_trees(moved)
         decky.logger.info("memories: dropped %s folders left by an unfinished restore", removed)
         return {"ok": True, "removed": removed}
+
+    def begin_send(self, include_videos: bool, peer: dict, skip=frozenset()) -> dict:
+        if self.running():
+            return {"ok": False, "error": ERROR_BUSY}
+
+        estimated = self.weigh(skip)
+        going = estimated["memories"] if include_videos else estimated["memoriesNoVideos"]
+        if going <= 0:
+            if skip:
+                whole = self.weigh()
+                if (whole["memories"] if include_videos else whole["memoriesNoVideos"]) > 0:
+                    return {"ok": False, "error": ERROR_UP_TO_DATE}
+            return {"ok": False, "error": ERROR_NOTHING_TO_EXPORT}
+
+        needed = estimated["bytes"] if include_videos else estimated["bytesNoVideos"]
+        free = _free_bytes(self._scratch_dir)
+        if free >= 0 and free < needed + FREE_SPACE_MARGIN_BYTES:
+            return {"ok": False, "error": ERROR_NO_SPACE, "needed": needed}
+
+        self._stop.clear()
+        self._reset("scanning")
+        with self._lock:
+            self._direction = "send"
+            self._peer = dict(peer)
+            self._total_records = going
+            self._total_bytes = needed
+            self._target = str(peer.get("address") or "")
+        return {"ok": True}
+
+    def export_for_send(self, include_videos: bool, skip=frozenset()):
+        folder = self._scratch_dir / NEARBY_SEND_DIR
+        shutil.rmtree(folder, ignore_errors=True)
+        writer = memories_transfer.BundleWriter(folder / memories_transfer.bundle_name(0))
+        try:
+            writer.open()
+        except OSError:
+            self._fail(ERROR_WRITE_FAILED)
+            return None
+        try:
+            result = self._write_bundle(writer, include_videos, skip)
+        finally:
+            writer.abandon()
+        if result is None:
+            return None
+        with self._lock:
+            self._state = "sending"
+        return Path(result["path"]), result
+
+    def sending(self, size: int) -> None:
+        with self._lock:
+            self._bytes = 0
+            self._total_bytes = size
+
+    def add_sent(self, count: int) -> None:
+        self._bump_bytes(count)
+
+    def stop_requested(self) -> bool:
+        return self._stop.is_set()
+
+    def discard_send(self) -> None:
+        shutil.rmtree(self._scratch_dir / NEARBY_SEND_DIR, ignore_errors=True)
+
+    def end_send(self, result, error: str) -> None:
+        try:
+            with self._lock:
+                state = self._state
+            if error:
+                if state != "failed":
+                    self._fail(error)
+            elif result is not None:
+                with self._lock:
+                    self._state = "done"
+                    self._error = ""
+                    self._result = result
+                self._notify_sent(result)
+            elif state not in ("failed", "canceled"):
+                self._canceled()
+        finally:
+            if self._on_finished is not None:
+                self._on_finished()
+
+    def _notify_sent(self, result: dict) -> None:
+        with self._lock:
+            peer = dict(self._peer or {})
+        count = result["memories"]
+        label = nearby_protocol.device_label(
+            peer.get("model") or "", peer.get("host") or "", peer.get("address") or ""
+        )
+        decky.logger.info("memories: sent %s memories to %s", count, label)
+
+        if self._notifications is not None:
+            try:
+                self._notifications.append({
+                    "type": "system",
+                    "kind": "actionable",
+                    "iconSource": "none",
+                    "title": "Memories Sent",
+                    "body": f"Sent {count} memories to {label}.",
+                    "source": "notifications",
+                    "target": {"view": "memoriesTransfer"},
+                    "meta": {
+                        "transfer": "sent",
+                        "files": count,
+                        "bytes": result.get("bytes", 0),
+                        "peerModel": peer.get("model") or "",
+                        "peerHost": peer.get("host") or "",
+                        "peerAddress": peer.get("address") or "",
+                    },
+                })
+            except Exception as e:
+                decky.logger.warning(
+                    "memories: the transfer notification could not be filed (%s)", type(e).__name__
+                )
+
+        emit_notification(
+            ntype="system",
+            title_key="Memories Sent",
+            line_key="Sent {{count}} memories",
+            template_vars={"count": count},
+            settings_store=self._settings_store,
+            event_loop=self._event_loop,
+            force_toast=True,
+        )
+
+    def start_receive(self, pull, peer: dict, mode: str, expect_videos: bool) -> dict:
+        if self.running():
+            return {"ok": False, "error": ERROR_BUSY}
+
+        wanted = MODE_REPLACE if mode == MODE_REPLACE else MODE_MERGE
+        refusal = self._mode_refusal(wanted)
+        if refusal is not None:
+            return refusal
+        if expect_videos and not self._video_root_reachable():
+            return {"ok": False, "error": ERROR_ROOT_MISSING}
+
+        self._stop.clear()
+        self._reset("connecting")
+        with self._lock:
+            self._direction = "receive"
+            self._mode = wanted
+            self._peer = dict(peer)
+            self._target = str(peer.get("address") or "")
+            self._thread = threading.Thread(
+                target=self._run,
+                args=(self._receive, (pull, wanted)),
+                name="memories-receive",
+                daemon=True,
+            )
+            self._thread.start()
+        return {"ok": True}
+
+    def _receive(self, pull, mode: str) -> None:
+        folder = self._scratch_dir / NEARBY_RECEIVE_DIR
+        shutil.rmtree(folder, ignore_errors=True)
+        try:
+            ensure_dir(folder)
+        except OSError:
+            self._fail(ERROR_WRITE_FAILED)
+            return
+        part = folder / "incoming.zip.part"
+        bundle = folder / "incoming.zip"
+        held = self._store.memory_ids() if mode == MODE_MERGE else set()
+        try:
+            code = pull(
+                held=held,
+                stage=self._receive_stage,
+                progress=self._sender_progress,
+                on_bytes=self._bump_bytes,
+                should_stop=self._stopped,
+                hold_socket=self._hold_socket,
+                room_for=self._room_for_bundle,
+                open_part=lambda: exclusive_file(part, trusted=folder, replace=True),
+            )
+            if self._stopped():
+                self._canceled()
+                return
+            if code == ERROR_UP_TO_DATE:
+                decky.logger.info("memories: nothing new on the other device, %s already here", len(held))
+                self._settle({
+                    "mode": mode,
+                    "bytes": 0,
+                    "inserted": 0,
+                    "skipped": len(held),
+                    "games": 0,
+                    "videos": 0,
+                    "missingVideos": 0,
+                    "bundleUlid": "",
+                    "sameAccount": True,
+                    "captureTurnedOn": False,
+                })
+                return
+            if code:
+                self._fail(code)
+                return
+            os.replace(part, bundle)
+
+            found = memories_transfer.probe(bundle)
+            if not found["ok"]:
+                self._fail(found["error"])
+                return
+            sizes = memories_transfer.bundle_sizes(bundle)
+            refusal = self._room_refusal(sizes)
+            if refusal is not None:
+                self._fail(refusal["error"])
+                return
+
+            with self._lock:
+                self._state = "validating"
+                self._bytes = 0
+                self._total_bytes = sizes["total"]
+                self._records = 0
+                self._total_records = found["manifest"]["total"]
+            self._import(bundle, mode)
+        finally:
+            shutil.rmtree(folder, ignore_errors=True)
+
+    def _receive_stage(self, state: str, size: int = 0) -> None:
+        with self._lock:
+            self._state = state
+            self._bytes = 0
+            self._total_bytes = size
+
+    def _sender_progress(self, records: int, total: int) -> None:
+        with self._lock:
+            self._records = records
+            self._total_records = total
+
+    def _hold_socket(self, sock) -> None:
+        with self._lock:
+            self._socket = sock
+
+    def _room_for_bundle(self, size: int) -> bool:
+        free = _free_bytes(self._scratch_dir)
+        if free < 0:
+            return True
+        needed = size + FREE_SPACE_MARGIN_BYTES
+        if _same_disk(self._scratch_dir, self._store.pictures_root()):
+            needed += size
+        return free >= needed
+
+    def discard_abandoned_receive(self) -> None:
+        for name in (NEARBY_SEND_DIR, NEARBY_RECEIVE_DIR):
+            folder = self._scratch_dir / name
+            if folder.exists():
+                shutil.rmtree(folder, ignore_errors=True)
+                decky.logger.info("memories: removed an unfinished nearby transfer (%s)", name)
 
     def _run(self, work, args) -> None:
         try:
@@ -469,12 +767,14 @@ class MemoriesTransferService:
 
         self._remember_export_part(writer.part_path)
         try:
-            self._write_bundle(writer, include_videos)
+            result = self._write_bundle(writer, include_videos)
         finally:
             writer.abandon()
             self._forget_export_part()
+        if result is not None:
+            self._settle(result)
 
-    def _write_bundle(self, writer, include_videos: bool) -> None:
+    def _write_bundle(self, writer, include_videos: bool, skip=frozenset()):
         account = self._store.account_key()
         entries = self._store.all_entries()
         scratch = self._scratch_dir / "export"
@@ -497,6 +797,8 @@ class MemoriesTransferService:
 
                 bundled = []
                 for memory in entry["memories"]:
+                    if memory["id"] in skip:
+                        continue
                     if not include_videos and (memory.get("video") or {}):
                         left_behind += 1
                         continue
@@ -584,7 +886,7 @@ class MemoriesTransferService:
             "memories: exported %s memories across %s games to %s, %s clips left behind",
             total, len(games), landed.name, left_behind,
         )
-        self._settle({
+        return {
             "bundle": landed.name,
             "path": str(landed),
             "memories": total,
@@ -594,7 +896,7 @@ class MemoriesTransferService:
             "missingPictures": missing_pictures,
             "leftBehind": left_behind,
             "bytes": written_bytes,
-        })
+        }
 
     def _remember_export_part(self, part: Path) -> None:
         note = self._scratch_dir / EXPORT_PART_NOTE
