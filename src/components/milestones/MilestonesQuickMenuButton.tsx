@@ -10,7 +10,11 @@ import { textSize } from "../../utils/scale";
 import { smallTextStyle } from "../../utils/style";
 
 const sheenStyle = (focusKey: string, flush: boolean) => `
-.da-ms-sheen::after {
+[data-focus-key="${focusKey}"] button {
+    position: relative;
+    overflow: hidden;
+}
+[data-focus-key="${focusKey}"] button::after {
     content: "";
     position: absolute;
     top: 0;
@@ -28,7 +32,7 @@ const sheenStyle = (focusKey: string, flush: boolean) => `
     100% { transform: translateX(420%) skewX(-15deg); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-    .da-ms-sheen::after { animation: none; opacity: 0; }
+    [data-focus-key="${focusKey}"] button::after { animation: none; opacity: 0; }
 }
 [data-focus-key="${focusKey}"] > div { ${flush ? "padding-top: 0 !important; " : ""}background: transparent !important; }
 `;
@@ -59,7 +63,6 @@ export function MilestonesQuickMenuButton(props: {
         >
             <style>{sheenStyle(focusKey, flush)}</style>
             <div
-                className="da-ms-sheen"
                 style={{
                     position: "relative",
                     overflow: "hidden",
