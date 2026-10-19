@@ -1362,6 +1362,8 @@ export const resetOptionSettings = callable<[], OkResult & SettingsResponse>("re
 export const applySetupProfile = callable<[string, boolean], OkResult & SettingsResponse>("apply_setup_profile");
 export const markIntroViewed = callable<[], { ok: boolean; viewedIntro: boolean }>("mark_intro_viewed");
 export const announceWelcome = callable<[], { ok: boolean; announced: boolean }>("announce_welcome");
+export const setupStepsDue = callable<[], { due: boolean }>("setup_steps_due");
+export const markSetupStepsSeen = callable<[], { ok: boolean }>("mark_setup_steps_seen");
 export const setFriendFavorite = callable<[string, boolean], { ok: boolean; favoriteFriends: string[] }>(
     "set_friend_favorite"
 );

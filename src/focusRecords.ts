@@ -758,6 +758,10 @@ export function rootMountReason(): MountReason | null {
     return mountReason;
 }
 
+export function rootGeneration(): number {
+    return liveGeneration;
+}
+
 export function markPanelEntry() {
     panelEntryMarked = true;
 }

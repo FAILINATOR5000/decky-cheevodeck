@@ -65,18 +65,18 @@ function tableLabel(action: ShortcutAction, language: LanguageCode): string {
 
 const CHOICES = [
     {
-        id: "off",
-        titleKey: "Off",
-        Glyph: PanelOnlyGlyph,
-        accent: "120,140,170",
-        isDefault: true
-    },
-    {
         id: "on",
         titleKey: "On",
         Glyph: EverywhereGlyph,
         accent: "110,180,120",
-        isDefault: false
+        focusFirst: true
+    },
+    {
+        id: "off",
+        titleKey: "Off",
+        Glyph: PanelOnlyGlyph,
+        accent: "120,140,170",
+        focusFirst: false
     }
 ];
 
@@ -91,7 +91,7 @@ export function WelcomeGlobalButtonsModal(props: WelcomeGlobalButtonsModalProps)
 
     const defaultRef = useRef<HTMLDivElement | null>(null);
     const [focusedChoice, setFocusedChoice] = useState<string | null>(null);
-    useEffect(function seedFocusOnOff() {
+    useEffect(function seedFocusOnOn() {
         const target = defaultRef.current?.querySelector("button, [tabindex]") as HTMLElement | null;
         if (target) {
             target.focus();
@@ -100,9 +100,7 @@ export function WelcomeGlobalButtonsModal(props: WelcomeGlobalButtonsModalProps)
 
     function pickChoice(choice: string) {
         close();
-        if (choice === "on") {
-            void onApplyGlobalButtons(true);
-        }
+        void onApplyGlobalButtons(choice === "on");
     }
 
     const cardWidth = modalSize(112);
@@ -138,7 +136,7 @@ export function WelcomeGlobalButtonsModal(props: WelcomeGlobalButtonsModalProps)
                             <div
                                 key={`welcome-global:col:${choice.id}`}
                                 data-focus-key={`welcome-global:card:${choice.id}`}
-                                ref={choice.isDefault ? defaultRef : undefined}
+                                ref={choice.focusFirst ? defaultRef : undefined}
                                 style={{ width: `${cardWidth}px`, display: "flex" }}
                             >
                                 <DialogButton

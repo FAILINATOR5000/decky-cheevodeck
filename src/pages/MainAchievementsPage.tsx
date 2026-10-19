@@ -77,6 +77,7 @@ import { quickAccessWindow } from "../utils/quickAccess";
 import { landingOwnsTop, pendingLandingKey, usePageLanding, type LandingWindows } from "../focusRecords";
 import { recordMilestoneEvent } from "../utils/milestoneEvents";
 import { MilestonesQuickMenuButton } from "../components/milestones/MilestonesQuickMenuButton";
+import { useSetupCatchUp } from "../hooks/useSetupCatchUp";
 
 // Layout constants
 const GAME_TICKER_FRESHNESS_MS = 60 * 60 * 1000;
@@ -571,6 +572,7 @@ type MainAchievementsPageProps = {
         friendsPayload: FriendsPayload | null;
         saving: boolean;
         loading: boolean;
+        checkingGame: boolean;
         payload: Payload | null;
         trackedIds: number[];
         notesByAchievementId: TrackedNotes;
@@ -637,6 +639,7 @@ type MainAchievementsPageProps = {
         goToTracked: () => void | Promise<void>;
         goToTrackedSets: () => void | Promise<void>;
         openUserAccounts: () => void | Promise<void>;
+        openSetupCatchUp: (layout: MainUiPreset) => void;
         openUtils: () => void | Promise<void>;
         goToSocialNews: () => void | Promise<void>;
         goToSocialEvents: () => void | Promise<void>;
@@ -883,6 +886,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
             friendsPayload,
             saving,
             loading,
+            checkingGame,
             payload,
             trackedIds,
             notesByAchievementId,
@@ -952,6 +956,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
             goToTracked,
             goToTrackedSets,
             openUserAccounts,
+            openSetupCatchUp,
             openUtils,
             goToSocialNews,
             goToSocialEvents,
@@ -1051,6 +1056,13 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
         useState<StripButtonId | null>(null);
 
     const [quickMenuExpanded, setQuickMenuExpanded] = useState(false);
+    useSetupCatchUp({
+        onMain: view === "achievements",
+        loading,
+        checkingGame,
+        layout: showSocialHubButton && showTrackedSetsButton ? "default" : "compact",
+        open: openSetupCatchUp
+    });
     const quickMenuNavRef = useRef(null) as NavAxisRef;
     const tabBodyRef = useRef<HTMLDivElement | null>(null);
     const [heldBodyHeight, setHeldBodyHeight] = useState<number | null>(null);

@@ -61,9 +61,7 @@ export function WelcomeMilestonesModal(props: WelcomeMilestonesModalProps) {
 
     function pickPlace(place: string) {
         close();
-        if (place === "mainMenu") {
-            void onApplyMilestonesButton(true);
-        }
+        void onApplyMilestonesButton(place === "mainMenu");
         onDone();
     }
 

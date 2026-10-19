@@ -2120,6 +2120,7 @@ function AchievementsRoot() {
         switchingUser,
         openCredentialsModal,
         openSetupProfilesModal,
+        openSetupCatchUp,
         openAddUserModal,
         openSwitchUserModal,
         openLanguageModal,
@@ -4745,6 +4746,7 @@ function AchievementsRoot() {
                                         friendsPayload,
                                         saving,
                                         loading,
+                                        checkingGame,
                                         payload,
                                         trackedIds,
                                         notesByAchievementId,
@@ -4815,6 +4817,7 @@ function AchievementsRoot() {
                                             trackedSetsBackSourceRef.current = "main";
                                             goToTrackedSets();
                                         },
+                                        openSetupCatchUp,
                                         openUserAccounts: () => {
                                             openSwitchUserModal();
                                         },

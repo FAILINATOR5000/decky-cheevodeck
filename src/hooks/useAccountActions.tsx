@@ -13,6 +13,7 @@ import {
     generateConnectToken,
     getSettings,
     markIntroViewed,
+    markSetupStepsSeen,
     placeDesktopUpdater,
     reinjectActiveLogin,
     removeUser,
@@ -208,27 +209,32 @@ export function useAccountActions({
         ));
     }
 
-    function openMilestonesModal(layout: MainUiPreset) {
+    function openMilestonesModal(layout: MainUiPreset, finish = endSetup) {
         showManagedModal((close) => (
             <WelcomeMilestonesModal
                 language={language}
                 layout={layout}
                 onApplyMilestonesButton={onApplyMilestonesButton}
-                onDone={openGlobalButtonsModal}
-                onCancel={() => endSetup(close)}
+                onDone={() => openGlobalButtonsModal(finish)}
+                onCancel={() => finish(close)}
                 close={close}
             />
         ));
     }
 
-    function openGlobalButtonsModal() {
+    function openGlobalButtonsModal(finish = endSetup) {
         showManagedModal((close) => (
             <WelcomeGlobalButtonsModal
                 language={language}
                 onApplyGlobalButtons={onApplyGlobalButtons}
-                close={() => endSetup(close)}
+                close={() => finish(close)}
             />
         ));
+    }
+
+    function openSetupCatchUp(layout: MainUiPreset) {
+        openMilestonesModal(layout, (close) => close());
+        void markSetupStepsSeen().catch((e) => logError("stamp setup catch-up as seen", e));
     }
 
     function openSetupProfilesModal(userName?: string) {
@@ -526,6 +532,7 @@ export function useAccountActions({
         switchingUser,
         openCredentialsModal,
         openSetupProfilesModal,
+        openSetupCatchUp,
         openAddUserModal,
         openSwitchUserModal,
         openLanguageModal,

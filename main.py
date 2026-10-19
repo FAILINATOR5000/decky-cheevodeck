@@ -1614,6 +1614,13 @@ class Plugin(
             "viewedIntro": True,
         }
 
+    async def setup_steps_due(self):
+        return {"due": self.settings_store.setup_steps_due()}
+
+    async def mark_setup_steps_seen(self):
+        self.settings_store.mark_setup_steps_seen()
+        return {"ok": True}
+
     async def announce_welcome(self):
         """The greeting, posted when the last of the intro modals closes."""
         document = await self.load_help_document("welcome")

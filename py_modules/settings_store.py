@@ -256,6 +256,8 @@ SHORTCUT_BINDINGS_VERSION = 2
 
 DYNAMIC_INITIAL_ROWS_VERSION = 2
 
+SETUP_STEPS_VERSION = 2
+
 
 _MENU_COMBO_SHORTCUT_BUTTONS = ("menuUp", "menuDown", "menuLeft", "menuRight", "menuL1", "menuR1", "menuL3", "menuR3")
 
@@ -685,6 +687,7 @@ _KNOBS = (
     Knob("lastTrackedTab", default="thisGame", normalize=True),
     Knob("resumeState", default=None, ship=False, normalize=IF_ABSENT),
     Knob("viewedIntro", default=False, reset=False, normalize=True),
+    Knob("setupStepsVersion", default=SETUP_STEPS_VERSION, reset=False, ship=False),
     Knob("lastChangelogVersion", default="", reset=False, ship=False),
 )
 
@@ -2424,7 +2427,7 @@ class SettingsStore:
                 cfg["activityFriendsPerTick"] = 4
                 cfg["activityCacheMinutes"] = 3
 
-            cfg["viewedIntro"] = True
+            self._note_intro_viewed(cfg)
 
             if not preserve_other_settings:
                 cfg["resumeState"] = carried_resume
@@ -2779,9 +2782,31 @@ class SettingsStore:
         return bool(cfg.get("viewedIntro", False))
 
     def update_viewed_intro(self, value: bool) -> bool:
-        cfg = self._update_config("viewedIntro", bool(value))
+        with self._config_lock:
+            cfg = self.ensure_display_settings(self.load_config())
+            if value:
+                self._note_intro_viewed(cfg)
+            else:
+                cfg["viewedIntro"] = False
+            cfg = self.ensure_display_settings(cfg)
+            self.save_config(cfg)
 
         return self.get_viewed_intro(cfg)
+
+    def _note_intro_viewed(self, cfg: dict) -> None:
+        if not self.get_viewed_intro(cfg):
+            cfg["setupStepsVersion"] = SETUP_STEPS_VERSION
+        cfg["viewedIntro"] = True
+
+    def get_setup_steps_version(self, cfg: dict) -> int:
+        return to_int(cfg.get("setupStepsVersion"), 1)
+
+    def setup_steps_due(self) -> bool:
+        cfg = self.load_config()
+        return self.get_viewed_intro(cfg) and self.get_setup_steps_version(cfg) < SETUP_STEPS_VERSION
+
+    def mark_setup_steps_seen(self) -> None:
+        self._update_config("setupStepsVersion", SETUP_STEPS_VERSION)
 
     def set_friend_favorite(self, ulid: str, favorite: bool) -> list[str]:
         target_ulid = str(ulid or "").strip()
