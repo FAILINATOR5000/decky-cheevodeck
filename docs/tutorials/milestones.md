@@ -2,7 +2,7 @@
 
 # Milestones Page
 
-Your dream come true: an achievement system within an achievement tracking app! YES! Actually, it's a fun little system that makes learning CheevoDeck fun and adds some friendly competition as well! So this is like your Achievement Tracker Rank. The more achievement tracking you do, as well as other tracking and CheevoDeck stuff, the more XP you earn and you rank up.
+Milestones turns your hunting into a game of its own, with daily quests, combos, XP and ranks earned from the achievements you unlock as well as exploring CheevoDeck. Your dream come true: an achievement system within an achievement tracking app! YES! Actually, it's a fun little system that makes learning CheevoDeck fun and adds some friendly competition as well! So this is like your Achievement Tracker Rank. The more achievement tracking you do, as well as other tracking and CheevoDeck stuff, the more XP you earn and you rank up.
 
 This was my answer to make learning the plugin fun versus boring tutorial documentation. You can browse the Milestones achievement list and categories to see how you can earn more points, such as the Getting Started category. Each achievement explains how to unlock it, and provides useful advice about the feature. For example, there are achievements for viewing your profile, exploring the quick menu, visiting notifications, loading a new game, etc.
 
@@ -17,7 +17,7 @@ Access Milestones from the main page via **Quick Menu > Milestones** at the bott
 - **Notifications:** Turn on to get a notification pushed to your notification bell each time you unlock a milestone, rank up, and other milestone-related stuff.
 - **Toasts:** Turn on to get a toast pushed each time you unlock a milestone, rank up, and other milestone-related stuff.
 - **Milestones (Tab):** The list of all categories and their Milestones.
-- **Quests (Tab):** Contains your Daily Quest and Weekly Quest. If the quest seems too difficult, you get one reroll. You have a chance to obtain more than one daily quest; however, it is a very small chance. The higher your combo streak, the higher the odds you will get an extra one.
+- **Quests (Tab):** Contains your Daily Quest and Weekly Quest. If the quest seems too difficult, you get one reroll. You have a chance to obtain a bonus daily quest with special requirements and rewards; however, it is a very small chance. The higher your combo streak, the higher the odds it will appear.
 
 **Pro Tip:** When sharing [Memories](memories.md), you have the option to bake in your RA profile username and avatar, as well as your current Milestones rank badge, for bragging rights! Simply toggle those options in the sharing dialog when sharing the memory.
 
