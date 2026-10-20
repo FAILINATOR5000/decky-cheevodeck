@@ -201,7 +201,7 @@ const PL: LocaleTable = {
     "welcome_main_ui_footer_before": "W widoku kompaktowym Centrum społeczne i Cele mistrzostwa dalej masz pod ręką w szybkim menu. Gdyby przyszła ochota na powrót, zmienisz to w sekcji ",
     "welcome_main_ui_footer_after": " w Opcjach.",
     "Quick Menu": "Szybkie menu",
-    "welcome_milestones_intro": "Kamienie milowe zmieniają łowy w osobną grę: zadania dnia, combo, XP i rangi zdobywane za odblokowane osiągnięcia. Gdzie umieścić ich przycisk?",
+    "welcome_milestones_intro": "Kamienie milowe zmieniają łowy w osobną grę: zadania dnia, combo, XP i rangi zdobywane za odblokowane osiągnięcia oraz za odkrywanie CheevoDecka. Gdzie umieścić ich przycisk?",
     "welcome_milestones_footer": "Możesz go przenieść w każdej chwili opcją <b>Pokaż przycisk kamieni milowych</b> w Opcjach.",
     "welcome_global_intro": "CheevoDeck ma sporo skrótów i kombinacji przycisków, które szybko przenoszą do ulubionych stron, poradników, narzędzi i nie tylko. Domyślnie działają tylko wtedy, gdy CheevoDeck jest otwarty w bocznym oknie. Po włączeniu Globalnych przycisków przyciski tylne i kombinacje działają wszędzie, także w trakcie gry.",
     "welcome_global_footer": "Globalne przyciski włączysz i wyłączysz w każdej chwili w <b>Szybkim menu</b> (przycisk menu w prawym górnym rogu strony głównej). Działanie przycisków tylnych i kombinacji zmienisz w <b>Szybkim menu</b> > <b>Przypisz skróty</b>.",

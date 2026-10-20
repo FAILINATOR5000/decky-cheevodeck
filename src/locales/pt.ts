@@ -201,7 +201,7 @@ const PT: LocaleTable = {
     "welcome_main_ui_footer_before": "Na visão compacta, o Hub Social e os Objetivos de Maestria continuam ao alcance pelo menu rápido. Se um dia quiser voltar atrás, é só ir em ",
     "welcome_main_ui_footer_after": " nas Opções.",
     "Quick Menu": "Menu rápido",
-    "welcome_milestones_intro": "Marcos transforma sua caça em um jogo à parte, com missões diárias, combos, XP e patentes que você ganha a cada conquista desbloqueada. Onde você quer o botão?",
+    "welcome_milestones_intro": "Marcos transforma sua caça em um jogo à parte, com missões diárias, combos, XP e patentes que você ganha a cada conquista desbloqueada e explorando o CheevoDeck. Onde você quer o botão?",
     "welcome_milestones_footer": "Você pode mudá-lo de lugar quando quiser em <b>Mostrar botão Marcos</b> nas Opções.",
     "welcome_global_intro": "O CheevoDeck traz vários atalhos e combinações de botões para você pular rápido para suas páginas, guias, ferramentas e outros favoritos. Por padrão, eles só funcionam com o CheevoDeck aberto na janela lateral. Ative os Botões globais e seus botões traseiros e combinações passam a funcionar em qualquer lugar, inclusive durante o jogo.",
     "welcome_global_footer": "Você pode ligar ou desligar os Botões globais quando quiser pelo <b>Menu rápido</b> (o botão de menu no canto superior direito da página principal). Para mudar o que seus botões traseiros e combinações fazem, vá em <b>Menu rápido</b> > <b>Atribuir atalhos</b>.",

@@ -201,7 +201,7 @@ export const EN: LocaleTable = {
     "welcome_main_ui_footer_before": "For Compact View, you can still access the Social Hub and Mastery Goals via the Quick Menu. If you ever want to switch back, you can do it under ",
     "welcome_main_ui_footer_after": " in Options.",
     "Quick Menu": "Quick Menu",
-    "welcome_milestones_intro": "Milestones turns your hunting into a game of its own, with daily quests, combos, XP and ranks earned from the achievements you unlock. Where would you like its button?",
+    "welcome_milestones_intro": "Milestones turns your hunting into a game of its own, with daily quests, combos, XP and ranks earned from the achievements you unlock as well as exploring CheevoDeck. Where would you like its button?",
     "welcome_milestones_footer": "You can move it anytime with <b>Show Milestones Button</b> in Options.",
     "welcome_global_intro": "CheevoDeck includes a variety of button shortcuts and combos where you can jump to your favorite pages, guides, tools, etc. quickly. By default, they only work when CheevoDeck is open in the side window. If you enable Global Buttons, your back buttons and combo shortcuts work anywhere, including while you game.",
     "welcome_global_footer": "You can turn Global Buttons on or off anytime from the <b>Quick Menu</b> (the menu button in the upper-right of the main page). To change what your back buttons and combos do, go to <b>Quick Menu</b> > <b>Map Shortcuts</b>.",

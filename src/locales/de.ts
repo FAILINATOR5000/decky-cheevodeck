@@ -201,7 +201,7 @@ const DE: LocaleTable = {
     "welcome_main_ui_footer_before": "In der kompakten Ansicht erreichst du Social Hub und Meisterziele weiterhin über das Schnellmenü. Zurückwechseln kannst du jederzeit unter ",
     "welcome_main_ui_footer_after": " in den Optionen.",
     "Quick Menu": "Schnellmenü",
-    "welcome_milestones_intro": "Meilensteine machen aus deiner Jagd ein eigenes Spiel, mit täglichen Quests, Combos, XP und Rängen, die du dir mit freigeschalteten Erfolgen verdienst. Wo soll der Knopf hin?",
+    "welcome_milestones_intro": "Meilensteine machen aus deiner Jagd ein eigenes Spiel, mit täglichen Quests, Combos, XP und Rängen, die du dir mit freigeschalteten Erfolgen und beim Erkunden von CheevoDeck verdienst. Wo soll der Knopf hin?",
     "welcome_milestones_footer": "Verschieben kannst du ihn jederzeit mit <b>Meilensteine-Knopf anzeigen</b> in den Optionen.",
     "welcome_global_intro": "CheevoDeck bringt eine ganze Reihe von Tastenkürzeln und Kombinationen mit, mit denen du schnell zu deinen liebsten Seiten, Guides, Werkzeugen und mehr springst. Standardmäßig funktionieren sie nur, solange CheevoDeck im Seitenfenster offen ist. Schaltest du Globale Tasten ein, funktionieren deine Rücktasten und Kombinationen überall, auch mitten im Spiel.",
     "welcome_global_footer": "Globale Tasten schaltest du jederzeit im <b>Schnellmenü</b> ein oder aus (der Menüknopf oben rechts auf der Hauptseite). Was deine Rücktasten und Kombinationen tun, änderst du unter <b>Schnellmenü</b> > <b>Tasten belegen</b>.",

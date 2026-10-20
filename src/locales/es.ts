@@ -201,7 +201,7 @@ const ES: LocaleTable = {
     "welcome_main_ui_footer_before": "Con la vista compacta, el Centro Social y los Objetivos de maestría siguen a tu alcance desde el menú rápido. Si algún día quieres volver atrás, puedes hacerlo en ",
     "welcome_main_ui_footer_after": " en Opciones.",
     "Quick Menu": "Menú rápido",
-    "welcome_milestones_intro": "Hitos convierte tu caza en un juego propio, con misiones diarias, combos, XP y rangos que ganas con los logros que desbloqueas. ¿Dónde quieres su botón?",
+    "welcome_milestones_intro": "Hitos convierte tu caza en un juego propio, con misiones diarias, combos, XP y rangos que ganas con los logros que desbloqueas y explorando CheevoDeck. ¿Dónde quieres su botón?",
     "welcome_milestones_footer": "Puedes moverlo cuando quieras con <b>Mostrar botón de Hitos</b> en Opciones.",
     "welcome_global_intro": "CheevoDeck incluye un montón de atajos y combinaciones de botones para saltar rápido a tus páginas, guías, herramientas y demás favoritas. De inicio, solo funcionan con CheevoDeck abierto en la ventana lateral. Si activas Botones globales, tus botones traseros y combinaciones funcionan en cualquier parte, incluso mientras juegas.",
     "welcome_global_footer": "Puedes activar o desactivar Botones globales cuando quieras desde el <b>Menú rápido</b> (el botón de menú arriba a la derecha de la página principal). Para cambiar lo que hacen tus botones traseros y combinaciones, ve a <b>Menú rápido</b> > <b>Asignar atajos</b>.",

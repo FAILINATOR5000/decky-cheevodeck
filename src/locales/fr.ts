@@ -201,7 +201,7 @@ const FR: LocaleTable = {
     "welcome_main_ui_footer_before": "En vue compacte, le Hub social et les Objectifs de maîtrise restent accessibles depuis le menu rapide. Si tu veux revenir en arrière un jour, c'est sous ",
     "welcome_main_ui_footer_after": " dans les Options.",
     "Quick Menu": "Menu rapide",
-    "welcome_milestones_intro": "Jalons transforme ta chasse en un jeu à part entière, avec des quêtes quotidiennes, des combos, de l'XP et des rangs gagnés grâce aux succès que tu débloques. Où veux-tu placer son bouton ?",
+    "welcome_milestones_intro": "Jalons transforme ta chasse en un jeu à part entière, avec des quêtes quotidiennes, des combos, de l'XP et des rangs gagnés grâce aux succès que tu débloques et en explorant CheevoDeck. Où veux-tu placer son bouton ?",
     "welcome_milestones_footer": "Tu peux le déplacer à tout moment avec <b>Afficher le bouton Jalons</b> dans les Options.",
     "welcome_global_intro": "CheevoDeck propose tout un éventail de raccourcis et de combinaisons de boutons pour sauter rapidement vers tes pages, guides, outils et autres favoris. Par défaut, ils ne fonctionnent que lorsque CheevoDeck est ouvert dans la fenêtre latérale. Active les Boutons globaux et tes boutons arrière et combinaisons fonctionnent partout, même en pleine partie.",
     "welcome_global_footer": "Tu peux activer ou désactiver les Boutons globaux à tout moment depuis le <b>Menu rapide</b> (le bouton de menu en haut à droite de la page principale). Pour changer ce que font tes boutons arrière et tes combinaisons, va dans <b>Menu rapide</b> > <b>Assigner des raccourcis</b>.",
