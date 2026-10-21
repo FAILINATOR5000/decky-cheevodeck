@@ -24,7 +24,7 @@ from utils import ensure_dir, norm_game_id, to_float, to_int, write_file_atomic
 
 _RESOLVE_COOLDOWN_SECONDS = 5
 
-FULL_IMAGE_MAX_BYTES = 6 * 1024 * 1024
+FULL_IMAGE_MAX_BYTES = 32 * 1024 * 1024
 
 _MIN_SNIPPET_SECONDS = 1.0
 
