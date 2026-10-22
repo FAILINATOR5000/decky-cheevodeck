@@ -697,6 +697,7 @@ class _Watch:
     def fresh_check(self, episode: _Episode, now: float) -> None:
         episode.fresh_next_at = now + FRESH_RETRY
         conn = None
+        crashed = False
         try:
             path = find_target_path(STEP_TIMEOUT)
             if path is None:
@@ -711,12 +712,15 @@ class _Watch:
                 if message.get("id") != ping_id:
                     continue
                 if "result" not in message:
-                    raise ConnectionError(f"error reply on a fresh socket: {message.get('error')}")
+                    error = message.get("error") or {}
+                    crashed = error.get("message") == "Target crashed"
+                    raise ConnectionError(f"error reply on a fresh socket: {error}")
                 break
         except Exception as exc:
             if conn is not None:
                 conn.close()
-            episode.fresh_failed = True
+            if not crashed:
+                episode.fresh_failed = True
             episode.fresh = f"failed ({type(exc).__name__}: {exc})"
             self.debug("fresh connection %s", episode.fresh)
             return
