@@ -2749,6 +2749,8 @@ const FR: LocaleTable = {
     "q_wq_points_75_how": "Gagne 75 points en déblocages cette semaine.",
     "q_wq_beat_name": "Battre ou maîtriser un jeu",
     "q_wq_beat_how": "Bats ou maîtrise un jeu cette semaine.",
+    "q_wq_big_unlock_name": "Chasseur de gros gibier",
+    "q_wq_big_unlock_how": "Débloque un succès qui vaut 100 points ou plus.",
     "q_wq_active_5_name": "5 jours d'activité",
     "q_wq_active_5_how": "Débloque quelque chose sur 5 jours différents cette semaine.",
     "q_wq_dailies_5_name": "5 quêtes quotidiennes",

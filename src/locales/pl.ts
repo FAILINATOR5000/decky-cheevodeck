@@ -2794,6 +2794,8 @@ const PL: LocaleTable = {
     "q_wq_points_75_how": "Zdobądź 75 punktów z odblokowań w tym tygodniu.",
     "q_wq_beat_name": "Pokonaj lub opanuj grę",
     "q_wq_beat_how": "Pokonaj lub opanuj grę w tym tygodniu.",
+    "q_wq_big_unlock_name": "Łowca grubego zwierza",
+    "q_wq_big_unlock_how": "Odblokuj osiągnięcie warte co najmniej 100 punktów.",
     "q_wq_active_5_name": "Aktywność przez 5 dni",
     "q_wq_active_5_how": "Odblokuj coś w 5 różnych dniach tego tygodnia.",
     "q_wq_dailies_5_name": "Ukończ 5 zadań dnia",

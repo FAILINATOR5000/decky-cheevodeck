@@ -2678,6 +2678,8 @@ const DE: LocaleTable = {
     "q_wq_points_75_how": "Hol diese Woche 75 Punkte durch Freischaltungen.",
     "q_wq_beat_name": "Ein Spiel bezwingen oder meistern",
     "q_wq_beat_how": "Bezwinge oder meistere diese Woche ein Spiel.",
+    "q_wq_big_unlock_name": "Großwildjäger",
+    "q_wq_big_unlock_how": "Schalte einen Erfolg frei, der 100 Punkte oder mehr wert ist.",
     "q_wq_active_5_name": "5 Tage aktiv",
     "q_wq_active_5_how": "Schalte diese Woche an 5 Tagen etwas frei.",
     "q_wq_dailies_5_name": "5 Tagesquests abschließen",

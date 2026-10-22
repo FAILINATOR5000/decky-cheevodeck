@@ -171,6 +171,7 @@
     {"id": "wq_unlock_15", "rule": {"type": "unlocks"}, "target": 15, "xp": 350},
     {"id": "wq_points_75", "rule": {"type": "points"}, "target": 75, "xp": 250},
     {"id": "wq_beat", "rule": {"type": "award"}, "target": 1, "xp": 250},
+    {"id": "wq_big_unlock", "rule": {"type": "unlocks", "minPoints": 100}, "target": 1, "xp": 350},
     {"id": "wq_active_5", "rule": {"type": "active_days"}, "target": 5, "xp": 250},
     {"id": "wq_dailies_5", "rule": {"type": "daily_done"}, "target": 5, "xp": 250},
     {"id": "wq_memories_10", "rule": {"type": "action", "kinds": ["memory_screenshot", "memory_clip"]}, "target": 10, "needs": "memories_on", "xp": 250}

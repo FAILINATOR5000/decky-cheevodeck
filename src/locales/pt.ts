@@ -2598,6 +2598,8 @@ const PT: LocaleTable = {
     "q_wq_points_75_how": "Ganhe 75 pontos com desbloqueios nesta semana.",
     "q_wq_beat_name": "Zerar ou dominar um jogo",
     "q_wq_beat_how": "Zere ou domine um jogo nesta semana.",
+    "q_wq_big_unlock_name": "Caçador de feras",
+    "q_wq_big_unlock_how": "Desbloqueie uma conquista que valha 100 pontos ou mais.",
     "q_wq_active_5_name": "5 dias de atividade",
     "q_wq_active_5_how": "Desbloqueie algo em 5 dias desta semana.",
     "q_wq_dailies_5_name": "Concluir 5 diárias",

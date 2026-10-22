@@ -2611,6 +2611,8 @@ const JA: LocaleTable = {
     "q_wq_points_75_how": "今週、解除で75ポイント獲得します。",
     "q_wq_beat_name": "ゲームをクリアかマスター",
     "q_wq_beat_how": "今週、ゲームをクリアするかマスターします。",
+    "q_wq_big_unlock_name": "猛獣ハンター",
+    "q_wq_big_unlock_how": "100ポイント以上の実績を解除します。",
     "q_wq_active_5_name": "5日間活動",
     "q_wq_active_5_how": "今週、5日間それぞれ何かを解除します。",
     "q_wq_dailies_5_name": "デイリーを5回クリア",

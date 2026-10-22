@@ -2672,6 +2672,8 @@ export const EN: LocaleTable = {
     "q_wq_points_75_how": "Earn 75 points from unlocks this week.",
     "q_wq_beat_name": "Beat or Master a Game",
     "q_wq_beat_how": "Beat or master a game this week.",
+    "q_wq_big_unlock_name": "Big Game Hunter",
+    "q_wq_big_unlock_how": "Unlock an achievement worth 100 points or more.",
     "q_wq_active_5_name": "Active 5 Days",
     "q_wq_active_5_how": "Unlock something on 5 days this week.",
     "q_wq_dailies_5_name": "Complete 5 Dailies",

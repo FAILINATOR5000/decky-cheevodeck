@@ -2689,6 +2689,8 @@ const ES: LocaleTable = {
     "q_wq_points_75_how": "Gana 75 puntos con tus desbloqueos esta semana.",
     "q_wq_beat_name": "Terminar o dominar un juego",
     "q_wq_beat_how": "Termina o domina un juego esta semana.",
+    "q_wq_big_unlock_name": "Caza mayor",
+    "q_wq_big_unlock_how": "Desbloquea un logro que valga 100 puntos o más.",
     "q_wq_active_5_name": "5 días con actividad",
     "q_wq_active_5_how": "Desbloquea algo en 5 días distintos esta semana.",
     "q_wq_dailies_5_name": "Completar 5 diarias",
