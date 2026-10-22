@@ -48,6 +48,7 @@ type PendingLanding = {
     claimToken: number | null;
     claimSpent: boolean;
     revealedEarly: boolean;
+    steamKey: string | null;
 };
 
 type LandingOutcome = { entryId: number; how: "settled" | "canceled" | "dropped"; held?: boolean };
@@ -326,7 +327,7 @@ function startLanding(entry: TrailEntry, kind: LandingKind, record: FocusRecord,
     }
     const placeholderKey = kind === "recover" ? null : pages.get(entry.view)?.placeholderKey ?? null;
     landingSeq += 1;
-    pending = { seq: landingSeq, entryId: entry.id, view: entry.view, kind, record, echo, placeholderKey, claimedKey: null, claimToken: null, claimSpent: false, revealedEarly: false };
+    pending = { seq: landingSeq, entryId: entry.id, view: entry.view, kind, record, echo, placeholderKey, claimedKey: null, claimToken: null, claimSpent: false, revealedEarly: false, steamKey: null };
     ownedEntryId = entry.id;
     lastOutcome = null;
     logFocusDebug("landing", "pending", `${kind} ${nameEntry(entry)} ${describeRecord(record)} placeholder=${placeholderKey ?? "(none)"}`
@@ -479,7 +480,11 @@ function confirmLanded(entryId: number, key: string, tries: number) {
             claimVanished(entryId, key);
             return;
         }
-        if (cursorIn(element)) {
+        const domHas = cursorIn(element);
+        if (domHas || pending.steamKey === key) {
+            if (!domHas) {
+                logFocusDebug("landing", "steam-only", `${entryId} ${key} active=${describeActive()}`);
+            }
             if (pending.revealedEarly) {
                 revealLanded(entryId, key);
                 endLanding(entryId, "settled", `landed ${key}`);
@@ -942,6 +947,7 @@ function write(rootGeneration: number, root: HTMLElement, target: Element) {
             endLanding(pending.entryId, "canceled", `moved to ${key}`);
         }
         else {
+            pending.steamKey = key;
             logFocusDebug("record", "skip-pending", `${nameEntry(entry)} ${keyName(found)}`);
             return;
         }
