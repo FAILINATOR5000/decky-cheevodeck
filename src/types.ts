@@ -2740,7 +2740,8 @@ type MilestoneRuleType =
     | "unlock_hour"
     | "weekend"
     | "all_kinds"
-    | "games_one_day";
+    | "games_one_day"
+    | "unlock_points";
 
 export type MilestoneCategoryIcon = "flag" | "dpad" | "padlock" | "pushpin" | "people" | "megaphone" | "camera" | "compass" | "globe" | "flame" | "egg";
 

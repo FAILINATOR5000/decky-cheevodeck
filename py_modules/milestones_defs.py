@@ -50,7 +50,7 @@ BINDING_ACTIONS = frozenset((
 _MILESTONE_RULES = frozenset((
     "counter", "tabs", "state", "unlocks", "award", "combo", "active_days", "daily_done",
     "weekly_done", "finish_category", "completionist", "unlock_hour", "weekend", "all_kinds",
-    "games_one_day",
+    "games_one_day", "unlock_points",
 ))
 
 _QUEST_RULES = frozenset((
@@ -115,6 +115,8 @@ def _clean_milestone_rule(rule, category_ids):
             raise ValueError("hours")
         out["from"] = start
         out["to"] = end
+    elif kind == "unlock_points":
+        out["points"] = _positive(rule.get("points"), "points")
     return out
 
 

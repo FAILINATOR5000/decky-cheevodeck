@@ -325,6 +325,12 @@ def milestone_progress(milestone, data, facts, claimed, available_ids):
             if row["ts"] >= started and rule["from"] <= datetime.fromtimestamp(row["ts"]).hour < rule["to"]:
                 return 1
         return 0
+    if kind == "unlock_points":
+        started = data["startedAt"]
+        for row in facts.get("periodRows") or []:
+            if row["ts"] >= started and row["points"] == rule["points"]:
+                return 1
+        return 0
     if kind == "games_one_day":
         started = data["startedAt"]
         games_by_day = {}
