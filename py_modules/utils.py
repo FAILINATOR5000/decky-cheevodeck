@@ -571,7 +571,10 @@ def frontend_error(prefix: str, exc: Exception) -> str:
     a real diagnostic trail without logging having to be wired into every
     caller. This is the single chokepoint for an outbound call failing.
     """
-    decky.logger.exception("%s — %s (%s)", prefix, type(exc).__name__, exc)
+    if is_network_error(exc):
+        decky.logger.warning("%s — %s (%s)", prefix, type(exc).__name__, exc)
+    else:
+        decky.logger.exception("%s — %s (%s)", prefix, type(exc).__name__, exc)
     return prefix
 
 

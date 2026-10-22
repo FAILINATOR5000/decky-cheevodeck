@@ -15,7 +15,7 @@ from notifications import (
     is_type_toast,
     push_debug_notification,
 )
-from utils import to_int
+from utils import is_network_error, to_int
 
 
 PNY_STARTUP_DELAY_MIN_SECONDS = 45.0
@@ -510,8 +510,10 @@ class PlayersNearYouService(TickServiceBase):
         Holds the single RA slot the bridge took for the whole loop, spacing
         the calls by a random 1.2-1.5s so the (up to nine) requests don't land
         back to back. Returns {"results": [...], "rate_limited": bool}. A
-        429/503 arms the backoff and stops the walk; a per-call error is logged
-        and skipped so one bad achievement doesn't sink the rest.
+        429/503 arms the backoff and stops the walk. A network failure stops the
+        walk too, without the backoff, and the next tick tries again. Any other
+        per-call error is logged and skipped so one bad achievement doesn't sink
+        the rest.
         """
         results = []
         for index, achievement in enumerate(window):
@@ -559,6 +561,14 @@ class PlayersNearYouService(TickServiceBase):
                 )
                 continue
             except Exception as exc:
+                if is_network_error(exc):
+                    decky.logger.warning(
+                        "players near you: network failed on achievement %s: %s (%s); trying again next tick",
+                        achievement_id,
+                        type(exc).__name__,
+                        exc,
+                    )
+                    break
                 decky.logger.warning(
                     "players near you: fetch failed on achievement %s: %s (%s)",
                     achievement_id,
