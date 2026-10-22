@@ -38,6 +38,10 @@ export function cancelQuickAccessReturn(): void {
     qamReopenOwed = false;
 }
 
+export function forgetQuickAccessRequest(): void {
+    SteamUIStore?.WindowStore?.GamepadUIMainWindowInstance?.MenuStore?.ClearLastRequestedSideMenu?.();
+}
+
 function takeOverQuickAccessReopen(): boolean {
     if (mountedModals + pendingModals > 1) {
         return false;

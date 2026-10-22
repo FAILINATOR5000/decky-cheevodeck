@@ -17,7 +17,7 @@ import type { GameGuidesRecord, ShortcutAction } from "../../types";
 import { GLOBAL_SHORTCUT_ACTIONS } from "../../utils/options";
 import { logError } from "../../utils/errors";
 import { lastOpenedGuide } from "../../utils/guidesResolve";
-import { cheevoModalCount, cheevoModalOpen, showManagedModal } from "../../utils/modalRegistry";
+import { cheevoModalCount, cheevoModalOpen, forgetQuickAccessRequest, showManagedModal } from "../../utils/modalRegistry";
 import type { PanelEntry } from "../../utils/pendingPanelEntry";
 import { captureSnapshot } from "../../utils/snapshot";
 import { startupSettingsSettled } from "../../utils/frontendSettings";
@@ -277,6 +277,7 @@ async function onBackButton(payload: { action?: string | null; browserSnapshot?:
     if (!registered || !mayOpen(action)) {
         return;
     }
+    forgetQuickAccessRequest();
 
     const summon = action as SummonAction;
     switch (summon) {
