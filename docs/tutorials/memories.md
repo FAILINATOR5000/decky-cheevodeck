@@ -2,7 +2,7 @@
 
 # Memories Page
 
-Memories is a feature that allows you to take screenshots or video clips of your game, which are then stored as memories under the Memories page per game. Any achievements you obtain within the window will be attached to it, so when viewing the memory you can view your list of achievements. For video clips, you can even watch the clip and see which achievements you've unlocked in real time using Timeline Play.
+Memories is a feature that allows you to take screenshots or video clips of your game, which are then stored as memories under the Memories page per game. Any achievements you obtain within the window will be attached to it, so when viewing the memory you can view your list of achievements. For video clips, you can even watch the clip and see which achievements you've unlocked in real time using Timeline Playback.
 
 ## How it Works
 
@@ -51,8 +51,8 @@ To view your memories, simply select the third button from the left under the cu
 ### Video Clip Memory Viewer
 
 - Pressing **A** on the video starts the video in fullscreen. See the bar at the bottom for controls for fast-forward, rewind, skip, bookmark, etc.
-- **Timeline Play:** Only available if you have achievements attached to the memory. It will play the video and show in real time which achievements you unlocked as the video plays.
-- **Bookmark:** While the video is playing in Timeline Play or fullscreen mode, if you press **Start**, a bookmark will be added below the video that starts at that spot. Feel free to make multiple bookmarks and then later go back to the bookmark to give it a label. When you press **A** on a bookmark, it starts the clip at the exact time.
+- **Timeline Playback:** Only available if you have achievements attached to the memory. It will play the video and show in real time which achievements you unlocked as the video plays.
+- **Bookmark:** While the video is playing in Timeline Playback or fullscreen mode, if you press **Start**, a bookmark will be added below the video that starts at that spot. Feel free to make multiple bookmarks and then later go back to the bookmark to give it a label. When you press **A** on a bookmark, it starts the clip at the exact time.
 - **Edit:** Here you can give it a tag that can be used for you to filter it on the Memories page. The tag is also used if you share it. You can also give it a caption, which appears under your memory and can be used when sharing, as well as a color coding, which is also used for filtering.
 - **Share:** Integrates with Discord to share the memory to the #shared-memories section. If you're over a bookmark and press **R2**, it will open the share dialog at that bookmark.
 - **Snippet:** When over a bookmark, pressing **L1** opens a dialog to save that snippet to a location of your choice on your device.
