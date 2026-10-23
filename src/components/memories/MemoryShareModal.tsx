@@ -21,6 +21,7 @@ import { InlineSpinner } from "../ui/InlineSpinner";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { clipSourceFor, playClip, type ClipPlayback, type ClipPlaybackState } from "./clipPlayer";
 import { getClipMuted, setClipMuted, useClipMuted } from "./clipMute";
+import { loadFullPictureUrl } from "./fullPicture";
 import { watchRightStick } from "./rightStick";
 import { SharePartBar } from "./SharePartBar";
 import { drawSharePill } from "./sharePill";
@@ -197,6 +198,34 @@ export function MemoryShareModal(props: MemoryShareModalProps) {
             live = false;
         };
     }, [gameId, memory.id]);
+
+    const [fullSrc, setFullSrc] = useState<string | null>(null);
+    useEffect(() => {
+        if (clip) {
+            return;
+        }
+        let live = true;
+        let url: string | null = null;
+        loadFullPictureUrl(gameId, memory.path)
+            .then((full) => {
+                if (!full) {
+                    return;
+                }
+                if (!live) {
+                    URL.revokeObjectURL(full.url);
+                    return;
+                }
+                url = full.url;
+                setFullSrc(full.url);
+            })
+            .catch((e) => logError("memories: couldn't read a memory at full size for sharing", e));
+        return () => {
+            live = false;
+            if (url) {
+                URL.revokeObjectURL(url);
+            }
+        };
+    }, [gameId, memory.path]);
 
     useEffect(() => {
         let live = true;
@@ -831,30 +860,37 @@ export function MemoryShareModal(props: MemoryShareModalProps) {
                         <div style={{ ...titleStyle, marginBottom: "10px" }}>{title}</div>
                     </>
                 ) : (
-                    <Focusable
-                        focusable
-                        noFocusRing
-                        onGamepadFocus={() => setPreviewFocused(true)}
-                        onGamepadBlur={() => setPreviewFocused(false)}
-                        style={{
-                            display: "flex",
-                            gap: "12px",
-                            alignItems: "flex-start",
-                            marginBottom: "10px",
-                            padding: "4px",
-                            borderRadius: "6px",
-                            boxShadow: previewFocused ? "0 0 0 2px rgba(255, 255, 255, 0.55)" : undefined
-                        }}
-                    >
-                        {thumbDataUri ? (
-                            <FadeImage
-                                src={thumbDataUri}
-                                fadeOnLoad={false}
-                                style={{ width: `${modalSize(150)}px`, borderRadius: "4px", flexShrink: 0, display: "block" }}
-                            />
-                        ) : null}
-                        <div style={titleStyle}>{title}</div>
-                    </Focusable>
+                    <>
+                        <Focusable
+                            focusable
+                            noFocusRing
+                            onGamepadFocus={() => setPreviewFocused(true)}
+                            onGamepadBlur={() => setPreviewFocused(false)}
+                            style={{
+                                display: "block",
+                                marginBottom: "6px",
+                                padding: "4px",
+                                borderRadius: "6px",
+                                boxShadow: previewFocused ? "0 0 0 2px rgba(255, 255, 255, 0.55)" : undefined
+                            }}
+                        >
+                            {fullSrc ?? thumbDataUri ? (
+                                <FadeImage
+                                    src={fullSrc ?? thumbDataUri}
+                                    fadeOnLoad={false}
+                                    style={{
+                                        display: "block",
+                                        width: "100%",
+                                        maxHeight: `${videoMaxVh}vh`,
+                                        objectFit: "contain",
+                                        background: "rgba(255, 255, 255, 0.06)",
+                                        borderRadius: "6px"
+                                    }}
+                                />
+                            ) : null}
+                        </Focusable>
+                        <div style={{ ...titleStyle, marginBottom: "10px" }}>{title}</div>
+                    </>
                 )}
 
                 <div style={{ marginBottom: "10px" }}>

@@ -30,6 +30,8 @@ POSTER_QUALITY = 90
 
 POSTER_CANDIDATE_FRAMES = 100
 
+NEAR_BLACK_LUMA = 24
+
 _PROBE_TIMEOUT_SECONDS = 20
 _POSTER_TIMEOUT_SECONDS = 120
 
@@ -713,12 +715,38 @@ def media_start_seconds(source: str):
     return None
 
 
-def make_poster(session_path: Path, start_ms, duration_ms, destination: Path) -> bool:
-    """Write one representative frame of a clip as a full-size WebP.
+def _write_poster_frame(source, seek: float, span: float, picture_filter: str, destination: Path):
+    try:
+        destination.unlink()
+    except OSError:
+        pass
+    return subprocess_util.run_command([
+        FFMPEG, "-y", "-v", "error",
+        "-ss", f"{seek:.3f}",
+        "-t", f"{span:.3f}",
+        "-i", source,
+        "-vf", picture_filter,
+        "-frames:v", "1",
+        "-c:v", "libwebp",
+        "-q:v", str(POSTER_QUALITY),
+        str(destination),
+    ], timeout=_POSTER_TIMEOUT_SECONDS, as_data_owner=True)
 
-    Scores a hundred frames from inside the clip's own window and keeps the
-    most representative, rather than taking the first: people start clipping on
-    the black frame between cutscenes.
+
+def _has_content(path: Path) -> bool:
+    try:
+        return path.stat().st_size > 0
+    except OSError:
+        return False
+
+
+def make_poster(session_path: Path, start_ms, duration_ms, destination: Path) -> bool:
+    """Write the first real frame of a clip as a full-size WebP.
+
+    Takes the first of the clip's opening frames that is not near-black, so the
+    poster matches what playback opens on but skips the black frame people
+    often start clipping on. When every one is near-black, the first frame is
+    used anyway.
 
     Returns False when no frame landed. ffmpeg exits 0 after writing an empty
     file if the seek ran past the end, so the result is checked rather than the
@@ -744,21 +772,13 @@ def make_poster(session_path: Path, start_ms, duration_ms, destination: Path) ->
     seek = max((max(int(start_ms or 0), 0) / 1000.0) - base, 0.0)
     span = max(int(duration_ms or 0), 0) / 1000.0 or 1.0
 
-    try:
-        destination.unlink()
-    except OSError:
-        pass
-    code, stdout, stderr = subprocess_util.run_command([
-        FFMPEG, "-y", "-v", "error",
-        "-ss", f"{seek:.3f}",
-        "-t", f"{span:.3f}",
-        "-i", source,
-        "-vf", f"thumbnail={POSTER_CANDIDATE_FRAMES}",
-        "-frames:v", "1",
-        "-c:v", "libwebp",
-        "-q:v", str(POSTER_QUALITY),
-        str(destination),
-    ], timeout=_POSTER_TIMEOUT_SECONDS, as_data_owner=True)
+    not_black = (
+        f"trim=end_frame={POSTER_CANDIDATE_FRAMES},format=yuv420p,signalstats,"
+        f"metadata=mode=select:key=lavfi.signalstats.YAVG:value={NEAR_BLACK_LUMA}:function=greater"
+    )
+    code, stdout, stderr = _write_poster_frame(source, seek, span, not_black, destination)
+    if code != 0 or not _has_content(destination):
+        code, stdout, stderr = _write_poster_frame(source, seek, span, "null", destination)
 
     if code != 0:
         decky.logger.warning(
@@ -771,11 +791,7 @@ def make_poster(session_path: Path, start_ms, duration_ms, destination: Path) ->
             pass
         return False
 
-    try:
-        landed = destination.stat().st_size > 0
-    except OSError:
-        landed = False
-    if not landed:
+    if not _has_content(destination):
         decky.logger.warning("memories: the poster for %s came out empty", session_path.name)
         try:
             destination.unlink()
