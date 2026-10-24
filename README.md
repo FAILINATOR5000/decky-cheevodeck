@@ -239,11 +239,19 @@ An example of Steam library badges in action.
 
     Nothing here is locked in — you can later further tweak the UI and accessibility settings in the **Options** page.
 
-5. Finally, you will be asked to pick the **Main Menu** layout, choosing between the **Default View** and **Compact View**. This isn't locked in and can be changed anytime in **Options**.
+5. Next, you will be asked to pick the **Main Menu** layout, choosing between the **Default View** and **Compact View**. This isn't locked in and can be changed anytime in **Options**.
 
     <a href="docs/images/getting-started-view-style.webp"><img src="docs/images/getting-started-view-style.webp" width="560"></a>
 
-6. Congratulations! You are now done with the onboarding and can now begin hunting achievements! Here's how it works:
+6. You will now be asked about where you would like the **Milestones** feature button to be located. It can be located either at the top of the **Main Menu** or located in the bottom of your **Quick Menu** drawer.
+
+    <a href="docs/images/getting-started-milestones.webp"><img src="docs/images/getting-started-milestones.webp" width="560"></a>
+
+7. Finally, select whether or not you would like to enable the **Global Buttons** feature. This allows you to summon powerful tools like the Guides Viewer, the custom web browser, notifications, and much more using a button combo and/or your back buttons anywhere, even outside of the CheevoDeck plugin.
+
+    <a href="docs/images/getting-started-global-buttons.webp"><img src="docs/images/getting-started-global-buttons.webp" width="560"></a>
+
+8. Congratulations! You are now done with the onboarding and can now begin hunting achievements! Here's how it works:
 
     1. Start up your RetroAchievements supported game in whichever emulator you choose. Ensure you are logged into your RetroAchievements account within the emulator or front-end first. Once your game is started, RA is notified of the current game you are playing.
 
