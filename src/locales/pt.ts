@@ -782,6 +782,7 @@ const PT: LocaleTable = {
     "Set Feed": "Feed de sets",
     "News": "Notícias",
     "Achievement of the Week": "Conquista da semana",
+    "AOTW": "Conquista da semana",
     "New Sets": "Novos sets",
     "Revisions": "Revisões",
     "Unlocks": "Desbloqueios",

@@ -779,6 +779,7 @@ const DE: LocaleTable = {
     "Set Feed": "Set-Feed",
     "News": "Neuigkeiten",
     "Achievement of the Week": "Erfolg der Woche",
+    "AOTW": "Erfolg der Woche",
     "New Sets": "Neue Sets",
     "Revisions": "Revisionen",
     "Unlocks": "Freischaltungen",

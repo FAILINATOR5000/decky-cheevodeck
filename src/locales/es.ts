@@ -782,6 +782,7 @@ const ES: LocaleTable = {
     "News & Events": "Noticias y Eventos",
     "News": "Noticias",
     "Achievement of the Week": "Logro de la Semana",
+    "AOTW": "Logro de la Semana",
     "Set Feed": "Feed de sets",
     "New Sets": "Nuevos Sets",
     "Revisions": "Revisiones",

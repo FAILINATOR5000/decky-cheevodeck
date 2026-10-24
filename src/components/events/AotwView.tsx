@@ -147,7 +147,7 @@ export function AotwView(props: AotwViewPageProps) {
     return (
         <PanelSection>
             <PageNavStrip
-                title={t(language, "Achievement of the Week")}
+                title={t(language, "AOTW")}
                 buttonSpacing={props.buttonSpacing}
                 onHome={props.onHome}
             />

@@ -782,6 +782,7 @@ export const EN: LocaleTable = {
     "Set Feed": "Set Feed",
     "News": "News",
     "Achievement of the Week": "Achievement of the Week",
+    "AOTW": "AOTW",
     "New Sets": "New Sets",
     "Revisions": "Revisions",
     "Unlocks": "Unlocks",

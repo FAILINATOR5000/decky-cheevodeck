@@ -788,6 +788,7 @@ const PL: LocaleTable = {
     "Set Feed": "Kanał zestawów",
     "News": "Aktualności",
     "Achievement of the Week": "Osiągnięcie tygodnia",
+    "AOTW": "Osiągnięcie tygodnia",
     "New Sets": "Nowe zestawy",
     "Revisions": "Poprawki",
     "Unlocks": "Odblokowania",

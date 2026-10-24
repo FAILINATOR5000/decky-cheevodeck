@@ -783,6 +783,7 @@ const RU: LocaleTable = {
     "Set Feed": "Лента наборов",
     "News": "Новости",
     "Achievement of the Week": "Достижение недели",
+    "AOTW": "Достижение недели",
     "New Sets": "Новые наборы",
     "Revisions": "Правки",
     "Unlocks": "Разблокировки",

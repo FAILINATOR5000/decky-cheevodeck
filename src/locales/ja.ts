@@ -779,6 +779,7 @@ const JA: LocaleTable = {
     "Set Feed": "セットフィード",
     "News": "ニュース",
     "Achievement of the Week": "今週の実績",
+    "AOTW": "今週の実績",
     "New Sets": "新しいセット",
     "Revisions": "改訂",
     "Unlocks": "解除",
