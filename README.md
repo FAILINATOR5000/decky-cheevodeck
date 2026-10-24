@@ -29,6 +29,8 @@ CheevoDeck isn't just a basic RetroAchievements tracker — it's a full suite fo
 
 - **Advanced tracking** — Tracking an achievement adds it to a special per-game list built to keep you organized: categorize them, add notes, view info, and more. Unlock it and it quietly takes itself off the list.
 
+- **Event Tracking** — Track and manage all of the special RetroAchievements Events, organizing them into categories, adding notes, and checklists. No more having to keep track of all of the different events as everything is centralized within the Events section.
+
 - **Notes, goals and reminders** — Create per-game notes/goals/reminders in style! Color them, tag them into categories, set a reminder once or on repeat. Mark one complete and it gets filed away under Completed, or just delete it instead.
 
 - **Mastery Goals** — Group games into a goal of your own making, whether that's a series you want to see through, the shelf you grew up with as a kid, certain genres, or just a favorite games list. Simply make a Mastery Goal, naming it whatever you want, then add games by searching or by browsing a console. You can add notes, customize the order, and keep track of progress on your Mastery Goal. CheevoDeck keeps track of your progress in the background and you are notified and congratulated once you complete a goal.
@@ -38,6 +40,12 @@ CheevoDeck isn't just a basic RetroAchievements tracker — it's a full suite fo
 - **GameFAQs integration** — Pick a guide for whatever you're playing and open it without ever leaving the game. Access guides quickly by enabling the special guides pin that appears on each page at the top or map it to a button on your controller. It's not just a boring guides viewer. It has zoom, search, bookmarks, and supports both formatted and classic guides. You can view guides from the quick access menu for portability or you can view them in a large dialog for wider view.
 
 - **Social** — Unlike traditional tracker apps, CheevoDeck offers rich social features, such as friend activity feeds, in-app comments viewing/tracking, wall post notifications, live notifications, and more. Don't have any friends? Don't sweat it! CheevoDeck offers a unique social feature called **Players Near You**, which is a special per-game social feed that shows players around your progress. It's a good opportunity to reach out and connect with those around you, and CheevoDeck makes that incredibly easy! You are able to view others' profiles in the **Profile** page, where you can post on their wall, follow them, with many things to view: all their games, recent games, game progress, want to play, awards, wall posts, stats, and much more. Because the RA API does not offer the ability to befriend someone or post comments, CheevoDeck makes this as seamless as possible by sending you directly where you need to be. For example, each in-app comments section has a **Post** button where you will be sent directly to the comments section externally where you can post a comment. Finally, if you have a competitive itch, there are multiple ways to do so, such as comparing stats & achievements, viewing a ranking amongst friends, and comparing stats in leaderboards—offering filters to filter just between you and friends or against everyone.
+
+- **Capture Memories** — Take screenshots and video clips of your favorite games, turning them into memories for your Memories album. Any achievements obtained around the capture of the memory are added to it. Watch your memories and see them highlight achievements unlocked exactly as they occurred in real-time. Add captions, tag them, color-code them, and share your memories with the community in #shared-memories. Memories is off by default. To start using this feature, select the **Memories** button under your current game's info on the main page. It's the third button from the left.
+
+- **Milestones** — Turns your hunting into a game of its own, with daily quests, combos, XP and ranks earned from the achievements you unlock as well as exploring CheevoDeck. Earn bonus quests more often by unlocking achievements each day and scoring combos. Rank up your Milestones status, and when sharing Memories online, you can have bragging rights by showing the emblem on your shares, along with your RA username and avatar.
+
+- **Activity Tracking** — Keep track of your own, your friends', or others' activity by visiting the Activity center on the profile page. Offers a beautiful calendar view of the month, showing most active days with dark green squares and least active days with light green squares. Scale months or even years back to see what you were doing back when you were just an achievement novice. If you want to see which achievements were unlocked for a particular day, selecting the square opens a list for you.
 
 - **Players Near You** — A per-game feed of other players, strangers and friends alike, who are near your progress in real-time. View the feed or get notifications and toasts to stay connected. It's a good way to find and connect with players near you or even make some new friends. There are four modes that you can set per-game:
 
@@ -61,6 +69,8 @@ CheevoDeck isn't just a basic RetroAchievements tracker — it's a full suite fo
 
 - **Update with ease** — Whenever a new update is available, you will receive a message in **Notifications** letting you know about the update with a link to the **About** page. While there, simply copy the update URL with a press of a button and paste it under the **Developer** section in Decky options to install the update immediately. You can also do a simple double-click Desktop mode updater as well.
 
+- **Summon powerful tools anywhere** — Using the new **Global Buttons** feature, you are able to configure shortcuts or actions to button combos or your back buttons to open useful tools anywhere—even without CheevoDeck open. Imagine being able to instantly summon a web browser or GameFAQs guide or even view your **Notifications** feed anywhere, even over your running game.
+
 - **Bonus utilities**
 
     - **Dolphin Mapper** — sets GameCube and Wii controller layouts for Dolphin so you don't have to do it by hand. No more nightmare tuning profiles for the many different Wii control schemes. This does not touch your profiles; it only changes the active controller settings.
@@ -71,35 +81,41 @@ CheevoDeck isn't just a basic RetroAchievements tracker — it's a full suite fo
 
     - **SMB Shares** — mounts your network drives, so a library living on a NAS works the same as one on the SD card. Useful if you want to access ROMs/files on your network.
 
+    - **Stormbreaker** — Protects you from a rare, long-standing SteamOS glitch where the Quick Access Menu (QAM) gets stuck and your controls stop responding. Stormbreaker watches for the focus race that causes it and breaks it up the moment it starts, so the menu just blinks. If a freeze ever gets past it, Automatic Recovery restarts Steam's interface while your game keeps running, so you can select Resume and jump right back in. Just having it on protects you from the freeze in any game, in any plugin, anywhere.
+
+    - **Calculator** — The ultimate tool for all serious achievement hunters... a calculator.
+
+    - **Web Browser** — A custom-built browser made to integrate with CheevoDeck. Great for viewing other types of guides like spreadsheets, Smogon, etc. Uses the SteamOS browser at its core, but with added enhancements, such as tabs, bookmarks, ad-blocking, downloads, and better media compatibility.
+
 - **Steam library badges** — Your achievement progress can show up right on the game pages in your Steam library, on anything you've added as a non-Steam shortcut with Steam ROM Manager. Press up from the Play button to select the badge, then press A to open the full game info for it. It works off a Cheevo Check scan, so the badge is matched to your actual file and not to whatever the shortcut happened to get named, so you are guaranteed 100% match accuracy. If Cheevo Check verifies a file as a valid RA-supported file, it is guaranteed to have a badge. The option can be turned on or off in the **Cheevo Check** page under **Steam Library Badges**.
 
 ## Screenshots
 
 <table>
   <tr>
-    <td><a href="docs/images/01-main-menu.webp"><img src="docs/images/01-main-menu.webp" width="260" alt="Main menu"></a></td>
-    <td><a href="docs/images/02-main-menu-achievements.webp"><img src="docs/images/02-main-menu-achievements.webp" width="260" alt="Achievement list on the main page"></a></td>
-    <td><a href="docs/images/03-tracked.webp"><img src="docs/images/03-tracked.webp" width="260" alt="Tracked achievements"></a></td>
+    <td><a href="docs/images/01-main-menu.webp"><img src="docs/images/01-main-menu.webp" width="260"></a></td>
+    <td><a href="docs/images/02-main-menu-achievements.webp"><img src="docs/images/02-main-menu-achievements.webp" width="260"></a></td>
+    <td><a href="docs/images/03-tracked.webp"><img src="docs/images/03-tracked.webp" width="260"></a></td>
   </tr>
   <tr>
-    <td><a href="docs/images/04-notes.webp"><img src="docs/images/04-notes.webp" width="260" alt="Game notes"></a></td>
-    <td><a href="docs/images/05-friends-list.webp"><img src="docs/images/05-friends-list.webp" width="260" alt="Friends list"></a></td>
-    <td><a href="docs/images/06-user-profile.webp"><img src="docs/images/06-user-profile.webp" width="260" alt="User profile"></a></td>
+    <td><a href="docs/images/04-notes.webp"><img src="docs/images/04-notes.webp" width="260"></a></td>
+    <td><a href="docs/images/05-friends-list.webp"><img src="docs/images/05-friends-list.webp" width="260"></a></td>
+    <td><a href="docs/images/06-user-profile.webp"><img src="docs/images/06-user-profile.webp" width="260"></a></td>
   </tr>
   <tr>
-    <td><a href="docs/images/07-players-near-you.webp"><img src="docs/images/07-players-near-you.webp" width="260" alt="Players Near You"></a></td>
-    <td><a href="docs/images/08-social-hub-activity.webp"><img src="docs/images/08-social-hub-activity.webp" width="260" alt="Social Hub activity feed"></a></td>
-    <td><a href="docs/images/09-community-subscribed.webp"><img src="docs/images/09-community-subscribed.webp" width="260" alt="Subscribed community discussions"></a></td>
+    <td><a href="docs/images/07-players-near-you.webp"><img src="docs/images/07-players-near-you.webp" width="260"></a></td>
+    <td><a href="docs/images/08-social-hub-activity.webp"><img src="docs/images/08-social-hub-activity.webp" width="260"></a></td>
+    <td><a href="docs/images/09-community-subscribed.webp"><img src="docs/images/09-community-subscribed.webp" width="260"></a></td>
   </tr>
   <tr>
-    <td><a href="docs/images/10-news-and-events.webp"><img src="docs/images/10-news-and-events.webp" width="260" alt="News and events"></a></td>
-    <td><a href="docs/images/11-mastery-goals-list.webp"><img src="docs/images/11-mastery-goals-list.webp" width="260" alt="Mastery Goals list"></a></td>
-    <td><a href="docs/images/12-mastery-goals-manage.webp"><img src="docs/images/12-mastery-goals-manage.webp" width="260" alt="Managing a Mastery Goal"></a></td>
+    <td><a href="docs/images/10-news-and-events.webp"><img src="docs/images/10-news-and-events.webp" width="260"></a></td>
+    <td><a href="docs/images/11-mastery-goals-list.webp"><img src="docs/images/11-mastery-goals-list.webp" width="260"></a></td>
+    <td><a href="docs/images/12-mastery-goals-manage.webp"><img src="docs/images/12-mastery-goals-manage.webp" width="260"></a></td>
   </tr>
   <tr>
-    <td><a href="docs/images/13-guides-reader-panel.webp"><img src="docs/images/13-guides-reader-panel.webp" width="260" alt="Guide reader in the panel"></a></td>
-    <td><a href="docs/images/14-friend-games.webp"><img src="docs/images/14-friend-games.webp" width="260" alt="A friend's games"></a></td>
-    <td><a href="docs/images/15-main-comments.webp"><img src="docs/images/15-main-comments.webp" width="260" alt="Comments on a game"></a></td>
+    <td><a href="docs/images/13-guides-reader-panel.webp"><img src="docs/images/13-guides-reader-panel.webp" width="260"></a></td>
+    <td><a href="docs/images/14-friend-games.webp"><img src="docs/images/14-friend-games.webp" width="260"></a></td>
+    <td><a href="docs/images/15-main-comments.webp"><img src="docs/images/15-main-comments.webp" width="260"></a></td>
   </tr>
 </table>
 
@@ -107,8 +123,45 @@ Here is just a sample of some of the pages within the plugin. There's plenty mor
 
 <table>
   <tr>
-    <td><a href="docs/images/guides-reader-modal.webp"><img src="docs/images/guides-reader-modal.webp" width="420" alt="Guide reader in the full-size dialog"></a></td>
-    <td><a href="docs/images/notifications-modal.webp"><img src="docs/images/notifications-modal.webp" width="420" alt="Notifications"></a></td>
+    <td colspan="2"><a href="docs/images/timeline-play-02.webp"><img src="docs/images/timeline-play-02.webp" width="860"></a></td>
+  </tr>
+  <tr>
+    <td><a href="docs/images/memories-01.webp"><img src="docs/images/memories-01.webp" width="260"></a></td>
+    <td><a href="docs/images/memories-share-dialog.webp"><img src="docs/images/memories-share-dialog.webp" width="580"></a></td>
+  </tr>
+  <tr>
+    <td><a href="docs/images/memories-discord-02.webp"><img src="docs/images/memories-discord-02.webp" width="420"></a></td>
+    <td><a href="docs/images/memories-discord-01.webp"><img src="docs/images/memories-discord-01.webp" width="420"></a></td>
+  </tr>
+</table>
+
+Capturing and Sharing Memories
+
+<table>
+  <tr>
+    <td><a href="docs/images/events-all-list.webp"><img src="docs/images/events-all-list.webp" width="200"></a></td>
+    <td><a href="docs/images/events-tracked.webp"><img src="docs/images/events-tracked.webp" width="200"></a></td>
+    <td><a href="docs/images/events-checklist.webp"><img src="docs/images/events-checklist.webp" width="200"></a></td>
+    <td><a href="docs/images/events-automated.webp"><img src="docs/images/events-automated.webp" width="200"></a></td>
+  </tr>
+</table>
+
+Tracking and Managing RA Events
+
+<table>
+  <tr>
+    <td><a href="docs/images/milestones-01.webp"><img src="docs/images/milestones-01.webp" width="260"></a></td>
+    <td><a href="docs/images/milestones-02.webp"><img src="docs/images/milestones-02.webp" width="260"></a></td>
+    <td><a href="docs/images/activity-01.webp"><img src="docs/images/activity-01.webp" width="260"></a></td>
+  </tr>
+</table>
+
+Milestones and the Activity calendar
+
+<table>
+  <tr>
+    <td><a href="docs/images/guides-reader-modal.webp"><img src="docs/images/guides-reader-modal.webp" width="420"></a></td>
+    <td><a href="docs/images/notifications-modal.webp"><img src="docs/images/notifications-modal.webp" width="420"></a></td>
   </tr>
 </table>
 
@@ -116,7 +169,7 @@ These are some of the larger modal dialogs within CheevoDeck: Large Guide Viewer
 
 <table>
   <tr>
-    <td><a href="docs/images/steam-library-badge.webp"><img src="docs/images/steam-library-badge.webp" width="860" alt="The achievement badge on a Steam game page, and the CheevoDeck panel it opens"></a></td>
+    <td><a href="docs/images/steam-library-badge.webp"><img src="docs/images/steam-library-badge.webp" width="860"></a></td>
   </tr>
 </table>
 
@@ -158,13 +211,13 @@ An example of Steam library badges in action.
 
     The easiest way to enter it is by selecting the **Find your Web API Key on RetroAchievements** link within the **Enter Credentials** dialog itself to be taken directly to the page where you can select your API key to copy it to your clipboard. Then, simply go back to the dialog and paste your key via the **Paste** option on Steam's on-screen keyboard in the lower right. Once entered, press the **Save** button to continue the setup process.
 
-    <a href="docs/images/getting-started-credentials.webp"><img src="docs/images/getting-started-credentials.webp" width="560" alt="The RetroAchievements Credentials dialog"></a>
+    <a href="docs/images/getting-started-credentials.webp"><img src="docs/images/getting-started-credentials.webp" width="560"></a>
 
-    <a href="docs/images/getting-started-api-key.webp"><img src="docs/images/getting-started-api-key.webp" width="800" alt="The Web API Key on the RetroAchievements settings page"></a>
+    <a href="docs/images/getting-started-api-key.webp"><img src="docs/images/getting-started-api-key.webp" width="800"></a>
 
 3. Next, you will be asked to select a settings profile that works for you: between **Basic**, **Social**, and **Balanced**.
 
-    <a href="docs/images/getting-started-profiles.webp"><img src="docs/images/getting-started-profiles.webp" width="560" alt="Choosing a settings profile"></a>
+    <a href="docs/images/getting-started-profiles.webp"><img src="docs/images/getting-started-profiles.webp" width="560"></a>
 
     - **Basic** — This profile is for those who just want to hunt achievements, with none of the extra bells and whistles, so social features and notifications are turned off. This includes all of the core achievement hunting and tracking features, but without the extra noise.
 
@@ -176,7 +229,7 @@ An example of Steam library badges in action.
 
 4. After selecting a settings profile, you will be asked to choose a view size preset.
 
-    <a href="docs/images/getting-started-view-size.webp"><img src="docs/images/getting-started-view-size.webp" width="560" alt="Choosing a view size"></a>
+    <a href="docs/images/getting-started-view-size.webp"><img src="docs/images/getting-started-view-size.webp" width="560"></a>
 
     - **Portable** — This is the recommended default if you are on a portable device, such as Steam Deck or the Asus ROG Ally. Text and UI elements will seem about just-right.
 
@@ -188,7 +241,7 @@ An example of Steam library badges in action.
 
 5. Finally, you will be asked to pick the **Main Menu** layout, choosing between the **Default View** and **Compact View**. This isn't locked in and can be changed anytime in **Options**.
 
-    <a href="docs/images/getting-started-view-style.webp"><img src="docs/images/getting-started-view-style.webp" width="560" alt="Choosing a view style"></a>
+    <a href="docs/images/getting-started-view-style.webp"><img src="docs/images/getting-started-view-style.webp" width="560"></a>
 
 6. Congratulations! You are now done with the onboarding and can now begin hunting achievements! Here's how it works:
 
@@ -206,7 +259,7 @@ Most of CheevoDeck is reachable from the three buttons in the top right corner o
 
 ### The Top Button Strip
 
-<a href="docs/images/tutorial-top-button-strip.webp"><img src="docs/images/tutorial-top-button-strip.webp" width="420" alt="The top button strip on the Main Menu"></a>
+<a href="docs/images/tutorial-top-button-strip.webp"><img src="docs/images/tutorial-top-button-strip.webp" width="420"></a>
 
 On the **Main Menu** there are three buttons in the top right corner, and between these three you are able to access many pages and settings quickly. From left to right, there is the **Profile** button, **Quick Menu** button, and the **Notifications** button.
 
@@ -216,11 +269,11 @@ On the **Main Menu** there are three buttons in the top right corner, and betwee
 
 - **Notifications** — The notification bell in the upper right corner can be used to access your **Notifications** feed. If you have any new notifications, you will see a glowing orange dot on top of the bell icon.
 
-On every other page, the same corner gives you two buttons instead: **Home**, which takes you straight back to the **Main Menu** from wherever you are, and the same **Notifications** bell. No matter where you are, your **Notifications** feed is just one press away.
+On every other page, the same corner gives you three buttons instead: **Home**, which takes you straight back to the **Main Menu** from wherever you are, the **?** button, which opens the tutorial for the page you are on, and the same **Notifications** bell. No matter where you are, your **Notifications** feed is just one press away.
 
 ### The Quick Menu
 
-<a href="docs/images/tutorial-quick-menu.webp"><img src="docs/images/tutorial-quick-menu.webp" width="420" alt="The Quick Menu expanded on the Main Menu"></a>
+<a href="docs/images/tutorial-quick-menu.webp"><img src="docs/images/tutorial-quick-menu.webp" width="420"></a>
 
 Pressing the hamburger-looking button, as a part of the button strip, on the **Main Menu** opens the **Quick Menu** over the top of the page, and pressing **B** closes it again. Below is a breakdown of all of the features it offers, and you will learn just how powerful it really is:
 
@@ -233,6 +286,8 @@ Pressing the hamburger-looking button, as a part of the button strip, on the **M
     - **Night Mode** — Simply dims all of your pages to make it easier on your eyes at night. You can customize the intensity in **Options** > **System** tab > **Night Mode**.
 
     - **Standby** — A useful button to press when done achievement hunting and moving on to other things. It simply turns off most of your background services. Social services that fetch data and sends it to your feeds will be turned off. Other services like the memories service is temporarily disabled, so if you press the Steam record button or Steam snapshot button, it will not be saved in CheevoDeck. This is useful for if you are playing games other than RetroAchievements ones where you want to use Steam snapshots or recording but don't want CheevoDeck to pull those shots/clips in. It's also useful if you just want to turn those services off temporarily, so you are not fetching from RA unnecessarily when not hunting achievements. And guess what? Just like with **Do Not Disturb**, you can customize *what* **Standby** does when toggled on in **Options** > **System** tab > **Standby Disabled Services**.
+
+    - **Global Buttons** — Allows your back buttons and button combos to work outside CheevoDeck if enabled. Actions can be mapped to those back buttons and combos in **Quick Menu** > **Options** > **System** tab > **Mapped Shortcuts**. Actions with a * indicate they are compatible with Global Buttons and will fire or launch outside the CheevoDeck plugin.
 
     - **Mouse & Keyboard Mode** — Useful if you are switching over to playing a standalone RetroAchievements-supported game such as Terraria or Final Fantasy XI. This switches over the UI to make everything work well for mouse and keyboard users. When going back to a controller-based game, simply turn it off and you are good to go.
 
@@ -256,11 +311,11 @@ Here are some speed-hacks that will help you move through the many pages of Chee
 
 - **Make use of customizing the Quick Menu** — You can customize the bottom row of the **Quick Menu** on the **Main Menu**, adding custom shortcuts and actions to it. Do that by going to **Options** > **Display & Notifications** tab > **Customize Quick Menu**.
 
-- **Map shortcuts and actions to your controller** — You can also skip the trip entirely by mapping common shortcuts and actions to your controller buttons. Go to **Options** > **System** tab > **Mapped Shortcuts** to customize this. While the other buttons are reserved for the core features in CheevoDeck, the ones that you are able to map are: **Menu**, **View**, **L3**, **L4**, **L5**, **R3**, **R4**, and **R5**. There are also **Menu** + **D-Pad** / **L1** / **R1** combos as well.
+- **Map shortcuts and actions to your controller** — You can also skip the trip entirely by mapping common shortcuts and actions to your controller buttons. Go to **Options** > **System** tab > **Mapped Shortcuts** to customize this. While the other buttons are reserved for the core features in CheevoDeck, the ones that you are able to map are: **Menu**, **View**, **L3**, **L4**, **L5**, **R3**, **R4**, and **R5**. There are also **Menu** + **D-Pad** / **L1** / **R1** / **L3** / **R3** combos as well.
 
-    <a href="docs/images/tutorial-mapped-shortcuts.webp"><img src="docs/images/tutorial-mapped-shortcuts.webp" width="320" alt="The Mapped Shortcuts list in Options"></a>
+    <a href="docs/images/tutorial-mapped-shortcuts.webp"><img src="docs/images/tutorial-mapped-shortcuts.webp" width="320"></a>
 
-For now, all mappings (minus snapshot) work within the **Quick Access Menu** environment which is 95% of CheevoDeck. Modal support will eventually be added for the ones that make sense.
+By default, mappings only work while CheevoDeck is open in the **Quick Access Menu**. Turn on **Global Buttons** in the **Quick Menu**, and your back buttons and **Menu** combos work anywhere, even over your running game, for any action marked with a *.
 
 ### Customize Your Experience
 
@@ -268,8 +323,8 @@ If there ever is a moment, where you think to yourself, "Can I turn this off?" o
 
 <table>
   <tr>
-    <td width="320" align="center"><a href="docs/images/tutorial-default-view.webp"><img src="docs/images/tutorial-default-view.webp" width="320" alt="The Main Menu with the Social Hub and Mastery Goals buttons"></a></td>
-    <td width="320" align="center"><a href="docs/images/tutorial-compact-view.webp"><img src="docs/images/tutorial-compact-view.webp" width="320" alt="The Main Menu in Compact View with those buttons removed"></a></td>
+    <td width="320" align="center"><a href="docs/images/tutorial-default-view.webp"><img src="docs/images/tutorial-default-view.webp" width="320"></a></td>
+    <td width="320" align="center"><a href="docs/images/tutorial-compact-view.webp"><img src="docs/images/tutorial-compact-view.webp" width="320"></a></td>
   </tr>
   <tr>
     <td width="320" align="center"><b>Default View</b></td>
