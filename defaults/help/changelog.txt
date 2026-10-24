@@ -1,26 +1,243 @@
 CheevoDeck {{VERSION}}
 
-This one is a follow-up to the quality of life improvements in 0.9.0 and aims to iron out those pesky bugs! Both Tracked and Notes pages had some strange behavior going on, but no worries, the infrastructure has improved drastically. I also added some very minor quality of life improvements as well, such as changing the formatting of Tracked and Game Notes categories. Now, by default, it no longer is in all caps and now matches whatever case you type. If you liked the old style, you are able to change it back in options. See below for more!
+Welcome to 1.0, everyone! I consider this my love letter to RetroAchievements. Everything in this update is what I've envisioned since the beginning for what a truly feature-rich RA tracking app should have. It's not just a tracker, it's a suite with all the tools you will ever need to hunt achievements, while also adding a welcoming social experience. Everything is covered below, including all of the new flagship features, quality of life improvements, fixes, and much more. The first thing you will notice when using CheevoDeck 1.0 is that when you enter a page and then go back, you are exactly where you came from. When you are looking at an achievement or anything and you close the Quick Access Menu side window, when you open it again, you are exactly on that achievement still. It was restructured from the ground up, so now no more starting at the top of the page all of the time because full state is now persisted. Alright, on to the features first!
 
-<b>Tracked Page</b>
+<b>New: Memories</b>
 
--Fixed the cursor vanishing after editing a note.
--Changing an item's tag now leaves the cursor in the category you were already in, instead of following the item over to its new one. If you're tagging a lot of items in one go, this saves you walking back to your place every time.
--Fixed the page shifting under you while you scroll up through categories.
--Notes are no longer cut off at 300 characters. The editor always let you type 500, so now it reflects that.
--The Completed tag no longer shows up in your tag suggestions.
+-Turn your SteamOS screenshots and video clips you take into memories. Every screenshot and video clip you take with Steam gets filed under the game you are currently playing into a special memories album. For screenshots, if you take them within 60 seconds of unlocking an achievement before or during it, the achievement and info are added to that memory. Any achievements unlocked during a video clip will also be added to that memory.
 
-<b>Game Notes Page</b>
+-Your screenshot and clip memories are completely independent, so even if you delete the SteamOS source media, it safely exists within CheevoDeck.
 
--The same cursor and page-shifting fixes as Tracked above.
--Changing a note's tag also leaves the cursor where you were instead of following the note.
+-Organize your memories any time, giving them captions to describe how you felt in that moment. Give them tags and color coding as well, allowing you to filter them by category, such as "Funny" or "Personal Best" or whatever you choose.
 
-<b>Options</b>
+-Viewing a memory will show the achievements unlocked during or around the time it was captured. It goes a step further for video clip memories where you can use <b>Timeline Playback</b>, which highlights your achievements unlocked in real time as it happens in the video.
 
--Added Formatting settings for header case. <b>Tracked Header Style</b> and <b>Notes Header Style</b> control your tag categories on those two pages, where Typed shows the tag exactly as you typed it. Capitalized shows the Steam default capitalized headers. Also, <b>General Header Style</b> covers every other header. View them in <b>Quick Menu</b> > <b>Options</b> > <b>Display & Notifications</b> tab under <b>Formatting</b>.
+-Share memories with ease by pressing <b>R2</b> on one, where you will be asked to enter a caption and select tags. If you already gave it one, it will be filled out for you as a recommendation. Pressing <b>Post</b> opens up CheevoDeck's custom web browser straight to the Discord server's #shared-memories section, filling everything out and attaching your memory for you. You only have to press <b>Post</b>. There is also a <b>Shared Memories</b> button in the Memories page that brings you straight to #shared-memories to view others' posts in the gallery.
+
+-To start using this feature, select the <b>Memories</b> button under your current game's info on the main page. It's the third button from the left.
+
+-Under <b>Utilities</b>, you are also able to export / import memories between devices over the network or through sharing file bundles.
+
+<b>New: Event Tracking</b>
+
+-<b>News & Events</b> has a new <b>Events</b> tab listing every RetroAchievements event, allowing the organizing, tracking, and management of events.
+
+-Add events to your tracked list to keep an eye on certain ones or the ones you are working on.
+
+-<b>Achievement of the Week</b> now has its own button in there.
+
+-Checklist events let you mark games as beaten or mastered or check off other criteria.
+
+-Because there are different types of events, each is handled uniquely for your tracking.
+
+-Customization for your tracked events, such as adding notes to them, color coding them, or organizing them into collapsible / expandable categories.
+
+<b>New: Milestones</b>
+
+-Milestones turns your hunting into a game of its own, with daily quests, combos, XP and ranks earned from the achievements you unlock as well as exploring CheevoDeck.
+
+-Earn XP from learning how CheevoDeck works! Much less boring than a tutorial! The milestone achievements show you features you might never have found, and each one explains how to unlock it. There are Daily and Weekly Quests, combos for unlocking achievements several days in a row, and a rare Bonus Daily Quest with special requirements and rewards that shows up more often the longer your combo runs. Select the rank card to see the full rank table.
+
+<b>New: Activity (Calendar)</b>
+
+-The Activity calendar shows activity for a user for each day of each month. Light green indicates light activity, while dark green indicates a lot of activity. It takes the spot where the Mastery Goals button used to be on the Profile page; Mastery Goals is still in the <b>Quick Menu</b>.
+
+-View activity for you, your friend, or even a stranger! Selecting a day opens up a list of all of the achievements unlocked that day.
+
+-Easily traverse months or even years back to see how you did or what games you tackled in the past.
+
+-Integrates with Milestones where if you have multiple days in a row with unlocks, you start a Combo where you earn XP each day, contributing to your Milestones rank.
+
+<b>New: Web Browser (Utility)</b>
+
+-CheevoDeck's in-house custom web browser offers tons of features and has great performance as well due to blocking intrusive ads, which can be cumbersome on some devices.
+
+-Tab Support: You are able to store up to 100 tabbed pages.
+
+-Bookmarks: Easily bookmark your favorite sites and manage different categories.
+
+-Ad Block: Blocks various ads, which helps speed up page load times, lower CPU usage, and keep memory usage lower. It's quite useful for the Steam Deck, as some very large ads tend to block the very small window on the Deck. Also, you are able to define exemptions.
+
+-YouTube Video Ad Block: Blocks YouTube video ads, allowing you to listen or watch anything uninterrupted.
+
+-YouTube Video Ad Auto-Speedup & Skip: When not using YouTube Ad Blocking, whenever a video ad shows in the middle of a YouTube video, it is automatically sped up to 16x and skipped for you. Ads before a video play normally and are skipped as soon as YouTube allows, unless you turn on <b>Fast-forward Pre-roll Ads</b>. Auto-Speedup can be toggled off as well. This is a fallback if video ad block stops working, and I have to update things.
+
+-Video and Audio Background Play: Play a podcast, YouTube video, music, etc. while your browser is minimized and hidden in the background while you play your games for a cozy, chill time.
+
+-More Supported Video Formats: On the built-in SteamOS browser, certain YouTube videos would throw an error. That no longer happens, as more video formats are supported.
+
+-Download Management: Download and manage files in the <b>Downloads</b> tab, keeping track of the progress.
+
+-Extremely Memory Efficient: It's designed to be lightweight and not take up many resources. If you want it to clean up everything, simply close it. But if you want it to remain in memory, use the Minimize option. Even then, it does not use many resources.
+
+-High Compatibility: Handles music, videos, documents, and spreadsheets with ease, so whether you want to view a spreadsheet guide or watch a tutorial video, it will work fine!
+
+<b>New: Global Buttons</b>
+
+-Your mapped shortcuts that open useful things used to only work within CheevoDeck with the Quick Access Menu side window opened. Now, with Global Buttons, once enabled, you can summon a variety of tools or pages without even opening CheevoDeck. Imagine being able to view your current GameFAQs guide or summoning CheevoDeck's browser while you are playing your game without even having to open the side window. It's now possible!
+
+-Global Buttons can be toggled on/off in your <b>Quick Menu</b> on the main page. Only back buttons or button combos are supported for Global Buttons.
+
+-Customize your back buttons and button combos in <b>Quick Menu</b> > <b>Options</b> > <b>System</b> Tab > <b>Mapped Shortcuts</b>. Actions that support this feature will have an * after the name.
+
+-Works with the Steam Deck's built-in controls, the ROG Ally and Ally X (<b>M1</b> and <b>M2</b>), the Steam Controller, the DualSense, the Switch Pro Controller, the Xbox Series X|S Wireless Controller, and the DualShock 4 over Bluetooth.
+
+-After you update, CheevoDeck asks you once whether to turn Global Buttons on. After that point, you can toggle it on/off from the <b>Quick Menu</b>.
+
+<b>New: Stormbreaker (Utility)</b>
+
+-Protects you from a rare SteamOS glitch where the Quick Access Menu gets stuck and your controls stop responding. Stormbreaker watches for the focus race that causes it and breaks it up the moment it starts.
+
+-While incredibly rare, when the freeze does happen, it sucks because you lose game progress in the process because resetting the system is what most people end up doing due to controls not being responsive. Well, not anymore and not under Stormbreaker's watch!
+
+-Just by having CheevoDeck installed with Stormbreaker on, you are protected from any situation in any game in any plugin. It runs in the background, barely using any resources, as the freeze guard only reacts when focus moves and Automatic Recovery only checks in on Steam's interface every couple of seconds.
+
+-If a freeze ever gets past it, Automatic Recovery restarts Steam's interface while your game keeps running. You can also turn on <b>Recovery Button Combo</b> and hold <b>L4</b>, <b>L5</b>, <b>R4</b> and <b>R5</b> (<b>M1</b> and <b>M2</b> on the ROG Ally) for three seconds to do it yourself.
+
+-It has its own page in <b>Utilities</b> with Status and Logs tabs, and it's on by default and only runs in Game Mode.
+
+<b>New: Calculator (Utility)</b>
+
+-The ultimate achievement hunter utility. It's in <b>Utilities</b> and you can map it to a button or access it from the <b>Quick Menu</b>. YES!
+
+<b>New: Help on Every Page</b>
+
+-Every page now has a <b>?</b> button in the top strip that opens that page's tutorial online in CheevoDeck's custom browser. Need help or have a question about how something works for a certain page? Try that button and it might answer your question.
+
+<b>Quality of Life</b>
+
+-Every page now returns you to where you were. Close the Quick Access Menu, back out of a dialog, or press <b>Back</b>, and you land on the exact row you left, even deep in a long list. SUPER WIN! No more having the page start at the top each time upon QAM opening.
+
+-Long lists are much smoother. A sliding window system has been implemented and built from the ground up, allowing traversal of super-duper long lists. Before, the lists would dynamically expand and expand and expand without collapsing offscreen content. Now they do!
+
+-No more [brackets] for tags. Tracked (Achievements), Game Notes and the Dolphin Mapper have a proper tag field now. So if you want to put an achievement under the "Side-Quests" category, all you do is type in (via the on-screen keyboard) "Side-Quests" into its own field. Your existing tags will work and show up in the new tag field, so no worries.
+
+-Note reminders are now incredibly accurate. They fire when they should, stop as soon as a note is turned off, completed, edited or deleted, and keep the exact interval you typed.
+
+-Mastery Goals no longer reloads your whole library as often, which was slow on big libraries.
+
+<b>Changes</b>
+
+-The <b>Quick Menu</b> now supports eight customizable shortcuts, with new ones for Memories, Web Browser, Calculator, Stormbreaker and Map Shortcuts.
+
+-Added a <b>Global Buttons</b> toggle to the <b>Quick Menu</b>.
+
+-Picking a mapped shortcut's action is now a list grouped by category, and <b>X</b> clears a mapping. No more cycling through dozens of actions.
+
+-Battery Saver is now called Standby. It didn't really save battery, as the services didn't use much power to begin with. It's useful if you are done achievement hunting and want to play Steam games but don't want the services running.
+
+-Standby can be mapped to a button now.
+
+-Snapshot is now a developer tool, and only shows up in the mapping list with <b>Developer Options</b> on. Don't get this confused with screenshots for memories. This is just a tool to take a picture of the CheevoDeck interface.
+
+-New Sets & Revisions is now called Set Feed.
+
+-Back and Exit prompts show in the Quick Access Menu footer.
+
+-Shorter page titles: About, Mapper, History and Compare. This was in response to adding the <b>?</b> help button at the top of each page, which reduced the amount of room for the title itself.
+
+-<b>B</b> when viewing tracked achievements for other games now goes back to the main page, just as going back when viewing the current game's tracked achievements.
+
+-Cheevo Check now ships ARM64 versions of its tools, in preparation for ARM SteamOS support.
+
+<b>Just a Heads-Up</b>
+
+-Your <b>Quick Menu</b> shortcuts have been reset just this one time with the new defaults. You can change them back to whatever you want.
+
+-Your mapped button shortcuts are also reset once to the new defaults.
+
+-Links open in CheevoDeck's browser now, with the exception of the credentials entry links.
+
+-New snapshots (debug) save to <b>Pictures/CheevoDeck/Snapshots</b>. The ones you already have will not be touched.
+
+<b>Fixes: Cheevo Check</b>
+
+-A CHD inside a zip, 7z or rar now gets the same result as the loose disc.
+
+-Fixed re-scanning a 7z or rar game saying it couldn't be read.
+
+-Games in zips using Deflate64 compression can now be scanned.
+
+-A password-protected archive no longer stalls a scan.
+
+<b>Fixes: Mastery Goals</b>
+
+-A bad response from RetroAchievements can no longer reset every goal card to zero.
+
+-Switching accounts during a check no longer writes counts into the other account's goals.
+
+-The goal-complete sound is no longer drowned out by the button press sound, remedied by simply adding a slight delay to the toast.
+
+-Fixed game icons missing from an open goal after a plugin reload.
+
+-Fixed the "No games match this filter" message getting cut off at the bottom of the screen.
+
+<b>Fixes: Tracked & Game Notes</b>
+
+-Achievements unlocked just before switching games are no longer missed. Their tracked rows clear, the unlock notification fires, and Mastery Goals updates.
+
+-Note editors no longer act like everything is okay if a save ever fails.
+
+-Fixed an achievement untracked or unlocked right after a reorder coming back in Tracked.
+
+-Long game titles in Tracked Sets are no longer cut off.
+
+<b>Fixes: Leaderboards</b>
+
+-Fixed a leaderboard being forgotten if you closed the menu right after reopening it.
+
+-With the Friends filter on, Top Players now counts your friends on the board instead of the whole board.
+
+-New leaderboards show up within a day instead of three.
+
+<b>Fixes: Dolphin Mapper</b>
+
+-<b>B</b> on the controller step no longer closes the whole mapping and loses your edits.
+
+-Changing a slot's controller type no longer keeps the old face button layout.
+
+-Proper atomic saving to avoid any corruption scenarios.
+
+-Settings toggles no longer say they saved when Dolphin's files weren't written, and no longer replace a linked config with a plain file.
+
+-Dolphin config folders that an older version left locked are handed back to you automatically.
+
+<b>Fixes: Main Page & Profiles</b>
+
+-The main page no longer jumps down and back up when a new game loads.
+
+-Tab buttons no longer stay dimmed while the cursor is on them.
+
+-Button captions under the top strip are no longer cut off at the edge of the panel. Text is now centered to avoid this.
+
+<b>Fixes: Social</b>
+
+-A friend's avatar you fixed with <b>Resolve</b> no longer goes back to the wrong picture a couple of days later, making it a truly long-lasting solution.
+
+-<b>X</b> and <b>Y</b> on the Friends list now work while the cursor is on a friend's star.
+
+<b>Fixes: Guides</b>
+
+-The glyphs and prompt text in the footer for the Guides page no longer wrap and have been simplified.
+
+<b>Fixes: File Watcher</b>
+
+-The time left estimate now shows up quickly on large files instead of taking minutes.
 
 <b>Miscellaneous Fixes</b>
 
--Fixed categories coming back collapsed when they should have been open. It only sorted itself out if you closed and reopened the panel, and it could happen on Tracked, Other Games, Game Notes and Dolphin Mapper.
+-Fixed a situation where a game would show the previous game's icon.
 
-Alright, I hope this helps improve your achievement hunting journey even more! I'm working on a very special new feature that will most likely be included in the next update. See you around!
+-Fixed the emulator login toggle in the Switch User dialog showing its old setting.
+
+-With Snapshot (Debug) mapped to the <b>Menu</b> button, invoking it inside a dialog no longer saves the dialog. It takes priority.
+
+-Fixed the focus highlight going missing when opening the panel during a game.
+
+-Selected buttons on a few pages showed a blue ring instead of the usual white one.
+
+-Pages no longer open with the cursor on a dialog's button when that dialog had taken you out of the plugin.
+
+-Game pickers no longer flash their <b>Cancel</b> button while the console list loads.
+
+Alright, that's everything! I really hope you enjoy CheevoDeck as it has grown to not only just be a RetroAchievements tracker, but a RetroAchievements suite with all the tools achievement hunters will ever need to achieve their goals!
