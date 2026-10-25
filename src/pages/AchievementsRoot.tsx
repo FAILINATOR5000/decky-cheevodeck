@@ -223,7 +223,7 @@ import { logError } from "../utils/errors";
 import { SHORTCUT_BUTTON_BY_CODE } from "../utils/gamepadButtons";
 import { requestJumpToTop } from "../utils/jumpToTop";
 import { captureSnapshot } from "../utils/snapshot";
-import { playOkSound, PRESS_TOAST_DELAY_MS } from "../utils/navSound";
+import { playOkSound, playToggleSound, PRESS_TOAST_DELAY_MS } from "../utils/navSound";
 import { toggleScreenDarken } from "../components/darken/screenDarken";
 import { guardFooterPrompts, setFooterBack } from "../utils/footerPrompts";
 import {
@@ -4529,6 +4529,18 @@ function AchievementsRoot() {
             showToggleToast(language, "Darken Screen", toggleScreenDarken(), PRESS_TOAST_DELAY_MS);
             return;
         }
+        if (action === "doNotDisturb") {
+            playToggleSound(!doNotDisturb);
+            toggleDoNotDisturb(!doNotDisturb);
+            showToggleToast(language, "Do Not Disturb", !doNotDisturb, PRESS_TOAST_DELAY_MS);
+            return;
+        }
+        if (action === "batterySaver") {
+            playToggleSound(!batterySaver);
+            toggleBatterySaver(!batterySaver);
+            showToggleToast(language, "Standby", !batterySaver, PRESS_TOAST_DELAY_MS);
+            return;
+        }
 
         playOkSound();
 
@@ -4538,16 +4550,6 @@ function AchievementsRoot() {
         }
         if (action === "nightMode") {
             toggleNightMode(!nightMode);
-            return;
-        }
-        if (action === "doNotDisturb") {
-            toggleDoNotDisturb(!doNotDisturb);
-            showToggleToast(language, "Do Not Disturb", !doNotDisturb);
-            return;
-        }
-        if (action === "batterySaver") {
-            toggleBatterySaver(!batterySaver);
-            showToggleToast(language, "Standby", !batterySaver);
             return;
         }
         if (action === "mouseKeyboardMode") {

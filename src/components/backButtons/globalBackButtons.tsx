@@ -22,7 +22,7 @@ import type { PanelEntry } from "../../utils/pendingPanelEntry";
 import { captureSnapshot } from "../../utils/snapshot";
 import { startupSettingsSettled } from "../../utils/frontendSettings";
 import { showToggleToast } from "../../utils/toggleToast";
-import { PRESS_TOAST_DELAY_MS } from "../../utils/navSound";
+import { playToggleSound, PRESS_TOAST_DELAY_MS } from "../../utils/navSound";
 import { toggleScreenDarken } from "../darken/screenDarken";
 import { openPanelOn, quickAccessIsHidden } from "../../utils/quickAccess";
 import { browserModalOpen, minimizeBrowserModal, openBrowserModal } from "../browser/BrowserModal";
@@ -149,11 +149,13 @@ async function toggleSetting(action: "doNotDisturb" | "batterySaver", language: 
             return;
         }
         if (action === "doNotDisturb") {
+            playToggleSound(!settings.doNotDisturb);
             const result = await saveDoNotDisturb(!settings.doNotDisturb);
-            showToggleToast(language, "Do Not Disturb", result.doNotDisturb);
+            showToggleToast(language, "Do Not Disturb", result.doNotDisturb, PRESS_TOAST_DELAY_MS);
         } else {
+            playToggleSound(!settings.batterySaver);
             const result = await saveBatterySaver(!settings.batterySaver);
-            showToggleToast(language, "Standby", result.batterySaver);
+            showToggleToast(language, "Standby", result.batterySaver, PRESS_TOAST_DELAY_MS);
         }
     } catch (e) {
         logError(`backButtons: couldn't toggle ${action}`, e);
