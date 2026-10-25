@@ -256,7 +256,15 @@ async function landOn(action: PageAction) {
     }
 }
 
-async function onBackButton(payload: { action?: string | null; browserSnapshot?: boolean }) {
+type BackButtonPayload = { action?: string | null; browserSnapshot?: boolean; combo?: boolean };
+
+function recordCombo(payload: BackButtonPayload) {
+    if (payload.combo) {
+        recordMilestoneEvent("menu_combo");
+    }
+}
+
+async function onBackButton(payload: BackButtonPayload) {
     if (payload?.browserSnapshot && browserModalOpen()) {
         const language = getCurrentLanguage();
         await ensureLanguageLoaded(language);
@@ -269,6 +277,7 @@ async function onBackButton(payload: { action?: string | null; browserSnapshot?:
     }
     if (action === "browser" && browserModalOpen() && quickAccessIsHidden() && cheevoModalCount() === 1) {
         logFocusDebug("backButtons", action, minimizeBrowserModal() ? "minimized" : "nothing to minimize");
+        recordCombo(payload);
         return;
     }
     if (action === "darkenScreen") {
@@ -277,6 +286,7 @@ async function onBackButton(payload: { action?: string | null; browserSnapshot?:
             return;
         }
         const on = toggleScreenDarken();
+        recordCombo(payload);
         const language = getCurrentLanguage();
         await ensureLanguageLoaded(language);
         showToggleToast(language, "Darken Screen", on, PRESS_TOAST_DELAY_MS);
@@ -293,6 +303,7 @@ async function onBackButton(payload: { action?: string | null; browserSnapshot?:
         return;
     }
     forgetQuickAccessRequest();
+    recordCombo(payload);
 
     const summon = action as SummonAction;
     switch (summon) {

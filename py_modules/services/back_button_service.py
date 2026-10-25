@@ -1001,7 +1001,7 @@ class BackButtonService:
             return
         if self._debug_logging():
             decky.logger.info("back buttons: %s on %s sent action=%s", key, node.name, action)
-        self._emit({"action": action, "browserSnapshot": False})
+        self._emit({"action": action, "browserSnapshot": False, "combo": True})
 
     def _on_press(self, node: _OpenNode, button: str) -> None:
         cfg = self._settings_store.load_config()
