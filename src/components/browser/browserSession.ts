@@ -575,6 +575,20 @@ export class ViewSession {
         }
     }
 
+    async recheckFullscreen(): Promise<void> {
+        if (!this.ready) {
+            return;
+        }
+        try {
+            if ((await this.evaluateIsolated(IN_FULLSCREEN)) === true) {
+                await this.reportFullscreen(true);
+            }
+        }
+        catch (e) {
+            logFocusDebug("browser-session", "fullscreen recheck failed", String((e as Error)?.message ?? e));
+        }
+    }
+
     private async applyStandIns(wanted: boolean) {
         if (wanted && this.standInId === null) {
             const result = await this.send("Page.addScriptToEvaluateOnNewDocument", { source: `${AD_SLOT_EARLY}\n${AD_LIBRARY_STAND_IN}` });
@@ -948,6 +962,7 @@ export function setActiveSession(session: ViewSession | null): void {
     activeSession = session;
     setActiveTarget(session?.targetId ?? "");
     session?.recheckGamepadPage();
+    void session?.recheckFullscreen();
 }
 
 export function setAdBlock(enabled: boolean): void {
