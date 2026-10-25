@@ -325,5 +325,4 @@ def device_label(model: str, host: str, address: str) -> str:
     name = _PRODUCTS.get(model, "SteamOS Device")
     if host and host != DEFAULT_HOST:
         return f"{name} · {host}"
-    octet = str(address or "").rsplit(".", 1)[-1]
-    return f"{name} · .{octet}" if octet else name
+    return f"{name} · {address}" if address else name

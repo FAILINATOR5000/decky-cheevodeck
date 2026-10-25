@@ -32,3 +32,11 @@ export function nearbyDeviceLabel(peer: NearbyPeer, language: LanguageCode): str
     const octet = peer.address.split(".").pop() ?? "";
     return octet ? `${name} · .${octet}` : name;
 }
+
+export function nearbyDeviceAddressLabel(peer: NearbyPeer, language: LanguageCode): string {
+    const name = nearbyDeviceName(peer, language);
+    if (peer.host && peer.host !== DEFAULT_HOST) {
+        return name;
+    }
+    return peer.address ? `${name} · ${peer.address}` : name;
+}

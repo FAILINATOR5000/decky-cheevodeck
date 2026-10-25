@@ -16,7 +16,7 @@ import {
     subscribeToGameIcon
 } from "../../api";
 import { transferErrorKey } from "../../utils/memoriesTransferErrors";
-import { nearbyDeviceLabel } from "../../utils/nearbyDevices";
+import { nearbyDeviceAddressLabel } from "../../utils/nearbyDevices";
 import { transferSizeLabel } from "../../utils/memoriesTransferSize";
 import { ErrorText } from "../ui/ErrorText";
 import { FadeImage } from "../ui/FadeImage";
@@ -248,7 +248,7 @@ function memoriesTransferBody(notification: CheevoNotification, language: Langua
     }
     const files = metaNumber(notification, "files");
     if (direction === "sent") {
-        const name = nearbyDeviceLabel({
+        const name = nearbyDeviceAddressLabel({
             model: metaString(notification, "peerModel"),
             host: metaString(notification, "peerHost"),
             address: metaString(notification, "peerAddress")
