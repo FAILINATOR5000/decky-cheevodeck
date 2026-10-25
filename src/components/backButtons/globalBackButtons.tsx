@@ -22,6 +22,8 @@ import type { PanelEntry } from "../../utils/pendingPanelEntry";
 import { captureSnapshot } from "../../utils/snapshot";
 import { startupSettingsSettled } from "../../utils/frontendSettings";
 import { showToggleToast } from "../../utils/toggleToast";
+import { PRESS_TOAST_DELAY_MS } from "../../utils/navSound";
+import { toggleScreenDarken } from "../darken/screenDarken";
 import { openPanelOn, quickAccessIsHidden } from "../../utils/quickAccess";
 import { browserModalOpen, minimizeBrowserModal, openBrowserModal } from "../browser/BrowserModal";
 import { openCalculatorModal } from "../calculator/CalculatorModal";
@@ -265,6 +267,17 @@ async function onBackButton(payload: { action?: string | null; browserSnapshot?:
     }
     if (action === "browser" && browserModalOpen() && quickAccessIsHidden() && cheevoModalCount() === 1) {
         logFocusDebug("backButtons", action, minimizeBrowserModal() ? "minimized" : "nothing to minimize");
+        return;
+    }
+    if (action === "darkenScreen") {
+        if (!quickAccessIsHidden()) {
+            logFocusDebug("backButtons:drop", action, "qam visible");
+            return;
+        }
+        const on = toggleScreenDarken();
+        const language = getCurrentLanguage();
+        await ensureLanguageLoaded(language);
+        showToggleToast(language, "Darken Screen", on, PRESS_TOAST_DELAY_MS);
         return;
     }
     if (!mayOpen(action)) {

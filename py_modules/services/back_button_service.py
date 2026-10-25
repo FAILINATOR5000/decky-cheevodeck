@@ -108,6 +108,7 @@ SUMMON_ACTIONS = (
     "snapshot",
     "doNotDisturb",
     "batterySaver",
+    "darkenScreen",
     "notifications",
     "socialActivity",
     "profile",

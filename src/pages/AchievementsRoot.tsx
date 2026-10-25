@@ -223,7 +223,8 @@ import { logError } from "../utils/errors";
 import { SHORTCUT_BUTTON_BY_CODE } from "../utils/gamepadButtons";
 import { requestJumpToTop } from "../utils/jumpToTop";
 import { captureSnapshot } from "../utils/snapshot";
-import { playOkSound } from "../utils/navSound";
+import { playOkSound, PRESS_TOAST_DELAY_MS } from "../utils/navSound";
+import { toggleScreenDarken } from "../components/darken/screenDarken";
 import { guardFooterPrompts, setFooterBack } from "../utils/footerPrompts";
 import {
     drainOpenModals,
@@ -4522,6 +4523,10 @@ function AchievementsRoot() {
         }
         if (action === "snapshot") {
             void captureSnapshot(language);
+            return;
+        }
+        if (action === "darkenScreen") {
+            showToggleToast(language, "Darken Screen", toggleScreenDarken(), PRESS_TOAST_DELAY_MS);
             return;
         }
 

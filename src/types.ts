@@ -688,6 +688,7 @@ export type ShortcutAction =
     | "nightMode"
     | "doNotDisturb"
     | "batterySaver"
+    | "darkenScreen"
     | "mouseKeyboardMode"
     | "cycleUiScale";
 

@@ -301,6 +301,7 @@ _ALLOWED_SHORTCUT_ACTIONS = (
     "nightMode",
     "doNotDisturb",
     "batterySaver",
+    "darkenScreen",
     "mouseKeyboardMode",
     "cycleUiScale",
 )

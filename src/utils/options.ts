@@ -316,6 +316,7 @@ export const GLOBAL_SHORTCUT_ACTIONS: readonly ShortcutAction[] = [
     "snapshot",
     "doNotDisturb",
     "batterySaver",
+    "darkenScreen",
     "notifications",
     "socialActivity",
     "profile",
@@ -386,6 +387,7 @@ const SHORTCUT_ACTIONS: { id: ShortcutAction; labelKey: string; category: Shortc
     { id: "nightMode", labelKey: "Night Mode", category: "toggles" },
     { id: "doNotDisturb", labelKey: "Do Not Disturb", category: "toggles" },
     { id: "batterySaver", labelKey: "Standby", category: "toggles" },
+    { id: "darkenScreen", labelKey: "Darken Screen", category: "toggles" },
     { id: "mouseKeyboardMode", labelKey: "Mouse & Keyboard Mode", category: "toggles" },
     { id: "cycleUiScale", labelKey: "Cycle UI Scale", category: "toggles" }
 ];

@@ -2,6 +2,7 @@ import { routerHook } from "@decky/api";
 import { useEffect, useState } from "react";
 
 import { CompositionHold, hasCompositionHold } from "../ui/compositionHold";
+import { playToggleSound } from "../../utils/navSound";
 
 const GLOBAL_COMPONENT = "CheevoDeckScreenDarken";
 
@@ -66,6 +67,12 @@ export function registerScreenDarken() {
 export function unregisterScreenDarken() {
     setDarkened(false);
     routerHook.removeGlobalComponent(GLOBAL_COMPONENT);
+}
+
+export function toggleScreenDarken(): boolean {
+    setDarkened(!darkened);
+    playToggleSound(darkened);
+    return darkened;
 }
 
 export function useScreenDarken(): [boolean, (on: boolean) => void] {
