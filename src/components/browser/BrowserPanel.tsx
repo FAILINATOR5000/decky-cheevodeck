@@ -62,6 +62,7 @@ type WindowItem =
     | { kind: "day"; id: string; day: HistoryDay; collapsed: boolean }
     | { kind: "link"; id: string; row: { id: string; url: string; title: string } }
     | { kind: "exemption"; id: string; host: string }
+    | { kind: "legacysite"; id: string; host: string }
     | { kind: "download"; id: string; row: BrowserDownload };
 
 const cellStyle: Record<string, string> = { flex: "0 0 auto", minWidth: "0" };
@@ -341,6 +342,14 @@ type BrowserPanelProps = {
     currentExemption: string;
     onToggleCurrentExemption: () => void;
     onRemoveExemption: (host: string) => void;
+    legacySites: string[];
+    maxLegacySites: number;
+    legacySitesFull: boolean;
+    currentLegacySite: string;
+    currentLegacySiteListed: boolean;
+    canAddLegacySite: boolean;
+    onToggleCurrentLegacySite: () => void;
+    onRemoveLegacySite: (host: string) => void;
     activeTabs: number;
     onCycleActiveTabs: () => void;
     pauseMediaOnTabSwitch: boolean;
@@ -365,6 +374,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
         openLinksInNewTab, onToggleOpenLinksInNewTab,
         blockAds, onToggleBlockAds, blockYouTubeAds, onToggleBlockYouTubeAds, fastForwardYouTubeAds, onToggleFastForwardYouTubeAds, fastForwardPrerollAds, onToggleFastForwardPrerollAds, onResetOptions,
         adExemptions, maxAdExemptions, adExemptionsFull, currentSite, currentExemption, onToggleCurrentExemption, onRemoveExemption,
+        legacySites, maxLegacySites, legacySitesFull, currentLegacySite, currentLegacySiteListed, canAddLegacySite, onToggleCurrentLegacySite, onRemoveLegacySite,
         activeTabs, onCycleActiveTabs, pauseMediaOnTabSwitch, onTogglePauseMediaOnTabSwitch,
         maxDownloads, onCycleMaxDownloads,
         downloadFolder, onSetDownloadFolder, rememberDownloadFolder, onToggleRememberDownloadFolder
@@ -476,8 +486,13 @@ export function BrowserPanel(props: BrowserPanelProps) {
                 out.push({ kind: "download", id: `download:${row.id}`, row });
             }
         }
+        else if (tab === "legacysites") {
+            for (const host of legacySites) {
+                out.push({ kind: "legacysite", id: `legacysite:${host}`, host });
+            }
+        }
         return out;
-    }, [tab, grouped, collapsed, days, shutDays, adExemptions, downloads.downloads]);
+    }, [tab, grouped, collapsed, days, shutDays, adExemptions, downloads.downloads, legacySites]);
 
     const controlHeight = `${modalSize(ACTION_PX)}px`;
 
@@ -557,6 +572,9 @@ export function BrowserPanel(props: BrowserPanelProps) {
     else if (currentExemption && currentExemption !== currentSite) {
         siteText = `${currentSite} (${currentExemption})`;
     }
+
+    const atLegacyLimit = legacySites.length >= maxLegacySites;
+    const canToggleLegacySite = currentLegacySiteListed || canAddLegacySite;
 
     const toggleCollapsed = (categoryId: string) => {
         onSetCategoryCollapsed(categoryId, !collapsed.includes(categoryId));
@@ -802,6 +820,11 @@ export function BrowserPanel(props: BrowserPanelProps) {
                 </DialogButton>
             </div>
             <div style={cellStyle}>
+                <DialogButton {...act("tab:legacysites", () => onSetTab("legacysites"))} style={pillStyle(tab === "legacysites")}>
+                    {t(language, "Legacy Sites")}
+                </DialogButton>
+            </div>
+            <div style={cellStyle}>
                 <DialogButton {...act("tab:downloads", () => onSetTab("downloads"))} style={pillStyle(tab === "downloads")}>
                     {t(language, "Downloads")}
                 </DialogButton>
@@ -967,7 +990,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
         </div>
     );
 
-    const exemptionRow = (host: string) => (
+    const hostRow = (host: string, pressKey: string, onRemove: (host: string) => void) => (
         <div style={actionRowStyle(ROW_HEIGHT_PX)}>
             <div
                 style={{
@@ -986,7 +1009,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
             </div>
             <div style={cellStyle}>
                 <DialogButton
-                    {...act("exempt:remove", () => onRemoveExemption(host))}
+                    {...act(pressKey, () => onRemove(host))}
                     style={{ ...squareStyle(ACTION_PX), height: "100%" }}
                 >
                     <FaTrash size={modalSize(12)} />
@@ -1086,7 +1109,10 @@ export function BrowserPanel(props: BrowserPanelProps) {
             return dayHeading(item.day, item.collapsed);
         }
         if (item.kind === "exemption") {
-            return exemptionRow(item.host);
+            return hostRow(item.host, "exempt:remove", onRemoveExemption);
+        }
+        if (item.kind === "legacysite") {
+            return hostRow(item.host, "legacysite:remove", onRemoveLegacySite);
         }
         if (item.kind === "download") {
             return downloadRow(item.row);
@@ -1537,6 +1563,61 @@ export function BrowserPanel(props: BrowserPanelProps) {
                 {adExemptions.length === 0 && (
                     <div style={{ padding: gap, fontSize: `${modalSize(13)}px`, opacity: 0.7 }}>
                         {t(language, "No exempt sites yet. Open a site, then add it here to let its ads through.")}
+                    </div>
+                )}
+
+                {windowRows}
+            </BrowserScrollArea>
+            )}
+
+            {tab === "legacysites" && (
+            <BrowserScrollArea railPx={RAIL_PX} gapPx={ROW_GAP_PX} rowGap={`${modalSize(3)}px`} unmountedPx={0} header={header}>
+                <div style={{ display: "flex", flexDirection: "column", flex: "0 0 auto", gap }}>
+                    <div style={settingCardStyle}>
+                        <div style={settingRowStyle}>
+                            <span style={{ opacity: 0.8, minWidth: "0" }}>{t(language, "Legacy Sites")}</span>
+                            <div style={{ flex: "1 1 auto" }} />
+                            <span style={{ opacity: 0.6 }}>{`${legacySites.length} / ${maxLegacySites}`}</span>
+                        </div>
+                        <div style={noteStyle}>{t(language, "help_browser_legacy_sites")}</div>
+                        <div style={{ ...settingRowStyle, flexWrap: "nowrap" }}>
+                            <div style={{ flex: "1 1 auto", minWidth: "0", display: "flex", alignItems: "center", padding: `0 ${modalSize(2)}px` }}>
+                                <span
+                                    style={{
+                                        minWidth: "0",
+                                        whiteSpace: "nowrap",
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        fontSize: `${modalSize(13)}px`,
+                                        opacity: currentLegacySite ? "1" : "0.6"
+                                    }}
+                                >
+                                    {currentLegacySite || t(language, "Open a site that failed to load, then add it here.")}
+                                </span>
+                            </div>
+                            <div style={cellStyle}>
+                                <DialogButton
+                                    {...act("legacysite:toggle", () => {
+                                        if (canToggleLegacySite) {
+                                            onToggleCurrentLegacySite();
+                                        }
+                                    })}
+                                    style={{ ...optionStyle, opacity: canToggleLegacySite ? "1" : "0.35" }}
+                                >
+                                    {stackedLabel(exemptLabels, t(language, currentLegacySiteListed ? "Remove This Site" : "Add This Site"))}
+                                </DialogButton>
+                            </div>
+                        </div>
+                        {(atLegacyLimit || legacySitesFull) && (
+                            <div style={noteStyle}>{t(language, "The list is full. Remove a site to add another.")}</div>
+                        )}
+                        {currentLegacySiteListed && <div style={noteStyle}>{t(language, "Takes effect when the page reloads.")}</div>}
+                    </div>
+                </div>
+
+                {legacySites.length === 0 && (
+                    <div style={{ padding: gap, fontSize: `${modalSize(13)}px`, opacity: 0.7 }}>
+                        {t(language, "No legacy sites yet.")}
                     </div>
                 )}
 

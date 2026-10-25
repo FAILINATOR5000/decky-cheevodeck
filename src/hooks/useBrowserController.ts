@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
     addBrowserAdExemption,
+    addBrowserLegacySite,
     addBrowserBookmark,
     addBrowserBookmarkCategory,
     addBrowserHistoryEntry,
     addBrowserTab,
     clearBrowserHistory,
     getBrowserAdExemptions,
+    getBrowserLegacySites,
     getVideoFilters,
     getBrowserBookmarks,
     getBrowserHistory,
     removeBrowserAdExemption,
+    removeBrowserLegacySite,
     removeBrowserBookmark,
     removeBrowserBookmarkCategory,
     renameBrowserBookmark,
@@ -72,8 +75,9 @@ import {
     saveBrowserSearchEngine,
     startBrowserDownload
 } from "../api";
-import { requestHeadersFor, setAdBlock, setAdExemptions, setFastForward, setVideoFilters, setYouTubeAdBlock, setZoomPercent, type DownloadRequest } from "../components/browser/browserSession";
+import { requestHeadersFor, setAdBlock, setAdExemptions, setFastForward, setLegacySites, setVideoFilters, setYouTubeAdBlock, setZoomPercent, type DownloadRequest } from "../components/browser/browserSession";
 import { exemptEntryFor, siteOf } from "../components/browser/adExemptions";
+import { isLegacySite, legacySiteHostOf } from "../components/browser/legacySites";
 import { downloadFailure, toastDownload } from "../components/browser/browserDownloads";
 import {
     DEFAULT_BROWSER_MAX_DOWNLOADS,
@@ -88,6 +92,7 @@ import {
 import { logError } from "../utils/errors";
 import type {
     BrowserAdExemptionsResponse,
+    BrowserLegacySitesResponse,
     BrowserBookmark,
     BrowserBookmarkCategory,
     BrowserBookmarksResponse,
@@ -107,6 +112,8 @@ export const DEFAULT_BOOKMARK_CATEGORY_ID = "cat_default";
 const DEFAULT_MAX_TABS = 100;
 
 const DEFAULT_MAX_AD_EXEMPTIONS = 500;
+
+const DEFAULT_MAX_LEGACY_SITES = 500;
 
 const SEARCH_URLS: Record<string, string> = {
     google: "https://www.google.com/search?q=%s",
@@ -290,6 +297,17 @@ export type BrowserController = {
     currentExemption: string;
     toggleCurrentExemption: () => void;
     removeAdExemption: (host: string) => void;
+    legacySites: string[];
+    maxLegacySites: number;
+    legacySitesFull: boolean;
+    currentLegacySite: string;
+    currentLegacySiteListed: boolean;
+    canAddLegacySite: boolean;
+    toggleCurrentLegacySite: () => void;
+    removeLegacySite: (host: string) => void;
+    legacyQuestion: string;
+    noteUpgradeFailure: (url: string) => void;
+    answerLegacyQuestion: (choice: "add" | "decline") => void;
     activeTabs: number;
     cycleActiveTabs: () => void;
     pauseMediaOnTabSwitch: boolean;
@@ -342,6 +360,11 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
     const [adExemptions, setAdExemptionList] = useState<string[]>([]);
     const [maxAdExemptions, setMaxAdExemptions] = useState(DEFAULT_MAX_AD_EXEMPTIONS);
     const [adExemptionsFull, setAdExemptionsFull] = useState(false);
+    const [legacySites, setLegacySiteList] = useState<string[]>([]);
+    const [maxLegacySites, setMaxLegacySites] = useState(DEFAULT_MAX_LEGACY_SITES);
+    const [legacySitesFull, setLegacySitesFull] = useState(false);
+    const [upgradeFailure, setUpgradeFailure] = useState("");
+    const [legacyQuestion, setLegacyQuestion] = useState("");
     const [activeTabs, setActiveTabs] = useState(DEFAULT_ACTIVE_TABS);
     const [pauseMediaOnTabSwitch, setPauseMediaOnTabSwitch] = useState(false);
     const [maxDownloads, setMaxDownloads] = useState(DEFAULT_BROWSER_MAX_DOWNLOADS);
@@ -692,6 +715,21 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         refreshHiddenPages();
     }, [settle]);
 
+    const applyLegacySites = useCallback((state: BrowserLegacySitesResponse) => {
+        const hosts = Array.isArray(state.hosts) ? state.hosts : [];
+        setLegacySiteList(hosts);
+        if (typeof state.maxHosts === "number" && state.maxHosts > 0) {
+            setMaxLegacySites(state.maxHosts);
+        }
+        setLegacySitesFull(state.reason === "legacySiteLimit");
+        return setLegacySites(hosts);
+    }, []);
+
+    const noteUpgradeFailure = useCallback((url: string) => {
+        setUpgradeFailure(url);
+        setLegacyQuestion(url);
+    }, []);
+
     const setDownloadFolder = useCallback((path: string) => {
         setDownloadFolderState(path);
         saveSetting("setDownloadFolder", () => saveBrowserDownloadFolder(path));
@@ -808,8 +846,10 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
     }, [drive, queueRestore]);
 
     const followActiveView = useCallback(() => {
-        const host = activeView()?.host;
+        const view = activeView();
+        const host = view?.host;
         const url = host?.currentUrl ?? "";
+        noteUpgradeFailure(view?.session.upgradeFailure ?? "");
         endRestore();
         drivingRef.current = false;
         requestedUrlRef.current = "";
@@ -822,7 +862,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         viewChangeRef.current = null;
         pendingPushRef.current = null;
         return url;
-    }, [endRestore]);
+    }, [endRestore, noteUpgradeFailure]);
 
     const syncTabToView = useCallback(async (view: LiveView) => {
         const tab = tabsRef.current.find((row) => row.id === view.tabId);
@@ -985,6 +1025,10 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
                     logError("useBrowserController.adExemptions", e);
                     return null;
                 });
+                const legacyLoad = getBrowserLegacySites().catch((e) => {
+                    logError("useBrowserController.legacySites", e);
+                    return null;
+                });
                 const filtersLoad = getVideoFilters()
                     .then((filters) => {
                         const dead = Array.isArray(filters?.dead) ? filters.dead.filter((name) => typeof name === "string") : [];
@@ -993,9 +1037,12 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
                     .catch((e) => {
                         logError("useBrowserController.videoFilters", e);
                     });
-                const [loadedTabs, exemptions] = await Promise.all([getBrowserTabs(true), exemptionsLoad, filtersLoad]);
+                const [loadedTabs, exemptions, legacy] = await Promise.all([getBrowserTabs(true), exemptionsLoad, legacyLoad, filtersLoad]);
                 if (exemptions) {
                     applyExemptions(exemptions);
+                }
+                if (legacy) {
+                    void applyLegacySites(legacy);
                 }
                 let state = loadedTabs;
                 setPanelTabState(state.panelTab);
@@ -1048,7 +1095,7 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         return () => {
             cancelled = true;
         };
-    }, [apply, applyExemptions, applySettings, bringUpView, drive, followActiveView, queueRestore, startUrl, syncTabToView]);
+    }, [apply, applyExemptions, applyLegacySites, applySettings, bringUpView, drive, followActiveView, queueRestore, startUrl, syncTabToView]);
 
     const openTab = useCallback((url: string) => {
         const target = url || BROWSER_HOME_URL;
@@ -1600,6 +1647,54 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         })();
     }, [applyExemptions]);
 
+    const listedLegacySite = isLegacySite(currentUrl) ? legacySiteHostOf(currentUrl) : "";
+    const currentLegacySite = listedLegacySite || legacySiteHostOf(upgradeFailure);
+    const canAddLegacySite = !listedLegacySite && currentLegacySite !== "" && legacySites.length < maxLegacySites;
+
+    const addFailedLegacySite = useCallback(async (failed: string) => {
+        const host = legacySiteHostOf(failed);
+        if (!host) return;
+        const state = await addBrowserLegacySite(host);
+        await applyLegacySites(state);
+        if (state.hosts.includes(host)) {
+            drive(failed);
+        }
+    }, [applyLegacySites, drive]);
+
+    const toggleCurrentLegacySite = useCallback(() => {
+        (async () => {
+            try {
+                if (listedLegacySite) {
+                    await applyLegacySites(await removeBrowserLegacySite(listedLegacySite));
+                }
+                else if (upgradeFailure) {
+                    await addFailedLegacySite(upgradeFailure);
+                }
+            }
+            catch (e) {
+                logError("useBrowserController.toggleCurrentLegacySite", e);
+            }
+        })();
+    }, [addFailedLegacySite, applyLegacySites, listedLegacySite, upgradeFailure]);
+
+    const removeLegacySite = useCallback((host: string) => {
+        (async () => {
+            try {
+                await applyLegacySites(await removeBrowserLegacySite(host));
+            }
+            catch (e) {
+                logError("useBrowserController.removeLegacySite", e);
+            }
+        })();
+    }, [applyLegacySites]);
+
+    const answerLegacyQuestion = useCallback((choice: "add" | "decline") => {
+        const failed = legacyQuestion;
+        setLegacyQuestion("");
+        if (!failed || choice === "decline") return;
+        addFailedLegacySite(failed).catch((e) => logError("useBrowserController.answerLegacyQuestion", e));
+    }, [addFailedLegacySite, legacyQuestion]);
+
     const removeBookmark = useCallback((bookmarkId: string) => {
         (async () => {
             try {
@@ -1772,6 +1867,17 @@ export function useBrowserController(onLoadUrl: (url: string) => void, startUrl 
         currentExemption,
         toggleCurrentExemption,
         removeAdExemption,
+        legacySites,
+        maxLegacySites,
+        legacySitesFull,
+        currentLegacySite,
+        currentLegacySiteListed: listedLegacySite !== "",
+        canAddLegacySite,
+        toggleCurrentLegacySite,
+        removeLegacySite,
+        legacyQuestion,
+        noteUpgradeFailure,
+        answerLegacyQuestion,
         activeTabs,
         cycleActiveTabs,
         pauseMediaOnTabSwitch,

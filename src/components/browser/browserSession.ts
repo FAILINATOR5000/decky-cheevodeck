@@ -1,7 +1,8 @@
-import { logFocusDebug, reportVideoFilter } from "../../api";
+import { fetchBrowserLegacySite, logFocusDebug, reportVideoFilter } from "../../api";
 import { AD_SKIP_BINDING, AD_SKIP_SELECTOR, AD_SLOT_EARLY, claimTarget, releaseTarget, setActiveTarget, socketOfTarget, targetForUrl } from "./browserScroll";
 import { AD_BLOCK_HOSTS, AD_BLOCK_PATTERNS } from "./adBlockHosts";
 import { isAdExempt, replaceAdExemptionHosts } from "./adExemptions";
+import { isLegacySite, legacySitePatterns, plainUrlOf, replaceLegacySiteHosts } from "./legacySites";
 import { AD_LIBRARY_STAND_IN } from "./adStandIns";
 import { FULLSCREEN_BINDING, FULLSCREEN_WATCH } from "./fullscreenWatch";
 import { OVERLAY_FIX } from "./overlayFix";
@@ -57,6 +58,19 @@ function hostOf(url: string): string {
     }
 }
 
+function headerOf(headers: unknown, name: string): string {
+    if (!headers || typeof headers !== "object") {
+        return "";
+    }
+    const wanted = name.toLowerCase();
+    for (const [key, value] of Object.entries(headers as Record<string, unknown>)) {
+        if (key.toLowerCase() === wanted) {
+            return String(value ?? "");
+        }
+    }
+    return "";
+}
+
 function isYouTube(url: string): boolean {
     try {
         return YOUTUBE_HOST.test(new URL(url).hostname);
@@ -86,6 +100,11 @@ let fastForward = true;
 let videoFilter: { doc: VideoFilterDoc; dead: string[] } | null = null;
 let downloadHandler: ((request: DownloadRequest) => void) | null = null;
 let fullscreenHandler: ((fullscreen: boolean) => void) | null = null;
+let upgradeFailureHandler: ((url: string) => void) | null = null;
+
+const STEAM_ERROR_PAGE = "http://error/";
+
+const LEGACY_SENT_HEADERS = ["User-Agent", "Accept", "Accept-Language", "Range"];
 
 let zoomPercent = 100;
 let viewSize: { width: number; height: number } | null = null;
@@ -139,6 +158,11 @@ export class ViewSession {
     private docRequestId = "";
     private docOrigin = "";
     private docLastUrl = "";
+    private upgradeFrom = "";
+    private upgradeTo = "";
+    private failedUpgrade = "";
+    private legacySent: string | null = null;
+    private legacyQueue: Promise<void> = Promise.resolve();
     private fileChooserHandler: ((backendNodeId: number) => void) | null = null;
 
     constructor() {
@@ -147,6 +171,10 @@ export class ViewSession {
 
     get targetId(): string {
         return this.target;
+    }
+
+    get upgradeFailure(): string {
+        return this.failedUpgrade;
     }
 
     private send(method: string, params: Record<string, unknown> = {}): Promise<any> {
@@ -225,6 +253,10 @@ export class ViewSession {
             this.fileChooserHandler?.(Number(msg.params?.backendNodeId));
             return;
         }
+        if (msg.method === "Fetch.requestPaused") {
+            void this.answerLegacy(msg.params ?? {});
+            return;
+        }
         if (msg.method === "Network.requestWillBeSent") {
             if (msg.params?.type === "Document" && String(msg.params?.request?.method ?? "").toUpperCase() === "POST") {
                 this.posts = [...this.posts.slice(1 - POSTS_KEPT), String(msg.params?.request?.url ?? "")];
@@ -238,6 +270,15 @@ export class ViewSession {
                 }
                 this.docLastUrl = this.pendingUrl;
                 this.pendingPost = String(msg.params?.request?.method ?? "").toUpperCase() === "POST";
+                const hop = msg.params?.redirectResponse;
+                if (hop && headerOf(hop.headers, "Non-Authoritative-Reason") === "HttpsUpgrades") {
+                    this.upgradeFrom = String(hop.url ?? "");
+                    this.upgradeTo = this.pendingUrl;
+                }
+                else if (this.pendingUrl !== STEAM_ERROR_PAGE) {
+                    this.upgradeFrom = "";
+                    this.upgradeTo = "";
+                }
                 this.pageChanged();
             }
             return;
@@ -255,6 +296,14 @@ export class ViewSession {
                 this.pendingRequestId = "";
                 this.docOrigin = "";
                 this.docLastUrl = "";
+                const failed = this.committedUrl === STEAM_ERROR_PAGE && this.upgradeTo !== "" && !isLegacySite(this.upgradeTo) ? this.upgradeFrom : "";
+                this.upgradeFrom = "";
+                this.upgradeTo = "";
+                const changed = failed !== this.failedUpgrade;
+                this.failedUpgrade = failed;
+                if ((failed || changed) && this === activeSession) {
+                    upgradeFailureHandler?.(failed);
+                }
                 this.pageChanged();
                 if (restored) {
                     void this.checkGamepadPage();
@@ -296,7 +345,7 @@ export class ViewSession {
             this.docLastUrl = "";
             logFocusDebug("browser-download", "caught", `${url.slice(0, 80)} name=${suggestedFilename} posted=${posted}${origin ? ` from ${hostOf(origin)}` : ""}`);
             if (url && downloadHandler) {
-                downloadHandler({ url, suggestedFilename, posted, origin });
+                downloadHandler({ url: plainUrlOf(url) || url, suggestedFilename, posted, origin: plainUrlOf(origin) || origin });
             }
         }
     }
@@ -321,6 +370,10 @@ export class ViewSession {
         this.docRequestId = "";
         this.docOrigin = "";
         this.docLastUrl = "";
+        this.upgradeFrom = "";
+        this.upgradeTo = "";
+        this.legacySent = null;
+        this.legacyQueue = Promise.resolve();
         this.metricsSent = null;
         this.pageDpr = 0;
         for (const entry of this.waiting.values()) {
@@ -367,6 +420,79 @@ export class ViewSession {
         catch (e) {
             this.blockingSent = null;
             logFocusDebug("browser-session", "blocking failed", String((e as Error)?.message ?? e));
+        }
+    }
+
+    applyLegacySites(): Promise<void> {
+        this.legacyQueue = this.legacyQueue.then(() => this.syncLegacySites());
+        return this.legacyQueue;
+    }
+
+    private async syncLegacySites() {
+        if (!this.socket) {
+            return;
+        }
+        const patterns = legacySitePatterns();
+        const wanted = patterns.join(" ");
+        if (wanted === this.legacySent) {
+            return;
+        }
+        try {
+            if (patterns.length > 0) {
+                await this.send("Fetch.enable", { patterns: patterns.map((urlPattern) => ({ urlPattern, requestStage: "Request" })) });
+            }
+            else if (this.legacySent) {
+                await this.send("Fetch.disable");
+            }
+            this.legacySent = wanted;
+        }
+        catch (e) {
+            this.legacySent = null;
+            logFocusDebug("browser-session", "legacy sites failed", String((e as Error)?.message ?? e));
+        }
+    }
+
+    private async answerLegacy(params: any) {
+        const requestId = String(params.requestId ?? "");
+        const request = params.request ?? {};
+        const url = String(request.url ?? "");
+        const method = String(request.method ?? "").toUpperCase();
+        const plain = method === "GET" || method === "HEAD" ? plainUrlOf(url) : "";
+        try {
+            if (!plain) {
+                await this.send("Fetch.continueRequest", { requestId });
+                return;
+            }
+            const headers: Record<string, string> = {};
+            for (const name of LEGACY_SENT_HEADERS) {
+                const value = headerOf(request.headers, name);
+                if (value) {
+                    headers[name] = value;
+                }
+            }
+            const referer = headerOf(request.headers, "Referer");
+            if (referer) {
+                headers.Referer = plainUrlOf(referer) || referer;
+            }
+            const jar = await this.send("Network.getCookies", { urls: [url] });
+            const cookies: Array<{ name: string; value: string }> = Array.isArray(jar?.cookies) ? jar.cookies : [];
+            if (cookies.length > 0) {
+                headers.Cookie = cookies.map((cookie) => `${cookie.name}=${cookie.value}`).join("; ");
+            }
+            const reply = await fetchBrowserLegacySite(plain, headers);
+            if (!reply?.ok) {
+                await this.send("Fetch.failRequest", { requestId, errorReason: reply?.reason === "timeout" ? "TimedOut" : "ConnectionFailed" });
+                return;
+            }
+            const responseHeaders = (reply.headers ?? []).map(([name, value]) => ({ name, value }));
+            if (params.resourceType === "Document") {
+                responseHeaders.push({ name: "Content-Security-Policy", value: "upgrade-insecure-requests" });
+            }
+            await this.send("Fetch.fulfillRequest", { requestId, responseCode: reply.status ?? 200, responseHeaders, body: reply.body ?? "" });
+        }
+        catch (e) {
+            logFocusDebug("browser-session", "legacy request failed", String((e as Error)?.message ?? e));
+            this.send("Fetch.failRequest", { requestId, errorReason: "Failed" }).catch(() => {});
         }
     }
 
@@ -573,6 +699,7 @@ export class ViewSession {
             logFocusDebug("browser-session", "overlay fix failed", String((e as Error)?.message ?? e));
         }
         await this.applyBlocking();
+        await this.applyLegacySites();
         await this.applyUserAgent();
         await this.applyMetrics();
         this.ready = true;
@@ -890,6 +1017,15 @@ export function setAdExemptions(hosts: string[]): void {
     for (const session of sessions) {
         void session.applyBlocking();
     }
+}
+
+export function setLegacySites(next: string[]): Promise<void> {
+    replaceLegacySiteHosts(next);
+    return Promise.all([...sessions].map((session) => session.applyLegacySites())).then(() => undefined);
+}
+
+export function setUpgradeFailureHandler(handler: ((url: string) => void) | null): void {
+    upgradeFailureHandler = handler;
 }
 
 export function setZoomPercent(percent: number): void {

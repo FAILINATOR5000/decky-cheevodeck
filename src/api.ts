@@ -189,6 +189,7 @@ import type {
     BrowserHistoryResponse,
     BrowserBookmarksResponse,
     BrowserAdExemptionsResponse,
+    BrowserLegacySitesResponse,
     VideoFilterResponse,
     BrowserDownloadsResponse,
     OkResult,
@@ -3001,6 +3002,13 @@ export const setBrowserCategoryCollapsed = callable<
 export const getBrowserAdExemptions = callable<[], BrowserAdExemptionsResponse>("get_browser_ad_exemptions");
 export const addBrowserAdExemption = callable<[host: string], BrowserAdExemptionsResponse>("add_browser_ad_exemption");
 export const removeBrowserAdExemption = callable<[host: string], BrowserAdExemptionsResponse>("remove_browser_ad_exemption");
+export const getBrowserLegacySites = callable<[], BrowserLegacySitesResponse>("get_browser_legacy_sites");
+export const addBrowserLegacySite = callable<[host: string], BrowserLegacySitesResponse>("add_browser_legacy_site");
+export const removeBrowserLegacySite = callable<[host: string], BrowserLegacySitesResponse>("remove_browser_legacy_site");
+export const fetchBrowserLegacySite = callable<
+    [url: string, headers: Record<string, string>],
+    { ok: boolean; reason?: string; status?: number; headers?: [string, string][]; body?: string; truncated?: boolean }
+>("fetch_browser_legacy_site");
 export const getVideoFilters = callable<[], VideoFilterResponse>("get_video_filters");
 export const reportVideoFilter = callable<[revision: number, name: string, videoId: string], { ok: boolean; dead: boolean }>("report_video_filter");
 

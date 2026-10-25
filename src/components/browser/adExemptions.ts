@@ -1,9 +1,9 @@
 let hosts: string[] = [];
 
-const MAX_HOST_LENGTH = 253;
+export const MAX_HOST_LENGTH = 253;
 
 const HOST_LABEL = "[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?";
-const HOST_PATTERN = new RegExp(`^${HOST_LABEL}(?:\\.${HOST_LABEL})*$`);
+export const HOST_PATTERN = new RegExp(`^${HOST_LABEL}(?:\\.${HOST_LABEL})*$`);
 
 export function siteOf(url: string): string {
     let parsed: URL;

@@ -10,9 +10,10 @@ import { BrowserChrome } from "./BrowserChrome";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { BrowserPanel } from "./BrowserPanel";
 import { BrowserTabLimit } from "./BrowserTabLimit";
+import { BrowserLegacySite } from "./BrowserLegacySite";
 import { BrowserBookmarkLimit } from "./BrowserBookmarkLimit";
 import { BrowserDownloadFolder } from "./BrowserDownloadFolder";
-import { setDownloadHandler, setFullscreenHandler, setViewSize, stopLoading } from "./browserSession";
+import { setDownloadHandler, setFullscreenHandler, setUpgradeFailureHandler, setViewSize, stopLoading } from "./browserSession";
 import { activeView, destroyAllViews, destroyDetached, detachAllViews, loadInView, setClosing, setViewEvents, silenceViews, type LiveView } from "./browserViews";
 import { BrowserViewHost } from "./browserViewHost";
 import { BROWSER_HOME_URL, useBrowserController } from "../../hooks/useBrowserController";
@@ -391,6 +392,7 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
             window.setTimeout(() => liveHost()?.endCancelledRequest(), CANCELLED_REQUEST_RETRY_MS);
             handlersRef.current.noteDownload(request);
         });
+        setUpgradeFailureHandler((url) => handlersRef.current.noteUpgradeFailure(url));
         const current = startUrl ? null : activeView();
         if (current) {
             shownRef.current = current;
@@ -400,6 +402,7 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
         return () => {
             setDownloadHandler(null);
             setFullscreenHandler(null);
+            setUpgradeFailureHandler(null);
             setViewEvents(null);
             const waiting = pendingRef.current;
             pendingRef.current = null;
@@ -575,8 +578,9 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
     const blocked = browser.blockedUrl;
     const bookmarkLimit = browser.bookmarkLimit;
     const download = browser.pendingDownload;
+    const legacy = browser.legacyQuestion;
 
-    const viewPainted = blocked === "" && bookmarkLimit === 0 && download === null && !panelOpen;
+    const viewPainted = blocked === "" && bookmarkLimit === 0 && download === null && legacy === "" && !panelOpen;
 
     useEffect(() => {
         paintedRef.current = viewPainted;
@@ -636,7 +640,7 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
                 />
 
                 <div className="cd-browser-stage" ref={stageRef}>
-                    {(blocked !== "" || bookmarkLimit > 0 || download !== null || panelOpen) && (
+                    {(blocked !== "" || bookmarkLimit > 0 || download !== null || legacy !== "" || panelOpen) && (
                         <div className="cd-browser-overlay">
                         {blocked === "" && bookmarkLimit > 0 && (
                             <BrowserBookmarkLimit
@@ -666,7 +670,16 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
                                 onCancel={browser.cancelDownload}
                             />
                         )}
-                        {blocked === "" && bookmarkLimit === 0 && download === null && panelOpen && (
+                        {blocked === "" && bookmarkLimit === 0 && download === null && legacy !== "" && (
+                            <BrowserLegacySite
+                                language={language}
+                                url={legacy}
+                                full={browser.legacySitesFull || browser.legacySites.length >= browser.maxLegacySites}
+                                onAdd={() => browser.answerLegacyQuestion("add")}
+                                onDecline={() => browser.answerLegacyQuestion("decline")}
+                            />
+                        )}
+                        {blocked === "" && bookmarkLimit === 0 && download === null && legacy === "" && panelOpen && (
                             <BrowserPanel
                                 language={language}
                                 tab={browser.panelTab}
@@ -724,6 +737,14 @@ function BrowserModal({ language, close, startUrl }: { language: LanguageCode; c
                                 currentExemption={browser.currentExemption}
                                 onToggleCurrentExemption={browser.toggleCurrentExemption}
                                 onRemoveExemption={browser.removeAdExemption}
+                                legacySites={browser.legacySites}
+                                maxLegacySites={browser.maxLegacySites}
+                                legacySitesFull={browser.legacySitesFull}
+                                currentLegacySite={browser.currentLegacySite}
+                                currentLegacySiteListed={browser.currentLegacySiteListed}
+                                canAddLegacySite={browser.canAddLegacySite}
+                                onToggleCurrentLegacySite={browser.toggleCurrentLegacySite}
+                                onRemoveLegacySite={browser.removeLegacySite}
                                 activeTabs={browser.activeTabs}
                                 onCycleActiveTabs={browser.cycleActiveTabs}
                                 pauseMediaOnTabSwitch={browser.pauseMediaOnTabSwitch}

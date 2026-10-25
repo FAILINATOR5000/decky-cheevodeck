@@ -2008,7 +2008,7 @@ export type BrowserTab = {
     usedAt: number;
 };
 
-export type BrowserPanelTab = "bookmarks" | "history" | "options" | "adblock" | "downloads";
+export type BrowserPanelTab = "bookmarks" | "history" | "options" | "adblock" | "downloads" | "legacysites";
 
 type BrowserDownloadState = "downloading" | "done" | "failed" | "canceled" | "interrupted" | "paused" | "queued";
 
@@ -2108,6 +2108,13 @@ export type BrowserBookmarksResponse = {
 };
 
 export type BrowserAdExemptionsResponse = {
+    ok: boolean;
+    reason: string;
+    hosts: string[];
+    maxHosts: number;
+};
+
+export type BrowserLegacySitesResponse = {
     ok: boolean;
     reason: string;
     hosts: string[];

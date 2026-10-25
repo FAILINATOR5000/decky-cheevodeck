@@ -30,6 +30,8 @@ SETTINGS_FILENAME = "settings.json"
 
 AD_EXEMPTIONS_FILENAME = "ad_exemptions.json"
 
+LEGACY_SITES_FILENAME = "legacy_sites.json"
+
 DOWNLOADS_FILENAME = "downloads.json"
 
 MAX_TABS = 100
@@ -43,6 +45,8 @@ MAX_BOOKMARKS = 2000
 MAX_BOOKMARK_CATEGORIES = 50
 
 MAX_AD_EXEMPTIONS = 500
+
+MAX_LEGACY_SITES = 500
 
 MAX_DOWNLOADS = 100
 
@@ -79,7 +83,7 @@ ALLOWED_PAGE_ZOOM = (50, 60, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200)
 
 ALLOWED_HISTORY_RETENTION = ("off", "7", "30", "forever")
 
-ALLOWED_PANEL_TABS = ("bookmarks", "history", "options", "adblock", "downloads")
+ALLOWED_PANEL_TABS = ("bookmarks", "history", "options", "adblock", "downloads", "legacysites")
 
 DEFAULT_PAGE_ZOOM = 80
 
@@ -203,6 +207,22 @@ def clean_site(value: Any) -> str:
     return host
 
 
+def _listable_host(value: Any) -> str:
+    host = _clean_host(value)
+    labels = host.split(".")
+    if len(labels) < 2 or labels[-1].isdigit():
+        return ""
+    return host
+
+
+def clean_legacy_site(value: Any) -> str:
+    host = _listable_host(value)
+    labels = host.split(".")
+    if len(labels) >= 3 and labels[0] == "www":
+        return ".".join(labels[1:])
+    return host
+
+
 def _new_id(prefix: str) -> str:
     return f"{prefix}_{secrets.token_urlsafe(8)}"
 
@@ -233,6 +253,9 @@ class BrowserStore:
 
     def _ad_exemptions_path(self) -> Path:
         return self._base_dir / AD_EXEMPTIONS_FILENAME
+
+    def _legacy_sites_path(self) -> Path:
+        return self._base_dir / LEGACY_SITES_FILENAME
 
     def downloads_path(self) -> Path:
         with self._lock:
@@ -1227,6 +1250,58 @@ class BrowserStore:
                 return data
             data["hosts"].remove(wanted)
             return self._save_ad_exemptions(data)
+
+    def _load_legacy_sites(self) -> dict:
+        raw = load_json_file(self._legacy_sites_path(), {})
+        rows = raw.get("hosts") if isinstance(raw, dict) else None
+        hosts = set()
+        if isinstance(rows, list):
+            for row in rows:
+                host = _listable_host(row)
+                if host:
+                    hosts.add(host)
+        return {
+            "schemaVersion": CURRENT_SCHEMA_VERSION,
+            "hosts": sorted(hosts)[:MAX_LEGACY_SITES],
+        }
+
+    def _save_legacy_sites(self, data: dict) -> dict:
+        save_json_file(self._legacy_sites_path(), data, compact=True)
+        return data
+
+    def list_legacy_sites(self) -> dict:
+        with self._lock:
+            return self._load_legacy_sites()
+
+    def has_legacy_site(self, host: Any) -> bool:
+        site = clean_legacy_site(host)
+        if not site:
+            return False
+        with self._lock:
+            return site in self._load_legacy_sites()["hosts"]
+
+    def add_legacy_site(self, host: Any) -> Optional[dict]:
+        site = clean_legacy_site(host)
+        if not site:
+            return self.list_legacy_sites()
+
+        with self._lock:
+            data = self._load_legacy_sites()
+            if site in data["hosts"]:
+                return data
+            if len(data["hosts"]) >= MAX_LEGACY_SITES:
+                return None
+            data["hosts"] = sorted(data["hosts"] + [site])
+            return self._save_legacy_sites(data)
+
+    def remove_legacy_site(self, host: Any) -> dict:
+        wanted = _listable_host(host)
+        with self._lock:
+            data = self._load_legacy_sites()
+            if wanted not in data["hosts"]:
+                return data
+            data["hosts"].remove(wanted)
+            return self._save_legacy_sites(data)
 
     def _clean_download(self, raw: Any) -> dict:
         if not isinstance(raw, dict):

@@ -3,6 +3,7 @@ from typing import Optional
 from urllib.parse import unquote, urlparse
 
 import asyncio
+import base64
 import errno
 import http.client
 import os
@@ -18,7 +19,7 @@ import uuid
 
 import decky
 
-from browser_store import DOWNLOADS_FILENAME, MAX_AD_EXEMPTIONS, MAX_BOOKMARK_CATEGORIES, MAX_BOOKMARKS, MAX_TABS, clean_referer, clean_site
+from browser_store import DOWNLOADS_FILENAME, MAX_AD_EXEMPTIONS, MAX_BOOKMARK_CATEGORIES, MAX_BOOKMARKS, MAX_LEGACY_SITES, MAX_TABS, clean_legacy_site, clean_referer, clean_site
 from utils import child_owner, chown_to_data_owner, open_dir, ssl_context, to_int
 from mixins._context import PluginContext
 
@@ -320,6 +321,73 @@ class _DownloadRedirect(urllib.request.HTTPRedirectHandler):
         return follow
 
 
+LEGACY_FETCH_MAX_BYTES = 16 * 1024 * 1024
+
+LEGACY_FETCH_TIMEOUT_S = 15
+
+_LEGACY_FETCHES = asyncio.Semaphore(6)
+
+_LEGACY_SENT_HEADERS = ("User-Agent", "Accept", "Accept-Language", "Range", "Referer", "Cookie")
+
+_LEGACY_MAX_HEADER_LENGTH = 8192
+
+_LEGACY_DROPPED_HEADERS = {
+    "content-encoding",
+    "transfer-encoding",
+    "content-length",
+    "connection",
+    "keep-alive",
+    "strict-transport-security",
+}
+
+
+def _legacy_host(url: str) -> str:
+    try:
+        parts = urlparse(url)
+        port = parts.port
+    except ValueError:
+        return ""
+    if parts.scheme != "http" or port is not None or parts.username is not None or parts.password is not None:
+        return ""
+    return parts.hostname or ""
+
+
+def _legacy_reply(status: int, headers, body: bytes, truncated: bool) -> dict:
+    kept = [[name, value] for name, value in headers.items() if name.lower() not in _LEGACY_DROPPED_HEADERS]
+    return {
+        "ok": True,
+        "status": status,
+        "headers": kept,
+        "body": base64.b64encode(body).decode("ascii"),
+        "truncated": truncated,
+    }
+
+
+def _legacy_opener() -> urllib.request.OpenerDirector:
+    opener = urllib.request.OpenerDirector()
+    for handler in (urllib.request.HTTPHandler(), urllib.request.HTTPDefaultErrorHandler(), urllib.request.HTTPErrorProcessor()):
+        opener.add_handler(handler)
+    return opener
+
+
+def _fetch_legacy(url: str, headers: dict) -> dict:
+    opener = _legacy_opener()
+    request = urllib.request.Request(url, headers=headers)
+    try:
+        response = opener.open(request, timeout=LEGACY_FETCH_TIMEOUT_S)
+    except urllib.error.HTTPError as exc:
+        response = exc
+    with response:
+        status = response.status
+        declared = to_int(response.headers.get("Content-Length", -1), -1)
+        if declared > LEGACY_FETCH_MAX_BYTES:
+            return _legacy_reply(status, response.headers, b"", True)
+        body = response.read(LEGACY_FETCH_MAX_BYTES + 1)
+        if len(body) > LEGACY_FETCH_MAX_BYTES:
+            return _legacy_reply(status, response.headers, b"", True)
+        return _legacy_reply(status, response.headers, body, False)
+
+
 def _download_action(row: dict) -> str:
     state = row["state"]
     if not (row["url"] or row["origin"]):
@@ -559,6 +627,15 @@ def _ad_exemptions_response(state: dict, reason: str = "") -> dict:
         "reason": reason,
         "hosts": state["hosts"],
         "maxHosts": MAX_AD_EXEMPTIONS,
+    }
+
+
+def _legacy_sites_response(state: dict, reason: str = "") -> dict:
+    return {
+        "ok": not reason,
+        "reason": reason,
+        "hosts": state["hosts"],
+        "maxHosts": MAX_LEGACY_SITES,
     }
 
 
@@ -1615,3 +1692,43 @@ class BrowserMixin(PluginContext):
 
     async def remove_browser_ad_exemption(self, host: str = ""):
         return _ad_exemptions_response(self.browser_store.remove_ad_exemption(host))
+
+    async def get_browser_legacy_sites(self):
+        return _legacy_sites_response(self.browser_store.list_legacy_sites())
+
+    async def add_browser_legacy_site(self, host: str = ""):
+        if not clean_legacy_site(host):
+            return _legacy_sites_response(self.browser_store.list_legacy_sites(), "badSite")
+        state = self.browser_store.add_legacy_site(host)
+        if state is None:
+            return _legacy_sites_response(self.browser_store.list_legacy_sites(), "legacySiteLimit")
+        return _legacy_sites_response(state)
+
+    async def remove_browser_legacy_site(self, host: str = ""):
+        return _legacy_sites_response(self.browser_store.remove_legacy_site(host))
+
+    async def fetch_browser_legacy_site(self, url: str = "", headers: Optional[dict] = None):
+        host = _legacy_host(str(url or ""))
+        if not host or not self.browser_store.has_legacy_site(host):
+            return {"ok": False, "reason": "notListed"}
+
+        sent = {}
+        given = headers if isinstance(headers, dict) else {}
+        for name in _LEGACY_SENT_HEADERS:
+            value = given.get(name)
+            if isinstance(value, str) and value and len(value) <= _LEGACY_MAX_HEADER_LENGTH and "\r" not in value and "\n" not in value:
+                sent[name] = value
+
+        try:
+            async with _LEGACY_FETCHES:
+                return await asyncio.to_thread(_fetch_legacy, url, sent)
+        except (TimeoutError, socket.timeout) as exc:
+            reason, why = "timeout", _why(exc)
+        except urllib.error.URLError as exc:
+            timed_out = isinstance(exc.reason, (TimeoutError, socket.timeout))
+            reason, why = ("timeout" if timed_out else "connection"), _why(exc.reason if isinstance(exc.reason, BaseException) else exc)
+        except (OSError, http.client.HTTPException, ValueError) as exc:
+            reason, why = "connection", _why(exc)
+        if getattr(self, "_debug_logging", False):
+            decky.logger.info("legacy site: fetch from %s failed (%s)", host, why)
+        return {"ok": False, "reason": reason}
