@@ -174,6 +174,7 @@ async function summonNotifications(language: LanguageCode) {
         if (!mayOpen("notifications")) {
             return;
         }
+        recordMilestoneEvent("shortcut_notifications");
         const nav = buildStandaloneNotificationNav(language, settings);
         showManagedModal(
             (close) => (
