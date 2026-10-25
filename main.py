@@ -627,6 +627,7 @@ class Plugin(
             home=self.user_home,
             scratch_dir=self.memories_transfer_scratch_dir,
             on_finished=self._memories_job_finished,
+            on_capture_turned_on=self.milestones_service.state_changed,
         )
         for discard in (
             self.memories_transfer_service.discard_abandoned_export,

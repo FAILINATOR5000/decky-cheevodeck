@@ -105,7 +105,8 @@ def _same_disk(first: Path, second: Path) -> bool:
 class MemoriesTransferService:
 
     def __init__(
-        self, *, store, settings_store, notifications_store, home: Path, scratch_dir: Path, on_finished=None
+        self, *, store, settings_store, notifications_store, home: Path, scratch_dir: Path, on_finished=None,
+        on_capture_turned_on=None,
     ):
         self._store = store
         self._settings_store = settings_store
@@ -114,6 +115,7 @@ class MemoriesTransferService:
         self._scratch_dir = scratch_dir
         self._event_loop = None
         self._on_finished = on_finished
+        self._on_capture_turned_on = on_capture_turned_on
         self._lock = threading.Lock()
         self._thread = None
         self._stop = threading.Event()
@@ -1173,6 +1175,8 @@ class MemoriesTransferService:
             decky.logger.warning("memories: couldn't turn capture on after the import (%s)", type(e).__name__)
             return False
         decky.logger.info("memories: capture turned on, the import filled an empty library")
+        if self._on_capture_turned_on is not None:
+            self._on_capture_turned_on()
         return True
 
     def _place_media(self, archive, names: set, memory: dict, loose_files: list):
