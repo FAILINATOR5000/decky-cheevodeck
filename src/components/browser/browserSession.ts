@@ -975,7 +975,7 @@ export function setVideoFilters(doc: VideoFilterDoc | null, dead: string[]): voi
     }
 }
 
-const REPORT_KINDS = ["reload", "ok", "failed", "ad", "skipped"];
+const REPORT_KINDS = ["reload", "ok", "failed", "ad", "skipped", "live"];
 
 function videoFilterReported(payload: string) {
     let report: { kind?: unknown; revision?: unknown; name?: unknown; videoId?: unknown; ms?: unknown };

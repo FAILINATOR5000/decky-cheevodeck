@@ -158,7 +158,13 @@ export function videoFilterScript(doc: VideoFilterDoc, dead: string[]): string {
             strip(list, rules.removeWithDisguise);
             return;
         }
-        if (live.length && videoId && details.isLive !== true && playable(list) && !protectedMedia(list) && (!embedded || location.pathname === "/watch")) {
+        if (details.isLive === true) {
+            strip(list, rules.removeWithDisguise);
+            cleaned.add(videoId);
+            report("live", videoId, 0, "");
+            return;
+        }
+        if (live.length && videoId && playable(list) && !protectedMedia(list) && (!embedded || location.pathname === "/watch")) {
             strip(list, rules.removeWithDisguise);
             cleaned.add(videoId);
             schedule(videoId);
