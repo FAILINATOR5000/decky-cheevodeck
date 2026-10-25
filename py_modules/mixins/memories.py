@@ -58,9 +58,11 @@ def _clip_moment(seconds: float) -> str:
 class MemoriesMixin(PluginContext):
 
     async def save_memories_auto_capture(self, value: bool):
+        saved = self.settings_store.update_memories_auto_capture(value)
+        self.milestones_service.state_changed()
         return {
             "ok": True,
-            "memoriesAutoCapture": self.settings_store.update_memories_auto_capture(value),
+            "memoriesAutoCapture": saved,
         }
 
     async def save_memories_delete_source(self, value: bool):

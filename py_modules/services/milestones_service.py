@@ -754,6 +754,7 @@ class MilestonesService(TickServiceBase):
         self._ra_requested = False
         self._ra_reason = ""
         self._apply_requested = False
+        self._state_requested = False
         self._last_job_at = 0.0
         self._not_before = 0.0
         self._daily_day = None
@@ -845,6 +846,14 @@ class MilestonesService(TickServiceBase):
     def settings_changed(self):
         self._wake.set()
 
+    def state_changed(self):
+        if self._defs is None:
+            return
+        with self._queue_lock:
+            self._apply_requested = True
+            self._state_requested = True
+        self._wake.set()
+
     def _background_blocked(self, cfg):
         settings = self._settings_store
         if not settings.get_milestones_service_enabled(cfg):
@@ -923,6 +932,8 @@ class MilestonesService(TickServiceBase):
             reason = self._ra_reason
             apply_now = self._apply_requested
             self._apply_requested = False
+            after_press = self._state_requested
+            self._state_requested = False
             offline = self._offline_requested
             self._offline_requested = False
             prune_now = self._prune_requested
@@ -956,7 +967,7 @@ class MilestonesService(TickServiceBase):
             ra = self._offline_facts(ulid)
         if not events and ra is None and not run_ra and not apply_now:
             return
-        self.apply(ulid, events=events, ra=ra)
+        self.apply(ulid, events=events, ra=ra, after_press=after_press)
 
     def live_facts(self, cfg=None):
         if cfg is None:
@@ -1025,7 +1036,7 @@ class MilestonesService(TickServiceBase):
     def global_buttons_supported(self):
         return bool(self._pad_formats())
 
-    def apply(self, ulid, *, events=(), ra=None, extra=None):
+    def apply(self, ulid, *, events=(), ra=None, extra=None, after_press=False):
         if self._defs is None:
             return None, None
         cfg = self._settings_store.load_config()
@@ -1058,6 +1069,8 @@ class MilestonesService(TickServiceBase):
             if data is None:
                 return None, None
             outcome = outcome_box.get("outcome") or {}
+            if after_press:
+                outcome["afterPress"] = True
             if ra is not None:
                 self._save_months(ra.get("fetchedMonths") or {})
             if ra is not None and not ra.get("offline", False) and ra.get("startedAt") == data["startedAt"]:
@@ -1254,6 +1267,7 @@ class MilestonesService(TickServiceBase):
                 template_vars=template_vars,
                 settings_store=self._settings_store,
                 event_loop=self._event_loop,
+                after_press=bool(outcome.get("afterPress")),
             )
 
     def _append_row(self, sub, title, target, meta):

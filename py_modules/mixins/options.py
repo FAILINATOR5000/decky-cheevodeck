@@ -142,6 +142,7 @@ class OptionsMixin(PluginContext):
 
     async def save_show_developer_options(self, show_developer_options: bool):
         value = self.settings_store.update_show_developer_options(show_developer_options)
+        self.milestones_service.state_changed()
 
         return {
             "ok": True,
@@ -608,6 +609,7 @@ class OptionsMixin(PluginContext):
     async def save_back_buttons_global(self, back_buttons_global: bool):
         value = self.settings_store.update_back_buttons_global(back_buttons_global)
         self.back_button_service.sync()
+        self.milestones_service.state_changed()
 
         return {
             "ok": True,
@@ -767,6 +769,7 @@ class OptionsMixin(PluginContext):
 
     async def save_quick_menu_shortcuts(self, quick_menu_shortcuts=None):
         value = self.settings_store.update_quick_menu_shortcuts(quick_menu_shortcuts or [])
+        self.milestones_service.state_changed()
 
         return {
             "ok": True,
@@ -783,6 +786,7 @@ class OptionsMixin(PluginContext):
 
     async def save_shortcut_binding(self, button: str, action: str):
         value = self.settings_store.update_shortcut_binding(button, action)
+        self.milestones_service.state_changed()
 
         return {
             "ok": True,
