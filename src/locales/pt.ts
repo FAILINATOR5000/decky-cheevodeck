@@ -2143,6 +2143,7 @@ const PT: LocaleTable = {
     "No clip videos in this bundle.": "Este pacote não leva vídeos de clipes.",
     "Stopped, and nothing was left behind.": "Parado, e nada ficou pela metade.",
     "Import From Nearby Devices": "Importar de dispositivos próximos",
+    "Import From Bundle": "Importar de um pacote",
     "Looking for nearby devices...": "Procurando dispositivos próximos...",
     "No devices found. Make sure both devices are on this page.": "Nenhum dispositivo encontrado. Confira se os dois dispositivos estão nesta página.",
     "SteamOS Device": "Dispositivo SteamOS",

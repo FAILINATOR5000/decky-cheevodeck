@@ -2196,6 +2196,7 @@ const RU: LocaleTable = {
     "No clip videos in this bundle.": "В этой сборке нет видео клипов.",
     "Stopped, and nothing was left behind.": "Остановлено, ничего недоделанного не осталось.",
     "Import From Nearby Devices": "Импорт с устройств рядом",
+    "Import From Bundle": "Импорт из набора",
     "Looking for nearby devices...": "Ищу устройства рядом...",
     "No devices found. Make sure both devices are on this page.": "Устройства не найдены. Убедись, что на обоих устройствах открыта эта страница.",
     "SteamOS Device": "Устройство SteamOS",

@@ -2137,6 +2137,7 @@ export const EN: LocaleTable = {
     "No clip videos in this bundle.": "No clip videos in this bundle.",
     "Stopped, and nothing was left behind.": "Stopped, and nothing was left behind.",
     "Import From Nearby Devices": "Import From Nearby Devices",
+    "Import From Bundle": "Import From Bundle",
     "Looking for nearby devices...": "Looking for nearby devices...",
     "No devices found. Make sure both devices are on this page.": "No devices found. Make sure both devices are on this page.",
     "SteamOS Device": "SteamOS Device",

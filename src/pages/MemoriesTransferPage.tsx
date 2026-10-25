@@ -629,6 +629,11 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
                                     </div>
                                 </PanelSectionRow>
                             )}
+                            <PanelSectionRow>
+                                <div style={{ ...bodyTextStyle(), fontWeight: "bold", opacity: 1, marginTop: "8px" }}>
+                                    {t(language, "Import From Bundle")}
+                                </div>
+                            </PanelSectionRow>
                             {bundles === null && !listing ? (
                                 <PanelSectionRow>
                                     {claimTarget(

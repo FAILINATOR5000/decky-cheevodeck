@@ -2078,6 +2078,7 @@ const JA: LocaleTable = {
     "No clip videos in this bundle.": "このバンドルにクリップ動画は入っていません。",
     "Stopped, and nothing was left behind.": "中止しました。中途半端なものは残っていません。",
     "Import From Nearby Devices": "近くのデバイスから取り込む",
+    "Import From Bundle": "バンドルから取り込む",
     "Looking for nearby devices...": "近くのデバイスを探しています...",
     "No devices found. Make sure both devices are on this page.": "デバイスが見つかりません。両方のデバイスでこのページを開いているか確認してください。",
     "SteamOS Device": "SteamOS デバイス",
