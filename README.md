@@ -1,6 +1,6 @@
 ![CheevoDeck](docs/images/cheevodeck-wide.webp)
 
-A full RetroAchievements tracking and management system inside the Quick Access Menu. Track achievements, build custom lists, keep notes, reminders and goals, read guides, even follow activity feeds, discussions and community events — all without leaving your game.
+A full RetroAchievements tracking and management system inside the Quick Access Menu. Track achievements and events, build custom lists, create notes, reminders and goals, read guides, even follow activity feeds, discussions and community news — all without leaving your game.
 
 ## Table of Contents
 
