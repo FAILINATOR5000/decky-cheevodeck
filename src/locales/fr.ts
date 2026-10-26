@@ -2217,6 +2217,70 @@ const FR: LocaleTable = {
         other: "+{{count}} notes"
     },
     "Nothing new to add": "Rien de nouveau",
+    "All Data (Current Game)": "Toutes les données (jeu en cours)",
+    "Guides (Current Game)": "Guides (jeu en cours)",
+    "{{count}} tracked events": {
+        one: "{{count}} événement suivi",
+        other: "{{count}} événements suivis"
+    },
+    "Tracked {{tracked}} · Notes {{notes}} · Bookmarks {{bookmarks}}": "Suivis {{tracked}} · Notes {{notes}} · Signets {{bookmarks}}",
+    "{{count}} bookmarks": {
+        one: "{{count}} signet",
+        other: "{{count}} signets"
+    },
+    "This will replace {{count}} bookmarks on this device.": {
+        one: "Cela remplacera {{count}} signet sur cet appareil.",
+        other: "Cela remplacera {{count}} signets sur cet appareil."
+    },
+    "This will replace {{count}} tracked events on this device.": {
+        one: "Cela remplacera {{count}} événement suivi sur cet appareil.",
+        other: "Cela remplacera {{count}} événements suivis sur cet appareil."
+    },
+    "This will replace this device's tracked achievements, notes and bookmarks for this game with the ones on {{name}}.": "Cela remplacera les succès suivis, les notes et les signets de cet appareil pour ce jeu par ceux présents sur {{name}}.",
+    "Added {{count}} bookmarks.": {
+        one: "{{count}} signet ajouté.",
+        other: "{{count}} signets ajoutés."
+    },
+    "Added {{count}} tracked events.": {
+        one: "{{count}} événement suivi ajouté.",
+        other: "{{count}} événements suivis ajoutés."
+    },
+    "Updated {{count}} bookmarks.": {
+        one: "{{count}} signet mis à jour.",
+        other: "{{count}} signets mis à jour."
+    },
+    "Updated {{count}} tracked events.": {
+        one: "{{count}} événement suivi mis à jour.",
+        other: "{{count}} événements suivis mis à jour."
+    },
+    "Replaced with {{count}} bookmarks.": {
+        one: "Remplacé par {{count}} signet.",
+        other: "Remplacé par {{count}} signets."
+    },
+    "Replaced with {{count}} tracked events.": {
+        one: "Remplacé par {{count}} événement suivi.",
+        other: "Remplacé par {{count}} événements suivis."
+    },
+    "Bookmarks Imported": "Signets importés",
+    "Events Imported": "Événements importés",
+    "Current Game Data Imported": "Données du jeu importées",
+    "Added {{count}} bookmarks": {
+        one: "+{{count}} signet",
+        other: "+{{count}} signets"
+    },
+    "Added {{count}} events": {
+        one: "+{{count}} événement",
+        other: "+{{count}} événements"
+    },
+    "Updated {{count}} bookmarks": {
+        one: "{{count}} signet modifié",
+        other: "{{count}} signets modifiés"
+    },
+    "Updated {{count}} events": {
+        one: "Modifié : {{count}}",
+        other: "Modifiés : {{count}}"
+    },
+    "Imported": "Importé",
     "Now on this device": "Maintenant ici",
     "Source not cleared": "Source pas effacée",
     "Now starting at zero": "Repart de zéro",

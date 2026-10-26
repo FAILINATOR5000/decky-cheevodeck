@@ -17,6 +17,7 @@ import {
 } from "../../api";
 import { transferErrorKey } from "../../utils/memoriesTransferErrors";
 import { dataTransferErrorKey } from "../../utils/dataTransferErrors";
+import { importResultLines } from "../../utils/dataTransferLines";
 import { nearbyDeviceAddressLabel } from "../../utils/nearbyDevices";
 import { transferSizeLabel } from "../../utils/memoriesTransferSize";
 import { ErrorText } from "../ui/ErrorText";
@@ -27,7 +28,7 @@ import { SetMosaicSquare, type SetMosaicEntry } from "../mastery/SetMosaicBanner
 import { NOTIFICATION_REGISTRY, type NotificationNav } from "../../notifications/registry";
 import { formatUnlockDate, noteBodyColor } from "../../utils/achievements";
 import { localizeRuntimeText, t, type LanguageCode } from "../../locales";
-import type { CheevoNotification, NoteColor, ScaleStep } from "../../types";
+import type { CheevoNotification, DataKind, DataTransferResult, NoteColor, ScaleStep } from "../../types";
 import { logError } from "../../utils/errors";
 import { BUTTON_SECONDARY } from "../../utils/gamepadButtons";
 import { playToggleSound } from "../../utils/navSound";
@@ -274,6 +275,8 @@ function memoriesTransferBody(notification: CheevoNotification, language: Langua
     return t(language, key, { count: files, size });
 }
 
+const IMPORT_KINDS: DataKind[] = ["all", "tracked", "notes", "guides", "events"];
+
 function dataTransferBody(notification: CheevoNotification, language: LanguageCode): ReactNode {
     const outcome = metaString(notification, "outcome");
     const name = nearbyDeviceAddressLabel({
@@ -293,34 +296,17 @@ function dataTransferBody(notification: CheevoNotification, language: LanguageCo
             ? t(language, "Milestones moved from {{name}}.", { name })
             : t(language, "Milestones imported, but {{name}} didn't confirm it cleared its copy.", { name });
     }
-    const added = metaNumber(notification, "added");
-    const tracked = kind === "tracked";
-    const lines: string[] = [];
-    if (metaString(notification, "mode") === "replace") {
-        lines.push(tracked
-            ? t(language, "Replaced with {{count}} tracked achievements.", { count: added })
-            : t(language, "Replaced with {{count}} notes.", { count: added }));
+    if (!IMPORT_KINDS.includes(kind as DataKind)) {
+        return "";
     }
-    else {
-        const updated = metaNumber(notification, "updated");
-        if (added > 0) {
-            lines.push(tracked
-                ? t(language, "Added {{count}} tracked achievements.", { count: added })
-                : t(language, "Added {{count}} notes.", { count: added }));
-        }
-        if (updated > 0) {
-            lines.push(tracked
-                ? t(language, "Updated {{count}} tracked achievements.", { count: updated })
-                : t(language, "Updated {{count}} notes.", { count: updated }));
-        }
-        if (added <= 0 && updated <= 0) {
-            lines.push(t(language, "Nothing new to add."));
-        }
-    }
-    if (tracked && metaNumber(notification, "skippedUnlocked") > 0) {
-        lines.push(t(language, "{{count}} were already unlocked here.", { count: metaNumber(notification, "skippedUnlocked") }));
-    }
-    return lines.join(" ");
+    const parts = notification.meta?.parts;
+    const result: DataTransferResult = {
+        added: metaNumber(notification, "added"),
+        updated: metaNumber(notification, "updated"),
+        skippedUnlocked: metaNumber(notification, "skippedUnlocked"),
+        parts: parts && typeof parts === "object" ? parts as DataTransferResult["parts"] : undefined
+    };
+    return importResultLines(language, kind as DataKind, metaString(notification, "mode") === "replace", result).join(" ");
 }
 
 function fileWatcherPassBody(notification: CheevoNotification, language: LanguageCode): ReactNode {

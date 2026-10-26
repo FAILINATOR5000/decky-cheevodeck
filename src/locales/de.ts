@@ -2211,6 +2211,46 @@ const DE: LocaleTable = {
         other: "{{count}} Notizen dazu"
     },
     "Nothing new to add": "Nichts Neues",
+    "All Data (Current Game)": "Alle Daten (aktuelles Spiel)",
+    "Guides (Current Game)": "Anleitungen (aktuelles Spiel)",
+    "{{count}} tracked events": {
+        one: "{{count}} verfolgtes Event",
+        other: "{{count}} verfolgte Events"
+    },
+    "Tracked {{tracked}} · Notes {{notes}} · Bookmarks {{bookmarks}}": "Verfolgt {{tracked}} · Notizen {{notes}} · Lesezeichen {{bookmarks}}",
+    "{{count}} bookmarks": "{{count}} Lesezeichen",
+    "This will replace {{count}} bookmarks on this device.": {
+        one: "Damit wird {{count}} Lesezeichen auf diesem Gerät ersetzt.",
+        other: "Damit werden {{count}} Lesezeichen auf diesem Gerät ersetzt."
+    },
+    "This will replace {{count}} tracked events on this device.": {
+        one: "Damit wird {{count}} verfolgtes Event auf diesem Gerät ersetzt.",
+        other: "Damit werden {{count}} verfolgte Events auf diesem Gerät ersetzt."
+    },
+    "This will replace this device's tracked achievements, notes and bookmarks for this game with the ones on {{name}}.": "Damit werden die verfolgten Erfolge, Notizen und Lesezeichen dieses Geräts für dieses Spiel durch die auf {{name}} ersetzt.",
+    "Added {{count}} bookmarks.": "{{count}} Lesezeichen hinzugefügt.",
+    "Added {{count}} tracked events.": {
+        one: "{{count}} verfolgtes Event hinzugefügt.",
+        other: "{{count}} verfolgte Events hinzugefügt."
+    },
+    "Updated {{count}} bookmarks.": "{{count}} Lesezeichen aktualisiert.",
+    "Updated {{count}} tracked events.": {
+        one: "{{count}} verfolgtes Event aktualisiert.",
+        other: "{{count}} verfolgte Events aktualisiert."
+    },
+    "Replaced with {{count}} bookmarks.": "Ersetzt durch {{count}} Lesezeichen.",
+    "Replaced with {{count}} tracked events.": {
+        one: "Ersetzt durch {{count}} verfolgtes Event.",
+        other: "Ersetzt durch {{count}} verfolgte Events."
+    },
+    "Bookmarks Imported": "Lesezeichen importiert",
+    "Events Imported": "Events importiert",
+    "Current Game Data Imported": "Spieldaten importiert",
+    "Added {{count}} bookmarks": "{{count}} Lesezeichen dazu",
+    "Added {{count}} events": "{{count}} Events dazu",
+    "Updated {{count}} bookmarks": "Geändert: {{count}}",
+    "Updated {{count}} events": "Geändert: {{count}}",
+    "Imported": "Importiert",
     "Now on this device": "Jetzt hier",
     "Source not cleared": "Quelle nicht geleert",
     "Now starting at zero": "Neustart bei null",

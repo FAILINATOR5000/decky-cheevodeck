@@ -1610,7 +1610,7 @@ export type NearbyDeviceRow = NearbyPeer & {
 
 export type MemoriesTransferMode = "merge" | "replace";
 
-export type DataKind = "tracked" | "notes" | "milestones";
+export type DataKind = "all" | "tracked" | "notes" | "guides" | "events" | "milestones";
 
 export type DataTransferMode = "merge" | "replace";
 
@@ -1627,6 +1627,8 @@ export type DataDeviceRow = NearbyPeer & {
     title: string | null;
     tracked: number | null;
     notes: number | null;
+    guides: number | null;
+    events: number | null;
     milestones: DataMilestonesSummary | null;
 };
 
@@ -1636,12 +1638,15 @@ export type DataTransferSummary = {
     title: string | null;
     tracked: number | null;
     notes: number | null;
+    guides: number | null;
+    events: number | null;
     milestones: DataMilestonesSummary | null;
 };
 
 type DataTransferState = "idle" | "connecting" | "receiving" | "saving" | "committing" | "done" | "canceled" | "failed";
 
-type DataTransferResult = {
+export type DataTransferResult = {
+    parts?: Partial<Record<DataKind, DataTransferResult>>;
     added?: number;
     updated?: number;
     skippedUnlocked?: number;

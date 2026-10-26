@@ -47,6 +47,7 @@ import {
     upsertGuideMeta,
 } from "../api";
 import { subPopWouldLand } from "../focusRecords";
+import { onDataImported } from "../utils/dataTransferImported";
 import { recordMilestoneEvent } from "../utils/milestoneEvents";
 
 export type GuidesStatus =
@@ -353,6 +354,13 @@ export function useGuidesController(args: UseGuidesControllerArgs) {
         loadedForGameIdRef.current = gameId;
         void resolveAndLoad(gameId);
     }, [isActive, gameId, resolveAndLoad, loadEpoch]);
+
+    useEffect(() => onDataImported("guides", (importedGameId) => {
+        if (importedGameId === gameId) {
+            loadedForGameIdRef.current = null;
+            setLoadEpoch((n) => n + 1);
+        }
+    }), [gameId]);
 
     const loadContent = useCallback(
         async (

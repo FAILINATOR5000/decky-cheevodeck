@@ -15,6 +15,7 @@ import {
 } from "../api";
 import { logError } from "../utils/errors";
 import type { ChecklistTick, ChecklistViewPrefs, EventsPrefs, EventsTabResponse, EventsUserState, EventsViewPrefs } from "../types";
+import { onDataImported } from "../utils/dataTransferImported";
 import { recordMilestoneEvent } from "../utils/milestoneEvents";
 
 const ORDER_WRITE_SETTLE_MS = 250;
@@ -109,6 +110,12 @@ export function useEventsController(options: UseEventsControllerOptions) {
             }
         }
     }, [activeUlid]);
+
+    useEffect(() => onDataImported("events", () => {
+        if (isActive) {
+            void reload(false);
+        }
+    }), [isActive, reload]);
 
     const enter = useCallback(() => {
         if (!isActive) {

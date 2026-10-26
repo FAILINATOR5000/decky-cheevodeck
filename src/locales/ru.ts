@@ -2231,6 +2231,52 @@ const RU: LocaleTable = {
     "Added {{count}} tracked": "Добавлено: {{count}}",
     "Added {{count}} notes": "Заметок: +{{count}}",
     "Nothing new to add": "Ничего нового",
+    "All Data (Current Game)": "Все данные (текущая игра)",
+    "Guides (Current Game)": "Гайды (текущая игра)",
+    "{{count}} tracked events": "Отслеживаемых событий: {{count}}",
+    "Tracked {{tracked}} · Notes {{notes}} · Bookmarks {{bookmarks}}": "Отслеживаемых: {{tracked}} · Заметок: {{notes}} · Закладок: {{bookmarks}}",
+    "{{count}} bookmarks": "Закладок: {{count}}",
+    "This will replace {{count}} bookmarks on this device.": {
+        one: "Это заменит {{count}} закладку на этом устройстве.",
+        few: "Это заменит {{count}} закладки на этом устройстве.",
+        many: "Это заменит {{count}} закладок на этом устройстве."
+    },
+    "This will replace {{count}} tracked events on this device.": {
+        one: "Это заменит {{count}} отслеживаемое событие на этом устройстве.",
+        few: "Это заменит {{count}} отслеживаемых события на этом устройстве.",
+        many: "Это заменит {{count}} отслеживаемых событий на этом устройстве."
+    },
+    "This will replace this device's tracked achievements, notes and bookmarks for this game with the ones on {{name}}.": "Отслеживаемые достижения, заметки и закладки этого устройства для этой игры будут заменены теми, что на {{name}}.",
+    "Added {{count}} bookmarks.": {
+        one: "Добавлена {{count}} закладка.",
+        few: "Добавлено {{count}} закладки.",
+        many: "Добавлено {{count}} закладок."
+    },
+    "Added {{count}} tracked events.": {
+        one: "Добавлено {{count}} отслеживаемое событие.",
+        few: "Добавлено {{count}} отслеживаемых события.",
+        many: "Добавлено {{count}} отслеживаемых событий."
+    },
+    "Updated {{count}} bookmarks.": {
+        one: "Обновлена {{count}} закладка.",
+        few: "Обновлено {{count}} закладки.",
+        many: "Обновлено {{count}} закладок."
+    },
+    "Updated {{count}} tracked events.": {
+        one: "Обновлено {{count}} отслеживаемое событие.",
+        few: "Обновлено {{count}} отслеживаемых события.",
+        many: "Обновлено {{count}} отслеживаемых событий."
+    },
+    "Replaced with {{count}} bookmarks.": "Заменено. Закладок теперь: {{count}}.",
+    "Replaced with {{count}} tracked events.": "Заменено. Отслеживаемых событий теперь: {{count}}.",
+    "Bookmarks Imported": "Закладки импортированы",
+    "Events Imported": "События импортированы",
+    "Current Game Data Imported": "Данные игры импортированы",
+    "Added {{count}} bookmarks": "Закладок: +{{count}}",
+    "Added {{count}} events": "Событий: +{{count}}",
+    "Updated {{count}} bookmarks": "Изменено: {{count}}",
+    "Updated {{count}} events": "Изменено: {{count}}",
+    "Imported": "Импортировано",
     "Now on this device": "Теперь здесь",
     "Source not cleared": "Источник не очищен",
     "Now starting at zero": "Снова с нуля",

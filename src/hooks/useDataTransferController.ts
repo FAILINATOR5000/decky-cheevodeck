@@ -112,7 +112,7 @@ export function useDataTransferController({ isActive }: UseDataTransferControlle
         }
         forgetDataChoices();
         rememberDataDevices(null);
-        setKindState("tracked");
+        setKindState("all");
         setModeState("merge");
         setNearby(null);
         setNearbyClosed(false);

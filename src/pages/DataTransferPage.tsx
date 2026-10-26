@@ -18,6 +18,7 @@ import { useFocusClaim } from "../hooks/useFocusClaim";
 import { useSlidingWindow } from "../hooks/useSlidingWindow";
 import { DATA_NEARBY_FOCUS_PREFIX } from "../hooks/useDataTransferController";
 import { dataTransferErrorKey } from "../utils/dataTransferErrors";
+import { importResultLines } from "../utils/dataTransferLines";
 import { nextDataKind } from "../utils/dataTransferChoices";
 import { nearbyDeviceAddressLabel, nearbyDeviceName } from "../utils/nearbyDevices";
 import { t, type LanguageCode } from "../locales";
@@ -52,14 +53,27 @@ function nearbyKey(row: DataDeviceRow): string {
     return DATA_NEARBY_FOCUS_PREFIX + row.id;
 }
 
+const KIND_LABELS: Record<DataKind, string> = {
+    all: "All Data (Current Game)",
+    tracked: "Tracked (Current Game)",
+    notes: "Notes (Current Game)",
+    guides: "Guides (Current Game)",
+    events: "Events",
+    milestones: "Milestones"
+};
+
+const GAME_KINDS: DataKind[] = ["all", "tracked", "notes", "guides"];
+
 function kindLabel(kind: DataKind, language: LanguageCode): string {
-    if (kind === "tracked") {
-        return t(language, "Tracked (Current Game)");
+    return t(language, KIND_LABELS[kind]);
+}
+
+function rowCount(row: DataDeviceRow, kind: DataKind): number | null {
+    if (kind === "all") {
+        const counts = [row.tracked, row.notes, row.guides];
+        return counts.some((count) => count === null) ? null : counts.reduce<number>((sum, count) => sum + (count ?? 0), 0);
     }
-    if (kind === "notes") {
-        return t(language, "Notes (Current Game)");
-    }
-    return t(language, "Milestones");
+    return kind === "milestones" ? null : row[kind];
 }
 
 function hasProgress(milestones: DataMilestonesSummary | null): milestones is DataMilestonesSummary {
@@ -90,33 +104,7 @@ function resultLines(status: DataTransferStatus, language: LanguageCode): string
             ? t(language, "Milestones moved from {{name}}.", { name })
             : t(language, "Milestones imported, but {{name}} didn't confirm it cleared its copy.", { name })];
     }
-    const added = result.added ?? 0;
-    const lines: string[] = [];
-    if (status.mode === "replace") {
-        lines.push(status.kind === "tracked"
-            ? t(language, "Replaced with {{count}} tracked achievements.", { count: added })
-            : t(language, "Replaced with {{count}} notes.", { count: added }));
-    }
-    else {
-        const updated = result.updated ?? 0;
-        if (added > 0) {
-            lines.push(status.kind === "tracked"
-                ? t(language, "Added {{count}} tracked achievements.", { count: added })
-                : t(language, "Added {{count}} notes.", { count: added }));
-        }
-        if (updated > 0) {
-            lines.push(status.kind === "tracked"
-                ? t(language, "Updated {{count}} tracked achievements.", { count: updated })
-                : t(language, "Updated {{count}} notes.", { count: updated }));
-        }
-        if (added <= 0 && updated <= 0) {
-            lines.push(t(language, "Nothing new to add."));
-        }
-    }
-    if (status.kind === "tracked" && (result.skippedUnlocked ?? 0) > 0) {
-        lines.push(t(language, "{{count}} were already unlocked here.", { count: result.skippedUnlocked ?? 0 }));
-    }
-    return lines;
+    return status.kind ? importResultLines(language, status.kind, status.mode === "replace", result) : [];
 }
 
 type DataTransferPageState = {
@@ -248,13 +236,15 @@ function DataTransferPage(props: DataTransferPageProps) {
         if (kind === "milestones") {
             return hasProgress(row.milestones) ? "" : "peer_nothing";
         }
-        if (state.gameId === null) {
-            return "no_game";
+        if (GAME_KINDS.includes(kind)) {
+            if (state.gameId === null) {
+                return "no_game";
+            }
+            if (row.gameId !== state.gameId) {
+                return "different_game";
+            }
         }
-        if (row.gameId !== state.gameId) {
-            return "different_game";
-        }
-        return row[kind] === 0 ? "peer_nothing" : "";
+        return rowCount(row, kind) === 0 ? "peer_nothing" : "";
     }
 
     async function pickRow(row: DataDeviceRow) {
@@ -315,19 +305,32 @@ function DataTransferPage(props: DataTransferPageProps) {
                 xp: row.milestones.xp
             });
         }
+        if (kind === "events") {
+            return row.events === null ? "" : t(language, "{{count}} tracked events", { count: row.events });
+        }
         if (row.gameId === null) {
             return t(language, "No current game");
         }
         if (row.gameId !== state.gameId) {
             return t(language, "Different game: {{title}}", { title: row.title ?? "" });
         }
+        if (kind === "all") {
+            return t(language, "Tracked {{tracked}} · Notes {{notes}} · Bookmarks {{bookmarks}}", {
+                tracked: row.tracked ?? 0,
+                notes: row.notes ?? 0,
+                bookmarks: row.guides ?? 0
+            });
+        }
         const count = row[kind];
         if (count === null) {
             return "";
         }
-        return kind === "tracked"
-            ? t(language, "{{count}} tracked", { count })
-            : t(language, "{{count}} notes", { count });
+        if (kind === "tracked") {
+            return t(language, "{{count}} tracked", { count });
+        }
+        return kind === "notes"
+            ? t(language, "{{count}} notes", { count })
+            : t(language, "{{count}} bookmarks", { count });
     }
 
     function confirmLines(row: DataDeviceRow): string[] {
@@ -341,6 +344,19 @@ function DataTransferPage(props: DataTransferPageProps) {
             return [t(language, "This will replace {{count}} notes on this device.", {
                 count: localSummary?.notes ?? 0
             })];
+        }
+        if (kind === "guides") {
+            return [t(language, "This will replace {{count}} bookmarks on this device.", {
+                count: localSummary?.guides ?? 0
+            })];
+        }
+        if (kind === "events") {
+            return [t(language, "This will replace {{count}} tracked events on this device.", {
+                count: localSummary?.events ?? 0
+            })];
+        }
+        if (kind === "all") {
+            return [t(language, "This will replace this device's tracked achievements, notes and bookmarks for this game with the ones on {{name}}.", { name })];
         }
         const mine = localSummary?.milestones ?? null;
         const theirs = row.milestones;
@@ -356,7 +372,7 @@ function DataTransferPage(props: DataTransferPageProps) {
     const finished = sawRunning && status !== null && status.direction === "receive";
     const errorCode = startError || (finished && status?.state === "failed" ? status.error : "");
     const errorName = startError ? pressedName : (status?.peer ? nearbyDeviceAddressLabel(status.peer, language) : "");
-    const noGame = kind !== "milestones" && state.gameId === null;
+    const noGame = GAME_KINDS.includes(kind) && state.gameId === null;
     const canCancel = status !== null && (status.state === "connecting" || status.state === "receiving");
 
     const scopeKey = `dataTransfer:view:${busy ? "run" : "idle"}`;
@@ -428,7 +444,7 @@ function DataTransferPage(props: DataTransferPageProps) {
                             help={t(language, "help_data_transfer_replace")}
                         />
 
-                        {kind !== "milestones" && state.gameId !== null && (
+                        {GAME_KINDS.includes(kind) && state.gameId !== null && (
                             <PanelSectionRow>
                                 <div style={bodyTextStyle()}>
                                     {t(language, "Current Game: {{title}}", { title: state.gameTitle ?? "" })}

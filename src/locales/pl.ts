@@ -2267,6 +2267,52 @@ const PL: LocaleTable = {
     "Added {{count}} tracked": "Przypięte: +{{count}}",
     "Added {{count}} notes": "Notatki: +{{count}}",
     "Nothing new to add": "Nic nowego",
+    "All Data (Current Game)": "Wszystkie dane (bieżąca gra)",
+    "Guides (Current Game)": "Poradniki (bieżąca gra)",
+    "{{count}} tracked events": "Przypięte wydarzenia: {{count}}",
+    "Tracked {{tracked}} · Notes {{notes}} · Bookmarks {{bookmarks}}": "Przypięte: {{tracked}} · Notatki: {{notes}} · Zakładki: {{bookmarks}}",
+    "{{count}} bookmarks": "Zakładki: {{count}}",
+    "This will replace {{count}} bookmarks on this device.": {
+        one: "To zastąpi {{count}} zakładkę na tym urządzeniu.",
+        few: "To zastąpi {{count}} zakładki na tym urządzeniu.",
+        many: "To zastąpi {{count}} zakładek na tym urządzeniu."
+    },
+    "This will replace {{count}} tracked events on this device.": {
+        one: "To zastąpi {{count}} przypięte wydarzenie na tym urządzeniu.",
+        few: "To zastąpi {{count}} przypięte wydarzenia na tym urządzeniu.",
+        many: "To zastąpi {{count}} przypiętych wydarzeń na tym urządzeniu."
+    },
+    "This will replace this device's tracked achievements, notes and bookmarks for this game with the ones on {{name}}.": "To zastąpi przypięte osiągnięcia, notatki i zakładki tego urządzenia dla tej gry tymi z {{name}}.",
+    "Added {{count}} bookmarks.": {
+        one: "Dodano {{count}} zakładkę.",
+        few: "Dodano {{count}} zakładki.",
+        many: "Dodano {{count}} zakładek."
+    },
+    "Added {{count}} tracked events.": {
+        one: "Dodano {{count}} przypięte wydarzenie.",
+        few: "Dodano {{count}} przypięte wydarzenia.",
+        many: "Dodano {{count}} przypiętych wydarzeń."
+    },
+    "Updated {{count}} bookmarks.": {
+        one: "Zaktualizowano {{count}} zakładkę.",
+        few: "Zaktualizowano {{count}} zakładki.",
+        many: "Zaktualizowano {{count}} zakładek."
+    },
+    "Updated {{count}} tracked events.": {
+        one: "Zaktualizowano {{count}} przypięte wydarzenie.",
+        few: "Zaktualizowano {{count}} przypięte wydarzenia.",
+        many: "Zaktualizowano {{count}} przypiętych wydarzeń."
+    },
+    "Replaced with {{count}} bookmarks.": "Zastąpiono. Zakładki teraz: {{count}}.",
+    "Replaced with {{count}} tracked events.": "Zastąpiono. Przypięte wydarzenia teraz: {{count}}.",
+    "Bookmarks Imported": "Zakładki zaimportowane",
+    "Events Imported": "Wydarzenia zaimportowane",
+    "Current Game Data Imported": "Dane gry zaimportowane",
+    "Added {{count}} bookmarks": "Zakładki: +{{count}}",
+    "Added {{count}} events": "Wydarzenia: +{{count}}",
+    "Updated {{count}} bookmarks": "Zmienione: {{count}}",
+    "Updated {{count}} events": "Zmienione: {{count}}",
+    "Imported": "Zaimportowano",
     "Now on this device": "Teraz tutaj",
     "Source not cleared": "Źródło bez zmian",
     "Now starting at zero": "Start od zera",
