@@ -2,7 +2,7 @@
   "name": "decky-cheevodeck",
   "version": "1.0.0",
   "private": true,
-  "description": "A full RetroAchievements tracking and management system inside the Quick Access Menu. Build custom lists, notes and Mastery Goals, then follow activity feeds, discussions and community events without leaving your game.",
+  "description": "A full RetroAchievements tracking and management system inside the Quick Access Menu. Track achievements and events, build custom lists, create notes, reminders and goals, read guides, even follow activity feeds, discussions and community news — all without leaving your game.",
   "type": "module",
   "scripts": {
     "build": "rollup -c",
