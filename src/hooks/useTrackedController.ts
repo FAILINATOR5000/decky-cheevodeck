@@ -45,6 +45,7 @@ import {
 } from "../components/tracked/TrackedListBody";
 import { noteSaveErrorKey } from "../utils/noteSaveErrors";
 import { overrideRecord } from "../focusRecords";
+import { onDataImported } from "../utils/dataTransferImported";
 import { useFocusClaim } from "./useFocusClaim";
 
 type TrackedWriteResult = {
@@ -154,6 +155,13 @@ export function useTrackedController({
         }
     };
 
+    const [importedToken, setImportedToken] = useState(0);
+    useEffect(() => onDataImported("tracked", (gameId) => {
+        if (gameId === payloadRef.current?.gameId) {
+            setImportedToken((token) => token + 1);
+        }
+    }), []);
+
     useEffect(() => {
         const gameId = payload?.gameId ?? null;
         if (!gameId) {
@@ -206,7 +214,7 @@ export function useTrackedController({
         return () => {
             cancelled = true;
         };
-    }, [mountedRef, payload?.gameId]);
+    }, [mountedRef, payload?.gameId, importedToken]);
 
 
 

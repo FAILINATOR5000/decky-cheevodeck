@@ -142,6 +142,9 @@ export function buildStandaloneNotificationNav(language: LanguageCode, settings:
         openMemoriesTransfer: () => {
             landLater({ kind: "memoriesTransfer" });
         },
+        openDataTransfer: () => {
+            landLater({ kind: "dataTransfer" });
+        },
         openAbout: () => {
             landLater({ kind: "about" });
         },

@@ -2127,6 +2127,86 @@ const PT: LocaleTable = {
     "Import": "Importar",
     "Replace My Library": "Substituir minha coleção",
     "help_memories_transfer_replace": "Ligue para apagar completamente suas memórias atuais antes da importação. Seus arquivos só são excluídos quando a importação dá certo. Se estiver desligado, só são importadas as memórias que você ainda não tem.",
+    "Data Transfer": "Transferência de dados",
+    "help_utils_data_transfer": "Transfira seus dados de vários recursos, como notas do jogo atual, conquistas seguidas do jogo atual e Marcos.",
+    "Data": "Dados",
+    "Tracked (Current Game)": "Seguidas (jogo atual)",
+    "Notes (Current Game)": "Notas (jogo atual)",
+    "Replace Destination": "Substituir destino",
+    "help_data_transfer_replace": "Substitui completamente o destino (os dados deste dispositivo) pelos dados recebidos. Se estiver desligado, só mescla, ou seja, só os itens que ainda não existem são copiados. Com Marcos, fica sempre ligado e o dispositivo de origem perde seus marcos, porque eles só podem estar em um dispositivo por vez.",
+    "Current Game: {{title}}": "Jogo atual: {{title}}",
+    "No current game. Load a game on both devices first.": "Nenhum jogo atual. Abra um jogo nos dois dispositivos primeiro.",
+    "Different game: {{title}}": "Outro jogo: {{title}}",
+    "{{count}} tracked": {
+        one: "{{count}} seguida",
+        other: "{{count}} seguidas"
+    },
+    "{{count}} notes": {
+        one: "{{count}} nota",
+        other: "{{count}} notas"
+    },
+    "Rank {{rank}} · {{xp}} XP": "Patente {{rank}} · {{xp}} XP",
+    "No milestones progress": "Nenhum progresso em Marcos",
+    "Connecting to {{name}}...": "Conectando a {{name}}...",
+    "This will replace {{count}} tracked achievements on this device.": {
+        one: "Isso vai substituir {{count}} conquista seguida neste dispositivo.",
+        other: "Isso vai substituir {{count}} conquistas seguidas neste dispositivo."
+    },
+    "This will replace {{count}} notes on this device.": {
+        one: "Isso vai substituir {{count}} nota neste dispositivo.",
+        other: "Isso vai substituir {{count}} notas neste dispositivo."
+    },
+    "This replaces this device's milestones ({{rank}}, {{xp}} XP) with {{name}}'s ({{peerRank}}, {{peerXp}} XP). {{name}} starts over at zero.": "Isso substitui os marcos deste dispositivo ({{rank}}, {{xp}} XP) pelos de {{name}} ({{peerRank}}, {{peerXp}} XP). {{name}} recomeça do zero.",
+    "This device has more XP than {{name}}.": "Este dispositivo tem mais XP que {{name}}.",
+    "Added {{count}} tracked achievements.": {
+        one: "{{count}} conquista seguida adicionada.",
+        other: "{{count}} conquistas seguidas adicionadas."
+    },
+    "{{count}} were already unlocked here.": {
+        one: "{{count}} já estava desbloqueada aqui.",
+        other: "{{count}} já estavam desbloqueadas aqui."
+    },
+    "Nothing new to add.": "Nada de novo para adicionar.",
+    "Added {{count}} notes.": {
+        one: "{{count}} nota adicionada.",
+        other: "{{count}} notas adicionadas."
+    },
+    "Replaced with {{count}} tracked achievements.": {
+        one: "Substituído por {{count}} conquista seguida.",
+        other: "Substituído por {{count}} conquistas seguidas."
+    },
+    "Replaced with {{count}} notes.": {
+        one: "Substituído por {{count}} nota.",
+        other: "Substituído por {{count}} notas."
+    },
+    "Milestones moved from {{name}}.": "Marcos movidos de {{name}}.",
+    "Milestones imported, but {{name}} didn't confirm it cleared its copy.": "Marcos importados, mas {{name}} não confirmou que apagou a cópia dele.",
+    "Your milestones are now on {{name}}. This device starts over at zero.": "Seus marcos agora estão em {{name}}. Este dispositivo recomeça do zero.",
+    "That device is on a different game": "Esse dispositivo está em outro jogo",
+    "That data belongs to another RetroAchievements account": "Esses dados pertencem a outra conta do RetroAchievements",
+    "That device has nothing to send": "Esse dispositivo não tem nada para enviar",
+    "Too late to cancel, it's already saving": "Tarde demais para cancelar, já está salvando",
+    "Saving it here failed": "Não foi possível salvar aqui",
+    "Data Transfer only works in Game Mode": "A transferência de dados só funciona no Modo de Jogo",
+    "Data Transfer stopped looking. Leave this page and come back.": "A transferência de dados parou de procurar. Saia desta página e volte.",
+    "This device couldn't open the network for Data Transfer": "Este dispositivo não conseguiu abrir a rede para a transferência de dados",
+    "Tracked Imported": "Seguidas importadas",
+    "Notes Imported": "Notas importadas",
+    "Milestones Moved": "Marcos movidos",
+    "Milestones Imported": "Marcos importados",
+    "Data Transfer Failed": "Transferência falhou",
+    "Added {{count}} tracked": {
+        one: "+{{count}} seguida",
+        other: "+{{count}} seguidas"
+    },
+    "Added {{count}} notes": {
+        one: "+{{count}} nota",
+        other: "+{{count}} notas"
+    },
+    "Nothing new to add": "Nada de novo",
+    "Now on this device": "Agora aqui",
+    "Source not cleared": "Origem não apagada",
+    "Now starting at zero": "Recomeça do zero",
     "This will delete {{count}} memories across {{games}} games and put {{name}} in their place.": "Isto vai apagar {{count}} memórias de {{games}} jogos e pôr {{name}} no lugar delas.",
     "Keep What I Have": "Manter o que eu tenho",
     "Press again to replace it": "Pressione de novo para substituir",

@@ -16,6 +16,7 @@ import {
     subscribeToGameIcon
 } from "../../api";
 import { transferErrorKey } from "../../utils/memoriesTransferErrors";
+import { dataTransferErrorKey } from "../../utils/dataTransferErrors";
 import { nearbyDeviceAddressLabel } from "../../utils/nearbyDevices";
 import { transferSizeLabel } from "../../utils/memoriesTransferSize";
 import { ErrorText } from "../ui/ErrorText";
@@ -174,6 +175,10 @@ function isMemoriesTransfer(notification: CheevoNotification): boolean {
     return notification.type === "system" && notification.target?.view === "memoriesTransfer";
 }
 
+function isDataTransfer(notification: CheevoNotification): boolean {
+    return notification.type === "system" && notification.target?.view === "dataTransfer";
+}
+
 function isChangelogRow(notification: CheevoNotification): boolean {
     return notification.type === "system" && notification.target?.view === "changelog";
 }
@@ -267,6 +272,47 @@ function memoriesTransferBody(notification: CheevoNotification, language: Langua
         ? "Exported {{count}} files at around {{size}} in size."
         : "Imported {{count}} files at around {{size}} in size.";
     return t(language, key, { count: files, size });
+}
+
+function dataTransferBody(notification: CheevoNotification, language: LanguageCode): ReactNode {
+    const outcome = metaString(notification, "outcome");
+    const name = nearbyDeviceAddressLabel({
+        model: metaString(notification, "peerModel"),
+        host: metaString(notification, "peerHost"),
+        address: metaString(notification, "peerAddress")
+    }, language);
+    if (outcome === "failed") {
+        return t(language, dataTransferErrorKey(metaString(notification, "reason")), { name });
+    }
+    const kind = metaString(notification, "kind");
+    if (outcome === "moved") {
+        return t(language, "Your milestones are now on {{name}}. This device starts over at zero.", { name });
+    }
+    if (kind === "milestones") {
+        return notification.meta?.sourceCleared === true
+            ? t(language, "Milestones moved from {{name}}.", { name })
+            : t(language, "Milestones imported, but {{name}} didn't confirm it cleared its copy.", { name });
+    }
+    const added = metaNumber(notification, "added");
+    const tracked = kind === "tracked";
+    const lines: string[] = [];
+    if (metaString(notification, "mode") === "replace") {
+        lines.push(tracked
+            ? t(language, "Replaced with {{count}} tracked achievements.", { count: added })
+            : t(language, "Replaced with {{count}} notes.", { count: added }));
+    }
+    else if (added <= 0) {
+        lines.push(t(language, "Nothing new to add."));
+    }
+    else {
+        lines.push(tracked
+            ? t(language, "Added {{count}} tracked achievements.", { count: added })
+            : t(language, "Added {{count}} notes.", { count: added }));
+    }
+    if (tracked && metaNumber(notification, "skippedUnlocked") > 0) {
+        lines.push(t(language, "{{count}} were already unlocked here.", { count: metaNumber(notification, "skippedUnlocked") }));
+    }
+    return lines.join(" ");
 }
 
 function fileWatcherPassBody(notification: CheevoNotification, language: LanguageCode): ReactNode {
@@ -565,6 +611,7 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
         && !isCheevoCheckScan(notification)
         && !isFileWatcherPass(notification)
         && !isMemoriesTransfer(notification)
+        && !isDataTransfer(notification)
         && !isChangelogRow(notification)
         && !isDeveloperMessage(notification);
     const templatedBody: ReactNode | null =
@@ -595,6 +642,8 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                                 ? fileWatcherPassBody(notification, language)
                                 : isMemoriesTransfer(notification)
                                 ? memoriesTransferBody(notification, language)
+                                : isDataTransfer(notification)
+                                ? dataTransferBody(notification, language)
                                 : isChangelogRow(notification)
                                     ? null
                                     : isDeveloperMessage(notification)
@@ -668,7 +717,7 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                                     ? t(language, "Cheevo Check")
                                     : isFileWatcherPass(notification)
                                         ? t(language, "File Watcher")
-                                        : isMemoriesTransfer(notification)
+                                        : isMemoriesTransfer(notification) || isDataTransfer(notification)
                                         ? localizeRuntimeText(language, notification.title)
                                         : isChangelogRow(notification)
                                             ? t(language, "What's New in CheevoDeck")

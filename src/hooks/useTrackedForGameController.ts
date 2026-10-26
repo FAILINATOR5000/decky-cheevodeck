@@ -46,6 +46,7 @@ import { openExternalUrl, raAchievementUrl } from "../utils/navigation";
 import { groupIdsForTrackedTarget, trackedRemovalLanding, trackedRetagLanding } from "../components/tracked/TrackedListBody";
 import { noteSaveErrorKey } from "../utils/noteSaveErrors";
 import { overrideRecord } from "../focusRecords";
+import { onDataImported } from "../utils/dataTransferImported";
 import { useFocusClaim } from "./useFocusClaim";
 
 type UseTrackedForGameControllerArgs = {
@@ -227,6 +228,32 @@ export function useTrackedForGameController({
             cancelled = true;
         };
     }, [mountedRef, selectedGameId]);
+
+    useEffect(() => onDataImported("tracked", (gameId) => {
+        if (gameId !== selectedGameId) {
+            return;
+        }
+        void (async () => {
+            try {
+                const result = await getTrackedAchievements(gameId);
+                if (!mountedRef.current) {
+                    return;
+                }
+                const achievementIds = result.achievementIds ?? [];
+                cacheTrackedCount(gameId, achievementIds.length);
+                cacheTrackedIds(gameId, achievementIds);
+                cacheTrackedNotes(gameId, result.notes ?? {});
+                cacheTrackedNotesColor(gameId, result.notesColor ?? {});
+                setTrackedIds(achievementIds);
+                setNotesByAchievementId(result.notes ?? {});
+                setNotesColorByAchievementId(result.notesColor ?? {});
+                setCollapsedTags(result.collapsedTags ?? []);
+            }
+            catch (e) {
+                logError("getTrackedAchievements (imported)", e);
+            }
+        })();
+    }), [mountedRef, selectedGameId]);
 
     useEffect(() => {
         if (!isActive || selectedGameId === null || payloadForGameRef.current === selectedGameId) {

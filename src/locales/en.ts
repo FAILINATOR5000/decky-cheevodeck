@@ -2121,6 +2121,80 @@ export const EN: LocaleTable = {
     "Import": "Import",
     "Replace My Library": "Replace My Library",
     "help_memories_transfer_replace": "Turn on to completely wipe your current memories before the import. Your files are only deleted upon successful import. If off, only memories you don't have are imported.",
+    "Data Transfer": "Data Transfer",
+    "help_utils_data_transfer": "Transfer your data from various features, such as current game notes, current game tracked achievements, and Milestones.",
+    "Data": "Data",
+    "Tracked (Current Game)": "Tracked (Current Game)",
+    "Notes (Current Game)": "Notes (Current Game)",
+    "Replace Destination": "Replace Destination",
+    "help_data_transfer_replace": "Replaces the destination (this device's data) completely with the data. If off, it only merges, meaning only items that do not exist get copied over. If Milestones, this is forced on and the source machine will lose its milestones data as it can be on one machine at a time only.",
+    "Current Game: {{title}}": "Current Game: {{title}}",
+    "No current game. Load a game on both devices first.": "No current game. Load a game on both devices first.",
+    "Different game: {{title}}": "Different game: {{title}}",
+    "{{count}} tracked": "{{count}} tracked",
+    "{{count}} notes": {
+        one: "{{count}} note",
+        other: "{{count}} notes"
+    },
+    "Rank {{rank}} · {{xp}} XP": "Rank {{rank}} · {{xp}} XP",
+    "No milestones progress": "No milestones progress",
+    "Connecting to {{name}}...": "Connecting to {{name}}...",
+    "This will replace {{count}} tracked achievements on this device.": {
+        one: "This will replace {{count}} tracked achievement on this device.",
+        other: "This will replace {{count}} tracked achievements on this device."
+    },
+    "This will replace {{count}} notes on this device.": {
+        one: "This will replace {{count}} note on this device.",
+        other: "This will replace {{count}} notes on this device."
+    },
+    "This replaces this device's milestones ({{rank}}, {{xp}} XP) with {{name}}'s ({{peerRank}}, {{peerXp}} XP). {{name}} starts over at zero.": "This replaces this device's milestones ({{rank}}, {{xp}} XP) with {{name}}'s ({{peerRank}}, {{peerXp}} XP). {{name}} starts over at zero.",
+    "This device has more XP than {{name}}.": "This device has more XP than {{name}}.",
+    "Added {{count}} tracked achievements.": {
+        one: "Added {{count}} tracked achievement.",
+        other: "Added {{count}} tracked achievements."
+    },
+    "{{count}} were already unlocked here.": {
+        one: "{{count}} was already unlocked here.",
+        other: "{{count}} were already unlocked here."
+    },
+    "Nothing new to add.": "Nothing new to add.",
+    "Added {{count}} notes.": {
+        one: "Added {{count}} note.",
+        other: "Added {{count}} notes."
+    },
+    "Replaced with {{count}} tracked achievements.": {
+        one: "Replaced with {{count}} tracked achievement.",
+        other: "Replaced with {{count}} tracked achievements."
+    },
+    "Replaced with {{count}} notes.": {
+        one: "Replaced with {{count}} note.",
+        other: "Replaced with {{count}} notes."
+    },
+    "Milestones moved from {{name}}.": "Milestones moved from {{name}}.",
+    "Milestones imported, but {{name}} didn't confirm it cleared its copy.": "Milestones imported, but {{name}} didn't confirm it cleared its copy.",
+    "Your milestones are now on {{name}}. This device starts over at zero.": "Your milestones are now on {{name}}. This device starts over at zero.",
+    "That device is on a different game": "That device is on a different game",
+    "That data belongs to another RetroAchievements account": "That data belongs to another RetroAchievements account",
+    "That device has nothing to send": "That device has nothing to send",
+    "Too late to cancel, it's already saving": "Too late to cancel, it's already saving",
+    "Saving it here failed": "Saving it here failed",
+    "Data Transfer only works in Game Mode": "Data Transfer only works in Game Mode",
+    "Data Transfer stopped looking. Leave this page and come back.": "Data Transfer stopped looking. Leave this page and come back.",
+    "This device couldn't open the network for Data Transfer": "This device couldn't open the network for Data Transfer",
+    "Tracked Imported": "Tracked Imported",
+    "Notes Imported": "Notes Imported",
+    "Milestones Moved": "Milestones Moved",
+    "Milestones Imported": "Milestones Imported",
+    "Data Transfer Failed": "Data Transfer Failed",
+    "Added {{count}} tracked": "Added {{count}} tracked",
+    "Added {{count}} notes": {
+        one: "Added {{count}} note",
+        other: "Added {{count}} notes"
+    },
+    "Nothing new to add": "Nothing new to add",
+    "Now on this device": "Now on this device",
+    "Source not cleared": "Source not cleared",
+    "Now starting at zero": "Now starting at zero",
     "This will delete {{count}} memories across {{games}} games and put {{name}} in their place.": "This will delete {{count}} memories across {{games}} games and put {{name}} in their place.",
     "Keep What I Have": "Keep What I Have",
     "Press again to replace it": "Press again to replace it",

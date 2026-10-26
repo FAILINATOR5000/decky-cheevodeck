@@ -454,6 +454,7 @@ export type ViewKey =
     | "fileWatcher"
     | "memories"
     | "memoriesTransfer"
+    | "dataTransfer"
     | "qamGuard"
     | "guides"
     | "eventViewer"
@@ -716,7 +717,7 @@ export type NotificationIconSource = "game" | "achievement" | "avatar" | "setMos
 type NotificationSource = "notifications";
 
 type NotificationNavTarget = {
-    view: "gameNotes" | "trackedSetOpen" | "gameOverview" | "achievementOverview" | "cheevoCheck" | "fileWatcher" | "memoriesTransfer" | "changelog" | "message" | "external" | "milestones";
+    view: "gameNotes" | "trackedSetOpen" | "gameOverview" | "achievementOverview" | "cheevoCheck" | "fileWatcher" | "memoriesTransfer" | "dataTransfer" | "changelog" | "message" | "external" | "milestones";
     gameId?: number | null;
     achievementId?: number | null;
     noteId?: string | null;
@@ -1608,6 +1609,57 @@ export type NearbyDeviceRow = NearbyPeer & {
 };
 
 export type MemoriesTransferMode = "merge" | "replace";
+
+export type DataKind = "tracked" | "notes" | "milestones";
+
+export type DataTransferMode = "merge" | "replace";
+
+export type DataMilestonesSummary = {
+    xp: number;
+    claims: number;
+    tier: string;
+    step: number;
+};
+
+export type DataDeviceRow = NearbyPeer & {
+    id: string;
+    gameId: number | null;
+    title: string | null;
+    tracked: number | null;
+    notes: number | null;
+    milestones: DataMilestonesSummary | null;
+};
+
+export type DataTransferSummary = {
+    ok: boolean;
+    gameId: number | null;
+    title: string | null;
+    tracked: number | null;
+    notes: number | null;
+    milestones: DataMilestonesSummary | null;
+};
+
+type DataTransferState = "idle" | "connecting" | "receiving" | "saving" | "committing" | "done" | "canceled" | "failed";
+
+type DataTransferResult = {
+    added?: number;
+    skippedUnlocked?: number;
+    skippedExisting?: number;
+    replaced?: number;
+    xp?: number;
+    sourceCleared?: boolean;
+};
+
+export type DataTransferStatus = {
+    ok: boolean;
+    state: DataTransferState;
+    direction: "" | "receive";
+    kind: DataKind | "";
+    mode: DataTransferMode | "";
+    peer: NearbyPeer | null;
+    error: string;
+    result: DataTransferResult | null;
+};
 
 export type MemoriesExportCounts = {
     ok: boolean;

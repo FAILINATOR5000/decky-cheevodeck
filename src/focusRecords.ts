@@ -84,6 +84,7 @@ const LANDING_VIEWS: ReadonlySet<ViewKey> = new Set<ViewKey>([
     "smbShares",
     "fileWatcher",
     "memoriesTransfer",
+    "dataTransfer",
     "memories",
     "options",
     "about",

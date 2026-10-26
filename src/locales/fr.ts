@@ -2127,6 +2127,86 @@ const FR: LocaleTable = {
     "Import": "Importer",
     "Replace My Library": "Remplacer ma collection",
     "help_memories_transfer_replace": "Active ça pour effacer complètement tes souvenirs actuels avant l'import. Tes fichiers ne sont supprimés qu'une fois l'import réussi. Si c'est désactivé, seuls les souvenirs que tu n'as pas encore sont importés.",
+    "Data Transfer": "Transfert de données",
+    "help_utils_data_transfer": "Transfère tes données de différentes fonctionnalités, comme les notes du jeu en cours, les succès suivis du jeu en cours et les Jalons.",
+    "Data": "Données",
+    "Tracked (Current Game)": "Suivis (jeu en cours)",
+    "Notes (Current Game)": "Notes (jeu en cours)",
+    "Replace Destination": "Remplacer la destination",
+    "help_data_transfer_replace": "Remplace entièrement la destination (les données de cet appareil) par les données reçues. Si c'est désactivé, les données sont seulement fusionnées : seuls les éléments qui n'existent pas encore sont copiés. Avec les Jalons, c'est forcé, et l'appareil source perd ses jalons, car ils ne peuvent se trouver que sur un seul appareil à la fois.",
+    "Current Game: {{title}}": "Jeu en cours : {{title}}",
+    "No current game. Load a game on both devices first.": "Aucun jeu en cours. Lance d'abord un jeu sur les deux appareils.",
+    "Different game: {{title}}": "Autre jeu : {{title}}",
+    "{{count}} tracked": {
+        one: "{{count}} suivi",
+        other: "{{count}} suivis"
+    },
+    "{{count}} notes": {
+        one: "{{count}} note",
+        other: "{{count}} notes"
+    },
+    "Rank {{rank}} · {{xp}} XP": "Rang {{rank}} · {{xp}} XP",
+    "No milestones progress": "Aucune progression des Jalons",
+    "Connecting to {{name}}...": "Connexion à {{name}}...",
+    "This will replace {{count}} tracked achievements on this device.": {
+        one: "Cela remplacera {{count}} succès suivi sur cet appareil.",
+        other: "Cela remplacera {{count}} succès suivis sur cet appareil."
+    },
+    "This will replace {{count}} notes on this device.": {
+        one: "Cela remplacera {{count}} note sur cet appareil.",
+        other: "Cela remplacera {{count}} notes sur cet appareil."
+    },
+    "This replaces this device's milestones ({{rank}}, {{xp}} XP) with {{name}}'s ({{peerRank}}, {{peerXp}} XP). {{name}} starts over at zero.": "Cela remplace les jalons de cet appareil ({{rank}}, {{xp}} XP) par ceux de {{name}} ({{peerRank}}, {{peerXp}} XP). {{name}} repart de zéro.",
+    "This device has more XP than {{name}}.": "Cet appareil a plus d'XP que {{name}}.",
+    "Added {{count}} tracked achievements.": {
+        one: "{{count}} succès suivi ajouté.",
+        other: "{{count}} succès suivis ajoutés."
+    },
+    "{{count}} were already unlocked here.": {
+        one: "{{count}} était déjà débloqué ici.",
+        other: "{{count}} étaient déjà débloqués ici."
+    },
+    "Nothing new to add.": "Rien de nouveau à ajouter.",
+    "Added {{count}} notes.": {
+        one: "{{count}} note ajoutée.",
+        other: "{{count}} notes ajoutées."
+    },
+    "Replaced with {{count}} tracked achievements.": {
+        one: "Remplacé par {{count}} succès suivi.",
+        other: "Remplacé par {{count}} succès suivis."
+    },
+    "Replaced with {{count}} notes.": {
+        one: "Remplacé par {{count}} note.",
+        other: "Remplacé par {{count}} notes."
+    },
+    "Milestones moved from {{name}}.": "Jalons déplacés depuis {{name}}.",
+    "Milestones imported, but {{name}} didn't confirm it cleared its copy.": "Jalons importés, mais {{name}} n'a pas confirmé avoir effacé sa copie.",
+    "Your milestones are now on {{name}}. This device starts over at zero.": "Tes jalons sont maintenant sur {{name}}. Cet appareil repart de zéro.",
+    "That device is on a different game": "Cet appareil est sur un autre jeu",
+    "That data belongs to another RetroAchievements account": "Ces données appartiennent à un autre compte RetroAchievements",
+    "That device has nothing to send": "Cet appareil n'a rien à envoyer",
+    "Too late to cancel, it's already saving": "Trop tard pour annuler, l'enregistrement a commencé",
+    "Saving it here failed": "L'enregistrement ici a échoué",
+    "Data Transfer only works in Game Mode": "Le transfert de données ne fonctionne qu'en Mode Jeu",
+    "Data Transfer stopped looking. Leave this page and come back.": "Le transfert de données ne cherche plus. Quitte cette page et reviens.",
+    "This device couldn't open the network for Data Transfer": "Cet appareil n'a pas pu ouvrir le réseau pour le transfert de données",
+    "Tracked Imported": "Suivis importés",
+    "Notes Imported": "Notes importées",
+    "Milestones Moved": "Jalons déplacés",
+    "Milestones Imported": "Jalons importés",
+    "Data Transfer Failed": "Échec du transfert",
+    "Added {{count}} tracked": {
+        one: "+{{count}} suivi",
+        other: "+{{count}} suivis"
+    },
+    "Added {{count}} notes": {
+        one: "+{{count}} note",
+        other: "+{{count}} notes"
+    },
+    "Nothing new to add": "Rien de nouveau",
+    "Now on this device": "Maintenant ici",
+    "Source not cleared": "Source pas effacée",
+    "Now starting at zero": "Repart de zéro",
     "This will delete {{count}} memories across {{games}} games and put {{name}} in their place.": "Cela supprimera {{count}} souvenirs répartis sur {{games}} jeux et mettra {{name}} à leur place.",
     "Keep What I Have": "Garder ce que j'ai",
     "Press again to replace it": "Appuie encore pour remplacer",

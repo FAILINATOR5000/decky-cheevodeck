@@ -40,6 +40,11 @@ import type {
     LatestMemoryResponse,
     MemoriesResponse,
     MemoriesTransferMode,
+    DataDeviceRow,
+    DataKind,
+    DataTransferMode,
+    DataTransferStatus,
+    DataTransferSummary,
     MemoriesTransferStatus,
     MemoriesVideoMoveStatus,
     MemoryBookmark,
@@ -745,7 +750,7 @@ export const discardMemoriesRestore = callable<
     { ok: boolean; error?: string; removed?: number }
 >("discard_memories_restore");
 export const setNearbyVisible = callable<
-    [boolean, boolean],
+    [boolean, boolean, ("memories" | "data")?],
     { ok: boolean; error?: string; visible?: boolean }
 >("set_nearby_visible");
 export const discoverNearbyDevices = callable<
@@ -756,6 +761,18 @@ export const startNearbyImport = callable<
     [string, boolean, MemoriesTransferMode],
     { ok: boolean; error?: string }
 >("start_nearby_import");
+
+export const discoverDataDevices = callable<
+    [],
+    { ok: boolean; error?: string; devices?: DataDeviceRow[] }
+>("discover_data_devices");
+export const startDataImport = callable<
+    [string, DataKind, DataTransferMode],
+    { ok: boolean; error?: string }
+>("start_data_import");
+export const dataTransferStatus = callable<[], DataTransferStatus>("data_transfer_status");
+export const cancelDataTransfer = callable<[], { ok: boolean; error?: string }>("cancel_data_transfer");
+export const getDataTransferLocalSummary = callable<[], DataTransferSummary>("get_data_transfer_local_summary");
 
 export const loadMemoryViewPrefs = callable<[], MemoryViewPrefs>("load_memory_view_prefs");
 export const saveMemoryViewPrefs = callable<

@@ -16,6 +16,7 @@ export type NotificationNav = {
     openCheevoCheck?: () => void;
     openFileWatcher?: () => void;
     openMemoriesTransfer?: () => void;
+    openDataTransfer?: () => void;
     openChangelog?: (body: string) => void;
     openMessage?: (body: string) => void;
     openExternalUrl?: (url: string) => void;
@@ -168,6 +169,10 @@ export const NOTIFICATION_REGISTRY: Record<NotificationType, NotificationTypeEnt
             }
             if (n.target?.view === "memoriesTransfer" && nav.openMemoriesTransfer) {
                 nav.openMemoriesTransfer();
+                return;
+            }
+            if (n.target?.view === "dataTransfer" && nav.openDataTransfer) {
+                nav.openDataTransfer();
                 return;
             }
             if (n.target?.view === "message" && nav.openMessage) {

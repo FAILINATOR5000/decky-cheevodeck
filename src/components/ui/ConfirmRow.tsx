@@ -5,6 +5,7 @@ import { regularButtonSpacingStyle, confirmAmber } from "../../utils/style";
 
 export type ConfirmRowProps = {
     focusKey: string;
+    focusFallback?: string[];
     idleLabel: string;
     armedLabel: string;
     disabled: boolean;
@@ -17,7 +18,7 @@ export type ConfirmRowProps = {
 };
 
 export function ConfirmRow(props: ConfirmRowProps) {
-    const { focusKey, idleLabel, armedLabel, disabled, onConfirm, buttonSpacing, bottomSeparator, labelStyle, skipWhenDisabled, help } = props;
+    const { focusKey, focusFallback, idleLabel, armedLabel, disabled, onConfirm, buttonSpacing, bottomSeparator, labelStyle, skipWhenDisabled, help } = props;
     const [armed, setArmed] = useState(false);
 
     useEffect(() => {
@@ -46,6 +47,7 @@ export function ConfirmRow(props: ConfirmRowProps) {
         <FocusableItem
             outerStyle={buttonSpacing ? regularButtonSpacingStyle(buttonSpacing) : undefined}
             focusKey={focusKey}
+            focusFallback={focusFallback}
             disabled={disabled}
             skipWhenDisabled={skipWhenDisabled}
             onClick={handleClick}

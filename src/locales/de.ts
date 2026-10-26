@@ -2127,6 +2127,80 @@ const DE: LocaleTable = {
     "Import": "Importieren",
     "Replace My Library": "Meine Sammlung ersetzen",
     "help_memories_transfer_replace": "Einschalten, um deine derzeitigen Erinnerungen vor dem Import restlos zu löschen. Deine Dateien werden erst gelöscht, wenn der Import geglückt ist. Ist es aus, werden nur Erinnerungen importiert, die du noch nicht hast.",
+    "Data Transfer": "Datenübertragung",
+    "help_utils_data_transfer": "Übertrage deine Daten aus verschiedenen Funktionen, etwa Notizen zum aktuellen Spiel, verfolgte Erfolge des aktuellen Spiels und Meilensteine.",
+    "Data": "Daten",
+    "Tracked (Current Game)": "Verfolgte (aktuelles Spiel)",
+    "Notes (Current Game)": "Notizen (aktuelles Spiel)",
+    "Replace Destination": "Ziel ersetzen",
+    "help_data_transfer_replace": "Ersetzt die Daten am Ziel (die Daten dieses Geräts) vollständig durch die übertragenen Daten. Ist es aus, wird nur zusammengeführt, das heißt, nur Einträge, die noch nicht vorhanden sind, werden übernommen. Bei Meilensteinen ist es immer an, und das Quellgerät verliert seine Meilensteine, da sie nur auf einem Gerät gleichzeitig sein können.",
+    "Current Game: {{title}}": "Aktuelles Spiel: {{title}}",
+    "No current game. Load a game on both devices first.": "Kein aktuelles Spiel. Starte zuerst auf beiden Geräten ein Spiel.",
+    "Different game: {{title}}": "Anderes Spiel: {{title}}",
+    "{{count}} tracked": "{{count}} verfolgt",
+    "{{count}} notes": {
+        one: "{{count}} Notiz",
+        other: "{{count}} Notizen"
+    },
+    "Rank {{rank}} · {{xp}} XP": "Rang {{rank}} · {{xp}} XP",
+    "No milestones progress": "Kein Meilenstein-Fortschritt",
+    "Connecting to {{name}}...": "Verbinde mit {{name}}...",
+    "This will replace {{count}} tracked achievements on this device.": {
+        one: "Damit wird {{count}} verfolgter Erfolg auf diesem Gerät ersetzt.",
+        other: "Damit werden {{count}} verfolgte Erfolge auf diesem Gerät ersetzt."
+    },
+    "This will replace {{count}} notes on this device.": {
+        one: "Damit wird {{count}} Notiz auf diesem Gerät ersetzt.",
+        other: "Damit werden {{count}} Notizen auf diesem Gerät ersetzt."
+    },
+    "This replaces this device's milestones ({{rank}}, {{xp}} XP) with {{name}}'s ({{peerRank}}, {{peerXp}} XP). {{name}} starts over at zero.": "Damit werden die Meilensteine dieses Geräts ({{rank}}, {{xp}} XP) durch die von {{name}} ersetzt ({{peerRank}}, {{peerXp}} XP). {{name}} fängt wieder bei null an.",
+    "This device has more XP than {{name}}.": "Dieses Gerät hat mehr XP als {{name}}.",
+    "Added {{count}} tracked achievements.": {
+        one: "{{count}} verfolgter Erfolg hinzugefügt.",
+        other: "{{count}} verfolgte Erfolge hinzugefügt."
+    },
+    "{{count}} were already unlocked here.": {
+        one: "{{count}} war hier schon freigeschaltet.",
+        other: "{{count}} waren hier schon freigeschaltet."
+    },
+    "Nothing new to add.": "Nichts Neues hinzuzufügen.",
+    "Added {{count}} notes.": {
+        one: "{{count}} Notiz hinzugefügt.",
+        other: "{{count}} Notizen hinzugefügt."
+    },
+    "Replaced with {{count}} tracked achievements.": {
+        one: "Ersetzt durch {{count}} verfolgten Erfolg.",
+        other: "Ersetzt durch {{count}} verfolgte Erfolge."
+    },
+    "Replaced with {{count}} notes.": {
+        one: "Ersetzt durch {{count}} Notiz.",
+        other: "Ersetzt durch {{count}} Notizen."
+    },
+    "Milestones moved from {{name}}.": "Meilensteine von {{name}} übertragen.",
+    "Milestones imported, but {{name}} didn't confirm it cleared its copy.": "Meilensteine importiert, aber {{name}} hat nicht bestätigt, dass seine Kopie gelöscht ist.",
+    "Your milestones are now on {{name}}. This device starts over at zero.": "Deine Meilensteine sind jetzt auf {{name}}. Dieses Gerät fängt wieder bei null an.",
+    "That device is on a different game": "Das Gerät ist bei einem anderen Spiel",
+    "That data belongs to another RetroAchievements account": "Diese Daten gehören zu einem anderen RetroAchievements-Konto",
+    "That device has nothing to send": "Das Gerät hat nichts zu senden",
+    "Too late to cancel, it's already saving": "Zu spät zum Abbrechen, es wird schon gespeichert",
+    "Saving it here failed": "Speichern auf diesem Gerät fehlgeschlagen",
+    "Data Transfer only works in Game Mode": "Die Datenübertragung funktioniert nur im Spielmodus",
+    "Data Transfer stopped looking. Leave this page and come back.": "Die Datenübertragung sucht nicht mehr. Verlasse die Seite und komm zurück.",
+    "This device couldn't open the network for Data Transfer": "Dieses Gerät konnte das Netzwerk für die Datenübertragung nicht öffnen",
+    "Tracked Imported": "Verfolgte importiert",
+    "Notes Imported": "Notizen importiert",
+    "Milestones Moved": "Meilensteine übertragen",
+    "Milestones Imported": "Meilensteine importiert",
+    "Data Transfer Failed": "Datenübertragung fehlgeschlagen",
+    "Added {{count}} tracked": "{{count}} verfolgt dazu",
+    "Added {{count}} notes": {
+        one: "{{count}} Notiz dazu",
+        other: "{{count}} Notizen dazu"
+    },
+    "Nothing new to add": "Nichts Neues",
+    "Now on this device": "Jetzt hier",
+    "Source not cleared": "Quelle nicht geleert",
+    "Now starting at zero": "Neustart bei null",
     "This will delete {{count}} memories across {{games}} games and put {{name}} in their place.": "Damit werden {{count}} Erinnerungen aus {{games}} Spielen gelöscht und durch {{name}} ersetzt.",
     "Keep What I Have": "Meine Sammlung behalten",
     "Press again to replace it": "Zum Ersetzen erneut drücken",

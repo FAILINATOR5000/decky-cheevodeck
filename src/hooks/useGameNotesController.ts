@@ -39,6 +39,7 @@ const ORDER_WRITE_SETTLE_MS = 250;
 import { parseNoteTag } from "../utils/achievements";
 import { orderedTagsByRecency } from "../utils/tags";
 import { overrideRecord } from "../focusRecords";
+import { onDataImported } from "../utils/dataTransferImported";
 
 type UseGameNotesControllerArgs = {
     payload: Payload | null;
@@ -88,6 +89,13 @@ export function useGameNotesController({
     const [reorderTargetId, setReorderTargetId] = useState<string | null>(null);
     const [reorderViaSwap, setReorderViaSwap] = useState(false);
 
+    const [importedToken, setImportedToken] = useState(0);
+    useEffect(() => onDataImported("notes", (gameId) => {
+        if (gameId === targetGameId) {
+            setImportedToken((token) => token + 1);
+        }
+    }), [targetGameId]);
+
     useEffect(() => {
         const gameId = targetGameId;
         if (!gameId) {
@@ -127,7 +135,7 @@ export function useGameNotesController({
         return () => {
             cancelled = true;
         };
-    }, [targetGameId, mountedRef, setError, refreshToken]);
+    }, [targetGameId, mountedRef, setError, refreshToken, importedToken]);
 
     useEffect(() => {
         if (aButtonMode !== "moveNote") {

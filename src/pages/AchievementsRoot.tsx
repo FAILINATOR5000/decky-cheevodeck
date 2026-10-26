@@ -92,6 +92,7 @@ import SmbSharesPage from "./SmbSharesPage";
 import CheevoCheckPage from "./CheevoCheckPage";
 import FileWatcherPage from "./FileWatcherPage";
 import MemoriesTransferPage from "./MemoriesTransferPage";
+import DataTransferPage from "./DataTransferPage";
 import MemoriesPage from "./MemoriesPage";
 import { CheevoCheckGamesModal } from "../components/pickers/CheevoCheckGamesModal";
 import { CommentViewModal, type CommentSaveControl } from "../components/comments/CommentViewModal";
@@ -429,6 +430,8 @@ function panelEntryOverlay(entry: PanelEntry): Partial<ResumeState> & Pick<Resum
             return { view: "fileWatcher", focusKey: "fileWatcher:back" };
         case "memoriesTransfer":
             return { view: "memoriesTransfer", focusKey: "memoriesTransfer:back" };
+        case "dataTransfer":
+            return { view: "dataTransfer", focusKey: "dataTransfer:back" };
     }
 }
 
@@ -3577,6 +3580,12 @@ function AchievementsRoot() {
         setPendingFocusKey("memoriesTransfer:back");
     }
 
+    function goToDataTransfer(intent: NavIntent = "push") {
+        friendGameSessionRefreshKeysRef.current = new Set();
+        setView("dataTransfer", intent);
+        setPendingFocusKey("dataTransfer:back");
+    }
+
     function goToQamGuard(intent: NavIntent = "push") {
         friendGameSessionRefreshKeysRef.current = new Set();
         openStormbreakerOnStatus();
@@ -3725,6 +3734,10 @@ function AchievementsRoot() {
         openMemoriesTransfer: () => {
             requestPanelEntry({ kind: "memoriesTransfer" });
             goToMemoriesTransfer("hub");
+        },
+        openDataTransfer: () => {
+            requestPanelEntry({ kind: "dataTransfer" });
+            goToDataTransfer("hub");
         },
         openMessage: (body: string) => {
             showManagedModal((close) => (
@@ -5024,6 +5037,7 @@ function AchievementsRoot() {
                                         onOpenCheevoCheck: () => goToCheevoCheck(),
                                         onOpenFileWatcher: () => goToFileWatcher(),
                                         onOpenMemoriesTransfer: () => goToMemoriesTransfer(),
+                                        onOpenDataTransfer: () => goToDataTransfer(),
                                         onOpenQamGuard: () => goToQamGuard()
                                     }}
                                 />
@@ -5156,6 +5170,20 @@ function AchievementsRoot() {
                                         onBack: backFromUtilityTool,
                                         onHome: goToAchievements,
                                         onDeleteAllMemories
+                                    }}
+                                />
+
+                                <DataTransferPage
+                                    state={{
+                                        view,
+                                        language,
+                                        buttonSpacing,
+                                        gameId: payload?.gameId ?? null,
+                                        gameTitle: payload?.title ?? null
+                                    }}
+                                    actions={{
+                                        onBack: backFromUtilityTool,
+                                        onHome: goToAchievements
                                     }}
                                 />
 
