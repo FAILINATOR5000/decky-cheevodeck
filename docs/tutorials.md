@@ -111,3 +111,5 @@ Every page in CheevoDeck with a **?** button next to the bell opens its guide he
 - [File Watcher Page](tutorials/file-watcher.md)
 - [Stormbreaker Page](tutorials/stormbreaker.md)
 - [Transfer Page (Memories)](tutorials/transfer-memories.md)
+- [Data Transfer Page](tutorials/data-transfer.md)
+  - [How it Works](tutorials/data-transfer.md#how-it-works)
