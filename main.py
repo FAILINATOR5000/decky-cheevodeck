@@ -753,6 +753,8 @@ class Plugin(
             settings_store=self.settings_store,
             cache_store=self.cache_store,
             notes_store=self.notes_store,
+            events_store=self.events_store,
+            guides_store=self.guides_store,
             milestones_service=self.milestones_service,
             notes_reminder_service=self.notes_reminder_service,
             notifications_store=self.notifications_store,

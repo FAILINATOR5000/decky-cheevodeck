@@ -3973,6 +3973,9 @@ class SettingsStore:
             "collapsedTags": next_collapsed_tags,
         }
 
+    def tracked_file_for_game(self, game_id) -> Path:
+        return self._path_for_game_key(str(norm_game_id(game_id)), self._tracked_dir)
+
     def import_tracked_for_game(self, payload, incoming, mode, *, backup) -> dict:
         game_id = norm_game_id((payload or {}).get("gameId"))
         if game_id is None:

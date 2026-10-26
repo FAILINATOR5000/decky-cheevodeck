@@ -7,6 +7,7 @@ import secrets
 import threading
 import time
 
+import data_transfer
 from utils import (
     NewerSchemaFile,
     ensure_dir,
@@ -292,6 +293,60 @@ class GuidesStore:
 
     def _new_bookmark_id(self) -> str:
         return f"bm_{secrets.token_urlsafe(8)}"
+
+    def file_for_game(self, game_id) -> Path:
+        return self._path_for_game_key(str(norm_game_id(game_id)))
+
+    def import_guides(self, game_id, incoming: dict, mode: str, *, backup) -> dict:
+        key = self._game_key(game_id)
+        if key is None:
+            return {"ok": False, "error": "no_game"}
+        mapping = None
+        if incoming["gamefaqs"] is not None:
+            mapping = self._clean_mapping(incoming["gamefaqs"])
+            if mapping is None:
+                return {"ok": False, "error": "payload_mismatch"}
+        guides = {}
+        for faq_id, guide in incoming["guides"].items():
+            faq = self._clean_faq_id(faq_id)
+            if faq is None:
+                return {"ok": False, "error": "payload_mismatch"}
+            bookmarks = []
+            for raw_bookmark in guide["bookmarks"]:
+                bookmark = self._clean_bookmark(raw_bookmark)
+                if bookmark is None:
+                    return {"ok": False, "error": "payload_mismatch"}
+                bookmarks.append(bookmark)
+            cleaned = self._normalize_guide(dict(guide, bookmarks=bookmarks))
+            guides[faq] = {**{field: cleaned[field] for field in data_transfer.GUIDE_META}, "bookmarks": cleaned["bookmarks"]}
+        incoming = dict(incoming, gamefaqs=mapping, guides=guides)
+
+        with self._lock_for_game(key):
+            path = self._path_for_game_key(key)
+            try:
+                refuse_newer_file(path, CURRENT_SCHEMA_VERSION)
+            except NewerSchemaFile:
+                return {"ok": False, "error": "newer_schema"}
+            record = self._load_raw(key)
+            mine = sum(len(guide["bookmarks"]) for guide in record["guides"].values())
+            if mode == "replace":
+                fields = data_transfer.replace_guides(record, incoming, self._empty_guide())
+                added = sum(len(guide["bookmarks"]) for guide in incoming["guides"].values())
+                existing = 0
+                updated = 0
+                replaced = mine
+            else:
+                fields, added, existing, updated = data_transfer.merge_guides(record, incoming, self._empty_guide())
+                replaced = 0
+            result = {"ok": True, "added": added, "updated": updated, "skippedExisting": existing, "replaced": replaced}
+            if mode != "replace" and fields["gamefaqs"] == record["gamefaqs"] and fields["guides"] == record["guides"]:
+                return result
+            if path.exists():
+                backup("guides-%s" % key, path.read_bytes())
+            record["gamefaqs"] = fields["gamefaqs"]
+            record["guides"] = fields["guides"]
+            self._save_raw(key, record)
+        return result
 
     def get_game_guides(self, game_id) -> dict:
         key = self._game_key(game_id)

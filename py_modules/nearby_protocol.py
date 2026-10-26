@@ -21,7 +21,7 @@ MAX_BUNDLE_BYTES = 1 << 40
 
 MAX_DATA_BYTES = 8 * 1024 * 1024
 
-DATA_KINDS = ("tracked", "notes", "milestones")
+DATA_KINDS = ("all", "tracked", "notes", "guides", "events", "milestones")
 
 _TITLE_MAX = 64
 _TIER = re.compile(r"[a-z]{1,16}")
@@ -367,6 +367,8 @@ def make_offer(key: bytes, nonce: str, info: dict) -> bytes:
         "title": info["title"],
         "tracked": info["tracked"],
         "notes": info["notes"],
+        "guides": info["guides"],
+        "events": info["events"],
         "milestones": info["milestones"],
     }
     body["t"] = sign(key, "offer", canonical(body))
@@ -408,7 +410,7 @@ def read_offer(key: bytes, message, nonce: str):
     host = _clean_text(message.get("host"), _HOST_MAX)
     game_id = message.get("gameId")
     title = message.get("title")
-    counts = [message.get(name) for name in ("tracked", "notes")]
+    counts = [message.get(name) for name in ("tracked", "notes", "guides", "events")]
     milestones = _milestones_summary(message.get("milestones"))
     if (
         not is_device_id(message.get("id"))
@@ -431,6 +433,8 @@ def read_offer(key: bytes, message, nonce: str):
         "title": None if title is None else _clean_text(title, _TITLE_MAX),
         "tracked": counts[0],
         "notes": counts[1],
+        "guides": counts[2],
+        "events": counts[3],
         "milestones": milestones,
     }
 

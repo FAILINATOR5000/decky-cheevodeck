@@ -4,7 +4,9 @@ from typing import Any, Optional
 import threading
 import time
 
+import data_transfer
 from utils import (
+    NewerSchemaFile,
     NOTE_STORED_MAX_LEN,
     TAG_PREFIX_PATTERN,
     clean_bulk_tag,
@@ -328,6 +330,50 @@ class EventsStore:
     def load(self) -> dict:
         with self._lock:
             return self._public(self._load_raw())
+
+    def import_events(self, ulid: Any, incoming: dict, mode: str, *, backup) -> dict:
+        items = {}
+        for key, item in incoming["tracked"]["items"].items():
+            event_key = _event_key(key)
+            cleaned = _normalize_tracked_item(item)
+            if event_key is None or cleaned is None:
+                return {"ok": False, "error": "payload_mismatch"}
+            items[event_key] = cleaned
+        incoming = dict(incoming, tracked={"order": [_event_key(key) for key in incoming["tracked"]["order"]],
+                                           "items": items})
+        with self._lock:
+            if not self._owner_matches(ulid):
+                return {"ok": False, "error": "ulid_mismatch"}
+            try:
+                refuse_newer_file(self._path(), CURRENT_SCHEMA_VERSION)
+            except NewerSchemaFile:
+                return {"ok": False, "error": "newer_schema"}
+            data = self._load_raw()
+            current = self._public(data)
+            if mode == "replace":
+                fields = data_transfer.replace_events(incoming)
+                added = len(fields["order"])
+                existing = 0
+                updated = 0
+                replaced = len(current["tracked"]["order"])
+            else:
+                fields, added, existing, updated = data_transfer.merge_events(current, incoming)
+                replaced = 0
+            result = {"ok": True, "added": added, "updated": updated, "skippedExisting": existing, "replaced": replaced}
+            unchanged = (fields["order"] == current["tracked"]["order"] and fields["items"] == current["tracked"]["items"]
+                         and fields["completed"] == current["completed"]
+                         and fields["checklistTicks"] == current["checklistTicks"])
+            if mode != "replace" and unchanged:
+                return result
+            if self._path().exists():
+                backup("events", self._path().read_bytes())
+            data["tracked"]["items"] = fields["items"]
+            data["tracked"]["order"] = self._reconcile_order(fields["order"], fields["items"])
+            data["tracked"]["collapsedTags"] = self._sanitize_collapsed(data["tracked"]["collapsedTags"], fields["items"])
+            data["completed"] = fields["completed"]
+            data["checklistTicks"] = fields["checklistTicks"]
+            self._save_raw(data)
+        return result
 
     @refuses_newer_schema
     def set_tracked(self, ulid: Any, event_game_id: Any, tracked: bool) -> dict:

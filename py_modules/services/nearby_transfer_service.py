@@ -541,7 +541,7 @@ class NearbyTransferService:
             return {"ok": False, "error": data_codes.ERROR_PEER_GONE}
         row = dict(seen[0])
         peer = {"model": row["model"], "host": row["host"], "address": row["address"]}
-        game_id = None if kind == "milestones" else row["gameId"]
+        game_id = row["gameId"] if kind in data_codes.GAME_KINDS else None
         fetch = functools.partial(self._fetch, self._key, row, kind, game_id)
         started = await asyncio.to_thread(self._data.start_receive, fetch, peer, kind, mode, game_id)
         if started.get("ok"):
@@ -999,6 +999,8 @@ def _data_row(row: dict) -> dict:
         "title": row["title"],
         "tracked": row["tracked"],
         "notes": row["notes"],
+        "guides": row["guides"],
+        "events": row["events"],
         "milestones": row["milestones"],
     }
 

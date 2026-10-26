@@ -15,6 +15,8 @@ DATA_EVENT = "cheevodeck_data_imported"
 
 KINDS = data_transfer.KINDS
 
+GAME_KINDS = ("all", "tracked", "notes", "guides")
+
 ERROR_BUSY = "busy"
 ERROR_NOT_RUNNING = "not_running"
 ERROR_NO_ACCOUNT = "no_account"
@@ -37,29 +39,43 @@ _PAST_CANCEL = ("saving", "committing")
 BACKUPS_DIR = "data-transfer-backups"
 BACKUPS_KEPT = 5
 
-_BACKUP_NAME = re.compile(r"^(tracked-\d+|notes-\d+|milestones(?:_sealed)?(?:-moved)?)-(\d+)\.json$")
+_BACKUP_NAME = re.compile(
+    r"^(tracked-\d+|notes-\d+|guides-\d+|events|milestones(?:_sealed)?(?:-moved)?)-(\d+)\.json$"
+)
 
 _KIND_TITLES = {
+    "all": "Current Game Data Imported",
     "tracked": "Tracked Imported",
     "notes": "Notes Imported",
+    "guides": "Bookmarks Imported",
+    "events": "Events Imported",
     "milestones": "Milestones Moved",
 }
 
+_KIND_NOUNS = {"tracked": "tracked achievements", "notes": "notes", "guides": "bookmarks", "events": "tracked events"}
+_ADDED_LINES = {"tracked": "Added {{count}} tracked", "notes": "Added {{count}} notes",
+                "guides": "Added {{count}} bookmarks", "events": "Added {{count}} events"}
+_UPDATED_LINES = {"tracked": "Updated {{count}} tracked", "notes": "Updated {{count}} notes",
+                  "guides": "Updated {{count}} bookmarks", "events": "Updated {{count}} events"}
+
 
 def _backup_kind(base: str) -> str:
-    if base.startswith("tracked-"):
-        return "tracked"
-    if base.startswith("notes-"):
-        return "notes"
+    for kind in ("tracked", "notes", "guides"):
+        if base.startswith(kind + "-"):
+            return kind
+    if base == "events":
+        return "events"
     return "milestones-moved" if base.endswith("-moved") else "milestones"
 
 
 class DataTransferService:
-    def __init__(self, *, settings_store, cache_store, notes_store, milestones_service,
+    def __init__(self, *, settings_store, cache_store, notes_store, events_store, guides_store, milestones_service,
                  notes_reminder_service, notifications_store, user_base):
         self._settings_store = settings_store
         self._cache_store = cache_store
         self._notes_store = notes_store
+        self._events_store = events_store
+        self._guides_store = guides_store
         self._milestones = milestones_service
         self._reminders = notes_reminder_service
         self._notifications = notifications_store
@@ -132,7 +148,7 @@ class DataTransferService:
         if not ulid:
             return {"ok": False, "error": ERROR_NO_ACCOUNT}
         mode = "replace" if kind == "milestones" or mode == "replace" else "merge"
-        if kind != "milestones":
+        if kind in GAME_KINDS:
             own = self._current_game()
             if own is None:
                 return {"ok": False, "error": ERROR_NO_GAME}
@@ -227,14 +243,30 @@ class DataTransferService:
             return {"ok": True, "result": {"xp": summary.get("xp", 0), "tier": summary.get("tier"),
                                            "step": summary.get("step"), "sourceCleared": False}}
 
-        if kind == "tracked":
-            incoming = data_transfer.read_tracked(raw, game_id)
+        if kind == "events":
+            incoming = data_transfer.read_events(raw)
             if incoming is None:
                 return {"ok": False, "error": ERROR_PAYLOAD_MISMATCH}
+            if not self._same_account():
+                return {"ok": False, "error": ERROR_ULID_MISMATCH}
+            result = self._events_store.import_events(self._ulid, incoming, mode, backup=self._back_up_one)
+            return self._landed(kind, None, result)
+
+        if kind == "all":
+            parts, error = data_transfer.read_all(raw, game_id, NOTES_SCHEMA)
+            if parts is None:
+                return {"ok": False, "error": error}
+            return self._apply_all(mode, game_id, parts)
+        if kind == "tracked":
+            incoming = data_transfer.read_tracked(raw, game_id)
+            error = ERROR_PAYLOAD_MISMATCH
+        elif kind == "guides":
+            incoming = data_transfer.read_guides(raw, game_id)
+            error = ERROR_PAYLOAD_MISMATCH
         else:
             incoming, error = data_transfer.read_notes(raw, game_id, NOTES_SCHEMA)
-            if incoming is None:
-                return {"ok": False, "error": error}
+        if incoming is None:
+            return {"ok": False, "error": error}
 
         with self._cache_store.payload_lock():
             cached = self._cache_store.load_payload().get("payload")
@@ -247,9 +279,74 @@ class DataTransferService:
                 return {"ok": False, "error": ERROR_DIFFERENT_GAME}
             if kind == "tracked":
                 result = self._settings_store.import_tracked_for_game(cached, incoming, mode, backup=self._back_up_one)
+            elif kind == "guides":
+                result = self._guides_store.import_guides(game_id, incoming, mode, backup=self._back_up_one)
             else:
                 result = self._notes_store.import_notes(game_id, incoming, mode, now=int(time.time()),
                                                         backup=self._back_up_one)
+        return self._landed(kind, game_id, result)
+
+    def _import_part(self, kind, mode, game_id, cached, incoming) -> dict:
+        if kind == "tracked":
+            return self._settings_store.import_tracked_for_game(cached, incoming, mode, backup=self._back_up_one)
+        if kind == "guides":
+            return self._guides_store.import_guides(game_id, incoming, mode, backup=self._back_up_one)
+        return self._notes_store.import_notes(game_id, incoming, mode, now=int(time.time()), backup=self._back_up_one)
+
+    def _part_file(self, kind, game_id):
+        if kind == "tracked":
+            return self._settings_store.tracked_file_for_game(game_id)
+        if kind == "guides":
+            return self._guides_store.file_for_game(game_id)
+        return self._notes_store.file_for_game(game_id)
+
+    def _apply_all(self, mode, game_id, parts) -> dict:
+        results = {}
+        written = []
+        with self._cache_store.payload_lock():
+            cached = self._cache_store.load_payload().get("payload")
+            if not self._same_account():
+                return {"ok": False, "error": ERROR_ULID_MISMATCH}
+            own = norm_game_id(cached.get("gameId")) if isinstance(cached, dict) else None
+            if own is None:
+                return {"ok": False, "error": ERROR_NO_GAME}
+            if own != game_id:
+                return {"ok": False, "error": ERROR_DIFFERENT_GAME}
+            try:
+                for kind in data_transfer.ALL_PARTS:
+                    incoming = parts[kind]
+                    if incoming is None:
+                        continue
+                    path = self._part_file(kind, game_id)
+                    before = path.read_bytes() if path.exists() else None
+                    written.append((path, before))
+                    result = self._import_part(kind, mode, game_id, cached, incoming)
+                    if not result.get("ok"):
+                        self._put_back(written)
+                        return {"ok": False, "error": result.get("error") or ERROR_PAYLOAD_MISMATCH}
+                    results[kind] = result
+            except Exception:
+                self._put_back(written)
+                raise
+        for kind, result in results.items():
+            removed = result.pop("removedIds", None)
+            if removed and self._reminders is not None:
+                self._reminders.ack(game_id, removed)
+            result.pop("ok", None)
+            self._emit({"kind": kind, "gameId": game_id})
+        return {"ok": True, "result": {"parts": results}}
+
+    def _put_back(self, written) -> None:
+        for path, before in reversed(written):
+            try:
+                if before is None:
+                    path.unlink(missing_ok=True)
+                else:
+                    write_file_atomic(path, before)
+            except OSError as e:
+                decky.logger.error("data transfer: couldn't put %s back (%s)", path.name, type(e).__name__)
+
+    def _landed(self, kind, game_id, result) -> dict:
         if not result.get("ok"):
             return {"ok": False, "error": result.get("error") or ERROR_PAYLOAD_MISMATCH}
         removed = result.pop("removedIds", None)
@@ -263,6 +360,24 @@ class DataTransferService:
         return str(self._settings_store.load_config().get("activeUlid") or "") == self._ulid
 
     def payload_for_send(self, kind: str, game_id) -> dict:
+        if kind == "all":
+            own = self._current_game()
+            if own is None:
+                return {"ok": False, "error": "no_game"}
+            if own != game_id:
+                return {"ok": False, "error": "different_game"}
+            parts = {}
+            for part in data_transfer.ALL_PARTS:
+                built = self.payload_for_send(part, game_id)
+                parts[part] = data_transfer.decode(built["body"]) if built["ok"] else None
+            if all(section is None for section in parts.values()):
+                return {"ok": False, "error": "nothing"}
+            return {"ok": True, "body": data_transfer.encode(data_transfer.all_payload(own, parts))}
+        if kind == "events":
+            state = self._events_store.load()
+            if not state["tracked"]["items"] and not state["completed"] and not state["checklistTicks"]:
+                return {"ok": False, "error": "nothing"}
+            return {"ok": True, "body": data_transfer.encode(data_transfer.events_payload(state))}
         own = self._current_game()
         if own is None:
             return {"ok": False, "error": "no_game"}
@@ -273,6 +388,11 @@ class DataTransferService:
             if not tracked["achievementIds"]:
                 return {"ok": False, "error": "nothing"}
             payload = data_transfer.tracked_payload(own, tracked)
+        elif kind == "guides":
+            record = self._guides_store.get_game_guides(own)
+            if not any(guide["bookmarks"] for guide in record["guides"].values()):
+                return {"ok": False, "error": "nothing"}
+            payload = data_transfer.guides_payload(own, record)
         else:
             entry = self._notes_store.load_notes_for_game(own)
             if not entry["notes"]:
@@ -316,7 +436,8 @@ class DataTransferService:
         return cleared
 
     def summary(self) -> dict:
-        out = {"gameId": None, "title": None, "tracked": None, "notes": None, "milestones": None}
+        out = {"gameId": None, "title": None, "tracked": None, "notes": None, "guides": None, "events": None,
+               "milestones": None}
         try:
             payload = self._cache_store.load_payload().get("payload")
             if isinstance(payload, dict):
@@ -333,8 +454,17 @@ class DataTransferService:
                 out["notes"] = len(self._notes_store.load_notes_for_game(out["gameId"])["notes"])
             except Exception as e:
                 decky.logger.warning("data transfer: couldn't count notes (%s)", type(e).__name__)
+            try:
+                record = self._guides_store.get_game_guides(out["gameId"])
+                out["guides"] = sum(len(guide["bookmarks"]) for guide in record["guides"].values())
+            except Exception as e:
+                decky.logger.warning("data transfer: couldn't count bookmarks (%s)", type(e).__name__)
         else:
             out["gameId"] = None
+        try:
+            out["events"] = len(self._events_store.load()["tracked"]["items"])
+        except Exception as e:
+            decky.logger.warning("data transfer: couldn't count events (%s)", type(e).__name__)
         try:
             out["milestones"] = self._milestones.move_summary()
         except Exception as e:
@@ -425,8 +555,14 @@ class DataTransferService:
                 title = "Milestones Imported"
                 body = f"Milestones imported, but {label} didn't confirm it cleared its copy."
                 line = "Source not cleared"
+        elif kind == "all":
+            changed = [part for part, landed in result.get("parts", {}).items()
+                       if landed.get("added") or landed.get("updated") or mode == "replace"]
+            body = (f"Imported this game's {', '.join(_KIND_NOUNS[part] for part in changed)} from {label}."
+                    if changed else f"Nothing new to add from {label}.")
+            line = "Imported" if changed else "Nothing new to add"
         else:
-            noun = "tracked achievements" if kind == "tracked" else "notes"
+            noun = _KIND_NOUNS[kind]
             count = result.get("added", 0)
             updated = result.get("updated", 0)
             if mode == "replace":
@@ -436,10 +572,10 @@ class DataTransferService:
             else:
                 body = f"Nothing new to add from {label}."
             if mode == "replace" or count:
-                line = "Added {{count}} tracked" if kind == "tracked" else "Added {{count}} notes"
+                line = _ADDED_LINES[kind]
                 line_vars = {"count": count}
             elif updated:
-                line = "Updated {{count}} tracked" if kind == "tracked" else "Updated {{count}} notes"
+                line = _UPDATED_LINES[kind]
                 line_vars = {"count": updated}
             else:
                 line = "Nothing new to add"

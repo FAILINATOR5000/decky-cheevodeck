@@ -757,6 +757,9 @@ class NotesStore:
             self._count("note_completed")
         return {"ok": True, "note": target, "collapsedTags": collapsed}
 
+    def file_for_game(self, game_id) -> Path:
+        return self._path_for_game_key(str(norm_game_id(game_id)), self._notes_dir)
+
     def import_notes(self, game_id, incoming, mode, *, now, backup) -> dict:
         key = self._game_key(game_id)
         if key is None:

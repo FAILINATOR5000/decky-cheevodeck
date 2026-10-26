@@ -1,6 +1,8 @@
 import json
 
-KINDS = ("tracked", "notes", "milestones")
+KINDS = ("all", "tracked", "notes", "guides", "events", "milestones")
+
+ALL_PARTS = ("tracked", "notes", "guides")
 MODES = ("merge", "replace")
 
 TAG_VOCAB_LIMIT = 20
@@ -9,6 +11,10 @@ MAX_TRACKED_IDS = 5000
 MAX_NOTES = 5000
 MAX_TAGS = 200
 NOTE_ID_MAX = 64
+MAX_EVENTS = 5000
+MAX_GUIDES = 500
+MAX_BOOKMARKS = 2000
+_TEXT_MAX = 4000
 
 _TRACKED_MAPS = ("notes", "notesColor", "notesLastEditedAt")
 
@@ -247,3 +253,260 @@ def read_milestones(raw):
     if sealed is not None and not isinstance(sealed, dict):
         return None
     return {"milestones": raw["milestones"], "sealed": sealed}
+
+
+_EVENT_ITEM = {"trackedAt": int, "note": str, "noteColor": str, "noteEditedAt": int}
+_TICK_LEVELS = ("beaten", "mastered")
+
+
+def events_payload(state: dict) -> dict:
+    return {
+        "tracked": {"order": list(state["tracked"]["order"]), "items": dict(state["tracked"]["items"])},
+        "completed": dict(state["completed"]),
+        "checklistTicks": {key: dict(value) for key, value in state["checklistTicks"].items()},
+    }
+
+
+def _short_text(value) -> bool:
+    return isinstance(value, str) and len(value) <= _TEXT_MAX
+
+
+def _count_value(value) -> bool:
+    return type(value) is int and value >= 0
+
+
+def _tick_value(value) -> bool:
+    return isinstance(value, bool) or value in _TICK_LEVELS
+
+
+def read_events(raw):
+    if not isinstance(raw, dict) or not isinstance(raw.get("tracked"), dict):
+        return None
+    items = raw["tracked"].get("items")
+    order = raw["tracked"].get("order")
+    if not isinstance(items, dict) or len(items) > MAX_EVENTS or not isinstance(order, list):
+        return None
+    clean_items = {}
+    for key, item in items.items():
+        if not _id_key(key) or not isinstance(item, dict):
+            return None
+        for field, kind in _EVENT_ITEM.items():
+            value = item.get(field)
+            if kind is int and not _count_value(value):
+                return None
+            if kind is str and not _short_text(value):
+                return None
+        clean_items[key] = {field: item[field] for field in _EVENT_ITEM}
+    if len(order) != len(set(order)) or any(key not in clean_items for key in order) or len(order) != len(clean_items):
+        return None
+    completed = raw.get("completed")
+    ticks = raw.get("checklistTicks")
+    if not isinstance(completed, dict) or len(completed) > MAX_EVENTS or not isinstance(ticks, dict) or len(ticks) > MAX_EVENTS:
+        return None
+    clean_completed = {}
+    for key, mark in completed.items():
+        if not _id_key(key) or not isinstance(mark, dict) or not _count_value(mark.get("at")):
+            return None
+        clean_completed[key] = {"at": mark["at"]}
+    clean_ticks = {}
+    for key, games in ticks.items():
+        if not _id_key(key) or not isinstance(games, dict) or len(games) > MAX_EVENTS:
+            return None
+        for game, flag in games.items():
+            if not _id_key(game) or not _tick_value(flag):
+                return None
+        clean_ticks[key] = dict(games)
+    return {"tracked": {"order": list(order), "items": clean_items}, "completed": clean_completed,
+            "checklistTicks": clean_ticks}
+
+
+def merge_events(dest: dict, incoming: dict):
+    order = list(dest["tracked"]["order"])
+    items = {key: dict(item) for key, item in dest["tracked"]["items"].items()}
+    completed = {key: dict(mark) for key, mark in dest["completed"].items()}
+    ticks = {key: dict(games) for key, games in dest["checklistTicks"].items()}
+    added = 0
+    existing = 0
+    updated = 0
+    for key in incoming["tracked"]["order"]:
+        theirs = incoming["tracked"]["items"][key]
+        if key not in items:
+            items[key] = dict(theirs)
+            order.append(key)
+            added += 1
+            changed = None
+        else:
+            mine = items[key]
+            changed = (mine["note"], mine["noteColor"]) != (theirs["note"], theirs["noteColor"])
+            if changed:
+                items[key] = dict(theirs)
+        mark = incoming["completed"].get(key)
+        if completed.get(key) != mark:
+            if mark is None:
+                completed.pop(key, None)
+            else:
+                completed[key] = dict(mark)
+            changed = changed if changed is None else True
+        for game, flag in incoming["checklistTicks"].get(key, {}).items():
+            if ticks.get(key, {}).get(game) != flag:
+                ticks.setdefault(key, {})[game] = flag
+                changed = changed if changed is None else True
+        if changed is True:
+            updated += 1
+        elif changed is False:
+            existing += 1
+    for key, mark in incoming["completed"].items():
+        if key not in incoming["tracked"]["items"] and key not in completed:
+            completed[key] = dict(mark)
+    for key, games in incoming["checklistTicks"].items():
+        if key in incoming["tracked"]["items"]:
+            continue
+        for game, flag in games.items():
+            ticks.setdefault(key, {}).setdefault(game, flag)
+    return {"order": order, "items": items, "completed": completed, "checklistTicks": ticks}, added, existing, updated
+
+
+def replace_events(incoming: dict) -> dict:
+    return {
+        "order": list(incoming["tracked"]["order"]),
+        "items": {key: dict(item) for key, item in incoming["tracked"]["items"].items()},
+        "completed": {key: dict(mark) for key, mark in incoming["completed"].items()},
+        "checklistTicks": {key: dict(games) for key, games in incoming["checklistTicks"].items()},
+    }
+
+
+GUIDE_META = ("title", "author", "type", "version", "gameUrl", "kind", "pageCount")
+_BOOKMARK_FIELDS = ("name", "page", "anchor", "scroll")
+
+
+def guides_payload(game_id: int, record: dict) -> dict:
+    guides = {}
+    for faq_id, guide in record["guides"].items():
+        entry = {field: guide[field] for field in GUIDE_META}
+        entry["bookmarks"] = [dict(bookmark) for bookmark in guide["bookmarks"]]
+        guides[faq_id] = entry
+    return {"gameId": game_id, "gamefaqs": record["gamefaqs"], "guides": guides}
+
+
+def _scroll_value(value) -> bool:
+    return type(value) in (int, float) and value == value and 0 <= value <= 1
+
+
+def read_guides(raw, game_id: int):
+    if not isinstance(raw, dict) or not _is_id(raw.get("gameId")) or raw["gameId"] != game_id:
+        return None
+    mapping = raw.get("gamefaqs")
+    if mapping is not None and not (isinstance(mapping, dict) and all(_short_text(v) for v in mapping.values())):
+        return None
+    guides = raw.get("guides")
+    if not isinstance(guides, dict) or len(guides) > MAX_GUIDES:
+        return None
+    clean = {}
+    bookmarks_seen = 0
+    for faq_id, guide in guides.items():
+        if not _id_key(faq_id) or not isinstance(guide, dict):
+            return None
+        entry = {}
+        for field in GUIDE_META:
+            value = guide.get(field)
+            if field == "pageCount":
+                if not _count_value(value):
+                    return None
+            elif not _short_text(value):
+                return None
+            entry[field] = value
+        bookmarks = guide.get("bookmarks")
+        if not isinstance(bookmarks, list):
+            return None
+        bookmarks_seen += len(bookmarks)
+        if bookmarks_seen > MAX_BOOKMARKS:
+            return None
+        ids = set()
+        for bookmark in bookmarks:
+            if not isinstance(bookmark, dict):
+                return None
+            bookmark_id = bookmark.get("id")
+            if (not isinstance(bookmark_id, str) or not 0 < len(bookmark_id) <= NOTE_ID_MAX or bookmark_id in ids
+                    or not _short_text(bookmark.get("name")) or not _count_value(bookmark.get("page"))
+                    or not _short_text(bookmark.get("anchor")) or not _scroll_value(bookmark.get("scroll"))
+                    or not _count_value(bookmark.get("createdAt"))):
+                return None
+            ids.add(bookmark_id)
+        entry["bookmarks"] = [dict(bookmark) for bookmark in bookmarks]
+        clean[faq_id] = entry
+    return {"gameId": game_id, "gamefaqs": mapping, "guides": clean}
+
+
+def _bookmark_order(bookmark):
+    return (bookmark["page"], bookmark["scroll"])
+
+
+def merge_guides(dest: dict, incoming: dict, blank: dict):
+    mapping = dest["gamefaqs"]
+    if incoming["gamefaqs"] is not None and incoming["gamefaqs"] != mapping:
+        mapping = incoming["gamefaqs"]
+    guides = {faq_id: dict(guide, bookmarks=[dict(b) for b in guide["bookmarks"]])
+              for faq_id, guide in dest["guides"].items()}
+    added = 0
+    existing = 0
+    updated = 0
+    for faq_id, theirs in incoming["guides"].items():
+        guide = guides.get(faq_id) or dict(blank, bookmarks=[])
+        for field in GUIDE_META:
+            guide[field] = theirs[field]
+        mine = {bookmark["id"]: bookmark for bookmark in guide["bookmarks"]}
+        for bookmark in theirs["bookmarks"]:
+            current = mine.get(bookmark["id"])
+            if current is None:
+                guide["bookmarks"].append(dict(bookmark))
+                added += 1
+            elif any(current.get(field) != bookmark.get(field) for field in _BOOKMARK_FIELDS):
+                current.update({field: bookmark[field] for field in _BOOKMARK_FIELDS})
+                updated += 1
+            else:
+                existing += 1
+        guide["bookmarks"].sort(key=_bookmark_order)
+        guides[faq_id] = guide
+    return {"gamefaqs": mapping, "guides": guides}, added, existing, updated
+
+
+def replace_guides(dest: dict, incoming: dict, blank: dict) -> dict:
+    mapping = incoming["gamefaqs"] if incoming["gamefaqs"] is not None else dest["gamefaqs"]
+    guides = {faq_id: dict(guide, bookmarks=[]) for faq_id, guide in dest["guides"].items()}
+    for faq_id, theirs in incoming["guides"].items():
+        guide = guides.get(faq_id) or dict(blank, bookmarks=[])
+        for field in GUIDE_META:
+            guide[field] = theirs[field]
+        guide["bookmarks"] = sorted((dict(b) for b in theirs["bookmarks"]), key=_bookmark_order)
+        guides[faq_id] = guide
+    return {"gamefaqs": mapping, "guides": guides}
+
+
+def all_payload(game_id: int, parts: dict) -> dict:
+    return {"gameId": game_id, **{kind: parts.get(kind) for kind in ALL_PARTS}}
+
+
+def read_all(raw, game_id: int, notes_schema: int):
+    bad = (None, "payload_mismatch")
+    if not isinstance(raw, dict) or raw.get("gameId") != game_id:
+        return bad
+    out = {}
+    for kind in ALL_PARTS:
+        section = raw.get(kind)
+        if section is None:
+            out[kind] = None
+            continue
+        if kind == "tracked":
+            out[kind] = read_tracked(section, game_id)
+        elif kind == "guides":
+            out[kind] = read_guides(section, game_id)
+        else:
+            notes, error = read_notes(section, game_id, notes_schema)
+            if notes is None:
+                return None, error
+            out[kind] = notes
+        if out[kind] is None:
+            return bad
+    if all(section is None for section in out.values()):
+        return bad
+    return out, ""
