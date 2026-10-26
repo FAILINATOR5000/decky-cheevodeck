@@ -35,6 +35,7 @@ from services.memories_video_service import MEDIA_FOLDERS as MEMORIES_MEDIA_FOLD
 from services.memories_video_service import SENTINEL_NAME as MEMORIES_VIDEO_SENTINEL
 from services.memories_video_service import MemoriesVideoService, remove_empty_root, root_for as memories_video_root
 from services.memories_transfer_service import MemoriesTransferService
+from services.data_transfer_service import DataTransferService
 from services.nearby_transfer_service import NearbyTransferService
 from services.smb_mount_service import SmbMountService
 from services.comments_service import CommentsService
@@ -113,6 +114,7 @@ from mixins.events import EventsMixin
 from mixins.completion_walk import CompletionWalkMixin
 from mixins.activity import ActivityMixin
 from mixins.milestones import MilestonesMixin
+from mixins.data_transfer import DataTransferMixin
 
 
 DEFAULT_IPC_SLOW_THRESHOLD_MS = 250
@@ -174,6 +176,7 @@ class Plugin(
     CompletionWalkMixin,
     ActivityMixin,
     MilestonesMixin,
+    DataTransferMixin,
 ):
     DEFAULT_LANGUAGE = "en"
     RECENT_UNLOCK_LOOKBACK_MINUTES = 1440
@@ -746,12 +749,23 @@ class Plugin(
 
         self._memories_job_ended = asyncio.Event()
 
+        self.data_transfer_service = DataTransferService(
+            settings_store=self.settings_store,
+            cache_store=self.cache_store,
+            notes_store=self.notes_store,
+            milestones_service=self.milestones_service,
+            notes_reminder_service=self.notes_reminder_service,
+            notifications_store=self.notifications_store,
+            user_base=lambda: self._user_scope_base(self._user_dir_key(self.settings_store.load_config())),
+        )
+
         self.nearby_transfer_service = NearbyTransferService(
             settings_store=self.settings_store,
             transfer=self.memories_transfer_service,
             video_busy=self.memories_video_service.running,
             adopt_lock=self._memories_adopt_lock,
             game_mode=self.session_mode_service.is_game_mode,
+            data=self.data_transfer_service,
         )
 
         self._memory_share_lock = threading.Lock()
@@ -920,6 +934,7 @@ class Plugin(
 
         self.cheevo_check_service.set_event_loop(self._asyncio_loop)
         self.memories_transfer_service.set_event_loop(self._asyncio_loop)
+        self.data_transfer_service.set_event_loop(self._asyncio_loop)
         self.nearby_transfer_service.set_event_loop(self._asyncio_loop)
         try:
             await asyncio.to_thread(self.cheevo_check_service.prepare)
@@ -1066,6 +1081,7 @@ class Plugin(
         self.back_button_service.stop()
         self.freeze_watchdog_service.stop()
         self.nearby_transfer_service.stop()
+        self.data_transfer_service.stop()
         self._restore_deck_controller_safe()
 
     def _validate_credentials_or_raise(self, username: str, web_api_key: str, *, expected_ulid: str = "", skip_name_match: bool = False):

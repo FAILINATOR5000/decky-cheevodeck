@@ -15,7 +15,7 @@ import memories_thumbs
 import memories_transfer
 import steam_shortcuts
 
-from services import memories_video_service
+from services import memories_video_service, nearby_transfer_service
 
 from memories_store import ALL_GAMES_ID, MISC_GAME_ID
 from mixins._context import PluginContext
@@ -218,8 +218,10 @@ class MemoriesMixin(PluginContext):
     async def cancel_memories_transfer(self):
         return self.memories_transfer_service.cancel()
 
-    async def set_nearby_visible(self, visible: bool = False, entry: bool = False):
-        return await self.nearby_transfer_service.set_visible(bool(visible), bool(entry))
+    async def set_nearby_visible(self, visible: bool = False, entry: bool = False, page: str = "memories"):
+        if page not in nearby_transfer_service.PAGES:
+            return {"ok": False, "error": nearby_transfer_service.ERROR_UNAVAILABLE}
+        return await self.nearby_transfer_service.set_visible(bool(visible), bool(entry), page)
 
     async def discover_nearby_devices(self):
         return await self.nearby_transfer_service.discover()
