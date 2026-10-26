@@ -2133,7 +2133,7 @@ const FR: LocaleTable = {
     "Tracked (Current Game)": "Suivis (jeu en cours)",
     "Notes (Current Game)": "Notes (jeu en cours)",
     "Replace Destination": "Remplacer la destination",
-    "help_data_transfer_replace": "Remplace entièrement la destination (les données de cet appareil) par les données reçues. Si c'est désactivé, les données sont seulement fusionnées : seuls les éléments qui n'existent pas encore sont copiés. Avec les Jalons, c'est forcé, et l'appareil source perd ses jalons, car ils ne peuvent se trouver que sur un seul appareil à la fois.",
+    "help_data_transfer_replace": "Remplace entièrement la destination (les données de cet appareil) par les données reçues. Si c'est désactivé, les données sont seulement fusionnées : les nouveaux éléments sont copiés et ceux présents sur les deux appareils sont mis à jour pour correspondre à l'appareil source. Rien n'est supprimé sur cet appareil. Avec les Jalons, c'est forcé, et l'appareil source perd ses jalons, car ils ne peuvent se trouver que sur un seul appareil à la fois.",
     "Current Game: {{title}}": "Jeu en cours : {{title}}",
     "No current game. Load a game on both devices first.": "Aucun jeu en cours. Lance d'abord un jeu sur les deux appareils.",
     "Different game: {{title}}": "Autre jeu : {{title}}",
@@ -2178,6 +2178,19 @@ const FR: LocaleTable = {
     "Replaced with {{count}} notes.": {
         one: "Remplacé par {{count}} note.",
         other: "Remplacé par {{count}} notes."
+    },
+    "Updated {{count}} tracked achievements.": {
+        one: "{{count}} succès suivi mis à jour.",
+        other: "{{count}} succès suivis mis à jour."
+    },
+    "Updated {{count}} notes.": {
+        one: "{{count}} note mise à jour.",
+        other: "{{count}} notes mises à jour."
+    },
+    "Updated {{count}} tracked": "{{count}} mis à jour",
+    "Updated {{count}} notes": {
+        one: "{{count}} note modifiée",
+        other: "{{count}} notes modifiées"
     },
     "Milestones moved from {{name}}.": "Jalons déplacés depuis {{name}}.",
     "Milestones imported, but {{name}} didn't confirm it cleared its copy.": "Jalons importés, mais {{name}} n'a pas confirmé avoir effacé sa copie.",

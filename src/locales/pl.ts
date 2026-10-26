@@ -2197,7 +2197,7 @@ const PL: LocaleTable = {
     "Tracked (Current Game)": "Przypięte (bieżąca gra)",
     "Notes (Current Game)": "Notatki (bieżąca gra)",
     "Replace Destination": "Zastąp cel",
-    "help_data_transfer_replace": "Całkowicie zastępuje dane w miejscu docelowym (dane tego urządzenia) przesłanymi danymi. Gdy jest wyłączone, dane są tylko scalane, czyli kopiowane są wyłącznie elementy, których jeszcze nie ma. Przy Kamieniach milowych jest zawsze włączone, a urządzenie źródłowe traci swoje kamienie milowe, bo mogą być naraz tylko na jednym urządzeniu.",
+    "help_data_transfer_replace": "Całkowicie zastępuje dane w miejscu docelowym (dane tego urządzenia) przesłanymi danymi. Gdy jest wyłączone, dane są tylko scalane: nowe elementy są kopiowane, a te, które są na obu urządzeniach, zostają zaktualizowane tak, jak na urządzeniu źródłowym. Nic z tego urządzenia nie jest usuwane. Przy Kamieniach milowych jest zawsze włączone, a urządzenie źródłowe traci swoje kamienie milowe, bo mogą być naraz tylko na jednym urządzeniu.",
     "Current Game: {{title}}": "Bieżąca gra: {{title}}",
     "No current game. Load a game on both devices first.": "Brak bieżącej gry. Najpierw uruchom grę na obu urządzeniach.",
     "Different game: {{title}}": "Inna gra: {{title}}",
@@ -2236,6 +2236,18 @@ const PL: LocaleTable = {
     },
     "Replaced with {{count}} tracked achievements.": "Zastąpiono. Przypięte teraz: {{count}}.",
     "Replaced with {{count}} notes.": "Zastąpiono. Notatki teraz: {{count}}.",
+    "Updated {{count}} tracked achievements.": {
+        one: "Zaktualizowano {{count}} przypięte osiągnięcie.",
+        few: "Zaktualizowano {{count}} przypięte osiągnięcia.",
+        many: "Zaktualizowano {{count}} przypiętych osiągnięć."
+    },
+    "Updated {{count}} notes.": {
+        one: "Zaktualizowano {{count}} notatkę.",
+        few: "Zaktualizowano {{count}} notatki.",
+        many: "Zaktualizowano {{count}} notatek."
+    },
+    "Updated {{count}} tracked": "Zaktualizowano: {{count}}",
+    "Updated {{count}} notes": "Zmienione: {{count}}",
     "Milestones moved from {{name}}.": "Kamienie milowe przeniesione z {{name}}.",
     "Milestones imported, but {{name}} didn't confirm it cleared its copy.": "Kamienie milowe zaimportowane, ale {{name}} nie potwierdziło usunięcia swojej kopii.",
     "Your milestones are now on {{name}}. This device starts over at zero.": "Twoje kamienie milowe są teraz na {{name}}. To urządzenie zaczyna od zera.",

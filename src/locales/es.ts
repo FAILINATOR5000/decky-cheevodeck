@@ -2144,7 +2144,7 @@ const ES: LocaleTable = {
     "Tracked (Current Game)": "Seguidos (juego actual)",
     "Notes (Current Game)": "Notas (juego actual)",
     "Replace Destination": "Reemplazar destino",
-    "help_data_transfer_replace": "Reemplaza por completo el destino (los datos de este dispositivo) con los datos recibidos. Si está desactivado, solo combina, es decir, solo se copian los elementos que no existen. Con Hitos se activa a la fuerza y el dispositivo de origen pierde sus hitos, porque solo pueden estar en un dispositivo a la vez.",
+    "help_data_transfer_replace": "Reemplaza por completo el destino (los datos de este dispositivo) con los datos recibidos. Si está desactivado, solo combina: se copian los elementos nuevos y los que están en ambos dispositivos se actualizan para coincidir con el dispositivo de origen. No se borra nada de este dispositivo. Con Hitos se activa a la fuerza y el dispositivo de origen pierde sus hitos, porque solo pueden estar en un dispositivo a la vez.",
     "Current Game: {{title}}": "Juego actual: {{title}}",
     "No current game. Load a game on both devices first.": "Sin juego actual. Carga un juego en ambos dispositivos primero.",
     "Different game: {{title}}": "Otro juego: {{title}}",
@@ -2189,6 +2189,19 @@ const ES: LocaleTable = {
     "Replaced with {{count}} notes.": {
         one: "Reemplazado por {{count}} nota.",
         other: "Reemplazado por {{count}} notas."
+    },
+    "Updated {{count}} tracked achievements.": {
+        one: "Se actualizó {{count}} logro seguido.",
+        other: "Se actualizaron {{count}} logros seguidos."
+    },
+    "Updated {{count}} notes.": {
+        one: "Se actualizó {{count}} nota.",
+        other: "Se actualizaron {{count}} notas."
+    },
+    "Updated {{count}} tracked": "{{count}} actualizados",
+    "Updated {{count}} notes": {
+        one: "{{count}} nota cambiada",
+        other: "{{count}} notas cambiadas"
     },
     "Milestones moved from {{name}}.": "Hitos movidos desde {{name}}.",
     "Milestones imported, but {{name}} didn't confirm it cleared its copy.": "Hitos importados, pero {{name}} no confirmó que borró su copia.",

@@ -1643,6 +1643,7 @@ type DataTransferState = "idle" | "connecting" | "receiving" | "saving" | "commi
 
 type DataTransferResult = {
     added?: number;
+    updated?: number;
     skippedUnlocked?: number;
     skippedExisting?: number;
     replaced?: number;

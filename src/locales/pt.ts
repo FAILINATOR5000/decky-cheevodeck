@@ -2133,7 +2133,7 @@ const PT: LocaleTable = {
     "Tracked (Current Game)": "Seguidas (jogo atual)",
     "Notes (Current Game)": "Notas (jogo atual)",
     "Replace Destination": "Substituir destino",
-    "help_data_transfer_replace": "Substitui completamente o destino (os dados deste dispositivo) pelos dados recebidos. Se estiver desligado, só mescla, ou seja, só os itens que ainda não existem são copiados. Com Marcos, fica sempre ligado e o dispositivo de origem perde seus marcos, porque eles só podem estar em um dispositivo por vez.",
+    "help_data_transfer_replace": "Substitui completamente o destino (os dados deste dispositivo) pelos dados recebidos. Se estiver desligado, só mescla: os itens novos são copiados e os que estão nos dois dispositivos são atualizados para ficar iguais ao dispositivo de origem. Nada é apagado deste dispositivo. Com Marcos, fica sempre ligado e o dispositivo de origem perde seus marcos, porque eles só podem estar em um dispositivo por vez.",
     "Current Game: {{title}}": "Jogo atual: {{title}}",
     "No current game. Load a game on both devices first.": "Nenhum jogo atual. Abra um jogo nos dois dispositivos primeiro.",
     "Different game: {{title}}": "Outro jogo: {{title}}",
@@ -2178,6 +2178,19 @@ const PT: LocaleTable = {
     "Replaced with {{count}} notes.": {
         one: "Substituído por {{count}} nota.",
         other: "Substituído por {{count}} notas."
+    },
+    "Updated {{count}} tracked achievements.": {
+        one: "{{count}} conquista seguida atualizada.",
+        other: "{{count}} conquistas seguidas atualizadas."
+    },
+    "Updated {{count}} notes.": {
+        one: "{{count}} nota atualizada.",
+        other: "{{count}} notas atualizadas."
+    },
+    "Updated {{count}} tracked": "{{count}} atualizadas",
+    "Updated {{count}} notes": {
+        one: "{{count}} nota atualizada",
+        other: "{{count}} notas atualizadas"
     },
     "Milestones moved from {{name}}.": "Marcos movidos de {{name}}.",
     "Milestones imported, but {{name}} didn't confirm it cleared its copy.": "Marcos importados, mas {{name}} não confirmou que apagou a cópia dele.",

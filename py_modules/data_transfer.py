@@ -118,20 +118,31 @@ def merge_tracked(dest: dict, incoming: dict):
     out = {name: dict(dest[name]) for name in _TRACKED_MAPS}
     added = 0
     existing = 0
+    updated = 0
     for achievement_id in incoming["achievementIds"]:
+        key = str(achievement_id)
         if achievement_id in have:
-            existing += 1
+            mine = (out["notes"].get(key), out["notesColor"].get(key))
+            theirs = (incoming["notes"].get(key), incoming["notesColor"].get(key))
+            if mine == theirs:
+                existing += 1
+                continue
+            for name in _TRACKED_MAPS:
+                if key in incoming[name]:
+                    out[name][key] = incoming[name][key]
+                else:
+                    out[name].pop(key, None)
+            updated += 1
             continue
         have.add(achievement_id)
         ids.append(achievement_id)
         added += 1
-        key = str(achievement_id)
         for name in _TRACKED_MAPS:
             if key in incoming[name]:
                 out[name][key] = incoming[name][key]
     out["achievementIds"] = ids
     out["tagVocabulary"] = merge_vocab(dest["tagVocabulary"], incoming["tagVocabulary"])
-    return out, added, existing
+    return out, added, existing, updated
 
 
 def replace_tracked(incoming: dict) -> dict:
@@ -192,11 +203,33 @@ def _repacked(notes):
     return out
 
 
+_NOTE_FIELDS = ("title", "body", "tag", "color", "completedAt",
+                "reminderMode", "reminderEveryMinutes", "reminderEveryValue", "reminderEveryUnit")
+_REMINDER_FIELDS = ("reminderMode", "reminderEveryMinutes", "reminderEveryValue", "reminderEveryUnit")
+
+
+def _note_differs(mine, theirs) -> bool:
+    return any(mine.get(field) != theirs.get(field) for field in _NOTE_FIELDS)
+
+
 def merge_notes(dest_notes, incoming):
+    theirs = {note["id"]: note for note in incoming}
+    kept = []
+    updated = 0
+    for note in sorted(dest_notes, key=lambda note: note["manualOrder"]):
+        other = theirs.get(note["id"])
+        if other is None or not _note_differs(note, other):
+            kept.append(note)
+            continue
+        merged = dict(other, manualOrder=note["manualOrder"], showFiredDot=note.get("showFiredDot", False))
+        if all(note.get(field) == other.get(field) for field in _REMINDER_FIELDS):
+            merged["reminderLastFiredAt"] = note.get("reminderLastFiredAt")
+        kept.append(merged)
+        updated += 1
     have = {note["id"] for note in dest_notes}
-    kept = sorted(dest_notes, key=lambda note: note["manualOrder"])
     added = [note for note in incoming if note["id"] not in have]
-    return _repacked(kept + added), len(added), len(incoming) - len(added)
+    existing = len(incoming) - len(added) - updated
+    return _repacked(kept + added), len(added), existing, updated
 
 
 def replace_notes(incoming):

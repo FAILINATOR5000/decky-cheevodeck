@@ -2127,7 +2127,7 @@ export const EN: LocaleTable = {
     "Tracked (Current Game)": "Tracked (Current Game)",
     "Notes (Current Game)": "Notes (Current Game)",
     "Replace Destination": "Replace Destination",
-    "help_data_transfer_replace": "Replaces the destination (this device's data) completely with the data. If off, it only merges, meaning only items that do not exist get copied over. If Milestones, this is forced on and the source machine will lose its milestones data as it can be on one machine at a time only.",
+    "help_data_transfer_replace": "Replaces the destination (this device's data) completely with the data. If off, it only merges, meaning new items get copied over and items on both devices are updated to match the source device. Nothing on this device is deleted. If Milestones, this is forced on and the source machine will lose its milestones data as it can be on one machine at a time only.",
     "Current Game: {{title}}": "Current Game: {{title}}",
     "No current game. Load a game on both devices first.": "No current game. Load a game on both devices first.",
     "Different game: {{title}}": "Different game: {{title}}",
@@ -2169,6 +2169,19 @@ export const EN: LocaleTable = {
     "Replaced with {{count}} notes.": {
         one: "Replaced with {{count}} note.",
         other: "Replaced with {{count}} notes."
+    },
+    "Updated {{count}} tracked achievements.": {
+        one: "Updated {{count}} tracked achievement.",
+        other: "Updated {{count}} tracked achievements."
+    },
+    "Updated {{count}} notes.": {
+        one: "Updated {{count}} note.",
+        other: "Updated {{count}} notes."
+    },
+    "Updated {{count}} tracked": "Updated {{count}} tracked",
+    "Updated {{count}} notes": {
+        one: "Updated {{count}} note",
+        other: "Updated {{count}} notes"
     },
     "Milestones moved from {{name}}.": "Milestones moved from {{name}}.",
     "Milestones imported, but {{name}} didn't confirm it cleared its copy.": "Milestones imported, but {{name}} didn't confirm it cleared its copy.",

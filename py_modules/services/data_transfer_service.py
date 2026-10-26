@@ -428,17 +428,21 @@ class DataTransferService:
         else:
             noun = "tracked achievements" if kind == "tracked" else "notes"
             count = result.get("added", 0)
+            updated = result.get("updated", 0)
             if mode == "replace":
                 body = f"Replaced with {count} {noun} from {label}."
-            elif count:
-                body = f"Added {count} {noun} from {label}."
+            elif count or updated:
+                body = f"Added {count} and updated {updated} {noun} from {label}."
             else:
                 body = f"Nothing new to add from {label}."
-            if not count and mode != "replace":
-                line = "Nothing new to add"
-            else:
+            if mode == "replace" or count:
                 line = "Added {{count}} tracked" if kind == "tracked" else "Added {{count}} notes"
                 line_vars = {"count": count}
+            elif updated:
+                line = "Updated {{count}} tracked" if kind == "tracked" else "Updated {{count}} notes"
+                line_vars = {"count": updated}
+            else:
+                line = "Nothing new to add"
         self._file_card(title, body, meta)
         emit_notification(
             ntype="system",

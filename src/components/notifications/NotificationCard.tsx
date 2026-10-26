@@ -301,13 +301,21 @@ function dataTransferBody(notification: CheevoNotification, language: LanguageCo
             ? t(language, "Replaced with {{count}} tracked achievements.", { count: added })
             : t(language, "Replaced with {{count}} notes.", { count: added }));
     }
-    else if (added <= 0) {
-        lines.push(t(language, "Nothing new to add."));
-    }
     else {
-        lines.push(tracked
-            ? t(language, "Added {{count}} tracked achievements.", { count: added })
-            : t(language, "Added {{count}} notes.", { count: added }));
+        const updated = metaNumber(notification, "updated");
+        if (added > 0) {
+            lines.push(tracked
+                ? t(language, "Added {{count}} tracked achievements.", { count: added })
+                : t(language, "Added {{count}} notes.", { count: added }));
+        }
+        if (updated > 0) {
+            lines.push(tracked
+                ? t(language, "Updated {{count}} tracked achievements.", { count: updated })
+                : t(language, "Updated {{count}} notes.", { count: updated }));
+        }
+        if (added <= 0 && updated <= 0) {
+            lines.push(t(language, "Nothing new to add."));
+        }
     }
     if (tracked && metaNumber(notification, "skippedUnlocked") > 0) {
         lines.push(t(language, "{{count}} were already unlocked here.", { count: metaNumber(notification, "skippedUnlocked") }));

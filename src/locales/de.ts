@@ -2133,7 +2133,7 @@ const DE: LocaleTable = {
     "Tracked (Current Game)": "Verfolgte (aktuelles Spiel)",
     "Notes (Current Game)": "Notizen (aktuelles Spiel)",
     "Replace Destination": "Ziel ersetzen",
-    "help_data_transfer_replace": "Ersetzt die Daten am Ziel (die Daten dieses Geräts) vollständig durch die übertragenen Daten. Ist es aus, wird nur zusammengeführt, das heißt, nur Einträge, die noch nicht vorhanden sind, werden übernommen. Bei Meilensteinen ist es immer an, und das Quellgerät verliert seine Meilensteine, da sie nur auf einem Gerät gleichzeitig sein können.",
+    "help_data_transfer_replace": "Ersetzt die Daten am Ziel (die Daten dieses Geräts) vollständig durch die übertragenen Daten. Ist es aus, wird nur zusammengeführt: Neue Einträge werden übernommen, und Einträge, die auf beiden Geräten vorhanden sind, werden an das Quellgerät angepasst. Auf diesem Gerät wird nichts gelöscht. Bei Meilensteinen ist es immer an, und das Quellgerät verliert seine Meilensteine, da sie nur auf einem Gerät gleichzeitig sein können.",
     "Current Game: {{title}}": "Aktuelles Spiel: {{title}}",
     "No current game. Load a game on both devices first.": "Kein aktuelles Spiel. Starte zuerst auf beiden Geräten ein Spiel.",
     "Different game: {{title}}": "Anderes Spiel: {{title}}",
@@ -2175,6 +2175,19 @@ const DE: LocaleTable = {
     "Replaced with {{count}} notes.": {
         one: "Ersetzt durch {{count}} Notiz.",
         other: "Ersetzt durch {{count}} Notizen."
+    },
+    "Updated {{count}} tracked achievements.": {
+        one: "{{count}} verfolgter Erfolg aktualisiert.",
+        other: "{{count}} verfolgte Erfolge aktualisiert."
+    },
+    "Updated {{count}} notes.": {
+        one: "{{count}} Notiz aktualisiert.",
+        other: "{{count}} Notizen aktualisiert."
+    },
+    "Updated {{count}} tracked": "{{count}} aktualisiert",
+    "Updated {{count}} notes": {
+        one: "{{count}} Notiz geändert",
+        other: "{{count}} Notizen geändert"
     },
     "Milestones moved from {{name}}.": "Meilensteine von {{name}} übertragen.",
     "Milestones imported, but {{name}} didn't confirm it cleared its copy.": "Meilensteine importiert, aber {{name}} hat nicht bestätigt, dass seine Kopie gelöscht ist.",

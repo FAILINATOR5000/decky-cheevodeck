@@ -3995,13 +3995,15 @@ class SettingsStore:
                 fields = data_transfer.replace_tracked(filtered)
                 added = len(fields["achievementIds"])
                 existing = 0
+                updated = 0
                 replaced = len(current["achievementIds"])
             else:
-                fields, added, existing = data_transfer.merge_tracked(current, filtered)
+                fields, added, existing, updated = data_transfer.merge_tracked(current, filtered)
                 replaced = 0
-            result = {"ok": True, "added": added, "skippedUnlocked": unlocked,
+            result = {"ok": True, "added": added, "updated": updated, "skippedUnlocked": unlocked,
                       "skippedExisting": existing, "replaced": replaced}
-            if mode != "replace" and not added and fields["tagVocabulary"] == current["tagVocabulary"]:
+            if (mode != "replace" and not added and not updated
+                    and fields["tagVocabulary"] == current["tagVocabulary"]):
                 return result
             if path.exists():
                 backup("tracked-%s" % key, path.read_bytes())

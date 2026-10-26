@@ -780,16 +780,16 @@ class NotesStore:
             if mode == "replace":
                 kept = {note["id"] for note in notes}
                 removed = [note["id"] for note in entry["notes"] if note["id"] not in kept]
-                result = {"ok": True, "added": len(notes), "skippedExisting": 0,
+                result = {"ok": True, "added": len(notes), "updated": 0, "skippedExisting": 0,
                           "replaced": len(entry["notes"]), "removedIds": removed}
                 entry["notes"] = data_transfer.replace_notes(notes)
                 entry["tagVocabulary"] = vocab
             else:
-                merged, added, existing = data_transfer.merge_notes(entry["notes"], notes)
+                merged, added, existing, updated = data_transfer.merge_notes(entry["notes"], notes)
                 vocab = data_transfer.merge_vocab(entry["tagVocabulary"], vocab)
-                result = {"ok": True, "added": added, "skippedExisting": existing,
+                result = {"ok": True, "added": added, "updated": updated, "skippedExisting": existing,
                           "replaced": 0, "removedIds": []}
-                if not added and vocab == entry["tagVocabulary"]:
+                if not added and not updated and vocab == entry["tagVocabulary"]:
                     return result
                 entry["notes"] = merged
                 entry["tagVocabulary"] = vocab
