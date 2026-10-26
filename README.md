@@ -91,6 +91,8 @@ CheevoDeck isn't just a basic RetroAchievements tracker — it's a full suite fo
 
 ## Screenshots
 
+Here is just a sample of some of the pages within the plugin. There's plenty more!
+
 <table>
   <tr>
     <td><a href="docs/images/01-main-menu.webp"><img src="docs/images/01-main-menu.webp" width="260"></a></td>
@@ -119,12 +121,17 @@ CheevoDeck isn't just a basic RetroAchievements tracker — it's a full suite fo
   </tr>
 </table>
 
-Here is just a sample of some of the pages within the plugin. There's plenty more!
+Watching a memory clip in Timeline Playback mode allows you to see in real-time which achievements were unlocked in the moment.
 
 <table>
   <tr>
-    <td colspan="2"><a href="docs/images/timeline-play-02.webp"><img src="docs/images/timeline-play-02.webp" width="860"></a></td>
+    <td><a href="docs/images/timeline-play-02.webp"><img src="docs/images/timeline-play-02.webp" width="860"></a></td>
   </tr>
+</table>
+
+Memories Feature: Here are screens from the album, sharing dialog, and the community page.
+
+<table>
   <tr>
     <td><a href="docs/images/memories-01.webp"><img src="docs/images/memories-01.webp" width="260"></a></td>
     <td><a href="docs/images/memories-share-dialog.webp"><img src="docs/images/memories-share-dialog.webp" width="580"></a></td>
@@ -135,7 +142,7 @@ Here is just a sample of some of the pages within the plugin. There's plenty mor
   </tr>
 </table>
 
-Capturing and Sharing Memories
+Tracking and Managing RA Events
 
 <table>
   <tr>
@@ -146,7 +153,7 @@ Capturing and Sharing Memories
   </tr>
 </table>
 
-Tracking and Managing RA Events
+Milestones and the Activity calendar
 
 <table>
   <tr>
@@ -156,7 +163,7 @@ Tracking and Managing RA Events
   </tr>
 </table>
 
-Milestones and the Activity calendar
+These are some of the larger modal dialogs within CheevoDeck: Large Guide Viewer and Notifications—both of which can be accessed from any page.
 
 <table>
   <tr>
@@ -165,15 +172,13 @@ Milestones and the Activity calendar
   </tr>
 </table>
 
-These are some of the larger modal dialogs within CheevoDeck: Large Guide Viewer and Notifications—both of which can be accessed from any page.
+An example of Steam library badges in action.
 
 <table>
   <tr>
     <td><a href="docs/images/steam-library-badge.webp"><img src="docs/images/steam-library-badge.webp" width="860"></a></td>
   </tr>
 </table>
-
-An example of Steam library badges in action.
 
 ## Requirements
 
