@@ -4,6 +4,7 @@ import re
 import threading
 import time
 
+import data_transfer
 from utils import (
     TAG_MAX_LEN,
     NOTE_STORED_MAX_LEN,
@@ -122,6 +123,17 @@ _MAX_COLLAPSED_TAGS = 400
 
 _MAX_RESUME_NAV_DEPTH = 12
 
+def _payload_unlocked_ids(payload) -> set:
+    unlocked = set()
+    for achievement in payload.get("achievements", []):
+        if achievement.get("dateEarned") or achievement.get("dateEarnedHardcore"):
+            try:
+                unlocked.add(int(achievement.get("id")))
+            except (ValueError, TypeError, OverflowError):
+                pass
+    return unlocked
+
+
 _ALLOWED_RESUME_VIEWS = {
     "achievements",
     "tracked",
@@ -150,6 +162,7 @@ _ALLOWED_RESUME_VIEWS = {
     "fileWatcher",
     "memories",
     "memoriesTransfer",
+    "dataTransfer",
     "qamGuard",
     "guides",
     "eventViewer",
@@ -3960,6 +3973,52 @@ class SettingsStore:
             "collapsedTags": next_collapsed_tags,
         }
 
+    def import_tracked_for_game(self, payload, incoming, mode, *, backup) -> dict:
+        game_id = norm_game_id((payload or {}).get("gameId"))
+        if game_id is None:
+            return {"ok": False, "error": "no_game"}
+        if game_id != incoming["gameId"]:
+            return {"ok": False, "error": "different_game"}
+        known = set()
+        for achievement in payload.get("achievements") or []:
+            achievement_id = norm_game_id(achievement.get("id"))
+            if achievement_id is not None:
+                known.add(achievement_id)
+        filtered, unlocked = data_transfer.filter_tracked(incoming, _payload_unlocked_ids(payload), known)
+
+        key = str(game_id)
+        with self._lock_for_game(key):
+            tracked_dir = self._tracked_dir
+            path = self._path_for_game_key(key, tracked_dir)
+            current = self.load_tracked_for_game(game_id)
+            if mode == "replace":
+                fields = data_transfer.replace_tracked(filtered)
+                added = len(fields["achievementIds"])
+                existing = 0
+                replaced = len(current["achievementIds"])
+            else:
+                fields, added, existing = data_transfer.merge_tracked(current, filtered)
+                replaced = 0
+            result = {"ok": True, "added": added, "skippedUnlocked": unlocked,
+                      "skippedExisting": existing, "replaced": replaced}
+            if mode != "replace" and not added and fields["tagVocabulary"] == current["tagVocabulary"]:
+                return result
+            if path.exists():
+                backup("tracked-%s" % key, path.read_bytes())
+            self._save_tracked_for_game_locked(
+                key,
+                fields["achievementIds"],
+                tracked_dir=tracked_dir,
+                notes=fields["notes"],
+                notes_color=fields["notesColor"],
+                notes_last_edited_at=fields["notesLastEditedAt"],
+                tag_vocabulary=fields["tagVocabulary"],
+                title=current["title"] or payload.get("title"),
+                console_name=current["consoleName"] or payload.get("consoleName"),
+                image_icon=current["imageIcon"] or payload.get("imageIcon"),
+            )
+        return result
+
     def clear_tracked_for_game(self, game_id) -> dict:
         key = self._game_key(game_id)
         if not key:
@@ -4074,13 +4133,7 @@ class SettingsStore:
                     "viewOpen": bool(entry.get("viewOpen", False)),
                 }
 
-            unlocked_ids = set()
-            for achievement in payload.get("achievements", []):
-                if achievement.get("dateEarned") or achievement.get("dateEarnedHardcore"):
-                    try:
-                        unlocked_ids.add(int(achievement.get("id")))
-                    except (ValueError, TypeError, OverflowError):
-                        pass
+            unlocked_ids = _payload_unlocked_ids(payload)
 
             remaining = [ach_id for ach_id in tracked_ids if ach_id not in unlocked_ids]
             removed = [ach_id for ach_id in tracked_ids if ach_id in unlocked_ids]

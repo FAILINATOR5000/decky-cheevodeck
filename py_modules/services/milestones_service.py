@@ -25,7 +25,7 @@ from local_days import (
     week_start_day,
 )
 from milestones_defs import COUNTER_KINDS, MAIN_TABS, rank_index
-from milestones_store import empty_sealed
+from milestones_store import empty_sealed, normalize
 from services._tick_common import TickServiceBase
 from services.activity_service import _row_key, normalize_ra_rows, unique_unlocks
 from services.back_button_service import matching_nodes
@@ -53,6 +53,8 @@ RATE_LIMIT_BACKOFF_SECONDS = 15 * 60
 SERVICE_UNAVAILABLE_BACKOFF_SECONDS = 30 * 60
 
 MAX_PENDING_EVENTS = 500
+
+MOVE_HOLD_SECONDS = 60
 
 MAX_TOASTS_PER_PASS = 3
 
@@ -768,6 +770,10 @@ class MilestonesService(TickServiceBase):
 
         self._announcer = self._notify
 
+        self._moving_until = 0.0
+        self._move_token = 0
+        self._quiet_pass = False
+
     @property
     def defs(self):
         return self._defs
@@ -828,6 +834,7 @@ class MilestonesService(TickServiceBase):
 
     def account_changed(self):
         self._period_cache = None
+        self._quiet_pass = False
         with self._queue_lock:
             self._month_cache = None
         self._emit_changed()
@@ -906,6 +913,8 @@ class MilestonesService(TickServiceBase):
             if waiting_ra:
                 due = max(self._not_before, self._last_job_at + RA_JOB_MIN_GAP_SECONDS)
                 timeout = min(timeout, max(0.0, due - time.monotonic()))
+            if self._holding():
+                timeout = min(timeout, max(0.0, self._moving_until - time.monotonic()) + 0.05)
             self._wake.wait(timeout=timeout)
             if self._stop_event.is_set():
                 return
@@ -924,6 +933,8 @@ class MilestonesService(TickServiceBase):
                 self._log_tick_crashed(exc)
 
     def _pass(self):
+        if self._holding():
+            return
         with self._queue_lock:
             events = self._events
             self._events = []
@@ -1065,6 +1076,9 @@ class MilestonesService(TickServiceBase):
         with self._switch_lock():
             if str(self._settings_store.load_config().get("activeUlid") or "") != ulid:
                 return None, None
+            if self._holding():
+                self._defer(events, ra)
+                return None, None
             data, changed = self._store.mutate(change, ulid=ulid)
             if data is None:
                 return None, None
@@ -1075,7 +1089,14 @@ class MilestonesService(TickServiceBase):
                 self._save_months(ra.get("fetchedMonths") or {})
             if ra is not None and not ra.get("offline", False) and ra.get("startedAt") == data["startedAt"]:
                 self._keep_sealed(cfg, data["startedAt"], ra)
-            self._announce(data, outcome)
+            announced = outcome
+            if self._quiet_pass:
+                self._quiet_pass = False
+                announced = dict(outcome, milestones=[
+                    mid for mid in outcome.get("milestones") or []
+                    if (self._milestone(mid) or {}).get("rule", {}).get("type") != "state"
+                ])
+            self._announce(data, announced)
         offline = ra is not None and ra.get("offline", False)
         if changed:
             self._emit_changed(ra=ra is not None and not offline)
@@ -1103,6 +1124,8 @@ class MilestonesService(TickServiceBase):
             return True
 
         with self._switch_lock():
+            if self._holding():
+                return False
             data, _result = self._store.mutate(change)
         return data is not None
 
@@ -1120,11 +1143,15 @@ class MilestonesService(TickServiceBase):
             return True
 
         with self._switch_lock():
+            if self._holding():
+                return None
             data, _result = self._store.mutate(change)
         return picked if data is not None else None
 
     def clear_progress(self):
         with self._switch_lock():
+            if self._holding():
+                return False
             cleared = self._store.clear()
         self._period_cache = None
         with self._queue_lock:
@@ -1134,7 +1161,7 @@ class MilestonesService(TickServiceBase):
         return cleared
 
     def reroll(self, period):
-        if period not in ("daily", "weekly") or self._defs is None:
+        if period not in ("daily", "weekly") or self._defs is None or self._holding():
             return False
         ulid = self._store.ulid
         if not ulid:
@@ -1161,6 +1188,93 @@ class MilestonesService(TickServiceBase):
 
         self.apply(ulid, extra=change)
         return rolled["ok"]
+
+    def _holding(self):
+        return time.monotonic() < self._moving_until
+
+    def _defer(self, events, ra):
+        with self._queue_lock:
+            self._events = list(events) + self._events
+            self._apply_requested = True
+            if ra is not None and not ra.get("offline", False):
+                self._ra_requested = True
+                self._ra_reason = self._ra_reason or "panel"
+            elif ra is not None:
+                self._offline_requested = True
+        self._wake.set()
+
+    def begin_move(self):
+        ulid = self._store.ulid
+        if not ulid or self._defs is None:
+            return {"ok": False, "error": "nothing"}
+        with self._queue_lock:
+            events = self._events
+            self._events = []
+        if events:
+            self.apply(ulid, events=[event for event in events if event[0] == ulid])
+        with self._switch_lock():
+            if self._holding():
+                return {"ok": False, "error": "busy"}
+            files = self._store.read_files()
+            if files is None:
+                return {"ok": False, "error": "nothing"}
+            data = normalize(files[0])
+            if not data["claims"] and total_xp(data) <= 0:
+                return {"ok": False, "error": "nothing"}
+            self._move_token += 1
+            self._moving_until = time.monotonic() + MOVE_HOLD_SECONDS
+            token = self._move_token
+            until = self._moving_until
+        decky.logger.info("milestones: holding writes while they move to another device")
+        return {"ok": True, "milestones": files[0], "sealed": files[1], "token": token, "until": until}
+
+    def end_move(self, token, committed, aside_to=None, stamp=0):
+        cleared = False
+        with self._switch_lock():
+            if token != self._move_token or not self._holding():
+                return False
+            if committed:
+                cleared = self._store.set_aside_moved(aside_to, stamp)
+                self._quiet_pass = cleared
+            self._moving_until = 0.0
+        if cleared:
+            decky.logger.info("milestones: moved to another device, starting over at zero")
+            self._period_cache = None
+            with self._queue_lock:
+                self._month_cache = None
+            self._emit_changed()
+            self.request_check("panel")
+        else:
+            decky.logger.info("milestones: the move didn't finish, keeping everything here")
+        self._wake.set()
+        return cleared
+
+    def adopt(self, milestones_raw, sealed_raw, backup):
+        with self._switch_lock():
+            if self._holding():
+                return "busy"
+            mine = self._store.peek()
+            if mine is not None and total_xp(mine) > total_xp(normalize(milestones_raw)):
+                return "more_here"
+            error = self._store.adopt(milestones_raw, sealed_raw, backup=backup)
+        if not error:
+            self.adopted()
+        return error
+
+    def adopted(self):
+        self._period_cache = None
+        with self._queue_lock:
+            self._month_cache = None
+        self._emit_changed()
+        self.request_check("panel")
+
+    def move_summary(self):
+        data = self._store.peek()
+        if data is None or self._defs is None:
+            return None
+        xp = total_xp(data)
+        rank = self._defs["ranks"][rank_index(self._defs["ranks"], xp)]
+        return {"xp": xp, "claims": len(data["claims"]), "tier": rank["tier"], "step": rank["step"]}
 
     def _switch_lock(self):
         plugin = self._plugin

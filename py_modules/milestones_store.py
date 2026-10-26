@@ -17,6 +17,7 @@ from utils import (
     report_newer_schema,
     save_json_file,
     to_int,
+    write_file_atomic,
 )
 
 
@@ -411,6 +412,100 @@ class MilestonesStore:
                 self._write(data)
             return data, result
 
+    def peek(self):
+        with self._lock:
+            if not self._ulid:
+                return None
+            raw = load_json_file(self._path(), None)
+            if not isinstance(raw, dict) or is_newer_schema(raw, CURRENT_SCHEMA_VERSION):
+                return None
+            if raw.get("ulid") != self._ulid:
+                return None
+            return normalize(raw, now=int(time.time()))
+
+    def read_files(self):
+        with self._lock:
+            if not self._ulid:
+                return None
+            raw = load_json_file(self._path(), None)
+            if not isinstance(raw, dict) or is_newer_schema(raw, CURRENT_SCHEMA_VERSION):
+                return None
+            if raw.get("ulid") != self._ulid:
+                return None
+            sealed = load_json_file(self._sealed_path(), None)
+            return raw, sealed if isinstance(sealed, dict) else None
+
+    def adopt(self, milestones_raw, sealed_raw, *, backup) -> str:
+        with self._lock:
+            if not self._ulid:
+                return "no_account"
+            if not isinstance(milestones_raw, dict) or is_newer_schema(milestones_raw, CURRENT_SCHEMA_VERSION):
+                return "newer_schema"
+            now = int(time.time())
+            data = normalize(milestones_raw, now=now)
+            if data["ulid"] != self._ulid:
+                return "ulid_mismatch"
+            if data["deviceId"] is None:
+                data["deviceId"] = new_device_id()
+            if data["startedAt"] is None:
+                data["startedAt"] = _earliest_evidence(data) or now
+            sealed = None
+            if isinstance(sealed_raw, dict) and not is_newer_schema(sealed_raw, SEALED_SCHEMA_VERSION):
+                trusted = normalize_sealed(sealed_raw, ulid=self._ulid, started_at=data["startedAt"],
+                                           current_month=this_month())
+                if trusted["sealedThrough"] is not None:
+                    sealed = trusted
+
+            path = self._path()
+            sealed_path = self._sealed_path()
+            try:
+                refuse_newer_file(path, CURRENT_SCHEMA_VERSION)
+                refuse_newer_file(sealed_path, SEALED_SCHEMA_VERSION)
+            except NewerSchemaFile:
+                return "newer_schema"
+            old = path.read_bytes() if path.exists() else None
+            old_sealed = sealed_path.read_bytes() if sealed_path.exists() else None
+            if old is not None:
+                backup(old, old_sealed)
+
+            ensure_dir(self._base_dir)
+            save_json_file(path, data, compact=True)
+            try:
+                if sealed is not None:
+                    save_json_file(sealed_path, self._sealed_body(sealed, data["startedAt"]), compact=True)
+                elif old_sealed is not None:
+                    sealed_path.unlink(missing_ok=True)
+            except BaseException:
+                self._put_back(path, old)
+                raise
+            return ""
+
+    def _put_back(self, path, old):
+        try:
+            if old is None:
+                path.unlink()
+            else:
+                write_file_atomic(path, old)
+        except OSError as e:
+            decky.logger.error("milestones: couldn't put %s back after a failed adopt: %s", path.name, type(e).__name__)
+
+    def set_aside_moved(self, folder: Path, stamp: int) -> bool:
+        with self._lock:
+            if not self._ulid:
+                return False
+            try:
+                ensure_dir(folder)
+                self._path().replace(folder / ("milestones-moved-%d.json" % stamp))
+            except OSError as e:
+                decky.logger.warning("milestones: couldn't set the moved file aside: %s", type(e).__name__)
+                return False
+            if self._sealed_path().exists():
+                try:
+                    self._sealed_path().replace(folder / ("milestones_sealed-moved-%d.json" % stamp))
+                except OSError as e:
+                    decky.logger.warning("milestones: couldn't set the moved summary aside: %s", type(e).__name__)
+            return True
+
     def clear(self) -> bool:
         with self._lock:
             if not self._ulid:
@@ -452,19 +547,22 @@ class MilestonesStore:
             try:
                 ensure_dir(self._base_dir)
                 refuse_newer_file(path, SEALED_SCHEMA_VERSION)
-                save_json_file(path, {
-                    "schemaVersion": SEALED_SCHEMA_VERSION,
-                    "ulid": self._ulid,
-                    "startedAt": started_at,
-                    "sealedThrough": sealed["sealedThrough"],
-                    "ids": sorted(sealed["ids"]),
-                    "hardcoreIds": sorted(sealed["hardcoreIds"]),
-                    "days": sorted(sealed["days"]),
-                }, compact=True)
+                save_json_file(path, self._sealed_body(sealed, started_at), compact=True)
             except (OSError, NewerSchemaFile) as e:
                 decky.logger.warning("milestones: couldn't save the sealed summary: %s", type(e).__name__)
                 return False
             return True
+
+    def _sealed_body(self, sealed, started_at):
+        return {
+            "schemaVersion": SEALED_SCHEMA_VERSION,
+            "ulid": self._ulid,
+            "startedAt": started_at,
+            "sealedThrough": sealed["sealedThrough"],
+            "ids": sorted(sealed["ids"]),
+            "hardcoreIds": sorted(sealed["hardcoreIds"]),
+            "days": sorted(sealed["days"]),
+        }
 
     def repair(self) -> list:
         with self._lock:

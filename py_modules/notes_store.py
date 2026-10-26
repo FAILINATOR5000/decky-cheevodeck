@@ -4,8 +4,10 @@ import secrets
 import threading
 import time
 
+import data_transfer
 from settings_store import _NOTE_COLOR_OPTIONS
 from utils import (
+    NewerSchemaFile,
     NOTE_STORED_MAX_LEN,
     TAG_MAX_LEN,
     TAG_PREFIX_PATTERN,
@@ -754,6 +756,47 @@ class NotesStore:
         if newly_completed:
             self._count("note_completed")
         return {"ok": True, "note": target, "collapsedTags": collapsed}
+
+    def import_notes(self, game_id, incoming, mode, *, now, backup) -> dict:
+        key = self._game_key(game_id)
+        if key is None:
+            return {"ok": False, "error": "no_game"}
+        notes = []
+        for raw in incoming["notes"]:
+            note = self._normalize_note(raw)
+            if note is None:
+                return {"ok": False, "error": "payload_mismatch"}
+            notes.append(data_transfer.imported_note(note, now, REMINDER_CLOCK_SKEW_SECONDS))
+        vocab = self._normalize_entry({"tagVocabulary": incoming["tagVocabulary"]}, int(key))["tagVocabulary"]
+
+        with self._lock_for_game(key):
+            notes_dir = self._notes_dir
+            path = self._path_for_game_key(key, notes_dir)
+            try:
+                refuse_newer_file(path, CURRENT_SCHEMA_VERSION)
+            except NewerSchemaFile:
+                return {"ok": False, "error": "newer_schema"}
+            entry = self._load_raw(key, notes_dir)
+            if mode == "replace":
+                kept = {note["id"] for note in notes}
+                removed = [note["id"] for note in entry["notes"] if note["id"] not in kept]
+                result = {"ok": True, "added": len(notes), "skippedExisting": 0,
+                          "replaced": len(entry["notes"]), "removedIds": removed}
+                entry["notes"] = data_transfer.replace_notes(notes)
+                entry["tagVocabulary"] = vocab
+            else:
+                merged, added, existing = data_transfer.merge_notes(entry["notes"], notes)
+                vocab = data_transfer.merge_vocab(entry["tagVocabulary"], vocab)
+                result = {"ok": True, "added": added, "skippedExisting": existing,
+                          "replaced": 0, "removedIds": []}
+                if not added and vocab == entry["tagVocabulary"]:
+                    return result
+                entry["notes"] = merged
+                entry["tagVocabulary"] = vocab
+            if path.exists():
+                backup("notes-%s" % key, path.read_bytes())
+            self._save_raw(key, entry, notes_dir)
+        return result
 
     def delete_all_notes(self) -> dict:
         with self._notes_master_lock:

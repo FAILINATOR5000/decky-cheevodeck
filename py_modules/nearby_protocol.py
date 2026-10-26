@@ -19,6 +19,13 @@ _MEMORY_ID_MAX = 64
 
 MAX_BUNDLE_BYTES = 1 << 40
 
+MAX_DATA_BYTES = 8 * 1024 * 1024
+
+DATA_KINDS = ("tracked", "notes", "milestones")
+
+_TITLE_MAX = 64
+_TIER = re.compile(r"[a-z]{1,16}")
+
 _KEY_LABEL = b"cheevodeck-nearby-v1|"
 
 _NONCE = re.compile(r"[0-9a-f]{32}")
@@ -319,6 +326,178 @@ def bundle_size(message):
     if type(size) is not int or not 0 < size <= MAX_BUNDLE_BYTES:
         return None
     return size
+
+
+def make_seek(key: bytes, nonce: str, now: int) -> bytes:
+    return encode({
+        "k": KIND,
+        "v": VERSION,
+        "op": "seek",
+        "n": nonce,
+        "ts": now,
+        "t": sign(key, "seek", nonce, str(now)),
+    })
+
+
+def read_seek(key: bytes, message, now: float):
+    if not _ours(message) or message.get("op") != "seek":
+        return None
+    nonce = message.get("n")
+    stamp = message.get("ts")
+    if not is_nonce(nonce) or type(stamp) is not int:
+        return None
+    if abs(stamp - now) > CLOCK_SKEW_SECONDS:
+        return None
+    if not verify(key, message.get("t"), "seek", nonce, str(stamp)):
+        return None
+    return nonce
+
+
+def make_offer(key: bytes, nonce: str, info: dict) -> bytes:
+    body = {
+        "k": KIND,
+        "v": VERSION,
+        "op": "offer",
+        "n": nonce,
+        "id": info["id"],
+        "model": info["model"],
+        "host": info["host"],
+        "port": info["port"],
+        "gameId": info["gameId"],
+        "title": info["title"],
+        "tracked": info["tracked"],
+        "notes": info["notes"],
+        "milestones": info["milestones"],
+    }
+    body["t"] = sign(key, "offer", canonical(body))
+    return encode(body)
+
+
+def _is_game_id(value) -> bool:
+    return type(value) is int and 0 < value < 2 ** 31
+
+
+def _milestones_summary(value):
+    if value is None:
+        return None
+    if not isinstance(value, dict) or set(value) != {"xp", "claims", "tier", "step"}:
+        return False
+    tier = value["tier"]
+    step = value["step"]
+    if (
+        not _is_count(value["xp"])
+        or not _is_count(value["claims"])
+        or not isinstance(tier, str)
+        or _TIER.fullmatch(tier) is None
+        or type(step) is not int
+        or not 1 <= step <= 4
+    ):
+        return False
+    return dict(value)
+
+
+def read_offer(key: bytes, message, nonce: str):
+    if not _ours(message) or message.get("op") != "offer" or message.get("n") != nonce:
+        return None
+    body = {name: value for name, value in message.items() if name != "t"}
+    if not verify(key, message.get("t"), "offer", canonical(body)):
+        return None
+
+    port = message.get("port")
+    model = _clean_text(message.get("model"), _MODEL_MAX)
+    host = _clean_text(message.get("host"), _HOST_MAX)
+    game_id = message.get("gameId")
+    title = message.get("title")
+    counts = [message.get(name) for name in ("tracked", "notes")]
+    milestones = _milestones_summary(message.get("milestones"))
+    if (
+        not is_device_id(message.get("id"))
+        or type(port) is not int
+        or not 0 < port < 65536
+        or model is None
+        or host is None
+        or (game_id is not None and not _is_game_id(game_id))
+        or (title is not None and not isinstance(title, str))
+        or not all(value is None or _is_count(value) for value in counts)
+        or milestones is False
+    ):
+        return None
+    return {
+        "id": message["id"],
+        "model": model,
+        "host": host,
+        "port": port,
+        "gameId": game_id,
+        "title": None if title is None else _clean_text(title, _TITLE_MAX),
+        "tracked": counts[0],
+        "notes": counts[1],
+        "milestones": milestones,
+    }
+
+
+def clean_title(value):
+    return _clean_text(value, _TITLE_MAX) if isinstance(value, str) else None
+
+
+def read_fetch(message):
+    if not isinstance(message, dict) or message.get("op") != "fetch":
+        return None
+    version = message.get("v")
+    if type(version) is not int or version != VERSION:
+        return None
+    nonce = message.get("nc")
+    return nonce if is_nonce(nonce) else None
+
+
+def fetch_params(kind: str, game_id, model: str, host: str) -> dict:
+    return {"kind": kind, "gameId": game_id, "model": model, "host": host}
+
+
+def read_fetch_params(raw):
+    if not isinstance(raw, dict) or raw.get("kind") not in DATA_KINDS:
+        return None
+    game_id = raw.get("gameId")
+    if game_id is not None and not _is_game_id(game_id):
+        return None
+    model = _clean_text(raw.get("model"), _MODEL_MAX)
+    host = _clean_text(raw.get("host"), _HOST_MAX)
+    if model is None or host is None:
+        return None
+    return {"kind": raw["kind"], "gameId": game_id, "model": model, "host": host}
+
+
+def fetch_tag(key: bytes, nc: str, ns: str, params: dict) -> str:
+    return sign(key, "fetch", nc, ns, canonical(params))
+
+
+def data_tag(key: bytes, nc: str, ns: str, kind: str, size: int, digest: str) -> str:
+    return sign(key, "data", nc, ns, kind, str(size), digest)
+
+
+def read_data_header(key: bytes, message, nc: str, ns: str, kind: str):
+    if not isinstance(message, dict) or message.get("op") != "data" or message.get("kind") != kind:
+        return None
+    size = message.get("size")
+    digest = message.get("sha256")
+    if type(size) is not int or not 0 < size <= MAX_DATA_BYTES or not is_tag(digest):
+        return None
+    if not verify(key, message.get("tag"), "data", nc, ns, kind, str(size), digest):
+        return None
+    return size, digest
+
+
+def committed_tag(key: bytes, nc: str, ns: str, digest: str) -> str:
+    return sign(key, "committed", nc, ns, digest)
+
+
+def cleared_tag(key: bytes, nc: str, ns: str, digest: str) -> str:
+    return sign(key, "cleared", nc, ns, digest)
+
+
+def read_receipt(key: bytes, message, op: str, nc: str, ns: str, digest: str) -> bool:
+    if not isinstance(message, dict) or message.get("op") != op:
+        return False
+    return verify(key, message.get("tag"), op, nc, ns, digest)
 
 
 def device_label(model: str, host: str, address: str) -> str:
