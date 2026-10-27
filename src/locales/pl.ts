@@ -2660,6 +2660,7 @@ const PL: LocaleTable = {
     "share_end_moved_order": "Przesunięto znacznik końca: musi być co najmniej sekundę po początku.",
     "share_start_moved_order": "Przesunięto znacznik początku: musi być co najmniej sekundę przed końcem.",
     "Original quality": "Oryginalna jakość",
+    "Select a max of 30 seconds to share. Fast forward and rewind with {{button}} and step in 1 second increments by flicking {{button}}.": "Wybierz maksymalnie 30 sekund do udostępnienia. Przewijaj do przodu i do tyłu za pomocą {{button}}, a pstryknięciem {{button}} przesuwaj o 1 sekundę.",
     "Preparing… {{seconds}} s": "Przygotowywanie… {{seconds}} s",
     "Browser unavailable": "Brak przeglądarki",
     "This memory's file is missing.": "Brakuje pliku tego wspomnienia.",

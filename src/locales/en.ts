@@ -2564,6 +2564,7 @@ export const EN: LocaleTable = {
     "share_end_moved_order": "End pin moved: it has to come at least a second after the start.",
     "share_start_moved_order": "Start pin moved: it has to come at least a second before the end.",
     "Original quality": "Original quality",
+    "Select a max of 30 seconds to share. Fast forward and rewind with {{button}} and step in 1 second increments by flicking {{button}}.": "Select a max of 30 seconds to share. Fast forward and rewind with {{button}} and step in 1 second increments by flicking {{button}}.",
     "Preparing… {{seconds}} s": "Preparing… {{seconds}} s",
     "Browser unavailable": "Browser unavailable",
     "This memory's file is missing.": "This memory's file is missing.",

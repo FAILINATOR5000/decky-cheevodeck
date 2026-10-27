@@ -2425,6 +2425,7 @@ const JA: LocaleTable = {
     "share_end_moved_order": "終了点を移動しました：開始点より1秒以上後にする必要があります。",
     "share_start_moved_order": "開始点を移動しました：終了点より1秒以上前にする必要があります。",
     "Original quality": "元の画質",
+    "Select a max of 30 seconds to share. Fast forward and rewind with {{button}} and step in 1 second increments by flicking {{button}}.": "共有できるのは最大30秒です。{{button}}で早送り・巻き戻し、{{button}}を弾くと1秒ずつ移動します。",
     "Preparing… {{seconds}} s": "準備中… {{seconds}}秒",
     "Browser unavailable": "ブラウザが使えません",
     "This memory's file is missing.": "この思い出のファイルが見つかりません。",

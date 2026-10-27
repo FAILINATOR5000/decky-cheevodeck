@@ -15,6 +15,7 @@ import {
 import { BrowserViewHost } from "../browser/browserViewHost";
 import { startDiscordShare } from "../browser/discordShare";
 import { RankEmblem } from "../milestones/RankEmblem";
+import { ButtonPrompt, GlyphGroup } from "../ui/ButtonPrompt";
 import { FadeImage } from "../ui/FadeImage";
 import { FocusTarget } from "../ui/FocusTarget";
 import { InlineSpinner } from "../ui/InlineSpinner";
@@ -857,6 +858,18 @@ export function MemoryShareModal(props: MemoryShareModalProps) {
                                 </div>
                             </Focusable>
                         ) : null}
+                        <div style={{ fontSize: `${modalSize(12)}px`, lineHeight: 1.4, opacity: 0.75, marginBottom: "8px" }}>
+                            <ButtonPrompt
+                                language={language}
+                                textKey="Select a max of 30 seconds to share. Fast forward and rewind with {{button}} and step in 1 second increments by flicking {{button}}."
+                                fontSize={modalSize(12)}
+                                groups={[
+                                    <GlyphGroup key="triggers" buttons={["l2", "r2"]} fontSize={modalSize(12)} />,
+                                    <GlyphGroup key="stick" buttons={["rstick"]} fontSize={modalSize(12)} />
+                                ]}
+                                inline
+                            />
+                        </div>
                         <div style={{ ...titleStyle, marginBottom: "10px" }}>{title}</div>
                     </>
                 ) : (

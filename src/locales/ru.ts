@@ -2624,6 +2624,7 @@ const RU: LocaleTable = {
     "share_end_moved_order": "Метка конца перемещена: она должна быть хотя бы на секунду позже начала.",
     "share_start_moved_order": "Метка начала перемещена: она должна быть хотя бы на секунду раньше конца.",
     "Original quality": "Исходное качество",
+    "Select a max of 30 seconds to share. Fast forward and rewind with {{button}} and step in 1 second increments by flicking {{button}}.": "Выбери не более 30 секунд для публикации. Перематывай вперёд и назад с помощью {{button}}, а коротким движением {{button}} сдвигай на 1 секунду.",
     "Preparing… {{seconds}} s": "Подготовка… {{seconds}} с",
     "Browser unavailable": "Браузер недоступен",
     "This memory's file is missing.": "Файл этого момента отсутствует.",

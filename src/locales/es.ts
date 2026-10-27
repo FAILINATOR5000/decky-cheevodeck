@@ -2587,6 +2587,7 @@ const ES: LocaleTable = {
     "share_end_moved_order": "Marca de fin movida: tiene que quedar al menos un segundo después del inicio.",
     "share_start_moved_order": "Marca de inicio movida: tiene que quedar al menos un segundo antes del fin.",
     "Original quality": "Calidad original",
+    "Select a max of 30 seconds to share. Fast forward and rewind with {{button}} and step in 1 second increments by flicking {{button}}.": "Selecciona un máximo de 30 segundos para compartir. Avanza y retrocede rápido con {{button}} y muévete de segundo en segundo moviendo {{button}}.",
     "Preparing… {{seconds}} s": "Preparando… {{seconds}} s",
     "Browser unavailable": "Sin navegador",
     "This memory's file is missing.": "Falta el archivo de este recuerdo.",

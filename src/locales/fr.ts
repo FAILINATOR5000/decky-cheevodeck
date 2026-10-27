@@ -2576,6 +2576,7 @@ const FR: LocaleTable = {
     "share_end_moved_order": "Repère de fin déplacé : il doit se trouver au moins une seconde après le début.",
     "share_start_moved_order": "Repère de début déplacé : il doit se trouver au moins une seconde avant la fin.",
     "Original quality": "Qualité d'origine",
+    "Select a max of 30 seconds to share. Fast forward and rewind with {{button}} and step in 1 second increments by flicking {{button}}.": "Sélectionne 30 secondes maximum à partager. Avance et recule rapidement avec {{button}}, et avance seconde par seconde en donnant un coup sur {{button}}.",
     "Preparing… {{seconds}} s": "Préparation… {{seconds}} s",
     "Browser unavailable": "Navigateur absent",
     "This memory's file is missing.": "Le fichier de ce souvenir est introuvable.",
