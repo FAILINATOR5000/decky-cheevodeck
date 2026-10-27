@@ -66,8 +66,8 @@ const PIN_NOTICE_MS = 7000;
 const KEYFRAME_TOLERANCE_SECONDS = 0.1;
 const KEYFRAME_ROUNDING_SECONDS = 0.002;
 
-const SHARE_CLIP_CSS = `
-.cheevo-share-clip.DialogContent, .cheevo-share-clip {
+const SHARE_SHEET_CSS = `
+.cheevo-share-sheet.DialogContent, .cheevo-share-sheet {
     width: min(86vw, 1100px);
     max-width: min(86vw, 1100px);
 }
@@ -253,7 +253,7 @@ export function MemoryShareModal(props: MemoryShareModalProps) {
     }, [preparing]);
 
     useLayoutEffect(() => {
-        const height = videoRef.current?.ownerDocument?.defaultView?.innerHeight ?? 0;
+        const height = titleRef.current?.ownerDocument?.defaultView?.innerHeight ?? 0;
         setTallScreen(height >= TALL_SCREEN_PX);
     }, []);
 
@@ -656,7 +656,7 @@ export function MemoryShareModal(props: MemoryShareModalProps) {
     const videoMaxVh = tallScreen ? TALL_SCREEN_VIDEO_VH : getDeviceIsSteamMachine() ? 50 : 46;
 
     return (
-        <ModalRoot onCancel={leave} onEscKeypress={leave} className={clip ? "cheevo-share-clip" : undefined}>
+        <ModalRoot onCancel={leave} onEscKeypress={leave} className="cheevo-share-sheet">
             <Focusable
                 flow-children="column"
                 onButtonDown={clip
@@ -676,7 +676,7 @@ export function MemoryShareModal(props: MemoryShareModalProps) {
                     : undefined}
             >
                 <SnapshotHotkey language={language} reservedButtons={reservedButtons} />
-                {clip ? <style>{SHARE_CLIP_CSS + FADE_IN_KEYFRAMES}</style> : null}
+                <style>{clip ? SHARE_SHEET_CSS + FADE_IN_KEYFRAMES : SHARE_SHEET_CSS}</style>
                 <div ref={titleRef} style={{ fontSize: `${modalSize(18)}px`, fontWeight: 800, marginBottom: "12px" }}>
                     {t(language, "Share Memory")}
                 </div>
