@@ -9,6 +9,7 @@ A full RetroAchievements tracking and management system inside the Quick Access 
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Getting Started](#getting-started)
+- [Main Menu Tour](#main-menu-tour)
 - [Quick Start Tips](#quick-start-tips)
 - [Tutorials](#tutorials)
 - [Updating CheevoDeck](#updating-cheevodeck)
@@ -265,6 +266,50 @@ An example of Steam library badges in action.
     3. Enjoy!
 
 If nothing is loaded, make sure you are logged into your RA account in your emulator or front-end. Also, make sure your current game is supported on RetroAchievements and is a valid dump. If the game's hash differs from what RA has, it is not supported.
+
+## Main Menu Tour
+
+<a href="docs/images/main-menu-tour.webp"><img src="docs/images/main-menu-tour.webp" width="420"></a>
+
+Welcome to the **Main Menu** tour! Here, you will find a brief overview of the features and buttons:
+
+1. **Profile Button** — Brings you to your [profile page](docs/tutorials/profile.md), containing your various stats, game lists, activity, wall, and much more.
+
+2. **Quick Menu** — The central hub to find quick shortcuts to almost any page within CheevoDeck. See more about this by reading [The Quick Menu](#the-quick-menu) section under [Quick Start Tips](#quick-start-tips).
+
+3. **Notifications Bell** — Found on every page, if you select it, this brings you to your notifications feed. If you see an orange dot in the corner, it means you have a new notification.
+
+4. **Social Hub Button** — Depending on if you chose the [**Default View** or **Compact View**](#customize-your-experience) preset, this may or may not be here. Either way, it can also be accessed via the [**Quick Menu**](#the-quick-menu). The [Social Hub page](docs/tutorials.md#social-hub) contains all of the social stuff, such as your friends list, feeds, news, events, subscribed discussions, saved comments, new sets & revisions, and more.
+
+5. **Mastery Goals Button** — Shown in [**Default View**](#customize-your-experience) only. Otherwise, can be accessed via [**Quick Menu**](#the-quick-menu). The [Mastery Goals page](docs/tutorials/mastery-goals.md) will allow you to make unique and specific goals for completion or mastery, view the progress, as well as info for each game in your list. This goal could be anything. It could be "Zelda Games", "Xeno-Style Games", "My Childhood Games", "Cool JRPGs", or even "Barbie Games". The customizations and possibilities are endless. And the best part is, once you make a goal, progress is tracked for the set of games as a whole.
+
+6. **Currently Loaded Game** — This shows your currently loaded game, along with some basic information under it.
+
+7. **Game Overview Button** — Selecting this will open the [Game Info page](docs/tutorials/game-info.md), showing you extended information for this game, such as more pictures, links to videos, publisher, year, patch downloads, MD5 checksums, and more.
+
+8. **Tracked Page Button** — The [Tracked Page](docs/tutorials/tracked-achievements.md) is a special page where your tracked achievements end up when you track achievements for your current game on the main page with **X** (or whatever the equivalent is for your controller).
+
+9. **Notes Page Button** — This brings you to the [Notes page](docs/tutorials/notes.md) where you can make special notes, goals, and reminders for your current game.
+
+10. **Memories Page Button** — This brings you to the [Memories page](docs/tutorials/memories.md) where you can find your memories album for the current game. You can also view other games' memories here as well.
+
+11. **Guides Page Button** — The [Guides page](docs/tutorials/guides.md) allows you to view and read GameFAQs guides for your current game.
+
+12. **Unlock History Button** — This opens up the [Unlocks page](docs/tutorials/unlock-history.md) that shows your unlock history for the current game.
+
+13. **Leaderboards Button** — Opens up the [Leaderboards page](docs/tutorials/leaderboards-list.md), showing all of the latest leaderboards for the currently loaded game.
+
+14. **Achievements Tab** — This tab is the main tab you will be using most often. It shows the achievements list for the currently loaded game.
+
+15. **Comments Tab** — Selecting this tab shows comments for the current game below, where you can view, save, subscribe, and post comments.
+
+16. **Activity Tab** — Shows social activity below it, starting with the **Players Near You** (PNY) feature, which shows other players who are near your progress based on which PNY mode you choose for the current game.
+
+17. **Compare Tab** — Allows you to compare your stats for the current game against a friend's stats, just like the [Compare page](docs/tutorials/compare-achievements.md).
+
+18. **Sort Toggle** — Press **A** (or whatever equivalent is on your controller) to toggle between different sort modes for your achievements under the achievements tab.
+
+19. **Filter Toggle** — Press **A** (or whatever equivalent is on your controller) to toggle different filters for your achievements under the achievements tab, such as filtering only by **Missable**.
 
 ## Quick Start Tips
 
