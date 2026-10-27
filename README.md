@@ -396,8 +396,6 @@ Need help with a certain feature or page? Check out the [tutorials section](docs
 
 ## Updating CheevoDeck
 
-**Decky's install from URL is currently broken. The easiest solution is to use the desktop updater. See last paragraph below.**
-
 CheevoDeck makes updating an incredibly easy process. Whenever there is an update available, you will be notified of the update in your **Notifications** accessed via the bell on each page. To begin the update process, you can either select the update notification, which will bring you to the **About** page or you can access it directly from the **Main Menu** by selecting the **Quick Menu** > **About**.
 
 1. In the About page, you have two options: You can either copy the URL link for the update or download the update directly to any location you like. In this case, it's recommended and much easier to just copy the URL link.
