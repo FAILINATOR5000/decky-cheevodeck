@@ -44,7 +44,7 @@ export function useFocusController({
     const landingEntry = useLandingPendingEntry();
     const keysWhileLandingRef = useRef<Set<string>>(new Set());
 
-    const [achievementsInitialAutoFocusDone, setAchievementsInitialAutoFocusDone] = useState(false);
+    const [achievementsInitialAutoFocusDone, setAchievementsInitialAutoFocusDone] = useState(() => view === "achievements" && !pendingFocusKey);
     const [mainEntryToken, setMainEntryToken] = useState(0);
     const [mainEntryFromView, setMainEntryFromView] = useState<ViewKey | null>(null);
 
