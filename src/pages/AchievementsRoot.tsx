@@ -141,7 +141,7 @@ import {
 } from "../utils/savedComments";
 import { SavedCommentsFilterModal } from "../components/comments/SavedCommentsFilterModal";
 import { useTrackedSetsController } from "../hooks/useTrackedSetsController";
-import { useOptionsController } from "../hooks/useOptionsController";
+import { buildOptionsController } from "../hooks/useOptionsController";
 import { useResumeController } from "../hooks/useResumeController";
 import { useResumeSnapshot } from "../hooks/useResumeSnapshot";
 import { useSettingsController } from "../hooks/useSettingsController";
@@ -2138,12 +2138,12 @@ function AchievementsRoot() {
         refreshGameData: (force, preserveFocus, loadingMessage, creds) =>
             refreshGameData(force, preserveFocus, loadingMessage, creds),
         onApplySetupProfile: (profile, preserveOtherSettings) =>
-            optionsActions.onApplySetupProfile(profile, preserveOtherSettings),
-        onApplyScalePreset: (preset) => optionsActions.onApplyScalePreset(preset),
-        onApplyMainUiPreset: (preset) => optionsActions.onApplyMainUiPreset(preset),
-        onApplyMilestonesButton: (show) => optionsActions.onToggleShowMilestonesButton(show),
-        onApplyGlobalButtons: (enabled) => optionsActions.onToggleBackButtonsGlobal(enabled),
-        onSelectLanguage: (code) => optionsActions.onSelectLanguage(code),
+            optionsFor().actions.onApplySetupProfile(profile, preserveOtherSettings),
+        onApplyScalePreset: (preset) => optionsFor().actions.onApplyScalePreset(preset),
+        onApplyMainUiPreset: (preset) => optionsFor().actions.onApplyMainUiPreset(preset),
+        onApplyMilestonesButton: (show) => optionsFor().actions.onToggleShowMilestonesButton(show),
+        onApplyGlobalButtons: (enabled) => optionsFor().actions.onToggleBackButtonsGlobal(enabled),
+        onSelectLanguage: (code) => optionsFor().actions.onSelectLanguage(code),
         username,
         hasApiKey,
         users,
@@ -2215,7 +2215,7 @@ function AchievementsRoot() {
 
     const memoriesCount = memoriesState.games.reduce((total, row) => total + row.count, 0);
 
-    const optionsController = useOptionsController({
+    const optionsFor = () => buildOptionsController({
         ...settingsState,
         ...settingsActions,
         loading,
@@ -2314,8 +2314,6 @@ function AchievementsRoot() {
         onClearArchivedNotifications,
         onClearSavedComments
     });
-
-    const { state: optionsState, actions: optionsActions } = optionsController;
 
     const memoriesVideo = useMemoriesVideoController({
         isActive: view === "options",
@@ -4276,10 +4274,10 @@ function AchievementsRoot() {
                 onEditCredentials={openCredentialsModal}
                 onOpenLanguage={openLanguageModal}
                 onClearApiKey={onClearApiKey}
-                putUpdaterOnDesktop={optionsState.putUpdaterOnDesktop}
-                onTogglePutUpdaterOnDesktop={optionsActions.onTogglePutUpdaterOnDesktop}
-                libraryBadge={optionsState.libraryBadge}
-                onToggleLibraryBadge={optionsActions.onToggleLibraryBadge}
+                putUpdaterOnDesktop={settingsState.putUpdaterOnDesktop}
+                onTogglePutUpdaterOnDesktop={(nextValue) => optionsFor().actions.onTogglePutUpdaterOnDesktop(nextValue)}
+                libraryBadge={settingsState.libraryBadge}
+                onToggleLibraryBadge={(nextValue) => optionsFor().actions.onToggleLibraryBadge(nextValue)}
             />
         );
     }
@@ -4424,7 +4422,7 @@ function AchievementsRoot() {
         playersNearYouMode,
         onChangePlayersNearYouMode: handlePlayersNearYouModeChange,
         friendFeedCardAction,
-        onCycleFriendFeedCardAction: optionsActions.onCycleFriendFeedCardAction,
+        onCycleFriendFeedCardAction: () => optionsFor().actions.onCycleFriendFeedCardAction(),
         mouseKeyboardMode,
         controllerGlyphStyle,
         onPlayersNearYouSecondary: (item: PlayersNearYouItem) => handlePlayersNearYouClick(item, "game"),
@@ -4475,7 +4473,7 @@ function AchievementsRoot() {
             backFromUnlockHistory,
             backFromBadges,
             backFromAbout: aboutActions.onBack,
-            backFromOptions: optionsActions.onBack,
+            backFromOptions: () => optionsFor().actions.onBack(),
             backFromComparePicker,
             backFromGameNotes,
             backFromGameOverview,
@@ -4570,7 +4568,7 @@ function AchievementsRoot() {
             return;
         }
         if (action === "cycleUiScale") {
-            void optionsActions.onCycleScalePreset();
+            void optionsFor().actions.onCycleScalePreset();
             return;
         }
         if (action === "currentGuide") {
@@ -4695,6 +4693,8 @@ function AchievementsRoot() {
         }
     }
 
+    const optionsOnScreen = view === "options" ? optionsFor() : null;
+
     // Render
     return (
         <NotificationsProvider
@@ -4818,7 +4818,7 @@ function AchievementsRoot() {
                                         nightMode,
                                         batterySaver,
                                         mouseKeyboardMode,
-                                        backButtonsGlobal: optionsState.backButtonsGlobal,
+                                        backButtonsGlobal: settingsState.backButtonsGlobal,
                                         nowPlayingBody: nowPlayingBodyProps
                                     }}
                                     actions={{
@@ -4855,7 +4855,7 @@ function AchievementsRoot() {
                                         openStormbreaker: goToQamGuard,
                                         openMemories: goToMemories,
                                         openRaSite: () => { void openExternalUrl(raHomeUrl()); },
-                                        onApplyMainUiPreset: optionsActions.onApplyMainUiPreset,
+                                        onApplyMainUiPreset: (preset) => optionsFor().actions.onApplyMainUiPreset(preset),
                                         goToGameNotes,
                                         goToGuides,
                                         onOpenNotifications: openNotificationsModal,
@@ -4867,7 +4867,7 @@ function AchievementsRoot() {
                                         onToggleDoNotDisturb: toggleDoNotDisturb,
                                         onToggleBatterySaver: toggleBatterySaver,
                                         onToggleMouseKeyboardMode: toggleMouseKeyboardMode,
-                                        onToggleBackButtonsGlobal: optionsActions.onToggleBackButtonsGlobal,
+                                        onToggleBackButtonsGlobal: (nextValue) => optionsFor().actions.onToggleBackButtonsGlobal(nextValue),
                                         onOpenGameSearch: openGameSearch,
                                         onOpenMilestones: () => goToMilestones("push"),
                                         onSpendMainStripClaim: spendMainStripClaim,
@@ -4954,15 +4954,15 @@ function AchievementsRoot() {
                                     panelOverlayVisible={panelOverlayVisible}
                                 />
 
-                                {view === "options" && (
+                                {optionsOnScreen && (
                                     <OptionsPage
                                         state={{
-                                            ...optionsState,
+                                            ...optionsOnScreen.state,
                                             mouseKeyboardMode,
                                             memoriesVideoMove: memoriesVideo.status
                                         }}
                                         actions={{
-                                            ...optionsActions,
+                                            ...optionsOnScreen.actions,
                                             onHome: goToAchievements,
                                             onPickMemoriesVideoPath: memoriesVideo.pickLocation,
                                             onUseDefaultMemoriesVideoPath: memoriesVideo.useDefaultLocation
@@ -5047,12 +5047,12 @@ function AchievementsRoot() {
                                         view,
                                         language,
                                         buttonSpacing,
-                                        loading: optionsState.loading,
-                                        saving: optionsState.saving,
-                                        automaticRecovery: optionsState.automaticRecovery,
-                                        recoveryButtonCombo: optionsState.recoveryButtonCombo,
-                                        recoveryLogs: optionsState.recoveryLogs,
-                                        stormbreaker: optionsState.stormbreaker,
+                                        loading,
+                                        saving,
+                                        automaticRecovery: settingsState.automaticRecovery,
+                                        recoveryButtonCombo: settingsState.recoveryButtonCombo,
+                                        recoveryLogs: settingsState.recoveryLogs,
+                                        stormbreaker: settingsState.stormbreaker,
                                         dynamicInitialRows,
                                         dynamicRowStep,
                                         dynamicPrefetchDistance,
@@ -5061,11 +5061,11 @@ function AchievementsRoot() {
                                     actions={{
                                         onBack: backFromUtilityTool,
                                         onHome: goToAchievements,
-                                        onToggleAutomaticRecovery: optionsActions.onToggleAutomaticRecovery,
-                                        onToggleRecoveryButtonCombo: optionsActions.onToggleRecoveryButtonCombo,
-                                        onToggleRecoveryLogs: optionsActions.onToggleRecoveryLogs,
-                                        onToggleStormbreaker: optionsActions.onToggleStormbreaker,
-                                        onClearRecoveryLogs: optionsActions.onClearRecoveryLogs
+                                        onToggleAutomaticRecovery: (nextValue) => optionsFor().actions.onToggleAutomaticRecovery(nextValue),
+                                        onToggleRecoveryButtonCombo: (nextValue) => optionsFor().actions.onToggleRecoveryButtonCombo(nextValue),
+                                        onToggleRecoveryLogs: (nextValue) => optionsFor().actions.onToggleRecoveryLogs(nextValue),
+                                        onToggleStormbreaker: (nextValue) => optionsFor().actions.onToggleStormbreaker(nextValue),
+                                        onClearRecoveryLogs: () => optionsFor().actions.onClearRecoveryLogs()
                                     }}
                                 />
 
@@ -5136,7 +5136,7 @@ function AchievementsRoot() {
                                         onBack: backFromMemories,
                                         onHome: goToAchievements,
                                         onRequestFocus: setPendingFocusKey,
-                                        onEnableCapture: optionsActions.onToggleMemoriesAutoCapture,
+                                        onEnableCapture: (nextValue) => optionsFor().actions.onToggleMemoriesAutoCapture(nextValue),
                                         memories: memoriesActions
                                     }}
                                 />
@@ -5233,12 +5233,12 @@ function AchievementsRoot() {
                                         },
                                         onSortModeChange: async (next) => {
                                             if (next !== "manual" && gameNotesAButtonMode === "moveNote") {
-                                                void optionsActions.onSaveGameNotesAButtonMode("editNote");
+                                                void optionsFor().actions.onSaveGameNotesAButtonMode("editNote");
                                             }
                                             return gameNotesActions.onSortModeChange(next);
                                         },
                                         onAButtonModeChange: (next) =>
-                                            optionsActions.onSaveGameNotesAButtonMode(next),
+                                            optionsFor().actions.onSaveGameNotesAButtonMode(next),
                                         onReorderSwap: (pressedId, sectionIds, allowSwap) =>
                                             gameNotesActions.onReorderSwap(pressedId, sectionIds, allowSwap),
                                         onReorderToward: (landedNoteId, sectionIds) =>
@@ -5339,7 +5339,7 @@ function AchievementsRoot() {
                                         void handleActivityCardClick(event, "socialActivity", "profile");
                                     }}
                                     socialHubCardAction={socialHubCardAction}
-                                    onCycleSocialHubCardAction={optionsActions.onCycleSocialHubCardAction}
+                                    onCycleSocialHubCardAction={() => optionsFor().actions.onCycleSocialHubCardAction()}
                                     mouseKeyboardMode={mouseKeyboardMode}
                                     controllerGlyphStyle={controllerGlyphStyle}
                                     onOpenSubscription={(subscription) => handleOpenSubscription(subscription)}
@@ -5967,14 +5967,14 @@ function AchievementsRoot() {
                                         sort: milestonesSort,
                                         headerStyle: milestonesHeaderStyle,
                                         shortcutBindings,
-                                        globalButtonsOn: optionsState.backButtonsGlobal,
+                                        globalButtonsOn: settingsState.backButtonsGlobal,
                                         dynamicLoading: dynamicTrackedListLoading,
                                         dynamicInitialRows: dynamicTrackedListInitialRows,
                                         dynamicRowStep: dynamicTrackedListRowStep,
                                         dynamicPrefetchDistance: dynamicTrackedListPrefetchDistance,
                                         dynamicSentinelRootMargin: dynamicTrackedListSentinelRootMargin,
-                                        notifyEnabled: optionsState.notifyMilestoneEnabled,
-                                        notifyToast: optionsState.notifyMilestoneToast
+                                        notifyEnabled: settingsState.notifyMilestoneEnabled,
+                                        notifyToast: settingsState.notifyMilestoneToast
                                     }}
                                     actions={{
                                         onBack: backFromMilestones,
@@ -5984,8 +5984,8 @@ function AchievementsRoot() {
                                             setMilestonesSort(next);
                                             void saveMilestonesSort(next).catch((e) => logError("milestones: saving the sort", e));
                                         },
-                                        onToggleNotify: optionsActions.onToggleNotifyMilestoneEnabled,
-                                        onToggleToast: optionsActions.onToggleNotifyMilestoneToast
+                                        onToggleNotify: (nextValue) => optionsFor().actions.onToggleNotifyMilestoneEnabled(nextValue),
+                                        onToggleToast: (nextValue) => optionsFor().actions.onToggleNotifyMilestoneToast(nextValue)
                                     }}
                                 />
                                 {view === "activity" && activitySubject !== null && (

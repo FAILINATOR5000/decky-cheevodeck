@@ -819,7 +819,7 @@ type UseOptionsControllerArgs = {
     onClearSavedComments: () => void | Promise<void>;
 };
 
-export function useOptionsController({
+export function buildOptionsController({
     language,
     buttonSpacing,
     loading,
