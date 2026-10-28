@@ -948,11 +948,11 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
         if (next.start !== 0 || pendingShiftRef.current !== null || rebaseSeenRef.current !== next.rebase) {
             return false;
         }
-        if (firstSight) {
-            return true;
-        }
         const anchors = anchorsRef.current;
         const last = lastRangeRef.current;
+        if (firstSight || (last === null && anchors === null)) {
+            return true;
+        }
         return (anchors === null || anchors.start === 0) && last !== null && last.items === items
             && last.epoch === next.epoch && last.scope === scope && !next.estimateProvisional;
     }
