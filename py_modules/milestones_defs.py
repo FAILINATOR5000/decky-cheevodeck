@@ -50,7 +50,7 @@ BINDING_ACTIONS = frozenset((
 _MILESTONE_RULES = frozenset((
     "counter", "tabs", "state", "unlocks", "award", "combo", "active_days", "daily_done",
     "weekly_done", "finish_category", "completionist", "unlock_hour", "weekend", "all_kinds",
-    "games_one_day", "unlock_points",
+    "games_one_day", "unlock_points", "perfect_month",
 ))
 
 _QUEST_RULES = frozenset((

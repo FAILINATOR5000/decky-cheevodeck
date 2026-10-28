@@ -114,6 +114,7 @@
     {"id": "ded_active_100", "category": "dedication", "rule": {"type": "active_days"}, "target": 100, "xp": 250},
     {"id": "ded_active_365", "category": "dedication", "rule": {"type": "active_days"}, "target": 365, "xp": 500},
     {"id": "ded_weekend", "category": "dedication", "rule": {"type": "weekend"}, "target": 1, "xp": 100},
+    {"id": "ded_perfect_month", "category": "dedication", "rule": {"type": "perfect_month"}, "target": 1, "xp": 150},
     {"id": "ded_night_owl", "category": "dedication", "rule": {"type": "unlock_hour", "from": 0, "to": 4}, "target": 1, "xp": 100},
     {"id": "ded_finish_getting_started", "category": "dedication", "rule": {"type": "finish_category", "category": "getting_started"}, "target": 1, "xp": 100},
     {"id": "ded_finish_navigation", "category": "dedication", "rule": {"type": "finish_category", "category": "navigation"}, "target": 1, "xp": 100},

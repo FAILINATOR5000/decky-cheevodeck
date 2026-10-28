@@ -347,6 +347,15 @@ def milestone_progress(milestone, data, facts, claimed, available_ids):
             if parsed is not None and parsed.weekday() == 5 and add_days(day, 1) in days:
                 return 1
         return 0
+    if kind == "perfect_month":
+        days = (facts.get("ra") or {}).get("activeDays") or set()
+        for month in {day[:7] for day in days}:
+            cursor = month + "-01"
+            while cursor is not None and cursor[:7] == month and cursor in days:
+                cursor = add_days(cursor, 1)
+            if cursor is not None and cursor[:7] != month:
+                return 1
+        return 0
     return 0
 
 

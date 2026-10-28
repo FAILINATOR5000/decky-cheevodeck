@@ -2799,6 +2799,8 @@ const ES: LocaleTable = {
     "ms_ded_active_365_how": "Desbloquea al menos un logro en 365 días distintos. No tienen que ser seguidos. Tu página de <b>Actividad</b> los muestra todos.",
     "ms_ded_weekend_name": "Guerrero de fin de semana",
     "ms_ded_weekend_how": "Desbloquea logros un sábado y el domingo justo después.",
+    "ms_ded_perfect_month_name": "Loco por los cheevos",
+    "ms_ded_perfect_month_how": "Desbloquea un logro todos y cada uno de los días de un mes natural, del 1 al último, y contempla tu dedicación en tu página de <b>Actividad</b>.",
     "ms_ded_night_owl_name": "Ave nocturna",
     "ms_ded_night_owl_how": "Desbloquea un logro entre la medianoche y las 4 de la mañana.",
     "ms_ded_finish_getting_started_name": "Completar Primeros pasos",

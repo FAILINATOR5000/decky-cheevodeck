@@ -2776,6 +2776,8 @@ export const EN: LocaleTable = {
     "ms_ded_active_365_how": "Unlock at least one achievement on 365 different days. They don't have to be in a row. Your <b>Activity</b> page shows each one.",
     "ms_ded_weekend_name": "Weekend Warrior",
     "ms_ded_weekend_how": "Unlock achievements on a Saturday and on the Sunday right after it.",
+    "ms_ded_perfect_month_name": "Cheevo Maniac",
+    "ms_ded_perfect_month_how": "Unlock an achievement on every single day of a calendar month, from the 1st to the last, and witness your dedication on your <b>Activity</b> page.",
     "ms_ded_night_owl_name": "Night Owl",
     "ms_ded_night_owl_how": "Unlock an achievement between midnight and 4 AM.",
     "ms_ded_finish_getting_started_name": "Finish Getting Started",

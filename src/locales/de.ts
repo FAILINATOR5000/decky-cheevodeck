@@ -2758,6 +2758,8 @@ const DE: LocaleTable = {
     "ms_ded_active_365_how": "Schalte an 365 verschiedenen Tagen jeweils mindestens einen Erfolg frei. Sie müssen nicht aufeinanderfolgen. Deine Seite <b>Aktivität</b> zeigt jeden davon.",
     "ms_ded_weekend_name": "Wochenendkrieger",
     "ms_ded_weekend_how": "Schalte an einem Samstag und am Sonntag direkt danach Erfolge frei.",
+    "ms_ded_perfect_month_name": "Cheevo-Maniac",
+    "ms_ded_perfect_month_how": "Schalte an jedem einzelnen Tag eines Kalendermonats einen Erfolg frei, vom Ersten bis zum Letzten, und bestaune deine Hingabe auf deiner Seite <b>Aktivität</b>.",
     "ms_ded_night_owl_name": "Nachteule",
     "ms_ded_night_owl_how": "Schalte zwischen Mitternacht und 4 Uhr morgens einen Erfolg frei.",
     "ms_ded_finish_getting_started_name": "Erste Schritte abschließen",

@@ -2637,6 +2637,8 @@ const JA: LocaleTable = {
     "ms_ded_active_365_how": "別々の365日に、それぞれ1つ以上の実績を解除します。連続でなくてもかまいません。<b>活動</b>ページで1日ずつ確認できます。",
     "ms_ded_weekend_name": "週末の戦士",
     "ms_ded_weekend_how": "土曜日と、そのすぐ後の日曜日に実績を解除しよう。",
+    "ms_ded_perfect_month_name": "実績マニア",
+    "ms_ded_perfect_month_how": "暦の上のひと月、1日から末日まで毎日欠かさず実績を解除しよう。その成果は<b>活動</b>ページで確かめられます。",
     "ms_ded_night_owl_name": "夜ふかし",
     "ms_ded_night_owl_how": "深夜0時から午前4時までの間に実績を解除しよう。",
     "ms_ded_finish_getting_started_name": "「はじめに」制覇",

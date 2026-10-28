@@ -11,7 +11,7 @@ import { achievementGreen, achievementUiMetrics, skyBlue, smallTextStyle } from 
 
 const TICK_MARK = <span style={{ color: achievementGreen, fontSize: "20px", fontWeight: 800 }}>{"✔"}</span>;
 
-const RA_COUNTED = new Set(["unlocks", "award", "active_days", "combo", "unlock_hour", "weekend", "games_one_day", "unlock_points"]);
+const RA_COUNTED = new Set(["unlocks", "award", "active_days", "combo", "unlock_hour", "weekend", "games_one_day", "unlock_points", "perfect_month"]);
 
 export type MilestoneCardList = {
     metrics: ReturnType<typeof achievementUiMetrics>;

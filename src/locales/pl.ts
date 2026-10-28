@@ -2872,6 +2872,8 @@ const PL: LocaleTable = {
     "ms_ded_active_365_how": "Odblokuj co najmniej jedno osiągnięcie w 365 różnych dniach. Nie muszą wypadać pod rząd. Każdy z nich widać na stronie <b>Aktywność</b>.",
     "ms_ded_weekend_name": "Weekendowy wojownik",
     "ms_ded_weekend_how": "Odblokuj osiągnięcia w sobotę i w niedzielę zaraz po niej.",
+    "ms_ded_perfect_month_name": "Cheevomaniak",
+    "ms_ded_perfect_month_how": "Odblokuj osiągnięcie każdego dnia miesiąca kalendarzowego, od pierwszego do ostatniego, i podziwiaj swoje zaangażowanie na stronie <b>Aktywność</b>.",
     "ms_ded_night_owl_name": "Nocny marek",
     "ms_ded_night_owl_how": "Odblokuj osiągnięcie między północą a 4 rano.",
     "ms_ded_finish_getting_started_name": "Komplet: Pierwsze kroki",

@@ -2807,7 +2807,8 @@ type MilestoneRuleType =
     | "weekend"
     | "all_kinds"
     | "games_one_day"
-    | "unlock_points";
+    | "unlock_points"
+    | "perfect_month";
 
 export type MilestoneCategoryIcon = "flag" | "dpad" | "padlock" | "pushpin" | "people" | "megaphone" | "camera" | "compass" | "globe" | "flame" | "egg";
 

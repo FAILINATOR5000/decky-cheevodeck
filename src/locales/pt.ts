@@ -2852,6 +2852,8 @@ const PT: LocaleTable = {
     "ms_ded_active_365_how": "Desbloqueie pelo menos uma conquista em 365 dias diferentes. Não precisam ser seguidos. A sua página <b>Atividade</b> mostra cada um deles.",
     "ms_ded_weekend_name": "Guerreiro de fim de semana",
     "ms_ded_weekend_how": "Desbloqueie conquistas em um sábado e no domingo logo depois.",
+    "ms_ded_perfect_month_name": "Maníaco por cheevos",
+    "ms_ded_perfect_month_how": "Desbloqueie uma conquista em todos os dias de um mês do calendário, do dia 1 ao último, e veja a sua dedicação na sua página <b>Atividade</b>.",
     "ms_ded_night_owl_name": "Coruja da madrugada",
     "ms_ded_night_owl_how": "Desbloqueie uma conquista entre a meia-noite e as 4 da manhã.",
     "ms_ded_finish_getting_started_name": "Concluir Primeiros passos",

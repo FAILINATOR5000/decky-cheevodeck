@@ -2865,6 +2865,8 @@ const FR: LocaleTable = {
     "ms_ded_active_365_how": "Débloque au moins un succès sur 365 jours différents. Pas besoin qu'ils se suivent. Ta page <b>Activité</b> les affiche tous.",
     "ms_ded_weekend_name": "Guerrier du week-end",
     "ms_ded_weekend_how": "Débloque des succès un samedi et le dimanche juste après.",
+    "ms_ded_perfect_month_name": "Accro aux cheevos",
+    "ms_ded_perfect_month_how": "Débloque un succès chaque jour d'un mois civil, du 1er au dernier, et admire ton assiduité sur ta page <b>Activité</b>.",
     "ms_ded_night_owl_name": "Oiseau de nuit",
     "ms_ded_night_owl_how": "Débloque un succès entre minuit et 4 h du matin.",
     "ms_ded_finish_getting_started_name": "Terminer Premiers pas",
