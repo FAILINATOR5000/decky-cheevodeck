@@ -40,6 +40,7 @@ import { parseNoteTag } from "../utils/achievements";
 import { orderedTagsByRecency } from "../utils/tags";
 import { overrideRecord } from "../focusRecords";
 import { onDataImported } from "../utils/dataTransferImported";
+import { clearedList } from "../utils/cleared";
 
 type UseGameNotesControllerArgs = {
     payload: Payload | null;
@@ -99,9 +100,9 @@ export function useGameNotesController({
     useEffect(() => {
         const gameId = targetGameId;
         if (!gameId) {
-            setNotes([]);
+            setNotes(clearedList);
             setSortMode("newest");
-            setCollapsedTags([]);
+            setCollapsedTags(clearedList);
             setLoadedForGameId(null);
             setReorderTargetId(null);
             return;

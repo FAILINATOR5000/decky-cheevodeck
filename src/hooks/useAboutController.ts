@@ -27,6 +27,13 @@ export type AboutUpdateNotice =
 
 const DEFAULT_SAVE_DIR = "/home/deck/Downloads";
 
+let pluginVersion: string | null = null;
+let lastUpdateStatus: UpdateStatusResponse | null = null;
+
+function sameUpdateStatus(a: UpdateStatusResponse | null, b: UpdateStatusResponse) {
+    return a !== null && (Object.keys(b) as (keyof UpdateStatusResponse)[]).every((key) => a[key] === b[key]);
+}
+
 type UseAboutControllerArgs = {
     language: LanguageCode;
     buttonSpacing: ButtonSpacing;
@@ -38,9 +45,9 @@ export function useAboutController({
     buttonSpacing,
     onBack
 }: UseAboutControllerArgs) {
-    const [version, setVersion] = useState("");
+    const [version, setVersion] = useState(pluginVersion ?? "");
 
-    const [updateStatus, setUpdateStatus] = useState<UpdateStatusResponse | null>(null);
+    const [updateStatus, setUpdateStatus] = useState<UpdateStatusResponse | null>(lastUpdateStatus);
     const [checkingForUpdate, setCheckingForUpdate] = useState(false);
     const [updateNotice, setUpdateNotice] = useState<AboutUpdateNotice>("");
 
@@ -58,20 +65,28 @@ export function useAboutController({
     useEffect(() => {
         let cancelled = false;
 
-        getPluginVersion()
-            .then((res) => {
-                if (cancelled) {
-                    return;
-                }
-                setVersion(String(res?.version || "").trim());
-            })
-            .catch((err) => {
-                logError("get plugin version", err);
-            });
+        if (pluginVersion === null) {
+            getPluginVersion()
+                .then((res) => {
+                    pluginVersion = String(res?.version || "").trim();
+                    if (cancelled) {
+                        return;
+                    }
+                    setVersion(pluginVersion);
+                })
+                .catch((err) => {
+                    logError("get plugin version", err);
+                });
+        }
 
         getUpdateStatus()
             .then((res) => {
-                if (cancelled || !res) {
+                if (!res) {
+                    return;
+                }
+                const same = sameUpdateStatus(lastUpdateStatus, res);
+                lastUpdateStatus = res;
+                if (cancelled || same) {
                     return;
                 }
                 setUpdateStatus(res);
@@ -104,6 +119,7 @@ export function useAboutController({
                     return;
                 }
                 const previous = updateStatus?.latestVersion ?? "";
+                lastUpdateStatus = res;
                 setUpdateStatus(res);
                 if (res.error) {
                     setUpdateNotice("unreachable");

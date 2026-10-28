@@ -10,9 +10,10 @@ import {
 import { distinctSavedGames, savedCommentMatchKey } from "../utils/savedComments";
 import { logError } from "../utils/errors";
 import type { SaveCommentPayload, SaveCommentResponse, SavedComment } from "../types";
+import { clearedList } from "../utils/cleared";
 
 type SavedCommentsArgs = {
-    activeUlid: string;
+    activeUlid: string | null;
     listActive: boolean;
 };
 
@@ -37,6 +38,9 @@ export function useSavedCommentsController(args: SavedCommentsArgs) {
     }, []);
 
     useEffect(() => {
+        if (activeUlid === null) {
+            return;
+        }
         void refreshSavedKeys();
     }, [activeUlid, refreshSavedKeys]);
 
@@ -46,7 +50,10 @@ export function useSavedCommentsController(args: SavedCommentsArgs) {
     const [savedCommentsError, setSavedCommentsError] = useState<string | null>(null);
 
     useEffect(() => {
-        setSavedComments([]);
+        if (activeUlid === null) {
+            return;
+        }
+        setSavedComments(clearedList);
         setSavedCommentsLoaded(false);
     }, [activeUlid]);
 

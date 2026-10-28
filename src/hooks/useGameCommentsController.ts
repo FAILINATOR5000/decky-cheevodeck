@@ -5,6 +5,7 @@ import type { RestoredCommentsWindow } from "./useCommentsWindow";
 import { clearCommentsSnapshot, takeCommentsPostReturn, takeCommentsSnapshot } from "../utils/commentsSnapshot";
 import { commentIdentity } from "../utils/commentIdentity";
 import type { AotwComment, CommentSurfaceKey, GameComment } from "../types";
+import { clearedList } from "../utils/cleared";
 
 export type CommentsSort = "newest" | "oldest";
 
@@ -96,7 +97,7 @@ export function useGameCommentsController<TId extends number | string = number>(
     }
 
     function resetCommentsSlice() {
-        setComments([]);
+        setComments(clearedList);
         setCommentsTotal(null);
         setCommentsHasMore(true);
         setCommentsError(null);

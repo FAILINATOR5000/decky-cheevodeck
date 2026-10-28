@@ -847,7 +847,7 @@ function AchievementsRoot() {
     const savedCommentsSort = savedCommentsPrefs.sort;
     const savedCommentsListActive = view === "social" && communitySubTab === "savedComments";
     const savedCommentsController = useSavedCommentsController({
-        activeUlid,
+        activeUlid: settingsLoaded ? activeUlid : null,
         listActive: savedCommentsListActive
     });
     const rawSavedFilter = savedCommentsPrefs.filter;
@@ -2215,7 +2215,7 @@ function AchievementsRoot() {
         payloadConsoleName: payload?.consoleName ?? "",
         payloadImageIcon: payload?.imageIcon ?? "",
         perPage: memoriesPerPage,
-        activeUlid
+        activeUlid: settingsLoaded ? activeUlid : null
     });
 
     const memoriesCount = memoriesState.games.reduce((total, row) => total + row.count, 0);
@@ -2796,6 +2796,9 @@ function AchievementsRoot() {
     });
 
     useEffect(() => {
+        if (!settingsLoaded) {
+            return;
+        }
         const panel = quickAccessWindow()?.document;
         if (!panel) {
             return;
@@ -2814,7 +2817,7 @@ function AchievementsRoot() {
         return () => {
             panel.removeEventListener("visibilitychange", onVisibilityChange);
         };
-    }, []);
+    }, [settingsLoaded]);
 
     async function loadSettingsAndCache() {
         setError(null);

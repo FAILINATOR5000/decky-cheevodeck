@@ -47,6 +47,7 @@ import { noteSaveErrorKey } from "../utils/noteSaveErrors";
 import { overrideRecord } from "../focusRecords";
 import { onDataImported } from "../utils/dataTransferImported";
 import { useFocusClaim } from "./useFocusClaim";
+import { clearedList, clearedRecord } from "../utils/cleared";
 
 type TrackedWriteResult = {
     achievementIds: number[];
@@ -165,12 +166,12 @@ export function useTrackedController({
     useEffect(() => {
         const gameId = payload?.gameId ?? null;
         if (!gameId) {
-            setTrackedIds([]);
+            setTrackedIds(clearedList);
             setTrackedIdsLoadedForGameId(null);
             setLastKnownTrackedCount(null);
-            setNotesByAchievementId({});
-            setNotesColorByAchievementId({});
-            setCollapsedTags([]);
+            setNotesByAchievementId(clearedRecord);
+            setNotesColorByAchievementId(clearedRecord);
+            setCollapsedTags(clearedList);
             return;
         }
 

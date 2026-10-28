@@ -30,6 +30,7 @@ import type {
     MemoryTagRow,
     MemoryTagSort
 } from "../types";
+import { clearedList, clearedRecord, clearedSet } from "../utils/cleared";
 
 export type UseMemoriesControllerOptions = {
     isActive: boolean;
@@ -38,7 +39,7 @@ export type UseMemoriesControllerOptions = {
     payloadGameTitle: string;
     payloadConsoleName: string;
     payloadImageIcon: string;
-    activeUlid: string;
+    activeUlid: string | null;
 };
 
 export function useMemoriesController(options: UseMemoriesControllerOptions) {
@@ -81,17 +82,20 @@ export function useMemoriesController(options: UseMemoriesControllerOptions) {
     const thumbRunIdRef = useRef(0);
 
     useEffect(() => {
+        if (activeUlid === null) {
+            return;
+        }
         accountRef.current = activeUlid;
         seededForRef.current = null;
         thumbsRef.current = {};
         setReady(false);
-        setGames([]);
+        setGames(clearedList);
         setIndexLoaded(false);
-        setMemories([]);
+        setMemories(clearedList);
         setTruncated(0);
         setLoadedForGameId(null);
-        setThumbs({});
-        setColdPaths(new Set());
+        setThumbs(clearedRecord);
+        setColdPaths(clearedSet);
         setFocusedMemoryId(null);
         setArmedDeleteId(null);
         setPageIndex(0);

@@ -52,6 +52,7 @@ import {
 } from "../locales";
 import { useLatestRef } from "./useLatestRef";
 import { recordMilestoneEvent } from "../utils/milestoneEvents";
+import { clearedSet } from "../utils/cleared";
 
 
 type UseFriendsControllerArgs = {
@@ -1112,7 +1113,7 @@ export function useFriendsController({
         friendRowsRefreshedThisEntryRef.current = new Set();
         lastDetectedFriendSelectionKeyRef.current = null;
         friendRowRefreshQueueRef.current = [];
-        setLiveRefreshingFriendUsernames(new Set());
+        setLiveRefreshingFriendUsernames(clearedSet);
     };
 
     const suppressFriendFocusDetectionForTabSwitch = useCallback(() => {

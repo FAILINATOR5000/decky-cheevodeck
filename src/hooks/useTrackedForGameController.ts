@@ -49,6 +49,7 @@ import { noteSaveErrorKey } from "../utils/noteSaveErrors";
 import { overrideRecord } from "../focusRecords";
 import { onDataImported } from "../utils/dataTransferImported";
 import { useFocusClaim } from "./useFocusClaim";
+import { clearedList, clearedRecord } from "../utils/cleared";
 
 type UseTrackedForGameControllerArgs = {
     selectedGameId: number | null;
@@ -176,12 +177,12 @@ export function useTrackedForGameController({
             setPayload(null);
             setPayloadLoading(false);
             setPayloadError(null);
-            setTrackedIds([]);
+            setTrackedIds(clearedList);
             setTrackedIdsLoadedForGameId(null);
-            setNotesByAchievementId({});
-            setNotesColorByAchievementId({});
+            setNotesByAchievementId(clearedRecord);
+            setNotesColorByAchievementId(clearedRecord);
             setSort(trackedAchievementSort);
-            setCollapsedTags([]);
+            setCollapsedTags(clearedList);
             return;
         }
 
