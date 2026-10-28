@@ -10,6 +10,7 @@ import { localizeRuntimeText, t } from "../locales";
 import type { LanguageCode } from "../locales";
 import { useRef } from "react";
 import { usePageLanding, type LandingWindows } from "../focusRecords";
+import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 
 type LeaderboardsPageProps = {
     state: {
@@ -45,6 +46,7 @@ function LeaderboardsPage({ state, actions }: LeaderboardsPageProps) {
     const answered = state.leaderboardsPayload !== null || state.leaderboardsError !== null;
     usePageLanding({
         view: "leaderboards",
+        active: state.view === "leaderboards",
         subject: state.leaderboardsPayload?.gameId,
         subjectSettled: answered,
         defaultKey: "leaderboards:back",
@@ -110,4 +112,4 @@ function LeaderboardsPage({ state, actions }: LeaderboardsPageProps) {
     );
 }
 
-export default LeaderboardsPage;
+export default skipWhileHidden(LeaderboardsPage, (props) => props.state.view === "leaderboards");

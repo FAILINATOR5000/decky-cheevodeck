@@ -24,6 +24,7 @@ import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
 import { textSize } from "../utils/scale";
 import { localizeRuntimeText, t, type LanguageCode } from "../locales";
 import { usePageLanding } from "../focusRecords";
+import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 
 
 const NO_ROWS: WantToPlayRow[] = [];
@@ -91,6 +92,7 @@ function WantToPlayPage(props: WantToPlayPageProps) {
 
     usePageLanding({
         view: "wantToPlay",
+        active: props.view === "wantToPlay",
         subject: props.selectedFriend?.ulid || props.selectedFriend?.username,
         subjectSettled: props.selectedFriend !== null,
         defaultKey: "wanttoplay:back",
@@ -372,4 +374,4 @@ const WantToPlayRowView = React.memo(function WantToPlayRowView(props: WantToPla
     );
 });
 
-export default WantToPlayPage;
+export default skipWhileHidden(WantToPlayPage, (props) => props.view === "wantToPlay");

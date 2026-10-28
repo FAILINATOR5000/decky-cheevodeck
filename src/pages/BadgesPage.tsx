@@ -32,6 +32,7 @@ import {
     type LanguageCode
 } from "../locales";
 import { usePageLanding } from "../focusRecords";
+import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 
 function awardTypeLabel(award: UserAwardRow, language: LanguageCode) {
     const type = String(award.awardType || "").trim();
@@ -297,6 +298,7 @@ function BadgesPage(props: BadgesPageProps) {
 
     usePageLanding({
         view: "badges",
+        active: props.view === "badges",
         subject: props.selectedFriend?.ulid || props.selectedFriend?.username,
         subjectSettled: props.selectedFriend !== null,
         tabPath: [activeFilter],
@@ -791,4 +793,4 @@ const BadgesRow = React.memo(function BadgesRow(props: BadgesRowProps) {
     );
 });
 
-export default BadgesPage;
+export default skipWhileHidden(BadgesPage, (props) => props.view === "badges");

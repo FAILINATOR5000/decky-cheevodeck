@@ -27,6 +27,7 @@ import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
 import { textSize } from "../utils/scale";
 import { bodyTextStyle, regularButtonSpacingStyle } from "../utils/style";
 import { subLandingAhead, usePageLanding, type LandingWindows } from "../focusRecords";
+import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 
 type GuidesPageState = {
     view: ViewKey;
@@ -81,7 +82,7 @@ function nextGuideType(current: string, availableTypes: string[]): string {
     return order[(index < 0 ? 0 : index + 1) % order.length];
 }
 
-export function GuidesPage(props: GuidesPageProps) {
+function GuidesPageView(props: GuidesPageProps) {
     const { state, actions } = props;
     const g = state.guides;
     const ga = actions.guides;
@@ -163,6 +164,7 @@ export function GuidesPage(props: GuidesPageProps) {
     const subDepth = g.subView === "list" ? 0 : 1;
     usePageLanding({
         view: "guides",
+        active: state.view === "guides",
         subject: g.subView === "reader" ? `${state.gameId ?? ""}/${g.openFaqId ?? ""}` : state.gameId,
         subjectSettled: state.gameId !== null,
         sub: g.subView === "list" ? [] : [{ kind: g.subView, subject: g.subView === "reader" ? g.openFaqId : null }],
@@ -712,3 +714,5 @@ function GuidesSearchBox(props: {
         </>
     );
 }
+
+export const GuidesPage = skipWhileHidden(GuidesPageView, (props) => props.state.view === "guides");

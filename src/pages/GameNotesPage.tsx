@@ -37,6 +37,7 @@ import { achievementUiMetrics, smallTextStyle, bodyTextStyle } from "../utils/st
 import { BUTTON_OPTIONS } from "../utils/gamepadButtons";
 import { playOkSound } from "../utils/navSound";
 import { usePageLanding } from "../focusRecords";
+import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 
 type GameNotesPageState = {
     view: ViewKey;
@@ -201,7 +202,7 @@ function largestReorderableSection(sections: NoteSection[]): number {
     return largest;
 }
 
-export function GameNotesPage(props: GameNotesPageProps) {
+function GameNotesPageView(props: GameNotesPageProps) {
     const { state, actions } = props;
     const {
         language,
@@ -280,6 +281,7 @@ export function GameNotesPage(props: GameNotesPageProps) {
     }, [sections]);
     usePageLanding({
         view: "gameNotes",
+        active: state.view === "gameNotes",
         subject: gameId,
         subjectSettled: gameId !== null || !panelOverlayVisible,
         defaultKey: "gn:back",
@@ -739,3 +741,4 @@ export function GameNotesPage(props: GameNotesPageProps) {
     return page;
 }
 
+export const GameNotesPage = skipWhileHidden(GameNotesPageView, (props) => props.state.view === "gameNotes");

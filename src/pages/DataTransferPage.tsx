@@ -35,6 +35,7 @@ import { textSize } from "../utils/scale";
 import { bodyTextStyle, errorRed, regularButtonSpacingStyle } from "../utils/style";
 import { pendingLandingKey, subLandingAhead, usePageLanding } from "../focusRecords";
 import { expectHeirClaim } from "../focusClaims";
+import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
@@ -197,6 +198,7 @@ function DataTransferPage(props: DataTransferPageProps) {
 
     usePageLanding({
         view: "dataTransfer",
+        active: state.view === "dataTransfer",
         defaultKey: "dataTransfer:back",
         ready: loaded,
         holds: (key) => nearbyRows.some((row) => nearbyKey(row) === key),
@@ -574,4 +576,4 @@ function DataTransferPage(props: DataTransferPageProps) {
     );
 }
 
-export default DataTransferPage;
+export default skipWhileHidden(DataTransferPage, (props) => props.state.view === "dataTransfer");

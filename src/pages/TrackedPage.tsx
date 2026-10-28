@@ -51,6 +51,7 @@ import {
 } from "../utils/achievements";
 import { regularButtonSpacingStyle, smallTextStyle, bodyTextStyle } from "../utils/style";
 import { pendingLandingKey, useLandingPendingEntry, usePageLanding, type LandingWindows } from "../focusRecords";
+import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 
 // Font Awesome Free icon path, CC BY 4.0. See ATTRIBUTIONS.md.
 type TabIconProps = { size?: number };
@@ -268,51 +269,6 @@ function TrackedPage(props: TrackedPageProps) {
         onHome,
     } = props;
 
-    useEffect(() => {
-        if (trackedAchievementAction !== "reorder") {
-            return;
-        }
-
-        let reorderFitsActiveContext = false;
-        if (activeTrackedTab === "thisGame") {
-            const ready = payload?.gameId != null && trackedIdsLoadedForGameId === payload.gameId;
-            if (!ready) {
-                return;
-            }
-            reorderFitsActiveContext = trackedAchievementSort === "manual" && trackedIds.length >= 2;
-        }
-        else if (activeTrackedTab === "otherGames") {
-            if (trackedSelectedGameId === null) {
-                reorderFitsActiveContext = false;
-            }
-            else if (!drillIn.trackedReady) {
-                return;
-            }
-            else {
-                reorderFitsActiveContext = drillIn.sort === "manual" && drillIn.trackedIds.length >= 2;
-            }
-        }
-        else {
-            reorderFitsActiveContext = false;
-        }
-
-        if (!reorderFitsActiveContext) {
-            void onTrackedAchievementActionChange("editNote");
-        }
-    }, [
-        trackedAchievementAction,
-        activeTrackedTab,
-        trackedSelectedGameId,
-        payload?.gameId,
-        trackedIdsLoadedForGameId,
-        trackedAchievementSort,
-        trackedIds.length,
-        drillIn.trackedReady,
-        drillIn.sort,
-        drillIn.trackedIds.length,
-        onTrackedAchievementActionChange
-    ]);
-
     const [focusedTab, setFocusedTab] = useState<TrackedTab | null>(null);
     const [hoveredTab, setHoveredTab] = useState<TrackedTab | null>(null);
 
@@ -358,6 +314,7 @@ function TrackedPage(props: TrackedPageProps) {
     const thisGameReady = payload ? trackedIdsLoadedForGameId === (payload.gameId ?? null) : false;
     usePageLanding({
         view: "tracked",
+        active: view === "tracked",
         subject: drilled ? `drill:${trackedSelectedGameId}` : payload?.gameId,
         subjectSettled: drilled || payload !== null || !panelOverlayVisible,
         tabPath: [activeTrackedTab],
@@ -1081,4 +1038,4 @@ function OtherGamesTabBody(props: OtherGamesTabBodyProps) {
     );
 }
 
-export default TrackedPage;
+export default skipWhileHidden(TrackedPage, (props) => props.view === "tracked");

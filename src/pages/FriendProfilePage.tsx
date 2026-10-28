@@ -61,6 +61,7 @@ import { localizeRuntimeText, t } from "../locales";
 import { formatRatio, formatInteger, formatMemberSince } from "../utils/format";
 import { loadCachedImage } from "../utils/loadCachedImage";
 import { pendingLandingKey, usePageLanding } from "../focusRecords";
+import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 
 
 type FriendQuickActionId = "history" | "leaderboards" | "compare";
@@ -377,6 +378,7 @@ function FriendProfilePage(props: FriendProfilePageProps) {
         && !wallRestoreClaim?.armed;
     usePageLanding({
         view: "friendGame",
+        active: view === "friendGame",
         subject: `${friendGamePayload?.ulid || selectedFriend?.ulid || selectedFriend?.username || ""}:${friendGamePayload?.selectedGameId ?? ""}`,
         subjectSettled: profileSettled,
         tabPath: [subView],
@@ -1372,4 +1374,4 @@ function FriendProfilePage(props: FriendProfilePageProps) {
     );
 }
 
-export default FriendProfilePage;
+export default skipWhileHidden(FriendProfilePage, (props) => props.state.view === "friendGame");

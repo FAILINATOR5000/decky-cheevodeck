@@ -36,6 +36,7 @@ import { showManagedModal } from "../utils/modalRegistry";
 import { BUTTON_OK } from "../utils/gamepadButtons";
 import { playOkSound } from "../utils/navSound";
 import { achievementUiMetrics, bodyTextStyle, smallTextStyle } from "../utils/style";
+import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 
 const TABS: { value: MilestonesTab; labelKey: string; focusKey: string }[] = [
     { value: "milestones", labelKey: "Milestones", focusKey: "milestones:tab:milestones" },
@@ -192,6 +193,7 @@ function MilestonesPage(props: { state: MilestonesPageState; actions: Milestones
     const pageReady = data !== null || loadError !== null;
     usePageLanding({
         view: "milestones",
+        active,
         subject: null,
         tabPath: [tab],
         restoreTabPath: (tabs) => {
@@ -459,4 +461,4 @@ function MilestonesPage(props: { state: MilestonesPageState; actions: Milestones
     );
 }
 
-export default MilestonesPage;
+export default skipWhileHidden(MilestonesPage, (props) => props.state.view === "milestones");

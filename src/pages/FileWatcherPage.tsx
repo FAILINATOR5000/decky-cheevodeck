@@ -50,6 +50,7 @@ import { bodyTextStyle, errorRed, regularButtonSpacingStyle, warnAmber } from ".
 import { textSize } from "../utils/scale";
 import { expectHeirClaim } from "../focusClaims";
 import { subLandingAhead, usePageLanding } from "../focusRecords";
+import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
@@ -159,6 +160,7 @@ function FileWatcherPage(props: FileWatcherPageProps) {
 
     usePageLanding({
         view: "fileWatcher",
+        active: state.view === "fileWatcher",
         defaultKey: "fileWatcher:back",
         ready: loaded,
         holds: (key) => roots.some((root) => cardFocusKey(root) === key || trashFocusKey(root) === key),
@@ -663,4 +665,4 @@ function scheduleSummary(watcher: FileWatcherState | null, language: LanguageCod
     return `${everyWeeksLabel(schedule.everyWeeks, language)} · ${weekdayLabel(schedule.weekday, language)} ${clockLabel(schedule.hour, schedule.minute)}`;
 }
 
-export default FileWatcherPage;
+export default skipWhileHidden(FileWatcherPage, (props) => props.state.view === "fileWatcher");

@@ -53,6 +53,7 @@ import { DolphinMappingModal } from "../components/mapping/DolphinMappingModal";
 import { showManagedModal } from "../utils/modalRegistry";
 import { expectHeirClaim, settleHeirClaim } from "../focusClaims";
 import { overrideRecord, topEntryId, usePageLanding } from "../focusRecords";
+import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
@@ -235,6 +236,7 @@ function DolphinMapperPage(props: DolphinMapperPageProps) {
 
     usePageLanding({
         view: "dolphinMapper",
+        active: view === "dolphinMapper",
         defaultKey: "dolphinMapper:back",
         ready: loaded || loadFailed,
         reveal: (key) => {
@@ -804,4 +806,4 @@ const MappingCard = React.memo(function MappingCard(props: MappingCardProps) {
     );
 });
 
-export default DolphinMapperPage;
+export default skipWhileHidden(DolphinMapperPage, (props) => props.view === "dolphinMapper");

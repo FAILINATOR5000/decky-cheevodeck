@@ -15,6 +15,7 @@ import type { ButtonSpacing, ViewKey } from "../types";
 import { achievementGreen, regularButtonSpacingStyle, bodyTextStyle } from "../utils/style";
 import { getCurrentTextScale, scaleMultiplier, textSize } from "../utils/scale";
 import { usePageLanding } from "../focusRecords";
+import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
@@ -202,7 +203,7 @@ type AboutPageProps = {
 
 function AboutPage(props: AboutPageProps) {
     const { state, actions } = props;
-    usePageLanding({ view: "about", defaultKey: "about:back" });
+    usePageLanding({ view: "about", active: state.view === "about", defaultKey: "about:back" });
 
     if (state.view !== "about") {
         return null;
@@ -481,4 +482,4 @@ function AboutPage(props: AboutPageProps) {
     );
 }
 
-export default AboutPage;
+export default skipWhileHidden(AboutPage, (props) => props.state.view === "about");

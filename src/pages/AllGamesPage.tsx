@@ -32,6 +32,7 @@ import {
     type LanguageCode
 } from "../locales";
 import { usePageLanding } from "../focusRecords";
+import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 
 type AllGamesLetterRange = {
     key: AllGamesLetterRangeKey;
@@ -255,6 +256,7 @@ function AllGamesPage(props: AllGamesPageProps) {
 
     usePageLanding({
         view: "friendAllGames",
+        active: props.view === "friendAllGames",
         subject: props.selectedFriend?.ulid || props.selectedFriend?.username,
         subjectSettled: props.selectedFriend !== null,
         tabPath: [activeRangeKey, activeStatusFilter],
@@ -707,4 +709,4 @@ const AllGamesRow = React.memo(function AllGamesRow(props: AllGamesRowProps) {
     );
 });
 
-export default AllGamesPage;
+export default skipWhileHidden(AllGamesPage, (props) => props.view === "friendAllGames");

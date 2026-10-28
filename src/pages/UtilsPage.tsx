@@ -10,6 +10,7 @@ import { t, type LanguageCode } from "../locales";
 import type { ButtonSpacing, ViewKey } from "../types";
 import { regularButtonSpacingStyle } from "../utils/style";
 import { usePageLanding } from "../focusRecords";
+import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
@@ -38,7 +39,7 @@ type UtilsPageProps = {
 
 function UtilsPage(props: UtilsPageProps) {
     const { state, actions } = props;
-    usePageLanding({ view: "utils", defaultKey: "utils:back" });
+    usePageLanding({ view: "utils", active: state.view === "utils", defaultKey: "utils:back" });
 
     if (state.view !== "utils") {
         return null;
@@ -158,4 +159,4 @@ function UtilsPage(props: UtilsPageProps) {
     );
 }
 
-export default UtilsPage;
+export default skipWhileHidden(UtilsPage, (props) => props.state.view === "utils");

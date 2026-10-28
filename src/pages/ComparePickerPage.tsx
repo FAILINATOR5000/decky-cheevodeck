@@ -17,6 +17,7 @@ import { logError } from "../utils/errors";
 import { titleSize } from "../utils/scale";
 import { bodyTextStyle, headerCase, regularButtonSpacingStyle, smallTextStyle } from "../utils/style";
 import { usePageLanding } from "../focusRecords";
+import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 
 type ComparePickerPageState = {
     view: ViewKey;
@@ -214,6 +215,7 @@ function ComparePickerPage(props: ComparePickerPageProps) {
 
     usePageLanding({
         view: "comparePicker",
+        active: state.view === "comparePicker",
         defaultKey: "comparepicker:back",
         ready: friendsLoaded,
         holds: (key) => key.startsWith("comparepicker:friend:")
@@ -381,4 +383,4 @@ function ComparePickerPage(props: ComparePickerPageProps) {
     );
 }
 
-export default ComparePickerPage;
+export default skipWhileHidden(ComparePickerPage, (props) => props.state.view === "comparePicker");

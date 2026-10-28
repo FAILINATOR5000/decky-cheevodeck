@@ -33,7 +33,8 @@ import type {
     TrackedAchievementAction,
     TrackedAchievementSort,
     TrackedNotes,
-    TrackedNotesColor
+    TrackedNotesColor,
+    TrackedTab
 } from "../types";
 import type { LanguageCode } from "../locales";
 import { earned, metricSortComparator } from "../utils/achievements";
@@ -69,6 +70,11 @@ type UseTrackedForGameControllerArgs = {
         saveNote: (achievementId: number, note: string, color: NoteColor) => Promise<OkResult>
     ) => void;
     saveTrackedAchievementActionWithRollback: (nextValue: TrackedAchievementAction) => Promise<void>;
+    activeTrackedTab: TrackedTab;
+    currentGameId: number | null;
+    currentTrackedLoadedForGameId: number | null;
+    currentTrackedSort: TrackedAchievementSort;
+    currentTrackedCount: number;
     legacyAchievementLinks: boolean;
     goToAchievementOverviewRef: RefObject<
         ((achievement: AchievementRow, parentGameId: number | null, source: AOSource, viewedUsername: string | null, viewedUserRef: string | null) => void) | null
@@ -89,6 +95,11 @@ export function useTrackedForGameController({
     setError,
     openNoteModal,
     saveTrackedAchievementActionWithRollback,
+    activeTrackedTab,
+    currentGameId,
+    currentTrackedLoadedForGameId,
+    currentTrackedSort,
+    currentTrackedCount,
     legacyAchievementLinks,
     goToAchievementOverviewRef
 }: UseTrackedForGameControllerArgs) {
@@ -397,6 +408,51 @@ export function useTrackedForGameController({
         selectedGameId !== null
             && payload !== null
             && trackedIdsLoadedForGameId === selectedGameId;
+
+    useEffect(function keepReorderWhereItFits() {
+        if (trackedAchievementAction !== "reorder") {
+            return;
+        }
+
+        let reorderFitsActiveContext = false;
+        if (activeTrackedTab === "thisGame") {
+            const ready = currentGameId != null && currentTrackedLoadedForGameId === currentGameId;
+            if (!ready) {
+                return;
+            }
+            reorderFitsActiveContext = currentTrackedSort === "manual" && currentTrackedCount >= 2;
+        }
+        else if (activeTrackedTab === "otherGames") {
+            if (selectedGameId === null) {
+                reorderFitsActiveContext = false;
+            }
+            else if (!trackedReady) {
+                return;
+            }
+            else {
+                reorderFitsActiveContext = sort === "manual" && trackedIds.length >= 2;
+            }
+        }
+        else {
+            reorderFitsActiveContext = false;
+        }
+
+        if (!reorderFitsActiveContext) {
+            void saveTrackedAchievementActionWithRollback("editNote");
+        }
+    }, [
+        trackedAchievementAction,
+        activeTrackedTab,
+        selectedGameId,
+        currentGameId,
+        currentTrackedLoadedForGameId,
+        currentTrackedSort,
+        currentTrackedCount,
+        trackedReady,
+        sort,
+        trackedIds.length,
+        saveTrackedAchievementActionWithRollback
+    ]);
 
     const onToggleCollapsedTag = useCallback((key: string) => {
         if (selectedGameId === null) {

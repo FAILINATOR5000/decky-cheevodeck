@@ -78,6 +78,7 @@ import { landingOwnsTop, pendingLandingKey, usePageLanding, type LandingWindows 
 import { recordMilestoneEvent } from "../utils/milestoneEvents";
 import { MilestonesQuickMenuButton } from "../components/milestones/MilestonesQuickMenuButton";
 import { useSetupCatchUp } from "../hooks/useSetupCatchUp";
+import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 
 // Layout constants
 const GAME_TICKER_FRESHNESS_MS = 60 * 60 * 1000;
@@ -1102,6 +1103,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
     const mainDefaultKey = hamburgerDisabled ? `main:tab:${mainTab}` : "action:quickmenu";
     usePageLanding({
         view: "achievements",
+        active: view === "achievements",
         subject: payload?.gameId,
         tabPath: [mainTab],
         defaultKey: mainDefaultKey,
@@ -2866,4 +2868,4 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
     );
 }
 
-export default MainAchievementsPage;
+export default skipWhileHidden(MainAchievementsPage, (props) => props.state.view === "achievements");

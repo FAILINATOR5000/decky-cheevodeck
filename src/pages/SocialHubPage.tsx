@@ -72,6 +72,7 @@ import { usePageLanding, type LandingWindows } from "../focusRecords";
 import { useEvents } from "../components/events/EventsContext";
 import { FocusTarget } from "../components/ui/FocusTarget";
 import { recordMilestoneEvent } from "../utils/milestoneEvents";
+import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 
 type TabIconProps = { size?: number };
 
@@ -955,6 +956,7 @@ function SocialHubPage(props: SocialHubPageProps) {
                         : props.newsEvents.newSetsResponse !== null || props.newsEvents.newSetsError !== null;
     usePageLanding({
         view: "social",
+        active: props.view === "social",
         tabPath: [
             socialView,
             socialView === "newsEvents" ? newsEventsSub
@@ -2128,4 +2130,4 @@ function SubscriptionCard(props: SubscriptionCardProps) {
     );
 }
 
-export default SocialHubPage;
+export default skipWhileHidden(SocialHubPage, (props) => props.view === "social");

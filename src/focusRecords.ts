@@ -1138,6 +1138,7 @@ type PageLanding = {
     cover?: boolean;
     timing?: Partial<LandingTiming>;
     ownLanding?: { pending: boolean; settled: boolean };
+    active?: boolean;
 };
 
 export function usePageLanding(registration: {
@@ -1146,8 +1147,9 @@ export function usePageLanding(registration: {
     tabPath?: (string | null | undefined)[];
     sub?: SubView[];
 } & PageLanding) {
-    const { view, subject, tabPath, sub, defaultKey, ready = true, subjectSettled = true, restoreTabPath, holds, open, reveal, cover, timing, ownLanding: own } = registration;
+    const { view, subject, tabPath, sub, defaultKey, ready = true, subjectSettled = true, restoreTabPath, holds, open, reveal, cover, timing, ownLanding: own, active = true } = registration;
     const adopted = defaultKey !== undefined;
+    const listening = adopted && active;
     const placeholderKey = registration.placeholderKey ?? defaultKey ?? null;
 
     const [atMount] = useState(() => {
@@ -1157,8 +1159,8 @@ export function usePageLanding(registration: {
     const activeRef = useRef<ActiveLanding | null>(atMount);
     const ownAtMountRef = useRef<boolean | null>(null);
     const ownEntryRef = useRef<number | null>(null);
-    useSyncExternalStore(adopted ? subscribeLanding : noSubscribe, adopted ? readLandingVersion : noVersion);
-    useSyncExternalStore(adopted ? subscribeCovers : noSubscribe, adopted ? isCovered : noCover);
+    useSyncExternalStore(listening ? subscribeLanding : noSubscribe, listening ? readLandingVersion : noVersion);
+    useSyncExternalStore(listening ? subscribeCovers : noSubscribe, listening ? isCovered : noCover);
 
     useInsertionEffect(() => {
         pages.set(view, {

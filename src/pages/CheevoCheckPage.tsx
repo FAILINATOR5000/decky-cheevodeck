@@ -34,6 +34,7 @@ import type {
 } from "../types";
 import { achievementGreen, bodyTextStyle, errorRed, faultViolet, regularButtonSpacingStyle, warnAmber } from "../utils/style";
 import { subLandingAhead, usePageLanding } from "../focusRecords";
+import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
@@ -156,6 +157,7 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
 
     usePageLanding({
         view: "cheevoCheck",
+        active: state.view === "cheevoCheck",
         defaultKey: "cheevocheck:back",
         ready: loaded,
         reveal: (key) => {
@@ -1168,4 +1170,4 @@ function failReasonKey(reason: string): string {
 }
 
 
-export default CheevoCheckPage;
+export default skipWhileHidden(CheevoCheckPage, (props) => props.state.view === "cheevoCheck");

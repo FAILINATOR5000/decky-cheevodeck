@@ -38,6 +38,7 @@ import { transferSizeLabel } from "../utils/memoriesTransferSize";
 import { bodyTextStyle, errorRed, regularButtonSpacingStyle, warnAmber } from "../utils/style";
 import { pendingLandingKey, subLandingAhead, usePageLanding } from "../focusRecords";
 import { expectHeirClaim } from "../focusClaims";
+import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
@@ -202,6 +203,7 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
 
     usePageLanding({
         view: "memoriesTransfer",
+        active: state.view === "memoriesTransfer",
         defaultKey: "memoriesTransfer:back",
         ready: loaded && !listing,
         holds: (key) => nearbyRows.some((row) => nearbyKey(row) === key),
@@ -753,4 +755,4 @@ function MemoriesTransferPage(props: MemoriesTransferPageProps) {
     return page;
 }
 
-export default MemoriesTransferPage;
+export default skipWhileHidden(MemoriesTransferPage, (props) => props.state.view === "memoriesTransfer");

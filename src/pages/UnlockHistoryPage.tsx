@@ -21,6 +21,7 @@ import { unlockDateLabel } from "../utils/achievements";
 import { UnlockStamp } from "../components/achievements/UnlockStamp";
 import { bodyTextStyle } from "../utils/style";
 import { usePageLanding } from "../focusRecords";
+import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 
 export type UnlockHistorySource = "main" | "friendGame";
 
@@ -190,6 +191,7 @@ function UnlockHistoryPage(props: UnlockHistoryPageProps) {
     const friendSettled = state.payload !== null || (state.friendUsername !== null && !state.friendLoading);
     usePageLanding({
         view: "unlockHistory",
+        active: state.view === "unlockHistory",
         subject: `${state.source}:${isFriendSource ? state.friendUsername ?? "" : "self"}:${gameId ?? ""}`,
         subjectSettled: !isFriendSource || friendSettled,
         defaultKey: "unlockhistory:back",
@@ -303,4 +305,4 @@ function UnlockHistoryPage(props: UnlockHistoryPageProps) {
     );
 }
 
-export default UnlockHistoryPage;
+export default skipWhileHidden(UnlockHistoryPage, (props) => props.state.view === "unlockHistory");

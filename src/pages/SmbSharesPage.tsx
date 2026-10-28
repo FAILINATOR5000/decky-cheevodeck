@@ -22,6 +22,7 @@ import { smbBusyLabel, smbErrorLabel, smbStatusColor, smbStatusLabel, sortShares
 import { regularButtonSpacingStyle, bodyTextStyle } from "../utils/style";
 import { expectHeirClaim, settleHeirClaim } from "../focusClaims";
 import { overrideRecord, topEntryId, usePageLanding } from "../focusRecords";
+import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
@@ -96,6 +97,7 @@ function SmbSharesPage(props: SmbSharesPageProps) {
 
     usePageLanding({
         view: "smbShares",
+        active: state.view === "smbShares",
         defaultKey: "smbShares:back",
         ready: loaded
     });
@@ -405,4 +407,4 @@ function SmbSharesPage(props: SmbSharesPageProps) {
     return page;
 }
 
-export default SmbSharesPage;
+export default skipWhileHidden(SmbSharesPage, (props) => props.state.view === "smbShares");

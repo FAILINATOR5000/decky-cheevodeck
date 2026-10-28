@@ -1742,6 +1742,11 @@ function AchievementsRoot() {
         setError,
         openNoteModal,
         saveTrackedAchievementActionWithRollback,
+        activeTrackedTab: lastTrackedTab,
+        currentGameId: payload?.gameId ?? null,
+        currentTrackedLoadedForGameId: trackedIdsLoadedForGameId,
+        currentTrackedSort: perGameTrackedSort,
+        currentTrackedCount: trackedIds.length,
         legacyAchievementLinks,
         goToAchievementOverviewRef
     });

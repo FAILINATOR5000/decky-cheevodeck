@@ -66,6 +66,7 @@ import { modalSize, textSize } from "../utils/scale";
 import { SaveOnStart } from "../components/ui/SaveOnStart";
 import { SnapshotHotkey } from "../components/ui/SnapshotHotkey";
 import { usePageLanding, type LandingWindows } from "../focusRecords";
+import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 
 
 type DeleteFocusPlan =
@@ -1703,4 +1704,4 @@ function NameSetModal(props: NameSetModalProps) {
     );
 }
 
-export default TrackedSetsPage;
+export default skipWhileHidden(TrackedSetsPage, (props) => props.view === "trackedSets" || props.view === "trackedSetOpen");

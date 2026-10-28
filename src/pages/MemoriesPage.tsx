@@ -39,6 +39,7 @@ import { t, type LanguageCode } from "../locales";
 import type { MemoriesControllerActions, MemoriesControllerState } from "../hooks/useMemoriesController";
 import type { ButtonSpacing, ControllerGlyphStyle, NoteColor, ViewKey } from "../types";
 import { overrideRecord, topEntryId, usePageLanding } from "../focusRecords";
+import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 
 function MemoryGameValue(props: { gameId: number | null; label: string; imageIcon: string; showIcons: boolean }) {
     const { gameId, label, imageIcon, showIcons } = props;
@@ -165,6 +166,7 @@ function MemoriesPage(props: MemoriesPageProps) {
     const gameKnown = memories.ready && memories.indexLoaded;
     usePageLanding({
         view: "memories",
+        active: view === "memories",
         subject: memories.gameId,
         subjectSettled: gameKnown,
         defaultKey: "memories:back",
@@ -834,4 +836,4 @@ function MemoriesPage(props: MemoriesPageProps) {
     );
 }
 
-export default MemoriesPage;
+export default skipWhileHidden(MemoriesPage, (props) => props.state.view === "memories");

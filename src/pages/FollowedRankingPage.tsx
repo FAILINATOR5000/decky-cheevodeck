@@ -25,6 +25,7 @@ import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
 import { textSize } from "../utils/scale";
 import { t, type LanguageCode } from "../locales";
 import { usePageLanding } from "../focusRecords";
+import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 
 
 const SELF_ROW_KEYFRAMES = `
@@ -170,6 +171,7 @@ function FollowedRankingPage(props: FollowedRankingPageProps) {
 
     usePageLanding({
         view: "followedRanking",
+        active: props.view === "followedRanking",
         tabPath: [props.metric],
         defaultKey: "followedranking:back",
         ready: props.friendsPayload !== null,
@@ -405,4 +407,4 @@ const FollowedRankingRowView = React.memo(function FollowedRankingRowView(props:
     );
 });
 
-export default FollowedRankingPage;
+export default skipWhileHidden(FollowedRankingPage, (props) => props.view === "followedRanking");

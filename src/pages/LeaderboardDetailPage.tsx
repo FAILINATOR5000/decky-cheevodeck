@@ -36,6 +36,7 @@ import {
     type LanguageCode
 } from "../locales";
 import { usePageLanding } from "../focusRecords";
+import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 
 const MAX_LEADERBOARD_RESULTS = 500;
 
@@ -312,6 +313,7 @@ function LeaderboardDetailPage({ state, actions }: LeaderboardDetailPageProps) {
 
     usePageLanding({
         view: "leaderboardDetail",
+        active: state.view === "leaderboardDetail",
         subject: state.selectedLeaderboard?.id,
         subjectSettled: state.selectedLeaderboard !== null,
         tabPath: [state.leaderboardAudience],
@@ -547,4 +549,4 @@ function LeaderboardDetailPage({ state, actions }: LeaderboardDetailPageProps) {
     );
 }
 
-export default LeaderboardDetailPage;
+export default skipWhileHidden(LeaderboardDetailPage, (props) => props.state.view === "leaderboardDetail");

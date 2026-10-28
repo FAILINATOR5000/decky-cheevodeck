@@ -17,6 +17,7 @@ import { regularButtonSpacingStyle } from "../utils/style";
 import { textSize } from "../utils/scale";
 import { standaloneClaim } from "../utils/stormbreaker";
 import { usePageLanding } from "../focusRecords";
+import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
@@ -274,4 +275,4 @@ function IncidentLog(props: {
     );
 }
 
-export default QamGuardPage;
+export default skipWhileHidden(QamGuardPage, (props) => props.state.view === "qamGuard");

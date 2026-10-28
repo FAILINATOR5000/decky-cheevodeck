@@ -28,6 +28,7 @@ import type {
     ViewKey
 } from "../types";
 import { usePageLanding } from "../focusRecords";
+import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 
 const COMPARE_ROW_FALLBACK = ["friendcompare:filter:all"];
 
@@ -298,6 +299,7 @@ function FriendCompareGamePage(props: FriendCompareGamePageProps) {
 
     usePageLanding({
         view: "friendCompare",
+        active: view === "friendCompare",
         subject: selectedFriend?.ulid || selectedFriend?.username,
         subjectSettled: selectedFriend !== null,
         tabPath: [compareFilter],
@@ -418,4 +420,4 @@ function FriendCompareGamePage(props: FriendCompareGamePageProps) {
     );
 }
 
-export default FriendCompareGamePage;
+export default skipWhileHidden(FriendCompareGamePage, (props) => props.state.view === "friendCompare");
