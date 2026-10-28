@@ -347,6 +347,9 @@ def milestone_progress(milestone, data, facts, claimed, available_ids):
             if parsed is not None and parsed.weekday() == 5 and add_days(day, 1) in days:
                 return 1
         return 0
+    if kind == "month_points":
+        ra = facts.get("ra")
+        return ra["monthPoints"] if ra is not None else facts.get("monthPoints", 0)
     if kind == "perfect_month":
         days = (facts.get("ra") or {}).get("activeDays") or set()
         for month in {day[:7] for day in days}:
@@ -446,6 +449,14 @@ def stored_periods_start(data):
     return min(days) if days else None
 
 
+def month_points(rows, started_at):
+    points = {}
+    for row in rows:
+        if row["ts"] >= started_at:
+            points[row["achievementId"]] = row["points"]
+    return sum(points.values())
+
+
 def ra_facts(months, started_at, week_start, since=None, *, sealed=None):
     rows = []
     for month_rows in months.values():
@@ -466,6 +477,7 @@ def ra_facts(months, started_at, week_start, since=None, *, sealed=None):
         "hardcoreIds": totals["hardcoreIds"],
         "activeDays": totals["days"],
         "periodRows": sorted((row for row in rows if row["ts"] >= week_from), key=lambda row: (row["ts"], row["achievementId"])),
+        "monthPoints": max((month_points(month_rows, started_at) for month_rows in months.values()), default=0),
     }
 
 
@@ -1125,6 +1137,11 @@ class MilestonesService(TickServiceBase):
             data = self._store.load()
         if data is None:
             return {"ok": False, "error": "account" if not self._store.ulid else "unreadable"}
+        with self._queue_lock:
+            cache = self._month_cache
+            if (cache is not None and cache["ulid"] == self._store.ulid and cache["month"] == this_month()
+                    and cache["startedAt"] == data["startedAt"]):
+                facts["monthPoints"] = month_points(cache["rows"], cache["startedAt"])
         return build_state(data, self._defs, facts)
 
     def mark_seen(self):
