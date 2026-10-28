@@ -945,12 +945,16 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
     }
 
     function canWaitForPaint(firstSight: boolean) {
-        if (next.start !== 0 || pendingShiftRef.current !== null || rebaseSeenRef.current !== next.rebase) {
+        if (pendingShiftRef.current !== null || rebaseSeenRef.current !== next.rebase) {
             return false;
         }
         const anchors = anchorsRef.current;
         const last = lastRangeRef.current;
-        if (firstSight || (last === null && anchors === null)) {
+        const unmeasured = firstSight || (last === null && anchors === null);
+        if (next.start !== 0) {
+            return unmeasured && unknownAbove === 0 && next.residual === 0 && !next.estimateProvisional;
+        }
+        if (unmeasured) {
             return true;
         }
         return (anchors === null || anchors.start === 0) && last !== null && last.items === items
