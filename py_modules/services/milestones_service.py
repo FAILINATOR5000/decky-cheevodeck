@@ -931,8 +931,9 @@ class MilestonesService(TickServiceBase):
                 timeout = min(timeout, tick_wait)
             with self._queue_lock:
                 waiting_ra = self._ra_requested
+                ra_reason = self._ra_reason
             if waiting_ra:
-                due = max(self._not_before, self._last_job_at + RA_JOB_MIN_GAP_SECONDS)
+                due = self._ra_due(ra_reason)
                 timeout = min(timeout, max(0.0, due - time.monotonic()))
             if self._holding():
                 timeout = min(timeout, max(0.0, self._moving_until - time.monotonic()) + 0.05)
@@ -953,14 +954,17 @@ class MilestonesService(TickServiceBase):
             except Exception as exc:
                 self._log_tick_crashed(exc)
 
+    def _ra_due(self, reason):
+        gap = self._last_job_at + RA_JOB_MIN_GAP_SECONDS
+        return gap if reason == "panel" else max(self._not_before, gap)
+
     def _pass(self):
         if self._holding():
             return
         with self._queue_lock:
             events = self._events
             self._events = []
-            run_ra = self._ra_requested and time.monotonic() >= max(
-                self._not_before, self._last_job_at + RA_JOB_MIN_GAP_SECONDS)
+            run_ra = self._ra_requested and time.monotonic() >= self._ra_due(self._ra_reason)
             reason = self._ra_reason
             apply_now = self._apply_requested
             self._apply_requested = False
@@ -1142,6 +1146,9 @@ class MilestonesService(TickServiceBase):
             if (cache is not None and cache["ulid"] == self._store.ulid and cache["month"] == this_month()
                     and cache["startedAt"] == data["startedAt"]):
                 facts["monthPoints"] = month_points(cache["rows"], cache["startedAt"])
+        period = self._period_cache
+        if period is not None and period[0] == self._store.ulid:
+            facts["periodRows"] = period[1]
         return build_state(data, self._defs, facts)
 
     def mark_seen(self):
