@@ -6,6 +6,6 @@ The Activity page is the place to see how active you, a friend, or a stranger ha
 
 Every time you enter, fresh data is drawn in for the current month. You only need to refresh if you've been on the page and its subpages for a while.
 
-Also, if you've unlocked achievements every day for multiple days in a row, you earn combo XP for the [Milestones](milestones.md) feature. It will be shown both in Milestones as well as below the key in Activity.
+Also, if you've unlocked achievements every day for multiple days in a row, you earn combo XP for the [Milestones](milestones.md) feature. It will be shown both in Milestones as well as in the Stats table in Activity, when you're looking at the current month.
 
 Finally, if you press **A** on a day on the calendar, you will be able to see all of the achievements unlocked that day.

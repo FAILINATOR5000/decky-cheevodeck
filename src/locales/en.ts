@@ -2884,7 +2884,16 @@ export const EN: LocaleTable = {
     "{{count}}-day Combo · +{{xp}} XP earned today": "{{count}}-day Combo · +{{xp}} XP earned today",
     "{{count}}-day Combo · unlock an achievement today for +{{xp}} XP": "{{count}}-day Combo · unlock an achievement today for +{{xp}} XP",
     "Unlock an achievement to start a Combo": "Unlock an achievement to start a Combo",
-    "{{count}}-day Combo": "{{count}}-day Combo",
+    "Stats": "Stats",
+    "Combo": "Combo",
+    "Days active": "Days active",
+    "Longest streak": "Longest streak",
+    "{{count}} days": {
+        one: "{{count}} day",
+        other: "{{count}} days"
+    },
+    "Best day": "Best day",
+    "Top game": "Top game",
     "or": "or",
     "milestone_binding_unbound": "<b>{{action}}</b> isn't on a button right now. Map it in <b>Quick Menu</b> > <b>Map Shortcuts</b> or <b>Options</b> > <b>System</b> > <b>Mapped Shortcuts</b>. It starts out on {{button}}.",
     "milestone_binding_missing_paddle": "<b>{{action}}</b> is only on a back button this controller doesn't have. Map it to another button in <b>Quick Menu</b> > <b>Map Shortcuts</b> or <b>Options</b> > <b>System</b> > <b>Mapped Shortcuts</b>.",

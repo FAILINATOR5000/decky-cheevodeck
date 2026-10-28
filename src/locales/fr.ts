@@ -2614,10 +2614,16 @@ const FR: LocaleTable = {
         other: "Combo de {{count}} jours · débloque un succès aujourd'hui pour +{{xp}} XP"
     },
     "Unlock an achievement to start a Combo": "Débloque un succès pour lancer un Combo",
-    "{{count}}-day Combo": {
-        one: "Combo de {{count}} jour",
-        other: "Combo de {{count}} jours"
+    "Stats": "Statistiques",
+    "Combo": "Combo",
+    "Days active": "Jours actifs",
+    "Longest streak": "Plus longue série",
+    "{{count}} days": {
+        one: "{{count}} jour",
+        other: "{{count}} jours"
     },
+    "Best day": "Meilleur jour",
+    "Top game": "Jeu phare",
     "or": "ou",
     "milestone_binding_unbound": "Aucun bouton ne lance <b>{{action}}</b> pour l'instant. Assigne-lui un bouton dans <b>Menu rapide</b> > <b>Assigner des raccourcis</b> ou <b>Options</b> > <b>Système</b> > <b>Raccourcis assignés</b>. Au départ, c'est {{button}}.",
     "milestone_binding_missing_paddle": "<b>{{action}}</b> est uniquement sur une palette arrière absente de cette manette. Assigne-lui un autre bouton dans <b>Menu rapide</b> > <b>Assigner des raccourcis</b> ou <b>Options</b> > <b>Système</b> > <b>Raccourcis assignés</b>.",

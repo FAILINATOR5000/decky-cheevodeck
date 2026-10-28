@@ -3,6 +3,8 @@ import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 // Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
 import { FaTrophy } from "react-icons/fa";
 import { ActivityGrid, dayLabel, monthLabel, shadeStyle } from "../components/activity/ActivityGrid";
+import { ActivityStats } from "../components/activity/ActivityStats";
+import { monthStats } from "../components/activity/monthStats";
 import { AchievementList } from "../components/achievements/AchievementList";
 import { UnlockStamp } from "../components/achievements/UnlockStamp";
 import { BackButton } from "../components/ui/BackButton";
@@ -93,6 +95,7 @@ function ActivityPage(props: { state: ActivityPageState; actions: ActivityPageAc
     const [focusedDay, setFocusedDay] = useState<string | null>(null);
 
     const dayRows = useMemo(() => (data && day ? rowsOfDay(data.rows, day) : []), [data, day]);
+    const stats = useMemo(() => (data ? monthStats(data) : null), [data]);
     const dayPayload = useMemo<Payload | null>(() => {
         if (!day || dayRows.length === 0) {
             return null;
@@ -163,6 +166,15 @@ function ActivityPage(props: { state: ActivityPageState; actions: ActivityPageAc
             landOnTop("activity", "activity:prev");
         }
         actions.onChangeMonth(next);
+    }
+
+    function openDay(rows: ActivityRow[], picked: string) {
+        const first = rowsOfDay(rows, picked)[0];
+        if (first) {
+            playOkSound();
+            landOnTop("activity", `achievement:${first.achievementId}`);
+            actions.onOpenDay(picked);
+        }
     }
 
     const monthView = data && shown ? (
@@ -258,14 +270,7 @@ function ActivityPage(props: { state: ActivityPageState; actions: ActivityPageAc
                     cellSize={Math.round(metrics.iconSize * 0.8)}
                     onFocusDay={setFocusedDay}
                     onBlurDay={(day) => setFocusedDay((current) => (current === day ? null : current))}
-                    onOpenDay={(picked) => {
-                        const first = rowsOfDay(shown.rows, picked)[0];
-                        if (first) {
-                            playOkSound();
-                            landOnTop("activity", `achievement:${first.achievementId}`);
-                            actions.onOpenDay(picked);
-                        }
-                    }}
+                    onOpenDay={(picked) => openDay(shown.rows, picked)}
                 />
             </PanelSectionRow>
             <PanelSectionRow>
@@ -277,16 +282,21 @@ function ActivityPage(props: { state: ActivityPageState; actions: ActivityPageAc
                         ))}
                         <span>{t(language, "activity_legend_more")}</span>
                     </div>
-                    {subject.own && activity.comboLength !== null && activity.comboLength > 0 && (
-                        <div style={{ ...smallTextStyle(), fontSize: `${metrics.bodyFontSize}px`, opacity: 1, fontWeight: 700 }}>
-                            {t(language, "{{count}}-day Combo", { count: activity.comboLength })}
-                        </div>
-                    )}
                     {!pending && shown.rows.length === 0 && (
                         <div style={bodyTextStyle()}>{t(language, "No unlocks this month.")}</div>
                     )}
                 </div>
             </PanelSectionRow>
+            {stats && shown === data && (
+                <ActivityStats
+                    language={language}
+                    buttonSpacing={state.buttonSpacing}
+                    stats={stats}
+                    combo={subject.own && shown.month === shown.currentMonth && activity.comboLength ? activity.comboLength : null}
+                    onOpenDay={(picked) => openDay(shown.rows, picked)}
+                    onOpenGame={actions.onOpenGame}
+                />
+            )}
             <PanelSectionRow>
                 <div style={{ width: "100%", paddingTop: "10px" }}>
                     <FocusTarget focusKey="activity:refresh" focusFallback={["activity:prev"]} style={{ width: "100%" }}>

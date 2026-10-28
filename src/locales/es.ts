@@ -2913,10 +2913,16 @@ const ES: LocaleTable = {
         other: "Combo de {{count}} días · desbloquea un logro hoy y gana +{{xp}} XP"
     },
     "Unlock an achievement to start a Combo": "Desbloquea un logro para empezar un Combo",
-    "{{count}}-day Combo": {
-        one: "Combo de {{count}} día",
-        other: "Combo de {{count}} días"
+    "Stats": "Estadísticas",
+    "Combo": "Combo",
+    "Days active": "Días activos",
+    "Longest streak": "Racha más larga",
+    "{{count}} days": {
+        one: "{{count}} día",
+        other: "{{count}} días"
     },
+    "Best day": "Mejor día",
+    "Top game": "Juego destacado",
     "or": "o",
     "milestone_binding_unbound": "<b>{{action}}</b> no tiene ningún botón asignado ahora mismo. Asígnalo en <b>Menú rápido</b> > <b>Asignar atajos</b> o en <b>Opciones</b> > <b>Sistema</b> > <b>Atajos asignados</b>. De inicio va en {{button}}.",
     "milestone_binding_missing_paddle": "<b>{{action}}</b> solo está en un botón trasero que este mando no tiene. Asígnalo a otro botón en <b>Menú rápido</b> > <b>Asignar atajos</b> o en <b>Opciones</b> > <b>Sistema</b> > <b>Atajos asignados</b>.",

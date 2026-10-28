@@ -2897,10 +2897,16 @@ const PT: LocaleTable = {
         other: "Combo de {{count}} dias · desbloqueie uma conquista hoje para ganhar +{{xp}} XP"
     },
     "Unlock an achievement to start a Combo": "Desbloqueie uma conquista para começar um Combo",
-    "{{count}}-day Combo": {
-        one: "Combo de {{count}} dia",
-        other: "Combo de {{count}} dias"
+    "Stats": "Estatísticas",
+    "Combo": "Combo",
+    "Days active": "Dias ativos",
+    "Longest streak": "Maior sequência",
+    "{{count}} days": {
+        one: "{{count}} dia",
+        other: "{{count}} dias"
     },
+    "Best day": "Melhor dia",
+    "Top game": "Jogo em destaque",
     "or": "ou",
     "milestone_binding_unbound": "A ação <b>{{action}}</b> não está em nenhum botão agora. Para atribuí-la, vá em <b>Menu rápido</b> > <b>Atribuir atalhos</b> ou em <b>Opções</b> > <b>Sistema</b> > <b>Atalhos atribuídos</b>. Por padrão, ela fica em {{button}}.",
     "milestone_binding_missing_paddle": "A ação <b>{{action}}</b> só está em um botão traseiro que este controle não tem. Atribua-a a outro botão em <b>Menu rápido</b> > <b>Atribuir atalhos</b> ou em <b>Opções</b> > <b>Sistema</b> > <b>Atalhos atribuídos</b>.",

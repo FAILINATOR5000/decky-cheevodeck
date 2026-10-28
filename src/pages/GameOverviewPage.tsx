@@ -12,6 +12,7 @@ import { CommentsList } from "../components/comments/CommentsList";
 import { CommentActionStrip } from "../components/comments/CommentActionStrip";
 import { FocusClaim } from "../components/ui/FocusClaim";
 import { HashesList } from "../components/games/HashesList";
+import { InfoRow } from "../components/ui/InfoRow";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
 import { LabeledRow } from "../components/ui/LabeledRow";
 import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
@@ -194,28 +195,6 @@ function VideoIcon({ size = 64 }: { size?: number }) {
 }
 
 const NAV_ENTER_PREFERRED_CHILD = 4;
-
-function InfoRow(props: { label: string; value: string }) {
-    if (!props.value) {
-        return null;
-    }
-    return (
-        <div
-            style={{
-                width: "100%",
-                display: "flex",
-                justifyContent: "space-between",
-                gap: "10px",
-                alignItems: "baseline"
-            }}
-        >
-            <span style={{ fontWeight: 700, flexShrink: 0 }}>{props.label}</span>
-            <span style={{ ...bodyTextStyle(), textAlign: "right" }}>
-                {props.value}
-            </span>
-        </div>
-    );
-}
 
 type GameOverviewPageProps = {
     view: string;

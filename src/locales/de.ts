@@ -2867,10 +2867,16 @@ const DE: LocaleTable = {
         other: "Combo: {{count}} Tage · schalte heute einen Erfolg frei für +{{xp}} XP"
     },
     "Unlock an achievement to start a Combo": "Schalte einen Erfolg frei, um eine Combo zu starten",
-    "{{count}}-day Combo": {
-        one: "Combo: {{count}} Tag",
-        other: "Combo: {{count}} Tage"
+    "Stats": "Statistik",
+    "Combo": "Combo",
+    "Days active": "Aktive Tage",
+    "Longest streak": "Längste Serie",
+    "{{count}} days": {
+        one: "{{count}} Tag",
+        other: "{{count}} Tage"
     },
+    "Best day": "Bester Tag",
+    "Top game": "Top-Spiel",
     "or": "oder",
     "milestone_binding_unbound": "<b>{{action}}</b> liegt gerade auf keiner Taste. Belege die Aktion unter <b>Schnellmenü</b> > <b>Tasten belegen</b> oder <b>Optionen</b> > <b>System</b> > <b>Tastenbelegung</b>. Standardmäßig liegt sie auf {{button}}.",
     "milestone_binding_missing_paddle": "<b>{{action}}</b> liegt nur auf einer Rücktaste, die dieser Controller nicht hat. Lege die Aktion unter <b>Schnellmenü</b> > <b>Tasten belegen</b> oder <b>Optionen</b> > <b>System</b> > <b>Tastenbelegung</b> auf eine andere Taste.",

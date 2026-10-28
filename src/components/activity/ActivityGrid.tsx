@@ -53,6 +53,11 @@ export function dayLabel(day: string, language: LanguageCode): string {
     return new Intl.DateTimeFormat(localeTag(language), { weekday: "long", month: "long", day: "numeric" }).format(new Date(year, month - 1, date));
 }
 
+export function shortDayLabel(day: string, language: LanguageCode): string {
+    const [year, month, date] = day.split("-").map(Number);
+    return new Intl.DateTimeFormat(localeTag(language), { month: "short", day: "numeric" }).format(new Date(year, month - 1, date));
+}
+
 function monthCells(month: string): (string | null)[] {
     const [year, monthNumber] = month.split("-").map(Number);
     const first = new Date(year, monthNumber - 1, 1).getDay();
