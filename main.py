@@ -1923,6 +1923,31 @@ class Plugin(
             "resumeState": self.settings_store.load_resume_state(),
         }
 
+    async def get_boot_state(self):
+        settings = await self.get_settings()
+        cached = await self.get_cached_payload()
+        resume = await self.get_resume_state()
+        payload = cached.get("payload")
+        game_id = payload.get("gameId") if isinstance(payload, dict) else None
+        tracked = None
+        game_notes = None
+        if game_id:
+            try:
+                tracked = await self.get_tracked_achievements(game_id)
+            except Exception as e:
+                decky.logger.warning("boot: tracked read failed: %s", type(e).__name__)
+            try:
+                game_notes = await self.load_game_notes(game_id)
+            except Exception as e:
+                decky.logger.warning("boot: notes read failed: %s", type(e).__name__)
+        return {
+            "settings": settings,
+            "cached": cached,
+            "resume": resume,
+            "tracked": tracked,
+            "gameNotes": game_notes,
+        }
+
     async def save_resume_state(self, resume_state=None):
         return {
             "ok": True,

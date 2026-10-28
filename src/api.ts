@@ -212,6 +212,13 @@ import type {
 
 // Settings and accounts
 export const getSettings = callable<[], SettingsResponse>("get_settings");
+export const getBootState = callable<[], {
+    settings: SettingsResponse;
+    cached: CachedResponse;
+    resume: ResumeStateResponse;
+    tracked: TrackedAchievementsResponse | null;
+    gameNotes: GameNotesPayload | null;
+}>("get_boot_state");
 export const saveSettings = callable<[string, string], OkResult & SettingsResponse>(
     "save_settings"
 );
@@ -2797,7 +2804,6 @@ export const getUserAwards = callable<[string, string], UserAwardsResponse>("get
 export const getUserWantToPlay = callable<[string, number?, number?, string?], WantToPlayResponse>(
     "get_user_want_to_play"
 );
-export const getResumeState = callable<[], ResumeStateResponse>("get_resume_state");
 export const saveResumeState = callable<[ResumeState | null | undefined], ResumeStateResponse>("save_resume_state");
 export const clearResumeState = callable<[], { ok: boolean }>("clear_resume_state");
 

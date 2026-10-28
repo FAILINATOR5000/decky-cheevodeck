@@ -28,7 +28,7 @@ import {
     saveTrackedCollapsedTags,
     saveTrackedSortForGame
 } from "../api";
-import type { AchievementRow, AOSource, NoteColor, OkResult, Payload, ReorderDirection, TrackedAchievementAction, TrackedAchievementSort, TrackedNotes, TrackedNotesColor, TrackedTab, ViewKey } from "../types";
+import type { AchievementRow, AOSource, NoteColor, OkResult, Payload, ReorderDirection, TrackedAchievementAction, TrackedAchievementSort, TrackedAchievementsResponse, TrackedNotes, TrackedNotesColor, TrackedTab, ViewKey } from "../types";
 import { earned, isMissable, metricSortComparator } from "../utils/achievements";
 import type { LanguageCode } from "../locales";
 import { logError } from "../utils/errors";
@@ -156,6 +156,15 @@ export function useTrackedController({
         }
     };
 
+    const bootAppliedForRef = useRef<number | null>(null);
+    const applyBootTracked = (gameId: number, result: TrackedAchievementsResponse) => {
+        bootAppliedForRef.current = gameId;
+        applyTrackedResult(gameId, result);
+        setSort(result.sort ?? trackedAchievementSort);
+        setCollapsedTags(result.collapsedTags ?? []);
+        setTrackedIdsLoadedForGameId(gameId);
+    };
+
     const [importedToken, setImportedToken] = useState(0);
     useEffect(() => onDataImported("tracked", (gameId) => {
         if (gameId === payloadRef.current?.gameId) {
@@ -172,6 +181,10 @@ export function useTrackedController({
             setNotesByAchievementId(clearedRecord);
             setNotesColorByAchievementId(clearedRecord);
             setCollapsedTags(clearedList);
+            return;
+        }
+        if (bootAppliedForRef.current === gameId) {
+            bootAppliedForRef.current = null;
             return;
         }
 
@@ -1056,6 +1069,7 @@ export function useTrackedController({
             canApplyTag: tagMarking.canApplyTag
         },
         actions: {
+            applyBootTracked,
             onToggleTagMark: tagMarking.onToggleTagMark,
             onApplyMarkedTag: tagMarking.onApplyMarkedTag,
             setTrackedValidating,

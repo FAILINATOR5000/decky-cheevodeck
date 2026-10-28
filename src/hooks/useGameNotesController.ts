@@ -22,6 +22,7 @@ import {
 import type {
     GameNote,
     GameNoteAButtonMode,
+    GameNotesPayload,
     GameNoteReminderMode,
     GameNoteReminderUnit,
     GameNoteSortMode,
@@ -97,6 +98,15 @@ export function useGameNotesController({
         }
     }), [targetGameId]);
 
+    const bootAppliedForRef = useRef<number | null>(null);
+    const applyBootNotes = (gameId: number, response: GameNotesPayload) => {
+        bootAppliedForRef.current = gameId;
+        setNotes(response.notes ?? []);
+        setSortMode(response.sortMode ?? "newest");
+        setCollapsedTags(response.collapsedTags ?? []);
+        setLoadedForGameId(gameId);
+    };
+
     useEffect(() => {
         const gameId = targetGameId;
         if (!gameId) {
@@ -105,6 +115,10 @@ export function useGameNotesController({
             setCollapsedTags(clearedList);
             setLoadedForGameId(null);
             setReorderTargetId(null);
+            return;
+        }
+        if (bootAppliedForRef.current === gameId) {
+            bootAppliedForRef.current = null;
             return;
         }
 
@@ -803,6 +817,7 @@ export function useGameNotesController({
             pendingReminderBadge
         },
         actions: {
+            applyBootNotes,
             onSaveGameNote,
             onDeleteGameNote,
             onReorderMove,

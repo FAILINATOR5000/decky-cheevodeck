@@ -13,15 +13,14 @@ import {
     clearGuideCache,
     clearAllGuideData,
     getAchievementComments,
+    getBootState,
     getCachedFriendGame,
     getCachedFriends,
-    getCachedPayload,
     getCachedGameIconDataUri,
     getCachedGameImageDataUri,
     getGameIconCached,
     getGameImageCached,
     getPlayersNearYou,
-    getResumeState,
     getSettings,
     getSocialActivity,
     getUserComments,
@@ -1701,6 +1700,7 @@ function AchievementsRoot() {
     const {
         state: { trackedValidating, trackedIds, trackedIdsLoadedForGameId, trackedAchievements, notesByAchievementId, notesColorByAchievementId, sort: perGameTrackedSort, collapsedTags: trackedCollapsedTags, reorderTargetId, reorderViaSwap, backClaimToken: trackedBackClaimToken, rowClaim: trackedRowClaim, tagMarkedIds: trackedTagMarkedIds, tagMarkCount: trackedTagMarkCount, lastTag: trackedLastTag, canApplyTag: trackedCanApplyTag },
         actions: {
+            applyBootTracked,
             onToggleTagMark: onTrackedToggleTagMark,
             onApplyMarkedTag: onTrackedApplyMarkedTag,
             setTrackedValidating,
@@ -2822,15 +2822,14 @@ function AchievementsRoot() {
     async function loadSettingsAndCache() {
         setError(null);
         setFriendsError(null);
-        const [settings, cached, cachedFriends, savedResume] = await Promise.all([
-            getSettings(),
-            getCachedPayload(),
-            getCachedFriends(),
-            getResumeState()
+        const [boot, cachedFriends] = await Promise.all([
+            getBootState(),
+            getCachedFriends()
         ]);
         if (!mountedRef.current) {
             return null;
         }
+        const { settings, cached, resume: savedResume } = boot;
 
         const nextUsername = settings.username;
         const nextHasApiKey = Boolean(settings.hasApiKey);
@@ -2948,6 +2947,13 @@ function AchievementsRoot() {
             friendProfileBackSourceRef.current = "main";
         }
         setPayload(nextPayload);
+        const bootGameId = nextPayload?.gameId ?? null;
+        if (bootGameId !== null && boot.tracked && boot.tracked.gameId === bootGameId) {
+            applyBootTracked(bootGameId, boot.tracked);
+        }
+        if (bootGameId !== null && boot.gameNotes && bootView !== "gameNotes") {
+            gameNotesActions.applyBootNotes(bootGameId, boot.gameNotes);
+        }
         initializeResumeFromBoot(nextResumeState, nextPayload, bootView, entry?.kind === "profile");
         setGoResumeProvisional(nextGoResumeProvisional);
         setAoResumeProvisional(nextAoResumeProvisional);
