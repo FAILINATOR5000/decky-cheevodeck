@@ -32,6 +32,7 @@ EARLIEST_START = 1325376000
 MAX_KINDS_PER_DEVICE = 200
 MAX_DEVICES = 32
 MAX_DONE_ENTRIES = 5000
+MAX_CARRIED_KEYS = 32
 
 SEALED_SCHEMA_VERSION = 1
 
@@ -184,7 +185,7 @@ def normalize(raw, *, now=None):
     started = _clean_ts(raw.get("startedAt"))
     if started is not None and now is not None and (started > now or started < EARLIEST_START):
         started = None
-    return {
+    clean = {
         "schemaVersion": CURRENT_SCHEMA_VERSION,
         "ulid": file_ulid,
         "deviceId": device,
@@ -206,6 +207,14 @@ def normalize(raw, *, now=None):
         "padSeen": _per_device(raw.get("padSeen"), lambda value: True if value is True else None),
         "derived": _clean_derived(raw.get("derived")),
     }
+    carried = 0
+    for key, value in raw.items():
+        if carried >= MAX_CARRIED_KEYS:
+            break
+        if isinstance(key, str) and key not in clean:
+            clean[key] = value
+            carried += 1
+    return clean
 
 
 def empty_sealed():
