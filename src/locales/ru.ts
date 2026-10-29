@@ -2218,6 +2218,7 @@ const RU: LocaleTable = {
     "That device is on a different game": "На этом устройстве другая игра",
     "That data belongs to another RetroAchievements account": "Эти данные принадлежат другому аккаунту RetroAchievements",
     "That device has nothing to send": "Этому устройству нечего отправить",
+    "Versions don't match": "Версии не совпадают",
     "Too late to cancel, it's already saving": "Слишком поздно отменять, уже идёт сохранение",
     "Saving it here failed": "Не удалось сохранить на этом устройстве",
     "Data Transfer only works in Game Mode": "Перенос данных работает только в игровом режиме",

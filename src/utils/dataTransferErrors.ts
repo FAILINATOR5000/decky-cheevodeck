@@ -8,6 +8,7 @@ const DATA_TRANSFER_ERROR_KEYS: Record<string, string> = {
     peer_gone: "That device isn't answering",
     peer_busy: "That device is busy. Try again in a moment.",
     peer_nothing: "That device has nothing to send",
+    version_mismatch: "Versions don't match",
     transfer_interrupted: "The transfer was interrupted",
     payload_mismatch: "What arrived didn't match what was sent",
     too_late: "Too late to cancel, it's already saving",

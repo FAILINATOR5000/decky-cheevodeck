@@ -236,6 +236,9 @@ function DataTransferPage(props: DataTransferPageProps) {
 
     function rowRefusal(row: DataDeviceRow): string {
         if (kind === "milestones") {
+            if (!row.sameVersion) {
+                return "version_mismatch";
+            }
             return hasProgress(row.milestones) ? "" : "peer_nothing";
         }
         if (GAME_KINDS.includes(kind)) {

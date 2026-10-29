@@ -31,6 +31,7 @@ ERROR_INTERRUPTED = "transfer_interrupted"
 ERROR_PAYLOAD_MISMATCH = "payload_mismatch"
 ERROR_TOO_LATE = "too_late"
 ERROR_WRITE_FAILED = "write_failed"
+ERROR_VERSION_MISMATCH = "version_mismatch"
 
 _RUNNING_STATES = ("connecting", "receiving", "saving", "committing")
 

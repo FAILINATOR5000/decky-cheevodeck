@@ -2254,6 +2254,7 @@ const PL: LocaleTable = {
     "That device is on a different game": "To urządzenie ma włączoną inną grę",
     "That data belongs to another RetroAchievements account": "Te dane należą do innego konta RetroAchievements",
     "That device has nothing to send": "To urządzenie nie ma nic do wysłania",
+    "Versions don't match": "Różne wersje",
     "Too late to cancel, it's already saving": "Za późno na anulowanie, zapis już trwa",
     "Saving it here failed": "Zapis na tym urządzeniu się nie udał",
     "Data Transfer only works in Game Mode": "Przenoszenie danych działa tylko w trybie gry",

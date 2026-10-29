@@ -2097,6 +2097,7 @@ const JA: LocaleTable = {
     "That device is on a different game": "そのデバイスは別のゲームを遊んでいます",
     "That data belongs to another RetroAchievements account": "そのデータは別の RetroAchievements アカウントのものです",
     "That device has nothing to send": "そのデバイスには送るものがありません",
+    "Versions don't match": "バージョンが不一致",
     "Too late to cancel, it's already saving": "すでに保存中のため、キャンセルできません",
     "Saving it here failed": "このデバイスへの保存に失敗しました",
     "Data Transfer only works in Game Mode": "データ移行はゲームモードでのみ使えます",

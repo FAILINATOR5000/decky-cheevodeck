@@ -36,6 +36,7 @@ _LENGTH = struct.Struct("!I")
 
 _MODEL_MAX = 32
 _HOST_MAX = 64
+_VERSION_MAX = 32
 
 _PRODUCTS = {
     "Jupiter": "Steam Deck LCD",
@@ -370,6 +371,7 @@ def make_offer(key: bytes, nonce: str, info: dict) -> bytes:
         "guides": info["guides"],
         "events": info["events"],
         "milestones": info["milestones"],
+        "version": info["version"],
     }
     body["t"] = sign(key, "offer", canonical(body))
     return encode(body)
@@ -436,6 +438,7 @@ def read_offer(key: bytes, message, nonce: str):
         "guides": counts[2],
         "events": counts[3],
         "milestones": milestones,
+        "version": _clean_text(message.get("version"), _VERSION_MAX) or None,
     }
 
 
@@ -453,8 +456,8 @@ def read_fetch(message):
     return nonce if is_nonce(nonce) else None
 
 
-def fetch_params(kind: str, game_id, model: str, host: str) -> dict:
-    return {"kind": kind, "gameId": game_id, "model": model, "host": host}
+def fetch_params(kind: str, game_id, model: str, host: str, version: str) -> dict:
+    return {"kind": kind, "gameId": game_id, "model": model, "host": host, "version": version}
 
 
 def read_fetch_params(raw):
@@ -467,7 +470,8 @@ def read_fetch_params(raw):
     host = _clean_text(raw.get("host"), _HOST_MAX)
     if model is None or host is None:
         return None
-    return {"kind": raw["kind"], "gameId": game_id, "model": model, "host": host}
+    return {"kind": raw["kind"], "gameId": game_id, "model": model, "host": host,
+            "version": _clean_text(raw.get("version"), _VERSION_MAX) or None}
 
 
 def fetch_tag(key: bytes, nc: str, ns: str, params: dict) -> str:

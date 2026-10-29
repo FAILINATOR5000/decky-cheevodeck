@@ -52,7 +52,15 @@ _REFUSALS = {
     "up_to_date": transfer_codes.ERROR_UP_TO_DATE,
 }
 
+PLUGIN_VERSION = str(getattr(decky, "DECKY_PLUGIN_VERSION", "") or "").strip()
+
+
+def _same_version(theirs) -> bool:
+    return bool(PLUGIN_VERSION) and theirs == PLUGIN_VERSION
+
+
 _DATA_REFUSALS = {
+    "version_mismatch": data_codes.ERROR_VERSION_MISMATCH,
     "busy": data_codes.ERROR_PEER_BUSY,
     "nothing": data_codes.ERROR_PEER_NOTHING,
     "different_game": data_codes.ERROR_DIFFERENT_GAME,
@@ -384,6 +392,7 @@ class NearbyTransferService:
             "model": self._model,
             "host": self._host,
             "port": self._port,
+            "version": PLUGIN_VERSION,
         })
         try:
             transport.sendto(reply, addr)
@@ -540,6 +549,8 @@ class NearbyTransferService:
         if seen is None:
             return {"ok": False, "error": data_codes.ERROR_PEER_GONE}
         row = dict(seen[0])
+        if kind == "milestones" and not _same_version(row.get("version")):
+            return {"ok": False, "error": data_codes.ERROR_VERSION_MISMATCH}
         peer = {"model": row["model"], "host": row["host"], "address": row["address"]}
         game_id = row["gameId"] if kind in data_codes.GAME_KINDS else None
         fetch = functools.partial(self._fetch, self._key, row, kind, game_id)
@@ -568,7 +579,7 @@ class NearbyTransferService:
                 ns = proto.recv_frame(sock).get("ns")
                 if not proto.is_nonce(ns):
                     return gone, None
-                params = proto.fetch_params(kind, game_id, self._model, self._host)
+                params = proto.fetch_params(kind, game_id, self._model, self._host, PLUGIN_VERSION)
                 sock.sendall(proto.frame({"tag": proto.fetch_tag(key, nc, ns, params), "params": params}))
                 sock.settimeout(ANSWER_SECONDS)
                 answer = proto.recv_frame(sock)
@@ -851,6 +862,11 @@ class NearbyTransferService:
         kind = params["kind"]
         move = None
         try:
+            if kind == "milestones" and not _same_version(params["version"]):
+                decky.logger.info("nearby: refused milestones to %s, version %s here and %s there",
+                                  label, PLUGIN_VERSION or "(unknown)", params["version"] or "(none)")
+                await _say(writer, {"ok": False, "error": "version_mismatch"})
+                return
             if kind == "milestones":
                 move = await asyncio.to_thread(self._data.begin_move)
                 built = move
@@ -1002,6 +1018,7 @@ def _data_row(row: dict) -> dict:
         "guides": row["guides"],
         "events": row["events"],
         "milestones": row["milestones"],
+        "sameVersion": _same_version(row.get("version")),
     }
 
 

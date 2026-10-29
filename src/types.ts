@@ -1630,6 +1630,7 @@ export type DataDeviceRow = NearbyPeer & {
     guides: number | null;
     events: number | null;
     milestones: DataMilestonesSummary | null;
+    sameVersion: boolean;
 };
 
 export type DataTransferSummary = {

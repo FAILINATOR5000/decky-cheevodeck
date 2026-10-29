@@ -2189,6 +2189,7 @@ export const EN: LocaleTable = {
     "That device is on a different game": "That device is on a different game",
     "That data belongs to another RetroAchievements account": "That data belongs to another RetroAchievements account",
     "That device has nothing to send": "That device has nothing to send",
+    "Versions don't match": "Versions don't match",
     "Too late to cancel, it's already saving": "Too late to cancel, it's already saving",
     "Saving it here failed": "Saving it here failed",
     "Data Transfer only works in Game Mode": "Data Transfer only works in Game Mode",

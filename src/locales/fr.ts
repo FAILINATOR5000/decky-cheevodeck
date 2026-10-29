@@ -2198,6 +2198,7 @@ const FR: LocaleTable = {
     "That device is on a different game": "Cet appareil est sur un autre jeu",
     "That data belongs to another RetroAchievements account": "Ces données appartiennent à un autre compte RetroAchievements",
     "That device has nothing to send": "Cet appareil n'a rien à envoyer",
+    "Versions don't match": "Versions différentes",
     "Too late to cancel, it's already saving": "Trop tard pour annuler, l'enregistrement a commencé",
     "Saving it here failed": "L'enregistrement ici a échoué",
     "Data Transfer only works in Game Mode": "Le transfert de données ne fonctionne qu'en Mode Jeu",
