@@ -197,6 +197,7 @@ const SAVED_COMMENTS_INITIAL_ROWS = 30;
 const SAVED_COMMENTS_ROW_STEP = 50;
 
 const SAVED_COMMENT_CARD_FOCUS_PREFIX = "savedcomment:card:";
+const SAVED_COMMENT_TRASH_FOCUS_PREFIX = "savedcomment:trash:";
 const SAVED_CARD_LAST_FALLBACK = ["savedcomment:facet:filter"];
 const FRIENDS_ROW_FALLBACK = ["social:tab:friends"];
 const FAVORITES_ROW_FALLBACK = ["social:tab:favorites"];
@@ -204,6 +205,10 @@ const ACTIVITY_ROW_FALLBACK = ["social:tab:activity"];
 
 function savedCardFocusKey(comment: SavedComment) {
     return `${SAVED_COMMENT_CARD_FOCUS_PREFIX}${comment.id}`;
+}
+
+function savedTrashFocusKey(comment: SavedComment) {
+    return `${SAVED_COMMENT_TRASH_FOCUS_PREFIX}${comment.id}`;
 }
 
 function friendFocusKey(friend: FriendRow) {
@@ -1001,8 +1006,8 @@ function SocialHubPage(props: SocialHubPageProps) {
             if (key.startsWith("newsets:")) {
                 return newSetsRows.some((entry) => newSetFocusKey(entry) === key);
             }
-            if (key.startsWith(SAVED_COMMENT_CARD_FOCUS_PREFIX)) {
-                return facetedSavedComments.some((comment) => savedCardFocusKey(comment) === key);
+            if (key.startsWith(SAVED_COMMENT_CARD_FOCUS_PREFIX) || key.startsWith(SAVED_COMMENT_TRASH_FOCUS_PREFIX)) {
+                return facetedSavedComments.some((comment) => savedCardFocusKey(comment) === key || savedTrashFocusKey(comment) === key);
             }
             return Boolean(eventsWindowsRef.current?.holds(key));
         },
@@ -1022,8 +1027,8 @@ function SocialHubPage(props: SocialHubPageProps) {
             else if (key.startsWith("newsets:")) {
                 newSetsWindow.openAt(key);
             }
-            else if (key.startsWith(SAVED_COMMENT_CARD_FOCUS_PREFIX)) {
-                savedWindow.openAt(key);
+            else if (key.startsWith(SAVED_COMMENT_CARD_FOCUS_PREFIX) || key.startsWith(SAVED_COMMENT_TRASH_FOCUS_PREFIX)) {
+                savedWindow.openAt(key.replace(SAVED_COMMENT_TRASH_FOCUS_PREFIX, SAVED_COMMENT_CARD_FOCUS_PREFIX));
             }
             else {
                 eventsWindowsRef.current?.open(key);
@@ -1897,7 +1902,7 @@ const SavedCommentCard = React.memo(function SavedCommentCard(props: {
                         contentPaddingRight={30}
                     />
                     <FocusTarget
-                        focusKey={`savedcomment:trash:${comment.id}`}
+                        focusKey={savedTrashFocusKey(comment)}
                         focusFallback={[savedCardFocusKey(comment), ...props.focusFallback]}
                         style={{
                             position: "absolute",
