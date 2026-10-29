@@ -569,6 +569,25 @@ export function GuidesReaderBody(props: GuidesReaderBodyProps) {
         let attempts = 0;
         let scroller: HTMLElement | null = null;
         let onScroll: (() => void) | null = null;
+        let sizeWatch: ResizeObserver | null = null;
+
+        const whenSized = (then: () => void): boolean => {
+            const host = hostRef.current;
+            const view = host?.ownerDocument.defaultView;
+            if (!host || !view || host.clientWidth > 0) {
+                return false;
+            }
+            sizeWatch?.disconnect();
+            sizeWatch = new view.ResizeObserver(() => {
+                if (host.clientWidth > 0) {
+                    sizeWatch?.disconnect();
+                    sizeWatch = null;
+                    frame = requestAnimationFrame(then);
+                }
+            });
+            sizeWatch.observe(host);
+            return true;
+        };
 
         let settledAt: number | null = null;
 
@@ -695,6 +714,9 @@ export function GuidesReaderBody(props: GuidesReaderBodyProps) {
             if (!scroller || !host) {
                 return;
             }
+            if (whenSized(settleAgain)) {
+                return;
+            }
             if (autoFocusRef.current) {
                 autoFocusRef.current = false;
                 const focusable = host.closest("[tabindex]") as HTMLElement | null;
@@ -772,6 +794,9 @@ export function GuidesReaderBody(props: GuidesReaderBodyProps) {
                 finish();
                 return;
             }
+            if (whenSized(settleAgain)) {
+                return;
+            }
             held = !grewFrame
                 && applied !== null
                 && Math.abs(scroller.scrollTop - applied) <= RESTORE_TOLERANCE_PX
@@ -795,7 +820,16 @@ export function GuidesReaderBody(props: GuidesReaderBodyProps) {
         let held = 0;
         let grewFrame = false;
         let climbStartedAt = 0;
+        const settleAgain = () => {
+            settleAttempts = 0;
+            applied = null;
+            held = 0;
+            settle();
+        };
         const attach = () => {
+            if (whenSized(attach)) {
+                return;
+            }
             const host = hostRef.current;
             scroller = findScroller(host, frameRef.current);
             if (!scroller || !host) {
@@ -813,6 +847,7 @@ export function GuidesReaderBody(props: GuidesReaderBodyProps) {
         frame = requestAnimationFrame(attach);
         return () => {
             cancelAnimationFrame(frame);
+            sizeWatch?.disconnect();
             if (reportFrame) {
                 cancelAnimationFrame(reportFrame);
             }
