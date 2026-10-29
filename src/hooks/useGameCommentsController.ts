@@ -2,7 +2,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { logCommentsDebug } from "../api";
 import { useFocusClaim } from "./useFocusClaim";
 import type { RestoredCommentsWindow } from "./useCommentsWindow";
-import { clearCommentsSnapshot, takeCommentsPostReturn, takeCommentsSnapshot } from "../utils/commentsSnapshot";
+import {
+    clearCommentsSnapshot,
+    commentsCardPosition,
+    putCloseCommentsSnapshot,
+    takeCommentsPostReturn,
+    takeCommentsSnapshot
+} from "../utils/commentsSnapshot";
+import { cheevoModalOpen } from "../utils/modalRegistry";
+import { lastFocusedKey, rootGeneration } from "../focusRecords";
 import { commentIdentity } from "../utils/commentIdentity";
 import type { AotwComment, CommentSurfaceKey, GameComment } from "../types";
 import { clearedList } from "../utils/cleared";
@@ -39,6 +47,7 @@ export type UseGameCommentsControllerOptions<TId extends number | string = numbe
     loadErrorMessage: string;
     loadMoreErrorMessage: string;
     legacyLoading?: boolean;
+    onClosePut?: () => void;
 };
 
 export function useGameCommentsController<TId extends number | string = number>(
@@ -54,7 +63,8 @@ export function useGameCommentsController<TId extends number | string = number>(
         surfaceKey,
         loadErrorMessage,
         loadMoreErrorMessage,
-        legacyLoading = false
+        legacyLoading = false,
+        onClosePut
     } = options;
 
     const [comments, setComments] = useState<GameComment[]>([]);
@@ -370,21 +380,44 @@ export function useGameCommentsController<TId extends number | string = number>(
         }
     };
 
+    const sliceAt = (focusIndex: number) => ({
+        comments,
+        sort: commentsSort,
+        offset: commentsOffsetRef.current,
+        seen: new Set(seenCommentsRef.current),
+        hasMore: commentsHasMore,
+        total: commentsTotal,
+        restricted: commentsRestricted,
+        focusIndex
+    });
+
     const captureComments = (pressed: AotwComment | GameComment) => {
         if (legacyLoading) {
             return null;
         }
-        return {
-            comments,
-            sort: commentsSort,
-            offset: commentsOffsetRef.current,
-            seen: new Set(seenCommentsRef.current),
-            hasMore: commentsHasMore,
-            total: commentsTotal,
-            restricted: commentsRestricted,
-            focusIndex: comments.findIndex((c) => c === pressed)
-        };
+        return sliceAt(comments.findIndex((c) => c === pressed));
     };
+
+    const keepOnCloseRef = useRef<() => void>(() => {});
+    keepOnCloseRef.current = () => {
+        if (legacyLoading || !isActive || id == null || commentsForId !== id || commentsLoading) {
+            return;
+        }
+        if (rootGeneration() !== 0 || cheevoModalOpen()) {
+            return;
+        }
+        const position = commentsCardPosition(surfaceKey);
+        const last = lastFocusedKey();
+        if (!position || last !== `${position.prefix}:${position.index}` || position.index >= comments.length) {
+            logCommentsDebug("close-skip", id, `surface=${surfaceKey} last=${last ?? "(none)"} kept=${position ? position.index : "(none)"}`);
+            return;
+        }
+        const slice = { ...sliceAt(position.index), windowStart: position.windowStart, spacerPx: position.spacerPx };
+        if (putCloseCommentsSnapshot(surfaceKey, id, slice)) {
+            onClosePut?.();
+        }
+    };
+    useEffect(() => () => keepOnCloseRef.current(), []);
 
     useEffect(() => {
         if (!isActive) {

@@ -528,6 +528,10 @@ function keyFamily(key: string): string | null {
     return cut > 0 ? key.slice(0, cut + 1) : null;
 }
 
+export function lastFocusedKey(): string | null {
+    return lastSpot?.key ?? null;
+}
+
 function noteSpot(root: HTMLElement, target: Element) {
     const entry = topEntry();
     const keyed = target.closest("[data-focus-key]");

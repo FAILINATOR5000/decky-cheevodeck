@@ -160,7 +160,7 @@ import { MAP_SHORTCUTS_FOCUS_KEY } from "../utils/options";
 import { openBrowserModal } from "../components/browser/BrowserModal";
 import { describeStack, initialNav, previousView, type NavIntent } from "../nav";
 import { setCover } from "../covers";
-import { beginRootMount, landOnArrival, landOnTop, landingOwnsTop, restoreTrail, settleTrail, subPopWouldLand, topEntryId, useFocusRecordWriter } from "../focusRecords";
+import { beginRootMount, landOnArrival, landOnTop, landingOwnsTop, restoreTrail, rootMountReason, settleTrail, subPopWouldLand, topEntryId, useFocusRecordWriter } from "../focusRecords";
 import { LandingCurtain } from "../components/ui/LandingCurtain";
 import { ROUTES, type RouteBackActions } from "../routes";
 import type {
@@ -236,6 +236,7 @@ import {
 import {
     clearAotwCarry,
     clearCommentsSnapshot,
+    dropCloseCommentsSnapshot,
     hasCommentsPostReturnFor,
     hasCommentsRestoreForSurface,
     hasCommentsSnapshotFor,
@@ -458,6 +459,9 @@ function AchievementsRoot() {
             : "none";
         logNavDebug(`restore-${verdict}`, landed, `saved=${saved ? saved.join(" > ") : "(null)"}`);
         setNav(restoreTrail(rootMount.generation, saved, landed, forward));
+        if (forward.panelEntry || forward.routeOverride || rootMountReason() === "panelEntry") {
+            dropCloseCommentsSnapshot("panel entry");
+        }
         setViewState(landed);
     }, []);
     useEffect(() => {
@@ -1113,7 +1117,8 @@ function AchievementsRoot() {
         surfaceKey: "comments:aotw",
         legacyLoading: legacyCommentsLoading,
         loadErrorMessage: "Couldn't load this achievement's comments.",
-        loadMoreErrorMessage: "Couldn't load more comments."
+        loadMoreErrorMessage: "Couldn't load more comments.",
+        onClosePut: () => putAotwCarry(aotwResponse, activeUlid)
     });
     const {
         state: {

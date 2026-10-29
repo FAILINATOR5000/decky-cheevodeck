@@ -16,9 +16,16 @@ export type CommentsSnapshot = {
     focusIndex: number;
     windowStart: number;
     spacerPx: number;
+    expiresAt?: number;
 };
 
 let snapshot: CommentsSnapshot | null = null;
+
+const CLOSE_SNAPSHOT_MS = 10 * 60 * 1000;
+
+function expired(held: CommentsSnapshot): boolean {
+    return held.expiresAt !== undefined && Date.now() >= held.expiresAt;
+}
 
 let currentUlid = "";
 
@@ -34,8 +41,41 @@ export function putCommentsSnapshot(next: CommentsSnapshot): void {
         "snapshot-put",
         next.threadId,
         `surface=${next.surfaceKey} n=${next.comments.length} sort=${next.sort} offset=${next.offset} focus=${next.focusIndex}`
+            + (next.expiresAt !== undefined ? ` close start=${next.windowStart} spacer=${next.spacerPx}` : "")
     );
     snapshot = next;
+}
+
+type CommentsCardPosition = { prefix: string; index: number; windowStart: number; spacerPx: number };
+
+const cardPositions = new Map<CommentSurfaceKey, CommentsCardPosition>();
+
+export function noteCommentsCardPosition(surfaceKey: CommentSurfaceKey, position: CommentsCardPosition): void {
+    cardPositions.set(surfaceKey, position);
+}
+
+export function commentsCardPosition(surfaceKey: CommentSurfaceKey): CommentsCardPosition | null {
+    return cardPositions.get(surfaceKey) ?? null;
+}
+
+export function putCloseCommentsSnapshot(
+    surfaceKey: CommentSurfaceKey,
+    threadId: number | string,
+    slice: Omit<CommentsSnapshot, "surfaceKey" | "threadId" | "ulid" | "expiresAt">
+): boolean {
+    if (!currentUlid) {
+        return false;
+    }
+    putCommentsSnapshot({ surfaceKey, threadId, ulid: currentUlid, ...slice, expiresAt: Date.now() + CLOSE_SNAPSHOT_MS });
+    return true;
+}
+
+export function dropCloseCommentsSnapshot(why: string): void {
+    if (!snapshot || snapshot.expiresAt === undefined) {
+        return;
+    }
+    logCommentsDebug("snapshot-drop", snapshot.threadId, `surface=${snapshot.surfaceKey} ${why}`);
+    snapshot = null;
 }
 
 export function takeCommentsSnapshot(
@@ -47,6 +87,10 @@ export function takeCommentsSnapshot(
     }
     const held = snapshot;
     snapshot = null;
+    if (expired(held)) {
+        logCommentsDebug("snapshot-drop", threadId, `surface=${surfaceKey} expired`);
+        return null;
+    }
     if (held.threadId !== threadId || held.ulid !== currentUlid) {
         logCommentsDebug(
             "snapshot-drop",
@@ -62,7 +106,7 @@ export function hasCommentsSnapshotFor(
     surfaceKey: CommentSurfaceKey,
     threadId: number | string
 ): boolean {
-    if (!snapshot || snapshot.surfaceKey !== surfaceKey) {
+    if (!snapshot || snapshot.surfaceKey !== surfaceKey || expired(snapshot)) {
         return false;
     }
     return snapshot.threadId === threadId && snapshot.ulid === currentUlid;
@@ -129,7 +173,7 @@ export function clearCommentsRestoreForSurface(surfaceKey: CommentSurfaceKey): v
 }
 
 export function hasCommentsRestoreForSurface(surfaceKey: CommentSurfaceKey): boolean {
-    if (snapshot && snapshot.surfaceKey === surfaceKey && snapshot.ulid === currentUlid) {
+    if (snapshot && snapshot.surfaceKey === surfaceKey && snapshot.ulid === currentUlid && !expired(snapshot)) {
         return true;
     }
     return Boolean(postReturn && postReturn.surfaceKey === surfaceKey && postReturn.ulid === currentUlid);

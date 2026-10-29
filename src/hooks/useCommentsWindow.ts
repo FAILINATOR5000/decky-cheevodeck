@@ -2,6 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type Mutable
 import type { CommentSurfaceKey, GameComment } from "../types";
 import { logCommentsDebug } from "../api";
 import { currentJumpToTopToken, subscribeJumpToTop } from "../utils/jumpToTop";
+import { measureFocusedCardWindow } from "../utils/commentGeometry";
+import { noteCommentsCardPosition } from "../utils/commentsSnapshot";
 
 const WINDOW_INITIAL_ROWS = 12;
 const WINDOW_ROW_STEP = 8;
@@ -228,10 +230,36 @@ export function useCommentsWindow(options: CommentsWindowOptions): CommentsWindo
     const showDownMarker = dynamicLoading && !windowFull;
     const showPageMarker = dynamicLoading && hasMore && !loading && windowFull;
 
-    const focusStateRef = useRef({ windowStart, windowEnd, dynamicLoading, hasMore, loading, loadingMore, count: comments.length });
-    focusStateRef.current = { windowStart, windowEnd, dynamicLoading, hasMore, loading, loadingMore, count: comments.length };
+    const heldPx = dynamicLoading ? spacerPx : 0;
+    const focusStateRef = useRef({ windowStart, windowEnd, heldPx, dynamicLoading, hasMore, loading, loadingMore, count: comments.length });
+    focusStateRef.current = { windowStart, windowEnd, heldPx, dynamicLoading, hasMore, loading, loadingMore, count: comments.length };
+
+    const prefixRef = useRef(focusKeyPrefix);
+    prefixRef.current = focusKeyPrefix;
+    const positionRef = useRef({ index: -1, frame: 0 });
+    const notePosition = useCallback(function notePosition(index: number) {
+        const pending = positionRef.current;
+        pending.index = index;
+        const view = spacerRef.current?.ownerDocument.defaultView;
+        if (pending.frame || !view) {
+            return;
+        }
+        pending.frame = view.requestAnimationFrame(function measurePosition() {
+            pending.frame = 0;
+            const container = spacerRef.current?.parentElement;
+            if (!container || container.clientWidth === 0) {
+                return;
+            }
+            const state = focusStateRef.current;
+            const geometry = measureFocusedCardWindow(container, prefixRef.current, pending.index, state.windowStart, state.heldPx);
+            if (geometry) {
+                noteCommentsCardPosition(surfaceKey, { prefix: prefixRef.current, index: pending.index, ...geometry });
+            }
+        });
+    }, [surfaceKey]);
 
     const onCardFocus = useCallback(function onCardFocus(index: number) {
+        notePosition(index);
         const state = focusStateRef.current;
         if (!state.dynamicLoading) {
             return;
@@ -252,7 +280,7 @@ export function useCommentsWindow(options: CommentsWindowOptions): CommentsWindo
             return;
         }
         void onLoadMoreRef.current();
-    }, [growUp, growDown]);
+    }, [notePosition, growUp, growDown]);
 
     useMarkerObserver(upMarkerEl, showUpMarker, UP_MARKER_ROOT_MARGIN, growUp);
     useMarkerObserver(downMarkerEl, showDownMarker, `${Math.max(0, sentinelRootMargin)}px 0px`, growDown);
@@ -265,7 +293,7 @@ export function useCommentsWindow(options: CommentsWindowOptions): CommentsWindo
     return {
         mountedComments,
         windowStart,
-        spacerPx: dynamicLoading ? spacerPx : 0,
+        spacerPx: heldPx,
         spacerRef,
         setUpMarker,
         setDownMarker,

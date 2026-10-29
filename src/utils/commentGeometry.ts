@@ -46,3 +46,23 @@ export function measureCommentWindow(
     const abovePx = target.getBoundingClientRect().top - firstCard.getBoundingClientRect().top;
     return { windowStart, spacerPx: Math.max(0, Math.round(heldPx + abovePx)) };
 }
+
+export function measureFocusedCardWindow(
+    container: ParentNode,
+    focusKeyPrefix: string,
+    focusIndex: number,
+    firstMounted: number,
+    heldPx: number
+): CommentWindowGeometry | null {
+    const windowStart = Math.max(firstMounted, focusIndex - RESTORE_LEAD);
+    if (windowStart < MIN_SPACER_ROWS) {
+        return { windowStart: 0, spacerPx: 0 };
+    }
+    const target = container.querySelector(`[data-focus-key="${focusKeyPrefix}:${windowStart}"]`);
+    const firstCard = container.querySelector(`[data-focus-key="${focusKeyPrefix}:${firstMounted}"]`);
+    if (!target || !firstCard) {
+        return null;
+    }
+    const abovePx = target.getBoundingClientRect().top - firstCard.getBoundingClientRect().top;
+    return { windowStart, spacerPx: Math.max(0, Math.round(heldPx + abovePx)) };
+}
