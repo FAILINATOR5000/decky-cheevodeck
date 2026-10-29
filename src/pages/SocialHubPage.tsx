@@ -62,7 +62,7 @@ import { useSlidingWindow } from "../hooks/useSlidingWindow";
 import { useWhenHeld } from "../hooks/useWhenHeld";
 import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
 import { UserAvatar } from "../components/ui/UserAvatar";
-import { FriendListRow, type FriendRowListProps } from "../components/social/FriendListRow";
+import { FriendListRow, friendFavoriteFocusKey, type FriendRowListProps } from "../components/social/FriendListRow";
 import { ActivityFeedRow, type ActivityRowListProps } from "../components/social/ActivityFeedRow";
 import { localizeRuntimeText, t } from "../locales";
 import { FADE_IN_KEYFRAMES, achievementUiMetrics, bodyTextStyle, headerCase, smallTextStyle, type AchievementUiMetrics } from "../utils/style";
@@ -992,6 +992,9 @@ function SocialHubPage(props: SocialHubPageProps) {
             if (key.startsWith("friend:")) {
                 return socialFriendsRows.some((friend) => friendFocusKey(friend) === key);
             }
+            if (key.startsWith("friend-favorite:")) {
+                return socialFriendsRows.some((friend) => !friend.isSelf && friendFavoriteFocusKey(friend) === key);
+            }
             if (key.startsWith("activity:")) {
                 return activityEvents.some((event) => `activity:${event.id}` === key);
             }
@@ -1006,6 +1009,12 @@ function SocialHubPage(props: SocialHubPageProps) {
         open: (key) => {
             if (key.startsWith("friend:")) {
                 friendWindow.openAt(key);
+            }
+            else if (key.startsWith("friend-favorite:")) {
+                const friend = socialFriendsRows.find((row) => friendFavoriteFocusKey(row) === key);
+                if (friend) {
+                    friendWindow.openAt(friendFocusKey(friend));
+                }
             }
             else if (key.startsWith("activity:")) {
                 activityWindow.openAt(key);

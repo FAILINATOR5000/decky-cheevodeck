@@ -10,6 +10,10 @@ import { BUTTON_OPTIONS, BUTTON_SECONDARY } from "../../utils/gamepadButtons";
 import { playOkSound, playToggleSound } from "../../utils/navSound";
 import { bodyTextStyle } from "../../utils/style";
 
+export function friendFavoriteFocusKey(friend: FriendRow) {
+    return `friend-favorite:${friend.username.trim().toLowerCase()}`;
+}
+
 export type FriendRowListProps = {
     language: LanguageCode;
     focusFallback?: string[];
@@ -35,7 +39,6 @@ export const FriendListRow = React.memo(function FriendListRow(props: FriendList
     const { friend, favorite, liveRefreshing, list } = props;
     const { language } = list;
 
-    const favoriteKey = friend.username.trim().toLowerCase();
     const canFavorite = !friend.isSelf;
 
     const [favoriteFocused, setFavoriteFocused] = useState(false);
@@ -208,7 +211,7 @@ export const FriendListRow = React.memo(function FriendListRow(props: FriendList
             ) : null}
             {canFavorite ? (
                 <FocusTarget
-                    focusKey={`friend-favorite:${favoriteKey}`}
+                    focusKey={friendFavoriteFocusKey(friend)}
                     focusFallback={[`friend:${friend.username}`, ...(list.focusFallback ?? [])]}
                     style={{
                         position: "absolute",
