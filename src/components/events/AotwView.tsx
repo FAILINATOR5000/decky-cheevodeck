@@ -303,6 +303,7 @@ export function AotwView(props: AotwViewPageProps) {
                                                     showIcons={showIcons}
                                                     focusKeyPrefix="aotw:comment"
                                                     surfaceKey="comments:aotw"
+                                                    recordAs="aotw:comments:post"
                                                     onCommentClick={(c) =>
                                                         aotw.onOpenAotwComment(
                                                             c,

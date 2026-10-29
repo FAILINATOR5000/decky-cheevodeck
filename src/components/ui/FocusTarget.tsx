@@ -6,6 +6,7 @@ type FocusTargetProps = HTMLAttributes<HTMLDivElement> & {
     focusKey?: string;
     focusFallback?: string[];
     recordOff?: boolean;
+    recordAs?: string;
     ref?: Ref<HTMLDivElement>;
 };
 
@@ -38,7 +39,7 @@ function assignRef(ref: Ref<HTMLDivElement> | undefined, node: HTMLDivElement | 
 }
 
 export function FocusTarget(props: FocusTargetProps) {
-    const { focusKey, focusFallback, recordOff, ref, ...rest } = props;
+    const { focusKey, focusFallback, recordOff, recordAs, ref, ...rest } = props;
     const claim = useKeyClaim(focusKey);
     const [held, setHeld] = useState(0);
     if (claim && claim.armed && claim.token !== held) {
@@ -79,6 +80,7 @@ export function FocusTarget(props: FocusTargetProps) {
             data-focus-key={focusKey}
             data-focus-fallback={focusFallback ? JSON.stringify(focusFallback) : undefined}
             data-focus-record={recordOff ? "off" : undefined}
+            data-focus-record-as={recordAs}
         />
     );
     if (!claimStyle) {

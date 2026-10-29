@@ -7,6 +7,7 @@ export type FocusableItemProps = {
     focusKey?: string;
     focusFallback?: string[];
     recordOff?: boolean;
+    recordAs?: string;
     children: React.ReactNode;
     onClick?: () => void | Promise<void>;
     onFocus?: () => void;
@@ -30,7 +31,7 @@ export type FocusableItemProps = {
 };
 
 export function FocusableItem(props: FocusableItemProps) {
-    const { children, onClick, onFocus, onBlur, onGamepadFocus, onGamepadBlur, onButtonDown, onGamepadDirection, onMenuButton, actionDescriptionMap, onMouseEnter, onMouseLeave, disabled, skipWhenDisabled, autoFocus, focusKey, focusFallback, recordOff, outerStyle, scrollMarginTop, bottomSeparator = "standard", help, modalHelp } = props;
+    const { children, onClick, onFocus, onBlur, onGamepadFocus, onGamepadBlur, onButtonDown, onGamepadDirection, onMenuButton, actionDescriptionMap, onMouseEnter, onMouseLeave, disabled, skipWhenDisabled, autoFocus, focusKey, focusFallback, recordOff, recordAs, outerStyle, scrollMarginTop, bottomSeparator = "standard", help, modalHelp } = props;
     const wrapperRef = useRef<HTMLDivElement | null>(null);
 
     function handleFocusCapture() {
@@ -79,6 +80,7 @@ export function FocusableItem(props: FocusableItemProps) {
             focusKey={focusKey}
             focusFallback={focusFallback}
             recordOff={recordOff}
+            recordAs={recordAs}
             onFocusCapture={handleFocusCapture}
             onBlurCapture={handleBlurCapture}
             onMouseEnter={handleMouseEnter}

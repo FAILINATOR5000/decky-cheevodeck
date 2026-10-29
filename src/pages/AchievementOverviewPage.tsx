@@ -415,6 +415,7 @@ function AchievementOverviewPage(props: AchievementOverviewPageProps) {
                             showIcons={showIcons}
                             focusKeyPrefix="ao:comment"
                             surfaceKey="comments:ao"
+                            recordAs="ao:comments:post"
                             onCommentClick={onCommentClick}
                             dynamicLoading={dynamicComments}
                             dynamicSentinelRootMargin={dynamicCommentsSentinelRootMargin}

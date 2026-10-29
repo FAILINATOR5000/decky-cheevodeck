@@ -1118,6 +1118,7 @@ function GameOverviewPage(props: GameOverviewPageProps) {
                                     showIcons={showIcons}
                                     focusKeyPrefix="gameoverview:comment"
                                     surfaceKey="comments:overview"
+                                    recordAs="gameoverview:comments:post"
                                     onCommentClick={onCommentClick}
                                     dynamicLoading={dynamicComments}
                                     dynamicSentinelRootMargin={dynamicCommentsSentinelRootMargin}

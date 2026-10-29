@@ -426,6 +426,7 @@ function EventView(props: { state: EventViewState; actions: EventViewerPageActio
                             showIcons={settings.showIcons}
                             focusKeyPrefix="eventviewer:comment"
                             surfaceKey="comments:event"
+                            recordAs="eventviewer:comments:post"
                             onCommentClick={openComment}
                             dynamicLoading={settings.dynamicComments}
                             dynamicSentinelRootMargin={settings.dynamicCommentsSentinelRootMargin}

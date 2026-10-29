@@ -23,11 +23,12 @@ export type CommentCardProps = {
     contentPaddingRight?: number;
     onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
     recorded?: boolean;
+    recordAs?: string;
     focusFallback?: string[];
 };
 
 export const CommentCard = React.memo(function CommentCard(props: CommentCardProps) {
-    const { comment, language, metrics, showIcons, focusKey, onClick, index, onGamepadFocusIndex, outerStyle, contentPaddingRight, onGamepadDirection, recorded, focusFallback } = props;
+    const { comment, language, metrics, showIcons, focusKey, onClick, index, onGamepadFocusIndex, outerStyle, contentPaddingRight, onGamepadDirection, recorded, recordAs, focusFallback } = props;
 
     const username = String(comment.user || "").trim() || t(language, "Someone");
     const dateText = formatUnlockDate(comment.submitted, { includeYear: true }, language);
@@ -44,7 +45,8 @@ export const CommentCard = React.memo(function CommentCard(props: CommentCardPro
         <FocusableItem
             focusKey={focusKey}
             focusFallback={focusFallback}
-            recordOff={!recorded}
+            recordOff={!recorded && !recordAs}
+            recordAs={recordAs}
             onClick={handleClick}
             onGamepadFocus={onGamepadFocusIndex && index != null ? () => onGamepadFocusIndex(index) : undefined}
             onGamepadDirection={onGamepadDirection}

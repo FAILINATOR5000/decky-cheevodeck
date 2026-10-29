@@ -829,6 +829,7 @@ export function NowPlayingTabBody(props: NowPlayingTabBodyProps) {
                                         showIcons={showIcons}
                                         focusKeyPrefix="nowplaying:comment"
                                         surfaceKey="comments:nowplaying"
+                                        recordAs="nowplaying:comments:post"
                                         onCommentClick={onCommentClick}
                                         dynamicLoading={dynamicComments}
                                         dynamicSentinelRootMargin={dynamicCommentsSentinelRootMargin}

@@ -20,6 +20,7 @@ export type CommentsListProps = {
     showIcons: boolean;
     focusKeyPrefix: string;
     surfaceKey: CommentSurfaceKey;
+    recordAs: string;
     onCommentClick: (comment: AotwComment | GameComment) => void | Promise<void>;
     dynamicLoading: boolean;
     dynamicSentinelRootMargin: number;
@@ -46,6 +47,7 @@ export function CommentsList(props: CommentsListProps) {
         showIcons,
         focusKeyPrefix,
         surfaceKey,
+        recordAs,
         onCommentClick,
         dynamicLoading,
         dynamicSentinelRootMargin,
@@ -195,6 +197,7 @@ export function CommentsList(props: CommentsListProps) {
                         metrics={cardMetrics}
                         showIcons={showIcons}
                         focusKey={`${focusKeyPrefix}:${index}`}
+                        recordAs={recordAs}
                         onClick={handleCommentClick}
                     />
                 );

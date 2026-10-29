@@ -1351,6 +1351,7 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                                 showIcons={showIcons}
                                 focusKeyPrefix="friendwall:comment"
                                 surfaceKey="comments:wall"
+                                recordAs="friendwall:post"
                                 onCommentClick={actions.onWallCommentClick}
                                 dynamicLoading={dynamicComments}
                                 dynamicSentinelRootMargin={dynamicCommentsSentinelRootMargin}
