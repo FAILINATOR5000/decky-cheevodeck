@@ -796,6 +796,7 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
     const pendingShiftRef = useRef<{ delta: number; from: number } | null>(null);
     const rebaseAppliedRef = useRef<number | null>(null);
     const measuredHolderRef = useRef<HTMLDivElement | null>(null);
+    const sizelessRef = useRef(false);
     const lastRangeRef = useRef<{ epoch: number; items: T[]; end: number; scope: string } | null>(null);
     const [measureEpoch, setMeasureEpoch] = useState(0);
 
@@ -815,7 +816,13 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
         }
 
         const measuredWidth = Math.round(holder.clientWidth);
-        if (measuredWidth > 0 && measuredWidth !== width) {
+        if (measuredWidth === 0) {
+            anchorsRef.current = null;
+            geometryRef.current = null;
+            sizelessRef.current = true;
+            return;
+        }
+        if (measuredWidth !== width) {
             lastWidthByWindow.set(windowId, measuredWidth);
             setWidth(measuredWidth);
         }
@@ -1091,6 +1098,10 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
             if (measured > 0) {
                 lastWidthByWindow.set(windowId, measured);
                 setWidth(measured);
+                if (sizelessRef.current) {
+                    sizelessRef.current = false;
+                    setMeasureEpoch((epoch) => epoch + 1);
+                }
             }
         });
         observer.observe(holder);
