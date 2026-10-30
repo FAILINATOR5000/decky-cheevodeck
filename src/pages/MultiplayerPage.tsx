@@ -46,7 +46,8 @@ const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
 const ROOM_PREFIX = "multiplayer:room:";
 const CORE_PREFIX = "multiplayer:core:";
-const LINK_SYSTEMS = [4, 5, 6, 18, 41];
+const LINK_SYSTEMS = [4, 5, 6, 16, 18, 41];
+const DOLPHIN_CONSOLES = ["GameCube", "Wii"];
 const GBA_SYSTEM = 5;
 const NO_ROOMS: MultiplayerRoomRow[] = [];
 const NO_CORES: MultiplayerCoreChoice[] = [];
@@ -76,7 +77,12 @@ const PROBLEM_TEXT: Record<string, string> = {
     melondsds_too_old: "Link Play needs melonDS DS 1.2.0 or newer",
     melondsds_dsi_mode: "Link Play needs DS mode in melonDS DS",
     melonds_standalone: "melonDS standalone has no RetroAchievements. A RetroArch shortcut with melonDS DS can link.",
-    link_system: "Link Play works with Game Boy, Game Boy Advance, DS and PSP games",
+    link_needs_dolphin: "Link Play needs Dolphin",
+    link_gc_no_lan: "Link Play works with Mario Kart: Double Dash!! and Kirby Air Ride",
+    dolphin_game_setting: "A Dolphin game setting for this game sets the network adapter",
+    region_differs: "Your copy is from a different region than the host's",
+    dolphin_flatpak_needed: "GameCube and Wii games need Dolphin's Flatpak installed for Cheevo Check",
+    link_system: "Link Play works with Game Boy, Game Boy Advance, DS and PSP games, and two GameCube games",
     duckstation_no_multiplayer: "DuckStation can't do Couch Play. A RetroArch shortcut with Beetle PSX HW can.",
     pcsx2_no_multiplayer: "PCSX2 has no Link Play or Couch Play",
     override: "A RetroArch override for this game sets {{key}}",
@@ -122,7 +128,8 @@ const WARNING_TEXT: Record<string, string> = {
 
 const WAITING = ["no_guests", "waiting_host"];
 
-const ABOVE_TABS = ["not_game_mode", "no_account", "cap_reached", "unavailable", "no_scan", "not_in_results", "no_shortcut"];
+const ABOVE_TABS = ["not_game_mode", "no_account", "cap_reached", "unavailable", "no_scan", "not_in_results", "no_shortcut",
+    "dolphin_flatpak_needed"];
 
 function problemText(language: LanguageCode, code: string, detail?: Record<string, string>): string {
     return t(language, PROBLEM_TEXT[code] ?? PROBLEM_TEXT.launch_failed, detail);
@@ -264,6 +271,10 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             return { code: mp.visibleError };
         }
         if (!hosted && !joined && !mp.pendingRoom && gateCheck?.gate) {
+            if (gateCheck.gate === "not_in_results" && gateCheck.detail?.dolphinSkipped
+                && DOLPHIN_CONSOLES.includes(shown?.consoleName ?? "")) {
+                return { code: "dolphin_flatpak_needed" };
+            }
             return { code: gateCheck.gate, detail: gateCheck.detail };
         }
         return null;
@@ -823,6 +834,13 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         {t(language, mp.mode === "link" ? "help_multiplayer_link_mode" : "help_multiplayer_couch_mode")}
                     </div>
                 </PanelSectionRow>
+                {mp.mode === "link" && local?.emulator === "dolphin" && (
+                    <PanelSectionRow>
+                        <div style={bodyTextStyle()}>
+                            {t(language, "Start LAN mode in the game on both devices at about the same time.")}
+                        </div>
+                    </PanelSectionRow>
+                )}
                 {modeProblem && (
                     <PanelSectionRow>
                         <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>

@@ -26,14 +26,18 @@ GAMBATTE = "gambatte"
 PPSSPP_CORE = "ppsspp"
 GPSP = "gpsp"
 MELONDS_DS = "melondsds"
+DOLPHIN_STANDALONE = "dolphin-standalone"
+DOLPHIN_FLATPAK = "org.DolphinEmu.dolphin-emu"
 
 NES_SYSTEM = 7
 GB_SYSTEMS = (4, 6)
 GBA_SYSTEM = 5
 DS_SYSTEM = 18
+GAMECUBE_SYSTEM = 16
 PSP_SYSTEM = 41
 
-LINK_CORES = {4: GAMBATTE, 6: GAMBATTE, GBA_SYSTEM: GPSP, DS_SYSTEM: MELONDS_DS, PSP_SYSTEM: PPSSPP_CORE}
+LINK_CORES = {4: GAMBATTE, 6: GAMBATTE, GBA_SYSTEM: GPSP, DS_SYSTEM: MELONDS_DS, PSP_SYSTEM: PPSSPP_CORE,
+              GAMECUBE_SYSTEM: DOLPHIN_STANDALONE}
 
 GBA_LINK_CODES = frozenset((
     "AW2E", "AW2P", "AWRE", "AWRP", "AXPD", "AXPE", "AXPF", "AXPI", "AXPJ", "AXPS",
@@ -52,6 +56,13 @@ DS_POKEMON_GENERATIONS = {
     9852: 4, 25369: 4, 11732: 4, 7212: 4,
     3887: 5, 16211: 5, 5853: 5, 16197: 5,
 }
+
+GC_LAN_GAMES = {
+    7693: "Mario Kart: Double Dash!!",
+    6151: "Kirby Air Ride",
+}
+
+DOLPHIN_BBA_BUILT_IN = 12
 
 DS_LINK_SEATS = 2
 
@@ -388,6 +399,95 @@ def melonds_firmware_names(options: dict) -> set:
     if chosen and chosen != "/":
         names.add(PurePosixPath(chosen).name)
     return names
+
+
+def dolphin_install(exe, launch_options, home) -> str:
+    tokens = []
+    for field in (exe, launch_options):
+        if field:
+            try:
+                tokens.extend(shlex.split(field, posix=True))
+            except ValueError:
+                tokens.extend(field.split())
+    names = [PurePosixPath(token).name.lower() for token in tokens[:3]]
+    if "dolphin-flatpak" in names or DOLPHIN_FLATPAK.lower() in names:
+        return "flatpak"
+    if any(name.endswith(".appimage") and "dolphin" in name for name in names):
+        return "appimage"
+    for token in tokens[:2]:
+        if token.endswith(".sh"):
+            return _script_install(_expand(token, Path(home), Path(home)), "dolphin" in names)
+    return ""
+
+
+def _script_install(path, wrapper_arm: bool) -> str:
+    try:
+        text = Path(path).read_text(encoding="utf-8", errors="replace")
+    except (OSError, TypeError):
+        return ""
+    if wrapper_arm:
+        found = re.search(r"^launch_dolphin\(\)\s*\{(.*?)^\}", text, re.S | re.M)
+        if found is None:
+            return ""
+        text = found.group(1)
+    if re.search(r"flatpak\s+run\s+org\.DolphinEmu\.dolphin-emu", text, re.I):
+        return "flatpak"
+    if re.search(r"[^\s\"']*dolphin[^\s\"']*\.appimage", text, re.I):
+        return "appimage"
+    return ""
+
+
+def dolphin_game_settings(home, install: str) -> list:
+    home = Path(home)
+    if install == "flatpak":
+        return [home / ".var/app/org.DolphinEmu.dolphin-emu/data/dolphin-emu/GameSettings"]
+    if install == "appimage":
+        if (home / ".dolphin-emu").is_dir():
+            return [home / ".dolphin-emu/GameSettings"]
+        return [home / ".local/share/dolphin-emu/GameSettings"]
+    return []
+
+
+def dolphin_sets_adapter(folders, disc_id: str) -> bool:
+    names = [f"{disc_id[:1]}.ini", f"{disc_id[:3]}.ini", f"{disc_id}.ini"]
+    for folder in folders:
+        try:
+            revisions = [entry.name for entry in folder.iterdir() if entry.name.startswith(f"{disc_id}r")]
+        except OSError:
+            continue
+        for name in names + revisions:
+            for key, _value in _ini_pairs(folder / name):
+                if key == "SerialPort1":
+                    return True
+    return False
+
+
+def _ini_pairs(path) -> list:
+    pairs = []
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as handle:
+            for line in handle:
+                found = _INI_LINE.match(line)
+                if found:
+                    pairs.append((found.group(1), found.group(2)))
+    except OSError:
+        pass
+    return pairs
+
+
+def bba_mac(machine_id: str) -> str:
+    digest = hashlib.sha256(f"cheevodeck-bba|{machine_id}".encode()).digest()
+    return "00:09:bf:" + ":".join(f"{byte:02x}" for byte in digest[:3])
+
+
+def dolphin_bba_args(*, own_ip: str, mac: str, hardcore: bool, marker: Path) -> str:
+    return " ".join([
+        "-C", f"Dolphin.Core.SerialPort1={DOLPHIN_BBA_BUILT_IN}",
+        "-C", f"Dolphin.Core.BBA_BUILTIN_IP={own_ip}",
+        "-C", f"Dolphin.Core.BBA_MAC={mac}",
+        "-C", f"Achievements.Achievements.HardcoreEnabled={'True' if hardcore else 'False'}",
+        "-C", quote(f"Dolphin.CheevoDeck.Session={marker}"),
+    ])
 
 
 def compose_launch_options(original: str, args: str) -> str:

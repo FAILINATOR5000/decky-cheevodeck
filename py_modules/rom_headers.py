@@ -175,3 +175,28 @@ def game_code(path, system_id):
 def dsi_only(path):
     data = _rom_bytes(path, _CODE_AT[18][1], _DS_UNIT_OFFSET + 1)
     return data is not None and len(data) > _DS_UNIT_OFFSET and data[_DS_UNIT_OFFSET] == _DSI_ONLY
+
+
+_DISC_ID_AT = {b"RVZ\x01": 0x58, b"WIA\x01": 0x58, b"CISO": 0x8000}
+_WBFS_MAGIC = b"WBFS"
+_WBFS_SHIFT_OFFSET = 8
+_DISC_ID_LENGTH = 6
+
+
+def disc_game_id(path):
+    suffix = str(path).lower().rsplit(".", 1)[-1]
+    if suffix not in ("iso", "gcm", "rvz", "wia", "wbfs", "ciso"):
+        return ""
+    try:
+        with open(path, "rb") as handle:
+            head = handle.read(_WBFS_SHIFT_OFFSET + 1)
+            offset = _DISC_ID_AT.get(head[:4], 0)
+            if head[:4] == _WBFS_MAGIC and len(head) > _WBFS_SHIFT_OFFSET:
+                offset = 1 << head[_WBFS_SHIFT_OFFSET]
+            handle.seek(offset)
+            found = handle.read(_DISC_ID_LENGTH)
+    except OSError:
+        return ""
+    if len(found) != _DISC_ID_LENGTH or not all(chr(byte).isupper() or chr(byte).isdigit() for byte in found):
+        return ""
+    return found.decode("ascii")

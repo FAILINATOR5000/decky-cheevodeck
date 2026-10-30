@@ -55,7 +55,9 @@ SETTLE_SECONDS = 5
 APP_ENDED_GRACE_SECONDS = 10
 FLATPAK_SECONDS = 10
 
-EMULATOR_NAMES = ("retroarch", "PPSSPPSDL", "PPSSPPQt")
+EMULATOR_NAMES = ("retroarch", "PPSSPPSDL", "PPSSPPQt", "dolphin-emu")
+
+SESSION_SUFFIXES = {".cfg": "retroarch", ".ini": "ppsspp", ".dolphin": "dolphin"}
 
 ERROR_NOT_GAME_MODE = "not_game_mode"
 ERROR_NO_ACCOUNT = "no_account"
@@ -180,6 +182,7 @@ class MultiplayerService:
         self._crc_memo = {}
         self._build_memo = {}
         self._code_memo = {}
+        self._dolphin_skipped = False
         self._cable_memo = {}
         self._versions = None
         self._permissions = {}
@@ -358,6 +361,7 @@ class MultiplayerService:
         results = self._cheevo_check_store.load_results()
         if results is None:
             return None
+        self._dolphin_skipped = bool(results.get("skippedDolphin"))
         library = {}
         for game in results.get("supportedGames") or []:
             if not isinstance(game, dict):
@@ -523,6 +527,8 @@ class MultiplayerService:
             linked = next((p for p in entry["paths"] if p["shortcut"]), None)
             shortcut = linked["shortcut"] if linked else None
             can_link = entry["systemId"] in session.LINK_CORES
+            if entry["systemId"] == session.GAMECUBE_SYSTEM:
+                can_link = entry["gameId"] in session.GC_LAN_GAMES
             if can_link and entry["systemId"] == session.GBA_SYSTEM:
                 can_link = linked is not None \
                     and self._game_code_of(linked["real"], session.GBA_SYSTEM) in session.GBA_LINK_CODES
@@ -568,6 +574,8 @@ class MultiplayerService:
             game_id = room["gameId"]
         game = library.get(game_id)
         if game is None:
+            if self._dolphin_skipped and not self._flatpak_version(session.DOLPHIN_FLATPAK):
+                return None, "not_in_results", {"dolphinSkipped": "1"}
             return None, "not_in_results", {}
         candidates = [entry for entry in game["paths"] if entry["shortcut"]]
         if not candidates:
@@ -625,6 +633,8 @@ class MultiplayerService:
             local.update(core=session.PPSSPP_STANDALONE, coreName="PPSSPP", shortcutCoreName="PPSSPP",
                          emuVersion=self._flatpak_version(session.PPSSPP_FLATPAK))
             return local, None, {}
+        if emulator == "dolphin":
+            return self._dolphin_local(mode, local, pick)
         if emulator != "retroarch":
             return None, "unsupported_emulator", {}
 
@@ -640,6 +650,8 @@ class MultiplayerService:
 
         if mode == "link":
             needed = session.LINK_CORES[system_id]
+            if needed == session.DOLPHIN_STANDALONE:
+                return None, "link_needs_dolphin", {}
             if not core:
                 chosen = needed if needed in compatible else ""
             if chosen != needed:
@@ -668,6 +680,36 @@ class MultiplayerService:
             local["coreBuild"] = self._core_build_of(ra.core_path(chosen))
         return local, None, {}
 
+    def _dolphin_local(self, mode: str, local: dict, pick: dict):
+        if mode == "couch":
+            return None, "unsupported_emulator", {}
+        if local["gameId"] not in session.GC_LAN_GAMES:
+            return None, "link_gc_no_lan", {}
+        install = session.dolphin_install(pick["shortcut"]["exe"], pick["shortcut"]["launchOptions"], self._user_home)
+        disc = rom_headers.disc_game_id(pick["real"])
+        if disc and session.dolphin_sets_adapter(session.dolphin_game_settings(self._user_home, install), disc):
+            return None, "dolphin_game_setting", {}
+        local.update(core=session.DOLPHIN_STANDALONE, coreName="Dolphin", shortcutCoreName="Dolphin",
+                     install=install, gameCode=disc[:4],
+                     emuVersion=self._flatpak_version(session.DOLPHIN_FLATPAK) if install == "flatpak" else "")
+        return local, None, {}
+
+    def _bba_mac(self) -> str:
+        machine_id = ""
+        try:
+            machine_id = Path("/etc/machine-id").read_text(encoding="ascii", errors="replace").strip()
+        except OSError:
+            pass
+        if not machine_id or machine_id == "uninitialized":
+            for path in sorted(Path("/sys/class/net").glob("*/address")):
+                if path.parent.name != "lo":
+                    try:
+                        machine_id = path.read_text(encoding="ascii", errors="replace").strip()
+                    except OSError:
+                        continue
+                    break
+        return session.bba_mac(machine_id)
+
     def _gates(self, mode: str, local: dict, room, players: int):
         warnings = []
         rom = Path(local["path"])
@@ -690,6 +732,11 @@ class MultiplayerService:
                     and local["gameId"] in session.GEN3_POKEMON_GAMES
                 if room["systemId"] != system_id or (room["gameId"] != local["gameId"] and not pokemon):
                     return ("different_game", {}), warnings
+            elif room["systemId"] == session.GAMECUBE_SYSTEM or system_id == session.GAMECUBE_SYSTEM:
+                if room["gameId"] != local["gameId"]:
+                    return ("different_game", {}), warnings
+                if room["gameCode"][3:] and local["gameCode"][3:] and room["gameCode"][3:] != local["gameCode"][3:]:
+                    return ("region_differs", {}), warnings
             elif room["systemId"] == session.DS_SYSTEM or system_id == session.DS_SYSTEM:
                 generation = session.DS_POKEMON_GENERATIONS.get(local["gameId"])
                 same_generation = generation is not None \
@@ -708,7 +755,7 @@ class MultiplayerService:
                     return ("link_needs_ppsspp", {}), warnings
                 if room["hash"] and self._hash_of_path(local, system_id) not in ("", room["hash"]):
                     warnings.append({"code": "revision_differs", "detail": {}})
-            versions_differ = local["core"] not in proto.NETPACKET_CORES \
+            versions_differ = local["core"] not in proto.NETPACKET_CORES and local["emulator"] != "dolphin" \
                 and _known(room["emuVersion"]) and _known(local["emuVersion"]) \
                 and room["emuVersion"] != local["emuVersion"]
             builds_differ = mode == "couch" and room["coreBuild"] and local["coreBuild"] \
@@ -908,7 +955,11 @@ class MultiplayerService:
         if room["state"] == "lobby":
             return "lobby"
         current = self._session
-        if current is not None and current["seen"] and _listening(proto.game_port(room["mode"], room["emulator"], room["core"])):
+        if current is None or not current["seen"]:
+            return "starting"
+        if room["emulator"] == "dolphin" and room["mode"] == "link":
+            return "playing"
+        if _listening(proto.game_port(room["mode"], room["emulator"], room["core"])):
             return "playing"
         return "starting"
 
@@ -1266,6 +1317,7 @@ class MultiplayerService:
                 "row": row,
                 "seat": answer["seat"],
                 "ip": answer["ip"],
+                "ownIp": answer["ownIp"],
                 "key": answer["key"],
                 "status": None,
                 "failures": 0,
@@ -1281,6 +1333,7 @@ class MultiplayerService:
     async def _ask_to_join(self, row: dict, code: str, params: dict) -> dict:
         nc = secrets.token_hex(16)
         reader, writer = await asyncio.open_connection(row["address"], self._peer_port)
+        own = (writer.get_extra_info("sockname") or ("",))[0]
         try:
             writer.write(frame({"op": "join", "v": proto.VERSION, "nc": nc}))
             await writer.drain()
@@ -1304,10 +1357,11 @@ class MultiplayerService:
             type(seat) is not int
             or not 1 <= seat < proto.MAX_SEATS
             or not proto.is_ipv4(address)
+            or not proto.is_ipv4(own)
             or not verify(key, answer.get("t"), "joined", nc, ns, str(seat), address)
         ):
             return {"ok": False, "error": ERROR_HOST_GONE}
-        return {"ok": True, "seat": seat, "ip": address, "key": proto.seat_key(key, nc, ns)}
+        return {"ok": True, "seat": seat, "ip": address, "ownIp": own, "key": proto.seat_key(key, nc, ns)}
 
     async def _poll(self, joined: dict) -> None:
         while self._joined is joined and not joined["launched"] and not joined["error"]:
@@ -1427,6 +1481,7 @@ class MultiplayerService:
             local = room["local"]
             seat = 0
             host_ip = _guests(room)[0]["ip"]
+            own_ip = host_ip
             hardcore = room["hardcore"] if mode == "couch" else bool(hardcore)
             players = 1 + len(_guests(room))
             peer = None
@@ -1439,6 +1494,7 @@ class MultiplayerService:
             local = joined["local"]
             seat = joined["seat"]
             host_ip = joined["ip"]
+            own_ip = joined["ownIp"]
             hardcore = status["hardcore"] if mode == "couch" else bool(hardcore)
             players = sum(1 for name in status["members"] if name)
             peer = joined["row"]
@@ -1476,6 +1532,11 @@ class MultiplayerService:
                                               cfg_path=cfg_path, core_path=core_path, core=local["core"])
                 if core_path is not None:
                     self._back_up_save(ra, local)
+            elif local["emulator"] == "dolphin":
+                marker = self._session_dir / f"session-{sid}.dolphin"
+                self._write(marker, "")
+                files = [marker]
+                args = session.dolphin_bba_args(own_ip=own_ip, mac=self._bba_mac(), hardcore=hardcore, marker=marker)
             else:
                 ini_path = self._session_dir / f"session-{sid}.ini"
                 self._write(ini_path, session.ppsspp_session(role=role, host_ip=host_ip, nick=nick, hardcore=hardcore))
@@ -1688,7 +1749,7 @@ class MultiplayerService:
         self._remove_session_files(current["id"])
 
     def _remove_session_files(self, sid: str) -> None:
-        for suffix in (".cfg", ".opt", ".ini"):
+        for suffix in (".opt", *SESSION_SUFFIXES):
             try:
                 (self._session_dir / f"session-{sid}{suffix}").unlink()
             except FileNotFoundError:
@@ -1757,8 +1818,8 @@ class MultiplayerService:
     def _adopt(self, sid: str) -> None:
         if self._session is not None:
             return
-        files = [path for path in (self._session_dir / f"session-{sid}.cfg", self._session_dir / f"session-{sid}.ini")
-                 if path.exists()]
+        files = [self._session_dir / f"session-{sid}{suffix}" for suffix in SESSION_SUFFIXES]
+        files = [path for path in files if path.exists()]
         if not files:
             return
         record = self.restore_record()["record"] or {}
@@ -1766,7 +1827,7 @@ class MultiplayerService:
             "id": sid,
             "appid": record.get("appid", 0) if record.get("session") == sid else 0,
             "role": "",
-            "emulator": "retroarch" if files[0].suffix == ".cfg" else "ppsspp",
+            "emulator": SESSION_SUFFIXES[files[0].suffix],
             "files": files,
             "started": time.monotonic(),
             "seen": False,
