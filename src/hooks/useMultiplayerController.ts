@@ -352,7 +352,12 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         return run(async () => {
             const own = row.mode === "couch" ? 0 : ownGameId ?? 0;
             await freshVisit();
-            const joinedRoom = await multiplayerJoin(row.room, code, own, core);
+            let joinedRoom = await multiplayerJoin(row.room, code, own, core);
+            const hostGame = games?.find((game) => game.gameId === row.gameId && game.appid > 0);
+            if (!joinedRoom.ok && joinedRoom.gate && row.mode === "link" && own !== row.gameId && hostGame) {
+                pickGame(row.gameId);
+                joinedRoom = await multiplayerJoin(row.room, code, row.gameId, multiplayerCoreFor(row.gameId));
+            }
             if (joinedRoom.ok) {
                 setPendingRoom(null);
             }
