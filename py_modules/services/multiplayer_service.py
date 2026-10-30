@@ -177,6 +177,7 @@ class MultiplayerService:
         self._library_cache = (None, None)
         self._hash_memo = {}
         self._crc_memo = {}
+        self._build_memo = {}
         self._versions = None
         self._permissions = {}
 
@@ -413,6 +414,16 @@ class MultiplayerService:
             self._crc_memo[key] = session.rom_crc(path)
         return self._crc_memo[key]
 
+    def _core_build_of(self, path: Path) -> str:
+        try:
+            st = os.stat(path)
+        except OSError:
+            return ""
+        key = (str(path), st.st_mtime_ns, st.st_size)
+        if key not in self._build_memo:
+            self._build_memo[key] = session.core_build(path)
+        return self._build_memo[key]
+
     def _flatpak_env(self) -> dict:
         owner = child_owner()
         uid = owner[0] if owner else os.getuid()
@@ -463,7 +474,7 @@ class MultiplayerService:
                 continue
             if mode == "couch" and not ra.can_couch(core):
                 continue
-            if mode == "link" and core not in (session.GAMBATTE, session.PPSSPP_CORE):
+            if mode == "link" and core != session.LINK_CORES.get(system_id):
                 continue
             cores.append(core)
         return cores
@@ -556,11 +567,17 @@ class MultiplayerService:
             "shortcutCoreName": detected["core"],
             "choices": [],
             "hash": pick["hash"],
+            "coreBuild": "",
         }
-        if mode == "link" and system_id not in GB_SYSTEMS and system_id != PSP_SYSTEM:
+        emulator = detected["emulator"]
+        if emulator == "pcsx2":
+            return None, "pcsx2_no_multiplayer", {}
+        if emulator == "duckstation" and mode == "couch":
+            return None, "duckstation_no_multiplayer", {}
+        if mode == "link" and system_id not in session.LINK_CORES:
             return None, "link_system", {}
 
-        if detected["emulator"] == "ppsspp":
+        if emulator == "ppsspp":
             if mode == "couch":
                 return None, "no_couch_core", {}
             if system_id != PSP_SYSTEM:
@@ -568,6 +585,8 @@ class MultiplayerService:
             local.update(core=session.PPSSPP_STANDALONE, coreName="PPSSPP", shortcutCoreName="PPSSPP",
                          emuVersion=self._flatpak_version(session.PPSSPP_FLATPAK))
             return local, None, {}
+        if emulator != "retroarch":
+            return None, "unsupported_emulator", {}
 
         ra = session.RetroArch(self._user_home)
         if not ra.found:
@@ -580,9 +599,9 @@ class MultiplayerService:
         chosen = core or self._default_core(ra, compatible, detected["core"], room_core)
 
         if mode == "link":
-            needed = session.GAMBATTE if system_id in GB_SYSTEMS else session.PPSSPP_CORE
+            needed = session.LINK_CORES[system_id]
             if chosen != needed:
-                return None, "link_needs_gambatte" if needed == session.GAMBATTE else "link_needs_ppsspp", {}
+                return None, f"link_needs_{needed}", {}
         elif chosen not in compatible:
             if room is not None and room_core and not ra.installed(room_core):
                 return None, "host_core_missing", {"core": room["coreName"] or room_core}
@@ -595,6 +614,8 @@ class MultiplayerService:
 
         local.update(core=chosen, coreName=ra.core_name(chosen),
                      emuVersion=f"{self._flatpak_version(session.RETROARCH_FLATPAK)}|{ra.version(chosen)}")
+        if mode == "couch":
+            local["coreBuild"] = self._core_build_of(ra.core_path(chosen))
         return local, None, {}
 
     def _gates(self, mode: str, local: dict, room, players: int):
@@ -626,7 +647,11 @@ class MultiplayerService:
                     return ("link_needs_ppsspp", {}), warnings
                 if room["hash"] and self._hash_of_path(local, system_id) not in ("", room["hash"]):
                     warnings.append({"code": "revision_differs", "detail": {}})
-            if _known(room["emuVersion"]) and _known(local["emuVersion"]) and room["emuVersion"] != local["emuVersion"]:
+            versions_differ = _known(room["emuVersion"]) and _known(local["emuVersion"]) \
+                and room["emuVersion"] != local["emuVersion"]
+            builds_differ = mode == "couch" and room["coreBuild"] and local["coreBuild"] \
+                and room["coreBuild"] != local["coreBuild"]
+            if versions_differ or builds_differ:
                 warnings.append({"code": "version_mismatch", "detail": {}})
 
         if ra is not None:
@@ -648,7 +673,7 @@ class MultiplayerService:
                 return ("emudeck_netplay", {}), warnings
             if not self._flatpak_reads_home(session.RETROARCH_FLATPAK):
                 return ("flatpak_permission", {}), warnings
-        elif not self._flatpak_reads_home(session.PPSSPP_FLATPAK):
+        elif local["emulator"] == "ppsspp" and not self._flatpak_reads_home(session.PPSSPP_FLATPAK):
             return ("flatpak_permission", {}), warnings
         return None, warnings
 
@@ -742,6 +767,7 @@ class MultiplayerService:
             "emuVersion": local["emuVersion"],
             "hash": self._hash_of_path(local, local["systemId"]),
             "crc": self._crc_of(local["real"]) if mode == "couch" else "",
+            "coreBuild": local["coreBuild"],
         }
 
     def room_options(self, hardcore=None, private=None, core=None) -> dict:
@@ -756,7 +782,8 @@ class MultiplayerService:
                 return {"ok": False, "error": ERROR_GATE, "gate": gate, "detail": detail}
             seats = _seat_count(room["mode"], local)
             room.update(core=local["core"], coreName=local["coreName"], emuVersion=local["emuVersion"],
-                        local=local, max=seats, seats=room["seats"][:1] + [None] * (seats - 1))
+                        coreBuild=local["coreBuild"], local=local, max=seats,
+                        seats=room["seats"][:1] + [None] * (seats - 1))
         if hardcore is not None:
             room["hardcore"] = bool(hardcore)
         if private is not None and bool(private) != room["private"]:
@@ -818,7 +845,7 @@ class MultiplayerService:
         if room["state"] == "lobby":
             return "lobby"
         current = self._session
-        if current is not None and current["seen"] and _listening(proto.game_port(room["mode"], room["emulator"])):
+        if current is not None and current["seen"] and _listening(proto.game_port(room["mode"], room["emulator"], room["core"])):
             return "playing"
         return "starting"
 

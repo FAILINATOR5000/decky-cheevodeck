@@ -3096,6 +3096,8 @@ const PL: LocaleTable = {
     "Link Play needs Gambatte": "Gra połączona wymaga Gambatte",
     "Link Play needs PPSSPP": "Gra połączona wymaga PPSSPP",
     "Link Play works with Game Boy and PSP games": "Gra połączona działa z grami na Game Boya i PSP",
+    "DuckStation can't do Couch Play. A RetroArch shortcut with Beetle PSX HW can.": "DuckStation nie obsługuje gry na kanapie. Skrót RetroArch z Beetle PSX HW ją obsługuje.",
+    "PCSX2 has no Link Play or Couch Play": "PCSX2 nie ma gry połączonej ani gry na kanapie",
     "A RetroArch override for this game sets {{key}}": "Nadpisanie RetroArch dla tej gry ustawia {{key}}",
     "A RetroArch remap for this game sets the controller type": "Przemapowanie RetroArch dla tej gry ustawia typ kontrolera",
     "Turn off EmuDeck's NetPlay first": "Najpierw wyłącz NetPlay w EmuDeck",

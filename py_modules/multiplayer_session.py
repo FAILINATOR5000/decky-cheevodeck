@@ -1,3 +1,4 @@
+import hashlib
 import os
 import re
 import shlex
@@ -25,6 +26,8 @@ PPSSPP_CORE = "ppsspp"
 NES_SYSTEM = 7
 GB_SYSTEMS = (4, 6)
 PSP_SYSTEM = 41
+
+LINK_CORES = {4: GAMBATTE, 6: GAMBATTE, PSP_SYSTEM: PPSSPP_CORE}
 
 SESSION_CFG_KEYS = (
     "config_save_on_exit",
@@ -97,7 +100,14 @@ MULTITAP = {
     "pcsx_rearmed": {"options": {"pcsx_rearmed_multitap": "port 1"}},
 }
 
-_PPSSPP_NAMES = ("ppsspp", "ppsspp.sh", "org.ppsspp.ppsspp", "ppssppsdl", "ppssppqt")
+_STANDALONE_NAMES = (
+    ("ppsspp", ("ppsspp", "ppsspp.sh", "org.ppsspp.ppsspp", "ppssppsdl", "ppssppqt")),
+    ("dolphin", ("dolphin", "dolphin-flatpak", "dolphin-emu", "dolphin-emu.sh", "dolphin-emu-wrapper",
+                 "org.dolphinemu.dolphin-emu")),
+    ("duckstation", ("duckstation", "duckstation.sh", "org.duckstation.duckstation")),
+    ("pcsx2", ("pcsx2", "pcsx2-qt", "pcsx2-qt.sh", "net.pcsx2.pcsx2")),
+    ("melonds", ("melonds", "melonds.sh", "net.kuribo64.melonds")),
+)
 _CPU_FLAGS = {0: "-i", 1: "-j", 2: "-r", 3: "-J"}
 _CFG_LINE = re.compile(r'^\s*([A-Za-z0-9_]+)\s*=\s*"?(.*?)"?\s*$')
 _INI_LINE = re.compile(r"^\s*([A-Za-z0-9_]+)\s*=\s*(.*?)\s*$")
@@ -303,9 +313,25 @@ def detect(exe, launch_options):
     if core:
         return {"emulator": "retroarch", "core": core}
     for token in tokens[:3]:
-        if PurePosixPath(token).name.lower() in _PPSSPP_NAMES:
-            return {"emulator": "ppsspp", "core": PPSSPP_STANDALONE}
+        name = PurePosixPath(token).name.lower()
+        for emulator, names in _STANDALONE_NAMES:
+            if name in names or (name.endswith(".appimage") and emulator in name):
+                return {"emulator": emulator, "core": f"{emulator}-standalone"}
     return None
+
+
+def core_build(path) -> str:
+    digest = hashlib.sha256()
+    try:
+        with open(path, "rb") as handle:
+            while True:
+                block = handle.read(1 << 20)
+                if not block:
+                    break
+                digest.update(block)
+    except OSError:
+        return ""
+    return digest.hexdigest()[:16]
 
 
 def compose_launch_options(original: str, args: str) -> str:

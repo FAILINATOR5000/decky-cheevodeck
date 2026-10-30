@@ -2993,6 +2993,8 @@ export const EN: LocaleTable = {
     "Link Play needs Gambatte": "Link Play needs Gambatte",
     "Link Play needs PPSSPP": "Link Play needs PPSSPP",
     "Link Play works with Game Boy and PSP games": "Link Play works with Game Boy and PSP games",
+    "DuckStation can't do Couch Play. A RetroArch shortcut with Beetle PSX HW can.": "DuckStation can't do Couch Play. A RetroArch shortcut with Beetle PSX HW can.",
+    "PCSX2 has no Link Play or Couch Play": "PCSX2 has no Link Play or Couch Play",
     "A RetroArch override for this game sets {{key}}": "A RetroArch override for this game sets {{key}}",
     "A RetroArch remap for this game sets the controller type": "A RetroArch remap for this game sets the controller type",
     "Turn off EmuDeck's NetPlay first": "Turn off EmuDeck's NetPlay first",

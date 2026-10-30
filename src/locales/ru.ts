@@ -3065,6 +3065,8 @@ const RU: LocaleTable = {
     "Link Play needs Gambatte": "Для связанной игры нужен Gambatte",
     "Link Play needs PPSSPP": "Для связанной игры нужен PPSSPP",
     "Link Play works with Game Boy and PSP games": "Связанная игра работает с играми Game Boy и PSP",
+    "DuckStation can't do Couch Play. A RetroArch shortcut with Beetle PSX HW can.": "DuckStation не поддерживает игру на диване. Ярлык RetroArch с Beetle PSX HW поддерживает.",
+    "PCSX2 has no Link Play or Couch Play": "В PCSX2 нет ни связанной игры, ни игры на диване",
     "A RetroArch override for this game sets {{key}}": "Переопределение RetroArch для этой игры задаёт {{key}}",
     "A RetroArch remap for this game sets the controller type": "Переназначение RetroArch для этой игры задаёт тип контроллера",
     "Turn off EmuDeck's NetPlay first": "Сначала выключи NetPlay в EmuDeck",

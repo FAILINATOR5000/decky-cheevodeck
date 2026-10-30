@@ -27,6 +27,7 @@ _ROOM_ID = re.compile(r"[0-9a-f]{16}")
 _CODE = re.compile(r"[0-9]{4}")
 _HASH = re.compile(r"[0-9a-f]{32}")
 _CRC = re.compile(r"[0-9a-f]{8}")
+_BUILD = re.compile(r"[0-9a-f]{16}")
 _CORE = re.compile(r"[a-z0-9_+.-]{1,48}")
 
 _USER_MAX = 32
@@ -79,10 +80,10 @@ def seat_key(key: bytes, nc: str, ns: str) -> bytes:
     return hmac.new(key, f"seat|{nc}|{ns}".encode("ascii"), hashlib.sha256).digest()
 
 
-def game_port(mode: str, emulator: str) -> int:
+def game_port(mode: str, emulator: str, core: str) -> int:
     if mode == "couch":
         return RETROARCH_NETPLAY_PORT
-    if emulator == "retroarch":
+    if emulator == "retroarch" and core == "gambatte":
         return GAMBATTE_LINK_PORT
     return PPSSPP_ADHOC_SERVER_PORT
 
@@ -129,6 +130,7 @@ def room_body(room: dict) -> dict:
         "emuVersion": room["emuVersion"],
         "hash": room["hash"],
         "crc": room["crc"],
+        "coreBuild": room["coreBuild"],
         "hardcore": room["hardcore"],
         "private": room["private"],
         "seats": [seat["name"] if seat else "" for seat in room["seats"]],
@@ -158,6 +160,9 @@ def read_room(message, nonce=None):
     user = _clean(message.get("user"), _USER_MAX)
     title = _clean(message.get("title"), _TITLE_MAX)
     core = message.get("core")
+    build = message.get("coreBuild")
+    if not _optional(build, _BUILD):
+        build = ""
     if (
         not is_room_id(message.get("room"))
         or not user
@@ -194,6 +199,7 @@ def read_room(message, nonce=None):
         "emuVersion": _clean(message.get("emuVersion"), _VERSION_MAX) or "",
         "hash": message["hash"],
         "crc": message["crc"],
+        "coreBuild": build,
         "hardcore": message["hardcore"],
         "private": message["private"],
         "seats": [_clean(seat, _USER_MAX) or "" for seat in seats],

@@ -2851,6 +2851,8 @@ const JA: LocaleTable = {
     "Link Play needs Gambatte": "リンクプレイにはGambatteが必要です",
     "Link Play needs PPSSPP": "リンクプレイにはPPSSPPが必要です",
     "Link Play works with Game Boy and PSP games": "リンクプレイはゲームボーイとPSPのゲームで使えます",
+    "DuckStation can't do Couch Play. A RetroArch shortcut with Beetle PSX HW can.": "DuckStationはカウチプレイに対応していません。Beetle PSX HWを使うRetroArchのショートカットなら対応しています。",
+    "PCSX2 has no Link Play or Couch Play": "PCSX2にはリンクプレイもカウチプレイもありません",
     "A RetroArch override for this game sets {{key}}": "このゲームのRetroArchオーバーライドが{{key}}を設定しています",
     "A RetroArch remap for this game sets the controller type": "このゲームのRetroArchリマップがコントローラーの種類を設定しています",
     "Turn off EmuDeck's NetPlay first": "先にEmuDeckのNetPlayをオフにしてください",

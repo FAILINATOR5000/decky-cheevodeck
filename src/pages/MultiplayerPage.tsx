@@ -67,6 +67,8 @@ const PROBLEM_TEXT: Record<string, string> = {
     link_needs_gambatte: "Link Play needs Gambatte",
     link_needs_ppsspp: "Link Play needs PPSSPP",
     link_system: "Link Play works with Game Boy and PSP games",
+    duckstation_no_multiplayer: "DuckStation can't do Couch Play. A RetroArch shortcut with Beetle PSX HW can.",
+    pcsx2_no_multiplayer: "PCSX2 has no Link Play or Couch Play",
     override: "A RetroArch override for this game sets {{key}}",
     remap: "A RetroArch remap for this game sets the controller type",
     emudeck_netplay: "Turn off EmuDeck's NetPlay first",
