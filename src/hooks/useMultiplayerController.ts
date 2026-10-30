@@ -59,6 +59,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     const [rooms, setRooms] = useState<MultiplayerRoomRow[] | null>(null);
     const [status, setStatus] = useState<MultiplayerRoomStatus | null>(null);
     const [check, setCheck] = useState<MultiplayerCheck | null>(null);
+    const [checkedFor, setCheckedFor] = useState("");
     const [games, setGames] = useState<MultiplayerGame[] | null>(null);
     const [scanned, setScanned] = useState(true);
     const [installedCores, setInstalledCores] = useState<string[]>([]);
@@ -81,6 +82,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             : pendingRoom?.mode === "couch" ? pendingRoom.gameId : ownGameId;
     const [core, setCoreState] = useState(() => multiplayerCoreFor(gameId));
     const checkRoom = joined ? joined.room.room : pendingRoom?.room ?? "";
+    const checkKey = [mode, gameId ?? 0, core, checkRoom].join("|");
 
     const reloadStatus = useCallback(async () => {
         try {
@@ -210,6 +212,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
                 const result = await multiplayerCheck(mode, gameId, core, checkRoom);
                 if (checkTokenRef.current === token) {
                     setCheck(result);
+                    setCheckedFor(checkKey);
                 }
             }
             catch (e) {
@@ -416,6 +419,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             joined,
             closedReason: status?.role === null ? status.closedReason : "",
             check,
+            checkCurrent: checkedFor === checkKey,
             games,
             scanned,
             installedCores,

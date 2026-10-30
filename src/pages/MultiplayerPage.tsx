@@ -239,6 +239,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const hosted = mp.hosted;
     const joined = mp.joined;
     const local = mp.check?.local ?? null;
+    const gateCheck = mp.checkCurrent ? mp.check : null;
     const session = mp.session;
     const playing = session.appid > 0;
     const seated = hosted ? hosted.seats.filter((seat, index) => index > 0 && seat).length : 0;
@@ -249,8 +250,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         if (mp.visibleError) {
             return { code: mp.visibleError };
         }
-        if (!hosted && !joined && !mp.pendingRoom && mp.check?.gate) {
-            return { code: mp.check.gate, detail: mp.check.detail };
+        if (!hosted && !joined && !mp.pendingRoom && gateCheck?.gate) {
+            return { code: gateCheck.gate, detail: gateCheck.detail };
         }
         return null;
     }
@@ -262,8 +263,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         if (session.failure) {
             return { code: session.failure };
         }
-        if (mp.check?.gate) {
-            return { code: mp.check.gate, detail: mp.check.detail };
+        if (gateCheck?.gate) {
+            return { code: gateCheck.gate, detail: gateCheck.detail };
         }
         if (joined?.error) {
             return { code: joined.error };
@@ -284,7 +285,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const topProblem = problem && ABOVE_TABS.includes(problem.code) ? problem : null;
     const modeProblem = problem && !ABOVE_TABS.includes(problem.code) ? problem : null;
     const status = playStatus();
-    const canPlay = status === null && !playing && !mp.busy && local !== null;
+    const canPlay = status === null && !playing && !mp.busy && local !== null && mp.checkCurrent;
     const playLabel = playing ? "Playing" : joined ? "Join & Play" : "Host & Play";
 
     const title = shown?.title ?? local?.title ?? mp.games?.find((game) => game.gameId === mp.gameId)?.title ?? null;
@@ -482,7 +483,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     outerStyle={buttonStyle}
                     focusKey="multiplayer:host"
                     focusFallback={["multiplayer:toggle:hardcore", "multiplayer:back"]}
-                    disabled={mp.busy || (!hosted && (mp.gameId === null || Boolean(mp.check?.gate) || (Boolean(mp.visibleError) && mp.visibleError !== "cap_reached")))}
+                    disabled={mp.busy || (!hosted && (mp.gameId === null || !gateCheck || Boolean(gateCheck.gate) || (Boolean(mp.visibleError) && mp.visibleError !== "cap_reached")))}
                     onClick={() => void (hosted ? actions.closeRoom() : actions.host())}
                 >
                     {t(language, hosted ? "Close Room" : "Host a Room")}
@@ -786,7 +787,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         </div>
                     </PanelSectionRow>
                 )}
-                {(mp.check?.warnings ?? []).map((warning) => (
+                {(gateCheck?.warnings ?? []).map((warning) => (
                     <PanelSectionRow key={warning.code}>
                         <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
                             {t(language, WARNING_TEXT[warning.code] ?? WARNING_TEXT.version_mismatch, warning.detail)}
