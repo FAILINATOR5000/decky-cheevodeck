@@ -10,6 +10,7 @@ import { InlineSpinner } from "../components/ui/InlineSpinner";
 import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
 import { SubTabButton } from "../components/ui/SubTabButton";
+import { TextViewerModal } from "../components/ui/TextViewerModal";
 import { ToggleRow } from "../components/ui/ToggleRow";
 import { GameHeaderCard, useGameHeaderArt } from "../components/games/GameHeaderCard";
 import { DigitPicker } from "../components/multiplayer/DigitPicker";
@@ -45,7 +46,8 @@ const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
 const ROOM_PREFIX = "multiplayer:room:";
 const CORE_PREFIX = "multiplayer:core:";
-const LINK_SYSTEMS = [4, 6, 41];
+const LINK_SYSTEMS = [4, 5, 6, 41];
+const GBA_SYSTEM = 5;
 const NO_ROOMS: MultiplayerRoomRow[] = [];
 const NO_CORES: MultiplayerCoreChoice[] = [];
 
@@ -66,7 +68,11 @@ const PROBLEM_TEXT: Record<string, string> = {
     no_couch_core: "No installed core for this system can do Couch Play",
     link_needs_gambatte: "Link Play needs Gambatte",
     link_needs_ppsspp: "Link Play needs PPSSPP",
-    link_system: "Link Play works with Game Boy and PSP games",
+    link_needs_gpsp: "Link Play needs gpSP. Install it in RetroArch (Main Menu → Online Updater → Core Downloader).",
+    gpsp_too_old: "Link Play needs a newer gpSP. Update it in RetroArch (Online Updater → Update Installed Cores).",
+    link_gba_cant_link: "gpSP can't link this game",
+    link_no_game_code: "CheevoDeck can't read this game's code",
+    link_system: "Link Play works with Game Boy, Game Boy Advance and PSP games",
     duckstation_no_multiplayer: "DuckStation can't do Couch Play. A RetroArch shortcut with Beetle PSX HW can.",
     pcsx2_no_multiplayer: "PCSX2 has no Link Play or Couch Play",
     override: "A RetroArch override for this game sets {{key}}",
@@ -139,6 +145,7 @@ type MultiplayerPageState = {
     language: LanguageCode;
     buttonSpacing: ButtonSpacing;
     showIcons: boolean;
+    mouseKeyboardMode: boolean;
     payload: Payload | null;
 };
 
@@ -315,7 +322,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     function openGamePicker() {
         const entryId = topEntryId();
         const rows = (mp.games ?? [])
-            .filter((game) => game.appid > 0 && (mp.mode === "couch" || LINK_SYSTEMS.includes(game.systemId)))
+            .filter((game) => game.appid > 0 && (mp.mode === "couch" || (LINK_SYSTEMS.includes(game.systemId) && game.canLink)))
             .map((game) => ({
                 key: `${game.systemId}:${game.gameId}`,
                 system: game.system,
@@ -342,6 +349,24 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     close();
                     void openExternalUrl(raLookupSearchUrl(search));
                 }}
+                close={close}
+            />
+        ));
+    }
+
+    function openLinkGames() {
+        const titles = (mp.games ?? [])
+            .filter((game) => game.systemId === GBA_SYSTEM && game.canLink)
+            .map((game) => game.title);
+        const text = titles.length > 0
+            ? titles.join("\n")
+            : t(language, "None of your Game Boy Advance games can link in gpSP.");
+        showManagedModal((close) => (
+            <TextViewerModal
+                language={language}
+                mouseKeyboardMode={state.mouseKeyboardMode}
+                title={t(language, "Games that can link")}
+                text={text}
                 close={close}
             />
         ));
@@ -410,6 +435,18 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         );
                     })}
                 </SlidingWindowRows>
+            )}
+            {mp.mode === "link" && local?.core === "gpsp" && (
+                <PanelSectionRow>
+                    <FocusableItem
+                        outerStyle={buttonStyle}
+                        focusKey="multiplayer:linkgames"
+                        focusFallback={["multiplayer:core", "multiplayer:back"]}
+                        onClick={openLinkGames}
+                    >
+                        {t(language, "Games that can link")}
+                    </FocusableItem>
+                </PanelSectionRow>
             )}
         </>
     );

@@ -6,6 +6,8 @@ import zipfile
 import zlib
 from pathlib import Path, PurePosixPath
 
+from multiplayer_protocol import NETPACKET_CORES
+
 RETROARCH_CONFIGS = (
     ".var/app/org.libretro.RetroArch/config/retroarch/retroarch.cfg",
     ".config/retroarch/retroarch.cfg",
@@ -22,12 +24,27 @@ PPSSPP_FLATPAK = "org.ppsspp.PPSSPP"
 PPSSPP_STANDALONE = "ppsspp-standalone"
 GAMBATTE = "gambatte"
 PPSSPP_CORE = "ppsspp"
+GPSP = "gpsp"
 
 NES_SYSTEM = 7
 GB_SYSTEMS = (4, 6)
+GBA_SYSTEM = 5
 PSP_SYSTEM = 41
 
-LINK_CORES = {4: GAMBATTE, 6: GAMBATTE, PSP_SYSTEM: PPSSPP_CORE}
+LINK_CORES = {4: GAMBATTE, 6: GAMBATTE, GBA_SYSTEM: GPSP, PSP_SYSTEM: PPSSPP_CORE}
+
+GBA_LINK_CODES = frozenset((
+    "AW2E", "AW2P", "AWRE", "AWRP", "AXPD", "AXPE", "AXPF", "AXPI", "AXPJ", "AXPS",
+    "AXVD", "AXVE", "AXVF", "AXVI", "AXVJ", "AXVS", "B2WE", "B3AE", "B4UE", "B4UP",
+    "B85A", "B85P", "BDGE", "BDGP", "BG3E", "BKRJ", "BMGD", "BMGE", "BMGF", "BMGI",
+    "BMGJ", "BMGP", "BMGS", "BMGU", "BPED", "BPEE", "BPEF", "BPEI", "BPEJ", "BPES",
+    "BPGD", "BPGE", "BPGF", "BPGI", "BPGJ", "BPGS", "BPRD", "BPRE", "BPRF", "BPRI",
+    "BPRJ", "BPRS", "BR5E", "BR6E", "BRBE", "BRKE", "BTME", "BTMJ", "BTMP",
+))
+
+GEN3_POKEMON_CODES = ("AXV", "AXP", "BPR", "BPG", "BPE")
+
+GEN3_POKEMON_GAMES = frozenset((790, 791, 515, 788, 668))
 
 SESSION_CFG_KEYS = (
     "config_save_on_exit",
@@ -334,6 +351,14 @@ def core_build(path) -> str:
     return digest.hexdigest()[:16]
 
 
+def gpsp_has_cable(path) -> bool:
+    try:
+        data = Path(path).read_bytes()
+    except OSError:
+        return False
+    return b"mul_poke" in data
+
+
 def compose_launch_options(original: str, args: str) -> str:
     original = original or ""
     if "%command%" in original:
@@ -412,7 +437,7 @@ def ppsspp_cpu_flag(home) -> str:
 
 
 def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcore: bool, opt_path: Path,
-                      guests: int, seat: int, host_ip: str, players: int):
+                      guests: int, seat: int, host_ip: str, players: int, game_code: str = ""):
     cfg = [
         ("config_save_on_exit", "false"),
         ("remap_save_on_exit", "false"),
@@ -425,7 +450,7 @@ def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcor
         ("global_core_options", "true"),
         ("core_options_path", str(opt_path)),
     ]
-    if mode == "couch" and role == "host":
+    if role == "host" and (mode == "couch" or core in NETPACKET_CORES):
         cfg.append(("netplay_max_connections", str(max(1, guests))))
     if mode == "couch":
         for number in range(1, 17):
@@ -448,17 +473,20 @@ def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcor
         for index, digit in enumerate(ip_digits(host_ip), start=1):
             options[f"ppsspp_pro_ad_hoc_server_address{index:02d}"] = digit
         options["ppsspp_port_offset"] = "10000"
+    if mode == "link" and core == GPSP and game_code[:3] in GEN3_POKEMON_CODES:
+        options["gpsp_serial"] = "mul_poke"
     options.update(taps.get("options", {}))
     return write_cfg(cfg), write_cfg(options.items())
 
 
-def retroarch_args(*, mode: str, role: str, host_ip: str, nick: str, cfg_path: Path, core_path) -> str:
+def retroarch_args(*, mode: str, role: str, host_ip: str, nick: str, cfg_path: Path, core_path, core: str) -> str:
     parts = []
     if core_path is not None:
         parts += ["-L", quote(str(core_path))]
-    if mode == "couch" and role == "host":
+    netplay = mode == "couch" or core in NETPACKET_CORES
+    if netplay and role == "host":
         parts += ["--host", "--port", "55435", "--nick", quote(nick)]
-    elif mode == "couch":
+    elif netplay:
         parts += ["--connect", host_ip, "--port", "55435", "--nick", quote(nick)]
     parts += ["--appendconfig", quote(str(cfg_path))]
     return " ".join(parts)

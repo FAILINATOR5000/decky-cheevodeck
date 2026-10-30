@@ -13,6 +13,7 @@ from pathlib import Path
 import decky
 import multiplayer_protocol as proto
 import multiplayer_session as session
+import rom_headers
 import steam_shortcuts
 import subprocess_util
 from nearby_protocol import FrameError, clean_title, decode, frame, is_nonce, read_frame, verify
@@ -178,6 +179,8 @@ class MultiplayerService:
         self._hash_memo = {}
         self._crc_memo = {}
         self._build_memo = {}
+        self._code_memo = {}
+        self._cable_memo = {}
         self._versions = None
         self._permissions = {}
 
@@ -424,6 +427,26 @@ class MultiplayerService:
             self._build_memo[key] = session.core_build(path)
         return self._build_memo[key]
 
+    def _game_code_of(self, path: str, system_id: int) -> str:
+        try:
+            st = os.stat(path)
+        except OSError:
+            return ""
+        key = (path, system_id, st.st_mtime_ns, st.st_size)
+        if key not in self._code_memo:
+            self._code_memo[key] = rom_headers.game_code(path, system_id)
+        return self._code_memo[key]
+
+    def _gpsp_has_cable(self, path: Path) -> bool:
+        try:
+            st = os.stat(path)
+        except OSError:
+            return False
+        key = (str(path), st.st_mtime_ns, st.st_size)
+        if key not in self._cable_memo:
+            self._cable_memo[key] = session.gpsp_has_cable(path)
+        return self._cable_memo[key]
+
     def _flatpak_env(self) -> dict:
         owner = child_owner()
         uid = owner[0] if owner else os.getuid()
@@ -497,7 +520,12 @@ class MultiplayerService:
             return {"ok": True, "scanned": False, "games": [], "installedCores": installed}
         games = []
         for entry in library.values():
-            shortcut = next((p["shortcut"] for p in entry["paths"] if p["shortcut"]), None)
+            linked = next((p for p in entry["paths"] if p["shortcut"]), None)
+            shortcut = linked["shortcut"] if linked else None
+            can_link = entry["systemId"] in session.LINK_CORES
+            if can_link and entry["systemId"] == session.GBA_SYSTEM:
+                can_link = linked is not None \
+                    and self._game_code_of(linked["real"], session.GBA_SYSTEM) in session.GBA_LINK_CODES
             games.append({
                 "gameId": entry["gameId"],
                 "title": entry["title"],
@@ -505,6 +533,7 @@ class MultiplayerService:
                 "system": entry["system"],
                 "imageIcon": entry["imageIcon"],
                 "appid": shortcut["appid"] if shortcut else 0,
+                "canLink": can_link,
             })
         games.sort(key=lambda row: row["title"].lower())
         return {"ok": True, "scanned": True, "games": games, "installedCores": installed}
@@ -568,6 +597,7 @@ class MultiplayerService:
             "choices": [],
             "hash": pick["hash"],
             "coreBuild": "",
+            "gameCode": "",
         }
         emulator = detected["emulator"]
         if emulator == "pcsx2":
@@ -576,6 +606,12 @@ class MultiplayerService:
             return None, "duckstation_no_multiplayer", {}
         if mode == "link" and system_id not in session.LINK_CORES:
             return None, "link_system", {}
+        if mode == "link" and system_id == session.GBA_SYSTEM:
+            local["gameCode"] = self._game_code_of(pick["real"], system_id)
+            if not local["gameCode"]:
+                return None, "link_no_game_code", {}
+            if local["gameCode"] not in session.GBA_LINK_CODES:
+                return None, "link_gba_cant_link", {}
 
         if emulator == "ppsspp":
             if mode == "couch":
@@ -600,8 +636,12 @@ class MultiplayerService:
 
         if mode == "link":
             needed = session.LINK_CORES[system_id]
+            if not core:
+                chosen = needed if needed in compatible else ""
             if chosen != needed:
                 return None, f"link_needs_{needed}", {}
+            if needed == session.GPSP and not self._gpsp_has_cable(ra.core_path(needed)):
+                return None, "gpsp_too_old", {}
         elif chosen not in compatible:
             if room is not None and room_core and not ra.installed(room_core):
                 return None, "host_core_missing", {"core": room["coreName"] or room_core}
@@ -635,6 +675,11 @@ class MultiplayerService:
                     if system_id == session.NES_SYSTEM:
                         return ("crc_mismatch", {}), warnings
                     warnings.append({"code": "crc_mismatch", "detail": {}})
+            elif room["systemId"] == session.GBA_SYSTEM or system_id == session.GBA_SYSTEM:
+                pokemon = room["gameId"] in session.GEN3_POKEMON_GAMES \
+                    and local["gameId"] in session.GEN3_POKEMON_GAMES
+                if room["systemId"] != system_id or (room["gameId"] != local["gameId"] and not pokemon):
+                    return ("different_game", {}), warnings
             elif room["systemId"] in GB_SYSTEMS or system_id in GB_SYSTEMS:
                 if system_id not in GB_SYSTEMS or room["systemId"] not in GB_SYSTEMS:
                     return ("link_gb_both", {}), warnings
@@ -647,7 +692,8 @@ class MultiplayerService:
                     return ("link_needs_ppsspp", {}), warnings
                 if room["hash"] and self._hash_of_path(local, system_id) not in ("", room["hash"]):
                     warnings.append({"code": "revision_differs", "detail": {}})
-            versions_differ = _known(room["emuVersion"]) and _known(local["emuVersion"]) \
+            versions_differ = local["core"] not in proto.NETPACKET_CORES \
+                and _known(room["emuVersion"]) and _known(local["emuVersion"]) \
                 and room["emuVersion"] != local["emuVersion"]
             builds_differ = mode == "couch" and room["coreBuild"] and local["coreBuild"] \
                 and room["coreBuild"] != local["coreBuild"]
@@ -768,6 +814,7 @@ class MultiplayerService:
             "hash": self._hash_of_path(local, local["systemId"]),
             "crc": self._crc_of(local["real"]) if mode == "couch" else "",
             "coreBuild": local["coreBuild"],
+            "gameCode": local["gameCode"],
         }
 
     def room_options(self, hardcore=None, private=None, core=None) -> dict:
@@ -1398,14 +1445,14 @@ class MultiplayerService:
                 opt_path = self._session_dir / f"session-{sid}.opt"
                 cfg_text, opt_text = session.retroarch_session(
                     ra, core=local["core"], rom=rom, mode=mode, role=role, hardcore=hardcore, opt_path=opt_path,
-                    guests=players - 1, seat=seat, host_ip=host_ip, players=players,
+                    guests=players - 1, seat=seat, host_ip=host_ip, players=players, game_code=local["gameCode"],
                 )
                 self._write(opt_path, opt_text)
                 self._write(cfg_path, cfg_text)
                 files = [cfg_path, opt_path]
                 core_path = ra.core_path(local["core"]) if local["core"] != local["shortcutCore"] else None
                 args = session.retroarch_args(mode=mode, role=role, host_ip=host_ip, nick=nick,
-                                              cfg_path=cfg_path, core_path=core_path)
+                                              cfg_path=cfg_path, core_path=core_path, core=local["core"])
                 if core_path is not None:
                     self._back_up_save(ra, local)
             else:
@@ -1703,7 +1750,7 @@ def _known(version: str) -> bool:
 
 def _seat_count(mode: str, local: dict) -> int:
     if mode == "link":
-        return 2 if local["systemId"] in GB_SYSTEMS else proto.MAX_SEATS
+        return proto.MAX_SEATS if local["systemId"] == PSP_SYSTEM else 2
     return proto.MAX_SEATS if local["core"] in session.MULTITAP else 2
 
 

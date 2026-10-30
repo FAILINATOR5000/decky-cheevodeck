@@ -28,6 +28,7 @@ None, which the caller reads as "could not tell" rather than as a fault.
 """
 
 import struct
+import zipfile
 
 
 _DS_CAPACITY_OFFSET = 0x14
@@ -125,3 +126,43 @@ def is_trimmed(path, suffix, size):
     if not full:
         return None
     return size < full
+
+
+_CODE_AT = {
+    5: (0xAC, (".gba", ".agb", ".bin")),
+}
+
+
+def _rom_bytes(path, suffixes, count):
+    if str(path).lower().endswith(".zip"):
+        try:
+            with zipfile.ZipFile(path) as archive:
+                members = [info for info in archive.infolist()
+                           if not info.is_dir() and info.filename.lower().endswith(suffixes)]
+                if len(members) != 1:
+                    return None
+                with archive.open(members[0]) as handle:
+                    return handle.read(count)
+        except (OSError, zipfile.BadZipFile, NotImplementedError, RuntimeError):
+            return None
+    if not str(path).lower().endswith(suffixes):
+        return None
+    try:
+        with open(path, "rb") as handle:
+            return handle.read(count)
+    except OSError:
+        return None
+
+
+def game_code(path, system_id):
+    found = _CODE_AT.get(system_id)
+    if found is None:
+        return ""
+    offset, suffixes = found
+    data = _rom_bytes(path, suffixes, offset + 4)
+    if data is None or len(data) < offset + 4:
+        return ""
+    code = data[offset:offset + 4]
+    if not all(chr(byte).isupper() or chr(byte).isdigit() for byte in code):
+        return ""
+    return code.decode("ascii")

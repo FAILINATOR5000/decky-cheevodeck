@@ -21,6 +21,8 @@ RETROARCH_NETPLAY_PORT = 55435
 GAMBATTE_LINK_PORT = 56400
 PPSSPP_ADHOC_SERVER_PORT = 27312
 
+NETPACKET_CORES = ("gpsp",)
+
 _KEY_LABEL = b"cheevodeck-play-v1|"
 
 _ROOM_ID = re.compile(r"[0-9a-f]{16}")
@@ -28,6 +30,7 @@ _CODE = re.compile(r"[0-9]{4}")
 _HASH = re.compile(r"[0-9a-f]{32}")
 _CRC = re.compile(r"[0-9a-f]{8}")
 _BUILD = re.compile(r"[0-9a-f]{16}")
+_GAME_CODE = re.compile(r"[A-Z0-9]{4}")
 _CORE = re.compile(r"[a-z0-9_+.-]{1,48}")
 
 _USER_MAX = 32
@@ -81,7 +84,7 @@ def seat_key(key: bytes, nc: str, ns: str) -> bytes:
 
 
 def game_port(mode: str, emulator: str, core: str) -> int:
-    if mode == "couch":
+    if mode == "couch" or (emulator == "retroarch" and core in NETPACKET_CORES):
         return RETROARCH_NETPLAY_PORT
     if emulator == "retroarch" and core == "gambatte":
         return GAMBATTE_LINK_PORT
@@ -131,6 +134,7 @@ def room_body(room: dict) -> dict:
         "hash": room["hash"],
         "crc": room["crc"],
         "coreBuild": room["coreBuild"],
+        "gameCode": room["gameCode"],
         "hardcore": room["hardcore"],
         "private": room["private"],
         "seats": [seat["name"] if seat else "" for seat in room["seats"]],
@@ -163,6 +167,9 @@ def read_room(message, nonce=None):
     build = message.get("coreBuild")
     if not _optional(build, _BUILD):
         build = ""
+    game_code = message.get("gameCode")
+    if not _optional(game_code, _GAME_CODE):
+        game_code = ""
     if (
         not is_room_id(message.get("room"))
         or not user
@@ -200,6 +207,7 @@ def read_room(message, nonce=None):
         "hash": message["hash"],
         "crc": message["crc"],
         "coreBuild": build,
+        "gameCode": game_code,
         "hardcore": message["hardcore"],
         "private": message["private"],
         "seats": [_clean(seat, _USER_MAX) or "" for seat in seats],

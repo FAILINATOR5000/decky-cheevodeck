@@ -5227,6 +5227,7 @@ function AchievementsRoot() {
                                         language,
                                         buttonSpacing,
                                         showIcons,
+                                        mouseKeyboardMode,
                                         payload
                                     }}
                                     actions={{

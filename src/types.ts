@@ -3001,6 +3001,7 @@ export type MultiplayerGame = {
     system: string;
     imageIcon: string;
     appid: number;
+    canLink: boolean;
 };
 
 export type MultiplayerRestoreRecord = { appid: number; original: string; session: string };
