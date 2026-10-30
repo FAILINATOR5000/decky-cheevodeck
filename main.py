@@ -37,6 +37,7 @@ from services.memories_video_service import MemoriesVideoService, remove_empty_r
 from services.memories_transfer_service import MemoriesTransferService
 from services.data_transfer_service import DataTransferService
 from services.nearby_transfer_service import NearbyTransferService
+from services.multiplayer_service import MultiplayerService
 from services.smb_mount_service import SmbMountService
 from services.comments_service import CommentsService
 from services.new_sets_service import NewSetsService
@@ -115,6 +116,7 @@ from mixins.completion_walk import CompletionWalkMixin
 from mixins.activity import ActivityMixin
 from mixins.milestones import MilestonesMixin
 from mixins.data_transfer import DataTransferMixin
+from mixins.multiplayer import MultiplayerMixin
 
 
 DEFAULT_IPC_SLOW_THRESHOLD_MS = 250
@@ -177,6 +179,7 @@ class Plugin(
     ActivityMixin,
     MilestonesMixin,
     DataTransferMixin,
+    MultiplayerMixin,
 ):
     DEFAULT_LANGUAGE = "en"
     RECENT_UNLOCK_LOOKBACK_MINUTES = 1440
@@ -770,6 +773,15 @@ class Plugin(
             data=self.data_transfer_service,
         )
 
+        self.multiplayer_service = MultiplayerService(
+            settings_store=self.settings_store,
+            game_mode=self.session_mode_service.is_game_mode,
+            user_home=self.user_home,
+            runtime_dir=self.runtime_dir,
+            cheevo_check_service=self.cheevo_check_service,
+            cheevo_check_store=self.cheevo_check_store,
+        )
+
         self._memory_share_lock = threading.Lock()
         self._memory_share_cancel = None
 
@@ -885,6 +897,7 @@ class Plugin(
         self.back_button_service.sync()
         self.freeze_watchdog_service.sync()
         self.nearby_transfer_service.sync()
+        self.multiplayer_service.sync()
 
     def _toast_newer_schema(self) -> None:
         emit_notification(
@@ -938,6 +951,7 @@ class Plugin(
         self.memories_transfer_service.set_event_loop(self._asyncio_loop)
         self.data_transfer_service.set_event_loop(self._asyncio_loop)
         self.nearby_transfer_service.set_event_loop(self._asyncio_loop)
+        self.multiplayer_service.set_event_loop(self._asyncio_loop)
         try:
             await asyncio.to_thread(self.cheevo_check_service.prepare)
         except Exception as e:
@@ -1083,6 +1097,7 @@ class Plugin(
         self.back_button_service.stop()
         self.freeze_watchdog_service.stop()
         self.nearby_transfer_service.stop()
+        self.multiplayer_service.stop()
         self.data_transfer_service.stop()
         self._restore_deck_controller_safe()
 
@@ -1257,6 +1272,7 @@ class Plugin(
             self.notes_reminder_service.reset_pending()
             self.milestones_service.account_changed()
             self.nearby_transfer_service.account_changed()
+            self.multiplayer_service.account_changed()
             return cfg
 
     def _run_clear_under_trickle_lock(self, clear_fn):
@@ -1392,6 +1408,7 @@ class Plugin(
             self.notes_reminder_service.reset_pending()
             self.milestones_service.account_changed()
             self.nearby_transfer_service.account_changed()
+            self.multiplayer_service.account_changed()
 
             return cfg
 
@@ -1868,6 +1885,7 @@ class Plugin(
                 self.notes_reminder_service.reset_pending()
                 self.milestones_service.account_changed()
                 self.nearby_transfer_service.account_changed()
+                self.multiplayer_service.account_changed()
                 self._last_completion_walk = None
             self.file_watcher_service.prepare()
             self.file_watcher_service.start()
