@@ -1780,6 +1780,39 @@ class CheevoCheckService:
         except Exception:
             return False
 
+    def hash_rom_for_room(self, path, console_id: int) -> str:
+        system = systems.by_console_id(console_id)
+        if system is None:
+            return ""
+        rom = Path(path)
+        cached = self._cached_hash(self._store.load_hash_cache(), self._cache_key(console_id, rom), rom)
+        if cached is not None:
+            return cached
+        suffix = rom.suffix.lower()
+        if suffix in systems.EXTRACT_EXTENSIONS:
+            kind = "archive"
+        elif suffix == systems.ZIP_EXTENSION:
+            kind = "zip"
+        else:
+            kind = "plain"
+        candidate = {"path": rom, "systems": (system,), "kind": kind}
+        try:
+            if systems.hashes_the_name(system):
+                row = self._arcade_scan(candidate)
+            else:
+                if kind == "zip" and self._zip_needs_7z(rom):
+                    candidate["kind"] = "archive"
+                if candidate["kind"] == "archive":
+                    row = self._hash_archive(candidate, None)
+                else:
+                    rows = self._hash_batched(rom.parent, [candidate], None) or []
+                    row = rows[0] if rows else None
+        except Exception as e:
+            decky.logger.warning("cheevocheck: hashing %s for a room failed (%s)", rom.name, type(e).__name__)
+            return ""
+        digest = (row or {}).get("hash")
+        return digest if isinstance(digest, str) and re.fullmatch(r"[0-9a-f]{32}", digest) else ""
+
     def _cache_key(self, console_id: int, path: Path) -> str:
         return f"{console_id}|{os.path.realpath(path)}"
 
