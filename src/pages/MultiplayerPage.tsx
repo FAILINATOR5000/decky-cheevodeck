@@ -13,6 +13,7 @@ import { SubTabButton } from "../components/ui/SubTabButton";
 import { TextViewerModal } from "../components/ui/TextViewerModal";
 import { ToggleRow } from "../components/ui/ToggleRow";
 import { GameHeaderCard, useGameHeaderArt } from "../components/games/GameHeaderCard";
+import { openCorePicker } from "../components/multiplayer/CorePickerModal";
 import { DigitPicker } from "../components/multiplayer/DigitPicker";
 import { RoomTable } from "../components/multiplayer/RoomTable";
 import { SectionTitle } from "../components/ui/SectionTitle";
@@ -45,7 +46,6 @@ import {
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
 const ROOM_PREFIX = "multiplayer:room:";
-const CORE_PREFIX = "multiplayer:core:";
 const LINK_SYSTEMS = [4, 5, 6, 16, 18, 41];
 const DOLPHIN_CONSOLES = ["GameCube", "Wii"];
 const GBA_SYSTEM = 5;
@@ -139,10 +139,6 @@ function roomKey(row: MultiplayerRoomRow): string {
     return ROOM_PREFIX + row.room;
 }
 
-function coreKey(choice: MultiplayerCoreChoice): string {
-    return CORE_PREFIX + choice.core;
-}
-
 function validAddress(digits: string): boolean {
     return [0, 3, 6, 9].every((at) => Number(digits.slice(at, at + 3)) <= 255);
 }
@@ -175,7 +171,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const { language } = state;
     const visible = state.view === "multiplayer";
     const { state: mp, actions } = useMultiplayer();
-    const [coresOpen, setCoresOpen] = useState(false);
     const [ipOpen, setIpOpen] = useState(false);
     const [ipDigits, setIpDigits] = useState("192168001000");
     const [codeDigits, setCodeDigits] = useState("0000");
@@ -204,20 +199,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         sentinelRootMarginPx: 600,
         resetKey: `multiplayer:rooms|${mp.mode}`,
         openFirst: pendingLandingKey("multiplayer") ?? undefined
-    });
-
-    const coreWindow = useSlidingWindow({
-        items: coresOpen ? choices : NO_CORES,
-        itemKey: (choice) => choice.core,
-        focusKeyFor: coreKey,
-        windowId: "multiplayer:cores",
-        heightScope: ["multiplayer:cores", language, textSize(12)].join("|"),
-        dynamicLoading: true,
-        initialRows: 20,
-        rowStep: 20,
-        prefetchDistance: 0,
-        sentinelRootMarginPx: 600,
-        resetKey: `multiplayer:cores|${mp.gameId ?? 0}|${coresOpen}`
     });
 
     const joinedRoom = mp.joined?.room ?? null;
@@ -254,8 +235,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         sub: joinedRoom ? [{ kind: "room", subject: joinedRoom.room }] : [],
         defaultKey: "multiplayer:back",
         ready: drawLower,
-        holds: (key) => rooms.some((row) => roomKey(row) === key) || (coresOpen && choices.some((c) => coreKey(c) === key)),
-        open: (key) => (key.startsWith(CORE_PREFIX) ? coreWindow.openAt(key) : roomWindow.openAt(key))
+        holds: (key) => rooms.some((row) => roomKey(row) === key),
+        open: (key) => roomWindow.openAt(key)
     });
 
     const shown = mp.gameId !== null && mp.gameId === currentGameId ? state.payload : mp.headerPayload;
@@ -318,14 +299,13 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const inRoom = (hosted !== null && seated > 0) || joined !== null;
     const canPlay = inRoom && status === null && !playing && !mp.busy && local !== null && mp.checkCurrent;
     const playLabel = playing ? "Playing" : joined ? "Join & Play" : "Host & Play";
+    const inSession = hosted !== null || joined !== null;
+    const slotStyle = { display: "flex", width: "100%", marginTop: "8px" };
+    const slotButtonStyle = { width: "100%", minWidth: 0 };
 
     const title = shown?.title ?? local?.title ?? mp.games?.find((game) => game.gameId === mp.gameId)?.title ?? null;
 
     function pressBack() {
-        if (coresOpen) {
-            setCoresOpen(false);
-            return;
-        }
         if (ipOpen) {
             setIpOpen(false);
             return;
@@ -392,9 +372,13 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         ));
     }
 
-    function pickCore(choice: MultiplayerCoreChoice) {
-        actions.chooseCore(choice.core);
-        setCoresOpen(false);
+    function openCores() {
+        openCorePicker({
+            language,
+            choices,
+            current: local?.core ?? "",
+            onPick: actions.chooseCore
+        });
     }
 
     async function findByAddress() {
@@ -426,36 +410,12 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     focusKey="multiplayer:core"
                     focusFallback={["multiplayer:host", "multiplayer:back"]}
                     disabled={roomLocked}
-                    onClick={() => setCoresOpen(!coresOpen)}
+                    onClick={openCores}
                     help={roomLocked ? t(language, "Close the room to change it") : undefined}
                 >
                     {coreLabel}
                 </FocusableItem>
             </PanelSectionRow>
-            {coresOpen && (
-                <SlidingWindowRows list={coreWindow}>
-                    {coreWindow.mountedItems.map((choice, index) => {
-                        const at = coreWindow.start + index;
-                        const neighbors = [choices[at + 1], choices[at - 1]]
-                            .filter((other): other is MultiplayerCoreChoice => other !== undefined)
-                            .map(coreKey);
-                        return (
-                            <PanelSectionRow key={choice.core}>
-                                <FocusableItem
-                                    outerStyle={buttonStyle}
-                                    focusKey={coreKey(choice)}
-                                    focusFallback={[...neighbors, "multiplayer:core"]}
-                                    onGamepadFocus={() => coreWindow.onItemFocus(at)}
-                                    onGamepadDirection={coreWindow.guardTopRow(at)}
-                                    onClick={() => pickCore(choice)}
-                                >
-                                    {choice.core === local?.core ? `✓ ${choice.name}` : choice.name}
-                                </FocusableItem>
-                            </PanelSectionRow>
-                        );
-                    })}
-                </SlidingWindowRows>
-            )}
             {mp.mode === "link" && local?.core === "gpsp" && (
                 <PanelSectionRow>
                     <FocusableItem
@@ -474,29 +434,46 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const playRows = (
         <>
             <PanelSectionRow>
-                <FocusTarget
-                    focusKey="multiplayer:play"
-                    focusFallback={[joined ? "multiplayer:leave" : "multiplayer:pickgame", "multiplayer:back"]}
-                    style={{ display: "flex", width: "100%", marginTop: "8px" }}
-                >
-                    <DialogButton
-                        focusable={canPlay}
-                        disabled={!canPlay}
-                        onClick={() => void actions.play()}
-                        onGamepadFocus={() => setPlayFocused(true)}
-                        onGamepadBlur={() => setPlayFocused(false)}
-                        style={{
-                            width: "100%",
-                            minWidth: 0,
-                            fontWeight: 800,
-                            background: canPlay && !playFocused ? achievementGreen : undefined,
-                            color: canPlay && !playFocused ? "#0b1f0f" : undefined,
-                            opacity: canPlay || playing ? 1 : 0.45
-                        }}
+                {inSession ? (
+                    <FocusTarget
+                        key="multiplayer:play"
+                        focusKey="multiplayer:play"
+                        focusFallback={[joined ? "multiplayer:leave" : "multiplayer:host", "multiplayer:pickgame", "multiplayer:back"]}
+                        style={slotStyle}
                     >
-                        {t(language, playLabel)}
-                    </DialogButton>
-                </FocusTarget>
+                        <DialogButton
+                            focusable={canPlay}
+                            disabled={!canPlay}
+                            onClick={() => void actions.play()}
+                            onGamepadFocus={() => setPlayFocused(true)}
+                            onGamepadBlur={() => setPlayFocused(false)}
+                            style={{
+                                ...slotButtonStyle,
+                                fontWeight: 800,
+                                background: canPlay && !playFocused ? achievementGreen : undefined,
+                                color: canPlay && !playFocused ? "#0b1f0f" : undefined,
+                                opacity: canPlay || playing ? 1 : 0.45
+                            }}
+                        >
+                            {t(language, playLabel)}
+                        </DialogButton>
+                    </FocusTarget>
+                ) : (
+                    <FocusTarget
+                        key="multiplayer:pickgame"
+                        focusKey="multiplayer:pickgame"
+                        focusFallback={[`multiplayer:tab:${mp.mode}`, "multiplayer:back"]}
+                        style={slotStyle}
+                    >
+                        <DialogButton
+                            disabled={!mp.games || mp.games.length === 0 || mp.pendingRoom !== null}
+                            onClick={openGamePicker}
+                            style={slotButtonStyle}
+                        >
+                            {t(language, "Pick Another Game")}
+                        </DialogButton>
+                    </FocusTarget>
+                )}
             </PanelSectionRow>
             {status && drawLower && (
                 <PanelSectionRow>
@@ -785,17 +762,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     </div>
                 </PanelSectionRow>
                 {playRows}
-                <PanelSectionRow>
-                    <FocusableItem
-                        outerStyle={{ ...buttonStyle, marginTop: "8px" }}
-                        focusKey="multiplayer:pickgame"
-                        focusFallback={[`multiplayer:tab:${mp.mode}`, "multiplayer:back"]}
-                        disabled={!mp.games || mp.games.length === 0 || hosted !== null || joined !== null || mp.pendingRoom !== null}
-                        onClick={openGamePicker}
-                    >
-                        {t(language, "Pick Another Game")}
-                    </FocusableItem>
-                </PanelSectionRow>
                 {drawLower && (
                     <>
                         {topProblem && (

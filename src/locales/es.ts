@@ -3042,6 +3042,7 @@ const ES: LocaleTable = {
     "gpSP can't link this game": "gpSP no puede enlazar este juego",
     "CheevoDeck can't read this game's code": "CheevoDeck no puede leer el código de este juego",
     "Games that can link": "Juegos que se pueden enlazar",
+    "Choose a Core": "Elige un núcleo",
     "None of your Game Boy Advance games can link in gpSP.": "Ninguno de tus juegos de Game Boy Advance se puede enlazar en gpSP.",
     "DuckStation can't do Couch Play. A RetroArch shortcut with Beetle PSX HW can.": "DuckStation no admite el juego en el sofá. Un acceso directo de RetroArch con Beetle PSX HW sí.",
     "PCSX2 has no Link Play or Couch Play": "PCSX2 no tiene juego enlazado ni juego en el sofá",

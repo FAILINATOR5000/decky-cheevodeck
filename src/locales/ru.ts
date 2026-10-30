@@ -3079,6 +3079,7 @@ const RU: LocaleTable = {
     "gpSP can't link this game": "gpSP не может связать эту игру",
     "CheevoDeck can't read this game's code": "CheevoDeck не может прочитать код этой игры",
     "Games that can link": "Игры, которые можно связать",
+    "Choose a Core": "Выберите ядро",
     "None of your Game Boy Advance games can link in gpSP.": "Ни одну из твоих игр для Game Boy Advance нельзя связать в gpSP.",
     "DuckStation can't do Couch Play. A RetroArch shortcut with Beetle PSX HW can.": "DuckStation не поддерживает игру на диване. Ярлык RetroArch с Beetle PSX HW поддерживает.",
     "PCSX2 has no Link Play or Couch Play": "В PCSX2 нет ни связанной игры, ни игры на диване",
