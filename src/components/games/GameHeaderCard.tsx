@@ -117,6 +117,7 @@ export function GameHeaderCard(props: GameHeaderCardProps) {
                 {props.consoleName ? consoleInlineName(props.consoleName) : ""}
                 {props.consoleName && props.completion ? " • " : ""}
                 {props.completion ? t(language, "Completion: {{value}}", { value: props.completion }) : ""}
+                {!props.consoleName && !props.completion ? "\u00a0" : ""}
             </div>
         </div>
     );

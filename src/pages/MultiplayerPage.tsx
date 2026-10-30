@@ -20,7 +20,7 @@ import { useMultiplayer } from "../components/multiplayer/MultiplayerContext";
 import { CheevoCheckGamesModal } from "../components/pickers/CheevoCheckGamesModal";
 import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 import { useSlidingWindow } from "../hooks/useSlidingWindow";
-import { landOnTop, overrideRecord, pendingLandingKey, topEntryId, usePageLanding } from "../focusRecords";
+import { landOnTop, pendingLandingKey, usePageLanding } from "../focusRecords";
 import { t, type LanguageCode } from "../locales";
 import type {
     ButtonSpacing,
@@ -119,14 +119,14 @@ const PROBLEM_TEXT: Record<string, string> = {
 };
 
 const WARNING_TEXT: Record<string, string> = {
-    core_override: "Using {{core}} for this session. Your shortcut stays on {{shortcutCore}}. Your save is backed up first.",
+    core_override: "Using {{core}} for this session. Your shortcut stays on {{shortcutCore}}.",
     saves_by_core: "Your RetroArch saves are sorted by core, so {{core}} won't see your usual save.",
     crc_mismatch: "Your ROM file differs from the host's. The game may desync.",
     version_mismatch: "Your RetroArch or core version differs from the host's.",
     revision_differs: "Your copy is a different version of the game from the host's."
 };
 
-const WAITING = ["no_guests", "waiting_host"];
+const WAITING = ["waiting_host"];
 
 const ABOVE_TABS = ["not_game_mode", "no_account", "cap_reached", "unavailable", "no_scan", "not_in_results", "no_shortcut",
     "dolphin_flatpak_needed"];
@@ -229,6 +229,15 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             landOnTop("multiplayer", "multiplayer:leave");
         }
     }, [joinedRoom?.room]);
+    const checkAnswered = mp.loaded && (mp.gameId === null || mp.checkCurrent);
+    const [lowerDrawn, setLowerDrawn] = useState(false);
+    useEffect(() => {
+        if (checkAnswered) {
+            setLowerDrawn(true);
+        }
+    }, [checkAnswered]);
+    const drawLower = lowerDrawn || checkAnswered;
+
     usePageLanding({
         view: "multiplayer",
         active: visible,
@@ -244,7 +253,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         },
         sub: joinedRoom ? [{ kind: "room", subject: joinedRoom.room }] : [],
         defaultKey: "multiplayer:back",
-        ready: mp.loaded,
+        ready: drawLower,
         holds: (key) => rooms.some((row) => roomKey(row) === key) || (coresOpen && choices.some((c) => coreKey(c) === key)),
         open: (key) => (key.startsWith(CORE_PREFIX) ? coreWindow.openAt(key) : roomWindow.openAt(key))
     });
@@ -281,7 +290,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     }
 
     function playStatus(): { code: string; detail?: Record<string, string> } | null {
-        if (playing) {
+        if (playing || (!hosted && !joined)) {
             return null;
         }
         if (session.failure) {
@@ -292,9 +301,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         }
         if (joined?.error) {
             return { code: joined.error };
-        }
-        if (hosted && seated === 0) {
-            return { code: "no_guests" };
         }
         if (joined && joined.status?.state !== "playing") {
             return { code: "waiting_host" };
@@ -309,7 +315,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const topProblem = problem && ABOVE_TABS.includes(problem.code) ? problem : null;
     const modeProblem = problem && !ABOVE_TABS.includes(problem.code) ? problem : null;
     const status = playStatus();
-    const canPlay = status === null && !playing && !mp.busy && local !== null && mp.checkCurrent;
+    const inRoom = (hosted !== null && seated > 0) || joined !== null;
+    const canPlay = inRoom && status === null && !playing && !mp.busy && local !== null && mp.checkCurrent;
     const playLabel = playing ? "Playing" : joined ? "Join & Play" : "Host & Play";
 
     const title = shown?.title ?? local?.title ?? mp.games?.find((game) => game.gameId === mp.gameId)?.title ?? null;
@@ -335,7 +342,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     }
 
     function openGamePicker() {
-        const entryId = topEntryId();
         const rows = (mp.games ?? [])
             .filter((game) => game.appid > 0 && (mp.mode === "couch" || (LINK_SYSTEMS.includes(game.systemId) && game.canLink)))
             .map((game) => ({
@@ -356,7 +362,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 kind="supported"
                 rows={rows}
                 onPick={(gameId) => {
-                    overrideRecord(entryId, { focusKey: "multiplayer:host" });
                     actions.pickGame(gameId);
                     close();
                 }}
@@ -471,7 +476,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             <PanelSectionRow>
                 <FocusTarget
                     focusKey="multiplayer:play"
-                    focusFallback={[joined ? "multiplayer:leave" : "multiplayer:host", "multiplayer:back"]}
+                    focusFallback={[joined ? "multiplayer:leave" : "multiplayer:pickgame", "multiplayer:back"]}
                     style={{ display: "flex", width: "100%", marginTop: "8px" }}
                 >
                     <DialogButton
@@ -493,7 +498,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     </DialogButton>
                 </FocusTarget>
             </PanelSectionRow>
-            {status && (
+            {status && drawLower && (
                 <PanelSectionRow>
                     <div style={{ ...bodyTextStyle(), opacity: 1, color: WAITING.includes(status.code) ? undefined : warnAmber }}>
                         {problemText(language, status.code, status.detail)}
@@ -560,7 +565,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     />
                 </>
             )}
-            {(hosted || playing) && playRows}
         </>
     );
 
@@ -588,7 +592,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     }))}
                     exitKey="multiplayer:leave"
                 />
-                {playRows}
                 <PanelSectionRow>
                     <FocusableItem
                         outerStyle={buttonStyle}
@@ -781,6 +784,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         />
                     </div>
                 </PanelSectionRow>
+                {playRows}
                 <PanelSectionRow>
                     <FocusableItem
                         outerStyle={{ ...buttonStyle, marginTop: "8px" }}
@@ -792,85 +796,77 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         {t(language, "Pick Another Game")}
                     </FocusableItem>
                 </PanelSectionRow>
-                {!hosted && !joined && mp.pickedGameId !== null && mp.pickedGameId !== currentGameId && currentGameId !== null && (
-                    <PanelSectionRow>
-                        <FocusableItem
-                            outerStyle={buttonStyle}
-                            focusKey="multiplayer:usecurrent"
-                            focusFallback={["multiplayer:pickgame"]}
-                            onClick={() => actions.pickGame(null)}
+                {drawLower && (
+                    <>
+                        {topProblem && (
+                            <PanelSectionRow>
+                                <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
+                                    {problemText(language, topProblem.code, topProblem.detail)}
+                                </div>
+                            </PanelSectionRow>
+                        )}
+
+                        <div style={{ height: "1px", background: "rgba(255,255,255,0.18)", margin: "8px 0" }} />
+
+                        <Focusable
+                            flow-children="row"
+                            style={{ width: "100%", display: "flex", gap: "6px", margin: "6px 0 4px 0" }}
                         >
-                            {t(language, "Use the Current Game")}
-                        </FocusableItem>
-                    </PanelSectionRow>
-                )}
-                {topProblem && (
-                    <PanelSectionRow>
-                        <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
-                            {problemText(language, topProblem.code, topProblem.detail)}
-                        </div>
-                    </PanelSectionRow>
-                )}
+                            {TABS.map((entry) => (
+                                <SubTabButton
+                                    key={entry.mode}
+                                    label={t(language, entry.labelKey)}
+                                    active={mp.mode === entry.mode}
+                                    onClick={() => actions.setTab(entry.mode)}
+                                    focusKey={entry.focusKey}
+                                    disabled={(hosted !== null || joined !== null) && entry.mode !== mp.mode}
+                                />
+                            ))}
+                        </Focusable>
+                        <PanelSectionRow>
+                            <div style={bodyTextStyle()}>
+                                {t(language, mp.mode === "link" ? "help_multiplayer_link_mode" : "help_multiplayer_couch_mode")}
+                            </div>
+                        </PanelSectionRow>
+                        {mp.mode === "link" && local?.emulator === "dolphin" && (
+                            <PanelSectionRow>
+                                <div style={bodyTextStyle()}>
+                                    {t(language, "Start LAN mode in the game on both devices at about the same time.")}
+                                </div>
+                            </PanelSectionRow>
+                        )}
+                        {modeProblem && (
+                            <PanelSectionRow>
+                                <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
+                                    {problemText(language, modeProblem.code, modeProblem.detail)}
+                                </div>
+                            </PanelSectionRow>
+                        )}
+                        {(gateCheck?.warnings ?? []).map((warning) => (
+                            <PanelSectionRow key={warning.code}>
+                                <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
+                                    {t(language, WARNING_TEXT[warning.code] ?? WARNING_TEXT.version_mismatch, warning.detail)}
+                                </div>
+                            </PanelSectionRow>
+                        ))}
+                        {(mp.problem || (!hosted && !joined && mp.closedReason)) && (
+                            <PanelSectionRow>
+                                <div style={{ ...bodyTextStyle(), color: errorRed, opacity: 1 }}>
+                                    {mp.problem
+                                        ? problemText(language, mp.problem.code, mp.problem.detail)
+                                        : problemText(language, mp.closedReason)}
+                                </div>
+                            </PanelSectionRow>
+                        )}
 
-                <div style={{ height: "1px", background: "rgba(255,255,255,0.18)", margin: "8px 0" }} />
-
-                <Focusable
-                    flow-children="row"
-                    style={{ width: "100%", display: "flex", gap: "6px", margin: "6px 0 4px 0" }}
-                >
-                    {TABS.map((entry) => (
-                        <SubTabButton
-                            key={entry.mode}
-                            label={t(language, entry.labelKey)}
-                            active={mp.mode === entry.mode}
-                            onClick={() => actions.setTab(entry.mode)}
-                            focusKey={entry.focusKey}
-                            disabled={(hosted !== null || joined !== null) && entry.mode !== mp.mode}
-                        />
-                    ))}
-                </Focusable>
-                <PanelSectionRow>
-                    <div style={bodyTextStyle()}>
-                        {t(language, mp.mode === "link" ? "help_multiplayer_link_mode" : "help_multiplayer_couch_mode")}
-                    </div>
-                </PanelSectionRow>
-                {mp.mode === "link" && local?.emulator === "dolphin" && (
-                    <PanelSectionRow>
-                        <div style={bodyTextStyle()}>
-                            {t(language, "Start LAN mode in the game on both devices at about the same time.")}
-                        </div>
-                    </PanelSectionRow>
+                        <Focusable key={scopeKey} flow-children="column" resetNavOnEntry>
+                            {coreRows}
+                            {hostRows}
+                            {joinRows}
+                            <BottomFocusAnchor focusKey="multiplayer:bottom:anchor" />
+                        </Focusable>
+                    </>
                 )}
-                {modeProblem && (
-                    <PanelSectionRow>
-                        <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
-                            {problemText(language, modeProblem.code, modeProblem.detail)}
-                        </div>
-                    </PanelSectionRow>
-                )}
-                {(gateCheck?.warnings ?? []).map((warning) => (
-                    <PanelSectionRow key={warning.code}>
-                        <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
-                            {t(language, WARNING_TEXT[warning.code] ?? WARNING_TEXT.version_mismatch, warning.detail)}
-                        </div>
-                    </PanelSectionRow>
-                ))}
-                {(mp.problem || (!hosted && !joined && mp.closedReason)) && (
-                    <PanelSectionRow>
-                        <div style={{ ...bodyTextStyle(), color: errorRed, opacity: 1 }}>
-                            {mp.problem
-                                ? problemText(language, mp.problem.code, mp.problem.detail)
-                                : problemText(language, mp.closedReason)}
-                        </div>
-                    </PanelSectionRow>
-                )}
-
-                <Focusable key={scopeKey} flow-children="column" resetNavOnEntry>
-                    {coreRows}
-                    {hostRows}
-                    {joinRows}
-                    <BottomFocusAnchor focusKey="multiplayer:bottom:anchor" />
-                </Focusable>
             </PanelSection>
         </Focusable>
     );

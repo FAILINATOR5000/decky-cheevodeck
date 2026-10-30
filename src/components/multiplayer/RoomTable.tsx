@@ -51,7 +51,7 @@ export function RoomTable(props: {
                                         ? { color: achievementGreen, fontWeight: 800, overflowWrap: "anywhere" }
                                         : { ...bodyTextStyle(), fontStyle: "italic" }}
                                 >
-                                    {seat.name || t(language, "Open Seat")}
+                                    {seat.name || t(language, "Waiting for player...")}
                                 </span>
                                 {at >= 0 && onDrop ? (
                                     <div style={{ display: "flex" }}>

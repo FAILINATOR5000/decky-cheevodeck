@@ -217,6 +217,10 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             }
             catch (e) {
                 logError("multiplayerCheck", e);
+                if (checkTokenRef.current === token) {
+                    setCheck(null);
+                    setCheckedFor(checkKey);
+                }
             }
         })();
     }, [isActive, mode, gameId, core, checkRoom, hosted?.core, hostedSeats, joinedState]);
