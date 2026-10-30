@@ -130,7 +130,11 @@ def is_trimmed(path, suffix, size):
 
 _CODE_AT = {
     5: (0xAC, (".gba", ".agb", ".bin")),
+    18: (0x0C, (".nds", ".srl")),
 }
+
+_DS_UNIT_OFFSET = 0x12
+_DSI_ONLY = 0x03
 
 
 def _rom_bytes(path, suffixes, count):
@@ -166,3 +170,8 @@ def game_code(path, system_id):
     if not all(chr(byte).isupper() or chr(byte).isdigit() for byte in code):
         return ""
     return code.decode("ascii")
+
+
+def dsi_only(path):
+    data = _rom_bytes(path, _CODE_AT[18][1], _DS_UNIT_OFFSET + 1)
+    return data is not None and len(data) > _DS_UNIT_OFFSET and data[_DS_UNIT_OFFSET] == _DSI_ONLY

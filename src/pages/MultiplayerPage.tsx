@@ -46,7 +46,7 @@ const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
 const ROOM_PREFIX = "multiplayer:room:";
 const CORE_PREFIX = "multiplayer:core:";
-const LINK_SYSTEMS = [4, 5, 6, 41];
+const LINK_SYSTEMS = [4, 5, 6, 18, 41];
 const GBA_SYSTEM = 5;
 const NO_ROOMS: MultiplayerRoomRow[] = [];
 const NO_CORES: MultiplayerCoreChoice[] = [];
@@ -72,7 +72,11 @@ const PROBLEM_TEXT: Record<string, string> = {
     gpsp_too_old: "Link Play needs a newer gpSP. Update it in RetroArch (Online Updater → Update Installed Cores).",
     link_gba_cant_link: "gpSP can't link this game",
     link_no_game_code: "CheevoDeck can't read this game's code",
-    link_system: "Link Play works with Game Boy, Game Boy Advance and PSP games",
+    link_needs_melondsds: "Link Play needs melonDS DS. Install it in RetroArch (Main Menu → Online Updater → Core Downloader).",
+    melondsds_too_old: "Link Play needs melonDS DS 1.2.0 or newer",
+    melondsds_dsi_mode: "Link Play needs DS mode in melonDS DS",
+    melonds_standalone: "melonDS standalone has no RetroAchievements. A RetroArch shortcut with melonDS DS can link.",
+    link_system: "Link Play works with Game Boy, Game Boy Advance, DS and PSP games",
     duckstation_no_multiplayer: "DuckStation can't do Couch Play. A RetroArch shortcut with Beetle PSX HW can.",
     pcsx2_no_multiplayer: "PCSX2 has no Link Play or Couch Play",
     override: "A RetroArch override for this game sets {{key}}",

@@ -602,6 +602,8 @@ class MultiplayerService:
         emulator = detected["emulator"]
         if emulator == "pcsx2":
             return None, "pcsx2_no_multiplayer", {}
+        if emulator == "melonds":
+            return None, "melonds_standalone", {}
         if emulator == "duckstation" and mode == "couch":
             return None, "duckstation_no_multiplayer", {}
         if mode == "link" and system_id not in session.LINK_CORES:
@@ -612,6 +614,8 @@ class MultiplayerService:
                 return None, "link_no_game_code", {}
             if local["gameCode"] not in session.GBA_LINK_CODES:
                 return None, "link_gba_cant_link", {}
+        if mode == "link" and system_id == session.DS_SYSTEM and rom_headers.dsi_only(pick["real"]):
+            return None, "melondsds_dsi_mode", {}
 
         if emulator == "ppsspp":
             if mode == "couch":
@@ -642,6 +646,12 @@ class MultiplayerService:
                 return None, f"link_needs_{needed}", {}
             if needed == session.GPSP and not self._gpsp_has_cable(ra.core_path(needed)):
                 return None, "gpsp_too_old", {}
+            if needed == session.MELONDS_DS:
+                version = session.version_tuple(ra.version(needed))
+                if version is not None and version < session.MELONDS_DS_MIN_VERSION:
+                    return None, "melondsds_too_old", {}
+                if dict(ra.effective_options(needed, Path(pick["path"]))).get("melonds_console_mode") == "dsi":
+                    return None, "melondsds_dsi_mode", {}
         elif chosen not in compatible:
             if room is not None and room_core and not ra.installed(room_core):
                 return None, "host_core_missing", {"core": room["coreName"] or room_core}
@@ -679,6 +689,12 @@ class MultiplayerService:
                 pokemon = room["gameId"] in session.GEN3_POKEMON_GAMES \
                     and local["gameId"] in session.GEN3_POKEMON_GAMES
                 if room["systemId"] != system_id or (room["gameId"] != local["gameId"] and not pokemon):
+                    return ("different_game", {}), warnings
+            elif room["systemId"] == session.DS_SYSTEM or system_id == session.DS_SYSTEM:
+                generation = session.DS_POKEMON_GENERATIONS.get(local["gameId"])
+                same_generation = generation is not None \
+                    and session.DS_POKEMON_GENERATIONS.get(room["gameId"]) == generation
+                if room["systemId"] != system_id or (room["gameId"] != local["gameId"] and not same_generation):
                     return ("different_game", {}), warnings
             elif room["systemId"] in GB_SYSTEMS or system_id in GB_SYSTEMS:
                 if system_id not in GB_SYSTEMS or room["systemId"] not in GB_SYSTEMS:
@@ -1443,9 +1459,14 @@ class MultiplayerService:
                 ra = local["ra"]
                 cfg_path = self._session_dir / f"session-{sid}.cfg"
                 opt_path = self._session_dir / f"session-{sid}.opt"
+                system_dir = None
+                if mode == "link" and local["core"] == session.MELONDS_DS:
+                    system_dir = self._session_dir / f"session-{sid}.system"
+                    self._build_system_folder(ra, rom, system_dir)
                 cfg_text, opt_text = session.retroarch_session(
                     ra, core=local["core"], rom=rom, mode=mode, role=role, hardcore=hardcore, opt_path=opt_path,
                     guests=players - 1, seat=seat, host_ip=host_ip, players=players, game_code=local["gameCode"],
+                    system_dir=system_dir,
                 )
                 self._write(opt_path, opt_text)
                 self._write(cfg_path, cfg_text)
@@ -1487,6 +1508,27 @@ class MultiplayerService:
             "original": original,
             "session": sid,
         }
+
+    def _build_system_folder(self, ra, rom: Path, folder: Path) -> None:
+        copies = session.melonds_firmware_names(dict(ra.effective_options(session.MELONDS_DS, rom)))
+        ensure_dir(folder)
+        chown_to_data_owner(folder)
+        if ra.system_dir.is_dir():
+            self._fill_system_folder(ra.system_dir, folder, copies, nested=False)
+
+    def _fill_system_folder(self, source: Path, folder: Path, copies: set, *, nested: bool) -> None:
+        for entry in source.iterdir():
+            target = folder / entry.name
+            if entry.name in copies and entry.is_file():
+                with atomic_file(target) as out:
+                    out.write(entry.read_bytes())
+            elif not nested and entry.name == session.MELONDS_DS_FOLDER and entry.is_dir() and not entry.is_symlink():
+                ensure_dir(target)
+                chown_to_data_owner(target)
+                self._fill_system_folder(entry, target, copies, nested=True)
+            else:
+                os.symlink(entry, target)
+                chown_to_data_owner(target)
 
     def _back_up_save(self, ra, local: dict) -> None:
         folder = self._session_dir / SAVE_BACKUPS
@@ -1653,6 +1695,7 @@ class MultiplayerService:
                 pass
             except OSError as e:
                 decky.logger.warning("multiplayer: couldn't remove a session file (%s)", type(e).__name__)
+        _remove_system_folder(self._session_dir / f"session-{sid}.system")
 
     def _emit(self, payload: dict) -> None:
         loop = self._loop
@@ -1695,7 +1738,10 @@ class MultiplayerService:
             keep = running | self._restore_sessions()
             for entry in self._session_dir.iterdir():
                 found = _SESSION_ID.match(entry.name)
-                if found is None or found.group(1) in keep or not entry.is_file():
+                if found is None or found.group(1) in keep:
+                    continue
+                if entry.is_dir() and not entry.is_symlink():
+                    _remove_system_folder(entry)
                     continue
                 try:
                     entry.unlink()
@@ -1740,6 +1786,15 @@ class MultiplayerService:
         return {session_id} if isinstance(session_id, str) else set()
 
 
+def _remove_system_folder(folder: Path) -> None:
+    if not folder.is_dir() or folder.is_symlink():
+        return
+    try:
+        shutil.rmtree(folder)
+    except OSError as e:
+        decky.logger.warning("multiplayer: couldn't remove a session system folder (%s)", type(e).__name__)
+
+
 def _new_code() -> str:
     return f"{secrets.randbelow(10000):04d}"
 
@@ -1750,6 +1805,8 @@ def _known(version: str) -> bool:
 
 def _seat_count(mode: str, local: dict) -> int:
     if mode == "link":
+        if local["systemId"] == session.DS_SYSTEM:
+            return session.DS_LINK_SEATS
         return proto.MAX_SEATS if local["systemId"] == PSP_SYSTEM else 2
     return proto.MAX_SEATS if local["core"] in session.MULTITAP else 2
 

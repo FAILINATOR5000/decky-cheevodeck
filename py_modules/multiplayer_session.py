@@ -25,13 +25,15 @@ PPSSPP_STANDALONE = "ppsspp-standalone"
 GAMBATTE = "gambatte"
 PPSSPP_CORE = "ppsspp"
 GPSP = "gpsp"
+MELONDS_DS = "melondsds"
 
 NES_SYSTEM = 7
 GB_SYSTEMS = (4, 6)
 GBA_SYSTEM = 5
+DS_SYSTEM = 18
 PSP_SYSTEM = 41
 
-LINK_CORES = {4: GAMBATTE, 6: GAMBATTE, GBA_SYSTEM: GPSP, PSP_SYSTEM: PPSSPP_CORE}
+LINK_CORES = {4: GAMBATTE, 6: GAMBATTE, GBA_SYSTEM: GPSP, DS_SYSTEM: MELONDS_DS, PSP_SYSTEM: PPSSPP_CORE}
 
 GBA_LINK_CODES = frozenset((
     "AW2E", "AW2P", "AWRE", "AWRP", "AXPD", "AXPE", "AXPF", "AXPI", "AXPJ", "AXPS",
@@ -46,6 +48,18 @@ GEN3_POKEMON_CODES = ("AXV", "AXP", "BPR", "BPG", "BPE")
 
 GEN3_POKEMON_GAMES = frozenset((790, 791, 515, 788, 668))
 
+DS_POKEMON_GENERATIONS = {
+    9852: 4, 25369: 4, 11732: 4, 7212: 4,
+    3887: 5, 16211: 5, 5853: 5, 16197: 5,
+}
+
+DS_LINK_SEATS = 2
+
+MELONDS_DS_MIN_VERSION = (1, 2, 0)
+
+MELONDS_DS_WRITES = ("firmware.bin", "dsi_firmware.bin", "wfcsettings.bin")
+MELONDS_DS_FOLDER = "melonDS DS"
+
 SESSION_CFG_KEYS = (
     "config_save_on_exit",
     "remap_save_on_exit",
@@ -58,6 +72,7 @@ SESSION_CFG_KEYS = (
     "game_specific_options",
     "global_core_options",
     "core_options_path",
+    "system_directory",
 ) + tuple(f"netplay_request_device_p{n}" for n in range(1, 17))
 
 DATABASES = {
@@ -189,6 +204,7 @@ class RetroArch:
         self.cores_dir = self._dir("libretro_directory", base / "cores")
         self.remap_dir = self._dir("input_remapping_directory", self.config_dir / "remaps")
         self.save_dir = self._dir("savefile_directory", None)
+        self.system_dir = self._dir("system_directory", base / "system")
         self._info = {}
 
     def _dir(self, key: str, fallback):
@@ -359,6 +375,21 @@ def gpsp_has_cable(path) -> bool:
     return b"mul_poke" in data
 
 
+def version_tuple(version: str):
+    parts = version.lstrip("v").split(".")
+    if not parts or not all(part.isdigit() for part in parts):
+        return None
+    return tuple(int(part) for part in parts)
+
+
+def melonds_firmware_names(options: dict) -> set:
+    names = set(MELONDS_DS_WRITES)
+    chosen = options.get("melonds_firmware_nds_path", "")
+    if chosen and chosen != "/":
+        names.add(PurePosixPath(chosen).name)
+    return names
+
+
 def compose_launch_options(original: str, args: str) -> str:
     original = original or ""
     if "%command%" in original:
@@ -437,7 +468,7 @@ def ppsspp_cpu_flag(home) -> str:
 
 
 def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcore: bool, opt_path: Path,
-                      guests: int, seat: int, host_ip: str, players: int, game_code: str = ""):
+                      guests: int, seat: int, host_ip: str, players: int, game_code: str = "", system_dir=None):
     cfg = [
         ("config_save_on_exit", "false"),
         ("remap_save_on_exit", "false"),
@@ -452,6 +483,8 @@ def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcor
     ]
     if role == "host" and (mode == "couch" or core in NETPACKET_CORES):
         cfg.append(("netplay_max_connections", str(max(1, guests))))
+    if system_dir is not None:
+        cfg.append(("system_directory", str(system_dir)))
     if mode == "couch":
         for number in range(1, 17):
             wanted = role == "guest" and number == seat + 1
@@ -475,6 +508,10 @@ def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcor
         options["ppsspp_port_offset"] = "10000"
     if mode == "link" and core == GPSP and game_code[:3] in GEN3_POKEMON_CODES:
         options["gpsp_serial"] = "mul_poke"
+    if mode == "link" and core == MELONDS_DS:
+        options["melonds_mac_address_mode"] = "from-username"
+        if options.get("melonds_console_mode", "auto") == "auto":
+            options["melonds_console_mode"] = "ds"
     options.update(taps.get("options", {}))
     return write_cfg(cfg), write_cfg(options.items())
 
