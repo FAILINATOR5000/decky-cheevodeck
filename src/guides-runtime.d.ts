@@ -10,9 +10,30 @@ interface SteamWindowInstance {
     [key: string]: any;
 }
 
+interface SteamAppDetails {
+    strLaunchOptions?: string;
+    [key: string]: any;
+}
+
+interface SteamAppLifetimeEvent {
+    unAppID: number;
+    bRunning: boolean;
+    [key: string]: any;
+}
+
 declare const SteamClient: {
     BrowserView?: {
         Destroy?(view: SteamBrowserView): void;
+        [key: string]: any;
+    };
+    Apps: {
+        RegisterForAppDetails(appId: number, callback: (details: SteamAppDetails | null) => void): { unregister(): void };
+        SetShortcutLaunchOptions(appId: number, options: string): void;
+        RunGame(gameId: string, launchOptions: string, unknown: number, launchSource: number): void;
+        [key: string]: any;
+    };
+    GameSessions: {
+        RegisterForAppLifetimeNotifications(callback: (event: SteamAppLifetimeEvent) => void): { unregister(): void };
         [key: string]: any;
     };
     [key: string]: any;

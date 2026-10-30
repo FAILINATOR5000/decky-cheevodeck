@@ -15,6 +15,7 @@ import { disableLibraryBadge } from "./components/library/libraryBadgePatch";
 import { registerScreenDarken, unregisterScreenDarken } from "./components/darken/screenDarken";
 import { registerMemoryCapture, unregisterMemoryCapture } from "./components/memories/memoryCapture";
 import { registerMemoryFullscreen, unregisterMemoryFullscreen } from "./components/memories/memoryFullscreen";
+import { registerMultiplayerSession, unregisterMultiplayerSession } from "./utils/multiplayerSession";
 import { closeBrowserForUnload } from "./components/browser/BrowserModal";
 import { releaseWebBrowserActionset } from "./components/browser/browserViewHost";
 import { registerBrowserDownloads, unregisterBrowserDownloads } from "./components/browser/browserDownloads";
@@ -87,6 +88,7 @@ export default definePlugin(() => {
 
     registerScreenDarken();
     registerMemoryCapture();
+    registerMultiplayerSession();
     registerMemoryFullscreen();
 
     return {
@@ -106,6 +108,7 @@ export default definePlugin(() => {
             disableLibraryBadge();
             unregisterScreenDarken();
             unregisterMemoryCapture();
+            unregisterMultiplayerSession();
             unregisterMemoryFullscreen();
             closeBrowserForUnload();
         }

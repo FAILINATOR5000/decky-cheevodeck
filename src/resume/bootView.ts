@@ -45,6 +45,7 @@ export function computeBootView(resumeState: ResumeState | null, payload: Payloa
     const shouldBootDirectlyToMemories = resumeState?.view === "memories";
     const shouldBootDirectlyToMemoriesTransfer = resumeState?.view === "memoriesTransfer";
     const shouldBootDirectlyToDataTransfer = resumeState?.view === "dataTransfer";
+    const shouldBootDirectlyToMultiplayer = resumeState?.view === "multiplayer";
     const shouldBootDirectlyToQamGuard = resumeState?.view === "qamGuard";
     const shouldBootDirectlyToGuides = resumeState?.view === "guides";
     const shouldBootDirectlyToEventViewer = resumeState?.view === "eventViewer" && Boolean(resumeState?.eventViewerTarget);
@@ -75,6 +76,7 @@ export function computeBootView(resumeState: ResumeState | null, payload: Payloa
                                                                 shouldBootDirectlyToMemories ? "memories" :
                                                                 shouldBootDirectlyToMemoriesTransfer ? "memoriesTransfer" :
                                                                 shouldBootDirectlyToDataTransfer ? "dataTransfer" :
+                                                                shouldBootDirectlyToMultiplayer ? "multiplayer" :
                                                                 shouldBootDirectlyToQamGuard ? "qamGuard" :
                                                                 shouldBootDirectlyToUtils ? "utils" :
                                                                 shouldBootDirectlyToGuides ? "guides" :

@@ -64,6 +64,7 @@ export const ROUTES: Record<ViewKey, RouteRow> = {
     fileWatcher: { focusKey: "fileWatcher:back", mount: "always", back: (nav) => nav.backFromUtilityTool() },
     memoriesTransfer: { focusKey: "memoriesTransfer:back", mount: "always", back: (nav) => nav.backFromUtilityTool() },
     dataTransfer: { focusKey: "dataTransfer:back", mount: "always", back: (nav) => nav.backFromUtilityTool() },
+    multiplayer: { focusKey: "multiplayer:back", mount: "always", back: (nav) => nav.backFromUtilityTool() },
     qamGuard: { focusKey: "qamGuard:back", mount: "always", back: (nav) => nav.backFromUtilityTool() },
     memories: { focusKey: "memories:back", mount: "always", back: (nav) => nav.backFromMemories() },
     guides: { focusKey: "guides:back", mount: "always" },

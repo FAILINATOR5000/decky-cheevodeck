@@ -92,6 +92,7 @@ import CheevoCheckPage from "./CheevoCheckPage";
 import FileWatcherPage from "./FileWatcherPage";
 import MemoriesTransferPage from "./MemoriesTransferPage";
 import DataTransferPage from "./DataTransferPage";
+import MultiplayerPage from "./MultiplayerPage";
 import MemoriesPage from "./MemoriesPage";
 import { CheevoCheckGamesModal } from "../components/pickers/CheevoCheckGamesModal";
 import { CommentViewModal, type CommentSaveControl } from "../components/comments/CommentViewModal";
@@ -3603,6 +3604,12 @@ function AchievementsRoot() {
         setPendingFocusKey("dataTransfer:back");
     }
 
+    function goToMultiplayer(intent: NavIntent = "push") {
+        friendGameSessionRefreshKeysRef.current = new Set();
+        setView("multiplayer", intent);
+        setPendingFocusKey("multiplayer:back");
+    }
+
     function goToQamGuard(intent: NavIntent = "push") {
         friendGameSessionRefreshKeysRef.current = new Set();
         openStormbreakerOnStatus();
@@ -5057,6 +5064,7 @@ function AchievementsRoot() {
                                         onOpenFileWatcher: () => goToFileWatcher(),
                                         onOpenMemoriesTransfer: () => goToMemoriesTransfer(),
                                         onOpenDataTransfer: () => goToDataTransfer(),
+                                        onOpenMultiplayer: () => goToMultiplayer(),
                                         onOpenQamGuard: () => goToQamGuard()
                                     }}
                                 />
@@ -5199,6 +5207,20 @@ function AchievementsRoot() {
                                         buttonSpacing,
                                         gameId: payload?.gameId ?? null,
                                         gameTitle: payload?.title ?? null
+                                    }}
+                                    actions={{
+                                        onBack: backFromUtilityTool,
+                                        onHome: goToAchievements
+                                    }}
+                                />
+
+                                <MultiplayerPage
+                                    state={{
+                                        view,
+                                        language,
+                                        buttonSpacing,
+                                        showIcons,
+                                        payload
                                     }}
                                     actions={{
                                         onBack: backFromUtilityTool,

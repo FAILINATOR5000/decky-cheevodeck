@@ -45,6 +45,13 @@ import type {
     DataTransferMode,
     DataTransferStatus,
     DataTransferSummary,
+    MultiplayerCheck,
+    MultiplayerGame,
+    MultiplayerHostedRoom,
+    MultiplayerMode,
+    MultiplayerRestoreRecord,
+    MultiplayerRoomRow,
+    MultiplayerRoomStatus,
     MemoriesTransferStatus,
     MemoriesVideoMoveStatus,
     MemoryBookmark,
@@ -780,6 +787,35 @@ export const startDataImport = callable<
 export const dataTransferStatus = callable<[], DataTransferStatus>("data_transfer_status");
 export const cancelDataTransfer = callable<[], { ok: boolean; error?: string }>("cancel_data_transfer");
 export const getDataTransferLocalSummary = callable<[], DataTransferSummary>("get_data_transfer_local_summary");
+
+type MultiplayerReply = { ok: boolean; error?: string; gate?: string; detail?: Record<string, string> };
+
+export const multiplayerSetVisible = callable<[boolean, boolean], { ok: boolean; error?: string; visible?: boolean }>("multiplayer_set_visible");
+export const multiplayerDiscover = callable<[], { ok: boolean; error?: string; rooms?: MultiplayerRoomRow[] }>("multiplayer_discover");
+export const multiplayerLookup = callable<[string], { ok: boolean; error?: string; room?: MultiplayerRoomRow }>("multiplayer_lookup");
+export const multiplayerGames = callable<[], { ok: boolean; scanned: boolean; games: MultiplayerGame[]; installedCores?: string[] }>("multiplayer_games");
+export const multiplayerCheck = callable<[MultiplayerMode, number, string, string], MultiplayerCheck>("multiplayer_check");
+export const multiplayerHost = callable<
+    [MultiplayerMode, number, boolean, boolean, string],
+    MultiplayerReply & { room?: MultiplayerHostedRoom }
+>("multiplayer_host");
+export const multiplayerRoomOptions = callable<
+    [boolean | null, boolean | null, string | null],
+    MultiplayerReply & { room?: MultiplayerHostedRoom }
+>("multiplayer_room_options");
+export const multiplayerCloseRoom = callable<[], { ok: boolean; error?: string }>("multiplayer_close_room");
+export const multiplayerDropSeat = callable<[number], { ok: boolean; error?: string }>("multiplayer_drop_seat");
+export const multiplayerJoin = callable<[string, string, number, string], MultiplayerReply>("multiplayer_join");
+export const multiplayerLeave = callable<[], { ok: boolean; error?: string }>("multiplayer_leave");
+export const multiplayerRoomStatus = callable<[], MultiplayerRoomStatus>("multiplayer_room_status");
+export const multiplayerPrepareLaunch = callable<
+    [string, boolean],
+    MultiplayerReply & { appid?: number; options?: string; original?: string; session?: string }
+>("multiplayer_prepare_launch");
+export const multiplayerLaunchStarted = callable<[], { ok: boolean; error?: string }>("multiplayer_launch_started");
+export const multiplayerLaunchEnded = callable<[], { ok: boolean }>("multiplayer_launch_ended");
+export const multiplayerRestoreRecord = callable<[], { ok: boolean; record: MultiplayerRestoreRecord | null }>("multiplayer_restore_record");
+export const multiplayerClearRestore = callable<[string], { ok: boolean; error?: string }>("multiplayer_clear_restore");
 
 export const loadMemoryViewPrefs = callable<[], MemoryViewPrefs>("load_memory_view_prefs");
 export const saveMemoryViewPrefs = callable<

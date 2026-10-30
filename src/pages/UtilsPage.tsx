@@ -29,6 +29,7 @@ type UtilsPageActions = {
     onOpenFileWatcher: () => void | Promise<void>;
     onOpenMemoriesTransfer: () => void | Promise<void>;
     onOpenDataTransfer: () => void | Promise<void>;
+    onOpenMultiplayer: () => void | Promise<void>;
     onOpenQamGuard: () => void | Promise<void>;
 };
 
@@ -131,6 +132,16 @@ function UtilsPage(props: UtilsPageProps) {
                     help={t(state.language, "help_utils_data_transfer")}
                 >
                     {t(state.language, "Data Transfer")}
+                </FocusableItem>
+            </PanelSectionRow>
+            <PanelSectionRow>
+                <FocusableItem
+                    outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                    focusKey="utils:multiplayer"
+                    onClick={actions.onOpenMultiplayer}
+                    help={t(state.language, "help_utils_multiplayer")}
+                >
+                    {t(state.language, "EZ Multiplayer")}
                 </FocusableItem>
             </PanelSectionRow>
             <PanelSectionRow>

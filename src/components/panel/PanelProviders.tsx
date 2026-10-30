@@ -5,6 +5,7 @@ import { FileWatcherProvider } from "../filewatcher/FileWatcherContext";
 import { DolphinMapperProvider } from "../mapping/DolphinMapperContext";
 import { MemoriesTransferProvider } from "../memories/MemoriesTransferContext";
 import { DataTransferProvider } from "../dataTransfer/DataTransferContext";
+import { MultiplayerProvider } from "../multiplayer/MultiplayerContext";
 import { EventsProvider } from "../events/EventsContext";
 import type { SettingsController } from "../../hooks/useSettingsController";
 import type { LanguageCode } from "../../locales";
@@ -37,12 +38,14 @@ export function PanelProviders(props: {
                             language={props.language}
                         >
                             <DataTransferProvider isActive={props.view === "dataTransfer"}>
-                                <EventsProvider
-                                    isActive={props.view === "social" || props.view === "eventViewer"}
-                                    settings={props.settings}
-                                >
-                                    {props.children}
-                                </EventsProvider>
+                                <MultiplayerProvider isActive={props.view === "multiplayer"}>
+                                    <EventsProvider
+                                        isActive={props.view === "social" || props.view === "eventViewer"}
+                                        settings={props.settings}
+                                    >
+                                        {props.children}
+                                    </EventsProvider>
+                                </MultiplayerProvider>
                             </DataTransferProvider>
                         </MemoriesTransferProvider>
                     </DolphinMapperProvider>

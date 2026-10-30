@@ -150,6 +150,16 @@ declare module "@decky/ui" {
     };
 
 }
+declare const appStore: {
+    GetAppOverviewByAppID(appId: number): { gameid: string; display_name?: string } | null;
+    [key: string]: any;
+};
+
+declare const appDetailsStore: {
+    GetAppDetails(appId: number): SteamAppDetails | null;
+    [key: string]: any;
+};
+
 declare module "react-icons/fa" {
     export const FaTrophy: any;
     export const FaThumbtack: any;

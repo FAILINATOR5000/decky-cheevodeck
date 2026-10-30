@@ -163,6 +163,7 @@ _ALLOWED_RESUME_VIEWS = {
     "memories",
     "memoriesTransfer",
     "dataTransfer",
+    "multiplayer",
     "qamGuard",
     "guides",
     "eventViewer",

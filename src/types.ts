@@ -455,6 +455,7 @@ export type ViewKey =
     | "memories"
     | "memoriesTransfer"
     | "dataTransfer"
+    | "multiplayer"
     | "qamGuard"
     | "guides"
     | "eventViewer"
@@ -2910,3 +2911,94 @@ export type ActivityMonth = {
 export type ActivityMonthResponse = ActivityMonth | { ok: false; error?: string; needsSettings?: boolean; notSaved?: boolean };
 
 export type ActivitySubject = { ulid: string; username: string; own: boolean };
+
+export type MultiplayerMode = "link" | "couch";
+
+export type MultiplayerRoomRow = {
+    room: string;
+    user: string;
+    title: string;
+    gameId: number;
+    systemId: number;
+    mode: MultiplayerMode;
+    emulator: string;
+    core: string;
+    coreName: string;
+    emuVersion: string;
+    hash: string;
+    crc: string;
+    hardcore: boolean;
+    private: boolean;
+    seats: string[];
+    max: number;
+    state: "lobby" | "playing";
+    address: string;
+};
+
+type MultiplayerSeat = { name: string; launched: boolean } | null;
+
+export type MultiplayerHostedRoom = {
+    id: string;
+    code: string;
+    mode: MultiplayerMode;
+    title: string;
+    gameId: number;
+    systemId: number;
+    emulator: string;
+    core: string;
+    coreName: string;
+    hardcore: boolean;
+    private: boolean;
+    max: number;
+    seats: MultiplayerSeat[];
+    state: "lobby" | "starting" | "playing";
+    handoff: boolean;
+};
+
+type MultiplayerGuestStatus = {
+    state: "lobby" | "starting" | "playing";
+    hardcore: boolean;
+    ip: string;
+    members: string[];
+};
+
+export type MultiplayerRoomStatus =
+    | { ok: true; role: "host"; room: MultiplayerHostedRoom }
+    | { ok: true; role: "guest"; room: MultiplayerRoomRow; seat: number; ip: string; status: MultiplayerGuestStatus | null; launched: boolean; error: string }
+    | { ok: true; role: null; closedReason: string };
+
+export type MultiplayerCoreChoice = { core: string; name: string };
+
+type MultiplayerLocal = {
+    gameId: number;
+    title: string;
+    systemId: number;
+    appid: number;
+    emulator: string;
+    core: string;
+    coreName: string;
+    shortcutCore: string;
+    shortcutCoreName: string;
+    choices: MultiplayerCoreChoice[];
+};
+
+type MultiplayerWarning = { code: string; detail: Record<string, string> };
+
+export type MultiplayerCheck = {
+    ok: boolean;
+    gate: string | null;
+    detail: Record<string, string>;
+    warnings: MultiplayerWarning[];
+    local: MultiplayerLocal | null;
+};
+
+export type MultiplayerGame = {
+    gameId: number;
+    title: string;
+    systemId: number;
+    system: string;
+    imageIcon: string;
+    appid: number;
+};
+
+export type MultiplayerRestoreRecord = { appid: number; original: string; session: string };
