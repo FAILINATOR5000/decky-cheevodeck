@@ -14,7 +14,7 @@ export type PanelEntry =
     | { kind: "trackedSet"; setId: string }
     | { kind: "milestones"; tab: MilestonesTab }
     | { kind: "profile"; username: string; ulid: string | null }
-    | { kind: "about" | "cheevoCheck" | "fileWatcher" | "memoriesTransfer" | "dataTransfer" };
+    | { kind: "about" | "cheevoCheck" | "fileWatcher" | "memoriesTransfer" | "dataTransfer" | "multiplayer" };
 
 type PanelEntryRequest = { entry: PanelEntry; land: string | null };
 

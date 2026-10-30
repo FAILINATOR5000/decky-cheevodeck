@@ -433,6 +433,8 @@ function panelEntryOverlay(entry: PanelEntry): Partial<ResumeState> & Pick<Resum
             return { view: "memoriesTransfer", focusKey: "memoriesTransfer:back" };
         case "dataTransfer":
             return { view: "dataTransfer", focusKey: "dataTransfer:back" };
+        case "multiplayer":
+            return { view: "multiplayer", focusKey: "multiplayer:back" };
     }
 }
 
@@ -4709,6 +4711,10 @@ function AchievementsRoot() {
             goToQamGuard("hub");
             return;
         }
+        if (action === "ezMultiplayer") {
+            goToMultiplayer("hub");
+            return;
+        }
         if (action === "memories") {
             void goToMemories("hub");
             return;
@@ -4879,6 +4885,7 @@ function AchievementsRoot() {
                                         openSmbShares: goToSmbShares,
                                         openFileWatcher: goToFileWatcher,
                                         openStormbreaker: goToQamGuard,
+                                        openMultiplayer: goToMultiplayer,
                                         openMemories: goToMemories,
                                         openRaSite: () => { void openExternalUrl(raHomeUrl()); },
                                         onApplyMainUiPreset: (preset) => optionsFor().actions.onApplyMainUiPreset(preset),

@@ -3061,6 +3061,7 @@ const ES: LocaleTable = {
     "Your RetroArch saves are sorted by core, so {{core}} won't see your usual save.": "Tus partidas de RetroArch se ordenan por núcleo, así que {{core}} no verá tu partida habitual.",
     "Your RetroArch or core version differs from the host's.": "Tu versión de RetroArch o del núcleo es distinta de la del anfitrión.",
     "Your copy is a different version of the game from the host's.": "Tu copia es una versión del juego distinta de la del anfitrión.",
+    "help_quick_shortcut_ez_multiplayer": "Abre EZ Multiplayer, donde puedes crear una partida con dispositivos cercanos o unirte a una.",
     "Room": "Sala",
     "Host": "Anfitrión",
     "Current Game": "Juego actual",

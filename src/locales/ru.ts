@@ -3098,6 +3098,7 @@ const RU: LocaleTable = {
     "Your RetroArch saves are sorted by core, so {{core}} won't see your usual save.": "Сохранения RetroArch разложены по ядрам, поэтому {{core}} не увидит твоё обычное сохранение.",
     "Your RetroArch or core version differs from the host's.": "Твоя версия RetroArch или ядра отличается от версии хоста.",
     "Your copy is a different version of the game from the host's.": "Твоя копия — другая версия игры, не как у хоста.",
+    "help_quick_shortcut_ez_multiplayer": "Открывает EZ Multiplayer, где можно создать игру с устройствами рядом или войти в неё.",
     "Room": "Комната",
     "Host": "Хост",
     "Current Game": "Текущая игра",

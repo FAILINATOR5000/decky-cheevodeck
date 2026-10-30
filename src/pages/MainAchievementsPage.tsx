@@ -2,7 +2,7 @@ import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
 // Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
-import { FaBolt, FaCalculator, FaClipboardCheck, FaClock, FaCompressArrowsAlt, FaExchangeAlt, FaExpandAlt, FaFileAlt, FaGamepad, FaGlobe, FaHistory, FaImage, FaNetworkWired, FaSyncAlt, FaThumbtack, FaTrophy } from "react-icons/fa";
+import { FaBolt, FaCalculator, FaClipboardCheck, FaClock, FaCompressArrowsAlt, FaExchangeAlt, FaExpandAlt, FaFileAlt, FaGamepad, FaGlobe, FaHistory, FaImage, FaNetworkWired, FaSyncAlt, FaThumbtack, FaTrophy, FaUserFriends } from "react-icons/fa";
 import { AchievementList } from "../components/achievements/AchievementList";
 import { openCalculatorModal } from "../components/calculator/CalculatorModal";
 import { openBrowserModal } from "../components/browser/BrowserModal";
@@ -527,6 +527,7 @@ const QUICK_MENU_SHORTCUT_ICONS: Record<QuickMenuShortcut, ComponentType<{ size?
     smbShares: FaNetworkWired,
     fileWatcher: FaFileAlt,
     stormbreaker: FaBolt,
+    ezMultiplayer: FaUserFriends,
     memories: FaImage,
     calculator: FaCalculator,
     browser: FaGlobe,
@@ -653,6 +654,7 @@ type MainAchievementsPageProps = {
         openSmbShares: () => void | Promise<void>;
         openFileWatcher: () => void | Promise<void>;
         openStormbreaker: () => void;
+        openMultiplayer: () => void;
         openMemories: () => void | Promise<void>;
         openRaSite: () => void | Promise<void>;
         onApplyMainUiPreset: (preset: MainUiPreset) => void | Promise<void>;
@@ -970,6 +972,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
             openSmbShares,
             openFileWatcher,
             openStormbreaker,
+            openMultiplayer,
             openMemories,
             openRaSite,
             onApplyMainUiPreset,
@@ -1373,6 +1376,10 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
         }
         if (id === "stormbreaker") {
             openStormbreaker();
+            return;
+        }
+        if (id === "ezMultiplayer") {
+            openMultiplayer();
             return;
         }
         if (id === "memories") {

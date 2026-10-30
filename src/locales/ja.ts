@@ -2884,6 +2884,7 @@ const JA: LocaleTable = {
     "Your RetroArch saves are sorted by core, so {{core}} won't see your usual save.": "RetroArchのセーブがコアごとに分かれているため、{{core}}からはいつものセーブが見えません。",
     "Your RetroArch or core version differs from the host's.": "RetroArchまたはコアのバージョンがホストと異なります。",
     "Your copy is a different version of the game from the host's.": "あなたのゲームはホストとは別のバージョンです。",
+    "help_quick_shortcut_ez_multiplayer": "EZ Multiplayerを開き、近くのデバイスとゲームをホストしたり参加したりできます。",
     "Room": "ルーム",
     "Host": "ホスト",
     "Current Game": "現在のゲーム",

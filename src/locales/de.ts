@@ -3017,6 +3017,7 @@ const DE: LocaleTable = {
     "Your RetroArch saves are sorted by core, so {{core}} won't see your usual save.": "Deine RetroArch-Spielstände sind nach Core sortiert, daher sieht {{core}} deinen üblichen Spielstand nicht.",
     "Your RetroArch or core version differs from the host's.": "Deine RetroArch- oder Core-Version unterscheidet sich von der des Hosts.",
     "Your copy is a different version of the game from the host's.": "Deine Kopie ist eine andere Version des Spiels als die des Hosts.",
+    "help_quick_shortcut_ez_multiplayer": "Öffnet EZ Multiplayer, wo du mit Geräten in der Nähe ein Spiel hosten oder einem beitreten kannst.",
     "Room": "Raum",
     "Host": "Host",
     "Current Game": "Aktuelles Spiel",
