@@ -1018,6 +1018,7 @@ const FR: LocaleTable = {
     "warn_deck_controller_crash": "⚠ ÉTEINS TOUTES LES MANETTES EXTERNES AVANT D'ACTIVER CECI, SINON LE PROCHAIN LANCEMENT DE JEU VA GELER. ÇA SE RÉINITIALISE QUAND TU LE DÉSACTIVES OU REDÉMARRES, DONC C'EST SANS DANGER.",
     "Xbox One": "Xbox One",
     "Xbox 360 Wireless Controller": "Xbox 360 Wireless Controller",
+    "PowerA Xbox Controller": "PowerA Xbox Controller",
     "Xbox Series X": "Xbox Series X",
     "DualSense": "DualSense",
     "Switch Pro Controller": "Switch Pro Controller",

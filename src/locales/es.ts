@@ -1020,6 +1020,7 @@ const ES: LocaleTable = {
     "warn_deck_controller_crash": "⚠ APAGA TODOS LOS MANDOS EXTERNOS ANTES DE ACTIVAR ESTO, O EL PRÓXIMO JUEGO SE CONGELARÁ AL INICIAR. SE RESTABLECE AL DESACTIVARLO O AL REINICIAR, ASÍ QUE ES INOFENSIVO.",
     "Xbox One": "Xbox One",
     "Xbox 360 Wireless Controller": "Xbox 360 Wireless Controller",
+    "PowerA Xbox Controller": "PowerA Xbox Controller",
     "Xbox Series X": "Xbox Series X",
     "DualSense": "DualSense",
     "Switch Pro Controller": "Switch Pro Controller",

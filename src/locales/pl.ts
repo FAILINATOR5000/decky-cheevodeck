@@ -1044,6 +1044,7 @@ const PL: LocaleTable = {
     "warn_deck_controller_crash": "⚠ WYŁĄCZ WSZYSTKIE ZEWNĘTRZNE KONTROLERY, ZANIM TO WŁĄCZYSZ, INACZEJ NASTĘPNE URUCHOMIENIE GRY SIĘ ZAWIESI. RESETUJE SIĘ PO WYŁĄCZENIU LUB RESTARCIE, WIĘC JEST NIEGROŹNE.",
     "Xbox One": "Xbox One",
     "Xbox 360 Wireless Controller": "Xbox 360 Wireless Controller",
+    "PowerA Xbox Controller": "PowerA Xbox Controller",
     "Xbox Series X": "Xbox Series X",
     "DualSense": "DualSense",
     "Switch Pro Controller": "Switch Pro Controller",

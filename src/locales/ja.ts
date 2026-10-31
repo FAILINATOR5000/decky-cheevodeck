@@ -1015,6 +1015,7 @@ const JA: LocaleTable = {
     "warn_deck_controller_crash": "⚠ これをオンにする前に外部コントローラーをすべて切ってください。さもないと次のゲーム起動でフリーズします。オフにするか再起動すれば元に戻るので、害はありません。",
     "Xbox One": "Xbox One",
     "Xbox 360 Wireless Controller": "Xbox 360 Wireless Controller",
+    "PowerA Xbox Controller": "PowerA Xbox Controller",
     "Xbox Series X": "Xbox Series X",
     "DualSense": "DualSense",
     "Switch Pro Controller": "Switch Pro コントローラー",

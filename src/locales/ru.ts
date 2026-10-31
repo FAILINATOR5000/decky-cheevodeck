@@ -1019,6 +1019,7 @@ const RU: LocaleTable = {
     "warn_deck_controller_crash": "⚠ ВЫКЛЮЧИ ВСЕ ВНЕШНИЕ КОНТРОЛЛЕРЫ, ПРЕЖДЕ ЧЕМ ВКЛЮЧАТЬ ЭТО, ИНАЧЕ СЛЕДУЮЩИЙ ЗАПУСК ИГРЫ ЗАВИСНЕТ. ПРИ ВЫКЛЮЧЕНИИ ИЛИ ПЕРЕЗАГРУЗКЕ ВСЁ СБРАСЫВАЕТСЯ, ТАК ЧТО ЭТО БЕЗОБИДНО.",
     "Xbox One": "Xbox One",
     "Xbox 360 Wireless Controller": "Xbox 360 Wireless Controller",
+    "PowerA Xbox Controller": "PowerA Xbox Controller",
     "Xbox Series X": "Xbox Series X",
     "DualSense": "DualSense",
     "Switch Pro Controller": "Switch Pro Controller",

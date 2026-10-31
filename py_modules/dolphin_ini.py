@@ -24,6 +24,7 @@ SDL_DEVICE_NAMES = {
     "xbox": "Xbox Series X Controller",
     "xboxone": "Xbox One controller",
     "xbox360": "#controller_xbox360",
+    "powera": "Xbox Series X Wired Controller Black",
     "dualsense": "DualSense Wireless Controller",
     "ps4": "PlayStation 4 Controller",
     "switchpro": "Nintendo Switch Pro Controller",

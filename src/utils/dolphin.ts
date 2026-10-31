@@ -89,6 +89,8 @@ export function controllerTypeLabel(type: ControllerType, language: LanguageCode
             return t(language, "Xbox One");
         case "xbox360":
             return t(language, "Xbox 360 Wireless Controller");
+        case "powera":
+            return t(language, "PowerA Xbox Controller");
         case "dualsense":
             return t(language, "DualSense");
         case "ps4":

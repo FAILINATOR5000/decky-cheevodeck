@@ -1018,6 +1018,7 @@ const PT: LocaleTable = {
     "warn_deck_controller_crash": "⚠ DESLIGUE TODOS OS CONTROLES EXTERNOS ANTES DE ATIVAR ISTO, OU O PRÓXIMO JOGO VAI TRAVAR AO INICIAR. ELE REINICIA QUANDO VOCÊ DESLIGA OU REINICIA O APARELHO, ENTÃO É INOFENSIVO.",
     "Xbox One": "Xbox One",
     "Xbox 360 Wireless Controller": "Xbox 360 Wireless Controller",
+    "PowerA Xbox Controller": "PowerA Xbox Controller",
     "Xbox Series X": "Xbox Series X",
     "DualSense": "DualSense",
     "Switch Pro Controller": "Switch Pro Controller",

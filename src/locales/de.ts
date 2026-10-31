@@ -1015,6 +1015,7 @@ const DE: LocaleTable = {
     "warn_deck_controller_crash": "⚠ SCHALTE ALLE EXTERNEN CONTROLLER AUS, BEVOR DU DAS AKTIVIERST, SONST FRIERT DER NÄCHSTE SPIELSTART EIN. ES WIRD ZURÜCKGESETZT, WENN DU ES AUSSCHALTEST ODER NEU STARTEST, ALSO IST ES HARMLOS.",
     "Xbox One": "Xbox One",
     "Xbox 360 Wireless Controller": "Xbox 360 Wireless Controller",
+    "PowerA Xbox Controller": "PowerA Xbox Controller",
     "Xbox Series X": "Xbox Series X",
     "DualSense": "DualSense",
     "Switch Pro Controller": "Switch Pro Controller",
