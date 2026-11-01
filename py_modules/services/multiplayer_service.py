@@ -2356,7 +2356,8 @@ class MultiplayerService:
                 args = session.retroarch_args(mode=mode, role=role, host_ip=host_ip, nick=nick,
                                               cfg_path=cfg_path, core_path=core_path, core=local["core"],
                                               rom=rom if local.get("duckstation") else None)
-                if core_path is not None and not local.get("duckstation"):
+                guest_round = mode == "couch" and role == "guest"
+                if (core_path is not None or guest_round) and not local.get("duckstation"):
                     self._back_up_save(ra, local)
             elif local["emulator"] == "dolphin":
                 marker = self._session_dir / f"session-{sid}.dolphin"
@@ -2443,7 +2444,7 @@ class MultiplayerService:
                 decky.logger.warning("multiplayer: couldn't back up %s (%s)", source.name, type(e).__name__)
         if not copied:
             return
-        decky.logger.info("multiplayer: backed up the save for %s before switching cores", local["gameId"])
+        decky.logger.info("multiplayer: backed up the save for %s", local["gameId"])
         backups = [entry for entry in folder.iterdir() if entry.name.startswith(prefix)]
         stamps = sorted({entry.name.split("-", 2)[1] for entry in backups})
         for entry in backups:
