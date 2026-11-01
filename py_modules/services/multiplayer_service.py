@@ -959,8 +959,8 @@ class MultiplayerService:
                 return ("dolphin_version_mismatch", {"version": room["emuVersion"]}), warnings
             if mode == "couch" and room["coreBuild"] and local["coreBuild"] \
                     and room["coreBuild"] != local["coreBuild"]:
-                return ("core_build_differs", {"core": room["coreName"]}), warnings
-            if versions_differ:
+                warnings.append({"code": "core_build_differs", "detail": {"core": room["coreName"]}})
+            elif versions_differ:
                 warnings.append({"code": "version_mismatch", "detail": {}})
 
         if ra is not None:
