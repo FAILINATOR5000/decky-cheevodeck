@@ -2923,10 +2923,19 @@ const JA: LocaleTable = {
     "You started another game, so you're not ready": "別のゲームを起動したため、準備完了を取り消しました",
     "Close your game first": "先にゲームを閉じて",
     "Change Game": "ゲームを変更",
+    "Open Dolphin": "Dolphinを開く",
+    "Dolphin NetPlay": "Dolphin NetPlay",
+    "In Dolphin, open Tools, then Start NetPlay, then Host. Pick the game and press Start once everyone has joined.": "Dolphinで「ツール」→「ネットプレイを開始」→「ホスト」を開きます。ゲームを選び、全員が参加したら「開始」を押します。",
+    "In Dolphin, open Tools, then Start NetPlay, then Connect. The host's address is filled in.": "Dolphinで「ツール」→「ネットプレイを開始」→「接続」を開きます。ホストのアドレスは入力済みです。",
+    "Add Dolphin itself to Steam ROM Manager": "Dolphin本体をSteam ROM Managerに追加してください",
+    "Add {{folder}} to Dolphin's game list": "{{folder}}をDolphinのゲームリストに追加してください",
+    "The host uses Dolphin {{version}}. Every device needs the same Dolphin version.": "ホストはDolphin {{version}}を使っています。すべての端末で同じバージョンのDolphinが必要です。",
     "The host uses PPSSPP {{version}}. Every device needs the same PPSSPP version.": "ホストはPPSSPP {{version}}を使っています。すべての端末で同じバージョンのPPSSPPが必要です。",
+    "Host in NetPlay": "NetPlayでホスト",
+    "Connect in NetPlay": "NetPlayで接続",
     "You can play": "プレイできます",
     "help_multiplayer_link_mode": "各デバイスが自分のゲームをプレイします。昔のように2台以上の本体をつないで遊ぶ感覚です。",
-    "help_multiplayer_couch_mode": "RetroArchで1つのゲームを全員で遊びます。最大4人まで。",
+    "help_multiplayer_couch_mode": "RetroArchまたはDolphinで1つのゲームを全員で遊びます。最大4人まで。",
 };
 
 export default JA;

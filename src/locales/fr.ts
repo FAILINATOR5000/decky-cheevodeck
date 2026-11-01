@@ -3089,10 +3089,19 @@ const FR: LocaleTable = {
     "You started another game, so you're not ready": "Un autre jeu a été lancé, ton Prêt est annulé",
     "Close your game first": "Ferme ton jeu",
     "Change Game": "Changer de jeu",
+    "Open Dolphin": "Ouvrir Dolphin",
+    "Dolphin NetPlay": "Dolphin NetPlay",
+    "In Dolphin, open Tools, then Start NetPlay, then Host. Pick the game and press Start once everyone has joined.": "Dans Dolphin, ouvre Outils, puis Démarrer NetPlay, puis Héberger. Choisis le jeu et appuie sur Démarrer quand tout le monde a rejoint.",
+    "In Dolphin, open Tools, then Start NetPlay, then Connect. The host's address is filled in.": "Dans Dolphin, ouvre Outils, puis Démarrer NetPlay, puis Se connecter. L'adresse de l'hôte est déjà remplie.",
+    "Add Dolphin itself to Steam ROM Manager": "Ajoute Dolphin lui-même à Steam ROM Manager",
+    "Add {{folder}} to Dolphin's game list": "Ajoute {{folder}} à la liste de jeux de Dolphin",
+    "The host uses Dolphin {{version}}. Every device needs the same Dolphin version.": "L'hôte utilise Dolphin {{version}}. Chaque appareil doit avoir la même version de Dolphin.",
     "The host uses PPSSPP {{version}}. Every device needs the same PPSSPP version.": "L'hôte utilise PPSSPP {{version}}. Chaque appareil doit avoir la même version de PPSSPP.",
+    "Host in NetPlay": "Héberge dans NetPlay",
+    "Connect in NetPlay": "Connexion NetPlay",
     "You can play": "Tu peux jouer",
     "help_multiplayer_link_mode": "Chaque appareil joue à son propre jeu, comme si tu reliais deux consoles ou plus comme au bon vieux temps.",
-    "help_multiplayer_couch_mode": "Tout le monde joue à une même partie sur RetroArch, jusqu'à quatre joueurs.",
+    "help_multiplayer_couch_mode": "Tout le monde joue à une même partie sur RetroArch ou Dolphin, jusqu'à quatre joueurs.",
 };
 
 export default FR;

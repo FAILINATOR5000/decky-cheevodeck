@@ -66,6 +66,9 @@ SESSION_EVENT = "multiplayer_session"
 ROOM_EVENT = "multiplayer_room"
 
 IDLE_BODY = "Your EZ Multiplayer room closed after 15 minutes with no players"
+DOLPHIN_HOST_STEPS = ("In Dolphin, open Tools, then Start NetPlay, then Host. "
+                      "Pick the game and press Start once everyone has joined.")
+DOLPHIN_GUEST_STEPS = "In Dolphin, open Tools, then Start NetPlay, then Connect. The host's address is filled in."
 
 ARGV_SECONDS = 15
 SETTLE_SECONDS = 5
@@ -214,6 +217,7 @@ class MultiplayerService:
         self._code_memo = {}
         self._dolphin_skipped = False
         self._cable_memo = {}
+        self._appimage_versions = {}
         self._versions = None
         self._permissions = {}
 
@@ -769,7 +773,7 @@ class MultiplayerService:
 
     def _dolphin_local(self, mode: str, local: dict, pick: dict):
         if mode == "couch":
-            return None, "unsupported_emulator", {}
+            return self._dolphin_netplay_local(local, pick)
         if local["gameId"] not in session.GC_LAN_GAMES:
             return None, "link_gc_no_lan", {}
         install = session.dolphin_install(pick["shortcut"]["exe"], pick["shortcut"]["launchOptions"], self._user_home)
@@ -780,6 +784,71 @@ class MultiplayerService:
                      install=install, gameCode=disc[:4],
                      emuVersion=self._flatpak_version(session.DOLPHIN_FLATPAK) if install == "flatpak" else "")
         return local, None, {}
+
+    def _dolphin_netplay_local(self, local: dict, pick: dict):
+        if local["systemId"] not in session.DOLPHIN_SYSTEMS:
+            return None, "unsupported_emulator", {}
+        exe, options = pick["shortcut"]["exe"], pick["shortcut"]["launchOptions"]
+        install = session.dolphin_install(exe, options, self._user_home)
+        emulator = self._emulator_shortcut("dolphin", install)
+        if emulator is None:
+            return None, "no_dolphin_emulator_shortcut", {}
+        folder = session.dolphin_missing_folder(self._user_home, install, pick["real"])
+        if folder:
+            return None, "dolphin_game_list", {"folder": folder}
+        disc = rom_headers.disc_game_id(pick["real"])
+        local.update(core=session.DOLPHIN_STANDALONE, coreName="Dolphin", shortcutCoreName="Dolphin",
+                     install=install, gameCode=disc[:4], gameAppid=local["appid"], appid=emulator["appid"],
+                     emuVersion=self._dolphin_version(install, emulator))
+        return local, None, {}
+
+    def _emulator_shortcut(self, kind: str, install: str = ""):
+        for shortcut in steam_shortcuts.emulator_shortcuts(self._user_home):
+            if session.emulator_kind(shortcut["exe"], shortcut["launchOptions"]) != kind:
+                continue
+            if kind == "dolphin" and session.dolphin_install(
+                    shortcut["exe"], shortcut["launchOptions"], self._user_home) != install:
+                continue
+            return shortcut
+        return None
+
+    def _dolphin_version(self, install: str, shortcut: dict) -> str:
+        if install == "flatpak":
+            return self._flatpak_version(session.DOLPHIN_FLATPAK)
+        if install != "appimage":
+            return ""
+        image = session.dolphin_appimage(shortcut["exe"], shortcut["launchOptions"], self._user_home)
+        try:
+            st = os.stat(image)
+        except OSError:
+            return ""
+        key = (image, st.st_mtime_ns, st.st_size)
+        if key not in self._appimage_versions:
+            self._appimage_versions[key] = self._read_appimage_version(image)
+        return self._appimage_versions[key]
+
+    def _read_appimage_version(self, image: str) -> str:
+        folder = self._session_dir / f"appimage-{secrets.token_hex(4)}"
+        try:
+            ensure_dir(self._session_dir)
+            chown_to_data_owner(self._session_dir)
+            ensure_dir(folder)
+            chown_to_data_owner(folder)
+            code, _out, _err = subprocess_util.run_command(
+                ["sh", "-c", 'cd "$1" && exec "$2" --appimage-extract "*.desktop"', "sh", str(folder), image],
+                timeout=FLATPAK_SECONDS, env=self._flatpak_env(), as_data_owner=True,
+            )
+            if code != 0:
+                return ""
+            for desktop in (folder / "squashfs-root").glob("*.desktop"):
+                for line in desktop.read_text(encoding="utf-8", errors="replace").splitlines():
+                    if line.startswith("X-AppImage-Version="):
+                        return proto.clean_user(line.split("=", 1)[1])
+        except Exception as e:
+            self._debug("reading the Dolphin AppImage's version failed (%s)", type(e).__name__)
+        finally:
+            shutil.rmtree(folder, ignore_errors=True)
+        return ""
 
     def _bba_mac(self) -> str:
         machine_id = ""
@@ -809,7 +878,7 @@ class MultiplayerService:
                     if not ra or not ra.installed(room["core"]):
                         return ("host_core_missing", {"core": room["coreName"] or room["core"]}), warnings
                     return ("match_host_core", {"core": room["coreName"] or room["core"]}), warnings
-                crc = self._crc_of(local["real"])
+                crc = self._crc_of(local["real"]) if local["emulator"] == "retroarch" else ""
                 if room["crc"] and crc and crc != room["crc"]:
                     if system_id == session.NES_SYSTEM:
                         return ("crc_mismatch", {}), warnings
@@ -847,6 +916,9 @@ class MultiplayerService:
             versions_differ = local["core"] not in proto.NETPACKET_CORES and local["emulator"] != "dolphin" \
                 and _known(room["emuVersion"]) and _known(local["emuVersion"]) \
                 and room["emuVersion"] != local["emuVersion"]
+            if mode == "couch" and local["emulator"] == "dolphin" and room["emuVersion"] and local["emuVersion"] \
+                    and room["emuVersion"] != local["emuVersion"]:
+                return ("dolphin_version_mismatch", {"version": room["emuVersion"]}), warnings
             builds_differ = mode == "couch" and room["coreBuild"] and local["coreBuild"] \
                 and room["coreBuild"] != local["coreBuild"]
             if versions_differ or builds_differ:
@@ -1029,7 +1101,7 @@ class MultiplayerService:
             "coreName": local["coreName"],
             "emuVersion": local["emuVersion"],
             "hash": self._hash_of_path(local, local["systemId"]),
-            "crc": self._crc_of(local["real"]) if mode == "couch" else "",
+            "crc": self._crc_of(local["real"]) if mode == "couch" and local["emulator"] == "retroarch" else "",
             "coreBuild": local["coreBuild"],
             "gameCode": local["gameCode"],
         }
@@ -1181,6 +1253,8 @@ class MultiplayerService:
             return "starting"
         if room["emulator"] == "dolphin" and room["mode"] == "link":
             return "playing"
+        if room["emulator"] == "dolphin":
+            return "playing" if _listening(session.DOLPHIN_NETPLAY_PORT, udp=True) else "starting"
         if _listening(proto.game_port(room["mode"], room["emulator"], room["core"])):
             return "playing"
         return "starting"
@@ -1275,6 +1349,31 @@ class MultiplayerService:
             event_loop=self._loop,
             title_key="EZ Multiplayer",
             line_key="Room closed",
+        )
+
+    def _notify_steps(self, role: str) -> None:
+        body = DOLPHIN_HOST_STEPS if role == "host" else DOLPHIN_GUEST_STEPS
+        if self._notifications is not None and is_type_enabled("system", self._settings_store):
+            try:
+                self._notifications.append({
+                    "type": "system",
+                    "kind": "info",
+                    "iconSource": "none",
+                    "title": "EZ Multiplayer",
+                    "body": body,
+                    "source": "notifications",
+                    "target": {"view": "multiplayer"},
+                    "meta": {"multiplayer": "dolphinSteps"},
+                })
+            except Exception as e:
+                decky.logger.warning("multiplayer: the notification could not be filed (%s)", type(e).__name__)
+        emit_notification(
+            ntype="system",
+            settings_store=self._settings_store,
+            event_loop=self._loop,
+            title_key="EZ Multiplayer",
+            line_key="Host in NetPlay" if role == "host" else "Connect in NetPlay",
+            force_toast=True,
         )
 
     def _back_to_lobby(self, room: dict, error: str = "") -> None:
@@ -1708,7 +1807,7 @@ class MultiplayerService:
             params = proto.join_params(
                 self._user(),
                 self._hash_of_path(local, local["systemId"]) if local else "",
-                self._crc_of(local["real"]) if local and row["mode"] == "couch" else "",
+                self._crc_of(local["real"]) if local and row["mode"] == "couch" and local["emulator"] == "retroarch" else "",
                 local["core"] if local else "",
                 local["emuVersion"] if local else "",
             )
@@ -1898,6 +1997,7 @@ class MultiplayerService:
             joined["autostartRound"] = number
             decky.logger.info("multiplayer: the host is in game, starting round %s here", number)
             self._emit({"state": "autostart", "room": joined["row"]["room"], "round": number,
+                        "dolphin": _dolphin_couch(joined["row"]),
                         "appid": joined["local"]["appid"]})
 
     def _pending_start(self, joined: dict):
@@ -1908,7 +2008,8 @@ class MultiplayerService:
             or joined["launchedRound"] == status["round"] or status["state"] != "playing"
         ):
             return None
-        return {"room": joined["row"]["room"], "round": status["round"], "appid": joined["local"]["appid"]}
+        return {"room": joined["row"]["room"], "round": status["round"], "appid": joined["local"]["appid"],
+                "dolphin": _dolphin_couch(joined["row"])}
 
     def _report(self, joined: dict) -> dict:
         local = joined["local"]
@@ -2162,7 +2263,12 @@ class MultiplayerService:
                 marker = self._session_dir / f"session-{sid}.dolphin"
                 self._write(marker, "")
                 files = [marker]
-                args = session.dolphin_bba_args(own_ip=own_ip, mac=self._bba_mac(), hardcore=hardcore, marker=marker)
+                if mode == "couch":
+                    args = session.dolphin_netplay_args(host_ip=own_ip if role == "host" else host_ip, nick=nick,
+                                                        hardcore=hardcore, marker=marker)
+                else:
+                    args = session.dolphin_bba_args(own_ip=own_ip, mac=self._bba_mac(), hardcore=hardcore,
+                                                    marker=marker)
             else:
                 ini_path = self._session_dir / f"session-{sid}.ini"
                 self._write(ini_path, session.ppsspp_session(role=role, host_ip=host_ip, nick=nick, hardcore=hardcore))
@@ -2179,6 +2285,7 @@ class MultiplayerService:
             "id": sid,
             "appid": local["appid"],
             "role": role,
+            "mode": mode,
             "emulator": local["emulator"],
             "files": files,
             "started": 0.0,
@@ -2326,6 +2433,8 @@ class MultiplayerService:
         decky.logger.info("multiplayer: following the emulator, pid %s", pid)
         self._emit({"state": "playing", "session": current["id"], "emulator": current["emulator"],
                     "mode": current.get("mode", "")})
+        if current["emulator"] == "dolphin" and current.get("mode") == "couch":
+            self._notify_steps(current["role"])
         await asyncio.to_thread(self._wait_exit, pid)
         if not self._stopping:
             self._finish(current)
@@ -2505,6 +2614,10 @@ def _known(version: str) -> bool:
     return bool(version) and all(version.split("|"))
 
 
+def _dolphin_couch(row: dict) -> bool:
+    return row["mode"] == "couch" and row["emulator"] == "dolphin"
+
+
 def _local_view(local: dict) -> dict:
     return {
         "gameId": local["gameId"],
@@ -2545,15 +2658,16 @@ def _guests(room: dict) -> list:
     return [seat for index, seat in enumerate(room["seats"]) if index > 0 and seat is not None]
 
 
-def _listening(port: int) -> bool:
+def _listening(port: int, udp: bool = False) -> bool:
     wanted = f":{port:04X}"
-    for table in ("/proc/net/tcp", "/proc/net/tcp6"):
+    tables = ("/proc/net/udp", "/proc/net/udp6") if udp else ("/proc/net/tcp", "/proc/net/tcp6")
+    for table in tables:
         try:
             with open(table, "r", encoding="ascii", errors="replace") as handle:
                 next(handle, None)
                 for line in handle:
                     fields = line.split()
-                    if len(fields) > 3 and fields[3] == "0A" and fields[1].endswith(wanted):
+                    if len(fields) > 3 and (udp or fields[3] == "0A") and fields[1].endswith(wanted):
                         return True
         except OSError:
             continue

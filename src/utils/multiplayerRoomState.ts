@@ -24,7 +24,7 @@ export type MultiplayerRoomMarker = {
     rev: number;
     round: number;
     state: string;
-    autostart: { room: string; round: number; appid: number } | null;
+    autostart: { room: string; round: number; appid: number; dolphin: boolean } | null;
 };
 
 type RoomEvent = Partial<MultiplayerRoomMarker> & { seq?: number };

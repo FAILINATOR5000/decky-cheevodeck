@@ -3000,7 +3000,7 @@ export type MultiplayerRoomStatus =
         can: boolean;
         reason: string;
         detail: Record<string, string>;
-        autostart: { room: string; round: number; appid: number } | null;
+        autostart: { room: string; round: number; appid: number; dolphin: boolean } | null;
     }
     | { ok: true; seq: number; role: null; closedReason: string };
 

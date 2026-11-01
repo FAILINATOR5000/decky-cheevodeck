@@ -113,6 +113,9 @@ const PROBLEM_TEXT: Record<string, string> = {
     bad_code: "Wrong code",
     locked_out: "Too many wrong codes. Try again in a minute.",
     full: "That room is full",
+    no_dolphin_emulator_shortcut: "Add Dolphin itself to Steam ROM Manager",
+    dolphin_game_list: "Add {{folder}} to Dolphin's game list",
+    dolphin_version_mismatch: "The host uses Dolphin {{version}}. Every device needs the same Dolphin version.",
     ppsspp_version_mismatch: "The host uses PPSSPP {{version}}. Every device needs the same PPSSPP version.",
     not_found: "No room found at that address",
     bad_address: "Not a valid address",
@@ -330,7 +333,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const status = playStatus();
     const inSession = hosted !== null || joined !== null;
 
-    let playLabel = "Host & Play";
+    let playLabel = mp.mode === "couch" && local?.emulator === "dolphin" ? "Open Dolphin" : "Host & Play";
     let canPlay = canStartNow;
     let pressPlay = () => void actions.start();
     if (hosted && !inLobby) {
@@ -964,6 +967,15 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                                 {t(language, mp.mode === "link" ? "help_multiplayer_link_mode" : "help_multiplayer_couch_mode")}
                             </div>
                         </PanelSectionRow>
+                        {mp.mode === "couch" && local?.emulator === "dolphin" && (
+                            <PanelSectionRow>
+                                <div style={{ ...bodyTextStyle(), opacity: 1 }}>
+                                    {t(language, joined || mp.pendingRoom
+                                        ? "In Dolphin, open Tools, then Start NetPlay, then Connect. The host's address is filled in."
+                                        : "In Dolphin, open Tools, then Start NetPlay, then Host. Pick the game and press Start once everyone has joined.")}
+                                </div>
+                            </PanelSectionRow>
+                        )}
                         {modeProblem && (
                             <PanelSectionRow>
                                 <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>

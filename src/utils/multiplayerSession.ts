@@ -14,6 +14,7 @@ import {
 } from "../api";
 import { getCurrentLanguage, t } from "../locales";
 import type { MultiplayerRestoreRecord } from "../types";
+import { showDolphinSteps } from "../components/multiplayer/DolphinStepsModal";
 import { currentGameMovedSince } from "./currentGameCheck";
 import { logError } from "./errors";
 import { START_SOUND_MS, playStart } from "./lobbySounds";
@@ -199,7 +200,10 @@ async function launchOnce(appid: number, hardcore: boolean): Promise<Multiplayer
     return { ok: true };
 }
 
-export async function startMultiplayerRound(): Promise<MultiplayerLaunchResult> {
+export async function startMultiplayerRound(dolphinSteps = false): Promise<MultiplayerLaunchResult> {
+    if (dolphinSteps) {
+        await showDolphinSteps(getCurrentLanguage(), true);
+    }
     const started = await multiplayerStart();
     if (!started.ok || !started.appid) {
         return { ok: false, error: started.error ?? "launch_failed" };
@@ -235,7 +239,7 @@ function playFanfare(key: string) {
     playStart();
 }
 
-async function autoStart(key: string, appid: number) {
+async function autoStart(key: string, appid: number, dolphin: boolean) {
     if (startedFor === key) {
         return;
     }
@@ -244,6 +248,9 @@ async function autoStart(key: string, appid: number) {
     const wait = fanfareEndsAt - Date.now();
     if (wait > 0) {
         await new Promise((resolve) => window.setTimeout(resolve, wait));
+    }
+    if (dolphin) {
+        await showDolphinSteps(getCurrentLanguage(), false);
     }
     if (anyGameRunning()) {
         toast("Close your game first");
@@ -302,6 +309,7 @@ function onSessionEvent(payload: {
     appid?: number;
     room?: string;
     round?: number;
+    dolphin?: boolean;
     emulator?: string;
     mode?: string;
 }) {
@@ -311,7 +319,7 @@ function onSessionEvent(payload: {
     }
     if (payload?.state === "autostart") {
         if (payload.appid) {
-            void autoStart(`${payload.room ?? ""}:${Number(payload.round) || 0}`, payload.appid);
+            void autoStart(`${payload.room ?? ""}:${Number(payload.round) || 0}`, payload.appid, payload.dolphin === true);
         }
         return;
     }
@@ -361,7 +369,7 @@ export function registerMultiplayerSession() {
     stopRoomWatch = subscribeMultiplayerRoom(() => {
         const pending = multiplayerRoomMarker().autostart;
         if (pending) {
-            void autoStart(`${pending.room}:${pending.round}`, pending.appid);
+            void autoStart(`${pending.room}:${pending.round}`, pending.appid, pending.dolphin === true);
         }
     });
     void restoreLeftover();

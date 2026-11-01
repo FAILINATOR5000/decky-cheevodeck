@@ -454,7 +454,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     }
 
     function start() {
-        return run(() => startMultiplayerRound());
+        return run(() => startMultiplayerRound(hosted?.mode === "couch" && hosted.emulator === "dolphin"));
     }
 
     function toggleReady() {

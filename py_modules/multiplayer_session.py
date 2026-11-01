@@ -34,6 +34,9 @@ GB_SYSTEMS = (4, 6)
 GBA_SYSTEM = 5
 DS_SYSTEM = 18
 GAMECUBE_SYSTEM = 16
+WII_SYSTEM = 19
+DOLPHIN_SYSTEMS = (GAMECUBE_SYSTEM, WII_SYSTEM)
+DOLPHIN_NETPLAY_PORT = 2626
 PSP_SYSTEM = 41
 
 LINK_CORES = {4: GAMBATTE, 6: GAMBATTE, GBA_SYSTEM: GPSP, DS_SYSTEM: MELONDS_DS, PSP_SYSTEM: PPSSPP_CORE,
@@ -430,6 +433,100 @@ def _script_install(path, wrapper_arm: bool) -> str:
     if re.search(r"[^\s\"']*dolphin[^\s\"']*\.appimage", text, re.I):
         return "appimage"
     return ""
+
+
+_RETROARCH_NAMES = ("retroarch", "retroarch.sh", "org.libretro.retroarch")
+
+
+def emulator_kind(exe, launch_options) -> str:
+    found = detect(exe, launch_options)
+    if found is not None:
+        return found["emulator"]
+    tokens = []
+    for field in (exe, launch_options):
+        if field:
+            try:
+                tokens.extend(shlex.split(field, posix=True))
+            except ValueError:
+                tokens.extend(field.split())
+    for token in tokens[:3]:
+        name = PurePosixPath(token).name.lower()
+        if name in _RETROARCH_NAMES or (name.endswith(".appimage") and "retroarch" in name):
+            return "retroarch"
+    return ""
+
+
+def dolphin_appimage(exe, launch_options, home) -> str:
+    tokens = []
+    for field in (exe, launch_options):
+        if field:
+            try:
+                tokens.extend(shlex.split(field, posix=True))
+            except ValueError:
+                tokens.extend(field.split())
+    for token in tokens[:3]:
+        if token.lower().endswith(".appimage"):
+            return str(_expand(token, Path(home), Path(home)))
+    for token in tokens[:2]:
+        if not token.endswith(".sh"):
+            continue
+        try:
+            script = Path(_expand(token, Path(home), Path(home))).read_text(encoding="utf-8", errors="replace")
+        except (OSError, TypeError):
+            continue
+        found = re.search(r"[^\s\"']*dolphin[^\s\"']*\.appimage", script, re.I)
+        if found:
+            path = re.sub(r"^\$(HOME\b|\{HOME\})", "~", found.group(0))
+            return str(_expand(path, Path(home), Path(home)))
+    return ""
+
+
+def dolphin_config(home, install: str):
+    home = Path(home)
+    if install == "flatpak":
+        return home / ".var/app/org.DolphinEmu.dolphin-emu/config/dolphin-emu/Dolphin.ini"
+    if install == "appimage":
+        if (home / ".dolphin-emu").is_dir():
+            return home / ".dolphin-emu/Config/Dolphin.ini"
+        return home / ".config/dolphin-emu/Dolphin.ini"
+    return None
+
+
+def dolphin_missing_folder(home, install: str, rom: str) -> str:
+    config = dolphin_config(home, install)
+    if config is None or not config.is_file():
+        return ""
+    pairs = dict(_ini_pairs(config))
+    recursive = pairs.get("RecursiveISOPaths", "").strip().lower() == "true"
+    folder = os.path.dirname(os.path.realpath(rom))
+    listed = [os.path.realpath(_expand(value.strip(), Path(home), Path(home)))
+              for key, value in pairs.items() if re.fullmatch(r"ISOPath\d+", key) and value.strip()]
+    for path in listed:
+        if folder == path or (recursive and folder.startswith(path.rstrip("/") + "/")):
+            return ""
+    return os.path.dirname(rom)
+
+
+def dolphin_netplay_args(*, host_ip: str, nick: str, hardcore: bool, marker: Path) -> str:
+    keys = [
+        "Dolphin.NetPlay.TraversalChoice=direct",
+        f"Dolphin.NetPlay.Address={host_ip}",
+        f"Dolphin.NetPlay.ConnectPort={DOLPHIN_NETPLAY_PORT}",
+        f"Dolphin.NetPlay.HostPort={DOLPHIN_NETPLAY_PORT}",
+        f"Dolphin.NetPlay.ListenPort={DOLPHIN_NETPLAY_PORT}",
+        "Dolphin.NetPlay.HostCode=00000000",
+        f"Dolphin.NetPlay.Nickname={nick.replace('=', '')}",
+        "Dolphin.NetPlay.UseUPNP=False",
+        "Dolphin.NetPlay.UseIndex=False",
+        "Dolphin.NetPlay.IndexRegion=",
+        "Dolphin.NetPlay.IndexName=",
+        "Dolphin.NetPlay.IndexPassword=",
+        "Dolphin.NetPlay.EnableChunkedUploadLimit=False",
+        "Dolphin.NetPlay.ChunkedUploadLimit=3000",
+        f"Achievements.Achievements.HardcoreEnabled={'True' if hardcore else 'False'}",
+        f"Dolphin.CheevoDeck.Session={marker}",
+    ]
+    return " ".join(f"-C {quote(key)}" for key in keys)
 
 
 def dolphin_game_settings(home, install: str) -> list:
