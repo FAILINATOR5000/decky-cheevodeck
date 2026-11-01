@@ -38,7 +38,9 @@ _TITLE_MAX = 64
 _CORE_NAME_MAX = 48
 _VERSION_MAX = 32
 
-TAGGED_OPS = ("status", "launched", "leave")
+TAGGED_OPS = ("status", "launched", "leave", "ready")
+
+_REASON = re.compile(r"[a-z0-9_]{0,32}")
 
 
 def _clean(value, limit: int):
@@ -58,6 +60,10 @@ def is_room_id(value) -> bool:
 
 def is_code(value) -> bool:
     return isinstance(value, str) and _CODE.fullmatch(value) is not None
+
+
+def is_reason(value) -> bool:
+    return isinstance(value, str) and _REASON.fullmatch(value) is not None
 
 
 def is_ipv4(value) -> bool:
@@ -272,7 +278,8 @@ def read_hello(message):
     return None
 
 
-def make_tagged(key: bytes, op: str, room: str, seat: int, nonce: str, now: int) -> dict:
+def make_tagged(key: bytes, op: str, room: str, seat: int, nonce: str, now: int, payload=None) -> dict:
+    payload = payload or {}
     return {
         "op": op,
         "v": VERSION,
@@ -280,7 +287,8 @@ def make_tagged(key: bytes, op: str, room: str, seat: int, nonce: str, now: int)
         "seat": seat,
         "n": nonce,
         "ts": now,
-        "t": sign(key, op, room, str(seat), nonce, str(now)),
+        "p": payload,
+        "t": sign(key, op, room, str(seat), nonce, str(now), canonical(payload)),
     }
 
 
@@ -295,6 +303,7 @@ def read_tagged(message):
         or not 1 <= seat < MAX_SEATS
         or not is_nonce(nonce)
         or type(stamp) is not int
+        or not isinstance(message.get("p", {}), dict)
         or not is_tag(message.get("t"))
     ):
         return None
@@ -305,8 +314,30 @@ def tagged_ok(key: bytes, message, now: float) -> bool:
     if abs(message["ts"] - now) > CLOCK_SKEW_SECONDS:
         return False
     return verify(
-        key, message["t"], message["op"], message["room"], str(message["seat"]), message["n"], str(message["ts"])
+        key, message["t"], message["op"], message["room"], str(message["seat"]), message["n"], str(message["ts"]),
+        canonical(message.get("p", {})),
     )
+
+
+def report(*, seq: int, ready: bool, rev: int, round_: int, can: bool, reason: str, game_id: int,
+           launched: bool, hardcore: bool) -> dict:
+    return {"seq": seq, "ready": ready, "rev": rev, "round": round_, "can": can, "reason": reason,
+            "gameId": game_id, "launched": launched, "hardcore": hardcore}
+
+
+def read_report(raw):
+    if not isinstance(raw, dict) or not raw:
+        return None
+    numbers = ("seq", "rev", "round", "gameId")
+    flags = ("ready", "can", "launched", "hardcore")
+    if (
+        any(type(raw.get(name)) is not int or not 0 <= raw[name] < 2 ** 31 for name in numbers)
+        or any(type(raw.get(name)) is not bool for name in flags)
+        or not isinstance(raw.get("reason"), str)
+        or _REASON.fullmatch(raw["reason"]) is None
+    ):
+        return None
+    return {name: raw[name] for name in (*numbers, *flags, "reason")}
 
 
 def status_reply(key: bytes, nonce: str, body: dict) -> dict:
@@ -320,6 +351,8 @@ def read_status_reply(key: bytes, message, nonce: str):
     if not verify(key, message.get("t"), "state", nonce, canonical(body)):
         return None
     members = message.get("members")
+    seats = message.get("seats")
+    last = message.get("lastStart")
     if (
         message.get("state") not in STATES
         or type(message.get("hardcore")) is not bool
@@ -327,6 +360,13 @@ def read_status_reply(key: bytes, message, nonce: str):
         or not isinstance(members, list)
         or len(members) > MAX_SEATS
         or not all(isinstance(name, str) for name in members)
+        or any(type(message.get(name)) is not int or not 0 <= message[name] < 2 ** 31
+               for name in ("rev", "round", "port", "players"))
+        or type(message.get("start")) is not bool
+        or not isinstance(seats, list)
+        or len(seats) != len(members)
+        or not all(_seat_ok(seat) for seat in seats)
+        or not (last is None or _last_start_ok(last))
     ):
         return None
     return {
@@ -334,4 +374,29 @@ def read_status_reply(key: bytes, message, nonce: str):
         "hardcore": message["hardcore"],
         "ip": message["ip"],
         "members": [_clean(name, _USER_MAX) or "" for name in members],
+        "rev": message["rev"],
+        "round": message["round"],
+        "start": message["start"],
+        "port": message["port"],
+        "players": message["players"],
+        "seats": [{"ready": seat["ready"], "can": seat["can"], "launched": seat["launched"],
+                   "playing": seat["playing"]} for seat in seats],
+        "lastStart": None if last is None else {"round": last["round"], "ok": last["ok"], "error": last["error"]},
     }
+
+
+def _seat_ok(seat) -> bool:
+    return (
+        isinstance(seat, dict)
+        and all(type(seat.get(name)) is bool for name in ("ready", "can", "launched", "playing"))
+    )
+
+
+def _last_start_ok(last) -> bool:
+    return (
+        isinstance(last, dict)
+        and type(last.get("round")) is int
+        and type(last.get("ok")) is bool
+        and isinstance(last.get("error"), str)
+        and _REASON.fullmatch(last["error"]) is not None
+    )

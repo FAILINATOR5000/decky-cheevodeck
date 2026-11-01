@@ -3,9 +3,9 @@ import { DialogButton, PanelSectionRow } from "@decky/ui";
 import { FocusTarget } from "../ui/FocusTarget";
 import { SectionTitle } from "../ui/SectionTitle";
 import { t, type LanguageCode } from "../../locales";
-import { achievementGreen, bodyTextStyle, compactButtonStyle } from "../../utils/style";
+import { achievementGreen, bodyTextStyle, compactButtonStyle, errorRed, masteredGold } from "../../utils/style";
 
-type RoomTableSeat = { name: string; tag: "host" | "you" | "" };
+type RoomTableSeat = { name: string; tag: "host" | "you" | ""; mark?: "ready" | "cant" | "" };
 
 function dropKey(index: number): string {
     return `multiplayer:drop:${index}`;
@@ -45,7 +45,13 @@ export function RoomTable(props: {
                                     borderTop: index > 0 ? "1px solid rgba(255,255,255,0.12)" : undefined
                                 }}
                             >
-                                <span style={{ ...bodyTextStyle(), minWidth: "1em", textAlign: "right" }}>{index + 1}</span>
+                                {seat.mark === "ready" ? (
+                                    <span style={{ ...bodyTextStyle(), opacity: 1, color: masteredGold, fontWeight: 800, minWidth: "1em", textAlign: "right" }}>✔</span>
+                                ) : seat.mark === "cant" ? (
+                                    <span style={{ ...bodyTextStyle(), opacity: 1, color: errorRed, fontWeight: 800, minWidth: "1em", textAlign: "right" }}>✖</span>
+                                ) : (
+                                    <span style={{ ...bodyTextStyle(), minWidth: "1em", textAlign: "right" }}>{index + 1}</span>
+                                )}
                                 <span
                                     style={seat.name
                                         ? { color: achievementGreen, fontWeight: 800, overflowWrap: "anywhere" }

@@ -32,7 +32,9 @@ import type {
     ViewKey
 } from "../types";
 import { showManagedModal } from "../utils/modalRegistry";
-import { otherGameRunning } from "../utils/multiplayerSession";
+import { anyGameRunning, otherGameRunning } from "../utils/multiplayerSession";
+import { getCurrentControllerGlyphStyle } from "../utils/controllerGlyphs";
+import { ButtonHints } from "../components/ui/ButtonHints";
 import { openExternalUrl, raLookupSearchUrl } from "../utils/navigation";
 import { textSize } from "../utils/scale";
 import {
@@ -98,14 +100,16 @@ const PROBLEM_TEXT: Record<string, string> = {
     different_game: "The host is playing a different game",
     host_core_missing: "The host uses {{core}}, which isn't installed here. Install it in RetroArch (Main Menu → Online Updater → Core Downloader).",
     match_host_core: "The host uses {{core}}. Switch to it to join.",
-    waiting_host: "Waiting for the host to start",
     no_guests: "Waiting for players",
+    nobody_ready: "Waiting for someone to ready up",
+    unreadied_other_game: "You started another game, so you're not ready",
+    not_lobby: "In-Game",
     idle: "Your EZ Multiplayer room closed after 15 minutes with no players",
     room_gone: "That room is gone",
+    no_room: "That room is gone",
     bad_code: "Wrong code",
     locked_out: "Too many wrong codes. Try again in a minute.",
     full: "That room is full",
-    started: "That room has already started",
     wrong_core: "The host is on a different core",
     not_found: "No room found at that address",
     bad_address: "Not a valid address",
@@ -128,7 +132,7 @@ const WARNING_TEXT: Record<string, string> = {
     revision_differs: "Your copy is a different version of the game from the host's."
 };
 
-const WAITING = ["waiting_host"];
+const WAITING = ["nobody_ready"];
 
 const ABOVE_TABS = ["not_game_mode", "no_account", "cap_reached", "unavailable", "no_scan", "not_in_results", "no_shortcut",
     "dolphin_flatpak_needed"];
@@ -271,23 +275,45 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         return null;
     }
 
+    const roomState = hosted ? hosted.state : joined?.status?.state ?? "lobby";
+    const inLobby = roomState === "lobby";
+    const round = hosted ? hosted.round : joined?.status?.round ?? 0;
+    const lastStart = hosted ? hosted.lastStart : joined?.status?.lastStart ?? null;
+    const startFailed = inLobby && lastStart !== null && !lastStart.ok && lastStart.round === round;
+    const runningOther = anyGameRunning() && !playing;
+    const ownGameOk = local !== null && mp.checkCurrent && !gateCheck?.gate;
+    const canStartNow = Boolean(hosted?.canStart) && !mp.busy && ownGameOk && !otherGameRunning() && !playing;
+    const readyAllowed = Boolean(joined && inLobby && !joined.launched
+        && (joined.ready || (ownGameOk && !runningOther)));
+    const canToggleReady = readyAllowed && !mp.busy;
+    const canRejoin = Boolean(joined?.rejoin) && !playing && !mp.busy && !runningOther && ownGameOk;
+
     function playStatus(): { code: string; detail?: Record<string, string> } | null {
-        if (playing || (!hosted && !joined)) {
+        if (!hosted && !joined) {
             return null;
         }
         if (session.failure) {
             return { code: session.failure };
         }
-        if (gateCheck?.gate) {
-            return { code: gateCheck.gate, detail: gateCheck.detail };
-        }
         if (joined?.error) {
             return { code: joined.error };
         }
-        if (joined && joined.status?.state !== "playing") {
-            return { code: "waiting_host" };
+        if (startFailed && lastStart) {
+            return { code: hosted ? lastStart.error : "launch_failed" };
         }
-        if (otherGameRunning()) {
+        if (joined?.notice) {
+            return { code: joined.notice };
+        }
+        if (gateCheck?.gate) {
+            return { code: gateCheck.gate, detail: gateCheck.detail };
+        }
+        if (playing || !inLobby) {
+            return null;
+        }
+        if (hosted && seated > 0 && !hosted.canStart) {
+            return { code: "nobody_ready" };
+        }
+        if (hosted ? otherGameRunning() : runningOther && !joined?.ready) {
             return { code: "other_game" };
         }
         return null;
@@ -297,10 +323,38 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const topProblem = problem && ABOVE_TABS.includes(problem.code) ? problem : null;
     const modeProblem = problem && !ABOVE_TABS.includes(problem.code) ? problem : null;
     const status = playStatus();
-    const inRoom = (hosted !== null && seated > 0) || joined !== null;
-    const canPlay = inRoom && status === null && !playing && !mp.busy && local !== null && mp.checkCurrent;
-    const playLabel = playing ? "Playing" : joined ? "Join & Play" : "Host & Play";
     const inSession = hosted !== null || joined !== null;
+
+    let playLabel = "Host & Play";
+    let canPlay = canStartNow;
+    let pressPlay = () => void actions.start();
+    if (hosted && !inLobby) {
+        playLabel = "Playing";
+        canPlay = false;
+    }
+    else if (joined) {
+        if (playing || joined.launched) {
+            playLabel = "Playing";
+            canPlay = false;
+        }
+        else if (inLobby) {
+            playLabel = joined.ready ? "Unready" : "Ready";
+            canPlay = canToggleReady;
+            pressPlay = () => void actions.toggleReady();
+        }
+        else if (joined.rejoin) {
+            playLabel = "Join & Play";
+            canPlay = canRejoin;
+            pressPlay = () => void actions.play();
+        }
+        else {
+            playLabel = joined.consented ? "Playing" : "In-Game";
+            canPlay = false;
+        }
+    }
+    const playGreen = canPlay && playLabel !== "Unready";
+    const yStarts = canStartNow && !state.mouseKeyboardMode;
+    const xReadies = readyAllowed && !state.mouseKeyboardMode;
     const slotStyle = { display: "flex", width: "100%", marginTop: "8px" };
     const slotButtonStyle = { width: "100%", minWidth: 0 };
 
@@ -435,21 +489,21 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     <FocusTarget
                         key="multiplayer:play"
                         focusKey="multiplayer:play"
-                        focusFallback={[joined ? "multiplayer:leave" : "multiplayer:host", "multiplayer:pickgame", "multiplayer:back"]}
+                        focusFallback={[`multiplayer:tab:${mp.mode}`, "multiplayer:back"]}
                         style={slotStyle}
                     >
                         <DialogButton
                             focusable={canPlay}
                             disabled={!canPlay}
-                            onClick={() => void actions.play()}
+                            onClick={pressPlay}
                             onGamepadFocus={() => setPlayFocused(true)}
                             onGamepadBlur={() => setPlayFocused(false)}
                             style={{
                                 ...slotButtonStyle,
                                 fontWeight: 800,
-                                background: canPlay && !playFocused ? achievementGreen : undefined,
-                                color: canPlay && !playFocused ? "#0b1f0f" : undefined,
-                                opacity: canPlay || playing ? 1 : 0.45
+                                background: playGreen && !playFocused ? achievementGreen : undefined,
+                                color: playGreen && !playFocused ? "#0b1f0f" : undefined,
+                                opacity: canPlay || playLabel === "Playing" ? 1 : 0.45
                             }}
                         >
                             {t(language, playLabel)}
@@ -475,10 +529,17 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         </>
     );
 
-    const statusRow = status && (
+    const statusRow = (
         <PanelSectionRow>
-            <div style={{ ...bodyTextStyle(), opacity: 1, color: WAITING.includes(status.code) ? undefined : warnAmber }}>
-                {problemText(language, status.code, status.detail)}
+            <div
+                style={{
+                    ...bodyTextStyle(),
+                    opacity: 1,
+                    minHeight: "1.4em",
+                    color: status && WAITING.includes(status.code) ? undefined : warnAmber
+                }}
+            >
+                {status ? problemText(language, status.code, status.detail) : ""}
             </div>
         </PanelSectionRow>
     );
@@ -537,8 +598,22 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         </PanelSectionRow>
     );
 
+    const hintsRow = !state.mouseKeyboardMode && (hosted || joined) && (
+        <PanelSectionRow>
+            <div style={{ opacity: (hosted ? canStartNow : canToggleReady) ? 1 : 0.45 }}>
+                <ButtonHints
+                    style={getCurrentControllerGlyphStyle()}
+                    hints={hosted
+                        ? [{ button: "y", label: t(language, "Start") }]
+                        : [{ button: "x", label: t(language, joined?.ready ? "Unready" : "Ready") }]}
+                />
+            </div>
+        </PanelSectionRow>
+    );
+
     const roomRows = hosted ? (
         <>
+            {hintsRow}
             {hosted.private && (
                 <PanelSectionRow>
                     <div style={{ ...bodyTextStyle(), opacity: 1, fontWeight: 700 }}>
@@ -548,7 +623,12 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             )}
             <RoomTable
                 language={language}
-                seats={hosted.seats.map((seat, index) => ({ name: seat?.name ?? "", tag: index === 0 ? "host" : "" }))}
+                seats={hosted.seats.map((seat, index) => ({
+                    name: seat?.name ?? "",
+                    tag: index === 0 ? "host" : "",
+                    mark: !seat || index === 0 ? "" : !seat.can ? "cant"
+                        : seat.ready || (hosted.state !== "lobby" && hosted.roster.includes(index)) ? "ready" : ""
+                }))}
                 onDrop={(index) => void actions.dropSeat(index)}
                 exitKey="multiplayer:host"
             />
@@ -556,6 +636,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         </>
     ) : joined && (
         <>
+            {hintsRow}
             <PanelSectionRow>
                 <div style={{ ...bodyTextStyle(), opacity: 1 }}>
                     {t(language, "{{name}} · {{title}}", { name: joined.room.user, title: joined.room.title })}
@@ -570,10 +651,15 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             )}
             <RoomTable
                 language={language}
-                seats={Array.from({ length: joined.room.max }, (_, index) => ({
-                    name: joined.status?.members[index] ?? joined.room.seats[index] ?? "",
-                    tag: index === 0 ? "host" : index === joined.seat ? "you" : ""
-                }))}
+                seats={Array.from({ length: joined.room.max }, (_, index) => {
+                    const flags = joined.status?.seats[index];
+                    const name = joined.status?.members[index] ?? joined.room.seats[index] ?? "";
+                    return {
+                        name,
+                        tag: index === 0 ? "host" : index === joined.seat ? "you" : "",
+                        mark: !name || index === 0 || !flags ? "" : !flags.can ? "cant" : flags.ready || flags.playing ? "ready" : ""
+                    };
+                })}
                 exitKey="multiplayer:leave"
             />
             {statusRow}
@@ -745,7 +831,15 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     );
 
     return (
-        <Focusable key="multiplayer:view" flow-children="column" onCancelButton={pressBack}>
+        <Focusable
+            key="multiplayer:view"
+            flow-children="column"
+            onCancelButton={pressBack}
+            onOptionsButton={yStarts ? () => void actions.start() : undefined}
+            onOptionsActionDescription={yStarts ? t(language, "mp_footer_start") : undefined}
+            onSecondaryButton={xReadies ? () => void actions.toggleReady() : undefined}
+            onSecondaryActionDescription={xReadies ? t(language, joined?.ready ? "mp_footer_unready" : "mp_footer_ready") : undefined}
+        >
             <PanelSection>
                 <PageNavStrip
                     title={t(language, "EZ Multiplayer")}

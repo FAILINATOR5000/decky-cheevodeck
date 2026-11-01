@@ -38,8 +38,10 @@ import {
     forgetMultiplayerFailure,
     launchMultiplayer,
     multiplayerSessionSnapshot,
+    startMultiplayerRound,
     subscribeMultiplayerSession
 } from "../utils/multiplayerSession";
+import { pressMultiplayerReady } from "../utils/multiplayerRoomState";
 
 const TICK_MS = 2000;
 const DISCOVER_EVERY = 2;
@@ -306,7 +308,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     function setHardcore(next: boolean) {
         rememberMultiplayerHardcore(next);
         setHardcoreState(next);
-        if (hosted && mode === "couch") {
+        if ((hosted && mode === "couch") || (joined && mode === "link")) {
             void run(() => multiplayerRoomOptions(next, null, null));
         }
     }
@@ -352,11 +354,11 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         return run(async () => {
             const own = row.mode === "couch" ? 0 : ownGameId ?? 0;
             await freshVisit();
-            let joinedRoom = await multiplayerJoin(row.room, code, own, core);
+            let joinedRoom = await multiplayerJoin(row.room, code, own, core, hardcore);
             const hostGame = games?.find((game) => game.gameId === row.gameId && game.appid > 0);
             if (!joinedRoom.ok && joinedRoom.gate && row.mode === "link" && own !== row.gameId && hostGame) {
                 pickGame(row.gameId);
-                joinedRoom = await multiplayerJoin(row.room, code, row.gameId, multiplayerCoreFor(row.gameId));
+                joinedRoom = await multiplayerJoin(row.room, code, row.gameId, multiplayerCoreFor(row.gameId), hardcore);
             }
             if (joinedRoom.ok) {
                 setPendingRoom(null);
@@ -416,6 +418,18 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         return run(() => launchMultiplayer(appid, hardcore));
     }
 
+    function start() {
+        return run(() => startMultiplayerRound());
+    }
+
+    function toggleReady() {
+        if (!joined) {
+            return Promise.resolve(false);
+        }
+        const next = !joined.ready;
+        return run(() => pressMultiplayerReady(next));
+    }
+
     return {
         state: {
             tab,
@@ -423,7 +437,9 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             gameId,
             currentGameId,
             pickedGameId,
-            hardcore: mode === "couch" && joined?.status ? joined.status.hardcore : hosted && mode === "couch" ? hosted.hardcore : hardcore,
+            hardcore: mode === "couch" && joined?.status
+                ? joined.status.hardcore
+                : hosted && mode === "couch" ? hosted.hardcore : joined ? joined.hardcore : hardcore,
             privateRoom: hosted ? hosted.private : privateRoom,
             core,
             visibleError,
@@ -458,7 +474,9 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             lookup,
             leave,
             cancelPendingRoom: () => setPendingRoom(null),
-            play
+            play,
+            start,
+            toggleReady
         }
     };
 }

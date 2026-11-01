@@ -2937,7 +2937,9 @@ export type MultiplayerRoomRow = {
     address: string;
 };
 
-type MultiplayerSeat = { name: string; launched: boolean } | null;
+type MultiplayerSeat = { name: string; launched: boolean; ready: boolean; can: boolean; reason?: string } | null;
+
+type MultiplayerLastStart = { round: number; ok: boolean; error: string } | null;
 
 export type MultiplayerHostedRoom = {
     id: string;
@@ -2954,6 +2956,11 @@ export type MultiplayerHostedRoom = {
     max: number;
     seats: MultiplayerSeat[];
     state: "lobby" | "starting" | "playing";
+    rev: number;
+    round: number;
+    roster: number[];
+    canStart: boolean;
+    lastStart: MultiplayerLastStart;
 };
 
 type MultiplayerGuestStatus = {
@@ -2961,11 +2968,34 @@ type MultiplayerGuestStatus = {
     hardcore: boolean;
     ip: string;
     members: string[];
+    rev: number;
+    round: number;
+    start: boolean;
+    port: number;
+    players: number;
+    seats: { ready: boolean; can: boolean; launched: boolean; playing: boolean }[];
+    lastStart: MultiplayerLastStart;
 };
 
 export type MultiplayerRoomStatus =
     | { ok: true; seq: number; role: "host"; room: MultiplayerHostedRoom }
-    | { ok: true; seq: number; role: "guest"; room: MultiplayerRoomRow; seat: number; ip: string; status: MultiplayerGuestStatus | null; launched: boolean; error: string }
+    | {
+        ok: true;
+        seq: number;
+        role: "guest";
+        room: MultiplayerRoomRow;
+        seat: number;
+        ip: string;
+        status: MultiplayerGuestStatus | null;
+        launched: boolean;
+        error: string;
+        ready: boolean;
+        consented: boolean;
+        rejoin: boolean;
+        notice: string;
+        hardcore: boolean;
+        autostart: { room: string; round: number; appid: number } | null;
+    }
     | { ok: true; seq: number; role: null; closedReason: string };
 
 export type MultiplayerCoreChoice = { core: string; name: string };

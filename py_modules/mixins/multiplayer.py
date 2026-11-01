@@ -49,10 +49,21 @@ class MultiplayerMixin(PluginContext):
     async def multiplayer_drop_seat(self, seat: int = 0):
         return self.multiplayer_service.drop_seat(to_int(seat, 0))
 
-    async def multiplayer_join(self, room_id: str = "", code: str = "", game_id: int = 0, core: str = ""):
+    async def multiplayer_join(
+        self, room_id: str = "", code: str = "", game_id: int = 0, core: str = "", hardcore: bool = False,
+    ):
         return await self.multiplayer_service.join(
-            str(room_id or ""), str(code or ""), to_int(game_id, 0), str(core or "")
+            str(room_id or ""), str(code or ""), to_int(game_id, 0), str(core or ""), bool(hardcore)
         )
+
+    async def multiplayer_set_ready(self, ready: bool = False, reason: str = ""):
+        return self.multiplayer_service.set_ready(bool(ready), str(reason or ""))
+
+    async def multiplayer_start(self):
+        return self.multiplayer_service.start()
+
+    async def multiplayer_start_cancel(self, error: str = ""):
+        return self.multiplayer_service.start_cancel(str(error or ""))
 
     async def multiplayer_leave(self):
         return self.multiplayer_service.leave()

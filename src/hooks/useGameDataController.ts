@@ -10,6 +10,7 @@ import { checkCurrentGame, clearResumeState, logFocusDebug, refreshCurrentGame, 
 import { rootMountReason } from "../focusRecords";
 import type { LanguageCode } from "../locales";
 import type { Payload, ResumeState, ViewKey } from "../types";
+import { noteCurrentGameMoved } from "../utils/currentGameCheck";
 import { logError } from "../utils/errors"
 import { t } from "../locales"
 
@@ -174,6 +175,9 @@ export function useGameDataController({
         }
         try {
             const result = await checkCurrentGame();
+            if (result.changed && !result.sameGame) {
+                noteCurrentGameMoved();
+            }
             if (!mountedRef.current) {
                 return;
             }
