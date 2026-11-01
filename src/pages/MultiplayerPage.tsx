@@ -252,7 +252,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         defaultKey: "multiplayer:back",
         ready: drawLower,
         holds: (key) => rooms.some((row) => roomKey(row) === key),
-        open: (key) => roomWindow.openAt(key)
+        open: (key) => roomWindow.openAt(key),
+        timing: { revealDeadlineMs: 1000, pressGuardCeilingMs: 1050 }
     });
 
     const shown = mp.gameId !== null && mp.gameId === currentGameId ? state.payload : mp.headerPayload;

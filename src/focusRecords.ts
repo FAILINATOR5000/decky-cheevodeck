@@ -384,7 +384,8 @@ function keyedElement(key: string): HTMLElement | null {
 
 function keyedDisabled(element: HTMLElement): boolean {
     const control = (element.querySelector("button, [tabindex]") as HTMLElement | null) ?? element;
-    return control.hasAttribute("disabled") || control.getAttribute("aria-disabled") === "true";
+    return control.hasAttribute("disabled") || control.getAttribute("aria-disabled") === "true"
+        || control.classList.contains("Disabled");
 }
 
 function cursorIn(element: HTMLElement): boolean {
