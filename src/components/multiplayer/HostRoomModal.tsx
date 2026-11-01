@@ -115,6 +115,7 @@ function HostRoomModal(props: HostRoomModalProps) {
                         <TextField
                             label={t(language, "Password")}
                             value={password}
+                            type="password"
                             bIsPassword
                             disabled={hosting}
                             onChange={(e: any) => setPassword(String(e?.target?.value ?? "").slice(0, PASSWORD_MAX))}

@@ -3074,7 +3074,6 @@ const PL: LocaleTable = {
     "help_multiplayer_password": "Zostaw puste, by pokój był otwarty. Każdy, kto dołącza, musi je wpisać. Nie jest nigdzie zapisywane ani ponownie pokazywane.",
     "Share Controls": "Wspólne sterowanie",
     "help_multiplayer_share": "W grach jednoosobowych w grze na kanapie pozwala wszystkim sterować grą jednocześnie. Po wyłączeniu pozostali mogą tylko oglądać, w co gra host. W grach dla więcej niż jednej osoby zostaw to wyłączone, żeby każdy miał własny kontroler.",
-    "Password set": "Hasło ustawione",
     "Waiting for player...": "Oczekiwanie na gracza...",
     "Drop": "Usuń",
     "{{name}} · {{title}}": "{{name}} · {{title}}",

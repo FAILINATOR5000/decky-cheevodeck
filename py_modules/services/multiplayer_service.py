@@ -267,6 +267,8 @@ class MultiplayerService:
                 self._versions = None
                 self._permissions = {}
                 self._verdict_memo.clear()
+                if entry:
+                    self._rooms.clear()
             elif now >= self._cap_until:
                 if self._live():
                     decky.logger.info("multiplayer: the visit reached its cap")

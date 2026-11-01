@@ -251,6 +251,7 @@ function RoomsModal(props: RoomsModalProps) {
                     <TextField
                         label={t(language, "Password")}
                         value={password}
+                        type="password"
                         bIsPassword
                         disabled={busy}
                         onChange={(e: any) => setPassword(String(e?.target?.value ?? "").slice(0, PASSWORD_MAX))}
@@ -340,59 +341,57 @@ function RoomsModal(props: RoomsModalProps) {
                         <div style={modalBodyStyle()}>{t(language, "Nothing here matches what you typed.")}</div>
                     )}
                     {searched.length > 0 && (
-                        <Focusable flow-children="column" resetNavOnEntry>
-                            <SlidingWindowRows list={roomWindow}>
-                                {roomWindow.mountedItems.map((row, index) => {
-                                    const at = roomWindow.start + index;
-                                    const neighbors = [searched[at + 1], searched[at - 1]]
-                                        .filter((other): other is MultiplayerRoomRow => other !== undefined)
-                                        .map(rowKey);
-                                    const taken = row.seats.filter(Boolean).length;
-                                    const status = statusLabel(row.status);
-                                    const tags = [
-                                        row.private ? t(language, "Private") : "",
-                                        row.emulator === "retroarch" && row.core && !installedCores.includes(row.core)
-                                            ? t(language, "Core not installed")
-                                            : ""
-                                    ].filter(Boolean).join(" · ");
-                                    return (
-                                        <div key={row.room} style={{ paddingBottom: "4px" }}>
-                                            <FocusableItem
-                                                focusKey={rowKey(row)}
-                                                focusFallback={[...neighbors, "multiplayer:rooms:search", "multiplayer:rooms:joinip"]}
-                                                disabled={busy}
-                                                onGamepadFocus={() => roomWindow.onItemFocus(at)}
-                                                onGamepadDirection={roomWindow.guardTopRow(at)}
-                                                onClick={() => choose(row)}
-                                            >
-                                                <div style={{ display: "flex", flexDirection: "column", gap: "2px", ...modalBodyStyle(), opacity: 1 }}>
-                                                    <div style={{ fontWeight: 700, overflowWrap: "anywhere" }}>{row.name}</div>
-                                                    <div style={{ overflowWrap: "anywhere" }}>
-                                                        {t(language, "{{name}} · {{title}}", { name: row.user, title: row.title })}
-                                                    </div>
-                                                    <div style={{ opacity: 0.8 }}>
-                                                        {t(language, row.mode === "link" ? "Link Play" : "Couch Play")}
-                                                        {row.coreName ? ` · ${row.coreName}` : ""}
-                                                        {" · "}
-                                                        {t(language, "{{taken}} of {{count}} seats", { taken, count: row.max })}
-                                                        {row.state === "playing" ? ` · ${t(language, "In-Game")}` : ""}
-                                                        {status ? ` · ${status}` : ""}
-                                                    </div>
-                                                    {tags && <div style={{ color: warnAmber }}>{tags}</div>}
-                                                    {row.verdict && (
-                                                        <div style={{ color: row.verdict.can ? achievementGreen : warnAmber }}>
-                                                            {row.verdict.can
-                                                                ? `✔ ${t(language, "You can play")}`
-                                                                : describe(row.verdict.reason, row.verdict.detail)}
-                                                        </div>
-                                                    )}
+                        <SlidingWindowRows list={roomWindow}>
+                            {roomWindow.mountedItems.map((row, index) => {
+                                const at = roomWindow.start + index;
+                                const neighbors = [searched[at + 1], searched[at - 1]]
+                                    .filter((other): other is MultiplayerRoomRow => other !== undefined)
+                                    .map(rowKey);
+                                const taken = row.seats.filter(Boolean).length;
+                                const status = statusLabel(row.status);
+                                const tags = [
+                                    row.private ? t(language, "Private") : "",
+                                    row.emulator === "retroarch" && row.core && !installedCores.includes(row.core)
+                                        ? t(language, "Core not installed")
+                                        : ""
+                                ].filter(Boolean).join(" · ");
+                                return (
+                                    <div key={row.room} style={{ paddingBottom: "4px" }}>
+                                        <FocusableItem
+                                            focusKey={rowKey(row)}
+                                            focusFallback={[...neighbors, "multiplayer:rooms:search", "multiplayer:rooms:joinip"]}
+                                            disabled={busy}
+                                            onGamepadFocus={() => roomWindow.onItemFocus(at)}
+                                            onGamepadDirection={roomWindow.guardTopRow(at)}
+                                            onClick={() => choose(row)}
+                                        >
+                                            <div style={{ display: "flex", flexDirection: "column", gap: "2px", ...modalBodyStyle(), opacity: 1, width: "100%", textAlign: "left" }}>
+                                                <div style={{ fontWeight: 700, overflowWrap: "anywhere" }}>{row.name}</div>
+                                                <div style={{ overflowWrap: "anywhere" }}>
+                                                    {t(language, "{{name}} · {{title}}", { name: row.user, title: row.title })}
                                                 </div>
-                                            </FocusableItem>
-                                        </div>
-                                    );
-                                })}
-                            </SlidingWindowRows>
-                        </Focusable>
+                                                <div style={{ opacity: 0.8 }}>
+                                                    {t(language, row.mode === "link" ? "Link Play" : "Couch Play")}
+                                                    {row.coreName ? ` · ${row.coreName}` : ""}
+                                                    {" · "}
+                                                    {t(language, "{{taken}} of {{count}} seats", { taken, count: row.max })}
+                                                    {row.state === "playing" ? ` · ${t(language, "In-Game")}` : ""}
+                                                    {status ? ` · ${status}` : ""}
+                                                </div>
+                                                {tags && <div style={{ color: warnAmber }}>{tags}</div>}
+                                                {row.verdict && (
+                                                    <div style={{ color: row.verdict.can ? achievementGreen : warnAmber }}>
+                                                        {row.verdict.can
+                                                            ? `✔ ${t(language, "You can play")}`
+                                                            : describe(row.verdict.reason, row.verdict.detail)}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </FocusableItem>
+                                    </div>
+                                );
+                            })}
+                        </SlidingWindowRows>
                     )}
                 </div>
                 <Focusable

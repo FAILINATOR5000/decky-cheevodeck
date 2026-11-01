@@ -668,7 +668,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         <div style={{ fontStyle: "italic", opacity: 0.7 }}>{t(language, "No messages yet")}</div>
                     ) : chat.slice(-CHAT_LINES).map((line) => (
                         <div key={line.seq} style={{ flexShrink: 0, overflowWrap: "anywhere" }}>
-                            <span style={{ fontWeight: 700 }}>{line.name}</span>
+                            <span style={{ fontWeight: 800, color: achievementGreen }}>{line.name}</span>
                             {": "}
                             {line.text}
                         </div>
@@ -764,8 +764,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const showHardcore = mp.mode === "link" || !couchGuest;
     const showShare = mp.mode === "couch" && !joined && (hosted?.emulator ?? local?.emulator) === "retroarch";
     const showChangeGame = hosted !== null || (joined !== null && mp.mode === "link");
-    const passwordSet = hosted?.private === true;
-    const optionRows = (showChangeGame || showCores || showHardcore || showShare || passwordSet) && (
+    const optionRows = (showChangeGame || showCores || showHardcore || showShare) && (
         <>
             <SectionTitle label={t(language, "Options")} />
             {showChangeGame && (
@@ -784,13 +783,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             {coreRows}
             {showHardcore && hardcoreRow}
             {showShare && shareRow}
-            {passwordSet && (
-                <PanelSectionRow>
-                    <div style={{ ...bodyTextStyle(), opacity: 1, fontWeight: 700 }}>
-                        {t(language, "Password set")}
-                    </div>
-                </PanelSectionRow>
-            )}
         </>
     );
 

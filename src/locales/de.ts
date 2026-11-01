@@ -2962,7 +2962,6 @@ const DE: LocaleTable = {
     "help_multiplayer_password": "Leer lassen für einen offenen Raum. Wer beitritt, muss es eingeben. Es wird nirgends gespeichert und nie wieder angezeigt.",
     "Share Controls": "Steuerung teilen",
     "help_multiplayer_share": "Bei Einzelspieler-Spielen im Couch-Spiel können alle das Spiel gleichzeitig steuern. Ist es aus, können die anderen nur zusehen, was der Host spielt. Lass es bei Spielen für mehrere Spieler aus, damit jede Person ihren eigenen Controller bekommt.",
-    "Password set": "Passwort gesetzt",
     "Waiting for player...": "Warten auf Spieler...",
     "Drop": "Entfernen",
     "{{name}} · {{title}}": "{{name}} · {{title}}",

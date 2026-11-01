@@ -2995,7 +2995,6 @@ const PT: LocaleTable = {
     "help_multiplayer_password": "Deixe em branco para uma sala aberta. Quem entrar precisa digitá-la. Nunca é guardada nem mostrada de novo.",
     "Share Controls": "Compartilhar controles",
     "help_multiplayer_share": "Em jogos de um jogador no jogo no sofá, deixa todos controlarem o jogo ao mesmo tempo. Desligado, os outros só podem assistir ao que o anfitrião joga. Deixe desligado em jogos com mais de um jogador, para que cada pessoa tenha o próprio controle.",
-    "Password set": "Palavra-passe definida",
     "Waiting for player...": "Aguardando jogador...",
     "Drop": "Remover",
     "{{name}} · {{title}}": "{{name}} · {{title}}",

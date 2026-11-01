@@ -2971,7 +2971,6 @@ export const EN: LocaleTable = {
     "help_multiplayer_password": "Leave it empty for an open room. Anyone joining has to type it. It's never saved or shown again.",
     "Share Controls": "Share Controls",
     "help_multiplayer_share": "For single-player games in Couch Play, lets everyone control the game at the same time. With it off, the others can only watch what the host plays. Leave it off for games with more than one player, so each person gets their own controller.",
-    "Password set": "Password set",
     "Waiting for player...": "Waiting for player...",
     "Drop": "Drop",
     "{{name}} · {{title}}": "{{name}} · {{title}}",

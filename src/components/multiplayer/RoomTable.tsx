@@ -54,7 +54,7 @@ export function RoomTable(props: {
                             alignItems: "center",
                             gap: "10px",
                             minHeight: "28px",
-                            padding: "4px 0",
+                            padding: stepped ? "4px 8px" : "4px 0",
                             borderTop: index > 0 ? "1px solid rgba(255,255,255,0.12)" : undefined
                         };
                         const cells = (
