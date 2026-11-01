@@ -2851,6 +2851,7 @@ const JA: LocaleTable = {
     "Link Play needs Gambatte": "リンクプレイにはGambatteが必要です",
     "Link Play needs PPSSPP": "リンクプレイにはPPSSPPが必要です",
     "Link Play works with Game Boy, Game Boy Advance, DS and PSP games, and two GameCube games": "リンクプレイはゲームボーイ、ゲームボーイアドバンス、DS、PSPのゲームと、ゲームキューブの2作品で使えます",
+    "DS games can't do Couch Play. Use Link Play.": "DSのゲームはカウチプレイに対応していません。リンクプレイを使ってください。",
     "Link Play needs Dolphin": "リンクプレイにはDolphinが必要です",
     "Link Play works with Mario Kart: Double Dash!! and Kirby Air Ride": "リンクプレイはMario Kart: Double Dash!!とKirby Air Rideで使えます",
     "A Dolphin game setting for this game sets the network adapter": "このゲームのDolphinゲーム設定がネットワークアダプターを指定しています",

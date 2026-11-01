@@ -712,6 +712,8 @@ class MultiplayerService:
             return self._duckstation_couch_local(local, core, room)
         if mode == "link" and system_id not in session.LINK_CORES:
             return None, "link_system", {}
+        if mode == "couch" and system_id == session.DS_SYSTEM:
+            return None, "ds_no_couch", {}
         if mode == "link" and system_id == session.GBA_SYSTEM:
             local["gameCode"] = self._game_code_of(pick["real"], system_id)
             if not local["gameCode"]:

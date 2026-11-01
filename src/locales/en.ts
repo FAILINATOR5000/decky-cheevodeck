@@ -2993,6 +2993,7 @@ export const EN: LocaleTable = {
     "Link Play needs Gambatte": "Link Play needs Gambatte",
     "Link Play needs PPSSPP": "Link Play needs PPSSPP",
     "Link Play works with Game Boy, Game Boy Advance, DS and PSP games, and two GameCube games": "Link Play works with Game Boy, Game Boy Advance, DS and PSP games, and two GameCube games",
+    "DS games can't do Couch Play. Use Link Play.": "DS games can't do Couch Play. Use Link Play.",
     "Link Play needs Dolphin": "Link Play needs Dolphin",
     "Link Play works with Mario Kart: Double Dash!! and Kirby Air Ride": "Link Play works with Mario Kart: Double Dash!! and Kirby Air Ride",
     "A Dolphin game setting for this game sets the network adapter": "A Dolphin game setting for this game sets the network adapter",

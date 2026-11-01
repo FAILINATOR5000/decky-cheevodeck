@@ -90,6 +90,7 @@ const PROBLEM_TEXT: Record<string, string> = {
     region_differs: "Your copy is from a different region than the host's",
     dolphin_flatpak_needed: "GameCube and Wii games need Dolphin's Flatpak installed for Cheevo Check",
     link_system: "Link Play works with Game Boy, Game Boy Advance, DS and PSP games, and two GameCube games",
+    ds_no_couch: "DS games can't do Couch Play. Use Link Play.",
     duckstation_no_multiplayer: "DuckStation can't do Couch Play. A RetroArch shortcut with Beetle PSX HW can.",
     pcsx2_no_multiplayer: "PCSX2 has no Link Play or Couch Play",
     override: "A RetroArch override for this game sets {{key}}",
