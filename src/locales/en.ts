@@ -3085,6 +3085,7 @@ export const EN: LocaleTable = {
     "The host uses PPSSPP {{version}}. Every device needs the same PPSSPP version.": "The host uses PPSSPP {{version}}. Every device needs the same PPSSPP version.",
     "Your {{core}} build differs from the host's. Update cores on every device (Main Menu → Online Updater → Update Installed Cores).": "Your {{core}} build differs from the host's. Update cores on every device (Main Menu → Online Updater → Update Installed Cores).",
     "Multiplayer runs best at 60 Hz. If a game jitters, set 60 Hz in Steam's Performance menu while it runs.": "Multiplayer runs best at 60 Hz. If a game jitters, set 60 Hz in Steam's Performance menu while it runs.",
+    "PSP multiplayer is experimental. Some games lose the connection when a match starts.": "PSP multiplayer is experimental. Some games lose the connection when a match starts.",
     "Host in NetPlay": "Host in NetPlay",
     "Connect in NetPlay": "Connect in NetPlay",
     "You can play": "You can play",

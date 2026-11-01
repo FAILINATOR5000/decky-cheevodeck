@@ -276,6 +276,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const hosted = mp.hosted;
     const joined = mp.joined;
     const local = mp.check?.local ?? null;
+    const roomCore = hosted?.core ?? joined?.room.core ?? local?.core ?? "";
+    const runsPpsspp = roomCore === "ppsspp" || roomCore === "ppsspp-standalone";
     const gateCheck = mp.checkCurrent ? mp.check : null;
     const session = mp.session;
     const playing = session.appid > 0;
@@ -1097,6 +1099,13 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                                 </div>
                             </PanelSectionRow>
                         ))}
+                        {runsPpsspp && (
+                            <PanelSectionRow>
+                                <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
+                                    {t(language, "PSP multiplayer is experimental. Some games lose the connection when a match starts.")}
+                                </div>
+                            </PanelSectionRow>
+                        )}
                         {screenHz !== null && (screenHz === 0 || screenHz > 60) && (
                             <PanelSectionRow>
                                 <div style={bodyTextStyle()}>
