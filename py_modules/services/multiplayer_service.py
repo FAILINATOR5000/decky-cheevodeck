@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import hmac
 import json
 import os
 import re
@@ -20,7 +21,7 @@ import subprocess_util
 from multiplayer_protocol import decode, frame, read_frame
 from nearby_protocol import FrameError, clean_title, is_nonce, verify
 from notifications import emit_notification, is_type_enabled
-from services import lobby_client
+from services import lobby_client, lobby_tunnel
 from utils import atomic_file, child_owner, chown_to_data_owner, ensure_dir, load_json_file
 
 LEASE_SECONDS = 30
@@ -34,6 +35,7 @@ HANDSHAKE_SECONDS = 5
 FIRST_FRAME_SECONDS = 2
 MAX_HANDSHAKES = 8
 HANDSHAKES_PER_ADDRESS = 2
+HANDSHAKES_PER_RELAYED_ADDRESS = 4
 ANSWERS_PER_SECOND = 10
 SEEN_NONCES_MAX = 4096
 
@@ -53,6 +55,8 @@ READY_EXPIRY_SECONDS = 600
 SLEEP_JUMP_SECONDS = 60
 
 HOUSEKEEPING_SECONDS = 5
+
+DOLPHIN_TUNNEL_PORT = 2627
 
 LIST_GRACE_SECONDS = 0.5
 
@@ -115,6 +119,8 @@ ERROR_LAUNCH_FAILED = "launch_failed"
 ERROR_CHAT = "chat_refused"
 ERROR_NO_LOBBY = "no_lobby"
 ERROR_LOBBY_UNREACHABLE = "lobby_unreachable"
+ERROR_LAN_ONLY = "lan_only"
+ERROR_TUNNEL = "tunnel_failed"
 
 CHAT_GAP_SECONDS = 1
 
@@ -212,6 +218,7 @@ class MultiplayerService:
         self._listing = None
         self._online = {}
         self._online_error = ""
+        self._prefer_server = False
 
         self._housekeeper = None
         self._poller = None
@@ -232,6 +239,8 @@ class MultiplayerService:
         self._versions = None
         self._permissions = {}
         self._device = ""
+        self._host_tunnels = lobby_tunnel.HostTunnels(debug=self._debug)
+        self._guest_tunnels = None
 
     def set_event_loop(self, loop) -> None:
         self._loop = loop
@@ -373,6 +382,9 @@ class MultiplayerService:
 
     def _shut(self) -> None:
         self._closed_tail = None
+        if self._link is not None:
+            self._link.close()
+            self._link = None
         udp, server = self._udp, self._server
         if self._responder is not None:
             self._closing.append(self._responder.closed)
@@ -400,11 +412,48 @@ class MultiplayerService:
             decky.logger.info("multiplayer: " + message, *args)
 
     def _lobby_server(self):
+        return lobby_client.parse_server(self._settings_store.get_lobby_server(self._settings_store.load_config()))
+
+    def _relay_host(self) -> str:
+        server = self._lobby_server()
+        return server[0] if server is not None else ""
+
+    def _open_guest_tunnels(self, joined: dict, mode: str, local: dict) -> bool:
+        server = self._lobby_server()
+        loop = self._loop
+        if server is None or loop is None or loop.is_closed():
+            return False
+        ports = [(kind, DOLPHIN_TUNNEL_PORT if kind == "udp" else port, port)
+                 for kind, port in proto.tunnel_ports(mode, local["emulator"], local["core"])]
+        if not ports:
+            return True
+
+        async def open_them():
+            if self._guest_tunnels is not None:
+                self._close_guest_tunnels()
+                await asyncio.sleep(0.05)
+            tunnels = lobby_tunnel.GuestTunnels(server=server, room_id=joined["row"]["room"], seat=joined["seat"],
+                                                seat_key=joined["key"], ports=ports, debug=self._debug)
+            if not await tunnels.start():
+                return False
+            self._guest_tunnels = tunnels
+            return True
+
         try:
-            value = self._settings_store.get_lobby_server(self._settings_store.load_config())
-        except Exception:
-            return None
-        return lobby_client.parse_server(value)
+            return asyncio.run_coroutine_threadsafe(open_them(), loop).result(10)
+        except Exception as e:
+            decky.logger.warning("multiplayer: couldn't open the game tunnel (%s)", type(e).__name__)
+            return False
+
+    def _close_guest_tunnels(self) -> None:
+        tunnels, self._guest_tunnels = self._guest_tunnels, None
+        if tunnels is not None:
+            tunnels.close()
+
+    def _close_guest_tunnels_soon(self) -> None:
+        loop = self._loop
+        if loop is not None and not loop.is_closed():
+            loop.call_soon_threadsafe(self._close_guest_tunnels)
 
     def _room_view(self) -> dict:
         room = self._room
@@ -947,6 +996,8 @@ class MultiplayerService:
         ra = local.get("ra")
 
         if room is not None:
+            if room.get("where") == "online" and _lan_only(mode, local):
+                return (ERROR_LAN_ONLY, {}), warnings
             if mode == "couch":
                 if local["core"] != room["core"]:
                     if not ra or not ra.installed(room["core"]):
@@ -1057,6 +1108,7 @@ class MultiplayerService:
             "detail": found[1] if found else {},
             "warnings": warnings,
             "local": _local_view(local),
+            "lanOnly": _lan_only(mode, local),
         }
 
     def _joined_check(self, joined: dict) -> dict:
@@ -1123,6 +1175,8 @@ class MultiplayerService:
                     gate, detail = found
             if gate:
                 return {"ok": False, "error": ERROR_GATE, "gate": gate, "detail": detail}
+            if online and _lan_only(mode, local):
+                return {"ok": False, "error": ERROR_GATE, "gate": ERROR_LAN_ONLY, "detail": {}}
             described = await asyncio.to_thread(self._describe, mode, local)
 
             seats = min(max(size, 2), proto.MAX_SEATS)
@@ -1291,6 +1345,7 @@ class MultiplayerService:
         room["bannedNames"].add(dropped["name"].lower())
         room["bannedDevices"].add(dropped["device"])
         room["seats"][seat] = None
+        self._host_tunnels.close_seat(seat)
         room["notice"] = None
         self._roster_left(room, seat)
         self._announce()
@@ -1302,9 +1357,7 @@ class MultiplayerService:
             return
         self._room = None
         self._closed_reason = reason
-        if self._link is not None:
-            self._link.close()
-            self._link = None
+        self._host_tunnels.close()
         if self._housekeeper is not None:
             self._housekeeper.cancel()
             self._housekeeper = None
@@ -1366,6 +1419,8 @@ class MultiplayerService:
             return "starting"
         if room["emulator"] == "dolphin" and room["mode"] == "link":
             return "playing"
+        if room["where"] == "online" and room["emulator"] == "ppsspp":
+            return "playing"
         if room["emulator"] == "dolphin":
             return "playing" if _listening(session.DOLPHIN_NETPLAY_PORT, udp=True) else "starting"
         if _listening(proto.game_port(room["mode"], room["emulator"], room["core"])):
@@ -1391,6 +1446,7 @@ class MultiplayerService:
                 decky.logger.info("multiplayer: seat %s went quiet, freed", index)
                 room["freed"][index] = seat["key"]
                 room["seats"][index] = None
+                self._host_tunnels.close_seat(index)
                 self._toast_seat(seat["name"], "Left your room")
                 self._roster_left(room, index)
 
@@ -1520,16 +1576,15 @@ class MultiplayerService:
 
     async def _converse(self, conversation) -> None:
         peer = conversation.peer
-        lan = conversation.door == "lan"
+        cap = HANDSHAKES_PER_ADDRESS if conversation.door == "lan" else HANDSHAKES_PER_RELAYED_ADDRESS
         if (
             (self._room is None and self._closed_tail is None)
             or self._handshakes >= MAX_HANDSHAKES
-            or (lan and self._peer_handshakes.get(peer, 0) >= HANDSHAKES_PER_ADDRESS)
+            or self._peer_handshakes.get(peer, 0) >= cap
         ):
             return
         self._handshakes += 1
-        if lan:
-            self._peer_handshakes[peer] = self._peer_handshakes.get(peer, 0) + 1
+        self._peer_handshakes[peer] = self._peer_handshakes.get(peer, 0) + 1
         try:
             await asyncio.wait_for(self._answer(conversation), HANDSHAKE_SECONDS)
         except (asyncio.TimeoutError, asyncio.IncompleteReadError, OSError, FrameError):
@@ -1538,12 +1593,11 @@ class MultiplayerService:
             decky.logger.exception("multiplayer: a request failed (%s)", type(e).__name__)
         finally:
             self._handshakes -= 1
-            if lan:
-                left = self._peer_handshakes.get(peer, 1) - 1
-                if left > 0:
-                    self._peer_handshakes[peer] = left
-                else:
-                    self._peer_handshakes.pop(peer, None)
+            left = self._peer_handshakes.get(peer, 1) - 1
+            if left > 0:
+                self._peer_handshakes[peer] = left
+            else:
+                self._peer_handshakes.pop(peer, None)
 
     async def _answer(self, conversation) -> None:
         opening = await asyncio.wait_for(conversation.read(), FIRST_FRAME_SECONDS)
@@ -1625,13 +1679,31 @@ class MultiplayerService:
         decky.logger.info("multiplayer: seat %s taken%s", seat, " through the online lobby" if door == "server" else "")
         self._announce()
         toast_key = params["device"] if door == "server" else peer
+        for stale in [name for name, at in self._join_toasts.items() if now - at >= JOIN_TOAST_SECONDS]:
+            del self._join_toasts[stale]
         last = self._join_toasts.get(toast_key)
         if last is None or now - last >= JOIN_TOAST_SECONDS:
             self._join_toasts[toast_key] = now
             self._toast_seat(params["user"], "Joined your room")
 
     async def _tunnel_ask(self, link, ask: dict) -> None:
-        await link.send({"op": "tunnel_no", "tid": ask["tid"]})
+        room = self._room
+        index = ask["seat"]
+        seat = room["seats"][index] if room is not None and index < room["max"] else None
+        if (
+            room is None
+            or seat is None
+            or seat["door"] != "server"
+            or room["state"] == "lobby"
+            or index not in room["roster"]
+            or (ask["kind"], ask["port"]) not in proto.tunnel_ports(room["mode"], room["emulator"], room["core"])
+            or not hmac.compare_digest(ask["token"], proto.tunnel_token(seat["key"], ask["port"]))
+            or self._host_tunnels.full(index)
+        ):
+            self._debug("refused a tunnel for seat %s, %s %s", index, ask["kind"], ask["port"])
+            await link.send({"op": "tunnel_no", "tid": ask["tid"]})
+            return
+        self._host_tunnels.answer(link, ask)
 
     def _locked_out(self, room: dict, peer: str, now: float) -> bool:
         if room["lockedUntil"] > now:
@@ -1678,6 +1750,7 @@ class MultiplayerService:
         op = message["op"]
         if op == "leave":
             room["seats"][index] = None
+            self._host_tunnels.close_seat(index)
             decky.logger.info("multiplayer: seat %s left", index)
             await conversation.say({"ok": True})
             self._toast_seat(seat["name"], "Left your room")
@@ -1903,7 +1976,7 @@ class MultiplayerService:
                 del self._rooms[room_id]
         for room_id, row in self._online.items():
             held = self._rooms.get(room_id)
-            if room_id != own and (held is None or held[0]["door"] == "server"):
+            if room_id != own and (held is None or held[0]["door"] == "server" or self._prefer_server):
                 self._rooms[room_id] = (row, self._round, False)
         self._debug("discovery round %s found %s, %s online", self._round, len(found), len(self._online))
         rows = self._room_rows()
@@ -2329,6 +2402,7 @@ class MultiplayerService:
             return
         self._joined = None
         self._closed_reason = reason
+        self._close_guest_tunnels()
         if self._poller is not None:
             self._poller.cancel()
             self._poller = None
@@ -2397,6 +2471,7 @@ class MultiplayerService:
         if stale is not None and not stale["started"]:
             self._session = None
             self._remove_session_files(stale["id"])
+            self._close_guest_tunnels_soon()
         room = self._room
         joined = self._joined
         if room is not None:
@@ -2409,12 +2484,14 @@ class MultiplayerService:
             mode = room["mode"]
             local = room["local"]
             seat = 0
-            host_ip = roster[0]["ip"]
+            host_ip = next((taken["ip"] for taken in roster if taken["door"] == "lan"), "") \
+                or _route_address() or room["address"]
             own_ip = host_ip
             hardcore = room["hardcore"] if mode == "couch" else bool(hardcore)
             share = room["share"]
             players = 1 + len(roster)
             peer = None
+            relay = self._relay_host() if room["where"] == "online" else ""
         elif joined is not None:
             status = joined["status"]
             if (
@@ -2432,12 +2509,18 @@ class MultiplayerService:
             share = joined["row"]["share"]
             players = status["players"]
             peer = joined["row"]
+            relay = self._relay_host() if joined["row"]["where"] == "online" else ""
         else:
             return {"ok": False, "error": ERROR_NO_ROOM}
 
         found, _warnings = self._gates(mode, local, peer, players)
         if found:
             return {"ok": False, "error": ERROR_GATE, "gate": found[0], "detail": found[1]}
+
+        relayed = joined is not None and room is None and joined["row"]["door"] == "server"
+        if relayed:
+            if not self._open_guest_tunnels(joined, mode, local):
+                return {"ok": False, "error": ERROR_TUNNEL}
 
         sid = secrets.token_hex(8)
         rom = Path(local["path"])
@@ -2473,15 +2556,17 @@ class MultiplayerService:
                 self._write(marker, "")
                 files = [marker]
                 if mode == "couch":
-                    args = session.dolphin_netplay_args(host_ip=own_ip if role == "host" else host_ip, nick=nick,
-                                                        hardcore=hardcore, marker=marker)
+                    args = session.dolphin_netplay_args(
+                        host_ip=own_ip if role == "host" else host_ip, nick=nick, hardcore=hardcore, marker=marker,
+                        connect_port=DOLPHIN_TUNNEL_PORT if relayed else proto.DOLPHIN_NETPLAY_PORT,
+                    )
                 else:
                     args = session.dolphin_bba_args(own_ip=own_ip, mac=session.bba_mac(self._machine_id()),
                                                     hardcore=hardcore, marker=marker)
             else:
                 ini_path = self._session_dir / f"session-{sid}.ini"
                 text = session.ppsspp_session(role=role, host_ip=host_ip, nick=nick,
-                                              mac=session.psp_mac(self._machine_id()), hardcore=hardcore)
+                                              mac=session.psp_mac(self._machine_id()), hardcore=hardcore, relay=relay)
                 self._write(ini_path, text)
                 files = [ini_path]
                 args = session.ppsspp_args(home=self._user_home, ini_path=ini_path)
@@ -2490,6 +2575,8 @@ class MultiplayerService:
             self._write_restore(local["appid"], original, sid)
         except OSError as e:
             decky.logger.warning("multiplayer: couldn't write the session files (%s)", type(e).__name__)
+            if relayed:
+                self._close_guest_tunnels_soon()
             return {"ok": False, "error": ERROR_WRITE_FAILED}
 
         self._session = {
@@ -2595,6 +2682,7 @@ class MultiplayerService:
         if current is not None and current["id"] == sid and not current["started"]:
             self._session = None
             self._remove_session_files(sid)
+            self._close_guest_tunnels_soon()
         elif current is not None and current["id"] == sid and current["exited"]:
             self._remove_files(current)
         elif sid and sid not in _running_sessions(str(self._session_dir)):
@@ -2689,6 +2777,8 @@ class MultiplayerService:
     def _session_over(self, current: dict) -> None:
         if self._session is current:
             self._session = None
+        self._close_guest_tunnels()
+        self._host_tunnels.close()
         failed = current["error"] or ("" if current["seen"] else ERROR_LAUNCH_FAILED)
         joined = self._joined
         if joined is not None and joined["launched"]:
@@ -2727,6 +2817,18 @@ class MultiplayerService:
             asyncio.run_coroutine_threadsafe(decky.emit(event, payload), loop)
         except Exception as e:
             decky.logger.warning("multiplayer: couldn't tell the panel (%s)", type(e).__name__)
+
+    def debug_server_door(self, on: bool) -> dict:
+        try:
+            debugging = self._settings_store.get_debug_logging(self._settings_store.load_config())
+        except Exception:
+            debugging = False
+        if not debugging:
+            return {"ok": False, "error": ERROR_UNAVAILABLE}
+        self._prefer_server = bool(on)
+        self._rooms.clear()
+        decky.logger.info("multiplayer: debug, Online rooms %s", "through the server" if on else "on the LAN when heard")
+        return {"ok": True, "on": self._prefer_server}
 
     def debug_processes(self) -> dict:
         try:
@@ -2819,6 +2921,10 @@ def _remove_system_folder(folder: Path) -> None:
 
 def _known(version: str) -> bool:
     return bool(version) and all(version.split("|"))
+
+
+def _lan_only(mode: str, local: dict) -> bool:
+    return mode == "link" and (local["emulator"] == "dolphin" or local["core"] == session.PPSSPP_CORE)
 
 
 def _dolphin_couch(row: dict) -> bool:

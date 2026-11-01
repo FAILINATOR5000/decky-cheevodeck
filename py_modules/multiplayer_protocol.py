@@ -31,6 +31,7 @@ PASSWORD_ROUNDS = 600_000
 RETROARCH_NETPLAY_PORT = 55435
 GAMBATTE_LINK_PORT = 56400
 PPSSPP_ADHOC_SERVER_PORT = 27312
+DOLPHIN_NETPLAY_PORT = 2626
 
 NETPACKET_CORES = ("gpsp", "melondsds")
 
@@ -120,6 +121,22 @@ def game_port(mode: str, emulator: str, core: str) -> int:
     if emulator == "retroarch" and core == "gambatte":
         return GAMBATTE_LINK_PORT
     return PPSSPP_ADHOC_SERVER_PORT
+
+
+def tunnel_ports(mode: str, emulator: str, core: str) -> list:
+    if emulator == "dolphin":
+        return [("udp", DOLPHIN_NETPLAY_PORT)] if mode == "couch" else []
+    if emulator != "retroarch":
+        return []
+    if mode == "couch" or core in NETPACKET_CORES:
+        return [("tcp", RETROARCH_NETPLAY_PORT)]
+    if core == "gambatte":
+        return [("tcp", GAMBATTE_LINK_PORT)]
+    return []
+
+
+def tunnel_token(key: bytes, port: int) -> str:
+    return hmac.new(key, f"tunnel|{port}".encode("ascii"), hashlib.sha256).hexdigest()
 
 
 def encode(message: dict) -> bytes:

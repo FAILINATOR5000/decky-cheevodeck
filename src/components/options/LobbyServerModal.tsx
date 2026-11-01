@@ -6,7 +6,7 @@ import { t, type LanguageCode } from "../../locales";
 import { logError } from "../../utils/errors";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { modalSize } from "../../utils/scale";
-import { modalBodyStyle } from "../../utils/style";
+import { errorRed, modalBodyStyle } from "../../utils/style";
 import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 
@@ -22,6 +22,7 @@ function LobbyServerModal(props: LobbyServerModalProps) {
     const { language, current, close } = props;
     const [address, setAddress] = useState(current);
     const [saving, setSaving] = useState(false);
+    const [invalid, setInvalid] = useState(false);
     const fieldRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
@@ -34,7 +35,12 @@ function LobbyServerModal(props: LobbyServerModalProps) {
         }
         setSaving(true);
         try {
-            await saveLobbyServer(address.trim(), useDefault);
+            const saved = await saveLobbyServer(address, useDefault);
+            if (!saved.ok) {
+                setInvalid(true);
+                setSaving(false);
+                return;
+            }
         }
         catch (e) {
             logError("saveLobbyServer", e);
@@ -54,9 +60,17 @@ function LobbyServerModal(props: LobbyServerModalProps) {
                         label={t(language, "Server address")}
                         value={address}
                         disabled={saving}
-                        onChange={(e: any) => setAddress(String(e?.target?.value ?? "").slice(0, ADDRESS_MAX))}
+                        onChange={(e: any) => {
+                            setAddress(String(e?.target?.value ?? "").slice(0, ADDRESS_MAX));
+                            setInvalid(false);
+                        }}
                     />
                 </div>
+                {invalid && (
+                    <div style={{ ...modalBodyStyle(), color: errorRed, opacity: 1, marginTop: "8px" }}>
+                        {t(language, "Not a valid address")}
+                    </div>
+                )}
                 <div style={{ ...modalBodyStyle(), marginTop: "8px" }}>
                     {t(language, "help_lobby_server")}
                 </div>

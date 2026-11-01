@@ -15,6 +15,10 @@ PING_SECONDS = 10
 SILENT_SECONDS = 30
 RETRY_SECONDS = (2, 5, 10, 30)
 LIST_MAX = 200
+LIST_SECONDS = 15
+CONVERSATIONS_MAX = 32
+TUNNEL_ASKS_MAX = 64
+REFUSALS = ("taken", "full", "busy")
 
 ENVELOPE_BYTES = proto.MAX_FRAME_BYTES + 256
 
@@ -54,17 +58,20 @@ async def read_envelope(reader) -> dict:
 
 
 async def list_rooms(server) -> list:
+    return await asyncio.wait_for(_list_rooms(server), LIST_SECONDS)
+
+
+async def _list_rooms(server) -> list:
     reader, writer = await connect(server)
     try:
         writer.write(envelope({"op": "list", "v": proto.VERSION}))
         await asyncio.wait_for(writer.drain(), LEG_SECONDS)
         rooms = []
-        while len(rooms) < LIST_MAX:
+        for _frame in range(LIST_MAX + 1):
             message = await asyncio.wait_for(read_envelope(reader), LEG_SECONDS)
-            if message.get("op") == "end":
+            if message.get("op") != "room":
                 break
-            if message.get("op") == "room":
-                rooms.append((message.get("room"), message.get("away") is True))
+            rooms.append((message.get("room"), message.get("away") is True))
         return rooms
     finally:
         writer.close()
@@ -199,23 +206,32 @@ class HostLink:
             self.up = up
             self._on_change()
 
+    def _log(self, message: str, *args) -> None:
+        if self._task is None:
+            decky.logger.info("multiplayer: " + message, *args)
+        else:
+            self._debug(message, *args)
+
     async def _attach(self):
         try:
             reader, writer = await connect(self.server)
         except (OSError, asyncio.TimeoutError) as e:
-            decky.logger.info("multiplayer: couldn't reach the online lobby (%s)", type(e).__name__)
+            self._log("couldn't reach the online lobby (%s)", type(e).__name__)
             return None
         try:
             writer.write(envelope({"op": "host", "v": proto.VERSION, "room": self._body, "secret": self.secret}))
             await asyncio.wait_for(writer.drain(), LEG_SECONDS)
             hello = await asyncio.wait_for(read_envelope(reader), LEG_SECONDS)
         except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError, FrameError) as e:
-            decky.logger.info("multiplayer: the online lobby didn't take the room (%s)", type(e).__name__)
+            self._log("the online lobby didn't take the room (%s)", type(e).__name__)
             writer.close()
             return None
+        except BaseException:
+            writer.close()
+            raise
         if hello.get("op") != "hosted" or hello.get("ok") is not True:
-            decky.logger.info("multiplayer: the online lobby refused the room (%s)",
-                              hello.get("error") if isinstance(hello.get("error"), str) else "no reason")
+            error = hello.get("error")
+            self._log("the online lobby refused the room (%s)", error if error in REFUSALS else "no reason")
             writer.close()
             return None
         if self._closed:
@@ -279,6 +295,8 @@ class HostLink:
         if conversation is not None:
             conversation.take(inner)
             return
+        if len(self._conversations) >= CONVERSATIONS_MAX:
+            return
         conversation = ServerConversation(self, rid, peer)
         conversation.take(inner)
         self._conversations[rid] = conversation
@@ -294,6 +312,7 @@ class HostLink:
             or type(port) is not int or not 0 < port < 65536
             or kind not in ("tcp", "udp")
             or not isinstance(token, str) or _TOKEN.fullmatch(token) is None
+            or len(self._tasks) >= TUNNEL_ASKS_MAX
         ):
             return
         ask = {"tid": tid, "seat": seat, "port": port, "kind": kind, "token": token}

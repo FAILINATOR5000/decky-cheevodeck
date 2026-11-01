@@ -127,7 +127,8 @@ const PROBLEM_TEXT: Record<string, string> = {
     seated: "Close the room to change it",
     unavailable: "Couldn't open a room on this network",
     lobby_unreachable: "Couldn't reach the online lobby",
-    no_lobby: "Set a lobby server in Options first"
+    no_lobby: "Set a lobby server in Options first",
+    lan_only: "This game links over LAN, so it plays Local only."
 };
 
 const WARNING_TEXT: Record<string, string> = {
@@ -456,7 +457,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             share: mp.shareControls
         }, {
             online: mp.lobby,
-            lanOnly: mp.mode === "link" && local?.emulator === "dolphin"
+            lanOnly: Boolean(mp.check?.lanOnly)
         }, describe);
     }
 

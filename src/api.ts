@@ -261,7 +261,7 @@ export const saveDeferModalCleanup = callable<[boolean], { ok: boolean; deferMod
 export const saveBackButtonsGlobal = callable<[boolean], { ok: boolean; backButtonsGlobal: boolean }>(
     "save_back_buttons_global"
 );
-export const saveLobbyServer = callable<[string, boolean], { ok: boolean; lobbyServer: string }>("save_lobby_server");
+export const saveLobbyServer = callable<[string, boolean], { ok: boolean; error?: string; lobbyServer: string }>("save_lobby_server");
 export const saveBrowserSnapshot = callable<[boolean], { ok: boolean; browserSnapshot: boolean }>(
     "save_browser_snapshot"
 );

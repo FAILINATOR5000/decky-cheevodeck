@@ -6,6 +6,7 @@ import cheevo_check_systems as systems
 from freeze_capture import clear_captures
 from settings_store import DEFAULT_LOBBY_SERVER
 
+from services.lobby_client import parse_server
 from services.update_checker_service import installed_version
 
 from mixins._context import PluginContext
@@ -618,9 +619,14 @@ class OptionsMixin(PluginContext):
         }
 
     async def save_lobby_server(self, lobby_server: str = "", use_default: bool = False):
-        value = self.settings_store.update_lobby_server(
-            DEFAULT_LOBBY_SERVER if use_default else str(lobby_server or "")
-        )
+        wanted = DEFAULT_LOBBY_SERVER if use_default else str(lobby_server or "").strip()
+        if wanted and parse_server(wanted) is None:
+            return {
+                "ok": False,
+                "error": "bad_address",
+                "lobbyServer": self.settings_store.get_lobby_server(self.settings_store.load_config()),
+            }
+        value = self.settings_store.update_lobby_server(wanted)
 
         return {
             "ok": True,

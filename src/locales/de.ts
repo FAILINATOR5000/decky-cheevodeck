@@ -3100,7 +3100,7 @@ const DE: LocaleTable = {
     "Online room": "Online-Raum",
     "Reconnecting to the online lobby...": "Verbindung zur Online-Lobby wird wiederhergestellt...",
     "Lobby Server": "Lobby-Server",
-    "help_lobby_server": "Hier treffen sich Online-Räume. Leer lassen, um nur lokale Räume zu nutzen. Chat und Raumdetails laufen über diesen Server, wer ihn betreibt, kann sie also lesen.",
+    "help_lobby_server": "Hier treffen sich Online-Räume. Leer lassen, um nur lokale Räume zu nutzen. Chat und Raumdetails laufen über diesen Server. Wer ihn betreibt, kann sie also lesen.",
     "Server address": "Serveradresse",
     "Use Default": "Standard verwenden",
 };

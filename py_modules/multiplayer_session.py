@@ -6,7 +6,7 @@ import zipfile
 import zlib
 from pathlib import Path, PurePosixPath
 
-from multiplayer_protocol import NETPACKET_CORES
+from multiplayer_protocol import DOLPHIN_NETPLAY_PORT, NETPACKET_CORES
 
 RETROARCH_CONFIGS = (
     ".var/app/org.libretro.RetroArch/config/retroarch/retroarch.cfg",
@@ -38,7 +38,6 @@ PS1_SYSTEM = 12
 BEETLE_PSX_HW = "mednafen_psx_hw"
 WII_SYSTEM = 19
 DOLPHIN_SYSTEMS = (GAMECUBE_SYSTEM, WII_SYSTEM)
-DOLPHIN_NETPLAY_PORT = 2626
 PSP_SYSTEM = 41
 
 LINK_CORES = {4: GAMBATTE, 6: GAMBATTE, GBA_SYSTEM: GPSP, DS_SYSTEM: MELONDS_DS, PSP_SYSTEM: PPSSPP_CORE,
@@ -511,11 +510,12 @@ def dolphin_missing_folder(home, install: str, rom: str) -> str:
     return os.path.dirname(rom)
 
 
-def dolphin_netplay_args(*, host_ip: str, nick: str, hardcore: bool, marker: Path) -> str:
+def dolphin_netplay_args(*, host_ip: str, nick: str, hardcore: bool, marker: Path,
+                         connect_port: int = DOLPHIN_NETPLAY_PORT) -> str:
     keys = [
         "Dolphin.NetPlay.TraversalChoice=direct",
         f"Dolphin.NetPlay.Address={host_ip}",
-        f"Dolphin.NetPlay.ConnectPort={DOLPHIN_NETPLAY_PORT}",
+        f"Dolphin.NetPlay.ConnectPort={connect_port}",
         f"Dolphin.NetPlay.HostPort={DOLPHIN_NETPLAY_PORT}",
         f"Dolphin.NetPlay.ListenPort={DOLPHIN_NETPLAY_PORT}",
         "Dolphin.NetPlay.HostCode=00000000",
@@ -736,14 +736,14 @@ def retroarch_args(*, mode: str, role: str, host_ip: str, nick: str, cfg_path: P
     return " ".join(parts)
 
 
-def ppsspp_session(*, role: str, host_ip: str, nick: str, mac: str, hardcore: bool) -> str:
+def ppsspp_session(*, role: str, host_ip: str, nick: str, mac: str, hardcore: bool, relay: str = "") -> str:
     return (
         "[Network]\n"
         "EnableWlan = True\n"
-        f"EnableAdhocServer = {'True' if role == 'host' else 'False'}\n"
-        f"proAdhocServer = {host_ip}\n"
+        f"EnableAdhocServer = {'True' if role == 'host' and not relay else 'False'}\n"
+        f"proAdhocServer = {relay or host_ip}\n"
         "PortOffset = 10000\n"
-        "AdhocServerRelayMode = 2\n"
+        f"AdhocServerRelayMode = {'1' if relay else '2'}\n"
         "[SystemParam]\n"
         f"NickName = {nick}\n"
         f"MacAddress = {mac}\n"

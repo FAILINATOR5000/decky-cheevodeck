@@ -2924,7 +2924,7 @@ export type MultiplayerRoomRow = {
     user: string;
     name: string;
     status: string;
-    where: "local" | "online";
+    where: MultiplayerWhere;
     title: string;
     gameId: number;
     systemId: number;
@@ -2957,7 +2957,7 @@ export type MultiplayerHostedRoom = {
     id: string;
     name: string;
     status: string;
-    where: "local" | "online";
+    where: MultiplayerWhere;
     lobby: "" | "up" | "down";
     mode: MultiplayerMode;
     title: string;
@@ -3044,6 +3044,7 @@ export type MultiplayerCheck = {
     detail: Record<string, string>;
     warnings: MultiplayerWarning[];
     local: MultiplayerLocal | null;
+    lanOnly?: boolean;
 };
 
 export type MultiplayerGame = {
