@@ -4,12 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { multiplayerHost, multiplayerSetVisible } from "../../api";
 import { overrideRecord, topEntryId } from "../../focusRecords";
 import { t, type LanguageCode } from "../../locales";
-import type { MultiplayerMode } from "../../types";
+import type { MultiplayerMode, MultiplayerWhere } from "../../types";
 import { logError } from "../../utils/errors";
 import { multiplayerChoices, rememberMultiplayerHostPicks } from "../../utils/multiplayerChoices";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { modalSize } from "../../utils/scale";
-import { achievementGreen, compactButtonStyle, errorRed, modalBodyStyle } from "../../utils/style";
+import { achievementGreen, compactButtonStyle, errorRed, modalBodyStyle, warnAmber } from "../../utils/style";
 import { helpDescription } from "../ui/InfoText";
 import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
@@ -28,16 +28,30 @@ type HostRequest = {
     share: boolean;
 };
 
+type HostPlace = {
+    online: boolean;
+    lanOnly: boolean;
+};
+
+const WHERES: { code: MultiplayerWhere; labelKey: string }[] = [
+    { code: "local", labelKey: "Local" },
+    { code: "online", labelKey: "Online" }
+];
+
 type HostRoomModalProps = {
     language: LanguageCode;
     request: HostRequest;
+    place: HostPlace;
     describe: (code: string, detail?: Record<string, string>) => string;
     close: () => void;
 };
 
 function HostRoomModal(props: HostRoomModalProps) {
-    const { language, request, describe, close } = props;
+    const { language, request, place, describe, close } = props;
     const picks = multiplayerChoices();
+    const [where, setWhere] = useState<MultiplayerWhere>(
+        () => (place.online && !place.lanOnly ? picks.where : "local")
+    );
     const [name, setName] = useState(() => t(language, "Room"));
     const [seats, setSeats] = useState(picks.seats);
     const [password, setPassword] = useState("");
@@ -59,11 +73,11 @@ function HostRoomModal(props: HostRoomModalProps) {
         }
         setHosting(true);
         setFailure("");
-        rememberMultiplayerHostPicks(seats, status);
+        rememberMultiplayerHostPicks(seats, status, place.online && !place.lanOnly ? where : picks.where);
         try {
             await multiplayerSetVisible(true, true);
             const hosted = await multiplayerHost(request.mode, request.gameId, request.hardcore, request.core,
-                request.share, name.trim(), seats, password, status);
+                request.share, name.trim(), seats, password, status, where);
             if (hosted.ok) {
                 overrideRecord(entryId, { focusKey: "multiplayer:host" });
                 close();
@@ -145,6 +159,38 @@ function HostRoomModal(props: HostRoomModalProps) {
                         </div>
                     ))}
                 </Focusable>
+                {place.online && (
+                    <>
+                        <div style={{ ...modalBodyStyle(15), fontWeight: 600, opacity: 1, margin: "12px 0 6px 0" }}>
+                            {t(language, "Where")}
+                        </div>
+                        <Focusable
+                            flow-children="row"
+                            style={{ display: "flex", flexDirection: "row", gap: "8px", alignItems: "center" }}
+                        >
+                            {WHERES.map((entry) => (
+                                <div
+                                    key={entry.code}
+                                    data-focus-key={`multiplayer:hostroom:where:${entry.code}`}
+                                    style={entry.code === where ? { outline: `2px solid ${achievementGreen}`, borderRadius: "4px" } : undefined}
+                                >
+                                    <DialogButton
+                                        onClick={() => setWhere(entry.code)}
+                                        disabled={hosting || (entry.code === "online" && place.lanOnly)}
+                                        style={compactButtonStyle}
+                                    >
+                                        {t(language, entry.labelKey)}
+                                    </DialogButton>
+                                </div>
+                            ))}
+                        </Focusable>
+                        <div style={{ ...modalBodyStyle(), marginTop: "6px", color: place.lanOnly ? warnAmber : undefined, opacity: place.lanOnly ? 1 : undefined }}>
+                            {place.lanOnly
+                                ? t(language, "This game links over LAN, so it plays Local only.")
+                                : t(language, "help_multiplayer_where")}
+                        </div>
+                    </>
+                )}
                 {failure && (
                     <div style={{ ...modalBodyStyle(), color: errorRed, opacity: 1, marginTop: "12px" }}>{failure}</div>
                 )}
@@ -171,9 +217,10 @@ function HostRoomModal(props: HostRoomModalProps) {
 export function openHostRoom(
     language: LanguageCode,
     request: HostRequest,
+    place: HostPlace,
     describe: (code: string, detail?: Record<string, string>) => string
 ) {
     showManagedModal((close) => (
-        <HostRoomModal language={language} request={request} describe={describe} close={close} />
+        <HostRoomModal language={language} request={request} place={place} describe={describe} close={close} />
     ));
 }

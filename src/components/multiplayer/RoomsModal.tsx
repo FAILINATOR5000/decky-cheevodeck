@@ -50,6 +50,7 @@ type RoomsModalProps = {
 function RoomsModal(props: RoomsModalProps) {
     const { language, hardcore, installedCores, describe, close } = props;
     const [rooms, setRooms] = useState<MultiplayerRoomRow[] | null>(null);
+    const [onlineError, setOnlineError] = useState("");
     const [visibleError, setVisibleError] = useState("");
     const [query, setQuery] = useState("");
     const [step, setStep] = useState<Step>("list");
@@ -75,6 +76,7 @@ function RoomsModal(props: RoomsModalProps) {
                 const found = await multiplayerDiscover();
                 if (alive && found.ok) {
                     setRooms(found.rooms ?? []);
+                    setOnlineError(found.onlineError ?? "");
                 }
             }
             catch (e) {
@@ -328,13 +330,18 @@ function RoomsModal(props: RoomsModalProps) {
                     </div>
                 )}
                 {failureLine}
+                {onlineError && (
+                    <div style={{ ...modalBodyStyle(), color: warnAmber, opacity: 1, marginTop: "8px" }}>
+                        {t(language, "Couldn't reach the online lobby. Local rooms still show.")}
+                    </div>
+                )}
                 <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: "8px" }}>
                     {rooms === null && !visibleError && (
                         <InlineSpinner label={t(language, "Looking for rooms...")} />
                     )}
                     {rooms !== null && listed.length === 0 && (
                         <div style={modalBodyStyle()}>
-                            {t(language, "No rooms yet. Both devices need to be on the same Wi-Fi, or use Join by IP.")}
+                            {t(language, "No rooms yet. Local rooms need the same Wi-Fi; online rooms need the lobby server.")}
                         </div>
                     )}
                     {listed.length > 0 && searched.length === 0 && (
@@ -350,6 +357,7 @@ function RoomsModal(props: RoomsModalProps) {
                                 const taken = row.seats.filter(Boolean).length;
                                 const status = statusLabel(row.status);
                                 const tags = [
+                                    row.away ? t(language, "Away") : "",
                                     row.private ? t(language, "Private") : "",
                                     row.emulator === "retroarch" && row.core && !installedCores.includes(row.core)
                                         ? t(language, "Core not installed")
@@ -371,6 +379,8 @@ function RoomsModal(props: RoomsModalProps) {
                                                     {t(language, "{{name}} · {{title}}", { name: row.user, title: row.title })}
                                                 </div>
                                                 <div style={{ opacity: 0.8 }}>
+                                                    {t(language, row.where === "online" ? "Online" : "Local")}
+                                                    {" · "}
                                                     {t(language, row.mode === "link" ? "Link Play" : "Couch Play")}
                                                     {row.coreName ? ` · ${row.coreName}` : ""}
                                                     {" · "}

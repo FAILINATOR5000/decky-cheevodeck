@@ -125,7 +125,9 @@ const PROBLEM_TEXT: Record<string, string> = {
     args_dropped: "This shortcut didn't pass CheevoDeck's settings to the emulator",
     launch_failed: "Couldn't start the game",
     seated: "Close the room to change it",
-    unavailable: "Couldn't open a room on this network"
+    unavailable: "Couldn't open a room on this network",
+    lobby_unreachable: "Couldn't reach the online lobby",
+    no_lobby: "Set a lobby server in Options first"
 };
 
 const WARNING_TEXT: Record<string, string> = {
@@ -452,6 +454,9 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             hardcore: mp.hardcore,
             core: mp.core,
             share: mp.shareControls
+        }, {
+            online: mp.lobby,
+            lanOnly: mp.mode === "link" && local?.emulator === "dolphin"
         }, describe);
     }
 
@@ -712,6 +717,13 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const roomRows = hosted ? (
         <>
             {hintsRow}
+            {hosted.where === "online" && (
+                <PanelSectionRow>
+                    <div style={{ ...bodyTextStyle(), color: hosted.lobby === "down" ? warnAmber : undefined }}>
+                        {t(language, hosted.lobby === "down" ? "Reconnecting to the online lobby..." : "Online room")}
+                    </div>
+                </PanelSectionRow>
+            )}
             <RoomTable
                 language={language}
                 seats={hosted.seats.map((seat, index) => ({

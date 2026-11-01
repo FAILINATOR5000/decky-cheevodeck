@@ -1,4 +1,4 @@
-import type { MultiplayerMode } from "../types";
+import type { MultiplayerMode, MultiplayerWhere } from "../types";
 
 type Choices = {
     tab: MultiplayerMode;
@@ -7,6 +7,7 @@ type Choices = {
     share: boolean;
     seats: number;
     status: string;
+    where: MultiplayerWhere;
     core: string;
     coreFor: number | null;
 };
@@ -18,6 +19,7 @@ const choices: Choices = {
     share: false,
     seats: 4,
     status: "",
+    where: "local",
     core: "",
     coreFor: null
 };
@@ -51,9 +53,10 @@ export function multiplayerCoreFor(gameId: number | null): string {
     return choices.coreFor === gameId ? choices.core : "";
 }
 
-export function rememberMultiplayerHostPicks(seats: number, status: string) {
+export function rememberMultiplayerHostPicks(seats: number, status: string, where: MultiplayerWhere) {
     choices.seats = seats;
     choices.status = status;
+    choices.where = where;
 }
 
 export function forgetMultiplayerRoomChoices() {

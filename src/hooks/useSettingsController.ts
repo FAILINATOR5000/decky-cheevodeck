@@ -74,6 +74,7 @@ export function useSettingsController({
     const [deferModalCleanup, setDeferModalCleanup] = useState(true);
     const [backButtonsGlobal, setBackButtonsGlobal] = useState(false);
     const [browserSnapshot, setBrowserSnapshot] = useState(false);
+    const [lobbyServer, setLobbyServer] = useState("");
     const [automaticRecovery, setAutomaticRecovery] = useState(true);
     const [recoveryButtonCombo, setRecoveryButtonCombo] = useState(false);
     const [recoveryLogs, setRecoveryLogs] = useState(false);
@@ -365,6 +366,7 @@ export function useSettingsController({
         setDeferModalCleanup(source.deferModalCleanup);
         setBackButtonsGlobal(source.backButtonsGlobal);
         setBrowserSnapshot(source.browserSnapshot);
+        setLobbyServer(source.lobbyServer);
         setAutomaticRecovery(source.automaticRecovery);
         setRecoveryButtonCombo(source.recoveryButtonCombo);
         setRecoveryLogs(source.recoveryLogs);
@@ -648,6 +650,7 @@ export function useSettingsController({
         deferModalCleanup,
         backButtonsGlobal,
         browserSnapshot,
+        lobbyServer,
         automaticRecovery,
         recoveryButtonCombo,
         recoveryLogs,
@@ -898,6 +901,7 @@ export function useSettingsController({
         setDeferModalCleanup,
         setBackButtonsGlobal,
         setBrowserSnapshot,
+        setLobbyServer,
         setAutomaticRecovery,
         setRecoveryButtonCombo,
         setRecoveryLogs,

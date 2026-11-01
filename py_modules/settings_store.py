@@ -20,6 +20,7 @@ from utils import (
 )
 
 BIG_LIST_THRESHOLD_DISABLED = 9999
+DEFAULT_LOBBY_SERVER = "cheevodeck.ddns.net"
 RETURN_STAGGER_FRAME_OPTIONS = {0, 1, 2, 3, 4, 5, 6, 7, 8}
 DYNAMIC_INITIAL_ROW_OPTIONS = set(range(10, 85, 5))
 DYNAMIC_ROW_STEP_OPTIONS = {1, 3, 5, 10, 15, 20, 25, 30}
@@ -459,6 +460,7 @@ _KNOBS = (
     Knob("deferModalCleanup", default=True, normalize=True, read=READ_BOOL),
     Knob("backButtonsGlobal", default=False, normalize=True, read=READ_BOOL),
     Knob("browserSnapshot", default=False, normalize=True, read=READ_BOOL),
+    Knob("lobbyServer", default=DEFAULT_LOBBY_SERVER, normalize=True),
     Knob("automaticRecovery", default=True, normalize=True, read=READ_BOOL),
     Knob("recoveryButtonCombo", default=False, normalize=True, read=READ_BOOL),
     Knob("recoveryLogs", default=False, normalize=True, read=READ_BOOL),
@@ -2308,6 +2310,11 @@ class SettingsStore:
         cfg = self._update_config("backButtonsGlobal", bool(value))
 
         return bool(cfg.get("backButtonsGlobal", False))
+
+    def update_lobby_server(self, value: str) -> str:
+        cfg = self._update_config("lobbyServer", str(value or ""))
+
+        return self.get_lobby_server(cfg)
 
     def update_browser_snapshot(self, value: bool) -> bool:
         cfg = self._update_config("browserSnapshot", bool(value))
@@ -4510,6 +4517,12 @@ class SettingsStore:
     def get_dolphin_mapper_mode(self, cfg: dict) -> str:
         value = str(cfg.get("dolphinMapperMode", "map") or "map").strip()
         return value if value in {"map", "edit", "delete", "reorder"} else "map"
+
+    def get_lobby_server(self, cfg: dict) -> str:
+        value = cfg.get("lobbyServer", DEFAULT_LOBBY_SERVER)
+        if not isinstance(value, str):
+            return DEFAULT_LOBBY_SERVER
+        return "".join(value.split()).lower()[:260]
 
     def get_file_watcher_speed(self, cfg: dict) -> str:
         value = str(cfg.get("fileWatcherSpeed", "gentle") or "gentle").strip()

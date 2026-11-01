@@ -329,6 +329,7 @@ import {
 } from "../utils/scale";
 import { setCurrentColoredGlyphs, setCurrentControllerGlyphStyle } from "../utils/controllerGlyphs";
 import { setWebBrowserForLinks } from "../utils/navigation";
+import { openLobbyServer } from "../components/options/LobbyServerModal";
 import { openShortcutActionPicker } from "../components/options/ShortcutActionPickerModal";
 import { applyFrontendSettings } from "../utils/frontendSettings";
 import { clearActivityMonths } from "../utils/activityCache";
@@ -495,6 +496,7 @@ type UseOptionsControllerArgs = {
     deferModalCleanup: boolean;
     backButtonsGlobal: boolean;
     browserSnapshot: boolean;
+    lobbyServer: string;
     automaticRecovery: boolean;
     recoveryButtonCombo: boolean;
     recoveryLogs: boolean;
@@ -566,6 +568,7 @@ type UseOptionsControllerArgs = {
     setDeferModalCleanup: Dispatch<SetStateAction<boolean>>;
     setBackButtonsGlobal: Dispatch<SetStateAction<boolean>>;
     setBrowserSnapshot: Dispatch<SetStateAction<boolean>>;
+    setLobbyServer: Dispatch<SetStateAction<string>>;
     setAutomaticRecovery: Dispatch<SetStateAction<boolean>>;
     setRecoveryButtonCombo: Dispatch<SetStateAction<boolean>>;
     setRecoveryLogs: Dispatch<SetStateAction<boolean>>;
@@ -972,6 +975,7 @@ export function buildOptionsController({
     deferModalCleanup,
     backButtonsGlobal,
     browserSnapshot,
+    lobbyServer,
     automaticRecovery,
     recoveryButtonCombo,
     recoveryLogs,
@@ -1043,6 +1047,7 @@ export function buildOptionsController({
     setDeferModalCleanup,
     setBackButtonsGlobal,
     setBrowserSnapshot,
+    setLobbyServer,
     setAutomaticRecovery,
     setRecoveryButtonCombo,
     setRecoveryLogs,
@@ -1304,6 +1309,7 @@ export function buildOptionsController({
         setDeferModalCleanup(Boolean(result.deferModalCleanup ?? true));
         setBackButtonsGlobal(Boolean(result.backButtonsGlobal ?? false));
         setBrowserSnapshot(Boolean(result.browserSnapshot ?? false));
+        setLobbyServer(String(result.lobbyServer ?? ""));
         setAutomaticRecovery(Boolean(result.automaticRecovery ?? true));
         setRecoveryButtonCombo(Boolean(result.recoveryButtonCombo ?? false));
         setRecoveryLogs(Boolean(result.recoveryLogs ?? false));
@@ -3687,6 +3693,8 @@ export function buildOptionsController({
             onSelect: (action) => applyShortcutBinding(button, action)
         });
 
+    const onEditLobbyServer = () => openLobbyServer(language, lobbyServer);
+
     const onToggleRememberLastPage = async (nextValue: boolean) => {
         setRememberLastPage(nextValue);
         setError(null);
@@ -3929,6 +3937,7 @@ export function buildOptionsController({
         deferModalCleanup,
         backButtonsGlobal,
         browserSnapshot,
+        lobbyServer,
         automaticRecovery,
         recoveryButtonCombo,
         recoveryLogs,
@@ -4198,6 +4207,7 @@ export function buildOptionsController({
         onToggleDeferModalCleanup,
         onToggleBackButtonsGlobal,
         onToggleBrowserSnapshot,
+        onEditLobbyServer,
         onToggleAutomaticRecovery,
         onToggleRecoveryButtonCombo,
         onToggleRecoveryLogs,

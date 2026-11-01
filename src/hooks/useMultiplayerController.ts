@@ -374,6 +374,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             hosted,
             joined,
             closedReason: status?.role === null ? status.closedReason : "",
+            lobby: status?.role === null ? Boolean(status.lobby) : false,
             check,
             checkCurrent: checkedFor === checkKey,
             games,

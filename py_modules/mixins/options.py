@@ -4,6 +4,7 @@ import decky
 import cheevo_check_systems as systems
 
 from freeze_capture import clear_captures
+from settings_store import DEFAULT_LOBBY_SERVER
 
 from services.update_checker_service import installed_version
 
@@ -614,6 +615,16 @@ class OptionsMixin(PluginContext):
         return {
             "ok": True,
             "backButtonsGlobal": value,
+        }
+
+    async def save_lobby_server(self, lobby_server: str = "", use_default: bool = False):
+        value = self.settings_store.update_lobby_server(
+            DEFAULT_LOBBY_SERVER if use_default else str(lobby_server or "")
+        )
+
+        return {
+            "ok": True,
+            "lobbyServer": value,
         }
 
     async def save_browser_snapshot(self, browser_snapshot: bool):

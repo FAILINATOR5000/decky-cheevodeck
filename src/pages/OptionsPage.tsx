@@ -258,6 +258,7 @@ type OptionsPageState = {
     deferModalCleanup: boolean;
     backButtonsGlobal: boolean;
     browserSnapshot: boolean;
+    lobbyServer: string;
     libraryBadge: boolean;
     memoriesAutoCapture: boolean;
     memoriesDeleteSource: boolean;
@@ -514,6 +515,7 @@ type OptionsPageActions = {
     onToggleDeferModalCleanup: (nextValue: boolean) => void | Promise<void>;
     onToggleBackButtonsGlobal: (nextValue: boolean) => void | Promise<void>;
     onToggleBrowserSnapshot: (nextValue: boolean) => void | Promise<void>;
+    onEditLobbyServer: () => void;
     onToggleLibraryBadge: (nextValue: boolean) => void | Promise<void>;
     onToggleLegacyCommentsLoading: (nextValue: boolean) => void | Promise<void>;
     onToggleBatterySaverDisablesSocialActivity: (nextValue: boolean) => void | Promise<void>;
@@ -2078,6 +2080,17 @@ function SocialTab(props: TabContentProps) {
                 label={t(state.language, "Players Near You - Max Tick")}
                 value={playersNearYouMaxTickMinutesLabel(state.playersNearYouMaxTickMinutes, state.language)}
                 help={t(state.language, "help_players_near_you_max_tick")}
+                separator
+            />
+            <SectionTitle label={t(state.language, "EZ Multiplayer")} />
+            <OptionValueRow
+                outerStyle={buttonOuterStyle}
+                focusKey="options:lobby-server"
+                onClick={actions.onEditLobbyServer}
+                disabled={disabled}
+                label={t(state.language, "Lobby Server")}
+                value={state.lobbyServer || t(state.language, "Off")}
+                help={t(state.language, "help_lobby_server")}
             />
         </>
     );

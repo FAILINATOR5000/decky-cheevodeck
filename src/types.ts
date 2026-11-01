@@ -856,6 +856,7 @@ export type SettingsResponse = {
     deferModalCleanup: boolean;
     backButtonsGlobal: boolean;
     browserSnapshot: boolean;
+    lobbyServer: string;
     automaticRecovery: boolean;
     recoveryButtonCombo: boolean;
     recoveryLogs: boolean;
@@ -2916,6 +2917,8 @@ export type ActivitySubject = { ulid: string; username: string; own: boolean };
 
 export type MultiplayerMode = "link" | "couch";
 
+export type MultiplayerWhere = "local" | "online";
+
 export type MultiplayerRoomRow = {
     room: string;
     user: string;
@@ -2939,6 +2942,8 @@ export type MultiplayerRoomRow = {
     max: number;
     state: "lobby" | "playing";
     address: string;
+    door: "lan" | "server";
+    away: boolean;
     verdict?: { can: boolean; reason: string; detail: Record<string, string> };
 };
 
@@ -2952,6 +2957,8 @@ export type MultiplayerHostedRoom = {
     id: string;
     name: string;
     status: string;
+    where: "local" | "online";
+    lobby: "" | "up" | "down";
     mode: MultiplayerMode;
     title: string;
     gameId: number;
@@ -3012,7 +3019,7 @@ export type MultiplayerRoomStatus =
         chat: MultiplayerChatLine[];
         autostart: { room: string; round: number; appid: number; dolphin: boolean } | null;
     }
-    | { ok: true; seq: number; role: null; closedReason: string };
+    | { ok: true; seq: number; role: null; closedReason: string; lobby: boolean };
 
 export type MultiplayerCoreChoice = { core: string; name: string };
 

@@ -1,0 +1,300 @@
+import asyncio
+import re
+import secrets
+import socket
+
+import decky
+import multiplayer_protocol as proto
+import nearby_protocol
+from nearby_protocol import FrameError
+
+DEFAULT_PORT = 49733
+CONNECT_SECONDS = 5
+LEG_SECONDS = 5
+PING_SECONDS = 10
+SILENT_SECONDS = 30
+RETRY_SECONDS = (2, 5, 10, 30)
+LIST_MAX = 200
+
+ENVELOPE_BYTES = proto.MAX_FRAME_BYTES + 256
+
+_HOST_NAME = re.compile(r"[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*")
+_HEX16 = re.compile(r"[0-9a-f]{16}")
+_TOKEN = re.compile(r"[0-9a-f]{64}")
+
+
+def parse_server(value):
+    text = str(value or "").strip().lower()
+    if not text or len(text) > 260:
+        return None
+    host, _sep, port_text = text.partition(":")
+    port = DEFAULT_PORT
+    if port_text:
+        if not port_text.isdigit() or not 0 < int(port_text) < 65536:
+            return None
+        port = int(port_text)
+    if not proto.is_ipv4(host) and (len(host) > 253 or _HOST_NAME.fullmatch(host) is None):
+        return None
+    return host, port
+
+
+async def connect(server):
+    host, port = server
+    return await asyncio.wait_for(
+        asyncio.open_connection(host, port, family=socket.AF_INET), CONNECT_SECONDS
+    )
+
+
+def envelope(message: dict) -> bytes:
+    return nearby_protocol.frame(message, ENVELOPE_BYTES)
+
+
+async def read_envelope(reader) -> dict:
+    return await nearby_protocol.read_frame(reader, ENVELOPE_BYTES)
+
+
+async def list_rooms(server) -> list:
+    reader, writer = await connect(server)
+    try:
+        writer.write(envelope({"op": "list", "v": proto.VERSION}))
+        await asyncio.wait_for(writer.drain(), LEG_SECONDS)
+        rooms = []
+        while len(rooms) < LIST_MAX:
+            message = await asyncio.wait_for(read_envelope(reader), LEG_SECONDS)
+            if message.get("op") == "end":
+                break
+            if message.get("op") == "room":
+                rooms.append((message.get("room"), message.get("away") is True))
+        return rooms
+    finally:
+        writer.close()
+
+
+async def open_ask(server, room_id: str, first: dict):
+    reader, writer = await connect(server)
+    try:
+        writer.write(envelope({"op": "ask", "v": proto.VERSION, "room": room_id, "frame": first}))
+        await asyncio.wait_for(writer.drain(), LEG_SECONDS)
+    except BaseException:
+        writer.close()
+        raise
+    return reader, writer
+
+
+class LanConversation:
+    door = "lan"
+
+    def __init__(self, reader, writer):
+        self._reader = reader
+        self._writer = writer
+        self.peer = (writer.get_extra_info("peername") or ("",))[0]
+        self.own_ip = (writer.get_extra_info("sockname") or ("",))[0]
+
+    async def read(self) -> dict:
+        return await proto.read_frame(self._reader)
+
+    async def say(self, message: dict, _more: bool = False) -> bool:
+        try:
+            self._writer.write(proto.frame(message))
+            await asyncio.wait_for(self._writer.drain(), LEG_SECONDS)
+        except FrameError:
+            decky.logger.warning("multiplayer: a reply was too big to send")
+            return False
+        except (OSError, asyncio.TimeoutError):
+            return False
+        return True
+
+
+class ServerConversation:
+    door = "server"
+    own_ip = "127.0.0.1"
+
+    def __init__(self, link, rid: str, peer: str):
+        self.peer = peer
+        self._link = link
+        self._rid = rid
+        self._frames = asyncio.Queue()
+
+    def take(self, message: dict) -> None:
+        self._frames.put_nowait(message)
+
+    async def read(self) -> dict:
+        return await self._frames.get()
+
+    async def say(self, message: dict, more: bool = False) -> bool:
+        try:
+            proto.encode(message)
+        except FrameError:
+            decky.logger.warning("multiplayer: a reply was too big to send")
+            return False
+        return await self._link.send({"op": "resp", "rid": self._rid, "frame": message, "more": more})
+
+
+class HostLink:
+    def __init__(self, *, server, body: dict, on_request, on_tunnel, on_change, debug):
+        self.server = server
+        self.secret = secrets.token_hex(16)
+        self.up = False
+        self._body = body
+        self._on_request = on_request
+        self._on_tunnel = on_tunnel
+        self._on_change = on_change
+        self._debug = debug
+        self._writer = None
+        self._send_lock = asyncio.Lock()
+        self._conversations = {}
+        self._task = None
+        self._tasks = set()
+        self._closed = False
+
+    async def open(self) -> bool:
+        reader = await self._attach()
+        if reader is None:
+            return False
+        self._task = asyncio.ensure_future(self._run(reader))
+        return True
+
+    def update(self, body: dict) -> None:
+        if body == self._body:
+            return
+        self._body = body
+        if self.up:
+            self._spawn(self.send({"op": "update", "room": body}))
+
+    def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        writer = self._writer
+        if writer is not None:
+            try:
+                writer.write(envelope({"op": "close"}))
+            except (OSError, FrameError):
+                pass
+            writer.close()
+        if self._task is not None:
+            self._task.cancel()
+        self._set_up(False)
+
+    async def send(self, message: dict) -> bool:
+        writer = self._writer
+        if writer is None:
+            return False
+        async with self._send_lock:
+            try:
+                writer.write(envelope(message))
+                await asyncio.wait_for(writer.drain(), LEG_SECONDS)
+            except (OSError, asyncio.TimeoutError, FrameError):
+                return False
+        return True
+
+    def _spawn(self, coro):
+        task = asyncio.ensure_future(coro)
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
+        return task
+
+    def _set_up(self, up: bool) -> None:
+        if up != self.up:
+            self.up = up
+            self._on_change()
+
+    async def _attach(self):
+        try:
+            reader, writer = await connect(self.server)
+        except (OSError, asyncio.TimeoutError) as e:
+            decky.logger.info("multiplayer: couldn't reach the online lobby (%s)", type(e).__name__)
+            return None
+        try:
+            writer.write(envelope({"op": "host", "v": proto.VERSION, "room": self._body, "secret": self.secret}))
+            await asyncio.wait_for(writer.drain(), LEG_SECONDS)
+            hello = await asyncio.wait_for(read_envelope(reader), LEG_SECONDS)
+        except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError, FrameError) as e:
+            decky.logger.info("multiplayer: the online lobby didn't take the room (%s)", type(e).__name__)
+            writer.close()
+            return None
+        if hello.get("op") != "hosted" or hello.get("ok") is not True:
+            decky.logger.info("multiplayer: the online lobby refused the room (%s)",
+                              hello.get("error") if isinstance(hello.get("error"), str) else "no reason")
+            writer.close()
+            return None
+        if self._closed:
+            writer.close()
+            return None
+        self._writer = writer
+        self._set_up(True)
+        return reader
+
+    async def _run(self, reader) -> None:
+        while not self._closed:
+            pinger = asyncio.ensure_future(self._ping())
+            try:
+                await self._serve(reader)
+            finally:
+                pinger.cancel()
+                writer, self._writer = self._writer, None
+                if writer is not None:
+                    writer.close()
+                self._conversations.clear()
+            if self._closed:
+                return
+            self._set_up(False)
+            decky.logger.info("multiplayer: lost the online lobby, trying again")
+            reader = None
+            attempt = 0
+            while reader is None and not self._closed:
+                await asyncio.sleep(RETRY_SECONDS[min(attempt, len(RETRY_SECONDS) - 1)])
+                attempt += 1
+                reader = await self._attach()
+            if reader is not None:
+                decky.logger.info("multiplayer: back on the online lobby")
+
+    async def _ping(self) -> None:
+        while True:
+            await asyncio.sleep(PING_SECONDS)
+            self._debug("lobby ping")
+            await self.send({"op": "ping"})
+
+    async def _serve(self, reader) -> None:
+        while not self._closed:
+            try:
+                message = await asyncio.wait_for(read_envelope(reader), SILENT_SECONDS)
+            except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError, FrameError):
+                return
+            op = message.get("op")
+            if op == "req":
+                self._request(message)
+            elif op == "tunnel_ask":
+                self._tunnel(message)
+
+    def _request(self, message: dict) -> None:
+        rid, peer, inner = message.get("rid"), message.get("peer"), message.get("frame")
+        if (
+            not isinstance(rid, str) or _HEX16.fullmatch(rid) is None
+            or not isinstance(peer, str) or _HEX16.fullmatch(peer) is None
+            or not isinstance(inner, dict)
+        ):
+            return
+        conversation = self._conversations.get(rid)
+        if conversation is not None:
+            conversation.take(inner)
+            return
+        conversation = ServerConversation(self, rid, peer)
+        conversation.take(inner)
+        self._conversations[rid] = conversation
+        task = self._spawn(self._on_request(conversation))
+        task.add_done_callback(lambda _task: self._conversations.pop(rid, None))
+
+    def _tunnel(self, message: dict) -> None:
+        tid, seat, port, kind, token = (message.get("tid"), message.get("seat"), message.get("port"),
+                                        message.get("kind"), message.get("token"))
+        if (
+            not isinstance(tid, str) or _HEX16.fullmatch(tid) is None
+            or type(seat) is not int or not 1 <= seat < proto.MAX_SEATS
+            or type(port) is not int or not 0 < port < 65536
+            or kind not in ("tcp", "udp")
+            or not isinstance(token, str) or _TOKEN.fullmatch(token) is None
+        ):
+            return
+        ask = {"tid": tid, "seat": seat, "port": port, "kind": kind, "token": token}
+        self._spawn(self._on_tunnel(self, ask))

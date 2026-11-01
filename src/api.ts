@@ -53,6 +53,7 @@ import type {
     MultiplayerRestoreRecord,
     MultiplayerRoomRow,
     MultiplayerRoomStatus,
+    MultiplayerWhere,
     MemoriesTransferStatus,
     MemoriesVideoMoveStatus,
     MemoryBookmark,
@@ -260,6 +261,7 @@ export const saveDeferModalCleanup = callable<[boolean], { ok: boolean; deferMod
 export const saveBackButtonsGlobal = callable<[boolean], { ok: boolean; backButtonsGlobal: boolean }>(
     "save_back_buttons_global"
 );
+export const saveLobbyServer = callable<[string, boolean], { ok: boolean; lobbyServer: string }>("save_lobby_server");
 export const saveBrowserSnapshot = callable<[boolean], { ok: boolean; browserSnapshot: boolean }>(
     "save_browser_snapshot"
 );
@@ -792,12 +794,12 @@ export const getDataTransferLocalSummary = callable<[], DataTransferSummary>("ge
 type MultiplayerReply = { ok: boolean; error?: string; gate?: string; detail?: Record<string, string> };
 
 export const multiplayerSetVisible = callable<[boolean, boolean], { ok: boolean; error?: string; visible?: boolean }>("multiplayer_set_visible");
-export const multiplayerDiscover = callable<[], { ok: boolean; error?: string; rooms?: MultiplayerRoomRow[] }>("multiplayer_discover");
+export const multiplayerDiscover = callable<[], { ok: boolean; error?: string; rooms?: MultiplayerRoomRow[]; onlineError?: string }>("multiplayer_discover");
 export const multiplayerLookup = callable<[string], { ok: boolean; error?: string; room?: MultiplayerRoomRow }>("multiplayer_lookup");
 export const multiplayerGames = callable<[], { ok: boolean; scanned: boolean; games: MultiplayerGame[]; installedCores?: string[] }>("multiplayer_games");
 export const multiplayerCheck = callable<[MultiplayerMode, number, string, string], MultiplayerCheck>("multiplayer_check");
 export const multiplayerHost = callable<
-    [MultiplayerMode, number, boolean, string, boolean, string, number, string, string],
+    [MultiplayerMode, number, boolean, string, boolean, string, number, string, string, MultiplayerWhere],
     MultiplayerReply & { room?: MultiplayerHostedRoom }
 >("multiplayer_host");
 export const multiplayerRoomOptions = callable<

@@ -20,6 +20,7 @@ import subprocess_util
 from multiplayer_protocol import decode, frame, read_frame
 from nearby_protocol import FrameError, clean_title, is_nonce, verify
 from notifications import emit_notification, is_type_enabled
+from services import lobby_client
 from utils import atomic_file, child_owner, chown_to_data_owner, ensure_dir, load_json_file
 
 LEASE_SECONDS = 30
@@ -52,6 +53,8 @@ READY_EXPIRY_SECONDS = 600
 SLEEP_JUMP_SECONDS = 60
 
 HOUSEKEEPING_SECONDS = 5
+
+LIST_GRACE_SECONDS = 0.5
 
 BAD_TAGS_PER_ADDRESS = 3
 LOCKOUT_SECONDS = 60
@@ -110,6 +113,8 @@ ERROR_IN_GAME = "other_game"
 ERROR_NOT_LOBBY = "not_lobby"
 ERROR_LAUNCH_FAILED = "launch_failed"
 ERROR_CHAT = "chat_refused"
+ERROR_NO_LOBBY = "no_lobby"
+ERROR_LOBBY_UNREACHABLE = "lobby_unreachable"
 
 CHAT_GAP_SECONDS = 1
 
@@ -203,6 +208,10 @@ class MultiplayerService:
         self._joined = None
         self._rooms = {}
         self._round = 0
+        self._link = None
+        self._listing = None
+        self._online = {}
+        self._online_error = ""
 
         self._housekeeper = None
         self._poller = None
@@ -269,6 +278,8 @@ class MultiplayerService:
                 self._verdict_memo.clear()
                 if entry:
                     self._rooms.clear()
+                    self._online = {}
+                    self._online_error = ""
             elif now >= self._cap_until:
                 if self._live():
                     decky.logger.info("multiplayer: the visit reached its cap")
@@ -297,6 +308,7 @@ class MultiplayerService:
         self._visible_until = 0.0
         self._cap_until = 0.0
         self._rooms.clear()
+        self._online = {}
 
     def close(self) -> None:
         if self._expiry is not None:
@@ -387,6 +399,13 @@ class MultiplayerService:
         if on:
             decky.logger.info("multiplayer: " + message, *args)
 
+    def _lobby_server(self):
+        try:
+            value = self._settings_store.get_lobby_server(self._settings_store.load_config())
+        except Exception:
+            return None
+        return lobby_client.parse_server(value)
+
     def _room_view(self) -> dict:
         room = self._room
         if room is not None:
@@ -396,7 +415,7 @@ class MultiplayerService:
                                "ready": bool(seat) and index > 0 and self._seat_ready(room, seat)}
                               for index, seat in enumerate(room["seats"])],
                     "rev": room["rev"], "round": room["round"], "state": self._public_state(room),
-                    "chat": dict(room["chat"][-1]) if room["chat"] else None}
+                    "chat": dict(room["chat"][-1]) if room["chat"] else None, "lobby": self._lobby_state()}
         joined = self._joined
         if joined is not None:
             status = joined["status"] or {}
@@ -414,7 +433,15 @@ class MultiplayerService:
         return {"role": None, "title": "", "host": "", "seated": 0, "error": "", "seat": 0, "ready": False,
                 "seats": [], "rev": 0, "round": 0, "state": "lobby", "chat": None}
 
+    def _lobby_state(self) -> str:
+        if self._link is None:
+            return ""
+        return "up" if self._link.up else "down"
+
     def _announce(self) -> None:
+        room = self._room
+        if room is not None and self._link is not None:
+            self._link.update(proto.room_body(room))
         view = self._room_view()
         if view == self._announced:
             return
@@ -1075,7 +1102,8 @@ class MultiplayerService:
         return None, failed[0], failed[1]
 
     async def host(self, mode: str, game_id: int, hardcore: bool, core: str = "", share: bool = False,
-                   name: str = "", size: int = proto.DEFAULT_SEATS, password: str = "", status: str = "") -> dict:
+                   name: str = "", size: int = proto.DEFAULT_SEATS, password: str = "", status: str = "",
+                   where: str = "local") -> dict:
         async with self._lock:
             refused = self._refusal()
             if refused is not None:
@@ -1084,6 +1112,10 @@ class MultiplayerService:
                 return {"ok": False, "error": ERROR_BUSY}
             if mode not in proto.MODES:
                 return {"ok": False, "error": ERROR_NO_GAME}
+            online = where == "online"
+            server = self._lobby_server() if online else None
+            if online and server is None:
+                return {"ok": False, "error": ERROR_NO_LOBBY}
             local, gate, detail = await asyncio.to_thread(self._local, mode, game_id, core, None)
             if local is not None:
                 found, _warnings = await asyncio.to_thread(self._gates, mode, local, None, 2)
@@ -1107,7 +1139,7 @@ class MultiplayerService:
                 "user": user,
                 "name": proto.clean_room_name(name) or "Room",
                 "status": status if status in proto.STATUSES else "",
-                "where": "local",
+                "where": "online" if online else "local",
                 "mode": mode,
                 "hardcore": bool(hardcore),
                 "private": private,
@@ -1142,6 +1174,15 @@ class MultiplayerService:
                 self._shut()
             if not await self._open():
                 return {"ok": False, "error": ERROR_UNAVAILABLE}
+            if online:
+                link = lobby_client.HostLink(
+                    server=server, body=proto.room_body(room), on_request=self._converse,
+                    on_tunnel=self._tunnel_ask, on_change=self._announce, debug=self._debug,
+                )
+                if not await link.open():
+                    self._shut()
+                    return {"ok": False, "error": ERROR_LOBBY_UNREACHABLE}
+                self._link = link
             self._room = room
             self._closed_reason = ""
             self._seen.clear()
@@ -1149,9 +1190,10 @@ class MultiplayerService:
             self._housekeeper = self._spawn(self._keep_house(room))
             self._announce()
             decky.logger.info(
-                "multiplayer: hosting %s, %s on %s, %s seats%s",
+                "multiplayer: hosting %s, %s on %s, %s seats%s%s",
                 local["gameId"], mode, local["core"], seats,
                 f", with a password (key in {key_ms:.0f} ms)" if private else "",
+                ", online" if online else "",
             )
             return {"ok": True, "room": self._host_view(room)}
 
@@ -1244,7 +1286,8 @@ class MultiplayerService:
             return {"ok": False, "error": ERROR_DROPPED}
         decky.logger.info("multiplayer: dropped seat %s", seat)
         dropped = room["seats"][seat]
-        room["bannedPeers"].add(dropped["peer"])
+        if dropped["door"] == "lan":
+            room["bannedPeers"].add(dropped["peer"])
         room["bannedNames"].add(dropped["name"].lower())
         room["bannedDevices"].add(dropped["device"])
         room["seats"][seat] = None
@@ -1259,6 +1302,9 @@ class MultiplayerService:
             return
         self._room = None
         self._closed_reason = reason
+        if self._link is not None:
+            self._link.close()
+            self._link = None
         if self._housekeeper is not None:
             self._housekeeper.cancel()
             self._housekeeper = None
@@ -1281,6 +1327,8 @@ class MultiplayerService:
             "id": room["id"],
             "name": room["name"],
             "status": room["status"],
+            "where": room["where"],
+            "lobby": self._lobby_state(),
             "mode": room["mode"],
             "title": room["title"],
             "gameId": room["gameId"],
@@ -1346,9 +1394,11 @@ class MultiplayerService:
                 self._toast_seat(seat["name"], "Left your room")
                 self._roster_left(room, index)
 
-        addresses = {seat["ip"] for seat in _guests(room)}
-        if room["address"]:
-            addresses.add(room["address"])
+        addresses = set()
+        if room["where"] == "local":
+            addresses = {seat["ip"] for seat in _guests(room)}
+            if room["address"]:
+                addresses.add(room["address"])
         missing = sorted(address for address in addresses if not _address_exists(address))
         if not missing:
             room["addressGoneAt"] = 0.0
@@ -1463,33 +1513,40 @@ class MultiplayerService:
             pass
 
     async def _serve(self, reader, writer) -> None:
-        peer = (writer.get_extra_info("peername") or ("",))[0]
+        try:
+            await self._converse(lobby_client.LanConversation(reader, writer))
+        finally:
+            writer.close()
+
+    async def _converse(self, conversation) -> None:
+        peer = conversation.peer
+        lan = conversation.door == "lan"
         if (
             (self._room is None and self._closed_tail is None)
             or self._handshakes >= MAX_HANDSHAKES
-            or self._peer_handshakes.get(peer, 0) >= HANDSHAKES_PER_ADDRESS
+            or (lan and self._peer_handshakes.get(peer, 0) >= HANDSHAKES_PER_ADDRESS)
         ):
-            writer.close()
             return
         self._handshakes += 1
-        self._peer_handshakes[peer] = self._peer_handshakes.get(peer, 0) + 1
+        if lan:
+            self._peer_handshakes[peer] = self._peer_handshakes.get(peer, 0) + 1
         try:
-            await asyncio.wait_for(self._answer(reader, writer), HANDSHAKE_SECONDS)
+            await asyncio.wait_for(self._answer(conversation), HANDSHAKE_SECONDS)
         except (asyncio.TimeoutError, asyncio.IncompleteReadError, OSError, FrameError):
             pass
         except Exception as e:
             decky.logger.exception("multiplayer: a request failed (%s)", type(e).__name__)
         finally:
             self._handshakes -= 1
-            left = self._peer_handshakes.get(peer, 1) - 1
-            if left > 0:
-                self._peer_handshakes[peer] = left
-            else:
-                self._peer_handshakes.pop(peer, None)
-            writer.close()
+            if lan:
+                left = self._peer_handshakes.get(peer, 1) - 1
+                if left > 0:
+                    self._peer_handshakes[peer] = left
+                else:
+                    self._peer_handshakes.pop(peer, None)
 
-    async def _answer(self, reader, writer) -> None:
-        opening = await asyncio.wait_for(read_frame(reader), FIRST_FRAME_SECONDS)
+    async def _answer(self, conversation) -> None:
+        opening = await asyncio.wait_for(conversation.read(), FIRST_FRAME_SECONDS)
         hello = proto.read_hello(opening)
         room = self._room
         if hello is None:
@@ -1497,54 +1554,56 @@ class MultiplayerService:
         op, nc = hello
         if room is None:
             if self._closed_tail is not None and op in proto.TAGGED_OPS:
-                await _say(writer, {"ok": False, "error": "closed"})
+                await conversation.say({"ok": False, "error": "closed"})
             return
         if op == "info":
-            await _say(writer, proto.room_body(room))
+            await conversation.say(proto.room_body(room))
             return
         if op == "join":
-            await self._admit(reader, writer, room, nc)
+            await self._admit(conversation, room, nc)
             return
-        await self._seat_request(writer, room, opening)
+        await self._seat_request(conversation, room, opening)
 
-    async def _admit(self, reader, writer, room: dict, nc: str) -> None:
-        peer = (writer.get_extra_info("peername") or ("",))[0]
+    async def _admit(self, conversation, room: dict, nc: str) -> None:
+        peer = conversation.peer
+        door = conversation.door
         now = time.monotonic()
         if self._locked_out(room, peer, now):
-            await _say(writer, {"ok": False, "error": "locked"})
+            await conversation.say({"ok": False, "error": "locked"})
             return
         ns = secrets.token_hex(16)
-        await _say(writer, {"ns": ns, "room": room["id"]})
-        request = await read_frame(reader)
+        await conversation.say({"ns": ns, "room": room["id"]}, True)
+        request = await conversation.read()
         raw = request.get("params")
         params = proto.read_join_params(raw)
         if params is None:
             return
         if self._room is not room:
-            await _say(writer, {"ok": False, "error": "closed"})
+            await conversation.say({"ok": False, "error": "closed"})
             return
         key = room["key"]
         if not verify(key, request.get("t"), "join", nc, ns, room["id"], proto.canonical(raw)):
             self._bad_tag(room, peer, now)
-            await _say(writer, {"ok": False, "error": "bad_code"})
+            await conversation.say({"ok": False, "error": "bad_code"})
             return
         if (
-            peer in room["bannedPeers"]
+            (door == "lan" and peer in room["bannedPeers"])
             or params["user"].lower() in room["bannedNames"]
             or params["device"] in room["bannedDevices"]
         ):
-            await _say(writer, {"ok": False, "error": "dropped"})
+            await conversation.say({"ok": False, "error": "dropped"})
             return
         seat = next((index for index, taken in enumerate(room["seats"]) if taken is None), None)
         if seat is None:
-            await _say(writer, {"ok": False, "error": "full"})
+            await conversation.say({"ok": False, "error": "full"})
             return
-        address = (writer.get_extra_info("sockname") or ("",))[0]
+        address = conversation.own_ip
         if not proto.is_ipv4(address):
             return
         room["seats"][seat] = {
             "name": params["user"],
             "peer": peer,
+            "door": door,
             "device": params["device"],
             "ip": address,
             "key": proto.seat_key(key, nc, ns),
@@ -1561,13 +1620,18 @@ class MultiplayerService:
             "since": 0,
             "said": 0.0,
         }
-        await _say(writer, {"ok": True, "seat": seat, "ip": address, "t": proto.joined_tag(key, nc, ns, seat, address)})
-        decky.logger.info("multiplayer: seat %s taken", seat)
+        await conversation.say({"ok": True, "seat": seat, "ip": address,
+                                "t": proto.joined_tag(key, nc, ns, seat, address)})
+        decky.logger.info("multiplayer: seat %s taken%s", seat, " through the online lobby" if door == "server" else "")
         self._announce()
-        last = self._join_toasts.get(peer)
+        toast_key = params["device"] if door == "server" else peer
+        last = self._join_toasts.get(toast_key)
         if last is None or now - last >= JOIN_TOAST_SECONDS:
-            self._join_toasts[peer] = now
+            self._join_toasts[toast_key] = now
             self._toast_seat(params["user"], "Joined your room")
+
+    async def _tunnel_ask(self, link, ask: dict) -> None:
+        await link.send({"op": "tunnel_no", "tid": ask["tid"]})
 
     def _locked_out(self, room: dict, peer: str, now: float) -> bool:
         if room["lockedUntil"] > now:
@@ -1590,21 +1654,21 @@ class MultiplayerService:
             room["badTotal"] = 0
             decky.logger.info("multiplayer: too many wrong passwords, no joins for %ss", LOCKOUT_SECONDS)
 
-    async def _seat_request(self, writer, room: dict, message: dict) -> None:
+    async def _seat_request(self, conversation, room: dict, message: dict) -> None:
         parsed = proto.read_tagged(message)
         if parsed is None:
             return
         room_id, index, nonce, _stamp = parsed
         if room_id != room["id"]:
-            await _say(writer, {"ok": False, "error": "closed"})
+            await conversation.say({"ok": False, "error": "closed"})
             return
         seat = room["seats"][index] if index < room["max"] else None
         if seat is None or not proto.tagged_ok(seat["key"], message, time.time()):
             freed = room["freed"].get(index)
             if freed is not None and proto.tagged_ok(freed, message, time.time()):
-                await _say(writer, {"ok": False, "error": "timed_out"})
+                await conversation.say({"ok": False, "error": "timed_out"})
             elif seat is None:
-                await _say(writer, {"ok": False, "error": "dropped"})
+                await conversation.say({"ok": False, "error": "dropped"})
             return
         now = time.monotonic()
         if not self._fresh_nonce(nonce, now):
@@ -1615,7 +1679,7 @@ class MultiplayerService:
         if op == "leave":
             room["seats"][index] = None
             decky.logger.info("multiplayer: seat %s left", index)
-            await _say(writer, {"ok": True})
+            await conversation.say({"ok": True})
             self._toast_seat(seat["name"], "Left your room")
             self._roster_left(room, index)
             self._announce()
@@ -1624,14 +1688,14 @@ class MultiplayerService:
         seat["since"] = proto.chat_since(message.get("p"))
         if op == "say":
             said = self._chat(room, seat, (message.get("p") or {}).get("text"), now)
-            await _say(writer, {"ok": said})
+            await conversation.say({"ok": said})
             return
         if op == "launched":
             decky.logger.info("multiplayer: seat %s launched", index)
-            await _say(writer, {"ok": True})
+            await conversation.say({"ok": True})
             self._announce()
             return
-        await _say(writer, proto.status_reply(seat["key"], nonce, self._status_body(room, index, seat)))
+        await conversation.say(proto.status_reply(seat["key"], nonce, self._status_body(room, index, seat)))
         self._announce()
 
     def _take_report(self, room: dict, index: int, seat: dict, report) -> None:
@@ -1786,7 +1850,7 @@ class MultiplayerService:
         def heard(data, addr):
             row = read(decode(data))
             if row is not None:
-                row["address"] = addr[0]
+                row.update(address=addr[0], door="lan", away=False)
                 found[row["room"]] = row
 
         transport = None
@@ -1815,25 +1879,57 @@ class MultiplayerService:
             return {"ok": False, "error": refused}
         nonce = secrets.token_hex(16)
         self._fresh_nonce(nonce, time.monotonic())
+        server = self._lobby_server()
+        if server is None:
+            self._online = {}
+            self._online_error = ""
+        elif self._listing is None or self._listing.done():
+            self._listing = self._spawn(self._list_online(server))
         found = await self._collect(
             proto.make_seek(nonce, int(time.time())),
             lambda message: proto.read_room(message, nonce),
         )
+        if server is not None and not self._listing.done():
+            await asyncio.wait({self._listing}, timeout=LIST_GRACE_SECONDS)
         self._round += 1
         own = self._room["id"] if self._room is not None else None
         for room_id, row in found.items():
             if room_id != own:
                 self._rooms[room_id] = (row, self._round, False)
-        for room_id, (_row, seen, manual) in list(self._rooms.items()):
-            if not manual and self._round - seen >= MISSED_ROUNDS:
+        for room_id, (row, seen, manual) in list(self._rooms.items()):
+            if row["door"] == "server" and room_id not in self._online:
                 del self._rooms[room_id]
-        self._debug("discovery round %s found %s", self._round, len(found))
+            elif not manual and self._round - seen >= MISSED_ROUNDS:
+                del self._rooms[room_id]
+        for room_id, row in self._online.items():
+            held = self._rooms.get(room_id)
+            if room_id != own and (held is None or held[0]["door"] == "server"):
+                self._rooms[room_id] = (row, self._round, False)
+        self._debug("discovery round %s found %s, %s online", self._round, len(found), len(self._online))
         rows = self._room_rows()
         if rows and self._room is None and self._joined is None:
             verdicts = await asyncio.to_thread(self._verdicts, rows)
             for row in rows:
                 row["verdict"] = verdicts[row["room"]]
-        return {"ok": True, "rooms": rows}
+        return {"ok": True, "rooms": rows, "onlineError": self._online_error}
+
+    async def _list_online(self, server) -> None:
+        try:
+            listed = await lobby_client.list_rooms(server)
+        except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError, FrameError) as e:
+            if not self._online_error:
+                decky.logger.info("multiplayer: couldn't reach the online lobby (%s)", type(e).__name__)
+            self._online = {}
+            self._online_error = "unreachable"
+            return
+        online = {}
+        for body, away in listed:
+            row = proto.read_room(body)
+            if row is not None and row["where"] == "online":
+                row.update(address="", door="server", away=away)
+                online[row["room"]] = row
+        self._online = online
+        self._online_error = ""
 
     def _verdicts(self, rows: list) -> dict:
         stamp = self._cheevo_check_store.results_fingerprint()
@@ -1877,7 +1973,7 @@ class MultiplayerService:
             writer.close()
         if row is None:
             return {"ok": False, "error": ERROR_NOT_FOUND}
-        row["address"] = address
+        row.update(address=address, door="lan", away=False)
         self._rooms[row["room"]] = (row, self._round, True)
         return {"ok": True, "room": dict(row)}
 
@@ -1913,7 +2009,7 @@ class MultiplayerService:
             self._joined = {
                 "row": row,
                 "seat": answer["seat"],
-                "ip": row["address"],
+                "ip": "127.0.0.1" if row["door"] == "server" else row["address"],
                 "ownIp": answer["ownIp"],
                 "key": answer["key"],
                 "status": None,
@@ -1947,17 +2043,31 @@ class MultiplayerService:
             }
             self._closed_reason = ""
             self._poller = self._spawn(self._poll(self._joined))
-            decky.logger.info("multiplayer: joined a room, seat %s", answer["seat"])
+            decky.logger.info("multiplayer: joined a room, seat %s%s", answer["seat"],
+                              " through the online lobby" if row["door"] == "server" else "")
             self._announce()
             return {"ok": True, **self._guest_view(self._joined)}
 
+    async def _dial(self, row: dict, first: dict):
+        if row["door"] == "server":
+            server = self._lobby_server()
+            if server is None:
+                raise OSError("no lobby server")
+            return await lobby_client.open_ask(server, row["room"], first)
+        reader, writer = await asyncio.open_connection(row["address"], self._peer_port)
+        try:
+            writer.write(frame(first))
+            await asyncio.wait_for(writer.drain(), HANDSHAKE_SECONDS)
+        except BaseException:
+            writer.close()
+            raise
+        return reader, writer
+
     async def _ask_to_join(self, row: dict, key: bytes, params: dict) -> dict:
         nc = secrets.token_hex(16)
-        reader, writer = await asyncio.open_connection(row["address"], self._peer_port)
+        reader, writer = await self._dial(row, {"op": "join", "v": proto.VERSION, "nc": nc})
         own = (writer.get_extra_info("sockname") or ("",))[0]
         try:
-            writer.write(frame({"op": "join", "v": proto.VERSION, "nc": nc}))
-            await writer.drain()
             hello = await read_frame(reader)
             if hello.get("ok") is False:
                 return {"ok": False, "error": _JOIN_REFUSALS.get(hello.get("error"), ERROR_HOST_GONE)}
@@ -2033,7 +2143,7 @@ class MultiplayerService:
         return True
 
     async def _follow_room(self, joined: dict, status: dict) -> None:
-        row = {**status["room"], "address": joined["row"]["address"]}
+        row = {**status["room"], "address": joined["row"]["address"], "door": joined["row"]["door"], "away": False}
         rev = status["rev"]
         if (row["mode"], row["gameId"]) != (joined["row"]["mode"], joined["row"]["gameId"]):
             joined.update(own=0, core="")
@@ -2197,14 +2307,10 @@ class MultiplayerService:
         message = proto.make_tagged(joined["key"], op, joined["row"]["room"], joined["seat"], nonce, int(time.time()),
                                     payload)
         try:
-            reader, writer = await asyncio.wait_for(
-                asyncio.open_connection(joined["row"]["address"], self._peer_port), HANDSHAKE_SECONDS
-            )
-        except (OSError, asyncio.TimeoutError):
+            reader, writer = await asyncio.wait_for(self._dial(joined["row"], message), HANDSHAKE_SECONDS)
+        except (OSError, asyncio.TimeoutError, FrameError):
             return nonce, None
         try:
-            writer.write(frame(message))
-            await asyncio.wait_for(writer.drain(), HANDSHAKE_SECONDS)
             return nonce, await asyncio.wait_for(read_frame(reader), HANDSHAKE_SECONDS)
         except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError, FrameError):
             return nonce, None
@@ -2262,7 +2368,8 @@ class MultiplayerService:
             return {"ok": True, "seq": seq, "role": "host", "room": self._host_view(self._room)}
         if self._joined is not None:
             return {"ok": True, "seq": seq, "role": "guest", **self._guest_view(self._joined)}
-        return {"ok": True, "seq": seq, "role": None, "closedReason": self._closed_reason}
+        return {"ok": True, "seq": seq, "role": None, "closedReason": self._closed_reason,
+                "lobby": self._lobby_server() is not None}
 
     def _write(self, path: Path, text: str) -> None:
         with atomic_file(path) as out:
@@ -2818,14 +2925,3 @@ def _running_sessions(folder: str) -> set:
         found.update(pattern.findall(cmdline.decode("utf-8", "replace")))
     return found
 
-
-async def _say(writer, message: dict) -> bool:
-    try:
-        writer.write(frame(message))
-        await asyncio.wait_for(writer.drain(), HANDSHAKE_SECONDS)
-    except FrameError:
-        decky.logger.warning("multiplayer: a reply was too big to send")
-        return False
-    except (OSError, asyncio.TimeoutError):
-        return False
-    return True
