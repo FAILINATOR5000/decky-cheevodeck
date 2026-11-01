@@ -883,7 +883,7 @@ class MultiplayerService:
             shutil.rmtree(folder, ignore_errors=True)
         return ""
 
-    def _bba_mac(self) -> str:
+    def _machine_id(self) -> str:
         machine_id = ""
         try:
             machine_id = Path("/etc/machine-id").read_text(encoding="ascii", errors="replace").strip()
@@ -897,7 +897,7 @@ class MultiplayerService:
                     except OSError:
                         continue
                     break
-        return session.bba_mac(machine_id)
+        return machine_id
 
     def _gates(self, mode: str, local: dict, room, players: int):
         warnings = []
@@ -2366,11 +2366,13 @@ class MultiplayerService:
                     args = session.dolphin_netplay_args(host_ip=own_ip if role == "host" else host_ip, nick=nick,
                                                         hardcore=hardcore, marker=marker)
                 else:
-                    args = session.dolphin_bba_args(own_ip=own_ip, mac=self._bba_mac(), hardcore=hardcore,
-                                                    marker=marker)
+                    args = session.dolphin_bba_args(own_ip=own_ip, mac=session.bba_mac(self._machine_id()),
+                                                    hardcore=hardcore, marker=marker)
             else:
                 ini_path = self._session_dir / f"session-{sid}.ini"
-                self._write(ini_path, session.ppsspp_session(role=role, host_ip=host_ip, nick=nick, hardcore=hardcore))
+                text = session.ppsspp_session(role=role, host_ip=host_ip, nick=nick,
+                                              mac=session.psp_mac(self._machine_id()), hardcore=hardcore)
+                self._write(ini_path, text)
                 files = [ini_path]
                 args = session.ppsspp_args(home=self._user_home, ini_path=ini_path)
             if not self._readable_by_owner(files):

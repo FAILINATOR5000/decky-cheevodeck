@@ -574,6 +574,11 @@ def bba_mac(machine_id: str) -> str:
     return "00:09:bf:" + ":".join(f"{byte:02x}" for byte in digest[:3])
 
 
+def psp_mac(machine_id: str) -> str:
+    digest = hashlib.sha256(f"cheevodeck-psp|{machine_id}".encode()).digest()
+    return "02:" + ":".join(f"{byte:02x}" for byte in digest[:5])
+
+
 def dolphin_bba_args(*, own_ip: str, mac: str, hardcore: bool, marker: Path) -> str:
     return " ".join([
         "-C", f"Dolphin.Core.SerialPort1={DOLPHIN_BBA_BUILT_IN}",
@@ -726,7 +731,7 @@ def retroarch_args(*, mode: str, role: str, host_ip: str, nick: str, cfg_path: P
     return " ".join(parts)
 
 
-def ppsspp_session(*, role: str, host_ip: str, nick: str, hardcore: bool) -> str:
+def ppsspp_session(*, role: str, host_ip: str, nick: str, mac: str, hardcore: bool) -> str:
     return (
         "[Network]\n"
         "EnableWlan = True\n"
@@ -736,6 +741,7 @@ def ppsspp_session(*, role: str, host_ip: str, nick: str, hardcore: bool) -> str
         "AdhocServerRelayMode = 2\n"
         "[SystemParam]\n"
         f"NickName = {nick}\n"
+        f"MacAddress = {mac}\n"
         "[Achievements]\n"
         f"AchievementsChallengeMode = {'True' if hardcore else 'False'}\n"
     )
