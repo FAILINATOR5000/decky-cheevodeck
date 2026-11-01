@@ -36,12 +36,20 @@ class MultiplayerMixin(PluginContext):
         )
 
     async def multiplayer_room_options(self, hardcore=None, private=None, core=None):
-        return await asyncio.to_thread(
-            self.multiplayer_service.room_options,
+        return await self.multiplayer_service.room_options(
             None if hardcore is None else bool(hardcore),
             None if private is None else bool(private),
             None if core is None else str(core),
         )
+
+    async def multiplayer_change_game(self, mode: str = "", game_id: int = 0, core: str = ""):
+        return await self.multiplayer_service.change_game(str(mode or ""), to_int(game_id, 0), str(core or ""))
+
+    async def multiplayer_guest_games(self):
+        return await asyncio.to_thread(self.multiplayer_service.guest_games)
+
+    async def multiplayer_guest_game(self, game_id: int = 0):
+        return await self.multiplayer_service.guest_game(to_int(game_id, 0))
 
     async def multiplayer_close_room(self):
         return self.multiplayer_service.close_room()
@@ -49,12 +57,8 @@ class MultiplayerMixin(PluginContext):
     async def multiplayer_drop_seat(self, seat: int = 0):
         return self.multiplayer_service.drop_seat(to_int(seat, 0))
 
-    async def multiplayer_join(
-        self, room_id: str = "", code: str = "", game_id: int = 0, core: str = "", hardcore: bool = False,
-    ):
-        return await self.multiplayer_service.join(
-            str(room_id or ""), str(code or ""), to_int(game_id, 0), str(core or ""), bool(hardcore)
-        )
+    async def multiplayer_join(self, room_id: str = "", code: str = "", hardcore: bool = False):
+        return await self.multiplayer_service.join(str(room_id or ""), str(code or ""), bool(hardcore))
 
     async def multiplayer_set_ready(self, ready: bool = False, reason: str = ""):
         return self.multiplayer_service.set_ready(bool(ready), str(reason or ""))

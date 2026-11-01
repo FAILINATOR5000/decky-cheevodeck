@@ -2935,9 +2935,10 @@ export type MultiplayerRoomRow = {
     max: number;
     state: "lobby" | "playing";
     address: string;
+    verdict?: { can: boolean; reason: string; detail: Record<string, string> };
 };
 
-type MultiplayerSeat = { name: string; launched: boolean; ready: boolean; can: boolean; reason?: string } | null;
+type MultiplayerSeat = { name: string; launched: boolean; ready: boolean; can: boolean; reason?: string; title: string } | null;
 
 type MultiplayerLastStart = { round: number; ok: boolean; error: string } | null;
 
@@ -2961,6 +2962,7 @@ export type MultiplayerHostedRoom = {
     roster: number[];
     canStart: boolean;
     lastStart: MultiplayerLastStart;
+    notice: { code: string; detail: Record<string, string> } | null;
 };
 
 type MultiplayerGuestStatus = {
@@ -2973,7 +2975,7 @@ type MultiplayerGuestStatus = {
     start: boolean;
     port: number;
     players: number;
-    seats: { ready: boolean; can: boolean; launched: boolean; playing: boolean }[];
+    seats: { ready: boolean; can: boolean; launched: boolean; playing: boolean; title: string }[];
     lastStart: MultiplayerLastStart;
 };
 
@@ -2994,6 +2996,10 @@ export type MultiplayerRoomStatus =
         rejoin: boolean;
         notice: string;
         hardcore: boolean;
+        local: MultiplayerLocal | null;
+        can: boolean;
+        reason: string;
+        detail: Record<string, string>;
         autostart: { room: string; round: number; appid: number } | null;
     }
     | { ok: true; seq: number; role: null; closedReason: string };
@@ -3034,3 +3040,5 @@ export type MultiplayerGame = {
 };
 
 export type MultiplayerRestoreRecord = { appid: number; original: string; session: string };
+
+export type MultiplayerGuestGame = { gameId: number; title: string; systemId: number; system: string; imageIcon: string };

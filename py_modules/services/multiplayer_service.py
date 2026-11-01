@@ -89,7 +89,6 @@ ERROR_NEEDS_CODE = "needs_code"
 ERROR_BAD_CODE = "bad_code"
 ERROR_LOCKED_OUT = "locked_out"
 ERROR_FULL = "full"
-ERROR_WRONG_CORE = "wrong_core"
 ERROR_BAD_ADDRESS = "bad_address"
 ERROR_NOT_FOUND = "not_found"
 ERROR_HOST_GONE = "host_gone"
@@ -113,7 +112,6 @@ _JOIN_REFUSALS = {
     "bad_code": ERROR_BAD_CODE,
     "locked": ERROR_LOCKED_OUT,
     "full": ERROR_FULL,
-    "core": ERROR_WRONG_CORE,
     "closed": ERROR_ROOM_GONE,
     "dropped": ERROR_DROPPED,
 }
@@ -209,6 +207,7 @@ class MultiplayerService:
         self._session = None
         self._stopping = False
         self._library_cache = (None, None)
+        self._verdict_memo = {}
         self._hash_memo = {}
         self._crc_memo = {}
         self._build_memo = {}
@@ -260,6 +259,7 @@ class MultiplayerService:
                 self._cap_until = now + VISIT_CAP_SECONDS
                 self._versions = None
                 self._permissions = {}
+                self._verdict_memo.clear()
             elif now >= self._cap_until:
                 if self._live():
                     decky.logger.info("multiplayer: the visit reached its cap")
@@ -815,20 +815,16 @@ class MultiplayerService:
                         return ("crc_mismatch", {}), warnings
                     warnings.append({"code": "crc_mismatch", "detail": {}})
             elif room["systemId"] == session.GBA_SYSTEM or system_id == session.GBA_SYSTEM:
-                pokemon = room["gameId"] in session.GEN3_POKEMON_GAMES \
-                    and local["gameId"] in session.GEN3_POKEMON_GAMES
-                if room["systemId"] != system_id or (room["gameId"] != local["gameId"] and not pokemon):
+                if room["systemId"] != system_id:
                     return ("different_game", {}), warnings
             elif room["systemId"] == session.GAMECUBE_SYSTEM or system_id == session.GAMECUBE_SYSTEM:
-                if room["gameId"] != local["gameId"]:
+                if room["systemId"] != system_id:
                     return ("different_game", {}), warnings
-                if room["gameCode"][3:] and local["gameCode"][3:] and room["gameCode"][3:] != local["gameCode"][3:]:
+                if room["gameId"] == local["gameId"] and room["gameCode"][3:] and local["gameCode"][3:] \
+                        and room["gameCode"][3:] != local["gameCode"][3:]:
                     return ("region_differs", {}), warnings
             elif room["systemId"] == session.DS_SYSTEM or system_id == session.DS_SYSTEM:
-                generation = session.DS_POKEMON_GENERATIONS.get(local["gameId"])
-                same_generation = generation is not None \
-                    and session.DS_POKEMON_GENERATIONS.get(room["gameId"]) == generation
-                if room["systemId"] != system_id or (room["gameId"] != local["gameId"] and not same_generation):
+                if room["systemId"] != system_id:
                     return ("different_game", {}), warnings
             elif room["systemId"] in GB_SYSTEMS or system_id in GB_SYSTEMS:
                 if system_id not in GB_SYSTEMS or room["systemId"] not in GB_SYSTEMS:
@@ -836,12 +832,18 @@ class MultiplayerService:
                 if room["core"] != session.GAMBATTE or local["core"] != session.GAMBATTE:
                     return ("link_needs_gambatte_both", {}), warnings
             else:
-                if room["gameId"] != local["gameId"]:
+                if room["systemId"] != system_id:
                     return ("different_game", {}), warnings
                 if room["core"] not in (session.PPSSPP_CORE, session.PPSSPP_STANDALONE):
                     return ("link_needs_ppsspp", {}), warnings
-                if room["hash"] and self._hash_of_path(local, system_id) not in ("", room["hash"]):
+                if room["core"] == local["core"] == session.PPSSPP_STANDALONE and room["emuVersion"] \
+                        and local["emuVersion"] and room["emuVersion"] != local["emuVersion"]:
+                    return ("ppsspp_version_mismatch", {"version": room["emuVersion"]}), warnings
+                if room["gameId"] == local["gameId"] and room["hash"] \
+                        and self._hash_of_path(local, system_id) not in ("", room["hash"]):
                     warnings.append({"code": "revision_differs", "detail": {}})
+            if mode == "link" and room["gameId"] != local["gameId"]:
+                warnings.append({"code": "game_differs", "detail": {}})
             versions_differ = local["core"] not in proto.NETPACKET_CORES and local["emulator"] != "dolphin" \
                 and _known(room["emuVersion"]) and _known(local["emuVersion"]) \
                 and room["emuVersion"] != local["emuVersion"]
@@ -882,10 +884,15 @@ class MultiplayerService:
         if self._room is not None:
             return 1 + len(_guests(self._room))
         if room is not None:
-            return max(2, sum(1 for name in room["seats"] if name) + 1)
+            seated = sum(1 for name in room["seats"] if name)
+            joined = self._joined
+            return max(2, seated if joined is not None and room is joined["row"] else seated + 1)
         return 2
 
     def check(self, mode: str, game_id: int, core: str, room_id: str = "") -> dict:
+        joined = self._joined
+        if joined is not None and self._room is None:
+            return self._joined_check(joined)
         room = self._room_row(room_id) if self._room is None else None
         if self._room is not None:
             mode = self._room["mode"]
@@ -902,6 +909,48 @@ class MultiplayerService:
             "warnings": warnings,
             "local": _local_view(local),
         }
+
+    def _joined_check(self, joined: dict) -> dict:
+        local = joined["local"]
+        warnings = []
+        if local is not None:
+            row = joined["row"]
+            _found, warnings = self._gates(row["mode"], local, row, self._players(row["mode"], row))
+        return {
+            "ok": True,
+            "gate": None if joined["can"] else joined["reason"],
+            "detail": {} if joined["can"] else joined["detail"],
+            "warnings": warnings,
+            "local": _local_view(local) if local is not None else None,
+        }
+
+    def _decide(self, row: dict, own_game: int, core: str):
+        mode = row["mode"]
+        players = self._players(mode, row)
+        if mode == "couch":
+            local, gate, detail = self._local(mode, row["gameId"], "", row)
+            if local is not None:
+                found, _warnings = self._gates(mode, local, row, players)
+                if found:
+                    gate, detail = found
+            return (local, "", {}) if not gate else (None, gate, detail)
+        library = self._library() or {}
+        own = library.get(own_game) if own_game else None
+        tries = []
+        if own is not None and session.same_link_family(row["systemId"], own["systemId"]):
+            tries.append((own_game, core))
+        if row["gameId"] != own_game:
+            tries.append((row["gameId"], ""))
+        failed = None
+        for game_id, chosen in tries:
+            local, gate, detail = self._local(mode, game_id, chosen, row)
+            if local is not None:
+                found, _warnings = self._gates(mode, local, row, players)
+                if not found:
+                    return local, "", {}
+                gate, detail = found
+            failed = failed or (gate, detail)
+        return None, failed[0], failed[1]
 
     async def host(self, mode: str, game_id: int, hardcore: bool, private: bool, core: str = "") -> dict:
         async with self._lock:
@@ -921,7 +970,7 @@ class MultiplayerService:
                 return {"ok": False, "error": ERROR_GATE, "gate": gate, "detail": detail}
             described = await asyncio.to_thread(self._describe, mode, local)
 
-            seats = _seat_count(mode, local)
+            seats = proto.MAX_SEATS
             user = self._user()
             room = {
                 **described,
@@ -942,6 +991,7 @@ class MultiplayerService:
                 "startedAt": 0.0,
                 "lastStart": None,
                 "playingSince": None,
+                "notice": None,
                 "badAddresses": {},
                 "badTotal": 0,
                 "bannedPeers": set(),
@@ -984,7 +1034,7 @@ class MultiplayerService:
             "gameCode": local["gameCode"],
         }
 
-    def room_options(self, hardcore=None, private=None, core=None) -> dict:
+    async def room_options(self, hardcore=None, private=None, core=None) -> dict:
         room = self._room
         joined = self._joined
         if room is None and joined is not None and hardcore is not None:
@@ -992,24 +1042,60 @@ class MultiplayerService:
             return {"ok": True}
         if room is None:
             return {"ok": False, "error": ERROR_NO_ROOM}
-        if _guests(room) or room["state"] != "lobby":
+        if room["state"] != "lobby":
             return {"ok": False, "error": ERROR_SEATED}
         if core is not None and core != room["core"]:
-            local, gate, detail = self._local(room["mode"], room["gameId"], core, None)
-            if local is None:
-                return {"ok": False, "error": ERROR_GATE, "gate": gate, "detail": detail}
-            seats = _seat_count(room["mode"], local)
-            room.update(core=local["core"], coreName=local["coreName"], emuVersion=local["emuVersion"],
-                        coreBuild=local["coreBuild"], local=local, max=seats,
-                        seats=room["seats"][:1] + [None] * (seats - 1))
-        if hardcore is not None:
+            return await self.change_game(room["mode"], room["gameId"], core)
+        changed = False
+        if hardcore is not None and bool(hardcore) != room["hardcore"]:
             room["hardcore"] = bool(hardcore)
+            changed = True
         if private is not None and bool(private) != room["private"]:
             room["private"] = bool(private)
             room["code"] = _new_code() if private else ""
             room["badAddresses"].clear()
             room["badTotal"] = 0
+            changed = True
+        if changed:
+            self._changed(room)
         return {"ok": True, "room": self._host_view(room)}
+
+    def _changed(self, room: dict) -> None:
+        room["rev"] += 1
+        room["notice"] = None
+        decky.logger.info("multiplayer: the room changed, rev %s", room["rev"])
+        self._announce()
+
+    async def change_game(self, mode: str, game_id: int, core: str = "") -> dict:
+        async with self._lock:
+            room = self._room
+            if room is None:
+                return {"ok": False, "error": ERROR_NO_ROOM}
+            if room["state"] != "lobby":
+                return {"ok": False, "error": ERROR_SEATED}
+            if mode not in proto.MODES:
+                return {"ok": False, "error": ERROR_NO_GAME}
+            if mode == room["mode"] and game_id == room["gameId"] and core in ("", room["core"]):
+                if room["notice"]:
+                    room["notice"] = None
+                    self._announce()
+                return {"ok": True, "room": self._host_view(room)}
+            local, gate, detail = await asyncio.to_thread(self._local, mode, game_id, core, None)
+            if local is not None:
+                found, _warnings = await asyncio.to_thread(self._gates, mode, local, None, 2)
+                if found:
+                    gate, detail = found
+            if gate:
+                room["notice"] = {"code": gate, "detail": detail}
+                self._announce()
+                return {"ok": False, "error": ERROR_GATE, "gate": gate, "detail": detail}
+            described = await asyncio.to_thread(self._describe, mode, local)
+            if self._room is not room or room["state"] != "lobby":
+                return {"ok": False, "error": ERROR_SEATED}
+            room.update(described, mode=mode, local=local)
+            decky.logger.info("multiplayer: the host changed to %s, %s on %s", local["gameId"], mode, local["core"])
+            self._changed(room)
+            return {"ok": True, "room": self._host_view(room)}
 
     def close_room(self) -> dict:
         if self._room is None:
@@ -1028,6 +1114,7 @@ class MultiplayerService:
         room["bannedPeers"].add(dropped["peer"])
         room["bannedNames"].add(dropped["name"].lower())
         room["seats"][seat] = None
+        room["notice"] = None
         self._roster_left(room, seat)
         self._announce()
         return {"ok": True, "room": self._host_view(room)}
@@ -1071,9 +1158,10 @@ class MultiplayerService:
             "max": room["max"],
             "seats": [
                 None if seat is None
-                else {"name": seat["name"], "launched": False, "ready": False, "can": True} if index == 0
+                else {"name": seat["name"], "launched": False, "ready": False, "can": True, "title": room["title"]}
+                if index == 0
                 else {"name": seat["name"], "launched": seat["launched"], "ready": self._seat_ready(room, seat),
-                      "can": seat["can"], "reason": seat["reason"]}
+                      "can": seat["can"], "reason": seat["reason"], "title": seat["title"]}
                 for index, seat in enumerate(room["seats"])
             ],
             "state": self._public_state(room),
@@ -1082,6 +1170,7 @@ class MultiplayerService:
             "roster": list(room["roster"]),
             "canStart": self._can_start(room),
             "lastStart": dict(room["lastStart"]) if room["lastStart"] else None,
+            "notice": dict(room["notice"]) if room["notice"] else None,
         }
 
     def _public_state(self, room: dict) -> str:
@@ -1190,6 +1279,7 @@ class MultiplayerService:
 
     def _back_to_lobby(self, room: dict, error: str = "") -> None:
         room["state"] = "lobby"
+        room["notice"] = None
         room["roster"] = []
         room["ports"] = {}
         room["playingSince"] = None
@@ -1311,9 +1401,6 @@ class MultiplayerService:
         if peer in room["bannedPeers"] or params["user"].lower() in room["bannedNames"]:
             await _say(writer, {"ok": False, "error": "dropped"})
             return
-        if room["core"] and params["core"] != room["core"]:
-            await _say(writer, {"ok": False, "error": "core"})
-            return
         seat = next((index for index, taken in enumerate(room["seats"]) if taken is None), None)
         if seat is None:
             await _say(writer, {"ok": False, "error": "full"})
@@ -1334,6 +1421,7 @@ class MultiplayerService:
             "round": 0,
             "can": True,
             "reason": "",
+            "title": "",
             "gameId": 0,
         }
         await _say(writer, {"ok": True, "seat": seat, "ip": address, "t": proto.joined_tag(key, nc, ns, seat, address)})
@@ -1407,7 +1495,7 @@ class MultiplayerService:
         was_ready = self._seat_ready(room, seat)
         seat.update(seq=report["seq"], ready=report["ready"], rev=report["rev"], round=report["round"],
                     can=report["can"], reason=report["reason"], gameId=report["gameId"],
-                    launched=report["launched"])
+                    title=report["title"], launched=report["launched"])
         if self._seat_ready(room, seat) != was_ready:
             self._debug("seat %s %s", index, "ready" if not was_ready else "not ready")
 
@@ -1442,13 +1530,14 @@ class MultiplayerService:
             "port": room["ports"].get(index, 0) if room["state"] != "lobby" else 0,
             "players": room["players"] if room["state"] != "lobby" else 1 + len(_guests(room)),
             "seats": [
-                {"ready": False, "can": True, "launched": False, "playing": False}
+                {"ready": False, "can": True, "launched": False, "playing": False, "title": ""}
                 if taken is None or position == 0
                 else {"ready": self._seat_ready(room, taken), "can": taken["can"], "launched": taken["launched"],
-                      "playing": position in roster}
+                      "playing": position in roster, "title": taken["title"]}
                 for position, taken in enumerate(room["seats"])
             ],
             "lastStart": dict(last) if last else None,
+            "room": proto.room_fields(room),
         }
 
     def start(self) -> dict:
@@ -1473,6 +1562,7 @@ class MultiplayerService:
         room["state"] = "launching"
         room["startedAt"] = time.monotonic()
         room["lastStart"] = None
+        room["notice"] = None
         room["playingSince"] = None
         decky.logger.info("multiplayer: start, round %s with seats %s", room["round"], room["roster"])
         self._announce()
@@ -1548,7 +1638,28 @@ class MultiplayerService:
             if not manual and self._round - seen >= MISSED_ROUNDS:
                 del self._rooms[room_id]
         self._debug("discovery round %s found %s", self._round, len(found))
-        return {"ok": True, "rooms": self._room_rows()}
+        rows = self._room_rows()
+        if rows and self._room is None and self._joined is None:
+            verdicts = await asyncio.to_thread(self._verdicts, rows)
+            for row in rows:
+                row["verdict"] = verdicts[row["room"]]
+        return {"ok": True, "rooms": rows}
+
+    def _verdicts(self, rows: list) -> dict:
+        stamp = self._cheevo_check_store.results_fingerprint()
+        if len(self._verdict_memo) > 64:
+            self._verdict_memo.clear()
+        found = {}
+        for row in rows:
+            key = (row["room"], row["mode"], row["gameId"], row["core"], row["hash"], row["coreBuild"],
+                   row["emuVersion"], row["gameCode"], stamp)
+            verdict = self._verdict_memo.get(key)
+            if verdict is None:
+                local, reason, detail = self._decide(row, 0, "")
+                verdict = {"can": local is not None, "reason": reason, "detail": detail}
+                self._verdict_memo[key] = verdict
+            found[row["room"]] = verdict
+        return found
 
     def _room_rows(self) -> list:
         rows = [dict(row) for row, _seen, _manual in self._rooms.values()]
@@ -1580,7 +1691,7 @@ class MultiplayerService:
         self._rooms[row["room"]] = (row, self._round, True)
         return {"ok": True, "room": dict(row)}
 
-    async def join(self, room_id: str, code: str, game_id: int = 0, core: str = "", hardcore: bool = False) -> dict:
+    async def join(self, room_id: str, code: str, hardcore: bool = False) -> dict:
         async with self._lock:
             refused = self._refusal()
             if refused is not None:
@@ -1593,18 +1704,13 @@ class MultiplayerService:
             row = dict(seen[0])
             if row["private"] and not proto.is_code(code):
                 return {"ok": False, "error": ERROR_NEEDS_CODE}
-            local, gate, detail = await asyncio.to_thread(self._local, row["mode"], game_id, core, row)
-            if local is not None:
-                found, _warnings = await asyncio.to_thread(
-                    self._gates, row["mode"], local, row, self._players(row["mode"], row)
-                )
-                if found:
-                    gate, detail = found
-            if gate:
-                return {"ok": False, "error": ERROR_GATE, "gate": gate, "detail": detail}
+            local, reason, detail = await asyncio.to_thread(self._decide, row, 0, "")
             params = proto.join_params(
-                self._user(), self._hash_of_path(local, local["systemId"]),
-                self._crc_of(local["real"]) if row["mode"] == "couch" else "", local["core"], local["emuVersion"],
+                self._user(),
+                self._hash_of_path(local, local["systemId"]) if local else "",
+                self._crc_of(local["real"]) if local and row["mode"] == "couch" else "",
+                local["core"] if local else "",
+                local["emuVersion"] if local else "",
             )
             try:
                 answer = await asyncio.wait_for(
@@ -1627,6 +1733,12 @@ class MultiplayerService:
                 "launched": False,
                 "error": "",
                 "local": local,
+                "can": local is not None,
+                "reason": reason,
+                "detail": detail,
+                "own": 0,
+                "core": "",
+                "rowRev": 0,
                 "hardcore": bool(hardcore),
                 "seq": 0,
                 "said": None,
@@ -1722,8 +1834,26 @@ class MultiplayerService:
         if joined["error"] == ERROR_HOST_GONE:
             joined["error"] = ""
             decky.logger.info("multiplayer: the host answered again")
+        if status["rev"] != joined["rowRev"]:
+            await self._follow_room(joined, status)
+            if self._joined is not joined:
+                return True
         self._take_status(joined, status)
         return True
+
+    async def _follow_room(self, joined: dict, status: dict) -> None:
+        row = {**status["room"], "address": joined["row"]["address"]}
+        rev = status["rev"]
+        if (row["mode"], row["gameId"]) != (joined["row"]["mode"], joined["row"]["gameId"]):
+            joined.update(own=0, core="")
+        joined["row"] = row
+        joined["rowRev"] = rev
+        own = joined["own"]
+        local, reason, detail = await asyncio.to_thread(self._decide, row, own, joined["core"])
+        if self._joined is not joined or joined["rowRev"] != rev or joined["own"] != own:
+            return
+        joined.update(local=local, can=local is not None, reason=reason, detail=detail)
+        self._debug("the room changed, this seat %s", "can play" if local is not None else f"can't ({reason})")
 
     def _take_status(self, joined: dict, status: dict) -> None:
         joined["status"] = status
@@ -1782,16 +1912,54 @@ class MultiplayerService:
 
     def _report(self, joined: dict) -> dict:
         local = joined["local"]
-        said = (joined["ready"], joined["readyRev"], joined["readyRound"], local is not None,
-                local["gameId"] if local else 0, joined["launched"], joined["hardcore"])
+        reason = joined["reason"] if proto.is_reason(joined["reason"]) else "unsupported_emulator"
+        said = (joined["ready"], joined["readyRev"], joined["readyRound"], joined["can"], reason,
+                local["gameId"] if local else 0, local["title"] if local else "", joined["launched"], joined["hardcore"])
         if said != joined["said"]:
             joined["said"] = said
             joined["seq"] += 1
         return proto.report(
             seq=joined["seq"], ready=joined["ready"], rev=joined["readyRev"], round_=joined["readyRound"],
-            can=local is not None, reason="", game_id=local["gameId"] if local else 0,
-            launched=joined["launched"], hardcore=joined["hardcore"],
+            can=joined["can"], reason=reason, game_id=local["gameId"] if local else 0,
+            title=local["title"] if local else "", launched=joined["launched"], hardcore=joined["hardcore"],
         )
+
+    def guest_games(self) -> dict:
+        joined = self._joined
+        if joined is None or joined["row"]["mode"] != "link":
+            return {"ok": False, "error": ERROR_NO_ROOM}
+        row = joined["row"]
+        library = self._library() or {}
+        players = self._players("link", row)
+        games = []
+        for entry in library.values():
+            if not any(path["shortcut"] for path in entry["paths"]):
+                continue
+            if not session.same_link_family(row["systemId"], entry["systemId"]):
+                continue
+            local, _gate, _detail = self._local("link", entry["gameId"], "", row)
+            if local is None or self._gates("link", local, row, players)[0] is not None:
+                continue
+            games.append({"gameId": entry["gameId"], "title": entry["title"], "systemId": entry["systemId"],
+                          "system": entry["system"], "imageIcon": entry["imageIcon"]})
+        games.sort(key=lambda game: game["title"].lower())
+        return {"ok": True, "games": games}
+
+    async def guest_game(self, game_id: int) -> dict:
+        joined = self._joined
+        if joined is None or joined["row"]["mode"] != "link":
+            return {"ok": False, "error": ERROR_NO_ROOM}
+        joined.update(own=game_id, core="", ready=False, consentRound=0)
+        rev = joined["rowRev"]
+        local, reason, detail = await asyncio.to_thread(self._decide, joined["row"], game_id, "")
+        if self._joined is not joined:
+            return {"ok": False, "error": ERROR_NO_ROOM}
+        if joined["own"] == game_id and joined["rowRev"] == rev:
+            joined.update(local=local, can=local is not None, reason=reason, detail=detail,
+                          notice="" if local is not None else reason)
+        self._spawn(self._push_ready(joined))
+        self._announce()
+        return {"ok": True, **self._guest_view(joined)}
 
     def set_ready(self, ready: bool, reason: str = "") -> dict:
         joined = self._joined
@@ -1804,7 +1972,7 @@ class MultiplayerService:
             if status is None or status["state"] != "lobby":
                 return {"ok": False, "error": ERROR_NOT_LOBBY}
             if joined["local"] is None:
-                return {"ok": False, "error": ERROR_GATE}
+                return {"ok": False, "error": ERROR_GATE, "gate": joined["reason"], "detail": joined["detail"]}
             if self._in_game():
                 return {"ok": False, "error": ERROR_IN_GAME}
             joined["readyRev"] = status["rev"]
@@ -1882,6 +2050,10 @@ class MultiplayerService:
                       and self._may_launch(joined, status) and joined["launchedRound"] == status["round"],
             "notice": joined["notice"],
             "hardcore": joined["hardcore"],
+            "local": _local_view(joined["local"]) if joined["local"] is not None else None,
+            "can": joined["can"],
+            "reason": joined["reason"],
+            "detail": joined["detail"],
             "autostart": self._pending_start(joined),
         }
 
@@ -1940,7 +2112,7 @@ class MultiplayerService:
             status = joined["status"]
             if (
                 joined["launched"] or joined["error"] or status is None or status["state"] != "playing"
-                or not status["start"] or not self._may_launch(joined, status)
+                or not status["start"] or not self._may_launch(joined, status) or joined["local"] is None
             ):
                 return {"ok": False, "error": ERROR_NOT_READY}
             role = "guest"
@@ -2331,14 +2503,6 @@ def _new_code() -> str:
 
 def _known(version: str) -> bool:
     return bool(version) and all(version.split("|"))
-
-
-def _seat_count(mode: str, local: dict) -> int:
-    if mode == "link":
-        if local["systemId"] == session.DS_SYSTEM:
-            return session.DS_LINK_SEATS
-        return proto.MAX_SEATS if local["systemId"] == PSP_SYSTEM else 2
-    return proto.MAX_SEATS if local["core"] in session.MULTITAP else 2
 
 
 def _local_view(local: dict) -> dict:

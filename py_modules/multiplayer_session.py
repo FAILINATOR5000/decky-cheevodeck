@@ -50,21 +50,12 @@ GBA_LINK_CODES = frozenset((
 
 GEN3_POKEMON_CODES = ("AXV", "AXP", "BPR", "BPG", "BPE")
 
-GEN3_POKEMON_GAMES = frozenset((790, 791, 515, 788, 668))
-
-DS_POKEMON_GENERATIONS = {
-    9852: 4, 25369: 4, 11732: 4, 7212: 4,
-    3887: 5, 16211: 5, 5853: 5, 16197: 5,
-}
-
 GC_LAN_GAMES = {
     7693: "Mario Kart: Double Dash!!",
     6151: "Kirby Air Ride",
 }
 
 DOLPHIN_BBA_BUILT_IN = 12
-
-DS_LINK_SEATS = 2
 
 MELONDS_DS_MIN_VERSION = (1, 2, 0)
 
@@ -329,6 +320,10 @@ class RetroArch:
             if self.sorts_saves_by_core(core, rom):
                 folder = folder / self.core_name(core)
         return [folder / f"{rom.stem}{suffix}" for suffix in (".srm", ".rtc")]
+
+
+def same_link_family(host_system: int, own_system: int) -> bool:
+    return host_system in LINK_CORES and LINK_CORES.get(own_system) == LINK_CORES[host_system]
 
 
 def detect(exe, launch_options):

@@ -2,11 +2,13 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 
 import {
     getGamePayload,
+    multiplayerChangeGame,
     multiplayerCheck,
     multiplayerCloseRoom,
     multiplayerDiscover,
     multiplayerDropSeat,
     multiplayerGames,
+    multiplayerGuestGame,
     multiplayerHost,
     multiplayerJoin,
     multiplayerLeave,
@@ -79,12 +81,13 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     const ownGameId = pickedGameId ?? currentGameId;
     const gameId = hosted
         ? hosted.gameId
-        : joined?.room.mode === "couch"
-            ? joined.room.gameId
+        : joined
+            ? joined.local?.gameId ?? joined.room.gameId
             : pendingRoom?.mode === "couch" ? pendingRoom.gameId : ownGameId;
     const [core, setCoreState] = useState(() => multiplayerCoreFor(gameId));
     const checkRoom = joined ? joined.room.room : pendingRoom?.room ?? "";
-    const checkKey = [mode, gameId ?? 0, core, checkRoom].join("|");
+    const checkCore = hosted ? hosted.core : core;
+    const checkKey = [mode, gameId ?? 0, checkCore, checkRoom].join("|");
 
     const reloadStatus = useCallback(async () => {
         try {
@@ -211,7 +214,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         checkTokenRef.current = token;
         void (async () => {
             try {
-                const result = await multiplayerCheck(mode, gameId, core, checkRoom);
+                const result = await multiplayerCheck(mode, gameId, checkCore, checkRoom);
                 if (checkTokenRef.current === token) {
                     setCheck(result);
                     setCheckedFor(checkKey);
@@ -225,7 +228,8 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
                 }
             }
         })();
-    }, [isActive, mode, gameId, core, checkRoom, hosted?.core, hostedSeats, joinedState]);
+    }, [isActive, mode, gameId, checkCore, checkRoom, hosted?.core, hosted?.rev, hostedSeats, joinedState, joined?.status?.rev,
+        joined?.reason]);
 
     useEffect(() => {
         if (!isActive || gameId === null || gameId === currentGameId) {
@@ -282,13 +286,41 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     }
 
     function setTab(next: MultiplayerMode) {
-        if (hostingOrJoined) {
+        if (joined || (hosted && hosted.state !== "lobby")) {
+            return;
+        }
+        if (hosted) {
+            if (next === hosted.mode) {
+                if (hosted.notice) {
+                    void run(() => multiplayerChangeGame(next, hosted.gameId, ""));
+                }
+                return;
+            }
+            void run(async () => {
+                const changed = await multiplayerChangeGame(next, hosted.gameId, "");
+                if (changed.ok) {
+                    rememberMultiplayerTab(next);
+                    setTabState(next);
+                }
+                return changed;
+            });
             return;
         }
         rememberMultiplayerTab(next);
         setTabState(next);
         setPendingRoom(null);
         setProblem(null);
+    }
+
+    function changeGame(next: number) {
+        rememberMultiplayerGame(next);
+        if (hosted) {
+            void multiplayerChangeGame(hosted.mode, next, multiplayerCoreFor(next))
+                .catch((e) => logError("multiplayerChangeGame", e));
+        }
+        else if (joined) {
+            void multiplayerGuestGame(next).catch((e) => logError("multiplayerGuestGame", e));
+        }
     }
 
     function pickGame(next: number | null) {
@@ -298,11 +330,20 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     }
 
     function chooseCore(next: string) {
+        if (hosted) {
+            const forGame = gameId;
+            void run(async () => {
+                const changed = await multiplayerRoomOptions(null, null, next);
+                if (changed.ok) {
+                    rememberMultiplayerCore(forGame, next);
+                    setCoreState(next);
+                }
+                return changed;
+            });
+            return;
+        }
         rememberMultiplayerCore(gameId, next);
         setCoreState(next);
-        if (hosted) {
-            void run(() => multiplayerRoomOptions(null, null, next));
-        }
     }
 
     function setHardcore(next: boolean) {
@@ -352,14 +393,8 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
 
     function join(row: MultiplayerRoomRow, code: string) {
         return run(async () => {
-            const own = row.mode === "couch" ? 0 : ownGameId ?? 0;
             await freshVisit();
-            let joinedRoom = await multiplayerJoin(row.room, code, own, core, hardcore);
-            const hostGame = games?.find((game) => game.gameId === row.gameId && game.appid > 0);
-            if (!joinedRoom.ok && joinedRoom.gate && row.mode === "link" && own !== row.gameId && hostGame) {
-                pickGame(row.gameId);
-                joinedRoom = await multiplayerJoin(row.room, code, row.gameId, multiplayerCoreFor(row.gameId), hardcore);
-            }
+            const joinedRoom = await multiplayerJoin(row.room, code, hardcore);
             if (joinedRoom.ok) {
                 setPendingRoom(null);
             }
@@ -463,6 +498,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             setCurrentGameId,
             setTab,
             pickGame,
+            changeGame,
             chooseCore,
             setHardcore,
             setPrivate,

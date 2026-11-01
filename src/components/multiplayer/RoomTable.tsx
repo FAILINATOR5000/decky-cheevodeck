@@ -5,7 +5,7 @@ import { SectionTitle } from "../ui/SectionTitle";
 import { t, type LanguageCode } from "../../locales";
 import { achievementGreen, bodyTextStyle, compactButtonStyle, errorRed, masteredGold } from "../../utils/style";
 
-type RoomTableSeat = { name: string; tag: "host" | "you" | ""; mark?: "ready" | "cant" | "" };
+type RoomTableSeat = { name: string; game: string; tag: "host" | "you" | ""; mark?: "ready" | "cant" | "" };
 
 function dropKey(index: number): string {
     return `multiplayer:drop:${index}`;
@@ -52,13 +52,18 @@ export function RoomTable(props: {
                                 ) : (
                                     <span style={{ ...bodyTextStyle(), minWidth: "1em", textAlign: "right" }}>{index + 1}</span>
                                 )}
-                                <span
-                                    style={seat.name
-                                        ? { color: achievementGreen, fontWeight: 800, overflowWrap: "anywhere" }
-                                        : { ...bodyTextStyle(), fontStyle: "italic" }}
-                                >
-                                    {seat.name || t(language, "Waiting for player...")}
-                                </span>
+                                <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                                    <span
+                                        style={seat.name
+                                            ? { color: achievementGreen, fontWeight: 800, overflowWrap: "anywhere" }
+                                            : { ...bodyTextStyle(), fontStyle: "italic" }}
+                                    >
+                                        {seat.name || t(language, "Waiting for player...")}
+                                    </span>
+                                    {seat.name && seat.game && (
+                                        <span style={{ ...bodyTextStyle(), overflowWrap: "anywhere" }}>{seat.game}</span>
+                                    )}
+                                </div>
                                 {at >= 0 && onDrop ? (
                                     <div style={{ display: "flex" }}>
                                         <FocusTarget focusKey={dropKey(index)} focusFallback={[...heirs, props.exitKey]}>

@@ -47,6 +47,7 @@ import type {
     DataTransferSummary,
     MultiplayerCheck,
     MultiplayerGame,
+    MultiplayerGuestGame,
     MultiplayerHostedRoom,
     MultiplayerMode,
     MultiplayerRestoreRecord,
@@ -805,10 +806,13 @@ export const multiplayerRoomOptions = callable<
 >("multiplayer_room_options");
 export const multiplayerCloseRoom = callable<[], { ok: boolean; error?: string }>("multiplayer_close_room");
 export const multiplayerDropSeat = callable<[number], { ok: boolean; error?: string }>("multiplayer_drop_seat");
-export const multiplayerJoin = callable<[string, string, number, string, boolean], MultiplayerReply>("multiplayer_join");
+export const multiplayerJoin = callable<[string, string, boolean], MultiplayerReply>("multiplayer_join");
 export const multiplayerSetReady = callable<[boolean, string], MultiplayerReply>("multiplayer_set_ready");
 export const multiplayerStart = callable<[], MultiplayerReply & { appid?: number; title?: string; round?: number }>("multiplayer_start");
 export const multiplayerStartCancel = callable<[string], MultiplayerReply>("multiplayer_start_cancel");
+export const multiplayerChangeGame = callable<[MultiplayerMode, number, string], MultiplayerReply & { room?: MultiplayerHostedRoom }>("multiplayer_change_game");
+export const multiplayerGuestGames = callable<[], { ok: boolean; error?: string; games?: MultiplayerGuestGame[] }>("multiplayer_guest_games");
+export const multiplayerGuestGame = callable<[number], MultiplayerReply>("multiplayer_guest_game");
 export const multiplayerLeave = callable<[], { ok: boolean; error?: string }>("multiplayer_leave");
 export const multiplayerRoomStatus = callable<[], MultiplayerRoomStatus>("multiplayer_room_status");
 export const multiplayerPrepareLaunch = callable<
