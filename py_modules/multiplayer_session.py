@@ -76,6 +76,8 @@ SESSION_CFG_KEYS = (
     "netplay_use_mitm_server",
     "netplay_max_connections",
     "netplay_start_as_spectator",
+    "netplay_share_digital",
+    "netplay_share_analog",
     "game_specific_options",
     "global_core_options",
     "core_options_path",
@@ -667,7 +669,8 @@ def ppsspp_cpu_flag(home) -> str:
 
 
 def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcore: bool, opt_path: Path,
-                      guests: int, seat: int, host_ip: str, players: int, game_code: str = "", system_dir=None):
+                      guests: int, seat: int, host_ip: str, players: int, game_code: str = "", system_dir=None,
+                      share_controls: bool = False):
     cfg = [
         ("config_save_on_exit", "false"),
         ("remap_save_on_exit", "false"),
@@ -685,8 +688,10 @@ def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcor
     if system_dir is not None:
         cfg.append(("system_directory", str(system_dir)))
     if mode == "couch":
+        cfg.append(("netplay_share_digital", "2"))
+        cfg.append(("netplay_share_analog", "2"))
         for number in range(1, 17):
-            wanted = role == "guest" and number == seat + 1
+            wanted = role == "guest" and number == (1 if share_controls else seat + 1)
             cfg.append((f"netplay_request_device_p{number}", "true" if wanted else "false"))
     taps = MULTITAP.get(core, {}) if mode == "couch" and role == "host" and players > 2 else {}
     for port, device in taps.get("devices", {}).items():

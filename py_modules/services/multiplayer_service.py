@@ -1064,7 +1064,8 @@ class MultiplayerService:
             failed = failed or (gate, detail)
         return None, failed[0], failed[1]
 
-    async def host(self, mode: str, game_id: int, hardcore: bool, private: bool, core: str = "") -> dict:
+    async def host(self, mode: str, game_id: int, hardcore: bool, private: bool, core: str = "",
+                   share: bool = False) -> dict:
         async with self._lock:
             refused = self._refusal()
             if refused is not None:
@@ -1092,6 +1093,7 @@ class MultiplayerService:
                 "mode": mode,
                 "hardcore": bool(hardcore),
                 "private": bool(private),
+                "share": bool(share),
                 "max": seats,
                 "seats": [{"name": user, "host": True, "said": 0.0}] + [None] * (seats - 1),
                 "state": "lobby",
@@ -1148,7 +1150,7 @@ class MultiplayerService:
             "gameCode": local["gameCode"],
         }
 
-    async def room_options(self, hardcore=None, private=None, core=None) -> dict:
+    async def room_options(self, hardcore=None, private=None, core=None, share=None) -> dict:
         room = self._room
         joined = self._joined
         if room is None and joined is not None and hardcore is not None:
@@ -1169,6 +1171,9 @@ class MultiplayerService:
             room["code"] = _new_code() if private else ""
             room["badAddresses"].clear()
             room["badTotal"] = 0
+            changed = True
+        if share is not None and bool(share) != room["share"]:
+            room["share"] = bool(share)
             changed = True
         if changed:
             self._changed(room)
@@ -1269,6 +1274,7 @@ class MultiplayerService:
             "coreName": room["coreName"],
             "hardcore": room["hardcore"],
             "private": room["private"],
+            "share": room["share"],
             "max": room["max"],
             "seats": [
                 None if seat is None
@@ -2310,6 +2316,7 @@ class MultiplayerService:
             host_ip = roster[0]["ip"]
             own_ip = host_ip
             hardcore = room["hardcore"] if mode == "couch" else bool(hardcore)
+            share = room["share"]
             players = 1 + len(roster)
             peer = None
         elif joined is not None:
@@ -2326,6 +2333,7 @@ class MultiplayerService:
             host_ip = joined["ip"]
             own_ip = joined["ownIp"]
             hardcore = status["hardcore"] if mode == "couch" else joined["hardcore"]
+            share = joined["row"]["share"]
             players = status["players"]
             peer = joined["row"]
         else:
@@ -2352,7 +2360,7 @@ class MultiplayerService:
                 cfg_text, opt_text = session.retroarch_session(
                     ra, core=local["core"], rom=rom, mode=mode, role=role, hardcore=hardcore, opt_path=opt_path,
                     guests=players - 1, seat=seat, host_ip=host_ip, players=players, game_code=local["gameCode"],
-                    system_dir=system_dir,
+                    system_dir=system_dir, share_controls=share,
                 )
                 self._write(opt_path, opt_text)
                 self._write(cfg_path, cfg_text)

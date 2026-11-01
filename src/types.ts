@@ -2931,6 +2931,7 @@ export type MultiplayerRoomRow = {
     crc: string;
     hardcore: boolean;
     private: boolean;
+    share: boolean;
     seats: string[];
     max: number;
     state: "lobby" | "playing";
@@ -2956,6 +2957,7 @@ export type MultiplayerHostedRoom = {
     coreName: string;
     hardcore: boolean;
     private: boolean;
+    share: boolean;
     max: number;
     seats: MultiplayerSeat[];
     state: "lobby" | "starting" | "playing";

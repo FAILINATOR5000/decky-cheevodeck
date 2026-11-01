@@ -797,11 +797,11 @@ export const multiplayerLookup = callable<[string], { ok: boolean; error?: strin
 export const multiplayerGames = callable<[], { ok: boolean; scanned: boolean; games: MultiplayerGame[]; installedCores?: string[] }>("multiplayer_games");
 export const multiplayerCheck = callable<[MultiplayerMode, number, string, string], MultiplayerCheck>("multiplayer_check");
 export const multiplayerHost = callable<
-    [MultiplayerMode, number, boolean, boolean, string],
+    [MultiplayerMode, number, boolean, boolean, string, boolean],
     MultiplayerReply & { room?: MultiplayerHostedRoom }
 >("multiplayer_host");
 export const multiplayerRoomOptions = callable<
-    [boolean | null, boolean | null, string | null],
+    [boolean | null, boolean | null, string | null, boolean | null],
     MultiplayerReply & { room?: MultiplayerHostedRoom }
 >("multiplayer_room_options");
 export const multiplayerCloseRoom = callable<[], { ok: boolean; error?: string }>("multiplayer_close_room");

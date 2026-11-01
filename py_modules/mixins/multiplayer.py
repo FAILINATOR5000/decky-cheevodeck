@@ -30,16 +30,18 @@ class MultiplayerMixin(PluginContext):
 
     async def multiplayer_host(
         self, mode: str = "", game_id: int = 0, hardcore: bool = False, private: bool = False, core: str = "",
+        share: bool = False,
     ):
         return await self.multiplayer_service.host(
-            str(mode or ""), to_int(game_id, 0), bool(hardcore), bool(private), str(core or "")
+            str(mode or ""), to_int(game_id, 0), bool(hardcore), bool(private), str(core or ""), bool(share)
         )
 
-    async def multiplayer_room_options(self, hardcore=None, private=None, core=None):
+    async def multiplayer_room_options(self, hardcore=None, private=None, core=None, share=None):
         return await self.multiplayer_service.room_options(
             None if hardcore is None else bool(hardcore),
             None if private is None else bool(private),
             None if core is None else str(core),
+            None if share is None else bool(share),
         )
 
     async def multiplayer_change_game(self, mode: str = "", game_id: int = 0, core: str = ""):

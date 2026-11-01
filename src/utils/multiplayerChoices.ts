@@ -5,6 +5,7 @@ type Choices = {
     gameId: number | null;
     hardcore: boolean;
     private: boolean;
+    share: boolean;
     core: string;
     coreFor: number | null;
 };
@@ -14,6 +15,7 @@ const choices: Choices = {
     gameId: null,
     hardcore: false,
     private: false,
+    share: false,
     core: "",
     coreFor: null
 };
@@ -36,6 +38,10 @@ export function rememberMultiplayerHardcore(value: boolean) {
 
 export function rememberMultiplayerPrivate(value: boolean) {
     choices.private = value;
+}
+
+export function rememberMultiplayerShare(value: boolean) {
+    choices.share = value;
 }
 
 export function rememberMultiplayerCore(gameId: number | null, core: string) {

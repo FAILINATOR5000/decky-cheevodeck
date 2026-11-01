@@ -611,6 +611,20 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         />
     );
 
+    const shareRow = (
+        <ToggleRow
+            controlled
+            label={t(language, "Share Controls")}
+            value={mp.shareControls}
+            disabled={roomLocked}
+            outerStyle={buttonStyle}
+            focusKey="multiplayer:toggle:share"
+            focusFallback={["multiplayer:toggle:hardcore", "multiplayer:host"]}
+            onChange={actions.setShare}
+            help={t(language, roomLocked ? "Close the room to change it" : "help_multiplayer_share")}
+        />
+    );
+
     const privateRow = (
         <ToggleRow
             controlled
@@ -619,7 +633,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             disabled={roomLocked}
             outerStyle={buttonStyle}
             focusKey="multiplayer:toggle:private"
-            focusFallback={["multiplayer:toggle:hardcore", "multiplayer:host"]}
+            focusFallback={["multiplayer:toggle:share", "multiplayer:toggle:hardcore", "multiplayer:host"]}
             onChange={actions.setPrivate}
             help={t(language, roomLocked ? "Close the room to change it" : "help_multiplayer_private")}
         />
@@ -760,6 +774,11 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     </div>
                 </PanelSectionRow>
             )}
+            {mp.mode === "couch" && joined.room.share && joined.room.emulator === "retroarch" && (
+                <PanelSectionRow>
+                    <div style={bodyTextStyle()}>{t(language, "Controls shared, set by the host")}</div>
+                </PanelSectionRow>
+            )}
             <RoomTable
                 language={language}
                 seats={Array.from({ length: joined.room.max }, (_, index) => {
@@ -781,8 +800,9 @@ function MultiplayerPage(props: MultiplayerPageProps) {
 
     const showHardcore = mp.mode === "link" || !couchGuest;
     const showPrivate = !joined && !mp.pendingRoom;
+    const showShare = mp.mode === "couch" && showPrivate && (hosted?.emulator ?? local?.emulator) === "retroarch";
     const showChangeGame = hosted !== null || (joined !== null && mp.mode === "link");
-    const optionRows = (showChangeGame || showCores || showHardcore || showPrivate) && (
+    const optionRows = (showChangeGame || showCores || showHardcore || showShare || showPrivate) && (
         <>
             <SectionTitle label={t(language, "Options")} />
             {showChangeGame && (
@@ -800,6 +820,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             )}
             {coreRows}
             {showHardcore && hardcoreRow}
+            {showShare && shareRow}
             {showPrivate && privateRow}
             {hosted?.private && (
                 <PanelSectionRow>

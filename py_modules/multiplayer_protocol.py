@@ -150,6 +150,7 @@ def room_body(room: dict, reveal: bool = False) -> dict:
         "gameCode": room["gameCode"],
         "hardcore": room["hardcore"],
         "private": room["private"],
+        "share": room["share"],
         "seats": [("?" if hidden and index > 0 else seat["name"]) if seat else ""
                   for index, seat in enumerate(room["seats"])],
         "max": room["max"],
@@ -205,6 +206,7 @@ def _room_fields(message):
         or message.get("state") not in ("lobby", "playing")
         or type(message.get("hardcore")) is not bool
         or type(message.get("private")) is not bool
+        or type(message.get("share")) is not bool
         or type(count) is not int
         or not 2 <= count <= MAX_SEATS
         or not isinstance(seats, list)
@@ -233,6 +235,7 @@ def _room_fields(message):
         "gameCode": game_code,
         "hardcore": message["hardcore"],
         "private": message["private"],
+        "share": message["share"],
         "seats": [_clean(seat, _USER_MAX) or "" for seat in seats],
         "max": count,
         "state": message["state"],
