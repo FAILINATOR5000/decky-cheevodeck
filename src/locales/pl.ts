@@ -3171,6 +3171,7 @@ const PL: LocaleTable = {
     "Open Dolphin": "Otwórz Dolphin",
     "Dolphin NetPlay": "Dolphin NetPlay",
     "Say Something": "Powiedz coś",
+    "DuckStation can't do Couch Play, and its saves won't carry over. {{core}} works, so this session uses it.": "DuckStation nie obsługuje Couch Play, a jego zapisy nie zostaną przeniesione. {{core}} to obsługuje, więc ta sesja go używa.",
     "Chat History": "Historia czatu",
     "Send": "Wyślij",
     "No messages yet": "Brak wiadomości",

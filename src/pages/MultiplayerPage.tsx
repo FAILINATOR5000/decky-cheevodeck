@@ -139,7 +139,8 @@ const WARNING_TEXT: Record<string, string> = {
     crc_mismatch: "Your ROM file differs from the host's. The game may desync.",
     version_mismatch: "Your RetroArch or core version differs from the host's.",
     revision_differs: "Your copy is a different version of the game from the host's.",
-    game_differs: "Your game differs from the host's, so it may not link."
+    game_differs: "Your game differs from the host's, so it may not link.",
+    duckstation_switch: "DuckStation can't do Couch Play, and its saves won't carry over. {{core}} works, so this session uses it."
 };
 
 const WAITING = ["nobody_ready"];

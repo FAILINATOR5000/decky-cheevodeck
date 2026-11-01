@@ -709,7 +709,7 @@ class MultiplayerService:
         if emulator == "melonds":
             return None, "melonds_standalone", {}
         if emulator == "duckstation" and mode == "couch":
-            return None, "duckstation_no_multiplayer", {}
+            return self._duckstation_couch_local(local, core, room)
         if mode == "link" and system_id not in session.LINK_CORES:
             return None, "link_system", {}
         if mode == "link" and system_id == session.GBA_SYSTEM:
@@ -805,6 +805,32 @@ class MultiplayerService:
         local.update(core=session.DOLPHIN_STANDALONE, coreName="Dolphin", shortcutCoreName="Dolphin",
                      install=install, gameCode=disc[:4], gameAppid=local["appid"], appid=emulator["appid"],
                      emuVersion=self._dolphin_version(install, emulator))
+        return local, None, {}
+
+    def _duckstation_couch_local(self, local: dict, core: str, room):
+        ra = session.RetroArch(self._user_home)
+        if not ra.found:
+            return None, "duckstation_no_multiplayer", {}
+        compatible = self._compatible(ra, "couch", session.PS1_SYSTEM)
+        emulator = self._emulator_shortcut("retroarch")
+        if not compatible or emulator is None:
+            return None, "duckstation_no_multiplayer", {}
+        room_core = room["core"] if room is not None else ""
+        if core in compatible:
+            chosen = core
+        elif room_core:
+            if not ra.installed(room_core) or room_core not in compatible:
+                return None, "host_core_missing", {"core": room["coreName"] or room_core}
+            chosen = room_core
+        else:
+            chosen = session.BEETLE_PSX_HW if session.BEETLE_PSX_HW in compatible else compatible[0]
+        local.update(
+            emulator="retroarch", ra=ra, core=chosen, coreName=ra.core_name(chosen), shortcutCore="",
+            shortcutCoreName="DuckStation", gameAppid=local["appid"], appid=emulator["appid"], duckstation=True,
+            choices=[{"core": name, "name": ra.core_name(name)} for name in compatible],
+            emuVersion=f"{self._flatpak_version(session.RETROARCH_FLATPAK)}|{ra.version(chosen)}",
+            coreBuild=self._core_build_of(ra.core_path(chosen)),
+        )
         return local, None, {}
 
     def _emulator_shortcut(self, kind: str, install: str = ""):
@@ -936,7 +962,9 @@ class MultiplayerService:
             if mode == "couch" and players > 2 and local["core"] in session.MULTITAP \
                     and ra.remap_sets_device(local["core"], rom):
                 return ("remap", {}), warnings
-            if local["core"] != local["shortcutCore"]:
+            if local.get("duckstation"):
+                warnings.append({"code": "duckstation_switch", "detail": {"core": local["coreName"]}})
+            elif local["core"] != local["shortcutCore"]:
                 if ra.sorts_saves_by_core(local["core"], rom):
                     detail = {"core": local["coreName"], "shortcutCore": local["shortcutCoreName"]}
                     if mode == "link":
@@ -2324,8 +2352,9 @@ class MultiplayerService:
                 files = [cfg_path, opt_path]
                 core_path = ra.core_path(local["core"]) if local["core"] != local["shortcutCore"] else None
                 args = session.retroarch_args(mode=mode, role=role, host_ip=host_ip, nick=nick,
-                                              cfg_path=cfg_path, core_path=core_path, core=local["core"])
-                if core_path is not None:
+                                              cfg_path=cfg_path, core_path=core_path, core=local["core"],
+                                              rom=rom if local.get("duckstation") else None)
+                if core_path is not None and not local.get("duckstation"):
                     self._back_up_save(ra, local)
             elif local["emulator"] == "dolphin":
                 marker = self._session_dir / f"session-{sid}.dolphin"

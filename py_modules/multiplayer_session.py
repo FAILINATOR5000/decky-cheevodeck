@@ -34,6 +34,8 @@ GB_SYSTEMS = (4, 6)
 GBA_SYSTEM = 5
 DS_SYSTEM = 18
 GAMECUBE_SYSTEM = 16
+PS1_SYSTEM = 12
+BEETLE_PSX_HW = "mednafen_psx_hw"
 WII_SYSTEM = 19
 DOLPHIN_SYSTEMS = (GAMECUBE_SYSTEM, WII_SYSTEM)
 DOLPHIN_NETPLAY_PORT = 2626
@@ -708,7 +710,8 @@ def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcor
     return write_cfg(cfg), write_cfg(options.items())
 
 
-def retroarch_args(*, mode: str, role: str, host_ip: str, nick: str, cfg_path: Path, core_path, core: str) -> str:
+def retroarch_args(*, mode: str, role: str, host_ip: str, nick: str, cfg_path: Path, core_path, core: str,
+                   rom=None) -> str:
     parts = []
     if core_path is not None:
         parts += ["-L", quote(str(core_path))]
@@ -718,6 +721,8 @@ def retroarch_args(*, mode: str, role: str, host_ip: str, nick: str, cfg_path: P
     elif netplay:
         parts += ["--connect", host_ip, "--port", "55435", "--nick", quote(nick)]
     parts += ["--appendconfig", quote(str(cfg_path))]
+    if rom is not None:
+        parts.append(quote(str(rom)))
     return " ".join(parts)
 
 

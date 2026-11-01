@@ -2926,6 +2926,7 @@ const JA: LocaleTable = {
     "Open Dolphin": "Dolphinを開く",
     "Dolphin NetPlay": "Dolphin NetPlay",
     "Say Something": "メッセージを送る",
+    "DuckStation can't do Couch Play, and its saves won't carry over. {{core}} works, so this session uses it.": "DuckStationはCouch Playに対応しておらず、そのセーブデータは引き継がれません。{{core}}は対応しているので、このセッションではそれを使います。",
     "Chat History": "チャット履歴",
     "Send": "送信",
     "No messages yet": "まだメッセージはありません",
