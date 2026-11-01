@@ -693,7 +693,7 @@ def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcor
         for number in range(1, 17):
             wanted = role == "guest" and number == (1 if share_controls else seat + 1)
             cfg.append((f"netplay_request_device_p{number}", "true" if wanted else "false"))
-    taps = MULTITAP.get(core, {}) if mode == "couch" and role == "host" and players > 2 else {}
+    taps = MULTITAP.get(core, {}) if mode == "couch" and players > 2 else {}
     for port, device in taps.get("devices", {}).items():
         cfg.append((f"input_libretro_device_p{port}", device))
 
