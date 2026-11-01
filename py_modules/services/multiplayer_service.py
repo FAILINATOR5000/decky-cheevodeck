@@ -458,7 +458,12 @@ class MultiplayerService:
             return None
         self._dolphin_skipped = bool(results.get("skippedDolphin"))
         library = {}
-        for game in results.get("supportedGames") or []:
+        games = list(results.get("supportedGames") or [])
+        for row in results.get("noAchievements") or []:
+            if isinstance(row, dict) and isinstance(row.get("path"), str):
+                games.append({**row, "paths": [row["path"]],
+                              "files": [{"path": row["path"], "raHash": row.get("raHash")}]})
+        for game in games:
             if not isinstance(game, dict):
                 continue
             game_id = game.get("gameId")
