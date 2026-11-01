@@ -3083,6 +3083,7 @@ export const EN: LocaleTable = {
     "Add {{folder}} to Dolphin's game list": "Add {{folder}} to Dolphin's game list",
     "The host uses Dolphin {{version}}. Every device needs the same Dolphin version.": "The host uses Dolphin {{version}}. Every device needs the same Dolphin version.",
     "The host uses PPSSPP {{version}}. Every device needs the same PPSSPP version.": "The host uses PPSSPP {{version}}. Every device needs the same PPSSPP version.",
+    "Your {{core}} build differs from the host's. Update cores on every device (Main Menu → Online Updater → Update Installed Cores).": "Your {{core}} build differs from the host's. Update cores on every device (Main Menu → Online Updater → Update Installed Cores).",
     "Host in NetPlay": "Host in NetPlay",
     "Connect in NetPlay": "Connect in NetPlay",
     "You can play": "You can play",

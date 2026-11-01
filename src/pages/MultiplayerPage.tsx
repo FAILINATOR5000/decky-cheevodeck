@@ -121,6 +121,7 @@ const PROBLEM_TEXT: Record<string, string> = {
     dolphin_game_list: "Add {{folder}} to Dolphin's game list",
     dolphin_version_mismatch: "The host uses Dolphin {{version}}. Every device needs the same Dolphin version.",
     ppsspp_version_mismatch: "The host uses PPSSPP {{version}}. Every device needs the same PPSSPP version.",
+    core_build_differs: "Your {{core}} build differs from the host's. Update cores on every device (Main Menu → Online Updater → Update Installed Cores).",
     not_found: "No room found at that address",
     bad_address: "Not a valid address",
     host_gone: "Lost the host",

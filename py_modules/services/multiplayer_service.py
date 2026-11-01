@@ -957,9 +957,10 @@ class MultiplayerService:
             if mode == "couch" and local["emulator"] == "dolphin" and room["emuVersion"] and local["emuVersion"] \
                     and room["emuVersion"] != local["emuVersion"]:
                 return ("dolphin_version_mismatch", {"version": room["emuVersion"]}), warnings
-            builds_differ = mode == "couch" and room["coreBuild"] and local["coreBuild"] \
-                and room["coreBuild"] != local["coreBuild"]
-            if versions_differ or builds_differ:
+            if mode == "couch" and room["coreBuild"] and local["coreBuild"] \
+                    and room["coreBuild"] != local["coreBuild"]:
+                return ("core_build_differs", {"core": room["coreName"]}), warnings
+            if versions_differ:
                 warnings.append({"code": "version_mismatch", "detail": {}})
 
         if ra is not None:

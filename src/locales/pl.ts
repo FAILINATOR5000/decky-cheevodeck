@@ -3186,6 +3186,7 @@ const PL: LocaleTable = {
     "Add {{folder}} to Dolphin's game list": "Dodaj {{folder}} do listy gier Dolphina",
     "The host uses Dolphin {{version}}. Every device needs the same Dolphin version.": "Host używa Dolphina {{version}}. Każde urządzenie potrzebuje tej samej wersji Dolphina.",
     "The host uses PPSSPP {{version}}. Every device needs the same PPSSPP version.": "Host używa PPSSPP {{version}}. Każde urządzenie potrzebuje tej samej wersji PPSSPP.",
+    "Your {{core}} build differs from the host's. Update cores on every device (Main Menu → Online Updater → Update Installed Cores).": "Twoja kompilacja {{core}} różni się od tej u hosta. Zaktualizuj rdzenie na każdym urządzeniu (Menu główne → Aktualizator online → Aktualizuj zainstalowane rdzenie).",
     "Host in NetPlay": "Hostuj w NetPlay",
     "Connect in NetPlay": "Połącz w NetPlay",
     "You can play": "Możesz grać",

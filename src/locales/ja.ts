@@ -2941,6 +2941,7 @@ const JA: LocaleTable = {
     "Add {{folder}} to Dolphin's game list": "{{folder}}をDolphinのゲームリストに追加してください",
     "The host uses Dolphin {{version}}. Every device needs the same Dolphin version.": "ホストはDolphin {{version}}を使っています。すべての端末で同じバージョンのDolphinが必要です。",
     "The host uses PPSSPP {{version}}. Every device needs the same PPSSPP version.": "ホストはPPSSPP {{version}}を使っています。すべての端末で同じバージョンのPPSSPPが必要です。",
+    "Your {{core}} build differs from the host's. Update cores on every device (Main Menu → Online Updater → Update Installed Cores).": "あなたの{{core}}のビルドがホストと異なります。すべての端末でコアを更新してください（メインメニュー → オンラインアップデーター → インストール済みコアを更新）。",
     "Host in NetPlay": "NetPlayでホスト",
     "Connect in NetPlay": "NetPlayで接続",
     "You can play": "プレイできます",
