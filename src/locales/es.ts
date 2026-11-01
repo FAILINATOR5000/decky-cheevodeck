@@ -3119,6 +3119,7 @@ const ES: LocaleTable = {
     "The host uses Dolphin {{version}}. Every device needs the same Dolphin version.": "El anfitrión usa Dolphin {{version}}. Todos los dispositivos necesitan la misma versión de Dolphin.",
     "The host uses PPSSPP {{version}}. Every device needs the same PPSSPP version.": "El anfitrión usa PPSSPP {{version}}. Todos los dispositivos necesitan la misma versión de PPSSPP.",
     "Your {{core}} build differs from the host's. Update cores on every device (Main Menu → Online Updater → Update Installed Cores).": "Tu compilación de {{core}} es distinta de la del anfitrión. Actualiza los núcleos en todos los dispositivos (Menú principal → Actualizador en línea → Actualizar núcleos instalados).",
+    "Multiplayer runs best at 60 Hz. If a game jitters, set 60 Hz in Steam's Performance menu while it runs.": "El multijugador funciona mejor a 60 Hz. Si un juego da tirones, ajusta 60 Hz en el menú Rendimiento de Steam mientras está abierto.",
     "Host in NetPlay": "Hospeda en NetPlay",
     "Connect in NetPlay": "Conecta en NetPlay",
     "You can play": "Puedes jugar",

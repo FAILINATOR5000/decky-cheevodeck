@@ -37,6 +37,7 @@ import { showManagedModal } from "../utils/modalRegistry";
 import { logError } from "../utils/errors";
 import { multiplayerGuestGames } from "../api";
 import { anyGameRunning, otherGameRunning } from "../utils/multiplayerSession";
+import { screenMaxRefresh } from "../utils/screenRefresh";
 import { getCurrentControllerGlyphStyle } from "../utils/controllerGlyphs";
 import { ButtonHints } from "../components/ui/ButtonHints";
 import { openExternalUrl, raLookupSearchUrl } from "../utils/navigation";
@@ -194,6 +195,13 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const [ipDigits, setIpDigits] = useState("192168001000");
     const [codeDigits, setCodeDigits] = useState("0000");
     const [playFocused, setPlayFocused] = useState(false);
+    const [screenHz, setScreenHz] = useState<number | null>(null);
+
+    useEffect(() => {
+        if (visible) {
+            void screenMaxRefresh().then(setScreenHz);
+        }
+    }, [visible]);
 
     const currentGameId = state.payload?.gameId ?? null;
     useEffect(() => {
@@ -1089,6 +1097,13 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                                 </div>
                             </PanelSectionRow>
                         ))}
+                        {screenHz !== null && (screenHz === 0 || screenHz > 60) && (
+                            <PanelSectionRow>
+                                <div style={bodyTextStyle()}>
+                                    {t(language, "Multiplayer runs best at 60 Hz. If a game jitters, set 60 Hz in Steam's Performance menu while it runs.")}
+                                </div>
+                            </PanelSectionRow>
+                        )}
                         {(mp.problem || hosted?.notice || (!hosted && !joined && mp.closedReason)) && (
                             <PanelSectionRow>
                                 <div style={{ ...bodyTextStyle(), color: errorRed, opacity: 1 }}>
