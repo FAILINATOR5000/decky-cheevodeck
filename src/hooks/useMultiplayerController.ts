@@ -5,13 +5,10 @@ import {
     multiplayerChangeGame,
     multiplayerCheck,
     multiplayerCloseRoom,
-    multiplayerDiscover,
     multiplayerDropSeat,
     multiplayerGames,
     multiplayerGuestGame,
-    multiplayerJoin,
     multiplayerLeave,
-    multiplayerLookup,
     multiplayerRoomOptions,
     multiplayerRoomStatus,
     multiplayerSetVisible
@@ -20,7 +17,6 @@ import type {
     MultiplayerCheck,
     MultiplayerGame,
     MultiplayerMode,
-    MultiplayerRoomRow,
     MultiplayerRoomStatus,
     Payload
 } from "../types";
@@ -45,7 +41,6 @@ import {
 import { pressMultiplayerReady } from "../utils/multiplayerRoomState";
 
 const TICK_MS = 2000;
-const DISCOVER_EVERY = 2;
 const RENEW_EVERY = 5;
 
 export type MultiplayerProblem = { code: string; detail?: Record<string, string> };
@@ -59,7 +54,6 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     const [hardcore, setHardcoreState] = useState(() => multiplayerChoices().hardcore);
     const [shareControls, setShareState] = useState(() => multiplayerChoices().share);
     const [visibleError, setVisibleError] = useState("");
-    const [rooms, setRooms] = useState<MultiplayerRoomRow[] | null>(null);
     const [status, setStatus] = useState<MultiplayerRoomStatus | null>(null);
     const [check, setCheck] = useState<MultiplayerCheck | null>(null);
     const [checkedFor, setCheckedFor] = useState("");
@@ -70,7 +64,6 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     const [problem, setProblem] = useState<MultiplayerProblem | null>(null);
     const [headerPayload, setHeaderPayload] = useState<Payload | null>(null);
     const session = useSyncExternalStore(subscribeMultiplayerSession, multiplayerSessionSnapshot);
-    const discoveringRef = useRef(false);
     const checkTokenRef = useRef(0);
 
     const hosted = status?.role === "host" ? status.room : null;
@@ -93,25 +86,6 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         }
         catch (e) {
             logError("multiplayerRoomStatus", e);
-        }
-    }, []);
-
-    const discover = useCallback(async () => {
-        if (discoveringRef.current) {
-            return;
-        }
-        discoveringRef.current = true;
-        try {
-            const found = await multiplayerDiscover();
-            if (found.ok) {
-                setRooms(found.rooms ?? []);
-            }
-        }
-        catch (e) {
-            logError("multiplayerDiscover", e);
-        }
-        finally {
-            discoveringRef.current = false;
         }
     }, []);
 
@@ -142,16 +116,11 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             return;
         }
         multiplayerSetVisible(false, false).catch((e) => logError("multiplayerSetVisible", e));
-        setRooms(null);
         setStatus(null);
         setCheck(null);
         setProblem(null);
         setVisibleError("");
     }, [isActive]);
-
-    const hostingOrJoined = hosted !== null || joined !== null;
-    const hostingOrJoinedRef = useRef(hostingOrJoined);
-    hostingOrJoinedRef.current = hostingOrJoined;
 
     useEffect(() => {
         if (!isActive) {
@@ -166,9 +135,6 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
                     return;
                 }
                 setVisibleError(opened.ok ? "" : opened.error ?? "unavailable");
-                if (opened.ok) {
-                    await discover();
-                }
             }
             catch (e) {
                 logError("multiplayerSetVisible", e);
@@ -186,15 +152,12 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
                     .catch((e) => logError("multiplayerSetVisible", e));
             }
             void reloadStatus();
-            if (tick % DISCOVER_EVERY === 0 && !hostingOrJoinedRef.current) {
-                void discover();
-            }
         }, TICK_MS);
         return () => {
             alive = false;
             window.clearInterval(timer);
         };
-    }, [isActive, discover, reloadStatus]);
+    }, [isActive, reloadStatus]);
 
     useEffect(() => {
         setCoreState(multiplayerCoreFor(gameId));
@@ -358,13 +321,6 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         }
     }
 
-    async function freshVisit() {
-        if (!visibleError) {
-            return;
-        }
-        const opened = await multiplayerSetVisible(true, true);
-        setVisibleError(opened.ok ? "" : opened.error ?? "unavailable");
-    }
 
     async function closeRoom() {
         await run(() => multiplayerCloseRoom());
@@ -374,44 +330,6 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
 
     function dropSeat(seat: number) {
         return run(() => multiplayerDropSeat(seat));
-    }
-
-    function pickRoom(row: MultiplayerRoomRow) {
-        setProblem(null);
-        if (row.mode !== tab && !hostingOrJoined) {
-            rememberMultiplayerTab(row.mode);
-            setTabState(row.mode);
-        }
-        if (row.private) {
-            return;
-        }
-        void run(async () => {
-            await freshVisit();
-            return multiplayerJoin(row.room, "", hardcore);
-        });
-    }
-
-    async function lookup(address: string) {
-        setBusy(true);
-        setProblem(null);
-        try {
-            const found = await multiplayerLookup(address);
-            if (!found.ok || !found.room) {
-                setProblem({ code: found.error ?? "not_found" });
-                return null;
-            }
-            const room = found.room;
-            setRooms((listed) => [room, ...(listed ?? []).filter((row) => row.room !== room.room)]);
-            return room;
-        }
-        catch (e) {
-            logError("multiplayerLookup", e);
-            setProblem({ code: "not_found" });
-            return null;
-        }
-        finally {
-            setBusy(false);
-        }
     }
 
     async function leave() {
@@ -453,7 +371,6 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             shareControls: hosted ? hosted.share : shareControls,
             core,
             visibleError,
-            rooms,
             hosted,
             joined,
             closedReason: status?.role === null ? status.closedReason : "",
@@ -478,8 +395,6 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             setShare,
             closeRoom,
             dropSeat,
-            pickRoom,
-            lookup,
             leave,
             play,
             start,

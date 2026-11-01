@@ -13,21 +13,12 @@ import { achievementGreen, compactButtonStyle, errorRed, modalBodyStyle } from "
 import { helpDescription } from "../ui/InfoText";
 import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
+import { ROOM_STATUSES } from "./roomStatus";
 
 const NAME_MAX = 24;
 const PASSWORD_MAX = 32;
 const MIN_SEATS = 2;
 const MAX_SEATS = 10;
-
-const STATUSES: { code: string; labelKey: string }[] = [
-    { code: "", labelKey: "None" },
-    { code: "chill", labelKey: "Chill" },
-    { code: "casual", labelKey: "Casual" },
-    { code: "competitive", labelKey: "Competitive" },
-    { code: "achievements", labelKey: "Achievement Hunting" },
-    { code: "fun", labelKey: "Fun" },
-    { code: "party", labelKey: "Party Games" }
-];
 
 type HostRequest = {
     mode: MultiplayerMode;
@@ -137,7 +128,7 @@ function HostRoomModal(props: HostRoomModalProps) {
                     flow-children="grid"
                     style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: "8px", alignItems: "center" }}
                 >
-                    {STATUSES.map((entry) => (
+                    {ROOM_STATUSES.map((entry) => (
                         <div
                             key={entry.labelKey}
                             data-focus-key={`multiplayer:hostroom:status:${entry.code || "none"}`}

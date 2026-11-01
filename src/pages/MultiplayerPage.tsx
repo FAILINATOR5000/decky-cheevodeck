@@ -1,37 +1,32 @@
 import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { PanelSection } from "../components/ui/PanelSection";
 import { BackButton } from "../components/ui/BackButton";
 import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
 import { FocusableItem } from "../components/ui/FocusableItem";
 import { FocusTarget } from "../components/ui/FocusTarget";
-import { InlineSpinner } from "../components/ui/InlineSpinner";
 import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
-import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
 import { SubTabButton } from "../components/ui/SubTabButton";
 import { TextViewerModal } from "../components/ui/TextViewerModal";
 import { ToggleRow } from "../components/ui/ToggleRow";
 import { GameHeaderCard, useGameHeaderArt } from "../components/games/GameHeaderCard";
 import { openCorePicker } from "../components/multiplayer/CorePickerModal";
-import { DigitPicker } from "../components/multiplayer/DigitPicker";
 import { RoomTable } from "../components/multiplayer/RoomTable";
 import { openChatSay } from "../components/multiplayer/ChatSayModal";
 import { openHostRoom } from "../components/multiplayer/HostRoomModal";
-import { openJoinPassword } from "../components/multiplayer/JoinPasswordModal";
+import { openRooms } from "../components/multiplayer/RoomsModal";
 import { SectionTitle } from "../components/ui/SectionTitle";
 import { useMultiplayer } from "../components/multiplayer/MultiplayerContext";
 import { CheevoCheckGamesModal } from "../components/pickers/CheevoCheckGamesModal";
 import { skipWhileHidden } from "../components/panel/skipWhileHidden";
-import { useSlidingWindow } from "../hooks/useSlidingWindow";
-import { landOnTop, pendingLandingKey, usePageLanding } from "../focusRecords";
+import { usePageLanding } from "../focusRecords";
 import { t, type LanguageCode } from "../locales";
 import type {
     ButtonSpacing,
     MultiplayerCoreChoice,
     MultiplayerGuestGame,
     MultiplayerMode,
-    MultiplayerRoomRow,
     Payload,
     ViewKey
 } from "../types";
@@ -43,7 +38,6 @@ import { screenMaxRefresh } from "../utils/screenRefresh";
 import { getCurrentControllerGlyphStyle } from "../utils/controllerGlyphs";
 import { ButtonHints } from "../components/ui/ButtonHints";
 import { openExternalUrl, raLookupSearchUrl } from "../utils/navigation";
-import { textSize } from "../utils/scale";
 import {
     achievementGreen,
     bodyTextStyle,
@@ -54,11 +48,9 @@ import {
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 
-const ROOM_PREFIX = "multiplayer:room:";
 const LINK_SYSTEMS = [4, 5, 6, 16, 18, 41];
 const DOLPHIN_CONSOLES = ["GameCube", "Wii"];
 const GBA_SYSTEM = 5;
-const NO_ROOMS: MultiplayerRoomRow[] = [];
 const NO_CORES: MultiplayerCoreChoice[] = [];
 const CHAT_LINES = 6;
 
@@ -156,18 +148,6 @@ function problemText(language: LanguageCode, code: string, detail?: Record<strin
     return t(language, PROBLEM_TEXT[code] ?? PROBLEM_TEXT.launch_failed, detail);
 }
 
-function roomKey(row: MultiplayerRoomRow): string {
-    return ROOM_PREFIX + row.room;
-}
-
-function validAddress(digits: string): boolean {
-    return [0, 3, 6, 9].every((at) => Number(digits.slice(at, at + 3)) <= 255);
-}
-
-function addressOf(digits: string): string {
-    return [0, 3, 6, 9].map((at) => String(Number(digits.slice(at, at + 3)))).join(".");
-}
-
 type MultiplayerPageState = {
     view: ViewKey;
     language: LanguageCode;
@@ -192,8 +172,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const { language } = state;
     const visible = state.view === "multiplayer";
     const { state: mp, actions } = useMultiplayer();
-    const [ipOpen, setIpOpen] = useState(false);
-    const [ipDigits, setIpDigits] = useState("192168001000");
     const [playFocused, setPlayFocused] = useState(false);
     const [screenHz, setScreenHz] = useState<number | null>(null);
 
@@ -210,33 +188,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         }
     }, [visible, currentGameId]);
 
-    const rooms = mp.rooms ?? NO_ROOMS;
     const choices = mp.check?.local?.choices ?? NO_CORES;
 
-    const roomWindow = useSlidingWindow({
-        items: rooms,
-        itemKey: (row) => row.room,
-        focusKeyFor: roomKey,
-        windowId: "multiplayer:rooms",
-        heightScope: ["multiplayer:rooms", language, textSize(12)].join("|"),
-        dynamicLoading: true,
-        initialRows: 20,
-        rowStep: 20,
-        prefetchDistance: 0,
-        sentinelRootMarginPx: 600,
-        resetKey: "multiplayer:rooms",
-        openFirst: pendingLandingKey("multiplayer") ?? undefined
-    });
-
-    const joinedRoom = mp.joined?.room ?? null;
-
-    const joiningRef = useRef(false);
-    useEffect(() => {
-        if (joinedRoom && joiningRef.current) {
-            joiningRef.current = false;
-            landOnTop("multiplayer", "multiplayer:leave");
-        }
-    }, [joinedRoom?.room]);
     const checkAnswered = mp.loaded && (mp.gameId === null || mp.checkCurrent);
     const [lowerDrawn, setLowerDrawn] = useState(false);
     useEffect(() => {
@@ -261,8 +214,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         },
         defaultKey: "multiplayer:back",
         ready: drawLower,
-        holds: (key) => rooms.some((row) => roomKey(row) === key),
-        open: (key) => roomWindow.openAt(key),
         timing: { revealDeadlineMs: 1000, pressGuardCeilingMs: 1050 }
     });
 
@@ -386,10 +337,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const title = shown?.title ?? local?.title ?? mp.games?.find((game) => game.gameId === mp.gameId)?.title ?? null;
 
     function pressBack() {
-        if (ipOpen) {
-            setIpOpen(false);
-            return;
-        }
         void page.onBack();
     }
 
@@ -506,23 +453,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             core: mp.core,
             share: mp.shareControls
         }, describe);
-    }
-
-    function chooseRoom(row: MultiplayerRoomRow) {
-        actions.pickRoom(row);
-        if (row.private) {
-            openJoinPassword(language, row, mp.hardcore, describe);
-            return;
-        }
-        joiningRef.current = true;
-    }
-
-    async function findByAddress() {
-        const room = await actions.lookup(addressOf(ipDigits));
-        if (room) {
-            setIpOpen(false);
-            chooseRoom(room);
-        }
     }
 
     const buttonStyle = regularButtonSpacingStyle(state.buttonSpacing);
@@ -669,17 +599,32 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             </FocusableItem>
         </PanelSectionRow>
     ) : (
-        <PanelSectionRow>
-            <FocusableItem
-                outerStyle={buttonStyle}
-                focusKey="multiplayer:host"
-                focusFallback={[`multiplayer:tab:${mp.mode}`, "multiplayer:back"]}
-                disabled={mp.busy || (!hosted && (mp.gameId === null || !gateCheck || Boolean(gateCheck.gate) || (Boolean(mp.visibleError) && mp.visibleError !== "cap_reached")))}
-                onClick={() => void (hosted ? actions.closeRoom() : openHost())}
-            >
-                {t(language, hosted ? "Close Room" : "Host a Room")}
-            </FocusableItem>
-        </PanelSectionRow>
+        <>
+            <PanelSectionRow>
+                <FocusableItem
+                    outerStyle={buttonStyle}
+                    focusKey="multiplayer:host"
+                    focusFallback={[`multiplayer:tab:${mp.mode}`, "multiplayer:back"]}
+                    disabled={mp.busy || (!hosted && (mp.gameId === null || !gateCheck || Boolean(gateCheck.gate) || (Boolean(mp.visibleError) && mp.visibleError !== "cap_reached")))}
+                    onClick={() => void (hosted ? actions.closeRoom() : openHost())}
+                >
+                    {t(language, hosted ? "Close Room" : "Host a Room")}
+                </FocusableItem>
+            </PanelSectionRow>
+            {!hosted && (
+                <PanelSectionRow>
+                    <FocusableItem
+                        outerStyle={buttonStyle}
+                        focusKey="multiplayer:find"
+                        focusFallback={["multiplayer:host", `multiplayer:tab:${mp.mode}`, "multiplayer:back"]}
+                        disabled={mp.busy}
+                        onClick={() => openRooms(language, mp.hardcore, mp.installedCores, describe)}
+                    >
+                        {t(language, "Find a Room")}
+                    </FocusableItem>
+                </PanelSectionRow>
+            )}
+        </>
     );
 
     const hintsRow = !state.mouseKeyboardMode && (hosted || joined) && (
@@ -849,124 +794,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         </>
     );
 
-    const listRows = !hosted && !joined && (
-        <>
-            <PanelSectionRow>
-                <div style={{ ...bodyTextStyle(), fontWeight: "bold", opacity: 1, marginTop: "8px" }}>
-                    {t(language, "Rooms")}
-                </div>
-            </PanelSectionRow>
-            {rooms.length > 0 && (
-                <SlidingWindowRows list={roomWindow}>
-                    {roomWindow.mountedItems.map((row, index) => {
-                        const at = roomWindow.start + index;
-                        const neighbors = [rooms[at + 1], rooms[at - 1]]
-                            .filter((other): other is MultiplayerRoomRow => other !== undefined)
-                            .map(roomKey);
-                        const taken = row.seats.filter(Boolean).length;
-                        const tags = [
-                            row.private ? t(language, "Private") : "",
-                            row.emulator === "retroarch" && row.core && !mp.installedCores.includes(row.core)
-                                ? t(language, "Core not installed")
-                                : ""
-                        ].filter(Boolean).join(" · ");
-                        return (
-                            <PanelSectionRow key={row.room}>
-                                <FocusableItem
-                                    outerStyle={buttonStyle}
-                                    focusKey={roomKey(row)}
-                                    focusFallback={[
-                                        ...neighbors,
-                                        "multiplayer:leave",
-                                        "multiplayer:joinip",
-                                        `multiplayer:tab:${mp.mode}`,
-                                        "multiplayer:back"
-                                    ]}
-                                    onGamepadFocus={() => roomWindow.onItemFocus(at)}
-                                    onGamepadDirection={roomWindow.guardTopRow(at)}
-                                    onClick={() => chooseRoom(row)}
-                                >
-                                    <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                                        <div>{t(language, "{{name}} · {{title}}", { name: row.user, title: row.title })}</div>
-                                        <div style={bodyTextStyle()}>
-                                            {t(language, row.mode === "link" ? "Link Play" : "Couch Play")}
-                                            {row.coreName ? ` · ${row.coreName}` : ""}
-                                            {" · "}
-                                            {t(language, "{{taken}} of {{count}} seats", { taken, count: row.max })}
-                                            {row.state === "playing" ? ` · ${t(language, "In-Game")}` : ""}
-                                        </div>
-                                        {tags && <div style={{ ...bodyTextStyle(), color: warnAmber }}>{tags}</div>}
-                                        {row.verdict && (
-                                            <div style={{ ...bodyTextStyle(), opacity: 1, color: row.verdict.can ? achievementGreen : warnAmber }}>
-                                                {row.verdict.can
-                                                    ? `✔ ${t(language, "You can play")}`
-                                                    : problemText(language, row.verdict.reason, row.verdict.detail)}
-                                            </div>
-                                        )}
-                                    </div>
-                                </FocusableItem>
-                            </PanelSectionRow>
-                        );
-                    })}
-                </SlidingWindowRows>
-            )}
-            {rooms.length === 0 && mp.rooms === null && !mp.visibleError && (
-                <PanelSectionRow>
-                    <InlineSpinner label={t(language, "Looking for rooms...")} />
-                </PanelSectionRow>
-            )}
-            {rooms.length === 0 && (mp.rooms !== null || mp.visibleError) && (
-                <PanelSectionRow>
-                    <div style={bodyTextStyle()}>
-                        {t(language, "No rooms yet. Both devices need to be on the same Wi-Fi, or use Join by IP.")}
-                    </div>
-                </PanelSectionRow>
-            )}
-            <PanelSectionRow>
-                <FocusableItem
-                    outerStyle={buttonStyle}
-                    focusKey="multiplayer:joinip"
-                    focusFallback={[`multiplayer:tab:${mp.mode}`, "multiplayer:back"]}
-                    onClick={() => setIpOpen(!ipOpen)}
-                >
-                    {t(language, "Join by IP")}
-                </FocusableItem>
-            </PanelSectionRow>
-            {ipOpen && (
-                <>
-                    <PanelSectionRow>
-                        <DigitPicker
-                            language={language}
-                            digits={ipDigits}
-                            onChange={setIpDigits}
-                            focusPrefix="multiplayer:ip"
-                            groupSize={3}
-                            fallbacks={["multiplayer:ip:go", "multiplayer:leave", "multiplayer:joinip"]}
-                        />
-                    </PanelSectionRow>
-                    {!validAddress(ipDigits) && (
-                        <PanelSectionRow>
-                            <div style={{ ...bodyTextStyle(), color: errorRed, opacity: 1 }}>
-                                {t(language, "Not a valid address")}
-                            </div>
-                        </PanelSectionRow>
-                    )}
-                    <PanelSectionRow>
-                        <FocusableItem
-                            outerStyle={buttonStyle}
-                            focusKey="multiplayer:ip:go"
-                            focusFallback={["multiplayer:leave", "multiplayer:joinip"]}
-                            disabled={mp.busy || !validAddress(ipDigits)}
-                            onClick={() => void findByAddress()}
-                        >
-                            {t(language, "Find Room")}
-                        </FocusableItem>
-                    </PanelSectionRow>
-                </>
-            )}
-        </>
-    );
-
     return (
         <Focusable
             key="multiplayer:view"
@@ -1093,7 +920,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                             {roomButton}
                             {roomRows}
                             {optionRows}
-                            {listRows}
                             <BottomFocusAnchor focusKey="multiplayer:bottom:anchor" />
                         </Focusable>
                     </>
