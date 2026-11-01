@@ -16,6 +16,7 @@ import { GameHeaderCard, useGameHeaderArt } from "../components/games/GameHeader
 import { openCorePicker } from "../components/multiplayer/CorePickerModal";
 import { DigitPicker } from "../components/multiplayer/DigitPicker";
 import { RoomTable } from "../components/multiplayer/RoomTable";
+import { openChatSay } from "../components/multiplayer/ChatSayModal";
 import { SectionTitle } from "../components/ui/SectionTitle";
 import { useMultiplayer } from "../components/multiplayer/MultiplayerContext";
 import { CheevoCheckGamesModal } from "../components/pickers/CheevoCheckGamesModal";
@@ -56,6 +57,7 @@ const DOLPHIN_CONSOLES = ["GameCube", "Wii"];
 const GBA_SYSTEM = 5;
 const NO_ROOMS: MultiplayerRoomRow[] = [];
 const NO_CORES: MultiplayerCoreChoice[] = [];
+const CHAT_LINES = 6;
 
 const TABS: { mode: MultiplayerMode; labelKey: string; focusKey: string }[] = [
     { mode: "link", labelKey: "Link Play", focusKey: "multiplayer:tab:link" },
@@ -113,6 +115,7 @@ const PROBLEM_TEXT: Record<string, string> = {
     bad_code: "Wrong code",
     locked_out: "Too many wrong codes. Try again in a minute.",
     full: "That room is full",
+    chat_refused: "Couldn't send that message",
     no_dolphin_emulator_shortcut: "Add Dolphin itself to Steam ROM Manager",
     dolphin_game_list: "Add {{folder}} to Dolphin's game list",
     dolphin_version_mismatch: "The host uses Dolphin {{version}}. Every device needs the same Dolphin version.",
@@ -657,6 +660,75 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         </PanelSectionRow>
     );
 
+    const chat = hosted?.chat ?? joined?.chat ?? [];
+    const exitKey = hosted ? "multiplayer:host" : "multiplayer:leave";
+    const chatRows = (hosted || joined) && (
+        <>
+            <BottomFocusAnchor
+                focusKey="multiplayer:chat:anchor"
+                focusFallback={["multiplayer:say", exitKey, "multiplayer:back"]}
+                headroomPx={0}
+            />
+            <PanelSectionRow>
+                <div
+                    style={{
+                        ...bodyTextStyle(),
+                        opacity: 1,
+                        width: "100%",
+                        height: `${CHAT_LINES * 1.4}em`,
+                        lineHeight: 1.4,
+                        overflow: "hidden",
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "flex-end",
+                        padding: "4px 0"
+                    }}
+                >
+                    {chat.length === 0 ? (
+                        <div style={{ fontStyle: "italic", opacity: 0.7 }}>{t(language, "No messages yet")}</div>
+                    ) : chat.slice(-CHAT_LINES).map((line) => (
+                        <div key={line.seq} style={{ flexShrink: 0, overflowWrap: "anywhere" }}>
+                            <span style={{ fontWeight: 700 }}>{line.name}</span>
+                            {": "}
+                            {line.text}
+                        </div>
+                    ))}
+                </div>
+            </PanelSectionRow>
+            <PanelSectionRow>
+                <FocusableItem
+                    outerStyle={buttonStyle}
+                    focusKey="multiplayer:say"
+                    focusFallback={["multiplayer:chathistory", exitKey, "multiplayer:back"]}
+                    onClick={() => openChatSay(language)}
+                >
+                    {t(language, "Say Something")}
+                </FocusableItem>
+            </PanelSectionRow>
+            <PanelSectionRow>
+                <FocusableItem
+                    outerStyle={buttonStyle}
+                    focusKey="multiplayer:chathistory"
+                    focusFallback={["multiplayer:say", exitKey, "multiplayer:back"]}
+                    disabled={chat.length === 0}
+                    onClick={() => {
+                        showManagedModal((close) => (
+                            <TextViewerModal
+                                language={language}
+                                mouseKeyboardMode={state.mouseKeyboardMode}
+                                title={t(language, "Chat History")}
+                                text={chat.map((line) => `${line.name}: ${line.text}`).join("\n")}
+                                close={close}
+                            />
+                        ));
+                    }}
+                >
+                    {t(language, "Chat History")}
+                </FocusableItem>
+            </PanelSectionRow>
+        </>
+    );
+
     const roomRows = hosted ? (
         <>
             {hintsRow}
@@ -672,6 +744,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 onDrop={(index) => void actions.dropSeat(index)}
                 exitKey="multiplayer:host"
             />
+            {chatRows}
             {statusRow}
         </>
     ) : joined && (
@@ -698,6 +771,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 })}
                 exitKey="multiplayer:leave"
             />
+            {chatRows}
             {statusRow}
         </>
     );

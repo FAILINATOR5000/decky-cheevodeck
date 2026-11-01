@@ -63,6 +63,9 @@ class MultiplayerMixin(PluginContext):
     async def multiplayer_set_ready(self, ready: bool = False, reason: str = ""):
         return self.multiplayer_service.set_ready(bool(ready), str(reason or ""))
 
+    async def multiplayer_say(self, text: str = ""):
+        return await self.multiplayer_service.say(str(text or ""))
+
     async def multiplayer_start(self):
         return self.multiplayer_service.start()
 

@@ -7,17 +7,19 @@ const DECKY_BAR_HEADROOM_PX = 80;
 
 export type BottomFocusAnchorProps = {
     focusKey: string;
+    focusFallback?: string[];
     onClick?: () => void;
     headroomPx?: number;
 };
 
 export function BottomFocusAnchor(props: BottomFocusAnchorProps) {
-    const { focusKey, onClick, headroomPx = DECKY_BAR_HEADROOM_PX } = props;
+    const { focusKey, focusFallback, onClick, headroomPx = DECKY_BAR_HEADROOM_PX } = props;
     return (
         <>
             <PanelSectionRow>
                 <FocusTarget
                     focusKey={focusKey}
+                    focusFallback={focusFallback}
                     style={{ display: "flex", width: "100%", marginTop: "8px" }}
                 >
                     <DialogButton

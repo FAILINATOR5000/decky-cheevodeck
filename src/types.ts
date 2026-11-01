@@ -2942,6 +2942,8 @@ type MultiplayerSeat = { name: string; launched: boolean; ready: boolean; can: b
 
 type MultiplayerLastStart = { round: number; ok: boolean; error: string } | null;
 
+type MultiplayerChatLine = { seq: number; name: string; text: string };
+
 export type MultiplayerHostedRoom = {
     id: string;
     code: string;
@@ -2963,6 +2965,7 @@ export type MultiplayerHostedRoom = {
     canStart: boolean;
     lastStart: MultiplayerLastStart;
     notice: { code: string; detail: Record<string, string> } | null;
+    chat: MultiplayerChatLine[];
 };
 
 type MultiplayerGuestStatus = {
@@ -3000,6 +3003,7 @@ export type MultiplayerRoomStatus =
         can: boolean;
         reason: string;
         detail: Record<string, string>;
+        chat: MultiplayerChatLine[];
         autostart: { room: string; round: number; appid: number; dolphin: boolean } | null;
     }
     | { ok: true; seq: number; role: null; closedReason: string };

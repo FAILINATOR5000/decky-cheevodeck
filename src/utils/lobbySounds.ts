@@ -110,6 +110,10 @@ export function playUnready() {
     ], 1.6, 1800);
 }
 
+export function playTick() {
+    void play([{ frequency: B6, at: 0, peak: 0.12, decay: 0.4, sweep: 0.32 }], 1.4, 900);
+}
+
 export function playStart() {
     void play([
         { frequency: E6, at: 0, peak: 0.24, decay: 0.9, sweep: 0.72 },

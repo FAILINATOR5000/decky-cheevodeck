@@ -3,7 +3,7 @@ import hmac
 import re
 import socket
 
-from nearby_protocol import canonical, encode, is_nonce, is_tag, sign, verify
+from nearby_protocol import MAX_FRAME_BYTES, canonical, encode, is_nonce, is_tag, sign, verify
 
 PORT = 49732
 
@@ -38,7 +38,12 @@ _TITLE_MAX = 64
 _CORE_NAME_MAX = 48
 _VERSION_MAX = 32
 
-TAGGED_OPS = ("status", "launched", "leave", "ready")
+TAGGED_OPS = ("status", "launched", "leave", "ready", "say")
+
+CHAT_MAX = 120
+CHAT_KEPT = 50
+CHAT_REPLY_BYTES = 1800
+REPLY_BYTES = MAX_FRAME_BYTES - 200
 
 _REASON = re.compile(r"[a-z0-9_]{0,32}")
 
@@ -51,7 +56,8 @@ def _clean(value, limit: int):
 
 
 def clean_user(value) -> str:
-    return _clean(value, _USER_MAX) or ""
+    kept = _clean(value, _USER_MAX)
+    return "".join(ch for ch in kept if " " <= ch <= "~").strip() if kept else ""
 
 
 def is_room_id(value) -> bool:
@@ -336,6 +342,38 @@ def report(*, seq: int, ready: bool, rev: int, round_: int, can: bool, reason: s
             "gameId": game_id, "title": title[:_TITLE_MAX], "launched": launched, "hardcore": hardcore}
 
 
+def clean_chat(value) -> str:
+    if not isinstance(value, str):
+        return ""
+    return " ".join("".join(ch if ch.isprintable() else " " for ch in value).split())
+
+
+def chat_since(raw) -> int:
+    since = raw.get("since") if isinstance(raw, dict) else None
+    return since if type(since) is int and 0 <= since < 2 ** 31 else 0
+
+
+def chat_page(chat: list, since: int, limit: int = CHAT_REPLY_BYTES) -> list:
+    page, size = [], 0
+    for message in chat:
+        if message["seq"] <= since:
+            continue
+        size += len(canonical(message)) + 1
+        if size > min(limit, CHAT_REPLY_BYTES):
+            break
+        page.append(message)
+    return page
+
+
+def _chat_ok(message) -> bool:
+    return (
+        isinstance(message, dict)
+        and type(message.get("seq")) is int
+        and isinstance(message.get("name"), str)
+        and isinstance(message.get("text"), str)
+    )
+
+
 def read_report(raw):
     if not isinstance(raw, dict) or not raw:
         return None
@@ -381,6 +419,8 @@ def read_status_reply(key: bytes, message, nonce: str):
         or len(seats) != len(members)
         or not all(_seat_ok(seat) for seat in seats)
         or not (last is None or _last_start_ok(last))
+        or not isinstance(message.get("chat"), list)
+        or not all(_chat_ok(entry) for entry in message["chat"])
     ):
         return None
     return {
@@ -397,6 +437,8 @@ def read_status_reply(key: bytes, message, nonce: str):
                    "playing": seat["playing"], "title": _clean(seat["title"], _TITLE_MAX)} for seat in seats],
         "lastStart": None if last is None else {"round": last["round"], "ok": last["ok"], "error": last["error"]},
         "room": room,
+        "chat": [{"seq": entry["seq"], "name": _clean(entry["name"], _USER_MAX) or "",
+                  "text": clean_chat(entry["text"])[:CHAT_MAX]} for entry in message["chat"]],
     }
 
 

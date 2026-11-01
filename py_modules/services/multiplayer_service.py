@@ -110,6 +110,9 @@ ERROR_NOBODY_READY = "nobody_ready"
 ERROR_IN_GAME = "other_game"
 ERROR_NOT_LOBBY = "not_lobby"
 ERROR_LAUNCH_FAILED = "launch_failed"
+ERROR_CHAT = "chat_refused"
+
+CHAT_GAP_SECONDS = 1
 
 _JOIN_REFUSALS = {
     "bad_code": ERROR_BAD_CODE,
@@ -390,7 +393,8 @@ class MultiplayerService:
                     "seats": [{"name": seat["name"] if seat else "",
                                "ready": bool(seat) and index > 0 and self._seat_ready(room, seat)}
                               for index, seat in enumerate(room["seats"])],
-                    "rev": room["rev"], "round": room["round"], "state": self._public_state(room)}
+                    "rev": room["rev"], "round": room["round"], "state": self._public_state(room),
+                    "chat": dict(room["chat"][-1]) if room["chat"] else None}
         joined = self._joined
         if joined is not None:
             status = joined["status"] or {}
@@ -403,9 +407,10 @@ class MultiplayerService:
                               for index, name in enumerate(members)],
                     "rev": status.get("rev", 0), "round": status.get("round", 0),
                     "state": status.get("state", "lobby"),
+                    "chat": dict(joined["chat"][-1]) if joined["chat"] else None,
                     "autostart": self._pending_start(joined)}
         return {"role": None, "title": "", "host": "", "seated": 0, "error": "", "seat": 0, "ready": False,
-                "seats": [], "rev": 0, "round": 0, "state": "lobby"}
+                "seats": [], "rev": 0, "round": 0, "state": "lobby", "chat": None}
 
     def _announce(self) -> None:
         view = self._room_view()
@@ -1053,7 +1058,7 @@ class MultiplayerService:
                 "hardcore": bool(hardcore),
                 "private": bool(private),
                 "max": seats,
-                "seats": [{"name": user, "host": True}] + [None] * (seats - 1),
+                "seats": [{"name": user, "host": True, "said": 0.0}] + [None] * (seats - 1),
                 "state": "lobby",
                 "rev": 1,
                 "round": 0,
@@ -1064,6 +1069,8 @@ class MultiplayerService:
                 "lastStart": None,
                 "playingSince": None,
                 "notice": None,
+                "chat": [],
+                "chatSeq": 0,
                 "badAddresses": {},
                 "badTotal": 0,
                 "bannedPeers": set(),
@@ -1243,6 +1250,7 @@ class MultiplayerService:
             "canStart": self._can_start(room),
             "lastStart": dict(room["lastStart"]) if room["lastStart"] else None,
             "notice": dict(room["notice"]) if room["notice"] else None,
+            "chat": list(room["chat"]),
         }
 
     def _public_state(self, room: dict) -> str:
@@ -1522,6 +1530,8 @@ class MultiplayerService:
             "reason": "",
             "title": "",
             "gameId": 0,
+            "since": 0,
+            "said": 0.0,
         }
         await _say(writer, {"ok": True, "seat": seat, "ip": address, "t": proto.joined_tag(key, nc, ns, seat, address)})
         decky.logger.info("multiplayer: seat %s taken", seat)
@@ -1580,6 +1590,11 @@ class MultiplayerService:
             self._announce()
             return
         self._take_report(room, index, seat, proto.read_report(message.get("p")))
+        seat["since"] = proto.chat_since(message.get("p"))
+        if op == "say":
+            said = self._chat(room, seat, (message.get("p") or {}).get("text"), now)
+            await _say(writer, {"ok": said})
+            return
         if op == "launched":
             decky.logger.info("multiplayer: seat %s launched", index)
             await _say(writer, {"ok": True})
@@ -1616,7 +1631,7 @@ class MultiplayerService:
     def _status_body(self, room: dict, index: int, seat: dict) -> dict:
         roster = room["roster"] if room["state"] != "lobby" else []
         last = room["lastStart"]
-        return {
+        body = {
             "ok": True,
             "seat": index,
             "state": self._public_state(room),
@@ -1637,7 +1652,52 @@ class MultiplayerService:
             ],
             "lastStart": dict(last) if last else None,
             "room": proto.room_fields(room),
+            "chat": [],
         }
+        if proto.REPLY_BYTES - len(proto.canonical(body)) < proto.CHAT_REPLY_BYTES // 2:
+            for entry in body["seats"]:
+                entry["title"] = ""
+        body["chat"] = proto.chat_page(room["chat"], seat["since"], proto.REPLY_BYTES - len(proto.canonical(body)))
+        return body
+
+    def _chat(self, room: dict, seat: dict, raw, now: float) -> bool:
+        text = proto.clean_chat(raw)
+        if not text or len(text) > proto.CHAT_MAX or now - seat["said"] < CHAT_GAP_SECONDS:
+            return False
+        seat["said"] = now
+        room["chatSeq"] += 1
+        room["chat"].append({"seq": room["chatSeq"], "name": seat["name"], "text": text})
+        del room["chat"][:-proto.CHAT_KEPT]
+        self._announce()
+        return True
+
+    async def say(self, text: str) -> dict:
+        room = self._room
+        if room is not None:
+            ok = self._chat(room, room["seats"][0], text, time.monotonic())
+            if ok and room["notice"] and room["notice"]["code"] == ERROR_CHAT:
+                room["notice"] = None
+            if not ok:
+                room["notice"] = {"code": ERROR_CHAT, "detail": {}}
+                self._announce()
+                return {"ok": False, "error": ERROR_CHAT}
+            return {"ok": True}
+        joined = self._joined
+        if joined is None:
+            return {"ok": False, "error": ERROR_NO_ROOM}
+        cleaned = proto.clean_chat(text)
+        reply = None
+        if cleaned and len(cleaned) <= proto.CHAT_MAX:
+            _nonce, reply = await self._ask(joined, "say", {"text": cleaned})
+        if not (isinstance(reply, dict) and reply.get("ok") is True):
+            if self._joined is joined:
+                joined["notice"] = ERROR_CHAT
+                self._announce()
+            return {"ok": False, "error": ERROR_CHAT}
+        if self._joined is joined:
+            joined["notice"] = ""
+            self._spawn(self._poll_once(joined))
+        return {"ok": True}
 
     def start(self) -> dict:
         room = self._room
@@ -1851,6 +1911,8 @@ class MultiplayerService:
                 "launchedRound": 0,
                 "notice": "",
                 "clock": (time.time(), time.monotonic()),
+                "chat": [],
+                "chatSince": 0,
             }
             self._closed_reason = ""
             self._poller = self._spawn(self._poll(self._joined))
@@ -1956,6 +2018,10 @@ class MultiplayerService:
 
     def _take_status(self, joined: dict, status: dict) -> None:
         joined["status"] = status
+        fresh = [entry for entry in status["chat"] if entry["seq"] > joined["chatSince"]]
+        if fresh:
+            joined["chat"] = (joined["chat"] + fresh)[-proto.CHAT_KEPT:]
+            joined["chatSince"] = fresh[-1]["seq"]
         if joined["ready"] and (status["rev"] != joined["readyRev"] or status["round"] != joined["readyRound"]):
             if status["start"] and status["round"] == joined["readyRound"] + 1 and status["rev"] == joined["readyRev"]:
                 joined["consentRound"] = status["round"]
@@ -2095,10 +2161,11 @@ class MultiplayerService:
         if status is not None and self._joined is joined:
             self._take_status(joined, status)
 
-    async def _ask(self, joined: dict, op: str):
+    async def _ask(self, joined: dict, op: str, extra=None):
         nonce = secrets.token_hex(16)
+        payload = {**self._report(joined), "since": joined["chatSince"], **(extra or {})}
         message = proto.make_tagged(joined["key"], op, joined["row"]["room"], joined["seat"], nonce, int(time.time()),
-                                    self._report(joined))
+                                    payload)
         try:
             reader, writer = await asyncio.wait_for(
                 asyncio.open_connection(joined["row"]["address"], self._peer_port), HANDSHAKE_SECONDS
@@ -2155,6 +2222,7 @@ class MultiplayerService:
             "can": joined["can"],
             "reason": joined["reason"],
             "detail": joined["detail"],
+            "chat": list(joined["chat"]),
             "autostart": self._pending_start(joined),
         }
 
@@ -2723,6 +2791,6 @@ async def _say(writer, message: dict) -> bool:
     try:
         writer.write(frame(message))
         await asyncio.wait_for(writer.drain(), HANDSHAKE_SECONDS)
-    except (OSError, asyncio.TimeoutError):
+    except (OSError, asyncio.TimeoutError, FrameError):
         return False
     return True

@@ -1,16 +1,18 @@
-import { addEventListener, removeEventListener } from "@decky/api";
+import { addEventListener, removeEventListener, toaster } from "@decky/api";
 import { Router } from "@decky/ui";
 import { useSyncExternalStore } from "react";
 
 import { multiplayerCloseRoom, multiplayerLeave, multiplayerRoomStatus, multiplayerSetReady } from "../api";
 import type { MultiplayerRoomStatus } from "../types";
 import { logError } from "./errors";
-import { playReady, playUnready } from "./lobbySounds";
+import { playReady, playTick, playUnready } from "./lobbySounds";
+import { quickAccessIsHidden } from "./quickAccess";
 import { forgetMultiplayerRoomChoices } from "./multiplayerChoices";
 
 const ROOM_EVENT = "multiplayer_room";
 
 type SeatFlag = { name: string; ready: boolean };
+type ChatLine = { seq: number; name: string; text: string };
 
 export type MultiplayerRoomMarker = {
     role: "host" | "guest" | null;
@@ -24,6 +26,7 @@ export type MultiplayerRoomMarker = {
     rev: number;
     round: number;
     state: string;
+    chat: ChatLine | null;
     autostart: { room: string; round: number; appid: number; dolphin: boolean } | null;
 };
 
@@ -31,12 +34,15 @@ type RoomEvent = Partial<MultiplayerRoomMarker> & { seq?: number };
 
 const EMPTY: MultiplayerRoomMarker = {
     role: null, title: "", host: "", seated: 0, error: "", seat: 0, ready: false, seats: [], rev: 0, round: 0, state: "lobby",
-    autostart: null
+    chat: null, autostart: null
 };
 
 let marker: MultiplayerRoomMarker = EMPTY;
 let seq = -1;
 let pressed: boolean | null = null;
+let seatedAt = 0;
+
+const CHAT_SETTLE_MS = 5000;
 const listeners = new Set<() => void>();
 
 function publish(next: MultiplayerRoomMarker, at: number, heard: boolean) {
@@ -44,8 +50,12 @@ function publish(next: MultiplayerRoomMarker, at: number, heard: boolean) {
         return;
     }
     seq = at;
+    if (next.role !== marker.role) {
+        seatedAt = Date.now();
+    }
     if (heard) {
         chime(marker, next);
+        chatter(marker, next);
     }
     marker = next;
     for (const listener of listeners) {
@@ -88,6 +98,21 @@ function chime(before: MultiplayerRoomMarker, after: MultiplayerRoomMarker) {
     }
 }
 
+function chatter(before: MultiplayerRoomMarker, after: MultiplayerRoomMarker) {
+    const line = after.chat;
+    if (!line || before.role === null || before.role !== after.role || (before.chat?.seq ?? 0) >= line.seq) {
+        return;
+    }
+    const own = after.role === "host" ? after.host : after.seats[after.seat]?.name ?? "";
+    if (line.name === own || Number(Router.MainRunningApp?.appid ?? 0) > 0 || Date.now() - seatedAt < CHAT_SETTLE_MS) {
+        return;
+    }
+    playTick();
+    if (quickAccessIsHidden()) {
+        toaster.toast({ title: line.name, body: line.text });
+    }
+}
+
 function onRoomEvent(payload: RoomEvent) {
     if (!payload) {
         return;
@@ -105,6 +130,7 @@ function onRoomEvent(payload: RoomEvent) {
         rev: Number(payload.rev) || 0,
         round: Number(payload.round) || 0,
         state: payload.state ?? "lobby",
+        chat: payload.chat && typeof payload.chat.seq === "number" ? payload.chat : null,
         autostart: payload.autostart && typeof payload.autostart.appid === "number" ? payload.autostart : null
     }, Number(payload.seq) || 0, true);
 }
@@ -120,7 +146,8 @@ function fromStatus(status: MultiplayerRoomStatus): MultiplayerRoomMarker {
             seats: room.seats.map((seat) => ({ name: seat?.name ?? "", ready: seat?.ready ?? false })),
             rev: room.rev,
             round: room.round,
-            state: room.state
+            state: room.state,
+            chat: room.chat[room.chat.length - 1] ?? null
         };
     }
     if (status.role === "guest") {
@@ -137,6 +164,7 @@ function fromStatus(status: MultiplayerRoomStatus): MultiplayerRoomMarker {
             rev: guest?.rev ?? 0,
             round: guest?.round ?? 0,
             state: guest?.state ?? "lobby",
+            chat: status.chat[status.chat.length - 1] ?? null,
             autostart: status.autostart
         };
     }

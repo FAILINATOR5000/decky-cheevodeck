@@ -810,6 +810,7 @@ export const multiplayerJoin = callable<[string, string, boolean], MultiplayerRe
 export const multiplayerSetReady = callable<[boolean, string], MultiplayerReply>("multiplayer_set_ready");
 export const multiplayerStart = callable<[], MultiplayerReply & { appid?: number; title?: string; round?: number }>("multiplayer_start");
 export const multiplayerStartCancel = callable<[string], MultiplayerReply>("multiplayer_start_cancel");
+export const multiplayerSay = callable<[string], MultiplayerReply>("multiplayer_say");
 export const multiplayerChangeGame = callable<[MultiplayerMode, number, string], MultiplayerReply & { room?: MultiplayerHostedRoom }>("multiplayer_change_game");
 export const multiplayerGuestGames = callable<[], { ok: boolean; error?: string; games?: MultiplayerGuestGame[] }>("multiplayer_guest_games");
 export const multiplayerGuestGame = callable<[number], MultiplayerReply>("multiplayer_guest_game");
