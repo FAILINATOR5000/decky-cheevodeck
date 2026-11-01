@@ -16,6 +16,7 @@ import { registerScreenDarken, unregisterScreenDarken } from "./components/darke
 import { registerMemoryCapture, unregisterMemoryCapture } from "./components/memories/memoryCapture";
 import { registerMemoryFullscreen, unregisterMemoryFullscreen } from "./components/memories/memoryFullscreen";
 import { registerMultiplayerSession, unregisterMultiplayerSession } from "./utils/multiplayerSession";
+import { registerMultiplayerRoomState, unregisterMultiplayerRoomState } from "./utils/multiplayerRoomState";
 import { closeBrowserForUnload } from "./components/browser/BrowserModal";
 import { releaseWebBrowserActionset } from "./components/browser/browserViewHost";
 import { registerBrowserDownloads, unregisterBrowserDownloads } from "./components/browser/browserDownloads";
@@ -89,6 +90,7 @@ export default definePlugin(() => {
     registerScreenDarken();
     registerMemoryCapture();
     registerMultiplayerSession();
+    registerMultiplayerRoomState();
     registerMemoryFullscreen();
 
     return {
@@ -109,6 +111,7 @@ export default definePlugin(() => {
             unregisterScreenDarken();
             unregisterMemoryCapture();
             unregisterMultiplayerSession();
+            unregisterMultiplayerRoomState();
             unregisterMemoryFullscreen();
             closeBrowserForUnload();
         }

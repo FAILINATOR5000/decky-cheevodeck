@@ -17,7 +17,7 @@ import rom_headers
 import steam_shortcuts
 import subprocess_util
 from nearby_protocol import FrameError, clean_title, decode, frame, is_nonce, read_frame, verify
-from notifications import emit_notification
+from notifications import emit_notification, is_type_enabled
 from utils import atomic_file, child_owner, chown_to_data_owner, ensure_dir, load_json_file
 
 LEASE_SECONDS = 30
@@ -28,14 +28,23 @@ SEEK_SENDS = 3
 MISSED_ROUNDS = 2
 
 HANDSHAKE_SECONDS = 5
-MAX_HANDSHAKES = 4
+FIRST_FRAME_SECONDS = 2
+MAX_HANDSHAKES = 8
+HANDSHAKES_PER_ADDRESS = 2
 ANSWERS_PER_SECOND = 10
+SEEN_NONCES_MAX = 4096
 
 POLL_SECONDS = 2
-POLL_FAILURES = 3
+POLL_BACKOFF_SECONDS = 5
 SEAT_SILENCE_SECONDS = 30
+SEAT_FREE_SECONDS = 90
+ADDRESS_GRACE_SECONDS = 60
+HOST_GONE_GRACE_SECONDS = 60
 
-HANDOFF_SECONDS = 300
+CLOSED_TAIL_SECONDS = 10
+IDLE_ROOM_SECONDS = 900
+JOIN_TOAST_SECONDS = 300
+
 HOUSEKEEPING_SECONDS = 5
 
 BAD_TAGS_PER_ADDRESS = 3
@@ -49,6 +58,9 @@ SAVE_BACKUPS = "save-backups"
 SAVE_BACKUPS_KEPT = 5
 
 SESSION_EVENT = "multiplayer_session"
+ROOM_EVENT = "multiplayer_room"
+
+IDLE_BODY = "Your EZ Multiplayer room closed after 15 minutes with no players"
 
 ARGV_SECONDS = 15
 SETTLE_SECONDS = 5
@@ -78,6 +90,7 @@ ERROR_BAD_ADDRESS = "bad_address"
 ERROR_NOT_FOUND = "not_found"
 ERROR_HOST_GONE = "host_gone"
 ERROR_DROPPED = "dropped"
+ERROR_TIMED_OUT = "timed_out"
 ERROR_CLOSED = "closed"
 ERROR_NETWORK_CHANGED = "network_changed"
 ERROR_NO_GUESTS = "no_guests"
@@ -86,6 +99,7 @@ ERROR_GATE = "gate"
 ERROR_NOT_READY = "not_ready"
 ERROR_WRITE_FAILED = "write_failed"
 ERROR_ARGS_DROPPED = "args_dropped"
+ERROR_IDLE = "idle"
 
 _JOIN_REFUSALS = {
     "bad_code": ERROR_BAD_CODE,
@@ -94,6 +108,7 @@ _JOIN_REFUSALS = {
     "started": ERROR_STARTED,
     "core": ERROR_WRONG_CORE,
     "closed": ERROR_ROOM_GONE,
+    "dropped": ERROR_DROPPED,
 }
 
 _SESSION_ID = re.compile(r"session-([0-9a-f]{16})\.")
@@ -138,9 +153,11 @@ class _Collector(asyncio.DatagramProtocol):
 class MultiplayerService:
     def __init__(
         self, *, settings_store, game_mode, user_home, runtime_dir, cheevo_check_service, cheevo_check_store,
-        port: int = proto.PORT, peer_port: int = proto.PORT, broadcast: str = "255.255.255.255",
+        notifications_store=None, port: int = proto.PORT, peer_port: int = proto.PORT,
+        broadcast: str = "255.255.255.255",
     ):
         self._settings_store = settings_store
+        self._notifications = notifications_store
         self._game_mode = game_mode
         self._user_home = Path(user_home)
         self._session_dir = Path(runtime_dir) / SESSION_DIR
@@ -161,11 +178,17 @@ class MultiplayerService:
         self._server = None
         self._closing = []
         self._seen = {}
+        self._seen_order = deque()
         self._answered = deque()
         self._handshakes = 0
+        self._peer_handshakes = {}
 
         self._room = None
+        self._closed_tail = None
         self._closed_reason = ""
+        self._announced = None
+        self._event_seq = 0
+        self._join_toasts = {}
         self._joined = None
         self._rooms = {}
         self._round = 0
@@ -214,6 +237,7 @@ class MultiplayerService:
             if not visible:
                 if self._live():
                     decky.logger.info("multiplayer: the page was left")
+                self._closed_reason = ""
                 self._end_visit()
                 return {"ok": True, "visible": False}
             if not self._game_mode():
@@ -246,7 +270,7 @@ class MultiplayerService:
         self._expiry = None
         decky.logger.info("multiplayer: the lease ran out")
         self._visible_until = 0.0
-        self._wind_down()
+        self._rooms.clear()
 
     def _end_visit(self) -> None:
         if self._expiry is not None:
@@ -254,13 +278,7 @@ class MultiplayerService:
             self._expiry = None
         self._visible_until = 0.0
         self._cap_until = 0.0
-        self._wind_down()
-
-    def _wind_down(self) -> None:
         self._rooms.clear()
-        if self._room is not None and self._room["state"] == "lobby":
-            self._close_room("")
-        self._drop_joined(tell_host=True)
 
     def close(self) -> None:
         if self._expiry is not None:
@@ -324,6 +342,7 @@ class MultiplayerService:
         return True
 
     def _shut(self) -> None:
+        self._closed_tail = None
         udp, server = self._udp, self._server
         if self._responder is not None:
             self._closing.append(self._responder.closed)
@@ -349,6 +368,51 @@ class MultiplayerService:
             on = False
         if on:
             decky.logger.info("multiplayer: " + message, *args)
+
+    def _room_view(self) -> dict:
+        room = self._room
+        if room is not None:
+            return {"role": "host", "title": room["title"], "host": room["user"],
+                    "seated": len(_guests(room)), "error": ""}
+        joined = self._joined
+        if joined is not None:
+            members = (joined["status"] or {}).get("members") or joined["row"]["seats"]
+            return {"role": "guest", "title": joined["row"]["title"], "host": joined["row"]["user"],
+                    "seated": max(0, sum(1 for name in members if name) - 1), "error": joined["error"]}
+        return {"role": None, "title": "", "host": "", "seated": 0, "error": ""}
+
+    def _announce(self) -> None:
+        view = self._room_view()
+        if view == self._announced:
+            return
+        self._announced = view
+        self._event_seq += 1
+        self._emit({**view, "seq": self._event_seq}, ROOM_EVENT)
+
+    def _in_game(self) -> bool:
+        current = self._session
+        return current is not None and bool(current["started"]) and not current["exited"]
+
+    def _toast_seat(self, name: str, line: str) -> None:
+        emit_notification(
+            ntype="system",
+            settings_store=self._settings_store,
+            event_loop=self._loop,
+            toast_title=name,
+            line_key=line,
+            force_toast=not self._in_game(),
+        )
+
+    def _fresh_nonce(self, nonce: str, now: float) -> bool:
+        order = self._seen_order
+        while order and (now - order[0][0] > 2 * proto.CLOCK_SKEW_SECONDS or len(order) > SEEN_NONCES_MAX):
+            _at, old = order.popleft()
+            self._seen.pop(old, None)
+        if nonce in self._seen:
+            return False
+        self._seen[nonce] = now
+        order.append((now, nonce))
+        return True
 
     def _library(self):
         results_stamp = self._cheevo_check_store.results_fingerprint()
@@ -472,7 +536,8 @@ class MultiplayerService:
         return out if code == 0 else None
 
     def _flatpak_version(self, app: str) -> str:
-        if self._versions is None:
+        versions = self._versions
+        if versions is None:
             versions = {}
             out = self._flatpak("list", "--app", "--columns=application,version") or ""
             for line in out.splitlines():
@@ -480,7 +545,7 @@ class MultiplayerService:
                 if len(parts) >= 2:
                     versions[parts[0].strip()] = parts[1].strip()
             self._versions = versions
-        return self._versions.get(app, "")
+        return versions.get(app, "")
 
     def _flatpak_reads_home(self, app: str) -> bool:
         if app not in self._permissions:
@@ -847,18 +912,27 @@ class MultiplayerService:
                 "max": seats,
                 "seats": [{"name": user, "host": True}] + [None] * (seats - 1),
                 "state": "lobby",
-                "handoffUntil": 0.0,
                 "badAddresses": {},
                 "badTotal": 0,
+                "bannedPeers": set(),
+                "bannedNames": set(),
+                "freed": {},
+                "addressGoneAt": 0.0,
+                "address": _route_address(),
+                "emptySince": _boot_clock(),
                 "pv": PLUGIN_VERSION,
                 "local": local,
             }
+            if self._closed_tail is not None:
+                self._shut()
             if not await self._open():
                 return {"ok": False, "error": ERROR_UNAVAILABLE}
             self._room = room
             self._closed_reason = ""
             self._seen.clear()
+            self._seen_order.clear()
             self._housekeeper = self._spawn(self._keep_house(room))
+            self._announce()
             decky.logger.info(
                 "multiplayer: hosting %s, %s on %s, %s seats%s",
                 local["gameId"], mode, local["core"], seats, ", private" if private else "",
@@ -916,7 +990,11 @@ class MultiplayerService:
         if type(seat) is not int or not 1 <= seat < room["max"] or room["seats"][seat] is None:
             return {"ok": False, "error": ERROR_DROPPED}
         decky.logger.info("multiplayer: dropped seat %s", seat)
+        dropped = room["seats"][seat]
+        room["bannedPeers"].add(dropped["peer"])
+        room["bannedNames"].add(dropped["name"].lower())
         room["seats"][seat] = None
+        self._announce()
         return {"ok": True, "room": self._host_view(room)}
 
     def _close_room(self, reason: str) -> None:
@@ -928,8 +1006,19 @@ class MultiplayerService:
         if self._housekeeper is not None:
             self._housekeeper.cancel()
             self._housekeeper = None
-        self._shut()
+        loop = self._loop
+        if self._stopping or loop is None or loop.is_closed() or self._server is None:
+            self._shut()
+        else:
+            tail = {"room": room["id"]}
+            self._closed_tail = tail
+            loop.call_later(CLOSED_TAIL_SECONDS, self._end_tail, tail)
         decky.logger.info("multiplayer: room closed%s", f" ({reason})" if reason else "")
+        self._announce()
+
+    def _end_tail(self, tail: dict) -> None:
+        if self._closed_tail is tail and self._room is None:
+            self._shut()
 
     def _host_view(self, room: dict) -> dict:
         return {
@@ -948,7 +1037,6 @@ class MultiplayerService:
             "seats": [{"name": seat["name"], "launched": bool(seat.get("launched"))} if seat else None
                       for seat in room["seats"]],
             "state": self._public_state(room),
-            "handoff": room["state"] == "handoff",
         }
 
     def _public_state(self, room: dict) -> str:
@@ -978,31 +1066,68 @@ class MultiplayerService:
         for index, seat in enumerate(room["seats"]):
             if index == 0 or seat is None or seat.get("launched"):
                 continue
-            if now - seat["last"] > SEAT_SILENCE_SECONDS:
-                decky.logger.info("multiplayer: seat %s went quiet, dropped", index)
+            if _boot_clock() - seat["last"] > SEAT_FREE_SECONDS:
+                decky.logger.info("multiplayer: seat %s went quiet, freed", index)
+                room["freed"][index] = seat["key"]
                 room["seats"][index] = None
+                self._toast_seat(seat["name"], "Left your room")
 
-        for address in {seat["ip"] for seat in _guests(room)}:
-            if not _address_exists(address):
-                decky.logger.info("multiplayer: this device no longer has %s", address)
-                self._close_room(ERROR_NETWORK_CHANGED)
-                return
-
-        if room["state"] != "handoff":
+        addresses = {seat["ip"] for seat in _guests(room)}
+        if room["address"]:
+            addresses.add(room["address"])
+        missing = sorted(address for address in addresses if not _address_exists(address))
+        if not missing:
+            room["addressGoneAt"] = 0.0
+        elif not room["addressGoneAt"]:
+            room["addressGoneAt"] = now
+            decky.logger.info("multiplayer: this device no longer has %s, waiting for it", ", ".join(missing))
+        elif now - room["addressGoneAt"] >= ADDRESS_GRACE_SECONDS:
+            decky.logger.info("multiplayer: this device no longer has %s", ", ".join(missing))
+            self._close_room(ERROR_NETWORK_CHANGED)
             return
-        current = self._session
-        if current is not None and (current["exited"] or current["error"]):
-            decky.logger.info("multiplayer: handoff over, the game ended")
-            self._close_room("")
-        elif not _guests(room):
-            decky.logger.info("multiplayer: handoff over, no guests left")
-            self._close_room("")
-        elif all(seat.get("launched") for seat in _guests(room)):
-            decky.logger.info("multiplayer: handoff over, every seat launched")
-            self._close_room("")
-        elif now >= room["handoffUntil"]:
-            decky.logger.info("multiplayer: handoff over, timed out")
-            self._close_room("")
+
+        if room["state"] != "lobby" or _guests(room):
+            room["emptySince"] = None
+        elif room["emptySince"] is None:
+            room["emptySince"] = _boot_clock()
+        elif _boot_clock() - room["emptySince"] >= IDLE_ROOM_SECONDS:
+            decky.logger.info("multiplayer: nobody in the room for %s minutes, closing", IDLE_ROOM_SECONDS // 60)
+            self._close_room(ERROR_IDLE)
+            self._notify_idle()
+            return
+        self._announce()
+
+    def _notify_idle(self) -> None:
+        if not is_type_enabled("system", self._settings_store):
+            return
+        if self._notifications is not None:
+            try:
+                self._notifications.append({
+                    "type": "system",
+                    "kind": "info",
+                    "iconSource": "none",
+                    "title": "EZ Multiplayer",
+                    "body": IDLE_BODY,
+                    "source": "notifications",
+                    "target": {"view": "multiplayer"},
+                    "meta": {"multiplayer": "idle"},
+                })
+            except Exception as e:
+                decky.logger.warning("multiplayer: the notification could not be filed (%s)", type(e).__name__)
+        emit_notification(
+            ntype="system",
+            settings_store=self._settings_store,
+            event_loop=self._loop,
+            title_key="EZ Multiplayer",
+            line_key="Room closed",
+        )
+
+    def _back_to_lobby(self, room: dict) -> None:
+        room["state"] = "lobby"
+        for seat in _guests(room):
+            seat["launched"] = False
+        decky.logger.info("multiplayer: the room is back in the lobby")
+        self._announce()
 
     def launch_started(self) -> dict:
         current = self._session
@@ -1014,35 +1139,29 @@ class MultiplayerService:
         room = self._room
         if room is not None:
             if room["state"] == "lobby":
-                room["state"] = "handoff"
-                room["handoffUntil"] = time.monotonic() + HANDOFF_SECONDS
-                decky.logger.info("multiplayer: host launched, handing off to %s guests", len(_guests(room)))
+                room["state"] = "launching"
+                decky.logger.info("multiplayer: host launched with %s guests", len(_guests(room)))
             return {"ok": True}
         joined = self._joined
         if joined is not None and not joined["launched"]:
             joined["launched"] = True
-            if self._poller is not None:
-                self._poller.cancel()
-                self._poller = None
             self._spawn(self._ask(joined, "launched"))
             decky.logger.info("multiplayer: joined game launched")
         return {"ok": True}
 
     def _heard(self, transport, data, addr) -> None:
         room = self._room
-        if room is None or room["state"] != "lobby":
+        if room is None:
             return
         nonce = proto.read_seek(decode(data), time.time())
         if nonce is None:
             return
         now = time.monotonic()
-        self._forget_old_nonces(now)
-        if nonce in self._seen:
-            return
-        self._seen[nonce] = now
         while self._answered and now - self._answered[0] > 1.0:
             self._answered.popleft()
         if len(self._answered) >= ANSWERS_PER_SECOND:
+            return
+        if not self._fresh_nonce(nonce, now):
             return
         self._answered.append(now)
         try:
@@ -1050,16 +1169,17 @@ class MultiplayerService:
         except OSError:
             pass
 
-    def _forget_old_nonces(self, now: float) -> None:
-        for seen, at in list(self._seen.items()):
-            if now - at > proto.CLOCK_SKEW_SECONDS:
-                del self._seen[seen]
-
     async def _serve(self, reader, writer) -> None:
-        if self._room is None or self._handshakes >= MAX_HANDSHAKES:
+        peer = (writer.get_extra_info("peername") or ("",))[0]
+        if (
+            (self._room is None and self._closed_tail is None)
+            or self._handshakes >= MAX_HANDSHAKES
+            or self._peer_handshakes.get(peer, 0) >= HANDSHAKES_PER_ADDRESS
+        ):
             writer.close()
             return
         self._handshakes += 1
+        self._peer_handshakes[peer] = self._peer_handshakes.get(peer, 0) + 1
         try:
             await asyncio.wait_for(self._answer(reader, writer), HANDSHAKE_SECONDS)
         except (asyncio.TimeoutError, asyncio.IncompleteReadError, OSError, FrameError):
@@ -1068,18 +1188,26 @@ class MultiplayerService:
             decky.logger.exception("multiplayer: a request failed (%s)", type(e).__name__)
         finally:
             self._handshakes -= 1
+            left = self._peer_handshakes.get(peer, 1) - 1
+            if left > 0:
+                self._peer_handshakes[peer] = left
+            else:
+                self._peer_handshakes.pop(peer, None)
             writer.close()
 
     async def _answer(self, reader, writer) -> None:
-        opening = await read_frame(reader)
+        opening = await asyncio.wait_for(read_frame(reader), FIRST_FRAME_SECONDS)
         hello = proto.read_hello(opening)
         room = self._room
-        if hello is None or room is None:
+        if hello is None:
             return
         op, nc = hello
+        if room is None:
+            if self._closed_tail is not None and op in proto.TAGGED_OPS:
+                await _say(writer, {"ok": False, "error": "closed"})
+            return
         if op == "info":
-            if room["state"] == "lobby":
-                await _say(writer, proto.room_body(room))
+            await _say(writer, proto.room_body(room))
             return
         if op == "join":
             await self._admit(reader, writer, room, nc)
@@ -1107,6 +1235,9 @@ class MultiplayerService:
             self._bad_tag(room, peer, now)
             await _say(writer, {"ok": False, "error": "bad_code"})
             return
+        if peer in room["bannedPeers"] or params["user"].lower() in room["bannedNames"]:
+            await _say(writer, {"ok": False, "error": "dropped"})
+            return
         if room["state"] != "lobby":
             await _say(writer, {"ok": False, "error": "started"})
             return
@@ -1125,19 +1256,16 @@ class MultiplayerService:
             "peer": peer,
             "ip": address,
             "key": proto.seat_key(key, nc, ns),
-            "last": now,
+            "last": _boot_clock(),
             "launched": False,
         }
         await _say(writer, {"ok": True, "seat": seat, "ip": address, "t": proto.joined_tag(key, nc, ns, seat, address)})
         decky.logger.info("multiplayer: seat %s taken", seat)
-        emit_notification(
-            ntype="system",
-            settings_store=self._settings_store,
-            event_loop=self._loop,
-            toast_title=params["user"],
-            line_key="Joined your room",
-            force_toast=True,
-        )
+        self._announce()
+        last = self._join_toasts.get(peer)
+        if last is None or now - last >= JOIN_TOAST_SECONDS:
+            self._join_toasts[peer] = now
+            self._toast_seat(params["user"], "Joined your room")
 
     def _locked_out(self, room: dict, peer: str, now: float) -> bool:
         entry = room["badAddresses"].get(peer)
@@ -1166,28 +1294,31 @@ class MultiplayerService:
             await _say(writer, {"ok": False, "error": "closed"})
             return
         seat = room["seats"][index] if index < room["max"] else None
-        if seat is None:
-            await _say(writer, {"ok": False, "error": "dropped"})
-            return
-        if not proto.tagged_ok(seat["key"], message, time.time()):
+        if seat is None or not proto.tagged_ok(seat["key"], message, time.time()):
+            freed = room["freed"].get(index)
+            if freed is not None and proto.tagged_ok(freed, message, time.time()):
+                await _say(writer, {"ok": False, "error": "timed_out"})
+            elif seat is None:
+                await _say(writer, {"ok": False, "error": "dropped"})
             return
         now = time.monotonic()
-        self._forget_old_nonces(now)
-        if nonce in self._seen:
+        if not self._fresh_nonce(nonce, now):
             return
-        self._seen[nonce] = now
-        seat["last"] = now
+        seat["last"] = _boot_clock()
 
         op = message["op"]
         if op == "leave":
             room["seats"][index] = None
             decky.logger.info("multiplayer: seat %s left", index)
             await _say(writer, {"ok": True})
+            self._toast_seat(seat["name"], "Left your room")
+            self._announce()
             return
         if op == "launched":
             seat["launched"] = True
             decky.logger.info("multiplayer: seat %s launched", index)
             await _say(writer, {"ok": True})
+            self._announce()
             return
         body = {
             "ok": True,
@@ -1233,7 +1364,7 @@ class MultiplayerService:
         if refused is not None:
             return {"ok": False, "error": refused}
         nonce = secrets.token_hex(16)
-        self._seen[nonce] = time.monotonic()
+        self._fresh_nonce(nonce, time.monotonic())
         found = await self._collect(
             proto.make_seek(nonce, int(time.time())),
             lambda message: proto.read_room(message, nonce),
@@ -1316,11 +1447,13 @@ class MultiplayerService:
             self._joined = {
                 "row": row,
                 "seat": answer["seat"],
-                "ip": answer["ip"],
+                "ip": row["address"],
                 "ownIp": answer["ownIp"],
                 "key": answer["key"],
                 "status": None,
                 "failures": 0,
+                "heard": time.monotonic(),
+                "goneAt": 0.0,
                 "launched": False,
                 "error": "",
                 "local": local,
@@ -1328,6 +1461,7 @@ class MultiplayerService:
             self._closed_reason = ""
             self._poller = self._spawn(self._poll(self._joined))
             decky.logger.info("multiplayer: joined a room, seat %s", answer["seat"])
+            self._announce()
             return {"ok": True, **self._guest_view(self._joined)}
 
     async def _ask_to_join(self, row: dict, code: str, params: dict) -> dict:
@@ -1364,29 +1498,50 @@ class MultiplayerService:
         return {"ok": True, "seat": seat, "ip": address, "ownIp": own, "key": proto.seat_key(key, nc, ns)}
 
     async def _poll(self, joined: dict) -> None:
-        while self._joined is joined and not joined["launched"] and not joined["error"]:
-            await self._poll_once(joined)
-            await asyncio.sleep(POLL_SECONDS)
+        while self._joined is joined:
+            try:
+                answered = await self._poll_once(joined)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                decky.logger.warning("multiplayer: a status poll failed (%s)", type(e).__name__)
+                answered = False
+            await asyncio.sleep(POLL_SECONDS if answered else POLL_BACKOFF_SECONDS)
 
-    async def _poll_once(self, joined: dict) -> None:
+    async def _poll_once(self, joined: dict) -> bool:
         nonce, reply = await self._ask(joined, "status")
         if self._joined is not joined:
-            return
-        if reply is not None and reply.get("ok") is False and reply.get("error") in ("dropped", "closed"):
-            joined["error"] = ERROR_DROPPED if reply["error"] == "dropped" else ERROR_CLOSED
-            decky.logger.info("multiplayer: the host %s", "dropped this seat" if reply["error"] == "dropped" else "closed the room")
-            return
+            return True
+        if reply is not None and reply.get("ok") is False and reply.get("error") in ("dropped", "timed_out", "closed"):
+            gone = {"dropped": ERROR_DROPPED, "timed_out": ERROR_TIMED_OUT}.get(reply["error"], ERROR_CLOSED)
+            decky.logger.info("multiplayer: the host %s", {
+                ERROR_DROPPED: "dropped this seat",
+                ERROR_TIMED_OUT: "freed this seat while this device was away",
+            }.get(gone, "closed the room"))
+            self._drop_joined(tell_host=False, reason=gone)
+            return True
         status = proto.read_status_reply(joined["key"], reply, nonce) if reply is not None else None
+        now = time.monotonic()
         if status is None:
             joined["failures"] += 1
             self._debug("status poll failed (%s in a row)", joined["failures"])
-            if joined["failures"] >= POLL_FAILURES:
+            if joined["error"] == ERROR_HOST_GONE:
+                if now - joined["goneAt"] >= HOST_GONE_GRACE_SECONDS:
+                    self._drop_joined(tell_host=False, reason=ERROR_HOST_GONE)
+            elif not joined["launched"] and now - joined["heard"] > SEAT_SILENCE_SECONDS:
                 joined["error"] = ERROR_HOST_GONE
+                joined["goneAt"] = now
                 decky.logger.info("multiplayer: lost the host")
-            return
+                self._announce()
+            return False
         joined["failures"] = 0
+        joined["heard"] = now
+        if joined["error"] == ERROR_HOST_GONE:
+            joined["error"] = ""
+            decky.logger.info("multiplayer: the host answered again")
         joined["status"] = status
-        joined["ip"] = status["ip"]
+        self._announce()
+        return True
 
     async def _ask(self, joined: dict, op: str):
         nonce = secrets.token_hex(16)
@@ -1412,19 +1567,21 @@ class MultiplayerService:
         self._drop_joined(tell_host=True)
         return {"ok": True}
 
-    def _drop_joined(self, *, tell_host: bool) -> None:
+    def _drop_joined(self, *, tell_host: bool, reason: str = "") -> None:
         joined = self._joined
         if joined is None:
             return
         self._joined = None
+        self._closed_reason = reason
         if self._poller is not None:
             self._poller.cancel()
             self._poller = None
-        if tell_host and not joined["launched"] and not joined["error"]:
+        if tell_host and joined["error"] != ERROR_HOST_GONE:
             loop = self._loop
             if loop is not None and not loop.is_closed():
                 self._spawn(self._ask(joined, "leave"))
         decky.logger.info("multiplayer: left the room")
+        self._announce()
 
     def _guest_view(self, joined: dict) -> dict:
         return {
@@ -1437,11 +1594,12 @@ class MultiplayerService:
         }
 
     def room_status(self) -> dict:
+        seq = self._event_seq
         if self._room is not None:
-            return {"ok": True, "role": "host", "room": self._host_view(self._room)}
+            return {"ok": True, "seq": seq, "role": "host", "room": self._host_view(self._room)}
         if self._joined is not None:
-            return {"ok": True, "role": "guest", **self._guest_view(self._joined)}
-        return {"ok": True, "role": None, "closedReason": self._closed_reason}
+            return {"ok": True, "seq": seq, "role": "guest", **self._guest_view(self._joined)}
+        return {"ok": True, "seq": seq, "role": None, "closedReason": self._closed_reason}
 
     def _write(self, path: Path, text: str) -> None:
         with atomic_file(path) as out:
@@ -1691,10 +1849,9 @@ class MultiplayerService:
         if pid is None:
             current["error"] = ERROR_ARGS_DROPPED
             decky.logger.warning("multiplayer: the emulator never showed the session file in its arguments")
-            if self._room is not None:
-                self._close_room(ERROR_ARGS_DROPPED)
-            self._emit({"state": "failed", "session": current["id"], "error": ERROR_ARGS_DROPPED})
             current["exited"] = True
+            self._emit({"state": "failed", "session": current["id"], "error": ERROR_ARGS_DROPPED})
+            self._session_over(current)
             return
         current["seen"] = True
         current["pid"] = pid
@@ -1736,12 +1893,20 @@ class MultiplayerService:
     def _finish(self, current: dict) -> None:
         current["exited"] = True
         decky.logger.info("multiplayer: session %s ended", current["id"])
-        if self._joined is not None and self._joined["launched"]:
-            self._drop_joined(tell_host=False)
-        if self._room is not None and self._room["state"] == "handoff":
-            self._close_room("")
         self._remove_files(current)
         self._emit({"state": "ended", "session": current["id"]})
+        self._session_over(current)
+
+    def _session_over(self, current: dict) -> None:
+        if self._session is current:
+            self._session = None
+        joined = self._joined
+        if joined is not None and joined["launched"]:
+            joined["launched"] = False
+            self._announce()
+        room = self._room
+        if room is not None and room["state"] != "lobby":
+            self._back_to_lobby(room)
 
     def _remove_files(self, current: dict) -> None:
         if current["id"] in self._restore_sessions():
@@ -1758,12 +1923,12 @@ class MultiplayerService:
                 decky.logger.warning("multiplayer: couldn't remove a session file (%s)", type(e).__name__)
         _remove_system_folder(self._session_dir / f"session-{sid}.system")
 
-    def _emit(self, payload: dict) -> None:
+    def _emit(self, payload: dict, event: str = SESSION_EVENT) -> None:
         loop = self._loop
         if loop is None or loop.is_closed():
             return
         try:
-            asyncio.run_coroutine_threadsafe(decky.emit(SESSION_EVENT, payload), loop)
+            asyncio.run_coroutine_threadsafe(decky.emit(event, payload), loop)
         except Exception as e:
             decky.logger.warning("multiplayer: couldn't tell the panel (%s)", type(e).__name__)
 
@@ -1925,6 +2090,25 @@ def _listening(port: int) -> bool:
         except OSError:
             continue
     return False
+
+
+def _boot_clock() -> float:
+    try:
+        return time.clock_gettime(time.CLOCK_BOOTTIME)
+    except (AttributeError, OSError):
+        return time.monotonic()
+
+
+def _route_address() -> str:
+    probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        probe.connect(("192.0.2.1", 9))
+        address = probe.getsockname()[0]
+    except OSError:
+        return ""
+    finally:
+        probe.close()
+    return address if proto.is_ipv4(address) and address != "0.0.0.0" else ""
 
 
 def _address_exists(address: str) -> bool:

@@ -1,7 +1,7 @@
 import React from "react";
 import { DialogButton, Focusable } from "@decky/ui";
 import { FaRegQuestionCircle } from "react-icons/fa";
-import { NOTES_DOT_KEYFRAMES, headerCase, regularButtonSpacingStyle, warnAmber } from "../../utils/style";
+import { NOTES_DOT_KEYFRAMES, achievementGreen, headerCase, regularButtonSpacingStyle, warnAmber } from "../../utils/style";
 import { QuickGuideColumn, QuickGuidePin } from "../guides/QuickGuidePin";
 import { FocusTarget } from "./FocusTarget";
 import { useQuickGuide } from "../../utils/quickGuide";
@@ -10,6 +10,7 @@ import type { ButtonSpacing } from "../../types";
 import { getCurrentTitleScale, scaleMultiplier } from "../../utils/scale";
 import { recordMilestoneEvent } from "../../utils/milestoneEvents";
 import { openExternalUrl } from "../../utils/navigation";
+import { useMultiplayerRoomRole } from "../../utils/multiplayerRoomState";
 
 // Font Awesome Free icon path, CC BY 4.0. See ATTRIBUTIONS.md.
 function BellIcon(props: { size?: number }) {
@@ -97,6 +98,7 @@ export function PageHelpButton(props: { focusKey: string; guide: string }) {
 export function PageNavStrip(props: PageNavStripProps) {
     const quickGuide = useQuickGuide();
     const notifications = useNotificationsChrome();
+    const inRoom = useMultiplayerRoomRole() !== null;
 
     const iconRow = (
         <Focusable
@@ -118,7 +120,7 @@ export function PageNavStrip(props: PageNavStripProps) {
             <FocusTarget focusKey="nav:bell" style={{ position: "relative" }}>
                 <DialogButton
                     onClick={notifications.openNotifications}
-                    style={navButtonStyle}
+                    style={inRoom ? { ...navButtonStyle, color: achievementGreen } : navButtonStyle}
                 >
                     {notifications.doNotDisturb ? <BellSlashIcon size={18} /> : <BellIcon size={18} />}
                 </DialogButton>

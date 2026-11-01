@@ -17,6 +17,7 @@ export type NotificationNav = {
     openFileWatcher?: () => void;
     openMemoriesTransfer?: () => void;
     openDataTransfer?: () => void;
+    openMultiplayer?: () => void;
     openChangelog?: (body: string) => void;
     openMessage?: (body: string) => void;
     openExternalUrl?: (url: string) => void;
@@ -173,6 +174,10 @@ export const NOTIFICATION_REGISTRY: Record<NotificationType, NotificationTypeEnt
             }
             if (n.target?.view === "dataTransfer" && nav.openDataTransfer) {
                 nav.openDataTransfer();
+                return;
+            }
+            if (n.target?.view === "multiplayer" && nav.openMultiplayer) {
+                nav.openMultiplayer();
                 return;
             }
             if (n.target?.view === "message" && nav.openMessage) {

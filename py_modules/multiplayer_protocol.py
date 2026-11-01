@@ -8,7 +8,7 @@ from nearby_protocol import canonical, encode, is_nonce, is_tag, sign, verify
 PORT = 49732
 
 KIND = "cheevodeck.play"
-VERSION = 1
+VERSION = 2
 
 CLOCK_SKEW_SECONDS = 120
 

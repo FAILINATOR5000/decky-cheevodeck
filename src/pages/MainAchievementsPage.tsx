@@ -79,6 +79,7 @@ import { recordMilestoneEvent } from "../utils/milestoneEvents";
 import { MilestonesQuickMenuButton } from "../components/milestones/MilestonesQuickMenuButton";
 import { useSetupCatchUp } from "../hooks/useSetupCatchUp";
 import { skipWhileHidden } from "../components/panel/skipWhileHidden";
+import { useMultiplayerRoomRole } from "../utils/multiplayerRoomState";
 
 // Layout constants
 const GAME_TICKER_FRESHNESS_MS = 60 * 60 * 1000;
@@ -1885,6 +1886,9 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
         };
     }, []);
 
+    const roomRole = useMultiplayerRoomRole();
+    const inRoom = roomRole !== null;
+
     if (view !== "achievements") {
         return null;
     }
@@ -2066,6 +2070,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                     justifyContent: "center",
                     scrollMarginTop: `${FIRST_FOCUSABLE_SCROLL_MARGIN_PX}px`,
                     opacity: previewStripButton === "notifications" ? 1 : 0.82,
+                    color: inRoom ? achievementGreen : undefined,
                     boxShadow: previewStripButton === "notifications"
                         ? "0 0 0 2px rgba(255,255,255,0.55), 0 2px 8px rgba(0,0,0,0.35)"
                         : undefined
@@ -2226,6 +2231,51 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                     </div>
                                 </FocusableItem>
                             </PanelSectionRow>
+                            {inRoom && (
+                                <PanelSectionRow>
+                                    <FocusableItem
+                                        focusKey="quickmenu:multiplayer"
+                                        focusFallback={["quickmenu:search"]}
+                                        bottomSeparator="none"
+                                        onClick={() => {
+                                            setQuickMenuExpanded(false);
+                                            openMultiplayer();
+                                        }}
+                                        outerStyle={{ width: "100%", minWidth: 0 }}
+                                    >
+                                        <div
+                                            style={{
+                                                width: "100%",
+                                                boxSizing: "border-box",
+                                                display: "flex",
+                                                flexDirection: "row",
+                                                alignItems: "center",
+                                                gap: "8px",
+                                                padding: "7px 10px",
+                                                borderRadius: "8px",
+                                                minWidth: 0,
+                                                border: `1px solid ${achievementGreen}`,
+                                                background: "rgba(34, 197, 94, 0.16)"
+                                            }}
+                                        >
+                                            <FaUserFriends size={16} color={achievementGreen} />
+                                            <span
+                                                style={{
+                                                    ...smallTextStyle(),
+                                                    flex: 1,
+                                                    minWidth: 0,
+                                                    textAlign: "left",
+                                                    color: achievementGreen,
+                                                    fontWeight: 700,
+                                                    overflowWrap: "anywhere"
+                                                }}
+                                            >
+                                                {t(language, roomRole === "host" ? "EZ Multiplayer room open" : "In an EZ Multiplayer room")}
+                                            </span>
+                                        </div>
+                                    </FocusableItem>
+                                </PanelSectionRow>
+                            )}
                             <Focusable
                                 flow-children="grid"
                                 navRef={quickMenuNavRef}

@@ -720,7 +720,7 @@ export type NotificationIconSource = "game" | "achievement" | "avatar" | "setMos
 type NotificationSource = "notifications";
 
 type NotificationNavTarget = {
-    view: "gameNotes" | "trackedSetOpen" | "gameOverview" | "achievementOverview" | "cheevoCheck" | "fileWatcher" | "memoriesTransfer" | "dataTransfer" | "changelog" | "message" | "external" | "milestones";
+    view: "gameNotes" | "trackedSetOpen" | "gameOverview" | "achievementOverview" | "cheevoCheck" | "fileWatcher" | "memoriesTransfer" | "dataTransfer" | "multiplayer" | "changelog" | "message" | "external" | "milestones";
     gameId?: number | null;
     achievementId?: number | null;
     noteId?: string | null;
@@ -2954,7 +2954,6 @@ export type MultiplayerHostedRoom = {
     max: number;
     seats: MultiplayerSeat[];
     state: "lobby" | "starting" | "playing";
-    handoff: boolean;
 };
 
 type MultiplayerGuestStatus = {
@@ -2965,9 +2964,9 @@ type MultiplayerGuestStatus = {
 };
 
 export type MultiplayerRoomStatus =
-    | { ok: true; role: "host"; room: MultiplayerHostedRoom }
-    | { ok: true; role: "guest"; room: MultiplayerRoomRow; seat: number; ip: string; status: MultiplayerGuestStatus | null; launched: boolean; error: string }
-    | { ok: true; role: null; closedReason: string };
+    | { ok: true; seq: number; role: "host"; room: MultiplayerHostedRoom }
+    | { ok: true; seq: number; role: "guest"; room: MultiplayerRoomRow; seat: number; ip: string; status: MultiplayerGuestStatus | null; launched: boolean; error: string }
+    | { ok: true; seq: number; role: null; closedReason: string };
 
 export type MultiplayerCoreChoice = { core: string; name: string };
 

@@ -30,8 +30,10 @@ import {
 } from "../../utils/notifications";
 import { BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT } from "../../utils/gamepadButtons";
 import { modalSize } from "../../utils/scale";
-import { FADE_IN_KEYFRAMES, NOTES_DOT_KEYFRAMES } from "../../utils/style";
+import { FADE_IN_KEYFRAMES, NOTES_DOT_KEYFRAMES, achievementGreen } from "../../utils/style";
 import { recordMilestoneEvent } from "../../utils/milestoneEvents";
+import { endMultiplayerRoom, useMultiplayerRoomMarker } from "../../utils/multiplayerRoomState";
+import { FocusTarget } from "../ui/FocusTarget";
 
 type NotifTab = "normal" | "archived";
 
@@ -193,6 +195,27 @@ export function NotificationsModal(props: NotificationsModalProps) {
         [BUTTON_BUMPER_RIGHT]: t(language, "Archived")
     }), [language]);
 
+    const room = useMultiplayerRoomMarker();
+    const showRoom = !isArchivedTab && room.role !== null;
+    const roomShownRef = useRef(showRoom);
+    useEffect(() => {
+        const wasShown = roomShownRef.current;
+        roomShownRef.current = showRoom;
+        if (showRoom || !wasShown) {
+            return;
+        }
+        const doc = titleRef.current?.ownerDocument;
+        const active = doc?.activeElement;
+        if (!doc || (active && active !== doc.body && active.isConnected)) {
+            return;
+        }
+        const card = Array.from(doc.querySelectorAll<HTMLElement>('[data-focus-key^="notif:"]'))
+            .find((node) => !/^notif:(tab|multiplayer):/.test(node.dataset.focusKey ?? ""));
+        const target = card ?? doc.querySelector<HTMLElement>('[data-focus-key="notif:tab:normal"]');
+        const button = (target?.querySelector("button, [tabindex]") ?? target) as HTMLElement | null;
+        button?.focus();
+    }, [showRoom]);
+
     const tabFocusArmed = useRef(false);
     useEffect(() => {
         if (!tabFocusArmed.current) {
@@ -238,6 +261,43 @@ export function NotificationsModal(props: NotificationsModalProps) {
                     onClick={() => setActiveTab("archived")}
                 />
             </Focusable>
+
+            {showRoom && (
+                <Focusable
+                    flow-children="row"
+                    onMenuButton={closeOnMenu}
+                    onButtonDown={handleTabButtons}
+                    actionDescriptionMap={tabLegend}
+                    style={{ display: "flex", flexDirection: "row", alignItems: "stretch", gap: "8px", marginBottom: "12px" }}
+                >
+                    <FocusTarget focusKey="notif:multiplayer:room" style={{ flex: 1, minWidth: 0, display: "flex" }}>
+                        <DialogButton
+                            onClick={() => {
+                                nav.openMultiplayer?.();
+                                close();
+                            }}
+                            style={{ width: "100%", minWidth: 0, textAlign: "left" }}
+                        >
+                            <div style={{ color: achievementGreen, fontWeight: 700, whiteSpace: "normal", overflowWrap: "anywhere" }}>
+                                {room.role === "host"
+                                    ? t(language, "EZ Multiplayer room open")
+                                    : t(language, "In {{name}}'s EZ Multiplayer room", { name: room.host })}
+                            </div>
+                            <div style={{ opacity: 0.8, whiteSpace: "normal", overflowWrap: "anywhere" }}>
+                                {room.title}
+                            </div>
+                        </DialogButton>
+                    </FocusTarget>
+                    <FocusTarget focusKey="notif:multiplayer:close" style={{ display: "flex" }}>
+                        <DialogButton
+                            onClick={() => void endMultiplayerRoom()}
+                            style={{ minWidth: 0, width: "auto" }}
+                        >
+                            {t(language, room.role === "host" ? "Close Room" : "Leave Room")}
+                        </DialogButton>
+                    </FocusTarget>
+                </Focusable>
+            )}
 
             {isArchivedTab && (
                 <>

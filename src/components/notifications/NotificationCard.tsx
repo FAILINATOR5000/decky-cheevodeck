@@ -180,6 +180,10 @@ function isDataTransfer(notification: CheevoNotification): boolean {
     return notification.type === "system" && notification.target?.view === "dataTransfer";
 }
 
+function isMultiplayerRow(notification: CheevoNotification): boolean {
+    return notification.type === "system" && notification.target?.view === "multiplayer";
+}
+
 function isChangelogRow(notification: CheevoNotification): boolean {
     return notification.type === "system" && notification.target?.view === "changelog";
 }
@@ -606,6 +610,7 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
         && !isFileWatcherPass(notification)
         && !isMemoriesTransfer(notification)
         && !isDataTransfer(notification)
+        && !isMultiplayerRow(notification)
         && !isChangelogRow(notification)
         && !isDeveloperMessage(notification);
     const templatedBody: ReactNode | null =
@@ -638,6 +643,8 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                                 ? memoriesTransferBody(notification, language)
                                 : isDataTransfer(notification)
                                 ? dataTransferBody(notification, language)
+                                : isMultiplayerRow(notification)
+                                ? t(language, notification.body)
                                 : isChangelogRow(notification)
                                     ? null
                                     : isDeveloperMessage(notification)
@@ -713,6 +720,8 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                                         ? t(language, "File Watcher")
                                         : isMemoriesTransfer(notification) || isDataTransfer(notification)
                                         ? localizeRuntimeText(language, notification.title)
+                                        : isMultiplayerRow(notification)
+                                        ? t(language, "EZ Multiplayer")
                                         : isChangelogRow(notification)
                                             ? t(language, "What's New in CheevoDeck")
                                             : isDeveloperMessage(notification)

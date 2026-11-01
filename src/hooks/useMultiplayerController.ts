@@ -367,6 +367,10 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
 
     function pickRoom(row: MultiplayerRoomRow) {
         setProblem(null);
+        if (row.mode !== tab && !hostingOrJoined) {
+            rememberMultiplayerTab(row.mode);
+            setTabState(row.mode);
+        }
         if (row.private) {
             setPendingRoom(row);
             return;

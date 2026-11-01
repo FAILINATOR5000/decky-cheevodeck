@@ -3765,6 +3765,10 @@ function AchievementsRoot() {
             requestPanelEntry({ kind: "dataTransfer" });
             goToDataTransfer("hub");
         },
+        openMultiplayer: () => {
+            requestPanelEntry({ kind: "multiplayer" });
+            goToMultiplayer("hub");
+        },
         openMessage: (body: string) => {
             showManagedModal((close) => (
                 <TextViewerModal

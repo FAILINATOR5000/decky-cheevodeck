@@ -780,6 +780,7 @@ class Plugin(
             runtime_dir=self.runtime_dir,
             cheevo_check_service=self.cheevo_check_service,
             cheevo_check_store=self.cheevo_check_store,
+            notifications_store=self.notifications_store,
         )
 
         self._memory_share_lock = threading.Lock()
