@@ -4,8 +4,9 @@ type Choices = {
     tab: MultiplayerMode;
     gameId: number | null;
     hardcore: boolean;
-    private: boolean;
     share: boolean;
+    seats: number;
+    status: string;
     core: string;
     coreFor: number | null;
 };
@@ -14,8 +15,9 @@ const choices: Choices = {
     tab: "link",
     gameId: null,
     hardcore: false,
-    private: false,
     share: false,
+    seats: 4,
+    status: "",
     core: "",
     coreFor: null
 };
@@ -36,10 +38,6 @@ export function rememberMultiplayerHardcore(value: boolean) {
     choices.hardcore = value;
 }
 
-export function rememberMultiplayerPrivate(value: boolean) {
-    choices.private = value;
-}
-
 export function rememberMultiplayerShare(value: boolean) {
     choices.share = value;
 }
@@ -53,7 +51,11 @@ export function multiplayerCoreFor(gameId: number | null): string {
     return choices.coreFor === gameId ? choices.core : "";
 }
 
+export function rememberMultiplayerHostPicks(seats: number, status: string) {
+    choices.seats = seats;
+    choices.status = status;
+}
+
 export function forgetMultiplayerRoomChoices() {
     choices.hardcore = false;
-    choices.private = false;
 }

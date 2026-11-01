@@ -29,17 +29,17 @@ class MultiplayerMixin(PluginContext):
         )
 
     async def multiplayer_host(
-        self, mode: str = "", game_id: int = 0, hardcore: bool = False, private: bool = False, core: str = "",
-        share: bool = False,
+        self, mode: str = "", game_id: int = 0, hardcore: bool = False, core: str = "", share: bool = False,
+        name: str = "", size: int = 4, password: str = "", status: str = "",
     ):
         return await self.multiplayer_service.host(
-            str(mode or ""), to_int(game_id, 0), bool(hardcore), bool(private), str(core or ""), bool(share)
+            str(mode or ""), to_int(game_id, 0), bool(hardcore), str(core or ""), bool(share), str(name or ""),
+            min(max(to_int(size, 4), 2), 10), str(password or ""), str(status or ""),
         )
 
-    async def multiplayer_room_options(self, hardcore=None, private=None, core=None, share=None):
+    async def multiplayer_room_options(self, hardcore=None, core=None, share=None):
         return await self.multiplayer_service.room_options(
             None if hardcore is None else bool(hardcore),
-            None if private is None else bool(private),
             None if core is None else str(core),
             None if share is None else bool(share),
         )
@@ -59,8 +59,8 @@ class MultiplayerMixin(PluginContext):
     async def multiplayer_drop_seat(self, seat: int = 0):
         return self.multiplayer_service.drop_seat(to_int(seat, 0))
 
-    async def multiplayer_join(self, room_id: str = "", code: str = "", hardcore: bool = False):
-        return await self.multiplayer_service.join(str(room_id or ""), str(code or ""), bool(hardcore))
+    async def multiplayer_join(self, room_id: str = "", password: str = "", hardcore: bool = False):
+        return await self.multiplayer_service.join(str(room_id or ""), str(password or ""), bool(hardcore))
 
     async def multiplayer_set_ready(self, ready: bool = False, reason: str = ""):
         return self.multiplayer_service.set_ready(bool(ready), str(reason or ""))

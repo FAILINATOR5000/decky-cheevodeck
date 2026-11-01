@@ -1,4 +1,5 @@
-import { DialogButton, PanelSectionRow } from "@decky/ui";
+import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
+import { useState } from "react";
 
 import { FocusTarget } from "../ui/FocusTarget";
 import { SectionTitle } from "../ui/SectionTitle";
@@ -7,8 +8,14 @@ import { achievementGreen, bodyTextStyle, compactButtonStyle, errorRed, mastered
 
 type RoomTableSeat = { name: string; game: string; tag: "host" | "you" | ""; mark?: "ready" | "cant" | "" };
 
+const STEPPED_ABOVE = 4;
+
 function dropKey(index: number): string {
     return `multiplayer:drop:${index}`;
+}
+
+function seatKey(index: number): string {
+    return `multiplayer:seat:${index}`;
 }
 
 export function RoomTable(props: {
@@ -18,9 +25,18 @@ export function RoomTable(props: {
     exitKey: string;
 }) {
     const { language, seats, onDrop } = props;
+    const [focused, setFocused] = useState(-1);
+    const stepped = seats.length > STEPPED_ABOVE;
     const droppable = seats
         .map((seat, index) => (onDrop && index > 0 && seat.name ? index : -1))
         .filter((index) => index > 0);
+
+    function seatHeirs(index: number): string[] {
+        return [index + 1, index - 1]
+            .filter((other) => other >= 0 && other < seats.length)
+            .map(seatKey)
+            .concat(props.exitKey, "multiplayer:back");
+    }
 
     return (
         <>
@@ -32,19 +48,17 @@ export function RoomTable(props: {
                         const heirs = [droppable[at + 1], droppable[at - 1]]
                             .filter((other): other is number => other !== undefined)
                             .map(dropKey);
-                        return (
-                            <div
-                                key={index}
-                                style={{
-                                    display: "grid",
-                                    gridTemplateColumns: "auto 1fr auto",
-                                    alignItems: "center",
-                                    gap: "10px",
-                                    minHeight: "28px",
-                                    padding: "4px 0",
-                                    borderTop: index > 0 ? "1px solid rgba(255,255,255,0.12)" : undefined
-                                }}
-                            >
+                        const rowStyle = {
+                            display: "grid",
+                            gridTemplateColumns: "auto 1fr auto",
+                            alignItems: "center",
+                            gap: "10px",
+                            minHeight: "28px",
+                            padding: "4px 0",
+                            borderTop: index > 0 ? "1px solid rgba(255,255,255,0.12)" : undefined
+                        };
+                        const cells = (
+                            <>
                                 {seat.mark === "ready" ? (
                                     <span style={{ ...bodyTextStyle(), opacity: 1, color: masteredGold, fontWeight: 800, minWidth: "1em", textAlign: "right" }}>✔</span>
                                 ) : seat.mark === "cant" ? (
@@ -66,7 +80,10 @@ export function RoomTable(props: {
                                 </div>
                                 {at >= 0 && onDrop ? (
                                     <div style={{ display: "flex" }}>
-                                        <FocusTarget focusKey={dropKey(index)} focusFallback={[...heirs, props.exitKey]}>
+                                        <FocusTarget
+                                            focusKey={stepped ? seatKey(index) : dropKey(index)}
+                                            focusFallback={stepped ? seatHeirs(index) : [...heirs, props.exitKey]}
+                                        >
                                             <DialogButton style={compactButtonStyle} onClick={() => onDrop(index)}>
                                                 {t(language, "Drop")}
                                             </DialogButton>
@@ -77,7 +94,27 @@ export function RoomTable(props: {
                                         {seat.tag === "host" ? t(language, "Host") : seat.tag === "you" ? t(language, "You") : ""}
                                     </span>
                                 )}
-                            </div>
+                            </>
+                        );
+                        if (!stepped || (at >= 0 && onDrop)) {
+                            return <div key={index} style={rowStyle}>{cells}</div>;
+                        }
+                        return (
+                            <FocusTarget key={index} focusKey={seatKey(index)} focusFallback={seatHeirs(index)} style={{ width: "100%" }}>
+                                <Focusable
+                                    focusable
+                                    noFocusRing
+                                    onGamepadFocus={() => setFocused(index)}
+                                    onGamepadBlur={() => setFocused((current) => (current === index ? -1 : current))}
+                                    style={{
+                                        ...rowStyle,
+                                        borderRadius: "4px",
+                                        background: focused === index ? "rgba(255,255,255,0.14)" : undefined
+                                    }}
+                                >
+                                    {cells}
+                                </Focusable>
+                            </FocusTarget>
                         );
                     })}
                 </div>

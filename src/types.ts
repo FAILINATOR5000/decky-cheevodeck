@@ -2919,6 +2919,9 @@ export type MultiplayerMode = "link" | "couch";
 export type MultiplayerRoomRow = {
     room: string;
     user: string;
+    name: string;
+    status: string;
+    where: "local" | "online";
     title: string;
     gameId: number;
     systemId: number;
@@ -2947,7 +2950,8 @@ type MultiplayerChatLine = { seq: number; name: string; text: string };
 
 export type MultiplayerHostedRoom = {
     id: string;
-    code: string;
+    name: string;
+    status: string;
     mode: MultiplayerMode;
     title: string;
     gameId: number;

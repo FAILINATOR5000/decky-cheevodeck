@@ -105,8 +105,8 @@ def _ours(message) -> bool:
     )
 
 
-def decode(raw: bytes):
-    if not isinstance(raw, (bytes, bytearray)) or len(raw) > MAX_FRAME_BYTES:
+def decode(raw: bytes, limit: int = MAX_FRAME_BYTES):
+    if not isinstance(raw, (bytes, bytearray)) or len(raw) > limit:
         return None
     try:
         value = json.loads(bytes(raw).decode("utf-8"), parse_constant=_refuse_constant)
@@ -119,37 +119,37 @@ def _refuse_constant(_name):
     raise ValueError("not a number")
 
 
-def encode(message: dict) -> bytes:
+def encode(message: dict, limit: int = MAX_FRAME_BYTES) -> bytes:
     body = canonical(message).encode("ascii")
-    if len(body) > MAX_FRAME_BYTES:
+    if len(body) > limit:
         raise FrameError()
     return body
 
 
-def frame(message: dict) -> bytes:
-    body = encode(message)
+def frame(message: dict, limit: int = MAX_FRAME_BYTES) -> bytes:
+    body = encode(message, limit)
     return _LENGTH.pack(len(body)) + body
 
 
-def frame_length(head: bytes) -> int:
+def frame_length(head: bytes, limit: int = MAX_FRAME_BYTES) -> int:
     if len(head) != _LENGTH.size:
         raise FrameError()
     (length,) = _LENGTH.unpack(head)
-    if length <= 0 or length > MAX_FRAME_BYTES:
+    if length <= 0 or length > limit:
         raise FrameError()
     return length
 
 
-def frame_body(raw: bytes) -> dict:
-    message = decode(raw)
+def frame_body(raw: bytes, limit: int = MAX_FRAME_BYTES) -> dict:
+    message = decode(raw, limit)
     if message is None:
         raise FrameError()
     return message
 
 
-async def read_frame(reader) -> dict:
-    length = frame_length(await reader.readexactly(_LENGTH.size))
-    return frame_body(await reader.readexactly(length))
+async def read_frame(reader, limit: int = MAX_FRAME_BYTES) -> dict:
+    length = frame_length(await reader.readexactly(_LENGTH.size), limit)
+    return frame_body(await reader.readexactly(length), limit)
 
 
 def recv_exactly(sock, count: int) -> bytes:

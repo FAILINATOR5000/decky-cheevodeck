@@ -17,6 +17,8 @@ import { openCorePicker } from "../components/multiplayer/CorePickerModal";
 import { DigitPicker } from "../components/multiplayer/DigitPicker";
 import { RoomTable } from "../components/multiplayer/RoomTable";
 import { openChatSay } from "../components/multiplayer/ChatSayModal";
+import { openHostRoom } from "../components/multiplayer/HostRoomModal";
+import { openJoinPassword } from "../components/multiplayer/JoinPasswordModal";
 import { SectionTitle } from "../components/ui/SectionTitle";
 import { useMultiplayer } from "../components/multiplayer/MultiplayerContext";
 import { CheevoCheckGamesModal } from "../components/pickers/CheevoCheckGamesModal";
@@ -111,11 +113,10 @@ const PROBLEM_TEXT: Record<string, string> = {
     nobody_ready: "Waiting for someone to ready up",
     unreadied_other_game: "You started another game, so you're not ready",
     not_lobby: "In-Game",
-    idle: "Your EZ Multiplayer room closed after 15 minutes with no players",
     room_gone: "That room is gone",
     no_room: "That room is gone",
-    bad_code: "Wrong code",
-    locked_out: "Too many wrong codes. Try again in a minute.",
+    bad_code: "Wrong password",
+    locked_out: "Too many wrong passwords. Try again in a minute.",
     full: "That room is full",
     chat_refused: "Couldn't send that message",
     no_dolphin_emulator_shortcut: "Add Dolphin itself to Steam ROM Manager",
@@ -193,7 +194,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const { state: mp, actions } = useMultiplayer();
     const [ipOpen, setIpOpen] = useState(false);
     const [ipDigits, setIpDigits] = useState("192168001000");
-    const [codeDigits, setCodeDigits] = useState("0000");
     const [playFocused, setPlayFocused] = useState(false);
     const [screenHz, setScreenHz] = useState<number | null>(null);
 
@@ -283,13 +283,13 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const playing = session.appid > 0;
     const seated = hosted ? hosted.seats.filter((seat, index) => index > 0 && seat).length : 0;
     const roomLocked = Boolean(hosted && hosted.state !== "lobby") || Boolean(joined);
-    const couchGuest = mp.mode === "couch" && (joined !== null || mp.pendingRoom !== null);
+    const couchGuest = mp.mode === "couch" && joined !== null;
 
     function gameProblem(): { code: string; detail?: Record<string, string> } | null {
         if (mp.visibleError) {
             return { code: mp.visibleError };
         }
-        if (!hosted && !joined && !mp.pendingRoom && gateCheck?.gate) {
+        if (!hosted && !joined && gateCheck?.gate) {
             if (gateCheck.gate === "not_in_results" && gateCheck.detail?.dolphinSkipped
                 && DOLPHIN_CONSOLES.includes(shown?.consoleName ?? "")) {
                 return { code: "dolphin_flatpak_needed" };
@@ -388,10 +388,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     function pressBack() {
         if (ipOpen) {
             setIpOpen(false);
-            return;
-        }
-        if (mp.pendingRoom) {
-            actions.cancelPendingRoom();
             return;
         }
         void page.onBack();
@@ -495,12 +491,37 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         });
     }
 
+    function describe(code: string, detail?: Record<string, string>) {
+        return problemText(language, code, detail);
+    }
+
+    function openHost() {
+        if (mp.gameId === null) {
+            return;
+        }
+        openHostRoom(language, {
+            mode: mp.mode,
+            gameId: mp.gameId,
+            hardcore: mp.hardcore,
+            core: mp.core,
+            share: mp.shareControls
+        }, describe);
+    }
+
+    function chooseRoom(row: MultiplayerRoomRow) {
+        actions.pickRoom(row);
+        if (row.private) {
+            openJoinPassword(language, row, mp.hardcore, describe);
+            return;
+        }
+        joiningRef.current = true;
+    }
+
     async function findByAddress() {
         const room = await actions.lookup(addressOf(ipDigits));
         if (room) {
             setIpOpen(false);
-            joiningRef.current = true;
-            actions.pickRoom(room);
+            chooseRoom(room);
         }
     }
 
@@ -508,7 +529,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const coreLabel = local
         ? local.core === local.shortcutCore
             ? t(language, "Core: {{core}} (from your shortcut)", { core: local.coreName })
-            : joined || mp.pendingRoom
+            : joined
                 ? t(language, "Core: {{core}} (matches the host)", { core: local.coreName })
                 : t(language, "Core: {{core}}", { core: local.coreName })
         : "";
@@ -522,7 +543,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 <FocusableItem
                     outerStyle={buttonStyle}
                     focusKey="multiplayer:core"
-                    focusFallback={[mp.pendingRoom ? "multiplayer:code:join" : "multiplayer:host", "multiplayer:back"]}
+                    focusFallback={["multiplayer:host", "multiplayer:back"]}
                     disabled={roomLocked}
                     onClick={openCores}
                     help={roomLocked ? t(language, "Close the room to change it") : undefined}
@@ -580,7 +601,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         style={slotStyle}
                     >
                         <DialogButton
-                            disabled={!mp.games || mp.games.length === 0 || mp.pendingRoom !== null}
+                            disabled={!mp.games || mp.games.length === 0}
                             onClick={() => openGamePicker()}
                             style={slotButtonStyle}
                         >
@@ -616,7 +637,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             disabled={hardcoreLocked}
             outerStyle={buttonStyle}
             focusKey="multiplayer:toggle:hardcore"
-            focusFallback={[joined ? "multiplayer:leave" : mp.pendingRoom ? "multiplayer:code:join" : "multiplayer:host"]}
+            focusFallback={[joined ? "multiplayer:leave" : "multiplayer:host"]}
             onChange={actions.setHardcore}
             help={t(language, hardcoreLocked ? "Close the room to change it" : "help_multiplayer_hardcore")}
         />
@@ -636,20 +657,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         />
     );
 
-    const privateRow = (
-        <ToggleRow
-            controlled
-            label={t(language, "Private Room")}
-            value={mp.privateRoom}
-            disabled={roomLocked}
-            outerStyle={buttonStyle}
-            focusKey="multiplayer:toggle:private"
-            focusFallback={["multiplayer:toggle:share", "multiplayer:toggle:hardcore", "multiplayer:host"]}
-            onChange={actions.setPrivate}
-            help={t(language, roomLocked ? "Close the room to change it" : "help_multiplayer_private")}
-        />
-    );
-
     const roomButton = joined ? (
         <PanelSectionRow>
             <FocusableItem
@@ -661,14 +668,14 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 {t(language, "Leave Room")}
             </FocusableItem>
         </PanelSectionRow>
-    ) : !mp.pendingRoom && (
+    ) : (
         <PanelSectionRow>
             <FocusableItem
                 outerStyle={buttonStyle}
                 focusKey="multiplayer:host"
                 focusFallback={[`multiplayer:tab:${mp.mode}`, "multiplayer:back"]}
                 disabled={mp.busy || (!hosted && (mp.gameId === null || !gateCheck || Boolean(gateCheck.gate) || (Boolean(mp.visibleError) && mp.visibleError !== "cap_reached")))}
-                onClick={() => void (hosted ? actions.closeRoom() : actions.host())}
+                onClick={() => void (hosted ? actions.closeRoom() : openHost())}
             >
                 {t(language, hosted ? "Close Room" : "Host a Room")}
             </FocusableItem>
@@ -810,10 +817,10 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     );
 
     const showHardcore = mp.mode === "link" || !couchGuest;
-    const showPrivate = !joined && !mp.pendingRoom;
-    const showShare = mp.mode === "couch" && showPrivate && (hosted?.emulator ?? local?.emulator) === "retroarch";
+    const showShare = mp.mode === "couch" && !joined && (hosted?.emulator ?? local?.emulator) === "retroarch";
     const showChangeGame = hosted !== null || (joined !== null && mp.mode === "link");
-    const optionRows = (showChangeGame || showCores || showHardcore || showShare || showPrivate) && (
+    const passwordSet = hosted?.private === true;
+    const optionRows = (showChangeGame || showCores || showHardcore || showShare || passwordSet) && (
         <>
             <SectionTitle label={t(language, "Options")} />
             {showChangeGame && (
@@ -832,53 +839,17 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             {coreRows}
             {showHardcore && hardcoreRow}
             {showShare && shareRow}
-            {showPrivate && privateRow}
-            {hosted?.private && (
+            {passwordSet && (
                 <PanelSectionRow>
                     <div style={{ ...bodyTextStyle(), opacity: 1, fontWeight: 700 }}>
-                        {t(language, "Room code: {{code}}", { code: hosted.code })}
+                        {t(language, "Password set")}
                     </div>
                 </PanelSectionRow>
             )}
         </>
     );
 
-    const codeRows = mp.pendingRoom && (
-        <>
-            <PanelSectionRow>
-                <div style={{ ...bodyTextStyle(), opacity: 1 }}>
-                    {t(language, "Enter the code for {{name}}'s room", { name: mp.pendingRoom.user })}
-                </div>
-            </PanelSectionRow>
-            <PanelSectionRow>
-                <DigitPicker
-                    language={language}
-                    digits={codeDigits}
-                    onChange={setCodeDigits}
-                    focusPrefix="multiplayer:code"
-                    fallbacks={["multiplayer:code:join", "multiplayer:leave"]}
-                />
-            </PanelSectionRow>
-            <PanelSectionRow>
-                <FocusableItem
-                    outerStyle={buttonStyle}
-                    focusKey="multiplayer:code:join"
-                    focusFallback={["multiplayer:leave", "multiplayer:code:0", "multiplayer:back"]}
-                    onClick={() => {
-                        const room = mp.pendingRoom;
-                        if (room) {
-                            joiningRef.current = true;
-                            void actions.join(room, codeDigits);
-                        }
-                    }}
-                >
-                    {t(language, "Join Room")}
-                </FocusableItem>
-            </PanelSectionRow>
-        </>
-    );
-
-    const listRows = !hosted && !joined && !mp.pendingRoom && (
+    const listRows = !hosted && !joined && (
         <>
             <PanelSectionRow>
                 <div style={{ ...bodyTextStyle(), fontWeight: "bold", opacity: 1, marginTop: "8px" }}>
@@ -906,7 +877,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                                     focusKey={roomKey(row)}
                                     focusFallback={[
                                         ...neighbors,
-                                        "multiplayer:code:0",
                                         "multiplayer:leave",
                                         "multiplayer:joinip",
                                         `multiplayer:tab:${mp.mode}`,
@@ -914,13 +884,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                                     ]}
                                     onGamepadFocus={() => roomWindow.onItemFocus(at)}
                                     onGamepadDirection={roomWindow.guardTopRow(at)}
-                                    onClick={() => {
-                                        if (row.private && row.mode !== mp.mode) {
-                                            landOnTop("multiplayer", "multiplayer:code:0");
-                                        }
-                                        joiningRef.current = true;
-                                        actions.pickRoom(row);
-                                    }}
+                                    onClick={() => chooseRoom(row)}
                                 >
                                     <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                                         <div>{t(language, "{{name}} · {{title}}", { name: row.user, title: row.title })}</div>
@@ -977,7 +941,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                             onChange={setIpDigits}
                             focusPrefix="multiplayer:ip"
                             groupSize={3}
-                            fallbacks={["multiplayer:ip:go", "multiplayer:leave", "multiplayer:code:0", "multiplayer:joinip"]}
+                            fallbacks={["multiplayer:ip:go", "multiplayer:leave", "multiplayer:joinip"]}
                         />
                     </PanelSectionRow>
                     {!validAddress(ipDigits) && (
@@ -991,7 +955,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         <FocusableItem
                             outerStyle={buttonStyle}
                             focusKey="multiplayer:ip:go"
-                            focusFallback={["multiplayer:leave", "multiplayer:code:0", "multiplayer:joinip"]}
+                            focusFallback={["multiplayer:leave", "multiplayer:joinip"]}
                             disabled={mp.busy || !validAddress(ipDigits)}
                             onClick={() => void findByAddress()}
                         >
@@ -1079,7 +1043,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         {mp.mode === "couch" && local?.emulator === "dolphin" && (
                             <PanelSectionRow>
                                 <div style={{ ...bodyTextStyle(), opacity: 1 }}>
-                                    {t(language, joined || mp.pendingRoom
+                                    {t(language, joined
                                         ? "In Dolphin, open Tools, then Start NetPlay, then Connect. The host's address is filled in."
                                         : "In Dolphin, open Tools, then Start NetPlay, then Host. Pick the game and press Start once everyone has joined.")}
                                 </div>
@@ -1127,7 +1091,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
 
                         <Focusable key={scopeKey} flow-children="column" resetNavOnEntry>
                             {roomButton}
-                            {codeRows}
                             {roomRows}
                             {optionRows}
                             {listRows}

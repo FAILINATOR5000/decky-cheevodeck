@@ -3,19 +3,30 @@ import hmac
 import re
 import socket
 
-from nearby_protocol import MAX_FRAME_BYTES, canonical, encode, is_nonce, is_tag, sign, verify
+import nearby_protocol
+from nearby_protocol import canonical, is_device_id, is_nonce, is_tag, sign, verify
 
 PORT = 49732
 
 KIND = "cheevodeck.play"
-VERSION = 2
+VERSION = 3
+
+MAX_FRAME_BYTES = 16384
 
 CLOCK_SKEW_SECONDS = 120
 
 MODES = ("link", "couch")
 STATES = ("lobby", "starting", "playing")
 
-MAX_SEATS = 4
+MAX_SEATS = 10
+DEFAULT_SEATS = 4
+
+STATUSES = ("", "chill", "casual", "competitive", "achievements", "fun", "party")
+WHERES = ("local", "online")
+
+NAME_MAX = 24
+PASSWORD_MAX = 32
+PASSWORD_ROUNDS = 600_000
 
 RETROARCH_NETPLAY_PORT = 55435
 GAMBATTE_LINK_PORT = 56400
@@ -24,9 +35,10 @@ PPSSPP_ADHOC_SERVER_PORT = 27312
 NETPACKET_CORES = ("gpsp", "melondsds")
 
 _KEY_LABEL = b"cheevodeck-play-v1|"
+_PASSWORD_LABEL = b"cheevodeck-play-v2|"
 
 _ROOM_ID = re.compile(r"[0-9a-f]{16}")
-_CODE = re.compile(r"[0-9]{4}")
+_STATUS = re.compile(r"[a-z_]{0,16}")
 _HASH = re.compile(r"[0-9a-f]{32}")
 _CRC = re.compile(r"[0-9a-f]{8}")
 _BUILD = re.compile(r"[0-9a-f]{16}")
@@ -64,8 +76,12 @@ def is_room_id(value) -> bool:
     return isinstance(value, str) and _ROOM_ID.fullmatch(value) is not None
 
 
-def is_code(value) -> bool:
-    return isinstance(value, str) and _CODE.fullmatch(value) is not None
+def clean_room_name(value) -> str:
+    return _clean(value, NAME_MAX) or ""
+
+
+def is_password(value) -> bool:
+    return isinstance(value, str) and 0 < len(value) <= PASSWORD_MAX
 
 
 def is_reason(value) -> bool:
@@ -87,8 +103,11 @@ def is_ipv4(value) -> bool:
     return True
 
 
-def room_key(code: str, room: str) -> bytes:
-    return hmac.new(code.encode("ascii"), _KEY_LABEL + room.encode("ascii"), hashlib.sha256).digest()
+def room_key(password: str, room: str) -> bytes:
+    if not password:
+        return hmac.new(b"", _KEY_LABEL + room.encode("ascii"), hashlib.sha256).digest()
+    return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), _PASSWORD_LABEL + room.encode("ascii"),
+                               PASSWORD_ROUNDS)
 
 
 def seat_key(key: bytes, nc: str, ns: str) -> bytes:
@@ -101,6 +120,22 @@ def game_port(mode: str, emulator: str, core: str) -> int:
     if emulator == "retroarch" and core == "gambatte":
         return GAMBATTE_LINK_PORT
     return PPSSPP_ADHOC_SERVER_PORT
+
+
+def encode(message: dict) -> bytes:
+    return nearby_protocol.encode(message, MAX_FRAME_BYTES)
+
+
+def decode(raw: bytes):
+    return nearby_protocol.decode(raw, MAX_FRAME_BYTES)
+
+
+def frame(message: dict) -> bytes:
+    return nearby_protocol.frame(message, MAX_FRAME_BYTES)
+
+
+async def read_frame(reader) -> dict:
+    return await nearby_protocol.read_frame(reader, MAX_FRAME_BYTES)
 
 
 def make_seek(nonce: str, now: int) -> bytes:
@@ -136,6 +171,9 @@ def room_body(room: dict, reveal: bool = False) -> dict:
         "op": "room",
         "room": room["id"],
         "user": room["user"],
+        "name": room["name"],
+        "status": room["status"],
+        "where": room["where"],
         "title": room["title"],
         "gameId": room["gameId"],
         "systemId": room["systemId"],
@@ -178,6 +216,10 @@ def room_fields(room: dict) -> dict:
     return {name: value for name, value in room_body(room, reveal=True).items() if name not in ("k", "v", "op")}
 
 
+def status_room_fields(room: dict) -> dict:
+    return {name: value for name, value in room_fields(room).items() if name != "seats"}
+
+
 def _room_fields(message):
     if not isinstance(message, dict):
         return None
@@ -187,6 +229,10 @@ def _room_fields(message):
     system_id = message.get("systemId")
     user = _clean(message.get("user"), _USER_MAX)
     title = _clean(message.get("title"), _TITLE_MAX)
+    status = message.get("status")
+    if not isinstance(status, str) or _STATUS.fullmatch(status) is None:
+        status = ""
+    where = message.get("where") if message.get("where") in WHERES else "local"
     core = message.get("core")
     build = message.get("coreBuild")
     if not _optional(build, _BUILD):
@@ -221,6 +267,9 @@ def _room_fields(message):
     return {
         "room": message["room"],
         "user": user,
+        "name": _clean(message.get("name"), NAME_MAX) or "Room",
+        "status": status,
+        "where": where,
         "title": title,
         "gameId": game_id,
         "systemId": system_id,
@@ -247,14 +296,14 @@ def _optional(value, pattern) -> bool:
     return isinstance(value, str) and (value == "" or pattern.fullmatch(value) is not None)
 
 
-def join_params(user: str, hash_: str, crc: str, core: str, emu_version: str) -> dict:
-    return {"user": user, "hash": hash_, "crc": crc, "core": core, "emuVersion": emu_version}
+def join_params(user: str, hash_: str, crc: str, core: str, emu_version: str, device: str) -> dict:
+    return {"user": user, "hash": hash_, "crc": crc, "core": core, "emuVersion": emu_version, "device": device}
 
 
 def read_join_params(raw):
     if not isinstance(raw, dict):
         return None
-    user = _clean(raw.get("user"), _USER_MAX)
+    user = clean_user(raw.get("user"))
     core = raw.get("core")
     if (
         not user
@@ -262,10 +311,12 @@ def read_join_params(raw):
         or (core and _CORE.fullmatch(core) is None)
         or not _optional(raw.get("hash"), _HASH)
         or not _optional(raw.get("crc"), _CRC)
+        or not is_device_id(raw.get("device"))
     ):
         return None
     return {
         "user": user,
+        "device": raw["device"],
         "hash": raw["hash"],
         "crc": raw["crc"],
         "core": core,
@@ -362,7 +413,7 @@ def chat_page(chat: list, since: int, limit: int = CHAT_REPLY_BYTES) -> list:
         if message["seq"] <= since:
             continue
         size += len(canonical(message)) + 1
-        if size > min(limit, CHAT_REPLY_BYTES):
+        if page and size > min(limit, CHAT_REPLY_BYTES):
             break
         page.append(message)
     return page
@@ -406,7 +457,8 @@ def read_status_reply(key: bytes, message, nonce: str):
     members = message.get("members")
     seats = message.get("seats")
     last = message.get("lastStart")
-    room = _room_fields(message.get("room"))
+    sent = message.get("room")
+    room = _room_fields({**sent, "seats": members}) if isinstance(sent, dict) and isinstance(members, list) else None
     if (
         room is None
         or message.get("state") not in STATES
