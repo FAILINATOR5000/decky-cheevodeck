@@ -175,8 +175,8 @@ export function multiplayerRoomMarker(): MultiplayerRoomMarker {
     return marker;
 }
 
-export async function pressMultiplayerReady(ready: boolean, reason = "") {
-    if (!reason) {
+export async function pressMultiplayerReady(ready: boolean, reason = "", tone = true) {
+    if (!reason && tone) {
         pressed = ready;
         if (ready) {
             playReady();

@@ -187,7 +187,10 @@ function RoomsModal(props: RoomsModalProps) {
             if (joined.ok) {
                 joinedRef.current = true;
                 rememberMultiplayerTab(row.mode);
-                overrideRecord(entryId, { focusKey: "multiplayer:leave" });
+                const running = row.mode === "couch" && row.emulator === "retroarch" && row.state === "playing";
+                overrideRecord(entryId, running
+                    ? { focusKey: "multiplayer:play", fallbacks: ["multiplayer:leave"] }
+                    : { focusKey: "multiplayer:leave" });
                 close();
                 return;
             }
@@ -386,13 +389,14 @@ function RoomsModal(props: RoomsModalProps) {
                                                     {" · "}
                                                     {t(language, "{{taken}} of {{count}} seats", { taken, count: row.max })}
                                                     {row.state === "playing" ? ` · ${t(language, "In-Game")}` : ""}
+                                                    {row.watch ? ` · ${t(language, "Watch Only")}` : ""}
                                                     {status ? ` · ${status}` : ""}
                                                 </div>
                                                 {tags && <div style={{ color: warnAmber }}>{tags}</div>}
                                                 {row.verdict && (
                                                     <div style={{ color: row.verdict.can ? achievementGreen : warnAmber }}>
                                                         {row.verdict.can
-                                                            ? `✔ ${t(language, "You can play")}`
+                                                            ? `✔ ${t(language, row.watch ? "You can watch" : "You can play")}`
                                                             : describe(row.verdict.reason, row.verdict.detail)}
                                                     </div>
                                                 )}

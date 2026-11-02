@@ -71,6 +71,8 @@ const PROBLEM_TEXT: Record<string, string> = {
     shortcut_unset: "Steam didn't accept CheevoDeck's settings for this game's shortcut. Try again.",
     shortcut_gone: "Steam can't find this game's shortcut anymore. Run Steam ROM Manager again.",
     host_start_failed: "The host's game didn't start. Ready up to try again.",
+    seat_not_taken: "The host's game didn't let you in. Try again.",
+    drop_in: "Players can join while you play",
     seated: "Close the room to change it",
     unavailable: "Couldn't open a room on this network",
     lobby_unreachable: "Couldn't reach the online lobby",

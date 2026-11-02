@@ -19,7 +19,7 @@ import { achievementGreen, errorRed, modalBodyStyle } from "../../utils/style";
 import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { friendError } from "./AddFriendModal";
-import { PicAvatar, friendName, friendStatus } from "./PicAvatar";
+import { PicAvatar, friendGame, friendName, friendStatus } from "./PicAvatar";
 
 const NICKNAME_MAX = 24;
 const PASSWORD_MAX = 32;
@@ -66,6 +66,7 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
     async function join() {
         setBusy(true);
         setFailure("");
+        let joinedRunningGame = false;
         try {
             await multiplayerSetVisible(true, true);
             const joined = await multiplayerFriendJoin(friend.ulid, password, props.hardcore);
@@ -81,6 +82,8 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
                 setFailure(joined.error ?? "unavailable");
                 return;
             }
+            const room = joined.room;
+            joinedRunningGame = room?.mode === "couch" && room.emulator === "retroarch" && room.state === "playing";
         }
         catch (e) {
             logError("multiplayerFriendJoin", e);
@@ -89,7 +92,9 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
             return;
         }
         rememberMultiplayerPage("play");
-        overrideRecord(entryId, { focusKey: "multiplayer:leave", tabPath: ["play"] });
+        overrideRecord(entryId, joinedRunningGame
+            ? { focusKey: "multiplayer:play", fallbacks: ["multiplayer:leave"], tabPath: ["play"] }
+            : { focusKey: "multiplayer:leave", tabPath: ["play"] });
         close();
     }
 
@@ -161,6 +166,7 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
                 <div style={{ ...modalBodyStyle(), color: friend.online ? achievementGreen : undefined, opacity: 1 }}>
                     {friendStatus(language, friend)}
                 </div>
+                {friendGame(friend) && <div style={{ ...modalBodyStyle(), overflowWrap: "anywhere" }}>{friendGame(friend)}</div>}
             </div>
         </div>
     );

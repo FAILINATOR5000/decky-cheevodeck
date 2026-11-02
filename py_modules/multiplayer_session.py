@@ -671,7 +671,8 @@ def ppsspp_cpu_flag(home) -> str:
 
 def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcore: bool, opt_path: Path,
                       guests: int, seat: int, host_ip: str, players: int, game_code: str = "", system_dir=None,
-                      share_controls: bool = False):
+                      share_controls: bool = False, watch_only: bool = False):
+    watch_only = watch_only and mode == "couch"
     cfg = [
         ("config_save_on_exit", "false"),
         ("remap_save_on_exit", "false"),
@@ -679,7 +680,7 @@ def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcor
         ("netplay_public_announce", "false"),
         ("netplay_nat_traversal", "false"),
         ("netplay_use_mitm_server", "false"),
-        ("netplay_start_as_spectator", "false"),
+        ("netplay_start_as_spectator", "true" if watch_only and role == "guest" else "false"),
         ("game_specific_options", "false"),
         ("global_core_options", "true"),
         ("core_options_path", str(opt_path)),
@@ -692,9 +693,15 @@ def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcor
         cfg.append(("netplay_share_digital", "2"))
         cfg.append(("netplay_share_analog", "2"))
         for number in range(1, 17):
-            wanted = role == "guest" and number == (1 if share_controls else seat + 1)
+            wanted = not watch_only and role == "guest" and number == (1 if share_controls else seat + 1)
             cfg.append((f"netplay_request_device_p{number}", "true" if wanted else "false"))
-    taps = MULTITAP.get(core, {}) if mode == "couch" and players > 2 else {}
+    if watch_only:
+        if role == "guest":
+            for key in ("input_netplay_game_watch", "input_netplay_game_watch_btn", "input_netplay_game_watch_axis"):
+                cfg.append((key, "nul"))
+        for port in range(2, 17):
+            cfg.append((f"input_libretro_device_p{port}", "0"))
+    taps = MULTITAP.get(core, {}) if mode == "couch" and players > 2 and not watch_only else {}
     for port, device in taps.get("devices", {}).items():
         cfg.append((f"input_libretro_device_p{port}", device))
 

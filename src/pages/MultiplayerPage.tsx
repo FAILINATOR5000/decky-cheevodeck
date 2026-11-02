@@ -72,7 +72,7 @@ const TABS: { tab: MultiplayerTab; labelKey: string; focusKey: string }[] = [
     { tab: "friends", labelKey: "Friends", focusKey: "multiplayer:tab:friends" }
 ];
 
-const WAITING = ["nobody_ready", "no_guests"];
+const WAITING = ["nobody_ready", "no_guests", "drop_in"];
 const ROOM_NOTICES = ["unreadied_other_game", "other_game"];
 
 const ABOVE_TABS = ["not_game_mode", "no_account", "cap_reached", "unavailable", "no_scan", "not_in_results", "no_shortcut",
@@ -203,6 +203,9 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         && (joined.ready || (ownGameOk && !runningOther)));
     const canToggleReady = readyAllowed && !mp.busy;
     const canRejoin = Boolean(joined?.rejoin) && !playing && !mp.busy && !runningOther && ownGameOk;
+    const dropIn = (hosted?.mode ?? joined?.room.mode) === "couch"
+        && (hosted?.emulator ?? joined?.room.emulator) === "retroarch";
+    const canJoinLate = !playing && !mp.busy && !runningOther && ownGameOk;
 
     function playStatus(): { code: string; detail?: Record<string, string> } | null {
         if (!hosted && !joined) {
@@ -214,12 +217,15 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         if (playing || !inLobby) {
             return null;
         }
-        if (hosted && !hosted.canStart) {
+        if (hosted && !dropIn && !hosted.canStart) {
             const anyCan = hosted.seats.some((seat, index) => index > 0 && seat?.can);
             return { code: anyCan ? "nobody_ready" : "no_guests" };
         }
         if (hosted ? otherGameRunning() : runningOther && !joined?.ready) {
             return { code: "other_game" };
+        }
+        if (hosted && dropIn && !hosted.seats.some((seat, index) => index > 0 && seat?.ready)) {
+            return { code: "drop_in" };
         }
         return null;
     }
@@ -253,26 +259,27 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     let canPlay = canStartNow;
     let pressPlay = () => void actions.start();
     if (hosted && !inLobby) {
-        playLabel = "Playing";
         canPlay = false;
     }
     else if (joined) {
-        if (playing || joined.launched) {
-            playLabel = "Playing";
-            canPlay = false;
-        }
-        else if (inLobby) {
+        if (inLobby) {
             playLabel = joined.ready ? "Unready" : "Ready";
             canPlay = canToggleReady;
             pressPlay = () => void actions.toggleReady();
         }
         else if (joined.rejoin) {
-            playLabel = "Join & Play";
+            playLabel = joined.room.watch ? "Watch" : "Join & Play";
             canPlay = canRejoin;
             pressPlay = () => void actions.play();
         }
+        else if (dropIn) {
+            playLabel = joined.room.watch ? "Watch" : "Join & Play";
+            canPlay = roomState === "playing" && !joined.status?.start && !joined.ready && !joined.launched
+                && canJoinLate;
+            pressPlay = () => void actions.joinLate();
+        }
         else {
-            playLabel = joined.consented ? "Playing" : "In-Game";
+            playLabel = "Ready";
             canPlay = false;
         }
     }
@@ -431,7 +438,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             gameId: mp.gameId,
             hardcore: mp.hardcore,
             core: mp.core,
-            share: mp.shareControls
+            share: mp.shareControls,
+            watch: mp.watchOnly
         }, {
             online: mp.lobby,
             lanOnly: Boolean(mp.check?.lanOnly)
@@ -561,12 +569,27 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             controlled
             label={t(language, "Share Controls")}
             value={mp.shareControls}
-            disabled={roomLocked}
+            disabled={roomLocked || mp.watchOnly}
             outerStyle={buttonStyle}
             focusKey="multiplayer:toggle:share"
             focusFallback={["multiplayer:toggle:hardcore", "multiplayer:host"]}
             onChange={actions.setShare}
-            help={t(language, roomLocked ? "Close the room to change it" : "help_multiplayer_share")}
+            help={t(language, roomLocked ? "Close the room to change it"
+                : mp.watchOnly ? "Watch Only is on, so nobody else controls the game" : "help_multiplayer_share")}
+        />
+    );
+
+    const watchRow = (
+        <ToggleRow
+            controlled
+            label={t(language, "Watch Only")}
+            value={mp.watchOnly}
+            disabled={roomLocked}
+            outerStyle={buttonStyle}
+            focusKey="multiplayer:toggle:watch"
+            focusFallback={["multiplayer:toggle:share", "multiplayer:toggle:hardcore", "multiplayer:host"]}
+            onChange={actions.setWatch}
+            help={t(language, roomLocked ? "Close the room to change it" : "help_multiplayer_watch")}
         />
     );
 
@@ -724,8 +747,9 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     name: seat?.name ?? "",
                     game: seat?.title ?? "",
                     tag: index === 0 ? "host" : "",
-                    mark: !seat || index === 0 ? "" : !seat.can ? "cant"
-                        : seat.ready || (hosted.state !== "lobby" && hosted.roster.includes(index)) ? "ready" : "",
+                    mark: !seat || index === 0 ? "" : !seat.can ? "cant" : seat.ready ? "ready" : "",
+                    activity: hosted.state === "lobby" || !seat ? "" : index === 0 ? "game"
+                        : seat.launched ? (hosted.watch ? "watch" : "game") : "",
                     avatar: seat?.pic ? friends.state.avatars[seat.pic] : undefined,
                     open: index > 0 && seat !== null
                 }))}
@@ -765,7 +789,10 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         name,
                         game: index === 0 ? joined.room.title : flags?.title ?? "",
                         tag: index === 0 ? "host" : index === joined.seat ? "you" : "",
-                        mark: !name || index === 0 || !flags ? "" : !flags.can ? "cant" : flags.ready || flags.playing ? "ready" : "",
+                        mark: !name || index === 0 || !flags ? "" : !flags.can ? "cant" : flags.ready ? "ready" : "",
+                        activity: !name || roomState === "lobby" ? "" : index === 0 ? "game"
+                            : (index === joined.seat ? joined.launched : flags?.launched)
+                                ? (joined.room.watch ? "watch" : "game") : "",
                         avatar: pic ? friends.state.avatars[pic] : undefined,
                         open: Boolean(name) && index !== joined.seat
                     };
@@ -821,6 +848,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             {coreRows}
             {showHardcore && hardcoreRow}
             {showShare && shareRow}
+            {showShare && watchRow}
         </>
     );
 

@@ -12,6 +12,7 @@ type RoomTableSeat = {
     game: string;
     tag: "host" | "you" | "";
     mark?: "ready" | "cant" | "";
+    activity?: "game" | "watch" | "";
     avatar?: string;
     open: boolean;
 };
@@ -75,8 +76,12 @@ export function RoomTable(props: {
                                         <span style={{ ...bodyTextStyle(), overflowWrap: "anywhere" }}>{seat.game}</span>
                                     )}
                                 </div>
-                                <span style={bodyTextStyle()}>
-                                    {seat.tag === "host" ? t(language, "Host") : seat.tag === "you" ? t(language, "You") : ""}
+                                <span style={{ ...bodyTextStyle(), textAlign: "right" }}>
+                                    {[
+                                        seat.tag === "host" ? t(language, "Host") : seat.tag === "you" ? t(language, "You") : "",
+                                        seat.activity === "game" ? t(language, "In-Game")
+                                            : seat.activity === "watch" ? t(language, "Watching") : ""
+                                    ].filter(Boolean).join(" · ")}
                                 </span>
                             </>
                         );

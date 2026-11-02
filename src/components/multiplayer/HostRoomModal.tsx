@@ -26,6 +26,7 @@ type HostRequest = {
     hardcore: boolean;
     core: string;
     share: boolean;
+    watch: boolean;
 };
 
 type HostPlace = {
@@ -77,7 +78,7 @@ function HostRoomModal(props: HostRoomModalProps) {
         try {
             await multiplayerSetVisible(true, true);
             const hosted = await multiplayerHost(request.mode, request.gameId, request.hardcore, request.core,
-                request.share, name.trim(), seats, password, status, where);
+                request.share, name.trim(), seats, password, status, where, request.watch);
             if (hosted.ok) {
                 overrideRecord(entryId, { focusKey: "multiplayer:host" });
                 close();

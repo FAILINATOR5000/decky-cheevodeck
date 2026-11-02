@@ -1120,7 +1120,9 @@ class MultiplayerService:
         if mode != "couch":
             return 2
         if self._room is not None:
-            return 1 + len(_guests(self._room))
+            return self._room["max"] if _drop_in(self._room) else 1 + len(_guests(self._room))
+        if room is not None and _drop_in(room):
+            return room["max"]
         if room is not None:
             seated = sum(1 for name in room["seats"] if name)
             joined = self._joined
@@ -1193,7 +1195,7 @@ class MultiplayerService:
 
     async def host(self, mode: str, game_id: int, hardcore: bool, core: str = "", share: bool = False,
                    name: str = "", size: int = proto.DEFAULT_SEATS, password: str = "", status: str = "",
-                   where: str = "local") -> dict:
+                   where: str = "local", watch: bool = False) -> dict:
         async with self._lock:
             refused = self._refusal()
             if refused is not None:
@@ -1237,6 +1239,7 @@ class MultiplayerService:
                 "hardcore": bool(hardcore),
                 "private": private,
                 "share": bool(share),
+                "watch": bool(watch) and mode == "couch",
                 "max": seats,
                 "seats": [{"name": user, "host": True, "said": 0.0, "ulid": ulid, "pic": pic}] + [None] * (seats - 1),
                 "inboxSeq": 0,
@@ -1245,6 +1248,7 @@ class MultiplayerService:
                 "rev": 1,
                 "round": 0,
                 "roster": [],
+                "rosterAt": {},
                 "ports": {},
                 "players": 1,
                 "startedAt": 0.0,
@@ -1307,7 +1311,7 @@ class MultiplayerService:
             "gameCode": local["gameCode"],
         }
 
-    async def room_options(self, hardcore=None, core=None, share=None) -> dict:
+    async def room_options(self, hardcore=None, core=None, share=None, watch=None) -> dict:
         room = self._room
         joined = self._joined
         if room is None and joined is not None and hardcore is not None:
@@ -1325,6 +1329,9 @@ class MultiplayerService:
             changed = True
         if share is not None and bool(share) != room["share"]:
             room["share"] = bool(share)
+            changed = True
+        if watch is not None and bool(watch) != room["watch"]:
+            room["watch"] = bool(watch)
             changed = True
         if changed:
             self._changed(room)
@@ -1436,6 +1443,7 @@ class MultiplayerService:
             "hardcore": room["hardcore"],
             "private": room["private"],
             "share": room["share"],
+            "watch": room["watch"],
             "max": room["max"],
             "seats": [
                 None if seat is None
@@ -1525,9 +1533,10 @@ class MultiplayerService:
         if room["state"] != "lobby" and self._public_state(room) == "playing":
             if room["playingSince"] is None:
                 room["playingSince"] = now
-            elif now - room["playingSince"] > LAUNCH_WAIT_SECONDS:
+            else:
                 waiting = [index for index in room["roster"]
-                           if room["seats"][index] is not None and not room["seats"][index]["launched"]]
+                           if room["seats"][index] is not None and not room["seats"][index]["launched"]
+                           and now - max(room["playingSince"], room["rosterAt"].get(index, 0.0)) > LAUNCH_WAIT_SECONDS]
                 if waiting:
                     decky.logger.info("multiplayer: seats %s never launched, no longer waiting for them", waiting)
                     room["roster"] = [index for index in room["roster"] if index not in waiting]
@@ -1563,6 +1572,7 @@ class MultiplayerService:
         room["state"] = "lobby"
         room["notice"] = None
         room["roster"] = []
+        room["rosterAt"] = {}
         room["ports"] = {}
         room["playingSince"] = None
         if error:
@@ -1968,11 +1978,13 @@ class MultiplayerService:
     def current_room(self):
         room = self._room
         if room is not None:
-            return {"id": room["id"], "name": room["name"], "where": room["where"]}
+            return {"id": room["id"], "name": room["name"], "where": room["where"], "playing": room["state"] != "lobby"}
         joined = self._joined
         if joined is not None:
             row = joined["row"]
-            return {"id": row["room"], "name": row["name"], "where": row["where"]}
+            status = joined["status"]
+            return {"id": row["room"], "name": row["name"], "where": row["where"],
+                    "playing": status is not None and status["state"] != "lobby"}
         return None
 
     def _take_report(self, room: dict, index: int, seat: dict, report) -> None:
@@ -1984,6 +1996,12 @@ class MultiplayerService:
                     title=report["title"], launched=report["launched"])
         if self._seat_ready(room, seat) != was_ready:
             self._debug("seat %s %s", index, "ready" if not was_ready else "not ready")
+        if self._late_ready(room, index, seat):
+            room["roster"].append(index)
+            room["ports"][index] = index
+            room["rosterAt"][index] = time.monotonic()
+            decky.logger.info("multiplayer: seat %s joined round %s while it runs", index, room["round"])
+            self._announce()
 
     def _seat_ready(self, room: dict, seat: dict) -> bool:
         return (
@@ -1995,9 +2013,23 @@ class MultiplayerService:
             and seat["round"] == room["round"]
         )
 
+    def _late_ready(self, room: dict, index: int, seat: dict) -> bool:
+        return (
+            _drop_in(room)
+            and room["state"] != "lobby"
+            and index not in room["roster"]
+            and seat["ready"]
+            and seat["can"]
+            and not seat["launched"]
+            and seat["rev"] == room["rev"]
+            and seat["round"] == room["round"]
+        )
+
     def _can_start(self, room: dict) -> bool:
         if room["state"] != "lobby" or self._in_game():
             return False
+        if _drop_in(room):
+            return True
         return any(self._seat_ready(room, seat) for seat in _guests(room))
 
     def _status_body(self, room: dict, index: int, seat: dict) -> dict:
@@ -2014,7 +2046,7 @@ class MultiplayerService:
             "round": room["round"],
             "start": index in roster,
             "port": room["ports"].get(index, 0) if room["state"] != "lobby" else 0,
-            "players": room["players"] if room["state"] != "lobby" else 1 + len(_guests(room)),
+            "players": room["players"] if room["state"] != "lobby" else self._players(room["mode"], room),
             "seats": [
                 {"ready": False, "can": True, "launched": False, "playing": False, "title": ""}
                 if taken is None or position == 0
@@ -2084,14 +2116,20 @@ class MultiplayerService:
             return {"ok": False, "error": ERROR_NOT_LOBBY}
         if self._in_game():
             return {"ok": False, "error": ERROR_BUSY}
-        if not _guests(room):
+        drop_in = _drop_in(room)
+        if not drop_in and not _guests(room):
             return {"ok": False, "error": ERROR_NO_GUESTS}
         if not self._can_start(room):
             return {"ok": False, "error": ERROR_NOBODY_READY}
         room["roster"] = [index for index, seat in enumerate(room["seats"])
                           if index > 0 and seat is not None and self._seat_ready(room, seat)]
-        room["ports"] = {index: position + 1 for position, index in enumerate(room["roster"])}
-        room["players"] = 1 + len(room["roster"])
+        room["rosterAt"] = {}
+        if drop_in:
+            room["ports"] = {index: index for index in room["roster"]}
+            room["players"] = room["max"]
+        else:
+            room["ports"] = {index: position + 1 for position, index in enumerate(room["roster"])}
+            room["players"] = 1 + len(room["roster"])
         room["round"] += 1
         room["state"] = "launching"
         room["startedAt"] = time.monotonic()
@@ -2461,6 +2499,12 @@ class MultiplayerService:
         if fresh:
             joined["chat"] = (joined["chat"] + fresh)[-proto.CHAT_KEPT:]
             joined["chatSince"] = fresh[-1]["seq"]
+        if (
+            joined["ready"] and status["state"] != "lobby" and status["start"] and _drop_in(joined["row"])
+            and status["round"] == joined["readyRound"] and status["rev"] == joined["readyRev"]
+        ):
+            joined["consentRound"] = status["round"]
+            joined["ready"] = False
         if joined["ready"] and (status["rev"] != joined["readyRev"] or status["round"] != joined["readyRound"]):
             if status["start"] and status["round"] == joined["readyRound"] + 1 and status["rev"] == joined["readyRev"]:
                 joined["consentRound"] = status["round"]
@@ -2575,7 +2619,9 @@ class MultiplayerService:
             return {"ok": False, "error": ERROR_NOT_GAME_MODE}
         status = joined["status"]
         if ready:
-            if status is None or status["state"] != "lobby":
+            late = (status is not None and status["state"] == "playing" and _drop_in(joined["row"])
+                    and not status["start"] and not joined["launched"])
+            if status is None or (status["state"] != "lobby" and not late):
                 return {"ok": False, "error": ERROR_NOT_LOBBY}
             if joined["local"] is None:
                 return {"ok": False, "error": ERROR_GATE, "gate": joined["reason"], "detail": joined["detail"]}
@@ -2704,7 +2750,7 @@ class MultiplayerService:
             if room["state"] != "launching":
                 return {"ok": False, "error": ERROR_NOT_READY}
             roster = [room["seats"][index] for index in room["roster"] if room["seats"][index] is not None]
-            if not roster:
+            if not roster and not _drop_in(room):
                 return {"ok": False, "error": ERROR_NO_GUESTS}
             role = "host"
             mode = room["mode"]
@@ -2715,7 +2761,8 @@ class MultiplayerService:
             own_ip = host_ip
             hardcore = room["hardcore"] if mode == "couch" else bool(hardcore)
             share = room["share"]
-            players = 1 + len(roster)
+            watch = room["watch"]
+            players = room["max"] if _drop_in(room) else 1 + len(roster)
             peer = None
             relay = self._relay_host() if room["where"] == "online" else ""
         elif joined is not None:
@@ -2733,6 +2780,7 @@ class MultiplayerService:
             own_ip = joined["ownIp"]
             hardcore = status["hardcore"] if mode == "couch" else joined["hardcore"]
             share = joined["row"]["share"]
+            watch = joined["row"].get("watch", False)
             players = status["players"]
             peer = joined["row"]
             relay = self._relay_host() if joined["row"]["where"] == "online" else ""
@@ -2765,7 +2813,7 @@ class MultiplayerService:
                 cfg_text, opt_text = session.retroarch_session(
                     ra, core=local["core"], rom=rom, mode=mode, role=role, hardcore=hardcore, opt_path=opt_path,
                     guests=players - 1, seat=seat, host_ip=host_ip, players=players, game_code=local["gameCode"],
-                    system_dir=system_dir, share_controls=share,
+                    system_dir=system_dir, share_controls=share, watch_only=watch,
                 )
                 self._write(opt_path, opt_text)
                 self._write(cfg_path, cfg_text)
@@ -3151,6 +3199,10 @@ def _known(version: str) -> bool:
 
 def _lan_only(mode: str, local: dict) -> bool:
     return mode == "link" and (local["emulator"] == "dolphin" or local["core"] == session.PPSSPP_CORE)
+
+
+def _drop_in(room: dict) -> bool:
+    return room.get("mode") == "couch" and room.get("emulator") == "retroarch"
 
 
 def _dolphin_couch(row: dict) -> bool:

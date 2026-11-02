@@ -31,9 +31,13 @@ export function PicAvatar(props: { uri: string | undefined; name: string; size: 
     );
 }
 
+export function friendGame(friend: MultiplayerFriend): string {
+    return friend.online && friend.room ? friend.game : "";
+}
+
 export function friendStatus(language: LanguageCode, friend: MultiplayerFriend): string {
     if (friend.online && friend.room) {
-        return t(language, "In {{room}}", { room: friend.room.name });
+        return t(language, friend.room.playing ? "In-Game in {{room}}" : "In {{room}}", { room: friend.room.name });
     }
     if (friend.online && friend.game) {
         return t(language, "Playing {{game}}", { game: friend.game });

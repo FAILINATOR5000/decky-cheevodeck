@@ -2945,6 +2945,7 @@ export type MultiplayerRoomRow = {
     hardcore: boolean;
     private: boolean;
     share: boolean;
+    watch: boolean;
     seats: string[];
     max: number;
     state: "lobby" | "playing";
@@ -2985,6 +2986,7 @@ export type MultiplayerHostedRoom = {
     hardcore: boolean;
     private: boolean;
     share: boolean;
+    watch: boolean;
     max: number;
     seats: MultiplayerSeat[];
     state: "lobby" | "starting" | "playing";
@@ -3048,7 +3050,7 @@ export type MultiplayerFriend = {
     raFriend: boolean;
     online: boolean;
     game: string;
-    room: { id: string; name: string; where: MultiplayerWhere } | null;
+    room: { id: string; name: string; where: MultiplayerWhere; playing: boolean } | null;
     seen: number;
     unread: number;
     added: number;

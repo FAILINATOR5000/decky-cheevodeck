@@ -810,11 +810,11 @@ export const multiplayerLookup = callable<[string], { ok: boolean; error?: strin
 export const multiplayerGames = callable<[], { ok: boolean; scanned: boolean; games: MultiplayerGame[]; installedCores?: string[] }>("multiplayer_games");
 export const multiplayerCheck = callable<[MultiplayerMode, number, string, string], MultiplayerCheck>("multiplayer_check");
 export const multiplayerHost = callable<
-    [MultiplayerMode, number, boolean, string, boolean, string, number, string, string, MultiplayerWhere],
+    [MultiplayerMode, number, boolean, string, boolean, string, number, string, string, MultiplayerWhere, boolean],
     MultiplayerReply & { room?: MultiplayerHostedRoom }
 >("multiplayer_host");
 export const multiplayerRoomOptions = callable<
-    [boolean | null, string | null, boolean | null],
+    [boolean | null, string | null, boolean | null, boolean | null],
     MultiplayerReply & { room?: MultiplayerHostedRoom }
 >("multiplayer_room_options");
 export const multiplayerCloseRoom = callable<[], { ok: boolean; error?: string }>("multiplayer_close_room");
@@ -837,7 +837,7 @@ export const multiplayerFriendMessages = callable<[string], MultiplayerReply & {
 );
 export const multiplayerFriendSend = callable<[string, string], MultiplayerReply>("multiplayer_friend_send");
 export const multiplayerFriendInvite = callable<[string], MultiplayerReply & { name?: string }>("multiplayer_friend_invite");
-export const multiplayerFriendJoin = callable<[string, string, boolean], MultiplayerReply>("multiplayer_friend_join");
+export const multiplayerFriendJoin = callable<[string, string, boolean], MultiplayerReply & { room?: MultiplayerRoomRow }>("multiplayer_friend_join");
 export const multiplayerAcceptInvite = callable<[string, boolean], MultiplayerReply>("multiplayer_accept_invite");
 export const multiplayerFriendAlert = callable<[string, boolean], MultiplayerReply>("multiplayer_friend_alert");
 export const multiplayerFriendAvatars = callable<[string[]], { avatars: Record<string, string> }>(

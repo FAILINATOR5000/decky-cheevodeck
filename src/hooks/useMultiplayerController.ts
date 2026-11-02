@@ -32,6 +32,7 @@ import {
     rememberMultiplayerGame,
     rememberMultiplayerHardcore,
     rememberMultiplayerShare,
+    rememberMultiplayerWatch,
     rememberMultiplayerTab,
     takeMultiplayerInvite
 } from "../utils/multiplayerChoices";
@@ -47,6 +48,7 @@ import { pressMultiplayerReady, subscribeMultiplayerRoom } from "../utils/multip
 const TICK_MS = 2000;
 const RENEW_EVERY = 5;
 const SAME_DIALOG_MS = 8000;
+const JOIN_WAIT_MS = 8000;
 
 type MultiplayerProblem = { code: string; detail?: Record<string, string> };
 type ActionResult = { ok: boolean; error?: string; gate?: string; detail?: Record<string, string> };
@@ -74,6 +76,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     const [pickedGameId, setPickedGameId] = useState<number | null>(() => multiplayerChoices().gameId);
     const [hardcore, setHardcoreState] = useState(() => multiplayerChoices().hardcore);
     const [shareControls, setShareState] = useState(() => multiplayerChoices().share);
+    const [watchOnly, setWatchState] = useState(() => multiplayerChoices().watch);
     const [visibleError, setVisibleError] = useState("");
     const [status, setStatus] = useState<MultiplayerRoomStatus | null>(null);
     const [check, setCheck] = useState<MultiplayerCheck | null>(null);
@@ -258,6 +261,18 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         }
     }, [isActive, status]);
 
+    const joining = Boolean(joined?.ready && joined.status && joined.status.state !== "lobby" && !joined.status.start);
+    useEffect(() => {
+        if (!isActive || !joining) {
+            return;
+        }
+        const timer = window.setTimeout(() => {
+            void pressMultiplayerReady(false, "", false);
+            showProblem("Couldn't Start", { code: "seat_not_taken" });
+        }, JOIN_WAIT_MS);
+        return () => window.clearTimeout(timer);
+    }, [isActive, joining]);
+
     useEffect(function reportFailedLaunches() {
         if (!isActive) {
             return;
@@ -413,7 +428,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         if (hosted) {
             const forGame = gameId;
             void run("Couldn't Change That", async () => {
-                const changed = await multiplayerRoomOptions(null, next, null);
+                const changed = await multiplayerRoomOptions(null, next, null, null);
                 if (changed.ok) {
                     rememberMultiplayerCore(forGame, next);
                     setCoreState(next);
@@ -430,7 +445,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         rememberMultiplayerHardcore(next);
         setHardcoreState(next);
         if ((hosted && mode === "couch") || (joined && mode === "link")) {
-            void run("Couldn't Change That", () => multiplayerRoomOptions(next, null, null));
+            void run("Couldn't Change That", () => multiplayerRoomOptions(next, null, null, null));
         }
     }
 
@@ -438,7 +453,15 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         rememberMultiplayerShare(next);
         setShareState(next);
         if (hosted) {
-            void run("Couldn't Change That", () => multiplayerRoomOptions(null, null, next));
+            void run("Couldn't Change That", () => multiplayerRoomOptions(null, null, next, null));
+        }
+    }
+
+    function setWatch(next: boolean) {
+        rememberMultiplayerWatch(next);
+        setWatchState(next);
+        if (hosted) {
+            void run("Couldn't Change That", () => multiplayerRoomOptions(null, null, null, next));
         }
     }
 
@@ -473,6 +496,10 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         });
     }
 
+    function joinLate() {
+        return run("Couldn't Start", () => pressMultiplayerReady(true, "", false));
+    }
+
     function toggleReady() {
         if (!joined) {
             return Promise.resolve(false);
@@ -492,6 +519,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
                 ? joined.status.hardcore
                 : hosted && mode === "couch" ? hosted.hardcore : joined ? joined.hardcore : hardcore,
             shareControls: hosted ? hosted.share : shareControls,
+            watchOnly: hosted ? hosted.watch : watchOnly,
             core,
             visibleError,
             hosted,
@@ -518,10 +546,12 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             chooseCore,
             setHardcore,
             setShare,
+            setWatch,
             closeRoom,
             leave,
             play,
             start,
+            joinLate,
             toggleReady
         }
     };

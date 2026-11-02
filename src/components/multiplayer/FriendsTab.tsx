@@ -30,7 +30,7 @@ import { openFriendCard } from "./FriendCardModal";
 import { openMessageSay } from "./MessageSayModal";
 import { showMultiplayerProblem } from "./ProblemModal";
 import { useMultiplayer } from "./MultiplayerContext";
-import { PicAvatar, friendName, friendStatus } from "./PicAvatar";
+import { PicAvatar, friendGame, friendName, friendStatus } from "./PicAvatar";
 
 const AVATAR_PX = 32;
 const ADD_KEY = "multiplayer:friends:add";
@@ -244,6 +244,7 @@ function FriendsList(props: FriendsTabProps) {
                                                 {friendStatus(language, item.row)}
                                             </span>
                                             {item.row.raFriend && ` · ${t(language, "RA friend")}`}
+                                            {friendGame(item.row) && <div style={{ overflowWrap: "anywhere" }}>{friendGame(item.row)}</div>}
                                             {item.row.unread > 0 && (
                                                 <span style={{ color: achievementGreen, fontWeight: 800 }}>
                                                     {` · ${t(language, "{{count}} new", { count: item.row.unread })}`}

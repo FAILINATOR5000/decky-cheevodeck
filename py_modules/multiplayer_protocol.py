@@ -22,7 +22,7 @@ STATES = ("lobby", "starting", "playing")
 MAX_SEATS = 10
 DEFAULT_SEATS = 4
 
-STATUSES = ("", "chill", "casual", "competitive", "achievements", "fun", "party")
+STATUSES = ("", "chill", "casual", "competitive", "achievements", "fun", "party", "watch")
 WHERES = ("local", "online")
 
 NAME_MAX = 24
@@ -287,6 +287,7 @@ def room_body(room: dict, reveal: bool = False) -> dict:
         "hardcore": room["hardcore"],
         "private": room["private"],
         "share": room["share"],
+        "watch": room.get("watch", False),
         "seats": [("?" if hidden and index > 0 else seat["name"]) if seat else ""
                   for index, seat in enumerate(room["seats"])],
         "max": room["max"],
@@ -383,6 +384,7 @@ def _room_fields(message):
         "hardcore": message["hardcore"],
         "private": message["private"],
         "share": message["share"],
+        "watch": message.get("watch") is True,
         "seats": [_clean(seat, _USER_MAX) or "" for seat in seats],
         "max": count,
         "state": message["state"],

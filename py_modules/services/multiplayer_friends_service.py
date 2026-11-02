@@ -474,7 +474,7 @@ class MultiplayerFriendsService:
             room = None
         else:
             room = {"id": room["id"], "name": proto.clean_room_name(room.get("name")) or "Room",
-                    "where": room["where"]}
+                    "where": room["where"], "playing": room.get("playing") is True}
         seen = message.get("seen")
         self._presence[ulid] = {
             "online": message.get("online") is True,
