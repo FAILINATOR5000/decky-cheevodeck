@@ -720,9 +720,11 @@ class MultiplayerService:
         if library is None:
             return {"ok": True, "scanned": False, "games": [], "installedCores": installed}
         games = []
+        couch_systems = {}
         for entry in library.values():
             linked = next((p for p in entry["paths"] if p["shortcut"]), None)
             shortcut = linked["shortcut"] if linked else None
+            can_couch = self._can_couch(ra, couch_systems, entry["systemId"], shortcut)
             can_link = entry["systemId"] in session.LINK_CORES
             if entry["systemId"] == session.GAMECUBE_SYSTEM:
                 can_link = entry["gameId"] in session.GC_LAN_GAMES
@@ -737,9 +739,27 @@ class MultiplayerService:
                 "imageIcon": entry["imageIcon"],
                 "appid": shortcut["appid"] if shortcut else 0,
                 "canLink": can_link,
+                "canCouch": can_couch,
             })
         games.sort(key=lambda row: row["title"].lower())
         return {"ok": True, "scanned": True, "games": games, "installedCores": installed}
+
+    def _can_couch(self, ra, by_system: dict, system_id: int, shortcut) -> bool:
+        detected = session.detect(shortcut["exe"], shortcut["launchOptions"]) if shortcut else None
+        emulator = detected["emulator"] if detected else "retroarch"
+        if emulator == "dolphin":
+            return system_id in session.DOLPHIN_SYSTEMS
+        if emulator == "duckstation":
+            if self._emulator_shortcut("retroarch") is None:
+                return False
+            system_id = session.PS1_SYSTEM
+        elif emulator != "retroarch" or system_id == session.DS_SYSTEM:
+            return False
+        if not ra.found:
+            return False
+        if system_id not in by_system:
+            by_system[system_id] = bool(self._compatible(ra, "couch", system_id))
+        return by_system[system_id]
 
     def cores(self, mode: str, game_id: int, room_id: str = "") -> dict:
         local, gate, detail = self._local(mode, game_id, "", self._room_row(room_id))
@@ -1336,6 +1356,7 @@ class MultiplayerService:
                 if found:
                     gate, detail = found
             if gate:
+                decky.logger.info("multiplayer: the host's change to %s, %s was refused (%s)", game_id, mode, gate)
                 room["notice"] = {"code": gate, "detail": detail}
                 self._announce()
                 return {"ok": False, "error": ERROR_GATE, "gate": gate, "detail": detail}

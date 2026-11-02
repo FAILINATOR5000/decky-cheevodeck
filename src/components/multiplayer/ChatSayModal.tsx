@@ -5,9 +5,11 @@ import { multiplayerSay } from "../../api";
 import { t, type LanguageCode } from "../../locales";
 import { logError } from "../../utils/errors";
 import { showManagedModal } from "../../utils/modalRegistry";
+import { problemText } from "../../utils/multiplayerProblems";
 import { modalSize } from "../../utils/scale";
 import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
+import { showMultiplayerProblem } from "./ProblemModal";
 
 const CHAT_MAX = 120;
 
@@ -20,7 +22,13 @@ function ChatSayModal(props: { language: LanguageCode; close: () => void }) {
         if (!canSend) {
             return;
         }
-        multiplayerSay(text).catch((e) => logError("multiplayerSay", e));
+        multiplayerSay(text)
+            .then((said) => {
+                if (!said.ok) {
+                    showMultiplayerProblem(language, "Couldn't Send That", problemText(language, said.error ?? "chat_refused"));
+                }
+            })
+            .catch((e) => logError("multiplayerSay", e));
         close();
     }
 

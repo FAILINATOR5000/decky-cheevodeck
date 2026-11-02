@@ -31,6 +31,7 @@ export type MultiplayerSessionSnapshot = {
     appid: number;
     running: boolean;
     failure: string;
+    failureSeq: number;
 };
 
 export type MultiplayerLaunchResult = {
@@ -38,10 +39,11 @@ export type MultiplayerLaunchResult = {
     error?: string;
     gate?: string;
     detail?: Record<string, string>;
+    round?: number;
 };
 
 let launched: MultiplayerRestoreRecord | null = null;
-let snapshot: MultiplayerSessionSnapshot = { appid: 0, running: false, failure: "" };
+let snapshot: MultiplayerSessionSnapshot = { appid: 0, running: false, failure: "", failureSeq: 0 };
 let launching = false;
 let fanfareEndsAt = 0;
 let fanfareFor = "";
@@ -70,10 +72,8 @@ export function multiplayerSessionSnapshot(): MultiplayerSessionSnapshot {
     return snapshot;
 }
 
-export function forgetMultiplayerFailure() {
-    if (snapshot.failure) {
-        publish({ failure: "" });
-    }
+function publishFailure(failure: string) {
+    publish({ failure, failureSeq: snapshot.failureSeq + 1 });
 }
 
 export function otherGameRunning(): boolean {
@@ -171,7 +171,7 @@ export async function launchMultiplayer(appid: number, hardcore: boolean): Promi
 async function launchOnce(appid: number, hardcore: boolean): Promise<MultiplayerLaunchResult> {
     const original = await readLaunchOptions(appid);
     if (original === null) {
-        return { ok: false, error: "launch_failed" };
+        return { ok: false, error: "shortcut_unread" };
     }
     const prepared = await multiplayerPrepareLaunch(original, hardcore);
     if (!prepared.ok || !prepared.options || !prepared.session) {
@@ -180,15 +180,15 @@ async function launchOnce(appid: number, hardcore: boolean): Promise<Multiplayer
     const record = { appid, original, session: prepared.session };
     if (!(await writeLaunchOptions(appid, prepared.options))) {
         await restore(record);
-        return { ok: false, error: "launch_failed" };
+        return { ok: false, error: "shortcut_unset" };
     }
     const gameId = appStore.GetAppOverviewByAppID(appid)?.gameid;
     if (!gameId) {
         await restore(record);
-        return { ok: false, error: "launch_failed" };
+        return { ok: false, error: "shortcut_gone" };
     }
     launched = record;
-    publish({ appid, running: false, failure: "" });
+    publish({ appid, running: false });
     const started = await multiplayerLaunchStarted();
     if (!started.ok) {
         launched = null;
@@ -219,10 +219,9 @@ export async function startMultiplayerRound(dolphinSteps = false): Promise<Multi
         result = { ok: false, error: "launch_failed" };
     }
     if (!result.ok) {
-        publish({ failure: result.gate ?? result.error ?? "launch_failed" });
         multiplayerStartCancel(result.error ?? "launch_failed").catch((e) => logError("multiplayerStartCancel", e));
     }
-    return result;
+    return { ...result, round: started.round };
 }
 
 function toast(line: string) {
@@ -259,7 +258,7 @@ async function autoStart(key: string, appid: number, dolphin: boolean) {
     }
     const result = await launchMultiplayer(appid, multiplayerChoices().hardcore);
     if (!result.ok) {
-        publish({ failure: result.gate ?? result.error ?? "launch_failed" });
+        publishFailure(result.gate ?? result.error ?? "launch_failed");
         await pressMultiplayerReady(false, result.error === "gate" ? "launch_failed" : result.error ?? "launch_failed");
     }
 }
@@ -332,7 +331,7 @@ function onSessionEvent(payload: {
     if (payload?.state !== "failed") {
         return;
     }
-    publish({ failure: payload.error ?? "launch_failed" });
+    publishFailure(payload.error ?? "launch_failed");
     const record = launched;
     if (record) {
         void restore(record);

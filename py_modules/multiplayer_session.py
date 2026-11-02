@@ -57,6 +57,7 @@ GEN3_POKEMON_CODES = ("AXV", "AXP", "BPR", "BPG", "BPE")
 GC_LAN_GAMES = {
     7693: "Mario Kart: Double Dash!!",
     6151: "Kirby Air Ride",
+    28426: "1080° Avalanche",
 }
 
 DOLPHIN_BBA_BUILT_IN = 12

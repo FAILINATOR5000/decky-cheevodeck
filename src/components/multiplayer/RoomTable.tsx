@@ -30,12 +30,10 @@ export function RoomTable(props: {
 }) {
     const { language, seats } = props;
     const [focused, setFocused] = useState(-1);
-    const open = seats.flatMap((seat, index) => (seat.open ? [index] : []));
 
     function heirs(index: number): string[] {
-        const at = open.indexOf(index);
-        return [open[at + 1], open[at - 1]]
-            .filter((other): other is number => other !== undefined)
+        return [index + 1, index - 1]
+            .filter((other) => other >= 0 && other < seats.length)
             .map(seatKey)
             .concat(props.exitKey, "multiplayer:back");
     }
@@ -82,15 +80,12 @@ export function RoomTable(props: {
                                 </span>
                             </>
                         );
-                        if (!open.includes(index)) {
-                            return <div key={index} style={rowStyle}>{cells}</div>;
-                        }
                         return (
                             <FocusTarget key={index} focusKey={seatKey(index)} focusFallback={heirs(index)} style={{ width: "100%" }}>
                                 <Focusable
                                     focusable
                                     noFocusRing
-                                    onActivate={() => props.onSeat(index)}
+                                    onActivate={seat.open ? () => props.onSeat(index) : undefined}
                                     onGamepadFocus={() => setFocused(index)}
                                     onGamepadBlur={() => setFocused((current) => (current === index ? -1 : current))}
                                     style={{

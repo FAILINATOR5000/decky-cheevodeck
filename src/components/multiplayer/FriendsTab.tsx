@@ -19,7 +19,7 @@ import type {
 import { logError } from "../../utils/errors";
 import { formatRelativeTime } from "../../utils/format";
 import { textSize } from "../../utils/scale";
-import { achievementGreen, bodyTextStyle, compactButtonStyle, errorRed, warnAmber } from "../../utils/style";
+import { achievementGreen, bodyTextStyle, compactButtonStyle, warnAmber } from "../../utils/style";
 import { FocusableItem } from "../ui/FocusableItem";
 import { FocusTarget } from "../ui/FocusTarget";
 import { SectionTitle } from "../ui/SectionTitle";
@@ -28,6 +28,7 @@ import { SubTabButton } from "../ui/SubTabButton";
 import { friendError, openAddFriend } from "./AddFriendModal";
 import { openFriendCard } from "./FriendCardModal";
 import { openMessageSay } from "./MessageSayModal";
+import { showMultiplayerProblem } from "./ProblemModal";
 import { useMultiplayer } from "./MultiplayerContext";
 import { PicAvatar, friendName, friendStatus } from "./PicAvatar";
 
@@ -86,7 +87,6 @@ function FriendsList(props: FriendsTabProps) {
     const data = friends.state.data;
     const avatars = friends.state.avatars;
     const [busy, setBusy] = useState(false);
-    const [failure, setFailure] = useState("");
     const [openFirst] = useState(() => pendingLandingKey("multiplayer") ?? undefined);
 
     const items = useMemo(() => {
@@ -137,16 +137,15 @@ function FriendsList(props: FriendsTabProps) {
 
     async function act(task: () => Promise<{ ok: boolean; error?: string }>) {
         setBusy(true);
-        setFailure("");
         try {
             const done = await task();
             if (!done.ok) {
-                setFailure(done.error ?? "unavailable");
+                showMultiplayerProblem(language, "Couldn't Update Your Friends", friendError(language, done.error ?? "unavailable"));
             }
         }
         catch (e) {
             logError("multiplayer friends", e);
-            setFailure("unavailable");
+            showMultiplayerProblem(language, "Couldn't Update Your Friends", friendError(language, "unavailable"));
         }
         setBusy(false);
         await friends.actions.reload();
@@ -167,11 +166,6 @@ function FriendsList(props: FriendsTabProps) {
             {status && (
                 <PanelSectionRow>
                     <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>{t(language, status)}</div>
-                </PanelSectionRow>
-            )}
-            {failure && (
-                <PanelSectionRow>
-                    <div style={{ ...bodyTextStyle(), color: errorRed, opacity: 1 }}>{friendError(language, failure)}</div>
                 </PanelSectionRow>
             )}
             <PanelSectionRow>

@@ -8,6 +8,8 @@ import { FocusableItem } from "../components/ui/FocusableItem";
 import { FocusTarget } from "../components/ui/FocusTarget";
 import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { SubTabButton } from "../components/ui/SubTabButton";
+import { ModeChoice } from "../components/multiplayer/ModeChoice";
+import { showMultiplayerProblem } from "../components/multiplayer/ProblemModal";
 import { TextViewerModal } from "../components/ui/TextViewerModal";
 import { ToggleRow } from "../components/ui/ToggleRow";
 import { GameHeaderCard, useGameHeaderArt } from "../components/games/GameHeaderCard";
@@ -28,6 +30,7 @@ import { t, type LanguageCode } from "../locales";
 import type {
     ButtonSpacing,
     MultiplayerCoreChoice,
+    MultiplayerGame,
     MultiplayerGuestGame,
     MultiplayerMode,
     MultiplayerTab,
@@ -42,6 +45,7 @@ import { screenMaxRefresh } from "../utils/screenRefresh";
 import { getCurrentControllerGlyphStyle } from "../utils/controllerGlyphs";
 import { ButtonHints } from "../components/ui/ButtonHints";
 import { openExternalUrl, raLookupSearchUrl } from "../utils/navigation";
+import { ROOM_ENDED, problemText, warningText } from "../utils/multiplayerProblems";
 import {
     achievementGreen,
     bodyTextStyle,
@@ -57,109 +61,22 @@ const DOLPHIN_CONSOLES = ["GameCube", "Wii"];
 const GBA_SYSTEM = 5;
 const NO_CORES: MultiplayerCoreChoice[] = [];
 const CHAT_LINES = 6;
+const FADED_GREEN = "rgba(34, 197, 94, 0.18)";
 
-const MODES: { mode: MultiplayerMode; labelKey: string; focusKey: string }[] = [
-    { mode: "link", labelKey: "Link Play", focusKey: "multiplayer:mode:link" },
-    { mode: "couch", labelKey: "Couch Play", focusKey: "multiplayer:mode:couch" }
-];
+function playsIn(game: MultiplayerGame, mode: MultiplayerMode) {
+    return mode === "couch" ? game.canCouch : LINK_SYSTEMS.includes(game.systemId) && game.canLink;
+}
 
 const TABS: { tab: MultiplayerTab; labelKey: string; focusKey: string }[] = [
     { tab: "play", labelKey: "Play", focusKey: "multiplayer:tab:play" },
     { tab: "friends", labelKey: "Friends", focusKey: "multiplayer:tab:friends" }
 ];
 
-const PROBLEM_TEXT: Record<string, string> = {
-    not_game_mode: "Only works in Game Mode",
-    no_account: "Sign in to RetroAchievements first",
-    cap_reached: "Leave this page and come back to look again",
-    no_scan: "Run Cheevo Check first",
-    not_in_results: "This game isn't in your Cheevo Check results",
-    no_shortcut: "No Steam ROM Manager shortcut for this game",
-    unsupported_emulator: "This emulator isn't supported",
-    core_cant_couch: "{{core}} can't do Couch Play. Works with: {{works}}",
-    no_couch_core: "No installed core for this system can do Couch Play",
-    link_needs_gambatte: "Link Play needs Gambatte",
-    link_needs_ppsspp: "Link Play needs PPSSPP",
-    link_needs_gpsp: "Link Play needs gpSP. Install it in RetroArch (Main Menu → Online Updater → Core Downloader).",
-    gpsp_too_old: "Link Play needs a newer gpSP. Update it in RetroArch (Online Updater → Update Installed Cores).",
-    link_gba_cant_link: "gpSP can't link this game",
-    link_no_game_code: "CheevoDeck can't read this game's code",
-    link_needs_melondsds: "Link Play needs melonDS DS. Install it in RetroArch (Main Menu → Online Updater → Core Downloader).",
-    melondsds_too_old: "Link Play needs melonDS DS 1.2.0 or newer",
-    melondsds_dsi_mode: "Link Play needs DS mode in melonDS DS",
-    melonds_standalone: "melonDS standalone has no RetroAchievements. A RetroArch shortcut with melonDS DS can link.",
-    link_needs_dolphin: "Link Play needs Dolphin",
-    link_gc_no_lan: "Link Play works with Mario Kart: Double Dash!! and Kirby Air Ride",
-    dolphin_game_setting: "A Dolphin game setting for this game sets the network adapter",
-    region_differs: "Your copy is from a different region than the host's",
-    dolphin_flatpak_needed: "GameCube and Wii games need Dolphin's Flatpak installed for Cheevo Check",
-    link_system: "Link Play works with Game Boy, Game Boy Advance, DS and PSP games, and two GameCube games",
-    ds_no_couch: "DS games can't do Couch Play. Use Link Play.",
-    duckstation_no_multiplayer: "DuckStation can't do Couch Play. A RetroArch shortcut with Beetle PSX HW can.",
-    pcsx2_no_multiplayer: "PCSX2 has no Link Play or Couch Play",
-    override: "A RetroArch override for this game sets {{key}}",
-    remap: "A RetroArch remap for this game sets the controller type",
-    emudeck_netplay: "Turn off EmuDeck's NetPlay first",
-    flatpak_permission: "The emulator can't read CheevoDeck's session files",
-    saves_by_core: "Your RetroArch saves are sorted by core, so {{core}} can't see your save. Use {{shortcutCore}}.",
-    other_game: "Close the running game first",
-    rom_mismatch: "Your ROM doesn't match the host's",
-    crc_mismatch: "Your ROM file differs from the host's. The game may desync.",
-    link_gb_both: "Link Play needs a Game Boy game on both",
-    link_needs_gambatte_both: "Link Play needs Gambatte on both devices",
-    different_game: "The host is playing a different game",
-    host_core_missing: "The host uses {{core}}, which isn't installed here. Install it in RetroArch (Main Menu → Online Updater → Core Downloader).",
-    match_host_core: "The host uses {{core}}. Switch to it to join.",
-    no_guests: "Waiting for players",
-    nobody_ready: "Waiting for someone to ready up",
-    unreadied_other_game: "You started another game, so you're not ready",
-    not_lobby: "In-Game",
-    room_gone: "That room is gone",
-    no_room: "That room is gone",
-    bad_code: "Wrong password",
-    locked_out: "Too many wrong passwords. Try again in a minute.",
-    full: "That room is full",
-    chat_refused: "Couldn't send that message",
-    no_dolphin_emulator_shortcut: "Add Dolphin itself to Steam ROM Manager",
-    dolphin_game_list: "Add {{folder}} to Dolphin's game list",
-    dolphin_version_mismatch: "The host uses Dolphin {{version}}. Every device needs the same Dolphin version.",
-    ppsspp_version_mismatch: "The host uses PPSSPP {{version}}. Every device needs the same PPSSPP version.",
-    not_found: "No room found at that address",
-    bad_address: "Not a valid address",
-    host_gone: "Lost the host",
-    dropped: "The host dropped you from the room",
-    timed_out: "Your seat was freed while this device was away",
-    closed: "The host closed the room",
-    network_changed: "Your network changed. Host again.",
-    args_dropped: "This shortcut didn't pass CheevoDeck's settings to the emulator",
-    launch_failed: "Couldn't start the game",
-    seated: "Close the room to change it",
-    unavailable: "Couldn't open a room on this network",
-    lobby_unreachable: "Couldn't reach the online lobby",
-    no_lobby: "Set a lobby server in Options first",
-    lan_only: "This game links over LAN, so it plays Local only.",
-    invite_expired: "That invite expired"
-};
-
-const WARNING_TEXT: Record<string, string> = {
-    core_override: "Using {{core}} for this session. Your shortcut stays on {{shortcutCore}}.",
-    saves_by_core: "Your RetroArch saves are sorted by core, so {{core}} won't see your usual save.",
-    crc_mismatch: "Your ROM file differs from the host's. The game may desync.",
-    version_mismatch: "Your RetroArch or core version differs from the host's.",
-    revision_differs: "Your copy is a different version of the game from the host's.",
-    game_differs: "Your game differs from the host's, so it may not link.",
-    duckstation_switch: "DuckStation can't do Couch Play, and its saves won't carry over. {{core}} works, so this session uses it.",
-    core_build_differs: "Your {{core}} build differs from the host's. Update cores on every device (Main Menu → Online Updater → Update Installed Cores)."
-};
-
-const WAITING = ["nobody_ready"];
+const WAITING = ["nobody_ready", "no_guests"];
+const ROOM_NOTICES = ["unreadied_other_game", "other_game"];
 
 const ABOVE_TABS = ["not_game_mode", "no_account", "cap_reached", "unavailable", "no_scan", "not_in_results", "no_shortcut",
     "dolphin_flatpak_needed"];
-
-function problemText(language: LanguageCode, code: string, detail?: Record<string, string>): string {
-    return t(language, PROBLEM_TEXT[code] ?? PROBLEM_TEXT.launch_failed, detail);
-}
 
 type MultiplayerPageState = {
     view: ViewKey;
@@ -230,9 +147,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 tabs.show(tab.tab, tab.tab === "friends" ? tabs.conversation : null);
                 changed = true;
             }
-            const mode = MODES.find((entry) => entry.mode === nextMode);
-            if (mode && mode.mode !== mp.tab && !mp.hosted && !mp.joined) {
-                actions.setTab(mode.mode);
+            if ((nextMode === "link" || nextMode === "couch") && nextMode !== mp.tab && !mp.hosted && !mp.joined) {
+                actions.setTab(nextMode);
                 changed = true;
             }
             return changed;
@@ -261,7 +177,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const gateCheck = mp.checkCurrent ? mp.check : null;
     const session = mp.session;
     const playing = session.appid > 0;
-    const seated = hosted ? hosted.seats.filter((seat, index) => index > 0 && seat).length : 0;
     const roomLocked = Boolean(hosted && hosted.state !== "lobby") || Boolean(joined);
     const couchGuest = mp.mode === "couch" && joined !== null;
 
@@ -269,7 +184,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         if (mp.visibleError) {
             return { code: mp.visibleError };
         }
-        if (!hosted && !joined && gateCheck?.gate) {
+        if (gateCheck?.gate) {
             if (gateCheck.gate === "not_in_results" && gateCheck.detail?.dolphinSkipped
                 && DOLPHIN_CONSOLES.includes(shown?.consoleName ?? "")) {
                 return { code: "dolphin_flatpak_needed" };
@@ -281,9 +196,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
 
     const roomState = hosted ? hosted.state : joined?.status?.state ?? "lobby";
     const inLobby = roomState === "lobby";
-    const round = hosted ? hosted.round : joined?.status?.round ?? 0;
-    const lastStart = hosted ? hosted.lastStart : joined?.status?.lastStart ?? null;
-    const startFailed = inLobby && lastStart !== null && !lastStart.ok && lastStart.round === round;
     const runningOther = anyGameRunning() && !playing;
     const ownGameOk = local !== null && mp.checkCurrent && !gateCheck?.gate;
     const canStartNow = Boolean(hosted?.canStart) && !mp.busy && ownGameOk && !otherGameRunning() && !playing;
@@ -296,25 +208,13 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         if (!hosted && !joined) {
             return null;
         }
-        if (session.failure) {
-            return { code: session.failure };
-        }
-        if (joined?.error) {
-            return { code: joined.error };
-        }
-        if (startFailed && lastStart) {
-            return { code: hosted ? lastStart.error : "launch_failed" };
-        }
-        if (joined?.notice) {
+        if (joined && ROOM_NOTICES.includes(joined.notice)) {
             return { code: joined.notice };
-        }
-        if (gateCheck?.gate) {
-            return { code: gateCheck.gate, detail: gateCheck.detail };
         }
         if (playing || !inLobby) {
             return null;
         }
-        if (hosted && seated > 0 && !hosted.canStart) {
+        if (hosted && !hosted.canStart) {
             const anyCan = hosted.seats.some((seat, index) => index > 0 && seat?.can);
             return { code: anyCan ? "nobody_ready" : "no_guests" };
         }
@@ -329,6 +229,25 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const modeProblem = problem && !ABOVE_TABS.includes(problem.code) ? problem : null;
     const status = playStatus();
     const inSession = hosted !== null || joined !== null;
+
+    const endedCode = !inSession ? mp.closedReason
+        : joined && ROOM_ENDED.includes(joined.error) ? joined.error : "";
+    const missedLine = mp.missed ?? (endedCode && !mp.endedLineCleared ? { code: endedCode } : null);
+
+    const warnings = [
+        ...(gateCheck?.warnings ?? []).map((warning) => warningText(language, warning.code, warning.detail)),
+        ...(runsPpsspp ? [t(language, "PSP multiplayer is experimental. Some games lose the connection when a match starts.")] : [])
+    ];
+    const tips = [
+        ...(screenHz !== null && (screenHz === 0 || screenHz > 60)
+            ? [t(language, "Multiplayer runs best at 60 Hz. If a game jitters, set 60 Hz in Steam's Performance menu while it runs.")]
+            : []),
+        ...(mp.mode === "couch" && local?.emulator === "dolphin"
+            ? [t(language, joined
+                ? "In Dolphin, open Tools, then Start NetPlay, then Connect. The host's address is filled in."
+                : "In Dolphin, open Tools, then Start NetPlay, then Host. Pick the game and press Start once everyone has joined.")]
+            : [])
+    ];
 
     let playLabel = mp.mode === "couch" && local?.emulator === "dolphin" ? "Open Dolphin" : "Host & Play";
     let canPlay = canStartNow;
@@ -357,7 +276,9 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             canPlay = false;
         }
     }
-    const playGreen = canPlay && playLabel !== "Unready";
+    const playGreen = playLabel !== "Unready";
+    const playBackground = !playGreen || playFocused ? undefined : canPlay ? achievementGreen : FADED_GREEN;
+    const playColor = !playGreen || playFocused ? undefined : canPlay ? "#0b1f0f" : "rgba(220, 222, 223, 0.7)";
     const yStarts = canStartNow && !state.mouseKeyboardMode;
     const xReadies = readyAllowed && !state.mouseKeyboardMode;
     const slotStyle = { display: "flex", width: "100%", marginTop: "8px" };
@@ -388,9 +309,9 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         });
     }
 
-    function openGamePicker(pick: (gameId: number) => void = actions.pickGame) {
+    function openGamePicker(pick: (gameId: number) => void = actions.pickGame, forMode: MultiplayerMode = mp.mode) {
         const rows = (mp.games ?? [])
-            .filter((game) => game.appid > 0 && (mp.mode === "couch" || (LINK_SYSTEMS.includes(game.systemId) && game.canLink)))
+            .filter((game) => game.appid > 0 && playsIn(game, forMode))
             .map((game) => ({
                 key: `${game.systemId}:${game.gameId}`,
                 system: game.system,
@@ -419,6 +340,17 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 close={close}
             />
         ));
+    }
+
+    function chooseMode(next: MultiplayerMode) {
+        const roomGame = hosted && next !== hosted.mode
+            ? mp.games?.find((game) => game.gameId === hosted.gameId)
+            : undefined;
+        if (roomGame && !playsIn(roomGame, next)) {
+            openGamePicker((gameId) => actions.changeGame(gameId, next), next);
+            return;
+        }
+        actions.setTab(next);
     }
 
     async function openGuestGames() {
@@ -566,9 +498,9 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                             style={{
                                 ...slotButtonStyle,
                                 fontWeight: 800,
-                                background: playGreen && !playFocused ? achievementGreen : undefined,
-                                color: playGreen && !playFocused ? "#0b1f0f" : undefined,
-                                opacity: canPlay || playLabel === "Playing" ? 1 : 0.45
+                                background: playBackground,
+                                color: playColor,
+                                opacity: canPlay || playGreen ? 1 : 0.45
                             }}
                         >
                             {t(language, playLabel)}
@@ -594,7 +526,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         </>
     );
 
-    const statusRow = (
+    const statusRow = inSession && (
         <PanelSectionRow>
             <div
                 style={{
@@ -807,7 +739,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             />
             {inviteRow}
             {chatRows}
-            {statusRow}
         </>
     ) : joined && (
         <>
@@ -848,8 +779,24 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             />
             {inviteRow}
             {chatRows}
-            {statusRow}
         </>
+    );
+
+    const notesRow = (warnings.length > 0 || tips.length > 0) && (
+        <PanelSectionRow>
+            <FocusableItem
+                outerStyle={buttonStyle}
+                focusKey="multiplayer:notes"
+                focusFallback={[inSession ? "multiplayer:chathistory" : "multiplayer:find", "multiplayer:back"]}
+                onClick={() => showMultiplayerProblem(language, "Before You Play", [...warnings, ...tips].join("\n\n"))}
+            >
+                <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
+                    <span style={{ visibility: "hidden", fontWeight: 800 }}>{warnings.length || ""}</span>
+                    <span style={{ flex: 1 }}>{t(language, "Before You Play")}</span>
+                    <span style={{ color: warnAmber, fontWeight: 800 }}>{warnings.length || ""}</span>
+                </div>
+            </FocusableItem>
+        </PanelSectionRow>
     );
 
     const showHardcore = mp.mode === "link" || !couchGuest;
@@ -938,9 +885,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
 
                 {onPlay && (
                     <Focusable key="multiplayer:play" flow-children="column">
-                        <SectionTitle label={t(language, "Current Game")} />
                         <PanelSectionRow>
-                            <div style={{ width: "100%" }}>
+                            <div style={{ width: "100%", paddingTop: "8px" }}>
                                 <GameHeaderCard
                                     {...art}
                                     language={language}
@@ -951,9 +897,19 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                                 />
                             </div>
                         </PanelSectionRow>
+                        {drawLower && (missedLine || modeProblem) && (
+                            <PanelSectionRow>
+                                <div style={{ ...bodyTextStyle(), color: missedLine ? errorRed : warnAmber, opacity: 1 }}>
+                                    {missedLine
+                                        ? problemText(language, missedLine.code, missedLine.detail)
+                                        : modeProblem && problemText(language, modeProblem.code, modeProblem.detail)}
+                                </div>
+                            </PanelSectionRow>
+                        )}
                         {playRows}
                         {drawLower && (
                             <>
+                                {statusRow}
                                 {topProblem && (
                                     <PanelSectionRow>
                                         <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
@@ -962,80 +918,24 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                                     </PanelSectionRow>
                                 )}
 
-                                <div style={{ height: "1px", background: "rgba(255,255,255,0.18)", margin: "8px 0" }} />
-
-                                <Focusable
-                                    flow-children="row"
-                                    style={{ width: "100%", display: "flex", gap: "6px", margin: "6px 0 4px 0" }}
-                                >
-                                    {MODES.map((entry) => (
-                                        <SubTabButton
-                                            key={entry.mode}
-                                            label={t(language, entry.labelKey)}
-                                            active={mp.mode === entry.mode}
-                                            onClick={() => actions.setTab(entry.mode)}
-                                            focusKey={entry.focusKey}
-                                            disabled={(joined !== null || (hosted !== null && hosted.state !== "lobby")) && entry.mode !== mp.mode}
-                                        />
-                                    ))}
-                                </Focusable>
+                                <ModeChoice
+                                    language={language}
+                                    mode={mp.mode}
+                                    locked={joined !== null || (hosted !== null && hosted.state !== "lobby")}
+                                    onChoose={chooseMode}
+                                />
                                 <PanelSectionRow>
                                     <div style={bodyTextStyle()}>
-                                        {t(language, mp.mode === "link" ? "help_multiplayer_link_mode" : "help_multiplayer_couch_mode")}
+                                        {t(language, mp.mode === "link"
+                                            ? "Each device runs its own copy of the game."
+                                            : "Everyone plays one shared game, up to four players.")}
                                     </div>
                                 </PanelSectionRow>
-                                {mp.mode === "couch" && local?.emulator === "dolphin" && (
-                                    <PanelSectionRow>
-                                        <div style={{ ...bodyTextStyle(), opacity: 1 }}>
-                                            {t(language, joined
-                                                ? "In Dolphin, open Tools, then Start NetPlay, then Connect. The host's address is filled in."
-                                                : "In Dolphin, open Tools, then Start NetPlay, then Host. Pick the game and press Start once everyone has joined.")}
-                                        </div>
-                                    </PanelSectionRow>
-                                )}
-                                {modeProblem && (
-                                    <PanelSectionRow>
-                                        <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
-                                            {problemText(language, modeProblem.code, modeProblem.detail)}
-                                        </div>
-                                    </PanelSectionRow>
-                                )}
-                                {(gateCheck?.warnings ?? []).map((warning) => (
-                                    <PanelSectionRow key={warning.code}>
-                                        <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
-                                            {t(language, WARNING_TEXT[warning.code] ?? WARNING_TEXT.version_mismatch, warning.detail)}
-                                        </div>
-                                    </PanelSectionRow>
-                                ))}
-                                {runsPpsspp && (
-                                    <PanelSectionRow>
-                                        <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
-                                            {t(language, "PSP multiplayer is experimental. Some games lose the connection when a match starts.")}
-                                        </div>
-                                    </PanelSectionRow>
-                                )}
-                                {screenHz !== null && (screenHz === 0 || screenHz > 60) && (
-                                    <PanelSectionRow>
-                                        <div style={bodyTextStyle()}>
-                                            {t(language, "Multiplayer runs best at 60 Hz. If a game jitters, set 60 Hz in Steam's Performance menu while it runs.")}
-                                        </div>
-                                    </PanelSectionRow>
-                                )}
-                                {(mp.problem || hosted?.notice || (!hosted && !joined && mp.closedReason)) && (
-                                    <PanelSectionRow>
-                                        <div style={{ ...bodyTextStyle(), color: errorRed, opacity: 1 }}>
-                                            {mp.problem
-                                                ? problemText(language, mp.problem.code, mp.problem.detail)
-                                                : hosted?.notice
-                                                    ? problemText(language, hosted.notice.code, hosted.notice.detail)
-                                                    : problemText(language, mp.closedReason)}
-                                        </div>
-                                    </PanelSectionRow>
-                                )}
 
                                 <Focusable key={scopeKey} flow-children="column" resetNavOnEntry>
                                     {roomButton}
                                     {roomRows}
+                                    {notesRow}
                                     {optionRows}
                                     <BottomFocusAnchor focusKey="multiplayer:bottom:anchor" />
                                 </Focusable>

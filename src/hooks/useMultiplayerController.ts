@@ -21,6 +21,9 @@ import type {
     Payload
 } from "../types";
 import { logError } from "../utils/errors";
+import { getCurrentLanguage } from "../locales";
+import { showMultiplayerProblem } from "../components/multiplayer/ProblemModal";
+import { ROOM_ENDED, problemText } from "../utils/multiplayerProblems";
 import {
     forgetMultiplayerRoomChoices,
     multiplayerChoices,
@@ -34,20 +37,36 @@ import {
 } from "../utils/multiplayerChoices";
 import { landOnTop } from "../focusRecords";
 import {
-    forgetMultiplayerFailure,
     launchMultiplayer,
     multiplayerSessionSnapshot,
     startMultiplayerRound,
     subscribeMultiplayerSession
 } from "../utils/multiplayerSession";
-import { pressMultiplayerReady } from "../utils/multiplayerRoomState";
+import { pressMultiplayerReady, subscribeMultiplayerRoom } from "../utils/multiplayerRoomState";
 
 const TICK_MS = 2000;
 const RENEW_EVERY = 5;
+const SAME_DIALOG_MS = 8000;
 
-export type MultiplayerProblem = { code: string; detail?: Record<string, string> };
+type MultiplayerProblem = { code: string; detail?: Record<string, string> };
+type ActionResult = { ok: boolean; error?: string; gate?: string; detail?: Record<string, string> };
 
 const headerPayloads = new Map<number, Payload>();
+
+const reported = new Set<string>();
+let lastDialog = { titleKey: "", at: 0 };
+let missedProblem: MultiplayerProblem | null = null;
+let endedLineCleared = false;
+
+function showProblem(titleKey: string, problem: MultiplayerProblem) {
+    lastDialog = { titleKey, at: Date.now() };
+    const language = getCurrentLanguage();
+    showMultiplayerProblem(language, titleKey, problemText(language, problem.code, problem.detail));
+}
+
+function failureOf(result: ActionResult): MultiplayerProblem {
+    return result.gate ? { code: result.gate, detail: result.detail } : { code: result.error ?? "unavailable" };
+}
 
 export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     const [tab, setTabState] = useState<MultiplayerMode>(() => multiplayerChoices().tab);
@@ -63,10 +82,33 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     const [scanned, setScanned] = useState(true);
     const [installedCores, setInstalledCores] = useState<string[]>([]);
     const [busy, setBusy] = useState(false);
-    const [problem, setProblem] = useState<MultiplayerProblem | null>(null);
+    const [missed, setMissedState] = useState<MultiplayerProblem | null>(() => missedProblem);
     const [headerPayload, setHeaderPayload] = useState<Payload | null>(null);
     const session = useSyncExternalStore(subscribeMultiplayerSession, multiplayerSessionSnapshot);
     const checkTokenRef = useRef(0);
+    const statusTokenRef = useRef(0);
+    const previousStatusRef = useRef<MultiplayerRoomStatus | null>(null);
+    const failureSeqRef = useRef<number | null>(null);
+
+    function setMissed(next: MultiplayerProblem | null) {
+        missedProblem = next;
+        setMissedState(next);
+    }
+
+    function report(key: string, titleKey: string, problem: MultiplayerProblem, witnessed: boolean) {
+        if (reported.has(key)) {
+            return;
+        }
+        reported.add(key);
+        if (!witnessed) {
+            setMissed(problem);
+            return;
+        }
+        if (lastDialog.titleKey === titleKey && Date.now() - lastDialog.at < SAME_DIALOG_MS) {
+            return;
+        }
+        showProblem(titleKey, problem);
+    }
 
     const hosted = status?.role === "host" ? status.room : null;
     const joined = status?.role === "guest" ? status : null;
@@ -83,8 +125,13 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     const checkKey = [mode, gameId ?? 0, checkCore, checkRoom].join("|");
 
     const reloadStatus = useCallback(async () => {
+        const token = statusTokenRef.current + 1;
+        statusTokenRef.current = token;
         try {
-            setStatus(await multiplayerRoomStatus());
+            const next = await multiplayerRoomStatus();
+            if (statusTokenRef.current === token) {
+                setStatus(next);
+            }
         }
         catch (e) {
             logError("multiplayerRoomStatus", e);
@@ -118,9 +165,11 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             return;
         }
         multiplayerSetVisible(false, false).catch((e) => logError("multiplayerSetVisible", e));
+        statusTokenRef.current += 1;
+        previousStatusRef.current = null;
+        failureSeqRef.current = null;
         setStatus(null);
         setCheck(null);
-        setProblem(null);
         setVisibleError("");
     }, [isActive]);
 
@@ -138,7 +187,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
                 }
                 setVisibleError(opened.ok ? "" : opened.error ?? "unavailable");
                 const invite = opened.ok ? takeMultiplayerInvite() : null;
-                if (invite && await run(() => multiplayerAcceptInvite(invite, hardcore))) {
+                if (invite && await run("Couldn't Join the Room", () => multiplayerAcceptInvite(invite, hardcore))) {
                     landOnTop("multiplayer", "multiplayer:leave");
                 }
             }
@@ -164,6 +213,62 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             window.clearInterval(timer);
         };
     }, [isActive, reloadStatus]);
+
+    useEffect(() => {
+        if (!isActive) {
+            return;
+        }
+        return subscribeMultiplayerRoom(() => void reloadStatus());
+    }, [isActive, reloadStatus]);
+
+    useEffect(function reportWhatTheRoomDid() {
+        if (!isActive || status === null) {
+            return;
+        }
+        const previous = previousStatusRef.current;
+        previousStatusRef.current = status;
+        const witnessed = previous !== null;
+        if (status.role === "host") {
+            endedLineCleared = false;
+            const last = status.room.lastStart;
+            if (last && !last.ok) {
+                report(`start:${status.room.id}:${last.round}`, "Couldn't Start", { code: last.error }, witnessed);
+            }
+            return;
+        }
+        if (status.role === "guest") {
+            if (ROOM_ENDED.includes(status.error)) {
+                if (witnessed && (previous.role !== "guest" || previous.error !== status.error)) {
+                    report(`ended:${status.room.room}`, "The Room Closed", { code: status.error }, true);
+                    endedLineCleared = true;
+                }
+                return;
+            }
+            endedLineCleared = false;
+            const last = status.status?.lastStart;
+            if (last && !last.ok) {
+                report(`start:${status.room.room}:${last.round}`, "Couldn't Start", { code: "host_start_failed" }, witnessed);
+            }
+            return;
+        }
+        if (status.closedReason && previous && previous.role !== null) {
+            const room = previous.role === "host" ? previous.room.id : previous.room.room;
+            report(`ended:${room}`, "The Room Closed", { code: status.closedReason }, true);
+            endedLineCleared = true;
+        }
+    }, [isActive, status]);
+
+    useEffect(function reportFailedLaunches() {
+        if (!isActive) {
+            return;
+        }
+        const seen = failureSeqRef.current;
+        failureSeqRef.current = session.failureSeq;
+        if (session.failureSeq === 0 || session.failureSeq === seen) {
+            return;
+        }
+        report(`failure:${session.failureSeq}`, "Couldn't Start", { code: session.failure }, seen !== null);
+    }, [isActive, session.failureSeq]);
 
     useEffect(() => {
         setCoreState(multiplayerCoreFor(gameId));
@@ -227,22 +332,24 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         };
     }, [isActive, gameId, currentGameId]);
 
-    async function run(task: () => Promise<{ ok: boolean; error?: string; gate?: string; detail?: Record<string, string> }>) {
+    function pressed() {
+        setMissed(null);
+        endedLineCleared = true;
+    }
+
+    async function run(titleKey: string, task: () => Promise<ActionResult>) {
         setBusy(true);
-        setProblem(null);
-        forgetMultiplayerFailure();
+        pressed();
         try {
             const result = await task();
             if (!result.ok) {
-                setProblem(result.gate
-                    ? { code: result.gate, detail: result.detail }
-                    : { code: result.error ?? "unavailable" });
+                showProblem(titleKey, failureOf(result));
             }
             return result.ok;
         }
         catch (e) {
             logError("multiplayer action", e);
-            setProblem({ code: "unavailable" });
+            showProblem(titleKey, { code: "unavailable" });
             return false;
         }
         finally {
@@ -257,12 +364,9 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         }
         if (hosted) {
             if (next === hosted.mode) {
-                if (hosted.notice) {
-                    void run(() => multiplayerChangeGame(next, hosted.gameId, ""));
-                }
                 return;
             }
-            void run(async () => {
+            void run("Couldn't Change the Game", async () => {
                 const changed = await multiplayerChangeGame(next, hosted.gameId, "");
                 if (changed.ok) {
                     rememberMultiplayerTab(next);
@@ -274,13 +378,24 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         }
         rememberMultiplayerTab(next);
         setTabState(next);
-        setProblem(null);
+        pressed();
     }
 
-    function changeGame(next: number) {
+    function changeGame(next: number, nextMode?: MultiplayerMode) {
         rememberMultiplayerGame(next);
+        pressed();
         if (hosted) {
-            void multiplayerChangeGame(hosted.mode, next, multiplayerCoreFor(next))
+            const toMode = nextMode ?? hosted.mode;
+            multiplayerChangeGame(toMode, next, multiplayerCoreFor(next))
+                .then((changed) => {
+                    if (changed.ok) {
+                        rememberMultiplayerTab(toMode);
+                        setTabState(toMode);
+                    }
+                    else {
+                        showProblem("Couldn't Change the Game", failureOf(changed));
+                    }
+                })
                 .catch((e) => logError("multiplayerChangeGame", e));
         }
         else if (joined) {
@@ -291,13 +406,13 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     function pickGame(next: number | null) {
         rememberMultiplayerGame(next);
         setPickedGameId(next);
-        setProblem(null);
+        pressed();
     }
 
     function chooseCore(next: string) {
         if (hosted) {
             const forGame = gameId;
-            void run(async () => {
+            void run("Couldn't Change That", async () => {
                 const changed = await multiplayerRoomOptions(null, next, null);
                 if (changed.ok) {
                     rememberMultiplayerCore(forGame, next);
@@ -315,7 +430,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         rememberMultiplayerHardcore(next);
         setHardcoreState(next);
         if ((hosted && mode === "couch") || (joined && mode === "link")) {
-            void run(() => multiplayerRoomOptions(next, null, null));
+            void run("Couldn't Change That", () => multiplayerRoomOptions(next, null, null));
         }
     }
 
@@ -323,20 +438,19 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         rememberMultiplayerShare(next);
         setShareState(next);
         if (hosted) {
-            void run(() => multiplayerRoomOptions(null, null, next));
+            void run("Couldn't Change That", () => multiplayerRoomOptions(null, null, next));
         }
     }
 
-
     async function closeRoom() {
-        await run(() => multiplayerCloseRoom());
+        await run("Couldn't Leave the Room", () => multiplayerCloseRoom());
         forgetMultiplayerRoomChoices();
         setHardcoreState(false);
     }
 
     async function leave() {
         if (joined) {
-            await run(() => multiplayerLeave());
+            await run("Couldn't Leave the Room", () => multiplayerLeave());
         }
     }
 
@@ -345,11 +459,18 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         if (!appid) {
             return Promise.resolve(false);
         }
-        return run(() => launchMultiplayer(appid, hardcore));
+        return run("Couldn't Start", () => launchMultiplayer(appid, hardcore));
     }
 
     function start() {
-        return run(() => startMultiplayerRound(hosted?.mode === "couch" && hosted.emulator === "dolphin"));
+        const roomId = hosted?.id ?? "";
+        return run("Couldn't Start", async () => {
+            const result = await startMultiplayerRound(hosted?.mode === "couch" && hosted.emulator === "dolphin");
+            if (!result.ok && result.round) {
+                reported.add(`start:${roomId}:${result.round}`);
+            }
+            return result;
+        });
     }
 
     function toggleReady() {
@@ -357,7 +478,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             return Promise.resolve(false);
         }
         const next = !joined.ready;
-        return run(() => pressMultiplayerReady(next));
+        return run("Couldn't Start", () => pressMultiplayerReady(next));
     }
 
     return {
@@ -383,7 +504,8 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             scanned,
             installedCores,
             busy,
-            problem,
+            missed,
+            endedLineCleared,
             headerPayload,
             session,
             loaded: games !== null && status !== null
