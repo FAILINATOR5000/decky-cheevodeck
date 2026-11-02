@@ -38,6 +38,8 @@ from services.memories_transfer_service import MemoriesTransferService
 from services.data_transfer_service import DataTransferService
 from services.nearby_transfer_service import NearbyTransferService
 from services.multiplayer_service import MultiplayerService
+from services.multiplayer_friends_service import MultiplayerFriendsService
+from multiplayer_friends_store import MultiplayerFriendsStore
 from services.smb_mount_service import SmbMountService
 from services.comments_service import CommentsService
 from services.new_sets_service import NewSetsService
@@ -363,6 +365,7 @@ class Plugin(
             base_dir=self.tracked_sets_dir,
         )
         self.milestones_store = MilestonesStore(base_dir=self.runtime_dir)
+        self.multiplayer_friends_store = MultiplayerFriendsStore(base_dir=self.runtime_dir)
         milestones_defs_path = self.plugin_dir / "milestones" / "milestones.json"
         if not milestones_defs_path.exists():
             milestones_defs_path = self.plugin_dir / "defaults" / "milestones" / "milestones.json"
@@ -557,6 +560,7 @@ class Plugin(
             memories_store=self.memories_store,
             milestones_store=self.milestones_store,
             milestones_service=self.milestones_service,
+            multiplayer_friends_store=self.multiplayer_friends_store,
             settings_store=self.settings_store,
             user_home=self.user_home,
         )
@@ -782,6 +786,18 @@ class Plugin(
             cheevo_check_store=self.cheevo_check_store,
             notifications_store=self.notifications_store,
         )
+        self.multiplayer_friends_service = MultiplayerFriendsService(
+            store=self.multiplayer_friends_store,
+            settings_store=self.settings_store,
+            game_mode=self.session_mode_service.is_game_mode,
+            multiplayer=self.multiplayer_service,
+            notifications_store=self.notifications_store,
+            ra_friends=self.friends_service,
+            cache_store=self.cache_store,
+            ra_call=self.run_ra_call_for_trickle,
+            ra=self.ra,
+        )
+        self.multiplayer_service.set_friends(self.multiplayer_friends_service)
 
         self._memory_share_lock = threading.Lock()
         self._memory_share_cancel = None
@@ -899,6 +915,7 @@ class Plugin(
         self.freeze_watchdog_service.sync()
         self.nearby_transfer_service.sync()
         self.multiplayer_service.sync()
+        self.multiplayer_friends_service.sync()
 
     def _toast_newer_schema(self) -> None:
         emit_notification(
@@ -953,6 +970,7 @@ class Plugin(
         self.data_transfer_service.set_event_loop(self._asyncio_loop)
         self.nearby_transfer_service.set_event_loop(self._asyncio_loop)
         self.multiplayer_service.set_event_loop(self._asyncio_loop)
+        self.multiplayer_friends_service.set_event_loop(self._asyncio_loop)
         try:
             await asyncio.to_thread(self.cheevo_check_service.prepare)
         except Exception as e:
@@ -1099,6 +1117,7 @@ class Plugin(
         self.freeze_watchdog_service.stop()
         self.nearby_transfer_service.stop()
         self.multiplayer_service.stop()
+        self.multiplayer_friends_service.stop()
         self.data_transfer_service.stop()
         self._restore_deck_controller_safe()
 
@@ -1173,6 +1192,7 @@ class Plugin(
             self.game_activity_history_store.repoint(base / "game_activity_history")
             self.tracked_sets_store.repoint(base)
             self.milestones_store.repoint(base, user_key)
+            self.multiplayer_friends_store.repoint(base, user_key)
             self.activity_store.repoint(base / "activity")
             self.subscriptions_store.repoint(base)
             self.calculator_store.repoint(base)
@@ -1274,6 +1294,7 @@ class Plugin(
             self.milestones_service.account_changed()
             self.nearby_transfer_service.account_changed()
             self.multiplayer_service.account_changed()
+            self.multiplayer_friends_service.account_changed()
             return cfg
 
     def _run_clear_under_trickle_lock(self, clear_fn):
@@ -1410,6 +1431,7 @@ class Plugin(
             self.milestones_service.account_changed()
             self.nearby_transfer_service.account_changed()
             self.multiplayer_service.account_changed()
+            self.multiplayer_friends_service.account_changed()
 
             return cfg
 
@@ -1623,6 +1645,7 @@ class Plugin(
         self.social_activity_trickle_service.wake_for_reschedule()
         self.back_button_service.sync()
         self.freeze_watchdog_service.sync()
+        self.multiplayer_friends_service.settings_changed()
 
         return {
             "ok": True,
@@ -1637,6 +1660,7 @@ class Plugin(
         self.social_activity_trickle_service.wake_for_reschedule()
         self.back_button_service.sync()
         self.freeze_watchdog_service.sync()
+        self.multiplayer_friends_service.settings_changed()
 
         return {
             "ok": True,
@@ -1887,6 +1911,7 @@ class Plugin(
                 self.milestones_service.account_changed()
                 self.nearby_transfer_service.account_changed()
                 self.multiplayer_service.account_changed()
+                self.multiplayer_friends_service.account_changed()
                 self._last_completion_walk = None
             self.file_watcher_service.prepare()
             self.file_watcher_service.start()

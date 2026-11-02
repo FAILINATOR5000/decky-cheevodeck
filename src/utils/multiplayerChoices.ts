@@ -1,4 +1,4 @@
-import type { MultiplayerMode, MultiplayerWhere } from "../types";
+import type { MultiplayerMode, MultiplayerTab, MultiplayerWhere } from "../types";
 
 type Choices = {
     tab: MultiplayerMode;
@@ -10,7 +10,12 @@ type Choices = {
     where: MultiplayerWhere;
     core: string;
     coreFor: number | null;
+    page: MultiplayerTab;
+    conversation: string | null;
+    invite: { id: string; at: number } | null;
 };
+
+const INVITE_FRESH_MS = 30000;
 
 const choices: Choices = {
     tab: "link",
@@ -21,7 +26,10 @@ const choices: Choices = {
     status: "",
     where: "local",
     core: "",
-    coreFor: null
+    coreFor: null,
+    page: "play",
+    conversation: null,
+    invite: null
 };
 
 export function multiplayerChoices(): Readonly<Choices> {
@@ -61,4 +69,19 @@ export function rememberMultiplayerHostPicks(seats: number, status: string, wher
 
 export function forgetMultiplayerRoomChoices() {
     choices.hardcore = false;
+}
+
+export function rememberMultiplayerPage(page: MultiplayerTab, conversation: string | null = null) {
+    choices.page = page;
+    choices.conversation = page === "friends" ? conversation : null;
+}
+
+export function rememberMultiplayerInvite(invite: string | null) {
+    choices.invite = invite ? { id: invite, at: Date.now() } : null;
+}
+
+export function takeMultiplayerInvite(): string | null {
+    const invite = choices.invite;
+    choices.invite = null;
+    return invite && Date.now() - invite.at < INVITE_FRESH_MS ? invite.id : null;
 }

@@ -3606,9 +3606,9 @@ function AchievementsRoot() {
         setPendingFocusKey("dataTransfer:back");
     }
 
-    function goToMultiplayer(intent: NavIntent = "push") {
+    function goToMultiplayer(intent: NavIntent = "push", land?: string) {
         friendGameSessionRefreshKeysRef.current = new Set();
-        setView("multiplayer", intent);
+        setView("multiplayer", intent, land ? { land } : undefined);
         setPendingFocusKey("multiplayer:back");
     }
 
@@ -3765,9 +3765,9 @@ function AchievementsRoot() {
             requestPanelEntry({ kind: "dataTransfer" });
             goToDataTransfer("hub");
         },
-        openMultiplayer: () => {
-            requestPanelEntry({ kind: "multiplayer" });
-            goToMultiplayer("hub");
+        openMultiplayer: (land) => {
+            requestPanelEntry({ kind: "multiplayer" }, land ? { land } : undefined);
+            goToMultiplayer("hub", land);
         },
         openMessage: (body: string) => {
             showManagedModal((close) => (
@@ -5232,7 +5232,12 @@ function AchievementsRoot() {
                                         buttonSpacing,
                                         showIcons,
                                         mouseKeyboardMode,
-                                        payload
+                                        payload,
+                                        dynamicAllGames,
+                                        dynamicInitialRows,
+                                        dynamicRowStep,
+                                        dynamicPrefetchDistance,
+                                        dynamicSentinelRootMargin
                                     }}
                                     actions={{
                                         onBack: backFromUtilityTool,

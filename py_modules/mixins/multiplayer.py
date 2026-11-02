@@ -1,5 +1,7 @@
 import asyncio
+import urllib.error
 
+import decky
 from mixins._context import PluginContext
 from utils import to_int
 
@@ -57,8 +59,8 @@ class MultiplayerMixin(PluginContext):
     async def multiplayer_close_room(self):
         return self.multiplayer_service.close_room()
 
-    async def multiplayer_drop_seat(self, seat: int = 0):
-        return self.multiplayer_service.drop_seat(to_int(seat, 0))
+    async def multiplayer_drop_seat(self, seat: int = 0, name: str = ""):
+        return self.multiplayer_service.drop_seat(to_int(seat, 0), str(name or ""))
 
     async def multiplayer_join(self, room_id: str = "", password: str = "", hardcore: bool = False):
         return await self.multiplayer_service.join(str(room_id or ""), str(password or ""), bool(hardcore))
@@ -106,3 +108,60 @@ class MultiplayerMixin(PluginContext):
 
     async def multiplayer_debug_proc(self):
         return await asyncio.to_thread(self.multiplayer_service.debug_processes)
+
+    async def multiplayer_friends(self, open_tab: bool = False):
+        return self.multiplayer_friends_service.state(bool(open_tab))
+
+    async def multiplayer_friend_add(self, name: str = ""):
+        name = str(name or "").strip()
+        if not name or len(name) > 32:
+            return {"ok": False, "error": "no_user"}
+        cfg = self.settings_store.load_config()
+        web_api_key = str(cfg.get("webApiKey", "")).strip()
+        try:
+            async with self._ra_slot():
+                profile = await asyncio.to_thread(self.ra.get_user_profile, name, web_api_key)
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                return {"ok": False, "error": "no_user"}
+            return {"ok": False, "error": "ra_unreachable"}
+        except Exception as e:
+            decky.logger.warning("friends: the RetroAchievements lookup failed (%s)", type(e).__name__)
+            return {"ok": False, "error": "ra_unreachable"}
+        return await self.multiplayer_friends_service.add_profile(name, profile)
+
+    async def multiplayer_friend_add_seat(self, seat: int = 0, ulid: str = ""):
+        return await self.multiplayer_friends_service.add_seat(to_int(seat, 0), str(ulid or ""))
+
+    async def multiplayer_friend_answer(self, ulid: str = "", accept: bool = False):
+        return await self.multiplayer_friends_service.answer(str(ulid or ""), bool(accept))
+
+    async def multiplayer_friend_remove(self, ulid: str = ""):
+        return await self.multiplayer_friends_service.remove(str(ulid or ""))
+
+    async def multiplayer_friend_rename(self, ulid: str = "", nickname: str = ""):
+        return await asyncio.to_thread(self.multiplayer_friends_service.rename, str(ulid or ""), str(nickname or ""))
+
+    async def multiplayer_friend_messages(self, ulid: str = ""):
+        return await asyncio.to_thread(self.multiplayer_friends_service.messages, str(ulid or ""))
+
+    async def multiplayer_friend_send(self, ulid: str = "", text: str = ""):
+        return await self.multiplayer_friends_service.send_message(str(ulid or ""), str(text or ""))
+
+    async def multiplayer_friend_invite(self, ulid: str = ""):
+        return await self.multiplayer_friends_service.invite(str(ulid or ""))
+
+    async def multiplayer_friend_join(self, ulid: str = "", password: str = "", hardcore: bool = False):
+        return await self.multiplayer_friends_service.join_friend(str(ulid or ""), str(password or ""),
+                                                                  bool(hardcore))
+
+    async def multiplayer_accept_invite(self, invite: str = "", hardcore: bool = False):
+        return await self.multiplayer_friends_service.accept_invite(str(invite or ""), bool(hardcore))
+
+    async def multiplayer_friend_alert(self, device: str = "", revoke: bool = False):
+        return await self.multiplayer_friends_service.alert(str(device or ""), bool(revoke))
+
+    async def multiplayer_friend_avatars(self, pics=None):
+        wanted = [str(pic) for pic in pics or [] if isinstance(pic, str)][:100]
+        async with self._image_slot():
+            return await asyncio.to_thread(self.icon_service.get_pic_avatars, wanted)

@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import re
+import secrets
 import socket
 
 import nearby_protocol
@@ -9,7 +10,7 @@ from nearby_protocol import canonical, is_device_id, is_nonce, is_tag, sign, ver
 PORT = 49732
 
 KIND = "cheevodeck.play"
-VERSION = 3
+VERSION = 4
 
 MAX_FRAME_BYTES = 16384
 
@@ -36,6 +37,7 @@ DOLPHIN_NETPLAY_PORT = 2626
 NETPACKET_CORES = ("gpsp", "melondsds")
 
 _KEY_LABEL = b"cheevodeck-play-v1|"
+_PASS_SECONDS = 600
 _PASSWORD_LABEL = b"cheevodeck-play-v2|"
 
 _ROOM_ID = re.compile(r"[0-9a-f]{16}")
@@ -44,6 +46,20 @@ _HASH = re.compile(r"[0-9a-f]{32}")
 _CRC = re.compile(r"[0-9a-f]{8}")
 _BUILD = re.compile(r"[0-9a-f]{16}")
 _GAME_CODE = re.compile(r"[A-Z0-9]{4}")
+_ULID = re.compile(r"[0-9A-HJKMNP-TV-Z]{26}")
+_PIC = re.compile(r"/UserPic/[A-Za-z0-9_]{1,32}\.png")
+_HEX64 = re.compile(r"[0-9a-f]{64}")
+_DEVICE_KEY = re.compile(r"[0-9a-f]{32}")
+_DH_HEX = re.compile(r"[0-9a-f]{512}")
+
+DH_PRIME = int(
+    "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B139B22514A08798E3404DD"
+    "EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED"
+    "EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3DC2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F"
+    "83655D23DCA3AD961C62F356208552BB9ED529077096966D670C354E4ABC9804F1746C08CA18217C32905E462E36CE3B"
+    "E39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9DE2BCBF6955817183995497CEA956AE515D2261898FA0510"
+    "15728E5A8AACAA68FFFFFFFFFFFFFFFF", 16)
+DH_GENERATOR = 2
 _CORE = re.compile(r"[a-z0-9_+.-]{1,48}")
 
 _USER_MAX = 32
@@ -51,7 +67,7 @@ _TITLE_MAX = 64
 _CORE_NAME_MAX = 48
 _VERSION_MAX = 32
 
-TAGGED_OPS = ("status", "launched", "leave", "ready", "say")
+TAGGED_OPS = ("status", "launched", "leave", "ready", "say", "friend", "pass")
 
 CHAT_MAX = 120
 CHAT_KEPT = 50
@@ -111,8 +127,73 @@ def room_key(password: str, room: str) -> bytes:
                                PASSWORD_ROUNDS)
 
 
-def seat_key(key: bytes, nc: str, ns: str) -> bytes:
-    return hmac.new(key, f"seat|{nc}|{ns}".encode("ascii"), hashlib.sha256).digest()
+def seat_key(key: bytes, nc: str, ns: str, shared: bytes) -> bytes:
+    return hmac.new(key, f"seat|{nc}|{ns}|".encode("ascii") + shared, hashlib.sha256).digest()
+
+
+def dh_private() -> int:
+    return secrets.randbits(256) | (1 << 255)
+
+
+def dh_public(private: int) -> str:
+    return format(pow(DH_GENERATOR, private, DH_PRIME), "0512x")
+
+
+def read_dh(value):
+    if not isinstance(value, str) or _DH_HEX.fullmatch(value) is None:
+        return None
+    number = int(value, 16)
+    return number if 2 <= number <= DH_PRIME - 2 else None
+
+
+def dh_shared(private: int, other: int) -> bytes:
+    return pow(other, private, DH_PRIME).to_bytes(256, "big")
+
+
+def is_ulid(value) -> bool:
+    return isinstance(value, str) and _ULID.fullmatch(value) is not None
+
+
+def is_key(value) -> bool:
+    return isinstance(value, str) and _HEX64.fullmatch(value) is not None
+
+
+def is_device_key(value) -> bool:
+    return isinstance(value, str) and _DEVICE_KEY.fullmatch(value) is not None
+
+
+def clean_pic(value) -> str:
+    return value if isinstance(value, str) and _PIC.fullmatch(value) is not None else ""
+
+
+def wrap(key: bytes, label: str, nonce: str, secret: bytes) -> str:
+    mask = hmac.new(key, f"wrap|{label}|{nonce}".encode("ascii"), hashlib.sha256).digest()
+    return bytes(a ^ b for a, b in zip(secret, mask, strict=True)).hex()
+
+
+def unwrap(key: bytes, label: str, nonce: str, wrapped):
+    if not isinstance(wrapped, str) or _HEX64.fullmatch(wrapped) is None:
+        return None
+    mask = hmac.new(key, f"wrap|{label}|{nonce}".encode("ascii"), hashlib.sha256).digest()
+    return bytes(a ^ b for a, b in zip(bytes.fromhex(wrapped), mask, strict=True))
+
+
+def pass_key(key: bytes, room: str, ulid: str, expires: int) -> bytes:
+    return hmac.new(key, f"pass|{room}|{ulid}|{expires}".encode("ascii"), hashlib.sha256).digest()
+
+
+def read_pass(raw, now: float):
+    if not isinstance(raw, dict):
+        return None
+    ulid = raw.get("ulid")
+    expires = raw.get("exp")
+    if not is_ulid(ulid) or type(expires) is not int or not now < expires <= now + _PASS_SECONDS:
+        return None
+    return ulid, expires
+
+
+def pass_expiry(now: float) -> int:
+    return int(now) + _PASS_SECONDS
 
 
 def game_port(mode: str, emulator: str, core: str) -> int:
@@ -313,8 +394,10 @@ def _optional(value, pattern) -> bool:
     return isinstance(value, str) and (value == "" or pattern.fullmatch(value) is not None)
 
 
-def join_params(user: str, hash_: str, crc: str, core: str, emu_version: str, device: str) -> dict:
-    return {"user": user, "hash": hash_, "crc": crc, "core": core, "emuVersion": emu_version, "device": device}
+def join_params(user: str, hash_: str, crc: str, core: str, emu_version: str, device: str, ulid: str,
+                pic: str) -> dict:
+    return {"user": user, "hash": hash_, "crc": crc, "core": core, "emuVersion": emu_version, "device": device,
+            "ulid": ulid, "pic": pic}
 
 
 def read_join_params(raw):
@@ -329,11 +412,14 @@ def read_join_params(raw):
         or not _optional(raw.get("hash"), _HASH)
         or not _optional(raw.get("crc"), _CRC)
         or not is_device_id(raw.get("device"))
+        or not (raw.get("ulid") == "" or is_ulid(raw.get("ulid")))
     ):
         return None
     return {
         "user": user,
         "device": raw["device"],
+        "ulid": raw["ulid"],
+        "pic": clean_pic(raw.get("pic")),
         "hash": raw["hash"],
         "crc": raw["crc"],
         "core": core,
@@ -341,12 +427,12 @@ def read_join_params(raw):
     }
 
 
-def join_tag(key: bytes, nc: str, ns: str, room: str, params: dict) -> str:
-    return sign(key, "join", nc, ns, room, canonical(params))
+def join_tag(key: bytes, nc: str, ns: str, room: str, params: dict, ga: str, gb: str) -> str:
+    return sign(key, "join", nc, ns, room, ga, gb, canonical(params))
 
 
-def joined_tag(key: bytes, nc: str, ns: str, seat: int, ip: str) -> str:
-    return sign(key, "joined", nc, ns, str(seat), ip)
+def joined_tag(key: bytes, nc: str, ns: str, seat: int, ip: str, ga: str, gb: str) -> str:
+    return sign(key, "joined", nc, ns, str(seat), ip, ga, gb)
 
 
 def read_hello(message):
@@ -360,7 +446,10 @@ def read_hello(message):
         return op, None
     if op == "join":
         nonce = message.get("nc")
-        return (op, nonce) if is_nonce(nonce) else None
+        ga = read_dh(message.get("ga"))
+        if not is_nonce(nonce) or ga is None:
+            return None
+        return op, {"nc": nonce, "ga": ga, "pass": message.get("pass")}
     if op in TAGGED_OPS:
         return op, None
     return None
@@ -493,6 +582,11 @@ def read_status_reply(key: bytes, message, nonce: str):
         or not (last is None or _last_start_ok(last))
         or not isinstance(message.get("chat"), list)
         or not all(_chat_ok(entry) for entry in message["chat"])
+        or not isinstance(message.get("ids"), list)
+        or len(message["ids"]) != len(members)
+        or not all(isinstance(entry, dict) for entry in message["ids"])
+        or not isinstance(message.get("inbox"), list)
+        or len(message["inbox"]) > INBOX_MAX
     ):
         return None
     return {
@@ -511,7 +605,48 @@ def read_status_reply(key: bytes, message, nonce: str):
         "room": room,
         "chat": [{"seq": entry["seq"], "name": _clean(entry["name"], _USER_MAX) or "",
                   "text": clean_chat(entry["text"])[:CHAT_MAX]} for entry in message["chat"]],
+        "ids": [{"ulid": entry["ulid"] if is_ulid(entry.get("ulid")) else "", "pic": clean_pic(entry.get("pic"))}
+                for entry in message["ids"]],
+        "inbox": [item for item in (read_inbox_item(raw) for raw in message["inbox"]) if item is not None],
     }
+
+
+FRIEND_ACTS = ("ask", "accept", "decline")
+INBOX_MAX = 8
+
+
+def read_inbox_item(raw):
+    if (
+        not isinstance(raw, dict)
+        or type(raw.get("seq")) is not int
+        or not 0 < raw["seq"] < 2 ** 31
+        or type(raw.get("from")) is not int
+        or not 0 <= raw["from"] < MAX_SEATS
+        or raw.get("act") not in FRIEND_ACTS
+    ):
+        return None
+    if raw["act"] == "ask" and (not is_nonce(raw.get("n")) or not isinstance(raw.get("k"), str)):
+        return None
+    if not is_ulid(raw.get("ulid")):
+        return None
+    return {"seq": raw["seq"], "from": raw["from"], "ulid": raw["ulid"], "act": raw["act"], "n": raw.get("n", ""),
+            "k": raw.get("k", "")}
+
+
+def read_friend_ask(raw):
+    if not isinstance(raw, dict) or raw.get("act") not in FRIEND_ACTS:
+        return None
+    to = raw.get("to")
+    if type(to) is not int or not 0 <= to < MAX_SEATS:
+        return None
+    if raw["act"] == "ask" and (not is_nonce(raw.get("n")) or not isinstance(raw.get("k"), str)):
+        return None
+    return {"act": raw["act"], "to": to, "n": raw.get("n", ""), "k": raw.get("k", "")}
+
+
+def inbox_since(raw) -> int:
+    since = raw.get("fsince") if isinstance(raw, dict) else None
+    return since if type(since) is int and 0 <= since < 2 ** 31 else 0
 
 
 def _seat_ok(seat) -> bool:

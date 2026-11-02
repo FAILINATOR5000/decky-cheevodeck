@@ -726,6 +726,8 @@ type NotificationNavTarget = {
     noteId?: string | null;
     setId?: string | null;
     url?: string | null;
+    tab?: string | null;
+    land?: string | null;
     milestoneId?: string | null;
     quest?: QuestPeriod | null;
     rank?: number | null;
@@ -856,6 +858,9 @@ export type SettingsResponse = {
     deferModalCleanup: boolean;
     backButtonsGlobal: boolean;
     browserSnapshot: boolean;
+    mpFriendsEnabled: boolean;
+    mpShowOnline: boolean;
+    mpSuggestFriends: boolean;
     lobbyServer: string;
     automaticRecovery: boolean;
     recoveryButtonCombo: boolean;
@@ -2917,6 +2922,8 @@ export type ActivitySubject = { ulid: string; username: string; own: boolean };
 
 export type MultiplayerMode = "link" | "couch";
 
+export type MultiplayerTab = "play" | "friends";
+
 export type MultiplayerWhere = "local" | "online";
 
 export type MultiplayerRoomRow = {
@@ -2947,7 +2954,16 @@ export type MultiplayerRoomRow = {
     verdict?: { can: boolean; reason: string; detail: Record<string, string> };
 };
 
-type MultiplayerSeat = { name: string; launched: boolean; ready: boolean; can: boolean; reason?: string; title: string } | null;
+type MultiplayerSeat = {
+    name: string;
+    launched: boolean;
+    ready: boolean;
+    can: boolean;
+    reason?: string;
+    title: string;
+    ulid: string;
+    pic: string;
+} | null;
 
 type MultiplayerLastStart = { round: number; ok: boolean; error: string } | null;
 
@@ -2993,6 +3009,7 @@ type MultiplayerGuestStatus = {
     players: number;
     seats: { ready: boolean; can: boolean; launched: boolean; playing: boolean; title: string }[];
     lastStart: MultiplayerLastStart;
+    ids: { ulid: string; pic: string }[];
 };
 
 export type MultiplayerRoomStatus =
@@ -3022,6 +3039,39 @@ export type MultiplayerRoomStatus =
     | { ok: true; seq: number; role: null; closedReason: string; lobby: boolean };
 
 export type MultiplayerCoreChoice = { core: string; name: string };
+
+export type MultiplayerFriend = {
+    ulid: string;
+    name: string;
+    nickname: string;
+    pic: string;
+    raFriend: boolean;
+    online: boolean;
+    game: string;
+    room: { id: string; name: string; where: MultiplayerWhere } | null;
+    seen: number;
+    unread: number;
+    added: number;
+};
+
+export type MultiplayerFriendRequest = { ulid: string; name: string; pic: string; way: "in" | "out"; at: number };
+
+export type MultiplayerSuggestion = { ulid: string; name: string; pic: string };
+
+export type MultiplayerFriendsState = {
+    ok: boolean;
+    on: boolean;
+    me: string;
+    server: boolean;
+    up: boolean;
+    refused: string;
+    friends: MultiplayerFriend[];
+    requests: MultiplayerFriendRequest[];
+    suggestions: MultiplayerSuggestion[];
+    alerts: { device: string; at: number }[];
+};
+
+export type MultiplayerMessage = { id: string; mine: boolean; text: string; at: number };
 
 type MultiplayerLocal = {
     gameId: number;

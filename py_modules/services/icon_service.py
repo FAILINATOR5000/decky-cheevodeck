@@ -1,5 +1,6 @@
 import base64
 import mimetypes
+import re
 import threading
 import time
 import urllib.error
@@ -8,6 +9,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed, wait, FIRST_COM
 import decky
 
 from utils import norm_game_id, to_int
+
+_PIC_PATH = re.compile(r"/UserPic/[A-Za-z0-9_]{1,64}\.png")
 
 GAME_IMAGE_KINDS = ("icon", "ingame", "title", "boxart")
 
@@ -922,6 +925,41 @@ class IconService:
                 }
                 self._cache_store.save_user_avatar(key, entry)
 
+        return {"avatars": avatars}
+
+    def get_pic_avatars(self, pics) -> dict:
+        wanted = []
+        for pic in pics or []:
+            if isinstance(pic, str) and _PIC_PATH.fullmatch(pic) and pic not in wanted:
+                wanted.append(pic)
+        avatars = {}
+        missing = []
+        for pic in wanted:
+            key = "pic_" + pic[len("/UserPic/"):-len(".png")].lower()
+            cached = self._get_cached_user_avatar(self._cache_store.load_user_avatar(key))
+            if cached:
+                avatars[pic] = cached
+            else:
+                missing.append((pic, key))
+        if not missing:
+            return {"avatars": avatars}
+        workers = min(self._user_avatar_max_workers, len(missing))
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = {executor.submit(self._fetch_image_data_uri, self._avatar_url_from_pic_path(pic)): (pic, key)
+                       for pic, key in missing}
+            for future in as_completed(futures):
+                pic, key = futures[future]
+                data_uri = future.result()
+                if not data_uri:
+                    continue
+                avatars[pic] = data_uri
+                with self._cache_store.user_avatar_lock(key):
+                    self._cache_store.save_user_avatar(key, {
+                        "dataUri": data_uri,
+                        "cachedAt": int(time.time()),
+                        "sourceUrl": self._avatar_url_from_pic_path(pic),
+                        "source": "pic",
+                    })
         return {"avatars": avatars}
 
     def put_profile_avatar(self, username, data_uri, source_url) -> None:

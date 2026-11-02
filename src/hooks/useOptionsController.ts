@@ -145,6 +145,9 @@ import {
     saveDeferModalCleanup,
     saveBackButtonsGlobal,
     saveBrowserSnapshot,
+    saveMpFriendsEnabled,
+    saveMpShowOnline,
+    saveMpSuggestFriends,
     saveAutomaticRecovery,
     saveRecoveryButtonCombo,
     saveRecoveryLogs,
@@ -496,6 +499,9 @@ type UseOptionsControllerArgs = {
     deferModalCleanup: boolean;
     backButtonsGlobal: boolean;
     browserSnapshot: boolean;
+    mpFriendsEnabled: boolean;
+    mpShowOnline: boolean;
+    mpSuggestFriends: boolean;
     lobbyServer: string;
     automaticRecovery: boolean;
     recoveryButtonCombo: boolean;
@@ -568,6 +574,9 @@ type UseOptionsControllerArgs = {
     setDeferModalCleanup: Dispatch<SetStateAction<boolean>>;
     setBackButtonsGlobal: Dispatch<SetStateAction<boolean>>;
     setBrowserSnapshot: Dispatch<SetStateAction<boolean>>;
+    setMpFriendsEnabled: Dispatch<SetStateAction<boolean>>;
+    setMpShowOnline: Dispatch<SetStateAction<boolean>>;
+    setMpSuggestFriends: Dispatch<SetStateAction<boolean>>;
     setLobbyServer: Dispatch<SetStateAction<string>>;
     setAutomaticRecovery: Dispatch<SetStateAction<boolean>>;
     setRecoveryButtonCombo: Dispatch<SetStateAction<boolean>>;
@@ -975,6 +984,9 @@ export function buildOptionsController({
     deferModalCleanup,
     backButtonsGlobal,
     browserSnapshot,
+    mpFriendsEnabled,
+    mpShowOnline,
+    mpSuggestFriends,
     lobbyServer,
     automaticRecovery,
     recoveryButtonCombo,
@@ -1047,6 +1059,9 @@ export function buildOptionsController({
     setDeferModalCleanup,
     setBackButtonsGlobal,
     setBrowserSnapshot,
+    setMpFriendsEnabled,
+    setMpShowOnline,
+    setMpSuggestFriends,
     setLobbyServer,
     setAutomaticRecovery,
     setRecoveryButtonCombo,
@@ -1309,6 +1324,9 @@ export function buildOptionsController({
         setDeferModalCleanup(Boolean(result.deferModalCleanup ?? true));
         setBackButtonsGlobal(Boolean(result.backButtonsGlobal ?? false));
         setBrowserSnapshot(Boolean(result.browserSnapshot ?? false));
+        setMpFriendsEnabled(Boolean(result.mpFriendsEnabled ?? true));
+        setMpShowOnline(Boolean(result.mpShowOnline ?? true));
+        setMpSuggestFriends(Boolean(result.mpSuggestFriends ?? true));
         setLobbyServer(String(result.lobbyServer ?? ""));
         setAutomaticRecovery(Boolean(result.automaticRecovery ?? true));
         setRecoveryButtonCombo(Boolean(result.recoveryButtonCombo ?? false));
@@ -3518,6 +3536,33 @@ export function buildOptionsController({
             getSavedValue: (result, fallbackValue) => Boolean(result.browserSnapshot ?? fallbackValue),
         });
 
+    const onToggleMpFriendsEnabled = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: mpFriendsEnabled,
+            applyValue: setMpFriendsEnabled,
+            saveCall: saveMpFriendsEnabled,
+            getSavedValue: (result, fallbackValue) => Boolean(result.mpFriendsEnabled ?? fallbackValue),
+        });
+
+    const onToggleMpShowOnline = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: mpShowOnline,
+            applyValue: setMpShowOnline,
+            saveCall: saveMpShowOnline,
+            getSavedValue: (result, fallbackValue) => Boolean(result.mpShowOnline ?? fallbackValue),
+        });
+
+    const onToggleMpSuggestFriends = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: mpSuggestFriends,
+            applyValue: setMpSuggestFriends,
+            saveCall: saveMpSuggestFriends,
+            getSavedValue: (result, fallbackValue) => Boolean(result.mpSuggestFriends ?? fallbackValue),
+        });
+
     const onToggleAutomaticRecovery = (nextValue: boolean) =>
         saveSettingWithRollback<boolean>({
             nextValue,
@@ -3937,6 +3982,9 @@ export function buildOptionsController({
         deferModalCleanup,
         backButtonsGlobal,
         browserSnapshot,
+        mpFriendsEnabled,
+        mpShowOnline,
+        mpSuggestFriends,
         lobbyServer,
         automaticRecovery,
         recoveryButtonCombo,
@@ -4207,6 +4255,9 @@ export function buildOptionsController({
         onToggleDeferModalCleanup,
         onToggleBackButtonsGlobal,
         onToggleBrowserSnapshot,
+        onToggleMpFriendsEnabled,
+        onToggleMpShowOnline,
+        onToggleMpSuggestFriends,
         onEditLobbyServer,
         onToggleAutomaticRecovery,
         onToggleRecoveryButtonCombo,

@@ -2,10 +2,10 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 
 import {
     getGamePayload,
+    multiplayerAcceptInvite,
     multiplayerChangeGame,
     multiplayerCheck,
     multiplayerCloseRoom,
-    multiplayerDropSeat,
     multiplayerGames,
     multiplayerGuestGame,
     multiplayerLeave,
@@ -29,8 +29,10 @@ import {
     rememberMultiplayerGame,
     rememberMultiplayerHardcore,
     rememberMultiplayerShare,
-    rememberMultiplayerTab
+    rememberMultiplayerTab,
+    takeMultiplayerInvite
 } from "../utils/multiplayerChoices";
+import { landOnTop } from "../focusRecords";
 import {
     forgetMultiplayerFailure,
     launchMultiplayer,
@@ -135,6 +137,10 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
                     return;
                 }
                 setVisibleError(opened.ok ? "" : opened.error ?? "unavailable");
+                const invite = opened.ok ? takeMultiplayerInvite() : null;
+                if (invite && await run(() => multiplayerAcceptInvite(invite, hardcore))) {
+                    landOnTop("multiplayer", "multiplayer:leave");
+                }
             }
             catch (e) {
                 logError("multiplayerSetVisible", e);
@@ -328,10 +334,6 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         setHardcoreState(false);
     }
 
-    function dropSeat(seat: number) {
-        return run(() => multiplayerDropSeat(seat));
-    }
-
     async function leave() {
         if (joined) {
             await run(() => multiplayerLeave());
@@ -395,7 +397,6 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             setHardcore,
             setShare,
             closeRoom,
-            dropSeat,
             leave,
             play,
             start,

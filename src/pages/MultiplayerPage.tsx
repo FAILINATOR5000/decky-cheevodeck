@@ -1,5 +1,5 @@
 import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { PanelSection } from "../components/ui/PanelSection";
 import { BackButton } from "../components/ui/BackButton";
@@ -13,6 +13,9 @@ import { ToggleRow } from "../components/ui/ToggleRow";
 import { GameHeaderCard, useGameHeaderArt } from "../components/games/GameHeaderCard";
 import { openCorePicker } from "../components/multiplayer/CorePickerModal";
 import { RoomTable } from "../components/multiplayer/RoomTable";
+import { FriendsTab } from "../components/multiplayer/FriendsTab";
+import { openSeatCard } from "../components/multiplayer/SeatCardModal";
+import { openInviteFriends } from "../components/multiplayer/InviteFriendsModal";
 import { openChatSay } from "../components/multiplayer/ChatSayModal";
 import { openHostRoom } from "../components/multiplayer/HostRoomModal";
 import { openRooms } from "../components/multiplayer/RoomsModal";
@@ -20,13 +23,14 @@ import { SectionTitle } from "../components/ui/SectionTitle";
 import { useMultiplayer } from "../components/multiplayer/MultiplayerContext";
 import { CheevoCheckGamesModal } from "../components/pickers/CheevoCheckGamesModal";
 import { skipWhileHidden } from "../components/panel/skipWhileHidden";
-import { usePageLanding } from "../focusRecords";
+import { usePageLanding, type LandingWindows } from "../focusRecords";
 import { t, type LanguageCode } from "../locales";
 import type {
     ButtonSpacing,
     MultiplayerCoreChoice,
     MultiplayerGuestGame,
     MultiplayerMode,
+    MultiplayerTab,
     Payload,
     ViewKey
 } from "../types";
@@ -54,9 +58,14 @@ const GBA_SYSTEM = 5;
 const NO_CORES: MultiplayerCoreChoice[] = [];
 const CHAT_LINES = 6;
 
-const TABS: { mode: MultiplayerMode; labelKey: string; focusKey: string }[] = [
-    { mode: "link", labelKey: "Link Play", focusKey: "multiplayer:tab:link" },
-    { mode: "couch", labelKey: "Couch Play", focusKey: "multiplayer:tab:couch" }
+const MODES: { mode: MultiplayerMode; labelKey: string; focusKey: string }[] = [
+    { mode: "link", labelKey: "Link Play", focusKey: "multiplayer:mode:link" },
+    { mode: "couch", labelKey: "Couch Play", focusKey: "multiplayer:mode:couch" }
+];
+
+const TABS: { tab: MultiplayerTab; labelKey: string; focusKey: string }[] = [
+    { tab: "play", labelKey: "Play", focusKey: "multiplayer:tab:play" },
+    { tab: "friends", labelKey: "Friends", focusKey: "multiplayer:tab:friends" }
 ];
 
 const PROBLEM_TEXT: Record<string, string> = {
@@ -128,7 +137,8 @@ const PROBLEM_TEXT: Record<string, string> = {
     unavailable: "Couldn't open a room on this network",
     lobby_unreachable: "Couldn't reach the online lobby",
     no_lobby: "Set a lobby server in Options first",
-    lan_only: "This game links over LAN, so it plays Local only."
+    lan_only: "This game links over LAN, so it plays Local only.",
+    invite_expired: "That invite expired"
 };
 
 const WARNING_TEXT: Record<string, string> = {
@@ -158,6 +168,11 @@ type MultiplayerPageState = {
     showIcons: boolean;
     mouseKeyboardMode: boolean;
     payload: Payload | null;
+    dynamicAllGames: boolean;
+    dynamicInitialRows: number;
+    dynamicRowStep: number;
+    dynamicPrefetchDistance: number;
+    dynamicSentinelRootMargin: number;
 };
 
 type MultiplayerPageActions = {
@@ -174,7 +189,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const { state, actions: page } = props;
     const { language } = state;
     const visible = state.view === "multiplayer";
-    const { state: mp, actions } = useMultiplayer();
+    const { state: mp, actions, friends, page: tabs } = useMultiplayer();
+    const landingWindows = useRef<LandingWindows | null>(null);
     const [playFocused, setPlayFocused] = useState(false);
     const [screenHz, setScreenHz] = useState<number | null>(null);
 
@@ -206,17 +222,26 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         view: "multiplayer",
         active: visible,
         subject: null,
-        tabPath: [mp.mode],
-        restoreTabPath: ([next]) => {
-            const wanted = TABS.find((entry) => entry.mode === next);
-            if (!wanted || wanted.mode === mp.tab || mp.hosted || mp.joined) {
-                return false;
+        tabPath: [tabs.tab, mp.mode],
+        restoreTabPath: ([nextTab, nextMode]) => {
+            let changed = false;
+            const tab = TABS.find((entry) => entry.tab === nextTab);
+            if (tab && tab.tab !== tabs.tab) {
+                tabs.show(tab.tab, tab.tab === "friends" ? tabs.conversation : null);
+                changed = true;
             }
-            actions.setTab(wanted.mode);
-            return true;
+            const mode = MODES.find((entry) => entry.mode === nextMode);
+            if (mode && mode.mode !== mp.tab && !mp.hosted && !mp.joined) {
+                actions.setTab(mode.mode);
+                changed = true;
+            }
+            return changed;
         },
+        sub: tabs.tab === "friends" && tabs.conversation ? [{ kind: "conversation", subject: tabs.conversation }] : [],
         defaultKey: "multiplayer:back",
-        ready: drawLower,
+        ready: tabs.tab === "friends" ? friends.state.data !== null : drawLower,
+        holds: (key) => landingWindows.current?.holds(key) ?? false,
+        open: (key) => landingWindows.current?.open(key),
         timing: { revealDeadlineMs: 1000, pressGuardCeilingMs: 1050 }
     });
 
@@ -229,6 +254,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
 
     const hosted = mp.hosted;
     const joined = mp.joined;
+    const onPlay = tabs.tab === "play";
     const local = mp.check?.local ?? null;
     const roomCore = hosted?.core ?? joined?.room.core ?? local?.core ?? "";
     const runsPpsspp = roomCore === "ppsspp" || roomCore === "ppsspp-standalone";
@@ -340,7 +366,26 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const title = shown?.title ?? local?.title ?? mp.games?.find((game) => game.gameId === mp.gameId)?.title ?? null;
 
     function pressBack() {
+        if (tabs.tab === "friends" && tabs.conversation) {
+            tabs.show("friends");
+            return;
+        }
         void page.onBack();
+    }
+
+    function openSeat(index: number, name: string, game: string, ulid: string, pic: string) {
+        const data = friends.state.data;
+        openSeatCard(language, {
+            index,
+            name,
+            game,
+            ulid: ulid === data?.me ? "" : ulid,
+            avatar: pic ? friends.state.avatars[pic] : undefined,
+            relation: data?.friends.some((friend) => friend.ulid === ulid) ? "friend"
+                : data?.requests.some((request) => request.ulid === ulid) ? "pending" : "none",
+            canDrop: hosted !== null && index > 0,
+            friendsOn: Boolean(data?.on)
+        });
     }
 
     function openGamePicker(pick: (gameId: number) => void = actions.pickGame) {
@@ -509,7 +554,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     <FocusTarget
                         key="multiplayer:play"
                         focusKey="multiplayer:play"
-                        focusFallback={[`multiplayer:tab:${mp.mode}`, "multiplayer:back"]}
+                        focusFallback={[`multiplayer:mode:${mp.mode}`, "multiplayer:back"]}
                         style={slotStyle}
                     >
                         <DialogButton
@@ -533,7 +578,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     <FocusTarget
                         key="multiplayer:pickgame"
                         focusKey="multiplayer:pickgame"
-                        focusFallback={[`multiplayer:tab:${mp.mode}`, "multiplayer:back"]}
+                        focusFallback={[`multiplayer:mode:${mp.mode}`, "multiplayer:back"]}
                         style={slotStyle}
                     >
                         <DialogButton
@@ -610,7 +655,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 <FocusableItem
                     outerStyle={buttonStyle}
                     focusKey="multiplayer:host"
-                    focusFallback={[`multiplayer:tab:${mp.mode}`, "multiplayer:back"]}
+                    focusFallback={[`multiplayer:mode:${mp.mode}`, "multiplayer:back"]}
                     disabled={mp.busy || (!hosted && (mp.gameId === null || !gateCheck || Boolean(gateCheck.gate) || (Boolean(mp.visibleError) && mp.visibleError !== "cap_reached")))}
                     onClick={() => void (hosted ? actions.closeRoom() : openHost())}
                 >
@@ -622,7 +667,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     <FocusableItem
                         outerStyle={buttonStyle}
                         focusKey="multiplayer:find"
-                        focusFallback={["multiplayer:host", `multiplayer:tab:${mp.mode}`, "multiplayer:back"]}
+                        focusFallback={["multiplayer:host", `multiplayer:mode:${mp.mode}`, "multiplayer:back"]}
                         disabled={mp.busy}
                         onClick={() => openRooms(language, mp.hardcore, mp.installedCores, describe)}
                     >
@@ -715,6 +760,22 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         </>
     );
 
+    const seatFree = hosted
+        ? hosted.seats.some((seat) => seat === null)
+        : Boolean(joined?.status?.members.some((name) => !name));
+    const inviteRow = seatFree && friends.state.data?.on && friends.state.data.friends.length > 0 && (
+        <PanelSectionRow>
+            <FocusableItem
+                outerStyle={buttonStyle}
+                focusKey="multiplayer:invite"
+                focusFallback={["multiplayer:say", exitKey, "multiplayer:back"]}
+                onClick={() => openInviteFriends(language, friends.state.avatars)}
+            >
+                {t(language, "Invite Friends")}
+            </FocusableItem>
+        </PanelSectionRow>
+    );
+
     const roomRows = hosted ? (
         <>
             {hintsRow}
@@ -732,11 +793,19 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     game: seat?.title ?? "",
                     tag: index === 0 ? "host" : "",
                     mark: !seat || index === 0 ? "" : !seat.can ? "cant"
-                        : seat.ready || (hosted.state !== "lobby" && hosted.roster.includes(index)) ? "ready" : ""
+                        : seat.ready || (hosted.state !== "lobby" && hosted.roster.includes(index)) ? "ready" : "",
+                    avatar: seat?.pic ? friends.state.avatars[seat.pic] : undefined,
+                    open: index > 0 && seat !== null
                 }))}
-                onDrop={(index) => void actions.dropSeat(index)}
+                onSeat={(index) => {
+                    const seat = hosted.seats[index];
+                    if (seat) {
+                        openSeat(index, seat.name, seat.title, seat.ulid, seat.pic);
+                    }
+                }}
                 exitKey="multiplayer:host"
             />
+            {inviteRow}
             {chatRows}
             {statusRow}
         </>
@@ -760,15 +829,24 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 seats={Array.from({ length: joined.room.max }, (_, index) => {
                     const flags = joined.status?.seats[index];
                     const name = joined.status?.members[index] ?? joined.room.seats[index] ?? "";
+                    const pic = joined.status?.ids[index]?.pic ?? "";
                     return {
                         name,
                         game: index === 0 ? joined.room.title : flags?.title ?? "",
                         tag: index === 0 ? "host" : index === joined.seat ? "you" : "",
-                        mark: !name || index === 0 || !flags ? "" : !flags.can ? "cant" : flags.ready || flags.playing ? "ready" : ""
+                        mark: !name || index === 0 || !flags ? "" : !flags.can ? "cant" : flags.ready || flags.playing ? "ready" : "",
+                        avatar: pic ? friends.state.avatars[pic] : undefined,
+                        open: Boolean(name) && index !== joined.seat
                     };
                 })}
+                onSeat={(index) => {
+                    const ids = joined.status?.ids[index];
+                    openSeat(index, joined.status?.members[index] ?? "", index === 0 ? joined.room.title
+                        : joined.status?.seats[index]?.title ?? "", ids?.ulid ?? "", ids?.pic ?? "");
+                }}
                 exitKey="multiplayer:leave"
             />
+            {inviteRow}
             {chatRows}
             {statusRow}
         </>
@@ -804,10 +882,10 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             key="multiplayer:view"
             flow-children="column"
             onCancelButton={pressBack}
-            onOptionsButton={yStarts ? () => void actions.start() : undefined}
-            onOptionsActionDescription={yStarts ? t(language, "mp_footer_start") : undefined}
-            onSecondaryButton={xReadies ? () => void actions.toggleReady() : undefined}
-            onSecondaryActionDescription={xReadies ? t(language, joined?.ready ? "mp_footer_unready" : "mp_footer_ready") : undefined}
+            onOptionsButton={onPlay && yStarts ? () => void actions.start() : undefined}
+            onOptionsActionDescription={onPlay && yStarts ? t(language, "mp_footer_start") : undefined}
+            onSecondaryButton={onPlay && xReadies ? () => void actions.toggleReady() : undefined}
+            onSecondaryActionDescription={onPlay && xReadies ? t(language, joined?.ready ? "mp_footer_unready" : "mp_footer_ready") : undefined}
         >
             <PanelSection>
                 <PageNavStrip
@@ -826,108 +904,144 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     scrollMarginTop={BACK_BUTTON_SCROLL_MARGIN_PX}
                 />
 
-                <SectionTitle label={t(language, "Current Game")} />
-                <PanelSectionRow>
-                    <div style={{ width: "100%" }}>
-                        <GameHeaderCard
-                            {...art}
-                            language={language}
-                            title={title}
-                            consoleName={shown?.consoleName ?? null}
-                            completion={shown?.userCompletion ?? null}
-                            highestAwardKind={shown?.highestAwardKind}
+                <Focusable
+                    flow-children="row"
+                    style={{ width: "100%", display: "flex", gap: "6px", margin: "6px 0 4px 0" }}
+                >
+                    {TABS.map((entry) => (
+                        <SubTabButton
+                            key={entry.tab}
+                            label={t(language, entry.labelKey)}
+                            active={tabs.tab === entry.tab}
+                            onClick={() => tabs.show(entry.tab)}
+                            focusKey={entry.focusKey}
                         />
-                    </div>
-                </PanelSectionRow>
-                {playRows}
-                {drawLower && (
-                    <>
-                        {topProblem && (
-                            <PanelSectionRow>
-                                <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
-                                    {problemText(language, topProblem.code, topProblem.detail)}
-                                </div>
-                            </PanelSectionRow>
-                        )}
+                    ))}
+                </Focusable>
 
-                        <div style={{ height: "1px", background: "rgba(255,255,255,0.18)", margin: "8px 0" }} />
+                {!onPlay && (
+                    <Focusable key={tabs.conversation ? "multiplayer:conversation" : "multiplayer:friends"} flow-children="column">
+                        <FriendsTab
+                            language={language}
+                            knobs={{
+                                dynamicLoading: state.dynamicAllGames,
+                                initialRows: state.dynamicInitialRows,
+                                rowStep: state.dynamicRowStep,
+                                prefetchDistance: state.dynamicPrefetchDistance,
+                                sentinelRootMarginPx: state.dynamicSentinelRootMargin
+                            }}
+                            landingWindows={landingWindows}
+                        />
+                        <BottomFocusAnchor focusKey="multiplayer:friends:anchor" />
+                    </Focusable>
+                )}
 
-                        <Focusable
-                            flow-children="row"
-                            style={{ width: "100%", display: "flex", gap: "6px", margin: "6px 0 4px 0" }}
-                        >
-                            {TABS.map((entry) => (
-                                <SubTabButton
-                                    key={entry.mode}
-                                    label={t(language, entry.labelKey)}
-                                    active={mp.mode === entry.mode}
-                                    onClick={() => actions.setTab(entry.mode)}
-                                    focusKey={entry.focusKey}
-                                    disabled={(joined !== null || (hosted !== null && hosted.state !== "lobby")) && entry.mode !== mp.mode}
-                                />
-                            ))}
-                        </Focusable>
+                {onPlay && (
+                    <Focusable key="multiplayer:play" flow-children="column">
+                        <SectionTitle label={t(language, "Current Game")} />
                         <PanelSectionRow>
-                            <div style={bodyTextStyle()}>
-                                {t(language, mp.mode === "link" ? "help_multiplayer_link_mode" : "help_multiplayer_couch_mode")}
+                            <div style={{ width: "100%" }}>
+                                <GameHeaderCard
+                                    {...art}
+                                    language={language}
+                                    title={title}
+                                    consoleName={shown?.consoleName ?? null}
+                                    completion={shown?.userCompletion ?? null}
+                                    highestAwardKind={shown?.highestAwardKind}
+                                />
                             </div>
                         </PanelSectionRow>
-                        {mp.mode === "couch" && local?.emulator === "dolphin" && (
-                            <PanelSectionRow>
-                                <div style={{ ...bodyTextStyle(), opacity: 1 }}>
-                                    {t(language, joined
-                                        ? "In Dolphin, open Tools, then Start NetPlay, then Connect. The host's address is filled in."
-                                        : "In Dolphin, open Tools, then Start NetPlay, then Host. Pick the game and press Start once everyone has joined.")}
-                                </div>
-                            </PanelSectionRow>
-                        )}
-                        {modeProblem && (
-                            <PanelSectionRow>
-                                <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
-                                    {problemText(language, modeProblem.code, modeProblem.detail)}
-                                </div>
-                            </PanelSectionRow>
-                        )}
-                        {(gateCheck?.warnings ?? []).map((warning) => (
-                            <PanelSectionRow key={warning.code}>
-                                <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
-                                    {t(language, WARNING_TEXT[warning.code] ?? WARNING_TEXT.version_mismatch, warning.detail)}
-                                </div>
-                            </PanelSectionRow>
-                        ))}
-                        {runsPpsspp && (
-                            <PanelSectionRow>
-                                <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
-                                    {t(language, "PSP multiplayer is experimental. Some games lose the connection when a match starts.")}
-                                </div>
-                            </PanelSectionRow>
-                        )}
-                        {screenHz !== null && (screenHz === 0 || screenHz > 60) && (
-                            <PanelSectionRow>
-                                <div style={bodyTextStyle()}>
-                                    {t(language, "Multiplayer runs best at 60 Hz. If a game jitters, set 60 Hz in Steam's Performance menu while it runs.")}
-                                </div>
-                            </PanelSectionRow>
-                        )}
-                        {(mp.problem || hosted?.notice || (!hosted && !joined && mp.closedReason)) && (
-                            <PanelSectionRow>
-                                <div style={{ ...bodyTextStyle(), color: errorRed, opacity: 1 }}>
-                                    {mp.problem
-                                        ? problemText(language, mp.problem.code, mp.problem.detail)
-                                        : hosted?.notice
-                                            ? problemText(language, hosted.notice.code, hosted.notice.detail)
-                                            : problemText(language, mp.closedReason)}
-                                </div>
-                            </PanelSectionRow>
-                        )}
+                        {playRows}
+                        {drawLower && (
+                            <>
+                                {topProblem && (
+                                    <PanelSectionRow>
+                                        <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
+                                            {problemText(language, topProblem.code, topProblem.detail)}
+                                        </div>
+                                    </PanelSectionRow>
+                                )}
 
-                        <Focusable key={scopeKey} flow-children="column" resetNavOnEntry>
-                            {roomButton}
-                            {roomRows}
-                            {optionRows}
-                            <BottomFocusAnchor focusKey="multiplayer:bottom:anchor" />
-                        </Focusable>
-                    </>
+                                <div style={{ height: "1px", background: "rgba(255,255,255,0.18)", margin: "8px 0" }} />
+
+                                <Focusable
+                                    flow-children="row"
+                                    style={{ width: "100%", display: "flex", gap: "6px", margin: "6px 0 4px 0" }}
+                                >
+                                    {MODES.map((entry) => (
+                                        <SubTabButton
+                                            key={entry.mode}
+                                            label={t(language, entry.labelKey)}
+                                            active={mp.mode === entry.mode}
+                                            onClick={() => actions.setTab(entry.mode)}
+                                            focusKey={entry.focusKey}
+                                            disabled={(joined !== null || (hosted !== null && hosted.state !== "lobby")) && entry.mode !== mp.mode}
+                                        />
+                                    ))}
+                                </Focusable>
+                                <PanelSectionRow>
+                                    <div style={bodyTextStyle()}>
+                                        {t(language, mp.mode === "link" ? "help_multiplayer_link_mode" : "help_multiplayer_couch_mode")}
+                                    </div>
+                                </PanelSectionRow>
+                                {mp.mode === "couch" && local?.emulator === "dolphin" && (
+                                    <PanelSectionRow>
+                                        <div style={{ ...bodyTextStyle(), opacity: 1 }}>
+                                            {t(language, joined
+                                                ? "In Dolphin, open Tools, then Start NetPlay, then Connect. The host's address is filled in."
+                                                : "In Dolphin, open Tools, then Start NetPlay, then Host. Pick the game and press Start once everyone has joined.")}
+                                        </div>
+                                    </PanelSectionRow>
+                                )}
+                                {modeProblem && (
+                                    <PanelSectionRow>
+                                        <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
+                                            {problemText(language, modeProblem.code, modeProblem.detail)}
+                                        </div>
+                                    </PanelSectionRow>
+                                )}
+                                {(gateCheck?.warnings ?? []).map((warning) => (
+                                    <PanelSectionRow key={warning.code}>
+                                        <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
+                                            {t(language, WARNING_TEXT[warning.code] ?? WARNING_TEXT.version_mismatch, warning.detail)}
+                                        </div>
+                                    </PanelSectionRow>
+                                ))}
+                                {runsPpsspp && (
+                                    <PanelSectionRow>
+                                        <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
+                                            {t(language, "PSP multiplayer is experimental. Some games lose the connection when a match starts.")}
+                                        </div>
+                                    </PanelSectionRow>
+                                )}
+                                {screenHz !== null && (screenHz === 0 || screenHz > 60) && (
+                                    <PanelSectionRow>
+                                        <div style={bodyTextStyle()}>
+                                            {t(language, "Multiplayer runs best at 60 Hz. If a game jitters, set 60 Hz in Steam's Performance menu while it runs.")}
+                                        </div>
+                                    </PanelSectionRow>
+                                )}
+                                {(mp.problem || hosted?.notice || (!hosted && !joined && mp.closedReason)) && (
+                                    <PanelSectionRow>
+                                        <div style={{ ...bodyTextStyle(), color: errorRed, opacity: 1 }}>
+                                            {mp.problem
+                                                ? problemText(language, mp.problem.code, mp.problem.detail)
+                                                : hosted?.notice
+                                                    ? problemText(language, hosted.notice.code, hosted.notice.detail)
+                                                    : problemText(language, mp.closedReason)}
+                                        </div>
+                                    </PanelSectionRow>
+                                )}
+
+                                <Focusable key={scopeKey} flow-children="column" resetNavOnEntry>
+                                    {roomButton}
+                                    {roomRows}
+                                    {optionRows}
+                                    <BottomFocusAnchor focusKey="multiplayer:bottom:anchor" />
+                                </Focusable>
+                            </>
+                        )}
+                    </Focusable>
                 )}
             </PanelSection>
         </Focusable>

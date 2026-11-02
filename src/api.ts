@@ -46,9 +46,11 @@ import type {
     DataTransferStatus,
     DataTransferSummary,
     MultiplayerCheck,
+    MultiplayerFriendsState,
     MultiplayerGame,
     MultiplayerGuestGame,
     MultiplayerHostedRoom,
+    MultiplayerMessage,
     MultiplayerMode,
     MultiplayerRestoreRecord,
     MultiplayerRoomRow,
@@ -264,6 +266,15 @@ export const saveBackButtonsGlobal = callable<[boolean], { ok: boolean; backButt
 export const saveLobbyServer = callable<[string, boolean], { ok: boolean; error?: string; lobbyServer: string }>("save_lobby_server");
 export const saveBrowserSnapshot = callable<[boolean], { ok: boolean; browserSnapshot: boolean }>(
     "save_browser_snapshot"
+);
+export const saveMpFriendsEnabled = callable<[boolean], { ok: boolean; mpFriendsEnabled: boolean }>(
+    "save_mp_friends_enabled"
+);
+export const saveMpShowOnline = callable<[boolean], { ok: boolean; mpShowOnline: boolean }>(
+    "save_mp_show_online"
+);
+export const saveMpSuggestFriends = callable<[boolean], { ok: boolean; mpSuggestFriends: boolean }>(
+    "save_mp_suggest_friends"
 );
 export const saveAutomaticRecovery = callable<[boolean], { ok: boolean; automaticRecovery: boolean }>(
     "save_automatic_recovery"
@@ -807,12 +818,31 @@ export const multiplayerRoomOptions = callable<
     MultiplayerReply & { room?: MultiplayerHostedRoom }
 >("multiplayer_room_options");
 export const multiplayerCloseRoom = callable<[], { ok: boolean; error?: string }>("multiplayer_close_room");
-export const multiplayerDropSeat = callable<[number], { ok: boolean; error?: string }>("multiplayer_drop_seat");
+export const multiplayerDropSeat = callable<[number, string], { ok: boolean; error?: string }>("multiplayer_drop_seat");
 export const multiplayerJoin = callable<[string, string, boolean], MultiplayerReply>("multiplayer_join");
 export const multiplayerSetReady = callable<[boolean, string], MultiplayerReply>("multiplayer_set_ready");
 export const multiplayerStart = callable<[], MultiplayerReply & { appid?: number; title?: string; round?: number }>("multiplayer_start");
 export const multiplayerStartCancel = callable<[string], MultiplayerReply>("multiplayer_start_cancel");
 export const multiplayerSay = callable<[string], MultiplayerReply>("multiplayer_say");
+export const multiplayerFriends = callable<[boolean], MultiplayerFriendsState>("multiplayer_friends");
+export const multiplayerFriendAdd = callable<[string], MultiplayerReply & { name?: string; ulid?: string; friend?: boolean }>(
+    "multiplayer_friend_add"
+);
+export const multiplayerFriendAddSeat = callable<[number, string], MultiplayerReply>("multiplayer_friend_add_seat");
+export const multiplayerFriendAnswer = callable<[string, boolean], MultiplayerReply>("multiplayer_friend_answer");
+export const multiplayerFriendRemove = callable<[string], MultiplayerReply>("multiplayer_friend_remove");
+export const multiplayerFriendRename = callable<[string, string], MultiplayerReply>("multiplayer_friend_rename");
+export const multiplayerFriendMessages = callable<[string], MultiplayerReply & { messages?: MultiplayerMessage[] }>(
+    "multiplayer_friend_messages"
+);
+export const multiplayerFriendSend = callable<[string, string], MultiplayerReply>("multiplayer_friend_send");
+export const multiplayerFriendInvite = callable<[string], MultiplayerReply & { name?: string }>("multiplayer_friend_invite");
+export const multiplayerFriendJoin = callable<[string, string, boolean], MultiplayerReply>("multiplayer_friend_join");
+export const multiplayerAcceptInvite = callable<[string, boolean], MultiplayerReply>("multiplayer_accept_invite");
+export const multiplayerFriendAlert = callable<[string, boolean], MultiplayerReply>("multiplayer_friend_alert");
+export const multiplayerFriendAvatars = callable<[string[]], { avatars: Record<string, string> }>(
+    "multiplayer_friend_avatars"
+);
 export const multiplayerChangeGame = callable<[MultiplayerMode, number, string], MultiplayerReply & { room?: MultiplayerHostedRoom }>("multiplayer_change_game");
 export const multiplayerGuestGames = callable<[], { ok: boolean; error?: string; games?: MultiplayerGuestGame[] }>("multiplayer_guest_games");
 export const multiplayerGuestGame = callable<[number], MultiplayerReply>("multiplayer_guest_game");

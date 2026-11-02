@@ -74,6 +74,9 @@ export function useSettingsController({
     const [deferModalCleanup, setDeferModalCleanup] = useState(true);
     const [backButtonsGlobal, setBackButtonsGlobal] = useState(false);
     const [browserSnapshot, setBrowserSnapshot] = useState(false);
+    const [mpFriendsEnabled, setMpFriendsEnabled] = useState(true);
+    const [mpShowOnline, setMpShowOnline] = useState(true);
+    const [mpSuggestFriends, setMpSuggestFriends] = useState(true);
     const [lobbyServer, setLobbyServer] = useState("");
     const [automaticRecovery, setAutomaticRecovery] = useState(true);
     const [recoveryButtonCombo, setRecoveryButtonCombo] = useState(false);
@@ -366,6 +369,9 @@ export function useSettingsController({
         setDeferModalCleanup(source.deferModalCleanup);
         setBackButtonsGlobal(source.backButtonsGlobal);
         setBrowserSnapshot(source.browserSnapshot);
+        setMpFriendsEnabled(source.mpFriendsEnabled);
+        setMpShowOnline(source.mpShowOnline);
+        setMpSuggestFriends(source.mpSuggestFriends);
         setLobbyServer(source.lobbyServer);
         setAutomaticRecovery(source.automaticRecovery);
         setRecoveryButtonCombo(source.recoveryButtonCombo);
@@ -650,6 +656,9 @@ export function useSettingsController({
         deferModalCleanup,
         backButtonsGlobal,
         browserSnapshot,
+        mpFriendsEnabled,
+        mpShowOnline,
+        mpSuggestFriends,
         lobbyServer,
         automaticRecovery,
         recoveryButtonCombo,
@@ -901,6 +910,9 @@ export function useSettingsController({
         setDeferModalCleanup,
         setBackButtonsGlobal,
         setBrowserSnapshot,
+        setMpFriendsEnabled,
+        setMpShowOnline,
+        setMpSuggestFriends,
         setLobbyServer,
         setAutomaticRecovery,
         setRecoveryButtonCombo,

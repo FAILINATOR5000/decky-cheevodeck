@@ -33,6 +33,7 @@ import { modalSize } from "../../utils/scale";
 import { FADE_IN_KEYFRAMES, NOTES_DOT_KEYFRAMES, achievementGreen } from "../../utils/style";
 import { recordMilestoneEvent } from "../../utils/milestoneEvents";
 import { endMultiplayerRoom, useMultiplayerRoomMarker } from "../../utils/multiplayerRoomState";
+import { rememberMultiplayerPage } from "../../utils/multiplayerChoices";
 import { FocusTarget } from "../ui/FocusTarget";
 
 type NotifTab = "normal" | "archived";
@@ -273,6 +274,7 @@ export function NotificationsModal(props: NotificationsModalProps) {
                     <FocusTarget focusKey="notif:multiplayer:room" style={{ flex: 1, minWidth: 0, display: "flex" }}>
                         <DialogButton
                             onClick={() => {
+                                rememberMultiplayerPage("play");
                                 nav.openMultiplayer?.();
                                 close();
                             }}

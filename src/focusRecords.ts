@@ -689,7 +689,10 @@ export function landOnTop(view: ViewKey, focusKey: string) {
     startLanding(top, "forward", { accountUlid, subject: null, tabPath: [], focusKey, fallbacks: [] }, recentPress());
 }
 
-export function overrideRecord(entryId: number | null, target: { focusKey: string; fallbacks?: string[]; subject?: string }) {
+export function overrideRecord(
+    entryId: number | null,
+    target: { focusKey: string; fallbacks?: string[]; subject?: string; tabPath?: string[] }
+) {
     const entry = [...entries.values()].find((candidate) => candidate.id === entryId);
     if (!entry) {
         logFocusDebug("record", "override-gone", `${entryId} ${target.focusKey}`);
@@ -704,7 +707,8 @@ export function overrideRecord(entryId: number | null, target: { focusKey: strin
             ...pending.record,
             focusKey: target.focusKey,
             fallbacks: target.fallbacks ?? pending.record.fallbacks,
-            subject: target.subject ?? pending.record.subject
+            subject: target.subject ?? pending.record.subject,
+            tabPath: target.tabPath ?? pending.record.tabPath
         };
         pending.record = record;
         store(entry, record);
@@ -717,7 +721,8 @@ export function overrideRecord(entryId: number | null, target: { focusKey: strin
         ...record,
         focusKey: target.focusKey,
         fallbacks: target.fallbacks ?? record.fallbacks,
-        subject: target.subject ?? record.subject
+        subject: target.subject ?? record.subject,
+        tabPath: target.tabPath ?? record.tabPath
     });
     logFocusDebug("record", "override", `${nameEntry(entry)} ${describeRecord(topRecord(entry))}`);
 }

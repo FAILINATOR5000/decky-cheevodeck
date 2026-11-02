@@ -627,10 +627,38 @@ class OptionsMixin(PluginContext):
                 "lobbyServer": self.settings_store.get_lobby_server(self.settings_store.load_config()),
             }
         value = self.settings_store.update_lobby_server(wanted)
+        self.multiplayer_friends_service.settings_changed()
 
         return {
             "ok": True,
             "lobbyServer": value,
+        }
+
+    async def save_mp_friends_enabled(self, mp_friends_enabled: bool):
+        value = self.settings_store.update_mp_friends_enabled(mp_friends_enabled)
+        self.multiplayer_friends_service.settings_changed()
+
+        return {
+            "ok": True,
+            "mpFriendsEnabled": value,
+        }
+
+    async def save_mp_show_online(self, mp_show_online: bool):
+        value = self.settings_store.update_mp_show_online(mp_show_online)
+        self.multiplayer_friends_service.report_changed()
+
+        return {
+            "ok": True,
+            "mpShowOnline": value,
+        }
+
+    async def save_mp_suggest_friends(self, mp_suggest_friends: bool):
+        value = self.settings_store.update_mp_suggest_friends(mp_suggest_friends)
+        self.multiplayer_friends_service.report_changed()
+
+        return {
+            "ok": True,
+            "mpSuggestFriends": value,
         }
 
     async def save_browser_snapshot(self, browser_snapshot: bool):

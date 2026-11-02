@@ -258,6 +258,9 @@ type OptionsPageState = {
     deferModalCleanup: boolean;
     backButtonsGlobal: boolean;
     browserSnapshot: boolean;
+    mpFriendsEnabled: boolean;
+    mpShowOnline: boolean;
+    mpSuggestFriends: boolean;
     lobbyServer: string;
     libraryBadge: boolean;
     memoriesAutoCapture: boolean;
@@ -515,6 +518,9 @@ type OptionsPageActions = {
     onToggleDeferModalCleanup: (nextValue: boolean) => void | Promise<void>;
     onToggleBackButtonsGlobal: (nextValue: boolean) => void | Promise<void>;
     onToggleBrowserSnapshot: (nextValue: boolean) => void | Promise<void>;
+    onToggleMpFriendsEnabled: (nextValue: boolean) => void | Promise<void>;
+    onToggleMpShowOnline: (nextValue: boolean) => void | Promise<void>;
+    onToggleMpSuggestFriends: (nextValue: boolean) => void | Promise<void>;
     onEditLobbyServer: () => void;
     onToggleLibraryBadge: (nextValue: boolean) => void | Promise<void>;
     onToggleLegacyCommentsLoading: (nextValue: boolean) => void | Promise<void>;
@@ -2091,6 +2097,33 @@ function SocialTab(props: TabContentProps) {
                 label={t(state.language, "Lobby Server")}
                 value={state.lobbyServer || t(state.language, "Off")}
                 help={t(state.language, "help_lobby_server")}
+            />
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:mpFriendsEnabled"
+                label={t(state.language, "Friends")}
+                value={state.mpFriendsEnabled}
+                onChange={actions.onToggleMpFriendsEnabled}
+                disabled={disabled}
+                help={t(state.language, "help_mp_friends_enabled")}
+            />
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:mpShowOnline"
+                label={t(state.language, "Show Me Online")}
+                value={state.mpShowOnline}
+                onChange={actions.onToggleMpShowOnline}
+                disabled={disabled || !state.mpFriendsEnabled}
+                help={t(state.language, "help_mp_show_online")}
+            />
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:mpSuggestFriends"
+                label={t(state.language, "Suggest RA Friends")}
+                value={state.mpSuggestFriends}
+                onChange={actions.onToggleMpSuggestFriends}
+                disabled={disabled || !state.mpFriendsEnabled}
+                help={t(state.language, "help_mp_suggest_friends")}
             />
         </>
     );

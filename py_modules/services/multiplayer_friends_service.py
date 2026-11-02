@@ -1,0 +1,1131 @@
+import asyncio
+import hashlib
+import hmac
+import json
+import secrets
+import time
+
+import decky
+import multiplayer_protocol as proto
+from multiplayer_friends_store import clean_name, clean_nickname, clean_pic, clean_text, is_ulid
+from nearby_protocol import FrameError, canonical
+from notifications import emit_notification, is_type_enabled
+from services import lobby_client
+
+FRIEND_PORT = 49734
+FRIEND_KIND = "cheevodeck.friend"
+FRIENDS_EVENT = "cheevodeck_multiplayer_friends"
+
+PING_SECONDS = 20
+UPDATE_SECONDS = 60
+SILENT_SECONDS = 75
+REPLY_SECONDS = 5
+RETRY_SECONDS = (2, 5, 10, 15, 30)
+TAB_LEASE_SECONDS = 20
+INVITE_SECONDS = 600
+INVITE_WAIT_SECONDS = 2
+SELF_PIC_SECONDS = 7 * 86400
+DATAGRAM_BYTES = 2048
+DATAGRAMS_PER_SECOND = 20
+CLOCK_SKEW_SECONDS = 120
+LIST_MAX = 500
+SEEN_INVITES = 256
+ACK_GATHER_SECONDS = 0.3
+OUTBOX_GAP_SECONDS = 0.1
+ACK_MAX = 500
+FIND_ROUNDS = 3
+
+_HEX16 = set("0123456789abcdef")
+
+
+def _hex16(value) -> bool:
+    return isinstance(value, str) and len(value) == 16 and set(value) <= _HEX16
+
+
+def _sign(key_hex: str, label: str, body: dict) -> str:
+    return hmac.new(bytes.fromhex(key_hex), (label + "|" + canonical(body)).encode("ascii"),
+                    hashlib.sha256).hexdigest()
+
+
+def _signed(key_hex: str, label: str, body, tag) -> bool:
+    if not isinstance(body, dict) or not isinstance(tag, str):
+        return False
+    try:
+        return hmac.compare_digest(_sign(key_hex, label, body), tag)
+    except (TypeError, ValueError):
+        return False
+
+
+class _Listener(asyncio.DatagramProtocol):
+    def __init__(self, service):
+        self._service = service
+        self.transport = None
+
+    def connection_made(self, transport):
+        self.transport = transport
+
+    def datagram_received(self, data, addr):
+        self._service._heard(data, addr)
+
+    def error_received(self, exc):
+        pass
+
+
+class MultiplayerFriendsService:
+    def __init__(self, *, store, settings_store, game_mode, multiplayer, notifications_store, ra_friends,
+                 cache_store, ra_call, ra, port: int = FRIEND_PORT, peer_port: int = FRIEND_PORT,
+                 broadcast: str = "255.255.255.255"):
+        self._store = store
+        self._cache_store = cache_store
+        self._settings_store = settings_store
+        self._game_mode = game_mode
+        self._mp = multiplayer
+        self._notifications = notifications_store
+        self._ra_friends = ra_friends
+        self._ra_call = ra_call
+        self._ra = ra
+        self._port = port
+        self._peer_port = peer_port
+        self._broadcast = broadcast
+
+        self._loop = None
+        self._link = None
+        self._writer = None
+        self._send_lock = None
+        self._up = False
+        self._refused = ""
+        self._lease_until = 0.0
+        self._presence = {}
+        self._suggestions = []
+        self._waiting = {}
+        self._invites = {}
+        self._seen_invites = []
+        self._invite_acks = {}
+        self._listener = None
+        self._heard_at = []
+        self._sent_report = None
+        self._sent_room = None
+        self._session_account = ""
+        self._acks = []
+        self._tasks = set()
+
+    def set_event_loop(self, loop) -> None:
+        self._loop = loop
+        self._send_lock = asyncio.Lock()
+        loop.call_soon_threadsafe(self._follow)
+
+    def _soon(self, callback) -> None:
+        loop = self._loop
+        if loop is not None and not loop.is_closed():
+            loop.call_soon_threadsafe(callback)
+
+    def sync(self) -> None:
+        self._soon(self._follow)
+
+    def settings_changed(self) -> None:
+        self._soon(self._restart)
+
+    def account_changed(self) -> None:
+        self._soon(self._restart)
+
+    def stop(self) -> None:
+        if self._link is not None:
+            self._link.cancel()
+            self._link = None
+        self._close_listener()
+
+    def _restart(self) -> None:
+        if self._link is not None:
+            self._link.cancel()
+            self._link = None
+        self._close_listener()
+        self._presence = {}
+        self._suggestions = []
+        self._invites = {}
+        self._refused = ""
+        self._set_up(False)
+        self._follow()
+
+    def _spawn(self, coro):
+        task = asyncio.ensure_future(coro)
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
+        return task
+
+    def _debug(self, message: str, *args) -> None:
+        self._mp._debug("friends: " + message, *args)
+
+    def _cfg(self) -> dict:
+        return self._settings_store.load_config()
+
+    def _on(self, cfg=None) -> bool:
+        cfg = cfg if cfg is not None else self._cfg()
+        return bool(cfg.get("mpFriendsEnabled", True))
+
+    def _me(self) -> str:
+        ulid = self._store.ulid
+        return ulid if is_ulid(ulid) else ""
+
+    def _my_name(self) -> str:
+        return proto.clean_user(self._cfg().get("username") or "")
+
+    def _data(self):
+        try:
+            return self._store.load()
+        except Exception as e:
+            decky.logger.warning("friends: couldn't read the friends file (%s)", type(e).__name__)
+            return None
+
+    def _mutate(self, change, ulid=None):
+        try:
+            _data, result = self._store.mutate(change, ulid=ulid)
+        except Exception as e:
+            decky.logger.warning("friends: couldn't save (%s)", type(e).__name__)
+            return None
+        if result:
+            self._changed()
+        return result
+
+    def _changed(self) -> None:
+        loop = self._loop
+        if loop is None or loop.is_closed():
+            return
+        asyncio.run_coroutine_threadsafe(decky.emit(FRIENDS_EVENT, {}), loop)
+
+    def _wanted(self) -> bool:
+        if self._refused or not self._game_mode() or not self._on() or not self._me() \
+                or self._mp.lobby_server() is None:
+            return False
+        if time.monotonic() < self._lease_until:
+            return True
+        data = self._data()
+        return bool(data and (data["friends"] or data["requests"] or data["outbox"]))
+
+    def _follow(self) -> None:
+        if self._loop is None:
+            return
+        if self._wanted():
+            if self._link is None or self._link.done():
+                self._link = self._spawn(self._run_link())
+        elif self._link is not None:
+            self._link.cancel()
+            self._link = None
+            self._set_up(False)
+        data = self._data()
+        listen = self._game_mode() and self._on() and bool(self._me()) and bool(data and data["friends"])
+        if listen and self._listener is None:
+            self._spawn(self._open_listener())
+        elif not listen:
+            self._close_listener()
+
+    def touch(self) -> None:
+        self._lease_until = time.monotonic() + TAB_LEASE_SECONDS
+        self._follow()
+
+    def identity(self) -> tuple:
+        if not self._on():
+            return "", ""
+        data = self._data()
+        return self._me(), data["selfPic"] if data else ""
+
+    async def _refresh_self_pic(self) -> None:
+        data = self._store.ensure()
+        name = self._my_name()
+        if data is None or not name or (data["selfPicAt"] and time.time() - data["selfPicAt"] < SELF_PIC_SECONDS):
+            return
+        key = str(self._cfg().get("webApiKey") or "").strip()
+        try:
+            profile = await self._ra_call(self._ra.get_user_profile, name, key)
+        except Exception as e:
+            self._debug("own picture lookup failed (%s)", type(e).__name__)
+            return
+        if not isinstance(profile, dict) or str(profile.get("ULID") or "") != self._me():
+            return
+        pic = clean_pic(profile.get("UserPic"))
+
+        def keep(stored):
+            stored["selfPic"] = pic
+            stored["selfPicAt"] = int(time.time())
+            return True
+        self._mutate(keep)
+
+    async def _run_link(self) -> None:
+        attempt = 0
+        try:
+            await self._refresh_self_pic()
+            while self._wanted():
+                server = self._mp.lobby_server()
+                if server is not None:
+                    try:
+                        if await self._session(server):
+                            attempt = 0
+                    except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError, FrameError) as e:
+                        self._debug("link failed (%s)", type(e).__name__)
+                    finally:
+                        self._writer = None
+                        self._set_up(False)
+                    if self._refused:
+                        return
+                await asyncio.sleep(RETRY_SECONDS[min(attempt, len(RETRY_SECONDS) - 1)])
+                attempt += 1
+        finally:
+            if self._link is asyncio.current_task():
+                self._link = None
+
+    def _set_up(self, up: bool) -> None:
+        if not up:
+            for future in self._waiting.values():
+                if not future.done():
+                    future.set_result(None)
+            self._waiting = {}
+            self._sent_report = None
+            self._sent_room = None
+            if self._up:
+                self._presence = {}
+                self._suggestions = []
+        if up != self._up:
+            self._up = up
+            self._changed()
+
+    def _report(self, data) -> dict:
+        cfg = self._cfg()
+        suggest = bool(cfg.get("mpSuggestFriends", True))
+        return {
+            "visible": bool(cfg.get("mpShowOnline", True)),
+            "suggest": suggest,
+            "friends": [friend["ulid"] for friend in data["friends"]][:LIST_MAX],
+            "ra": self._mutual_follows() if suggest else [],
+            "presence": {"game": self._playing(), "room": self._mp.current_room()},
+        }
+
+    def _mutual_follows(self) -> list:
+        rows = self._ra_rows()
+        return [row["ulid"] for row in rows if row.get("isFollowingMe") and not row.get("isSelf")
+                and is_ulid(row.get("ulid"))][:LIST_MAX]
+
+    def _ra_rows(self) -> list:
+        payload = self._ra_friends.get_cached_friends().get("payload") or {}
+        rows = payload.get("friends") if isinstance(payload, dict) else None
+        return [row for row in rows if isinstance(row, dict)] if isinstance(rows, list) else []
+
+    def _playing(self) -> str:
+        cached = self._cache_store.load_payload()
+        meta = cached.get("meta") if isinstance(cached, dict) else None
+        payload = cached.get("payload") if isinstance(cached, dict) else None
+        if not isinstance(meta, dict) or not isinstance(payload, dict):
+            return ""
+        finished = meta.get("refreshFinishedAt")
+        if type(finished) is not int or time.time() - finished > 1800 or not meta.get("gameId"):
+            return ""
+        return proto.clean_chat(payload.get("title"))[:64]
+
+    async def _session(self, server) -> bool:
+        data = self._store.ensure()
+        name = self._my_name()
+        if data is None or not name:
+            return False
+        reader, writer = await lobby_client.connect(server)
+        try:
+            writer.write(lobby_client.envelope({"op": "device", "v": proto.VERSION, "device": data["deviceId"]}))
+            await asyncio.wait_for(writer.drain(), REPLY_SECONDS)
+            challenge = await asyncio.wait_for(lobby_client.read_envelope(reader), REPLY_SECONDS)
+            nonce = challenge.get("n")
+            if challenge.get("op") != "challenge" or not proto.is_nonce(nonce):
+                return False
+            verifier = hashlib.sha256(bytes.fromhex(data["deviceSecret"])).hexdigest()
+            proof = hmac.new(bytes.fromhex(verifier), ("device|" + nonce).encode("ascii"), hashlib.sha256).hexdigest()
+            hello = {"op": "hello", "ulid": self._me(), "name": name, "pic": data["selfPic"], "proof": proof,
+                     **self._report(data)}
+            if challenge.get("known") is not True:
+                hello["verifier"] = verifier
+            writer.write(lobby_client.envelope(hello))
+            await asyncio.wait_for(writer.drain(), REPLY_SECONDS)
+            welcome = await asyncio.wait_for(lobby_client.read_envelope(reader), REPLY_SECONDS)
+            if welcome.get("op") != "welcome" or welcome.get("ok") is not True:
+                error = welcome.get("error")
+                if error in ("denied", "blocked", "full"):
+                    self._refused = error
+                    decky.logger.warning("friends: the lobby server refused this device (%s)", error)
+                    self._changed()
+                return False
+            self._sent_report = canonical(hello)
+            self._session_account = self._me()
+            self._acks = []
+            self._writer = writer
+            self._set_up(True)
+            decky.logger.info("friends: online")
+            await self._flush_outbox()
+            keeper = asyncio.ensure_future(self._keep())
+            try:
+                while True:
+                    message = await asyncio.wait_for(lobby_client.read_envelope(reader), SILENT_SECONDS)
+                    self._take(message)
+            finally:
+                keeper.cancel()
+        finally:
+            writer.close()
+            if self._up:
+                decky.logger.info("friends: offline")
+        return True
+
+    async def _keep(self) -> None:
+        ticks = 0
+        while True:
+            await asyncio.sleep(PING_SECONDS)
+            if not self._wanted():
+                writer = self._writer
+                if writer is not None:
+                    writer.close()
+                return
+            ticks += 1
+            await self._send({"op": "ping"})
+            if ticks * PING_SECONDS >= UPDATE_SECONDS:
+                ticks = 0
+                await self._update(force=True)
+
+    async def _send(self, message: dict) -> bool:
+        writer = self._writer
+        if writer is None:
+            return False
+        async with self._send_lock:
+            try:
+                writer.write(lobby_client.envelope(message))
+                await asyncio.wait_for(writer.drain(), REPLY_SECONDS)
+            except (OSError, asyncio.TimeoutError, FrameError):
+                return False
+        return True
+
+    async def _update(self, force: bool = False) -> None:
+        data = self._data()
+        if data is None or not self._up:
+            return
+        report = self._report(data)
+        said = canonical(report)
+        if not force and said == self._sent_report:
+            return
+        self._sent_report = said
+        self._sent_room = report["presence"]["room"]
+        await self._send({"op": "update", **report})
+
+    def room_changed(self) -> None:
+        if not self._up:
+            return
+        room = self._mp.current_room()
+        if room != self._sent_room:
+            self._sent_room = room
+            self._spawn(self._update())
+
+    def report_changed(self) -> None:
+        if self._up:
+            self._spawn(self._update())
+
+    async def _ask(self, message: dict, key: str):
+        future = asyncio.get_running_loop().create_future()
+        self._waiting[key] = future
+        try:
+            if not await self._send(message):
+                return None
+            return await asyncio.wait_for(future, REPLY_SECONDS)
+        except asyncio.TimeoutError:
+            return None
+        finally:
+            self._waiting.pop(key, None)
+
+    async def _flush_outbox(self) -> None:
+        data = self._data()
+        if data is None or not data["outbox"]:
+            return
+        sent = []
+        for entry in data["outbox"]:
+            if await self._send({"op": "remove", "ulid": entry["ulid"], "t": entry["t"]}):
+                sent.append(entry["ulid"])
+            await asyncio.sleep(OUTBOX_GAP_SECONDS)
+
+        def drop(stored):
+            before = len(stored["outbox"])
+            stored["outbox"] = [entry for entry in stored["outbox"] if entry["ulid"] not in sent]
+            return len(stored["outbox"]) != before
+        self._mutate(drop)
+
+    def _take(self, message: dict) -> None:
+        op = message.get("op")
+        if op in ("request_ok", "request_no", "msg_ok", "msg_no", "invite_ok", "invite_no"):
+            key = message.get("rid") or message.get("mid") or message.get("iid")
+            future = self._waiting.get(f"{op.split('_')[0]}:{key}") if isinstance(key, str) else None
+            if future is not None and not future.done():
+                future.set_result(message)
+            return
+        if op == "presence":
+            self._take_presence(message)
+        elif op == "suggest":
+            self._take_suggestions(message.get("list"))
+        elif op == "mail":
+            self._take_mail(message)
+        elif op == "invite":
+            self._take_invite(message.get("from"), message.get("body"), message.get("t"))
+
+    def _take_presence(self, message: dict) -> None:
+        ulid = message.get("ulid")
+        data = self._data()
+        if not is_ulid(ulid) or data is None or self._find(data, ulid) is None:
+            return
+        room = message.get("room")
+        if not (isinstance(room, dict) and proto.is_room_id(room.get("id")) and room.get("where") in proto.WHERES):
+            room = None
+        else:
+            room = {"id": room["id"], "name": proto.clean_room_name(room.get("name")) or "Room",
+                    "where": room["where"]}
+        seen = message.get("seen")
+        self._presence[ulid] = {
+            "online": message.get("online") is True,
+            "game": proto.clean_chat(message.get("game"))[:64],
+            "room": room,
+            "seen": seen if type(seen) is int and seen > 0 else 0,
+        }
+        pic = clean_pic(message.get("pic"))
+
+        def follow(stored):
+            friend = self._find(stored, ulid)
+            if friend is None or friend["userPic"] == pic:
+                return False
+            friend["userPic"] = pic
+            return True
+        if not self._mutate(follow):
+            self._changed()
+
+    def _take_suggestions(self, raw) -> None:
+        rows = []
+        for entry in raw if isinstance(raw, list) else []:
+            if isinstance(entry, dict) and is_ulid(entry.get("ulid")) and clean_name(entry.get("name")):
+                rows.append({"ulid": entry["ulid"], "name": clean_name(entry["name"]),
+                             "pic": clean_pic(entry.get("pic"))})
+        self._suggestions = rows[:50]
+        self._changed()
+
+    def _take_mail(self, message: dict) -> None:
+        mid = message.get("mid")
+        if type(mid) is not int or self._me() != self._session_account:
+            return
+        try:
+            self._mail(message)
+        except Exception as e:
+            decky.logger.warning("friends: a delivery failed (%s)", type(e).__name__)
+        self._acks.append(mid)
+        if len(self._acks) == 1:
+            self._spawn(self._send_acks())
+
+    async def _send_acks(self) -> None:
+        await asyncio.sleep(ACK_GATHER_SECONDS)
+        mids, self._acks = self._acks[:ACK_MAX], self._acks[ACK_MAX:]
+        await self._send({"op": "ack", "mids": mids})
+        if self._acks:
+            self._spawn(self._send_acks())
+
+    def _mail(self, message: dict) -> None:
+        kind = message.get("kind")
+        ulid = message.get("ulid")
+        name = clean_name(message.get("name"))
+        pic = clean_pic(message.get("pic"))
+        key = message.get("key")
+        me = self._me()
+        if kind == "request":
+            if is_ulid(ulid) and ulid != me and name and proto.is_key(key):
+                self._incoming(ulid, name, pic, key, "server")
+        elif kind == "accepted":
+            if is_ulid(ulid) and name:
+                self._accepted(ulid, name, pic, "server")
+        elif kind == "friend_added":
+            data = self._data()
+            waiting = self._request_row(data, ulid) if data is not None and is_ulid(ulid) else None
+            if waiting is not None and waiting["way"] == "in" and waiting["pairKey"] == key:
+                self._befriend(ulid, waiting["name"], waiting["userPic"], waiting["pairKey"], "server")
+        elif kind == "request_gone":
+            if is_ulid(ulid):
+                self._drop_request(ulid, "server")
+        elif kind == "removed":
+            data = self._data()
+            friend = self._find(data, ulid) if data is not None and is_ulid(ulid) else None
+            if friend is not None and _signed(friend["pairKey"], "remove", {"to": me}, message.get("t")):
+                self._unfriend(ulid)
+        elif kind == "msg":
+            self._take_message(message.get("from"), message.get("body"), message.get("t"))
+        elif kind == "new_device":
+            device = message.get("device")
+            if proto.is_device_key(device):
+                self._new_device(device)
+
+    def _find(self, data, ulid: str):
+        return next((friend for friend in data["friends"] if friend["ulid"] == ulid), None)
+
+    def _request_row(self, data, ulid: str):
+        return next((request for request in data["requests"] if request["ulid"] == ulid), None)
+
+    def _incoming(self, ulid: str, name: str, pic: str, key: str, via: str) -> bool:
+        def keep(stored):
+            friend = self._find(stored, ulid)
+            if friend is not None and friend["pairKey"] == key:
+                return False
+            mine = self._request_row(stored, ulid)
+            if mine is not None and mine["way"] == "in":
+                return False
+            if mine is not None:
+                stored["requests"].remove(mine)
+            stored["requests"].append({"ulid": ulid, "name": name, "userPic": pic, "at": int(time.time()),
+                                       "way": "in", "pairKey": key, "via": via})
+            return True
+        if self._mutate(keep):
+            self._notify(name, "Friend request", f"multiplayer:request:{ulid}", {"friend": ulid})
+            self._follow()
+            return True
+        return False
+
+    def _accepted(self, ulid: str, name: str, pic: str, via: str) -> bool:
+        def keep(stored):
+            mine = self._request_row(stored, ulid)
+            if mine is None or mine["way"] != "out" or mine["via"] != via:
+                return False
+            stored["requests"].remove(mine)
+            stored["friends"].append({"ulid": ulid, "name": name, "nickname": "", "pairKey": mine["pairKey"],
+                                      "userPic": pic or mine["userPic"], "added": int(time.time()), "via": via})
+            return True
+        if self._mutate(keep):
+            self._notify(name, "Request accepted", f"multiplayer:friend:{ulid}", {"friend": ulid})
+            self._follow()
+            self.report_changed()
+            return True
+        return False
+
+    def _befriend(self, ulid: str, name: str, pic: str, key: str, via: str) -> None:
+        def keep(stored):
+            mine = self._request_row(stored, ulid)
+            if mine is not None:
+                stored["requests"].remove(mine)
+            friend = self._find(stored, ulid)
+            if friend is not None:
+                friend["pairKey"] = key
+                friend["via"] = via
+                return True
+            stored["friends"].append({"ulid": ulid, "name": name, "nickname": "", "pairKey": key,
+                                      "userPic": pic, "added": int(time.time()), "via": via})
+            return True
+        if self._mutate(keep):
+            self._follow()
+            self.report_changed()
+
+    def _drop_request(self, ulid: str, via=None) -> None:
+        def drop(stored):
+            mine = self._request_row(stored, ulid)
+            if mine is None or (via is not None and mine["via"] != via):
+                return False
+            stored["requests"].remove(mine)
+            return True
+        self._mutate(drop)
+
+    def _unfriend(self, ulid: str) -> bool:
+        def drop(stored):
+            friend = self._find(stored, ulid)
+            if friend is None:
+                return False
+            stored["friends"].remove(friend)
+            stored["messages"].pop(ulid, None)
+            stored["lastRead"].pop(ulid, None)
+            return True
+        if self._mutate(drop):
+            self._presence.pop(ulid, None)
+            self.report_changed()
+            self._follow()
+            return True
+        return False
+
+    def _new_device(self, device: str) -> None:
+        def keep(stored):
+            if any(alert["device"] == device for alert in stored["alerts"]):
+                return False
+            stored["alerts"].append({"device": device, "at": int(time.time())})
+            return True
+        if self._mutate(keep):
+            self._notify(self._my_name(), "New device online", "multiplayer:alert:" + device,
+                         {"alert": device})
+
+    def _claim_ok(self, ulid: str, name: str) -> bool:
+        row = next((row for row in self._ra_rows() if row.get("ulid") == ulid), None)
+        return row is None or str(row.get("username") or "").lower() == name.lower()
+
+    def local_request(self, ulid: str, name: str, pic: str, key: bytes) -> bool:
+        name = clean_name(name)
+        if not self._on() or not is_ulid(ulid) or ulid == self._me() or not name or not self._claim_ok(ulid, name):
+            return False
+        return self._incoming(ulid, name, clean_pic(pic), key.hex(), "local")
+
+    def local_answer(self, ulid: str, accepted: bool, name: str, pic: str) -> bool:
+        name = clean_name(name)
+        if not self._on() or not is_ulid(ulid) or not name or not self._claim_ok(ulid, name):
+            return False
+        if accepted:
+            return self._accepted(ulid, name, clean_pic(pic), "local")
+        self._drop_request(ulid, "local")
+        return True
+
+    def _notify(self, name: str, line: str, land: str, meta: dict) -> None:
+        if self._notifications is not None and is_type_enabled("system", self._settings_store):
+            try:
+                self._notifications.append({
+                    "type": "system",
+                    "kind": "actionable",
+                    "iconSource": "none",
+                    "title": name,
+                    "body": line,
+                    "source": "notifications",
+                    "target": {"view": "multiplayer", "tab": "friends", "land": land},
+                    "meta": {"multiplayer": "friend", **meta},
+                })
+            except Exception as e:
+                decky.logger.warning("friends: the notification could not be filed (%s)", type(e).__name__)
+        emit_notification(
+            ntype="system",
+            settings_store=self._settings_store,
+            event_loop=self._loop,
+            toast_title=name,
+            line_key=line,
+        )
+
+    def state(self, open_tab: bool) -> dict:
+        if open_tab:
+            self.touch()
+        cfg = self._cfg()
+        data = self._data() if self._me() else None
+        ra = {row.get("ulid") for row in self._ra_rows() if is_ulid(row.get("ulid"))}
+        friends = []
+        requests = []
+        alerts = []
+        if data is not None:
+            for friend in data["friends"]:
+                seen = self._presence.get(friend["ulid"], {})
+                read = data["lastRead"].get(friend["ulid"], 0)
+                unread = sum(1 for message in data["messages"].get(friend["ulid"], [])
+                             if not message["mine"] and message["at"] > read)
+                friends.append({
+                    "ulid": friend["ulid"],
+                    "name": friend["name"],
+                    "nickname": friend["nickname"],
+                    "pic": friend["userPic"],
+                    "raFriend": friend["ulid"] in ra,
+                    "online": bool(seen.get("online")),
+                    "game": seen.get("game", ""),
+                    "room": seen.get("room"),
+                    "seen": seen.get("seen", 0),
+                    "unread": unread,
+                    "added": friend["added"],
+                })
+            friends.sort(key=lambda row: (not row["online"], (row["nickname"] or row["name"]).lower()))
+            requests = [{"ulid": request["ulid"], "name": request["name"], "pic": request["userPic"],
+                         "way": request["way"], "at": request["at"]} for request in data["requests"]]
+            alerts = list(data["alerts"])
+        known = {row["ulid"] for row in friends} | {row["ulid"] for row in requests}
+        return {
+            "ok": True,
+            "on": self._on(cfg),
+            "me": self._me(),
+            "server": self._mp.lobby_server() is not None,
+            "up": self._up,
+            "refused": self._refused,
+            "friends": friends,
+            "requests": requests,
+            "suggestions": [row for row in self._suggestions if row["ulid"] not in known]
+            if cfg.get("mpSuggestFriends", True) else [],
+            "alerts": alerts,
+        }
+
+    async def _until_up(self) -> bool:
+        self.touch()
+        for _tick in range(int(REPLY_SECONDS * 10)):
+            if self._up or self._refused:
+                break
+            await asyncio.sleep(0.1)
+        return self._up
+
+    async def add_profile(self, name: str, profile) -> dict:
+        account = self._me()
+        if not self._on() or not self._me():
+            return {"ok": False, "error": "friends_off"}
+        if not isinstance(profile, dict) or not is_ulid(profile.get("ULID")):
+            return {"ok": False, "error": "no_user"}
+        ulid = profile["ULID"]
+        cased = clean_name(profile.get("User")) or clean_name(name)
+        pic = clean_pic(profile.get("UserPic"))
+        if ulid == self._me():
+            return {"ok": False, "error": "self"}
+        data = self._store.ensure()
+        if data is None:
+            return {"ok": False, "error": "unavailable"}
+        if self._find(data, ulid) is not None:
+            return {"ok": False, "error": "already"}
+        waiting = self._request_row(data, ulid)
+        if waiting is not None and waiting["way"] == "in":
+            answered = await self.answer(ulid, True)
+            return {**answered, "ulid": ulid, "friend": True} if answered["ok"] else answered
+        if waiting is not None:
+            return {"ok": False, "error": "pending"}
+        if not await self._until_up():
+            return {"ok": False, "error": "offline"}
+        key = secrets.token_hex(32)
+        rid = secrets.token_hex(8)
+        reply = await self._ask({"op": "request", "rid": rid, "to": ulid, "name": self._my_name(),
+                                 "pic": data["selfPic"], "key": key}, "request:" + rid)
+        if reply is None:
+            return {"ok": False, "error": "offline"}
+        if reply.get("op") != "request_ok":
+            error = reply.get("error")
+            return {"ok": False, "error": error if error in ("pending", "limit", "self") else "unavailable"}
+
+        def keep(stored):
+            stored["requests"].append({"ulid": ulid, "name": cased, "userPic": pic, "at": int(time.time()),
+                                       "way": "out", "pairKey": key, "via": "server"})
+            return True
+        self._mutate(keep, ulid=account)
+        self._follow()
+        return {"ok": True, "name": cased, "ulid": ulid}
+
+    async def add_seat(self, seat: int, ulid: str) -> dict:
+        account = self._me()
+        if not self._on() or not self._me():
+            return {"ok": False, "error": "friends_off"}
+        person = self._mp.seat_identity(seat)
+        if person is None or person["ulid"] != ulid:
+            return {"ok": False, "error": "seat_changed"}
+        if ulid == self._me():
+            return {"ok": False, "error": "self"}
+        data = self._store.ensure()
+        if data is None:
+            return {"ok": False, "error": "unavailable"}
+        if self._find(data, ulid) is not None:
+            return {"ok": False, "error": "already"}
+        waiting = self._request_row(data, ulid)
+        if waiting is not None and waiting["way"] == "in":
+            return await self.answer(ulid, True)
+        if waiting is not None:
+            return {"ok": False, "error": "pending"}
+        key = secrets.token_bytes(32)
+        if not await self._mp.send_friend(seat, "ask", key):
+            return {"ok": False, "error": "unavailable"}
+
+        def keep(stored):
+            stored["requests"].append({"ulid": ulid, "name": person["name"], "userPic": person["pic"],
+                                       "at": int(time.time()), "way": "out", "pairKey": key.hex(), "via": "local"})
+            return True
+        self._mutate(keep, ulid=account)
+        self._follow()
+        return {"ok": True}
+
+    async def answer(self, ulid: str, accept: bool) -> dict:
+        data = self._data()
+        request = self._request_row(data, ulid) if data is not None and is_ulid(ulid) else None
+        if request is None:
+            return {"ok": False, "error": "no_request"}
+        if request["way"] == "out":
+            if accept:
+                return {"ok": False, "error": "no_request"}
+            if request["via"] == "server" and not (await self._until_up()
+                                                   and await self._send({"op": "withdraw", "to": ulid})):
+                return {"ok": False, "error": "offline"}
+            self._drop_request(ulid)
+            return {"ok": True}
+        if request["via"] == "local":
+            seat = self._mp.seat_of(ulid)
+            delivered = seat is not None and await self._mp.send_friend(seat, "accept" if accept else "decline")
+            if not delivered and accept:
+                return {"ok": False, "error": "left_room"}
+        elif not (await self._until_up() and await self._send({"op": "answer", "to": ulid, "accept": bool(accept)})):
+            return {"ok": False, "error": "offline"}
+        if accept:
+            self._befriend(ulid, request["name"], request["userPic"], request["pairKey"], request["via"])
+        else:
+            self._drop_request(ulid)
+        return {"ok": True}
+
+    async def remove(self, ulid: str) -> dict:
+        data = self._data()
+        friend = self._find(data, ulid) if data is not None else None
+        if friend is None or not self._unfriend(ulid):
+            return {"ok": False, "error": "not_friend"}
+        tag = _sign(friend["pairKey"], "remove", {"to": ulid})
+        if not (self._up and await self._send({"op": "remove", "ulid": ulid, "t": tag})):
+            def later(stored):
+                stored["outbox"].append({"op": "remove", "ulid": ulid, "t": tag})
+                return True
+            self._mutate(later)
+        return {"ok": True}
+
+    def rename(self, ulid: str, nickname: str) -> dict:
+        nickname = clean_nickname(nickname)
+
+        def keep(stored):
+            friend = self._find(stored, ulid)
+            if friend is None or friend["nickname"] == nickname:
+                return False
+            friend["nickname"] = nickname
+            return True
+        self._mutate(keep)
+        return {"ok": True}
+
+    def messages(self, ulid: str) -> dict:
+        def mark(stored):
+            if self._find(stored, ulid) is None:
+                return False
+            newest = max((message["at"] for message in stored["messages"].get(ulid, [])), default=0)
+            if newest <= stored["lastRead"].get(ulid, 0):
+                return False
+            stored["lastRead"][ulid] = newest
+            return True
+        self._mutate(mark)
+        data = self._data()
+        if data is None or self._find(data, ulid) is None:
+            return {"ok": False, "error": "not_friend"}
+        return {"ok": True, "messages": list(data["messages"].get(ulid, []))}
+
+    async def send_message(self, ulid: str, text: str) -> dict:
+        account = self._me()
+        text = clean_text(text)
+        if not text:
+            return {"ok": False, "error": "empty"}
+        data = self._data()
+        friend = self._find(data, ulid) if data is not None else None
+        if friend is None:
+            return {"ok": False, "error": "not_friend"}
+        if not await self._until_up():
+            return {"ok": False, "error": "offline"}
+        mid = secrets.token_hex(8)
+        body = {"from": self._me(), "id": mid, "at": int(time.time()), "text": text}
+        reply = await self._ask({"op": "msg", "mid": mid, "to": ulid, "body": body,
+                                 "t": _sign(friend["pairKey"], "msg", body)}, "msg:" + mid)
+        if reply is None:
+            return {"ok": False, "error": "offline"}
+        if reply.get("op") != "msg_ok":
+            error = reply.get("error")
+            return {"ok": False, "error": {"not_friends": "not_friends", "full": "mailbox_full"}.get(error, "unavailable")}
+
+        def keep(stored):
+            rows = stored["messages"].setdefault(ulid, [])
+            rows.append({"id": mid, "mine": True, "text": text, "at": body["at"]})
+            stored["lastRead"][ulid] = body["at"]
+            return True
+        self._mutate(keep, ulid=account)
+        return {"ok": True}
+
+    def _take_message(self, sender, body, tag) -> None:
+        data = self._data()
+        friend = self._find(data, sender) if data is not None and is_ulid(sender) else None
+        if friend is None or not _signed(friend["pairKey"], "msg", body, tag):
+            return
+        text = clean_text(body.get("text"))
+        mid = body.get("id")
+        at = body.get("at")
+        if not text or not _hex16(mid) or body.get("from") != sender or type(at) is not int:
+            return
+        at = int(time.time())
+
+        def keep(stored):
+            rows = stored["messages"].setdefault(sender, [])
+            if any(row["id"] == mid for row in rows):
+                return False
+            rows.append({"id": mid, "mine": False, "text": text, "at": at})
+            return True
+        if self._mutate(keep):
+            self._notify(friend["nickname"] or friend["name"], "New message", f"multiplayer:friend:{sender}",
+                         {"friend": sender, "conversation": True})
+
+    async def alert(self, device: str, revoke: bool) -> dict:
+        if revoke:
+            if not await self._until_up():
+                return {"ok": False, "error": "offline"}
+            await self._send({"op": "revoke", "device": device})
+
+        def drop(stored):
+            before = len(stored["alerts"])
+            stored["alerts"] = [alert for alert in stored["alerts"] if alert["device"] != device]
+            return len(stored["alerts"]) != before
+        self._mutate(drop)
+        return {"ok": True}
+
+    async def invite(self, ulid: str) -> dict:
+        data = self._data()
+        friend = self._find(data, ulid) if data is not None else None
+        if friend is None:
+            return {"ok": False, "error": "not_friend"}
+        offer = await self._mp.invite_pass(ulid)
+        if offer is None:
+            return {"ok": False, "error": "no_room"}
+        iid = secrets.token_hex(8)
+        key = offer["key"]
+        body = {"from": self._me(), "id": iid, "at": int(time.time()), "room": offer["room"], "name": offer["name"],
+                "title": offer["title"][:64], "where": offer["where"], "exp": offer["exp"],
+                "k": proto.wrap(bytes.fromhex(friend["pairKey"]), "invite", iid, key) if key else "",
+                "addr": offer["address"] if proto.is_ipv4(offer["address"]) else ""}
+        tag = _sign(friend["pairKey"], "invite", body)
+        heard = asyncio.get_running_loop().create_future()
+        self._invite_acks[iid] = (friend["pairKey"], heard)
+        try:
+            listener = self._listener
+            if listener is not None and listener.transport is not None:
+                packet = json.dumps({"k": FRIEND_KIND, "v": proto.VERSION, "op": "invite", "from": self._me(),
+                                     "body": body, "t": tag}, separators=(",", ":"), sort_keys=True).encode("ascii")
+                if len(packet) <= DATAGRAM_BYTES:
+                    listener.transport.sendto(packet, (self._broadcast, self._peer_port))
+            if self._up and self._presence.get(ulid, {}).get("online"):
+                reply = await self._ask({"op": "invite", "iid": iid, "to": ulid, "body": body, "t": tag},
+                                        "invite:" + iid)
+                if reply is not None and reply.get("op") == "invite_ok" and not heard.done():
+                    heard.set_result(True)
+            try:
+                await asyncio.wait_for(asyncio.shield(heard), INVITE_WAIT_SECONDS)
+            except asyncio.TimeoutError:
+                return {"ok": False, "error": "not_online", "name": friend["nickname"] or friend["name"]}
+        finally:
+            self._invite_acks.pop(iid, None)
+        return {"ok": True}
+
+    def _take_invite(self, sender, body, tag, addr=None) -> None:
+        data = self._data()
+        friend = self._find(data, sender) if data is not None and is_ulid(sender) else None
+        if friend is None or not _signed(friend["pairKey"], "invite", body, tag):
+            return
+        iid = body.get("id")
+        at = body.get("at")
+        expires = body.get("exp")
+        if (
+            not _hex16(iid)
+            or body.get("from") != sender
+            or type(at) is not int
+            or abs(at - time.time()) > CLOCK_SKEW_SECONDS
+            or not proto.is_room_id(body.get("room"))
+            or body.get("where") not in proto.WHERES
+            or type(expires) is not int
+        ):
+            return
+        if iid in self._seen_invites:
+            return
+        self._seen_invites = (self._seen_invites + [iid])[-SEEN_INVITES:]
+        if addr is not None:
+            self._ack_invite(friend, iid, addr)
+        key = None
+        if body.get("k"):
+            key = proto.unwrap(bytes.fromhex(friend["pairKey"]), "invite", iid, body["k"])
+            if key is None:
+                return
+        now = time.time()
+        for stale in [name for name, invite in self._invites.items() if invite["until"] < now]:
+            del self._invites[stale]
+        self._invites[iid] = {
+            "from": sender,
+            "room": body["room"],
+            "name": proto.clean_room_name(body.get("name")) or "Room",
+            "where": body["where"],
+            "exp": expires,
+            "key": key,
+            "address": body["addr"] if proto.is_ipv4(body.get("addr")) else "",
+            "until": now + INVITE_SECONDS,
+        }
+        self._notify(friend["nickname"] or friend["name"], "Room invite", "multiplayer:leave",
+                     {"friend": sender, "invite": iid})
+
+    def _ack_invite(self, friend: dict, iid: str, addr) -> None:
+        listener = self._listener
+        if listener is None or listener.transport is None:
+            return
+        packet = json.dumps({"k": FRIEND_KIND, "v": proto.VERSION, "op": "invite_ack", "from": self._me(), "id": iid,
+                             "t": _sign(friend["pairKey"], "ack", {"id": iid})}, separators=(",", ":"),
+                            sort_keys=True).encode("ascii")
+        listener.transport.sendto(packet, addr)
+
+    def invite_info(self, iid: str):
+        invite = self._invites.get(iid) if isinstance(iid, str) else None
+        if invite is None or invite["until"] < time.time():
+            return None
+        return invite
+
+    async def accept_invite(self, iid: str, hardcore: bool) -> dict:
+        invite = self.invite_info(iid)
+        if invite is None or (invite["key"] is not None and invite["exp"] <= time.time()):
+            return {"ok": False, "error": "invite_expired"}
+        if not await self._find_room(invite["room"], invite["address"]):
+            return {"ok": False, "error": "room_gone"}
+        offer = None
+        if invite["key"] is not None:
+            offer = {"ulid": self._me(), "exp": invite["exp"], "key": invite["key"]}
+        joined = await self._mp.join(invite["room"], "", hardcore, offer)
+        if joined.get("ok"):
+            self._invites.pop(iid, None)
+        return joined
+
+    async def _find_room(self, room_id: str, address: str) -> bool:
+        for _round in range(FIND_ROUNDS):
+            await self._mp.discover()
+            if self._mp.has_room(room_id):
+                return True
+        if address:
+            await self._mp.lookup(address)
+        return self._mp.has_room(room_id)
+
+    async def join_friend(self, ulid: str, password: str, hardcore: bool) -> dict:
+        room = self._presence.get(ulid, {}).get("room")
+        if room is None or not await self._find_room(room["id"], ""):
+            return {"ok": False, "error": "room_gone"}
+        return await self._mp.join(room["id"], password, hardcore)
+
+    async def _open_listener(self) -> None:
+        if self._listener is not None or self._loop is None:
+            return
+        listener = self._listener = _Listener(self)
+        try:
+            await self._loop.create_datagram_endpoint(lambda: listener, local_addr=("0.0.0.0", self._port),
+                                                      allow_broadcast=True)
+        except OSError as e:
+            decky.logger.warning("friends: couldn't open the invite listener (%s)", type(e).__name__)
+            if self._listener is listener:
+                self._listener = None
+            return
+        if self._listener is not listener:
+            listener.transport.close()
+
+    def _close_listener(self) -> None:
+        listener, self._listener = self._listener, None
+        if listener is not None and listener.transport is not None:
+            listener.transport.close()
+
+    def _heard(self, data: bytes, addr) -> None:
+        now = time.monotonic()
+        self._heard_at = [at for at in self._heard_at if now - at < 1.0]
+        if len(self._heard_at) >= DATAGRAMS_PER_SECOND or len(data) > DATAGRAM_BYTES:
+            return
+        self._heard_at.append(now)
+        if not self._game_mode() or not self._on():
+            return
+        try:
+            message = json.loads(data.decode("ascii"), parse_constant=_refuse)
+        except (ValueError, UnicodeDecodeError, RecursionError):
+            return
+        if (
+            not isinstance(message, dict)
+            or message.get("k") != FRIEND_KIND
+            or message.get("v") != proto.VERSION
+            or message.get("from") == self._me()
+        ):
+            return
+        op = message.get("op")
+        if op == "invite":
+            self._take_invite(message.get("from"), message.get("body"), message.get("t"), addr)
+        elif op == "invite_ack":
+            self._take_ack(message)
+
+    def _take_ack(self, message: dict) -> None:
+        waiting = self._invite_acks.get(message.get("id")) if isinstance(message.get("id"), str) else None
+        if waiting is None:
+            return
+        key, heard = waiting
+        if _signed(key, "ack", {"id": message["id"]}, message.get("t")) and not heard.done():
+            heard.set_result(True)
+
+
+def _refuse(_name):
+    raise ValueError("constant")
+

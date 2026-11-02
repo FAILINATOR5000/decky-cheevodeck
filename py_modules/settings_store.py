@@ -461,6 +461,9 @@ _KNOBS = (
     Knob("backButtonsGlobal", default=False, normalize=True, read=READ_BOOL),
     Knob("browserSnapshot", default=False, normalize=True, read=READ_BOOL),
     Knob("lobbyServer", default=DEFAULT_LOBBY_SERVER, normalize=True),
+    Knob("mpFriendsEnabled", default=True, normalize=True, read=READ_BOOL),
+    Knob("mpShowOnline", default=True, normalize=True, read=READ_BOOL),
+    Knob("mpSuggestFriends", default=True, normalize=True, read=READ_BOOL),
     Knob("automaticRecovery", default=True, normalize=True, read=READ_BOOL),
     Knob("recoveryButtonCombo", default=False, normalize=True, read=READ_BOOL),
     Knob("recoveryLogs", default=False, normalize=True, read=READ_BOOL),
@@ -2315,6 +2318,21 @@ class SettingsStore:
         cfg = self._update_config("lobbyServer", str(value or ""))
 
         return self.get_lobby_server(cfg)
+
+    def update_mp_friends_enabled(self, value: bool) -> bool:
+        cfg = self._update_config("mpFriendsEnabled", bool(value))
+
+        return bool(cfg.get("mpFriendsEnabled", True))
+
+    def update_mp_show_online(self, value: bool) -> bool:
+        cfg = self._update_config("mpShowOnline", bool(value))
+
+        return bool(cfg.get("mpShowOnline", True))
+
+    def update_mp_suggest_friends(self, value: bool) -> bool:
+        cfg = self._update_config("mpSuggestFriends", bool(value))
+
+        return bool(cfg.get("mpSuggestFriends", True))
 
     def update_browser_snapshot(self, value: bool) -> bool:
         cfg = self._update_config("browserSnapshot", bool(value))

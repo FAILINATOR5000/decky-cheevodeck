@@ -145,8 +145,8 @@ export function buildStandaloneNotificationNav(language: LanguageCode, settings:
         openDataTransfer: () => {
             landLater({ kind: "dataTransfer" });
         },
-        openMultiplayer: () => {
-            landLater({ kind: "multiplayer" });
+        openMultiplayer: (land) => {
+            landLater({ kind: "multiplayer" }, land);
         },
         openAbout: () => {
             landLater({ kind: "about" });

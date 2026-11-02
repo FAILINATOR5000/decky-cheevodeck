@@ -1,18 +1,22 @@
-import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
+import { Focusable, PanelSectionRow } from "@decky/ui";
 import { useState } from "react";
 
 import { FocusTarget } from "../ui/FocusTarget";
 import { SectionTitle } from "../ui/SectionTitle";
 import { t, type LanguageCode } from "../../locales";
-import { achievementGreen, bodyTextStyle, compactButtonStyle, errorRed, masteredGold } from "../../utils/style";
+import { achievementGreen, bodyTextStyle, errorRed, masteredGold } from "../../utils/style";
+import { PicAvatar } from "./PicAvatar";
 
-type RoomTableSeat = { name: string; game: string; tag: "host" | "you" | ""; mark?: "ready" | "cant" | "" };
+type RoomTableSeat = {
+    name: string;
+    game: string;
+    tag: "host" | "you" | "";
+    mark?: "ready" | "cant" | "";
+    avatar?: string;
+    open: boolean;
+};
 
-const STEPPED_ABOVE = 4;
-
-function dropKey(index: number): string {
-    return `multiplayer:drop:${index}`;
-}
+const AVATAR_PX = 24;
 
 function seatKey(index: number): string {
     return `multiplayer:seat:${index}`;
@@ -21,19 +25,17 @@ function seatKey(index: number): string {
 export function RoomTable(props: {
     language: LanguageCode;
     seats: RoomTableSeat[];
-    onDrop?: (index: number) => void;
+    onSeat: (index: number) => void;
     exitKey: string;
 }) {
-    const { language, seats, onDrop } = props;
+    const { language, seats } = props;
     const [focused, setFocused] = useState(-1);
-    const stepped = seats.length > STEPPED_ABOVE;
-    const droppable = seats
-        .map((seat, index) => (onDrop && index > 0 && seat.name ? index : -1))
-        .filter((index) => index > 0);
+    const open = seats.flatMap((seat, index) => (seat.open ? [index] : []));
 
-    function seatHeirs(index: number): string[] {
-        return [index + 1, index - 1]
-            .filter((other) => other >= 0 && other < seats.length)
+    function heirs(index: number): string[] {
+        const at = open.indexOf(index);
+        return [open[at + 1], open[at - 1]]
+            .filter((other): other is number => other !== undefined)
             .map(seatKey)
             .concat(props.exitKey, "multiplayer:back");
     }
@@ -44,17 +46,13 @@ export function RoomTable(props: {
             <PanelSectionRow>
                 <div style={{ display: "flex", flexDirection: "column", width: "100%", paddingBottom: "8px" }}>
                     {seats.map((seat, index) => {
-                        const at = droppable.indexOf(index);
-                        const heirs = [droppable[at + 1], droppable[at - 1]]
-                            .filter((other): other is number => other !== undefined)
-                            .map(dropKey);
                         const rowStyle = {
                             display: "grid",
-                            gridTemplateColumns: "auto 1fr auto",
+                            gridTemplateColumns: "auto auto 1fr auto",
                             alignItems: "center",
                             gap: "10px",
                             minHeight: "28px",
-                            padding: stepped ? "4px 8px" : "4px 0",
+                            padding: "4px 8px",
                             borderTop: index > 0 ? "1px solid rgba(255,255,255,0.12)" : undefined
                         };
                         const cells = (
@@ -66,6 +64,7 @@ export function RoomTable(props: {
                                 ) : (
                                     <span style={{ ...bodyTextStyle(), minWidth: "1em", textAlign: "right" }}>{index + 1}</span>
                                 )}
+                                {seat.name ? <PicAvatar uri={seat.avatar} name={seat.name} size={AVATAR_PX} /> : <span />}
                                 <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
                                     <span
                                         style={seat.name
@@ -78,32 +77,20 @@ export function RoomTable(props: {
                                         <span style={{ ...bodyTextStyle(), overflowWrap: "anywhere" }}>{seat.game}</span>
                                     )}
                                 </div>
-                                {at >= 0 && onDrop ? (
-                                    <div style={{ display: "flex" }}>
-                                        <FocusTarget
-                                            focusKey={stepped ? seatKey(index) : dropKey(index)}
-                                            focusFallback={stepped ? seatHeirs(index) : [...heirs, props.exitKey]}
-                                        >
-                                            <DialogButton style={compactButtonStyle} onClick={() => onDrop(index)}>
-                                                {t(language, "Drop")}
-                                            </DialogButton>
-                                        </FocusTarget>
-                                    </div>
-                                ) : (
-                                    <span style={bodyTextStyle()}>
-                                        {seat.tag === "host" ? t(language, "Host") : seat.tag === "you" ? t(language, "You") : ""}
-                                    </span>
-                                )}
+                                <span style={bodyTextStyle()}>
+                                    {seat.tag === "host" ? t(language, "Host") : seat.tag === "you" ? t(language, "You") : ""}
+                                </span>
                             </>
                         );
-                        if (!stepped || (at >= 0 && onDrop)) {
+                        if (!open.includes(index)) {
                             return <div key={index} style={rowStyle}>{cells}</div>;
                         }
                         return (
-                            <FocusTarget key={index} focusKey={seatKey(index)} focusFallback={seatHeirs(index)} style={{ width: "100%" }}>
+                            <FocusTarget key={index} focusKey={seatKey(index)} focusFallback={heirs(index)} style={{ width: "100%" }}>
                                 <Focusable
                                     focusable
                                     noFocusRing
+                                    onActivate={() => props.onSeat(index)}
                                     onGamepadFocus={() => setFocused(index)}
                                     onGamepadBlur={() => setFocused((current) => (current === index ? -1 : current))}
                                     style={{

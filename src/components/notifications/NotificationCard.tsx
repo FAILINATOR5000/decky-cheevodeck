@@ -184,6 +184,10 @@ function isMultiplayerRow(notification: CheevoNotification): boolean {
     return notification.type === "system" && notification.target?.view === "multiplayer";
 }
 
+function isFriendRow(notification: CheevoNotification): boolean {
+    return isMultiplayerRow(notification) && metaString(notification, "multiplayer") === "friend";
+}
+
 function isChangelogRow(notification: CheevoNotification): boolean {
     return notification.type === "system" && notification.target?.view === "changelog";
 }
@@ -720,6 +724,8 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                                         ? t(language, "File Watcher")
                                         : isMemoriesTransfer(notification) || isDataTransfer(notification)
                                         ? localizeRuntimeText(language, notification.title)
+                                        : isFriendRow(notification)
+                                        ? notification.title
                                         : isMultiplayerRow(notification)
                                         ? t(language, "EZ Multiplayer")
                                         : isChangelogRow(notification)

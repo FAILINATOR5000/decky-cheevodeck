@@ -1,4 +1,5 @@
-import type { AotwComment, CheevoNotification, GameComment, MilestonesTab, NotificationIconSource, NotificationKind, NotificationType } from "../types";
+import type { AotwComment, CheevoNotification, GameComment, MilestonesTab, MultiplayerTab, NotificationIconSource, NotificationKind, NotificationType } from "../types";
+import { rememberMultiplayerInvite, rememberMultiplayerPage } from "../utils/multiplayerChoices";
 import {
     achievementCommentSource,
     gameCommentSource,
@@ -17,7 +18,7 @@ export type NotificationNav = {
     openFileWatcher?: () => void;
     openMemoriesTransfer?: () => void;
     openDataTransfer?: () => void;
-    openMultiplayer?: () => void;
+    openMultiplayer?: (land?: string) => void;
     openChangelog?: (body: string) => void;
     openMessage?: (body: string) => void;
     openExternalUrl?: (url: string) => void;
@@ -60,6 +61,24 @@ function commentFromMeta(meta: Record<string, unknown> | null): AotwComment {
 function readText(meta: Record<string, unknown> | null, key: string): string {
     const raw = meta?.[key];
     return typeof raw === "string" ? raw : "";
+}
+
+type MultiplayerTarget = { tab: MultiplayerTab; land?: string; conversation?: string; invite?: string };
+
+function multiplayerTarget(n: CheevoNotification): MultiplayerTarget | undefined {
+    if (readText(n.meta, "multiplayer") !== "friend") {
+        return undefined;
+    }
+    const invite = readText(n.meta, "invite");
+    if (invite) {
+        return { tab: "play", invite };
+    }
+    const friend = readText(n.meta, "friend");
+    if (n.meta?.conversation === true && friend) {
+        return { tab: "friends", conversation: friend, land: "multiplayer:conv:say" };
+    }
+    const land = typeof n.target?.land === "string" ? n.target.land : undefined;
+    return { tab: "friends", land };
 }
 
 function threadCommentSource(n: CheevoNotification): SavedCommentSourceInput {
@@ -177,7 +196,12 @@ export const NOTIFICATION_REGISTRY: Record<NotificationType, NotificationTypeEnt
                 return;
             }
             if (n.target?.view === "multiplayer" && nav.openMultiplayer) {
-                nav.openMultiplayer();
+                const target = multiplayerTarget(n);
+                if (target) {
+                    rememberMultiplayerPage(target.tab, target.conversation ?? null);
+                    rememberMultiplayerInvite(target.invite ?? null);
+                }
+                nav.openMultiplayer(target?.land);
                 return;
             }
             if (n.target?.view === "message" && nav.openMessage) {
