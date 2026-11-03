@@ -948,6 +948,7 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
                 const focusNow = focusKey === null ? undefined : indexByKey.get(focusKey);
                 const mountedAt = focusKey === null ? -1 : mountedItems.findIndex((item) => itemKey(item) === focusKey);
                 if (focusRecord !== undefined && focusNow !== undefined && mountedAt >= 0
+                    && holder.contains(holder.ownerDocument.activeElement)
                     && keptItsPlace(anchors.rows, indexByKey, focusRecord.index, focusNow)) {
                     const moved = rowTops[mountedAt] - focusRecord.top;
                     if (Math.abs(moved) > 0.5) {
