@@ -717,7 +717,7 @@ class MultiplayerFriendsService:
         self._drop_request(ulid, "local")
         return True
 
-    def _notify(self, kind: str, name: str, line: str, land: str, meta: dict) -> None:
+    def _notify(self, kind: str, name: str, line: str, land: str, meta: dict, text: str = "") -> None:
         if self._notifications is not None and is_type_enabled("system", self._settings_store):
             try:
                 self._notifications.append({
@@ -725,7 +725,7 @@ class MultiplayerFriendsService:
                     "kind": "actionable",
                     "iconSource": "none",
                     "title": name,
-                    "body": line,
+                    "body": text or line,
                     "source": "notifications",
                     "target": {"view": "multiplayer", "tab": "friends", "land": land},
                     "meta": {"multiplayer": "friend", **meta},
@@ -1021,7 +1021,7 @@ class MultiplayerFriendsService:
             return True
         if self._mutate(keep, ulid=account):
             self._notify("message", friend["name"], "New message", f"multiplayer:friend:{sender}",
-                         {"friend": sender, "conversation": True})
+                         {"friend": sender, "conversation": True, "message": mid}, text=text)
 
     async def retire(self) -> None:
         if not self._up:

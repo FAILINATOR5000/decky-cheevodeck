@@ -1,12 +1,13 @@
 import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
-import { useMemo, useState, type MutableRefObject } from "react";
+import { useEffect, useMemo, useState, type MutableRefObject } from "react";
 
 import { multiplayerFriendAdd, multiplayerFriendAlert, multiplayerFriendAnswer, multiplayerFriendDismiss } from "../../api";
-import { pendingLandingKey, type LandingWindows } from "../../focusRecords";
+import { overrideRecord, pendingLandingKey, topEntryId, type LandingWindows } from "../../focusRecords";
 import { useSlidingWindow } from "../../hooks/useSlidingWindow";
 import { t, type LanguageCode } from "../../locales";
 import type { MultiplayerFriend, MultiplayerFriendRequest, MultiplayerSuggestion } from "../../types";
 import { logError } from "../../utils/errors";
+import { takeMultiplayerMessage } from "../../utils/multiplayerChoices";
 import { formatRelativeTime } from "../../utils/format";
 import { textSize } from "../../utils/scale";
 import { achievementGreen, bodyTextStyle, compactButtonStyle, warnAmber } from "../../utils/style";
@@ -61,6 +62,20 @@ export function FriendsTab(props: FriendsTabProps) {
     const avatars = friends.state.avatars;
     const [busy, setBusy] = useState(false);
     const [openFirst] = useState(() => pendingLandingKey("multiplayer") ?? undefined);
+    const [messageTap, setMessageTap] = useState(takeMultiplayerMessage);
+
+    useEffect(() => {
+        if (!messageTap || !data) {
+            return;
+        }
+        setMessageTap(null);
+        const friend = data.friends.find((row) => row.ulid === messageTap.friend);
+        if (!friend) {
+            return;
+        }
+        overrideRecord(topEntryId(), { focusKey: `multiplayer:friend:${friend.ulid}` });
+        openMessageCenter(language, { friend, avatars, selfPic: data.selfPic, land: messageTap.id });
+    }, [messageTap, data]);
 
     const items = useMemo(() => {
         const out: Item[] = [];

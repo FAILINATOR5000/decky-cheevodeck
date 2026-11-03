@@ -188,6 +188,10 @@ function isFriendRow(notification: CheevoNotification): boolean {
     return isMultiplayerRow(notification) && metaString(notification, "multiplayer") === "friend";
 }
 
+function isFriendMessage(notification: CheevoNotification): boolean {
+    return isFriendRow(notification) && metaString(notification, "message") !== "";
+}
+
 function isChangelogRow(notification: CheevoNotification): boolean {
     return notification.type === "system" && notification.target?.view === "changelog";
 }
@@ -647,6 +651,8 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                                 ? memoriesTransferBody(notification, language)
                                 : isDataTransfer(notification)
                                 ? dataTransferBody(notification, language)
+                                : isFriendMessage(notification)
+                                ? notification.body
                                 : isMultiplayerRow(notification)
                                 ? t(language, notification.body)
                                 : isChangelogRow(notification)
@@ -663,7 +669,8 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
         ((notification.type === "commentTracker" || notification.type === "wall")
             && notification.meta?.bulk !== true)
         || isChangelogRow(notification)
-        || isDeveloperMessage(notification);
+        || isDeveloperMessage(notification)
+        || isFriendMessage(notification);
 
     useLayoutEffect(() => {
         const el = bodyRef.current;

@@ -13,6 +13,7 @@ type Choices = {
     coreFor: number | null;
     page: MultiplayerTab;
     invite: { id: string; at: number } | null;
+    message: { friend: string; id: string; at: number } | null;
 };
 
 const INVITE_FRESH_MS = 30000;
@@ -29,7 +30,8 @@ const choices: Choices = {
     core: "",
     coreFor: null,
     page: "play",
-    invite: null
+    invite: null,
+    message: null
 };
 
 export function multiplayerChoices(): Readonly<Choices> {
@@ -87,4 +89,14 @@ export function takeMultiplayerInvite(): string | null {
     const invite = choices.invite;
     choices.invite = null;
     return invite && Date.now() - invite.at < INVITE_FRESH_MS ? invite.id : null;
+}
+
+export function rememberMultiplayerMessage(message: { friend: string; id: string } | null) {
+    choices.message = message ? { ...message, at: Date.now() } : null;
+}
+
+export function takeMultiplayerMessage(): { friend: string; id: string } | null {
+    const message = choices.message;
+    choices.message = null;
+    return message && Date.now() - message.at < INVITE_FRESH_MS ? { friend: message.friend, id: message.id } : null;
 }
