@@ -14,6 +14,7 @@ import { TextViewerModal } from "../components/ui/TextViewerModal";
 import { ToggleRow } from "../components/ui/ToggleRow";
 import { GameHeaderCard, useGameHeaderArt } from "../components/games/GameHeaderCard";
 import { openCorePicker } from "../components/multiplayer/CorePickerModal";
+import { RoomChatBox } from "../components/multiplayer/RoomChatBox";
 import { RoomTable } from "../components/multiplayer/RoomTable";
 import { FriendsTab } from "../components/multiplayer/FriendsTab";
 import { openSeatCard } from "../components/multiplayer/SeatCardModal";
@@ -61,7 +62,6 @@ const LINK_SYSTEMS = [4, 5, 6, 16, 18, 41];
 const DOLPHIN_CONSOLES = ["GameCube", "Wii"];
 const GBA_SYSTEM = 5;
 const NO_CORES: MultiplayerCoreChoice[] = [];
-const CHAT_LINES = 6;
 const FADED_GREEN = "rgba(34, 197, 94, 0.18)";
 
 function playsIn(game: MultiplayerGame, mode: MultiplayerMode) {
@@ -657,30 +657,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 headroomPx={0}
             />
             <PanelSectionRow>
-                <div
-                    style={{
-                        ...bodyTextStyle(),
-                        opacity: 1,
-                        width: "100%",
-                        height: `${CHAT_LINES * 1.4}em`,
-                        lineHeight: 1.4,
-                        overflow: "hidden",
-                        display: "flex",
-                        flexDirection: "column",
-                        justifyContent: "flex-end",
-                        padding: "4px 0"
-                    }}
-                >
-                    {chat.length === 0 ? (
-                        <div style={{ fontStyle: "italic", opacity: 0.7 }}>{t(language, "No messages yet")}</div>
-                    ) : chat.slice(-CHAT_LINES).map((line) => (
-                        <div key={line.seq} style={{ flexShrink: 0, overflowWrap: "anywhere" }}>
-                            <span style={{ fontWeight: 800, color: achievementGreen }}>{line.name}</span>
-                            {": "}
-                            {line.text}
-                        </div>
-                    ))}
-                </div>
+                <RoomChatBox language={language} chat={chat} />
             </PanelSectionRow>
             <PanelSectionRow>
                 <FocusableItem

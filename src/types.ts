@@ -2968,7 +2968,7 @@ type MultiplayerSeat = {
 
 type MultiplayerLastStart = { round: number; ok: boolean; error: string } | null;
 
-type MultiplayerChatLine = { seq: number; name: string; text: string };
+export type MultiplayerChatLine = { seq: number; name: string; text: string };
 
 export type MultiplayerHostedRoom = {
     id: string;
