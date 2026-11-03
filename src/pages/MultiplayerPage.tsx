@@ -201,7 +201,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const canStartNow = Boolean(hosted?.canStart) && !mp.busy && ownGameOk && !otherGameRunning() && !playing;
     const readyAllowed = Boolean(joined && inLobby && !joined.launched
         && (joined.ready || (ownGameOk && !runningOther)));
-    const canToggleReady = readyAllowed && !mp.busy;
     const canRejoin = Boolean(joined?.rejoin) && !playing && !mp.busy && !runningOther && ownGameOk;
     const dropIn = (hosted?.mode ?? joined?.room.mode) === "couch"
         && (hosted?.emulator ?? joined?.room.emulator) === "retroarch";
@@ -264,8 +263,12 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     else if (joined) {
         if (inLobby) {
             playLabel = joined.ready ? "Unready" : "Ready";
-            canPlay = canToggleReady;
-            pressPlay = () => void actions.toggleReady();
+            canPlay = readyAllowed;
+            pressPlay = () => {
+                if (!mp.busy) {
+                    void actions.toggleReady();
+                }
+            };
         }
         else if (joined.rejoin) {
             playLabel = joined.room.watch ? "Watch" : "Join & Play";
@@ -644,7 +647,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
 
     const hintsRow = !state.mouseKeyboardMode && (hosted || joined) && (
         <PanelSectionRow>
-            <div style={{ opacity: (hosted ? canStartNow : canToggleReady) ? 1 : 0.45 }}>
+            <div style={{ opacity: (hosted ? canStartNow : readyAllowed) ? 1 : 0.45 }}>
                 <ButtonHints
                     style={getCurrentControllerGlyphStyle()}
                     hints={hosted
@@ -850,7 +853,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             onCancelButton={pressBack}
             onOptionsButton={onPlay && yStarts ? () => void actions.start() : undefined}
             onOptionsActionDescription={onPlay && yStarts ? t(language, "mp_footer_start") : undefined}
-            onSecondaryButton={onPlay && xReadies ? () => void actions.toggleReady() : undefined}
+            onSecondaryButton={onPlay && xReadies ? pressPlay : undefined}
             onSecondaryActionDescription={onPlay && xReadies ? t(language, joined?.ready ? "mp_footer_unready" : "mp_footer_ready") : undefined}
         >
             <PanelSection>
