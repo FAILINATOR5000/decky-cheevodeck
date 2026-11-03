@@ -73,10 +73,12 @@ class _Listener(asyncio.DatagramProtocol):
 
 class MultiplayerFriendsService:
     def __init__(self, *, store, messages_store, settings_store, game_mode, multiplayer, notifications_store,
-                 ra_friends, ra_call, ra, port: int = FRIEND_PORT, peer_port: int = FRIEND_PORT,
-                 broadcast: str = "255.255.255.255"):
+                 ra_friends, resolved_avatars, heal, ra_call, ra, port: int = FRIEND_PORT,
+                 peer_port: int = FRIEND_PORT, broadcast: str = "255.255.255.255"):
         self._store = store
         self._messages = messages_store
+        self._resolved_avatars = resolved_avatars
+        self._heal = heal
         self._settings_store = settings_store
         self._game_mode = game_mode
         self._mp = multiplayer
@@ -226,24 +228,25 @@ class MultiplayerFriendsService:
 
     async def _refresh_self_pic(self) -> None:
         data = self._store.ensure()
-        name = self._my_name()
-        if data is None or not name or (data["selfPicAt"] and time.time() - data["selfPicAt"] < SELF_PIC_SECONDS):
+        me = self._me()
+        if data is None or not me or (data["selfPicAt"] and time.time() - data["selfPicAt"] < SELF_PIC_SECONDS):
             return
         key = str(self._cfg().get("webApiKey") or "").strip()
         try:
-            profile = await self._ra_call(self._ra.get_user_profile, name, key)
+            profile = await self._ra_call(self._ra.get_user_profile, me, key)
         except Exception as e:
             self._debug("own picture lookup failed (%s)", type(e).__name__)
             return
-        if not isinstance(profile, dict) or str(profile.get("ULID") or "") != self._me():
+        if not isinstance(profile, dict) or str(profile.get("ULID") or "") != me:
             return
         pic = clean_pic(profile.get("UserPic"))
 
         def keep(stored):
-            stored["selfPic"] = pic
+            if pic:
+                stored["selfPic"] = pic
             stored["selfPicAt"] = int(time.time())
             return True
-        self._mutate(keep)
+        self._mutate(keep, ulid=me)
 
     async def _run_link(self) -> None:
         attempt = 0
@@ -308,6 +311,18 @@ class MultiplayerFriendsService:
         payload = self._ra_friends.get_cached_friends().get("payload") or {}
         rows = payload.get("friends") if isinstance(payload, dict) else None
         return [row for row in rows if isinstance(row, dict)] if isinstance(rows, list) else []
+
+    def _follows(self) -> dict:
+        return {row["ulid"]: row for row in self._ra_rows() if is_ulid(row.get("ulid"))}
+
+    def _follow_identity(self, row: dict) -> tuple | None:
+        verdict = self._resolved_avatars.get(row["ulid"])
+        if verdict is None:
+            return None
+        name = clean_name(row.get("username"))
+        if verdict["userPic"]:
+            return name, clean_pic(verdict["userPic"])
+        return name, clean_pic(f"/UserPic/{name}.png") if name else ""
 
     def _game(self) -> str:
         title = proto.clean_chat(self._mp.room_game())[:64]
@@ -476,7 +491,8 @@ class MultiplayerFriendsService:
     def _take_presence(self, message: dict) -> None:
         ulid = message.get("ulid")
         data = self._data()
-        if not is_ulid(ulid) or data is None or self._find(data, ulid) is None:
+        friend = self._find(data, ulid) if is_ulid(ulid) and data is not None else None
+        if friend is None:
             return
         room = message.get("room")
         if not (isinstance(room, dict) and proto.is_room_id(room.get("id")) and room.get("where") in proto.WHERES):
@@ -491,16 +507,12 @@ class MultiplayerFriendsService:
             "room": room,
             "seen": seen if type(seen) is int and seen > 0 else 0,
         }
+        claimed = clean_name(message.get("name"))
         pic = clean_pic(message.get("pic"))
-
-        def follow(stored):
-            friend = self._find(stored, ulid)
-            if friend is None or friend["userPic"] == pic:
-                return False
-            friend["userPic"] = pic
-            return True
-        if not self._mutate(follow):
-            self._changed()
+        settled = ulid in self._follows() and self._resolved_avatars.get(ulid) is not None
+        if not settled and ((claimed and claimed != friend["name"]) or (pic and pic != friend["userPic"])):
+            self._heal.presence_differs(ulid)
+        self._changed()
 
     def _take_suggestions(self, raw) -> None:
         rows = []
@@ -594,10 +606,17 @@ class MultiplayerFriendsService:
             if mine is None or mine["way"] != "out" or mine["via"] != via:
                 return False
             stored["requests"].remove(mine)
-            stored["friends"].append({"ulid": ulid, "name": name, "pairKey": mine["pairKey"],
-                                      "userPic": pic or mine["userPic"], "added": int(time.time()), "via": via})
+            if via == "server":
+                stored["friends"].append({"ulid": ulid, "name": mine["name"], "pairKey": mine["pairKey"],
+                                          "userPic": mine["userPic"] or pic, "added": int(time.time()),
+                                          "via": via, "healedAt": int(time.time()), "healTriedAt": 0})
+            else:
+                stored["friends"].append({"ulid": ulid, "name": name, "pairKey": mine["pairKey"],
+                                          "userPic": pic or mine["userPic"], "added": int(time.time()),
+                                          "via": via, "healedAt": 0, "healTriedAt": 0})
             return True
         if self._mutate(keep):
+            self._heal.friend_added()
             self._notify(name, "Request accepted", f"multiplayer:friend:{ulid}", {"friend": ulid})
             self._follow()
             self.report_changed()
@@ -615,9 +634,11 @@ class MultiplayerFriendsService:
                 friend["via"] = via
                 return True
             stored["friends"].append({"ulid": ulid, "name": name, "pairKey": key,
-                                      "userPic": pic, "added": int(time.time()), "via": via})
+                                      "userPic": pic, "added": int(time.time()), "via": via,
+                                      "healedAt": 0, "healTriedAt": 0})
             return True
         if self._mutate(keep):
+            self._heal.friend_added()
             self._follow()
             self.report_changed()
 
@@ -704,7 +725,9 @@ class MultiplayerFriendsService:
     def state(self) -> dict:
         cfg = self._cfg()
         data = self._data() if self._me() else None
-        ra = {row.get("ulid") for row in self._ra_rows() if is_ulid(row.get("ulid"))}
+        follows = self._follows()
+        if data is not None:
+            data = self._heal_follows(data, follows)
         friends = []
         requests = []
         alerts = []
@@ -715,7 +738,7 @@ class MultiplayerFriendsService:
                     "ulid": friend["ulid"],
                     "name": friend["name"],
                     "pic": friend["userPic"],
-                    "raFriend": friend["ulid"] in ra,
+                    "raFriend": friend["ulid"] in follows,
                     "online": bool(seen.get("online")),
                     "game": seen.get("game", ""),
                     "room": seen.get("room"),
@@ -745,6 +768,33 @@ class MultiplayerFriendsService:
             if cfg.get("mpSuggestFriends", True) else [],
             "alerts": alerts,
         }
+
+    def _heal_follows(self, data: dict, follows: dict) -> dict:
+        changed = {}
+        for friend in data["friends"]:
+            row = follows.get(friend["ulid"])
+            identity = self._follow_identity(row) if row is not None else None
+            if identity is None:
+                continue
+            name, pic = identity
+            pic = pic or friend["userPic"]
+            if name and (name, pic) != (friend["name"], friend["userPic"]):
+                changed[friend["ulid"]] = (name, pic)
+        if not changed:
+            return data
+
+        def keep(stored):
+            for friend in stored["friends"]:
+                if friend["ulid"] in changed:
+                    friend["name"], friend["userPic"] = changed[friend["ulid"]]
+                    friend["healedAt"] = 0
+            return True
+        try:
+            healed, _result = self._store.mutate(keep, ulid=self._me())
+        except Exception as e:
+            decky.logger.warning("friends: couldn't save (%s)", type(e).__name__)
+            return data
+        return healed if healed is not None else data
 
     async def _until_up(self) -> bool:
         self._follow()

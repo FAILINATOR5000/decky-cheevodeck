@@ -39,6 +39,7 @@ from services.data_transfer_service import DataTransferService
 from services.nearby_transfer_service import NearbyTransferService
 from services.multiplayer_service import MultiplayerService
 from services.multiplayer_friends_service import MultiplayerFriendsService
+from services.ez_friends_heal_service import EzFriendsHealService
 from multiplayer_friends_store import MultiplayerFriendsStore
 from multiplayer_messages_store import MultiplayerMessagesStore
 from services.smb_mount_service import SmbMountService
@@ -789,6 +790,15 @@ class Plugin(
             cheevo_check_store=self.cheevo_check_store,
             notifications_store=self.notifications_store,
         )
+        self.ez_friends_heal_service = EzFriendsHealService(
+            plugin=self,
+            settings_store=self.settings_store,
+            store=self.multiplayer_friends_store,
+            ra=self.ra,
+            ra_friends=self.friends_service,
+            resolved_avatars=self.resolved_avatar_store,
+            game_mode=self.session_mode_service.is_game_mode,
+        )
         self.multiplayer_friends_service = MultiplayerFriendsService(
             store=self.multiplayer_friends_store,
             messages_store=self.multiplayer_messages_store,
@@ -797,6 +807,8 @@ class Plugin(
             multiplayer=self.multiplayer_service,
             notifications_store=self.notifications_store,
             ra_friends=self.friends_service,
+            resolved_avatars=self.resolved_avatar_store,
+            heal=self.ez_friends_heal_service,
             ra_call=self.run_ra_call_for_trickle,
             ra=self.ra,
         )
@@ -919,6 +931,7 @@ class Plugin(
         self.nearby_transfer_service.sync()
         self.multiplayer_service.sync()
         self.multiplayer_friends_service.sync()
+        self.ez_friends_heal_service.sync()
 
     def _toast_newer_schema(self) -> None:
         emit_notification(
@@ -974,6 +987,8 @@ class Plugin(
         self.nearby_transfer_service.set_event_loop(self._asyncio_loop)
         self.multiplayer_service.set_event_loop(self._asyncio_loop)
         self.multiplayer_friends_service.set_event_loop(self._asyncio_loop)
+        self.ez_friends_heal_service.set_event_loop(self._asyncio_loop)
+        self.ez_friends_heal_service.start()
         try:
             await asyncio.to_thread(self.cheevo_check_service.prepare)
         except Exception as e:
@@ -1121,6 +1136,7 @@ class Plugin(
         self.nearby_transfer_service.stop()
         self.multiplayer_service.stop()
         self.multiplayer_friends_service.stop()
+        self.ez_friends_heal_service.stop()
         self.data_transfer_service.stop()
         self._restore_deck_controller_safe()
 

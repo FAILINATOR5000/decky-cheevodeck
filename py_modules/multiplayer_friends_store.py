@@ -88,6 +88,8 @@ def _friend(raw):
         "userPic": clean_pic(raw.get("userPic")),
         "added": _ts(raw.get("added")),
         "via": raw.get("via") if raw.get("via") in VIAS else "server",
+        "healedAt": _ts(raw.get("healedAt")),
+        "healTriedAt": _ts(raw.get("healTriedAt")),
     }
 
 
