@@ -74,6 +74,8 @@ export const NOTES_DOT_KEYFRAMES = `
 }
 `;
 
+export const NOTES_DOT_PULSE = "da-notes-dot-pulse 3.2s ease-in-out 2.5 forwards";
+
 export const ONLINE_DOT_KEYFRAMES = `
 @keyframes da-online-dot-pulse {
     0%, 100% { background: #15803d; }

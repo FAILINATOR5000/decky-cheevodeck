@@ -1,7 +1,7 @@
 import React from "react";
 import { DialogButton, Focusable } from "@decky/ui";
 import { FaRegQuestionCircle } from "react-icons/fa";
-import { NOTES_DOT_KEYFRAMES, achievementGreen, headerCase, regularButtonSpacingStyle, warnAmber } from "../../utils/style";
+import { NOTES_DOT_KEYFRAMES, NOTES_DOT_PULSE, achievementGreen, headerCase, regularButtonSpacingStyle, warnAmber } from "../../utils/style";
 import { QuickGuideColumn, QuickGuidePin } from "../guides/QuickGuidePin";
 import { FocusTarget } from "./FocusTarget";
 import { useQuickGuide } from "../../utils/quickGuide";
@@ -136,7 +136,7 @@ export function PageNavStrip(props: PageNavStripProps) {
                             borderRadius: "50%",
                             background: warnAmber,
                             boxShadow: "0 0 0 1px rgba(0,0,0,0.4)",
-                            animation: "da-notes-dot-pulse 3.2s ease-in-out infinite"
+                            animation: NOTES_DOT_PULSE
                         }}
                     >
                         <style>{NOTES_DOT_KEYFRAMES}</style>

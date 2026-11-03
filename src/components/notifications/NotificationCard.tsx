@@ -32,7 +32,7 @@ import type { CheevoNotification, DataKind, DataTransferResult, NoteColor, Scale
 import { logError } from "../../utils/errors";
 import { BUTTON_SECONDARY } from "../../utils/gamepadButtons";
 import { playToggleSound } from "../../utils/navSound";
-import { smallTextStyle, achievementGreen, warnAmber, skyBlue } from "../../utils/style";
+import { NOTES_DOT_PULSE, smallTextStyle, achievementGreen, warnAmber, skyBlue } from "../../utils/style";
 import { modalSize, getCurrentModalScale, getDeviceIsSteamMachine, getCurrentLargeViewportBonusEnabled, getCurrentLargeViewportBonus } from "../../utils/scale";
 import type { CardChrome } from "../../utils/cardChrome";
 import { ButtonPrompt } from "../ui/ButtonPrompt";
@@ -968,7 +968,7 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                             borderRadius: "50%",
                             background: warnAmber,
                             boxShadow: "0 0 0 1px rgba(0,0,0,0.4)",
-                            animation: "da-notes-dot-pulse 3.2s ease-in-out infinite",
+                            animation: NOTES_DOT_PULSE,
                             zIndex: 1
                         }}
                     />

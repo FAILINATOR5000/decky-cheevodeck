@@ -70,7 +70,7 @@ import {
     payloadAchievementSummaryLabel
 } from "../utils/achievements";
 import { BUTTON_OPTIONS, BUTTON_SECONDARY } from "../utils/gamepadButtons";
-import { NOTES_DOT_KEYFRAMES, regularButtonSpacingStyle, smallTextStyle, bodyTextStyle, achievementGreen, warnAmber, skyBlue } from "../utils/style";
+import { NOTES_DOT_KEYFRAMES, NOTES_DOT_PULSE, regularButtonSpacingStyle, smallTextStyle, bodyTextStyle, achievementGreen, warnAmber, skyBlue } from "../utils/style";
 import { headerSize } from "../utils/scale";
 import { consoleInlineName } from "../utils/consoles";
 import { quickAccessWindow } from "../utils/quickAccess";
@@ -1555,7 +1555,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                             borderRadius: "50%",
                             background: warnAmber,
                             boxShadow: "0 0 0 1px rgba(0,0,0,0.4)",
-                            animation: "da-notes-dot-pulse 3.2s ease-in-out infinite"
+                            animation: NOTES_DOT_PULSE
                         }}
                     >
                         <style>{NOTES_DOT_KEYFRAMES}</style>
@@ -2090,7 +2090,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                         borderRadius: "50%",
                         background: warnAmber,
                         boxShadow: "0 0 0 1px rgba(0,0,0,0.4)",
-                        animation: "da-notes-dot-pulse 3.2s ease-in-out infinite"
+                        animation: NOTES_DOT_PULSE
                     }}
                 >
                     <style>{NOTES_DOT_KEYFRAMES}</style>
@@ -2710,7 +2710,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                                                 borderRadius: "50%",
                                                                 background: warnAmber,
                                                                 boxShadow: "0 0 0 1px rgba(0,0,0,0.4)",
-                                                                animation: "da-notes-dot-pulse 3.2s ease-in-out infinite"
+                                                                animation: NOTES_DOT_PULSE
                                                             }}
                                                         >
                                                             <style>{NOTES_DOT_KEYFRAMES}</style>
