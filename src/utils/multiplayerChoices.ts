@@ -12,7 +12,6 @@ type Choices = {
     core: string;
     coreFor: number | null;
     page: MultiplayerTab;
-    conversation: string | null;
     invite: { id: string; at: number } | null;
 };
 
@@ -30,7 +29,6 @@ const choices: Choices = {
     core: "",
     coreFor: null,
     page: "play",
-    conversation: null,
     invite: null
 };
 
@@ -77,9 +75,8 @@ export function forgetMultiplayerRoomChoices() {
     choices.hardcore = false;
 }
 
-export function rememberMultiplayerPage(page: MultiplayerTab, conversation: string | null = null) {
+export function rememberMultiplayerPage(page: MultiplayerTab) {
     choices.page = page;
-    choices.conversation = page === "friends" ? conversation : null;
 }
 
 export function rememberMultiplayerInvite(invite: string | null) {

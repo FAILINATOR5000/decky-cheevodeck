@@ -1,21 +1,11 @@
 import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
-import { useEffect, useMemo, useState, type MutableRefObject } from "react";
+import { useMemo, useState, type MutableRefObject } from "react";
 
-import {
-    multiplayerFriendAdd,
-    multiplayerFriendAlert,
-    multiplayerFriendAnswer,
-    multiplayerFriendMessages
-} from "../../api";
+import { multiplayerFriendAdd, multiplayerFriendAlert, multiplayerFriendAnswer } from "../../api";
 import { pendingLandingKey, type LandingWindows } from "../../focusRecords";
 import { useSlidingWindow } from "../../hooks/useSlidingWindow";
 import { t, type LanguageCode } from "../../locales";
-import type {
-    MultiplayerFriend,
-    MultiplayerFriendRequest,
-    MultiplayerMessage,
-    MultiplayerSuggestion
-} from "../../types";
+import type { MultiplayerFriend, MultiplayerFriendRequest, MultiplayerSuggestion } from "../../types";
 import { logError } from "../../utils/errors";
 import { formatRelativeTime } from "../../utils/format";
 import { textSize } from "../../utils/scale";
@@ -24,24 +14,17 @@ import { FocusableItem } from "../ui/FocusableItem";
 import { FocusTarget } from "../ui/FocusTarget";
 import { SectionTitle } from "../ui/SectionTitle";
 import { SlidingWindowRows } from "../ui/SlidingWindowRows";
-import { SubTabButton } from "../ui/SubTabButton";
 import { friendError, openAddFriend } from "./AddFriendModal";
 import { openFriendCard } from "./FriendCardModal";
-import { openMessageSay } from "./MessageSayModal";
+import { openMessageCenter } from "./MessageCenterModal";
 import { showMultiplayerProblem } from "./ProblemModal";
 import { useMultiplayer } from "./MultiplayerContext";
 import { PicAvatar, friendGame, friendName, friendStatus } from "./PicAvatar";
 
 const AVATAR_PX = 32;
 const ADD_KEY = "multiplayer:friends:add";
+const NAV_ENTER_MAINTAIN_Y = 3;
 const ALERTS_SHOWN = 2;
-const DAY = 86400;
-const AGES = [
-    { key: "week", labelKey: "Week", seconds: 7 * DAY },
-    { key: "month", labelKey: "Month", seconds: 31 * DAY },
-    { key: "quarter", labelKey: "3 Months", seconds: 92 * DAY },
-    { key: "all", labelKey: "All", seconds: 0 }
-];
 
 type WindowKnobs = {
     dynamicLoading: boolean;
@@ -65,8 +48,6 @@ function focusKeyFor(item: Item): string {
     return item.kind === "header" ? "" : `multiplayer:${item.kind}:${item.row.ulid}`;
 }
 
-let ageFilter = "month";
-
 type FriendsTabProps = {
     language: LanguageCode;
     knobs: WindowKnobs;
@@ -74,14 +55,6 @@ type FriendsTabProps = {
 };
 
 export function FriendsTab(props: FriendsTabProps) {
-    const { page } = useMultiplayer();
-    if (page.conversation) {
-        return <Conversation {...props} ulid={page.conversation} />;
-    }
-    return <FriendsList {...props} />;
-}
-
-function FriendsList(props: FriendsTabProps) {
     const { language, knobs } = props;
     const { state: mp, friends } = useMultiplayer();
     const data = friends.state.data;
@@ -222,7 +195,7 @@ function FriendsList(props: FriendsTabProps) {
                     <div style={bodyTextStyle()}>{t(language, "No friends yet. Add someone by their RetroAchievements name.")}</div>
                 </PanelSectionRow>
             )}
-            <Focusable flow-children="column" resetNavOnEntry>
+            <Focusable flow-children="column" resetNavOnEntry navEntryPreferPosition={NAV_ENTER_MAINTAIN_Y}>
                 <SlidingWindowRows list={list}>
                     {list.mountedItems.map((item, index) => {
                         const at = list.start + index;
@@ -277,7 +250,12 @@ function FriendsList(props: FriendsTabProps) {
                                             avatar: avatars[friend.pic],
                                             inRoom,
                                             hardcore: mp.hardcore,
-                                            heirs: heirs(at, "friend")
+                                            heirs: heirs(at, "friend"),
+                                            openMessages: () => openMessageCenter(language, {
+                                                friend,
+                                                avatars,
+                                                selfPic: data?.selfPic ?? ""
+                                            })
                                         })}
                                     >
                                         {nameLine}
@@ -344,137 +322,5 @@ function FriendsList(props: FriendsTabProps) {
                 </SlidingWindowRows>
             </Focusable>
         </>
-    );
-}
-
-function Conversation(props: FriendsTabProps & { ulid: string }) {
-    const { language, knobs, ulid } = props;
-    const { friends } = useMultiplayer();
-    const friend = friends.state.data?.friends.find((row) => row.ulid === ulid) ?? null;
-    const [messages, setMessages] = useState<MultiplayerMessage[] | null>(null);
-    const [age, setAge] = useState(ageFilter);
-    const [openFirst] = useState(() => pendingLandingKey("multiplayer") ?? undefined);
-
-    useEffect(() => {
-        let cancelled = false;
-        void (async () => {
-            try {
-                const loaded = await multiplayerFriendMessages(ulid);
-                if (!cancelled) {
-                    setMessages(loaded.messages ?? []);
-                }
-            }
-            catch (e) {
-                logError("multiplayerFriendMessages", e);
-                if (!cancelled) {
-                    setMessages([]);
-                }
-            }
-        })();
-        return () => {
-            cancelled = true;
-        };
-    }, [ulid, friends.state.data]);
-
-    const limit = AGES.find((entry) => entry.key === age)?.seconds ?? 0;
-    const shown = useMemo(() => {
-        const since = limit > 0 ? Date.now() / 1000 - limit : 0;
-        return (messages ?? []).filter((message) => message.at >= since).reverse();
-    }, [messages, limit]);
-
-    const list = useSlidingWindow({
-        items: shown,
-        itemKey: (message) => message.id,
-        focusKeyFor: (message) => `multiplayer:msg:${message.id}`,
-        windowId: "multiplayer:conversation",
-        heightScope: ["multiplayer:conversation", ulid, language, textSize(12)].join("|"),
-        dynamicLoading: knobs.dynamicLoading,
-        initialRows: knobs.initialRows,
-        rowStep: knobs.rowStep,
-        prefetchDistance: knobs.prefetchDistance,
-        sentinelRootMarginPx: knobs.sentinelRootMarginPx,
-        resetKey: `multiplayer:conversation|${ulid}|${age}`,
-        openFirst
-    });
-    props.landingWindows.current = {
-        holds: (key) => shown.some((message) => `multiplayer:msg:${message.id}` === key),
-        open: (key) => list.openAt(key)
-    };
-
-    const name = friend ? friendName(friend) : "";
-    return (
-        <Focusable key={`multiplayer:conversation:${ulid}`} flow-children="column">
-            <PanelSectionRow>
-                <div style={{ display: "flex", gap: "10px", alignItems: "center", width: "100%" }}>
-                    <PicAvatar uri={friend ? friends.state.avatars[friend.pic] : undefined} name={name || "?"} size={AVATAR_PX} />
-                    <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-                        <span style={{ fontWeight: 800, overflowWrap: "anywhere" }}>{name}</span>
-                        {friend && <span style={bodyTextStyle()}>{friendStatus(language, friend)}</span>}
-                    </div>
-                </div>
-            </PanelSectionRow>
-            <PanelSectionRow>
-                <FocusableItem
-                    focusKey="multiplayer:conv:say"
-                    focusFallback={[`multiplayer:friend:${ulid}`, ADD_KEY, "multiplayer:back"]}
-                    disabled={!friend}
-                    onClick={() => openMessageSay(language, ulid, name)}
-                >
-                    {t(language, "Say Something")}
-                </FocusableItem>
-            </PanelSectionRow>
-            <Focusable flow-children="row" style={{ width: "100%", display: "flex", gap: "6px", margin: "6px 0 4px 0" }}>
-                {AGES.map((entry) => (
-                    <SubTabButton
-                        key={entry.key}
-                        label={t(language, entry.labelKey)}
-                        active={age === entry.key}
-                        onClick={() => {
-                            ageFilter = entry.key;
-                            setAge(entry.key);
-                        }}
-                        focusKey={`multiplayer:conv:age:${entry.key}`}
-                        focusFallback={["multiplayer:conv:say", `multiplayer:friend:${ulid}`]}
-                    />
-                ))}
-            </Focusable>
-            {messages !== null && shown.length === 0 && (
-                <PanelSectionRow>
-                    <div style={{ ...bodyTextStyle(), fontStyle: "italic" }}>
-                        {t(language, (messages ?? []).length === 0 ? "No messages yet" : "No messages in this time")}
-                    </div>
-                </PanelSectionRow>
-            )}
-            <Focusable flow-children="column" resetNavOnEntry>
-                <SlidingWindowRows list={list}>
-                    {list.mountedItems.map((message, index) => {
-                        const at = list.start + index;
-                        const neighbors = [shown[at + 1], shown[at - 1]]
-                            .filter((other): other is MultiplayerMessage => other !== undefined)
-                            .map((other) => `multiplayer:msg:${other.id}`);
-                        return (
-                            <PanelSectionRow key={message.id}>
-                                <FocusableItem
-                                    focusKey={`multiplayer:msg:${message.id}`}
-                                    focusFallback={[...neighbors, `multiplayer:conv:age:${age}`, "multiplayer:conv:say", `multiplayer:friend:${ulid}`]}
-                                    onGamepadFocus={() => list.onItemFocus(at)}
-                                    onGamepadDirection={list.guardTopRow(at)}
-                                >
-                                    <div style={{ display: "flex", flexDirection: "column", width: "100%", textAlign: "left" }}>
-                                        <span style={{ fontWeight: 800, color: message.mine ? undefined : achievementGreen }}>
-                                            {message.mine ? t(language, "You") : name}
-                                            <span style={{ ...bodyTextStyle(), marginLeft: "6px", fontWeight: 400 }}>
-                                                {formatRelativeTime(new Date(message.at * 1000).toISOString(), language)}
-                                            </span>
-                                        </span>
-                                        <span style={{ overflowWrap: "anywhere", whiteSpace: "pre-wrap" }}>{message.text}</span>
-                                    </div>
-                                </FocusableItem>
-                            </PanelSectionRow>
-                        );
-                    })}
-                </SlidingWindowRows>
-            </Focusable>
-        </Focusable>
     );
 }

@@ -63,7 +63,7 @@ function readText(meta: Record<string, unknown> | null, key: string): string {
     return typeof raw === "string" ? raw : "";
 }
 
-type MultiplayerTarget = { tab: MultiplayerTab; land?: string; conversation?: string; invite?: string };
+type MultiplayerTarget = { tab: MultiplayerTab; land?: string; invite?: string };
 
 function multiplayerTarget(n: CheevoNotification): MultiplayerTarget | undefined {
     if (readText(n.meta, "multiplayer") !== "friend") {
@@ -75,7 +75,7 @@ function multiplayerTarget(n: CheevoNotification): MultiplayerTarget | undefined
     }
     const friend = readText(n.meta, "friend");
     if (n.meta?.conversation === true && friend) {
-        return { tab: "friends", conversation: friend, land: "multiplayer:conv:say" };
+        return { tab: "friends", land: `multiplayer:friend:${friend}` };
     }
     const land = typeof n.target?.land === "string" ? n.target.land : undefined;
     return { tab: "friends", land };
@@ -198,7 +198,7 @@ export const NOTIFICATION_REGISTRY: Record<NotificationType, NotificationTypeEnt
             if (n.target?.view === "multiplayer" && nav.openMultiplayer) {
                 const target = multiplayerTarget(n);
                 if (target) {
-                    rememberMultiplayerPage(target.tab, target.conversation ?? null);
+                    rememberMultiplayerPage(target.tab);
                     rememberMultiplayerInvite(target.invite ?? null);
                 }
                 nav.openMultiplayer(target?.land);

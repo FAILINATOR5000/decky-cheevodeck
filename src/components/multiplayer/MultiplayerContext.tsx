@@ -8,8 +8,7 @@ type Multiplayer = ReturnType<typeof useMultiplayerController> & {
     friends: ReturnType<typeof useMultiplayerFriendsController>;
     page: {
         tab: MultiplayerTab;
-        conversation: string | null;
-        show: (tab: MultiplayerTab, conversation?: string | null) => void;
+        show: (tab: MultiplayerTab) => void;
     };
 };
 
@@ -21,7 +20,6 @@ export function MultiplayerProvider(props: {
 }) {
     const multiplayer = useMultiplayerController({ isActive: props.isActive });
     const [tab, setTab] = useState<MultiplayerTab>(() => multiplayerChoices().page);
-    const [conversation, setConversation] = useState<string | null>(() => multiplayerChoices().conversation);
     const room = multiplayer.state.hosted?.seats.map((seat) => seat?.pic ?? "")
         ?? multiplayer.state.joined?.status?.ids.map((entry) => entry.pic)
         ?? [];
@@ -31,14 +29,13 @@ export function MultiplayerProvider(props: {
         seatPics: room
     });
 
-    function show(next: MultiplayerTab, nextConversation: string | null = null) {
-        rememberMultiplayerPage(next, nextConversation);
+    function show(next: MultiplayerTab) {
+        rememberMultiplayerPage(next);
         setTab(next);
-        setConversation(next === "friends" ? nextConversation : null);
     }
 
     return (
-        <MultiplayerContext.Provider value={{ ...multiplayer, friends, page: { tab, conversation, show } }}>
+        <MultiplayerContext.Provider value={{ ...multiplayer, friends, page: { tab, show } }}>
             {props.children}
         </MultiplayerContext.Provider>
     );

@@ -2,10 +2,8 @@ import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
 import { useState } from "react";
 
 import { multiplayerDropSeat, multiplayerFriendAddSeat } from "../../api";
-import { overrideRecord, topEntryId } from "../../focusRecords";
 import { t, type LanguageCode } from "../../locales";
 import { logError } from "../../utils/errors";
-import { rememberMultiplayerPage } from "../../utils/multiplayerChoices";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { modalSize } from "../../utils/scale";
 import { modalBodyStyle } from "../../utils/style";
@@ -23,13 +21,13 @@ export type SeatCardOptions = {
     relation: "friend" | "pending" | "none";
     canDrop: boolean;
     friendsOn: boolean;
+    openMessages: (() => void) | null;
 };
 
 function SeatCardModal(props: SeatCardOptions & { language: LanguageCode; close: () => void }) {
     const { language, close } = props;
     const [busy, setBusy] = useState(false);
     const [line, setLine] = useState<DialogLineState>({ tone: "hint", text: "" });
-    const [entryId] = useState(() => topEntryId());
 
     async function addFriend() {
         setBusy(true);
@@ -51,14 +49,9 @@ function SeatCardModal(props: SeatCardOptions & { language: LanguageCode; close:
         close();
     }
 
-    function message() {
-        rememberMultiplayerPage("friends", props.ulid);
-        overrideRecord(entryId, {
-            focusKey: "multiplayer:conv:say",
-            fallbacks: [`multiplayer:friend:${props.ulid}`, "multiplayer:friends:add"],
-            tabPath: ["friends"]
-        });
+    function messages() {
         close();
+        props.openMessages?.();
     }
 
     async function drop() {
@@ -99,9 +92,9 @@ function SeatCardModal(props: SeatCardOptions & { language: LanguageCode; close:
                         <DialogButton onClick={() => void addFriend()} disabled={busy}>{t(language, "Add Friend")}</DialogButton>
                     </div>
                 )}
-                {props.relation === "friend" && (
+                {props.openMessages && (
                     <div data-focus-key="multiplayer:seatcard:message">
-                        <DialogButton onClick={message} disabled={busy}>{t(language, "Message")}</DialogButton>
+                        <DialogButton onClick={messages} disabled={busy}>{t(language, "Message Center")}</DialogButton>
                     </div>
                 )}
                 {props.canDrop && (

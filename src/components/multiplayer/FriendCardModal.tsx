@@ -20,7 +20,7 @@ import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { friendError } from "./AddFriendModal";
 import { DialogLine, type DialogLineState } from "./DialogLine";
-import { PicAvatar, friendGame, friendName, friendStatus } from "./PicAvatar";
+import { NewPill, PicAvatar, friendGame, friendName, friendStatus } from "./PicAvatar";
 
 const NICKNAME_MAX = 24;
 const PASSWORD_MAX = 32;
@@ -33,6 +33,7 @@ export type FriendCardOptions = {
     inRoom: boolean;
     hardcore: boolean;
     heirs: string[];
+    openMessages: () => void;
 };
 
 function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; close: () => void }) {
@@ -53,14 +54,9 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
         }
     }, [step]);
 
-    function message() {
-        rememberMultiplayerPage("friends", friend.ulid);
-        overrideRecord(entryId, {
-            focusKey: "multiplayer:conv:say",
-            fallbacks: [`multiplayer:friend:${friend.ulid}`, "multiplayer:friends:add"],
-            tabPath: ["friends"]
-        });
+    function messages() {
         close();
+        props.openMessages();
     }
 
     function failed(code: string | undefined) {
@@ -252,7 +248,12 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
             {dialogLine}
             <Focusable style={buttonColumn} flow-children="column">
                 <div data-focus-key="multiplayer:friendcard:message">
-                    <DialogButton onClick={message} disabled={busy}>{t(language, "Message")}</DialogButton>
+                    <DialogButton onClick={messages} disabled={busy}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                            {t(language, "Message Center")}
+                            {friend.unread > 0 && <NewPill language={language} count={friend.unread} />}
+                        </span>
+                    </DialogButton>
                 </div>
                 {props.inRoom && (
                     <div data-focus-key="multiplayer:friendcard:invite">

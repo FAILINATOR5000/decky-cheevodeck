@@ -50,6 +50,7 @@ export function useMultiplayerFriendsController({ isActive, tabOpen, seatPics }:
         ...(data?.friends ?? []).map((row) => row.pic),
         ...(data?.requests ?? []).map((row) => row.pic),
         ...(data?.suggestions ?? []).map((row) => row.pic),
+        data?.selfPic ?? "",
         ...seatPics
     ].filter((pic, index, all) => pic && !avatarMemory.has(pic) && all.indexOf(pic) === index);
     const wantedKey = wanted.join("|");

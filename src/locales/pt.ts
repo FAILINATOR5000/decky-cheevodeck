@@ -3189,7 +3189,6 @@ const PT: LocaleTable = {
     "Join": "Entrar",
     "Last seen {{when}}": "Visto por último {{when}}",
     "Leave your room first": "Saia da sua sala primeiro",
-    "Message": "Mensagem",
     "Message {{name}}": "Mensagem para {{name}}",
     "No RetroAchievements user has that name": "Nenhum usuário do RetroAchievements tem esse nome",
     "No friends yet. Add someone by their RetroAchievements name.": "Nenhum amigo ainda. Adicione alguém pelo nome no RetroAchievements.",
@@ -3232,6 +3231,8 @@ const PT: LocaleTable = {
     "Sending...": "Enviando...",
     "Hosting...": "Criando a sala...",
     "Joining...": "Entrando...",
+    "Message Center": "Central de mensagens",
+    "NEW": "NOVO",
 };
 
 export default PT;

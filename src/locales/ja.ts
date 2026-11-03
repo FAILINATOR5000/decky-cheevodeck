@@ -3023,7 +3023,6 @@ const JA: LocaleTable = {
     "Join": "参加",
     "Last seen {{when}}": "最終オンライン: {{when}}",
     "Leave your room first": "先にルームを退出してください",
-    "Message": "メッセージ",
     "Message {{name}}": "{{name}}にメッセージ",
     "No RetroAchievements user has that name": "その名前のRetroAchievementsユーザーはいません",
     "No friends yet. Add someone by their RetroAchievements name.": "まだフレンドがいません。RetroAchievementsの名前で追加しましょう。",
@@ -3066,6 +3065,8 @@ const JA: LocaleTable = {
     "Sending...": "送信中...",
     "Hosting...": "ルームを作成中...",
     "Joining...": "参加中...",
+    "Message Center": "メッセージセンター",
+    "NEW": "NEW",
 };
 
 export default JA;

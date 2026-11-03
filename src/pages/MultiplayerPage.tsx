@@ -19,6 +19,7 @@ import { FriendsTab } from "../components/multiplayer/FriendsTab";
 import { openSeatCard } from "../components/multiplayer/SeatCardModal";
 import { openInviteFriends } from "../components/multiplayer/InviteFriendsModal";
 import { openChatSay } from "../components/multiplayer/ChatSayModal";
+import { openMessageCenter } from "../components/multiplayer/MessageCenterModal";
 import { openHostRoom } from "../components/multiplayer/HostRoomModal";
 import { openRooms } from "../components/multiplayer/RoomsModal";
 import { SectionTitle } from "../components/ui/SectionTitle";
@@ -144,7 +145,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             let changed = false;
             const tab = TABS.find((entry) => entry.tab === nextTab);
             if (tab && tab.tab !== tabs.tab) {
-                tabs.show(tab.tab, tab.tab === "friends" ? tabs.conversation : null);
+                tabs.show(tab.tab);
                 changed = true;
             }
             if ((nextMode === "link" || nextMode === "couch") && nextMode !== mp.tab && !mp.hosted && !mp.joined) {
@@ -153,7 +154,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             }
             return changed;
         },
-        sub: tabs.tab === "friends" && tabs.conversation ? [{ kind: "conversation", subject: tabs.conversation }] : [],
         defaultKey: "multiplayer:back",
         ready: tabs.tab === "friends" ? friends.state.data !== null : drawLower,
         holds: (key) => landingWindows.current?.holds(key) ?? false,
@@ -294,25 +294,26 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const title = shown?.title ?? local?.title ?? mp.games?.find((game) => game.gameId === mp.gameId)?.title ?? null;
 
     function pressBack() {
-        if (tabs.tab === "friends" && tabs.conversation) {
-            tabs.show("friends");
-            return;
-        }
         void page.onBack();
     }
 
     function openSeat(index: number, name: string, game: string, ulid: string, pic: string) {
         const data = friends.state.data;
+        const friend = data?.friends.find((row) => row.ulid === ulid);
+        const avatars = friends.state.avatars;
         openSeatCard(language, {
             index,
             name,
             game,
             ulid: ulid === data?.me ? "" : ulid,
             avatar: pic ? friends.state.avatars[pic] : undefined,
-            relation: data?.friends.some((friend) => friend.ulid === ulid) ? "friend"
+            relation: friend ? "friend"
                 : data?.requests.some((request) => request.ulid === ulid) ? "pending" : "none",
             canDrop: hosted !== null && index > 0,
-            friendsOn: Boolean(data?.on)
+            friendsOn: Boolean(data?.on),
+            openMessages: friend
+                ? () => openMessageCenter(language, { friend, avatars, selfPic: data?.selfPic ?? "" })
+                : null
         });
     }
 
@@ -895,7 +896,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 </Focusable>
 
                 {!onPlay && (
-                    <Focusable key={tabs.conversation ? "multiplayer:conversation" : "multiplayer:friends"} flow-children="column">
+                    <Focusable key="multiplayer:friends" flow-children="column">
                         <FriendsTab
                             language={language}
                             knobs={{

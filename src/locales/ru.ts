@@ -3237,7 +3237,6 @@ const RU: LocaleTable = {
     "Join": "Войти",
     "Last seen {{when}}": "Последний раз в сети {{when}}",
     "Leave your room first": "Сначала выйди из комнаты",
-    "Message": "Сообщение",
     "Message {{name}}": "Сообщение для {{name}}",
     "No RetroAchievements user has that name": "Пользователя RetroAchievements с таким именем нет",
     "No friends yet. Add someone by their RetroAchievements name.": "Друзей пока нет. Добавь кого-нибудь по имени в RetroAchievements.",
@@ -3280,6 +3279,8 @@ const RU: LocaleTable = {
     "Sending...": "Отправка...",
     "Hosting...": "Создание комнаты...",
     "Joining...": "Подключение...",
+    "Message Center": "Сообщения",
+    "NEW": "НОВОЕ",
 };
 
 export default RU;

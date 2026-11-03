@@ -1,6 +1,9 @@
+import type { ReactNode } from "react";
+
 import { t, type LanguageCode } from "../../locales";
 import type { MultiplayerFriend } from "../../types";
 import { formatRelativeTime } from "../../utils/format";
+import { achievementGreen } from "../../utils/style";
 import { FadeImage } from "../ui/FadeImage";
 
 export function PicAvatar(props: { uri: string | undefined; name: string; size: number }) {
@@ -51,6 +54,29 @@ export function friendStatus(language: LanguageCode, friend: MultiplayerFriend):
         });
     }
     return t(language, "Offline");
+}
+
+export function Pill(props: { children: ReactNode }) {
+    return (
+        <span
+            style={{
+                fontSize: "0.75em",
+                fontWeight: 800,
+                color: "#000",
+                background: achievementGreen,
+                borderRadius: "999px",
+                padding: "1px 7px",
+                whiteSpace: "nowrap",
+                lineHeight: 1.4
+            }}
+        >
+            {props.children}
+        </span>
+    );
+}
+
+export function NewPill(props: { language: LanguageCode; count: number }) {
+    return <Pill>{t(props.language, "{{count}} new", { count: props.count })}</Pill>;
 }
 
 export function friendName(friend: { name: string; nickname?: string }): string {
