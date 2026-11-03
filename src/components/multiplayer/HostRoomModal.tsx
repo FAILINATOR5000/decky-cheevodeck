@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { multiplayerHost, multiplayerSetVisible } from "../../api";
 import { overrideRecord, topEntryId } from "../../focusRecords";
 import { t, type LanguageCode } from "../../locales";
-import type { MultiplayerMode, MultiplayerWhere } from "../../types";
+import type { MultiplayerAccess, MultiplayerMode, MultiplayerWhere } from "../../types";
 import { logError } from "../../utils/errors";
 import { multiplayerChoices, rememberMultiplayerHostPicks } from "../../utils/multiplayerChoices";
 import { showManagedModal } from "../../utils/modalRegistry";
@@ -14,6 +14,7 @@ import { helpDescription } from "../ui/InfoText";
 import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { DialogLine, type DialogLineState } from "./DialogLine";
+import { ROOM_ACCESS, RoomAccessLabel } from "./roomAccess";
 import { ROOM_STATUSES } from "./roomStatus";
 
 const NAME_MAX = 24;
@@ -56,6 +57,7 @@ function HostRoomModal(props: HostRoomModalProps) {
     );
     const [name, setName] = useState(() => t(language, "Room"));
     const [seats, setSeats] = useState(picks.seats);
+    const [access, setAccess] = useState<MultiplayerAccess>(picks.access);
     const [password, setPassword] = useState("");
     const [status, setStatus] = useState(picks.status);
     const [hosting, setHosting] = useState(false);
@@ -73,13 +75,18 @@ function HostRoomModal(props: HostRoomModalProps) {
         if (hosting) {
             return;
         }
+        if (access === "private" && !password) {
+            setLine({ tone: "error", text: t(language, "A Private room needs a password.") });
+            return;
+        }
         setHosting(true);
         setLine({ tone: "busy", text: t(language, "Hosting...") });
-        rememberMultiplayerHostPicks(seats, status, place.online && !place.lanOnly ? where : picks.where);
+        rememberMultiplayerHostPicks(seats, status, place.online && !place.lanOnly ? where : picks.where, access);
         try {
             await multiplayerSetVisible(true, true);
             const hosted = await multiplayerHost(request.mode, request.gameId, request.hardcore, request.core,
-                request.share, name.trim(), seats, password, status, where, request.watch);
+                request.share, name.trim(), seats, access === "private" ? password : "", status, where, request.watch,
+                access === "friends");
             if (hosted.ok) {
                 overrideRecord(entryId, { focusKey: "multiplayer:host" });
                 close();
@@ -122,22 +129,56 @@ function HostRoomModal(props: HostRoomModalProps) {
                         onChange={setSeats}
                     />
                 </div>
-                <Field
-                    childrenLayout="below"
-                    bottomSeparator="standard"
-                    description={helpDescription(t(language, "help_multiplayer_password"), true)}
+                <div style={{ ...modalBodyStyle(15), fontWeight: 600, opacity: 1, margin: "10px 0 6px 0" }}>
+                    {t(language, "Who Can Join")}
+                </div>
+                <Focusable
+                    flow-children="row"
+                    style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: "8px", alignItems: "center" }}
                 >
-                    <div data-focus-key="multiplayer:hostroom:password">
-                        <TextField
-                            label={t(language, "Password")}
-                            value={password}
-                            type="password"
-                            bIsPassword
-                            disabled={hosting}
-                            onChange={(e: any) => setPassword(String(e?.target?.value ?? "").slice(0, PASSWORD_MAX))}
-                        />
-                    </div>
-                </Field>
+                    {ROOM_ACCESS.map((entry) => (
+                        <div
+                            key={entry.code}
+                            data-focus-key={`multiplayer:hostroom:access:${entry.code}`}
+                            style={entry.code === access ? { outline: `2px solid ${achievementGreen}`, borderRadius: "4px" } : undefined}
+                        >
+                            <DialogButton
+                                onClick={() => {
+                                    setAccess(entry.code);
+                                    setLine({ tone: "hint", text: "" });
+                                }}
+                                disabled={hosting}
+                                style={compactButtonStyle}
+                            >
+                                <RoomAccessLabel access={entry.code} language={language} />
+                            </DialogButton>
+                        </div>
+                    ))}
+                </Focusable>
+                <div style={{ ...modalBodyStyle(), marginTop: "6px" }}>
+                    {t(language, "help_multiplayer_access")}
+                </div>
+                {access === "private" && (
+                    <Field
+                        childrenLayout="below"
+                        bottomSeparator="standard"
+                        description={helpDescription(t(language, "help_multiplayer_password"), true)}
+                    >
+                        <div data-focus-key="multiplayer:hostroom:password">
+                            <TextField
+                                label={t(language, "Password")}
+                                value={password}
+                                type="password"
+                                bIsPassword
+                                disabled={hosting}
+                                onChange={(e: any) => {
+                                    setPassword(String(e?.target?.value ?? "").slice(0, PASSWORD_MAX));
+                                    setLine({ tone: "hint", text: "" });
+                                }}
+                            />
+                        </div>
+                    </Field>
+                )}
                 <div style={{ ...modalBodyStyle(15), fontWeight: 600, opacity: 1, margin: "10px 0 6px 0" }}>
                     {t(language, "Room status")}
                 </div>

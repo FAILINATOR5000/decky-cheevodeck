@@ -122,6 +122,8 @@ ERROR_LOBBY_UNREACHABLE = "lobby_unreachable"
 ERROR_LAN_ONLY = "lan_only"
 ERROR_TUNNEL = "tunnel_failed"
 ERROR_INVITE_EXPIRED = "invite_expired"
+ERROR_FRIENDS_ONLY = "friends_only"
+ERROR_FRIENDS_OFF = "friends_off"
 
 CHAT_GAP_SECONDS = 1
 
@@ -132,6 +134,7 @@ _JOIN_REFUSALS = {
     "closed": ERROR_ROOM_GONE,
     "dropped": ERROR_DROPPED,
     "expired": ERROR_INVITE_EXPIRED,
+    "friends_only": ERROR_FRIENDS_ONLY,
 }
 
 _SESSION_ID = re.compile(r"session-([0-9a-f]{16})\.")
@@ -439,6 +442,10 @@ class MultiplayerService:
     def room_row(self, room_id: str):
         held = self._rooms.get(room_id)
         return dict(held[0]) if held is not None else None
+
+    def _friend_pair(self, ulid: str):
+        friends = self._friends
+        return friends.pair_key(ulid) if friends is not None and proto.is_ulid(ulid) else None
 
     def _lobby_server(self):
         return lobby_client.parse_server(self._settings_store.get_lobby_server(self._settings_store.load_config()))
@@ -1214,7 +1221,7 @@ class MultiplayerService:
 
     async def host(self, mode: str, game_id: int, hardcore: bool, core: str = "", share: bool = False,
                    name: str = "", size: int = proto.DEFAULT_SEATS, password: str = "", status: str = "",
-                   where: str = "local", watch: bool = False) -> dict:
+                   where: str = "local", watch: bool = False, friends: bool = False) -> dict:
         async with self._lock:
             refused = self._refusal()
             if refused is not None:
@@ -1239,13 +1246,18 @@ class MultiplayerService:
             described = await asyncio.to_thread(self._describe, mode, local)
 
             seats = min(max(size, 2), proto.MAX_SEATS)
-            private = proto.is_password(password)
+            ulid, pic = self._identity()
+            if friends and not ulid:
+                return {"ok": False, "error": ERROR_FRIENDS_OFF}
+            private = proto.is_password(password) and not friends
             room_id = secrets.token_hex(8)
             started = time.monotonic()
-            key = await asyncio.to_thread(proto.room_key, password if private else "", room_id)
+            if friends:
+                key = secrets.token_bytes(32)
+            else:
+                key = await asyncio.to_thread(proto.room_key, password if private else "", room_id)
             key_ms = (time.monotonic() - started) * 1000
             user = self._user()
-            ulid, pic = self._identity()
             room = {
                 **described,
                 "id": room_id,
@@ -1257,6 +1269,8 @@ class MultiplayerService:
                 "mode": mode,
                 "hardcore": bool(hardcore),
                 "private": private,
+                "friends": bool(friends),
+                "owner": ulid if friends else "",
                 "share": bool(share),
                 "watch": bool(watch) and mode == "couch",
                 "max": seats,
@@ -1461,6 +1475,7 @@ class MultiplayerService:
             "coreName": room["coreName"],
             "hardcore": room["hardcore"],
             "private": room["private"],
+            "friends": room["friends"],
             "share": room["share"],
             "watch": room["watch"],
             "max": room["max"],
@@ -1612,7 +1627,8 @@ class MultiplayerService:
         room = self._room
         if room is None:
             return
-        nonce = proto.read_seek(decode(data), time.time())
+        message = decode(data)
+        nonce = proto.read_seek(message, time.time())
         if nonce is None:
             return
         now = time.monotonic()
@@ -1621,6 +1637,8 @@ class MultiplayerService:
         if len(self._answered) >= ANSWERS_PER_SECOND:
             return
         if not self._fresh_nonce(nonce, now):
+            return
+        if room["friends"] and self._friend_pair(proto.seek_asker(message)) is None:
             return
         self._answered.append(now)
         try:
@@ -1671,6 +1689,8 @@ class MultiplayerService:
                 await conversation.say({"ok": False, "error": "closed"})
             return
         if op == "info":
+            if room["friends"] and self._friend_pair(proto.seek_asker(opening)) is None:
+                return
             await conversation.say(proto.room_body(room))
             return
         if op == "join":
@@ -1690,6 +1710,11 @@ class MultiplayerService:
         if opened["pass"] is not None and invite is None:
             await conversation.say({"ok": False, "error": "expired"})
             return
+        friend = opened["friend"] if room["friends"] and invite is None else ""
+        pair = self._friend_pair(friend) if friend else None
+        if room["friends"] and invite is None and pair is None:
+            await conversation.say({"ok": False, "error": "friends_only"})
+            return
         ns = secrets.token_hex(16)
         private = proto.dh_private()
         ga = format(opened["ga"], "0512x")
@@ -1706,12 +1731,15 @@ class MultiplayerService:
         key = room["key"]
         if invite is not None:
             key = proto.pass_key(key, room["id"], invite[0], invite[1])
+        elif pair is not None:
+            key = proto.friend_key(pair, room["id"])
         if (
             not verify(key, request.get("t"), "join", nc, ns, room["id"], ga, gb, proto.canonical(raw))
             or (invite is not None and (params["ulid"] != invite[0] or invite in room["passesUsed"]))
+            or (pair is not None and params["ulid"] != friend)
         ):
             self._bad_tag(room, peer, now)
-            await conversation.say({"ok": False, "error": "bad_code"})
+            await conversation.say({"ok": False, "error": "friends_only" if pair is not None else "bad_code"})
             return
         if (
             (door == "lan" and peer in room["bannedPeers"])
@@ -2217,7 +2245,7 @@ class MultiplayerService:
         elif self._listing is None or self._listing.done():
             self._listing = self._spawn(self._list_online(server))
         found = await self._collect(
-            proto.make_seek(nonce, int(time.time())),
+            proto.make_seek(nonce, int(time.time()), self._identity()[0]),
             lambda message: proto.read_room(message, nonce),
         )
         if server is not None and not self._listing.done():
@@ -2250,7 +2278,7 @@ class MultiplayerService:
 
     async def _list_online(self, server) -> None:
         try:
-            listed = await lobby_client.list_rooms(server)
+            listed = await lobby_client.list_rooms(server, self._identity()[0])
         except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError, FrameError) as e:
             if not self._online_error:
                 decky.logger.info("multiplayer: couldn't reach the online lobby (%s)", type(e).__name__)
@@ -2283,7 +2311,8 @@ class MultiplayerService:
         return found
 
     def _room_rows(self) -> list:
-        rows = [dict(row) for row, _seen, _manual in self._rooms.values()]
+        rows = [dict(row) for row, _seen, _manual in self._rooms.values()
+                if not row["friends"] or self._friend_pair(row["owner"]) is not None]
         return sorted(rows, key=lambda row: (row["user"].lower(), row["room"]))
 
     async def lookup(self, address: str) -> dict:
@@ -2299,7 +2328,11 @@ class MultiplayerService:
         except (OSError, asyncio.TimeoutError):
             return {"ok": False, "error": ERROR_NOT_FOUND}
         try:
-            writer.write(frame({"op": "info", "v": proto.VERSION}))
+            asking = {"op": "info", "v": proto.VERSION}
+            me = self._identity()[0]
+            if me:
+                asking["u"] = me
+            writer.write(frame(asking))
             await asyncio.wait_for(writer.drain(), HANDSHAKE_SECONDS)
             row = proto.read_room(await asyncio.wait_for(read_frame(reader), HANDSHAKE_SECONDS))
         except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError, FrameError):
@@ -2325,6 +2358,9 @@ class MultiplayerService:
             row = dict(seen[0])
             if row["private"] and invite is None and not proto.is_password(password):
                 return {"ok": False, "error": ERROR_NEEDS_CODE}
+            pair = self._friend_pair(row["owner"]) if row["friends"] and invite is None else None
+            if row["friends"] and invite is None and pair is None:
+                return {"ok": False, "error": ERROR_FRIENDS_ONLY}
             local, reason, detail = await asyncio.to_thread(self._decide, row, 0, "")
             params = proto.join_params(
                 self._user(),
@@ -2335,13 +2371,17 @@ class MultiplayerService:
                 self._device_id(),
                 *self._identity(),
             )
+            friend = ""
             if invite is not None:
                 key, shown = invite["key"], {"ulid": invite["ulid"], "exp": invite["exp"]}
+            elif pair is not None:
+                key, shown, friend = proto.friend_key(pair, row["room"]), None, params["ulid"]
             else:
                 key = await asyncio.to_thread(proto.room_key, password if row["private"] else "", row["room"])
                 shown = None
             try:
-                answer = await asyncio.wait_for(self._ask_to_join(row, key, params, shown), HANDSHAKE_SECONDS * 2)
+                answer = await asyncio.wait_for(self._ask_to_join(row, key, params, shown, friend),
+                                                HANDSHAKE_SECONDS * 2)
             except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError, FrameError):
                 answer = {"ok": False, "error": ERROR_HOST_GONE}
             if not answer["ok"]:
@@ -2404,13 +2444,15 @@ class MultiplayerService:
             raise
         return reader, writer
 
-    async def _ask_to_join(self, row: dict, key: bytes, params: dict, shown=None) -> dict:
+    async def _ask_to_join(self, row: dict, key: bytes, params: dict, shown=None, friend: str = "") -> dict:
         nc = secrets.token_hex(16)
         private = proto.dh_private()
         ga = await asyncio.to_thread(proto.dh_public, private)
         first = {"op": "join", "v": proto.VERSION, "nc": nc, "ga": ga}
         if shown is not None:
             first["pass"] = shown
+        if friend:
+            first["friend"] = friend
         reader, writer = await self._dial(row, first)
         own = (writer.get_extra_info("sockname") or ("",))[0]
         try:

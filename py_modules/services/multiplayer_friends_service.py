@@ -595,6 +595,13 @@ class MultiplayerFriendsService:
             if proto.is_device_key(device):
                 self._new_device(device)
 
+    def pair_key(self, ulid: str):
+        if not self._on():
+            return None
+        data = self._data()
+        friend = self._find(data, ulid) if data is not None else None
+        return bytes.fromhex(friend["pairKey"]) if friend is not None else None
+
     def _find(self, data, ulid: str):
         return next((friend for friend in data["friends"] if friend["ulid"] == ulid), None)
 

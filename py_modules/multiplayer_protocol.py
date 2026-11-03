@@ -182,6 +182,10 @@ def pass_key(key: bytes, room: str, ulid: str, expires: int) -> bytes:
     return hmac.new(key, f"pass|{room}|{ulid}|{expires}".encode("ascii"), hashlib.sha256).digest()
 
 
+def friend_key(pair: bytes, room: str) -> bytes:
+    return hmac.new(pair, f"friend|{room}".encode("ascii"), hashlib.sha256).digest()
+
+
 def read_pass(raw, now: float):
     if not isinstance(raw, dict):
         return None
@@ -236,8 +240,16 @@ async def read_frame(reader) -> dict:
     return await nearby_protocol.read_frame(reader, MAX_FRAME_BYTES)
 
 
-def make_seek(nonce: str, now: int) -> bytes:
-    return encode({"k": KIND, "v": VERSION, "op": "seek", "n": nonce, "ts": now})
+def make_seek(nonce: str, now: int, ulid: str = "") -> bytes:
+    message = {"k": KIND, "v": VERSION, "op": "seek", "n": nonce, "ts": now}
+    if ulid:
+        message["u"] = ulid
+    return encode(message)
+
+
+def seek_asker(message) -> str:
+    ulid = message.get("u") if isinstance(message, dict) else None
+    return ulid if is_ulid(ulid) else ""
 
 
 def read_seek(message, now: float):
@@ -286,6 +298,8 @@ def room_body(room: dict, reveal: bool = False) -> dict:
         "gameCode": room["gameCode"],
         "hardcore": room["hardcore"],
         "private": room["private"],
+        "friends": room.get("friends", False),
+        "owner": room.get("owner", ""),
         "share": room["share"],
         "watch": room.get("watch", False),
         "seats": [("?" if hidden and index > 0 else seat["name"]) if seat else ""
@@ -351,6 +365,7 @@ def _room_fields(message):
         or message.get("state") not in ("lobby", "playing")
         or type(message.get("hardcore")) is not bool
         or type(message.get("private")) is not bool
+        or (message.get("friends") is True and not is_ulid(message.get("owner")))
         or type(message.get("share")) is not bool
         or type(count) is not int
         or not 2 <= count <= MAX_SEATS
@@ -383,6 +398,8 @@ def _room_fields(message):
         "gameCode": game_code,
         "hardcore": message["hardcore"],
         "private": message["private"],
+        "friends": message.get("friends") is True,
+        "owner": message["owner"] if message.get("friends") is True else "",
         "share": message["share"],
         "watch": message.get("watch") is True,
         "seats": [_clean(seat, _USER_MAX) or "" for seat in seats],
@@ -451,7 +468,8 @@ def read_hello(message):
         ga = read_dh(message.get("ga"))
         if not is_nonce(nonce) or ga is None:
             return None
-        return op, {"nc": nonce, "ga": ga, "pass": message.get("pass")}
+        friend = message.get("friend")
+        return op, {"nc": nonce, "ga": ga, "pass": message.get("pass"), "friend": friend if is_ulid(friend) else ""}
     if op in TAGGED_OPS:
         return op, None
     return None

@@ -2927,6 +2927,8 @@ export type MultiplayerTab = "play" | "friends";
 
 export type MultiplayerWhere = "local" | "online";
 
+export type MultiplayerAccess = "public" | "friends" | "private";
+
 export type MultiplayerRoomRow = {
     room: string;
     user: string;
@@ -2945,6 +2947,8 @@ export type MultiplayerRoomRow = {
     crc: string;
     hardcore: boolean;
     private: boolean;
+    friends: boolean;
+    owner: string;
     share: boolean;
     watch: boolean;
     seats: string[];
@@ -2986,6 +2990,7 @@ export type MultiplayerHostedRoom = {
     coreName: string;
     hardcore: boolean;
     private: boolean;
+    friends: boolean;
     share: boolean;
     watch: boolean;
     max: number;

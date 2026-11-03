@@ -68,14 +68,17 @@ async def read_envelope_or_skip(reader):
         return None
 
 
-async def list_rooms(server) -> list:
-    return await asyncio.wait_for(_list_rooms(server), LIST_SECONDS)
+async def list_rooms(server, ulid: str = "") -> list:
+    return await asyncio.wait_for(_list_rooms(server, ulid), LIST_SECONDS)
 
 
-async def _list_rooms(server) -> list:
+async def _list_rooms(server, ulid: str) -> list:
     reader, writer = await connect(server)
     try:
-        writer.write(envelope({"op": "list", "v": proto.VERSION}))
+        asking = {"op": "list", "v": proto.VERSION}
+        if ulid:
+            asking["u"] = ulid
+        writer.write(envelope(asking))
         await asyncio.wait_for(writer.drain(), LEG_SECONDS)
         rooms = []
         for _frame in range(LIST_MAX + 1):

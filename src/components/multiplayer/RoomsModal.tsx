@@ -18,6 +18,7 @@ import { SaveOnStart } from "../ui/SaveOnStart";
 import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { DialogLine, type DialogLineState } from "./DialogLine";
+import { RoomAccessLabel, roomAccess } from "./roomAccess";
 import { roomStatusLabelKey } from "./roomStatus";
 
 type Step = "list" | "password" | "ip";
@@ -382,7 +383,6 @@ function RoomsModal(props: RoomsModalProps) {
                                 const status = statusLabel(row.status);
                                 const tags = [
                                     row.away ? t(language, "Away") : "",
-                                    row.private ? t(language, "Private") : "",
                                     row.emulator === "retroarch" && row.core && !installedCores.includes(row.core)
                                         ? t(language, "Core not installed")
                                         : ""
@@ -403,6 +403,8 @@ function RoomsModal(props: RoomsModalProps) {
                                                     {t(language, "{{name}} · {{title}}", { name: row.user, title: row.title })}
                                                 </div>
                                                 <div style={{ opacity: 0.8 }}>
+                                                    <RoomAccessLabel access={roomAccess(row)} language={language} />
+                                                    {" · "}
                                                     {t(language, row.where === "online" ? "Online" : "Local")}
                                                     {" · "}
                                                     {t(language, row.mode === "link" ? "Link Play" : "Couch Play")}

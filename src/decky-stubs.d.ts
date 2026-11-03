@@ -171,6 +171,7 @@ declare module "react-icons/fa" {
     export const FaRedoAlt: any;
     export const FaHandPaper: any;
     export const FaUnlock: any;
+    export const FaLock: any;
     export const FaRegCalendar: any;
     export const FaCalculator: any;
     export const FaClipboardCheck: any;
