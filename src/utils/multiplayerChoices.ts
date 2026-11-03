@@ -1,4 +1,4 @@
-import type { MultiplayerAccess, MultiplayerMode, MultiplayerTab, MultiplayerWhere } from "../types";
+import type { MultiplayerAccess, MultiplayerMode, MultiplayerRoomFilter, MultiplayerTab, MultiplayerWhere } from "../types";
 
 type Choices = {
     tab: MultiplayerMode;
@@ -10,6 +10,7 @@ type Choices = {
     status: string;
     where: MultiplayerWhere;
     access: MultiplayerAccess;
+    filter: MultiplayerRoomFilter;
     core: string;
     coreFor: number | null;
     page: MultiplayerTab;
@@ -18,6 +19,8 @@ type Choices = {
 };
 
 const INVITE_FRESH_MS = 30000;
+
+export const NO_ROOM_FILTER: MultiplayerRoomFilter = { game: "", mode: "", kind: "", access: "", where: "", seats: "" };
 
 const choices: Choices = {
     tab: "link",
@@ -29,6 +32,7 @@ const choices: Choices = {
     status: "",
     where: "local",
     access: "public",
+    filter: NO_ROOM_FILTER,
     core: "",
     coreFor: null,
     page: "play",
@@ -75,6 +79,10 @@ export function rememberMultiplayerHostPicks(seats: number, status: string, wher
     choices.status = status;
     choices.where = where;
     choices.access = access;
+}
+
+export function rememberMultiplayerRoomFilter(filter: MultiplayerRoomFilter) {
+    choices.filter = filter;
 }
 
 export function forgetMultiplayerRoomChoices() {

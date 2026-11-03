@@ -2929,6 +2929,15 @@ export type MultiplayerWhere = "local" | "online";
 
 export type MultiplayerAccess = "public" | "friends" | "private";
 
+export type MultiplayerRoomFilter = {
+    game: "" | "compatible";
+    mode: "" | MultiplayerMode;
+    kind: "" | "play" | "watch";
+    access: "" | MultiplayerAccess;
+    where: "" | MultiplayerWhere;
+    seats: "" | "open";
+};
+
 export type MultiplayerRoomRow = {
     room: string;
     user: string;

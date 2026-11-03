@@ -8,17 +8,19 @@ import { t, type LanguageCode } from "../../locales";
 import type { MultiplayerRoomRow } from "../../types";
 import { logError } from "../../utils/errors";
 import { showManagedModal } from "../../utils/modalRegistry";
-import { rememberMultiplayerTab } from "../../utils/multiplayerChoices";
+import { multiplayerChoices, rememberMultiplayerRoomFilter, rememberMultiplayerTab } from "../../utils/multiplayerChoices";
 import { getCurrentModalScale, modalSize } from "../../utils/scale";
 import { searchKey } from "../../utils/searchText";
 import { achievementGreen, compactButtonStyle, modalBodyStyle, warnAmber } from "../../utils/style";
 import { FocusableItem } from "../ui/FocusableItem";
 import { InlineSpinner } from "../ui/InlineSpinner";
+import { LabeledRow } from "../ui/LabeledRow";
 import { SaveOnStart } from "../ui/SaveOnStart";
 import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { DialogLine, type DialogLineState } from "./DialogLine";
 import { RoomAccessLabel, roomAccess } from "./roomAccess";
+import { RoomsFilterModal, roomFilterLabel, roomPasses } from "./RoomsFilterModal";
 import { roomStatusLabelKey } from "./roomStatus";
 
 type Step = "list" | "password" | "ip";
@@ -52,6 +54,7 @@ function RoomsModal(props: RoomsModalProps) {
     const [onlineError, setOnlineError] = useState("");
     const [visibleError, setVisibleError] = useState("");
     const [query, setQuery] = useState("");
+    const [filter, setFilter] = useState(() => multiplayerChoices().filter);
     const [step, setStep] = useState<Step>("list");
     const [picked, setPicked] = useState<MultiplayerRoomRow | null>(null);
     const [password, setPassword] = useState("");
@@ -149,14 +152,16 @@ function RoomsModal(props: RoomsModalProps) {
     };
 
     const listed = rooms ?? [];
+    const filtered = useMemo(() => listed.filter((row) => roomPasses(row, filter)), [listed, filter]);
     const searched = useMemo(() => {
         const wanted = searchKey(query.trim());
         if (!wanted) {
-            return listed;
+            return filtered;
         }
-        return listed.filter((row) => [row.name, row.title, row.user, statusLabel(row.status)]
+        return filtered.filter((row) => [row.name, row.title, row.user, statusLabel(row.status)]
             .some((text) => searchKey(text).includes(wanted)));
-    }, [listed, query, language]);
+    }, [filtered, query, language]);
+    const filterLabel = roomFilterLabel(filter, language);
 
     const roomWindow = useSlidingWindow({
         items: searched,
@@ -170,8 +175,22 @@ function RoomsModal(props: RoomsModalProps) {
         fullSteps: true,
         prefetchDistance: 0,
         sentinelRootMarginPx: 600,
-        resetKey: `multiplayer:roomsmodal|${query}`
+        resetKey: `multiplayer:roomsmodal|${query}|${filterLabel}`
     });
+
+    function openFilter() {
+        showManagedModal((closeFilter) => (
+            <RoomsFilterModal
+                filter={filter}
+                language={language}
+                onChange={(next) => {
+                    setFilter(next);
+                    rememberMultiplayerRoomFilter(next);
+                }}
+                close={closeFilter}
+            />
+        ));
+    }
 
     function backToList() {
         setStep("list");
@@ -339,6 +358,14 @@ function RoomsModal(props: RoomsModalProps) {
                         onChange={(e: any) => setQuery(String(e?.target?.value ?? ""))}
                     />
                 </div>
+                <LabeledRow
+                    focusKey="multiplayer:rooms:filter"
+                    focusFallback={["multiplayer:rooms:search", "multiplayer:rooms:joinip"]}
+                    label={t(language, "Filter")}
+                    value={filterLabel}
+                    onClick={openFilter}
+                    bottomSeparator="none"
+                />
                 {visibleError === "cap_reached" ? (
                     <Focusable flow-children="row" style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "8px" }}>
                         <div style={{ ...modalBodyStyle(), color: warnAmber, opacity: 1, flex: 1, minWidth: 0 }}>
@@ -369,7 +396,10 @@ function RoomsModal(props: RoomsModalProps) {
                             {t(language, "No rooms yet. Local rooms need the same Wi-Fi; online rooms need the lobby server.")}
                         </div>
                     )}
-                    {listed.length > 0 && searched.length === 0 && (
+                    {listed.length > 0 && filtered.length === 0 && (
+                        <div style={modalBodyStyle()}>{t(language, "No rooms match the filter.")}</div>
+                    )}
+                    {filtered.length > 0 && searched.length === 0 && (
                         <div style={modalBodyStyle()}>{t(language, "Nothing here matches what you typed.")}</div>
                     )}
                     {searched.length > 0 && (
@@ -391,7 +421,7 @@ function RoomsModal(props: RoomsModalProps) {
                                     <div key={row.room} style={{ paddingBottom: "4px" }}>
                                         <FocusableItem
                                             focusKey={rowKey(row)}
-                                            focusFallback={[...neighbors, "multiplayer:rooms:search", "multiplayer:rooms:joinip"]}
+                                            focusFallback={[...neighbors, "multiplayer:rooms:filter", "multiplayer:rooms:search", "multiplayer:rooms:joinip"]}
                                             disabled={busy}
                                             onGamepadFocus={() => roomWindow.onItemFocus(at)}
                                             onGamepadDirection={roomWindow.guardTopRow(at)}
