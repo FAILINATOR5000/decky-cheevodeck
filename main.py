@@ -797,7 +797,6 @@ class Plugin(
             multiplayer=self.multiplayer_service,
             notifications_store=self.notifications_store,
             ra_friends=self.friends_service,
-            cache_store=self.cache_store,
             ra_call=self.run_ra_call_for_trickle,
             ra=self.ra,
         )

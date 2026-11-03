@@ -824,14 +824,15 @@ export const multiplayerSetReady = callable<[boolean, string], MultiplayerReply>
 export const multiplayerStart = callable<[], MultiplayerReply & { appid?: number; title?: string; round?: number }>("multiplayer_start");
 export const multiplayerStartCancel = callable<[string], MultiplayerReply>("multiplayer_start_cancel");
 export const multiplayerSay = callable<[string], MultiplayerReply>("multiplayer_say");
-export const multiplayerFriends = callable<[boolean], MultiplayerFriendsState>("multiplayer_friends");
+export const multiplayerFriends = callable<[], MultiplayerFriendsState>("multiplayer_friends");
 export const multiplayerFriendAdd = callable<[string], MultiplayerReply & { name?: string; ulid?: string; friend?: boolean }>(
     "multiplayer_friend_add"
 );
 export const multiplayerFriendAddSeat = callable<[number, string], MultiplayerReply>("multiplayer_friend_add_seat");
 export const multiplayerFriendAnswer = callable<[string, boolean], MultiplayerReply>("multiplayer_friend_answer");
 export const multiplayerFriendRemove = callable<[string], MultiplayerReply>("multiplayer_friend_remove");
-export const multiplayerFriendRename = callable<[string, string], MultiplayerReply>("multiplayer_friend_rename");
+export const multiplayerFriendDismiss = callable<[string], MultiplayerReply>("multiplayer_friend_dismiss");
+export const multiplayerRunningApp = callable<[string], MultiplayerReply>("multiplayer_running_app");
 export const multiplayerFriendMessages = callable<[string], MultiplayerReply & { messages?: MultiplayerMessage[]; readBefore?: number }>(
     "multiplayer_friend_messages"
 );

@@ -111,8 +111,8 @@ class MultiplayerMixin(PluginContext):
     async def multiplayer_debug_proc(self):
         return await asyncio.to_thread(self.multiplayer_service.debug_processes)
 
-    async def multiplayer_friends(self, open_tab: bool = False):
-        return self.multiplayer_friends_service.state(bool(open_tab))
+    async def multiplayer_friends(self):
+        return self.multiplayer_friends_service.state()
 
     async def multiplayer_friend_add(self, name: str = ""):
         name = str(name or "").strip()
@@ -141,8 +141,12 @@ class MultiplayerMixin(PluginContext):
     async def multiplayer_friend_remove(self, ulid: str = ""):
         return await self.multiplayer_friends_service.remove(str(ulid or ""))
 
-    async def multiplayer_friend_rename(self, ulid: str = "", nickname: str = ""):
-        return await asyncio.to_thread(self.multiplayer_friends_service.rename, str(ulid or ""), str(nickname or ""))
+    async def multiplayer_running_app(self, name: str = ""):
+        self.multiplayer_friends_service.running_app(str(name or ""))
+        return {"ok": True}
+
+    async def multiplayer_friend_dismiss(self, ulid: str = ""):
+        return await asyncio.to_thread(self.multiplayer_friends_service.dismiss, str(ulid or ""))
 
     async def multiplayer_friend_messages(self, ulid: str = ""):
         return await asyncio.to_thread(self.multiplayer_friends_service.messages, str(ulid or ""))

@@ -27,8 +27,8 @@ MAX_FRIENDS = 500
 MAX_REQUESTS = 200
 MAX_ALERTS = 20
 MAX_OUTBOX = 100
+MAX_DISMISSED = 200
 MESSAGE_MAX = 500
-NICKNAME_MAX = 24
 
 _DEVICE_RE = re.compile(r"^[0-9a-f]{32}$")
 _HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -44,13 +44,6 @@ def clean_name(value) -> str:
         return ""
     value = value.strip()
     return value if _NAME_RE.match(value) else ""
-
-
-def clean_nickname(value) -> str:
-    if not isinstance(value, str):
-        return ""
-    kept = "".join(ch for ch in value if ch.isprintable())
-    return " ".join(kept.split())[:NICKNAME_MAX]
 
 
 def clean_text(value) -> str:
@@ -91,7 +84,6 @@ def _friend(raw):
     return {
         "ulid": raw["ulid"],
         "name": name,
-        "nickname": clean_nickname(raw.get("nickname")),
         "pairKey": raw["pairKey"],
         "userPic": clean_pic(raw.get("userPic")),
         "added": _ts(raw.get("added")),
@@ -149,6 +141,11 @@ def normalize(raw: dict) -> dict:
     for row in _rows(raw, "outbox"):
         if isinstance(row, dict) and row.get("op") == "remove" and is_ulid(row.get("ulid")) and _hex64(row.get("t")):
             outbox.append({"op": "remove", "ulid": row["ulid"], "t": row["t"]})
+    known = friend_ids | {request["ulid"] for request in requests}
+    dismissed = []
+    for ulid in _rows(raw, "dismissed"):
+        if is_ulid(ulid) and ulid not in known and ulid not in dismissed:
+            dismissed.append(ulid)
     device = raw.get("deviceId")
     return {
         "schemaVersion": CURRENT_SCHEMA_VERSION,
@@ -164,6 +161,7 @@ def normalize(raw: dict) -> dict:
         "newestAt": {ulid: _ts(at) for ulid, at in raw_newest.items() if ulid in friend_ids and _ts(at)},
         "alerts": alerts[-MAX_ALERTS:],
         "outbox": outbox[-MAX_OUTBOX:],
+        "dismissed": dismissed[-MAX_DISMISSED:],
     }
 
 

@@ -1,7 +1,7 @@
 import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 import { useMemo, useState, type MutableRefObject } from "react";
 
-import { multiplayerFriendAdd, multiplayerFriendAlert, multiplayerFriendAnswer } from "../../api";
+import { multiplayerFriendAdd, multiplayerFriendAlert, multiplayerFriendAnswer, multiplayerFriendDismiss } from "../../api";
 import { pendingLandingKey, type LandingWindows } from "../../focusRecords";
 import { useSlidingWindow } from "../../hooks/useSlidingWindow";
 import { t, type LanguageCode } from "../../locales";
@@ -19,9 +19,9 @@ import { openFriendCard } from "./FriendCardModal";
 import { openMessageCenter } from "./MessageCenterModal";
 import { showMultiplayerProblem } from "./ProblemModal";
 import { useMultiplayer } from "./MultiplayerContext";
-import { PicAvatar, friendGame, friendName, friendStatus } from "./PicAvatar";
+import { NewPill, PicAvatar, friendGame, friendName, friendStatus } from "./PicAvatar";
 
-const AVATAR_PX = 32;
+const AVATAR_PX = 44;
 const ADD_KEY = "multiplayer:friends:add";
 const NAV_ENTER_MAINTAIN_Y = 3;
 const ALERTS_SHOWN = 2;
@@ -205,25 +205,24 @@ export function FriendsTab(props: FriendsTabProps) {
                         const row = item.row;
                         const key = focusKeyFor(item);
                         const nameLine = (
-                            <div style={{ display: "flex", gap: "10px", alignItems: "center", minWidth: 0, width: "100%", textAlign: "left" }}>
-                                <PicAvatar uri={avatars[row.pic]} name={row.name} size={AVATAR_PX} />
+                            <div style={{ display: "flex", gap: "10px", alignItems: "flex-start", minWidth: 0, width: "100%", textAlign: "left" }}>
+                                <PicAvatar uri={avatars[row.pic]} name={row.name} size={textSize(AVATAR_PX)} />
                                 <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1 }}>
                                     <span style={{ fontWeight: 800, overflowWrap: "anywhere" }}>
                                         {item.kind === "friend" ? friendName(item.row) : row.name}
+                                        {item.kind === "friend" && item.row.unread > 0 && (
+                                            <span style={{ marginLeft: "8px" }}>
+                                                <NewPill language={language} count={item.row.unread} />
+                                            </span>
+                                        )}
                                     </span>
                                     {item.kind === "friend" && (
-                                        <span style={bodyTextStyle()}>
-                                            <span style={{ opacity: 1, color: item.row.online ? achievementGreen : undefined }}>
-                                                {friendStatus(language, item.row)}
-                                            </span>
-                                            {item.row.raFriend && ` · ${t(language, "RA friend")}`}
-                                            {friendGame(item.row) && <div style={{ overflowWrap: "anywhere" }}>{friendGame(item.row)}</div>}
-                                            {item.row.unread > 0 && (
-                                                <span style={{ color: achievementGreen, fontWeight: 800 }}>
-                                                    {` · ${t(language, "{{count}} new", { count: item.row.unread })}`}
-                                                </span>
-                                            )}
+                                        <span style={{ ...bodyTextStyle(), opacity: 1, color: item.row.online ? achievementGreen : undefined }}>
+                                            {friendStatus(language, item.row)}
                                         </span>
+                                    )}
+                                    {item.kind === "friend" && friendGame(language, item.row) && (
+                                        <span style={{ ...bodyTextStyle(), overflowWrap: "anywhere" }}>{friendGame(language, item.row)}</span>
                                     )}
                                     {item.kind === "request" && (
                                         <span style={bodyTextStyle()}>
@@ -231,7 +230,10 @@ export function FriendsTab(props: FriendsTabProps) {
                                         </span>
                                     )}
                                     {item.kind === "suggestion" && (
-                                        <span style={bodyTextStyle()}>{t(language, "RA friend · Online")}</span>
+                                        <span style={bodyTextStyle()}>
+                                            <span style={{ opacity: 1, color: achievementGreen }}>{t(language, "Online")}</span>
+                                            {` · ${t(language, "RA friend")}`}
+                                        </span>
                                     )}
                                 </div>
                             </div>
@@ -249,6 +251,7 @@ export function FriendsTab(props: FriendsTabProps) {
                                             friend,
                                             avatar: avatars[friend.pic],
                                             inRoom,
+                                            linkUp: Boolean(data?.up),
                                             hardcore: mp.hardcore,
                                             heirs: heirs(at, "friend"),
                                             openMessages: () => openMessageCenter(language, {
@@ -264,18 +267,42 @@ export function FriendsTab(props: FriendsTabProps) {
                             );
                         }
                         if (item.kind === "suggestion") {
+                            const suggestion = item.row;
+                            const after = heirs(at, "suggestion");
+                            const added = [`multiplayer:request:${suggestion.ulid}`, `multiplayer:friend:${suggestion.ulid}`, ...after];
                             return (
                                 <PanelSectionRow key={key}>
-                                    <FocusableItem
-                                        focusKey={key}
-                                        focusFallback={heirs(at, "suggestion")}
-                                        disabled={busy}
-                                        onGamepadFocus={() => list.onItemFocus(at)}
-                                        onGamepadDirection={list.guardTopRow(at)}
-                                        onClick={() => void act(() => multiplayerFriendAdd(item.row.name))}
-                                    >
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "100%", padding: "4px 0" }}>
                                         {nameLine}
-                                    </FocusableItem>
+                                        <Focusable flow-children="row" style={{ display: "flex", gap: "8px" }}>
+                                            <FocusTarget key={key} focusKey={key} focusFallback={added} style={{ display: "flex", flex: 1 }}>
+                                                <DialogButton
+                                                    style={{ ...compactButtonStyle, width: "100%" }}
+                                                    disabled={busy}
+                                                    onGamepadFocus={() => list.onItemFocus(at)}
+                                                    onGamepadDirection={list.guardTopRow(at)}
+                                                    onClick={() => void act(() => multiplayerFriendAdd(suggestion.name))}
+                                                >
+                                                    {t(language, "Add Friend")}
+                                                </DialogButton>
+                                            </FocusTarget>
+                                            <FocusTarget
+                                                focusKey={`multiplayer:dismiss:${suggestion.ulid}`}
+                                                focusFallback={[key, ...after]}
+                                                style={{ display: "flex", flex: 1 }}
+                                            >
+                                                <DialogButton
+                                                    style={{ ...compactButtonStyle, width: "100%" }}
+                                                    disabled={busy}
+                                                    onGamepadFocus={() => list.onItemFocus(at)}
+                                                    onGamepadDirection={list.guardTopRow(at)}
+                                                    onClick={() => void act(() => multiplayerFriendDismiss(suggestion.ulid))}
+                                                >
+                                                    {t(language, "Not Now")}
+                                                </DialogButton>
+                                            </FocusTarget>
+                                        </Focusable>
+                                    </div>
                                 </PanelSectionRow>
                             );
                         }

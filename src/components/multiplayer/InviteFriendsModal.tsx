@@ -24,6 +24,7 @@ function InviteFriendsModal(props: { language: LanguageCode; avatars: Record<str
     const { language, close } = props;
     const [friends, setFriends] = useState<MultiplayerFriend[] | null>(null);
     const [busy, setBusy] = useState(false);
+    const [linkUp, setLinkUp] = useState(false);
     const [line, setLine] = useState<DialogLineState>(
         () => ({ tone: "hint", text: t(language, "Pick a friend to invite to your room.") })
     );
@@ -31,7 +32,9 @@ function InviteFriendsModal(props: { language: LanguageCode; avatars: Record<str
     useEffect(() => {
         void (async () => {
             try {
-                setFriends((await multiplayerFriends(false)).friends ?? []);
+                const state = await multiplayerFriends();
+                setFriends(state.friends ?? []);
+                setLinkUp(Boolean(state.up));
             }
             catch (e) {
                 logError("multiplayerFriends", e);
@@ -93,7 +96,7 @@ function InviteFriendsModal(props: { language: LanguageCode; avatars: Record<str
                                 <FocusableItem
                                     focusKey={rowKey(friend)}
                                     focusFallback={[...neighbors, "multiplayer:invitepicker:close"]}
-                                    disabled={busy}
+                                    disabled={busy || (linkUp && !friend.online && friend.seen > 0)}
                                     onGamepadFocus={() => list.onItemFocus(at)}
                                     onGamepadDirection={list.guardTopRow(at)}
                                     onClick={() => void invite(friend)}
@@ -103,7 +106,7 @@ function InviteFriendsModal(props: { language: LanguageCode; avatars: Record<str
                                         <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
                                             <span style={{ fontWeight: 700, overflowWrap: "anywhere" }}>{friendName(friend)}</span>
                                             <span style={{ color: friend.online ? achievementGreen : undefined }}>{friendStatus(language, friend)}</span>
-                                            {friendGame(friend) && <span style={{ overflowWrap: "anywhere" }}>{friendGame(friend)}</span>}
+                                            {friendGame(language, friend) && <span style={{ overflowWrap: "anywhere" }}>{friendGame(language, friend)}</span>}
                                         </div>
                                     </div>
                                 </FocusableItem>

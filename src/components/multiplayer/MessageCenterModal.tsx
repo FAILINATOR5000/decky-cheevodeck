@@ -77,7 +77,7 @@ function MessageCenterModal(props: MessageCenterOptions & { language: LanguageCo
 
         async function loadFriend() {
             try {
-                const state = await multiplayerFriends(false);
+                const state = await multiplayerFriends();
                 const row = state.friends?.find((entry) => entry.ulid === ulid);
                 if (alive && row) {
                     setFriend(row);
@@ -179,7 +179,7 @@ function MessageCenterModal(props: MessageCenterOptions & { language: LanguageCo
                         <div style={{ ...modalBodyStyle(), color: friend.online ? achievementGreen : undefined, opacity: 1 }}>
                             {friendStatus(language, friend)}
                         </div>
-                        {friendGame(friend) && <div style={{ ...modalBodyStyle(), overflowWrap: "anywhere" }}>{friendGame(friend)}</div>}
+                        {friendGame(language, friend) && <div style={{ ...modalBodyStyle(), overflowWrap: "anywhere" }}>{friendGame(language, friend)}</div>}
                     </div>
                 </div>
                 <div data-focus-key={SAY_KEY} style={{ display: "flex" }}>

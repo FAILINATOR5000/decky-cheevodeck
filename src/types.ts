@@ -3045,7 +3045,6 @@ export type MultiplayerCoreChoice = { core: string; name: string };
 export type MultiplayerFriend = {
     ulid: string;
     name: string;
-    nickname: string;
     pic: string;
     raFriend: boolean;
     online: boolean;

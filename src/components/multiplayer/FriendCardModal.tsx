@@ -5,7 +5,6 @@ import {
     multiplayerFriendInvite,
     multiplayerFriendJoin,
     multiplayerFriendRemove,
-    multiplayerFriendRename,
     multiplayerSetVisible
 } from "../../api";
 import { overrideRecord, topEntryId } from "../../focusRecords";
@@ -22,15 +21,15 @@ import { friendError } from "./AddFriendModal";
 import { DialogLine, type DialogLineState } from "./DialogLine";
 import { NewPill, PicAvatar, friendGame, friendName, friendStatus } from "./PicAvatar";
 
-const NICKNAME_MAX = 24;
 const PASSWORD_MAX = 32;
 
-type Step = "menu" | "rename" | "remove" | "password";
+type Step = "menu" | "remove" | "password";
 
 export type FriendCardOptions = {
     friend: MultiplayerFriend;
     avatar: string | undefined;
     inRoom: boolean;
+    linkUp: boolean;
     hardcore: boolean;
     heirs: string[];
     openMessages: () => void;
@@ -41,17 +40,12 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
     const [step, setStep] = useState<Step>("menu");
     const [busy, setBusy] = useState(false);
     const [line, setLine] = useState<DialogLineState>({ tone: "hint", text: "" });
-    const [nickname, setNickname] = useState(friend.nickname || friend.name);
     const [password, setPassword] = useState("");
     const [entryId] = useState(() => topEntryId());
     const fieldRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
-        const input = fieldRef.current?.querySelector("input");
-        input?.focus();
-        if (step === "rename") {
-            input?.select();
-        }
+        fieldRef.current?.querySelector("input")?.focus();
     }, [step]);
 
     function messages() {
@@ -120,18 +114,6 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
         setBusy(false);
     }
 
-    async function rename() {
-        setBusy(true);
-        try {
-            const kept = nickname.trim() === friend.name ? "" : nickname;
-            await multiplayerFriendRename(friend.ulid, kept);
-        }
-        catch (e) {
-            logError("multiplayerFriendRename", e);
-        }
-        close();
-    }
-
     async function remove() {
         setBusy(true);
         try {
@@ -157,6 +139,10 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
     }
 
     const buttonColumn = { display: "flex", flexDirection: "column" as const, gap: "8px", marginTop: "16px" };
+    const gameLine = [
+        friendGame(language, friend),
+        friend.online && friend.room ? t(language, "Room “{{room}}”", { room: friend.room.name }) : ""
+    ].filter(Boolean).join(" · ");
     const header = (
         <div style={{ display: "flex", gap: "12px", alignItems: "center", marginBottom: "8px" }}>
             <PicAvatar uri={props.avatar} name={friend.name} size={modalSize(56)} />
@@ -164,51 +150,40 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
                 <div style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700, overflowWrap: "anywhere" }}>
                     {friendName(friend)}
                 </div>
-                {friend.nickname && <div style={modalBodyStyle()}>{friend.name}</div>}
                 <div style={{ ...modalBodyStyle(), color: friend.online ? achievementGreen : undefined, opacity: 1 }}>
                     {friendStatus(language, friend)}
                 </div>
-                {friendGame(friend) && <div style={{ ...modalBodyStyle(), overflowWrap: "anywhere" }}>{friendGame(friend)}</div>}
+                {gameLine && <div style={{ ...modalBodyStyle(), overflowWrap: "anywhere" }}>{gameLine}</div>}
+                {friend.raFriend && <div style={modalBodyStyle()}>{t(language, "RA friend")}</div>}
             </div>
         </div>
     );
     const dialogLine = <DialogLine {...line} />;
 
-    if (step === "rename" || step === "password") {
-        const renaming = step === "rename";
+    if (step === "password") {
         return (
             <ModalRoot onCancel={back} onEscKeypress={back}>
                 <SnapshotHotkey language={language} />
-                <SaveOnStart
-                    canSave={!busy}
-                    label={t(language, renaming ? "Save" : "Join")}
-                    onSave={() => void (renaming ? rename() : join())}
-                >
+                <SaveOnStart canSave={!busy} label={t(language, "Join")} onSave={() => void join()}>
                     {header}
-                    <div ref={fieldRef} data-focus-key={renaming ? "multiplayer:friendcard:nickname" : "multiplayer:friendcard:password"}>
+                    <div ref={fieldRef} data-focus-key="multiplayer:friendcard:password">
                         <TextField
-                            label={t(language, renaming ? "Nickname" : "Password")}
-                            value={renaming ? nickname : password}
-                            type={renaming ? undefined : "password"}
-                            bIsPassword={!renaming}
+                            label={t(language, "Password")}
+                            value={password}
+                            type="password"
+                            bIsPassword
                             disabled={busy}
                             onChange={(e: any) => {
-                                const value = String(e?.target?.value ?? "");
-                                if (renaming) {
-                                    setNickname(value.slice(0, NICKNAME_MAX));
-                                }
-                                else {
-                                    setPassword(value.slice(0, PASSWORD_MAX));
-                                    setLine({ tone: "hint", text: "" });
-                                }
+                                setPassword(String(e?.target?.value ?? "").slice(0, PASSWORD_MAX));
+                                setLine({ tone: "hint", text: "" });
                             }}
                         />
                     </div>
                     {dialogLine}
                     <Focusable style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "16px" }} flow-children="row">
                         <div data-focus-key="multiplayer:friendcard:save">
-                            <DialogButton onClick={() => void (renaming ? rename() : join())} disabled={busy || (!renaming && !password)}>
-                                {t(language, renaming ? "Save" : "Join")}
+                            <DialogButton onClick={() => void join()} disabled={busy || !password}>
+                                {t(language, "Join")}
                             </DialogButton>
                         </div>
                         <div data-focus-key="multiplayer:friendcard:back">
@@ -241,11 +216,11 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
     }
 
     const canJoin = Boolean(friend.online && friend.room) && !props.inRoom;
+    const offlineInvite = props.inRoom && props.linkUp && !friend.online && friend.seen > 0;
     return (
         <ModalRoot onCancel={close} onEscKeypress={close}>
             <SnapshotHotkey language={language} />
             {header}
-            {dialogLine}
             <Focusable style={buttonColumn} flow-children="column">
                 <div data-focus-key="multiplayer:friendcard:message">
                     <DialogButton onClick={messages} disabled={busy}>
@@ -257,7 +232,7 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
                 </div>
                 {props.inRoom && (
                     <div data-focus-key="multiplayer:friendcard:invite">
-                        <DialogButton onClick={() => void invite()} disabled={busy}>{t(language, "Invite to My Room")}</DialogButton>
+                        <DialogButton onClick={() => void invite()} disabled={busy || offlineInvite}>{t(language, "Invite to My Room")}</DialogButton>
                     </div>
                 )}
                 {canJoin && (
@@ -265,9 +240,6 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
                         <DialogButton onClick={() => void join()} disabled={busy}>{t(language, "Join Their Room")}</DialogButton>
                     </div>
                 )}
-                <div data-focus-key="multiplayer:friendcard:rename">
-                    <DialogButton onClick={() => setStep("rename")} disabled={busy}>{t(language, "Rename")}</DialogButton>
-                </div>
                 <div data-focus-key="multiplayer:friendcard:remove">
                     <DialogButton onClick={() => setStep("remove")} disabled={busy}>{t(language, "Remove")}</DialogButton>
                 </div>
@@ -275,6 +247,9 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
                     <DialogButton onClick={close}>{t(language, "Close")}</DialogButton>
                 </div>
             </Focusable>
+            {offlineInvite && !line.text
+                ? <DialogLine tone="hint" text={t(language, "{{name}} is offline. Invites reach online friends only.", { name: friendName(friend) })} />
+                : dialogLine}
         </ModalRoot>
     );
 }

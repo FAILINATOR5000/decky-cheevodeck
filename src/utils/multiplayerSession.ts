@@ -8,6 +8,7 @@ import {
     multiplayerLaunchStarted,
     multiplayerPrepareLaunch,
     multiplayerRestoreRecord,
+    multiplayerRunningApp,
     multiplayerStart,
     multiplayerStartCancel,
     refreshCurrentGame
@@ -282,7 +283,13 @@ function followCurrentGame() {
     }, FOLLOW_AFTER_MS);
 }
 
+function noteRunningApp(appid: number) {
+    const name = appid ? appStore.GetAppOverviewByAppID(appid)?.display_name ?? "" : "";
+    multiplayerRunningApp(name).catch((e) => logError("multiplayerRunningApp", e));
+}
+
 function onAppLifetime(event: SteamAppLifetimeEvent) {
+    noteRunningApp(event?.bRunning ? event.unAppID : 0);
     const record = launched;
     if (event?.bRunning && event.unAppID !== record?.appid) {
         const room = multiplayerRoomMarker();
@@ -365,6 +372,7 @@ export function registerMultiplayerSession() {
     }
     addEventListener(SESSION_EVENT, onSessionEvent);
     registered = true;
+    noteRunningApp(Number(Router.MainRunningApp?.appid ?? 0));
     stopRoomWatch = subscribeMultiplayerRoom(() => {
         const pending = multiplayerRoomMarker().autostart;
         if (pending) {

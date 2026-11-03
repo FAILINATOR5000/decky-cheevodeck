@@ -34,16 +34,16 @@ export function PicAvatar(props: { uri: string | undefined; name: string; size: 
     );
 }
 
-export function friendGame(friend: MultiplayerFriend): string {
-    return friend.online && friend.room ? friend.game : "";
+export function friendGame(language: LanguageCode, friend: MultiplayerFriend): string {
+    if (!friend.online || !friend.game) {
+        return "";
+    }
+    return friend.room ? friend.game : t(language, "Playing {{game}}", { game: friend.game });
 }
 
 export function friendStatus(language: LanguageCode, friend: MultiplayerFriend): string {
     if (friend.online && friend.room) {
-        return t(language, friend.room.playing ? "In-Game in {{room}}" : "In {{room}}", { room: friend.room.name });
-    }
-    if (friend.online && friend.game) {
-        return t(language, "Playing {{game}}", { game: friend.game });
+        return t(language, friend.room.playing ? "In a Room · In-Game" : "In a Room · Lobby");
     }
     if (friend.online) {
         return t(language, "Online");
@@ -79,6 +79,6 @@ export function NewPill(props: { language: LanguageCode; count: number }) {
     return <Pill>{t(props.language, "{{count}} new", { count: props.count })}</Pill>;
 }
 
-export function friendName(friend: { name: string; nickname?: string }): string {
-    return friend.nickname || friend.name;
+export function friendName(friend: { name: string }): string {
+    return friend.name;
 }

@@ -1987,6 +1987,13 @@ class MultiplayerService:
                     "playing": status is not None and status["state"] != "lobby"}
         return None
 
+    def room_game(self) -> str:
+        if self._room is not None:
+            return self._room["title"]
+        if self._joined is not None:
+            return self._joined["row"]["title"]
+        return ""
+
     def _take_report(self, room: dict, index: int, seat: dict, report) -> None:
         if report is None or report["seq"] <= seat["seq"]:
             return

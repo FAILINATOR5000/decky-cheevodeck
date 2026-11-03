@@ -1,5 +1,5 @@
 import { addEventListener, removeEventListener } from "@decky/api";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { multiplayerFriendAvatars, multiplayerFriends } from "../api";
 import type { MultiplayerFriendsState } from "../types";
@@ -18,12 +18,10 @@ export function useMultiplayerFriendsController({ isActive, tabOpen, seatPics }:
 }) {
     const [data, setData] = useState<MultiplayerFriendsState | null>(null);
     const [avatars, setAvatars] = useState<Record<string, string>>(() => Object.fromEntries(avatarMemory));
-    const tabOpenRef = useRef(tabOpen);
-    tabOpenRef.current = tabOpen;
 
     const load = useCallback(async () => {
         try {
-            setData(await multiplayerFriends(tabOpenRef.current));
+            setData(await multiplayerFriends());
         }
         catch (e) {
             logError("multiplayerFriends", e);

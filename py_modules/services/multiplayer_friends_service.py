@@ -7,7 +7,7 @@ import time
 
 import decky
 import multiplayer_protocol as proto
-from multiplayer_friends_store import clean_name, clean_nickname, clean_pic, clean_text, is_ulid
+from multiplayer_friends_store import MAX_DISMISSED, clean_name, clean_pic, clean_text, is_ulid
 from multiplayer_messages_store import MAX_MESSAGES
 from nearby_protocol import FrameError, canonical
 from notifications import emit_notification, is_type_enabled
@@ -18,11 +18,10 @@ FRIEND_KIND = "cheevodeck.friend"
 FRIENDS_EVENT = "cheevodeck_multiplayer_friends"
 
 PING_SECONDS = 20
-UPDATE_SECONDS = 60
+REPORT_REFRESH_SECONDS = 300
 SILENT_SECONDS = 75
 REPLY_SECONDS = 5
 RETRY_SECONDS = (2, 5, 10, 15, 30)
-TAB_LEASE_SECONDS = 20
 INVITE_SECONDS = 600
 INVITE_WAIT_SECONDS = 2
 SELF_PIC_SECONDS = 7 * 86400
@@ -74,11 +73,10 @@ class _Listener(asyncio.DatagramProtocol):
 
 class MultiplayerFriendsService:
     def __init__(self, *, store, messages_store, settings_store, game_mode, multiplayer, notifications_store,
-                 ra_friends, cache_store, ra_call, ra, port: int = FRIEND_PORT, peer_port: int = FRIEND_PORT,
+                 ra_friends, ra_call, ra, port: int = FRIEND_PORT, peer_port: int = FRIEND_PORT,
                  broadcast: str = "255.255.255.255"):
         self._store = store
         self._messages = messages_store
-        self._cache_store = cache_store
         self._settings_store = settings_store
         self._game_mode = game_mode
         self._mp = multiplayer
@@ -96,7 +94,6 @@ class MultiplayerFriendsService:
         self._send_lock = None
         self._up = False
         self._refused = ""
-        self._lease_until = 0.0
         self._presence = {}
         self._suggestions = []
         self._waiting = {}
@@ -107,6 +104,9 @@ class MultiplayerFriendsService:
         self._heard_at = []
         self._sent_report = None
         self._sent_room = None
+        self._report_stale = True
+        self._report_at = 0.0
+        self._running_name = ""
         self._session_account = ""
         self._acks = []
         self._tasks = set()
@@ -185,6 +185,7 @@ class MultiplayerFriendsService:
             decky.logger.warning("friends: couldn't save (%s)", type(e).__name__)
             return None
         if result:
+            self._report_stale = True
             self._changed()
         return result
 
@@ -198,10 +199,7 @@ class MultiplayerFriendsService:
         if self._refused or not self._game_mode() or not self._on() or not self._me() \
                 or self._mp.lobby_server() is None:
             return False
-        if time.monotonic() < self._lease_until:
-            return True
-        data = self._data()
-        return bool(data and (data["friends"] or data["requests"] or data["outbox"]))
+        return True
 
     def _follow(self) -> None:
         if self._loop is None:
@@ -219,10 +217,6 @@ class MultiplayerFriendsService:
             self._spawn(self._open_listener())
         elif not listen:
             self._close_listener()
-
-    def touch(self) -> None:
-        self._lease_until = time.monotonic() + TAB_LEASE_SECONDS
-        self._follow()
 
     def identity(self) -> tuple:
         if not self._on():
@@ -281,6 +275,7 @@ class MultiplayerFriendsService:
                     future.set_result(None)
             self._waiting = {}
             self._sent_report = None
+            self._report_stale = True
             self._sent_room = None
             if self._up:
                 self._presence = {}
@@ -292,12 +287,16 @@ class MultiplayerFriendsService:
     def _report(self, data) -> dict:
         cfg = self._cfg()
         suggest = bool(cfg.get("mpSuggestFriends", True))
+        visible = bool(cfg.get("mpShowOnline", True))
+        presence = {"game": "", "room": None}
+        if visible:
+            presence = {"game": self._game(), "room": self._mp.current_room()}
         return {
-            "visible": bool(cfg.get("mpShowOnline", True)),
+            "visible": visible,
             "suggest": suggest,
             "friends": [friend["ulid"] for friend in data["friends"]][:LIST_MAX],
             "ra": self._mutual_follows() if suggest else [],
-            "presence": {"game": self._playing(), "room": self._mp.current_room()},
+            "presence": presence,
         }
 
     def _mutual_follows(self) -> list:
@@ -310,16 +309,15 @@ class MultiplayerFriendsService:
         rows = payload.get("friends") if isinstance(payload, dict) else None
         return [row for row in rows if isinstance(row, dict)] if isinstance(rows, list) else []
 
-    def _playing(self) -> str:
-        cached = self._cache_store.load_payload()
-        meta = cached.get("meta") if isinstance(cached, dict) else None
-        payload = cached.get("payload") if isinstance(cached, dict) else None
-        if not isinstance(meta, dict) or not isinstance(payload, dict):
-            return ""
-        finished = meta.get("refreshFinishedAt")
-        if type(finished) is not int or time.time() - finished > 1800 or not meta.get("gameId"):
-            return ""
-        return proto.clean_chat(payload.get("title"))[:64]
+    def _game(self) -> str:
+        title = proto.clean_chat(self._mp.room_game())[:64]
+        return title or self._running_name
+
+    def running_app(self, name: str) -> None:
+        name = proto.clean_chat(name)[:64]
+        if name != self._running_name:
+            self._running_name = name
+            self.report_changed()
 
     async def _session(self, server) -> bool:
         data = self._store.ensure()
@@ -336,8 +334,9 @@ class MultiplayerFriendsService:
                 return False
             verifier = hashlib.sha256(bytes.fromhex(data["deviceSecret"])).hexdigest()
             proof = hmac.new(bytes.fromhex(verifier), ("device|" + nonce).encode("ascii"), hashlib.sha256).hexdigest()
+            report = self._report(data)
             hello = {"op": "hello", "ulid": self._me(), "name": name, "pic": data["selfPic"], "proof": proof,
-                     **self._report(data)}
+                     **report}
             if challenge.get("known") is not True:
                 hello["verifier"] = verifier
             writer.write(lobby_client.envelope(hello))
@@ -350,7 +349,10 @@ class MultiplayerFriendsService:
                     decky.logger.warning("friends: the lobby server refused this device (%s)", error)
                     self._changed()
                 return False
-            self._sent_report = canonical(hello)
+            self._sent_report = canonical(report)
+            self._sent_room = report["presence"]["room"]
+            self._report_stale = False
+            self._report_at = time.monotonic()
             self._session_account = self._me()
             self._acks = []
             self._writer = writer
@@ -371,7 +373,6 @@ class MultiplayerFriendsService:
         return True
 
     async def _keep(self) -> None:
-        ticks = 0
         while True:
             await asyncio.sleep(PING_SECONDS)
             if not self._wanted():
@@ -379,11 +380,8 @@ class MultiplayerFriendsService:
                 if writer is not None:
                     writer.close()
                 return
-            ticks += 1
             await self._send({"op": "ping"})
-            if ticks * PING_SECONDS >= UPDATE_SECONDS:
-                ticks = 0
-                await self._update(force=True)
+            await self._update()
 
     async def _send(self, message: dict) -> bool:
         writer = self._writer
@@ -397,13 +395,20 @@ class MultiplayerFriendsService:
                 return False
         return True
 
-    async def _update(self, force: bool = False) -> None:
-        data = self._data()
-        if data is None or not self._up:
+    async def _update(self) -> None:
+        if not self._up:
             return
+        now = time.monotonic()
+        if not self._report_stale and now - self._report_at < REPORT_REFRESH_SECONDS:
+            return
+        data = self._data()
+        if data is None:
+            return
+        self._report_stale = False
+        self._report_at = now
         report = self._report(data)
         said = canonical(report)
-        if not force and said == self._sent_report:
+        if said == self._sent_report:
             return
         self._sent_report = said
         self._sent_room = report["presence"]["room"]
@@ -415,9 +420,11 @@ class MultiplayerFriendsService:
         room = self._mp.current_room()
         if room != self._sent_room:
             self._sent_room = room
+            self._report_stale = True
             self._spawn(self._update())
 
     def report_changed(self) -> None:
+        self._report_stale = True
         if self._up:
             self._spawn(self._update())
 
@@ -587,7 +594,7 @@ class MultiplayerFriendsService:
             if mine is None or mine["way"] != "out" or mine["via"] != via:
                 return False
             stored["requests"].remove(mine)
-            stored["friends"].append({"ulid": ulid, "name": name, "nickname": "", "pairKey": mine["pairKey"],
+            stored["friends"].append({"ulid": ulid, "name": name, "pairKey": mine["pairKey"],
                                       "userPic": pic or mine["userPic"], "added": int(time.time()), "via": via})
             return True
         if self._mutate(keep):
@@ -607,7 +614,7 @@ class MultiplayerFriendsService:
                 friend["pairKey"] = key
                 friend["via"] = via
                 return True
-            stored["friends"].append({"ulid": ulid, "name": name, "nickname": "", "pairKey": key,
+            stored["friends"].append({"ulid": ulid, "name": name, "pairKey": key,
                                       "userPic": pic, "added": int(time.time()), "via": via})
             return True
         if self._mutate(keep):
@@ -694,9 +701,7 @@ class MultiplayerFriendsService:
             line_key=line,
         )
 
-    def state(self, open_tab: bool) -> dict:
-        if open_tab:
-            self.touch()
+    def state(self) -> dict:
         cfg = self._cfg()
         data = self._data() if self._me() else None
         ra = {row.get("ulid") for row in self._ra_rows() if is_ulid(row.get("ulid"))}
@@ -709,7 +714,6 @@ class MultiplayerFriendsService:
                 friends.append({
                     "ulid": friend["ulid"],
                     "name": friend["name"],
-                    "nickname": friend["nickname"],
                     "pic": friend["userPic"],
                     "raFriend": friend["ulid"] in ra,
                     "online": bool(seen.get("online")),
@@ -720,11 +724,13 @@ class MultiplayerFriendsService:
                     "newest": data["newestAt"].get(friend["ulid"], 0),
                     "added": friend["added"],
                 })
-            friends.sort(key=lambda row: (not row["online"], (row["nickname"] or row["name"]).lower()))
+            friends.sort(key=lambda row: (not row["online"], row["name"].lower()))
             requests = [{"ulid": request["ulid"], "name": request["name"], "pic": request["userPic"],
                          "way": request["way"], "at": request["at"]} for request in data["requests"]]
             alerts = list(data["alerts"])
         known = {row["ulid"] for row in friends} | {row["ulid"] for row in requests}
+        if data is not None:
+            known |= set(data["dismissed"])
         return {
             "ok": True,
             "on": self._on(cfg),
@@ -741,7 +747,7 @@ class MultiplayerFriendsService:
         }
 
     async def _until_up(self) -> bool:
-        self.touch()
+        self._follow()
         for _tick in range(int(REPLY_SECONDS * 10)):
             if self._up or self._refused:
                 break
@@ -860,16 +866,16 @@ class MultiplayerFriendsService:
             self._mutate(later)
         return {"ok": True}
 
-    def rename(self, ulid: str, nickname: str) -> dict:
-        nickname = clean_nickname(nickname)
+    def dismiss(self, ulid: str) -> dict:
+        if not is_ulid(ulid):
+            return {"ok": False, "error": "unavailable"}
 
         def keep(stored):
-            friend = self._find(stored, ulid)
-            if friend is None or friend["nickname"] == nickname:
+            if ulid in stored["dismissed"]:
                 return False
-            friend["nickname"] = nickname
+            stored["dismissed"] = (stored["dismissed"] + [ulid])[-MAX_DISMISSED:]
             return True
-        self._mutate(keep)
+        self._mutate(keep, ulid=self._me())
         return {"ok": True}
 
     def messages(self, ulid: str) -> dict:
@@ -945,7 +951,7 @@ class MultiplayerFriendsService:
             stored["newestAt"][sender] = at
             return True
         if self._mutate(keep, ulid=account):
-            self._notify(friend["nickname"] or friend["name"], "New message", f"multiplayer:friend:{sender}",
+            self._notify(friend["name"], "New message", f"multiplayer:friend:{sender}",
                          {"friend": sender, "conversation": True})
 
     async def alert(self, device: str, revoke: bool) -> dict:
@@ -993,7 +999,7 @@ class MultiplayerFriendsService:
             try:
                 await asyncio.wait_for(asyncio.shield(heard), INVITE_WAIT_SECONDS)
             except asyncio.TimeoutError:
-                return {"ok": False, "error": "not_online", "name": friend["nickname"] or friend["name"]}
+                return {"ok": False, "error": "not_online", "name": friend["name"]}
         finally:
             self._invite_acks.pop(iid, None)
         return {"ok": True}
@@ -1039,7 +1045,7 @@ class MultiplayerFriendsService:
             "address": body["addr"] if proto.is_ipv4(body.get("addr")) else "",
             "until": now + INVITE_SECONDS,
         }
-        self._notify(friend["nickname"] or friend["name"], "Room invite", "multiplayer:leave",
+        self._notify(friend["name"], "Room invite", "multiplayer:leave",
                      {"friend": sender, "invite": iid})
 
     def _ack_invite(self, friend: dict, iid: str, addr) -> None:
