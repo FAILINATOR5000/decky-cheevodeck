@@ -206,6 +206,7 @@ export function useSettingsController({
     const [batterySaverDisablesFileWatcher, setBatterySaverDisablesFileWatcher] = useState(true);
     const [batterySaverDisablesMemories, setBatterySaverDisablesMemories] = useState(false);
     const [batterySaverDisablesMilestones, setBatterySaverDisablesMilestones] = useState(true);
+    const [batterySaverDisablesEzFriends, setBatterySaverDisablesEzFriends] = useState(true);
     const [notifyNoteReminderEnabled, setNotifyNoteReminderEnabled] = useState(true);
     const [notifyNoteReminderToast, setNotifyNoteReminderToast] = useState(true);
     const [notifyTrackedSetEnabled, setNotifyTrackedSetEnabled] = useState(true);
@@ -508,6 +509,7 @@ export function useSettingsController({
         setBatterySaverDisablesFileWatcher(source.batterySaverDisablesFileWatcher);
         setBatterySaverDisablesMemories(source.batterySaverDisablesMemories);
         setBatterySaverDisablesMilestones(source.batterySaverDisablesMilestones);
+        setBatterySaverDisablesEzFriends(source.batterySaverDisablesEzFriends);
         setNotifyNoteReminderEnabled(source.notifyNoteReminderEnabled);
         setNotifyNoteReminderToast(source.notifyNoteReminderToast);
         setNotifyTrackedSetEnabled(source.notifyTrackedSetEnabled);
@@ -791,6 +793,7 @@ export function useSettingsController({
         batterySaverDisablesFileWatcher,
         batterySaverDisablesMemories,
         batterySaverDisablesMilestones,
+        batterySaverDisablesEzFriends,
         notifyNoteReminderEnabled,
         notifyNoteReminderToast,
         notifyTrackedSetEnabled,
@@ -1005,6 +1008,7 @@ export function useSettingsController({
         setLinksOpenInWebBrowser,
         setBatterySaverDisablesMemories,
         setBatterySaverDisablesMilestones,
+        setBatterySaverDisablesEzFriends,
         setFileWatcherSpeed,
         setFileWatcherRunDuringGames,
         setTrackedSetAButtonMode,

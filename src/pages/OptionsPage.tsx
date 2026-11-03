@@ -284,6 +284,7 @@ type OptionsPageState = {
     batterySaverDisablesFileWatcher: boolean;
     batterySaverDisablesMemories: boolean;
     batterySaverDisablesMilestones: boolean;
+    batterySaverDisablesEzFriends: boolean;
     doNotDisturbDisablesDot: boolean;
     doNotDisturbDisablesToast: boolean;
     nightModeBrightness: number;
@@ -419,6 +420,7 @@ type OptionsPageActions = {
     onCycleMemoriesPerPage: () => void | Promise<void>;
     onToggleBatterySaverDisablesMemories: (next: boolean) => void | Promise<void>;
     onToggleBatterySaverDisablesMilestones: (next: boolean) => void | Promise<void>;
+    onToggleBatterySaverDisablesEzFriends: (next: boolean) => void | Promise<void>;
     onDeleteAllMemories: () => void | Promise<void>;
     onSelectOptionsTab: (tab: OptionsTab) => void;
     onClearGameData: () => void | Promise<void>;
@@ -1207,6 +1209,15 @@ function SystemTab(props: TabContentProps) {
                 onChange={actions.onToggleBatterySaverDisablesMilestones}
                 disabled={disabled}
                 help={t(state.language, "help_battery_saver_milestones")}
+            />
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:batterySaverDisablesEzFriends"
+                label={t(state.language, "EZ Multiplayer Friends")}
+                value={state.batterySaverDisablesEzFriends}
+                onChange={actions.onToggleBatterySaverDisablesEzFriends}
+                disabled={disabled}
+                help={t(state.language, "help_battery_saver_ez_friends")}
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}

@@ -172,6 +172,7 @@ import {
     saveBatterySaverDisablesFileWatcher,
     saveBatterySaverDisablesMemories,
     saveBatterySaverDisablesMilestones,
+    saveBatterySaverDisablesEzFriends,
     saveDoNotDisturbDisablesDot,
     saveDoNotDisturbDisablesToast,
     saveNightModeBrightness,
@@ -520,6 +521,7 @@ type UseOptionsControllerArgs = {
     linksOpenInWebBrowser: boolean;
     batterySaverDisablesMemories: boolean;
     batterySaverDisablesMilestones: boolean;
+    batterySaverDisablesEzFriends: boolean;
     legacyCommentsLoading: boolean;
     batterySaverDisablesSocialActivity: boolean;
     batterySaverDisablesComments: boolean;
@@ -601,6 +603,7 @@ type UseOptionsControllerArgs = {
     setBatterySaverDisablesFileWatcher: Dispatch<SetStateAction<boolean>>;
     setBatterySaverDisablesMemories: Dispatch<SetStateAction<boolean>>;
     setBatterySaverDisablesMilestones: Dispatch<SetStateAction<boolean>>;
+    setBatterySaverDisablesEzFriends: Dispatch<SetStateAction<boolean>>;
     setFileWatcherSpeed: Dispatch<SetStateAction<FileWatcherSpeed>>;
     setFileWatcherRunDuringGames: Dispatch<SetStateAction<boolean>>;
     setDoNotDisturbDisablesDot: Dispatch<SetStateAction<boolean>>;
@@ -1005,6 +1008,7 @@ export function buildOptionsController({
     linksOpenInWebBrowser,
     batterySaverDisablesMemories,
     batterySaverDisablesMilestones,
+    batterySaverDisablesEzFriends,
     legacyCommentsLoading,
     batterySaverDisablesSocialActivity,
     batterySaverDisablesComments,
@@ -1079,6 +1083,7 @@ export function buildOptionsController({
     setLinksOpenInWebBrowser,
     setBatterySaverDisablesMemories,
     setBatterySaverDisablesMilestones,
+    setBatterySaverDisablesEzFriends,
     setLegacyCommentsLoading,
     setBatterySaverDisablesSocialActivity,
     setBatterySaverDisablesComments,
@@ -1341,6 +1346,7 @@ export function buildOptionsController({
         setBatterySaverDisablesFileWatcher(Boolean(result.batterySaverDisablesFileWatcher ?? true));
         setBatterySaverDisablesMemories(Boolean(result.batterySaverDisablesMemories ?? true));
         setBatterySaverDisablesMilestones(Boolean(result.batterySaverDisablesMilestones ?? true));
+        setBatterySaverDisablesEzFriends(Boolean(result.batterySaverDisablesEzFriends ?? true));
         setMemoriesPerPage(result.memoriesPerPage ?? 32);
         setMemoriesDeleteSource(Boolean(result.memoriesDeleteSource));
         setMemoriesVideo(Boolean(result.memoriesVideo ?? true));
@@ -3506,6 +3512,15 @@ export function buildOptionsController({
             getSavedValue: (result, fallbackValue) => Boolean(result.batterySaverDisablesMilestones ?? fallbackValue),
         });
 
+    const onToggleBatterySaverDisablesEzFriends = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: batterySaverDisablesEzFriends,
+            applyValue: setBatterySaverDisablesEzFriends,
+            saveCall: saveBatterySaverDisablesEzFriends,
+            getSavedValue: (result, fallbackValue) => Boolean(result.batterySaverDisablesEzFriends ?? fallbackValue),
+        });
+
     const onToggleDeferModalCleanup = (nextValue: boolean) =>
         saveSettingWithRollback<boolean>({
             nextValue,
@@ -4004,6 +4019,7 @@ export function buildOptionsController({
         memoriesCount,
         batterySaverDisablesMemories,
         batterySaverDisablesMilestones,
+        batterySaverDisablesEzFriends,
         legacyCommentsLoading,
         batterySaverDisablesSocialActivity,
         batterySaverDisablesComments,
@@ -4278,6 +4294,7 @@ export function buildOptionsController({
         onCycleLinksOpenInWebBrowser,
         onToggleBatterySaverDisablesMemories,
         onToggleBatterySaverDisablesMilestones,
+        onToggleBatterySaverDisablesEzFriends,
         onToggleLegacyCommentsLoading,
         onToggleBatterySaverDisablesSocialActivity,
         onToggleBatterySaverDisablesComments,

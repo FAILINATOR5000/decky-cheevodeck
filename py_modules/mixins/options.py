@@ -56,6 +56,8 @@ class OptionsMixin(PluginContext):
         decky.logger.info("battery saver turned %s", "ON" if value else "OFF")
         if value:
             self.milestones_service.record_event("standby_on")
+        if self.settings_store.get_battery_saver_disables_ez_friends(self.settings_store.load_config()):
+            self.multiplayer_friends_service.settings_changed()
 
         return {
             "ok": True,
@@ -116,6 +118,15 @@ class OptionsMixin(PluginContext):
         return {
             "ok": True,
             "batterySaverDisablesMilestones": value,
+        }
+
+    async def save_battery_saver_disables_ez_friends(self, value: bool):
+        value = self.settings_store.update_battery_saver_disables_ez_friends(value)
+        self.multiplayer_friends_service.settings_changed()
+
+        return {
+            "ok": True,
+            "batterySaverDisablesEzFriends": value,
         }
 
     async def save_battery_saver_disables_file_watcher(self, value: bool):

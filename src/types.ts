@@ -896,6 +896,7 @@ export type SettingsResponse = {
     batterySaverDisablesFileWatcher: boolean;
     batterySaverDisablesMemories: boolean;
     batterySaverDisablesMilestones: boolean;
+    batterySaverDisablesEzFriends: boolean;
     notifyNoteReminderEnabled: boolean;
     notifyNoteReminderToast: boolean;
     notifyTrackedSetEnabled: boolean;
@@ -3063,6 +3064,7 @@ export type MultiplayerSuggestion = { ulid: string; name: string; pic: string };
 export type MultiplayerFriendsState = {
     ok: boolean;
     on: boolean;
+    standby: boolean;
     me: string;
     selfPic: string;
     server: boolean;

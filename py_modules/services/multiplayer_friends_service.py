@@ -177,6 +177,11 @@ class MultiplayerFriendsService:
         cfg = cfg if cfg is not None else self._cfg()
         return bool(cfg.get("mpFriendsEnabled", True))
 
+    def _standby(self, cfg=None) -> bool:
+        cfg = cfg if cfg is not None else self._cfg()
+        settings = self._settings_store
+        return bool(settings.get_battery_saver(cfg)) and bool(settings.get_battery_saver_disables_ez_friends(cfg))
+
     def _me(self) -> str:
         ulid = self._store.ulid
         return ulid if is_ulid(ulid) else ""
@@ -209,7 +214,8 @@ class MultiplayerFriendsService:
         asyncio.run_coroutine_threadsafe(decky.emit(FRIENDS_EVENT, {}), loop)
 
     def _wanted(self) -> bool:
-        if self._refused or not self._game_mode() or not self._on() or not self._me() \
+        cfg = self._cfg()
+        if self._refused or not self._game_mode() or not self._on(cfg) or self._standby(cfg) or not self._me() \
                 or self._mp.lobby_server() is None:
             return False
         return True
@@ -225,7 +231,8 @@ class MultiplayerFriendsService:
             self._link = None
             self._set_up(False)
         data = self._data()
-        listen = self._game_mode() and self._on() and bool(self._me()) and bool(data and data["friends"])
+        listen = self._game_mode() and self._on() and not self._standby() and bool(self._me()) \
+            and bool(data and data["friends"])
         if listen and self._listener is None:
             self._spawn(self._open_listener())
         elif not listen:
@@ -776,6 +783,7 @@ class MultiplayerFriendsService:
         return {
             "ok": True,
             "on": self._on(cfg),
+            "standby": self._standby(cfg),
             "me": self._me(),
             "selfPic": data["selfPic"] if data is not None else "",
             "server": self._mp.lobby_server() is not None,

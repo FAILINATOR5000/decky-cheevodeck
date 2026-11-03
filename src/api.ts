@@ -979,6 +979,10 @@ export const saveBatterySaverDisablesMilestones = callable<
     [boolean],
     { ok: boolean; batterySaverDisablesMilestones: boolean }
 >("save_battery_saver_disables_milestones");
+export const saveBatterySaverDisablesEzFriends = callable<
+    [boolean],
+    { ok: boolean; batterySaverDisablesEzFriends: boolean }
+>("save_battery_saver_disables_ez_friends");
 export const saveFileWatcherSpeed = callable<
     [FileWatcherSpeed],
     { ok: boolean; fileWatcherSpeed: FileWatcherSpeed }

@@ -142,9 +142,10 @@ export function FriendsTab(props: FriendsTabProps) {
     const inRoom = mp.hosted !== null || mp.joined !== null;
     const status = !data ? ""
         : !data.on ? "Friends are off. Turn them on in Options, Social."
-            : !data.server ? "Set a lobby server in Options first"
-                : data.refused ? "The lobby server refused this device"
-                    : !data.up ? "Connecting to the lobby server..." : "";
+            : data.standby ? "Friends are paused while Standby is on."
+                : !data.server ? "Set a lobby server in Options first"
+                    : data.refused ? "The lobby server refused this device"
+                        : !data.up ? "Connecting to the lobby server..." : "";
 
     return (
         <>

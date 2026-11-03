@@ -590,6 +590,7 @@ _KNOBS = (
     Knob("batterySaverDisablesFileWatcher", default=True, normalize=True),
     Knob("batterySaverDisablesMemories", default=True, normalize=True),
     Knob("batterySaverDisablesMilestones", default=True, normalize=True),
+    Knob("batterySaverDisablesEzFriends", default=True, normalize=True),
     Knob("notifyNoteReminderEnabled", default=True),
     Knob("notifyNoteReminderToast", default=True),
     Knob("notifyTrackedSetEnabled", default=True),
@@ -1863,6 +1864,11 @@ class SettingsStore:
         cfg = self._update_config("batterySaverDisablesMilestones", bool(value))
 
         return self.get_battery_saver_disables_milestones(cfg)
+
+    def update_battery_saver_disables_ez_friends(self, value: bool) -> bool:
+        cfg = self._update_config("batterySaverDisablesEzFriends", bool(value))
+
+        return self.get_battery_saver_disables_ez_friends(cfg)
 
     def update_battery_saver_disables_file_watcher(self, value: bool) -> bool:
         cfg = self._update_config("batterySaverDisablesFileWatcher", bool(value))
@@ -4741,6 +4747,9 @@ class SettingsStore:
 
     def get_battery_saver_disables_milestones(self, cfg: dict) -> bool:
         return bool(cfg.get("batterySaverDisablesMilestones", True))
+
+    def get_battery_saver_disables_ez_friends(self, cfg: dict) -> bool:
+        return bool(cfg.get("batterySaverDisablesEzFriends", True))
 
     def get_file_watcher_run_during_games(self, cfg: dict) -> bool:
         return bool(cfg.get("fileWatcherRunDuringGames", True))
