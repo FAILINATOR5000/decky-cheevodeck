@@ -463,6 +463,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         <>
             <PanelSectionRow>
                 <FocusableItem
+                    bottomSeparator="none"
                     outerStyle={buttonStyle}
                     focusKey="multiplayer:core"
                     focusFallback={["multiplayer:host", "multiplayer:back"]}
@@ -476,6 +477,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             {mp.mode === "link" && local?.core === "gpsp" && (
                 <PanelSectionRow>
                     <FocusableItem
+                        bottomSeparator="none"
                         outerStyle={buttonStyle}
                         focusKey="multiplayer:linkgames"
                         focusFallback={["multiplayer:core", "multiplayer:back"]}
@@ -553,6 +555,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const hardcoreLocked = mp.mode === "couch" && roomLocked;
     const hardcoreRow = (mp.mode === "link" || !couchGuest) && (
         <ToggleRow
+            bottomSeparator="none"
             controlled
             label={t(language, "Hardcore")}
             value={mp.hardcore}
@@ -567,6 +570,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
 
     const shareRow = (
         <ToggleRow
+            bottomSeparator="none"
             controlled
             label={t(language, "Share Controls")}
             value={mp.shareControls}
@@ -582,6 +586,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
 
     const watchRow = (
         <ToggleRow
+            bottomSeparator="none"
             controlled
             label={t(language, "Watch Only")}
             value={mp.watchOnly}
@@ -597,6 +602,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const roomButton = joined ? (
         <PanelSectionRow>
             <FocusableItem
+                bottomSeparator="none"
                 outerStyle={buttonStyle}
                 focusKey="multiplayer:leave"
                 focusFallback={["multiplayer:back"]}
@@ -609,6 +615,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         <>
             <PanelSectionRow>
                 <FocusableItem
+                    bottomSeparator="none"
                     outerStyle={buttonStyle}
                     focusKey="multiplayer:host"
                     focusFallback={[`multiplayer:mode:${mp.mode}`, "multiplayer:back"]}
@@ -621,6 +628,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             {!hosted && (
                 <PanelSectionRow>
                     <FocusableItem
+                        bottomSeparator="none"
                         outerStyle={buttonStyle}
                         focusKey="multiplayer:find"
                         focusFallback={["multiplayer:host", `multiplayer:mode:${mp.mode}`, "multiplayer:back"]}
@@ -661,6 +669,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             </PanelSectionRow>
             <PanelSectionRow>
                 <FocusableItem
+                    bottomSeparator="none"
                     outerStyle={buttonStyle}
                     focusKey="multiplayer:say"
                     focusFallback={["multiplayer:chathistory", exitKey, "multiplayer:back"]}
@@ -671,6 +680,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             </PanelSectionRow>
             <PanelSectionRow>
                 <FocusableItem
+                    bottomSeparator="none"
                     outerStyle={buttonStyle}
                     focusKey="multiplayer:chathistory"
                     focusFallback={["multiplayer:say", exitKey, "multiplayer:back"]}
@@ -699,6 +709,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const inviteRow = seatFree && friends.state.data?.on && friends.state.data.friends.length > 0 && (
         <PanelSectionRow>
             <FocusableItem
+                bottomSeparator="none"
                 outerStyle={buttonStyle}
                 focusKey="multiplayer:invite"
                 focusFallback={["multiplayer:say", exitKey, "multiplayer:back"]}
@@ -790,6 +801,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const notesRow = (warnings.length > 0 || tips.length > 0) && (
         <PanelSectionRow>
             <FocusableItem
+                bottomSeparator="none"
                 outerStyle={buttonStyle}
                 focusKey="multiplayer:notes"
                 focusFallback={[inSession ? "multiplayer:chathistory" : "multiplayer:find", "multiplayer:back"]}
@@ -813,6 +825,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             {showChangeGame && (
                 <PanelSectionRow>
                     <FocusableItem
+                        bottomSeparator="none"
                         outerStyle={buttonStyle}
                         focusKey="multiplayer:changegame"
                         focusFallback={["multiplayer:core", hosted ? "multiplayer:host" : "multiplayer:leave", "multiplayer:back"]}
@@ -885,7 +898,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                             }}
                             landingWindows={landingWindows}
                         />
-                        <BottomFocusAnchor focusKey="multiplayer:friends:anchor" />
                     </Focusable>
                 )}
 

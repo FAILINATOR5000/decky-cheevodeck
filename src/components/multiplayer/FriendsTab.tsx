@@ -14,6 +14,7 @@ import { announceShowOnlineChanged } from "../../utils/showOnlineChanged";
 import { achievementGreen, bodyTextStyle, compactButtonStyle, warnAmber } from "../../utils/style";
 import { FocusableItem } from "../ui/FocusableItem";
 import { FocusTarget } from "../ui/FocusTarget";
+import { BottomFocusAnchor } from "../ui/BottomFocusAnchor";
 import { SectionTitle } from "../ui/SectionTitle";
 import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { ToggleRow } from "../ui/ToggleRow";
@@ -184,6 +185,7 @@ export function FriendsTab(props: FriendsTabProps) {
             )}
             <PanelSectionRow>
                 <FocusableItem
+                    bottomSeparator="none"
                     focusKey={ADD_KEY}
                     focusFallback={["multiplayer:tab:friends", "multiplayer:back"]}
                     disabled={!data?.on || !data.server}
@@ -249,7 +251,13 @@ export function FriendsTab(props: FriendsTabProps) {
                             <div style={{ display: "flex", gap: "10px", alignItems: "flex-start", minWidth: 0, width: "100%", textAlign: "left" }}>
                                 <PicAvatar uri={avatars[row.pic]} name={row.name} size={textSize(AVATAR_PX)} />
                                 <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1 }}>
-                                    <span style={{ fontWeight: 800, overflowWrap: "anywhere" }}>
+                                    <span
+                                        style={{
+                                            fontWeight: 800,
+                                            overflowWrap: "anywhere",
+                                            color: item.kind === "request" && item.row.way === "in" ? achievementGreen : undefined
+                                        }}
+                                    >
                                         {item.kind === "friend" ? friendName(item.row) : row.name}
                                         {item.kind === "friend" && item.row.unread > 0 && (
                                             <span style={{ marginLeft: "8px" }}>
@@ -389,6 +397,9 @@ export function FriendsTab(props: FriendsTabProps) {
                     })}
                 </SlidingWindowRows>
             </Focusable>
+            {data && items.length === 0 && (
+                <BottomFocusAnchor focusKey="multiplayer:friends:anchor" focusFallback={[ADD_KEY, "multiplayer:back"]} />
+            )}
         </>
     );
 }
