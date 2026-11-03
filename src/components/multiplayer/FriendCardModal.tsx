@@ -179,10 +179,10 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
                             }}
                         />
                     </div>
-                    {dialogLine}
                     <Focusable style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "16px" }} flow-children="row">
+                        <DialogLine {...line} beside />
                         <div data-focus-key="multiplayer:friendcard:save">
-                            <DialogButton onClick={() => void join()} disabled={busy || !password}>
+                            <DialogButton onClick={() => void join()} disabled={busy || !password} focusable={Boolean(password) || busy}>
                                 {t(language, "Join")}
                             </DialogButton>
                         </div>

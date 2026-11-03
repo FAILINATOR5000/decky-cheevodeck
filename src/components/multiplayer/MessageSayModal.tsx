@@ -69,10 +69,10 @@ function MessageSayModal(props: { language: LanguageCode; ulid: string; name: st
                 <div style={{ ...modalBodyStyle(), marginTop: "4px", textAlign: "right" }}>
                     {`${text.length}/${MESSAGE_MAX}`}
                 </div>
-                <DialogLine {...line} />
                 <Focusable style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "16px" }} flow-children="row">
+                    <DialogLine {...line} beside />
                     <div data-focus-key="multiplayer:message:send">
-                        <DialogButton onClick={() => void send()} disabled={!canSend}>{t(language, "Send")}</DialogButton>
+                        <DialogButton onClick={() => void send()} disabled={!canSend} focusable={canSend || busy}>{t(language, "Send")}</DialogButton>
                     </div>
                     <div data-focus-key="multiplayer:message:cancel">
                         <DialogButton onClick={close}>{t(language, "Cancel")}</DialogButton>

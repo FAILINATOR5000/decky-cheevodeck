@@ -1,5 +1,5 @@
 import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { multiplayerFriendInvite, multiplayerFriends } from "../../api";
 import { useSlidingWindow } from "../../hooks/useSlidingWindow";
@@ -25,6 +25,8 @@ function InviteFriendsModal(props: { language: LanguageCode; avatars: Record<str
     const [friends, setFriends] = useState<MultiplayerFriend[] | null>(null);
     const [busy, setBusy] = useState(false);
     const [linkUp, setLinkUp] = useState(false);
+    const rowsRef = useRef<HTMLDivElement | null>(null);
+    const landed = useRef(false);
     const [line, setLine] = useState<DialogLineState>(
         () => ({ tone: "hint", text: t(language, "Pick a friend to invite to your room.") })
     );
@@ -42,6 +44,15 @@ function InviteFriendsModal(props: { language: LanguageCode; avatars: Record<str
             }
         })();
     }, []);
+
+    useEffect(() => {
+        if (landed.current || !friends || friends.length === 0) {
+            return;
+        }
+        landed.current = true;
+        const row = rowsRef.current?.querySelector(`[data-focus-key="${rowKey(friends[0])}"]`);
+        (row?.querySelector("button, [tabindex]") as HTMLElement | null | undefined)?.focus();
+    }, [friends]);
 
     const list = useSlidingWindow({
         items: friends ?? [],
@@ -85,35 +96,37 @@ function InviteFriendsModal(props: { language: LanguageCode; avatars: Record<str
                 <div style={modalBodyStyle()}>{t(language, "No friends to invite yet.")}</div>
             )}
             {friends !== null && friends.length > 0 && (
-                <SlidingWindowRows list={list}>
-                    {list.mountedItems.map((friend, index) => {
-                        const at = list.start + index;
-                        const neighbors = [friends[at + 1], friends[at - 1]]
-                            .filter((other): other is MultiplayerFriend => other !== undefined)
-                            .map(rowKey);
-                        return (
-                            <div key={friend.ulid} style={{ paddingBottom: "4px" }}>
-                                <FocusableItem
-                                    focusKey={rowKey(friend)}
-                                    focusFallback={[...neighbors, "multiplayer:invitepicker:close"]}
-                                    disabled={busy || (linkUp && !friend.online && friend.seen > 0)}
-                                    onGamepadFocus={() => list.onItemFocus(at)}
-                                    onGamepadDirection={list.guardTopRow(at)}
-                                    onClick={() => void invite(friend)}
-                                >
-                                    <div style={{ display: "flex", gap: "10px", alignItems: "center", width: "100%", textAlign: "left", ...modalBodyStyle(), opacity: 1 }}>
-                                        <PicAvatar uri={props.avatars[friend.pic]} name={friend.name} size={modalSize(32)} />
-                                        <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-                                            <span style={{ fontWeight: 700, overflowWrap: "anywhere" }}>{friendName(friend)}</span>
-                                            <span style={{ color: friend.online ? achievementGreen : undefined }}>{friendStatus(language, friend)}</span>
-                                            {friendGame(language, friend) && <span style={{ overflowWrap: "anywhere" }}>{friendGame(language, friend)}</span>}
+                <div ref={rowsRef}>
+                    <SlidingWindowRows list={list}>
+                        {list.mountedItems.map((friend, index) => {
+                            const at = list.start + index;
+                            const neighbors = [friends[at + 1], friends[at - 1]]
+                                .filter((other): other is MultiplayerFriend => other !== undefined)
+                                .map(rowKey);
+                            return (
+                                <div key={friend.ulid} style={{ paddingBottom: "4px" }}>
+                                    <FocusableItem
+                                        focusKey={rowKey(friend)}
+                                        focusFallback={[...neighbors, "multiplayer:invitepicker:close"]}
+                                        disabled={busy || (linkUp && !friend.online && friend.seen > 0)}
+                                        onGamepadFocus={() => list.onItemFocus(at)}
+                                        onGamepadDirection={list.guardTopRow(at)}
+                                        onClick={() => void invite(friend)}
+                                    >
+                                        <div style={{ display: "flex", gap: "10px", alignItems: "center", width: "100%", textAlign: "left", ...modalBodyStyle(), opacity: 1 }}>
+                                            <PicAvatar uri={props.avatars[friend.pic]} name={friend.name} size={modalSize(32)} />
+                                            <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                                                <span style={{ fontWeight: 700, overflowWrap: "anywhere" }}>{friendName(friend)}</span>
+                                                <span style={{ color: friend.online ? achievementGreen : undefined }}>{friendStatus(language, friend)}</span>
+                                                {friendGame(language, friend) && <span style={{ overflowWrap: "anywhere" }}>{friendGame(language, friend)}</span>}
+                                            </div>
                                         </div>
-                                    </div>
-                                </FocusableItem>
-                            </div>
-                        );
-                    })}
-                </SlidingWindowRows>
+                                    </FocusableItem>
+                                </div>
+                            );
+                        })}
+                    </SlidingWindowRows>
+                </div>
             )}
             <Focusable style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "16px" }} flow-children="row">
                 <div data-focus-key="multiplayer:invitepicker:close">

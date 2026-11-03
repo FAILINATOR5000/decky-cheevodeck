@@ -193,11 +193,11 @@ function HostRoomModal(props: HostRoomModalProps) {
                         </div>
                     </>
                 )}
-                <DialogLine {...line} />
                 <Focusable
                     style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "16px" }}
                     flow-children="row"
                 >
+                    <DialogLine {...line} beside />
                     <div data-focus-key="multiplayer:hostroom:host">
                         <DialogButton onClick={() => void host()} disabled={hosting}>
                             {t(language, "Host")}

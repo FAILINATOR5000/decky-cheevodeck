@@ -106,7 +106,6 @@ function AddFriendModal(props: { language: LanguageCode; close: () => void }) {
                         }}
                     />
                 </div>
-                <DialogLine {...line} />
                 <div style={{ ...modalBodyStyle(), marginTop: "8px" }}>
                     {t(language, "help_mp_add_friend")}
                 </div>
@@ -114,8 +113,9 @@ function AddFriendModal(props: { language: LanguageCode; close: () => void }) {
                     style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "16px" }}
                     flow-children="row"
                 >
+                    <DialogLine {...line} beside />
                     <div data-focus-key="multiplayer:addfriend:send">
-                        <DialogButton onClick={() => void add()} disabled={!canAdd}>
+                        <DialogButton onClick={() => void add()} disabled={!canAdd} focusable={canAdd || busy}>
                             {t(language, "Send Request")}
                         </DialogButton>
                     </div>

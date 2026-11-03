@@ -7,8 +7,8 @@ type DialogLineTone = "hint" | "busy" | "ok" | "error";
 
 export type DialogLineState = { tone: DialogLineTone; text: string };
 
-export function DialogLine(props: DialogLineState) {
-    const { tone, text } = props;
+export function DialogLine(props: DialogLineState & { beside?: boolean }) {
+    const { tone, text, beside } = props;
     const colored = tone === "ok" || tone === "error";
     const lineRef = useRef<HTMLDivElement | null>(null);
     const tallest = useRef(0);
@@ -27,7 +27,8 @@ export function DialogLine(props: DialogLineState) {
             style={{
                 ...modalBodyStyle(),
                 minHeight: `${2 * 1.35 * modalSize(12)}px`,
-                marginTop: "8px",
+                marginTop: beside ? 0 : "8px",
+                ...(beside ? { flex: 1, minWidth: 0, alignSelf: "center" } : {}),
                 color: tone === "ok" ? achievementGreen : tone === "error" ? errorRed : undefined,
                 opacity: colored ? 1 : 0.85,
                 overflowWrap: "anywhere"

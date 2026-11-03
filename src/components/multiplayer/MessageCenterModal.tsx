@@ -1,6 +1,6 @@
 import { addEventListener, removeEventListener } from "@decky/api";
 import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { multiplayerFriendAvatars, multiplayerFriendMessages, multiplayerFriends } from "../../api";
 import { useSlidingWindow } from "../../hooks/useSlidingWindow";
@@ -160,6 +160,8 @@ function MessageCenterModal(props: MessageCenterOptions & { language: LanguageCo
     });
 
     const root = useRef<HTMLDivElement>(null);
+    const heading = useRef<HTMLDivElement>(null);
+    const sayRow = useRef<HTMLDivElement>(null);
     const landing = useRef(props.land ?? null);
     const opened = useRef(0);
     useEffect(() => {
@@ -188,6 +190,14 @@ function MessageCenterModal(props: MessageCenterOptions & { language: LanguageCo
     const say = () => openMessageSay(language, ulid, name);
     const rowAvatar = modalSize(44);
 
+    useLayoutEffect(() => {
+        const button = sayRow.current?.querySelector("button, [tabindex]") as HTMLElement | null | undefined;
+        const top = heading.current;
+        if (button && top) {
+            button.style.scrollMarginTop = `${Math.max(0, button.getBoundingClientRect().top - top.getBoundingClientRect().top)}px`;
+        }
+    }, [friend, language]);
+
     return (
         <ModalRoot onCancel={close} onEscKeypress={close}>
             <SnapshotHotkey language={language} />
@@ -196,7 +206,7 @@ function MessageCenterModal(props: MessageCenterOptions & { language: LanguageCo
                 onSecondaryButton={say}
                 onSecondaryActionDescription={t(language, "Say Something")}
             >
-                <div style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700, marginBottom: "8px" }}>
+                <div ref={heading} style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700, marginBottom: "8px" }}>
                     {t(language, "Message Center")}
                 </div>
                 <div style={{ display: "flex", gap: "12px", alignItems: "center", marginBottom: "12px" }}>
@@ -209,7 +219,7 @@ function MessageCenterModal(props: MessageCenterOptions & { language: LanguageCo
                         {friendGame(language, friend) && <div style={{ ...modalBodyStyle(), overflowWrap: "anywhere" }}>{friendGame(language, friend)}</div>}
                     </div>
                 </div>
-                <div data-focus-key={SAY_KEY} style={{ display: "flex" }}>
+                <div ref={sayRow} data-focus-key={SAY_KEY} style={{ display: "flex" }}>
                     <DialogButton onClick={say} style={{ width: "100%" }}>{t(language, "Say Something")}</DialogButton>
                 </div>
                 <Focusable flow-children="row" style={{ width: "100%", display: "flex", gap: "6px", margin: "10px 0 6px 0" }}>
