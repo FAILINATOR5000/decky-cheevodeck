@@ -538,7 +538,7 @@ class MultiplayerService:
         current = self._session
         return current is not None and bool(current["started"]) and not current["exited"]
 
-    def _toast_seat(self, name: str, line: str) -> None:
+    def _toast_seat(self, name: str, title: str, line: str) -> None:
         now = time.monotonic()
         self._forced_toasts = [at for at in self._forced_toasts if now - at < 60]
         force = not self._in_game() and len(self._forced_toasts) < FORCED_TOASTS_PER_MINUTE
@@ -548,8 +548,9 @@ class MultiplayerService:
             ntype="system",
             settings_store=self._settings_store,
             event_loop=self._loop,
-            toast_title=name,
+            title_key=title,
             line_key=line,
+            template_vars={"name": name},
             force_toast=force,
         )
 
@@ -1524,7 +1525,7 @@ class MultiplayerService:
                 room["freed"][index] = seat["key"]
                 room["seats"][index] = None
                 self._host_tunnels.close_seat(index)
-                self._toast_seat(seat["name"], "Left your room")
+                self._toast_seat(seat["name"], "Left Room", "{{name}} left.")
                 self._roster_left(room, index)
 
         addresses = set()
@@ -1781,7 +1782,7 @@ class MultiplayerService:
         if all(key not in self._join_toasts for key in toast_keys):
             for key in toast_keys:
                 self._join_toasts[key] = now
-            self._toast_seat(params["user"], "Joined your room")
+            self._toast_seat(params["user"], "Join Room", "{{name}} joined.")
 
     async def _tunnel_ask(self, link, ask: dict) -> None:
         room = self._room
@@ -1850,7 +1851,7 @@ class MultiplayerService:
             self._host_tunnels.close_seat(index)
             decky.logger.info("multiplayer: seat %s left", index)
             await conversation.say({"ok": True})
-            self._toast_seat(seat["name"], "Left your room")
+            self._toast_seat(seat["name"], "Left Room", "{{name}} left.")
             self._roster_left(room, index)
             self._announce()
             return

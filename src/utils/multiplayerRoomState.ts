@@ -3,6 +3,7 @@ import { Router } from "@decky/ui";
 import { useSyncExternalStore } from "react";
 
 import { multiplayerCloseRoom, multiplayerLeave, multiplayerRoomStatus, multiplayerSetReady } from "../api";
+import { getCurrentLanguage, t } from "../locales";
 import type { MultiplayerRoomStatus } from "../types";
 import { logError } from "./errors";
 import { playReady, playTick, playUnready } from "./lobbySounds";
@@ -109,7 +110,7 @@ function chatter(before: MultiplayerRoomMarker, after: MultiplayerRoomMarker) {
     }
     playTick();
     if (quickAccessIsHidden()) {
-        toaster.toast({ title: line.name, body: line.text });
+        toaster.toast({ title: t(getCurrentLanguage(), "Room Chat"), body: `${line.name}: ${line.text}` });
     }
 }
 

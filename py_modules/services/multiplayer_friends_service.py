@@ -37,6 +37,13 @@ ACK_GATHER_SECONDS = 0.3
 OUTBOX_GAP_SECONDS = 0.1
 ACK_MAX = 500
 FIND_ROUNDS = 3
+TOASTS = {
+    "request": ("Friend Request", "Request from {{name}}."),
+    "accepted": ("Friend Request Accepted", "{{name}} accepted."),
+    "device": ("New Device Online", "Account is on another device."),
+    "message": ("New Message", "Message from {{name}}."),
+    "invite": ("Room Invite", "{{name}} invited you."),
+}
 
 _HEX16 = set("0123456789abcdef")
 
@@ -603,7 +610,7 @@ class MultiplayerFriendsService:
                                        "way": "in", "pairKey": key, "via": via})
             return True
         if self._mutate(keep):
-            self._notify(name, "Friend request", f"multiplayer:request:{ulid}", {"friend": ulid})
+            self._notify("request", name, "Friend request", f"multiplayer:request:{ulid}", {"friend": ulid})
             self._follow()
             return True
         return False
@@ -625,7 +632,7 @@ class MultiplayerFriendsService:
             return True
         if self._mutate(keep):
             self._heal.friend_added()
-            self._notify(name, "Request accepted", f"multiplayer:friend:{ulid}", {"friend": ulid})
+            self._notify("accepted", name, "Request accepted", f"multiplayer:friend:{ulid}", {"friend": ulid})
             self._follow()
             self.report_changed()
             return True
@@ -685,7 +692,7 @@ class MultiplayerFriendsService:
             stored["alerts"].append({"device": device, "at": int(time.time())})
             return True
         if self._mutate(keep):
-            self._notify(self._my_name(), "New device online", "multiplayer:alert:" + device,
+            self._notify("device", self._my_name(), "New device online", "multiplayer:alert:" + device,
                          {"alert": device})
 
     def _claim_ok(self, ulid: str, name: str) -> bool:
@@ -710,7 +717,7 @@ class MultiplayerFriendsService:
         self._drop_request(ulid, "local")
         return True
 
-    def _notify(self, name: str, line: str, land: str, meta: dict) -> None:
+    def _notify(self, kind: str, name: str, line: str, land: str, meta: dict) -> None:
         if self._notifications is not None and is_type_enabled("system", self._settings_store):
             try:
                 self._notifications.append({
@@ -729,8 +736,9 @@ class MultiplayerFriendsService:
             ntype="system",
             settings_store=self._settings_store,
             event_loop=self._loop,
-            toast_title=name,
-            line_key=line,
+            title_key=TOASTS[kind][0],
+            line_key=TOASTS[kind][1],
+            template_vars={"name": name},
         )
 
     def state(self) -> dict:
@@ -1012,7 +1020,7 @@ class MultiplayerFriendsService:
             stored["newestAt"][sender] = at
             return True
         if self._mutate(keep, ulid=account):
-            self._notify(friend["name"], "New message", f"multiplayer:friend:{sender}",
+            self._notify("message", friend["name"], "New message", f"multiplayer:friend:{sender}",
                          {"friend": sender, "conversation": True})
 
     async def retire(self) -> None:
@@ -1116,7 +1124,7 @@ class MultiplayerFriendsService:
             "address": body["addr"] if proto.is_ipv4(body.get("addr")) else "",
             "until": now + INVITE_SECONDS,
         }
-        self._notify(friend["name"], "Room invite", "multiplayer:leave",
+        self._notify("invite", friend["name"], "Room invite", "multiplayer:leave",
                      {"friend": sender, "invite": iid})
 
     def _ack_invite(self, friend: dict, iid: str, addr) -> None:
