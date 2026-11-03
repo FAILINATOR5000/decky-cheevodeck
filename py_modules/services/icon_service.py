@@ -927,7 +927,7 @@ class IconService:
 
         return {"avatars": avatars}
 
-    def get_pic_avatars(self, pics) -> dict:
+    def get_pic_avatars(self, pics, fetch=True) -> dict:
         wanted = []
         for pic in pics or []:
             if isinstance(pic, str) and _PIC_PATH.fullmatch(pic) and pic not in wanted:
@@ -941,7 +941,7 @@ class IconService:
                 avatars[pic] = cached
             else:
                 missing.append((pic, key))
-        if not missing:
+        if not missing or not fetch:
             return {"avatars": avatars}
         workers = min(self._user_avatar_max_workers, len(missing))
         with ThreadPoolExecutor(max_workers=workers) as executor:

@@ -167,7 +167,7 @@ class MultiplayerMixin(PluginContext):
     async def multiplayer_friend_alert(self, device: str = "", revoke: bool = False):
         return await self.multiplayer_friends_service.alert(str(device or ""), bool(revoke))
 
-    async def multiplayer_friend_avatars(self, pics=None):
+    async def multiplayer_friend_avatars(self, pics=None, fetch=True):
         wanted = [str(pic) for pic in pics or [] if isinstance(pic, str)][:100]
         async with self._image_slot():
-            return await asyncio.to_thread(self.icon_service.get_pic_avatars, wanted)
+            return await asyncio.to_thread(self.icon_service.get_pic_avatars, wanted, fetch is not False)

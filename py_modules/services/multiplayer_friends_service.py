@@ -617,12 +617,14 @@ class MultiplayerFriendsService:
                                        "way": "in", "pairKey": key, "via": via})
             return True
         if self._mutate(keep):
-            self._notify("request", name, "Friend request", f"multiplayer:request:{ulid}", {"friend": ulid})
+            self._notify("request", name, f"multiplayer:request:{ulid}", {"friend": ulid}, pic=pic)
             self._follow()
             return True
         return False
 
     def _accepted(self, ulid: str, name: str, pic: str, via: str) -> bool:
+        made = {}
+
         def keep(stored):
             mine = self._request_row(stored, ulid)
             if mine is None or mine["way"] != "out" or mine["via"] != via:
@@ -636,10 +638,11 @@ class MultiplayerFriendsService:
                 stored["friends"].append({"ulid": ulid, "name": name, "pairKey": mine["pairKey"],
                                           "userPic": pic or mine["userPic"], "added": int(time.time()),
                                           "via": via, "healedAt": 0, "healTriedAt": 0})
+            made.update(stored["friends"][-1])
             return True
         if self._mutate(keep):
             self._heal.friend_added()
-            self._notify("accepted", name, "Request accepted", f"multiplayer:friend:{ulid}", {"friend": ulid})
+            self._notify("accepted", made["name"], f"multiplayer:friend:{ulid}", {"friend": ulid}, pic=made["userPic"])
             self._follow()
             self.report_changed()
             return True
@@ -699,8 +702,7 @@ class MultiplayerFriendsService:
             stored["alerts"].append({"device": device, "at": int(time.time())})
             return True
         if self._mutate(keep):
-            self._notify("device", self._my_name(), "New device online", "multiplayer:alert:" + device,
-                         {"alert": device})
+            self._notify("device", self._my_name(), "multiplayer:alert:" + device, {"alert": device})
 
     def _claim_ok(self, ulid: str, name: str) -> bool:
         row = next((row for row in self._ra_rows() if row.get("ulid") == ulid), None)
@@ -724,7 +726,7 @@ class MultiplayerFriendsService:
         self._drop_request(ulid, "local")
         return True
 
-    def _notify(self, kind: str, name: str, line: str, land: str, meta: dict, text: str = "") -> None:
+    def _notify(self, kind: str, name: str, land: str, meta: dict, text: str = "", pic: str = "") -> None:
         if self._notifications is not None and is_type_enabled("system", self._settings_store):
             try:
                 self._notifications.append({
@@ -732,10 +734,10 @@ class MultiplayerFriendsService:
                     "kind": "actionable",
                     "iconSource": "none",
                     "title": name,
-                    "body": text or line,
+                    "body": text,
                     "source": "notifications",
                     "target": {"view": "multiplayer", "tab": "friends", "land": land},
-                    "meta": {"multiplayer": "friend", **meta},
+                    "meta": {"multiplayer": "friend", "card": kind, "name": name, "pic": pic, **meta},
                 })
             except Exception as e:
                 decky.logger.warning("friends: the notification could not be filed (%s)", type(e).__name__)
@@ -1028,8 +1030,8 @@ class MultiplayerFriendsService:
             stored["newestAt"][sender] = at
             return True
         if self._mutate(keep, ulid=account):
-            self._notify("message", friend["name"], "New message", f"multiplayer:friend:{sender}",
-                         {"friend": sender, "conversation": True, "message": mid}, text=text)
+            self._notify("message", friend["name"], f"multiplayer:friend:{sender}",
+                         {"friend": sender, "conversation": True, "message": mid}, text=text, pic=friend["userPic"])
 
     async def retire(self) -> None:
         if not self._up:
@@ -1132,8 +1134,8 @@ class MultiplayerFriendsService:
             "address": body["addr"] if proto.is_ipv4(body.get("addr")) else "",
             "until": now + INVITE_SECONDS,
         }
-        self._notify("invite", friend["name"], "Room invite", "multiplayer:leave",
-                     {"friend": sender, "invite": iid})
+        self._notify("invite", friend["name"], "multiplayer:leave", {"friend": sender, "invite": iid},
+                     pic=friend["userPic"])
 
     def _ack_invite(self, friend: dict, iid: str, addr) -> None:
         listener = self._listener

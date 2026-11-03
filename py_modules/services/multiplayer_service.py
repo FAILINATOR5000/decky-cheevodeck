@@ -21,7 +21,7 @@ import steam_shortcuts
 import subprocess_util
 from multiplayer_protocol import decode, frame, read_frame
 from nearby_protocol import FrameError, clean_title, is_nonce, verify
-from notifications import emit_notification, is_type_enabled
+from notifications import emit_notification
 from services import lobby_client, lobby_tunnel
 from utils import atomic_file, child_owner, chown_to_data_owner, ensure_dir, load_json_file
 
@@ -76,10 +76,6 @@ SAVE_BACKUPS_KEPT = 5
 
 SESSION_EVENT = "multiplayer_session"
 ROOM_EVENT = "multiplayer_room"
-
-DOLPHIN_HOST_STEPS = ("In Dolphin, open Tools, then Start NetPlay, then Host. "
-                      "Pick the game and press Start once everyone has joined.")
-DOLPHIN_GUEST_STEPS = "In Dolphin, open Tools, then Start NetPlay, then Connect. The host's address is filled in."
 
 ARGV_SECONDS = 15
 SETTLE_SECONDS = 5
@@ -180,11 +176,10 @@ class _Collector(asyncio.DatagramProtocol):
 class MultiplayerService:
     def __init__(
         self, *, settings_store, game_mode, user_home, runtime_dir, cheevo_check_service, cheevo_check_store,
-        notifications_store=None, port: int = proto.PORT, peer_port: int = proto.PORT,
+        port: int = proto.PORT, peer_port: int = proto.PORT,
         broadcast: str = "255.255.255.255",
     ):
         self._settings_store = settings_store
-        self._notifications = notifications_store
         self._game_mode = game_mode
         self._user_home = Path(user_home)
         self._session_dir = Path(runtime_dir) / SESSION_DIR
@@ -1568,21 +1563,6 @@ class MultiplayerService:
         self._announce()
 
     def _notify_steps(self, role: str) -> None:
-        body = DOLPHIN_HOST_STEPS if role == "host" else DOLPHIN_GUEST_STEPS
-        if self._notifications is not None and is_type_enabled("system", self._settings_store):
-            try:
-                self._notifications.append({
-                    "type": "system",
-                    "kind": "info",
-                    "iconSource": "none",
-                    "title": "EZ Multiplayer",
-                    "body": body,
-                    "source": "notifications",
-                    "target": {"view": "multiplayer"},
-                    "meta": {"multiplayer": "dolphinSteps"},
-                })
-            except Exception as e:
-                decky.logger.warning("multiplayer: the notification could not be filed (%s)", type(e).__name__)
         emit_notification(
             ntype="system",
             settings_store=self._settings_store,

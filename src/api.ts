@@ -841,7 +841,7 @@ export const multiplayerFriendInvite = callable<[string], MultiplayerReply & { n
 export const multiplayerFriendJoin = callable<[string, string, boolean], MultiplayerReply & { room?: MultiplayerRoomRow }>("multiplayer_friend_join");
 export const multiplayerAcceptInvite = callable<[string, boolean], MultiplayerReply>("multiplayer_accept_invite");
 export const multiplayerFriendAlert = callable<[string, boolean], MultiplayerReply>("multiplayer_friend_alert");
-export const multiplayerFriendAvatars = callable<[string[]], { avatars: Record<string, string> }>(
+export const multiplayerFriendAvatars = callable<[pics: string[], fetch?: boolean], { avatars: Record<string, string> }>(
     "multiplayer_friend_avatars"
 );
 export const multiplayerChangeGame = callable<[MultiplayerMode, number, string], MultiplayerReply & { room?: MultiplayerHostedRoom }>("multiplayer_change_game");

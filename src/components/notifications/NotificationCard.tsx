@@ -12,6 +12,7 @@ import {
     getCachedGameIconDataUri,
     getGameIconCached,
     isGameIconBatchPending,
+    multiplayerFriendAvatars,
     subscribeToAchievementIcon,
     subscribeToGameIcon
 } from "../../api";
@@ -190,6 +191,58 @@ function isFriendRow(notification: CheevoNotification): boolean {
 
 function isFriendMessage(notification: CheevoNotification): boolean {
     return isFriendRow(notification) && metaString(notification, "message") !== "";
+}
+
+const FRIEND_CARD_WORDS = new Map<string, [string, string]>([
+    ["request", ["Received Friend Request", "{{name}} sent you a friend request."]],
+    ["accepted", ["Friend Request Accepted", "{{name}} accepted your friend request."]],
+    ["device", ["New Device on Your Account", "Your account went online in EZ Multiplayer on another device. If that wasn't you, choose That Wasn't Me on the Friends tab."]],
+    ["message", ["Message From {{name}}", ""]],
+    ["invite", ["Room Invite", "{{name}} invited you to a room."]]
+]);
+
+function friendCardKind(notification: CheevoNotification): string {
+    const stored = metaString(notification, "card");
+    if (FRIEND_CARD_WORDS.has(stored)) {
+        return stored;
+    }
+    if (notification.meta?.conversation === true) {
+        return "message";
+    }
+    if (metaString(notification, "invite")) {
+        return "invite";
+    }
+    if (metaString(notification, "alert")) {
+        return "device";
+    }
+    return notification.body === "Friend request" ? "request" : "accepted";
+}
+
+function friendCardText(notification: CheevoNotification, language: LanguageCode, part: 0 | 1): string {
+    const words = FRIEND_CARD_WORDS.get(friendCardKind(notification));
+    const name = metaString(notification, "name") || notification.title;
+    return words && words[part] ? t(language, words[part], { name }) : "";
+}
+
+const friendPicMemory = new Map<string, string>();
+const friendPicPending = new Map<string, Promise<string>>();
+
+function loadFriendPic(pic: string, fetch: boolean): Promise<string> {
+    const key = `${pic}|${fetch}`;
+    let pending = friendPicPending.get(key);
+    if (!pending) {
+        pending = multiplayerFriendAvatars([pic], fetch)
+            .then((got) => {
+                const uri = got.avatars?.[pic] ?? "";
+                if (uri || fetch) {
+                    friendPicMemory.set(pic, uri);
+                }
+                return uri;
+            })
+            .finally(() => friendPicPending.delete(key));
+        friendPicPending.set(key, pending);
+    }
+    return pending;
 }
 
 function isChangelogRow(notification: CheevoNotification): boolean {
@@ -604,6 +657,28 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
         };
     }, [isAchievementSource, gameId, badgeName, badgeDataUri]);
 
+    const friendPic = isFriendRow(notification) ? metaString(notification, "pic") : "";
+    const friendPicCachedOnly = friendPic !== "" && friendCardKind(notification) === "request";
+    const [friendPicUri, setFriendPicUri] = useState(() => friendPicMemory.get(friendPic) ?? "");
+    const friendPicWasWarm = useRef(friendPicUri !== "");
+
+    useEffect(() => {
+        if (!friendPic || friendPicMemory.has(friendPic)) {
+            return;
+        }
+        let stale = false;
+        loadFriendPic(friendPic, !friendPicCachedOnly)
+            .then((uri) => {
+                if (!stale) {
+                    setFriendPicUri(uri);
+                }
+            })
+            .catch((e) => logError("multiplayerFriendAvatars (notification card)", e));
+        return () => {
+            stale = true;
+        };
+    }, [friendPic, friendPicCachedOnly]);
+
     const isUnseen = notification.createdAt > seenAtSnapshot;
     const fallbackLetter = (notification.title.trim().charAt(0) || "?").toUpperCase();
     const createdLabel = formatUnlockDate(new Date(notification.createdAt * 1000).toISOString(), {}, language);
@@ -653,6 +728,8 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                                 ? dataTransferBody(notification, language)
                                 : isFriendMessage(notification)
                                 ? notification.body
+                                : isFriendRow(notification)
+                                ? friendCardText(notification, language, 1) || null
                                 : isMultiplayerRow(notification)
                                 ? t(language, notification.body)
                                 : isChangelogRow(notification)
@@ -732,7 +809,7 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                                         : isMemoriesTransfer(notification) || isDataTransfer(notification)
                                         ? localizeRuntimeText(language, notification.title)
                                         : isFriendRow(notification)
-                                        ? notification.title
+                                        ? friendCardText(notification, language, 0)
                                         : isMultiplayerRow(notification)
                                         ? t(language, "EZ Multiplayer")
                                         : isChangelogRow(notification)
@@ -840,6 +917,20 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                     alt=""
                     style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                 />
+            );
+        }
+
+        if (friendPic && (friendPicUri || !friendPicCachedOnly)) {
+            return renderBoxedIcon(
+                <>
+                    {friendPicUri ? null : fallbackLetter}
+                    <FadeImage
+                        src={friendPicUri || null}
+                        fadeOnLoad={!friendPicWasWarm.current}
+                        decoding="async"
+                        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                    />
+                </>
             );
         }
 
@@ -996,7 +1087,7 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                     >
                         {localizedTitle}
                     </div>
-                    {(templatedBody || notification.body) && (
+                    {(templatedBody || (!isFriendRow(notification) && notification.body)) && (
                         <div
                             ref={isClampedBody ? bodyRef : undefined}
                             style={{
