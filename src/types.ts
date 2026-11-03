@@ -3053,6 +3053,7 @@ export type MultiplayerFriend = {
     room: { id: string; name: string; where: MultiplayerWhere; playing: boolean } | null;
     seen: number;
     unread: number;
+    newest: number;
     added: number;
 };
 
@@ -3064,6 +3065,7 @@ export type MultiplayerFriendsState = {
     ok: boolean;
     on: boolean;
     me: string;
+    selfPic: string;
     server: boolean;
     up: boolean;
     refused: string;

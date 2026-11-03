@@ -40,6 +40,7 @@ from services.nearby_transfer_service import NearbyTransferService
 from services.multiplayer_service import MultiplayerService
 from services.multiplayer_friends_service import MultiplayerFriendsService
 from multiplayer_friends_store import MultiplayerFriendsStore
+from multiplayer_messages_store import MultiplayerMessagesStore
 from services.smb_mount_service import SmbMountService
 from services.comments_service import CommentsService
 from services.new_sets_service import NewSetsService
@@ -366,6 +367,7 @@ class Plugin(
         )
         self.milestones_store = MilestonesStore(base_dir=self.runtime_dir)
         self.multiplayer_friends_store = MultiplayerFriendsStore(base_dir=self.runtime_dir)
+        self.multiplayer_messages_store = MultiplayerMessagesStore(base_dir=self.runtime_dir)
         milestones_defs_path = self.plugin_dir / "milestones" / "milestones.json"
         if not milestones_defs_path.exists():
             milestones_defs_path = self.plugin_dir / "defaults" / "milestones" / "milestones.json"
@@ -561,6 +563,7 @@ class Plugin(
             milestones_store=self.milestones_store,
             milestones_service=self.milestones_service,
             multiplayer_friends_store=self.multiplayer_friends_store,
+            multiplayer_messages_store=self.multiplayer_messages_store,
             settings_store=self.settings_store,
             user_home=self.user_home,
         )
@@ -788,6 +791,7 @@ class Plugin(
         )
         self.multiplayer_friends_service = MultiplayerFriendsService(
             store=self.multiplayer_friends_store,
+            messages_store=self.multiplayer_messages_store,
             settings_store=self.settings_store,
             game_mode=self.session_mode_service.is_game_mode,
             multiplayer=self.multiplayer_service,
@@ -1193,6 +1197,7 @@ class Plugin(
             self.tracked_sets_store.repoint(base)
             self.milestones_store.repoint(base, user_key)
             self.multiplayer_friends_store.repoint(base, user_key)
+            self.multiplayer_messages_store.repoint(base, user_key)
             self.activity_store.repoint(base / "activity")
             self.subscriptions_store.repoint(base)
             self.calculator_store.repoint(base)

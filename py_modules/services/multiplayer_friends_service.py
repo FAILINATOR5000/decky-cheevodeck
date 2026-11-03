@@ -8,6 +8,7 @@ import time
 import decky
 import multiplayer_protocol as proto
 from multiplayer_friends_store import clean_name, clean_nickname, clean_pic, clean_text, is_ulid
+from multiplayer_messages_store import MAX_MESSAGES
 from nearby_protocol import FrameError, canonical
 from notifications import emit_notification, is_type_enabled
 from services import lobby_client
@@ -72,10 +73,11 @@ class _Listener(asyncio.DatagramProtocol):
 
 
 class MultiplayerFriendsService:
-    def __init__(self, *, store, settings_store, game_mode, multiplayer, notifications_store, ra_friends,
-                 cache_store, ra_call, ra, port: int = FRIEND_PORT, peer_port: int = FRIEND_PORT,
+    def __init__(self, *, store, messages_store, settings_store, game_mode, multiplayer, notifications_store,
+                 ra_friends, cache_store, ra_call, ra, port: int = FRIEND_PORT, peer_port: int = FRIEND_PORT,
                  broadcast: str = "255.255.255.255"):
         self._store = store
+        self._messages = messages_store
         self._cache_store = cache_store
         self._settings_store = settings_store
         self._game_mode = game_mode
@@ -622,15 +624,18 @@ class MultiplayerFriendsService:
         self._mutate(drop)
 
     def _unfriend(self, ulid: str) -> bool:
+        account = self._me()
+
         def drop(stored):
             friend = self._find(stored, ulid)
             if friend is None:
                 return False
             stored["friends"].remove(friend)
-            stored["messages"].pop(ulid, None)
-            stored["lastRead"].pop(ulid, None)
+            for marks in (stored["lastRead"], stored["unread"], stored["newestAt"]):
+                marks.pop(ulid, None)
             return True
-        if self._mutate(drop):
+        if self._mutate(drop, ulid=account):
+            self._messages.delete(ulid, ulid=account)
             self._presence.pop(ulid, None)
             self.report_changed()
             self._follow()
@@ -701,9 +706,6 @@ class MultiplayerFriendsService:
         if data is not None:
             for friend in data["friends"]:
                 seen = self._presence.get(friend["ulid"], {})
-                read = data["lastRead"].get(friend["ulid"], 0)
-                unread = sum(1 for message in data["messages"].get(friend["ulid"], [])
-                             if not message["mine"] and message["at"] > read)
                 friends.append({
                     "ulid": friend["ulid"],
                     "name": friend["name"],
@@ -714,7 +716,8 @@ class MultiplayerFriendsService:
                     "game": seen.get("game", ""),
                     "room": seen.get("room"),
                     "seen": seen.get("seen", 0),
-                    "unread": unread,
+                    "unread": data["unread"].get(friend["ulid"], 0),
+                    "newest": data["newestAt"].get(friend["ulid"], 0),
                     "added": friend["added"],
                 })
             friends.sort(key=lambda row: (not row["online"], (row["nickname"] or row["name"]).lower()))
@@ -726,6 +729,7 @@ class MultiplayerFriendsService:
             "ok": True,
             "on": self._on(cfg),
             "me": self._me(),
+            "selfPic": data["selfPic"] if data is not None else "",
             "server": self._mp.lobby_server() is not None,
             "up": self._up,
             "refused": self._refused,
@@ -869,19 +873,23 @@ class MultiplayerFriendsService:
         return {"ok": True}
 
     def messages(self, ulid: str) -> dict:
+        account = self._me()
+        before = {}
+
         def mark(stored):
             if self._find(stored, ulid) is None:
                 return False
-            newest = max((message["at"] for message in stored["messages"].get(ulid, [])), default=0)
-            if newest <= stored["lastRead"].get(ulid, 0):
+            before["at"] = stored["lastRead"].get(ulid, 0)
+            newest = stored["newestAt"].get(ulid, 0)
+            if newest <= before["at"] and not stored["unread"].get(ulid):
                 return False
-            stored["lastRead"][ulid] = newest
+            stored["lastRead"][ulid] = max(newest, before["at"])
+            stored["unread"].pop(ulid, None)
             return True
-        self._mutate(mark)
-        data = self._data()
-        if data is None or self._find(data, ulid) is None:
+        self._mutate(mark, ulid=account)
+        if "at" not in before:
             return {"ok": False, "error": "not_friend"}
-        return {"ok": True, "messages": list(data["messages"].get(ulid, []))}
+        return {"ok": True, "messages": self._messages.load(ulid), "readBefore": before["at"]}
 
     async def send_message(self, ulid: str, text: str) -> dict:
         account = self._me()
@@ -905,10 +913,13 @@ class MultiplayerFriendsService:
             return {"ok": False, "error": {"not_friends": "not_friends", "full": "mailbox_full"}.get(error, "unavailable")}
 
         def keep(stored):
-            rows = stored["messages"].setdefault(ulid, [])
-            rows.append({"id": mid, "mine": True, "text": text, "at": body["at"]})
+            if self._find(stored, ulid) is None:
+                return False
             stored["lastRead"][ulid] = body["at"]
+            stored["newestAt"][ulid] = body["at"]
+            stored["unread"].pop(ulid, None)
             return True
+        self._messages.add(ulid, {"id": mid, "mine": True, "text": text, "at": body["at"]}, ulid=account)
         self._mutate(keep, ulid=account)
         return {"ok": True}
 
@@ -923,14 +934,17 @@ class MultiplayerFriendsService:
         if not text or not _hex16(mid) or body.get("from") != sender or type(at) is not int:
             return
         at = int(time.time())
+        account = self._me()
+        if not self._messages.add(sender, {"id": mid, "mine": False, "text": text, "at": at}, ulid=account):
+            return
 
         def keep(stored):
-            rows = stored["messages"].setdefault(sender, [])
-            if any(row["id"] == mid for row in rows):
+            if self._find(stored, sender) is None:
                 return False
-            rows.append({"id": mid, "mine": False, "text": text, "at": at})
+            stored["unread"][sender] = min(stored["unread"].get(sender, 0) + 1, MAX_MESSAGES)
+            stored["newestAt"][sender] = at
             return True
-        if self._mutate(keep):
+        if self._mutate(keep, ulid=account):
             self._notify(friend["nickname"] or friend["name"], "New message", f"multiplayer:friend:{sender}",
                          {"friend": sender, "conversation": True})
 

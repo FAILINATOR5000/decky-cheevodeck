@@ -33,12 +33,13 @@ class RepairService:
     """
 
     def __init__(self, *, update_checker_service, memories_store, milestones_store, milestones_service,
-                 multiplayer_friends_store, settings_store, user_home):
+                 multiplayer_friends_store, multiplayer_messages_store, settings_store, user_home):
         self._update_checker_service = update_checker_service
         self._memories_store = memories_store
         self._milestones_store = milestones_store
         self._milestones_service = milestones_service
         self._multiplayer_friends_store = multiplayer_friends_store
+        self._multiplayer_messages_store = multiplayer_messages_store
         self._settings_store = settings_store
         self._user_home = user_home
 
@@ -110,6 +111,17 @@ class RepairService:
         except Exception as e:
             decky.logger.warning(
                 "repair: multiplayer friends file repair failed: %s",
+                type(e).__name__,
+            )
+
+        try:
+            data = self._multiplayer_friends_store.load()
+            friends = data["friends"] if data is not None else None
+            for name in self._multiplayer_messages_store.repair(friends):
+                fixed.append("multiplayer_messages_" + name)
+        except Exception as e:
+            decky.logger.warning(
+                "repair: multiplayer messages repair failed: %s",
                 type(e).__name__,
             )
 

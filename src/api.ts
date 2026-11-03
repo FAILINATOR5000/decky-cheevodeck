@@ -832,7 +832,7 @@ export const multiplayerFriendAddSeat = callable<[number, string], MultiplayerRe
 export const multiplayerFriendAnswer = callable<[string, boolean], MultiplayerReply>("multiplayer_friend_answer");
 export const multiplayerFriendRemove = callable<[string], MultiplayerReply>("multiplayer_friend_remove");
 export const multiplayerFriendRename = callable<[string, string], MultiplayerReply>("multiplayer_friend_rename");
-export const multiplayerFriendMessages = callable<[string], MultiplayerReply & { messages?: MultiplayerMessage[] }>(
+export const multiplayerFriendMessages = callable<[string], MultiplayerReply & { messages?: MultiplayerMessage[]; readBefore?: number }>(
     "multiplayer_friend_messages"
 );
 export const multiplayerFriendSend = callable<[string, string], MultiplayerReply>("multiplayer_friend_send");

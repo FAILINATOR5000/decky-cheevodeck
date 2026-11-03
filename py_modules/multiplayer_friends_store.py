@@ -27,7 +27,6 @@ MAX_FRIENDS = 500
 MAX_REQUESTS = 200
 MAX_ALERTS = 20
 MAX_OUTBOX = 100
-MAX_MESSAGES = 2000
 MESSAGE_MAX = 500
 NICKNAME_MAX = 24
 
@@ -57,6 +56,8 @@ def clean_nickname(value) -> str:
 def clean_text(value) -> str:
     if not isinstance(value, str):
         return ""
+    if value.isprintable():
+        return value.strip()[:MESSAGE_MAX]
     kept = "".join(ch if ch.isprintable() or ch == "\n" else " " for ch in value)
     return kept.strip()[:MESSAGE_MAX]
 
@@ -66,6 +67,15 @@ def _ts(value) -> int:
         return 0
     stamp = to_int(value, 0)
     return stamp if stamp > 0 else 0
+
+
+def clean_message(raw):
+    if not isinstance(raw, dict) or not isinstance(raw.get("id"), str) or not _ID_RE.match(raw["id"]):
+        return None
+    text = clean_text(raw.get("text"))
+    if not text or type(raw.get("mine")) is not bool:
+        return None
+    return {"id": raw["id"], "mine": raw["mine"], "text": text, "at": _ts(raw.get("at"))}
 
 
 def _hex64(value) -> str:
@@ -107,15 +117,6 @@ def _request(raw):
     }
 
 
-def _message(raw):
-    if not isinstance(raw, dict) or not isinstance(raw.get("id"), str) or not _ID_RE.match(raw["id"]):
-        return None
-    text = clean_text(raw.get("text"))
-    if not text or type(raw.get("mine")) is not bool:
-        return None
-    return {"id": raw["id"], "mine": raw["mine"], "text": text, "at": _ts(raw.get("at"))}
-
-
 def _rows(raw: dict, name: str) -> list:
     value = raw.get(name)
     return value if isinstance(value, list) else []
@@ -137,15 +138,9 @@ def normalize(raw: dict) -> dict:
     friend_ids = {friend["ulid"] for friend in friends}
     requests = _unique([_request(row) for row in _rows(raw, "requests")], MAX_REQUESTS)
     requests = [request for request in requests if request["way"] == "in" or request["ulid"] not in friend_ids]
-    messages = {}
-    raw_messages = raw.get("messages") if isinstance(raw.get("messages"), dict) else {}
-    for ulid, rows in raw_messages.items():
-        if ulid not in friend_ids or not isinstance(rows, list):
-            continue
-        kept = [message for message in (_message(row) for row in rows) if message is not None]
-        if kept:
-            messages[ulid] = kept[-MAX_MESSAGES:]
     raw_read = raw.get("lastRead") if isinstance(raw.get("lastRead"), dict) else {}
+    raw_unread = raw.get("unread") if isinstance(raw.get("unread"), dict) else {}
+    raw_newest = raw.get("newestAt") if isinstance(raw.get("newestAt"), dict) else {}
     alerts = []
     for row in _rows(raw, "alerts"):
         if isinstance(row, dict) and isinstance(row.get("device"), str) and _DEVICE_RE.match(row["device"]):
@@ -164,8 +159,9 @@ def normalize(raw: dict) -> dict:
         "selfPicAt": _ts(raw.get("selfPicAt")),
         "friends": friends,
         "requests": requests,
-        "messages": messages,
         "lastRead": {ulid: _ts(at) for ulid, at in raw_read.items() if ulid in friend_ids and _ts(at)},
+        "unread": {ulid: _ts(count) for ulid, count in raw_unread.items() if ulid in friend_ids and _ts(count)},
+        "newestAt": {ulid: _ts(at) for ulid, at in raw_newest.items() if ulid in friend_ids and _ts(at)},
         "alerts": alerts[-MAX_ALERTS:],
         "outbox": outbox[-MAX_OUTBOX:],
     }
