@@ -30,10 +30,12 @@ VISIT_CAP_SECONDS = 600
 SEEK_SECONDS = 1.2
 SEEK_SENDS = 3
 MISSED_ROUNDS = 2
+ROOMS_FOUND_MAX = 64
+ROOMS_KEPT_MAX = 128
 
 HANDSHAKE_SECONDS = 5
 FIRST_FRAME_SECONDS = 2
-MAX_HANDSHAKES = 8
+MAX_HANDSHAKES = 24
 HANDSHAKES_PER_ADDRESS = 2
 HANDSHAKES_PER_RELAYED_ADDRESS = 4
 ANSWERS_PER_SECOND = 10
@@ -48,6 +50,7 @@ HOST_GONE_GRACE_SECONDS = 60
 
 CLOSED_TAIL_SECONDS = 10
 JOIN_TOAST_SECONDS = 300
+FORCED_TOASTS_PER_MINUTE = 3
 
 LAUNCH_WAIT_SECONDS = 300
 LAUNCH_START_SECONDS = 60
@@ -213,6 +216,7 @@ class MultiplayerService:
         self._announced = None
         self._event_seq = 0
         self._join_toasts = {}
+        self._forced_toasts = []
         self._joined = None
         self._rooms = {}
         self._round = 0
@@ -427,6 +431,10 @@ class MultiplayerService:
     def has_room(self, room_id: str) -> bool:
         return room_id in self._rooms
 
+    def room_row(self, room_id: str):
+        held = self._rooms.get(room_id)
+        return dict(held[0]) if held is not None else None
+
     def _lobby_server(self):
         return lobby_client.parse_server(self._settings_store.get_lobby_server(self._settings_store.load_config()))
 
@@ -521,13 +529,18 @@ class MultiplayerService:
         return current is not None and bool(current["started"]) and not current["exited"]
 
     def _toast_seat(self, name: str, line: str) -> None:
+        now = time.monotonic()
+        self._forced_toasts = [at for at in self._forced_toasts if now - at < 60]
+        force = not self._in_game() and len(self._forced_toasts) < FORCED_TOASTS_PER_MINUTE
+        if force:
+            self._forced_toasts.append(now)
         emit_notification(
             ntype="system",
             settings_store=self._settings_store,
             event_loop=self._loop,
             toast_title=name,
             line_key=line,
-            force_toast=not self._in_game(),
+            force_toast=force,
         )
 
     def _fresh_nonce(self, nonce: str, now: float) -> bool:
@@ -1752,12 +1765,12 @@ class MultiplayerService:
                                 "t": proto.joined_tag(key, nc, ns, seat, address, ga, gb)})
         decky.logger.info("multiplayer: seat %s taken%s", seat, " through the online lobby" if door == "server" else "")
         self._announce()
-        toast_key = params["device"] if door == "server" else peer
+        toast_keys = [params["device"] if door == "server" else peer, "name:" + params["user"].lower()]
         for stale in [name for name, at in self._join_toasts.items() if now - at >= JOIN_TOAST_SECONDS]:
             del self._join_toasts[stale]
-        last = self._join_toasts.get(toast_key)
-        if last is None or now - last >= JOIN_TOAST_SECONDS:
-            self._join_toasts[toast_key] = now
+        if all(key not in self._join_toasts for key in toast_keys):
+            for key in toast_keys:
+                self._join_toasts[key] = now
             self._toast_seat(params["user"], "Joined your room")
 
     async def _tunnel_ask(self, link, ask: dict) -> None:
@@ -2173,6 +2186,8 @@ class MultiplayerService:
         found = {}
 
         def heard(data, addr):
+            if len(found) >= ROOMS_FOUND_MAX:
+                return
             row = read(decode(data))
             if row is not None:
                 row.update(address=addr[0], door="lan", away=False)
@@ -2219,7 +2234,11 @@ class MultiplayerService:
         self._round += 1
         own = self._room["id"] if self._room is not None else None
         for room_id, row in found.items():
-            if room_id != own:
+            held = self._rooms.get(room_id)
+            if held is not None and held[0]["door"] == "lan" and held[0]["address"] != row["address"] \
+                    and (held[2] or self._round - held[1] < MISSED_ROUNDS):
+                continue
+            if room_id != own and (held is not None or len(self._rooms) < ROOMS_KEPT_MAX):
                 self._rooms[room_id] = (row, self._round, False)
         for room_id, (row, seen, manual) in list(self._rooms.items()):
             if row["door"] == "server" and room_id not in self._online:

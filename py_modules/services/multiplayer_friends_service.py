@@ -27,8 +27,11 @@ INVITE_WAIT_SECONDS = 2
 SELF_PIC_SECONDS = 7 * 86400
 DATAGRAM_BYTES = 2048
 DATAGRAMS_PER_SECOND = 20
+DATAGRAMS_PER_SECOND_ALL = 100
+INCOMING_REQUESTS_MAX = 100
 CLOCK_SKEW_SECONDS = 120
 LIST_MAX = 500
+REPORT_ULIDS_MAX = 520
 SEEN_INVITES = 256
 ACK_GATHER_SECONDS = 0.3
 OUTBOX_GAP_SECONDS = 0.1
@@ -104,6 +107,7 @@ class MultiplayerFriendsService:
         self._invite_acks = {}
         self._listener = None
         self._heard_at = []
+        self._heard_from = {}
         self._sent_report = None
         self._sent_room = None
         self._report_stale = True
@@ -290,6 +294,7 @@ class MultiplayerFriendsService:
     def _report(self, data) -> dict:
         cfg = self._cfg()
         suggest = bool(cfg.get("mpSuggestFriends", True))
+        friends = [friend["ulid"] for friend in data["friends"]][:LIST_MAX]
         visible = bool(cfg.get("mpShowOnline", True))
         presence = {"game": "", "room": None}
         if visible:
@@ -297,8 +302,8 @@ class MultiplayerFriendsService:
         return {
             "visible": visible,
             "suggest": suggest,
-            "friends": [friend["ulid"] for friend in data["friends"]][:LIST_MAX],
-            "ra": self._mutual_follows() if suggest else [],
+            "friends": friends,
+            "ra": self._mutual_follows()[:max(0, REPORT_ULIDS_MAX - len(friends))] if suggest else [],
             "presence": presence,
         }
 
@@ -377,8 +382,9 @@ class MultiplayerFriendsService:
             keeper = asyncio.ensure_future(self._keep())
             try:
                 while True:
-                    message = await asyncio.wait_for(lobby_client.read_envelope(reader), SILENT_SECONDS)
-                    self._take(message)
+                    message = await asyncio.wait_for(lobby_client.read_envelope_or_skip(reader), SILENT_SECONDS)
+                    if message is not None:
+                        self._take(message)
             finally:
                 keeper.cancel()
         finally:
@@ -589,6 +595,8 @@ class MultiplayerFriendsService:
             mine = self._request_row(stored, ulid)
             if mine is not None and mine["way"] == "in":
                 return False
+            if mine is None and sum(1 for row in stored["requests"] if row["way"] == "in") >= INCOMING_REQUESTS_MAX:
+                return False
             if mine is not None:
                 stored["requests"].remove(mine)
             stored["requests"].append({"ulid": ulid, "name": name, "userPic": pic, "at": int(time.time()),
@@ -687,6 +695,9 @@ class MultiplayerFriendsService:
     def local_request(self, ulid: str, name: str, pic: str, key: bytes) -> bool:
         name = clean_name(name)
         if not self._on() or not is_ulid(ulid) or ulid == self._me() or not name or not self._claim_ok(ulid, name):
+            return False
+        data = self._data()
+        if data is not None and self._find(data, ulid) is not None:
             return False
         return self._incoming(ulid, name, clean_pic(pic), key.hex(), "local")
 
@@ -1128,13 +1139,19 @@ class MultiplayerFriendsService:
         return joined
 
     async def _find_room(self, room_id: str, address: str) -> bool:
-        for _round in range(FIND_ROUNDS):
-            await self._mp.discover()
-            if self._mp.has_room(room_id):
-                return True
         if address:
             await self._mp.lookup(address)
-        return self._mp.has_room(room_id)
+            if self._room_is_theirs(room_id, address):
+                return True
+        for _round in range(FIND_ROUNDS):
+            await self._mp.discover()
+            if self._room_is_theirs(room_id, address):
+                return True
+        return False
+
+    def _room_is_theirs(self, room_id: str, address: str) -> bool:
+        row = self._mp.room_row(room_id)
+        return row is not None and (not address or row["door"] == "server" or row["address"] == address)
 
     async def join_friend(self, ulid: str, password: str, hardcore: bool) -> dict:
         room = self._presence.get(ulid, {}).get("room")
@@ -1165,9 +1182,17 @@ class MultiplayerFriendsService:
     def _heard(self, data: bytes, addr) -> None:
         now = time.monotonic()
         self._heard_at = [at for at in self._heard_at if now - at < 1.0]
-        if len(self._heard_at) >= DATAGRAMS_PER_SECOND or len(data) > DATAGRAM_BYTES:
+        if not self._heard_at:
+            self._heard_from = {}
+        sender = addr[0] if isinstance(addr, tuple) and addr else ""
+        if (
+            len(self._heard_at) >= DATAGRAMS_PER_SECOND_ALL
+            or self._heard_from.get(sender, 0) >= DATAGRAMS_PER_SECOND
+            or len(data) > DATAGRAM_BYTES
+        ):
             return
         self._heard_at.append(now)
+        self._heard_from[sender] = self._heard_from.get(sender, 0) + 1
         if not self._game_mode() or not self._on():
             return
         try:

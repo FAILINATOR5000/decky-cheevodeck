@@ -17,6 +17,8 @@ RETRY_SECONDS = (2, 5, 10, 30)
 LIST_MAX = 200
 LIST_SECONDS = 15
 CONVERSATIONS_MAX = 32
+FRAME_HEAD_BYTES = 4
+CONVERSATION_FRAMES_MAX = 8
 TUNNEL_ASKS_MAX = 64
 REFUSALS = ("taken", "full", "busy")
 
@@ -57,6 +59,15 @@ async def read_envelope(reader) -> dict:
     return await nearby_protocol.read_frame(reader, ENVELOPE_BYTES)
 
 
+async def read_envelope_or_skip(reader):
+    length = nearby_protocol.frame_length(await reader.readexactly(FRAME_HEAD_BYTES), ENVELOPE_BYTES)
+    raw = await reader.readexactly(length)
+    try:
+        return nearby_protocol.frame_body(raw, ENVELOPE_BYTES)
+    except FrameError:
+        return None
+
+
 async def list_rooms(server) -> list:
     return await asyncio.wait_for(_list_rooms(server), LIST_SECONDS)
 
@@ -68,7 +79,9 @@ async def _list_rooms(server) -> list:
         await asyncio.wait_for(writer.drain(), LEG_SECONDS)
         rooms = []
         for _frame in range(LIST_MAX + 1):
-            message = await asyncio.wait_for(read_envelope(reader), LEG_SECONDS)
+            message = await asyncio.wait_for(read_envelope_or_skip(reader), LEG_SECONDS)
+            if message is None:
+                continue
             if message.get("op") != "room":
                 break
             rooms.append((message.get("room"), message.get("away") is True))
@@ -120,10 +133,13 @@ class ServerConversation:
         self.peer = peer
         self._link = link
         self._rid = rid
-        self._frames = asyncio.Queue()
+        self._frames = asyncio.Queue(maxsize=CONVERSATION_FRAMES_MAX)
 
     def take(self, message: dict) -> None:
-        self._frames.put_nowait(message)
+        try:
+            self._frames.put_nowait(message)
+        except asyncio.QueueFull:
+            pass
 
     async def read(self) -> dict:
         return await self._frames.get()
