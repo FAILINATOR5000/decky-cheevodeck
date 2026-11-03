@@ -417,8 +417,9 @@ function RoomsModal(props: RoomsModalProps) {
                                                 {row.verdict && (
                                                     <div style={{ color: row.verdict.can ? achievementGreen : warnAmber }}>
                                                         {row.verdict.can
-                                                            ? `✔ ${t(language, row.watch ? "You can watch" : "You can play")}`
-                                                            : describe(row.verdict.reason, row.verdict.detail)}
+                                                            ? `✔ ${t(language, "Game compatible")}`
+                                                            : `✖ ${t(language, "Game not compatible")}`}
+                                                        {!row.verdict.can && <div>{describe(row.verdict.reason, row.verdict.detail)}</div>}
                                                     </div>
                                                 )}
                                             </div>
