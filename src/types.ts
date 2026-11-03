@@ -861,6 +861,7 @@ export type SettingsResponse = {
     mpFriendsEnabled: boolean;
     mpShowOnline: boolean;
     mpSuggestFriends: boolean;
+    mpShortcutFallback: boolean;
     lobbyServer: string;
     automaticRecovery: boolean;
     recoveryButtonCombo: boolean;
@@ -3124,6 +3125,7 @@ export type MultiplayerGame = {
     system: string;
     imageIcon: string;
     appid: number;
+    launchable: boolean;
     canLink: boolean;
     canCouch: boolean;
 };

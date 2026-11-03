@@ -9,6 +9,8 @@ const PROBLEM_TEXT: Record<string, string> = {
     no_scan: "Run Cheevo Check first",
     not_in_results: "This game isn't in your Cheevo Check results",
     no_shortcut: "No Steam ROM Manager shortcut for this game",
+    no_emulator_shortcut: "Add this game, or {{emulator}} itself, to Steam as a non-Steam game.",
+    rom_missing: "This game's file isn't where Cheevo Check last saw it. Run Cheevo Check again.",
     unsupported_emulator: "This emulator isn't supported",
     core_cant_couch: "{{core}} can't do Couch Play. Works with: {{works}}",
     no_couch_core: "No installed core for this system can do Couch Play",

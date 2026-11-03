@@ -276,6 +276,9 @@ export const saveMpShowOnline = callable<[boolean], { ok: boolean; mpShowOnline:
 export const saveMpSuggestFriends = callable<[boolean], { ok: boolean; mpSuggestFriends: boolean }>(
     "save_mp_suggest_friends"
 );
+export const saveMpShortcutFallback = callable<[boolean], { ok: boolean; mpShortcutFallback: boolean }>(
+    "save_mp_shortcut_fallback"
+);
 export const saveAutomaticRecovery = callable<[boolean], { ok: boolean; automaticRecovery: boolean }>(
     "save_automatic_recovery"
 );

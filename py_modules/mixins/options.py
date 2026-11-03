@@ -672,6 +672,14 @@ class OptionsMixin(PluginContext):
             "mpSuggestFriends": value,
         }
 
+    async def save_mp_shortcut_fallback(self, mp_shortcut_fallback: bool):
+        value = self.settings_store.update_mp_shortcut_fallback(mp_shortcut_fallback)
+
+        return {
+            "ok": True,
+            "mpShortcutFallback": value,
+        }
+
     async def save_browser_snapshot(self, browser_snapshot: bool):
         value = self.settings_store.update_browser_snapshot(browser_snapshot)
         self.back_button_service.sync()

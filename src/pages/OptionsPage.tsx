@@ -261,6 +261,7 @@ type OptionsPageState = {
     mpFriendsEnabled: boolean;
     mpShowOnline: boolean;
     mpSuggestFriends: boolean;
+    mpShortcutFallback: boolean;
     lobbyServer: string;
     libraryBadge: boolean;
     memoriesAutoCapture: boolean;
@@ -523,6 +524,7 @@ type OptionsPageActions = {
     onToggleMpFriendsEnabled: (nextValue: boolean) => void | Promise<void>;
     onToggleMpShowOnline: (nextValue: boolean) => void | Promise<void>;
     onToggleMpSuggestFriends: (nextValue: boolean) => void | Promise<void>;
+    onToggleMpShortcutFallback: (nextValue: boolean) => void | Promise<void>;
     onEditLobbyServer: () => void;
     onToggleLibraryBadge: (nextValue: boolean) => void | Promise<void>;
     onToggleLegacyCommentsLoading: (nextValue: boolean) => void | Promise<void>;
@@ -2108,6 +2110,15 @@ function SocialTab(props: TabContentProps) {
                 label={t(state.language, "Lobby Server")}
                 value={state.lobbyServer || t(state.language, "Off")}
                 help={t(state.language, "help_lobby_server")}
+            />
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:mpShortcutFallback"
+                label={t(state.language, "Use Emulator Shortcuts")}
+                value={state.mpShortcutFallback}
+                onChange={actions.onToggleMpShortcutFallback}
+                disabled={disabled}
+                help={t(state.language, "help_mp_shortcut_fallback")}
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}

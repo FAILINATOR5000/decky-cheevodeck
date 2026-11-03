@@ -43,6 +43,17 @@ PSP_SYSTEM = 41
 LINK_CORES = {4: GAMBATTE, 6: GAMBATTE, GBA_SYSTEM: GPSP, DS_SYSTEM: MELONDS_DS, PSP_SYSTEM: PPSSPP_CORE,
               GAMECUBE_SYSTEM: DOLPHIN_STANDALONE}
 
+COUCH_CORES = {
+    4: GAMBATTE, 6: GAMBATTE, GBA_SYSTEM: "mgba", NES_SYSTEM: "mesen", 3: "snes9x",
+    1: "genesis_plus_gx", 11: "genesis_plus_gx", 15: "genesis_plus_gx", 9: "genesis_plus_gx", 10: "picodrive",
+    8: "mednafen_pce", 76: "mednafen_pce", 39: "mednafen_saturn", 25: "stella", 13: "mednafen_lynx",
+    14: "mednafen_ngp", 53: "mednafen_wswan", 28: "mednafen_vb", 44: "bluemsx", 56: "neocd",
+    PS1_SYSTEM: BEETLE_PSX_HW,
+    33: "genesis_plus_gx", 81: "mesen", 49: "mednafen_pcfx", 45: "freeintv", 46: "vecx", 23: "o2em", 57: "freechaf",
+    63: "potator", 17: "virtualjaguar", 43: "opera", 69: "sameduck", 24: "pokemini", 60: "mame", 27: "mame",
+    51: "prosystem", 29: "bluemsx", 2: "mupen64plus_next", 40: "flycast",
+}
+
 GBA_LINK_CODES = frozenset((
     "AW2E", "AW2P", "AWRE", "AWRP", "AXPD", "AXPE", "AXPF", "AXPI", "AXPJ", "AXPS",
     "AXVD", "AXVE", "AXVF", "AXVI", "AXVJ", "AXVS", "B2WE", "B3AE", "B4UE", "B4UP",
@@ -333,6 +344,29 @@ def same_link_family(host_system: int, own_system: int) -> bool:
     return host_system in LINK_CORES and LINK_CORES.get(own_system) == LINK_CORES[host_system]
 
 
+_FLATPAK_VALUE_FLAGS = ("--arch", "--branch", "--cwd", "--runtime", "--runtime-version", "--commit", "--runtime-commit")
+
+
+def _program_names(tokens) -> list:
+    names = [PurePosixPath(token).name.lower() for token in tokens[:3]]
+    if len(tokens) > 1 and PurePosixPath(tokens[0]).name == "flatpak" and tokens[1] == "run":
+        index = 2
+        while index < len(tokens):
+            token = tokens[index]
+            if token.startswith("--command="):
+                names.append(PurePosixPath(token.split("=", 1)[1]).name.lower())
+            elif token == "--command" and index + 1 < len(tokens):
+                index += 1
+                names.append(PurePosixPath(tokens[index]).name.lower())
+            elif token in _FLATPAK_VALUE_FLAGS:
+                index += 1
+            elif not token.startswith("-"):
+                names.append(token.lower())
+                break
+            index += 1
+    return names
+
+
 def detect(exe, launch_options):
     tokens = []
     for field in (exe, launch_options):
@@ -358,8 +392,7 @@ def detect(exe, launch_options):
                 core = name
     if core:
         return {"emulator": "retroarch", "core": core}
-    for token in tokens[:3]:
-        name = PurePosixPath(token).name.lower()
+    for name in _program_names(tokens):
         for emulator, names in _STANDALONE_NAMES:
             if name in names or (name.endswith(".appimage") and emulator in name):
                 return {"emulator": emulator, "core": f"{emulator}-standalone"}
@@ -411,7 +444,7 @@ def dolphin_install(exe, launch_options, home) -> str:
                 tokens.extend(shlex.split(field, posix=True))
             except ValueError:
                 tokens.extend(field.split())
-    names = [PurePosixPath(token).name.lower() for token in tokens[:3]]
+    names = _program_names(tokens)
     if "dolphin-flatpak" in names or DOLPHIN_FLATPAK.lower() in names:
         return "flatpak"
     if any(name.endswith(".appimage") and "dolphin" in name for name in names):
@@ -453,8 +486,7 @@ def emulator_kind(exe, launch_options) -> str:
                 tokens.extend(shlex.split(field, posix=True))
             except ValueError:
                 tokens.extend(field.split())
-    for token in tokens[:3]:
-        name = PurePosixPath(token).name.lower()
+    for name in _program_names(tokens):
         if name in _RETROARCH_NAMES or (name.endswith(".appimage") and "retroarch" in name):
             return "retroarch"
     return ""
@@ -582,14 +614,17 @@ def psp_mac(machine_id: str) -> str:
     return "02:" + ":".join(f"{byte:02x}" for byte in digest[:5])
 
 
-def dolphin_bba_args(*, own_ip: str, mac: str, hardcore: bool, marker: Path) -> str:
-    return " ".join([
+def dolphin_bba_args(*, own_ip: str, mac: str, hardcore: bool, marker: Path, rom=None) -> str:
+    parts = [
         "-C", f"Dolphin.Core.SerialPort1={DOLPHIN_BBA_BUILT_IN}",
         "-C", f"Dolphin.Core.BBA_BUILTIN_IP={own_ip}",
         "-C", f"Dolphin.Core.BBA_MAC={mac}",
         "-C", f"Achievements.Achievements.HardcoreEnabled={'True' if hardcore else 'False'}",
         "-C", quote(f"Dolphin.CheevoDeck.Session={marker}"),
-    ])
+    ]
+    if rom is not None:
+        parts += ["-e", quote(str(rom))]
+    return " ".join(parts)
 
 
 def compose_launch_options(original: str, args: str) -> str:
@@ -760,5 +795,6 @@ def ppsspp_session(*, role: str, host_ip: str, nick: str, mac: str, hardcore: bo
     )
 
 
-def ppsspp_args(*, home, ini_path: Path) -> str:
-    return f"{ppsspp_cpu_flag(home)} {quote('--appendconfig=' + str(ini_path))}"
+def ppsspp_args(*, home, ini_path: Path, rom=None) -> str:
+    args = f"{ppsspp_cpu_flag(home)} {quote('--appendconfig=' + str(ini_path))}"
+    return args if rom is None else f"{args} {quote(str(rom))}"

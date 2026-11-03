@@ -293,12 +293,13 @@ def rom_candidates_for_app(app_id, home=None):
     )
 
 
+_parsed_cache = (None, [])
 _by_rom_cache = (None, {})
 _emulators_cache = (None, [])
 
 
-def shortcuts_by_rom(home=None):
-    global _by_rom_cache
+def _shortcuts(home=None):
+    global _parsed_cache
     files = list(iter_shortcuts_files(home))
     stamp = []
     for path in files:
@@ -308,10 +309,9 @@ def shortcuts_by_rom(home=None):
             continue
         stamp.append((str(path), st.st_mtime_ns, st.st_size))
     stamp = tuple(stamp)
-    if _by_rom_cache[0] == stamp:
-        return _by_rom_cache[1]
-
-    found = {}
+    if _parsed_cache[0] == stamp:
+        return _parsed_cache
+    shortcuts = []
     for path in files:
         try:
             entries = parse_shortcuts(path.read_bytes())
@@ -321,57 +321,67 @@ def shortcuts_by_rom(home=None):
             if not isinstance(shortcut, dict):
                 continue
             app_id = _app_id(shortcut)
+            exe = _field(shortcut, "exe")
             if app_id is None:
                 continue
-            exe = _field(shortcut, "exe")
             launch_options = _field(shortcut, "LaunchOptions")
-            for candidate in rom_candidates(exe, launch_options, _field(shortcut, "StartDir")):
-                if os.path.isabs(candidate) and candidate not in found:
-                    found[candidate] = {
-                        "appid": app_id & 0xFFFFFFFF,
-                        "name": _field(shortcut, "AppName") or "",
-                        "exe": exe or "",
-                        "launchOptions": launch_options or "",
-                    }
+            start_dir = _field(shortcut, "StartDir")
+            shortcuts.append({
+                "appid": app_id & 0xFFFFFFFF,
+                "name": _field(shortcut, "AppName") or "",
+                "exe": exe or "",
+                "launchOptions": launch_options or "",
+                "roms": rom_candidates(exe, launch_options, start_dir),
+            })
+    _parsed_cache = (stamp, shortcuts)
+    return _parsed_cache
+
+
+def shortcuts_by_rom(home=None):
+    global _by_rom_cache
+    stamp, shortcuts = _shortcuts(home)
+    if _by_rom_cache[0] == stamp:
+        return _by_rom_cache[1]
+    found = {}
+    for shortcut in shortcuts:
+        for candidate in shortcut["roms"]:
+            if os.path.isabs(candidate) and candidate not in found:
+                found[candidate] = {key: shortcut[key] for key in ("appid", "name", "exe", "launchOptions")}
     _by_rom_cache = (stamp, found)
     return found
 
 
-def emulator_shortcuts(home=None):
-    global _emulators_cache
-    files = list(iter_shortcuts_files(home))
-    stamp = []
-    for path in files:
-        try:
-            st = path.stat()
-        except OSError:
+def _passes_path(exe, launch_options) -> bool:
+    tokens = _tokens(exe)[1:] if exe else []
+    if tokens and not exe.startswith(('"', "'")) and os.path.isfile(exe):
+        tokens = []
+    options = _tokens(launch_options) if launch_options else []
+    if "%command%" in options:
+        options = options[options.index("%command%") + 1:]
+    flag_value = False
+    for token in tokens + options:
+        if token.startswith("-"):
+            flag_value = "=" not in token
             continue
-        stamp.append((str(path), st.st_mtime_ns, st.st_size))
-    stamp = tuple(stamp)
-    if _emulators_cache[0] == stamp:
-        return _emulators_cache[1]
+        if "/" in token and not flag_value and not token.lower().endswith((".sh", ".appimage")):
+            return True
+        flag_value = False
+    return False
 
+
+def emulator_shortcuts(home=None, held=None):
+    global _emulators_cache
+    stamp, shortcuts = _shortcuts(home)
+    if _emulators_cache[0] == (stamp, held):
+        return _emulators_cache[1]
     found = []
-    for path in files:
-        try:
-            entries = parse_shortcuts(path.read_bytes())
-        except (OSError, ValueError):
+    for shortcut in shortcuts:
+        exe, options, roms = shortcut["exe"], shortcut["launchOptions"], shortcut["roms"]
+        if held is not None and shortcut["appid"] == held[0]:
+            options = held[1]
+            roms = rom_candidates(exe, options or None)
+        if not exe or roms or _passes_path(exe, options):
             continue
-        for shortcut in entries.values():
-            if not isinstance(shortcut, dict):
-                continue
-            app_id = _app_id(shortcut)
-            exe = _field(shortcut, "exe")
-            launch_options = _field(shortcut, "LaunchOptions")
-            if app_id is None or not exe:
-                continue
-            if rom_candidates(exe, launch_options, _field(shortcut, "StartDir")):
-                continue
-            found.append({
-                "appid": app_id & 0xFFFFFFFF,
-                "name": _field(shortcut, "AppName") or "",
-                "exe": exe,
-                "launchOptions": launch_options or "",
-            })
-    _emulators_cache = (stamp, found)
+        found.append({"appid": shortcut["appid"], "name": shortcut["name"], "exe": exe, "launchOptions": options})
+    _emulators_cache = ((stamp, held), found)
     return found

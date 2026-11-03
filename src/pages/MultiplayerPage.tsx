@@ -77,7 +77,7 @@ const WAITING = ["nobody_ready", "no_guests", "drop_in"];
 const ROOM_NOTICES = ["unreadied_other_game", "other_game"];
 
 const ABOVE_TABS = ["not_game_mode", "no_account", "cap_reached", "unavailable", "no_scan", "not_in_results", "no_shortcut",
-    "dolphin_flatpak_needed"];
+    "rom_missing", "dolphin_flatpak_needed"];
 
 type MultiplayerPageState = {
     view: ViewKey;
@@ -322,7 +322,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
 
     function openGamePicker(pick: (gameId: number) => void = actions.pickGame, forMode: MultiplayerMode = mp.mode) {
         const rows = (mp.games ?? [])
-            .filter((game) => game.appid > 0 && playsIn(game, forMode))
+            .filter((game) => game.launchable && playsIn(game, forMode))
             .map((game) => ({
                 key: `${game.systemId}:${game.gameId}`,
                 system: game.system,
@@ -404,7 +404,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
 
     function openLinkGames() {
         const titles = (mp.games ?? [])
-            .filter((game) => game.systemId === GBA_SYSTEM && game.canLink)
+            .filter((game) => game.systemId === GBA_SYSTEM && game.canLink && game.launchable)
             .map((game) => game.title);
         const text = titles.length > 0
             ? titles.join("\n")

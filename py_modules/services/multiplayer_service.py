@@ -83,6 +83,7 @@ APP_ENDED_GRACE_SECONDS = 10
 FLATPAK_SECONDS = 10
 
 EMULATOR_NAMES = ("retroarch", "PPSSPPSDL", "PPSSPPQt", "dolphin-emu")
+FALLBACK_NAMES = {"retroarch": "RetroArch", "ppsspp": "PPSSPP", "dolphin": "Dolphin"}
 
 SESSION_SUFFIXES = {".cfg": "retroarch", ".ini": "ppsspp", ".dolphin": "dolphin"}
 
@@ -572,7 +573,8 @@ class MultiplayerService:
         if results_stamp is None:
             return None
         by_rom = steam_shortcuts.shortcuts_by_rom(self._user_home)
-        stamp = (results_stamp, id(by_rom))
+        held = self.restore_record()["record"]
+        stamp = (results_stamp, id(by_rom), held and (held["appid"], held["original"]))
         if self._library_cache[0] == stamp:
             return self._library_cache[1]
         results = self._cheevo_check_store.load_results()
@@ -609,11 +611,16 @@ class MultiplayerService:
                 if not path:
                     continue
                 real = os.path.realpath(path)
+                shortcut = by_rom.get(real) or by_rom.get(path)
+                if shortcut is not None and held is not None and shortcut["appid"] == held["appid"]:
+                    shortcut = {**shortcut, "launchOptions": held["original"]}
+                    if not {real, path} & set(steam_shortcuts.rom_candidates(shortcut["exe"], held["original"] or None)):
+                        shortcut = None
                 entry["paths"].append({
                     "path": path,
                     "real": real,
                     "hash": hashes.get(path, ""),
-                    "shortcut": by_rom.get(real) or by_rom.get(path),
+                    "shortcut": shortcut,
                 })
         self._library_cache = (stamp, library)
         return library
@@ -729,6 +736,12 @@ class MultiplayerService:
             cores.append(core)
         return cores
 
+    def _core_with_save(self, ra, compatible: list, rom: Path, table_core: str) -> str:
+        for core in ([table_core] if table_core in compatible else []) + compatible:
+            if ra.sorts_saves_by_core(core, rom) and any(path.is_file() for path in ra.save_paths(core, rom)):
+                return core
+        return table_core
+
     def _default_core(self, ra, compatible: list, shortcut_core: str, room_core: str) -> str:
         if room_core and ra.installed(room_core):
             return room_core
@@ -747,32 +760,47 @@ class MultiplayerService:
             return {"ok": True, "scanned": False, "games": [], "installedCores": installed}
         games = []
         couch_systems = {}
+        emulators = {}
+        fallback_on = self._fallback_on()
         for entry in library.values():
+            system_id = entry["systemId"]
             linked = next((p for p in entry["paths"] if p["shortcut"]), None)
             shortcut = linked["shortcut"] if linked else None
-            can_couch = self._can_couch(ra, couch_systems, entry["systemId"], shortcut)
-            can_link = entry["systemId"] in session.LINK_CORES
-            if entry["systemId"] == session.GAMECUBE_SYSTEM:
+            if shortcut is not None:
+                detected = session.detect(shortcut["exe"], shortcut["launchOptions"])
+                emulator = detected["emulator"] if detected else "retroarch"
+                path, launchable = linked, True
+            elif not fallback_on:
+                emulator, path, launchable = "retroarch", None, False
+            else:
+                emulator = self._fallback_kinds("couch", system_id)[0]
+                path = next((p for p in entry["paths"] if os.path.isfile(p["real"])), None)
+                kinds = set(self._fallback_kinds("link", system_id) + self._fallback_kinds("couch", system_id))
+                for kind in kinds - emulators.keys():
+                    emulators[kind] = self._emulator_shortcut(kind, None) is not None
+                launchable = path is not None and any(emulators[kind] for kind in kinds)
+            can_couch = self._can_couch(ra, couch_systems, system_id, emulator)
+            can_link = system_id in session.LINK_CORES
+            if system_id == session.GAMECUBE_SYSTEM:
                 can_link = entry["gameId"] in session.GC_LAN_GAMES
-            if can_link and entry["systemId"] == session.GBA_SYSTEM:
-                can_link = linked is not None \
-                    and self._game_code_of(linked["real"], session.GBA_SYSTEM) in session.GBA_LINK_CODES
+            if can_link and system_id == session.GBA_SYSTEM:
+                can_link = path is not None \
+                    and self._game_code_of(path["real"], session.GBA_SYSTEM) in session.GBA_LINK_CODES
             games.append({
                 "gameId": entry["gameId"],
                 "title": entry["title"],
-                "systemId": entry["systemId"],
+                "systemId": system_id,
                 "system": entry["system"],
                 "imageIcon": entry["imageIcon"],
                 "appid": shortcut["appid"] if shortcut else 0,
+                "launchable": launchable,
                 "canLink": can_link,
                 "canCouch": can_couch,
             })
         games.sort(key=lambda row: row["title"].lower())
         return {"ok": True, "scanned": True, "games": games, "installedCores": installed}
 
-    def _can_couch(self, ra, by_system: dict, system_id: int, shortcut) -> bool:
-        detected = session.detect(shortcut["exe"], shortcut["launchOptions"]) if shortcut else None
-        emulator = detected["emulator"] if detected else "retroarch"
+    def _can_couch(self, ra, by_system: dict, system_id: int, emulator: str) -> bool:
         if emulator == "dolphin":
             return system_id in session.DOLPHIN_SYSTEMS
         if emulator == "duckstation":
@@ -808,6 +836,12 @@ class MultiplayerService:
         return seen[0] if seen else None
 
     def _local(self, mode: str, game_id: int, core: str, room):
+        local, gate, detail = self._route(mode, game_id, core, room)
+        if local is not None and local["fallback"] and not local["appid"]:
+            return None, "no_emulator_shortcut", {"emulator": FALLBACK_NAMES[local["emulator"]]}
+        return local, gate, detail
+
+    def _route(self, mode: str, game_id: int, core: str, room):
         if mode not in proto.MODES:
             return None, "unsupported_emulator", {}
         library = self._library()
@@ -820,10 +854,16 @@ class MultiplayerService:
             if self._dolphin_skipped and not self._flatpak_version(session.DOLPHIN_FLATPAK):
                 return None, "not_in_results", {"dolphinSkipped": "1"}
             return None, "not_in_results", {}
-        candidates = [entry for entry in game["paths"] if entry["shortcut"]]
-        if not candidates:
-            return None, "no_shortcut", {}
         system_id = game["systemId"]
+        candidates = [entry for entry in game["paths"] if entry["shortcut"]]
+        fallback = None
+        if not candidates:
+            if not self._fallback_on():
+                return None, "no_shortcut", {}
+            fallback = self._fallback(mode, system_id)
+            candidates = [{**entry, "shortcut": fallback} for entry in game["paths"] if os.path.isfile(entry["real"])]
+            if not candidates:
+                return None, "rom_missing", {}
 
         pick = candidates[0]
         if room is not None and mode == "couch":
@@ -831,7 +871,10 @@ class MultiplayerService:
                          if room["hash"] and self._hash_of(entry, system_id) == room["hash"]), None)
             if pick is None:
                 return None, "rom_mismatch", {}
-        detected = session.detect(pick["shortcut"]["exe"], pick["shortcut"]["launchOptions"])
+        if fallback is not None:
+            detected = {"emulator": fallback["kind"], "core": ""}
+        else:
+            detected = session.detect(pick["shortcut"]["exe"], pick["shortcut"]["launchOptions"])
         if detected is None:
             return None, "unsupported_emulator", {}
 
@@ -849,6 +892,7 @@ class MultiplayerService:
             "hash": pick["hash"],
             "coreBuild": "",
             "gameCode": "",
+            "fallback": fallback is not None,
         }
         emulator = detected["emulator"]
         if emulator == "pcsx2":
@@ -885,13 +929,16 @@ class MultiplayerService:
 
         ra = session.RetroArch(self._user_home)
         if not ra.found:
-            return None, "unsupported_emulator", {}
+            return None, "no_shortcut" if local["fallback"] else "unsupported_emulator", {}
         local["ra"] = ra
         local["shortcutCoreName"] = ra.core_name(detected["core"])
         compatible = self._compatible(ra, mode, system_id)
         local["choices"] = [{"core": name, "name": ra.core_name(name)} for name in compatible]
         room_core = room["core"] if room is not None else ""
-        chosen = core or self._default_core(ra, compatible, detected["core"], room_core)
+        usual = detected["core"]
+        if local["fallback"]:
+            usual = self._core_with_save(ra, compatible, Path(pick["path"]), session.COUCH_CORES.get(system_id, ""))
+        chosen = core or self._default_core(ra, compatible, usual, room_core)
 
         if mode == "link":
             needed = session.LINK_CORES[system_id]
@@ -982,11 +1029,31 @@ class MultiplayerService:
         )
         return local, None, {}
 
-    def _emulator_shortcut(self, kind: str, install: str = ""):
-        for shortcut in steam_shortcuts.emulator_shortcuts(self._user_home):
+    def _fallback_on(self) -> bool:
+        return bool(self._settings_store.load_config().get("mpShortcutFallback", False))
+
+    def _fallback_kinds(self, mode: str, system_id: int) -> tuple:
+        if system_id in session.DOLPHIN_SYSTEMS:
+            return ("dolphin",)
+        if system_id == PSP_SYSTEM and mode == "link":
+            return ("ppsspp", "retroarch")
+        return ("retroarch",)
+
+    def _fallback(self, mode: str, system_id: int) -> dict:
+        kinds = self._fallback_kinds(mode, system_id)
+        for kind in kinds:
+            shortcut = self._emulator_shortcut(kind, None)
+            if shortcut is not None:
+                return {**shortcut, "kind": kind}
+        return {"appid": 0, "name": "", "exe": "", "launchOptions": "", "kind": kinds[0]}
+
+    def _emulator_shortcut(self, kind: str, install=""):
+        held = self.restore_record()["record"]
+        held = (held["appid"], held["original"]) if held is not None else None
+        for shortcut in steam_shortcuts.emulator_shortcuts(self._user_home, held):
             if session.emulator_kind(shortcut["exe"], shortcut["launchOptions"]) != kind:
                 continue
-            if kind == "dolphin" and session.dolphin_install(
+            if kind == "dolphin" and install is not None and session.dolphin_install(
                     shortcut["exe"], shortcut["launchOptions"], self._user_home) != install:
                 continue
             return shortcut
@@ -1059,6 +1126,9 @@ class MultiplayerService:
         system_id = local["systemId"]
         ra = local.get("ra")
 
+        if local["fallback"] and not os.path.isfile(local["real"]):
+            return ("rom_missing", {}), warnings
+
         if room is not None:
             if room.get("where") == "online" and _lan_only(mode, local):
                 return (ERROR_LAN_ONLY, {}), warnings
@@ -1121,9 +1191,10 @@ class MultiplayerService:
             if mode == "couch" and players > 2 and local["core"] in session.MULTITAP \
                     and ra.remap_sets_device(local["core"], rom):
                 return ("remap", {}), warnings
-            if local.get("duckstation"):
+            if local.get("duckstation") or (local["fallback"] and system_id == session.PS1_SYSTEM
+                                            and self._emulator_shortcut("duckstation") is not None):
                 warnings.append({"code": "duckstation_switch", "detail": {"core": local["coreName"]}})
-            elif local["core"] != local["shortcutCore"]:
+            elif local["core"] != local["shortcutCore"] and not local["fallback"]:
                 if ra.sorts_saves_by_core(local["core"], rom):
                     detail = {"core": local["coreName"], "shortcutCore": local["shortcutCoreName"]}
                     if mode == "link":
@@ -2641,8 +2712,9 @@ class MultiplayerService:
         library = self._library() or {}
         players = self._players("link", row)
         games = []
+        fallback_on = self._fallback_on()
         for entry in library.values():
-            if not any(path["shortcut"] for path in entry["paths"]):
+            if not fallback_on and not any(path["shortcut"] for path in entry["paths"]):
                 continue
             if not session.same_link_family(row["systemId"], entry["systemId"]):
                 continue
@@ -2890,7 +2962,7 @@ class MultiplayerService:
                 core_path = ra.core_path(local["core"]) if local["core"] != local["shortcutCore"] else None
                 args = session.retroarch_args(mode=mode, role=role, host_ip=host_ip, nick=nick,
                                               cfg_path=cfg_path, core_path=core_path, core=local["core"],
-                                              rom=rom if local.get("duckstation") else None)
+                                              rom=rom if local.get("duckstation") or local["fallback"] else None)
                 guest_round = mode == "couch" and role == "guest"
                 if (core_path is not None or guest_round) and not local.get("duckstation"):
                     self._back_up_save(ra, local)
@@ -2905,14 +2977,16 @@ class MultiplayerService:
                     )
                 else:
                     args = session.dolphin_bba_args(own_ip=own_ip, mac=session.bba_mac(self._machine_id()),
-                                                    hardcore=hardcore, marker=marker)
+                                                    hardcore=hardcore, marker=marker,
+                                                    rom=rom if local["fallback"] else None)
             else:
                 ini_path = self._session_dir / f"session-{sid}.ini"
                 text = session.ppsspp_session(role=role, host_ip=host_ip, nick=nick,
                                               mac=session.psp_mac(self._machine_id()), hardcore=hardcore, relay=relay)
                 self._write(ini_path, text)
                 files = [ini_path]
-                args = session.ppsspp_args(home=self._user_home, ini_path=ini_path)
+                args = session.ppsspp_args(home=self._user_home, ini_path=ini_path,
+                                           rom=rom if local["fallback"] else None)
             if not self._readable_by_owner(files):
                 raise OSError("session files are not the home owner's")
             self._write_restore(local["appid"], original, sid)
@@ -2970,7 +3044,7 @@ class MultiplayerService:
         prefix = f"{local['gameId']}-"
         stamp = time.strftime("%Y%m%d%H%M%S")
         copied = False
-        for source in ra.save_paths(local["shortcutCore"], Path(local["path"])):
+        for source in ra.save_paths(local["shortcutCore"] or local["core"], Path(local["path"])):
             if not source.is_file():
                 continue
             try:
