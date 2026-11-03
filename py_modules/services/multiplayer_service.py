@@ -2275,7 +2275,7 @@ class MultiplayerService:
             key = (row["room"], row["mode"], row["gameId"], row["core"], row["hash"], row["coreBuild"],
                    row["emuVersion"], row["gameCode"], stamp)
             verdict = self._verdict_memo.get(key)
-            if verdict is None:
+            if verdict is None or not verdict["can"]:
                 local, reason, detail = self._decide(row, 0, "")
                 verdict = {"can": local is not None, "reason": reason, "detail": detail}
                 self._verdict_memo[key] = verdict
