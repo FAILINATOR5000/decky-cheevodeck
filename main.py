@@ -1135,6 +1135,7 @@ class Plugin(
         self.freeze_watchdog_service.stop()
         self.nearby_transfer_service.stop()
         self.multiplayer_service.stop()
+        self.multiplayer_service.settle(1.0)
         self.multiplayer_friends_service.stop()
         self.ez_friends_heal_service.stop()
         self.data_transfer_service.stop()
@@ -1951,6 +1952,7 @@ class Plugin(
         except Exception as exc:
             decky.logger.warning("factory reset: downloads not cleared (%s)", type(exc).__name__)
 
+        await self.multiplayer_friends_service.retire()
         await asyncio.to_thread(self._run_factory_reset_locked)
         return {"ok": True}
 

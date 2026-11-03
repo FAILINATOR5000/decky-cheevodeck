@@ -242,6 +242,10 @@ class HostTunnels:
                 game_writer.close()
                 self._closers.discard(game_writer.close)
                 return
+            except asyncio.CancelledError:
+                game_writer.close()
+                self._closers.discard(game_writer.close)
+                raise
             self._closers.add(far_writer.close)
             self._debug("tunnel up for seat %s, tcp %s", ask["seat"], port)
             try:

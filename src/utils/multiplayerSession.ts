@@ -170,6 +170,7 @@ export async function launchMultiplayer(appid: number, hardcore: boolean): Promi
 }
 
 async function launchOnce(appid: number, hardcore: boolean): Promise<MultiplayerLaunchResult> {
+    await restoreLeftover();
     const original = await readLaunchOptions(appid);
     if (original === null) {
         return { ok: false, error: "shortcut_unread" };

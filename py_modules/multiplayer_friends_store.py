@@ -28,6 +28,7 @@ MAX_REQUESTS = 200
 MAX_ALERTS = 20
 MAX_OUTBOX = 100
 MAX_DISMISSED = 200
+REQUEST_MAX_AGE_SECONDS = 30 * 86400
 MESSAGE_MAX = 500
 
 _DEVICE_RE = re.compile(r"^[0-9a-f]{32}$")
@@ -132,6 +133,8 @@ def normalize(raw: dict) -> dict:
     friend_ids = {friend["ulid"] for friend in friends}
     requests = _unique([_request(row) for row in _rows(raw, "requests")], MAX_REQUESTS)
     requests = [request for request in requests if request["way"] == "in" or request["ulid"] not in friend_ids]
+    now = time.time()
+    requests = [request for request in requests if now - request["at"] < REQUEST_MAX_AGE_SECONDS]
     raw_read = raw.get("lastRead") if isinstance(raw.get("lastRead"), dict) else {}
     raw_unread = raw.get("unread") if isinstance(raw.get("unread"), dict) else {}
     raw_newest = raw.get("newestAt") if isinstance(raw.get("newestAt"), dict) else {}

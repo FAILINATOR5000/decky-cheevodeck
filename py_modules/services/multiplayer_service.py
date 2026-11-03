@@ -8,6 +8,7 @@ import secrets
 import select
 import shutil
 import socket
+import threading
 import time
 from collections import deque
 from pathlib import Path
@@ -233,6 +234,7 @@ class MultiplayerService:
 
         self._session = None
         self._stopping = False
+        self._goodbye = None
         self._library_cache = (None, None)
         self._verdict_memo = {}
         self._hash_memo = {}
@@ -363,9 +365,17 @@ class MultiplayerService:
 
     def stop(self) -> None:
         self._stopping = True
-        self.close()
         for task in list(self._tasks):
             task.cancel()
+        self.close()
+
+    def settle(self, seconds: float) -> None:
+        goodbye, self._goodbye = self._goodbye, None
+        if goodbye is None:
+            return
+        worker = threading.Thread(target=asyncio.run, args=(goodbye,), name="multiplayer-goodbye", daemon=True)
+        worker.start()
+        worker.join(seconds)
 
     def _spawn(self, coro):
         task = asyncio.ensure_future(coro)
@@ -2706,7 +2716,9 @@ class MultiplayerService:
             self._poller = None
         if tell_host and joined["error"] != ERROR_HOST_GONE:
             loop = self._loop
-            if loop is not None and not loop.is_closed():
+            if self._stopping:
+                self._goodbye = self._ask(joined, "leave")
+            elif loop is not None and not loop.is_closed():
                 self._spawn(self._ask(joined, "leave"))
         decky.logger.info("multiplayer: left the room")
         self._announce()
@@ -2766,7 +2778,11 @@ class MultiplayerService:
         stale = self._session
         if stale is not None and stale["started"] and not stale["exited"]:
             return {"ok": False, "error": ERROR_BUSY}
-        if stale is not None and not stale["started"]:
+        held = self.restore_record()["record"]
+        unlaunched = stale is not None and not stale["started"]
+        if held is not None and not (unlaunched and held["session"] == stale["id"]):
+            return {"ok": False, "error": ERROR_BUSY}
+        if unlaunched:
             self._session = None
             self._remove_session_files(stale["id"])
             self._close_guest_tunnels_soon()
@@ -2816,6 +2832,10 @@ class MultiplayerService:
         found, _warnings = self._gates(mode, local, peer, players)
         if found:
             return {"ok": False, "error": ERROR_GATE, "gate": found[0], "detail": found[1]}
+        if held is not None:
+            if held["appid"] != local["appid"]:
+                return {"ok": False, "error": ERROR_BUSY}
+            original = held["original"]
 
         relayed = joined is not None and room is None and joined["row"]["door"] == "server"
         if relayed:

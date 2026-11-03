@@ -1015,6 +1015,16 @@ class MultiplayerFriendsService:
             self._notify(friend["name"], "New message", f"multiplayer:friend:{sender}",
                          {"friend": sender, "conversation": True})
 
+    async def retire(self) -> None:
+        if not self._up:
+            return
+        await self._send({"op": "retire"})
+        self._refused = "retired"
+        if self._link is not None:
+            self._link.cancel()
+            self._link = None
+        self._set_up(False)
+
     async def alert(self, device: str, revoke: bool) -> dict:
         if revoke:
             if not await self._until_up():

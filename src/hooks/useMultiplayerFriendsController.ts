@@ -44,6 +44,14 @@ export function useMultiplayerFriendsController({ isActive, tabOpen, seatPics }:
         };
     }, [isActive, tabOpen, load]);
 
+    useEffect(() => () => {
+        for (const [pic, uri] of avatarMemory) {
+            if (!uri) {
+                avatarMemory.delete(pic);
+            }
+        }
+    }, []);
+
     const wanted = [
         ...(data?.friends ?? []).map((row) => row.pic),
         ...(data?.requests ?? []).map((row) => row.pic),
