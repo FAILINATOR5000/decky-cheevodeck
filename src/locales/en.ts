@@ -3202,4 +3202,10 @@ export const EN: LocaleTable = {
     "No friends to invite yet.": "No friends to invite yet.",
     "They left the room. Add them by name instead.": "They left the room. Add them by name instead.",
     "Someone else is in that seat now": "Someone else is in that seat now",
+    "Pick a friend to invite to your room.": "Pick a friend to invite to your room.",
+    "Inviting {{name}}...": "Inviting {{name}}...",
+    "Looking up {{name}}...": "Looking up {{name}}...",
+    "Sending...": "Sending...",
+    "Hosting...": "Hosting...",
+    "Joining...": "Joining...",
 };

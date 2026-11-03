@@ -3193,6 +3193,12 @@ const DE: LocaleTable = {
     "No friends to invite yet.": "Noch keine Freunde zum Einladen.",
     "They left the room. Add them by name instead.": "Die Person hat den Raum verlassen. Füge sie stattdessen per Namen hinzu.",
     "Someone else is in that seat now": "Auf diesem Platz sitzt jetzt jemand anderes",
+    "Pick a friend to invite to your room.": "Wähle einen Freund, den du in deinen Raum einlädst.",
+    "Inviting {{name}}...": "{{name}} wird eingeladen...",
+    "Looking up {{name}}...": "{{name}} wird gesucht...",
+    "Sending...": "Wird gesendet...",
+    "Hosting...": "Raum wird erstellt...",
+    "Joining...": "Beitritt läuft...",
 };
 
 export default DE;

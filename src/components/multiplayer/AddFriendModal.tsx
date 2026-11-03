@@ -7,9 +7,10 @@ import { t, type LanguageCode } from "../../locales";
 import { logError } from "../../utils/errors";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { modalSize } from "../../utils/scale";
-import { errorRed, modalBodyStyle } from "../../utils/style";
+import { modalBodyStyle } from "../../utils/style";
 import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
+import { DialogLine, type DialogLineState } from "./DialogLine";
 
 const NAME_MAX = 32;
 
@@ -48,7 +49,7 @@ function AddFriendModal(props: { language: LanguageCode; close: () => void }) {
     const { language, close } = props;
     const [name, setName] = useState("");
     const [busy, setBusy] = useState(false);
-    const [failure, setFailure] = useState("");
+    const [line, setLine] = useState<DialogLineState>({ tone: "hint", text: "" });
     const [entryId] = useState(() => topEntryId());
     const fieldRef = useRef<HTMLDivElement | null>(null);
     const canAdd = name.trim().length > 0 && !busy;
@@ -62,11 +63,11 @@ function AddFriendModal(props: { language: LanguageCode; close: () => void }) {
             return;
         }
         setBusy(true);
-        setFailure("");
+        setLine({ tone: "busy", text: t(language, "Looking up {{name}}...", { name: name.trim() }) });
         try {
             const added = await multiplayerFriendAdd(name.trim());
             if (!added.ok) {
-                setFailure(added.error ?? "unavailable");
+                setLine({ tone: "error", text: friendError(language, added.error) });
                 setBusy(false);
                 return;
             }
@@ -80,7 +81,7 @@ function AddFriendModal(props: { language: LanguageCode; close: () => void }) {
         }
         catch (e) {
             logError("multiplayerFriendAdd", e);
-            setFailure("unavailable");
+            setLine({ tone: "error", text: friendError(language, "unavailable") });
             setBusy(false);
             return;
         }
@@ -101,15 +102,11 @@ function AddFriendModal(props: { language: LanguageCode; close: () => void }) {
                         disabled={busy}
                         onChange={(e: any) => {
                             setName(String(e?.target?.value ?? "").slice(0, NAME_MAX));
-                            setFailure("");
+                            setLine({ tone: "hint", text: "" });
                         }}
                     />
                 </div>
-                {failure && (
-                    <div style={{ ...modalBodyStyle(), color: errorRed, opacity: 1, marginTop: "8px" }}>
-                        {friendError(language, failure)}
-                    </div>
-                )}
+                <DialogLine {...line} />
                 <div style={{ ...modalBodyStyle(), marginTop: "8px" }}>
                     {t(language, "help_mp_add_friend")}
                 </div>

@@ -11,12 +11,13 @@ import { showManagedModal } from "../../utils/modalRegistry";
 import { rememberMultiplayerTab } from "../../utils/multiplayerChoices";
 import { getCurrentModalScale, modalSize } from "../../utils/scale";
 import { searchKey } from "../../utils/searchText";
-import { achievementGreen, compactButtonStyle, errorRed, modalBodyStyle, warnAmber } from "../../utils/style";
+import { achievementGreen, compactButtonStyle, modalBodyStyle, warnAmber } from "../../utils/style";
 import { FocusableItem } from "../ui/FocusableItem";
 import { InlineSpinner } from "../ui/InlineSpinner";
 import { SaveOnStart } from "../ui/SaveOnStart";
 import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
+import { DialogLine, type DialogLineState } from "./DialogLine";
 import { DigitPicker } from "./DigitPicker";
 import { roomStatusLabelKey } from "./roomStatus";
 
@@ -58,7 +59,7 @@ function RoomsModal(props: RoomsModalProps) {
     const [password, setPassword] = useState("");
     const [ipDigits, setIpDigits] = useState("192168001000");
     const [busy, setBusy] = useState(false);
-    const [failure, setFailure] = useState("");
+    const [line, setLine] = useState<DialogLineState>({ tone: "hint", text: "" });
     const [entryId] = useState(topEntryId);
     const joinedRef = useRef(false);
     const lookingRef = useRef(false);
@@ -165,7 +166,7 @@ function RoomsModal(props: RoomsModalProps) {
         setStep("list");
         setPicked(null);
         setPassword("");
-        setFailure("");
+        setLine({ tone: "hint", text: "" });
     }
 
     function cancel() {
@@ -181,7 +182,7 @@ function RoomsModal(props: RoomsModalProps) {
             return;
         }
         setBusy(true);
-        setFailure("");
+        setLine({ tone: "busy", text: t(language, "Joining...") });
         try {
             const joined = await multiplayerJoin(row.room, typed, hardcore);
             if (joined.ok) {
@@ -194,17 +195,17 @@ function RoomsModal(props: RoomsModalProps) {
                 close();
                 return;
             }
-            setFailure(describe(joined.gate ?? joined.error ?? "unavailable", joined.detail));
+            setLine({ tone: "error", text: describe(joined.gate ?? joined.error ?? "unavailable", joined.detail) });
         }
         catch (e) {
             logError("multiplayerJoin", e);
-            setFailure(describe("unavailable"));
+            setLine({ tone: "error", text: describe("unavailable") });
         }
         setBusy(false);
     }
 
     function choose(row: MultiplayerRoomRow) {
-        setFailure("");
+        setLine({ tone: "hint", text: "" });
         if (row.private) {
             setPicked(row);
             setPassword("");
@@ -219,7 +220,7 @@ function RoomsModal(props: RoomsModalProps) {
             return;
         }
         setBusy(true);
-        setFailure("");
+        setLine({ tone: "busy", text: t(language, "Looking up {{name}}...", { name: addressOf(ipDigits) }) });
         let found: MultiplayerRoomRow | null = null;
         try {
             const answer = await multiplayerLookup(addressOf(ipDigits));
@@ -227,12 +228,12 @@ function RoomsModal(props: RoomsModalProps) {
                 found = answer.room;
             }
             else {
-                setFailure(describe(answer.error ?? "not_found"));
+                setLine({ tone: "error", text: describe(answer.error ?? "not_found") });
             }
         }
         catch (e) {
             logError("multiplayerLookup", e);
-            setFailure(describe("not_found"));
+            setLine({ tone: "error", text: describe("not_found") });
         }
         setBusy(false);
         if (found) {
@@ -241,9 +242,7 @@ function RoomsModal(props: RoomsModalProps) {
     }
 
     const canJoinPicked = picked !== null && password.length > 0 && !busy;
-    const failureLine = failure && (
-        <div style={{ ...modalBodyStyle(), color: errorRed, opacity: 1, marginTop: "8px" }}>{failure}</div>
-    );
+    const dialogLine = <DialogLine {...line} />;
 
     let body;
     if (step === "password" && picked) {
@@ -262,7 +261,7 @@ function RoomsModal(props: RoomsModalProps) {
                         onChange={(e: any) => setPassword(String(e?.target?.value ?? "").slice(0, PASSWORD_MAX))}
                     />
                 </div>
-                {failureLine}
+                {dialogLine}
                 <Focusable
                     style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "16px" }}
                     flow-children="row"
@@ -293,12 +292,9 @@ function RoomsModal(props: RoomsModalProps) {
                     groupSize={3}
                     fallbacks={["multiplayer:rooms:ipfind", "multiplayer:rooms:ipback"]}
                 />
-                {!valid && (
-                    <div style={{ ...modalBodyStyle(), color: errorRed, opacity: 1, marginTop: "8px" }}>
-                        {t(language, "Not a valid address")}
-                    </div>
-                )}
-                {failureLine}
+                {valid || busy
+                    ? dialogLine
+                    : <DialogLine tone="error" text={t(language, "Not a valid address")} />}
                 <Focusable
                     style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "16px" }}
                     flow-children="row"
@@ -332,7 +328,7 @@ function RoomsModal(props: RoomsModalProps) {
                         {describe(visibleError)}
                     </div>
                 )}
-                {failureLine}
+                {dialogLine}
                 {onlineError && (
                     <div style={{ ...modalBodyStyle(), color: warnAmber, opacity: 1, marginTop: "8px" }}>
                         {t(language, "Couldn't reach the online lobby. Local rooms still show.")}
@@ -413,7 +409,7 @@ function RoomsModal(props: RoomsModalProps) {
                     flow-children="row"
                 >
                     <div data-focus-key="multiplayer:rooms:joinip">
-                        <DialogButton onClick={() => { setFailure(""); setStep("ip"); }} style={compactButtonStyle}>
+                        <DialogButton onClick={() => { setLine({ tone: "hint", text: "" }); setStep("ip"); }} style={compactButtonStyle}>
                             {t(language, "Join by IP")}
                         </DialogButton>
                     </div>

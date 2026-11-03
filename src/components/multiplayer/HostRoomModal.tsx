@@ -9,10 +9,11 @@ import { logError } from "../../utils/errors";
 import { multiplayerChoices, rememberMultiplayerHostPicks } from "../../utils/multiplayerChoices";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { modalSize } from "../../utils/scale";
-import { achievementGreen, compactButtonStyle, errorRed, modalBodyStyle, warnAmber } from "../../utils/style";
+import { achievementGreen, compactButtonStyle, modalBodyStyle, warnAmber } from "../../utils/style";
 import { helpDescription } from "../ui/InfoText";
 import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
+import { DialogLine, type DialogLineState } from "./DialogLine";
 import { ROOM_STATUSES } from "./roomStatus";
 
 const NAME_MAX = 24;
@@ -58,7 +59,7 @@ function HostRoomModal(props: HostRoomModalProps) {
     const [password, setPassword] = useState("");
     const [status, setStatus] = useState(picks.status);
     const [hosting, setHosting] = useState(false);
-    const [failure, setFailure] = useState("");
+    const [line, setLine] = useState<DialogLineState>({ tone: "hint", text: "" });
     const [entryId] = useState(topEntryId);
     const nameRef = useRef<HTMLDivElement | null>(null);
 
@@ -73,7 +74,7 @@ function HostRoomModal(props: HostRoomModalProps) {
             return;
         }
         setHosting(true);
-        setFailure("");
+        setLine({ tone: "busy", text: t(language, "Hosting...") });
         rememberMultiplayerHostPicks(seats, status, place.online && !place.lanOnly ? where : picks.where);
         try {
             await multiplayerSetVisible(true, true);
@@ -84,11 +85,11 @@ function HostRoomModal(props: HostRoomModalProps) {
                 close();
                 return;
             }
-            setFailure(describe(hosted.gate ?? hosted.error ?? "unavailable", hosted.detail));
+            setLine({ tone: "error", text: describe(hosted.gate ?? hosted.error ?? "unavailable", hosted.detail) });
         }
         catch (e) {
             logError("multiplayerHost", e);
-            setFailure(describe("unavailable"));
+            setLine({ tone: "error", text: describe("unavailable") });
         }
         setHosting(false);
     }
@@ -192,9 +193,7 @@ function HostRoomModal(props: HostRoomModalProps) {
                         </div>
                     </>
                 )}
-                {failure && (
-                    <div style={{ ...modalBodyStyle(), color: errorRed, opacity: 1, marginTop: "12px" }}>{failure}</div>
-                )}
+                <DialogLine {...line} />
                 <Focusable
                     style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "16px" }}
                     flow-children="row"

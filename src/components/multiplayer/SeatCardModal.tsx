@@ -8,9 +8,10 @@ import { logError } from "../../utils/errors";
 import { rememberMultiplayerPage } from "../../utils/multiplayerChoices";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { modalSize } from "../../utils/scale";
-import { errorRed, modalBodyStyle } from "../../utils/style";
+import { modalBodyStyle } from "../../utils/style";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { friendError } from "./AddFriendModal";
+import { DialogLine, type DialogLineState } from "./DialogLine";
 import { PicAvatar } from "./PicAvatar";
 
 export type SeatCardOptions = {
@@ -27,23 +28,23 @@ export type SeatCardOptions = {
 function SeatCardModal(props: SeatCardOptions & { language: LanguageCode; close: () => void }) {
     const { language, close } = props;
     const [busy, setBusy] = useState(false);
-    const [failure, setFailure] = useState("");
+    const [line, setLine] = useState<DialogLineState>({ tone: "hint", text: "" });
     const [entryId] = useState(() => topEntryId());
 
     async function addFriend() {
         setBusy(true);
-        setFailure("");
+        setLine({ tone: "busy", text: t(language, "Sending...") });
         try {
             const asked = await multiplayerFriendAddSeat(props.index, props.ulid);
             if (!asked.ok) {
-                setFailure(asked.error ?? "unavailable");
+                setLine({ tone: "error", text: friendError(language, asked.error, props.name) });
                 setBusy(false);
                 return;
             }
         }
         catch (e) {
             logError("multiplayerFriendAddSeat", e);
-            setFailure("unavailable");
+            setLine({ tone: "error", text: friendError(language, "unavailable") });
             setBusy(false);
             return;
         }
@@ -62,10 +63,11 @@ function SeatCardModal(props: SeatCardOptions & { language: LanguageCode; close:
 
     async function drop() {
         setBusy(true);
+        setLine({ tone: "busy", text: t(language, "Working...") });
         try {
             const dropped = await multiplayerDropSeat(props.index, props.name);
             if (!dropped.ok) {
-                setFailure(dropped.error ?? "unavailable");
+                setLine({ tone: "error", text: friendError(language, dropped.error, props.name) });
                 setBusy(false);
                 return;
             }
@@ -90,11 +92,7 @@ function SeatCardModal(props: SeatCardOptions & { language: LanguageCode; close:
                     )}
                 </div>
             </div>
-            {failure && (
-                <div style={{ ...modalBodyStyle(), color: errorRed, opacity: 1, marginTop: "8px" }}>
-                    {friendError(language, failure)}
-                </div>
-            )}
+            <DialogLine {...line} />
             <Focusable style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "16px" }} flow-children="column">
                 {canAsk && (
                     <div data-focus-key="multiplayer:seatcard:add">

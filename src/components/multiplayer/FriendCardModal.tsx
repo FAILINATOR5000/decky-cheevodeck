@@ -15,10 +15,11 @@ import { logError } from "../../utils/errors";
 import { rememberMultiplayerPage } from "../../utils/multiplayerChoices";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { modalSize } from "../../utils/scale";
-import { achievementGreen, errorRed, modalBodyStyle } from "../../utils/style";
+import { achievementGreen, modalBodyStyle } from "../../utils/style";
 import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { friendError } from "./AddFriendModal";
+import { DialogLine, type DialogLineState } from "./DialogLine";
 import { PicAvatar, friendGame, friendName, friendStatus } from "./PicAvatar";
 
 const NICKNAME_MAX = 24;
@@ -38,10 +39,9 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
     const { language, friend, close } = props;
     const [step, setStep] = useState<Step>("menu");
     const [busy, setBusy] = useState(false);
-    const [failure, setFailure] = useState("");
+    const [line, setLine] = useState<DialogLineState>({ tone: "hint", text: "" });
     const [nickname, setNickname] = useState(friend.nickname || friend.name);
     const [password, setPassword] = useState("");
-    const [invited, setInvited] = useState(false);
     const [entryId] = useState(() => topEntryId());
     const fieldRef = useRef<HTMLDivElement | null>(null);
 
@@ -63,9 +63,13 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
         close();
     }
 
+    function failed(code: string | undefined) {
+        setLine({ tone: "error", text: friendError(language, code, friendName(friend)) });
+    }
+
     async function join() {
         setBusy(true);
-        setFailure("");
+        setLine({ tone: "busy", text: t(language, "Joining...") });
         let joinedRunningGame = false;
         try {
             await multiplayerSetVisible(true, true);
@@ -75,11 +79,14 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
                 if (joined.error === "needs_code" || joined.error === "bad_code") {
                     setStep("password");
                     if (joined.error === "bad_code") {
-                        setFailure("bad_code");
+                        failed("bad_code");
+                    }
+                    else {
+                        setLine({ tone: "hint", text: "" });
                     }
                     return;
                 }
-                setFailure(joined.error ?? "unavailable");
+                failed(joined.error);
                 return;
             }
             const room = joined.room;
@@ -88,7 +95,7 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
         catch (e) {
             logError("multiplayerFriendJoin", e);
             setBusy(false);
-            setFailure("unavailable");
+            failed("unavailable");
             return;
         }
         rememberMultiplayerPage("play");
@@ -100,20 +107,19 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
 
     async function invite() {
         setBusy(true);
-        setFailure("");
-        setInvited(false);
+        setLine({ tone: "busy", text: t(language, "Inviting {{name}}...", { name: friendName(friend) }) });
         try {
             const sent = await multiplayerFriendInvite(friend.ulid);
             if (sent.ok) {
-                setInvited(true);
+                setLine({ tone: "ok", text: t(language, "Invite sent to {{name}}", { name: friendName(friend) }) });
             }
             else {
-                setFailure(sent.error ?? "unavailable");
+                failed(sent.error);
             }
         }
         catch (e) {
             logError("multiplayerFriendInvite", e);
-            setFailure("unavailable");
+            failed("unavailable");
         }
         setBusy(false);
     }
@@ -150,7 +156,7 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
             return;
         }
         setStep("menu");
-        setFailure("");
+        setLine({ tone: "hint", text: "" });
         setBusy(false);
     }
 
@@ -170,11 +176,7 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
             </div>
         </div>
     );
-    const failureLine = failure && (
-        <div style={{ ...modalBodyStyle(), color: errorRed, opacity: 1, marginTop: "8px" }}>
-            {friendError(language, failure, friendName(friend))}
-        </div>
-    );
+    const dialogLine = <DialogLine {...line} />;
 
     if (step === "rename" || step === "password") {
         const renaming = step === "rename";
@@ -201,12 +203,12 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
                                 }
                                 else {
                                     setPassword(value.slice(0, PASSWORD_MAX));
-                                    setFailure("");
+                                    setLine({ tone: "hint", text: "" });
                                 }
                             }}
                         />
                     </div>
-                    {failureLine}
+                    {dialogLine}
                     <Focusable style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "16px" }} flow-children="row">
                         <div data-focus-key="multiplayer:friendcard:save">
                             <DialogButton onClick={() => void (renaming ? rename() : join())} disabled={busy || (!renaming && !password)}>
@@ -247,12 +249,7 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
         <ModalRoot onCancel={close} onEscKeypress={close}>
             <SnapshotHotkey language={language} />
             {header}
-            {failureLine}
-            {invited && (
-                <div style={{ ...modalBodyStyle(), color: achievementGreen, opacity: 1, marginTop: "8px" }}>
-                    {t(language, "Invite sent to {{name}}", { name: friendName(friend) })}
-                </div>
-            )}
+            {dialogLine}
             <Focusable style={buttonColumn} flow-children="column">
                 <div data-focus-key="multiplayer:friendcard:message">
                     <DialogButton onClick={message} disabled={busy}>{t(language, "Message")}</DialogButton>

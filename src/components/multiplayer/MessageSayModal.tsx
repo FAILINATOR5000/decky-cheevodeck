@@ -6,10 +6,11 @@ import { t, type LanguageCode } from "../../locales";
 import { logError } from "../../utils/errors";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { modalSize } from "../../utils/scale";
-import { errorRed, modalBodyStyle } from "../../utils/style";
+import { modalBodyStyle } from "../../utils/style";
 import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { friendError } from "./AddFriendModal";
+import { DialogLine, type DialogLineState } from "./DialogLine";
 
 const MESSAGE_MAX = 500;
 
@@ -17,7 +18,7 @@ function MessageSayModal(props: { language: LanguageCode; ulid: string; name: st
     const { language, close } = props;
     const [text, setText] = useState("");
     const [busy, setBusy] = useState(false);
-    const [failure, setFailure] = useState("");
+    const [line, setLine] = useState<DialogLineState>({ tone: "hint", text: "" });
     const fieldRef = useRef<HTMLDivElement | null>(null);
     const canSend = text.trim().length > 0 && !busy;
 
@@ -30,18 +31,18 @@ function MessageSayModal(props: { language: LanguageCode; ulid: string; name: st
             return;
         }
         setBusy(true);
-        setFailure("");
+        setLine({ tone: "busy", text: t(language, "Sending...") });
         try {
             const sent = await multiplayerFriendSend(props.ulid, text);
             if (!sent.ok) {
-                setFailure(sent.error ?? "unavailable");
+                setLine({ tone: "error", text: friendError(language, sent.error, props.name) });
                 setBusy(false);
                 return;
             }
         }
         catch (e) {
             logError("multiplayerFriendSend", e);
-            setFailure("unavailable");
+            setLine({ tone: "error", text: friendError(language, "unavailable") });
             setBusy(false);
             return;
         }
@@ -61,18 +62,14 @@ function MessageSayModal(props: { language: LanguageCode; ulid: string; name: st
                         disabled={busy}
                         onChange={(e: any) => {
                             setText(String(e?.target?.value ?? "").slice(0, MESSAGE_MAX));
-                            setFailure("");
+                            setLine({ tone: "hint", text: "" });
                         }}
                     />
                 </div>
                 <div style={{ ...modalBodyStyle(), marginTop: "4px", textAlign: "right" }}>
                     {`${text.length}/${MESSAGE_MAX}`}
                 </div>
-                {failure && (
-                    <div style={{ ...modalBodyStyle(), color: errorRed, opacity: 1, marginTop: "8px" }}>
-                        {friendError(language, failure)}
-                    </div>
-                )}
+                <DialogLine {...line} />
                 <Focusable style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "16px" }} flow-children="row">
                     <div data-focus-key="multiplayer:message:send">
                         <DialogButton onClick={() => void send()} disabled={!canSend}>{t(language, "Send")}</DialogButton>

@@ -3274,6 +3274,12 @@ const RU: LocaleTable = {
     "No friends to invite yet.": "Пока некого позвать.",
     "They left the room. Add them by name instead.": "Этот человек вышел из комнаты. Добавь его по имени в RetroAchievements.",
     "Someone else is in that seat now": "Это место уже занял другой игрок",
+    "Pick a friend to invite to your room.": "Выбери друга, чтобы позвать в свою комнату.",
+    "Inviting {{name}}...": "Приглашение: {{name}}...",
+    "Looking up {{name}}...": "Поиск: {{name}}...",
+    "Sending...": "Отправка...",
+    "Hosting...": "Создание комнаты...",
+    "Joining...": "Подключение...",
 };
 
 export default RU;

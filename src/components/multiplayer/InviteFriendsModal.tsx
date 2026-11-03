@@ -8,11 +8,12 @@ import type { MultiplayerFriend } from "../../types";
 import { logError } from "../../utils/errors";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { getCurrentModalScale, modalSize } from "../../utils/scale";
-import { achievementGreen, compactButtonStyle, errorRed, modalBodyStyle } from "../../utils/style";
+import { achievementGreen, compactButtonStyle, modalBodyStyle } from "../../utils/style";
 import { FocusableItem } from "../ui/FocusableItem";
 import { InlineSpinner } from "../ui/InlineSpinner";
 import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { friendError } from "./AddFriendModal";
+import { DialogLine, type DialogLineState } from "./DialogLine";
 import { PicAvatar, friendGame, friendName, friendStatus } from "./PicAvatar";
 
 function rowKey(friend: MultiplayerFriend): string {
@@ -23,7 +24,9 @@ function InviteFriendsModal(props: { language: LanguageCode; avatars: Record<str
     const { language, close } = props;
     const [friends, setFriends] = useState<MultiplayerFriend[] | null>(null);
     const [busy, setBusy] = useState(false);
-    const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+    const [line, setLine] = useState<DialogLineState>(
+        () => ({ tone: "hint", text: t(language, "Pick a friend to invite to your room.") })
+    );
 
     useEffect(() => {
         void (async () => {
@@ -54,30 +57,26 @@ function InviteFriendsModal(props: { language: LanguageCode; avatars: Record<str
 
     async function invite(friend: MultiplayerFriend) {
         setBusy(true);
-        setResult(null);
+        setLine({ tone: "busy", text: t(language, "Inviting {{name}}...", { name: friendName(friend) }) });
         try {
             const sent = await multiplayerFriendInvite(friend.ulid);
-            setResult(sent.ok
-                ? { ok: true, text: t(language, "Invite sent to {{name}}", { name: friendName(friend) }) }
-                : { ok: false, text: friendError(language, sent.error, friendName(friend)) });
+            setLine(sent.ok
+                ? { tone: "ok", text: t(language, "Invite sent to {{name}}", { name: friendName(friend) }) }
+                : { tone: "error", text: friendError(language, sent.error, friendName(friend)) });
         }
         catch (e) {
             logError("multiplayerFriendInvite", e);
-            setResult({ ok: false, text: friendError(language, "unavailable") });
+            setLine({ tone: "error", text: friendError(language, "unavailable") });
         }
         setBusy(false);
     }
 
     return (
         <ModalRoot onCancel={close} onEscKeypress={close}>
-            <div style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700, marginBottom: "8px" }}>
+            <div style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700 }}>
                 {t(language, "Invite Friends")}
             </div>
-            {result && (
-                <div style={{ ...modalBodyStyle(), color: result.ok ? achievementGreen : errorRed, opacity: 1, marginBottom: "8px" }}>
-                    {result.text}
-                </div>
-            )}
+            <DialogLine {...line} />
             {friends === null && <InlineSpinner label={t(language, "Loading...")} />}
             {friends !== null && friends.length === 0 && (
                 <div style={modalBodyStyle()}>{t(language, "No friends to invite yet.")}</div>
