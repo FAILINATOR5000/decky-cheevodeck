@@ -3019,6 +3019,8 @@ const JA: LocaleTable = {
     "New Device on Your Account": "アカウントに新しい端末",
     "Your account went online in EZ Multiplayer on another device. If that wasn't you, choose That Wasn't Me on the Friends tab.": "EZ Multiplayerで、あなたのアカウントが別の端末からオンラインになりました。心当たりがない場合は、フレンドタブで「自分ではない」を選んでください。",
     "Message From {{name}}": "{{name}}さんからのメッセージ",
+    "Status: Online": "ステータス：オンライン",
+    "Status: Hidden": "ステータス：非表示",
     "{{name}} invited you to a room.": "{{name}}さんからルームに招待されました。",
     "3 Months": "3か月",
     "Week": "1週間",

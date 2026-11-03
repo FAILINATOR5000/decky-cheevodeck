@@ -3233,6 +3233,8 @@ const RU: LocaleTable = {
     "New Device on Your Account": "Новое устройство в аккаунте",
     "Your account went online in EZ Multiplayer on another device. If that wasn't you, choose That Wasn't Me on the Friends tab.": "Твой аккаунт вошёл в EZ Multiplayer с другого устройства. Если это не ты, выбери «Это не я» на вкладке «Друзья».",
     "Message From {{name}}": "Сообщение от {{name}}",
+    "Status: Online": "Статус: в сети",
+    "Status: Hidden": "Статус: скрыт",
     "{{name}} invited you to a room.": "{{name}} приглашает тебя в комнату.",
     "3 Months": "3 месяца",
     "Week": "Неделя",

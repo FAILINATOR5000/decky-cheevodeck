@@ -3264,6 +3264,8 @@ const PL: LocaleTable = {
     "New Device on Your Account": "Nowe urządzenie na twoim koncie",
     "Your account went online in EZ Multiplayer on another device. If that wasn't you, choose That Wasn't Me on the Friends tab.": "Twoje konto połączyło się z EZ Multiplayer na innym urządzeniu. Jeśli to nie ty, wybierz „To nie ja” na karcie Znajomi.",
     "Message From {{name}}": "Wiadomość od {{name}}",
+    "Status: Online": "Status: Online",
+    "Status: Hidden": "Status: Ukryty",
     "{{name}} invited you to a room.": "{{name}} zaprasza cię do pokoju.",
     "3 Months": "3 miesiące",
     "Week": "Tydzień",

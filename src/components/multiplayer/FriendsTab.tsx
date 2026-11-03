@@ -1,7 +1,7 @@
 import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 import { useEffect, useMemo, useState, type MutableRefObject } from "react";
 
-import { multiplayerFriendAdd, multiplayerFriendAlert, multiplayerFriendAnswer, multiplayerFriendDismiss } from "../../api";
+import { multiplayerFriendAdd, multiplayerFriendAlert, multiplayerFriendAnswer, multiplayerFriendDismiss, saveMpShowOnline } from "../../api";
 import { overrideRecord, pendingLandingKey, topEntryId, type LandingWindows } from "../../focusRecords";
 import { useSlidingWindow } from "../../hooks/useSlidingWindow";
 import { t, type LanguageCode } from "../../locales";
@@ -10,11 +10,13 @@ import { logError } from "../../utils/errors";
 import { takeMultiplayerMessage } from "../../utils/multiplayerChoices";
 import { formatRelativeTime } from "../../utils/format";
 import { textSize } from "../../utils/scale";
+import { announceShowOnlineChanged } from "../../utils/showOnlineChanged";
 import { achievementGreen, bodyTextStyle, compactButtonStyle, warnAmber } from "../../utils/style";
 import { FocusableItem } from "../ui/FocusableItem";
 import { FocusTarget } from "../ui/FocusTarget";
 import { SectionTitle } from "../ui/SectionTitle";
 import { SlidingWindowRows } from "../ui/SlidingWindowRows";
+import { ToggleRow } from "../ui/ToggleRow";
 import { friendError, openAddFriend } from "./AddFriendModal";
 import { openFriendCard } from "./FriendCardModal";
 import { openMessageCenter } from "./MessageCenterModal";
@@ -61,6 +63,21 @@ export function FriendsTab(props: FriendsTabProps) {
     const data = friends.state.data;
     const avatars = friends.state.avatars;
     const [busy, setBusy] = useState(false);
+    const [pressedShown, setPressedShown] = useState<boolean | null>(null);
+    const shown = pressedShown ?? data?.shown ?? true;
+
+    async function showOnline(next: boolean) {
+        setPressedShown(next);
+        try {
+            const saved = await saveMpShowOnline(next);
+            announceShowOnlineChanged(saved.mpShowOnline);
+        }
+        catch (e) {
+            logError("saveMpShowOnline", e);
+        }
+        await friends.actions.reload();
+        setPressedShown(null);
+    }
     const [openFirst] = useState(() => pendingLandingKey("multiplayer") ?? undefined);
     const [messageTap, setMessageTap] = useState(takeMultiplayerMessage);
 
@@ -149,9 +166,17 @@ export function FriendsTab(props: FriendsTabProps) {
 
     return (
         <>
-            <PanelSectionRow>
-                <div style={bodyTextStyle()}>{t(language, "help_mp_friends_tab")}</div>
-            </PanelSectionRow>
+            <ToggleRow
+                controlled
+                label={t(language, shown ? "Status: Online" : "Status: Hidden")}
+                value={shown}
+                disabled={!data?.on}
+                bottomSeparator="none"
+                focusKey="multiplayer:toggle:mpShowOnline"
+                focusFallback={["multiplayer:tab:friends", "multiplayer:back"]}
+                onChange={showOnline}
+                help={t(language, "help_mp_friends_tab")}
+            />
             {status && (
                 <PanelSectionRow>
                     <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>{t(language, status)}</div>

@@ -46,6 +46,7 @@ import type {
 import { logError } from "../utils/errors";
 import { DEFAULT_SHORTCUT_BINDINGS } from "../utils/options";
 import { subscribeMemoriesCaptureOn } from "../utils/memoriesChanged";
+import { subscribeShowOnlineChanged } from "../utils/showOnlineChanged";
 import { applyFrontendSettings } from "../utils/frontendSettings";
 import { clampGuideZoom, GUIDE_ZOOM_DEFAULT, GUIDE_MODAL_ZOOM_DEFAULT } from "../utils/scale";
 import {
@@ -1154,6 +1155,7 @@ export function useSettingsController({
     };
 
     useEffect(() => subscribeMemoriesCaptureOn(() => setMemoriesAutoCapture(true)), []);
+    useEffect(() => subscribeShowOnlineChanged(setMpShowOnline), []);
 
     return {
         state: controllerState,

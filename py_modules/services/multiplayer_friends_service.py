@@ -786,6 +786,7 @@ class MultiplayerFriendsService:
             "ok": True,
             "on": self._on(cfg),
             "standby": self._standby(cfg),
+            "shown": bool(cfg.get("mpShowOnline", True)),
             "me": self._me(),
             "selfPic": data["selfPic"] if data is not None else "",
             "server": self._mp.lobby_server() is not None,

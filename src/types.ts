@@ -3065,6 +3065,7 @@ export type MultiplayerFriendsState = {
     ok: boolean;
     on: boolean;
     standby: boolean;
+    shown: boolean;
     me: string;
     selfPic: string;
     server: boolean;
