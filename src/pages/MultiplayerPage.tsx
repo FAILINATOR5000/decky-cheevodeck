@@ -176,6 +176,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const roomCore = hosted?.core ?? joined?.room.core ?? local?.core ?? "";
     const runsPpsspp = roomCore === "ppsspp" || roomCore === "ppsspp-standalone";
     const gateCheck = mp.checkCurrent ? mp.check : null;
+    const shownCheck = gateCheck ?? mp.check;
     const session = mp.session;
     const playing = session.appid > 0;
     const roomLocked = Boolean(hosted && hosted.state !== "lobby") || Boolean(joined);
@@ -185,12 +186,12 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         if (mp.visibleError) {
             return { code: mp.visibleError };
         }
-        if (gateCheck?.gate) {
-            if (gateCheck.gate === "not_in_results" && gateCheck.detail?.dolphinSkipped
+        if (shownCheck?.gate) {
+            if (shownCheck.gate === "not_in_results" && shownCheck.detail?.dolphinSkipped
                 && DOLPHIN_CONSOLES.includes(shown?.consoleName ?? "")) {
                 return { code: "dolphin_flatpak_needed" };
             }
-            return { code: gateCheck.gate, detail: gateCheck.detail };
+            return { code: shownCheck.gate, detail: shownCheck.detail };
         }
         return null;
     }
@@ -623,8 +624,15 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     outerStyle={buttonStyle}
                     focusKey="multiplayer:host"
                     focusFallback={[`multiplayer:mode:${mp.mode}`, "multiplayer:back"]}
-                    disabled={mp.busy || (!hosted && (mp.gameId === null || !gateCheck || Boolean(gateCheck.gate) || (Boolean(mp.visibleError) && mp.visibleError !== "cap_reached")))}
-                    onClick={() => void (hosted ? actions.closeRoom() : openHost())}
+                    disabled={mp.busy || (!hosted && (mp.gameId === null || !shownCheck || Boolean(shownCheck.gate) || (Boolean(mp.visibleError) && mp.visibleError !== "cap_reached")))}
+                    onClick={() => {
+                        if (hosted) {
+                            void actions.closeRoom();
+                        }
+                        else if (gateCheck) {
+                            openHost();
+                        }
+                    }}
                 >
                     {t(language, hosted ? "Close Room" : "Host a Room")}
                 </FocusableItem>
@@ -950,7 +958,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                                     <div style={bodyTextStyle()}>
                                         {t(language, mp.mode === "link"
                                             ? "Each device runs its own copy of the game."
-                                            : "Everyone plays one shared game, up to four players.")}
+                                            : "Everyone plays one shared game.")}
                                     </div>
                                 </PanelSectionRow>
 
