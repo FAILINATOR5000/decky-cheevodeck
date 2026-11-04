@@ -63,7 +63,11 @@ export function RoomTable(props: {
                                 ) : (
                                     <span style={{ ...bodyTextStyle(), minWidth: "1em", textAlign: "right" }}>{index + 1}</span>
                                 )}
-                                {seat.name ? <PicAvatar uri={seat.avatar} name={seat.name} size={AVATAR_PX} /> : <span />}
+                                {seat.name ? (
+                                    <div style={{ alignSelf: "start" }}>
+                                        <PicAvatar uri={seat.avatar} name={seat.name} size={AVATAR_PX} />
+                                    </div>
+                                ) : <span />}
                                 <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
                                     <span
                                         style={seat.name
