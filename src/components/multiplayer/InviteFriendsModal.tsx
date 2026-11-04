@@ -8,7 +8,7 @@ import type { MultiplayerFriend } from "../../types";
 import { logError } from "../../utils/errors";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { getCurrentModalScale, modalSize } from "../../utils/scale";
-import { achievementGreen, compactButtonStyle, modalBodyStyle } from "../../utils/style";
+import { achievementGreen, compactButtonStyle, errorRed, modalBodyStyle } from "../../utils/style";
 import { FocusableItem } from "../ui/FocusableItem";
 import { InlineSpinner } from "../ui/InlineSpinner";
 import { SlidingWindowRows } from "../ui/SlidingWindowRows";
@@ -24,6 +24,7 @@ function InviteFriendsModal(props: { language: LanguageCode; avatars: Record<str
     const { language, close } = props;
     const [friends, setFriends] = useState<MultiplayerFriend[] | null>(null);
     const [busy, setBusy] = useState(false);
+    const [marks, setMarks] = useState<Record<string, "sent" | "failed">>({});
     const [linkUp, setLinkUp] = useState(false);
     const rowsRef = useRef<HTMLDivElement | null>(null);
     const landed = useRef(false);
@@ -77,12 +78,14 @@ function InviteFriendsModal(props: { language: LanguageCode; avatars: Record<str
         setLine({ tone: "busy", text: t(language, "Inviting {{name}}...", { name: friendName(friend) }) });
         try {
             const sent = await multiplayerFriendInvite(friend.ulid);
+            setMarks((current) => ({ ...current, [friend.ulid]: sent.ok ? "sent" : "failed" }));
             setLine(sent.ok
                 ? { tone: "ok", text: t(language, "Invite sent to {{name}}", { name: friendName(friend) }) }
                 : { tone: "error", text: friendError(language, sent.error, friendName(friend)) });
         }
         catch (e) {
             logError("multiplayerFriendInvite", e);
+            setMarks((current) => ({ ...current, [friend.ulid]: "failed" }));
             setLine({ tone: "error", text: friendError(language, "unavailable") });
         }
         setBusy(false);
@@ -118,11 +121,17 @@ function InviteFriendsModal(props: { language: LanguageCode; avatars: Record<str
                                     >
                                         <div style={{ display: "flex", gap: "10px", alignItems: "center", width: "100%", textAlign: "left", ...modalBodyStyle(), opacity: 1 }}>
                                             <PicAvatar uri={props.avatars[friend.pic]} name={friend.name} size={modalSize(32)} />
-                                            <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                                            <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1 }}>
                                                 <span style={{ fontWeight: 700, overflowWrap: "anywhere" }}>{friendName(friend)}</span>
                                                 <span style={{ color: friend.online ? achievementGreen : undefined }}>{friendStatus(language, friend)}</span>
                                                 {friendGame(language, friend) && <span style={{ overflowWrap: "anywhere" }}>{friendGame(language, friend)}</span>}
                                             </div>
+                                            {marks[friend.ulid] === "sent" && (
+                                                <span style={{ color: achievementGreen, fontWeight: 800 }}>✔</span>
+                                            )}
+                                            {marks[friend.ulid] === "failed" && (
+                                                <span style={{ color: errorRed, fontWeight: 800 }}>✖</span>
+                                            )}
                                         </div>
                                     </FocusableItem>
                                 </div>
