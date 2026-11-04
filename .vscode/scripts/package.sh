@@ -65,8 +65,10 @@ find "$STAGE_DIR" -type f \( -name '*.pyc' -o -name '*.log' -o -name '.DS_Store'
 
 find "$STAGE_DIR" -type d -exec chmod 755 {} +
 find "$STAGE_DIR" -type f -exec chmod 644 {} +
-chmod 755 "$STAGE_DIR/$PLUGIN_DIR_NAME/defaults/bin/chdman" "$STAGE_DIR/$PLUGIN_DIR_NAME/defaults/bin/RAHasher"
-chmod 755 "$STAGE_DIR/$PLUGIN_DIR_NAME/defaults/bin/aarch64/chdman" "$STAGE_DIR/$PLUGIN_DIR_NAME/defaults/bin/aarch64/RAHasher"
+chmod 755 "$STAGE_DIR/$PLUGIN_DIR_NAME/defaults/bin/chdman" "$STAGE_DIR/$PLUGIN_DIR_NAME/defaults/bin/RAHasher" \
+    "$STAGE_DIR/$PLUGIN_DIR_NAME/defaults/bin/rmg-netplay-server"
+chmod 755 "$STAGE_DIR/$PLUGIN_DIR_NAME/defaults/bin/aarch64/chdman" "$STAGE_DIR/$PLUGIN_DIR_NAME/defaults/bin/aarch64/RAHasher" \
+    "$STAGE_DIR/$PLUGIN_DIR_NAME/defaults/bin/aarch64/rmg-netplay-server"
 
 echo "Writing ${ASSET_NAME}..."
 rm -f "$OUT_DIR/$ASSET_NAME"

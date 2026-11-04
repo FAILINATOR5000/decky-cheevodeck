@@ -63,6 +63,7 @@ const PROBLEM_TEXT: Record<string, string> = {
     dolphin_version_mismatch: "The host uses Dolphin {{version}}. Every device needs the same Dolphin version.",
     no_rmg_shortcut: "N64 Couch Play needs RMG itself in Steam. Add it with Steam ROM Manager.",
     rmg_version_mismatch: "The host uses RMG {{version}}. Every device needs the same RMG version.",
+    rmg_server: "Couldn't start the N64 netplay server on this device",
     ppsspp_version_mismatch: "The host uses PPSSPP {{version}}. Every device needs the same PPSSPP version.",
     not_found: "No room found at that address",
     bad_address: "Not a valid address",

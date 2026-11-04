@@ -8,12 +8,15 @@ import secrets
 import shlex
 import select
 import shutil
+import signal
 import socket
+import subprocess
 import threading
 import time
 from collections import deque
 from pathlib import Path
 
+import cheevo_check_tools
 import decky
 import multiplayer_protocol as proto
 import multiplayer_session as session
@@ -94,6 +97,10 @@ FLATPAK_SECONDS = 10
 EMULATOR_NAMES = ("retroarch", "PPSSPPSDL", "PPSSPPQt", "dolphin-emu", "RMG")
 FALLBACK_NAMES = {"retroarch": "RetroArch", "ppsspp": "PPSSPP", "dolphin": "Dolphin", "rmg": "RMG"}
 
+RMG_SERVER_NAME = "rmg-netplay-server"
+RMG_SERVER_LOG = "rmg-netplay-server.log"
+RMG_SERVER_GAMES = 4
+RMG_SERVER_START_SECONDS = 3.0
 SESSION_SUFFIXES = {".cfg": "retroarch", ".ini": "ppsspp", ".dolphin": "dolphin", ".rmg": "rmg"}
 
 ERROR_NOT_GAME_MODE = "not_game_mode"
@@ -126,6 +133,7 @@ ERROR_NOBODY_READY = "nobody_ready"
 ERROR_IN_GAME = "other_game"
 ERROR_NOT_LOBBY = "not_lobby"
 ERROR_LAUNCH_FAILED = "launch_failed"
+ERROR_RMG_SERVER = "rmg_server"
 ERROR_CHAT = "chat_refused"
 ERROR_NO_LOBBY = "no_lobby"
 ERROR_LOBBY_UNREACHABLE = "lobby_unreachable"
@@ -190,7 +198,7 @@ class MultiplayerService:
     def __init__(
         self, *, settings_store, game_mode, user_home, runtime_dir, cheevo_check_service, cheevo_check_store,
         port: int = proto.PORT, peer_port: int = proto.PORT,
-        broadcast: str = "255.255.255.255",
+        broadcast: str = "255.255.255.255", bin_dir=None,
     ):
         self._settings_store = settings_store
         self._game_mode = game_mode
@@ -201,6 +209,8 @@ class MultiplayerService:
         self._port = port
         self._peer_port = peer_port
         self._broadcast = broadcast
+        self._bin_dir = Path(bin_dir) if bin_dir is not None else None
+        self._rmg_server = None
 
         self._loop = None
         self._lock = asyncio.Lock()
@@ -375,6 +385,7 @@ class MultiplayerService:
         self._stopping = True
         for task in list(self._tasks):
             task.cancel()
+        self._stop_rmg_server()
         self.close()
 
     def settle(self, seconds: float) -> None:
@@ -1810,14 +1821,17 @@ class MultiplayerService:
         return "starting"
 
     async def _keep_house(self, room: dict) -> None:
-        while self._room is room:
-            await asyncio.sleep(HOUSEKEEPING_SECONDS)
-            if self._room is not room:
-                return
-            try:
-                self._tidy(room)
-            except Exception as e:
-                decky.logger.warning("multiplayer: housekeeping failed (%s)", type(e).__name__)
+        try:
+            while self._room is room:
+                await asyncio.sleep(HOUSEKEEPING_SECONDS)
+                if self._room is not room:
+                    return
+                try:
+                    self._tidy(room)
+                except Exception as e:
+                    decky.logger.warning("multiplayer: housekeeping failed (%s)", type(e).__name__)
+        finally:
+            self._stop_rmg_server(room["id"])
 
     def _tidy(self, room: dict) -> None:
         now = time.monotonic()
@@ -3154,6 +3168,9 @@ class MultiplayerService:
         found, _warnings = self._gates(mode, local, peer, players)
         if found:
             return {"ok": False, "error": ERROR_GATE, "gate": found[0], "detail": found[1]}
+        where = room["where"] if room is not None else joined["row"]["where"]
+        if local["emulator"] == "rmg" and room is not None and where != "online" and not self._start_rmg_server(room):
+            return {"ok": False, "error": ERROR_RMG_SERVER}
         if held is not None:
             if held["appid"] != local["appid"]:
                 return {"ok": False, "error": ERROR_BUSY}
@@ -3208,7 +3225,7 @@ class MultiplayerService:
                                                     rom=rom if local["fallback"] else None)
             elif local["emulator"] == "rmg":
                 home = self._session_dir / f"session-{sid}.rmg"
-                self._build_rmg_home(home, local, nick, self._relay_host(), rom)
+                self._build_rmg_home(home, local, nick, self._relay_host() if where == "online" else host_ip, rom)
                 files = [home]
                 options = session.rmg_launch_options(original, local["install"], home)
             else:
@@ -3251,6 +3268,85 @@ class MultiplayerService:
             "original": original,
             "session": sid,
         }
+
+    def _start_rmg_server(self, room: dict) -> bool:
+        current = self._rmg_server
+        if current is not None and current["proc"].poll() is None:
+            return True
+        if _listening(session.RMG_SERVER_PORT):
+            return True
+        path = self._rmg_server_path()
+        if path is None or not path.is_file():
+            decky.logger.warning("multiplayer: no RMG netplay server at %s", path)
+            return False
+        try:
+            os.chmod(path, 0o755)
+        except OSError:
+            pass
+        owner = child_owner()
+        argv = [str(path), "-name", "local-server", "-enable-auth", "-max-games", str(RMG_SERVER_GAMES),
+                "-log-path", str(self._session_dir / RMG_SERVER_LOG)]
+        try:
+            ensure_dir(self._session_dir)
+            (self._session_dir / RMG_SERVER_LOG).unlink(missing_ok=True)
+            proc = subprocess.Popen(
+                argv, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                env={**subprocess_util.system_env(), "RMG_AUTH": session.RMG_AUTH},
+                user=owner[0] if owner else None, group=owner[1] if owner else None,
+                extra_groups=[] if owner else None, start_new_session=True,
+            )
+        except OSError as e:
+            decky.logger.warning("multiplayer: couldn't start the RMG netplay server (%s)", type(e).__name__)
+            return False
+        self._rmg_server = {"room": room["id"], "proc": proc}
+        deadline = time.monotonic() + RMG_SERVER_START_SECONDS
+        while time.monotonic() < deadline and proc.poll() is None:
+            if _listening(session.RMG_SERVER_PORT):
+                decky.logger.info("multiplayer: RMG netplay server started, pid %s", proc.pid)
+                return True
+            time.sleep(0.1)
+        decky.logger.warning("multiplayer: the RMG netplay server didn't start listening")
+        self._stop_rmg_server()
+        return False
+
+    def _stop_rmg_server(self, room_id: str = "") -> None:
+        current = self._rmg_server
+        if current is None or (room_id and current["room"] != room_id):
+            return
+        self._rmg_server = None
+        proc = current["proc"]
+        if proc.poll() is None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
+            decky.logger.info("multiplayer: RMG netplay server stopped")
+
+    def _end_stray_rmg_servers(self) -> None:
+        path = self._rmg_server_path()
+        if path is None:
+            return
+        for name in os.listdir("/proc"):
+            if not name.isdigit():
+                continue
+            try:
+                exe = os.readlink(f"/proc/{name}/exe")
+            except OSError:
+                continue
+            if exe.removesuffix(" (deleted)") == str(path):
+                try:
+                    os.kill(int(name), signal.SIGTERM)
+                    decky.logger.info("multiplayer: stopped a leftover RMG netplay server, pid %s", name)
+                except OSError:
+                    pass
+
+    def _rmg_server_path(self):
+        if self._bin_dir is None:
+            return None
+        folder = self._bin_dir / cheevo_check_tools.ARM64_DIR if cheevo_check_tools.host_is_arm64() else self._bin_dir
+        return folder / RMG_SERVER_NAME
 
     def _build_rmg_home(self, home: Path, local: dict, nick: str, server: str, rom: Path) -> None:
         folder = home / "RMG"
@@ -3541,6 +3637,7 @@ class MultiplayerService:
         return {"ok": True, "processes": rows}
 
     def _startup_sweep(self) -> None:
+        self._end_stray_rmg_servers()
         try:
             if not self._session_dir.is_dir():
                 return

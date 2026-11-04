@@ -33,6 +33,7 @@ RMG_FLATPAK = "com.github.Rosalie241.RMG"
 RMG_STANDALONE = "rmg-standalone"
 RMG_SERVER = "CheevoDeck"
 RMG_SERVER_PORT = 45000
+RMG_AUTH = "RMG"
 RMG_GUI_SECTION = "Rosalie's Mupen GUI"
 RMG_NETPLAY_SECTION = "Rosalie's Mupen GUI Netplay"
 RMG_ROM_BROWSER_SECTION = "Rosalie's Mupen GUI RomBrowser"

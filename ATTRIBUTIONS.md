@@ -86,6 +86,16 @@ Same arm's-length arrangement as RAHasher: a separate process over a command lin
 
 The ARM64 build at `bin/aarch64/chdman` comes from the same tag, cross-compiled with no source changes, and has its own provenance file and license text beside it.
 
+## rmg-netplay-server — the bundled N64 netplay server
+
+EZ Multiplayer ships [**rmg-netplay-server**](https://github.com/Rosalie241/rmg-netplay-server) (**Rosalie241**'s, the same author as RMG) at `bin/rmg-netplay-server` and runs it as a separate executable. RMG only does netplay through a server, so when you host a Local N64 Couch room, your device starts this one for as long as the room is open and everyone's RMG finds the session on your own network, with no internet needed. Online rooms use a copy running on my own server instead, which doesn't involve the bundled one at all.
+
+**rmg-netplay-server is GPL-3.0**, the same terms as RAHasher, and I ship upstream's own v0.0.1 release binaries unmodified. The license text ships beside it as `bin/rmg-netplay-server.COPYING`, and `bin/rmg-netplay-server.PROVENANCE.md` pins the release and its tag commit with checksums. It's a Go program, so the binary also has the Go standard library and ten Go modules compiled in, under Apache-2.0, BSD, MIT and MPL-2.0. Their license texts, at the exact versions it was built with, are in `bin/rmg-netplay-server.THIRD-PARTY.txt`, and I keep a full copy of the source with every one of those modules, so I can hand it over if anyone asks, even if a module host disappears.
+
+Same arm's-length arrangement as RAHasher: a separate process, no linking, none of its code here. CheevoDeck's own source stays BSD-3.
+
+The ARM64 build at `bin/aarch64/rmg-netplay-server` is upstream's own ARM64 release binary from the same tag, with its own provenance file and license texts beside it.
+
 ## libretro-database — the bundled reference catalogs
 
 Verification compares your files against hashes that ship with the plugin, in `dats/`. They come from [**libretro-database**](https://github.com/libretro/libretro-database), which is **CC BY-SA 4.0** — the first share-alike license this project has taken on, and a deliberate choice.

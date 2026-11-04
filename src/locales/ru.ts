@@ -3171,6 +3171,7 @@ const RU: LocaleTable = {
     "Join in RMG Netplay": "Войдите в сетевой игре RMG",
     "N64 Couch Play needs RMG itself in Steam. Add it with Steam ROM Manager.": "Для Couch Play на N64 нужен сам RMG в Steam. Добавьте его через Steam ROM Manager.",
     "The host uses RMG {{version}}. Every device needs the same RMG version.": "Хост использует RMG {{version}}. На всех устройствах нужна одна и та же версия RMG.",
+    "Couldn't start the N64 netplay server on this device": "Не удалось запустить сервер сетевой игры N64 на этом устройстве",
     "Dolphin NetPlay": "Dolphin NetPlay",
     "Say Something": "Написать",
     "DuckStation can't do Couch Play, and its saves won't carry over. {{core}} works, so this session uses it.": "DuckStation не поддерживает Couch Play, и его сохранения не перенесутся. {{core}} поддерживает, поэтому в этой сессии используется он.",

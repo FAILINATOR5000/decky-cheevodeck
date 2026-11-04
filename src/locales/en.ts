@@ -3099,6 +3099,7 @@ export const EN: LocaleTable = {
     "Join in RMG Netplay": "Join in RMG Netplay",
     "N64 Couch Play needs RMG itself in Steam. Add it with Steam ROM Manager.": "N64 Couch Play needs RMG itself in Steam. Add it with Steam ROM Manager.",
     "The host uses RMG {{version}}. Every device needs the same RMG version.": "The host uses RMG {{version}}. Every device needs the same RMG version.",
+    "Couldn't start the N64 netplay server on this device": "Couldn't start the N64 netplay server on this device",
     "Dolphin NetPlay": "Dolphin NetPlay",
     "Say Something": "Say Something",
     "DuckStation can't do Couch Play, and its saves won't carry over. {{core}} works, so this session uses it.": "DuckStation can't do Couch Play, and its saves won't carry over. {{core}} works, so this session uses it.",

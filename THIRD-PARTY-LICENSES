@@ -88,6 +88,25 @@ chdman (https://github.com/mamedev/mame)
   An ARM64 build from the same tag ships at bin/aarch64/chdman, with its own
   license text and provenance beside it in bin/aarch64/.
 
+rmg-netplay-server (https://github.com/Rosalie241/rmg-netplay-server)
+  Copyright (c) Rosalie241 and the rmg-netplay-server contributors.
+  Licensed under the GNU General Public License v3.0.
+  The full license text ships alongside the binary as
+  bin/rmg-netplay-server.COPYING, and bin/rmg-netplay-server.PROVENANCE.md pins
+  the exact upstream release (v0.0.1) and its tag commit, with checksums and a
+  link to its source.
+  It is a statically linked Go program, so it also contains the Go standard
+  library (BSD-3-Clause) and Go modules under the Apache-2.0, BSD-2-Clause,
+  BSD-3-Clause, MIT and MPL-2.0 licenses. Each one, with its version and full
+  license text, is in bin/rmg-netplay-server.THIRD-PARTY.txt.
+  The release binaries are bundled unmodified at bin/rmg-netplay-server
+  (x86-64) and bin/aarch64/rmg-netplay-server (ARM64), each with the same three
+  files beside it, and run as a SEPARATE EXECUTABLE: CheevoDeck starts it for a
+  Local N64 Couch room and stops it when the room closes. CheevoDeck does not
+  link against it and contains none of its code. Its GPL terms cover that
+  binary alone; CheevoDeck's own source remains under the BSD-3 license in
+  LICENSE.
+
 Reference catalogues in dats/ (https://github.com/libretro/libretro-database)
   Copyright (c) the libretro-database contributors.
   Licensed under Creative Commons Attribution-ShareAlike 4.0 International.
