@@ -175,6 +175,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const local = mp.check?.local ?? null;
     const roomCore = hosted?.core ?? joined?.room.core ?? local?.core ?? "";
     const runsPpsspp = roomCore === "ppsspp" || roomCore === "ppsspp-standalone";
+    const runsRmg = mp.mode === "couch" && roomCore === "rmg-standalone";
+    const roomTitle = hosted?.title ?? joined?.room.title ?? local?.title ?? "";
     const gateCheck = mp.checkCurrent ? mp.check : null;
     const shownCheck = gateCheck ?? mp.check;
     const session = mp.session;
@@ -249,17 +251,19 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         ...(runsPpsspp ? [t(language, "PSP multiplayer is experimental. Some games lose the connection when a match starts.")] : []),
         ...(screenHz !== null && (screenHz === 0 || screenHz > 60)
             ? [t(language, "Multiplayer runs best at 60 Hz. If a game jitters, set 60 Hz in Steam's Performance menu while it runs.")]
-            : [])
+            : []),
+        ...(runsRmg ? [t(language, "rmg_heads_up")] : [])
     ];
     const tips = [
         ...(mp.mode === "couch" && local?.emulator === "dolphin"
             ? [t(language, joined
                 ? "In Dolphin, open Tools, then Start NetPlay, then Connect. The host's address is filled in."
                 : "In Dolphin, open Tools, then Start NetPlay, then Host. Pick the game and press Start once everyone has joined.")]
-            : [])
+            : []),
+        ...(runsRmg ? [t(language, joined ? "rmg_steps_guest" : "rmg_steps_host", { game: roomTitle })] : [])
     ];
 
-    let playLabel = mp.mode === "couch" && local?.emulator === "dolphin" ? "Open Dolphin" : "Host & Play";
+    let playLabel = mp.mode === "couch" && local?.emulator === "dolphin" ? "Open Dolphin" : runsRmg ? "Open RMG" : "Host & Play";
     let canPlay = canStartNow;
     let pressPlay = () => void actions.start();
     if (hosted && !inLobby) {
@@ -771,7 +775,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     ) : joined && (
         <>
             {hintsRow}
-            {mp.mode === "couch" && (
+            {mp.mode === "couch" && !runsRmg && (
                 <PanelSectionRow>
                     <div style={bodyTextStyle()}>
                         {t(language, joined.status?.hardcore ? "Hardcore on, set by the host" : "Hardcore off, set by the host")}
@@ -835,7 +839,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         </PanelSectionRow>
     );
 
-    const showHardcore = mp.mode === "link" || !couchGuest;
+    const showHardcore = (mp.mode === "link" || !couchGuest) && !runsRmg;
     const showShare = mp.mode === "couch" && !joined && (hosted?.emulator ?? local?.emulator) === "retroarch";
     const showChangeGame = hosted !== null || (joined !== null && mp.mode === "link");
     const optionRows = (showChangeGame || showCores || showHardcore || showShare) && (

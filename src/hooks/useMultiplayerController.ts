@@ -496,7 +496,8 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     function start() {
         const roomId = hosted?.id ?? "";
         return run("Couldn't Start", async () => {
-            const result = await startMultiplayerRound(hosted?.mode === "couch" && hosted.emulator === "dolphin");
+            const steps = hosted?.mode === "couch" && (hosted.emulator === "dolphin" || hosted.emulator === "rmg") ? hosted.emulator : "";
+            const result = await startMultiplayerRound(steps, hosted?.title ?? "");
             if (!result.ok && result.round) {
                 reported.add(`start:${roomId}:${result.round}`);
             }

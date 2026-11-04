@@ -1,4 +1,5 @@
 import hashlib
+import json
 import os
 import re
 import shlex
@@ -29,6 +30,12 @@ MELONDS_DS = "melondsds"
 DOLPHIN_STANDALONE = "dolphin-standalone"
 DOLPHIN_FLATPAK = "org.DolphinEmu.dolphin-emu"
 RMG_FLATPAK = "com.github.Rosalie241.RMG"
+RMG_STANDALONE = "rmg-standalone"
+RMG_SERVER = "CheevoDeck"
+RMG_SERVER_PORT = 45000
+RMG_GUI_SECTION = "Rosalie's Mupen GUI"
+RMG_NETPLAY_SECTION = "Rosalie's Mupen GUI Netplay"
+RMG_ROM_BROWSER_SECTION = "Rosalie's Mupen GUI RomBrowser"
 
 NES_SYSTEM = 7
 N64_SYSTEM = 2
@@ -516,6 +523,14 @@ def emulator_kind(exe, launch_options) -> str:
 
 
 def dolphin_appimage(exe, launch_options, home) -> str:
+    return _launcher_appimage(exe, launch_options, home, "dolphin")
+
+
+def rmg_appimage(exe, launch_options, home) -> str:
+    return _launcher_appimage(exe, launch_options, home, "rmg")
+
+
+def _launcher_appimage(exe, launch_options, home, word: str) -> str:
     tokens = []
     for field in (exe, launch_options):
         if field:
@@ -533,7 +548,7 @@ def dolphin_appimage(exe, launch_options, home) -> str:
             script = Path(_expand(token, Path(home), Path(home))).read_text(encoding="utf-8", errors="replace")
         except (OSError, TypeError):
             continue
-        found = re.search(r"[^\s\"']*dolphin[^\s\"']*\.appimage", script, re.I)
+        found = re.search(rf"[^\s\"']*{word}[^\s\"']*\.appimage", script, re.I)
         if found:
             path = re.sub(r"^\$(HOME\b|\{HOME\})", "~", found.group(0))
             return str(_expand(path, Path(home), Path(home)))
@@ -648,6 +663,70 @@ def dolphin_bba_args(*, own_ip: str, mac: str, hardcore: bool, marker: Path, rom
     if rom is not None:
         parts += ["-e", quote(str(rom))]
     return " ".join(parts)
+
+
+def rmg_config_dir(home, install: str) -> Path:
+    if install == "flatpak":
+        return Path(home) / ".var" / "app" / RMG_FLATPAK / "config" / "RMG"
+    return Path(home) / ".config" / "RMG"
+
+
+def rmg_config(text: str, values: dict) -> str:
+    seen = set()
+    out = []
+    section = None
+    for line in text.splitlines():
+        header = re.match(r"^\s*\[(.*)\]\s*$", line)
+        if header:
+            out.extend(_rmg_unseen(section, values, seen))
+            section = header.group(1)
+            out.append(line)
+            continue
+        found = re.match(r"^\s*([A-Za-z0-9_]+)\s*=", line)
+        if found and (section, found.group(1)) in values:
+            seen.add((section, found.group(1)))
+            out.append(f"{found.group(1)} = {_rmg_value(values[(section, found.group(1))])}")
+            continue
+        out.append(line)
+    out.extend(_rmg_unseen(section, values, seen))
+    for name in dict.fromkeys(name for name, _key in values):
+        added = _rmg_unseen(name, values, seen)
+        if added:
+            out.extend(["", f"[{name}]", *added])
+    return "\n".join(out) + "\n"
+
+
+def _rmg_unseen(section, values: dict, seen: set) -> list:
+    added = []
+    for (name, key), value in values.items():
+        if name == section and (name, key) not in seen:
+            seen.add((name, key))
+            added.append(f"{key} = {_rmg_value(value)}")
+    return added
+
+
+def _rmg_value(value) -> str:
+    if isinstance(value, bool):
+        return "True" if value else "False"
+    return '"' + str(value).replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def rmg_nickname(name: str) -> str:
+    return re.sub(r"[^A-Za-z0-9]", "", name)[:128] or "Player"
+
+
+def rmg_servers(host: str) -> str:
+    return json.dumps({RMG_SERVER: f"ws://{host}:{RMG_SERVER_PORT}"}) + "\n"
+
+
+def rmg_launch_options(original: str, install: str, config_home: Path) -> str:
+    home = shlex.quote(str(config_home))
+    if install == "flatpak":
+        inner = shlex.quote(f"export XDG_CONFIG_HOME={home}; exec RMG")
+        return f"flatpak run --command=sh {RMG_FLATPAK} -c {inner} # %command%"
+    original = (original or "").strip()
+    command = original if "%command%" in original else f"%command% {original}".strip()
+    return f"XDG_CONFIG_HOME={home} {command}"
 
 
 def compose_launch_options(original: str, args: str) -> str:

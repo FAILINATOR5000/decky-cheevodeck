@@ -28,7 +28,7 @@ export type MultiplayerRoomMarker = {
     round: number;
     state: string;
     chat: ChatLine | null;
-    autostart: { room: string; round: number; appid: number; dolphin: boolean } | null;
+    autostart: { room: string; round: number; appid: number; steps: string; game: string } | null;
 };
 
 type RoomEvent = Partial<MultiplayerRoomMarker> & { seq?: number };

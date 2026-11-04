@@ -61,6 +61,8 @@ const PROBLEM_TEXT: Record<string, string> = {
     no_dolphin_emulator_shortcut: "Add Dolphin itself to Steam ROM Manager",
     dolphin_game_list: "Add {{folder}} to Dolphin's game list",
     dolphin_version_mismatch: "The host uses Dolphin {{version}}. Every device needs the same Dolphin version.",
+    no_rmg_shortcut: "N64 Couch Play needs RMG itself in Steam. Add it with Steam ROM Manager.",
+    rmg_version_mismatch: "The host uses RMG {{version}}. Every device needs the same RMG version.",
     ppsspp_version_mismatch: "The host uses PPSSPP {{version}}. Every device needs the same PPSSPP version.",
     not_found: "No room found at that address",
     bad_address: "Not a valid address",

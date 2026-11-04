@@ -3062,7 +3062,7 @@ export type MultiplayerRoomStatus =
         reason: string;
         detail: Record<string, string>;
         chat: MultiplayerChatLine[];
-        autostart: { room: string; round: number; appid: number; dolphin: boolean } | null;
+        autostart: { room: string; round: number; appid: number; steps: string; game: string } | null;
     }
     | { ok: true; seq: number; role: null; closedReason: string; lobby: boolean };
 

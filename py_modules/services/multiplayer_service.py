@@ -94,7 +94,7 @@ FLATPAK_SECONDS = 10
 EMULATOR_NAMES = ("retroarch", "PPSSPPSDL", "PPSSPPQt", "dolphin-emu", "RMG")
 FALLBACK_NAMES = {"retroarch": "RetroArch", "ppsspp": "PPSSPP", "dolphin": "Dolphin", "rmg": "RMG"}
 
-SESSION_SUFFIXES = {".cfg": "retroarch", ".ini": "ppsspp", ".dolphin": "dolphin"}
+SESSION_SUFFIXES = {".cfg": "retroarch", ".ini": "ppsspp", ".dolphin": "dolphin", ".rmg": "rmg"}
 
 ERROR_NOT_GAME_MODE = "not_game_mode"
 ERROR_NO_ACCOUNT = "no_account"
@@ -810,6 +810,8 @@ class MultiplayerService:
         return {"ok": True, "scanned": True, "games": games, "installedCores": installed}
 
     def _can_couch(self, ra, by_system: dict, system_id: int, emulator: str) -> bool:
+        if system_id == session.N64_SYSTEM:
+            return self._emulator_shortcut("rmg") is not None
         if emulator == "dolphin":
             return system_id in session.DOLPHIN_SYSTEMS
         if emulator == "duckstation":
@@ -884,7 +886,8 @@ class MultiplayerService:
             detected = {"emulator": fallback["kind"], "core": ""}
         else:
             detected = session.detect(pick["shortcut"]["exe"], pick["shortcut"]["launchOptions"])
-        if detected is None:
+        n64_couch = mode == "couch" and system_id == session.N64_SYSTEM
+        if detected is None and not n64_couch:
             return None, "unsupported_emulator", {}
 
         local = {
@@ -894,15 +897,17 @@ class MultiplayerService:
             "path": pick["path"],
             "real": pick["real"],
             "appid": pick["shortcut"]["appid"],
-            "emulator": detected["emulator"],
-            "shortcutCore": detected["core"],
-            "shortcutCoreName": detected["core"],
+            "emulator": detected["emulator"] if detected else "",
+            "shortcutCore": detected["core"] if detected else "",
+            "shortcutCoreName": detected["core"] if detected else "",
             "choices": [],
             "hash": pick["hash"],
             "coreBuild": "",
             "gameCode": "",
             "fallback": fallback is not None,
         }
+        if n64_couch:
+            return self._rmg_couch_local(local)
         emulator = detected["emulator"]
         if emulator == "pcsx2":
             return None, "pcsx2_no_multiplayer", {}
@@ -1011,6 +1016,25 @@ class MultiplayerService:
                      install=install, gameCode=disc[:4], gameAppid=local["appid"], appid=emulator["appid"],
                      emuVersion=self._dolphin_version(install, emulator))
         return local, None, {}
+
+    def _rmg_couch_local(self, local: dict):
+        emulator = self._emulator_shortcut("rmg")
+        if emulator is None:
+            return None, "no_rmg_shortcut", {}
+        install = session.rmg_install(emulator["exe"], emulator["launchOptions"], self._user_home)
+        local.update(
+            emulator="rmg", core=session.RMG_STANDALONE, coreName="RMG", shortcutCore="", shortcutCoreName="RMG",
+            install=install, gameAppid=local["appid"], appid=emulator["appid"],
+            emuVersion=self._rmg_version(install, emulator),
+        )
+        return local, None, {}
+
+    def _rmg_version(self, install: str, shortcut: dict) -> str:
+        if install == "flatpak":
+            return self._flatpak_version(session.RMG_FLATPAK)
+        if install != "appimage":
+            return ""
+        return self._appimage_version(session.rmg_appimage(shortcut["exe"], shortcut["launchOptions"], self._user_home))
 
     def _duckstation_couch_local(self, local: dict, core: str, room):
         ra = session.RetroArch(self._user_home)
@@ -1252,7 +1276,10 @@ class MultiplayerService:
             return self._flatpak_version(session.DOLPHIN_FLATPAK)
         if install != "appimage":
             return ""
-        image = session.dolphin_appimage(shortcut["exe"], shortcut["launchOptions"], self._user_home)
+        return self._appimage_version(
+            session.dolphin_appimage(shortcut["exe"], shortcut["launchOptions"], self._user_home))
+
+    def _appimage_version(self, image: str) -> str:
         try:
             st = os.stat(image)
         except OSError:
@@ -1360,12 +1387,15 @@ class MultiplayerService:
                     warnings.append({"code": "revision_differs", "detail": {}})
             if mode == "link" and room["gameId"] != local["gameId"]:
                 warnings.append({"code": "game_differs", "detail": {}})
-            versions_differ = local["core"] not in proto.NETPACKET_CORES and local["emulator"] != "dolphin" \
+            versions_differ = local["core"] not in proto.NETPACKET_CORES and local["emulator"] not in ("dolphin", "rmg") \
                 and _known(room["emuVersion"]) and _known(local["emuVersion"]) \
                 and room["emuVersion"] != local["emuVersion"]
             if mode == "couch" and local["emulator"] == "dolphin" and room["emuVersion"] and local["emuVersion"] \
                     and room["emuVersion"] != local["emuVersion"]:
                 return ("dolphin_version_mismatch", {"version": room["emuVersion"]}), warnings
+            if local["emulator"] == "rmg" and room["emuVersion"] and local["emuVersion"] \
+                    and room["emuVersion"] != local["emuVersion"]:
+                return ("rmg_version_mismatch", {"version": room["emuVersion"]}), warnings
             if mode == "couch" and room["coreBuild"] and local["coreBuild"] \
                     and room["coreBuild"] != local["coreBuild"]:
                 warnings.append({"code": "core_build_differs", "detail": {"core": room["coreName"]}})
@@ -1395,6 +1425,9 @@ class MultiplayerService:
             if not self._flatpak_reads_home(session.RETROARCH_FLATPAK):
                 return ("flatpak_permission", {}), warnings
         elif local["emulator"] == "ppsspp" and not self._flatpak_reads_home(session.PPSSPP_FLATPAK):
+            return ("flatpak_permission", {}), warnings
+        elif local["emulator"] == "rmg" and local["install"] == "flatpak" \
+                and not self._flatpak_reads_home(session.RMG_FLATPAK):
             return ("flatpak_permission", {}), warnings
         return None, warnings
 
@@ -1766,6 +1799,8 @@ class MultiplayerService:
             return "starting"
         if room["emulator"] == "dolphin" and room["mode"] == "link":
             return "playing"
+        if room["emulator"] == "rmg":
+            return "playing"
         if room["where"] == "online" and room["emulator"] == "ppsspp":
             return "playing"
         if room["emulator"] == "dolphin":
@@ -1836,13 +1871,17 @@ class MultiplayerService:
 
         self._announce()
 
-    def _notify_steps(self, role: str) -> None:
+    def _notify_steps(self, role: str, emulator: str) -> None:
+        if emulator == "rmg":
+            line = "Create Session in RMG Netplay" if role == "host" else "Join in RMG Netplay"
+        else:
+            line = "Host in NetPlay" if role == "host" else "Connect in NetPlay"
         emit_notification(
             ntype="system",
             settings_store=self._settings_store,
             event_loop=self._loop,
             title_key="EZ Multiplayer",
-            line_key="Host in NetPlay" if role == "host" else "Connect in NetPlay",
+            line_key=line,
             force_toast=True,
         )
 
@@ -2864,7 +2903,7 @@ class MultiplayerService:
             joined["autostartRound"] = number
             decky.logger.info("multiplayer: the host is in game, starting round %s here", number)
             self._emit({"state": "autostart", "room": joined["row"]["room"], "round": number,
-                        "dolphin": _dolphin_couch(joined["row"]),
+                        "steps": _steps(joined["row"]), "game": joined["row"]["title"],
                         "appid": joined["local"]["appid"]})
 
     def _pending_start(self, joined: dict):
@@ -2876,7 +2915,7 @@ class MultiplayerService:
         ):
             return None
         return {"room": joined["row"]["room"], "round": status["round"], "appid": joined["local"]["appid"],
-                "dolphin": _dolphin_couch(joined["row"])}
+                "steps": _steps(joined["row"]), "game": joined["row"]["title"]}
 
     def _report(self, joined: dict) -> dict:
         local = joined["local"]
@@ -3167,6 +3206,11 @@ class MultiplayerService:
                     args = session.dolphin_bba_args(own_ip=own_ip, mac=session.bba_mac(self._machine_id()),
                                                     hardcore=hardcore, marker=marker,
                                                     rom=rom if local["fallback"] else None)
+            elif local["emulator"] == "rmg":
+                home = self._session_dir / f"session-{sid}.rmg"
+                self._build_rmg_home(home, local, nick, self._relay_host(), rom)
+                files = [home]
+                options = session.rmg_launch_options(original, local["install"], home)
             else:
                 ini_path = self._session_dir / f"session-{sid}.ini"
                 text = session.ppsspp_session(role=role, host_ip=host_ip, nick=nick,
@@ -3197,14 +3241,42 @@ class MultiplayerService:
             "error": "",
             "watch": None,
         }
+        if local["emulator"] != "rmg":
+            options = session.compose_launch_options(original, args)
         decky.logger.info("multiplayer: session %s ready for %s as %s", sid, mode, role)
         return {
             "ok": True,
             "appid": local["appid"],
-            "options": session.compose_launch_options(original, args),
+            "options": options,
             "original": original,
             "session": sid,
         }
+
+    def _build_rmg_home(self, home: Path, local: dict, nick: str, server: str, rom: Path) -> None:
+        folder = home / "RMG"
+        for path in (home, folder):
+            ensure_dir(path)
+            chown_to_data_owner(path)
+        own = session.rmg_config_dir(self._user_home, local["install"])
+        text = ""
+        if own.is_dir():
+            for entry in own.iterdir():
+                if not entry.is_file() or entry.is_symlink():
+                    continue
+                if entry.name == "mupen64plus.cfg":
+                    text = entry.read_text(encoding="utf-8", errors="replace")
+                    continue
+                with atomic_file(folder / entry.name) as out:
+                    out.write(entry.read_bytes())
+        servers = home / "servers.json"
+        self._write(servers, session.rmg_servers(server))
+        self._write(folder / "mupen64plus.cfg", session.rmg_config(text, {
+            (session.RMG_NETPLAY_SECTION, "Nickname"): session.rmg_nickname(nick),
+            (session.RMG_NETPLAY_SECTION, "ServerJsonUrl"): str(servers),
+            (session.RMG_NETPLAY_SECTION, "SelectedServer"): session.RMG_SERVER,
+            (session.RMG_ROM_BROWSER_SECTION, "Directory"): str(rom.parent),
+            (session.RMG_GUI_SECTION, "AutomaticFullscreen"): True,
+        }))
 
     def _build_system_folder(self, ra, rom: Path, folder: Path) -> None:
         copies = session.melonds_firmware_names(dict(ra.effective_options(session.MELONDS_DS, rom)))
@@ -3328,7 +3400,7 @@ class MultiplayerService:
 
     async def _watch(self, current: dict) -> None:
         needle = str(current["files"][0])
-        pid = await asyncio.to_thread(self._find_emulator, needle, ARGV_SECONDS)
+        pid = await asyncio.to_thread(self._find_emulator, needle, ARGV_SECONDS, current["emulator"] == "rmg")
         if self._session is not current:
             return
         if pid is None:
@@ -3343,17 +3415,17 @@ class MultiplayerService:
         decky.logger.info("multiplayer: following the emulator, pid %s", pid)
         self._emit({"state": "playing", "session": current["id"], "emulator": current["emulator"],
                     "mode": current.get("mode", "")})
-        if current["emulator"] == "dolphin" and current.get("mode") == "couch":
-            self._notify_steps(current["role"])
+        if current["emulator"] in ("dolphin", "rmg") and current.get("mode") == "couch":
+            self._notify_steps(current["role"], current["emulator"])
         await asyncio.to_thread(self._wait_exit, pid)
         if not self._stopping:
             self._finish(current)
 
-    def _find_emulator(self, needle: str, limit: float):
+    def _find_emulator(self, needle: str, limit: float, environ: bool = False):
         deadline = time.monotonic() + limit
         settle = None
         while time.monotonic() < deadline and not self._stopping:
-            matches = _processes_naming(needle)
+            matches = _processes_naming(needle, environ)
             emulators = [pid for pid, name in matches if name in EMULATOR_NAMES]
             if emulators:
                 return min(emulators)
@@ -3362,7 +3434,7 @@ class MultiplayerService:
             if settle is not None and time.monotonic() >= settle:
                 return min(pid for pid, _name in matches) if matches else None
             time.sleep(0.5)
-        matches = _processes_naming(needle)
+        matches = _processes_naming(needle, environ)
         return min(pid for pid, _name in matches) if matches else None
 
     def _wait_exit(self, pid: int) -> None:
@@ -3412,10 +3484,13 @@ class MultiplayerService:
 
     def _remove_session_files(self, sid: str) -> None:
         for suffix in (".opt", *SESSION_SUFFIXES):
+            path = self._session_dir / f"session-{sid}{suffix}"
             try:
-                (self._session_dir / f"session-{sid}{suffix}").unlink()
+                path.unlink()
             except FileNotFoundError:
                 pass
+            except IsADirectoryError:
+                _remove_system_folder(path)
             except OSError as e:
                 decky.logger.warning("multiplayer: couldn't remove a session file (%s)", type(e).__name__)
         _remove_system_folder(self._session_dir / f"session-{sid}.system")
@@ -3542,8 +3617,10 @@ def _drop_in(room: dict) -> bool:
     return room.get("mode") == "couch" and room.get("emulator") == "retroarch"
 
 
-def _dolphin_couch(row: dict) -> bool:
-    return row["mode"] == "couch" and row["emulator"] == "dolphin"
+def _steps(row: dict) -> str:
+    if row["mode"] == "couch" and row["emulator"] in ("dolphin", "rmg"):
+        return row["emulator"]
+    return ""
 
 
 def _local_view(local: dict) -> dict:
@@ -3561,7 +3638,7 @@ def _local_view(local: dict) -> dict:
     }
 
 
-def _processes_naming(needle: str) -> list:
+def _processes_naming(needle: str, environ: bool = False) -> list:
     wanted = needle.encode()
     found = []
     for name in os.listdir("/proc"):
@@ -3570,6 +3647,9 @@ def _processes_naming(needle: str) -> list:
         try:
             with open(f"/proc/{name}/cmdline", "rb") as handle:
                 cmdline = handle.read()
+            if environ and wanted not in cmdline:
+                with open(f"/proc/{name}/environ", "rb") as handle:
+                    cmdline += b"\0" + handle.read()
         except OSError:
             continue
         if wanted not in cmdline:
@@ -3641,6 +3721,8 @@ def _running_sessions(folder: str) -> set:
         try:
             with open(f"/proc/{name}/cmdline", "rb") as handle:
                 cmdline = handle.read()
+            with open(f"/proc/{name}/environ", "rb") as handle:
+                cmdline += b"\0" + handle.read()
         except OSError:
             continue
         found.update(pattern.findall(cmdline.decode("utf-8", "replace")))
