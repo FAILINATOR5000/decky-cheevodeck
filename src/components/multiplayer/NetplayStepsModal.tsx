@@ -6,18 +6,16 @@ import { modalSize } from "../../utils/scale";
 
 export type NetplaySteps = "dolphin" | "rmg";
 
-const STEPS: Record<NetplaySteps, { title: string; host: string; guest: string; open: string }> = {
+const STEPS: Record<NetplaySteps, { title: string; host: string; guest: string }> = {
     dolphin: {
         title: "Dolphin NetPlay",
         host: "In Dolphin, open Tools, then Start NetPlay, then Host. Pick the game and press Start once everyone has joined.",
-        guest: "In Dolphin, open Tools, then Start NetPlay, then Connect. The host's address is filled in.",
-        open: "Open Dolphin"
+        guest: "In Dolphin, open Tools, then Start NetPlay, then Connect. The host's address is filled in."
     },
     rmg: {
         title: "RMG Netplay",
         host: "rmg_steps_host",
-        guest: "rmg_steps_guest",
-        open: "Open RMG"
+        guest: "rmg_steps_guest"
     }
 };
 
@@ -38,7 +36,7 @@ function NetplayStepsModal(props: { language: LanguageCode; emulator: NetplaySte
                 </div>
             )}
             <Focusable style={{ display: "flex", justifyContent: "flex-end", marginTop: "16px" }} flow-children="row">
-                <DialogButton onClick={close}>{t(language, steps.open)}</DialogButton>
+                <DialogButton onClick={close}>{t(language, host ? "Host & Play" : "Join & Play")}</DialogButton>
             </Focusable>
         </ModalRoot>
     );

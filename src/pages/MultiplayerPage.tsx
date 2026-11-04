@@ -268,7 +268,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         ...(runsRmg ? [t(language, joined ? "rmg_steps_guest" : "rmg_steps_host", { game: roomTitle })] : [])
     ];
 
-    let playLabel = mp.mode === "couch" && local?.emulator === "dolphin" ? "Open Dolphin" : runsRmg ? "Open RMG" : "Host & Play";
+    let playLabel = "Host & Play";
     let canPlay = canStartNow;
     let pressPlay = () => void actions.start();
     if (hosted && !inLobby) {
