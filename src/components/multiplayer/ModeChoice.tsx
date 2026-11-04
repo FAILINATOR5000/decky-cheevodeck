@@ -46,6 +46,7 @@ export function ModeChoice(props: {
                     >
                         <DialogButton
                             onClick={() => props.onChoose(entry.mode)}
+                            focusable={!disabled}
                             onGamepadFocus={() => setFocused(entry.mode)}
                             onGamepadBlur={() => setFocused((current) => current === entry.mode ? null : current)}
                             disabled={disabled}
