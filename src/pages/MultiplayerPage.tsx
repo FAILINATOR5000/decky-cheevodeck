@@ -74,7 +74,7 @@ const TABS: { tab: MultiplayerTab; labelKey: string; focusKey: string }[] = [
     { tab: "friends", labelKey: "Friends", focusKey: "multiplayer:tab:friends" }
 ];
 
-const WAITING = ["nobody_ready", "no_guests", "drop_in"];
+const WAITING = ["nobody_ready", "drop_in"];
 const ROOM_NOTICES = ["unreadied_other_game", "other_game"];
 
 const MODE_FACTS = ["link_system", "link_gc_no_lan", "ds_no_couch", "pcsx2_no_multiplayer", "link_gba_cant_link"];
@@ -222,9 +222,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         if (playing || !inLobby) {
             return null;
         }
-        if (hosted && !dropIn && !hosted.canStart) {
-            const anyCan = hosted.seats.some((seat, index) => index > 0 && seat?.can);
-            return { code: anyCan ? "nobody_ready" : "no_guests" };
+        if (hosted && !dropIn && !hosted.canStart && hosted.seats.some((seat, index) => index > 0 && seat?.can)) {
+            return { code: "nobody_ready" };
         }
         if (hosted ? otherGameRunning() : runningOther && !joined?.ready) {
             return { code: "other_game" };
