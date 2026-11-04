@@ -228,7 +228,7 @@ _RESUME_ULID_RE = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
 _RESUME_MONTH_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 _RESUME_DAY_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$")
 _ALLOWED_MILESTONES_SORTS = ("list", "upNext")
-_ALLOWED_FRIEND_PROFILE_BACK_SOURCES = {"social", "main", "eventViewer"}
+_ALLOWED_FRIEND_PROFILE_BACK_SOURCES = {"social", "main", "eventViewer", "multiplayer"}
 _ALLOWED_EVENT_VIEWER_SOURCES = {"events", "main", "subscribedDiscussions"}
 
 _ALLOWED_FRIEND_ENTRY_SOURCES = {"profile", "compareGame"}

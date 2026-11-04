@@ -221,7 +221,7 @@ import type {
 
 import { achievementUiMetrics, bodyTextStyle, FADE_IN_KEYFRAMES } from "../utils/style";
 import { logError } from "../utils/errors";
-import { multiplayerChoices, rememberMultiplayerSource } from "../utils/multiplayerChoices";
+import { multiplayerChoices, rememberMultiplayerOverview, rememberMultiplayerSource } from "../utils/multiplayerChoices";
 import { SHORTCUT_BUTTON_BY_CODE } from "../utils/gamepadButtons";
 import { requestJumpToTop } from "../utils/jumpToTop";
 import { captureSnapshot } from "../utils/snapshot";
@@ -253,7 +253,7 @@ import { notePanelMount, notePanelUnmount, samplePanelEntryFrames } from "../uti
 import { measureCommentWindow } from "../utils/commentGeometry";
 import { currentQuickGuideVisible, setQuickGuide } from "../utils/quickGuide";
 import { lastOpenedGuide } from "../utils/guidesResolve";
-import { requestPanelEntry, takePanelEntry, type PanelEntry } from "../utils/pendingPanelEntry";
+import { requestPanelEntry, takePanelEntry, takeRoute, type PanelEntry, type PanelRoute } from "../utils/pendingPanelEntry";
 import { showToggleToast } from "../utils/toggleToast";
 import { openExternalUrl, raAchievementUrl, raAchievementCommentsUrl, raGameUrl, raGameCommentsUrl, raHomeUrl, raLookupSearchUrl, raUserUrl, raUserCommentsUrl } from "../utils/navigation";
 import { userRefFor } from "../utils/friends";
@@ -294,10 +294,11 @@ let pendingFriendGameSearch: { username: string; ulid: string | null; gameId: nu
 
 let pendingCheevoCheckGameId: number | null = null;
 
-function consumePendingRouteOverrides(resumeState: ResumeState | null): { resumeState: ResumeState | null; entry: PanelEntry | null; land: string | null; routeOverride: boolean; pushOpener: boolean } {
+function consumePendingRouteOverrides(resumeState: ResumeState | null): { resumeState: ResumeState | null; entry: PanelEntry | null; land: string | null; routeOverride: boolean; pushOpener: boolean; route: PanelRoute | null } {
     let nextResumeState = resumeState;
-    const routeOverride = pendingSearchGameId != null || pendingFriendGameSearch != null || pendingCheevoCheckGameId != null;
-    const pushOpener = pendingSearchGameId != null || pendingCheevoCheckGameId != null;
+    const route = takeRoute();
+    const routeOverride = route != null || pendingSearchGameId != null || pendingFriendGameSearch != null || pendingCheevoCheckGameId != null;
+    const pushOpener = route != null || pendingSearchGameId != null || pendingCheevoCheckGameId != null;
     const tappedSearchGameId = pendingSearchGameId;
     pendingSearchGameId = null;
     if (tappedSearchGameId != null) {
@@ -345,6 +346,20 @@ function consumePendingRouteOverrides(resumeState: ResumeState | null): { resume
             focusKey: "gameoverview:back"
         };
     }
+    if (route?.kind === "profile") {
+        nextResumeState = {
+            ...(nextResumeState ?? ({} as ResumeState)),
+            view: "friendGame",
+            selectedFriendUsername: route.username,
+            selectedFriendUlid: route.ulid,
+            friendProfileBackSource: route.backSource,
+            friendGameSelectionMode: "auto",
+            friendGameId: null,
+            friendGameSource: "recentGames",
+            friendProfileSubView: "game",
+            focusKey: "friendgame:back"
+        };
+    }
     const taken = takePanelEntry();
     const entry = taken?.entry ?? null;
     if (entry) {
@@ -355,7 +370,7 @@ function consumePendingRouteOverrides(resumeState: ResumeState | null): { resume
         };
     }
 
-    return { resumeState: nextResumeState, entry, land: taken?.land ?? routeLand, routeOverride, pushOpener };
+    return { resumeState: nextResumeState, entry, land: taken?.land ?? routeLand, routeOverride, pushOpener, route: entry ? null : route };
 }
 
 function panelEntryOverlay(entry: PanelEntry): Partial<ResumeState> & Pick<ResumeState, "view"> {
@@ -2955,6 +2970,9 @@ function AchievementsRoot() {
         if (entry?.kind === "profile") {
             friendProfileBackSourceRef.current = "main";
         }
+        else if (pending.route?.kind === "profile") {
+            friendProfileBackSourceRef.current = pending.route.backSource;
+        }
         setPayload(nextPayload);
         const bootGameId = nextPayload?.gameId ?? null;
         if (bootGameId !== null && boot.tracked && boot.tracked.gameId === bootGameId) {
@@ -2963,7 +2981,7 @@ function AchievementsRoot() {
         if (bootGameId !== null && boot.gameNotes && bootView !== "gameNotes") {
             gameNotesActions.applyBootNotes(bootGameId, boot.gameNotes);
         }
-        initializeResumeFromBoot(nextResumeState, nextPayload, bootView, entry?.kind === "profile");
+        initializeResumeFromBoot(nextResumeState, nextPayload, bootView, entry?.kind === "profile" || pending.route?.kind === "profile");
         setGoResumeProvisional(nextGoResumeProvisional);
         setAoResumeProvisional(nextAoResumeProvisional);
         setFriendsPayload(nextFriendsPayload);
@@ -3484,7 +3502,9 @@ function AchievementsRoot() {
 
     function backFromFriendProfile() {
         const trailSays = previousView(nav.stack);
-        const trailWouldSay = trailSays === "achievements" ? "main" : trailSays === "eventViewer" ? "eventViewer" : "social";
+        const trailWouldSay = trailSays === "achievements" ? "main"
+            : trailSays === "eventViewer" ? "eventViewer"
+                : trailSays === "multiplayer" ? "multiplayer" : "social";
         logNavDebug(
             trailWouldSay === friendProfileBackSourceRef.current ? "backsource-agree" : "backsource-DISAGREE",
             "friendGame",
@@ -3498,6 +3518,12 @@ function AchievementsRoot() {
         if (friendProfileBackSourceRef.current === "eventViewer") {
             friendProfileBackSourceRef.current = "social";
             returnToEventViewer();
+            return;
+        }
+        if (friendProfileBackSourceRef.current === "multiplayer") {
+            friendProfileBackSourceRef.current = "social";
+            setView("multiplayer", "back");
+            setPendingFocusKey("multiplayer:back");
             return;
         }
         routeBackToSocialTab(null, "social:back", "back");
@@ -3609,7 +3635,17 @@ function AchievementsRoot() {
 
     function goToMultiplayer(intent: NavIntent = "push", land?: string) {
         friendGameSessionRefreshKeysRef.current = new Set();
-        rememberMultiplayerSource(intent === "push" && (view === "utils" || view === "gameOverview") ? view : "achievements");
+        const source = intent === "push" && (view === "utils" || view === "gameOverview") ? view : "achievements";
+        rememberMultiplayerSource(source);
+        rememberMultiplayerOverview(source === "gameOverview" && gameOverviewGameId !== null
+            ? {
+                gameId: gameOverviewGameId,
+                source: gameOverviewSource,
+                viewedUsername: gameOverviewViewedUsername,
+                viewedUserRef: gameOverviewViewedUserRef,
+                subView: gameOverviewSubView
+            }
+            : null);
         setView("multiplayer", intent, land ? { land } : undefined);
         setPendingFocusKey("multiplayer:back");
     }
@@ -3644,7 +3680,16 @@ function AchievementsRoot() {
     }
 
     function backToMultiplayerSource() {
-        const source = multiplayerChoices().source;
+        const { source, overview } = multiplayerChoices();
+        if (source === "gameOverview" && overview) {
+            setGameOverviewGameId(overview.gameId);
+            setGameOverviewSource(overview.source);
+            setGameOverviewViewedUsername(overview.viewedUsername);
+            setGameOverviewViewedUserRef(overview.viewedUserRef);
+            setGameOverviewSubView(overview.subView);
+            setView("gameOverview", "back");
+            return;
+        }
         if (source === "gameOverview" && gameOverviewGameIdRef.current != null) {
             setView("gameOverview", "back");
             return;
@@ -5712,7 +5757,8 @@ function AchievementsRoot() {
                                         showAllToggleFriend,
                                         showRetroPoints,
                                         backToMain: friendProfileBackSourceRef.current === "main",
-                                        backToEvent: friendProfileBackSourceRef.current === "eventViewer",
+                                        backPlain: friendProfileBackSourceRef.current === "eventViewer"
+                                            || friendProfileBackSourceRef.current === "multiplayer",
                                         friendProfileSubView,
                                         wallComments,
                                         wallCommentsLoading,

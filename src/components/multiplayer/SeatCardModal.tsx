@@ -5,6 +5,7 @@ import { multiplayerDropSeat, multiplayerFriendAddSeat } from "../../api";
 import { t, type LanguageCode } from "../../locales";
 import { logError } from "../../utils/errors";
 import { showManagedModal } from "../../utils/modalRegistry";
+import { requestRoute } from "../../utils/pendingPanelEntry";
 import { modalSize } from "../../utils/scale";
 import { modalBodyStyle } from "../../utils/style";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
@@ -54,6 +55,11 @@ function SeatCardModal(props: SeatCardOptions & { language: LanguageCode; close:
         props.openMessages?.();
     }
 
+    function viewProfile() {
+        requestRoute({ kind: "profile", username: props.name, ulid: props.ulid, backSource: "multiplayer" });
+        close();
+    }
+
     async function drop() {
         setBusy(true);
         setLine({ tone: "busy", text: t(language, "Working...") });
@@ -90,6 +96,11 @@ function SeatCardModal(props: SeatCardOptions & { language: LanguageCode; close:
                 {canAsk && (
                     <div data-focus-key="multiplayer:seatcard:add">
                         <DialogButton onClick={() => void addFriend()} disabled={busy}>{t(language, "Add Friend")}</DialogButton>
+                    </div>
+                )}
+                {props.ulid && (
+                    <div data-focus-key="multiplayer:seatcard:profile">
+                        <DialogButton onClick={viewProfile} disabled={busy}>{t(language, "View Profile")}</DialogButton>
                     </div>
                 )}
                 {props.openMessages && (

@@ -1,4 +1,5 @@
 import type {
+    GameOverviewIdentity,
     MultiplayerAccess,
     MultiplayerMode,
     MultiplayerRoomFilter,
@@ -24,6 +25,7 @@ type Choices = {
     invite: { id: string; at: number } | null;
     message: { friend: string; id: string; at: number } | null;
     source: MultiplayerSource;
+    overview: GameOverviewIdentity | null;
 };
 
 const INVITE_FRESH_MS = 30000;
@@ -46,7 +48,8 @@ const choices: Choices = {
     page: "play",
     invite: null,
     message: null,
-    source: "achievements"
+    source: "achievements",
+    overview: null
 };
 
 export function multiplayerChoices(): Readonly<Choices> {
@@ -100,6 +103,10 @@ export function forgetMultiplayerRoomChoices() {
 
 export function rememberMultiplayerSource(source: MultiplayerSource) {
     choices.source = source;
+}
+
+export function rememberMultiplayerOverview(overview: GameOverviewIdentity | null) {
+    choices.overview = overview;
 }
 
 export function rememberMultiplayerPage(page: MultiplayerTab) {

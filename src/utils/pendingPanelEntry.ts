@@ -1,4 +1,4 @@
-import type { MilestonesTab, NewsEventsSubView, SocialView } from "../types";
+import type { FriendProfileBackSource, MilestonesTab, NewsEventsSubView, SocialView } from "../types";
 
 export type PanelEntry =
     | { kind: "guides" }
@@ -27,5 +27,19 @@ export function requestPanelEntry(entry: PanelEntry, options?: { land?: string }
 export function takePanelEntry(): PanelEntryRequest | null {
     const requested = pendingEntry;
     pendingEntry = null;
+    return requested;
+}
+
+export type PanelRoute = { kind: "profile"; username: string; ulid: string; backSource: FriendProfileBackSource };
+
+let pendingRoute: PanelRoute | null = null;
+
+export function requestRoute(route: PanelRoute): void {
+    pendingRoute = route;
+}
+
+export function takeRoute(): PanelRoute | null {
+    const requested = pendingRoute;
+    pendingRoute = null;
     return requested;
 }

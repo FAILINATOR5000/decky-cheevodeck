@@ -12,6 +12,7 @@ import { t, type LanguageCode } from "../../locales";
 import type { MultiplayerFriend } from "../../types";
 import { logError } from "../../utils/errors";
 import { rememberMultiplayerPage } from "../../utils/multiplayerChoices";
+import { requestRoute } from "../../utils/pendingPanelEntry";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { modalSize } from "../../utils/scale";
 import { achievementGreen, modalBodyStyle } from "../../utils/style";
@@ -51,6 +52,11 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
     function messages() {
         close();
         props.openMessages();
+    }
+
+    function viewProfile() {
+        requestRoute({ kind: "profile", username: friend.name, ulid: friend.ulid, backSource: "multiplayer" });
+        close();
     }
 
     function failed(code: string | undefined) {
@@ -222,6 +228,9 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
             <SnapshotHotkey language={language} />
             {header}
             <Focusable style={buttonColumn} flow-children="column">
+                <div data-focus-key="multiplayer:friendcard:profile">
+                    <DialogButton onClick={viewProfile} disabled={busy}>{t(language, "View Profile")}</DialogButton>
+                </div>
                 <div data-focus-key="multiplayer:friendcard:message">
                     <DialogButton onClick={messages} disabled={busy}>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>

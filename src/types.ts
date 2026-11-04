@@ -552,6 +552,14 @@ export type FriendProfileSubView = "game" | "wall";
 export type MainAchievementsTab = "achievements" | "activity" | "comments" | "compare";
 export type GameOverviewSource = "newsEvents" | "main" | "socialActivity" | "mainNowPlaying" | "friend" | "badges" | "wantToPlay" | "trackedSet" | "subscribedDiscussions" | "search" | "cheevoCheck" | "eventViewer" | "activity";
 
+export type GameOverviewIdentity = {
+    gameId: number;
+    source: GameOverviewSource;
+    viewedUsername: string | null;
+    viewedUserRef: string | null;
+    subView: GameOverviewSubView;
+};
+
 export type AOSource =
     | "main"
     | "tracked"
@@ -2693,7 +2701,7 @@ export type EventsClickAction = "open" | "track";
 export type EventViewerTab = "achievements" | "comments";
 export type EventViewerSource = "events" | "main" | "subscribedDiscussions";
 export type EventViewerTarget = number | "aotw";
-export type FriendProfileBackSource = "social" | "main" | "eventViewer";
+export type FriendProfileBackSource = "social" | "main" | "eventViewer" | "multiplayer";
 export type TrackedEventsClickAction = "untrack" | "open" | "note" | "reorder";
 
 type TrackedEventItem = {

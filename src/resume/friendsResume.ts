@@ -34,7 +34,7 @@ export function getSavedFriendEntrySource(savedState: ResumeState): "profile" | 
 
 export function getSavedFriendProfileBackSource(savedState: ResumeState): FriendProfileBackSource {
     const value = savedState.friendProfileBackSource;
-    return value === "main" || value === "eventViewer" ? value : "social";
+    return value === "main" || value === "eventViewer" || value === "multiplayer" ? value : "social";
 }
 
 export function getSavedFriendUsername(savedState: ResumeState): string {

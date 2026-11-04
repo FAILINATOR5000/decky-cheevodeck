@@ -267,7 +267,7 @@ type FriendProfilePageProps = {
         showAllToggleFriend: boolean;
         showRetroPoints: boolean;
         backToMain: boolean;
-        backToEvent: boolean;
+        backPlain: boolean;
         friendProfileSubView: FriendProfileSubView;
         wallComments: GameComment[];
         wallCommentsLoading: boolean;
@@ -351,7 +351,7 @@ function FriendProfilePage(props: FriendProfilePageProps) {
         showAllToggleFriend,
         showRetroPoints,
         backToMain,
-        backToEvent,
+        backPlain,
         friendProfileSubView: subView,
         wallComments,
         wallCommentsLoading,
@@ -687,7 +687,7 @@ function FriendProfilePage(props: FriendProfilePageProps) {
                     help={<PageHelpButton focusKey="friendgame:guide" guide="profile" />}
                 />
                 <BackButton
-                    label={t(language, backToMain ? "← Back to Main" : backToEvent ? "← Back" : "← Back to Social")}
+                    label={t(language, backToMain ? "← Back to Main" : backPlain ? "← Back" : "← Back to Social")}
                     focusKey="friendgame:back"
                     navAutoFocus
                     buttonSpacing={buttonSpacing}
