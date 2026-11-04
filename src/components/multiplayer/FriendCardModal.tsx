@@ -12,6 +12,7 @@ import { t, type LanguageCode } from "../../locales";
 import type { MultiplayerFriend } from "../../types";
 import { logError } from "../../utils/errors";
 import { rememberMultiplayerPage } from "../../utils/multiplayerChoices";
+import { playBackSound } from "../../utils/navSound";
 import { requestRoute } from "../../utils/pendingPanelEntry";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { modalSize } from "../../utils/scale";
@@ -146,6 +147,11 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
         setBusy(false);
     }
 
+    function cancelStep() {
+        playBackSound();
+        back();
+    }
+
     const buttonColumn = { display: "flex", flexDirection: "column" as const, gap: "8px", marginTop: "16px" };
     const gameLine = [
         friendGame(language, friend),
@@ -170,7 +176,7 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
 
     if (step === "password") {
         return (
-            <ModalRoot onCancel={back} onEscKeypress={back}>
+            <ModalRoot onCancel={cancelStep} onEscKeypress={cancelStep}>
                 <SnapshotHotkey language={language} />
                 <SaveOnStart canSave={!busy} label={t(language, "Join")} onSave={() => void join()}>
                     {header}
@@ -205,7 +211,7 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
 
     if (step === "remove") {
         return (
-            <ModalRoot onCancel={back} onEscKeypress={back}>
+            <ModalRoot onCancel={cancelStep} onEscKeypress={cancelStep}>
                 <SnapshotHotkey language={language} />
                 {header}
                 <div style={modalBodyStyle()}>
