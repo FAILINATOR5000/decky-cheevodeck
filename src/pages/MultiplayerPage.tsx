@@ -77,8 +77,7 @@ const TABS: { tab: MultiplayerTab; labelKey: string; focusKey: string }[] = [
 const WAITING = ["nobody_ready", "no_guests", "drop_in"];
 const ROOM_NOTICES = ["unreadied_other_game", "other_game"];
 
-const ABOVE_TABS = ["not_game_mode", "no_account", "cap_reached", "unavailable", "no_scan", "not_in_results", "no_shortcut",
-    "rom_missing", "dolphin_flatpak_needed"];
+const MODE_FACTS = ["link_system", "link_gc_no_lan", "ds_no_couch", "pcsx2_no_multiplayer", "link_gba_cant_link"];
 
 type MultiplayerPageState = {
     view: ViewKey;
@@ -237,8 +236,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     }
 
     const problem = gameProblem();
-    const topProblem = problem && ABOVE_TABS.includes(problem.code) ? problem : null;
-    const modeProblem = problem && !ABOVE_TABS.includes(problem.code) ? problem : null;
+    const modeFact = problem && MODE_FACTS.includes(problem.code) ? problem : null;
+    const shownProblem = problem && !modeFact ? problem : null;
     const status = playStatus();
     const inSession = hosted !== null || joined !== null;
 
@@ -255,6 +254,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         ...(runsRmg ? [t(language, "rmg_heads_up")] : [])
     ];
     const tips = [
+        ...(modeFact ? [problemText(language, modeFact.code, modeFact.detail)] : []),
         ...(mp.mode === "couch" && local?.emulator === "dolphin"
             ? [t(language, joined
                 ? "In Dolphin, open Tools, then Start NetPlay, then Connect. The host's address is filled in."
@@ -938,27 +938,10 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                                 />
                             </div>
                         </PanelSectionRow>
-                        {drawLower && (missedLine || modeProblem) && (
-                            <PanelSectionRow>
-                                <div style={{ ...bodyTextStyle(), color: missedLine ? errorRed : warnAmber, opacity: 1 }}>
-                                    {missedLine
-                                        ? problemText(language, missedLine.code, missedLine.detail)
-                                        : modeProblem && problemText(language, modeProblem.code, modeProblem.detail)}
-                                </div>
-                            </PanelSectionRow>
-                        )}
                         {playRows}
                         {drawLower && (
                             <>
                                 {statusRow}
-                                {topProblem && (
-                                    <PanelSectionRow>
-                                        <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
-                                            {problemText(language, topProblem.code, topProblem.detail)}
-                                        </div>
-                                    </PanelSectionRow>
-                                )}
-
                                 <ModeChoice
                                     language={language}
                                     mode={mp.mode}
@@ -972,6 +955,20 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                                             : "Everyone plays one shared game.")}
                                     </div>
                                 </PanelSectionRow>
+                                {missedLine && (
+                                    <PanelSectionRow>
+                                        <div style={{ ...bodyTextStyle(), color: errorRed, opacity: 1 }}>
+                                            {problemText(language, missedLine.code, missedLine.detail)}
+                                        </div>
+                                    </PanelSectionRow>
+                                )}
+                                {shownProblem && (
+                                    <PanelSectionRow>
+                                        <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
+                                            {problemText(language, shownProblem.code, shownProblem.detail)}
+                                        </div>
+                                    </PanelSectionRow>
+                                )}
 
                                 <Focusable key={scopeKey} flow-children="column" resetNavOnEntry>
                                     {roomButton}
