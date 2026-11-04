@@ -35,6 +35,8 @@ RMG_SERVER = "CheevoDeck"
 RMG_SERVER_PORT = 45000
 RMG_AUTH = "RMG"
 RMG_GUI_SECTION = "Rosalie's Mupen GUI"
+RMG_CONTROLLER_1_SECTION = "Rosalie's Mupen GUI - Input Plugin Profile 0"
+RMG_DEVICE_AUTOMATIC = 2
 RMG_NETPLAY_SECTION = "Rosalie's Mupen GUI Netplay"
 RMG_ROM_BROWSER_SECTION = "Rosalie's Mupen GUI RomBrowser"
 
@@ -709,6 +711,8 @@ def _rmg_unseen(section, values: dict, seen: set) -> list:
 def _rmg_value(value) -> str:
     if isinstance(value, bool):
         return "True" if value else "False"
+    if isinstance(value, int):
+        return str(value)
     return '"' + str(value).replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 

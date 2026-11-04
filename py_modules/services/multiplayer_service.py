@@ -3366,6 +3366,9 @@ class MultiplayerService:
             (session.RMG_NETPLAY_SECTION, "SelectedServer"): session.RMG_SERVER,
             (session.RMG_ROM_BROWSER_SECTION, "Directory"): str(rom.parent),
             (session.RMG_GUI_SECTION, "AutomaticFullscreen"): True,
+            (session.RMG_CONTROLLER_1_SECTION, "PluggedIn"): True,
+            (session.RMG_CONTROLLER_1_SECTION, "DeviceType"): session.RMG_DEVICE_AUTOMATIC,
+            (session.RMG_CONTROLLER_1_SECTION, "DeviceName"): "Automatic",
         }))
 
     def _build_system_folder(self, ra, rom: Path, folder: Path) -> None:
