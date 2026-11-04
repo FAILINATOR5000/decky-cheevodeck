@@ -70,6 +70,9 @@ function InviteFriendsModal(props: { language: LanguageCode; avatars: Record<str
     });
 
     async function invite(friend: MultiplayerFriend) {
+        if (busy) {
+            return;
+        }
         setBusy(true);
         setLine({ tone: "busy", text: t(language, "Inviting {{name}}...", { name: friendName(friend) }) });
         try {
@@ -108,7 +111,7 @@ function InviteFriendsModal(props: { language: LanguageCode; avatars: Record<str
                                     <FocusableItem
                                         focusKey={rowKey(friend)}
                                         focusFallback={[...neighbors, "multiplayer:invitepicker:close"]}
-                                        disabled={busy || (linkUp && !friend.online && friend.seen > 0)}
+                                        disabled={linkUp && !friend.online && friend.seen > 0}
                                         onGamepadFocus={() => list.onItemFocus(at)}
                                         onGamepadDirection={list.guardTopRow(at)}
                                         onClick={() => void invite(friend)}
