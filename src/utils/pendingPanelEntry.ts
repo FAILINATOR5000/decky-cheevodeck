@@ -30,7 +30,9 @@ export function takePanelEntry(): PanelEntryRequest | null {
     return requested;
 }
 
-export type PanelRoute = { kind: "profile"; username: string; ulid: string; backSource: FriendProfileBackSource };
+export type PanelRoute =
+    | { kind: "profile"; username: string; ulid: string; backSource: FriendProfileBackSource }
+    | { kind: "cheevoCheck" };
 
 let pendingRoute: PanelRoute | null = null;
 

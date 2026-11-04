@@ -224,8 +224,11 @@ export function useResumeSnapshot(args: ResumeSnapshotArgs) {
             && leaderboardsSourceViewRef.current === "gameOverview";
         const onMultiplayerFromGameOverview = currentView === "multiplayer"
             && multiplayerChoices().source === "gameOverview";
+        const stack = navStackRef.current;
+        const onCheevoCheckFromGameOverview = currentView === "cheevoCheck"
+            && stack.length > 1 && stack[stack.length - 2].view === "gameOverview";
         const keepGameOverviewIdentity = onGameOverviewStack || onLeaderboardsFromGameOverview
-            || onMultiplayerFromGameOverview;
+            || onMultiplayerFromGameOverview || onCheevoCheckFromGameOverview;
         const keepEventViewer = currentView === "eventViewer"
             || ((currentView === "gameOverview" || currentView === "achievementOverview")
                 && (gameOverviewSourceRef.current === "eventViewer" || aoSourceRef.current === "eventViewer"))

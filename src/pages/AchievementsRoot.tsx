@@ -154,6 +154,13 @@ import { getSavedMainAchievementsTab } from "../resume/achievementsResume";
 import { getSavedGuidesSubView } from "../resume/guidesResume";
 import { computeBootView, getSavedNavStack } from "../resume/bootView";
 import { getSavedEventViewerSource, getSavedEventViewerTab, getSavedEventViewerTarget } from "../resume/eventViewerResume";
+import {
+    getSavedGameOverviewGameId,
+    getSavedGameOverviewSource,
+    getSavedGameOverviewSubView,
+    getSavedGameOverviewViewedUserRef,
+    getSavedGameOverviewViewedUsername
+} from "../resume/gameOverviewResume";
 import { PanelProviders } from "../components/panel/PanelProviders";
 import { openCalculatorModal } from "../components/calculator/CalculatorModal";
 import { openLastMemory } from "../components/memories/openLastMemory";
@@ -189,6 +196,7 @@ import type {
     SavedComment,
     SavedCommentsFilter,
     SavedCommentsPrefs,
+    GameOverviewIdentity,
     GameOverviewSource,
     EventViewerSource,
     EventViewerTab,
@@ -294,6 +302,8 @@ let pendingFriendGameSearch: { username: string; ulid: string | null; gameId: nu
 
 let pendingCheevoCheckGameId: number | null = null;
 
+let overviewUnderCheevoCheck: GameOverviewIdentity | null = null;
+
 function consumePendingRouteOverrides(resumeState: ResumeState | null): { resumeState: ResumeState | null; entry: PanelEntry | null; land: string | null; routeOverride: boolean; pushOpener: boolean; route: PanelRoute | null } {
     let nextResumeState = resumeState;
     const route = takeRoute();
@@ -358,6 +368,23 @@ function consumePendingRouteOverrides(resumeState: ResumeState | null): { resume
             friendGameSource: "recentGames",
             friendProfileSubView: "game",
             focusKey: "friendgame:back"
+        };
+    }
+    if (route?.kind === "cheevoCheck") {
+        const gameId = nextResumeState?.view === "gameOverview" ? getSavedGameOverviewGameId(nextResumeState) : null;
+        overviewUnderCheevoCheck = nextResumeState && gameId !== null
+            ? {
+                gameId,
+                source: getSavedGameOverviewSource(nextResumeState),
+                viewedUsername: getSavedGameOverviewViewedUsername(nextResumeState),
+                viewedUserRef: getSavedGameOverviewViewedUserRef(nextResumeState),
+                subView: getSavedGameOverviewSubView(nextResumeState)
+            }
+            : null;
+        nextResumeState = {
+            ...(nextResumeState ?? ({} as ResumeState)),
+            view: "cheevoCheck",
+            focusKey: "cheevocheck:back"
         };
     }
     const taken = takePanelEntry();
@@ -3670,9 +3697,27 @@ function AchievementsRoot() {
         backToAchievements();
     }
 
+    function returnToGameOverview(overview: GameOverviewIdentity) {
+        setGameOverviewGameId(overview.gameId);
+        setGameOverviewSource(overview.source);
+        setGameOverviewViewedUsername(overview.viewedUsername);
+        setGameOverviewViewedUserRef(overview.viewedUserRef);
+        setGameOverviewSubView(overview.subView);
+        setView("gameOverview", "back");
+    }
+
     function backFromUtilityTool() {
-        if (previousView(nav.stack) === "utils") {
+        const from = previousView(nav.stack);
+        if (from === "utils") {
             goToUtils("back");
+            return;
+        }
+        if (from === "gameOverview" && overviewUnderCheevoCheck) {
+            returnToGameOverview(overviewUnderCheevoCheck);
+            return;
+        }
+        if (from === "gameOverview" && gameOverviewGameId !== null) {
+            setView("gameOverview", "back");
             return;
         }
 
@@ -3682,12 +3727,7 @@ function AchievementsRoot() {
     function backToMultiplayerSource() {
         const { source, overview } = multiplayerChoices();
         if (source === "gameOverview" && overview) {
-            setGameOverviewGameId(overview.gameId);
-            setGameOverviewSource(overview.source);
-            setGameOverviewViewedUsername(overview.viewedUsername);
-            setGameOverviewViewedUserRef(overview.viewedUserRef);
-            setGameOverviewSubView(overview.subView);
-            setView("gameOverview", "back");
+            returnToGameOverview(overview);
             return;
         }
         if (source === "gameOverview" && gameOverviewGameIdRef.current != null) {

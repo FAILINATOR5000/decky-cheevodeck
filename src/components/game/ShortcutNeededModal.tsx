@@ -6,7 +6,7 @@ import { logError } from "../../utils/errors";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { showMultiplayerProblem } from "../multiplayer/ProblemModal";
 import { anyGameRunning } from "../../utils/multiplayerSession";
-import { requestPanelEntry } from "../../utils/pendingPanelEntry";
+import { requestRoute } from "../../utils/pendingPanelEntry";
 import { modalSize } from "../../utils/scale";
 
 type DesktopTool = "emudeck" | "srm";
@@ -50,7 +50,7 @@ function ShortcutNeededModal(props: {
             <Focusable style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px" }} flow-children="column">
                 <DialogButton
                     onClick={() => {
-                        requestPanelEntry({ kind: "cheevoCheck" });
+                        requestRoute({ kind: "cheevoCheck" });
                         close();
                     }}
                 >
