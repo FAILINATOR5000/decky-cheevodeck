@@ -91,8 +91,8 @@ SETTLE_SECONDS = 5
 APP_ENDED_GRACE_SECONDS = 10
 FLATPAK_SECONDS = 10
 
-EMULATOR_NAMES = ("retroarch", "PPSSPPSDL", "PPSSPPQt", "dolphin-emu")
-FALLBACK_NAMES = {"retroarch": "RetroArch", "ppsspp": "PPSSPP", "dolphin": "Dolphin"}
+EMULATOR_NAMES = ("retroarch", "PPSSPPSDL", "PPSSPPQt", "dolphin-emu", "RMG")
+FALLBACK_NAMES = {"retroarch": "RetroArch", "ppsspp": "PPSSPP", "dolphin": "Dolphin", "rmg": "RMG"}
 
 SESSION_SUFFIXES = {".cfg": "retroarch", ".ini": "ppsspp", ".dolphin": "dolphin"}
 
@@ -1197,6 +1197,8 @@ class MultiplayerService:
             args = f"-L {session.quote(route['corePath'])} {rom}"
         elif route["kind"] == "dolphin":
             args = f"-e {rom}"
+        elif route["kind"] == "rmg":
+            args = f"--fullscreen --quit-after-emulation {rom}"
         else:
             args = rom
         sid = secrets.token_hex(8)
@@ -1219,6 +1221,8 @@ class MultiplayerService:
     def _fallback_kinds(self, mode: str, system_id: int) -> tuple:
         if system_id in session.DOLPHIN_SYSTEMS:
             return ("dolphin",)
+        if system_id == session.N64_SYSTEM:
+            return ("retroarch", "rmg")
         if system_id == PSP_SYSTEM and mode == "link":
             return ("ppsspp", "retroarch")
         return ("retroarch",)

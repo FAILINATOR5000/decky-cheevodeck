@@ -28,8 +28,10 @@ GPSP = "gpsp"
 MELONDS_DS = "melondsds"
 DOLPHIN_STANDALONE = "dolphin-standalone"
 DOLPHIN_FLATPAK = "org.DolphinEmu.dolphin-emu"
+RMG_FLATPAK = "com.github.Rosalie241.RMG"
 
 NES_SYSTEM = 7
+N64_SYSTEM = 2
 GB_SYSTEMS = (4, 6)
 GBA_SYSTEM = 5
 DS_SYSTEM = 18
@@ -159,6 +161,7 @@ _STANDALONE_NAMES = (
     ("duckstation", ("duckstation", "duckstation.sh", "org.duckstation.duckstation")),
     ("pcsx2", ("pcsx2", "pcsx2-qt", "pcsx2-qt.sh", "net.pcsx2.pcsx2")),
     ("melonds", ("melonds", "melonds.sh", "net.kuribo64.melonds")),
+    ("rmg", ("rmg", "rmg.sh", "com.github.rosalie241.rmg")),
 )
 _CPU_FLAGS = {0: "-i", 1: "-j", 2: "-r", 3: "-J"}
 _CFG_LINE = re.compile(r'^\s*([A-Za-z0-9_]+)\s*=\s*"?(.*?)"?\s*$')
@@ -451,23 +454,43 @@ def dolphin_install(exe, launch_options, home) -> str:
         return "appimage"
     for token in tokens[:2]:
         if token.endswith(".sh"):
-            return _script_install(_expand(token, Path(home), Path(home)), "dolphin" in names)
+            return _script_install(_expand(token, Path(home), Path(home)), "dolphin", DOLPHIN_FLATPAK,
+                                   "dolphin" in names)
     return ""
 
 
-def _script_install(path, wrapper_arm: bool) -> str:
+def rmg_install(exe, launch_options, home) -> str:
+    tokens = []
+    for field in (exe, launch_options):
+        if field:
+            try:
+                tokens.extend(shlex.split(field, posix=True))
+            except ValueError:
+                tokens.extend(field.split())
+    names = _program_names(tokens)
+    if RMG_FLATPAK.lower() in names:
+        return "flatpak"
+    if any(name.endswith(".appimage") and "rmg" in name for name in names):
+        return "appimage"
+    for token in tokens[:2]:
+        if token.endswith(".sh"):
+            return _script_install(_expand(token, Path(home), Path(home)), "rmg", RMG_FLATPAK, "rmg" in names)
+    return ""
+
+
+def _script_install(path, emulator: str, flatpak_id: str, wrapper_arm: bool) -> str:
     try:
         text = Path(path).read_text(encoding="utf-8", errors="replace")
     except (OSError, TypeError):
         return ""
     if wrapper_arm:
-        found = re.search(r"^launch_dolphin\(\)\s*\{(.*?)^\}", text, re.S | re.M)
+        found = re.search(rf"^launch_{emulator}\(\)\s*\{{(.*?)^\}}", text, re.S | re.M)
         if found is None:
             return ""
         text = found.group(1)
-    if re.search(r"flatpak\s+run\s+org\.DolphinEmu\.dolphin-emu", text, re.I):
+    if re.search(rf"flatpak\s+run\s+{re.escape(flatpak_id)}", text, re.I):
         return "flatpak"
-    if re.search(r"[^\s\"']*dolphin[^\s\"']*\.appimage", text, re.I):
+    if re.search(rf"[^\s\"']*{emulator}[^\s\"']*\.appimage", text, re.I):
         return "appimage"
     return ""
 
