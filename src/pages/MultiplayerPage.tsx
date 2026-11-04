@@ -244,8 +244,13 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         : joined && ROOM_ENDED.includes(joined.error) ? joined.error : "";
     const missedLine = mp.missed ?? (endedCode && !mp.endedLineCleared ? { code: endedCode } : null);
 
+    const roomWarnings = (gateCheck?.warnings ?? []).map((warning) => warningText(language, warning.code, warning.detail));
+    const problemLines = [
+        ...(missedLine ? [{ text: problemText(language, missedLine.code, missedLine.detail), color: errorRed }] : []),
+        ...(shownProblem ? [{ text: problemText(language, shownProblem.code, shownProblem.detail), color: warnAmber }] : []),
+        ...roomWarnings.map((text) => ({ text, color: warnAmber }))
+    ];
     const warnings = [
-        ...(gateCheck?.warnings ?? []).map((warning) => warningText(language, warning.code, warning.detail)),
         ...(runsPpsspp ? [t(language, "PSP multiplayer is experimental. Some games lose the connection when a match starts.")] : []),
         ...(screenHz !== null && (screenHz === 0 || screenHz > 60)
             ? [t(language, "Multiplayer runs best at 60 Hz. If a game jitters, set 60 Hz in Steam's Performance menu while it runs.")]
@@ -253,7 +258,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         ...(runsRmg ? [t(language, "rmg_heads_up")] : [])
     ];
     const tips = [
-        ...(modeFact ? [problemText(language, modeFact.code, modeFact.detail)] : []),
+        ...(mp.mode === "link" ? [problemText(language, "link_system")] : []),
+        ...(modeFact && modeFact.code !== "link_system" ? [problemText(language, modeFact.code, modeFact.detail)] : []),
         ...(mp.mode === "couch" && local?.emulator === "dolphin"
             ? [t(language, joined
                 ? "In Dolphin, open Tools, then Start NetPlay, then Connect. The host's address is filled in."
@@ -827,10 +833,10 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             >
                 <div style={{ width: "100%", textAlign: "center" }}>
                     {t(language, "Before You Play")}
-                    {warnings.length > 0 && (
+                    {warnings.length + tips.length > 0 && (
                         <span style={{ position: "absolute", top: "3px", right: "4px", color: warnAmber, fontWeight: 800,
                             fontSize: "0.76em", lineHeight: 1 }}>
-                            {warnings.length}
+                            {warnings.length + tips.length}
                         </span>
                     )}
                 </div>
@@ -954,20 +960,14 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                                             : "Everyone plays one shared game.")}
                                     </div>
                                 </PanelSectionRow>
-                                {missedLine && (
-                                    <PanelSectionRow>
-                                        <div style={{ ...bodyTextStyle(), color: errorRed, opacity: 1 }}>
-                                            {problemText(language, missedLine.code, missedLine.detail)}
+                                {problemLines.map((line) => (
+                                    <PanelSectionRow key={line.text}>
+                                        <div style={{ ...bodyTextStyle(), color: line.color, opacity: 1, display: "flex", gap: "6px" }}>
+                                            {problemLines.length > 1 && <span>•</span>}
+                                            <span style={{ flex: 1 }}>{line.text}</span>
                                         </div>
                                     </PanelSectionRow>
-                                )}
-                                {shownProblem && (
-                                    <PanelSectionRow>
-                                        <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
-                                            {problemText(language, shownProblem.code, shownProblem.detail)}
-                                        </div>
-                                    </PanelSectionRow>
-                                )}
+                                ))}
 
                                 <Focusable key={scopeKey} flow-children="column" resetNavOnEntry>
                                     {notesRow}
