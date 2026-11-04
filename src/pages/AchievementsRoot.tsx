@@ -221,6 +221,7 @@ import type {
 
 import { achievementUiMetrics, bodyTextStyle, FADE_IN_KEYFRAMES } from "../utils/style";
 import { logError } from "../utils/errors";
+import { multiplayerChoices, rememberMultiplayerSource } from "../utils/multiplayerChoices";
 import { SHORTCUT_BUTTON_BY_CODE } from "../utils/gamepadButtons";
 import { requestJumpToTop } from "../utils/jumpToTop";
 import { captureSnapshot } from "../utils/snapshot";
@@ -434,7 +435,7 @@ function panelEntryOverlay(entry: PanelEntry): Partial<ResumeState> & Pick<Resum
         case "dataTransfer":
             return { view: "dataTransfer", focusKey: "dataTransfer:back" };
         case "multiplayer":
-            return { view: "multiplayer", focusKey: "multiplayer:back" };
+            return { view: "multiplayer", focusKey: "multiplayer:back", multiplayerSource: "achievements" };
     }
 }
 
@@ -3608,6 +3609,7 @@ function AchievementsRoot() {
 
     function goToMultiplayer(intent: NavIntent = "push", land?: string) {
         friendGameSessionRefreshKeysRef.current = new Set();
+        rememberMultiplayerSource(intent === "push" && (view === "utils" || view === "gameOverview") ? view : "achievements");
         setView("multiplayer", intent, land ? { land } : undefined);
         setPendingFocusKey("multiplayer:back");
     }
@@ -3638,6 +3640,19 @@ function AchievementsRoot() {
             return;
         }
 
+        backToAchievements();
+    }
+
+    function backToMultiplayerSource() {
+        const source = multiplayerChoices().source;
+        if (source === "gameOverview" && gameOverviewGameIdRef.current != null) {
+            setView("gameOverview", "back");
+            return;
+        }
+        if (source === "utils") {
+            goToUtils("back");
+            return;
+        }
         backToAchievements();
     }
 
@@ -4516,6 +4531,7 @@ function AchievementsRoot() {
             closeTrackedSetToSelector,
             backFromUtils,
             backFromUtilityTool,
+            backToMultiplayerSource,
             backFromMemories,
             backFromEventViewer,
             backFromMilestones,
@@ -5240,7 +5256,7 @@ function AchievementsRoot() {
                                         dynamicSentinelRootMargin
                                     }}
                                     actions={{
-                                        onBack: backFromUtilityTool,
+                                        onBack: backToMultiplayerSource,
                                         onHome: goToAchievements
                                     }}
                                 />
@@ -6010,6 +6026,7 @@ function AchievementsRoot() {
                                         }}
                                         onOpenGameSearch={() => openGameSearch(gameOverviewSourceRef.current ?? "main")}
                                         onOpenLeaderboards={() => goToLeaderboards(gameOverviewGameIdRef.current ?? gameOverviewGameId, "gameOverview")}
+                                        onOpenMultiplayer={() => goToMultiplayer()}
                                         dynamicComments={dynamicComments}
                                         dynamicCommentsSentinelRootMargin={dynamicCommentsSentinelRootMargin}
                                     />

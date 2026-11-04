@@ -52,6 +52,8 @@ import { logError } from "../utils/errors";
 import { BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT } from "../utils/gamepadButtons";
 import { playOkSound } from "../utils/navSound";
 import { pendingLandingKey, usePageLanding } from "../focusRecords";
+import { PlaySplitButton } from "../components/game/PlaySplitButton";
+import { useGamePlayController } from "../hooks/useGamePlayController";
 
 const GO_ROW_FALLBACK = [
     "gameoverview:achievements:filter",
@@ -260,6 +262,8 @@ type GameOverviewPageProps = {
 
     onOpenLeaderboards: () => void | Promise<void>;
 
+    onOpenMultiplayer: () => void;
+
     dynamicComments: boolean;
     dynamicCommentsSentinelRootMargin: number;
 
@@ -317,6 +321,7 @@ function GameOverviewPage(props: GameOverviewPageProps) {
         onGameClick,
         onOpenGameSearch,
         onOpenLeaderboards,
+        onOpenMultiplayer,
         dynamicComments,
         dynamicCommentsSentinelRootMargin,
         onHome,
@@ -328,6 +333,12 @@ function GameOverviewPage(props: GameOverviewPageProps) {
     const restoreSettled = !holdCommentsBody
         && (restoreClaim?.token ?? 0) > 0
         && !restoreClaim?.armed;
+    const play = useGamePlayController({
+        gameId,
+        isActive: view === "gameOverview",
+        language,
+        openMultiplayer: onOpenMultiplayer
+    });
     usePageLanding({
         view: "gameOverview",
         subject: gameId,
@@ -852,6 +863,18 @@ function GameOverviewPage(props: GameOverviewPageProps) {
                                         {payloadAchievementSummaryLabel(loadedPayload, language)}
                                     </div>
                                 </>
+                            )}
+                            {gameId != null && (
+                                <PlaySplitButton
+                                    focusKeyBase="gameoverview:play"
+                                    backKey="gameoverview:back"
+                                    mode={play.mode}
+                                    label={play.label}
+                                    disabled={play.disabled}
+                                    onPress={play.onPress}
+                                    onToggleMode={play.onToggleMode}
+                                    style={{ marginTop: "4px" }}
+                                />
                             )}
                             {hasGameInfo && (
                                 <div

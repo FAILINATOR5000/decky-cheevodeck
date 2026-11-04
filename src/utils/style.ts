@@ -10,6 +10,10 @@ export const skyBlue = "#0ea5e9";
 export const confirmAmber = "#ffb070";
 export const faultViolet = "#a78bfa";
 export const helpTextBlue = "#9fd3ff";
+export const steamPlayGreen = "#59bf40";
+export const steamPlayGrey = "rgb(46, 49, 54)";
+export const steamPlayGreyText = "rgba(255, 255, 255, 0.5)";
+export const steamPlayStrip = "rgba(220, 222, 223, 0.17)";
 
 export function headerCase(): "none" | "uppercase" {
     return getCurrentGeneralHeaderStyle() === "typed" ? "none" : "uppercase";

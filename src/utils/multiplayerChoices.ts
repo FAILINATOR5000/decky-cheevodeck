@@ -1,4 +1,11 @@
-import type { MultiplayerAccess, MultiplayerMode, MultiplayerRoomFilter, MultiplayerTab, MultiplayerWhere } from "../types";
+import type {
+    MultiplayerAccess,
+    MultiplayerMode,
+    MultiplayerRoomFilter,
+    MultiplayerSource,
+    MultiplayerTab,
+    MultiplayerWhere
+} from "../types";
 
 type Choices = {
     tab: MultiplayerMode;
@@ -16,6 +23,7 @@ type Choices = {
     page: MultiplayerTab;
     invite: { id: string; at: number } | null;
     message: { friend: string; id: string; at: number } | null;
+    source: MultiplayerSource;
 };
 
 const INVITE_FRESH_MS = 30000;
@@ -37,7 +45,8 @@ const choices: Choices = {
     coreFor: null,
     page: "play",
     invite: null,
-    message: null
+    message: null,
+    source: "achievements"
 };
 
 export function multiplayerChoices(): Readonly<Choices> {
@@ -87,6 +96,10 @@ export function rememberMultiplayerRoomFilter(filter: MultiplayerRoomFilter) {
 
 export function forgetMultiplayerRoomChoices() {
     choices.hardcore = false;
+}
+
+export function rememberMultiplayerSource(source: MultiplayerSource) {
+    choices.source = source;
 }
 
 export function rememberMultiplayerPage(page: MultiplayerTab) {

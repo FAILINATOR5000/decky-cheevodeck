@@ -262,6 +262,7 @@ type OptionsPageState = {
     mpShowOnline: boolean;
     mpSuggestFriends: boolean;
     mpShortcutFallback: boolean;
+    playShortcutFallback: boolean;
     lobbyServer: string;
     libraryBadge: boolean;
     memoriesAutoCapture: boolean;
@@ -525,6 +526,7 @@ type OptionsPageActions = {
     onToggleMpShowOnline: (nextValue: boolean) => void | Promise<void>;
     onToggleMpSuggestFriends: (nextValue: boolean) => void | Promise<void>;
     onToggleMpShortcutFallback: (nextValue: boolean) => void | Promise<void>;
+    onTogglePlayShortcutFallback: (nextValue: boolean) => void | Promise<void>;
     onEditLobbyServer: () => void;
     onToggleLibraryBadge: (nextValue: boolean) => void | Promise<void>;
     onToggleLegacyCommentsLoading: (nextValue: boolean) => void | Promise<void>;
@@ -969,6 +971,15 @@ function SystemTab(props: TabContentProps) {
                 onChange={actions.onToggleLibraryBadge}
                 disabled={disabled}
                 help={t(state.language, "help_library_badge")}
+            />
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:playShortcutFallback"
+                label={t(state.language, "Play Through Emulator Shortcuts")}
+                value={state.playShortcutFallback}
+                onChange={actions.onTogglePlayShortcutFallback}
+                disabled={disabled}
+                help={t(state.language, "help_play_shortcut_fallback")}
             />
             <OptionButton
                 outerStyle={buttonOuterStyle}

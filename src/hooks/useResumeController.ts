@@ -28,6 +28,8 @@ import {
 } from "../resume/nowPlayingResume";
 import { getSavedAotwSubView, getSavedNewSetsFilter, getSavedNewsEventsSubView } from "../resume/newsEventsResume";
 import { getSavedTrackedSetOpenId, getSavedTrackedSetsBackSource } from "../resume/trackedSetsResume";
+import { getSavedGameOverviewSourceUnderMultiplayer, getSavedMultiplayerSource } from "../resume/multiplayerResume";
+import { rememberMultiplayerSource } from "../utils/multiplayerChoices";
 import {
     restoreGameOverview,
     getSavedGameOverviewGameId,
@@ -341,6 +343,17 @@ export function useResumeController({
                 setGameOverviewViewedUsername(getSavedGameOverviewViewedUsername(nextResumeState));
                 setGameOverviewViewedUserRef(getSavedGameOverviewViewedUserRef(nextResumeState));
             }
+            if (bootView === "multiplayer") {
+                const source = nextResumeState ? getSavedMultiplayerSource(nextResumeState) : "achievements";
+                rememberMultiplayerSource(source);
+                if (source === "gameOverview" && nextResumeState) {
+                    setGameOverviewSubView(getSavedGameOverviewSubView(nextResumeState));
+                    setGameOverviewSource(getSavedGameOverviewSourceUnderMultiplayer(nextResumeState));
+                    setGameOverviewGameId(getSavedGameOverviewGameId(nextResumeState));
+                    setGameOverviewViewedUsername(getSavedGameOverviewViewedUsername(nextResumeState));
+                    setGameOverviewViewedUserRef(getSavedGameOverviewViewedUserRef(nextResumeState));
+                }
+            }
             if (bootView === "achievementOverview" && nextResumeState) {
                 setAoSource(getSavedAoSource(nextResumeState));
                 setAoAchievementId(getSavedAoAchievementId(nextResumeState));
@@ -400,9 +413,12 @@ export function useResumeController({
         setActivityDay(getSavedActivityDay(savedState));
 
         trackedSetsBackSourceRef.current = getSavedTrackedSetsBackSource(savedState);
+        rememberMultiplayerSource(getSavedMultiplayerSource(savedState));
 
         setGameOverviewSubView(getSavedGameOverviewSubView(savedState));
-        setGameOverviewSource(getSavedGameOverviewSource(savedState));
+        setGameOverviewSource(savedState.view === "multiplayer"
+            ? getSavedGameOverviewSourceUnderMultiplayer(savedState)
+            : getSavedGameOverviewSource(savedState));
         setGameOverviewGameId(getSavedGameOverviewGameId(savedState));
         setGameOverviewViewedUsername(getSavedGameOverviewViewedUsername(savedState));
         setGameOverviewViewedUserRef(getSavedGameOverviewViewedUserRef(savedState));

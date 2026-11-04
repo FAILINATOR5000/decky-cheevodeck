@@ -87,6 +87,14 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     const [busy, setBusy] = useState(false);
     const [missed, setMissedState] = useState<MultiplayerProblem | null>(() => missedProblem);
     const [headerPayload, setHeaderPayload] = useState<Payload | null>(null);
+    const [activeSeen, setActiveSeen] = useState(isActive);
+    if (activeSeen !== isActive) {
+        setActiveSeen(isActive);
+        if (isActive) {
+            setPickedGameId(multiplayerChoices().gameId);
+            setTabState(multiplayerChoices().tab);
+        }
+    }
     const session = useSyncExternalStore(subscribeMultiplayerSession, multiplayerSessionSnapshot);
     const checkTokenRef = useRef(0);
     const statusTokenRef = useRef(0);

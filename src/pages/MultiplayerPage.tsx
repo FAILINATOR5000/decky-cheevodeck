@@ -49,10 +49,12 @@ import { ButtonHints } from "../components/ui/ButtonHints";
 import { openExternalUrl, raLookupSearchUrl } from "../utils/navigation";
 import { ROOM_ENDED, problemText, warningText } from "../utils/multiplayerProblems";
 import {
-    achievementGreen,
     bodyTextStyle,
     errorRed,
     regularButtonSpacingStyle,
+    steamPlayGreen,
+    steamPlayGrey,
+    steamPlayGreyText,
     warnAmber
 } from "../utils/style";
 
@@ -62,7 +64,6 @@ const LINK_SYSTEMS = [4, 5, 6, 16, 18, 41];
 const DOLPHIN_CONSOLES = ["GameCube", "Wii"];
 const GBA_SYSTEM = 5;
 const NO_CORES: MultiplayerCoreChoice[] = [];
-const FADED_GREEN = "rgba(34, 197, 94, 0.18)";
 
 function playsIn(game: MultiplayerGame, mode: MultiplayerMode) {
     return mode === "couch" ? game.canCouch : LINK_SYSTEMS.includes(game.systemId) && game.canLink;
@@ -287,8 +288,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         }
     }
     const playGreen = playLabel !== "Unready";
-    const playBackground = !playGreen || playFocused ? undefined : canPlay ? achievementGreen : FADED_GREEN;
-    const playColor = !playGreen || playFocused ? undefined : canPlay ? "#0b1f0f" : "rgba(220, 222, 223, 0.7)";
+    const playBackground = !playGreen || playFocused ? undefined : canPlay ? steamPlayGreen : steamPlayGrey;
+    const playColor = !playGreen || playFocused ? undefined : canPlay ? "#ffffff" : steamPlayGreyText;
     const yStarts = canStartNow && !state.mouseKeyboardMode;
     const xReadies = readyAllowed && !state.mouseKeyboardMode;
     const slotStyle = { display: "flex", width: "100%", marginTop: "8px" };

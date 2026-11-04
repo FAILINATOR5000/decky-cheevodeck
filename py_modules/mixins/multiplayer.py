@@ -99,6 +99,17 @@ class MultiplayerMixin(PluginContext):
     async def multiplayer_status(self):
         return self.multiplayer_service.status()
 
+    async def multiplayer_play_info(self, game_id: int = 0):
+        return await asyncio.to_thread(self.multiplayer_service.play_info, to_int(game_id, 0))
+
+    async def multiplayer_prepare_play(self, game_id: int = 0, original: str = ""):
+        return await asyncio.to_thread(
+            self.multiplayer_service.prepare_play, to_int(game_id, 0), str(original or "")
+        )
+
+    async def multiplayer_open_in_desktop(self, tool: str = ""):
+        return await asyncio.to_thread(self.multiplayer_service.open_in_desktop, str(tool or ""))
+
     async def multiplayer_restore_record(self):
         return await asyncio.to_thread(self.multiplayer_service.restore_record)
 

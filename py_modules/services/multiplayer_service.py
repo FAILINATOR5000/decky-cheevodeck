@@ -5,6 +5,7 @@ import json
 import os
 import re
 import secrets
+import shlex
 import select
 import shutil
 import socket
@@ -71,6 +72,14 @@ BAD_TAGS_PER_ROOM = 10
 SESSION_DIR = "multiplayer"
 RESTORE_RECORD = "multiplayer_restore.json"
 RESTORE_SCHEMA = 1
+
+DESKTOP_TOOLS = ("emudeck", "srm")
+SRM_FLATPAK = "com.steamgriddb.steam-rom-manager"
+SRM_IMAGE_NAMES = ("Steam-ROM-Manager.AppImage", "Steam ROM Manager.AppImage")
+EMUDECK_SETTINGS = ".config/EmuDeck/settings.sh"
+OPEN_TOOL_ENTRY = "cheevodeck-open-tool.desktop"
+OPEN_TOOL_SCRIPT = "open-tool.sh"
+OPEN_TOOL_WINDOW_SECONDS = 900
 SAVE_BACKUPS = "save-backups"
 SAVE_BACKUPS_KEPT = 5
 
@@ -1031,6 +1040,181 @@ class MultiplayerService:
 
     def _fallback_on(self) -> bool:
         return bool(self._settings_store.load_config().get("mpShortcutFallback", False))
+
+    def _play_route(self, game_id: int):
+        library = self._library()
+        if library is None:
+            return None, "no_scan", {}
+        game = library.get(game_id)
+        if game is None:
+            return None, "not_in_results", {}
+        linked = next((entry for entry in game["paths"] if entry["shortcut"]), None)
+        if linked is not None:
+            return {"appid": linked["shortcut"]["appid"], "fallback": False}, None, {}
+        if not bool(self._settings_store.load_config().get("playShortcutFallback", False)):
+            return None, "no_shortcut", {}
+        rom = next((entry["path"] for entry in game["paths"] if os.path.isfile(entry["real"])), None)
+        if rom is None:
+            return None, "rom_missing", {}
+        system_id = game["systemId"]
+        kinds = self._fallback_kinds("link", system_id)
+        coreless = False
+        for kind in kinds:
+            shortcut = self._emulator_shortcut(kind, None)
+            if shortcut is None:
+                continue
+            route = {"appid": shortcut["appid"], "fallback": True, "kind": kind, "rom": rom, "corePath": ""}
+            if kind == "retroarch":
+                ra = session.RetroArch(self._user_home)
+                core = self._play_core(ra, system_id, Path(rom))
+                if not core:
+                    coreless = True
+                    continue
+                route["corePath"] = str(ra.core_path(core))
+            return route, None, {}
+        if coreless:
+            return None, "no_shortcut", {}
+        return None, "no_emulator_shortcut", {"emulator": FALLBACK_NAMES[kinds[0]]}
+
+    def _play_core(self, ra, system_id: int, rom: Path) -> str:
+        if not ra.found:
+            return ""
+        compatible = self._compatible(ra, "", system_id)
+        core = self._core_with_save(ra, compatible, rom, session.COUCH_CORES.get(system_id, ""))
+        if core in compatible:
+            return core
+        return compatible[0] if compatible else ""
+
+    def play_info(self, game_id: int) -> dict:
+        route, gate, detail = self._play_route(game_id)
+        if route is None:
+            return {"ok": True, "appid": 0, "launchable": False, "fallback": False, "gate": gate, "detail": detail,
+                    "tools": self.desktop_tools()}
+        return {"ok": True, "appid": route["appid"], "launchable": True, "fallback": route["fallback"],
+                "gate": None, "detail": {}, "tools": {}}
+
+    def _desktop_tool_command(self, tool: str):
+        home = self._user_home
+        if tool == "emudeck":
+            image = home / "Applications" / "EmuDeck.AppImage"
+            return [str(image)] if image.is_file() else None
+        if tool != "srm":
+            return None
+        for folder in self._srm_folders():
+            for name in SRM_IMAGE_NAMES:
+                image = folder / name
+                if image.is_file():
+                    return [str(image)]
+        if (home / ".local/share/flatpak/app" / SRM_FLATPAK).is_dir() or (Path("/var/lib/flatpak/app") / SRM_FLATPAK).is_dir():
+            return ["flatpak", "run", SRM_FLATPAK]
+        return None
+
+    def _srm_folders(self) -> list:
+        home = self._user_home
+        folders = [home / "Applications", home / "Applications" / "srm"]
+        tools = [home / "Emulation" / "tools"]
+        try:
+            text = (home / EMUDECK_SETTINGS).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            text = ""
+        found = re.search(r"^toolsPath=(.+)$", text, re.M)
+        if found:
+            value = found.group(1).strip().replace('"', "").replace("'", "")
+            value = value.replace("${HOME}", str(home)).replace("$HOME", str(home))
+            if value.startswith("/"):
+                tools.insert(0, Path(value))
+        for folder in tools:
+            folders += [folder, folder / "srm"]
+        return folders
+
+    def desktop_tools(self) -> dict:
+        return {tool: self._desktop_tool_command(tool) is not None for tool in DESKTOP_TOOLS}
+
+    def open_in_desktop(self, tool: str) -> dict:
+        command = self._desktop_tool_command(tool) if tool in DESKTOP_TOOLS else None
+        if command is None:
+            return {"ok": False, "error": "not_found"}
+        autostart = self._user_home / ".config" / "autostart"
+        entry = autostart / OPEN_TOOL_ENTRY
+        script = self._session_dir / OPEN_TOOL_SCRIPT
+        if any(char in str(script) for char in '"`$\\'):
+            return {"ok": False, "error": "not_found"}
+        text = (
+            "#!/bin/sh\n"
+            f"rm -f {shlex.quote(str(entry))} \"$0\"\n"
+            f"[ $(( $(date +%s) - {int(time.time())} )) -lt {OPEN_TOOL_WINDOW_SECONDS} ] || exit 0\n"
+            f"exec {shlex.join(command)}\n"
+        )
+        desktop = (
+            "[Desktop Entry]\n"
+            "Type=Application\n"
+            "Name=CheevoDeck\n"
+            f"Exec=/bin/sh \"{script}\"\n"
+            "NoDisplay=true\n"
+        )
+        try:
+            ensure_dir(self._session_dir)
+            ensure_dir(autostart)
+            self._write(script, text)
+            chown_to_data_owner(script)
+            self._write(entry, desktop)
+            chown_to_data_owner(entry)
+        except OSError as e:
+            decky.logger.warning("play: couldn't write the autostart entry (%s)", type(e).__name__)
+            return {"ok": False, "error": ERROR_WRITE_FAILED}
+        env = self._flatpak_env()
+        env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path={env['XDG_RUNTIME_DIR']}/bus"
+        try:
+            code, _out, err = subprocess_util.run_command(
+                ["steamosctl", "switch-to-desktop-mode"], timeout=FLATPAK_SECONDS, env=env, as_data_owner=True,
+            )
+        except Exception as e:
+            code, err = -1, type(e).__name__
+        if code != 0:
+            decky.logger.warning("play: SteamOS didn't switch to Desktop Mode (%s)", str(err).strip()[:200])
+            for path in (entry, script):
+                try:
+                    path.unlink()
+                except OSError:
+                    pass
+            return {"ok": False, "error": "switch_failed"}
+        decky.logger.info("play: switching to Desktop Mode to open %s", tool)
+        return {"ok": True}
+
+    def prepare_play(self, game_id: int, original: str) -> dict:
+        current = self._session
+        if current is not None and not current["exited"]:
+            return {"ok": False, "error": ERROR_BUSY}
+        if self.restore_record()["record"] is not None:
+            return {"ok": False, "error": ERROR_BUSY}
+        route, gate, detail = self._play_route(game_id)
+        if route is None:
+            return {"ok": False, "error": ERROR_GATE, "gate": gate, "detail": detail}
+        if not route["fallback"]:
+            return {"ok": False, "error": ERROR_NOT_READY}
+        rom = session.quote(route["rom"])
+        if route["kind"] == "retroarch":
+            args = f"-L {session.quote(route['corePath'])} {rom}"
+        elif route["kind"] == "dolphin":
+            args = f"-e {rom}"
+        else:
+            args = rom
+        sid = secrets.token_hex(8)
+        try:
+            ensure_dir(self._session_dir)
+            chown_to_data_owner(self._session_dir)
+            self._write_restore(route["appid"], original, sid, play_game=game_id)
+        except OSError as e:
+            decky.logger.warning("play: couldn't write the restore record (%s)", type(e).__name__)
+            return {"ok": False, "error": ERROR_WRITE_FAILED}
+        decky.logger.info("play: launching %s through the %s shortcut", game_id, route["kind"])
+        return {
+            "ok": True,
+            "appid": route["appid"],
+            "options": session.compose_launch_options(original, args),
+            "original": original,
+            "session": sid,
+        }
 
     def _fallback_kinds(self, mode: str, system_id: int) -> tuple:
         if system_id in session.DOLPHIN_SYSTEMS:
@@ -3067,9 +3251,12 @@ class MultiplayerService:
                 except OSError:
                     pass
 
-    def _write_restore(self, appid: int, original: str, sid: str) -> None:
+    def _write_restore(self, appid: int, original: str, sid: str, play_game: int = 0) -> None:
         record = {"schemaVersion": RESTORE_SCHEMA, "appid": appid, "original": original, "session": sid,
                   "at": int(time.time())}
+        if play_game:
+            record["play"] = True
+            record["gameId"] = play_game
         self._write(self._session_dir / RESTORE_RECORD, json.dumps(record))
 
     def restore_record(self) -> dict:
@@ -3081,7 +3268,10 @@ class MultiplayerService:
             or not isinstance(raw.get("session"), str)
         ):
             return {"ok": True, "record": None}
-        return {"ok": True, "record": {"appid": raw["appid"], "original": raw["original"], "session": raw["session"]}}
+        game_id = raw.get("gameId")
+        return {"ok": True, "record": {"appid": raw["appid"], "original": raw["original"], "session": raw["session"],
+                                       "play": raw.get("play") is True,
+                                       "gameId": game_id if type(game_id) is int else 0}}
 
     def clear_restore(self, sid: str) -> dict:
         path = self._session_dir / RESTORE_RECORD

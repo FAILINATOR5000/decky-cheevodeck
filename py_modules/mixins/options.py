@@ -680,6 +680,14 @@ class OptionsMixin(PluginContext):
             "mpShortcutFallback": value,
         }
 
+    async def save_play_shortcut_fallback(self, play_shortcut_fallback: bool):
+        value = self.settings_store.update_play_shortcut_fallback(play_shortcut_fallback)
+
+        return {
+            "ok": True,
+            "playShortcutFallback": value,
+        }
+
     async def save_browser_snapshot(self, browser_snapshot: bool):
         value = self.settings_store.update_browser_snapshot(browser_snapshot)
         self.back_button_service.sync()

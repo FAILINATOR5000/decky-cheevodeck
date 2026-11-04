@@ -7,6 +7,7 @@ import {
     multiplayerLaunchEnded,
     multiplayerLaunchStarted,
     multiplayerPrepareLaunch,
+    multiplayerPreparePlay,
     multiplayerRestoreRecord,
     multiplayerRunningApp,
     multiplayerStart,
@@ -27,12 +28,18 @@ const OPTIONS_WAIT_MS = 5000;
 const READ_WAIT_MS = 3000;
 const LAUNCH_SOURCE = 100;
 const FOLLOW_AFTER_MS = 16000;
+const PLAY_START_WAIT_MS = 60000;
 
 export type MultiplayerSessionSnapshot = {
     appid: number;
     running: boolean;
     failure: string;
     failureSeq: number;
+};
+
+export type RunningSnapshot = {
+    appid: number;
+    playedGameId: number;
 };
 
 export type MultiplayerLaunchResult = {
@@ -54,6 +61,11 @@ let registered = false;
 let stopRoomWatch: (() => void) | null = null;
 const listeners = new Set<() => void>();
 let lifetimeHandle: { unregister(): void } | null = null;
+let played: MultiplayerRestoreRecord | null = null;
+let playedRunning = false;
+let playStartTimer = 0;
+let running: RunningSnapshot = { appid: 0, playedGameId: 0 };
+const runningListeners = new Set<() => void>();
 
 function publish(next: Partial<MultiplayerSessionSnapshot>) {
     snapshot = { ...snapshot, ...next };
@@ -73,6 +85,27 @@ export function multiplayerSessionSnapshot(): MultiplayerSessionSnapshot {
     return snapshot;
 }
 
+function publishRunning(next: Partial<RunningSnapshot>) {
+    if ((next.appid ?? running.appid) === running.appid && (next.playedGameId ?? running.playedGameId) === running.playedGameId) {
+        return;
+    }
+    running = { ...running, ...next };
+    for (const listener of runningListeners) {
+        listener();
+    }
+}
+
+export function subscribeRunningApp(listener: () => void): () => void {
+    runningListeners.add(listener);
+    return () => {
+        runningListeners.delete(listener);
+    };
+}
+
+export function runningAppSnapshot(): RunningSnapshot {
+    return running;
+}
+
 function publishFailure(failure: string) {
     publish({ failure, failureSeq: snapshot.failureSeq + 1 });
 }
@@ -83,7 +116,19 @@ export function otherGameRunning(): boolean {
 }
 
 export function anyGameRunning(): boolean {
-    return Number(Router.MainRunningApp?.appid ?? 0) > 0;
+    return Number(Router.MainRunningApp?.appid ?? 0) > 0 || playStarting();
+}
+
+function playStarting(): boolean {
+    return played !== null && !playedRunning;
+}
+
+function roundStarting(): boolean {
+    return launched !== null && snapshot.appid === launched.appid && !snapshot.running;
+}
+
+export function launchInFlight(): boolean {
+    return launching || playStarting() || roundStarting();
 }
 
 function readLaunchOptions(appid: number): Promise<string | null> {
@@ -143,6 +188,12 @@ function writeLaunchOptions(appid: number, options: string): Promise<boolean> {
 async function restore(record: MultiplayerRestoreRecord) {
     if (!(await writeLaunchOptions(record.appid, record.original))) {
         logError("multiplayer: Steam didn't confirm the restored launch options", record.appid);
+        if (played?.session === record.session) {
+            forgetPlayed();
+        }
+        if (launched?.session === record.session) {
+            launched = null;
+        }
         return;
     }
     try {
@@ -154,6 +205,16 @@ async function restore(record: MultiplayerRestoreRecord) {
     if (launched?.session === record.session) {
         launched = null;
     }
+    if (played?.session === record.session) {
+        forgetPlayed();
+    }
+}
+
+function forgetPlayed() {
+    window.clearTimeout(playStartTimer);
+    played = null;
+    playedRunning = false;
+    publishRunning({ playedGameId: 0 });
 }
 
 export async function launchMultiplayer(appid: number, hardcore: boolean): Promise<MultiplayerLaunchResult> {
@@ -199,6 +260,65 @@ async function launchOnce(appid: number, hardcore: boolean): Promise<Multiplayer
         return { ok: false, error: started.error ?? "launch_failed" };
     }
     SteamClient.Apps.RunGame(gameId, "", -1, LAUNCH_SOURCE);
+    return { ok: true };
+}
+
+export async function playGame(gameId: number, appid: number, fallback: boolean): Promise<MultiplayerLaunchResult> {
+    if (launching) {
+        return { ok: false, error: "busy" };
+    }
+    launching = true;
+    try {
+        return fallback ? await playThroughEmulator(gameId, appid) : runShortcut(appid);
+    }
+    finally {
+        launching = false;
+    }
+}
+
+function runShortcut(appid: number): MultiplayerLaunchResult {
+    const gameId = appStore.GetAppOverviewByAppID(appid)?.gameid;
+    if (!gameId) {
+        return { ok: false, error: "shortcut_gone" };
+    }
+    SteamClient.Apps.RunGame(gameId, "", -1, LAUNCH_SOURCE);
+    return { ok: true };
+}
+
+async function playThroughEmulator(gameId: number, appid: number): Promise<MultiplayerLaunchResult> {
+    await restoreLeftover();
+    const original = await readLaunchOptions(appid);
+    if (original === null) {
+        return { ok: false, error: "shortcut_unread" };
+    }
+    const prepared = await multiplayerPreparePlay(gameId, original);
+    if (!prepared.ok || !prepared.options || !prepared.session) {
+        return { ok: false, error: prepared.error ?? "launch_failed", gate: prepared.gate, detail: prepared.detail };
+    }
+    const record = { appid, original, session: prepared.session, play: true };
+    if (prepared.appid !== appid) {
+        await multiplayerClearRestore(prepared.session).catch((e) => logError("multiplayerClearRestore", e));
+        return { ok: false, error: "launch_failed" };
+    }
+    if (!(await writeLaunchOptions(appid, prepared.options))) {
+        await restore(record);
+        return { ok: false, error: "shortcut_unset" };
+    }
+    const steamGameId = appStore.GetAppOverviewByAppID(appid)?.gameid;
+    if (!steamGameId) {
+        await restore(record);
+        return { ok: false, error: "shortcut_gone" };
+    }
+    played = record;
+    playedRunning = false;
+    publishRunning({ playedGameId: gameId });
+    window.clearTimeout(playStartTimer);
+    playStartTimer = window.setTimeout(() => {
+        if (played === record && !playedRunning) {
+            void restore(record);
+        }
+    }, PLAY_START_WAIT_MS);
+    SteamClient.Apps.RunGame(steamGameId, "", -1, LAUNCH_SOURCE);
     return { ok: true };
 }
 
@@ -291,6 +411,21 @@ function noteRunningApp(appid: number) {
 
 function onAppLifetime(event: SteamAppLifetimeEvent) {
     noteRunningApp(event?.bRunning ? event.unAppID : 0);
+    if (event?.bRunning) {
+        publishRunning({ appid: event.unAppID });
+    }
+    else if (event?.unAppID === running.appid) {
+        publishRunning({ appid: 0 });
+    }
+    const mine = played;
+    if (mine && event?.unAppID === mine.appid) {
+        if (event.bRunning) {
+            playedRunning = true;
+        }
+        else {
+            void restore(mine);
+        }
+    }
     const record = launched;
     if (event?.bRunning && event.unAppID !== record?.appid) {
         const room = multiplayerRoomMarker();
@@ -349,10 +484,17 @@ function onSessionEvent(payload: {
 async function restoreLeftover() {
     try {
         const { record } = await multiplayerRestoreRecord();
-        if (!record) {
+        if (!record || (playStarting() && record.session === played?.session)
+            || (roundStarting() && record.session === launched?.session)) {
             return;
         }
         if (Number(Router.MainRunningApp?.appid ?? 0) === record.appid) {
+            if (record.play) {
+                played = record;
+                playedRunning = true;
+                publishRunning({ playedGameId: record.gameId ?? 0 });
+                return;
+            }
             launched = record;
             publish({ appid: record.appid, running: true });
             return;
@@ -374,6 +516,7 @@ export function registerMultiplayerSession() {
     addEventListener(SESSION_EVENT, onSessionEvent);
     registered = true;
     noteRunningApp(Number(Router.MainRunningApp?.appid ?? 0));
+    publishRunning({ appid: Number(Router.MainRunningApp?.appid ?? 0) });
     stopRoomWatch = subscribeMultiplayerRoom(() => {
         const pending = multiplayerRoomMarker().autostart;
         if (pending) {
@@ -388,6 +531,7 @@ export function unregisterMultiplayerSession() {
     stopRoomWatch?.();
     stopRoomWatch = null;
     window.clearTimeout(followTimer);
+    window.clearTimeout(playStartTimer);
     lifetimeHandle?.unregister();
     lifetimeHandle = null;
     removeEventListener(SESSION_EVENT, onSessionEvent);

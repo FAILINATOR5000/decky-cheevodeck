@@ -20,6 +20,13 @@ export function MultiplayerProvider(props: {
 }) {
     const multiplayer = useMultiplayerController({ isActive: props.isActive });
     const [tab, setTab] = useState<MultiplayerTab>(() => multiplayerChoices().page);
+    const [activeSeen, setActiveSeen] = useState(props.isActive);
+    if (activeSeen !== props.isActive) {
+        setActiveSeen(props.isActive);
+        if (props.isActive) {
+            setTab(multiplayerChoices().page);
+        }
+    }
     const room = multiplayer.state.hosted?.seats.map((seat) => seat?.pic ?? "")
         ?? multiplayer.state.joined?.status?.ids.map((entry) => entry.pic)
         ?? [];

@@ -149,6 +149,7 @@ import {
     saveMpShowOnline,
     saveMpSuggestFriends,
     saveMpShortcutFallback,
+    savePlayShortcutFallback,
     saveAutomaticRecovery,
     saveRecoveryButtonCombo,
     saveRecoveryLogs,
@@ -505,6 +506,7 @@ type UseOptionsControllerArgs = {
     mpShowOnline: boolean;
     mpSuggestFriends: boolean;
     mpShortcutFallback: boolean;
+    playShortcutFallback: boolean;
     lobbyServer: string;
     automaticRecovery: boolean;
     recoveryButtonCombo: boolean;
@@ -582,6 +584,7 @@ type UseOptionsControllerArgs = {
     setMpShowOnline: Dispatch<SetStateAction<boolean>>;
     setMpSuggestFriends: Dispatch<SetStateAction<boolean>>;
     setMpShortcutFallback: Dispatch<SetStateAction<boolean>>;
+    setPlayShortcutFallback: Dispatch<SetStateAction<boolean>>;
     setLobbyServer: Dispatch<SetStateAction<string>>;
     setAutomaticRecovery: Dispatch<SetStateAction<boolean>>;
     setRecoveryButtonCombo: Dispatch<SetStateAction<boolean>>;
@@ -994,6 +997,7 @@ export function buildOptionsController({
     mpShowOnline,
     mpSuggestFriends,
     mpShortcutFallback,
+    playShortcutFallback,
     lobbyServer,
     automaticRecovery,
     recoveryButtonCombo,
@@ -1071,6 +1075,7 @@ export function buildOptionsController({
     setMpShowOnline,
     setMpSuggestFriends,
     setMpShortcutFallback,
+    setPlayShortcutFallback,
     setLobbyServer,
     setAutomaticRecovery,
     setRecoveryButtonCombo,
@@ -1338,6 +1343,7 @@ export function buildOptionsController({
         setMpShowOnline(Boolean(result.mpShowOnline ?? true));
         setMpSuggestFriends(Boolean(result.mpSuggestFriends ?? true));
         setMpShortcutFallback(Boolean(result.mpShortcutFallback ?? false));
+        setPlayShortcutFallback(Boolean(result.playShortcutFallback ?? false));
         setLobbyServer(String(result.lobbyServer ?? ""));
         setAutomaticRecovery(Boolean(result.automaticRecovery ?? true));
         setRecoveryButtonCombo(Boolean(result.recoveryButtonCombo ?? false));
@@ -3593,6 +3599,15 @@ export function buildOptionsController({
             getSavedValue: (result, fallbackValue) => Boolean(result.mpShortcutFallback ?? fallbackValue),
         });
 
+    const onTogglePlayShortcutFallback = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: playShortcutFallback,
+            applyValue: setPlayShortcutFallback,
+            saveCall: savePlayShortcutFallback,
+            getSavedValue: (result, fallbackValue) => Boolean(result.playShortcutFallback ?? fallbackValue),
+        });
+
     const onToggleAutomaticRecovery = (nextValue: boolean) =>
         saveSettingWithRollback<boolean>({
             nextValue,
@@ -4016,6 +4031,7 @@ export function buildOptionsController({
         mpShowOnline,
         mpSuggestFriends,
         mpShortcutFallback,
+        playShortcutFallback,
         lobbyServer,
         automaticRecovery,
         recoveryButtonCombo,
@@ -4291,6 +4307,7 @@ export function buildOptionsController({
         onToggleMpShowOnline,
         onToggleMpSuggestFriends,
         onToggleMpShortcutFallback,
+        onTogglePlayShortcutFallback,
         onEditLobbyServer,
         onToggleAutomaticRecovery,
         onToggleRecoveryButtonCombo,

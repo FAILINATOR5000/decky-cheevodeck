@@ -175,6 +175,7 @@ _ALLOWED_RESUME_VIEWS = {
 _ALLOWED_NOW_PLAYING_COMPARE_FILTERS = {"all", "onlyYou", "onlyThem", "shared"}
 _ALLOWED_MAIN_ACHIEVEMENTS_TABS = {"achievements", "activity", "comments", "compare"}
 _ALLOWED_LEADERBOARDS_SOURCE_VIEWS = {"achievements", "friendGame", "gameOverview"}
+_ALLOWED_MULTIPLAYER_SOURCES = {"achievements", "utils", "gameOverview"}
 _ALLOWED_LEADERBOARD_AUDIENCES = {"all", "friends"}
 _ALLOWED_UNLOCK_HISTORY_SOURCES = {"main", "friendGame"}
 _ALLOWED_BADGE_FILTERS = {"all", "mastered", "beaten", "event", "other"}
@@ -465,6 +466,7 @@ _KNOBS = (
     Knob("mpShowOnline", default=True, normalize=True, read=READ_BOOL),
     Knob("mpSuggestFriends", default=True, normalize=True, read=READ_BOOL),
     Knob("mpShortcutFallback", default=False, normalize=True, read=READ_BOOL),
+    Knob("playShortcutFallback", default=False, normalize=True, read=READ_BOOL),
     Knob("automaticRecovery", default=True, normalize=True, read=READ_BOOL),
     Knob("recoveryButtonCombo", default=False, normalize=True, read=READ_BOOL),
     Knob("recoveryLogs", default=False, normalize=True, read=READ_BOOL),
@@ -2346,6 +2348,11 @@ class SettingsStore:
 
         return bool(cfg.get("mpShortcutFallback", False))
 
+    def update_play_shortcut_fallback(self, value: bool) -> bool:
+        cfg = self._update_config("playShortcutFallback", bool(value))
+
+        return bool(cfg.get("playShortcutFallback", False))
+
     def update_browser_snapshot(self, value: bool) -> bool:
         cfg = self._update_config("browserSnapshot", bool(value))
 
@@ -3046,6 +3053,10 @@ class SettingsStore:
         if leaderboards_source_view not in _ALLOWED_LEADERBOARDS_SOURCE_VIEWS:
             leaderboards_source_view = "achievements"
 
+        multiplayer_source = str(raw.get("multiplayerSource") or "").strip()
+        if multiplayer_source not in _ALLOWED_MULTIPLAYER_SOURCES:
+            multiplayer_source = "achievements"
+
         leaderboard_audience = str(raw.get("leaderboardAudience") or "").strip()
         if leaderboard_audience not in _ALLOWED_LEADERBOARD_AUDIENCES:
             leaderboard_audience = None
@@ -3088,6 +3099,7 @@ class SettingsStore:
             "milestonesTab": milestones_tab,
             **activity,
             "leaderboardsSourceView": leaderboards_source_view,
+            "multiplayerSource": multiplayer_source,
             "selectedLeaderboardId": norm_game_id(raw.get("selectedLeaderboardId")),
             "leaderboardAudience": leaderboard_audience,
             "nowPlayingCompareFriend": str(raw.get("nowPlayingCompareFriend") or "").strip() or None,
@@ -3204,6 +3216,10 @@ class SettingsStore:
             if leaderboards_source_view not in _ALLOWED_LEADERBOARDS_SOURCE_VIEWS:
                 leaderboards_source_view = "achievements"
 
+            multiplayer_source = str(resume_state.get("multiplayerSource") or "").strip()
+            if multiplayer_source not in _ALLOWED_MULTIPLAYER_SOURCES:
+                multiplayer_source = "achievements"
+
             leaderboard_audience = str(resume_state.get("leaderboardAudience") or "").strip()
             if leaderboard_audience not in _ALLOWED_LEADERBOARD_AUDIENCES:
                 leaderboard_audience = None
@@ -3242,6 +3258,7 @@ class SettingsStore:
                 "milestonesTab": milestones_tab,
                 **activity,
                 "leaderboardsSourceView": leaderboards_source_view,
+                "multiplayerSource": multiplayer_source,
                 "selectedLeaderboardId": norm_game_id(resume_state.get("selectedLeaderboardId")),
                 "leaderboardAudience": leaderboard_audience,
                 "nowPlayingCompareFriend": str(resume_state.get("nowPlayingCompareFriend") or "").strip() or None,

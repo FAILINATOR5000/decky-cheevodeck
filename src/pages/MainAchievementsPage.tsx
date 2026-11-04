@@ -80,6 +80,8 @@ import { MilestonesQuickMenuButton } from "../components/milestones/MilestonesQu
 import { useSetupCatchUp } from "../hooks/useSetupCatchUp";
 import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 import { useMultiplayerRoomRole } from "../utils/multiplayerRoomState";
+import { PlaySplitButton } from "../components/game/PlaySplitButton";
+import { useGamePlayController } from "../hooks/useGamePlayController";
 
 // Layout constants
 const GAME_TICKER_FRESHNESS_MS = 60 * 60 * 1000;
@@ -1105,6 +1107,12 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
     const bodyWindowsRef = useRef<LandingWindows | null>(null);
     const hamburgerDisabled = saving || loading;
     const mainDefaultKey = hamburgerDisabled ? `main:tab:${mainTab}` : "action:quickmenu";
+    const play = useGamePlayController({
+        gameId: payload?.gameId ?? null,
+        isActive: view === "achievements",
+        language,
+        openMultiplayer
+    });
     usePageLanding({
         view: "achievements",
         active: view === "achievements",
@@ -2634,6 +2642,18 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                 >
                                     {renderGameTickerLine(language, tickerEvent, tickerVariant)}
                                 </div>
+                            )}
+                            {payload?.gameId != null && (
+                                <PlaySplitButton
+                                    focusKeyBase="main:play"
+                                    backKey="action:quickmenu"
+                                    mode={play.mode}
+                                    label={play.label}
+                                    disabled={play.disabled}
+                                    onPress={play.onPress}
+                                    onToggleMode={play.onToggleMode}
+                                    style={{ marginTop: "6px" }}
+                                />
                             )}
                             {payload?.gameId && (
                                 <div

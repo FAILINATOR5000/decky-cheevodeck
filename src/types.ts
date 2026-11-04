@@ -862,6 +862,7 @@ export type SettingsResponse = {
     mpShowOnline: boolean;
     mpSuggestFriends: boolean;
     mpShortcutFallback: boolean;
+    playShortcutFallback: boolean;
     lobbyServer: string;
     automaticRecovery: boolean;
     recoveryButtonCombo: boolean;
@@ -2618,6 +2619,7 @@ export type ResumeState = {
     activityMonth?: string | null;
     activityDay?: string | null;
     leaderboardsSourceView?: "achievements" | "friendGame" | "gameOverview" | null;
+    multiplayerSource?: MultiplayerSource | null;
     selectedLeaderboardId?: number | null;
     leaderboardAudience?: LeaderboardAudience | null;
     nowPlayingCompareFriend?: string | null;
@@ -3130,6 +3132,18 @@ export type MultiplayerGame = {
     canCouch: boolean;
 };
 
-export type MultiplayerRestoreRecord = { appid: number; original: string; session: string };
+export type MultiplayerRestoreRecord = { appid: number; original: string; session: string; play?: boolean; gameId?: number };
+
+export type MultiplayerSource = "achievements" | "utils" | "gameOverview";
+
+export type PlayInfo = {
+    ok: boolean;
+    appid: number;
+    launchable: boolean;
+    fallback: boolean;
+    gate: string | null;
+    detail: Record<string, string>;
+    tools: { emudeck?: boolean; srm?: boolean };
+};
 
 export type MultiplayerGuestGame = { gameId: number; title: string; systemId: number; system: string; imageIcon: string };

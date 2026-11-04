@@ -1,6 +1,7 @@
 import { useCallback, useEffect, type RefObject } from "react";
 import { saveResumeState } from "../api";
 import { useLatestRef } from "./useLatestRef";
+import { multiplayerChoices } from "../utils/multiplayerChoices";
 import type { NavStack } from "../nav";
 import type { UnlockHistorySource } from "../pages/UnlockHistoryPage";
 import type {
@@ -221,7 +222,10 @@ export function useResumeSnapshot(args: ResumeSnapshotArgs) {
         const onLeaderboardsFromGameOverview =
             (currentView === "leaderboards" || currentView === "leaderboardDetail")
             && leaderboardsSourceViewRef.current === "gameOverview";
-        const keepGameOverviewIdentity = onGameOverviewStack || onLeaderboardsFromGameOverview;
+        const onMultiplayerFromGameOverview = currentView === "multiplayer"
+            && multiplayerChoices().source === "gameOverview";
+        const keepGameOverviewIdentity = onGameOverviewStack || onLeaderboardsFromGameOverview
+            || onMultiplayerFromGameOverview;
         const keepEventViewer = currentView === "eventViewer"
             || ((currentView === "gameOverview" || currentView === "achievementOverview")
                 && (gameOverviewSourceRef.current === "eventViewer" || aoSourceRef.current === "eventViewer"))
@@ -244,6 +248,7 @@ export function useResumeSnapshot(args: ResumeSnapshotArgs) {
             guidesFaqId: currentView === "guides" ? (guidesOpenFaqIdRef.current ?? null) : null,
             friendProfileBackSource: friendProfileBackSourceRef.current ?? null,
             leaderboardsSourceView: leaderboardsSourceViewRef.current,
+            multiplayerSource: multiplayerChoices().source,
             selectedLeaderboardId: selectedLeaderboardRef.current?.id
                 ?? (currentView === "leaderboardDetail" ? lastLeaderboardId : null),
             leaderboardAudience: currentView === "leaderboardDetail" ? leaderboardAudienceRef.current : null,
