@@ -246,12 +246,12 @@ function MultiplayerPage(props: MultiplayerPageProps) {
 
     const warnings = [
         ...(gateCheck?.warnings ?? []).map((warning) => warningText(language, warning.code, warning.detail)),
-        ...(runsPpsspp ? [t(language, "PSP multiplayer is experimental. Some games lose the connection when a match starts.")] : [])
-    ];
-    const tips = [
+        ...(runsPpsspp ? [t(language, "PSP multiplayer is experimental. Some games lose the connection when a match starts.")] : []),
         ...(screenHz !== null && (screenHz === 0 || screenHz > 60)
             ? [t(language, "Multiplayer runs best at 60 Hz. If a game jitters, set 60 Hz in Steam's Performance menu while it runs.")]
-            : []),
+            : [])
+    ];
+    const tips = [
         ...(mp.mode === "couch" && local?.emulator === "dolphin"
             ? [t(language, joined
                 ? "In Dolphin, open Tools, then Start NetPlay, then Connect. The host's address is filled in."
@@ -820,12 +820,16 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 outerStyle={buttonStyle}
                 focusKey="multiplayer:notes"
                 focusFallback={[inSession ? "multiplayer:chathistory" : "multiplayer:find", "multiplayer:back"]}
-                onClick={() => showMultiplayerProblem(language, "Before You Play", [...warnings, ...tips].join("\n\n"))}
+                onClick={() => showMultiplayerProblem(language, "Before You Play", [...warnings, ...tips])}
             >
-                <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
-                    <span style={{ visibility: "hidden", fontWeight: 800 }}>{warnings.length || ""}</span>
-                    <span style={{ flex: 1 }}>{t(language, "Before You Play")}</span>
-                    <span style={{ color: warnAmber, fontWeight: 800 }}>{warnings.length || ""}</span>
+                <div style={{ width: "100%", textAlign: "center" }}>
+                    {t(language, "Before You Play")}
+                    {warnings.length > 0 && (
+                        <span style={{ position: "absolute", top: "3px", right: "4px", color: warnAmber, fontWeight: 800,
+                            fontSize: "0.76em", lineHeight: 1 }}>
+                            {warnings.length}
+                        </span>
+                    )}
                 </div>
             </FocusableItem>
         </PanelSectionRow>
