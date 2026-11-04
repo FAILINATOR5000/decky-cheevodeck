@@ -3105,7 +3105,7 @@ const JA: LocaleTable = {
     "Your account went online on another device {{when}}.": "{{when}}、あなたのアカウントが別の端末でオンラインになりました。",
     "{{name}} isn't online": "{{name}}はオンラインではありません",
     "help_mp_add_friend": "フレンドの「フレンドコード」はRAのULIDに基づいているので、フレンドのRAユーザー名を入力するだけで申請が送られます。承認されると、ステータスの確認、メッセージの送信、一緒にプレイができるようになります。",
-    "help_mp_friends_tab": "これはEZ Multiplayerのフレンドで、RAのフレンドとは別です。ルームから、または名前で追加し、メッセージを送ったりルームに招待したりできます。",
+    "help_mp_friends_tab": "ステータスをオンラインと非表示で切り替えます。EZ Multiplayerのフレンドは、RAのフレンドとは別です。",
     "Invite Friends": "フレンドを招待",
     "Invite to My Room": "ルームに招待",
     "Invite sent to {{name}}": "{{name}}に招待を送りました",

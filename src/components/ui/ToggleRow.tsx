@@ -5,7 +5,7 @@ import { helpDescription } from "./InfoText";
 import { getCurrentTextScale, scaleMultiplier } from "../../utils/scale";
 
 export type ToggleRowProps = {
-    label: string;
+    label: ReactNode;
     value: boolean;
     onChange: (nextValue: boolean) => void | Promise<void>;
     disabled?: boolean;

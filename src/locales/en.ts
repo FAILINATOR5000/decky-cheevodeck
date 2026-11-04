@@ -3247,7 +3247,7 @@ export const EN: LocaleTable = {
     "Your account went online on another device {{when}}.": "Your account went online on another device {{when}}.",
     "{{name}} isn't online": "{{name}} isn't online",
     "help_mp_add_friend": "Your friend's “Friend Code” is based on the RA ULID, so simply type in your friend's RA username and a request will be sent to them. Once they approve, you will be able to see their status, send messages, and play games together.",
-    "help_mp_friends_tab": "These are your EZ Multiplayer friends, not your RA friends. Add people from a room or by name, then message them or invite them to your room.",
+    "help_mp_friends_tab": "Change your status between Online and Hidden. Your EZ Multiplayer friends are different than your RA friends.",
     "Invite Friends": "Invite Friends",
     "Invite to My Room": "Invite to My Room",
     "Invite sent to {{name}}": "Invite sent to {{name}}",

@@ -3271,7 +3271,7 @@ const FR: LocaleTable = {
     "Your account went online on another device {{when}}.": "Ton compte s'est connecté sur un autre appareil {{when}}.",
     "{{name}} isn't online": "{{name}} n'est pas en ligne",
     "help_mp_add_friend": "Le « code ami » repose sur l'ULID RA : tape simplement le nom d'utilisateur RA de la personne et une demande lui sera envoyée. Une fois la demande acceptée, tu pourras voir son statut, lui envoyer des messages et jouer ensemble.",
-    "help_mp_friends_tab": "Voici tes amis EZ Multiplayer, pas tes amis RA. Ajoute des gens depuis une salle ou par leur nom, puis écris-leur ou invite-les dans ta salle.",
+    "help_mp_friends_tab": "Change ton statut entre En ligne et Masqué. Tes amis EZ Multiplayer ne sont pas les mêmes que tes amis RA.",
     "Invite Friends": "Inviter des amis",
     "Invite to My Room": "Inviter dans ma salle",
     "Invite sent to {{name}}": "Invitation envoyée à {{name}}",

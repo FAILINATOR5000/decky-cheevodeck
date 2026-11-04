@@ -11,7 +11,7 @@ import { takeMultiplayerMessage } from "../../utils/multiplayerChoices";
 import { formatRelativeTime } from "../../utils/format";
 import { textSize } from "../../utils/scale";
 import { announceShowOnlineChanged } from "../../utils/showOnlineChanged";
-import { achievementGreen, bodyTextStyle, compactButtonStyle, warnAmber } from "../../utils/style";
+import { achievementGreen, bodyTextStyle, compactButtonStyle, hiddenOrange, steamPlayGreen, warnAmber } from "../../utils/style";
 import { FocusableItem } from "../ui/FocusableItem";
 import { FocusTarget } from "../ui/FocusTarget";
 import { BottomFocusAnchor } from "../ui/BottomFocusAnchor";
@@ -165,11 +165,19 @@ export function FriendsTab(props: FriendsTabProps) {
                     : data.refused ? "The lobby server refused this device"
                         : !data.up ? "Connecting to the lobby server..." : "";
 
+    const statusLabel = t(language, shown ? "Status: Online" : "Status: Hidden");
+    const stateAt = statusLabel.search(/[:：]/) + 1;
+
     return (
         <>
             <ToggleRow
                 controlled
-                label={t(language, shown ? "Status: Online" : "Status: Hidden")}
+                label={(
+                    <>
+                        {statusLabel.slice(0, stateAt)}
+                        <span style={{ color: shown ? steamPlayGreen : hiddenOrange }}>{statusLabel.slice(stateAt)}</span>
+                    </>
+                )}
                 value={shown}
                 disabled={!data?.on}
                 bottomSeparator="none"

@@ -3238,7 +3238,7 @@ const DE: LocaleTable = {
     "Your account went online on another device {{when}}.": "Dein Konto war {{when}} auf einem anderen Gerät online.",
     "{{name}} isn't online": "{{name}} ist nicht online",
     "help_mp_add_friend": "Der „Freundescode“ basiert auf der RA-ULID. Gib also einfach den RA-Benutzernamen der Person ein, und die Anfrage wird verschickt. Sobald sie angenommen ist, siehst du den Status, kannst Nachrichten schicken und zusammen spielen.",
-    "help_mp_friends_tab": "Das sind deine EZ-Multiplayer-Freunde, nicht deine RA-Freunde. Füge Leute aus einem Raum oder per Namen hinzu, dann kannst du ihnen schreiben oder sie in deinen Raum einladen.",
+    "help_mp_friends_tab": "Wechsle deinen Status zwischen Online und Verborgen. Deine EZ-Multiplayer-Freunde sind nicht dieselben wie deine RA-Freunde.",
     "Invite Friends": "Freunde einladen",
     "Invite to My Room": "In meinen Raum einladen",
     "Invite sent to {{name}}": "Einladung an {{name}} gesendet",

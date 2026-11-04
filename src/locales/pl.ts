@@ -3350,7 +3350,7 @@ const PL: LocaleTable = {
     "Your account went online on another device {{when}}.": "Twoje konto pojawiło się online na innym urządzeniu {{when}}.",
     "{{name}} isn't online": "{{name}} nie jest online",
     "help_mp_add_friend": "„Kod znajomego” opiera się na ULID z RA, więc wystarczy wpisać nazwę użytkownika RA tej osoby, a prośba zostanie wysłana. Po przyjęciu prośby zobaczysz status tej osoby, wyślesz wiadomości i zagracie razem.",
-    "help_mp_friends_tab": "To twoi znajomi w EZ Multiplayer, nie znajomi z RA. Dodawaj ludzi z pokoju albo po nazwie, a potem pisz do nich lub zapraszaj do swojego pokoju.",
+    "help_mp_friends_tab": "Przełączaj swój status między Online a Ukryty. Twoi znajomi w EZ Multiplayer to nie ci sami co znajomi z RA.",
     "Invite Friends": "Zaproś znajomych",
     "Invite to My Room": "Zaproś do mojego pokoju",
     "Invite sent to {{name}}": "Zaproszenie wysłane do {{name}}",
