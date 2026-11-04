@@ -822,7 +822,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 bottomSeparator="none"
                 outerStyle={buttonStyle}
                 focusKey="multiplayer:notes"
-                focusFallback={[inSession ? "multiplayer:chathistory" : "multiplayer:find", "multiplayer:back"]}
+                focusFallback={[joined ? "multiplayer:leave" : "multiplayer:host", `multiplayer:mode:${mp.mode}`, "multiplayer:back"]}
                 onClick={() => showMultiplayerProblem(language, "Before You Play", [...warnings, ...tips])}
             >
                 <div style={{ width: "100%", textAlign: "center" }}>
@@ -970,9 +970,9 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                                 )}
 
                                 <Focusable key={scopeKey} flow-children="column" resetNavOnEntry>
+                                    {notesRow}
                                     {roomButton}
                                     {roomRows}
-                                    {notesRow}
                                     {optionRows}
                                     <BottomFocusAnchor focusKey="multiplayer:bottom:anchor" />
                                 </Focusable>
