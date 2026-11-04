@@ -59,7 +59,6 @@ FORCED_TOASTS_PER_MINUTE = 3
 
 LAUNCH_WAIT_SECONDS = 300
 LAUNCH_START_SECONDS = 60
-READY_EXPIRY_SECONDS = 600
 SLEEP_JUMP_SECONDS = 60
 
 HOUSEKEEPING_SECONDS = 5
@@ -217,7 +216,6 @@ class MultiplayerService:
         self._visible_until = 0.0
         self._cap_until = 0.0
         self._expiry = None
-        self._page_seen = 0.0
 
         self._udp = None
         self._responder = None
@@ -330,7 +328,6 @@ class MultiplayerService:
                 return {"ok": False, "error": ERROR_CAP_REACHED}
 
             self._visible_until = min(now + LEASE_SECONDS, self._cap_until)
-            self._page_seen = now
             if self._expiry is not None:
                 self._expiry.cancel()
             self._expiry = asyncio.get_running_loop().call_later(
@@ -2723,7 +2720,6 @@ class MultiplayerService:
                 "ready": False,
                 "readyRev": 0,
                 "readyRound": 0,
-                "readyAt": 0.0,
                 "consentRound": 0,
                 "fanfareRound": 0,
                 "autostartRound": 0,
@@ -2889,9 +2885,8 @@ class MultiplayerService:
         then_wall, then_mono = joined["clock"]
         joined["clock"] = (wall, mono)
         slept = (wall - then_wall) - (mono - then_mono) > SLEEP_JUMP_SECONDS
-        idle = not self._live() and mono - max(joined["readyAt"], self._page_seen) > READY_EXPIRY_SECONDS
-        if joined["ready"] and (slept or idle):
-            decky.logger.info("multiplayer: ready cleared, %s", "the device slept" if slept else "nobody looked for a while")
+        if joined["ready"] and slept:
+            decky.logger.info("multiplayer: ready cleared, the device slept")
             joined["ready"] = False
 
     def _may_launch(self, joined: dict, status: dict) -> bool:
@@ -3001,7 +2996,6 @@ class MultiplayerService:
                 return {"ok": False, "error": ERROR_IN_GAME}
             joined["readyRev"] = status["rev"]
             joined["readyRound"] = status["round"]
-            joined["readyAt"] = time.monotonic()
             joined["notice"] = ""
         else:
             joined["consentRound"] = 0
