@@ -39,6 +39,7 @@ export type FriendCardOptions = {
 function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; close: () => void }) {
     const { language, friend, close } = props;
     const [step, setStep] = useState<Step>("menu");
+    const [leftStep, setLeftStep] = useState<Step | null>(null);
     const [busy, setBusy] = useState(false);
     const [line, setLine] = useState<DialogLineState>({ tone: "hint", text: "" });
     const [password, setPassword] = useState("");
@@ -139,6 +140,7 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
             close();
             return;
         }
+        setLeftStep(step);
         setStep("menu");
         setLine({ tone: "hint", text: "" });
         setBusy(false);
@@ -246,11 +248,15 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
                 )}
                 {canJoin && (
                     <div data-focus-key="multiplayer:friendcard:join">
-                        <DialogButton onClick={() => void join()} disabled={busy}>{t(language, "Join Their Room")}</DialogButton>
+                        <DialogButton onClick={() => void join()} disabled={busy} autoFocus={leftStep === "password" || undefined}>
+                            {t(language, "Join Their Room")}
+                        </DialogButton>
                     </div>
                 )}
                 <div data-focus-key="multiplayer:friendcard:remove">
-                    <DialogButton onClick={() => setStep("remove")} disabled={busy}>{t(language, "Remove")}</DialogButton>
+                    <DialogButton onClick={() => setStep("remove")} disabled={busy} autoFocus={leftStep === "remove" || undefined}>
+                        {t(language, "Remove")}
+                    </DialogButton>
                 </div>
                 <div data-focus-key="multiplayer:friendcard:close">
                     <DialogButton onClick={close}>{t(language, "Close")}</DialogButton>
