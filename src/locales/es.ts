@@ -3232,6 +3232,7 @@ const ES: LocaleTable = {
     "Your copy is a different version of the game from the host's. Couch Play needs the same version.": "Tu copia es una versión del juego distinta de la del anfitrión. El juego en el sofá necesita la misma versión.",
     "Your copy matches the host's game but not their exact file. Couch Play on NES needs the exact same file.": "Tu copia coincide con el juego del anfitrión, pero no con su archivo exacto. El juego en el sofá en NES necesita exactamente el mismo archivo.",
     "{{name}} invited you to a room.": "{{name}} te invitó a una sala.",
+    "Press {{button}} to join.": "Pulsa {{button}} para unirte.",
     "3 Months": "3 meses",
     "Week": "Semana",
     "Month": "Mes",

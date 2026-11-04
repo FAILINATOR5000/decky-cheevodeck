@@ -3269,6 +3269,7 @@ const RU: LocaleTable = {
     "Your copy is a different version of the game from the host's. Couch Play needs the same version.": "Твоя копия — другая версия игры, не та, что у хоста. Для игры на диване нужна та же версия.",
     "Your copy matches the host's game but not their exact file. Couch Play on NES needs the exact same file.": "Твоя копия совпадает с игрой хоста, но не с его точным файлом. Для игры на диване на NES нужен точно такой же файл.",
     "{{name}} invited you to a room.": "{{name}} приглашает тебя в комнату.",
+    "Press {{button}} to join.": "Нажми {{button}}, чтобы присоединиться.",
     "3 Months": "3 месяца",
     "Week": "Неделя",
     "Month": "Месяц",

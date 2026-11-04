@@ -696,6 +696,7 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
         && !isMultiplayerRow(notification)
         && !isChangelogRow(notification)
         && !isDeveloperMessage(notification);
+    const isRoomInvite = isFriendRow(notification) && friendCardKind(notification) === "invite";
     const templatedBody: ReactNode | null =
         notification.type === "tracked" && achievementTitle
             ? templateParts(language, "Unlocked {{achievement}} in {{game}}", {
@@ -1143,6 +1144,24 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                             <ButtonPrompt
                                 language={language}
                                 textKey="Press {{button}} for install options."
+                                button="a"
+                                fontSize={metrics.pointsFontSize}
+                            />
+                        </div>
+                    )}
+                    {isRoomInvite && (
+                        <div
+                            style={{
+                                ...smallTextStyle(),
+                                fontSize: `${metrics.pointsFontSize}px`,
+                                lineHeight: metrics.pointsLineHeight,
+                                opacity: 0.9,
+                                fontWeight: 800
+                            }}
+                        >
+                            <ButtonPrompt
+                                language={language}
+                                textKey="Press {{button}} to join."
                                 button="a"
                                 fontSize={metrics.pointsFontSize}
                             />

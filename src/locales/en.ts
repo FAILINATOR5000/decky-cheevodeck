@@ -3197,6 +3197,7 @@ export const EN: LocaleTable = {
     "Your copy is a different version of the game from the host's. Couch Play needs the same version.": "Your copy is a different version of the game from the host's. Couch Play needs the same version.",
     "Your copy matches the host's game but not their exact file. Couch Play on NES needs the exact same file.": "Your copy matches the host's game but not their exact file. Couch Play on NES needs the exact same file.",
     "{{name}} invited you to a room.": "{{name}} invited you to a room.",
+    "Press {{button}} to join.": "Press {{button}} to join.",
     "3 Months": "3 Months",
     "Week": "Week",
     "Month": "Month",

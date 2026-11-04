@@ -3055,6 +3055,7 @@ const JA: LocaleTable = {
     "Your copy is a different version of the game from the host's. Couch Play needs the same version.": "あなたのコピーはホストとは別のバージョンのゲームです。カウチプレイには同じバージョンが必要です。",
     "Your copy matches the host's game but not their exact file. Couch Play on NES needs the exact same file.": "あなたのコピーはホストのゲームと一致しますが、ファイルが完全には一致しません。NESのカウチプレイには完全に同じファイルが必要です。",
     "{{name}} invited you to a room.": "{{name}}さんからルームに招待されました。",
+    "Press {{button}} to join.": "{{button}} で参加する",
     "3 Months": "3か月",
     "Week": "1週間",
     "Month": "1か月",
