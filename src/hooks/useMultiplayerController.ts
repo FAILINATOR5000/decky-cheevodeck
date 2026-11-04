@@ -212,7 +212,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
                 multiplayerSetVisible(true, false)
                     .then((renewed) => {
                         if (alive) {
-                            setVisibleError(renewed.ok ? "" : renewed.error ?? "unavailable");
+                            setVisibleError(renewed.ok || renewed.error === "cap_reached" ? "" : renewed.error ?? "unavailable");
                         }
                     })
                     .catch((e) => logError("multiplayerSetVisible", e));
