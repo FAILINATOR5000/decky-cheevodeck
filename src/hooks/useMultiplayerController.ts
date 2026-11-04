@@ -130,6 +130,20 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         : joined
             ? joined.local?.gameId ?? joined.room.gameId
             : ownGameId;
+    const roomGameId = hosted || joined ? gameId : null;
+    const lastRoomGameRef = useRef<number | null>(null);
+    useEffect(() => {
+        if (roomGameId !== null) {
+            lastRoomGameRef.current = roomGameId;
+            return;
+        }
+        const last = lastRoomGameRef.current;
+        lastRoomGameRef.current = null;
+        if (last !== null) {
+            rememberMultiplayerGame(last);
+            setPickedGameId(last);
+        }
+    }, [roomGameId]);
     const [core, setCoreState] = useState(() => multiplayerCoreFor(gameId));
     const checkRoom = joined ? joined.room.room : "";
     const checkCore = hosted ? hosted.core : core;
