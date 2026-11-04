@@ -117,6 +117,7 @@ class MultiplayerFriendsService:
         self._heard_from = {}
         self._sent_report = None
         self._sent_room = None
+        self._sent_game = ""
         self._report_stale = True
         self._report_at = 0.0
         self._running_name = ""
@@ -298,6 +299,7 @@ class MultiplayerFriendsService:
             self._sent_report = None
             self._report_stale = True
             self._sent_room = None
+            self._sent_game = ""
             if self._up:
                 self._presence = {}
                 self._suggestions = []
@@ -385,6 +387,7 @@ class MultiplayerFriendsService:
                 return False
             self._sent_report = canonical(report)
             self._sent_room = report["presence"]["room"]
+            self._sent_game = report["presence"]["game"]
             self._report_stale = False
             self._report_at = time.monotonic()
             self._session_account = self._me()
@@ -447,14 +450,17 @@ class MultiplayerFriendsService:
             return
         self._sent_report = said
         self._sent_room = report["presence"]["room"]
+        self._sent_game = report["presence"]["game"]
         await self._send({"op": "update", **report})
 
     def room_changed(self) -> None:
         if not self._up:
             return
         room = self._mp.current_room()
-        if room != self._sent_room:
+        game = self._game()
+        if room != self._sent_room or game != self._sent_game:
             self._sent_room = room
+            self._sent_game = game
             self._report_stale = True
             self._spawn(self._update())
 
