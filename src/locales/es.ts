@@ -3301,7 +3301,6 @@ const ES: LocaleTable = {
     "They left the room. Add them by name instead.": "Esa persona salió de la sala. Añádela por su nombre.",
     "Someone else is in that seat now": "Ahora hay otra persona en ese asiento",
     "Pick a friend to invite to your room.": "Elige a un amigo para invitarlo a tu sala.",
-    "Inviting {{name}}...": "Invitando a {{name}}...",
     "Looking up {{name}}...": "Buscando {{name}}...",
     "Sending...": "Enviando...",
     "Hosting...": "Creando la sala...",

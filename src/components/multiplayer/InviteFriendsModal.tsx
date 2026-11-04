@@ -75,7 +75,6 @@ function InviteFriendsModal(props: { language: LanguageCode; avatars: Record<str
             return;
         }
         setBusy(true);
-        setLine({ tone: "busy", text: t(language, "Inviting {{name}}...", { name: friendName(friend) }) });
         try {
             const sent = await multiplayerFriendInvite(friend.ulid);
             setMarks((current) => ({ ...current, [friend.ulid]: sent.ok ? "sent" : "failed" }));

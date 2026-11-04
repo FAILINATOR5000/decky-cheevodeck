@@ -3290,7 +3290,6 @@ const FR: LocaleTable = {
     "They left the room. Add them by name instead.": "La personne a quitté la salle. Ajoute-la plutôt par son nom.",
     "Someone else is in that seat now": "Quelqu'un d'autre occupe cette place",
     "Pick a friend to invite to your room.": "Choisis un ami à inviter dans ta salle.",
-    "Inviting {{name}}...": "Envoi de l'invitation à {{name}}...",
     "Looking up {{name}}...": "Recherche de {{name}}...",
     "Sending...": "Envoi...",
     "Hosting...": "Création de la salle...",

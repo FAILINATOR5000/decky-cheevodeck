@@ -3124,7 +3124,6 @@ const JA: LocaleTable = {
     "They left the room. Add them by name instead.": "相手はルームを退出しました。名前で追加してください。",
     "Someone else is in that seat now": "その席には別の人が座っています",
     "Pick a friend to invite to your room.": "ルームに招待するフレンドを選んでください。",
-    "Inviting {{name}}...": "{{name}}を招待中...",
     "Looking up {{name}}...": "{{name}}を検索中...",
     "Sending...": "送信中...",
     "Hosting...": "ルームを作成中...",

@@ -105,7 +105,6 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
 
     async function invite() {
         setBusy(true);
-        setLine({ tone: "busy", text: t(language, "Inviting {{name}}...", { name: friendName(friend) }) });
         try {
             const sent = await multiplayerFriendInvite(friend.ulid);
             if (sent.ok) {
