@@ -116,12 +116,7 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
     }, [inRoom]);
 
     function open() {
-        if (inRoom) {
-            rememberMultiplayerPage("play");
-        }
-        else if (waiting && (waiting.unread > 0 || waiting.requests > 0)) {
-            rememberMultiplayerPage("friends");
-        }
+        rememberMultiplayerPage(inRoom ? "play" : "friends");
         nav.openMultiplayer?.();
         close();
     }
