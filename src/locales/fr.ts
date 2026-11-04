@@ -3072,6 +3072,7 @@ const FR: LocaleTable = {
     "That room is full": "Cette salle est pleine",
     "No room found at that address": "Aucune salle trouvée à cette adresse",
     "Lost the host": "L'hôte ne répond plus",
+    "Lost the host. Waiting for it to come back...": "L'hôte ne répond plus. En attente de son retour...",
     "The host dropped you from the room": "L'hôte t'a retiré de la salle",
     "Your seat was freed while this device was away": "Ta place a été libérée pendant l'absence de cet appareil",
     "The host closed the room": "L'hôte a fermé la salle",

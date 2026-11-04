@@ -2906,6 +2906,7 @@ const JA: LocaleTable = {
     "That room is full": "そのルームは満員です",
     "No room found at that address": "そのアドレスにルームが見つかりません",
     "Lost the host": "ホストとの接続が切れました",
+    "Lost the host. Waiting for it to come back...": "ホストとの接続が切れました。復帰を待っています...",
     "The host dropped you from the room": "ホストによってルームから外されました",
     "Your seat was freed while this device was away": "このデバイスが離れている間に席が解放されました",
     "The host closed the room": "ホストがルームを閉じました",

@@ -3048,6 +3048,7 @@ export const EN: LocaleTable = {
     "That room is full": "That room is full",
     "No room found at that address": "No room found at that address",
     "Lost the host": "Lost the host",
+    "Lost the host. Waiting for it to come back...": "Lost the host. Waiting for it to come back...",
     "The host dropped you from the room": "The host dropped you from the room",
     "Your seat was freed while this device was away": "Your seat was freed while this device was away",
     "The host closed the room": "The host closed the room",

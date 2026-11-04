@@ -3120,6 +3120,7 @@ const RU: LocaleTable = {
     "That room is full": "Эта комната заполнена",
     "No room found at that address": "По этому адресу комната не найдена",
     "Lost the host": "Связь с хостом потеряна",
+    "Lost the host. Waiting for it to come back...": "Связь с хостом потеряна. Ждём, пока он вернётся...",
     "The host dropped you from the room": "Хост убрал тебя из комнаты",
     "Your seat was freed while this device was away": "Твоё место освободили, пока это устройство было недоступно",
     "The host closed the room": "Хост закрыл комнату",

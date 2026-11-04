@@ -212,6 +212,9 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         if (!hosted && !joined) {
             return null;
         }
+        if (joined?.error === "host_gone") {
+            return { code: "host_waiting" };
+        }
         if (joined && ROOM_NOTICES.includes(joined.notice)) {
             return { code: joined.notice };
         }

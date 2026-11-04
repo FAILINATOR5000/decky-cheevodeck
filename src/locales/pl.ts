@@ -3151,6 +3151,7 @@ const PL: LocaleTable = {
     "That room is full": "Ten pokój jest pełny",
     "No room found at that address": "Pod tym adresem nie ma pokoju",
     "Lost the host": "Utracono połączenie z hostem",
+    "Lost the host. Waiting for it to come back...": "Utracono połączenie z hostem. Czekam, aż wróci...",
     "The host dropped you from the room": "Host usunął cię z pokoju",
     "Your seat was freed while this device was away": "Twoje miejsce zwolniono, gdy tego urządzenia nie było",
     "The host closed the room": "Host zamknął pokój",

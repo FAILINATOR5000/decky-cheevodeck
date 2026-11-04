@@ -1,6 +1,6 @@
 import { t, type LanguageCode } from "../locales";
 
-export const ROOM_ENDED = ["host_gone", "dropped", "timed_out", "closed", "network_changed"];
+export const ROOM_ENDED = ["dropped", "timed_out", "closed", "network_changed"];
 
 const PROBLEM_TEXT: Record<string, string> = {
     not_game_mode: "Only works in Game Mode",
@@ -65,6 +65,7 @@ const PROBLEM_TEXT: Record<string, string> = {
     not_found: "No room found at that address",
     bad_address: "Not a valid address",
     host_gone: "Lost the host",
+    host_waiting: "Lost the host. Waiting for it to come back...",
     dropped: "The host dropped you from the room",
     timed_out: "Your seat was freed while this device was away",
     closed: "The host closed the room",
