@@ -322,6 +322,7 @@ _ALLOWED_SHORTCUT_ACTIONS = (
     "darkenScreen",
     "mouseKeyboardMode",
     "cycleUiScale",
+    "pushToTalk",
 )
 
 
@@ -348,9 +349,14 @@ def _default_shortcut_bindings() -> dict:
     }
 
 
+_HOLD_SHORTCUT_BUTTONS = ("l4", "l5", "r4", "r5")
+
+
 def _shortcut_action_allowed(button: str, action: str) -> bool:
     if action not in _ALLOWED_SHORTCUT_ACTIONS:
         return False
+    if action == "pushToTalk":
+        return button in _HOLD_SHORTCUT_BUTTONS
     return not (action == "snapshot" and button in _MENU_COMBO_SHORTCUT_BUTTONS)
 
 
@@ -466,6 +472,8 @@ _KNOBS = (
     Knob("mpShowOnline", default=True, normalize=True, read=READ_BOOL),
     Knob("mpSuggestFriends", default=True, normalize=True, read=READ_BOOL),
     Knob("mpShortcutFallback", default=False, normalize=True, read=READ_BOOL),
+    Knob("mpVoicePushToTalk", default=False, normalize=True, read=READ_BOOL),
+    Knob("mpVoiceSensitivity", default=2, normalize=True),
     Knob("playShortcutFallback", default=False, normalize=True, read=READ_BOOL),
     Knob("automaticRecovery", default=True, normalize=True, read=READ_BOOL),
     Knob("recoveryButtonCombo", default=False, normalize=True, read=READ_BOOL),
@@ -2347,6 +2355,16 @@ class SettingsStore:
         cfg = self._update_config("mpShortcutFallback", bool(value))
 
         return bool(cfg.get("mpShortcutFallback", False))
+
+    def update_mp_voice_push_to_talk(self, value: bool) -> bool:
+        cfg = self._update_config("mpVoicePushToTalk", bool(value))
+
+        return bool(cfg.get("mpVoicePushToTalk", False))
+
+    def update_mp_voice_sensitivity(self, value: int) -> int:
+        cfg = self._update_config("mpVoiceSensitivity", to_int(value, 2))
+
+        return self.get_mp_voice_sensitivity(cfg)
 
     def update_play_shortcut_fallback(self, value: bool) -> bool:
         cfg = self._update_config("playShortcutFallback", bool(value))
@@ -4570,6 +4588,10 @@ class SettingsStore:
         if not isinstance(value, str):
             return DEFAULT_LOBBY_SERVER
         return "".join(value.split()).lower()[:260]
+
+    def get_mp_voice_sensitivity(self, cfg: dict) -> int:
+        value = to_int(cfg.get("mpVoiceSensitivity", 2), 2)
+        return value if value in (1, 2, 3) else 2
 
     def get_file_watcher_speed(self, cfg: dict) -> str:
         value = str(cfg.get("fileWatcherSpeed", "gentle") or "gentle").strip()

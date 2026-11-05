@@ -680,6 +680,23 @@ class OptionsMixin(PluginContext):
             "mpShortcutFallback": value,
         }
 
+    async def save_mp_voice_push_to_talk(self, mp_voice_push_to_talk: bool):
+        value = self.settings_store.update_mp_voice_push_to_talk(mp_voice_push_to_talk)
+        self.back_button_service.sync()
+
+        return {
+            "ok": True,
+            "mpVoicePushToTalk": value,
+        }
+
+    async def save_mp_voice_sensitivity(self, mp_voice_sensitivity: int):
+        value = self.settings_store.update_mp_voice_sensitivity(mp_voice_sensitivity)
+
+        return {
+            "ok": True,
+            "mpVoiceSensitivity": value,
+        }
+
     async def save_play_shortcut_fallback(self, play_shortcut_fallback: bool):
         value = self.settings_store.update_play_shortcut_fallback(play_shortcut_fallback)
 
@@ -859,6 +876,7 @@ class OptionsMixin(PluginContext):
     async def save_shortcut_binding(self, button: str, action: str):
         value = self.settings_store.update_shortcut_binding(button, action)
         self.milestones_service.state_changed()
+        self.back_button_service.sync()
 
         return {
             "ok": True,

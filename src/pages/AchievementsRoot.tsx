@@ -4649,6 +4649,9 @@ function AchievementsRoot() {
     useMenuCombos(rootRef, shortcutBindings, runShortcutAction);
 
     function runShortcutAction(action: ShortcutAction) {
+        if (action === "pushToTalk") {
+            return;
+        }
         if (action === "pageUp") {
             if (jumpToTopOfPage()) {
                 recordMilestoneEvent("shortcut_pageUp");

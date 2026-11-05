@@ -20,6 +20,7 @@ import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { DialogLine, type DialogLineState } from "./DialogLine";
 import { RoomAccessLabel, roomAccess } from "./roomAccess";
+import { RoomVoiceIcon } from "./VoiceIcons";
 import { RoomsFilterModal, roomFilterLabel, roomPasses } from "./RoomsFilterModal";
 import { roomStatusLabelKey } from "./roomStatus";
 
@@ -428,7 +429,12 @@ function RoomsModal(props: RoomsModalProps) {
                                             onClick={() => choose(row)}
                                         >
                                             <div style={{ display: "flex", flexDirection: "column", gap: "2px", ...modalBodyStyle(), opacity: 1, width: "100%", textAlign: "left" }}>
-                                                <div style={{ fontWeight: 700, overflowWrap: "anywhere" }}>{row.name}</div>
+                                                <div style={{ fontWeight: 700, overflowWrap: "anywhere" }}>
+                                                    {row.name}
+                                                    {row.voice && (
+                                                        <span style={{ marginLeft: "6px", opacity: 0.8 }}><RoomVoiceIcon /></span>
+                                                    )}
+                                                </div>
                                                 <div style={{ overflowWrap: "anywhere" }}>
                                                     {t(language, "{{name}} · {{title}}", { name: row.user, title: row.title })}
                                                 </div>

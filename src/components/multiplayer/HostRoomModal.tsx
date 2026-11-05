@@ -6,13 +6,14 @@ import { overrideRecord, topEntryId } from "../../focusRecords";
 import { t, type LanguageCode } from "../../locales";
 import type { MultiplayerAccess, MultiplayerMode, MultiplayerWhere } from "../../types";
 import { logError } from "../../utils/errors";
-import { multiplayerChoices, rememberMultiplayerHostPicks } from "../../utils/multiplayerChoices";
+import { multiplayerChoices, rememberMultiplayerHostPicks, rememberMultiplayerVoice } from "../../utils/multiplayerChoices";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { modalSize } from "../../utils/scale";
 import { achievementGreen, compactButtonStyle, modalBodyStyle, warnAmber } from "../../utils/style";
 import { helpDescription } from "../ui/InfoText";
 import { SaveOnStart } from "../ui/SaveOnStart";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
+import { ToggleRow } from "../ui/ToggleRow";
 import { DialogLine, type DialogLineState } from "./DialogLine";
 import { ROOM_ACCESS, RoomAccessLabel } from "./roomAccess";
 import { ROOM_STATUSES } from "./roomStatus";
@@ -60,6 +61,7 @@ function HostRoomModal(props: HostRoomModalProps) {
     const [access, setAccess] = useState<MultiplayerAccess>(picks.access);
     const [password, setPassword] = useState("");
     const [status, setStatus] = useState(picks.status);
+    const [voice, setVoice] = useState(picks.voice);
     const [hosting, setHosting] = useState(false);
     const [line, setLine] = useState<DialogLineState>({ tone: "hint", text: "" });
     const [entryId] = useState(topEntryId);
@@ -82,11 +84,12 @@ function HostRoomModal(props: HostRoomModalProps) {
         setHosting(true);
         setLine({ tone: "busy", text: t(language, "Hosting...") });
         rememberMultiplayerHostPicks(seats, status, place.online && !place.lanOnly ? where : picks.where, access);
+        rememberMultiplayerVoice(voice);
         try {
             await multiplayerSetVisible(true, true);
             const hosted = await multiplayerHost(request.mode, request.gameId, request.hardcore, request.core,
                 request.share, name.trim(), seats, access === "private" ? password : "", status, where, request.watch,
-                access === "friends");
+                access === "friends", voice);
             if (hosted.ok) {
                 overrideRecord(entryId, { focusKey: "multiplayer:host" });
                 close();
@@ -234,6 +237,18 @@ function HostRoomModal(props: HostRoomModalProps) {
                         </div>
                     </>
                 )}
+                <div style={{ marginTop: "12px" }}>
+                    <ToggleRow
+                        label={t(language, "Voice Chat")}
+                        value={voice}
+                        onChange={setVoice}
+                        disabled={hosting}
+                        bottomSeparator="none"
+                        modalHelp
+                        help={t(language, "Everyone starts with their mic muted.")}
+                        focusKey="multiplayer:hostroom:voice"
+                    />
+                </div>
                 <Focusable
                     style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "16px" }}
                     flow-children="row"

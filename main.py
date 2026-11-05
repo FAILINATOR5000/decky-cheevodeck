@@ -38,10 +38,12 @@ from services.memories_transfer_service import MemoriesTransferService
 from services.data_transfer_service import DataTransferService
 from services.nearby_transfer_service import NearbyTransferService
 from services.multiplayer_service import MultiplayerService
+from services.voice_canceller import VoiceCanceller
 from services.multiplayer_friends_service import MultiplayerFriendsService
 from services.ez_friends_heal_service import EzFriendsHealService
 from multiplayer_friends_store import MultiplayerFriendsStore
 from multiplayer_messages_store import MultiplayerMessagesStore
+from multiplayer_volumes_store import MultiplayerVolumesStore
 from services.smb_mount_service import SmbMountService
 from services.comments_service import CommentsService
 from services.new_sets_service import NewSetsService
@@ -369,6 +371,7 @@ class Plugin(
         self.milestones_store = MilestonesStore(base_dir=self.runtime_dir)
         self.multiplayer_friends_store = MultiplayerFriendsStore(base_dir=self.runtime_dir)
         self.multiplayer_messages_store = MultiplayerMessagesStore(base_dir=self.runtime_dir)
+        self.multiplayer_volumes_store = MultiplayerVolumesStore(base_dir=self.runtime_dir)
         milestones_defs_path = self.plugin_dir / "milestones" / "milestones.json"
         if not milestones_defs_path.exists():
             milestones_defs_path = self.plugin_dir / "defaults" / "milestones" / "milestones.json"
@@ -558,6 +561,7 @@ class Plugin(
         self.settings_store.set_milestone_event(record_milestone)
         self.notes_store.set_milestone_event(record_milestone)
         self.tracked_sets_monitor_service.set_milestone_event(record_milestone)
+        self.voice_canceller = VoiceCanceller(user_home=self.user_home)
         self.repair_service = RepairService(
             update_checker_service=self.update_checker_service,
             memories_store=self.memories_store,
@@ -567,6 +571,7 @@ class Plugin(
             multiplayer_messages_store=self.multiplayer_messages_store,
             settings_store=self.settings_store,
             user_home=self.user_home,
+            voice_canceller=self.voice_canceller,
         )
         self.developer_message_service = DeveloperMessageService(
             settings_store=self.settings_store,
@@ -789,6 +794,7 @@ class Plugin(
             cheevo_check_service=self.cheevo_check_service,
             cheevo_check_store=self.cheevo_check_store,
             bin_dir=cheevo_check_bin,
+            voice_canceller=self.voice_canceller,
         )
         self.ez_friends_heal_service = EzFriendsHealService(
             plugin=self,
@@ -1214,6 +1220,7 @@ class Plugin(
             self.milestones_store.repoint(base, user_key)
             self.multiplayer_friends_store.repoint(base, user_key)
             self.multiplayer_messages_store.repoint(base, user_key)
+            self.multiplayer_volumes_store.repoint(base, user_key)
             self.activity_store.repoint(base / "activity")
             self.subscriptions_store.repoint(base)
             self.calculator_store.repoint(base)
@@ -1667,6 +1674,7 @@ class Plugin(
         self.back_button_service.sync()
         self.freeze_watchdog_service.sync()
         self.multiplayer_friends_service.settings_changed()
+        self.multiplayer_volumes_store.clear()
 
         return {
             "ok": True,
@@ -1953,7 +1961,9 @@ class Plugin(
             decky.logger.warning("factory reset: downloads not cleared (%s)", type(exc).__name__)
 
         await self.multiplayer_friends_service.retire()
+        left = await asyncio.to_thread(self.multiplayer_service.put_back_game_volumes)
         await asyncio.to_thread(self._run_factory_reset_locked)
+        await asyncio.to_thread(self.multiplayer_service.keep_game_volume_records, left)
         return {"ok": True}
 
     async def get_cached_payload(self):

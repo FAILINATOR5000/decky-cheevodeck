@@ -14,6 +14,7 @@ type Choices = {
     hardcore: boolean;
     share: boolean;
     watch: boolean;
+    voice: boolean;
     seats: number;
     status: string;
     where: MultiplayerWhere;
@@ -38,6 +39,7 @@ const choices: Choices = {
     hardcore: false,
     share: false,
     watch: false,
+    voice: false,
     seats: 4,
     status: "",
     where: "local",
@@ -74,6 +76,10 @@ export function rememberMultiplayerShare(value: boolean) {
 
 export function rememberMultiplayerWatch(value: boolean) {
     choices.watch = value;
+}
+
+export function rememberMultiplayerVoice(value: boolean) {
+    choices.voice = value;
 }
 
 export function rememberMultiplayerCore(gameId: number | null, core: string) {

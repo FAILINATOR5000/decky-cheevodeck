@@ -1,4 +1,4 @@
-import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
+import { DialogButton, Focusable, ModalRoot, SliderField } from "@decky/ui";
 import { useState } from "react";
 
 import { multiplayerDropSeat, multiplayerFriendAddSeat } from "../../api";
@@ -7,7 +7,8 @@ import { logError } from "../../utils/errors";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { requestRoute } from "../../utils/pendingPanelEntry";
 import { modalSize } from "../../utils/scale";
-import { modalBodyStyle } from "../../utils/style";
+import { modalBodyStyle, warnAmber } from "../../utils/style";
+import { retryPeer, setPeerMuted, setPeerVolume, useVoiceChat } from "../../utils/voiceChat";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { friendError } from "./AddFriendModal";
 import { DialogLine, type DialogLineState } from "./DialogLine";
@@ -23,6 +24,7 @@ export type SeatCardOptions = {
     canDrop: boolean;
     friendsOn: boolean;
     openMessages: (() => void) | null;
+    voice: boolean;
 };
 
 function SeatCardModal(props: SeatCardOptions & { language: LanguageCode; close: () => void }) {
@@ -78,6 +80,9 @@ function SeatCardModal(props: SeatCardOptions & { language: LanguageCode; close:
     }
 
     const canAsk = props.friendsOn && Boolean(props.ulid) && props.relation === "none";
+    const voice = useVoiceChat();
+    const heard = props.voice && voice.on ? voice.seats[props.index] : undefined;
+    const inVoice = Boolean(heard?.inVoice);
     return (
         <ModalRoot onCancel={close} onEscKeypress={close}>
             <SnapshotHotkey language={language} />
@@ -92,6 +97,11 @@ function SeatCardModal(props: SeatCardOptions & { language: LanguageCode; close:
                 </div>
             </div>
             <DialogLine {...line} />
+            {inVoice && heard?.failed && (
+                <div style={{ ...modalBodyStyle(), color: warnAmber, opacity: 1, marginTop: "8px" }}>
+                    {t(language, "Voice couldn't connect to {{name}}.", { name: props.name })}
+                </div>
+            )}
             <Focusable style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "16px" }} flow-children="column">
                 {canAsk && (
                     <div data-focus-key="multiplayer:seatcard:add">
@@ -106,6 +116,35 @@ function SeatCardModal(props: SeatCardOptions & { language: LanguageCode; close:
                 {props.openMessages && (
                     <div data-focus-key="multiplayer:seatcard:message">
                         <DialogButton onClick={messages} disabled={busy}>{t(language, "Message Center")}</DialogButton>
+                    </div>
+                )}
+                {inVoice && heard?.failed && (
+                    <div data-focus-key="multiplayer:seatcard:retry">
+                        <DialogButton onClick={() => retryPeer(props.index)} disabled={busy}>{t(language, "Try Again")}</DialogButton>
+                    </div>
+                )}
+                {inVoice && (
+                    <div data-focus-key="multiplayer:seatcard:mute">
+                        <DialogButton onClick={() => setPeerMuted(props.index, !heard?.mutedByMe)} disabled={busy}>
+                            {t(language, heard?.mutedByMe ? "Unmute" : "Mute")}
+                        </DialogButton>
+                    </div>
+                )}
+                {inVoice && (
+                    <div data-focus-key="multiplayer:seatcard:volume">
+                        <SliderField
+                            label={t(language, "Volume")}
+                            value={heard?.volume ?? 100}
+                            min={0}
+                            max={200}
+                            step={25}
+                            showValue
+                            valueSuffix="%"
+                            layout="below"
+                            bottomSeparator="none"
+                            disabled={busy}
+                            onChange={(value) => setPeerVolume(props.index, value)}
+                        />
                     </div>
                 )}
                 {props.canDrop && (

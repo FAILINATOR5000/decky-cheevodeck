@@ -128,6 +128,8 @@ SUMMON_ACTIONS = (
 
 _SUMMON_BUTTONS = ("l4", "r4", "l5", "r5")
 
+HOLD_ACTIONS = ("pushToTalk",)
+
 _MENU_COMBO_BITS = {
     DECK_FORMAT: (
         ("menu", 9, 0x40),
@@ -574,6 +576,15 @@ def pressed_buttons(fmt: str, before: int, after: int) -> list[str]:
     ]
 
 
+def released_buttons(fmt: str, before: int, after: int) -> list[str]:
+    went_up = before & ~after
+    return [
+        button
+        for index, (button, _byte, _mask) in enumerate(_BUTTON_BITS[fmt])
+        if went_up & (1 << index) and button in _SUMMON_BUTTONS
+    ]
+
+
 def is_controller_hotplug(message: bytes) -> bool:
     fields = message.split(b"\0")
     if b"SUBSYSTEM=hidraw" not in fields and b"SUBSYSTEM=input" not in fields:
@@ -633,6 +644,7 @@ class _OpenNode:
         self.menu_armed = None
         self.combo_since = None
         self.combo_spent = False
+        self.holding = set()
 
 
 class BackButtonService:
@@ -657,11 +669,17 @@ class BackButtonService:
             cfg = self._settings_store.load_config()
             self._combo_enabled = bool(cfg.get("recoveryButtonCombo", False))
             self._recovery_logs = bool(cfg.get("recoveryLogs", False))
-            wanted = cfg.get("backButtonsGlobal", False) or cfg.get("browserSnapshot", False) or self._combo_enabled
+            wanted = (cfg.get("backButtonsGlobal", False) or cfg.get("browserSnapshot", False) or self._combo_enabled
+                      or self._hold_bound(cfg))
             if wanted and self._game_mode():
                 self.start()
             else:
                 self.stop()
+
+    def _hold_bound(self, cfg: dict) -> bool:
+        if not cfg.get("mpVoicePushToTalk", False):
+            return False
+        return any(action in HOLD_ACTIONS for action in self._settings_store.get_shortcut_bindings(cfg).values())
 
     def start(self) -> None:
         with self._lock:
@@ -769,7 +787,8 @@ class BackButtonService:
         except Exception as exc:
             decky.logger.warning("back buttons: thread failed (%s: %s)", type(exc).__name__, exc)
         finally:
-            for fd in list(nodes):
+            for fd, node in list(nodes.items()):
+                self._let_go(node)
                 os.close(fd)
             if netlink is not None:
                 netlink.close()
@@ -863,6 +882,7 @@ class BackButtonService:
 
     def _drop(self, nodes: dict, fd: int, reason: str) -> None:
         node = nodes.pop(fd)
+        self._let_go(node)
         try:
             os.close(fd)
         except OSError:
@@ -888,8 +908,19 @@ class BackButtonService:
         if state == node.state:
             return
         pressed = pressed_buttons(fmt, node.state, state)
+        released = released_buttons(fmt, node.state, state)
         node.state = state
         self._track_combo(node, fmt)
+        for button in released:
+            if button in node.holding:
+                node.holding.discard(button)
+                self._hold(node, button, False)
+        if pressed:
+            held = self._hold_buttons(pressed)
+            for button in held:
+                node.holding.add(button)
+                self._hold(node, button, True)
+            pressed = [button for button in pressed if button not in held]
         if self._combo_enabled and held_summon_buttons(fmt, state) > 1:
             if pressed and self._debug_logging():
                 decky.logger.info("back buttons: %s on %s held back (combo chord)", ",".join(pressed), node.name)
@@ -1003,6 +1034,23 @@ class BackButtonService:
         if self._debug_logging():
             decky.logger.info("back buttons: %s on %s sent action=%s", key, node.name, action)
         self._emit({"action": action, "browserSnapshot": False, "combo": True})
+
+    def _hold_buttons(self, pressed: list) -> list:
+        cfg = self._settings_store.load_config()
+        if not cfg.get("mpVoicePushToTalk", False):
+            return []
+        bindings = self._settings_store.get_shortcut_bindings(cfg)
+        return [button for button in pressed if bindings.get(button) in HOLD_ACTIONS]
+
+    def _hold(self, node: _OpenNode, button: str, down: bool) -> None:
+        if self._debug_logging():
+            decky.logger.info("back buttons: %s on %s %s pushToTalk", button, node.name, "down" if down else "up")
+        self._emit({"action": "pushToTalk", "down": down})
+
+    def _let_go(self, node: _OpenNode) -> None:
+        for button in sorted(node.holding):
+            self._hold(node, button, False)
+        node.holding.clear()
 
     def _on_press(self, node: _OpenNode, button: str) -> None:
         cfg = self._settings_store.load_config()

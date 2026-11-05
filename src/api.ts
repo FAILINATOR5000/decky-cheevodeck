@@ -280,6 +280,12 @@ export const saveMpSuggestFriends = callable<[boolean], { ok: boolean; mpSuggest
 export const saveMpShortcutFallback = callable<[boolean], { ok: boolean; mpShortcutFallback: boolean }>(
     "save_mp_shortcut_fallback"
 );
+export const saveMpVoicePushToTalk = callable<[boolean], { ok: boolean; mpVoicePushToTalk: boolean }>(
+    "save_mp_voice_push_to_talk"
+);
+export const saveMpVoiceSensitivity = callable<[number], { ok: boolean; mpVoiceSensitivity: number }>(
+    "save_mp_voice_sensitivity"
+);
 export const savePlayShortcutFallback = callable<[boolean], { ok: boolean; playShortcutFallback: boolean }>(
     "save_play_shortcut_fallback"
 );
@@ -817,11 +823,11 @@ export const multiplayerLookup = callable<[string], { ok: boolean; error?: strin
 export const multiplayerGames = callable<[], { ok: boolean; scanned: boolean; games: MultiplayerGame[]; installedCores?: string[] }>("multiplayer_games");
 export const multiplayerCheck = callable<[MultiplayerMode, number, string, string], MultiplayerCheck>("multiplayer_check");
 export const multiplayerHost = callable<
-    [MultiplayerMode, number, boolean, string, boolean, string, number, string, string, MultiplayerWhere, boolean, boolean],
+    [MultiplayerMode, number, boolean, string, boolean, string, number, string, string, MultiplayerWhere, boolean, boolean, boolean],
     MultiplayerReply & { room?: MultiplayerHostedRoom }
 >("multiplayer_host");
 export const multiplayerRoomOptions = callable<
-    [boolean | null, string | null, boolean | null, boolean | null],
+    [boolean | null, string | null, boolean | null, boolean | null, boolean | null],
     MultiplayerReply & { room?: MultiplayerHostedRoom }
 >("multiplayer_room_options");
 export const multiplayerCloseRoom = callable<[], { ok: boolean; error?: string }>("multiplayer_close_room");
@@ -856,6 +862,43 @@ export const multiplayerGuestGames = callable<[], { ok: boolean; error?: string;
 export const multiplayerGuestGame = callable<[number], MultiplayerReply>("multiplayer_guest_game");
 export const multiplayerLeave = callable<[], { ok: boolean; error?: string }>("multiplayer_leave");
 export const multiplayerRoomStatus = callable<[], MultiplayerRoomStatus>("multiplayer_room_status");
+export const multiplayerVoiceJoin = callable<[boolean], { ok: boolean; error?: string; on?: boolean }>("multiplayer_voice_join");
+export const multiplayerVoiceSend = callable<[number, string, string, number], { ok: boolean; error?: string }>(
+    "multiplayer_voice_send"
+);
+export const multiplayerVoiceCanceller = callable<[boolean], {
+    ok: boolean;
+    error?: string;
+    active?: boolean;
+    duck?: boolean;
+    kind?: string;
+}>("multiplayer_voice_canceller");
+export const multiplayerVoiceDuck = callable<[boolean, number], { ok: boolean }>("multiplayer_voice_duck");
+export const multiplayerVoiceConfig = callable<[], {
+    ok: boolean;
+    error?: string;
+    servers?: RTCIceServer[];
+    policy?: string;
+    available?: boolean;
+}>("multiplayer_voice_config");
+export const multiplayerVoiceLog = callable<[string, boolean], { ok: boolean }>("multiplayer_voice_log");
+export const multiplayerGameStreams = callable<[], { ok: boolean; streams?: { id: number; app: string }[] }>(
+    "multiplayer_game_streams"
+);
+export const multiplayerGameVolumeRecords = callable<
+    [],
+    { ok: boolean; records?: Record<string, { original: number; set: number }> }
+>("multiplayer_game_volume_records");
+export const multiplayerGameVolumeRecord = callable<[string, number | null, number | null], { ok: boolean; original?: number }>(
+    "multiplayer_game_volume_record"
+);
+export const multiplayerGameVolumePutBack = callable<[string, number[]], { ok: boolean }>("multiplayer_game_volume_put_back");
+export const multiplayerRoomVolumesGet = callable<[number], { ok: boolean; game?: number; incoming?: number; output?: string }>(
+    "multiplayer_room_volumes_get"
+);
+export const multiplayerRoomVolumesSet = callable<[number, number, number, string], { ok: boolean }>(
+    "multiplayer_room_volumes_set"
+);
 export const multiplayerPrepareLaunch = callable<
     [string, boolean],
     MultiplayerReply & { appid?: number; options?: string; original?: string; session?: string }

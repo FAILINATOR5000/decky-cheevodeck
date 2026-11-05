@@ -33,7 +33,7 @@ class RepairService:
     """
 
     def __init__(self, *, update_checker_service, memories_store, milestones_store, milestones_service,
-                 multiplayer_friends_store, multiplayer_messages_store, settings_store, user_home):
+                 multiplayer_friends_store, multiplayer_messages_store, settings_store, user_home, voice_canceller):
         self._update_checker_service = update_checker_service
         self._memories_store = memories_store
         self._milestones_store = milestones_store
@@ -42,6 +42,7 @@ class RepairService:
         self._multiplayer_messages_store = multiplayer_messages_store
         self._settings_store = settings_store
         self._user_home = user_home
+        self._voice_canceller = voice_canceller
 
     def run_startup_repairs(self) -> dict:
         """Run every repair in turn and report which ones did anything.
@@ -140,6 +141,15 @@ class RepairService:
         except Exception as e:
             decky.logger.warning(
                 "repair: handing back Dolphin's folders failed: %s",
+                type(e).__name__,
+            )
+
+        try:
+            if self._voice_canceller.repair():
+                fixed.append("voice_canceller")
+        except Exception as e:
+            decky.logger.warning(
+                "repair: voice canceller cleanup failed: %s",
                 type(e).__name__,
             )
 

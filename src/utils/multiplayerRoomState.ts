@@ -14,6 +14,7 @@ const ROOM_EVENT = "multiplayer_room";
 
 type SeatFlag = { name: string; ready: boolean };
 type ChatLine = { seq: number; name: string; text: string };
+type RoomVoice = { room: string; game: number; where: string; access: string; cfg: string; seats: ({ vc: boolean; vs: number } | null)[] };
 
 export type MultiplayerRoomMarker = {
     role: "host" | "guest" | null;
@@ -29,13 +30,14 @@ export type MultiplayerRoomMarker = {
     state: string;
     chat: ChatLine | null;
     autostart: { room: string; round: number; appid: number; steps: string; game: string } | null;
+    voice: RoomVoice | null;
 };
 
 type RoomEvent = Partial<MultiplayerRoomMarker> & { seq?: number };
 
 const EMPTY: MultiplayerRoomMarker = {
     role: null, title: "", host: "", seated: 0, error: "", seat: 0, ready: false, seats: [], rev: 0, round: 0, state: "lobby",
-    chat: null, autostart: null
+    chat: null, autostart: null, voice: null
 };
 
 let marker: MultiplayerRoomMarker = EMPTY;
@@ -132,8 +134,24 @@ function onRoomEvent(payload: RoomEvent) {
         round: Number(payload.round) || 0,
         state: payload.state ?? "lobby",
         chat: payload.chat && typeof payload.chat.seq === "number" ? payload.chat : null,
-        autostart: payload.autostart && typeof payload.autostart.appid === "number" ? payload.autostart : null
+        autostart: payload.autostart && typeof payload.autostart.appid === "number" ? payload.autostart : null,
+        voice: readVoice(payload.voice)
     }, Number(payload.seq) || 0, true);
+}
+
+function readVoice(raw: unknown): RoomVoice | null {
+    const voice = raw as RoomVoice | null | undefined;
+    if (!voice || typeof voice.room !== "string" || !Array.isArray(voice.seats)) {
+        return null;
+    }
+    return {
+        room: voice.room,
+        game: typeof voice.game === "number" ? voice.game : 0,
+        where: voice.where === "online" ? "online" : "local",
+        access: typeof voice.access === "string" ? voice.access : "public",
+        cfg: typeof voice.cfg === "string" ? voice.cfg : "",
+        seats: voice.seats.map((seat) => (seat && typeof seat.vs === "number" ? { vc: seat.vc === true, vs: seat.vs } : null))
+    };
 }
 
 function fromStatus(status: MultiplayerRoomStatus): MultiplayerRoomMarker {
@@ -148,7 +166,8 @@ function fromStatus(status: MultiplayerRoomStatus): MultiplayerRoomMarker {
             rev: room.rev,
             round: room.round,
             state: room.state,
-            chat: room.chat[room.chat.length - 1] ?? null
+            chat: room.chat[room.chat.length - 1] ?? null,
+            voice: readVoice(status.voice)
         };
     }
     if (status.role === "guest") {
@@ -166,7 +185,8 @@ function fromStatus(status: MultiplayerRoomStatus): MultiplayerRoomMarker {
             round: guest?.round ?? 0,
             state: guest?.state ?? "lobby",
             chat: status.chat[status.chat.length - 1] ?? null,
-            autostart: status.autostart
+            autostart: status.autostart,
+            voice: readVoice(status.voice)
         };
     }
     return EMPTY;

@@ -1,4 +1,4 @@
-import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
+import { DialogButton, Focusable, PanelSectionRow, SliderField } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
 import { Fragment, useState, type ComponentType } from "react";
 import { BackButton } from "../components/ui/BackButton";
@@ -262,6 +262,8 @@ type OptionsPageState = {
     mpShowOnline: boolean;
     mpSuggestFriends: boolean;
     mpShortcutFallback: boolean;
+    mpVoicePushToTalk: boolean;
+    mpVoiceSensitivity: number;
     playShortcutFallback: boolean;
     lobbyServer: string;
     libraryBadge: boolean;
@@ -526,6 +528,8 @@ type OptionsPageActions = {
     onToggleMpShowOnline: (nextValue: boolean) => void | Promise<void>;
     onToggleMpSuggestFriends: (nextValue: boolean) => void | Promise<void>;
     onToggleMpShortcutFallback: (nextValue: boolean) => void | Promise<void>;
+    onToggleMpVoicePushToTalk: (nextValue: boolean) => void | Promise<void>;
+    onChangeMpVoiceSensitivity: (nextValue: number) => void | Promise<void>;
     onTogglePlayShortcutFallback: (nextValue: boolean) => void | Promise<void>;
     onEditLobbyServer: () => void;
     onToggleLibraryBadge: (nextValue: boolean) => void | Promise<void>;
@@ -2158,6 +2162,38 @@ function SocialTab(props: TabContentProps) {
                 disabled={disabled || !state.mpFriendsEnabled}
                 help={t(state.language, "help_mp_suggest_friends")}
             />
+            <SectionTitle label={t(state.language, "Voice Chat")} />
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:mpVoicePushToTalk"
+                label={t(state.language, "Push to Talk")}
+                value={state.mpVoicePushToTalk}
+                onChange={actions.onToggleMpVoicePushToTalk}
+                disabled={disabled}
+                help={t(state.language, "Hold a back button to talk. Choose it under Mapped Shortcuts → Push to Talk.")}
+            />
+            <PanelSectionRow>
+                <FocusTarget focusKey="options:mp-voice-sensitivity" style={buttonOuterStyle}>
+                    <SliderField
+                        label={t(state.language, "Mic Sensitivity")}
+                        value={state.mpVoiceSensitivity}
+                        min={1}
+                        max={3}
+                        step={1}
+                        notchCount={3}
+                        notchLabels={[
+                            { notchIndex: 0, label: t(state.language, "Low") },
+                            { notchIndex: 1, label: t(state.language, "Medium") },
+                            { notchIndex: 2, label: t(state.language, "High") }
+                        ]}
+                        notchTicksVisible
+                        layout="below"
+                        bottomSeparator="none"
+                        disabled={disabled || state.mpVoicePushToTalk}
+                        onChange={(value) => void actions.onChangeMpVoiceSensitivity(value)}
+                    />
+                </FocusTarget>
+            </PanelSectionRow>
         </>
     );
 }

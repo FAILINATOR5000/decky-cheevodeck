@@ -172,6 +172,7 @@ class HostLink:
         self._task = None
         self._tasks = set()
         self._closed = False
+        self._turn_wait = None
 
     async def open(self) -> bool:
         reader = await self._attach()
@@ -301,6 +302,32 @@ class HostLink:
                 self._request(message)
             elif op == "tunnel_ask":
                 self._tunnel(message)
+            elif op == "turn_ok":
+                self._turn_answer(message)
+
+    async def ask_turn(self, count: int):
+        if self._turn_wait is not None or not self.up:
+            return None
+        waiting = asyncio.get_running_loop().create_future()
+        self._turn_wait = waiting
+        try:
+            if not await self.send({"op": "turn", "n": count}):
+                return None
+            return await asyncio.wait_for(waiting, LEG_SECONDS)
+        except asyncio.TimeoutError:
+            return None
+        finally:
+            self._turn_wait = None
+
+    def _turn_answer(self, message: dict) -> None:
+        waiting = self._turn_wait
+        creds = message.get("creds")
+        if waiting is None or waiting.done() or not isinstance(creds, list) or len(creds) > proto.MAX_SEATS + 1:
+            return
+        kept = [{"u": cred["u"], "p": cred["p"], "ttl": cred["ttl"]} for cred in creds
+                if isinstance(cred, dict) and proto.is_turn_user(cred.get("u")) and proto.is_turn_password(cred.get("p"))
+                and type(cred.get("ttl")) is int and 60 <= cred["ttl"] < 2 ** 31]
+        waiting.set_result(kept)
 
     def _request(self, message: dict) -> None:
         rid, peer, inner = message.get("rid"), message.get("peer"), message.get("frame")

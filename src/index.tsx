@@ -17,6 +17,8 @@ import { registerMemoryCapture, unregisterMemoryCapture } from "./components/mem
 import { registerMemoryFullscreen, unregisterMemoryFullscreen } from "./components/memories/memoryFullscreen";
 import { registerMultiplayerSession, unregisterMultiplayerSession } from "./utils/multiplayerSession";
 import { registerMultiplayerRoomState, unregisterMultiplayerRoomState } from "./utils/multiplayerRoomState";
+import { registerVoiceChat, unregisterVoiceChat } from "./utils/voiceChat";
+import { registerGameVolume, unregisterGameVolume } from "./utils/gameVolume";
 import { closeBrowserForUnload } from "./components/browser/BrowserModal";
 import { releaseWebBrowserActionset } from "./components/browser/browserViewHost";
 import { registerBrowserDownloads, unregisterBrowserDownloads } from "./components/browser/browserDownloads";
@@ -91,6 +93,8 @@ export default definePlugin(() => {
     registerMemoryCapture();
     registerMultiplayerSession();
     registerMultiplayerRoomState();
+    registerVoiceChat();
+    registerGameVolume();
     registerMemoryFullscreen();
 
     return {
@@ -100,6 +104,7 @@ export default definePlugin(() => {
         icon: <FaTrophy />,
         onDismount() {
             disposed = true;
+            unregisterGameVolume();
             removeEventListener(NOTIFICATION_EVENT, onNotificationToast);
             removeEventListener(AVATAR_HEALED_EVENT, onAvatarHealed);
             stopMilestoneKinds?.();
@@ -111,6 +116,7 @@ export default definePlugin(() => {
             unregisterScreenDarken();
             unregisterMemoryCapture();
             unregisterMultiplayerSession();
+            unregisterVoiceChat();
             unregisterMultiplayerRoomState();
             unregisterMemoryFullscreen();
             closeBrowserForUnload();

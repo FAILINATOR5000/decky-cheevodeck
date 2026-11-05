@@ -308,6 +308,8 @@ export const MAP_SHORTCUTS_FOCUS_KEY = shortcutRowFocusKey(SHORTCUT_BUTTONS[0].i
 
 const GLOBAL_SHORTCUT_BUTTONS: readonly ShortcutButton[] = ["l4", "l5", "r4", "r5", ...MENU_COMBOS.map((combo) => combo.id)];
 
+const HOLD_BUTTONS: readonly ShortcutButton[] = ["l4", "l5", "r4", "r5"];
+
 export const GLOBAL_SHORTCUT_ACTIONS: readonly ShortcutAction[] = [
     "browser",
     "calculator",
@@ -392,7 +394,8 @@ const SHORTCUT_ACTIONS: { id: ShortcutAction; labelKey: string; category: Shortc
     { id: "batterySaver", labelKey: "Standby", category: "toggles" },
     { id: "darkenScreen", labelKey: "Darken Screen", category: "toggles" },
     { id: "mouseKeyboardMode", labelKey: "Mouse & Keyboard Mode", category: "toggles" },
-    { id: "cycleUiScale", labelKey: "Cycle UI Scale", category: "toggles" }
+    { id: "cycleUiScale", labelKey: "Cycle UI Scale", category: "toggles" },
+    { id: "pushToTalk", labelKey: "Push to Talk", category: "tools" }
 ];
 
 export const DEFAULT_SHORTCUT_BINDINGS: Record<ShortcutButton, ShortcutAction> = {
@@ -465,6 +468,9 @@ export function shortcutActionLabel(value: ShortcutAction, language: LanguageCod
 
 function actionsForButton(button: ShortcutButton, current: ShortcutAction, showDeveloperOptions: boolean) {
     return SHORTCUT_ACTIONS.filter((action) => {
+        if (action.id === "pushToTalk") {
+            return HOLD_BUTTONS.includes(button);
+        }
         if (action.id !== "snapshot") {
             return true;
         }

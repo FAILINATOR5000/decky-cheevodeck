@@ -4,8 +4,10 @@ import { useState } from "react";
 import { FocusTarget } from "../ui/FocusTarget";
 import { SectionTitle } from "../ui/SectionTitle";
 import { t, type LanguageCode } from "../../locales";
-import { achievementGreen, bodyTextStyle, errorRed, masteredGold } from "../../utils/style";
+import { achievementGreen, bodyTextStyle, errorRed, masteredGold, warnAmber } from "../../utils/style";
+import type { VoiceMine } from "../../utils/voiceChat";
 import { PicAvatar } from "./PicAvatar";
+import { MutedPlayerIcon, OwnMicIcon } from "./VoiceIcons";
 
 type RoomTableSeat = {
     name: string;
@@ -15,6 +17,14 @@ type RoomTableSeat = {
     activity?: "game" | "watch" | "";
     avatar?: string;
     open: boolean;
+};
+
+export type RoomTableVoice = {
+    own: number;
+    mine: VoiceMine;
+    available: boolean;
+    speaking: boolean;
+    seats: Record<number, { speaking: boolean; mutedByMe: boolean; failed: boolean }>;
 };
 
 const AVATAR_PX = 24;
@@ -28,8 +38,11 @@ export function RoomTable(props: {
     seats: RoomTableSeat[];
     onSeat: (index: number) => void;
     exitKey: string;
+    voice?: RoomTableVoice;
+    onMic?: () => void;
+    onFocusSeat?: (index: number) => void;
 }) {
-    const { language, seats } = props;
+    const { language, seats, voice } = props;
     const [focused, setFocused] = useState(-1);
 
     function heirs(index: number): string[] {
@@ -49,6 +62,13 @@ export function RoomTable(props: {
                             t(language, seat.tag === "host" ? "Host" : "Guest"),
                             t(language, seat.activity === "game" ? "In-Game" : seat.activity === "watch" ? "Watching" : "In-Lobby")
                         ].join(" · ") : "";
+                        const own = voice !== undefined && index === voice.own;
+                        const heard = voice?.seats[index];
+                        const voiceIcon = !voice || !seat.name ? null
+                            : own ? <OwnMicIcon mine={voice.mine} available={voice.available} />
+                                : heard?.failed ? <span style={{ color: warnAmber, fontWeight: 800 }}>!</span>
+                                    : heard?.mutedByMe ? <MutedPlayerIcon /> : null;
+                        const speaking = own ? Boolean(voice?.speaking && voice.mine === "on") : Boolean(heard?.speaking);
                         const rowStyle = {
                             display: "grid",
                             gridTemplateColumns: "auto auto 1fr",
@@ -68,7 +88,11 @@ export function RoomTable(props: {
                                     <span style={{ ...bodyTextStyle(), minWidth: "1em", textAlign: "right" }}>{index + 1}</span>
                                 )}
                                 {seat.name ? (
-                                    <div style={{ alignSelf: "start" }}>
+                                    <div
+                                        style={voice
+                                            ? { alignSelf: "start", borderRadius: "6px", boxShadow: speaking ? `0 0 0 2px ${achievementGreen}` : undefined }
+                                            : { alignSelf: "start" }}
+                                    >
                                         <PicAvatar uri={seat.avatar} name={seat.name} size={AVATAR_PX} />
                                     </div>
                                 ) : <span />}
@@ -80,7 +104,14 @@ export function RoomTable(props: {
                                     >
                                         {seat.name || t(language, "Waiting for player...")}
                                     </span>
-                                    {seat.name && seat.game && (
+                                    {voiceIcon ? (
+                                        <span style={{ display: "flex", alignItems: "center", gap: "5px", minWidth: 0 }}>
+                                            <span style={{ ...bodyTextStyle(), opacity: 1, flexShrink: 0, display: "flex" }}>{voiceIcon}</span>
+                                            {seat.game && (
+                                                <span style={{ ...bodyTextStyle(), overflowWrap: "anywhere", minWidth: 0 }}>{seat.game}</span>
+                                            )}
+                                        </span>
+                                    ) : seat.name && seat.game && (
                                         <span style={{ ...bodyTextStyle(), overflowWrap: "anywhere" }}>{seat.game}</span>
                                     )}
                                     {tags && <span style={bodyTextStyle()}>{tags}</span>}
@@ -92,9 +123,15 @@ export function RoomTable(props: {
                                 <Focusable
                                     focusable
                                     noFocusRing
-                                    onActivate={seat.open ? () => props.onSeat(index) : undefined}
-                                    onGamepadFocus={() => setFocused(index)}
-                                    onGamepadBlur={() => setFocused((current) => (current === index ? -1 : current))}
+                                    onActivate={own ? props.onMic : seat.open ? () => props.onSeat(index) : undefined}
+                                    onGamepadFocus={() => {
+                                        setFocused(index);
+                                        props.onFocusSeat?.(index);
+                                    }}
+                                    onGamepadBlur={() => {
+                                        setFocused((current) => (current === index ? -1 : current));
+                                        props.onFocusSeat?.(-1);
+                                    }}
                                     style={{
                                         ...rowStyle,
                                         borderRadius: "4px",

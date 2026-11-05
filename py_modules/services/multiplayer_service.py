@@ -10,6 +10,7 @@ import select
 import shutil
 import signal
 import socket
+import stat
 import subprocess
 import threading
 import time
@@ -48,6 +49,14 @@ SEEN_NONCES_MAX = 4096
 
 POLL_SECONDS = 2
 POLL_BACKOFF_SECONDS = 5
+VOICE_POLL_SECONDS = 0.4
+VOICE_FAST_SECONDS = 8
+VOICE_PER_SEAT = 24
+VOICE_RATE_SECONDS = 60
+TURN_PORT = 3478
+TURN_DEBOUNCE_SECONDS = 2
+TURN_RENEW_SECONDS = 7200
+TURN_RETRY_SECONDS = 60
 SEAT_SILENCE_SECONDS = 30
 SEAT_FREE_SECONDS = 90
 ADDRESS_GRACE_SECONDS = 60
@@ -73,6 +82,15 @@ BAD_TAGS_PER_ROOM = 10
 
 SESSION_DIR = "multiplayer"
 RESTORE_RECORD = "multiplayer_restore.json"
+GAME_VOLUME_RECORD = "game_volume.json"
+GAME_VOLUME_APP_MAX = 128
+GAME_AUDIO_KEYS = ("application.id", "application.name")
+WIREPLUMBER_STATE = ".local/state/wireplumber/stream-properties"
+WIREPLUMBER_ESCAPES = {"s": " ", "e": "=", "o": "[", "c": "]", "\\": "\\"}
+LEVEL_SLACK = 0.01
+PUT_BACK_SECONDS = 3.0
+WIREPLUMBER_STATE_MAX = 1 << 20
+SILENCE_BYTES = 32768
 RESTORE_SCHEMA = 1
 
 DESKTOP_TOOLS = ("emudeck", "srm")
@@ -87,6 +105,9 @@ SAVE_BACKUPS_KEPT = 5
 
 SESSION_EVENT = "multiplayer_session"
 ROOM_EVENT = "multiplayer_room"
+VOICE_EVENT = "multiplayer_voice"
+VOICE_DEBUG_EVENT = "multiplayer_voice_debug"
+VOICE_CANCELLER_EVENT = "multiplayer_voice_canceller"
 
 ARGV_SECONDS = 15
 SETTLE_SECONDS = 5
@@ -197,12 +218,14 @@ class MultiplayerService:
     def __init__(
         self, *, settings_store, game_mode, user_home, runtime_dir, cheevo_check_service, cheevo_check_store,
         port: int = proto.PORT, peer_port: int = proto.PORT,
-        broadcast: str = "255.255.255.255", bin_dir=None,
+        broadcast: str = "255.255.255.255", bin_dir=None, voice_canceller=None,
     ):
         self._settings_store = settings_store
+        self._voice_canceller = voice_canceller
         self._game_mode = game_mode
         self._user_home = Path(user_home)
         self._session_dir = Path(runtime_dir) / SESSION_DIR
+        self._volume_lock = threading.Lock()
         self._cheevo_check = cheevo_check_service
         self._cheevo_check_store = cheevo_check_store
         self._port = port
@@ -266,6 +289,7 @@ class MultiplayerService:
         self._host_tunnels = lobby_tunnel.HostTunnels(debug=self._debug)
         self._guest_tunnels = None
         self._friends = None
+        self._voice_relay = False
 
     def set_friends(self, friends) -> None:
         self._friends = friends
@@ -383,6 +407,8 @@ class MultiplayerService:
         for task in list(self._tasks):
             task.cancel()
         self._stop_rmg_server()
+        if self._voice_canceller is not None:
+            self._voice_canceller.shutdown()
         self.close()
 
     def settle(self, seconds: float) -> None:
@@ -518,7 +544,8 @@ class MultiplayerService:
                                "ready": bool(seat) and index > 0 and self._seat_ready(room, seat)}
                               for index, seat in enumerate(room["seats"])],
                     "rev": room["rev"], "round": room["round"], "state": self._public_state(room),
-                    "chat": dict(room["chat"][-1]) if room["chat"] else None, "lobby": self._lobby_state()}
+                    "chat": dict(room["chat"][-1]) if room["chat"] else None, "lobby": self._lobby_state(),
+                    "voice": self._voice_view()}
         joined = self._joined
         if joined is not None:
             status = joined["status"] or {}
@@ -532,9 +559,31 @@ class MultiplayerService:
                     "rev": status.get("rev", 0), "round": status.get("round", 0),
                     "state": status.get("state", "lobby"),
                     "chat": dict(joined["chat"][-1]) if joined["chat"] else None,
-                    "autostart": self._pending_start(joined)}
+                    "autostart": self._pending_start(joined), "voice": self._voice_view()}
         return {"role": None, "title": "", "host": "", "seated": 0, "error": "", "seat": 0, "ready": False,
-                "seats": [], "rev": 0, "round": 0, "state": "lobby", "chat": None}
+                "seats": [], "rev": 0, "round": 0, "state": "lobby", "chat": None, "voice": None}
+
+    def _voice_view(self):
+        room = self._room
+        if room is not None:
+            if not room["voice"]:
+                return None
+            return {"room": room["id"], "game": room["gameId"], "where": room["where"], "access": _access(room),
+                    "cfg": f"{room['turnSeq']}:{int(self._voice_relay)}",
+                    "seats": [{"vc": seat.get("vc", False), "vs": seat.get("vstamp", 0)} if seat else None
+                              for seat in room["seats"]]}
+        joined = self._joined
+        if joined is None or not joined["row"]["voice"]:
+            return None
+        status = joined["status"] or {}
+        members = status.get("members") or []
+        flags = status.get("seats") or []
+        local = joined["local"]
+        return {"room": joined["row"]["room"], "game": local["gameId"] if local is not None else joined["row"]["gameId"],
+                "where": joined["row"]["where"], "access": _access(joined["row"]),
+                "cfg": f"{joined['turnSeq']}:{int(self._voice_relay)}",
+                "seats": [{"vc": flags[index]["vc"], "vs": flags[index]["vs"]} if name and index < len(flags) else None
+                          for index, name in enumerate(members)]}
 
     def _lobby_state(self) -> str:
         if self._link is None:
@@ -1521,7 +1570,7 @@ class MultiplayerService:
 
     async def host(self, mode: str, game_id: int, hardcore: bool, core: str = "", share: bool = False,
                    name: str = "", size: int = proto.DEFAULT_SEATS, password: str = "", status: str = "",
-                   where: str = "local", watch: bool = False, friends: bool = False) -> dict:
+                   where: str = "local", watch: bool = False, friends: bool = False, voice: bool = False) -> dict:
         async with self._lock:
             refused = self._refusal()
             if refused is not None:
@@ -1573,9 +1622,17 @@ class MultiplayerService:
                 "owner": ulid if friends else "",
                 "share": bool(share),
                 "watch": bool(watch) and mode == "couch",
+                "voice": bool(voice),
                 "max": seats,
-                "seats": [{"name": user, "host": True, "said": 0.0, "ulid": ulid, "pic": pic}] + [None] * (seats - 1),
+                "seats": [{"name": user, "host": True, "said": 0.0, "ulid": ulid, "pic": pic, "vc": False,
+                           "vstamp": 1}] + [None] * (seats - 1),
                 "inboxSeq": 0,
+                "stampSeq": 1,
+                "voiceSeq": 0,
+                "turn": {},
+                "turnSeq": 0,
+                "turnAsk": None,
+                "turnAfter": 0.0,
                 "passesUsed": set(),
                 "state": "lobby",
                 "rev": 1,
@@ -1644,7 +1701,7 @@ class MultiplayerService:
             "gameCode": local["gameCode"],
         }
 
-    async def room_options(self, hardcore=None, core=None, share=None, watch=None) -> dict:
+    async def room_options(self, hardcore=None, core=None, share=None, watch=None, voice=None) -> dict:
         room = self._room
         joined = self._joined
         if room is None and joined is not None and hardcore is not None:
@@ -1652,6 +1709,11 @@ class MultiplayerService:
             return {"ok": True}
         if room is None:
             return {"ok": False, "error": ERROR_NO_ROOM}
+        if voice is not None:
+            if bool(voice) != room["voice"]:
+                self._set_room_voice(room, bool(voice))
+            if hardcore is None and core is None and share is None and watch is None:
+                return {"ok": True, "room": self._host_view(room)}
         if room["state"] != "lobby":
             return {"ok": False, "error": ERROR_SEATED}
         if core is not None and core != room["core"]:
@@ -1669,6 +1731,17 @@ class MultiplayerService:
         if changed:
             self._changed(room)
         return {"ok": True, "room": self._host_view(room)}
+
+    def _set_room_voice(self, room: dict, on: bool) -> None:
+        room["voice"] = on
+        if not on:
+            for seat in room["seats"]:
+                if seat is not None:
+                    seat["vc"] = False
+                    if "vq" in seat:
+                        seat["vq"] = []
+        decky.logger.info("multiplayer: voice chat turned %s for the room", "on" if on else "off")
+        self._announce()
 
     def _changed(self, room: dict) -> None:
         room["rev"] += 1
@@ -1730,6 +1803,7 @@ class MultiplayerService:
         room["bannedDevices"].add(dropped["device"])
         room["seats"][seat] = None
         self._host_tunnels.close_seat(seat)
+        self._voice_forget(room, seat)
         room["notice"] = None
         self._roster_left(room, seat)
         self._announce()
@@ -1778,6 +1852,7 @@ class MultiplayerService:
             "friends": room["friends"],
             "share": room["share"],
             "watch": room["watch"],
+            "voice": room["voice"],
             "max": room["max"],
             "seats": [
                 None if seat is None
@@ -1840,6 +1915,7 @@ class MultiplayerService:
                 room["freed"][index] = seat["key"]
                 room["seats"][index] = None
                 self._host_tunnels.close_seat(index)
+                self._voice_forget(room, index)
                 self._toast_seat(seat["name"], "Left Room", "{{name}} left.")
                 self._roster_left(room, index)
 
@@ -1869,6 +1945,7 @@ class MultiplayerService:
                 self._session = None
                 self._remove_session_files(current["id"])
             self._back_to_lobby(room, ERROR_LAUNCH_FAILED)
+        self._want_turn(room)
         if room["state"] != "lobby" and self._public_state(room) == "playing":
             if room["playingSince"] is None:
                 room["playingSince"] = now
@@ -2086,7 +2163,12 @@ class MultiplayerService:
             "gameId": 0,
             "since": 0,
             "said": 0.0,
+            "vc": False,
+            "vstamp": room["stampSeq"] + 1,
+            "vq": [],
+            "vtimes": deque(),
         }
+        room["stampSeq"] += 1
         if invite is not None:
             room["passesUsed"].add(invite)
         await conversation.say({"ok": True, "seat": seat, "ip": address,
@@ -2166,6 +2248,7 @@ class MultiplayerService:
         if op == "leave":
             room["seats"][index] = None
             self._host_tunnels.close_seat(index)
+            self._voice_forget(room, index)
             decky.logger.info("multiplayer: seat %s left", index)
             await conversation.say({"ok": True})
             self._toast_seat(seat["name"], "Left Room", "{{name}} left.")
@@ -2176,6 +2259,10 @@ class MultiplayerService:
         seat["since"] = proto.chat_since(message.get("p"))
         delivered = proto.inbox_since(message.get("p"))
         seat["inbox"] = [item for item in seat["inbox"] if item["seq"] > delivered]
+        self._take_voice_flags(room, index, seat, message.get("p"))
+        if op == "voice":
+            await conversation.say(self._seat_voice(room, index, seat, message.get("p"), now))
+            return
         if op == "friend":
             await conversation.say({"ok": self._seat_friend(room, index, seat, message.get("p"))})
             return
@@ -2221,6 +2308,204 @@ class MultiplayerService:
             item["n"] = secrets.token_hex(16)
             item["k"] = proto.wrap(target["key"], "pair", item["n"], key)
         target["inbox"] = (target["inbox"] + [item])[-proto.INBOX_MAX:]
+
+    def _take_voice_flags(self, room: dict, index: int, seat: dict, raw) -> None:
+        delivered = proto.voice_since(raw)
+        seat["vq"] = [item for item in seat["vq"] if item["n"] > delivered]
+        wanted = proto.voice_wanted(raw) and room["voice"]
+        if wanted == seat["vc"]:
+            return
+        seat["vc"] = wanted
+        if not wanted:
+            self._voice_forget(room, index)
+        else:
+            self._want_turn(room)
+        self._debug("voice: seat %s %s", index, "joined" if wanted else "left")
+        self._announce()
+
+    def _seat_voice(self, room: dict, index: int, seat: dict, raw, now: float) -> dict:
+        if not room["voice"]:
+            return {"ok": False, "error": "off"}
+        times = seat["vtimes"]
+        while times and now - times[0] > VOICE_RATE_SECONDS:
+            times.popleft()
+        if len(times) >= VOICE_PER_SEAT:
+            self._debug("voice: seat %s is sending too fast", index)
+            return {"ok": False, "error": "rate"}
+        times.append(now)
+        item = proto.read_voice_send(raw)
+        if item is None:
+            return {"ok": False, "error": "seat"}
+        to = item["to"]
+        target = room["seats"][to] if to < room["max"] else None
+        if to == index or target is None or not seat["vc"] or not target.get("vc"):
+            return {"ok": False, "error": "seat"}
+        sent = {"from": index, "vs": seat["vstamp"], "kind": item["kind"], "sdp": item["sdp"], "gen": item["gen"]}
+        self._debug("voice: %s from seat %s to seat %s, gen %s", item["kind"], index, to, item["gen"])
+        if to == 0:
+            self._emit(sent, VOICE_EVENT)
+        else:
+            self._push_voice(room, target, sent)
+        return {"ok": True}
+
+    def _push_voice(self, room: dict, target: dict, item: dict) -> None:
+        room["voiceSeq"] += 1
+        queue = target["vq"]
+        if item["kind"] == "offer":
+            queue = [old for old in queue if not (old["from"] == item["from"] and old["kind"] == "offer")]
+        elif item["kind"] == "bye":
+            queue = [old for old in queue if old["from"] != item["from"]]
+        target["vq"] = (queue + [{**item, "n": room["voiceSeq"]}])[-proto.VOICE_INBOX_MAX:]
+
+    def _voice_forget(self, room: dict, index: int) -> None:
+        for seat in room["seats"]:
+            if seat is not None and "vq" in seat:
+                seat["vq"] = [item for item in seat["vq"] if item["from"] != index]
+
+    def voice_join(self, on: bool) -> dict:
+        room = self._room
+        if room is not None:
+            own = room["seats"][0]
+            wanted = bool(on) and room["voice"]
+            if wanted != own["vc"]:
+                own["vc"] = wanted
+                if not wanted:
+                    self._voice_forget(room, 0)
+                else:
+                    self._want_turn(room)
+                decky.logger.info("multiplayer: %s voice chat", "joined" if wanted else "left")
+                self._watch_output(wanted)
+                self._announce()
+            return {"ok": True, "on": wanted}
+        joined = self._joined
+        if joined is None:
+            return {"ok": False, "error": ERROR_NO_ROOM}
+        wanted = bool(on) and joined["row"]["voice"]
+        if wanted != joined["vc"]:
+            joined["vc"] = wanted
+            joined["fastUntil"] = time.monotonic() + VOICE_FAST_SECONDS
+            decky.logger.info("multiplayer: %s voice chat", "joined" if wanted else "left")
+            self._watch_output(wanted)
+            self._spawn(self._poll_once(joined))
+        return {"ok": True, "on": wanted}
+
+    def _in_voice(self) -> bool:
+        room, joined = self._room, self._joined
+        if room is not None:
+            return bool(room["voice"] and room["seats"][0]["vc"])
+        return joined is not None and bool(joined["vc"])
+
+    def voice_canceller(self, on: bool) -> dict:
+        canceller = self._voice_canceller
+        if canceller is None:
+            return {"ok": True, "active": False, "duck": False, "kind": ""}
+        if not on:
+            canceller.stop()
+            return {"ok": True, "active": False, "duck": False, "kind": ""}
+        if not self._in_voice():
+            return {"ok": False, "error": ERROR_NO_ROOM}
+        state = canceller.start(self._in_voice, self._output_changed)
+        return {"ok": True, **state}
+
+    def _output_changed(self, reason: str, kind: str) -> None:
+        self._emit({"reason": reason, "output": kind}, VOICE_CANCELLER_EVENT)
+
+    def _watch_output(self, on: bool) -> None:
+        canceller = self._voice_canceller
+        loop = self._loop
+        if canceller is None or loop is None or loop.is_closed():
+            return
+        if on:
+            loop.run_in_executor(None, canceller.watch, self._in_voice, self._output_changed)
+        else:
+            loop.run_in_executor(None, canceller.close)
+
+    def voice_duck(self, on: bool, db=-12) -> dict:
+        canceller = self._voice_canceller
+        return {"ok": canceller is not None and canceller.duck(on, db)}
+
+    async def voice_send(self, to: int, kind: str, sdp: str, gen: int) -> dict:
+        item = proto.read_voice_send({"voice": {"to": to, "kind": kind, "sdp": sdp, "gen": gen}})
+        if item is None:
+            return {"ok": False, "error": "seat"}
+        room = self._room
+        if room is not None:
+            own = room["seats"][0]
+            target = room["seats"][to] if 0 < to < room["max"] else None
+            if not room["voice"]:
+                return {"ok": False, "error": "off"}
+            if target is None or not own["vc"] or not target.get("vc"):
+                return {"ok": False, "error": "seat"}
+            self._debug("voice: %s to seat %s, gen %s", kind, to, gen)
+            self._push_voice(room, target, {"from": 0, "vs": own["vstamp"], "kind": item["kind"], "sdp": item["sdp"],
+                                            "gen": item["gen"]})
+            return {"ok": True}
+        joined = self._joined
+        if joined is None:
+            return {"ok": False, "error": ERROR_NO_ROOM}
+        if not joined["vc"] or to == joined["seat"]:
+            return {"ok": False, "error": "seat"}
+        joined["fastUntil"] = time.monotonic() + VOICE_FAST_SECONDS
+        _nonce, reply = await self._ask(joined, "voice", {"voice": item})
+        if self._joined is joined:
+            self._spawn(self._poll_once(joined))
+        if isinstance(reply, dict) and reply.get("ok") is True:
+            return {"ok": True}
+        error = reply.get("error") if isinstance(reply, dict) else None
+        return {"ok": False, "error": error if error in ("rate", "seat", "off") else ERROR_HOST_GONE}
+
+    def voice_config(self) -> dict:
+        room, joined = self._room, self._joined
+        row = room if room is not None else joined["row"] if joined is not None else None
+        if row is None:
+            return {"ok": False, "error": ERROR_NO_ROOM}
+        if row["where"] != "online":
+            return {"ok": True, "servers": [], "policy": "all", "available": True}
+        server = self._lobby_server()
+        cred = room["turn"].get(0) if room is not None else joined["turn"]
+        relay = _access(row) == "public" or self._voice_relay
+        if server is None or (relay and cred is None):
+            return {"ok": True, "servers": [], "policy": "relay", "available": False}
+        servers = [] if relay else [{"urls": [f"stun:{server[0]}:{TURN_PORT}"]}]
+        if cred is not None:
+            servers.append({"urls": [f"turn:{server[0]}:{TURN_PORT}?transport=udp"], "username": cred["u"],
+                            "credential": cred["p"]})
+        return {"ok": True, "servers": servers, "policy": "relay" if relay else "all", "available": True}
+
+    def _want_turn(self, room: dict) -> None:
+        if (
+            room["where"] != "online" or not room["voice"] or self._link is None or room["turnAsk"] is not None
+            or time.monotonic() < room["turnAfter"]
+            or not any(seat is not None and seat.get("vc") for seat in room["seats"])
+        ):
+            return
+        held = room["turn"]
+        if held and min(cred["expires"] for cred in held.values()) - time.time() > TURN_RENEW_SECONDS:
+            return
+        room["turnAsk"] = self._spawn(self._mint_turn(room))
+
+    async def _mint_turn(self, room: dict) -> None:
+        try:
+            await asyncio.sleep(TURN_DEBOUNCE_SECONDS)
+            link = self._link
+            if self._room is not room or link is None:
+                return
+            creds = await link.ask_turn(room["max"])
+            if self._room is not room:
+                return
+            creds = [cred for cred in creds or [] if cred["u"].split(":")[1] == room["id"]]
+            if len(creds) < room["max"]:
+                room["turnAfter"] = time.monotonic() + TURN_RETRY_SECONDS
+                decky.logger.info("multiplayer: the online lobby gave no voice relay credentials")
+                return
+            renewed = bool(room["turn"])
+            room["turn"] = {index: {**cred, "expires": int(cred["u"].split(":")[0]), "n": secrets.token_hex(16)}
+                            for index, cred in enumerate(creds)}
+            room["turnSeq"] += 1
+            decky.logger.info("multiplayer: voice relay credentials %s", "renewed" if renewed else "ready")
+            self._announce()
+        finally:
+            room["turnAsk"] = None
 
     def _seat_pass(self, room: dict, seat: dict, nonce: str, raw) -> dict:
         ulid = raw.get("ulid") if isinstance(raw, dict) else None
@@ -2409,6 +2694,23 @@ class MultiplayerService:
                     for taken in room["seats"]],
             "inbox": list(seat["inbox"]),
         }
+        for position, taken in enumerate(room["seats"]):
+            if taken is not None:
+                body["seats"][position]["vc"] = taken.get("vc", False)
+                body["seats"][position]["vs"] = taken.get("vstamp", 0)
+        cred = room.get("turn", {}).get(index)
+        if cred is not None and seat.get("vc"):
+            body["turn"] = {"u": cred["u"], "p": proto.wrap_turn(seat["key"], cred["n"], cred["p"]), "ttl": cred["ttl"],
+                            "n": cred["n"]}
+        body["voice"] = []
+        queue = seat.get("vq", [])
+        if queue:
+            budget = proto.REPLY_BYTES - len(proto.canonical(body)) - proto.CHAT_REPLY_BYTES
+            if len(proto.canonical(queue[0])) + 1 > budget:
+                for entry in body["seats"]:
+                    entry["title"] = ""
+                budget = proto.REPLY_BYTES - len(proto.canonical(body)) - proto.CHAT_REPLY_BYTES
+            body["voice"] = proto.voice_page(queue, budget)
         if proto.REPLY_BYTES - len(proto.canonical(body)) < proto.CHAT_REPLY_BYTES // 2:
             for entry in body["seats"]:
                 entry["title"] = ""
@@ -2729,6 +3031,11 @@ class MultiplayerService:
                 "chat": [],
                 "chatSince": 0,
                 "fsince": 0,
+                "vc": False,
+                "vsince": 0,
+                "fastUntil": 0.0,
+                "turn": None,
+                "turnSeq": 0,
             }
             self._closed_reason = ""
             self._poller = self._spawn(self._poll(self._joined))
@@ -2802,7 +3109,12 @@ class MultiplayerService:
             except Exception as e:
                 decky.logger.warning("multiplayer: a status poll failed (%s)", type(e).__name__)
                 answered = False
-            await asyncio.sleep(POLL_SECONDS if answered else POLL_BACKOFF_SECONDS)
+            if not answered:
+                await asyncio.sleep(POLL_BACKOFF_SECONDS)
+            elif time.monotonic() < joined["fastUntil"]:
+                await asyncio.sleep(VOICE_POLL_SECONDS)
+            else:
+                await asyncio.sleep(POLL_SECONDS)
 
     async def _poll_once(self, joined: dict) -> bool:
         nonce, reply = await self._ask(joined, "status")
@@ -2862,6 +3174,23 @@ class MultiplayerService:
             if item["seq"] > joined["fsince"]:
                 joined["fsince"] = item["seq"]
                 self._inbox_item(joined, status, item)
+        allowed = status["room"]["voice"]
+        if allowed != joined["row"]["voice"]:
+            joined["row"] = {**joined["row"], "voice": allowed}
+            if not allowed and joined["vc"]:
+                joined["vc"] = False
+                decky.logger.info("multiplayer: the host turned voice chat off")
+        turn = status["turn"]
+        if turn is not None and turn["u"] != (joined["turn"] or {}).get("u"):
+            password = proto.unwrap_turn(joined["key"], turn["n"], turn["p"])
+            if password is not None:
+                joined["turn"] = {"u": turn["u"], "p": password}
+                joined["turnSeq"] += 1
+                self._debug("voice: a relay credential from the host")
+        heard = [item for item in status["voice"] if item["n"] > joined["vsince"]]
+        if heard:
+            joined["vsince"] = heard[-1]["n"]
+            joined["fastUntil"] = time.monotonic() + VOICE_FAST_SECONDS
         fresh = [entry for entry in status["chat"] if entry["seq"] > joined["chatSince"]]
         if fresh:
             joined["chat"] = (joined["chat"] + fresh)[-proto.CHAT_KEPT:]
@@ -2879,6 +3208,9 @@ class MultiplayerService:
         self._expire_ready(joined)
         self._follow_start(joined, status)
         self._announce()
+        for item in heard:
+            self._debug("voice: %s from seat %s, gen %s", item["kind"], item["from"], item["gen"])
+            self._emit({name: item[name] for name in ("from", "vs", "kind", "sdp", "gen")}, VOICE_EVENT)
 
     def _expire_ready(self, joined: dict) -> None:
         wall, mono = time.time(), time.monotonic()
@@ -3014,7 +3346,8 @@ class MultiplayerService:
 
     async def _ask(self, joined: dict, op: str, extra=None):
         nonce = secrets.token_hex(16)
-        payload = {**self._report(joined), "since": joined["chatSince"], "fsince": joined["fsince"], **(extra or {})}
+        payload = {**self._report(joined), "since": joined["chatSince"], "fsince": joined["fsince"],
+                   "vc": joined["vc"], "vsince": joined["vsince"], **(extra or {})}
         message = proto.make_tagged(joined["key"], op, joined["row"]["room"], joined["seat"], nonce, int(time.time()),
                                     payload)
         try:
@@ -3059,7 +3392,8 @@ class MultiplayerService:
             "room": dict(joined["row"]),
             "seat": joined["seat"],
             "ip": joined["ip"],
-            "status": {name: value for name, value in status.items() if name != "inbox"} if status else None,
+            "status": {name: value for name, value in status.items() if name not in ("inbox", "voice", "turn")}
+                      if status else None,
             "launched": joined["launched"],
             "error": joined["error"],
             "ready": joined["ready"],
@@ -3079,9 +3413,11 @@ class MultiplayerService:
     def room_status(self) -> dict:
         seq = self._event_seq
         if self._room is not None:
-            return {"ok": True, "seq": seq, "role": "host", "room": self._host_view(self._room)}
+            return {"ok": True, "seq": seq, "role": "host", "room": self._host_view(self._room),
+                    "voice": self._voice_view()}
         if self._joined is not None:
-            return {"ok": True, "seq": seq, "role": "guest", **self._guest_view(self._joined)}
+            return {"ok": True, "seq": seq, "role": "guest", **self._guest_view(self._joined),
+                    "voice": self._voice_view()}
         return {"ok": True, "seq": seq, "role": None, "closedReason": self._closed_reason,
                 "lobby": self._lobby_server() is not None}
 
@@ -3609,6 +3945,247 @@ class MultiplayerService:
         decky.logger.info("multiplayer: debug, Online rooms %s", "through the server" if on else "on the LAN when heard")
         return {"ok": True, "on": self._prefer_server}
 
+    def _pactl(self, *args):
+        try:
+            return subprocess_util.run_command(
+                ["pactl", *args], timeout=5, env=self._flatpak_env(), as_data_owner=True,
+            )
+        except Exception as e:
+            self._debug("game volume: pactl failed (%s)", type(e).__name__)
+            return 1, "", ""
+
+    def _sink_inputs(self):
+        code, out, _err = self._pactl("-f", "json", "list", "sink-inputs")
+        try:
+            rows = json.loads(out) if code == 0 else None
+        except ValueError:
+            rows = None
+        if not isinstance(rows, list):
+            return None
+        return [row for row in rows
+                if isinstance(row, dict) and type(row.get("index")) is int and isinstance(row.get("properties"), dict)]
+
+    def _game_stream_rows(self):
+        rows = self._sink_inputs()
+        if rows is None:
+            return None
+        streams = []
+        for row in rows:
+            props = row["properties"]
+            if props.get("application.process.binary") not in EMULATOR_NAMES:
+                continue
+            app = next((f"{key}:{props[key]}" for key in GAME_AUDIO_KEYS
+                        if isinstance(props.get(key), str) and props[key]), "")
+            if not app or len(app) > GAME_VOLUME_APP_MAX:
+                continue
+            channels = row.get("volume")
+            first = next(iter(channels.values()), None) if isinstance(channels, dict) and channels else None
+            value = first.get("value") if isinstance(first, dict) else None
+            streams.append({"id": row["index"], "app": app,
+                            "level": value / 65536 if type(value) is int else None})
+        return streams
+
+    def game_streams(self) -> dict:
+        streams = self._game_stream_rows()
+        if streams is None:
+            return {"ok": False}
+        return {"ok": True, "streams": [{"id": stream["id"], "app": stream["app"]} for stream in streams]}
+
+    def _game_volume_records(self) -> dict:
+        raw = load_json_file(self._session_dir / GAME_VOLUME_RECORD, {})
+        if not isinstance(raw, dict):
+            return {}
+        records = {}
+        for app, row in raw.items():
+            if not _game_audio_key(app) or not isinstance(row, dict):
+                continue
+            original = row.get("original")
+            level = row.get("set")
+            if _volume_level(original) and _volume_level(level):
+                records[app] = {"original": float(original), "set": float(level)}
+        return records
+
+    def _save_game_volume_records(self, records: dict) -> bool:
+        path = self._session_dir / GAME_VOLUME_RECORD
+        try:
+            if records:
+                ensure_dir(self._session_dir)
+                self._write(path, json.dumps(records))
+            else:
+                path.unlink(missing_ok=True)
+        except OSError as e:
+            decky.logger.warning("multiplayer: couldn't keep the game volume record (%s)", type(e).__name__)
+            return False
+        return True
+
+    def game_volume_records(self) -> dict:
+        with self._volume_lock:
+            return {"ok": True, "records": self._game_volume_records()}
+
+    def game_volume_record(self, app, original, level) -> dict:
+        if not _game_audio_key(app):
+            return {"ok": False}
+        if original is not None and not (_volume_level(original) and _volume_level(level)):
+            return {"ok": False}
+        with self._volume_lock:
+            records = self._game_volume_records()
+            if original is None:
+                records.pop(app, None)
+                return {"ok": self._save_game_volume_records(records)}
+            held = records.get(app)
+            records[app] = {"original": held["original"] if held else float(original), "set": float(level)}
+            return {"ok": self._save_game_volume_records(records), "original": records[app]["original"]}
+
+    def _saved_game_level(self, app: str):
+        fd = os.open(self._user_home / WIREPLUMBER_STATE, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        try:
+            info = os.fstat(fd)
+            if not stat.S_ISREG(info.st_mode) or info.st_size > WIREPLUMBER_STATE_MAX:
+                raise OSError("not a plain file")
+            text = os.read(fd, WIREPLUMBER_STATE_MAX + 1).decode("utf-8", errors="replace")
+        finally:
+            os.close(fd)
+        for line in text.splitlines():
+            key, sep, body = line.partition("=")
+            if not sep or not key.startswith("Output/Audio:"):
+                continue
+            name = re.sub(r"\\(.)", lambda m: WIREPLUMBER_ESCAPES.get(m.group(1), m.group(0)), key[len("Output/Audio:"):])
+            if name != app:
+                continue
+            try:
+                volumes = json.loads(body).get("channelVolumes")
+            except (ValueError, AttributeError):
+                return None
+            if not isinstance(volumes, list) or not volumes or type(volumes[0]) not in (int, float):
+                return None
+            return max(0.0, float(volumes[0])) ** (1 / 3)
+        return None
+
+    def _saved_level_settles(self, app: str, wanted) -> bool:
+        deadline = time.monotonic() + PUT_BACK_SECONDS
+        while True:
+            try:
+                saved = self._saved_game_level(app)
+            except OSError:
+                saved = None
+            if saved is not None and any(abs(saved - level) <= LEVEL_SLACK for level in wanted):
+                return True
+            if time.monotonic() >= deadline:
+                return False
+            time.sleep(0.2)
+
+    def _save_game_level(self, app: str, level: float) -> bool:
+        prop, _sep, value = app.partition(":")
+        name = f"cheevodeck-restore-{secrets.token_hex(4)}"
+        argv = ["pacat", "--playback", "--raw", "--format=s16le", "--rate=48000", "--channels=2",
+                f"--property={prop}={value}", f"--stream-name={name}"]
+        if prop == "application.name":
+            argv.append(f"--client-name={value}")
+        owner = child_owner()
+        try:
+            proc = subprocess.Popen(
+                argv, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                env=self._flatpak_env(), user=owner[0] if owner else None, group=owner[1] if owner else None,
+                extra_groups=[] if owner and os.geteuid() == 0 else None,
+            )
+        except OSError as e:
+            decky.logger.warning("multiplayer: couldn't open the silent stream (%s)", type(e).__name__)
+            return False
+        try:
+            proc.stdin.write(bytes(SILENCE_BYTES))
+            proc.stdin.flush()
+            index = None
+            deadline = time.monotonic() + PUT_BACK_SECONDS
+            while index is None and proc.poll() is None and time.monotonic() < deadline:
+                time.sleep(0.2)
+                rows = self._sink_inputs() or []
+                index = next((row["index"] for row in rows if row["properties"].get("media.name") == name), None)
+            if index is None:
+                return False
+            code, _out, _err = self._pactl("set-sink-input-volume", str(index), str(round(level * 65536)))
+            return code == 0 and self._saved_level_settles(app, (level,))
+        except OSError:
+            return False
+        finally:
+            try:
+                proc.stdin.close()
+            except OSError:
+                pass
+            proc.kill()
+            try:
+                proc.wait(5)
+            except subprocess.TimeoutExpired:
+                pass
+
+    def put_back_game_volume(self, app, levels=()) -> dict:
+        if not _game_audio_key(app):
+            return {"ok": False}
+        with self._volume_lock:
+            records = self._game_volume_records()
+            record = records.get(app)
+            if record is None:
+                return {"ok": True}
+            streams = self._game_stream_rows()
+            if streams is None or any(stream["app"] == app for stream in streams):
+                return {"ok": False}
+            try:
+                saved = self._saved_game_level(app)
+            except OSError as e:
+                self._debug("game volume: couldn't read the saved levels (%s)", type(e).__name__)
+                return {"ok": False}
+            ours = [record["set"], *(level for level in levels if _volume_level(level))]
+            if saved is not None and abs(saved - record["original"]) > LEVEL_SLACK \
+                    and self._saved_level_settles(app, ours):
+                if not self._save_game_level(app, record["original"]):
+                    decky.logger.warning("multiplayer: couldn't put a game's volume back")
+                    return {"ok": False}
+                decky.logger.info("multiplayer: put a closed game's volume back")
+            records.pop(app, None)
+            return {"ok": self._save_game_volume_records(records)}
+
+    def put_back_game_volumes(self) -> dict:
+        try:
+            with self._volume_lock:
+                records = self._game_volume_records()
+            streams = self._game_stream_rows()
+            if streams is None:
+                return records
+            left = {}
+            for app, record in records.items():
+                playing = [stream for stream in streams if stream["app"] == app]
+                for stream in playing:
+                    if stream["level"] is not None and abs(stream["level"] - record["set"]) <= LEVEL_SLACK:
+                        code, _out, _err = self._pactl(
+                            "set-sink-input-volume", str(stream["id"]), str(round(record["original"] * 65536)))
+                        if code != 0:
+                            left[app] = record
+                if not playing and not self.put_back_game_volume(app)["ok"]:
+                    left[app] = record
+            return left
+        except Exception as e:
+            decky.logger.warning("multiplayer: couldn't put the game volumes back (%s)", type(e).__name__)
+            return {}
+
+    def keep_game_volume_records(self, records: dict) -> None:
+        if records:
+            with self._volume_lock:
+                self._save_game_volume_records(records)
+
+    def debug_voice(self, name: str, on: bool) -> dict:
+        try:
+            debugging = self._settings_store.get_debug_logging(self._settings_store.load_config())
+        except Exception:
+            debugging = False
+        if not debugging or name not in ("aec", "canceller", "steam", "relay", "limiter"):
+            return {"ok": False, "error": ERROR_UNAVAILABLE}
+        if name == "relay":
+            self._voice_relay = on
+            self._announce()
+        else:
+            self._emit({"name": name, "on": on}, VOICE_DEBUG_EVENT)
+        decky.logger.info("multiplayer: debug, voice %s %s", name, "on" if on else "off")
+        return {"ok": True, "on": on}
+
     def debug_processes(self) -> dict:
         try:
             on = self._settings_store.get_debug_logging(self._settings_store.load_config())
@@ -3705,6 +4282,23 @@ def _known(version: str) -> bool:
 
 def _lan_only(mode: str, local: dict) -> bool:
     return mode == "link" and (local["emulator"] == "dolphin" or local["core"] == session.PPSSPP_CORE)
+
+
+def _volume_level(value) -> bool:
+    return type(value) in (int, float) and 0 <= value <= 10
+
+
+def _game_audio_key(app) -> bool:
+    if not isinstance(app, str) or not 0 < len(app) <= GAME_VOLUME_APP_MAX:
+        return False
+    prop, sep, value = app.partition(":")
+    return bool(sep) and prop in GAME_AUDIO_KEYS and bool(value)
+
+
+def _access(room: dict) -> str:
+    if room.get("friends"):
+        return "friends"
+    return "private" if room.get("private") else "public"
 
 
 def _drop_in(room: dict) -> bool:

@@ -67,7 +67,7 @@ _TITLE_MAX = 64
 _CORE_NAME_MAX = 48
 _VERSION_MAX = 32
 
-TAGGED_OPS = ("status", "launched", "leave", "ready", "say", "friend", "pass")
+TAGGED_OPS = ("status", "launched", "leave", "ready", "say", "friend", "pass", "voice")
 
 CHAT_MAX = 120
 CHAT_KEPT = 50
@@ -75,6 +75,15 @@ CHAT_REPLY_BYTES = 1800
 REPLY_BYTES = MAX_FRAME_BYTES - 200
 
 _REASON = re.compile(r"[a-z0-9_]{0,32}")
+
+VOICE_KINDS = ("offer", "answer", "bye")
+VOICE_SDP_MAX = 6000
+VOICE_REPLY_BYTES = 9000
+VOICE_INBOX_MAX = 12
+_SDP = re.compile(r"v=0\r?\n[\x20-\x7e\r\n]*")
+_TURN_USER = re.compile(r"[0-9]{1,12}:[0-9a-f]{16}:[0-9]{1,3}")
+_TURN_PASS = re.compile(r"[A-Za-z0-9+/]{27}=")
+_TURN_WRAPPED = re.compile(r"[0-9a-f]{56}")
 
 
 def _clean(value, limit: int):
@@ -302,6 +311,7 @@ def room_body(room: dict, reveal: bool = False) -> dict:
         "owner": room.get("owner", ""),
         "share": room["share"],
         "watch": room.get("watch", False),
+        "voice": room.get("voice", False),
         "seats": [("?" if hidden and index > 0 else seat["name"]) if seat else ""
                   for index, seat in enumerate(room["seats"])],
         "max": room["max"],
@@ -402,6 +412,7 @@ def _room_fields(message):
         "owner": message["owner"] if message.get("friends") is True else "",
         "share": message["share"],
         "watch": message.get("watch") is True,
+        "voice": message.get("voice") is True,
         "seats": [_clean(seat, _USER_MAX) or "" for seat in seats],
         "max": count,
         "state": message["state"],
@@ -607,6 +618,8 @@ def read_status_reply(key: bytes, message, nonce: str):
         or not all(isinstance(entry, dict) for entry in message["ids"])
         or not isinstance(message.get("inbox"), list)
         or len(message["inbox"]) > INBOX_MAX
+        or not isinstance(message.get("voice", []), list)
+        or len(message.get("voice", [])) > VOICE_INBOX_MAX
     ):
         return None
     return {
@@ -620,7 +633,8 @@ def read_status_reply(key: bytes, message, nonce: str):
         "port": message["port"],
         "players": message["players"],
         "seats": [{"ready": seat["ready"], "can": seat["can"], "launched": seat["launched"],
-                   "playing": seat["playing"], "title": _clean(seat["title"], _TITLE_MAX)} for seat in seats],
+                   "playing": seat["playing"], "title": _clean(seat["title"], _TITLE_MAX),
+                   "vc": seat.get("vc") is True, "vs": _stamp(seat.get("vs"))} for seat in seats],
         "lastStart": None if last is None else {"round": last["round"], "ok": last["ok"], "error": last["error"]},
         "room": room,
         "chat": [{"seq": entry["seq"], "name": _clean(entry["name"], _USER_MAX) or "",
@@ -628,6 +642,8 @@ def read_status_reply(key: bytes, message, nonce: str):
         "ids": [{"ulid": entry["ulid"] if is_ulid(entry.get("ulid")) else "", "pic": clean_pic(entry.get("pic"))}
                 for entry in message["ids"]],
         "inbox": [item for item in (read_inbox_item(raw) for raw in message["inbox"]) if item is not None],
+        "voice": [item for item in (read_voice_item(raw) for raw in message.get("voice", [])) if item is not None],
+        "turn": read_turn(message.get("turn")),
     }
 
 
@@ -685,3 +701,100 @@ def _last_start_ok(last) -> bool:
         and isinstance(last.get("error"), str)
         and _REASON.fullmatch(last["error"]) is not None
     )
+
+
+def _stamp(value) -> int:
+    return value if type(value) is int and 0 <= value < 2 ** 31 else 0
+
+
+def _voice_sdp_ok(kind: str, sdp) -> bool:
+    if not isinstance(sdp, str):
+        return False
+    if kind == "bye":
+        return sdp == ""
+    return len(sdp) <= VOICE_SDP_MAX and _SDP.fullmatch(sdp) is not None
+
+
+def read_voice_send(raw):
+    item = raw.get("voice") if isinstance(raw, dict) else None
+    if not isinstance(item, dict):
+        return None
+    to, kind, gen = item.get("to"), item.get("kind"), item.get("gen")
+    if (
+        type(to) is not int or not 0 <= to < MAX_SEATS
+        or kind not in VOICE_KINDS
+        or type(gen) is not int or not 0 <= gen < 2 ** 31
+        or not _voice_sdp_ok(kind, item.get("sdp"))
+    ):
+        return None
+    return {"to": to, "kind": kind, "sdp": item["sdp"], "gen": gen}
+
+
+def read_voice_item(raw):
+    if not isinstance(raw, dict):
+        return None
+    n, sender, kind, gen = raw.get("n"), raw.get("from"), raw.get("kind"), raw.get("gen")
+    if (
+        type(n) is not int or not 0 < n < 2 ** 31
+        or type(sender) is not int or not 0 <= sender < MAX_SEATS
+        or kind not in VOICE_KINDS
+        or type(gen) is not int or not 0 <= gen < 2 ** 31
+        or not _voice_sdp_ok(kind, raw.get("sdp"))
+    ):
+        return None
+    return {"n": n, "from": sender, "vs": _stamp(raw.get("vs")), "kind": kind, "sdp": raw["sdp"], "gen": gen}
+
+
+def voice_since(raw) -> int:
+    since = raw.get("vsince") if isinstance(raw, dict) else None
+    return since if type(since) is int and 0 <= since < 2 ** 31 else 0
+
+
+def voice_wanted(raw) -> bool:
+    return isinstance(raw, dict) and raw.get("vc") is True
+
+
+def voice_page(queue: list, limit: int) -> list:
+    page, size = [], 0
+    for item in queue:
+        size += len(canonical(item)) + 1
+        if size > min(limit, VOICE_REPLY_BYTES):
+            break
+        page.append(item)
+    return page
+
+
+def wrap_turn(key: bytes, nonce: str, password: str) -> str:
+    raw = password.encode("ascii")
+    mask = hmac.new(key, f"wrap|turn|{nonce}".encode("ascii"), hashlib.sha256).digest()
+    return bytes(a ^ b for a, b in zip(raw, mask[:len(raw)], strict=True)).hex()
+
+
+def unwrap_turn(key: bytes, nonce: str, wrapped):
+    if not isinstance(wrapped, str) or _TURN_WRAPPED.fullmatch(wrapped) is None:
+        return None
+    mask = hmac.new(key, f"wrap|turn|{nonce}".encode("ascii"), hashlib.sha256).digest()
+    try:
+        password = bytes(a ^ b for a, b in zip(bytes.fromhex(wrapped), mask[:28], strict=True)).decode("ascii")
+    except UnicodeDecodeError:
+        return None
+    return password if _TURN_PASS.fullmatch(password) else None
+
+
+def is_turn_user(value) -> bool:
+    return isinstance(value, str) and _TURN_USER.fullmatch(value) is not None
+
+
+def is_turn_password(value) -> bool:
+    return isinstance(value, str) and _TURN_PASS.fullmatch(value) is not None
+
+
+def read_turn(raw):
+    if not isinstance(raw, dict):
+        return None
+    ttl, nonce = raw.get("ttl"), raw.get("n")
+    if not is_turn_user(raw.get("u")) or type(ttl) is not int or not 0 < ttl < 2 ** 31 or not is_nonce(nonce):
+        return None
+    if not isinstance(raw.get("p"), str):
+        return None
+    return {"u": raw["u"], "p": raw["p"], "ttl": ttl, "n": nonce}

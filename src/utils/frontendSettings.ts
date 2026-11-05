@@ -34,6 +34,7 @@ import {
 import { setSnapshotHotkey } from "./snapshotHotkey";
 import { setStormbreakerEnabled, setStormbreakerGameMode } from "./stormbreaker";
 import { setPhantomMouseGuardGameMode } from "./phantomMouseGuard";
+import { setVoiceSettings } from "./voiceChat";
 
 const STARTUP_TRIES = 3;
 
@@ -75,6 +76,7 @@ export function applyFrontendSettings(settings: SettingsResponse): void {
     setCurrentLastConsoleId(settings.lastConsoleId);
     setModalAutoCleanup(settings.deferModalCleanup);
     setAccurateAvatarDebug(settings.debugLogging);
+    setVoiceSettings(settings);
     applyGameArtCacheCap(settings.gameArtCacheCap);
     applyAvatarCacheCap(settings.avatarCacheCap);
     applyAchievementIconCacheGames(settings.achievementIconCacheGames);

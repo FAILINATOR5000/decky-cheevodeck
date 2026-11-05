@@ -702,7 +702,8 @@ export type ShortcutAction =
     | "batterySaver"
     | "darkenScreen"
     | "mouseKeyboardMode"
-    | "cycleUiScale";
+    | "cycleUiScale"
+    | "pushToTalk";
 
 export type TrackedTab = "thisGame" | "otherGames" | "addAllMissable" | "applyTag" | "clear";
 
@@ -870,6 +871,8 @@ export type SettingsResponse = {
     mpShowOnline: boolean;
     mpSuggestFriends: boolean;
     mpShortcutFallback: boolean;
+    mpVoicePushToTalk: boolean;
+    mpVoiceSensitivity: number;
     playShortcutFallback: boolean;
     lobbyServer: string;
     automaticRecovery: boolean;
@@ -2971,6 +2974,7 @@ export type MultiplayerRoomRow = {
     owner: string;
     share: boolean;
     watch: boolean;
+    voice: boolean;
     seats: string[];
     max: number;
     state: "lobby" | "playing";
@@ -3013,6 +3017,7 @@ export type MultiplayerHostedRoom = {
     friends: boolean;
     share: boolean;
     watch: boolean;
+    voice: boolean;
     max: number;
     seats: MultiplayerSeat[];
     state: "lobby" | "starting" | "playing";
@@ -3041,7 +3046,7 @@ type MultiplayerGuestStatus = {
 };
 
 export type MultiplayerRoomStatus =
-    | { ok: true; seq: number; role: "host"; room: MultiplayerHostedRoom }
+    | { ok: true; seq: number; role: "host"; room: MultiplayerHostedRoom; voice?: unknown }
     | {
         ok: true;
         seq: number;
@@ -3063,6 +3068,7 @@ export type MultiplayerRoomStatus =
         detail: Record<string, string>;
         chat: MultiplayerChatLine[];
         autostart: { room: string; round: number; appid: number; steps: string; game: string } | null;
+        voice?: unknown;
     }
     | { ok: true; seq: number; role: null; closedReason: string; lobby: boolean };
 

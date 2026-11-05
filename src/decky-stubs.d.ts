@@ -222,4 +222,7 @@ declare module "react-icons/fa" {
     export const FaRedo: any;
     export const FaEye: any;
     export const FaEyeSlash: any;
+    export const FaMicrophone: any;
+    export const FaMicrophoneSlash: any;
+    export const FaVolumeMute: any;
 }

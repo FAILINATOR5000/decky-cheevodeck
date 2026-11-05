@@ -32,6 +32,7 @@ import {
     rememberMultiplayerGame,
     rememberMultiplayerHardcore,
     rememberMultiplayerShare,
+    rememberMultiplayerVoice,
     rememberMultiplayerWatch,
     rememberMultiplayerTab,
     takeMultiplayerInvite
@@ -450,7 +451,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         if (hosted) {
             const forGame = gameId;
             void run("Couldn't Change That", async () => {
-                const changed = await multiplayerRoomOptions(null, next, null, null);
+                const changed = await multiplayerRoomOptions(null, next, null, null, null);
                 if (changed.ok) {
                     rememberMultiplayerCore(forGame, next);
                     setCoreState(next);
@@ -467,7 +468,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         rememberMultiplayerHardcore(next);
         setHardcoreState(next);
         if ((hosted && mode === "couch") || (joined && mode === "link")) {
-            void run("Couldn't Change That", () => multiplayerRoomOptions(next, null, null, null));
+            void run("Couldn't Change That", () => multiplayerRoomOptions(next, null, null, null, null));
         }
     }
 
@@ -475,7 +476,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         rememberMultiplayerShare(next);
         setShareState(next);
         if (hosted) {
-            void run("Couldn't Change That", () => multiplayerRoomOptions(null, null, next, null));
+            void run("Couldn't Change That", () => multiplayerRoomOptions(null, null, next, null, null));
         }
     }
 
@@ -483,7 +484,14 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         rememberMultiplayerWatch(next);
         setWatchState(next);
         if (hosted) {
-            void run("Couldn't Change That", () => multiplayerRoomOptions(null, null, null, next));
+            void run("Couldn't Change That", () => multiplayerRoomOptions(null, null, null, next, null));
+        }
+    }
+
+    function setVoice(next: boolean) {
+        rememberMultiplayerVoice(next);
+        if (hosted) {
+            void run("Couldn't Change That", () => multiplayerRoomOptions(null, null, null, null, next));
         }
     }
 
@@ -570,6 +578,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             setHardcore,
             setShare,
             setWatch,
+            setVoice,
             closeRoom,
             leave,
             play,

@@ -1,4 +1,4 @@
-import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
+import { DialogButton, Focusable, PanelSectionRow, SliderField } from "@decky/ui";
 import { useEffect, useRef, useState } from "react";
 
 import { PanelSection } from "../components/ui/PanelSection";
@@ -15,7 +15,8 @@ import { ToggleRow } from "../components/ui/ToggleRow";
 import { GameHeaderCard, useGameHeaderArt } from "../components/games/GameHeaderCard";
 import { openCorePicker } from "../components/multiplayer/CorePickerModal";
 import { RoomChatBox } from "../components/multiplayer/RoomChatBox";
-import { RoomTable } from "../components/multiplayer/RoomTable";
+import { RoomTable, type RoomTableVoice } from "../components/multiplayer/RoomTable";
+import { pressOwnMic } from "../components/multiplayer/VoiceDialogs";
 import { FriendsTab } from "../components/multiplayer/FriendsTab";
 import { openSeatCard } from "../components/multiplayer/SeatCardModal";
 import { openInviteFriends } from "../components/multiplayer/InviteFriendsModal";
@@ -43,6 +44,8 @@ import { showManagedModal } from "../utils/modalRegistry";
 import { logError } from "../utils/errors";
 import { multiplayerGuestGames } from "../api";
 import { anyGameRunning, otherGameRunning } from "../utils/multiplayerSession";
+import { changeMicLevel, useVoiceChat } from "../utils/voiceChat";
+import { changeGameVolume, changeIncomingVolume, useGameVolume } from "../utils/gameVolume";
 import { screenMaxRefresh } from "../utils/screenRefresh";
 import { getCurrentControllerGlyphStyle } from "../utils/controllerGlyphs";
 import { ButtonHints } from "../components/ui/ButtonHints";
@@ -111,6 +114,9 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const landingWindows = useRef<LandingWindows | null>(null);
     const [playFocused, setPlayFocused] = useState(false);
     const [screenHz, setScreenHz] = useState<number | null>(null);
+    const [seatFocused, setSeatFocused] = useState(-1);
+    const voice = useVoiceChat();
+    const gameVolume = useGameVolume();
 
     useEffect(() => {
         if (visible) {
@@ -343,6 +349,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 : data?.requests.some((request) => request.ulid === ulid) ? "pending" : "none",
             canDrop: hosted !== null && index > 0,
             friendsOn: Boolean(data?.on),
+            voice: voice.on,
             openMessages: friend
                 ? () => openMessageCenter(language, { friend, avatars, selfPic: data?.selfPic ?? "" })
                 : null
@@ -631,6 +638,19 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         />
     );
 
+    const voiceRow = hosted && (
+        <ToggleRow
+            bottomSeparator="none"
+            controlled
+            label={t(language, "Voice Chat")}
+            value={hosted.voice}
+            outerStyle={buttonStyle}
+            focusKey="multiplayer:toggle:voice"
+            focusFallback={["multiplayer:toggle:watch", "multiplayer:toggle:share", "multiplayer:toggle:hardcore", "multiplayer:host"]}
+            onChange={actions.setVoice}
+        />
+    );
+
     const roomButton = joined ? (
         <PanelSectionRow>
             <FocusableItem
@@ -687,15 +707,37 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         </>
     );
 
+    const ownSeat = hosted ? 0 : joined?.seat ?? -1;
+    const tableVoice: RoomTableVoice | undefined = voice.on
+        ? { own: ownSeat, mine: voice.mine, available: voice.available, speaking: voice.speaking, seats: voice.seats }
+        : undefined;
+
+    const roomHints = (
+        <div style={{ opacity: (hosted ? canStartShown : readyShown) ? 1 : 0.45 }}>
+            <ButtonHints
+                style={getCurrentControllerGlyphStyle()}
+                hints={hosted
+                    ? [{ button: "y", label: t(language, "Start") }]
+                    : [{ button: "x", label: t(language, joined?.ready ? "Unready" : "Ready") }]}
+            />
+        </div>
+    );
     const hintsRow = !state.mouseKeyboardMode && (hosted || joined) && (
         <PanelSectionRow>
-            <div style={{ opacity: (hosted ? canStartShown : readyShown) ? 1 : 0.45 }}>
-                <ButtonHints
-                    style={getCurrentControllerGlyphStyle()}
-                    hints={hosted
-                        ? [{ button: "y", label: t(language, "Start") }]
-                        : [{ button: "x", label: t(language, joined?.ready ? "Unready" : "Ready") }]}
-                />
+            {voice.on ? (
+                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", columnGap: "16px" }}>
+                    {roomHints}
+                    {seatFocused === ownSeat && voice.available && (
+                        <ButtonHints style={getCurrentControllerGlyphStyle()} hints={[{ button: "a", label: t(language, "Mic") }]} />
+                    )}
+                </div>
+            ) : roomHints}
+        </PanelSectionRow>
+    );
+    const voiceLine = voice.on && !voice.available && (
+        <PanelSectionRow>
+            <div style={{ ...bodyTextStyle(), color: warnAmber, opacity: 1 }}>
+                {t(language, "Voice needs the lobby server's relay, which isn't answering")}
             </div>
         </PanelSectionRow>
     );
@@ -794,7 +836,11 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     }
                 }}
                 exitKey="multiplayer:host"
+                voice={tableVoice}
+                onMic={() => pressOwnMic(language)}
+                onFocusSeat={setSeatFocused}
             />
+            {voiceLine}
             {inviteRow}
             {chatRows}
         </>
@@ -837,7 +883,11 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         : joined.status?.seats[index]?.title ?? "", ids?.ulid ?? "", ids?.pic ?? "");
                 }}
                 exitKey="multiplayer:leave"
+                voice={tableVoice}
+                onMic={() => pressOwnMic(language)}
+                onFocusSeat={setSeatFocused}
             />
+            {voiceLine}
             {inviteRow}
             {chatRows}
         </>
@@ -869,9 +919,79 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const showHardcore = (mp.mode === "link" || !couchGuest) && !runsRmg;
     const showShare = mp.mode === "couch" && !joined && (hosted?.emulator ?? local?.emulator) === "retroarch";
     const showChangeGame = hosted !== null || (joined !== null && mp.mode === "link");
-    const optionRows = (showChangeGame || showCores || showHardcore || showShare) && (
+    const roomVoice = hosted ? hosted.voice : Boolean(joined?.room.voice);
+    const afterSliders = [showChangeGame ? "multiplayer:changegame" : "", hosted ? "multiplayer:toggle:voice" : "",
+        joined ? "multiplayer:leave" : "multiplayer:host", "multiplayer:back"].filter(Boolean);
+    const voiceSliders = roomVoice && (
         <>
-            <SectionTitle label={t(language, "Options")} />
+            <SectionTitle label={t(language, "Per-Game")} />
+            <PanelSectionRow>
+                <FocusTarget focusKey="multiplayer:voice:game" focusFallback={["multiplayer:voice:volume", ...afterSliders]}
+                    style={buttonStyle}>
+                    <SliderField
+                        label={t(language, "Game Volume")}
+                        description={t(language, "Remembered per-game volume levels.")}
+                        value={gameVolume.level}
+                        min={0}
+                        max={100}
+                        step={5}
+                        showValue
+                        valueSuffix="%"
+                        layout="below"
+                        bottomSeparator="none"
+                        onChange={changeGameVolume}
+                    />
+                </FocusTarget>
+            </PanelSectionRow>
+            <PanelSectionRow>
+                <FocusTarget focusKey="multiplayer:voice:volume" focusFallback={["multiplayer:voice:game", ...afterSliders]}
+                    style={buttonStyle}>
+                    <SliderField
+                        label={t(language, "Incoming Chat Volume")}
+                        description={t(language, "Per-game: Volume for what you hear.")}
+                        value={voice.volume}
+                        min={0}
+                        max={100}
+                        step={5}
+                        showValue
+                        valueSuffix="%"
+                        layout="below"
+                        bottomSeparator="none"
+                        onChange={changeIncomingVolume}
+                    />
+                </FocusTarget>
+            </PanelSectionRow>
+            {voice.micLevel !== null && (
+                <SectionTitle label={t(language, "Global")} />
+            )}
+            {voice.micLevel !== null && (
+                <PanelSectionRow>
+                    <FocusTarget focusKey="multiplayer:voice:mic"
+                        focusFallback={["multiplayer:voice:volume", "multiplayer:voice:game", ...afterSliders]} style={buttonStyle}>
+                        <SliderField
+                            label={t(language, "Outgoing Chat Volume")}
+                            description={t(language, "Volume for what they hear.")}
+                            value={Math.round(voice.micLevel * 100)}
+                            min={0}
+                            max={100}
+                            step={5}
+                            showValue
+                            valueSuffix="%"
+                            layout="below"
+                            bottomSeparator="none"
+                            onChange={changeMicLevel}
+                        />
+                    </FocusTarget>
+                </PanelSectionRow>
+            )}
+        </>
+    );
+    const optionRows = (roomVoice || showChangeGame || showCores || showHardcore || showShare) && (
+        <>
+            {voiceSliders}
+            {(showChangeGame || showCores || showHardcore || showShare || hosted) && (
+                <SectionTitle label={t(language, "Options")} />
+            )}
             {showChangeGame && (
                 <PanelSectionRow>
                     <FocusableItem
@@ -894,6 +1014,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             {showHardcore && hardcoreRow}
             {showShare && shareRow}
             {showShare && watchRow}
+            {voiceRow}
         </>
     );
 
