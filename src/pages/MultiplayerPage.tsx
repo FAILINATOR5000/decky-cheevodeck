@@ -202,6 +202,9 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const runningOther = anyGameRunning() && !playing;
     const ownGameOk = local !== null && mp.checkCurrent && !gateCheck?.gate;
     const canStartNow = Boolean(hosted?.canStart) && !mp.busy && ownGameOk && !otherGameRunning() && !playing;
+    const canStartShown = Boolean(hosted?.canStart) && local !== null && !shownCheck?.gate && !otherGameRunning() && !playing;
+    const readyShown = Boolean(joined && inLobby && !joined.launched
+        && (joined.ready || (local !== null && !shownCheck?.gate && !runningOther)));
     const readyAllowed = Boolean(joined && inLobby && !joined.launched
         && (joined.ready || (ownGameOk && !runningOther)));
     const canRejoin = Boolean(joined?.rejoin) && !playing && !mp.busy && !runningOther && ownGameOk;
@@ -269,17 +272,21 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     ];
 
     let playLabel = "Host & Play";
-    let canPlay = canStartNow;
-    let pressPlay = () => void actions.start();
+    let canPlay = canStartShown;
+    let pressPlay = () => {
+        if (canStartNow) {
+            void actions.start();
+        }
+    };
     if (hosted && !inLobby) {
         canPlay = false;
     }
     else if (joined) {
         if (inLobby) {
             playLabel = joined.ready ? "Unready" : "Ready";
-            canPlay = readyAllowed;
+            canPlay = readyShown;
             pressPlay = () => {
-                if (!mp.busy) {
+                if (!mp.busy && readyAllowed) {
                     void actions.toggleReady();
                 }
             };
@@ -303,8 +310,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const playGreen = playLabel !== "Unready";
     const playBackground = !playGreen || playFocused ? undefined : canPlay ? steamPlayGreen : steamPlayGrey;
     const playColor = !playGreen || playFocused ? undefined : canPlay ? "#ffffff" : steamPlayGreyText;
-    const yStarts = canStartNow && !state.mouseKeyboardMode;
-    const xReadies = readyAllowed && !state.mouseKeyboardMode;
+    const yStarts = canStartShown && !state.mouseKeyboardMode;
+    const xReadies = readyShown && !state.mouseKeyboardMode;
     const slotStyle = { display: "flex", width: "100%", marginTop: "8px" };
     const slotButtonStyle = { width: "100%", minWidth: 0 };
 
@@ -668,7 +675,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
 
     const hintsRow = !state.mouseKeyboardMode && (hosted || joined) && (
         <PanelSectionRow>
-            <div style={{ opacity: (hosted ? canStartNow : readyAllowed) ? 1 : 0.45 }}>
+            <div style={{ opacity: (hosted ? canStartShown : readyShown) ? 1 : 0.45 }}>
                 <ButtonHints
                     style={getCurrentControllerGlyphStyle()}
                     hints={hosted
@@ -876,7 +883,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             key="multiplayer:view"
             flow-children="column"
             onCancelButton={pressBack}
-            onOptionsButton={onPlay && yStarts ? () => void actions.start() : undefined}
+            onOptionsButton={onPlay && yStarts ? pressPlay : undefined}
             onOptionsActionDescription={onPlay && yStarts ? t(language, "mp_footer_start") : undefined}
             onSecondaryButton={onPlay && xReadies ? pressPlay : undefined}
             onSecondaryActionDescription={onPlay && xReadies ? t(language, joined?.ready ? "mp_footer_unready" : "mp_footer_ready") : undefined}
