@@ -323,6 +323,7 @@ _ALLOWED_SHORTCUT_ACTIONS = (
     "mouseKeyboardMode",
     "cycleUiScale",
     "pushToTalk",
+    "voiceMute",
 )
 
 
@@ -349,13 +350,13 @@ def _default_shortcut_bindings() -> dict:
     }
 
 
-_HOLD_SHORTCUT_BUTTONS = ("l4", "l5", "r4", "r5")
+_HOLD_SHORTCUT_BUTTONS = ("l4", "l5", "r4", "r5", *_MENU_COMBO_SHORTCUT_BUTTONS)
 
 
 def _shortcut_action_allowed(button: str, action: str) -> bool:
     if action not in _ALLOWED_SHORTCUT_ACTIONS:
         return False
-    if action == "pushToTalk":
+    if action in ("pushToTalk", "voiceMute"):
         return button in _HOLD_SHORTCUT_BUTTONS
     return not (action == "snapshot" and button in _MENU_COMBO_SHORTCUT_BUTTONS)
 
@@ -473,6 +474,7 @@ _KNOBS = (
     Knob("mpSuggestFriends", default=True, normalize=True, read=READ_BOOL),
     Knob("mpShortcutFallback", default=False, normalize=True, read=READ_BOOL),
     Knob("mpVoicePushToTalk", default=False, normalize=True, read=READ_BOOL),
+    Knob("mpVoicePttToggle", default=True, normalize=True, read=READ_BOOL),
     Knob("mpVoiceSensitivity", default=2, normalize=True),
     Knob("playShortcutFallback", default=False, normalize=True, read=READ_BOOL),
     Knob("automaticRecovery", default=True, normalize=True, read=READ_BOOL),
@@ -2360,6 +2362,11 @@ class SettingsStore:
         cfg = self._update_config("mpVoicePushToTalk", bool(value))
 
         return bool(cfg.get("mpVoicePushToTalk", False))
+
+    def update_mp_voice_ptt_toggle(self, value: bool) -> bool:
+        cfg = self._update_config("mpVoicePttToggle", bool(value))
+
+        return bool(cfg.get("mpVoicePttToggle", True))
 
     def update_mp_voice_sensitivity(self, value: int) -> int:
         cfg = self._update_config("mpVoiceSensitivity", to_int(value, 2))

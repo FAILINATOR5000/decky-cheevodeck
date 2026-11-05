@@ -164,7 +164,7 @@ import {
 import { PanelProviders } from "../components/panel/PanelProviders";
 import { openCalculatorModal } from "../components/calculator/CalculatorModal";
 import { openLastMemory } from "../components/memories/openLastMemory";
-import { MAP_SHORTCUTS_FOCUS_KEY } from "../utils/options";
+import { MAP_SHORTCUTS_FOCUS_KEY, voiceShortcutFocusKey } from "../utils/options";
 import { openBrowserModal } from "../components/browser/BrowserModal";
 import { describeStack, initialNav, previousView, type NavIntent } from "../nav";
 import { setCover } from "../covers";
@@ -2310,7 +2310,13 @@ function AchievementsRoot() {
         clearPendingResumeState,
         enableRememberLastPagePersistence,
         disableRememberLastPagePersistence,
-        onBack: () => backToAchievements(),
+        onBack: () => {
+            if (previousView(nav.stack) === "multiplayer") {
+                goToMultiplayer("back");
+            } else {
+                backToAchievements();
+            }
+        },
         onGoToAbout: () => goToAbout(),
         onRefreshNow: () => refreshGameData(true, false, t(language, "Refreshing Achievements...")),
         onAfterSelfRename: async () => {
@@ -3662,17 +3668,19 @@ function AchievementsRoot() {
 
     function goToMultiplayer(intent: NavIntent = "push", land?: string) {
         friendGameSessionRefreshKeysRef.current = new Set();
-        const source = intent === "push" && (view === "utils" || view === "gameOverview") ? view : "achievements";
-        rememberMultiplayerSource(source);
-        rememberMultiplayerOverview(source === "gameOverview" && gameOverviewGameId !== null
-            ? {
-                gameId: gameOverviewGameId,
-                source: gameOverviewSource,
-                viewedUsername: gameOverviewViewedUsername,
-                viewedUserRef: gameOverviewViewedUserRef,
-                subView: gameOverviewSubView
-            }
-            : null);
+        if (intent !== "back") {
+            const source = intent === "push" && (view === "utils" || view === "gameOverview") ? view : "achievements";
+            rememberMultiplayerSource(source);
+            rememberMultiplayerOverview(source === "gameOverview" && gameOverviewGameId !== null
+                ? {
+                    gameId: gameOverviewGameId,
+                    source: gameOverviewSource,
+                    viewedUsername: gameOverviewViewedUsername,
+                    viewedUserRef: gameOverviewViewedUserRef,
+                    subView: gameOverviewSubView
+                }
+                : null);
+        }
         setView("multiplayer", intent, land ? { land } : undefined);
         setPendingFocusKey("multiplayer:back");
     }
@@ -4649,7 +4657,7 @@ function AchievementsRoot() {
     useMenuCombos(rootRef, shortcutBindings, runShortcutAction);
 
     function runShortcutAction(action: ShortcutAction) {
-        if (action === "pushToTalk") {
+        if (action === "pushToTalk" || action === "voiceMute") {
             return;
         }
         if (action === "pageUp") {
@@ -5345,7 +5353,8 @@ function AchievementsRoot() {
                                     }}
                                     actions={{
                                         onBack: backToMultiplayerSource,
-                                        onHome: goToAchievements
+                                        onHome: goToAchievements,
+                                        onSetUpVoiceShortcuts: () => goToOptions(voiceShortcutFocusKey(shortcutBindings))
                                     }}
                                 />
 

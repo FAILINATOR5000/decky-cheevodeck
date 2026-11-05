@@ -689,6 +689,14 @@ class OptionsMixin(PluginContext):
             "mpVoicePushToTalk": value,
         }
 
+    async def save_mp_voice_ptt_toggle(self, mp_voice_ptt_toggle: bool):
+        value = self.settings_store.update_mp_voice_ptt_toggle(mp_voice_ptt_toggle)
+
+        return {
+            "ok": True,
+            "mpVoicePttToggle": value,
+        }
+
     async def save_mp_voice_sensitivity(self, mp_voice_sensitivity: int):
         value = self.settings_store.update_mp_voice_sensitivity(mp_voice_sensitivity)
 

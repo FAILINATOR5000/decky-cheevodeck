@@ -11,16 +11,17 @@ import {
 } from "../api";
 import { logError } from "./errors";
 import { multiplayerRoomMarker, subscribeMultiplayerRoom } from "./multiplayerRoomState";
-import { setIncomingVolume } from "./voiceChat";
+import { setDucking, setIncomingVolume } from "./voiceChat";
 
 type Stream = { id: number; app: string };
 type Lowered = { original: number; set: number };
 
-export type GameVolumeState = { level: number; playing: boolean };
+export type GameVolumeState = { level: number; playing: boolean; output: string; duck: boolean; duckStrength: number };
 
 const DEFAULT_GAME = 40;
 const OUTPUT_EVENT = "multiplayer_voice_canceller";
 const DEFAULT_INCOMING = 80;
+const DEFAULT_DUCK_STRENGTH = 2;
 const ECHO = 0.02;
 const SAVE_MS = 500;
 const SETTLE_MS = 1500;
@@ -30,6 +31,10 @@ const LOAD_TRIES = 5;
 
 let level = 100;
 let incoming = DEFAULT_INCOMING;
+let duck = false;
+let duckStrength = DEFAULT_DUCK_STRENGTH;
+let duckMoved = false;
+let shownOutput = "";
 let key = "";
 let game = 0;
 let output = "";
@@ -54,13 +59,14 @@ let registered = false;
 const unregisters: (() => void)[] = [];
 
 const listeners = new Set<() => void>();
-let snapshot: GameVolumeState = { level, playing };
+let snapshot: GameVolumeState = { level, playing, output: shownOutput, duck, duckStrength };
 
 function publish() {
-    if (snapshot.level === level && snapshot.playing === playing) {
+    if (snapshot.level === level && snapshot.playing === playing && snapshot.output === shownOutput
+        && snapshot.duck === duck && snapshot.duckStrength === duckStrength) {
         return;
     }
-    snapshot = { level, playing };
+    snapshot = { level, playing, output: shownOutput, duck, duckStrength };
     for (const listener of listeners) {
         listener();
     }
@@ -77,8 +83,12 @@ function gameVolumeState(): GameVolumeState {
     return snapshot;
 }
 
-export function useGameVolume(): GameVolumeState {
-    return useSyncExternalStore(subscribe, gameVolumeState);
+function subscribeNever(): () => void {
+    return () => { };
+}
+
+export function useGameVolume(active = true): GameVolumeState {
+    return useSyncExternalStore(active ? subscribe : subscribeNever, gameVolumeState);
 }
 
 function steamAudio() {
@@ -274,7 +284,7 @@ async function pass() {
 function save() {
     saveTimer = null;
     if (game > 0 && output) {
-        void multiplayerRoomVolumesSet(game, level, incoming, output)
+        void multiplayerRoomVolumesSet(game, level, incoming, output, duck, duckStrength)
             .catch((e) => logError("game volume: saving the room volumes", e));
     }
 }
@@ -309,9 +319,32 @@ export function changeIncomingVolume(next: number) {
     saveSoon();
 }
 
+export function changeDuck(on: boolean) {
+    if (!output) {
+        return;
+    }
+    duck = on;
+    duckMoved = true;
+    setDucking(duck, duckStrength);
+    publish();
+    saveSoon();
+}
+
+export function changeDuckStrength(next: number) {
+    if (!output) {
+        return;
+    }
+    duckStrength = Math.min(4, Math.max(1, next));
+    duckMoved = true;
+    setDucking(duck, duckStrength);
+    publish();
+    saveSoon();
+}
+
 async function loadLevels(forKey: string, forGame: number) {
     const seq = ++loadSeq;
-    let answer: { ok: boolean; game?: number; incoming?: number; output?: string } = { ok: false };
+    let answer: { ok: boolean; game?: number; incoming?: number; duck?: boolean; duckStrength?: number; output?: string }
+        = { ok: false };
     try {
         answer = await multiplayerRoomVolumesGet(forGame);
     }
@@ -322,6 +355,14 @@ async function loadLevels(forKey: string, forGame: number) {
         return;
     }
     output = answer.ok && typeof answer.output === "string" ? answer.output : "";
+    if (output) {
+        shownOutput = output;
+    }
+    if (!duckMoved && answer.ok) {
+        duck = answer.duck === true;
+        duckStrength = typeof answer.duckStrength === "number" ? answer.duckStrength : DEFAULT_DUCK_STRENGTH;
+        setDucking(duck, duckStrength);
+    }
     if (loading) {
         level = answer.ok && typeof answer.game === "number" ? answer.game : DEFAULT_GAME;
         released = false;
@@ -343,6 +384,7 @@ export function reloadRoomVolumes() {
     if (key) {
         loading = true;
         incomingMoved = false;
+        duckMoved = false;
         void loadLevels(key, game);
     }
 }
@@ -355,6 +397,7 @@ function onOutputChanged(payload: { reason?: string }) {
     output = "";
     loading = true;
     incomingMoved = false;
+    duckMoved = false;
     void loadLevels(key, game);
 }
 
@@ -370,6 +413,8 @@ function onRoom() {
         level = 100;
         loading = Boolean(view);
         incomingMoved = false;
+        duckMoved = false;
+        setDucking(false, duckStrength);
         if (view) {
             void loadLevels(nextKey, game);
         }

@@ -703,7 +703,8 @@ export type ShortcutAction =
     | "darkenScreen"
     | "mouseKeyboardMode"
     | "cycleUiScale"
-    | "pushToTalk";
+    | "pushToTalk"
+    | "voiceMute";
 
 export type TrackedTab = "thisGame" | "otherGames" | "addAllMissable" | "applyTag" | "clear";
 
@@ -872,6 +873,7 @@ export type SettingsResponse = {
     mpSuggestFriends: boolean;
     mpShortcutFallback: boolean;
     mpVoicePushToTalk: boolean;
+    mpVoicePttToggle: boolean;
     mpVoiceSensitivity: number;
     playShortcutFallback: boolean;
     lobbyServer: string;
@@ -2938,6 +2940,8 @@ export type ActivitySubject = { ulid: string; username: string; own: boolean };
 export type MultiplayerMode = "link" | "couch";
 
 export type MultiplayerTab = "play" | "friends";
+
+export type MultiplayerRoomTab = "room" | "audio";
 
 export type MultiplayerWhere = "local" | "online";
 

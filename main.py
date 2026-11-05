@@ -795,6 +795,7 @@ class Plugin(
             cheevo_check_store=self.cheevo_check_store,
             bin_dir=cheevo_check_bin,
             voice_canceller=self.voice_canceller,
+            voice_room_changed=self.back_button_service.set_voice_room,
         )
         self.ez_friends_heal_service = EzFriendsHealService(
             plugin=self,
@@ -1137,7 +1138,7 @@ class Plugin(
         self.video_filter_service.stop()
         self.file_watcher_service.stop()
         self.session_mode_service.stop()
-        self.back_button_service.stop()
+        self.back_button_service.shutdown()
         self.freeze_watchdog_service.stop()
         self.nearby_transfer_service.stop()
         self.multiplayer_service.stop()

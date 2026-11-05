@@ -8,7 +8,9 @@ import {
     multiplayerVoiceDuck,
     multiplayerVoiceJoin,
     multiplayerVoiceLog,
-    multiplayerVoiceSend
+    multiplayerVoiceSend,
+    saveMpVoicePttToggle,
+    saveMpVoicePushToTalk
 } from "../api";
 import { getCurrentLanguage, t } from "../locales";
 import { logError } from "./errors";
@@ -55,7 +57,6 @@ type VoiceSeat = {
     inVoice: boolean;
     speaking: boolean;
     mutedByMe: boolean;
-    volume: number;
     failed: boolean;
 };
 
@@ -122,9 +123,14 @@ type CancellerAnswer = { canceller: Canceller | null; echoPath: boolean };
 
 let volume = 80;
 let pushToTalk = false;
+let pushToTalkBound = false;
+let pttToggle = true;
+let pttLatched = false;
+let pttButton = "";
+let muteButton = "";
 let sensitivity = 2;
-const ducking = false;
-const duckStrength = 2;
+let ducking = false;
+let duckStrength = 2;
 let echoCancellation = true;
 let cancelling = true;
 let limiting = true;
@@ -134,7 +140,7 @@ let config: IceConfig | null = null;
 let configFor = "";
 let configStamp = "";
 const peers = new Map<number, Peer>();
-const prefs = new Map<string, { muted: boolean; volume: number }>();
+const prefs = new Map<string, { muted: boolean }>();
 let prefsRoom = "";
 let names: string[] = [];
 let ctx: AudioContext | null = null;
@@ -144,11 +150,12 @@ let mic: Mic | null = null;
 let micOpening = false;
 let cancellerQueue: Promise<unknown> = Promise.resolve();
 let cancellerEpoch = 0;
+let held: CancellerAnswer | null = null;
 let wantMic = false;
 let steamCall = false;
 let steamAllowed = false;
 let mutedForSteam = false;
-let pttHeld = false;
+let pttDown = 0;
 let lastGen = 0;
 let speakingTimer: number | null = null;
 let statsTimer: number | null = null;
@@ -210,14 +217,14 @@ function buildState(): VoiceState {
             inVoice: Boolean(seat?.vc),
             speaking: Boolean(peer?.speaking) && !pref?.muted,
             mutedByMe: Boolean(pref?.muted),
-            volume: pref?.volume ?? 100,
             failed: peer?.state === "failed"
         };
     });
     return {
         on: true,
         available: config?.available ?? true,
-        mine: !wantMic || config?.available === false ? "off" : mutedForSteam ? "steam" : "on",
+        mine: !wantMic || config?.available === false ? "off" : mutedForSteam ? "steam"
+            : pttWorking() && !pttTalking() ? "off" : "on",
         speaking: Boolean(mic?.speaking),
         seats,
         volume,
@@ -241,15 +248,148 @@ function voiceState(): VoiceState {
     return snapshot;
 }
 
-export function useVoiceChat(): VoiceState {
-    return useSyncExternalStore(subscribe, voiceState);
+function subscribeNever(): () => void {
+    return () => { };
 }
 
-export function setVoiceSettings(next: { mpVoicePushToTalk?: boolean; mpVoiceSensitivity?: number }) {
+export function useVoiceChat(active = true): VoiceState {
+    return useSyncExternalStore(active ? subscribe : subscribeNever, voiceState);
+}
+
+export function setVoiceSettings(next: {
+    mpVoicePushToTalk?: boolean;
+    mpVoicePttToggle?: boolean;
+    mpVoiceSensitivity?: number;
+    shortcutBindings?: Record<string, string>;
+}) {
+    const was = pttWorking();
     pushToTalk = next.mpVoicePushToTalk ?? pushToTalk;
+    if (next.mpVoicePttToggle !== undefined && next.mpVoicePttToggle !== pttToggle) {
+        pttToggle = next.mpVoicePttToggle;
+        pttLatched = false;
+        pttDown = 0;
+        publishPushToTalk();
+    }
+    if (next.shortcutBindings) {
+        const bindings = Object.entries(next.shortcutBindings);
+        pttButton = bindings.find(([, action]) => action === "pushToTalk")?.[0] ?? "";
+        muteButton = bindings.find(([, action]) => action === "voiceMute")?.[0] ?? "";
+        pushToTalkBound = pttButton !== "";
+    }
     sensitivity = next.mpVoiceSensitivity ?? sensitivity;
     settled = true;
+    pushToTalkMoved(was);
     setIncomingVolume(volume);
+}
+
+function pttWorking(): boolean {
+    return pushToTalk && pushToTalkBound;
+}
+
+function pttTalking(): boolean {
+    return pttToggle ? pttLatched : pttDown > 0;
+}
+
+function pushToTalkMoved(was: boolean) {
+    const now = pttWorking();
+    publishPushToTalk();
+    if (now === was) {
+        return;
+    }
+    pttDown = 0;
+    pttLatched = false;
+    if (!room) {
+        return;
+    }
+    wantMic = now;
+    mutedForSteam = now && steamCall;
+    steamAllowed = false;
+    applyMic();
+    publish();
+}
+
+export function changePushToTalk(on: boolean) {
+    const before = pushToTalk;
+    const was = pttWorking();
+    pushToTalk = on;
+    pushToTalkMoved(was);
+    saveMpVoicePushToTalk(on).then((result) => {
+        if (!result.ok) {
+            throw new Error("not saved");
+        }
+    }).catch((e) => {
+        logError("voice: saving Push to Talk", e);
+        if (pushToTalk === on) {
+            const working = pttWorking();
+            pushToTalk = before;
+            pushToTalkMoved(working);
+        }
+    });
+}
+
+export function changePttToggle(on: boolean) {
+    const before = pttToggle;
+    pttToggle = on;
+    pttLatched = false;
+    pttDown = 0;
+    publishPushToTalk();
+    publish();
+    saveMpVoicePttToggle(on).then((result) => {
+        if (!result.ok) {
+            throw new Error("not saved");
+        }
+    }).catch((e) => {
+        logError("voice: saving PTT: Toggleable", e);
+        if (pttToggle === on) {
+            pttToggle = before;
+            pttLatched = false;
+            publishPushToTalk();
+            publish();
+        }
+    });
+}
+
+type PushToTalkState = { on: boolean; working: boolean; toggle: boolean; pttButton: string; muteButton: string };
+
+const pttListeners = new Set<() => void>();
+let pttSnapshot: PushToTalkState = { on: false, working: false, toggle: true, pttButton: "", muteButton: "" };
+
+function publishPushToTalk() {
+    if (pttSnapshot.on === pushToTalk && pttSnapshot.working === pttWorking() && pttSnapshot.toggle === pttToggle
+        && pttSnapshot.pttButton === pttButton && pttSnapshot.muteButton === muteButton) {
+        return;
+    }
+    pttSnapshot = { on: pushToTalk, working: pttWorking(), toggle: pttToggle, pttButton, muteButton };
+    for (const listener of pttListeners) {
+        listener();
+    }
+}
+
+function subscribePushToTalk(listener: () => void): () => void {
+    pttListeners.add(listener);
+    return () => {
+        pttListeners.delete(listener);
+    };
+}
+
+function pushToTalkState(): PushToTalkState {
+    return pttSnapshot;
+}
+
+export function usePushToTalk(): PushToTalkState {
+    return useSyncExternalStore(subscribePushToTalk, pushToTalkState);
+}
+
+export function setDucking(on: boolean, strength: number) {
+    if (on === ducking && strength === duckStrength) {
+        return;
+    }
+    const was = ducking;
+    ducking = on;
+    duckStrength = strength;
+    if (mic?.open && mic.duck && (was || on)) {
+        duckGame(on);
+    }
 }
 
 export function setIncomingVolume(next: number) {
@@ -350,7 +490,9 @@ function enter(view: RoomVoice, seat: number, host: boolean) {
         prefs.clear();
         prefsRoom = view.room;
     }
-    wantMic = false;
+    wantMic = pttWorking();
+    mutedForSteam = wantMic && steamCall;
+    held = null;
     configStamp = view.cfg;
     logVoice(`joined voice in room ${view.room}, seat ${seat}, listening`);
     void multiplayerVoiceJoin(true).catch((e) => logError("voice: joining", e));
@@ -398,7 +540,14 @@ function leave() {
     wantMic = false;
     mutedForSteam = false;
     steamAllowed = false;
+    pttDown = 0;
+    pttLatched = false;
     closeMic();
+    if (outputSink) {
+        outputSink = "";
+        routeOutput();
+    }
+    releaseCanceller();
     room = null;
     config = null;
     configFor = "";
@@ -500,6 +649,9 @@ function closeOutput() {
 }
 
 function closeContextIfIdle() {
+    if (performance.now() < blipUntil) {
+        return;
+    }
     if (ctx && peers.size === 0 && !mic) {
         closeOutput();
         void ctx.close().catch(() => { });
@@ -627,7 +779,7 @@ function applyPeerVolume(peer: Peer) {
         return;
     }
     const pref = prefs.get((names[peer.index] ?? "").toLowerCase());
-    peer.gain.gain.value = pref?.muted ? 0 : (volume / 100) * ((pref?.volume ?? 100) / 100);
+    peer.gain.gain.value = pref?.muted ? 0 : volume / 100;
 }
 
 function munge(sdp: string): string {
@@ -935,7 +1087,11 @@ function micShouldBeOpen(): boolean {
 function applyMic() {
     if (micShouldBeOpen()) {
         if (!mic && !micOpening) {
-            void openMic();
+            void openMic().then((error) => {
+                if (error) {
+                    toast("Couldn't open the microphone.");
+                }
+            });
         }
     }
     else if (mic) {
@@ -950,6 +1106,7 @@ function askCanceller(on: boolean): Promise<{ ok: boolean; active?: boolean; duc
 }
 
 function releaseCanceller() {
+    held = null;
     void askCanceller(false).catch(() => { });
 }
 
@@ -997,9 +1154,13 @@ async function useCanceller(): Promise<CancellerAnswer> {
 async function openMic(): Promise<string> {
     micOpening = true;
     const epoch = cancellerEpoch;
+    const openingFor = room?.id;
     let canceller: Canceller | null = null;
     try {
-        const found = await useCanceller();
+        const found = held ?? await useCanceller();
+        if (epoch === cancellerEpoch && room?.id === openingFor && (found.canceller || !found.echoPath)) {
+            held = found;
+        }
         canceller = found.canceller;
         const stream = await navigator.mediaDevices.getUserMedia({
             audio: canceller
@@ -1010,9 +1171,6 @@ async function openMic(): Promise<string> {
         if (!micShouldBeOpen() || mic) {
             for (const track of stream.getTracks()) {
                 track.stop();
-            }
-            if (canceller && !mic) {
-                releaseCanceller();
             }
             return "";
         }
@@ -1040,6 +1198,7 @@ async function openMic(): Promise<string> {
         stream.getAudioTracks()[0]?.addEventListener("ended", () => {
             if (mic === opened) {
                 logVoice("the mic's device went away, opening it again");
+                held = null;
                 closeMic();
                 applyMic();
             }
@@ -1057,6 +1216,7 @@ async function openMic(): Promise<string> {
         publish();
         if (epoch !== cancellerEpoch) {
             logVoice("the sound output changed while the mic opened, opening it again");
+            held = null;
             closeMic();
             applyMic();
         }
@@ -1065,6 +1225,10 @@ async function openMic(): Promise<string> {
     catch (e) {
         logError("voice: opening the mic", e);
         if (canceller) {
+            if (outputSink) {
+                outputSink = "";
+                routeOutput();
+            }
             releaseCanceller();
         }
         wantMic = false;
@@ -1083,6 +1247,9 @@ function closeMic() {
     const closing = mic;
     mic = null;
     window.clearInterval(closing.timer);
+    if (closing.open && closing.duck && ducking) {
+        duckGame(false);
+    }
     for (const peer of peers.values()) {
         if (peer.sender) {
             void peer.sender.replaceTrack(null).catch(() => { });
@@ -1098,11 +1265,6 @@ function closeMic() {
         track.stop();
     }
     closing.track.stop();
-    if (outputSink) {
-        outputSink = "";
-        routeOutput();
-    }
-    releaseCanceller();
     logVoice("mic closed");
     closeContextIfIdle();
     publish();
@@ -1131,8 +1293,8 @@ function gateTick(current: Mic) {
     const db = level(current.analyser, gateBuffer);
     const now = performance.now();
     let open: boolean;
-    if (pushToTalk) {
-        open = pttHeld;
+    if (pttWorking()) {
+        open = pttTalking();
     }
     else {
         if (farLevel() > FAR_DB) {
@@ -1225,8 +1387,57 @@ function speakingTick() {
     }
 }
 
+export async function pressVoiceMute() {
+    if (!room || config?.available === false || pttWorking()) {
+        return;
+    }
+    if (wantMic) {
+        blip(false);
+        await toggleMic();
+        return;
+    }
+    if (steamCall) {
+        toast("Mic muted while you're in a Steam call");
+        return;
+    }
+    blip(true);
+    const result = await toggleMic();
+    if (!result.ok) {
+        toast(result.reason === "steam" ? "Mic muted while you're in a Steam call" : "Couldn't open the microphone.");
+    }
+}
+
+const BLIP_GAIN = 0.12;
+const BLIP_HOLD_MS = 300;
+let blipUntil = 0;
+const BLIP_NOTE_S = 0.07;
+const BLIP_GAP_S = 0.09;
+
+function blip(on: boolean) {
+    const audio = ctx;
+    const sink = output?.destination;
+    if (!audio || !sink) {
+        return;
+    }
+    blipUntil = performance.now() + BLIP_HOLD_MS;
+    window.setTimeout(closeContextIfIdle, BLIP_HOLD_MS + 50);
+    const start = audio.currentTime + 0.01;
+    (on ? [660, 990] : [990, 660]).forEach((frequency, index) => {
+        const at = start + index * BLIP_GAP_S;
+        const tone = audio.createOscillator();
+        tone.frequency.value = frequency;
+        const envelope = audio.createGain();
+        envelope.gain.setValueAtTime(0, at);
+        envelope.gain.linearRampToValueAtTime(BLIP_GAIN, at + 0.008);
+        envelope.gain.linearRampToValueAtTime(0, at + BLIP_NOTE_S);
+        tone.connect(envelope).connect(sink);
+        tone.start(at);
+        tone.stop(at + BLIP_NOTE_S + 0.01);
+    });
+}
+
 export async function toggleMic(force = false): Promise<MicPress> {
-    if (!room || config?.available === false) {
+    if (!room || config?.available === false || pttWorking()) {
         return { ok: true };
     }
     if (wantMic) {
@@ -1255,20 +1466,7 @@ export function setPeerMuted(index: number, muted: boolean) {
     if (!name) {
         return;
     }
-    prefs.set(name, { muted, volume: prefs.get(name)?.volume ?? 100 });
-    const peer = peers.get(index);
-    if (peer) {
-        applyPeerVolume(peer);
-    }
-    publish();
-}
-
-export function setPeerVolume(index: number, percent: number) {
-    const name = (names[index] ?? "").toLowerCase();
-    if (!name) {
-        return;
-    }
-    prefs.set(name, { muted: prefs.get(name)?.muted ?? false, volume: Math.min(200, Math.max(0, percent)) });
+    prefs.set(name, { muted });
     const peer = peers.get(index);
     if (peer) {
         applyPeerVolume(peer);
@@ -1288,7 +1486,23 @@ export function retryPeer(index: number) {
 }
 
 export function holdPushToTalk(down: boolean) {
-    pttHeld = down;
+    if (down && room && pttWorking() && mutedForSteam) {
+        return;
+    }
+    if (down && room && pttWorking() && !wantMic) {
+        wantMic = true;
+        applyMic();
+    }
+    if (pttToggle) {
+        if (down && room && pttWorking()) {
+            pttLatched = !pttLatched;
+            blip(pttLatched);
+            publish();
+        }
+        return;
+    }
+    pttDown = Math.max(0, pttDown + (down ? 1 : -1));
+    publish();
 }
 
 function setSteamCall(active: boolean) {
@@ -1298,6 +1512,9 @@ function setSteamCall(active: boolean) {
     steamCall = active;
     if (!room) {
         return;
+    }
+    if (active) {
+        pttLatched = false;
     }
     if (active && wantMic && !steamAllowed) {
         mutedForSteam = true;
@@ -1342,6 +1559,12 @@ function onCancellerEvent(payload: { reason?: string }) {
         outputSink = "";
         routeOutput();
     }
+    if (mic) {
+        held = null;
+    }
+    else {
+        releaseCanceller();
+    }
     if (payload?.reason === "output" && mic) {
         logVoice("the sound output changed, opening the mic again");
         closeMic();
@@ -1361,6 +1584,11 @@ function onDebugEvent(payload: { name?: string; on?: boolean }) {
             + (payload.on !== false ? "on" : "off"));
         if (mic) {
             closeMic();
+            if (outputSink) {
+                outputSink = "";
+                routeOutput();
+            }
+            releaseCanceller();
             applyMic();
         }
     }

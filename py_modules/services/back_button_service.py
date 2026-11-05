@@ -129,6 +129,7 @@ SUMMON_ACTIONS = (
 _SUMMON_BUTTONS = ("l4", "r4", "l5", "r5")
 
 HOLD_ACTIONS = ("pushToTalk",)
+ROOM_ACTIONS = ("voiceMute",)
 
 _MENU_COMBO_BITS = {
     DECK_FORMAT: (
@@ -642,6 +643,7 @@ class _OpenNode:
         self.state = 0
         self.menu_state = 0
         self.menu_armed = None
+        self.menu_holding = None
         self.combo_since = None
         self.combo_spent = False
         self.holding = set()
@@ -656,6 +658,10 @@ class BackButtonService:
         self._user_home = user_home
         self._game_mode = game_mode
         self._combo_enabled = False
+        self._voice_room = False
+        self._hold_keys = frozenset()
+        self._room_keys = frozenset()
+        self._shut = False
         self._recovery_logs = False
         self._combo_fired_at = None
         self._generation = 0
@@ -666,20 +672,30 @@ class BackButtonService:
 
     def sync(self) -> None:
         with self._sync_lock:
+            if self._shut:
+                return
             cfg = self._settings_store.load_config()
             self._combo_enabled = bool(cfg.get("recoveryButtonCombo", False))
             self._recovery_logs = bool(cfg.get("recoveryLogs", False))
+            bindings = self._settings_store.get_shortcut_bindings(cfg) if self._voice_room else {}
+            hold = cfg.get("mpVoicePushToTalk", False)
+            self._hold_keys = frozenset(key for key, action in bindings.items() if hold and action in HOLD_ACTIONS)
+            self._room_keys = frozenset(key for key, action in bindings.items() if action in ROOM_ACTIONS)
             wanted = (cfg.get("backButtonsGlobal", False) or cfg.get("browserSnapshot", False) or self._combo_enabled
-                      or self._hold_bound(cfg))
+                      or bool(self._hold_keys) or bool(self._room_keys))
             if wanted and self._game_mode():
                 self.start()
             else:
                 self.stop()
 
-    def _hold_bound(self, cfg: dict) -> bool:
-        if not cfg.get("mpVoicePushToTalk", False):
-            return False
-        return any(action in HOLD_ACTIONS for action in self._settings_store.get_shortcut_bindings(cfg).values())
+    def shutdown(self) -> None:
+        with self._sync_lock:
+            self._shut = True
+        self.stop()
+
+    def set_voice_room(self, on: bool) -> None:
+        self._voice_room = bool(on)
+        self.sync()
 
     def start(self) -> None:
         with self._lock:
@@ -938,6 +954,13 @@ class BackButtonService:
             return
         before = node.menu_state
         node.menu_state = menu_state
+        holding = node.menu_holding
+        if holding is not None:
+            both = menu_combo_bit(fmt, "menu") | menu_combo_bit(fmt, holding)
+            if menu_state & both != both:
+                node.menu_holding = None
+                self._hold(node, _MENU_COMBO_KEYS[holding], False)
+            return
         armed = node.menu_armed
         if armed is not None and not menu_state & menu_combo_bit(fmt, armed):
             node.menu_armed = None
@@ -945,6 +968,10 @@ class BackButtonService:
             return
         partner = menu_combo_pressed(fmt, before, menu_state)
         if partner is None:
+            return
+        if _MENU_COMBO_KEYS[partner] in self._hold_keys:
+            node.menu_holding = partner
+            self._hold(node, _MENU_COMBO_KEYS[partner], True)
             return
         if paddles or other_button_beside_menu_combo(fmt, data):
             if self._debug_logging():
@@ -1023,6 +1050,9 @@ class BackButtonService:
         self._incidents.add_manual(controller=node.device, killed=killed, capture=capture if logs_on else None)
 
     def _on_menu_combo(self, node: _OpenNode, key: str) -> None:
+        if key in self._room_keys:
+            self._room_press(node, key)
+            return
         cfg = self._settings_store.load_config()
         action = None
         if cfg.get("backButtonsGlobal", False):
@@ -1036,11 +1066,7 @@ class BackButtonService:
         self._emit({"action": action, "browserSnapshot": False, "combo": True})
 
     def _hold_buttons(self, pressed: list) -> list:
-        cfg = self._settings_store.load_config()
-        if not cfg.get("mpVoicePushToTalk", False):
-            return []
-        bindings = self._settings_store.get_shortcut_bindings(cfg)
-        return [button for button in pressed if bindings.get(button) in HOLD_ACTIONS]
+        return [button for button in pressed if button in self._hold_keys]
 
     def _hold(self, node: _OpenNode, button: str, down: bool) -> None:
         if self._debug_logging():
@@ -1051,8 +1077,19 @@ class BackButtonService:
         for button in sorted(node.holding):
             self._hold(node, button, False)
         node.holding.clear()
+        if node.menu_holding is not None:
+            self._hold(node, _MENU_COMBO_KEYS[node.menu_holding], False)
+            node.menu_holding = None
+
+    def _room_press(self, node: _OpenNode, key: str) -> None:
+        if self._debug_logging():
+            decky.logger.info("back buttons: %s on %s sent voiceMute", key, node.name)
+        self._emit({"action": "voiceMute", "browserSnapshot": False})
 
     def _on_press(self, node: _OpenNode, button: str) -> None:
+        if button in self._room_keys:
+            self._room_press(node, button)
+            return
         cfg = self._settings_store.load_config()
         snapshot = button == BROWSER_SNAPSHOT_BUTTON and bool(cfg.get("browserSnapshot", False))
         action = None

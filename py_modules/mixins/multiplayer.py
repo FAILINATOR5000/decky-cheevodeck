@@ -161,10 +161,19 @@ class MultiplayerMixin(PluginContext):
         levels = await asyncio.to_thread(self.multiplayer_volumes_store.get, game_id, output)
         return {"ok": True, "output": output, **levels}
 
-    async def multiplayer_room_volumes_set(self, game_id: int = 0, game: int = 0, incoming: int = 0, output: str = ""):
+    async def multiplayer_room_volumes_set(self, game_id: int = 0, game: int = 0, incoming: int = 0, output: str = "",
+                                           duck=None, duck_strength=None):
         if type(game_id) is not int or not isinstance(output, str):
             return {"ok": False}
-        return {"ok": await asyncio.to_thread(self.multiplayer_volumes_store.set, game_id, game, incoming, output)}
+        return {"ok": await asyncio.to_thread(self.multiplayer_volumes_store.set, game_id, game, incoming, output,
+                                              duck, duck_strength)}
+
+    async def multiplayer_output_volume_get(self):
+        volume = await asyncio.to_thread(self.voice_canceller.output_volume)
+        return {"ok": volume is not None, "volume": volume}
+
+    async def multiplayer_output_volume_set(self, volume: int = 0):
+        return {"ok": await asyncio.to_thread(self.voice_canceller.set_output_volume, volume)}
 
     async def multiplayer_debug_voice(self, name: str = "", on: bool = False):
         return self.multiplayer_service.debug_voice(str(name or ""), on is True)

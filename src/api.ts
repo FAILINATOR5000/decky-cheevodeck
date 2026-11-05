@@ -283,6 +283,9 @@ export const saveMpShortcutFallback = callable<[boolean], { ok: boolean; mpShort
 export const saveMpVoicePushToTalk = callable<[boolean], { ok: boolean; mpVoicePushToTalk: boolean }>(
     "save_mp_voice_push_to_talk"
 );
+export const saveMpVoicePttToggle = callable<[boolean], { ok: boolean; mpVoicePttToggle: boolean }>(
+    "save_mp_voice_ptt_toggle"
+);
 export const saveMpVoiceSensitivity = callable<[number], { ok: boolean; mpVoiceSensitivity: number }>(
     "save_mp_voice_sensitivity"
 );
@@ -893,10 +896,19 @@ export const multiplayerGameVolumeRecord = callable<[string, number | null, numb
     "multiplayer_game_volume_record"
 );
 export const multiplayerGameVolumePutBack = callable<[string, number[]], { ok: boolean }>("multiplayer_game_volume_put_back");
-export const multiplayerRoomVolumesGet = callable<[number], { ok: boolean; game?: number; incoming?: number; output?: string }>(
+export const multiplayerRoomVolumesGet = callable<[number], {
+    ok: boolean;
+    game?: number;
+    incoming?: number;
+    duck?: boolean;
+    duckStrength?: number;
+    output?: string;
+}>(
     "multiplayer_room_volumes_get"
 );
-export const multiplayerRoomVolumesSet = callable<[number, number, number, string], { ok: boolean }>(
+export const multiplayerOutputVolumeGet = callable<[], { ok: boolean; volume: number | null }>("multiplayer_output_volume_get");
+export const multiplayerOutputVolumeSet = callable<[number], { ok: boolean }>("multiplayer_output_volume_set");
+export const multiplayerRoomVolumesSet = callable<[number, number, number, string, boolean, number], { ok: boolean }>(
     "multiplayer_room_volumes_set"
 );
 export const multiplayerPrepareLaunch = callable<

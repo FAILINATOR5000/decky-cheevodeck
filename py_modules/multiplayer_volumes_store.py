@@ -21,12 +21,26 @@ FILENAME = "multiplayer_volumes.json"
 DEFAULT_GAMES = {"speaker": 40, "headset": 90, "external": 40}
 DEFAULT_INCOMING = 80
 OUTPUTS = tuple(DEFAULT_GAMES)
+DEFAULT_DUCKS = {"speaker": True, "external": False}
+DEFAULT_DUCK_STRENGTH = 2
+DUCK_STRENGTHS = (1, 2, 3, 4)
 
 
 def _level(raw):
     if type(raw) is not int or not 0 <= raw <= 100:
         return None
     return raw - raw % 5
+
+
+def _duck(output: str, pair: dict) -> dict:
+    if output not in DEFAULT_DUCKS:
+        return {"duck": False, "duckStrength": DEFAULT_DUCK_STRENGTH}
+    duck = pair.get("duck")
+    strength = pair.get("duckStrength")
+    return {
+        "duck": duck if type(duck) is bool else DEFAULT_DUCKS[output],
+        "duckStrength": strength if type(strength) is int and strength in DUCK_STRENGTHS else DEFAULT_DUCK_STRENGTH,
+    }
 
 
 class MultiplayerVolumesStore:
@@ -63,7 +77,7 @@ class MultiplayerVolumesStore:
                     game = _level(pair.get("game"))
                     incoming = _level(pair.get("incoming"))
                     if game is not None and incoming is not None:
-                        levels[output] = {"game": game, "incoming": incoming}
+                        levels[output] = {"game": game, "incoming": incoming, **_duck(output, pair)}
             if not levels:
                 continue
             used = row.get("used")
@@ -87,20 +101,25 @@ class MultiplayerVolumesStore:
             row = self._games().get(str(game_id)) if self._ulid and game_id > 0 else None
         pair = row.get(output) if row is not None else None
         if pair is None:
-            return {"game": DEFAULT_GAMES[output], "incoming": DEFAULT_INCOMING}
-        return {"game": pair["game"], "incoming": pair["incoming"]}
+            return {"game": DEFAULT_GAMES[output], "incoming": DEFAULT_INCOMING, **_duck(output, {})}
+        return dict(pair)
 
-    def set(self, game_id: int, game, incoming, output: str = "speaker") -> bool:
+    def set(self, game_id: int, game, incoming, output: str = "speaker", duck=None, duck_strength=None) -> bool:
         game = _level(game)
         incoming = _level(incoming)
         if game is None or incoming is None or game_id <= 0 or output not in OUTPUTS:
             return False
+        if output in DEFAULT_DUCKS and (type(duck) is not bool or duck_strength not in DUCK_STRENGTHS
+                                        or type(duck_strength) is not int):
+            duck, duck_strength = DEFAULT_DUCKS[output], DEFAULT_DUCK_STRENGTH
         with self._lock:
             if not self._ulid:
                 return False
             games = self._games()
             row = games.get(str(game_id), {})
             row[output] = {"game": game, "incoming": incoming}
+            if output in DEFAULT_DUCKS:
+                row[output].update(duck=duck, duckStrength=duck_strength)
             row["used"] = int(time.time())
             games[str(game_id)] = row
             return self._save(games)

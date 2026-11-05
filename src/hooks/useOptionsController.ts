@@ -149,7 +149,6 @@ import {
     saveMpShowOnline,
     saveMpSuggestFriends,
     saveMpShortcutFallback,
-    saveMpVoicePushToTalk,
     saveMpVoiceSensitivity,
     savePlayShortcutFallback,
     saveAutomaticRecovery,
@@ -510,7 +509,6 @@ type UseOptionsControllerArgs = {
     mpShowOnline: boolean;
     mpSuggestFriends: boolean;
     mpShortcutFallback: boolean;
-    mpVoicePushToTalk: boolean;
     mpVoiceSensitivity: number;
     playShortcutFallback: boolean;
     lobbyServer: string;
@@ -590,7 +588,6 @@ type UseOptionsControllerArgs = {
     setMpShowOnline: Dispatch<SetStateAction<boolean>>;
     setMpSuggestFriends: Dispatch<SetStateAction<boolean>>;
     setMpShortcutFallback: Dispatch<SetStateAction<boolean>>;
-    setMpVoicePushToTalk: Dispatch<SetStateAction<boolean>>;
     setMpVoiceSensitivity: Dispatch<SetStateAction<number>>;
     setPlayShortcutFallback: Dispatch<SetStateAction<boolean>>;
     setLobbyServer: Dispatch<SetStateAction<string>>;
@@ -1005,7 +1002,6 @@ export function buildOptionsController({
     mpShowOnline,
     mpSuggestFriends,
     mpShortcutFallback,
-    mpVoicePushToTalk,
     mpVoiceSensitivity,
     playShortcutFallback,
     lobbyServer,
@@ -1085,7 +1081,6 @@ export function buildOptionsController({
     setMpShowOnline,
     setMpSuggestFriends,
     setMpShortcutFallback,
-    setMpVoicePushToTalk,
     setMpVoiceSensitivity,
     setPlayShortcutFallback,
     setLobbyServer,
@@ -1355,7 +1350,6 @@ export function buildOptionsController({
         setMpShowOnline(Boolean(result.mpShowOnline ?? true));
         setMpSuggestFriends(Boolean(result.mpSuggestFriends ?? true));
         setMpShortcutFallback(Boolean(result.mpShortcutFallback ?? false));
-        setMpVoicePushToTalk(Boolean(result.mpVoicePushToTalk ?? false));
         setMpVoiceSensitivity(result.mpVoiceSensitivity ?? 2);
         setPlayShortcutFallback(Boolean(result.playShortcutFallback ?? false));
         setLobbyServer(String(result.lobbyServer ?? ""));
@@ -3614,21 +3608,9 @@ export function buildOptionsController({
             getSavedValue: (result, fallbackValue) => Boolean(result.mpShortcutFallback ?? fallbackValue),
         });
 
-    function voiceSettings(changed: { mpVoicePushToTalk?: boolean; mpVoiceSensitivity?: number }) {
+    function voiceSettings(changed: { mpVoiceSensitivity?: number }) {
         setVoiceSettings(changed);
     }
-
-    const onToggleMpVoicePushToTalk = (nextValue: boolean) =>
-        saveSettingWithRollback<boolean>({
-            nextValue,
-            previousValue: mpVoicePushToTalk,
-            applyValue: (value) => {
-                setMpVoicePushToTalk(value);
-                voiceSettings({ mpVoicePushToTalk: value });
-            },
-            saveCall: saveMpVoicePushToTalk,
-            getSavedValue: (result, fallbackValue) => Boolean(result.mpVoicePushToTalk ?? fallbackValue),
-        });
 
     const onChangeMpVoiceSensitivity = (nextValue: number) =>
         saveSettingWithRollback<number>({
@@ -3804,6 +3786,7 @@ export function buildOptionsController({
             applyValue: (value) => {
                 setShortcutBindings(value);
                 setSnapshotHotkey(value);
+                setVoiceSettings({ shortcutBindings: value });
             },
             saveCall: (value) => saveShortcutBinding(button, value[button]),
         });
@@ -4074,7 +4057,6 @@ export function buildOptionsController({
         mpShowOnline,
         mpSuggestFriends,
         mpShortcutFallback,
-        mpVoicePushToTalk,
         mpVoiceSensitivity,
         playShortcutFallback,
         lobbyServer,
@@ -4352,7 +4334,6 @@ export function buildOptionsController({
         onToggleMpShowOnline,
         onToggleMpSuggestFriends,
         onToggleMpShortcutFallback,
-        onToggleMpVoicePushToTalk,
         onChangeMpVoiceSensitivity,
         onTogglePlayShortcutFallback,
         onEditLobbyServer,

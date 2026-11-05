@@ -20,7 +20,7 @@ import { lastOpenedGuide } from "../../utils/guidesResolve";
 import { cheevoModalCount, cheevoModalOpen, forgetQuickAccessRequest, showManagedModal } from "../../utils/modalRegistry";
 import type { PanelEntry } from "../../utils/pendingPanelEntry";
 import { captureSnapshot } from "../../utils/snapshot";
-import { holdPushToTalk } from "../../utils/voiceChat";
+import { holdPushToTalk, pressVoiceMute } from "../../utils/voiceChat";
 import { startupSettingsSettled } from "../../utils/frontendSettings";
 import { showToggleToast } from "../../utils/toggleToast";
 import { playToggleSound, PRESS_TOAST_DELAY_MS } from "../../utils/navSound";
@@ -279,6 +279,10 @@ async function onBackButton(payload: BackButtonPayload) {
     const action = payload?.action;
     if (action === "pushToTalk") {
         holdPushToTalk(payload.down === true);
+        return;
+    }
+    if (action === "voiceMute") {
+        void pressVoiceMute();
         return;
     }
     if (typeof action !== "string" || !GLOBAL_SHORTCUT_ACTIONS.includes(action as ShortcutAction)) {

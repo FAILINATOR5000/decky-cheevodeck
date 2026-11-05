@@ -1,5 +1,5 @@
 import { Focusable, PanelSectionRow } from "@decky/ui";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { FocusTarget } from "../ui/FocusTarget";
 import { SectionTitle } from "../ui/SectionTitle";
@@ -40,10 +40,34 @@ export function RoomTable(props: {
     exitKey: string;
     voice?: RoomTableVoice;
     onMic?: () => void;
-    onFocusSeat?: (index: number) => void;
+    prompts?: boolean;
+    footer?: boolean;
+    ownPress?: boolean;
+    onFocusAction?: (label: string | null, own: boolean) => void;
 }) {
     const { language, seats, voice } = props;
     const [focused, setFocused] = useState(-1);
+
+    function pressable(index: number): boolean {
+        return voice !== undefined && index === voice.own ? Boolean(props.ownPress) : seats[index].open;
+    }
+
+    function action(index: number): string | undefined {
+        if (!props.prompts || !seats[index]?.name || !pressable(index)) {
+            return undefined;
+        }
+        if (voice !== undefined && index === voice.own) {
+            return t(language, voice.mine === "off" ? "Unmute" : "Mute");
+        }
+        return t(language, "Options");
+    }
+
+    const focusedAction = focused >= 0 && focused < seats.length ? action(focused) ?? null : null;
+    const focusedOwn = voice !== undefined && focused === voice.own;
+    useEffect(() => {
+        props.onFocusAction?.(focusedAction, focusedOwn);
+    }, [focusedAction, focusedOwn]);
+    useEffect(() => () => props.onFocusAction?.(null, false), []);
 
     function heirs(index: number): string[] {
         return [index + 1, index - 1]
@@ -123,15 +147,10 @@ export function RoomTable(props: {
                                 <Focusable
                                     focusable
                                     noFocusRing
-                                    onActivate={own ? props.onMic : seat.open ? () => props.onSeat(index) : undefined}
-                                    onGamepadFocus={() => {
-                                        setFocused(index);
-                                        props.onFocusSeat?.(index);
-                                    }}
-                                    onGamepadBlur={() => {
-                                        setFocused((current) => (current === index ? -1 : current));
-                                        props.onFocusSeat?.(-1);
-                                    }}
+                                    onActivate={!pressable(index) ? undefined : own ? props.onMic : () => props.onSeat(index)}
+                                    onOKActionDescription={props.footer ? action(index) : undefined}
+                                    onGamepadFocus={() => setFocused(index)}
+                                    onGamepadBlur={() => setFocused((current) => (current === index ? -1 : current))}
                                     style={{
                                         ...rowStyle,
                                         borderRadius: "4px",

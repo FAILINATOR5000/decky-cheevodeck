@@ -4,8 +4,9 @@ import type { ControllerGlyphStyle } from "../../types";
 import { glyphAsset, probeGlyphPath, resolveGlyphStyle, warmGlyphCache, type GlyphButton } from "../../utils/controllerGlyphs";
 import { getCurrentTextScale, textSize } from "../../utils/scale";
 
-type ButtonHint = {
+export type ButtonHint = {
     button: GlyphButton | readonly GlyphButton[];
+    or?: readonly GlyphButton[];
     label: ReactNode;
 };
 
@@ -51,6 +52,10 @@ export function ButtonHints(props: ButtonHintsProps) {
                 >
                     {glyphsFor(hint).map((button) => (
                         <ButtonGlyph key={button} button={button} style={resolved} size={glyphSize} />
+                    ))}
+                    {hint.or && <span>/</span>}
+                    {hint.or?.map((button) => (
+                        <ButtonGlyph key={`or:${button}`} button={button} style={resolved} size={glyphSize} />
                     ))}
                     {hint.label}
                 </span>

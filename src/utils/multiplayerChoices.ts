@@ -3,6 +3,7 @@ import type {
     MultiplayerAccess,
     MultiplayerMode,
     MultiplayerRoomFilter,
+    MultiplayerRoomTab,
     MultiplayerSource,
     MultiplayerTab,
     MultiplayerWhere
@@ -23,6 +24,7 @@ type Choices = {
     core: string;
     coreFor: number | null;
     page: MultiplayerTab;
+    roomTab: { room: string; tab: MultiplayerRoomTab };
     invite: { id: string; at: number } | null;
     message: { friend: string; id: string; at: number } | null;
     source: MultiplayerSource;
@@ -48,6 +50,7 @@ const choices: Choices = {
     core: "",
     coreFor: null,
     page: "play",
+    roomTab: { room: "", tab: "room" },
     invite: null,
     message: null,
     source: "achievements",
@@ -117,6 +120,10 @@ export function rememberMultiplayerOverview(overview: GameOverviewIdentity | nul
 
 export function rememberMultiplayerPage(page: MultiplayerTab) {
     choices.page = page;
+}
+
+export function rememberMultiplayerRoomTab(room: string, tab: MultiplayerRoomTab) {
+    choices.roomTab = { room, tab };
 }
 
 export function rememberMultiplayerInvite(invite: string | null) {

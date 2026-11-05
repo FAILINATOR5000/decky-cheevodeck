@@ -38,6 +38,7 @@ DUCK_DOWN_SECONDS = 0.4
 DUCK_UP_SECONDS = 1.5
 DUCK_HOLD_SECONDS = 2.0
 DUCK_STEP = 0.01
+DUCKED_KINDS = ("speaker", "external")
 
 SAVED_TARGET = re.compile(r'"target"\s*:\s*"([^"]*)"')
 
@@ -126,6 +127,25 @@ class VoiceCanceller:
         defaults = self._defaults()
         return output_kind(*defaults) if defaults is not None else "speaker"
 
+    def output_volume(self):
+        code, sink, _err = self._run("pactl", "get-default-sink")
+        sink = sink.strip()
+        if code != 0 or not sink or sink in OUR_NODES:
+            return None
+        code, out, _err = self._run("pactl", "get-sink-volume", sink)
+        found = re.search(r"(\d+)%", out) if code == 0 else None
+        return int(found.group(1)) if found else None
+
+    def set_output_volume(self, percent: int) -> bool:
+        if type(percent) is not int or not 0 <= percent <= 100:
+            return False
+        code, sink, _err = self._run("pactl", "get-default-sink")
+        sink = sink.strip()
+        if code != 0 or not sink or sink in OUR_NODES:
+            return False
+        code, _out, _err = self._run("pactl", "set-sink-volume", sink, f"{percent}%")
+        return code == 0
+
     def watch(self, still_wanted, changed) -> None:
         with self._lock:
             if self._shut:
@@ -148,14 +168,14 @@ class VoiceCanceller:
                 return {"active": False, "duck": False, "kind": ""}
             kind = output_kind(*defaults)
             if self._modules and defaults == self._seen:
-                return {"active": True, "duck": self._kind == "speaker", "kind": self._kind}
+                return {"active": True, "duck": self._kind in DUCKED_KINDS, "kind": self._kind}
             moved = self._seen is not None and defaults != self._seen
             self._unload()
             self._seen = defaults
             if kind == "headset" or not self._load(defaults, kind):
                 state = {"active": False, "duck": False, "kind": kind}
             else:
-                state = {"active": True, "duck": kind == "speaker", "kind": kind}
+                state = {"active": True, "duck": kind in DUCKED_KINDS, "kind": kind}
         if moved and changed is not None:
             try:
                 changed("output", kind)
@@ -210,7 +230,7 @@ class VoiceCanceller:
         self._game_sink = (str(found["object.id"]), str(found["object.serial"]))
         self._kind = kind
         self._move_games()
-        if kind == "speaker":
+        if kind in DUCKED_KINDS:
             stop = threading.Event()
             with self._ramp_wake:
                 self._ducked = False

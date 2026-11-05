@@ -51,7 +51,7 @@ POLL_SECONDS = 2
 POLL_BACKOFF_SECONDS = 5
 VOICE_POLL_SECONDS = 0.4
 VOICE_FAST_SECONDS = 8
-VOICE_PER_SEAT = 24
+VOICE_PER_SEAT = 40
 VOICE_RATE_SECONDS = 60
 TURN_PORT = 3478
 TURN_DEBOUNCE_SECONDS = 2
@@ -218,10 +218,12 @@ class MultiplayerService:
     def __init__(
         self, *, settings_store, game_mode, user_home, runtime_dir, cheevo_check_service, cheevo_check_store,
         port: int = proto.PORT, peer_port: int = proto.PORT,
-        broadcast: str = "255.255.255.255", bin_dir=None, voice_canceller=None,
+        broadcast: str = "255.255.255.255", bin_dir=None, voice_canceller=None, voice_room_changed=None,
     ):
         self._settings_store = settings_store
         self._voice_canceller = voice_canceller
+        self._voice_room_changed = voice_room_changed
+        self._in_voice_room = False
         self._game_mode = game_mode
         self._user_home = Path(user_home)
         self._session_dir = Path(runtime_dir) / SESSION_DIR
@@ -1632,6 +1634,7 @@ class MultiplayerService:
                 "turn": {},
                 "turnSeq": 0,
                 "turnAsk": None,
+                "turnLeft": {},
                 "turnAfter": 0.0,
                 "passesUsed": set(),
                 "state": "lobby",
@@ -1673,6 +1676,7 @@ class MultiplayerService:
                     return {"ok": False, "error": ERROR_LOBBY_UNREACHABLE}
                 self._link = link
             self._room = room
+            self._tell_voice_room()
             self._closed_reason = ""
             self._seen.clear()
             self._seen_order.clear()
@@ -1732,8 +1736,21 @@ class MultiplayerService:
             self._changed(room)
         return {"ok": True, "room": self._host_view(room)}
 
+    def _tell_voice_room(self) -> None:
+        now = bool(self._room is not None and self._room["voice"]) or bool(
+            self._joined is not None and self._joined["row"]["voice"])
+        if now == self._in_voice_room:
+            return
+        self._in_voice_room = now
+        if self._voice_room_changed is not None:
+            try:
+                self._voice_room_changed(now)
+            except Exception as e:
+                decky.logger.warning("multiplayer: couldn't tell the back buttons about voice (%s)", type(e).__name__)
+
     def _set_room_voice(self, room: dict, on: bool) -> None:
         room["voice"] = on
+        self._tell_voice_room()
         if not on:
             for seat in room["seats"]:
                 if seat is not None:
@@ -1804,6 +1821,7 @@ class MultiplayerService:
         room["seats"][seat] = None
         self._host_tunnels.close_seat(seat)
         self._voice_forget(room, seat)
+        self._turn_forget(room, seat, dropped.get("ulid", ""))
         room["notice"] = None
         self._roster_left(room, seat)
         self._announce()
@@ -1814,6 +1832,7 @@ class MultiplayerService:
         if room is None:
             return
         self._room = None
+        self._tell_voice_room()
         self._closed_reason = reason
         self._host_tunnels.close()
         if self._housekeeper is not None:
@@ -1916,6 +1935,7 @@ class MultiplayerService:
                 room["seats"][index] = None
                 self._host_tunnels.close_seat(index)
                 self._voice_forget(room, index)
+                self._turn_forget(room, index, seat.get("ulid", ""))
                 self._toast_seat(seat["name"], "Left Room", "{{name}} left.")
                 self._roster_left(room, index)
 
@@ -2249,6 +2269,7 @@ class MultiplayerService:
             room["seats"][index] = None
             self._host_tunnels.close_seat(index)
             self._voice_forget(room, index)
+            self._turn_forget(room, index, seat.get("ulid", ""))
             decky.logger.info("multiplayer: seat %s left", index)
             await conversation.say({"ok": True})
             self._toast_seat(seat["name"], "Left Room", "{{name}} left.")
@@ -2480,9 +2501,24 @@ class MultiplayerService:
         ):
             return
         held = room["turn"]
-        if held and min(cred["expires"] for cred in held.values()) - time.time() > TURN_RENEW_SECONDS:
+        for index, seat in enumerate(room["seats"]):
+            left = room["turnLeft"].get(index)
+            if seat is None or left is None:
+                continue
+            if left["ulid"] and seat.get("ulid") == left["ulid"]:
+                held[index] = left["cred"]
+            del room["turnLeft"][index]
+        now = time.time()
+        missing = any(seat is not None and seat.get("vc") and index not in held for index, seat in enumerate(room["seats"]))
+        if not missing and not any(_turn_due(cred, now) for cred in held.values()):
             return
         room["turnAsk"] = self._spawn(self._mint_turn(room))
+
+    def _turn_forget(self, room: dict, index: int, ulid: str = "") -> None:
+        cred = room["turn"].pop(index, None)
+        if cred is not None:
+            room["turnLeft"][index] = {"ulid": ulid, "cred": cred}
+            self._debug("voice: seat %s's relay credential dropped", index)
 
     async def _mint_turn(self, room: dict) -> None:
         try:
@@ -2499,10 +2535,17 @@ class MultiplayerService:
                 decky.logger.info("multiplayer: the online lobby gave no voice relay credentials")
                 return
             renewed = bool(room["turn"])
-            room["turn"] = {index: {**cred, "expires": int(cred["u"].split(":")[0]), "n": secrets.token_hex(16)}
-                            for index, cred in enumerate(creds)}
+            now = time.time()
+            fresh = {index: {**cred, "expires": int(cred["u"].split(":")[0]), "n": secrets.token_hex(16)}
+                     for index, cred in enumerate(creds)}
+            kept = {index: cred for index, cred in room["turn"].items() if not _turn_due(cred, now)}
+            room["turn"] = {**fresh, **kept}
             room["turnSeq"] += 1
-            decky.logger.info("multiplayer: voice relay credentials %s", "renewed" if renewed else "ready")
+            if renewed and kept:
+                seats = ", ".join(str(index) for index in sorted(set(fresh) - set(kept)))
+                decky.logger.info("multiplayer: voice relay credentials ready for seat %s", seats)
+            else:
+                decky.logger.info("multiplayer: voice relay credentials %s", "renewed" if renewed else "ready")
             self._announce()
         finally:
             room["turnAsk"] = None
@@ -3037,6 +3080,7 @@ class MultiplayerService:
                 "turn": None,
                 "turnSeq": 0,
             }
+            self._tell_voice_room()
             self._closed_reason = ""
             self._poller = self._spawn(self._poll(self._joined))
             decky.logger.info("multiplayer: joined a room, seat %s%s", answer["seat"],
@@ -3177,9 +3221,10 @@ class MultiplayerService:
         allowed = status["room"]["voice"]
         if allowed != joined["row"]["voice"]:
             joined["row"] = {**joined["row"], "voice": allowed}
-            if not allowed and joined["vc"]:
-                joined["vc"] = False
-                decky.logger.info("multiplayer: the host turned voice chat off")
+        if not allowed and joined["vc"]:
+            joined["vc"] = False
+            decky.logger.info("multiplayer: the host turned voice chat off")
+        self._tell_voice_room()
         turn = status["turn"]
         if turn is not None and turn["u"] != (joined["turn"] or {}).get("u"):
             password = proto.unwrap_turn(joined["key"], turn["n"], turn["p"])
@@ -3372,6 +3417,7 @@ class MultiplayerService:
         if joined is None:
             return
         self._joined = None
+        self._tell_voice_room()
         self._closed_reason = reason
         self._close_guest_tunnels()
         if self._poller is not None:
@@ -4293,6 +4339,12 @@ def _game_audio_key(app) -> bool:
         return False
     prop, sep, value = app.partition(":")
     return bool(sep) and prop in GAME_AUDIO_KEYS and bool(value)
+
+
+def _turn_due(cred: dict, now: float) -> bool:
+    ttl = cred.get("ttl")
+    lead = min(TURN_RENEW_SECONDS, ttl // 2) if type(ttl) is int and ttl > 0 else TURN_RENEW_SECONDS
+    return cred["expires"] - now <= lead
 
 
 def _access(room: dict) -> str:

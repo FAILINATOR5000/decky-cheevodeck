@@ -85,6 +85,7 @@ import { videoMoveErrorKey } from "../utils/memoriesTransferErrors";
 import { armMainListOpenAt, type MainListOpenTarget } from "../utils/mainListOpenAt";
 import { BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT, BUTTON_SECONDARY } from "../utils/gamepadButtons";
 import { playOkSound } from "../utils/navSound";
+import { usePushToTalk } from "../utils/voiceChat";
 import { bodyTextStyle, regularButtonSpacingStyle, smallTextStyle } from "../utils/style";
 import { usePageLanding } from "../focusRecords";
 
@@ -262,7 +263,6 @@ type OptionsPageState = {
     mpShowOnline: boolean;
     mpSuggestFriends: boolean;
     mpShortcutFallback: boolean;
-    mpVoicePushToTalk: boolean;
     mpVoiceSensitivity: number;
     playShortcutFallback: boolean;
     lobbyServer: string;
@@ -528,7 +528,6 @@ type OptionsPageActions = {
     onToggleMpShowOnline: (nextValue: boolean) => void | Promise<void>;
     onToggleMpSuggestFriends: (nextValue: boolean) => void | Promise<void>;
     onToggleMpShortcutFallback: (nextValue: boolean) => void | Promise<void>;
-    onToggleMpVoicePushToTalk: (nextValue: boolean) => void | Promise<void>;
     onChangeMpVoiceSensitivity: (nextValue: number) => void | Promise<void>;
     onTogglePlayShortcutFallback: (nextValue: boolean) => void | Promise<void>;
     onEditLobbyServer: () => void;
@@ -1897,6 +1896,7 @@ function GuiTab(props: TabContentProps) {
 
 function SocialTab(props: TabContentProps) {
     const { state, actions, buttonOuterStyle, disabled } = props;
+    const pushToTalk = usePushToTalk();
 
     return (
         <>
@@ -2163,19 +2163,11 @@ function SocialTab(props: TabContentProps) {
                 help={t(state.language, "help_mp_suggest_friends")}
             />
             <SectionTitle label={t(state.language, "Voice Chat")} />
-            <OptionToggle
-                outerStyle={buttonOuterStyle}
-                focusKey="options:toggle:mpVoicePushToTalk"
-                label={t(state.language, "Push to Talk")}
-                value={state.mpVoicePushToTalk}
-                onChange={actions.onToggleMpVoicePushToTalk}
-                disabled={disabled}
-                help={t(state.language, "Hold a back button to talk. Choose it under Mapped Shortcuts → Push to Talk.")}
-            />
             <PanelSectionRow>
                 <FocusTarget focusKey="options:mp-voice-sensitivity" style={buttonOuterStyle}>
                     <SliderField
                         label={t(state.language, "Mic Sensitivity")}
+                        description={pushToTalk.working ? t(state.language, "Not used while Push to Talk is on.") : undefined}
                         value={state.mpVoiceSensitivity}
                         min={1}
                         max={3}
@@ -2189,7 +2181,7 @@ function SocialTab(props: TabContentProps) {
                         notchTicksVisible
                         layout="below"
                         bottomSeparator="none"
-                        disabled={disabled || state.mpVoicePushToTalk}
+                        disabled={disabled || pushToTalk.working}
                         onChange={(value) => void actions.onChangeMpVoiceSensitivity(value)}
                     />
                 </FocusTarget>
