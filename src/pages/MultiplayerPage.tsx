@@ -843,14 +843,15 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         </>
     );
 
-    const notesRow = (warnings.length > 0 || tips.length > 0) && (
+    const notesRow = (
         <PanelSectionRow>
             <FocusableItem
                 bottomSeparator="none"
                 outerStyle={buttonStyle}
                 focusKey="multiplayer:notes"
                 focusFallback={[joined ? "multiplayer:leave" : "multiplayer:host", `multiplayer:mode:${mp.mode}`, "multiplayer:back"]}
-                onClick={() => showMultiplayerProblem(language, "Before You Play", [...warnings, ...tips])}
+                onClick={() => showMultiplayerProblem(language, "Before You Play",
+                    warnings.length + tips.length > 0 ? [...warnings, ...tips] : t(language, "Nothing to note for this game."))}
             >
                 <div style={{ width: "100%", textAlign: "center" }}>
                     {t(language, "Before You Play")}

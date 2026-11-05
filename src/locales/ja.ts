@@ -3132,6 +3132,7 @@ const JA: LocaleTable = {
     "In a Room · Lobby": "ルーム内 · ロビー",
     "Room “{{room}}”": "ルーム「{{room}}」",
     "{{name}} is offline. Invites reach online friends only.": "{{name}}はオフラインです。招待はオンラインのフレンドにしか届きません。",
+    "Nothing to note for this game.": "このゲームで注意することはありません。",
 };
 
 export default JA;

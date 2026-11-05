@@ -3346,6 +3346,7 @@ const RU: LocaleTable = {
     "In a Room · Lobby": "В комнате · Лобби",
     "Room “{{room}}”": "Комната «{{room}}»",
     "{{name}} is offline. Invites reach online friends only.": "{{name}} не в сети. Приглашения доходят только до друзей онлайн.",
+    "Nothing to note for this game.": "Для этой игры ничего важного нет.",
 };
 
 export default RU;
