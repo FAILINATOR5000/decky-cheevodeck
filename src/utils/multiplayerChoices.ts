@@ -43,7 +43,7 @@ const choices: Choices = {
     seats: 4,
     status: "",
     where: "local",
-    access: "public",
+    access: "friends",
     filter: NO_ROOM_FILTER,
     core: "",
     coreFor: null,
