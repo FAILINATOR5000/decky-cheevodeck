@@ -207,10 +207,10 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         && (joined.ready || (local !== null && !shownCheck?.gate && !runningOther)));
     const readyAllowed = Boolean(joined && inLobby && !joined.launched
         && (joined.ready || (ownGameOk && !runningOther)));
-    const canRejoin = Boolean(joined?.rejoin) && !playing && !mp.busy && !runningOther && ownGameOk;
+    const canRejoinShown = Boolean(joined?.rejoin) && !playing && !runningOther && ownGameOk;
     const dropIn = (hosted?.mode ?? joined?.room.mode) === "couch"
         && (hosted?.emulator ?? joined?.room.emulator) === "retroarch";
-    const canJoinLate = !playing && !mp.busy && !runningOther && ownGameOk;
+    const canJoinLateShown = !playing && !runningOther && ownGameOk;
 
     function playStatus(): { code: string; detail?: Record<string, string> } | null {
         if (!hosted && !joined) {
@@ -293,14 +293,22 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         }
         else if (joined.rejoin) {
             playLabel = joined.room.watch ? "Watch" : "Join & Play";
-            canPlay = canRejoin;
-            pressPlay = () => void actions.play();
+            canPlay = canRejoinShown;
+            pressPlay = () => {
+                if (!mp.busy && canRejoinShown) {
+                    void actions.play();
+                }
+            };
         }
         else if (dropIn) {
             playLabel = joined.room.watch ? "Watch" : "Join & Play";
             canPlay = roomState === "playing" && !joined.status?.start && !joined.ready && !joined.launched
-                && canJoinLate;
-            pressPlay = () => void actions.joinLate();
+                && canJoinLateShown;
+            pressPlay = () => {
+                if (!mp.busy && canPlay) {
+                    void actions.joinLate();
+                }
+            };
         }
         else {
             playLabel = "Ready";
@@ -643,8 +651,11 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     outerStyle={buttonStyle}
                     focusKey="multiplayer:host"
                     focusFallback={[`multiplayer:mode:${mp.mode}`, "multiplayer:back"]}
-                    disabled={mp.busy || (!hosted && (mp.gameId === null || !shownCheck || Boolean(shownCheck.gate) || (Boolean(mp.visibleError) && mp.visibleError !== "cap_reached")))}
+                    disabled={!hosted && (mp.gameId === null || !shownCheck || Boolean(shownCheck.gate) || (Boolean(mp.visibleError) && mp.visibleError !== "cap_reached"))}
                     onClick={() => {
+                        if (mp.busy) {
+                            return;
+                        }
                         if (hosted) {
                             void actions.closeRoom();
                         }
@@ -663,8 +674,11 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         outerStyle={buttonStyle}
                         focusKey="multiplayer:find"
                         focusFallback={["multiplayer:host", `multiplayer:mode:${mp.mode}`, "multiplayer:back"]}
-                        disabled={mp.busy}
-                        onClick={() => openRooms(language, mp.hardcore, mp.installedCores, describe)}
+                        onClick={() => {
+                            if (!mp.busy) {
+                                openRooms(language, mp.hardcore, mp.installedCores, describe);
+                            }
+                        }}
                     >
                         {t(language, "Find a Room")}
                     </FocusableItem>
@@ -864,8 +878,12 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         outerStyle={buttonStyle}
                         focusKey="multiplayer:changegame"
                         focusFallback={["multiplayer:core", hosted ? "multiplayer:host" : "multiplayer:leave", "multiplayer:back"]}
-                        disabled={mp.busy || !inLobby || Boolean(joined?.ready)}
-                        onClick={() => void (hosted ? openGamePicker(actions.changeGame) : openGuestGames())}
+                        disabled={!inLobby || Boolean(joined?.ready)}
+                        onClick={() => {
+                            if (!mp.busy) {
+                                void (hosted ? openGamePicker(actions.changeGame) : openGuestGames());
+                            }
+                        }}
                     >
                         {t(language, "Change Game")}
                     </FocusableItem>
