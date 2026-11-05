@@ -10,7 +10,7 @@ import { PicAvatar } from "./PicAvatar";
 type RoomTableSeat = {
     name: string;
     game: string;
-    tag: "host" | "you" | "";
+    tag: "host" | "";
     mark?: "ready" | "cant" | "";
     activity?: "game" | "watch" | "";
     avatar?: string;
@@ -45,9 +45,13 @@ export function RoomTable(props: {
             <PanelSectionRow>
                 <div style={{ display: "flex", flexDirection: "column", width: "100%", paddingBottom: "8px" }}>
                     {seats.map((seat, index) => {
+                        const tags = seat.name ? [
+                            t(language, seat.tag === "host" ? "Host" : "Guest"),
+                            t(language, seat.activity === "game" ? "In-Game" : seat.activity === "watch" ? "Watching" : "In-Lobby")
+                        ].join(" · ") : "";
                         const rowStyle = {
                             display: "grid",
-                            gridTemplateColumns: "auto auto 1fr auto",
+                            gridTemplateColumns: "auto auto 1fr",
                             alignItems: "center",
                             gap: "10px",
                             minHeight: "28px",
@@ -79,14 +83,8 @@ export function RoomTable(props: {
                                     {seat.name && seat.game && (
                                         <span style={{ ...bodyTextStyle(), overflowWrap: "anywhere" }}>{seat.game}</span>
                                     )}
+                                    {tags && <span style={bodyTextStyle()}>{tags}</span>}
                                 </div>
-                                <span style={{ ...bodyTextStyle(), textAlign: "right" }}>
-                                    {[
-                                        seat.tag === "host" ? t(language, "Host") : seat.tag === "you" ? t(language, "You") : "",
-                                        seat.activity === "game" ? t(language, "In-Game")
-                                            : seat.activity === "watch" ? t(language, "Watching") : ""
-                                    ].filter(Boolean).join(" · ")}
-                                </span>
                             </>
                         );
                         return (

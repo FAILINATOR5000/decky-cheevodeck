@@ -3299,6 +3299,8 @@ const PT: LocaleTable = {
     "Room “{{room}}”": "Sala “{{room}}”",
     "{{name}} is offline. Invites reach online friends only.": "{{name}} está offline. Convites só chegam a amigos online.",
     "Nothing to note for this game.": "Nada a observar neste jogo.",
+    "Guest": "Convidado",
+    "In-Lobby": "No lobby",
 };
 
 export default PT;
