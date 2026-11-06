@@ -530,9 +530,12 @@ def tagged_ok(key: bytes, message, now: float) -> bool:
 
 
 def report(*, seq: int, ready: bool, rev: int, round_: int, can: bool, reason: str, game_id: int, title: str,
-           launched: bool, hardcore: bool) -> dict:
-    return {"seq": seq, "ready": ready, "rev": rev, "round": round_, "can": can, "reason": reason,
+           launched: bool, hardcore: bool, st: str = "") -> dict:
+    body = {"seq": seq, "ready": ready, "rev": rev, "round": round_, "can": can, "reason": reason,
             "gameId": game_id, "title": title[:_TITLE_MAX], "launched": launched, "hardcore": hardcore}
+    if st:
+        body["st"] = st
+    return body
 
 
 def clean_chat(value) -> str:
@@ -580,7 +583,8 @@ def read_report(raw):
         or not isinstance(raw.get("title"), str)
     ):
         return None
-    return {**{name: raw[name] for name in (*numbers, *flags, "reason")}, "title": _clean(raw["title"], _TITLE_MAX)}
+    return {**{name: raw[name] for name in (*numbers, *flags, "reason")}, "title": _clean(raw["title"], _TITLE_MAX),
+            "st": stream_state(raw.get("st"))}
 
 
 def status_reply(key: bytes, nonce: str, body: dict) -> dict:
@@ -636,7 +640,8 @@ def read_status_reply(key: bytes, message, nonce: str):
         "players": message["players"],
         "seats": [{"ready": seat["ready"], "can": seat["can"], "launched": seat["launched"],
                    "playing": seat["playing"], "title": _clean(seat["title"], _TITLE_MAX),
-                   "vc": seat.get("vc") is True, "vs": _stamp(seat.get("vs"))} for seat in seats],
+                   "vc": seat.get("vc") is True, "vs": _stamp(seat.get("vs")),
+                   "st": stream_state(seat.get("st"))} for seat in seats],
         "lastStart": None if last is None else {"round": last["round"], "ok": last["ok"], "error": last["error"]},
         "room": room,
         "chat": [{"seq": entry["seq"], "name": _clean(entry["name"], _USER_MAX) or "",
@@ -646,6 +651,7 @@ def read_status_reply(key: bytes, message, nonce: str):
         "inbox": [item for item in (read_inbox_item(raw) for raw in message["inbox"]) if item is not None],
         "voice": [item for item in (read_voice_item(raw) for raw in message.get("voice", [])) if item is not None],
         "turn": read_turn(message.get("turn")),
+        "stream": read_stream(message.get("stream")),
     }
 
 
@@ -685,6 +691,45 @@ def read_friend_ask(raw):
 def inbox_since(raw) -> int:
     since = raw.get("fsince") if isinstance(raw, dict) else None
     return since if type(since) is int and 0 <= since < 2 ** 31 else 0
+
+
+STREAM_STATES = ("pairing", "connecting", "streaming", "relay", "failed")
+_PIN = re.compile(r"[0-9]{4}")
+_OCCUPANT = re.compile(r"[0-9a-f]{8,32}")
+
+
+def wrap_pin(key: bytes, nonce: str, pin: str) -> str:
+    return wrap(key, "spin", nonce, pin.encode("ascii").ljust(32, b"\0"))
+
+
+def unwrap_pin(key: bytes, nonce: str, wrapped):
+    raw = unwrap(key, "spin", nonce, wrapped)
+    if raw is None:
+        return None
+    try:
+        pin = raw.rstrip(b"\0").decode("ascii")
+    except UnicodeDecodeError:
+        return None
+    return pin if _PIN.fullmatch(pin) else None
+
+
+def stream_state(value) -> str:
+    return value if value in STREAM_STATES else ""
+
+
+def read_stream(raw):
+    if not isinstance(raw, dict):
+        return None
+    nonce, cap = raw.get("n"), raw.get("cap")
+    if not is_nonce(nonce) or type(cap) is not int or not 0 <= cap <= 100000 or type(raw.get("full")) is not bool:
+        return None
+    for name in ("pin", "token"):
+        if raw.get(name) != "" and (not isinstance(raw.get(name), str) or _HEX64.fullmatch(raw[name]) is None):
+            return None
+    occupant = raw.get("occ", "")
+    if not isinstance(occupant, str) or _OCCUPANT.fullmatch(occupant) is None:
+        return None
+    return {"pin": raw["pin"], "token": raw["token"], "n": nonce, "cap": cap, "full": raw["full"], "occ": occupant}
 
 
 def _seat_ok(seat) -> bool:

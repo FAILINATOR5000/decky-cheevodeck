@@ -2998,6 +2998,7 @@ type MultiplayerSeat = {
     title: string;
     ulid: string;
     pic: string;
+    st?: string;
 } | null;
 
 type MultiplayerLastStart = { round: number; ok: boolean; error: string } | null;
@@ -3045,7 +3046,7 @@ type MultiplayerGuestStatus = {
     start: boolean;
     port: number;
     players: number;
-    seats: { ready: boolean; can: boolean; launched: boolean; playing: boolean; title: string }[];
+    seats: { ready: boolean; can: boolean; launched: boolean; playing: boolean; title: string; st?: string }[];
     lastStart: MultiplayerLastStart;
     ids: { ulid: string; pic: string }[];
 };

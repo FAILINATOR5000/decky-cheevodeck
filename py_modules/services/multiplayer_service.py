@@ -20,6 +20,7 @@ from pathlib import Path
 import cheevo_check_tools
 import decky
 import multiplayer_protocol as proto
+from services import stream_room
 import multiplayer_session as session
 import rom_headers
 import steam_shortcuts
@@ -1777,6 +1778,10 @@ class MultiplayerService:
                 if failed:
                     self._close_room("")
                     return {"ok": False, "error": ERROR_GATE, "gate": failed, "detail": {}}
+                room["streams"] = stream_room.HostStreams(
+                    sunshine=self._stream_host, room_id=room_id, online=online, slow=self._slow_connection(),
+                    debug=self._debug,
+                )
             self._tell_voice_room()
             self._closed_reason = ""
             self._seen.clear()
@@ -1921,6 +1926,7 @@ class MultiplayerService:
         room["bannedDevices"].add(dropped["device"])
         room["seats"][seat] = None
         self._host_tunnels.close_seat(seat)
+        self._stream_seat_gone(room, seat)
         self._voice_forget(room, seat)
         self._turn_forget(room, seat, dropped.get("ulid", ""))
         room["notice"] = None
@@ -1936,6 +1942,8 @@ class MultiplayerService:
         self._tell_voice_room()
         self._closed_reason = reason
         self._host_tunnels.close()
+        if room.get("streams") is not None:
+            room["streams"].close()
         if room["mode"] == "stream" and self._stream_host is not None:
             self._stop_sunshine()
         if self._housekeeper is not None:
@@ -1950,6 +1958,13 @@ class MultiplayerService:
             loop.call_later(CLOSED_TAIL_SECONDS, self._end_tail, tail)
         decky.logger.info("multiplayer: room closed%s", f" ({reason})" if reason else "")
         self._announce()
+
+    def _stream_seat_gone(self, room: dict, index: int) -> None:
+        if room.get("streams") is not None:
+            room["streams"].seat_gone(index)
+
+    def _slow_connection(self) -> bool:
+        return bool(self._settings_store.load_config().get("mpStreamSlowConnection", False))
 
     def hosting_stream(self) -> bool:
         room = self._room
@@ -1998,7 +2013,8 @@ class MultiplayerService:
                 if index == 0
                 else {"name": seat["name"], "launched": seat["launched"], "ready": self._seat_ready(room, seat),
                       "can": seat["can"], "reason": seat["reason"], "title": seat["title"],
-                      "ulid": seat["ulid"], "pic": seat["pic"]}
+                      "ulid": seat["ulid"], "pic": seat["pic"],
+                      "st": room["streams"].seat_state(index) if room.get("streams") is not None else ""}
                 for index, seat in enumerate(room["seats"])
             ],
             "state": self._public_state(room),
@@ -2060,6 +2076,7 @@ class MultiplayerService:
                 room["freed"][index] = seat["key"]
                 room["seats"][index] = None
                 self._host_tunnels.close_seat(index)
+                self._stream_seat_gone(room, index)
                 self._voice_forget(room, index)
                 self._turn_forget(room, index, seat.get("ulid", ""))
                 self._toast_seat(seat["name"], "Left Room", "{{name}} left.")
@@ -2315,6 +2332,8 @@ class MultiplayerService:
             "vtimes": deque(),
         }
         room["stampSeq"] += 1
+        if room.get("streams") is not None:
+            room["streams"].seat_taken(seat, peer if door == "lan" else "", door == "server")
         if invite is not None:
             room["passesUsed"].add(invite)
         await conversation.say({"ok": True, "seat": seat, "ip": address,
@@ -2394,6 +2413,7 @@ class MultiplayerService:
         if op == "leave":
             room["seats"][index] = None
             self._host_tunnels.close_seat(index)
+            self._stream_seat_gone(room, index)
             self._voice_forget(room, index)
             self._turn_forget(room, index, seat.get("ulid", ""))
             decky.logger.info("multiplayer: seat %s left", index)
@@ -2796,6 +2816,8 @@ class MultiplayerService:
         seat.update(seq=report["seq"], ready=report["ready"], rev=report["rev"], round=report["round"],
                     can=report["can"], reason=report["reason"], gameId=report["gameId"],
                     title=report["title"], launched=report["launched"])
+        if room.get("streams") is not None:
+            room["streams"].report(index, report["st"])
         if self._seat_ready(room, seat) != was_ready:
             self._debug("seat %s %s", index, "ready" if not was_ready else "not ready")
         if self._late_ready(room, index, seat):
@@ -2867,6 +2889,13 @@ class MultiplayerService:
             if taken is not None:
                 body["seats"][position]["vc"] = taken.get("vc", False)
                 body["seats"][position]["vs"] = taken.get("vstamp", 0)
+        streams = room.get("streams")
+        if streams is not None:
+            for position, taken in enumerate(room["seats"]):
+                if taken is not None and position > 0:
+                    body["seats"][position]["st"] = streams.seat_state(position)
+            order = sum(1 for position, taken in enumerate(room["seats"]) if 0 < position <= index and taken)
+            body["stream"] = streams.body(index, seat["key"], order)
         cred = room.get("turn", {}).get(index)
         if cred is not None and seat.get("vc"):
             body["turn"] = {"u": cred["u"], "p": proto.wrap_turn(seat["key"], cred["n"], cred["p"]), "ttl": cred["ttl"],
@@ -3206,6 +3235,12 @@ class MultiplayerService:
                 "turn": None,
                 "turnSeq": 0,
             }
+            if row["mode"] == "stream" and self._stream_setup is not None:
+                online = row["door"] == "server"
+                self._joined["stream"] = stream_room.GuestStream(
+                    user_home=self._user_home, config=self._stream_setup.moonlight_config(), room_id=row["room"],
+                    seat=answer["seat"], online=online, host_ip=row["address"], debug=self._debug,
+                )
             self._tell_voice_room()
             self._closed_reason = ""
             self._poller = self._spawn(self._poll(self._joined))
@@ -3340,6 +3375,8 @@ class MultiplayerService:
 
     def _take_status(self, joined: dict, status: dict) -> None:
         joined["status"] = status
+        if joined.get("stream") is not None:
+            joined["stream"].take(status["stream"], joined["key"])
         for item in status["inbox"]:
             if item["seq"] > joined["fsince"]:
                 joined["fsince"] = item["seq"]
@@ -3437,10 +3474,19 @@ class MultiplayerService:
         if said != joined["said"]:
             joined["said"] = said
             joined["seq"] += 1
+        stream = joined.get("stream")
+        state = ""
+        if stream is not None:
+            current = self._session
+            state = stream.state(joined["launched"], current is not None and current["seen"])
+            if state != joined.get("st", ""):
+                joined["st"] = state
+                joined["seq"] += 1
         return proto.report(
             seq=joined["seq"], ready=joined["ready"], rev=joined["readyRev"], round_=joined["readyRound"],
             can=joined["can"], reason=reason, game_id=local["gameId"] if local else 0,
             title=local["title"] if local else "", launched=joined["launched"], hardcore=joined["hardcore"],
+            st=state,
         )
 
     def guest_games(self) -> dict:
@@ -3546,6 +3592,8 @@ class MultiplayerService:
         self._tell_voice_room()
         self._closed_reason = reason
         self._close_guest_tunnels()
+        if joined.get("stream") is not None:
+            joined["stream"].close()
         if self._poller is not None:
             self._poller.cancel()
             self._poller = None
@@ -3564,7 +3612,7 @@ class MultiplayerService:
             "room": dict(joined["row"]),
             "seat": joined["seat"],
             "ip": joined["ip"],
-            "status": {name: value for name, value in status.items() if name not in ("inbox", "voice", "turn")}
+            "status": {name: value for name, value in status.items() if name not in ("inbox", "voice", "turn", "stream")}
                       if status else None,
             "launched": joined["launched"],
             "error": joined["error"],

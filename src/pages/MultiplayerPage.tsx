@@ -16,7 +16,7 @@ import { ToggleRow } from "../components/ui/ToggleRow";
 import { GameHeaderCard, useGameHeaderArt } from "../components/games/GameHeaderCard";
 import { openCorePicker } from "../components/multiplayer/CorePickerModal";
 import { RoomChatBox } from "../components/multiplayer/RoomChatBox";
-import { RoomTable, type RoomTableVoice } from "../components/multiplayer/RoomTable";
+import { RoomTable, type RoomTableVoice, type StreamSeatState } from "../components/multiplayer/RoomTable";
 import { pressOwnMic } from "../components/multiplayer/VoiceDialogs";
 import { FriendsTab } from "../components/multiplayer/FriendsTab";
 import { openSeatCard } from "../components/multiplayer/SeatCardModal";
@@ -81,6 +81,12 @@ const LINK_SYSTEMS = [4, 5, 6, 16, 18, 41];
 const DOLPHIN_CONSOLES = ["GameCube", "Wii"];
 const GBA_SYSTEM = 5;
 const NO_CORES: MultiplayerCoreChoice[] = [];
+
+const STREAM_SEAT_STATES: StreamSeatState[] = ["pairing", "connecting", "streaming", "relay", "failed"];
+
+function streamSeat(value: string | undefined): StreamSeatState {
+    return STREAM_SEAT_STATES.find((state) => state === value) ?? "";
+}
 
 function playsIn(game: MultiplayerGame, mode: MultiplayerMode) {
     if (mode === "stream") {
@@ -962,6 +968,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     mark: !seat || index === 0 ? "" : !seat.can ? "cant" : seat.ready ? "ready" : "",
                     activity: hosted.state === "lobby" || !seat ? "" : index === 0 ? "game"
                         : seat.launched ? (hosted.watch ? "watch" : "game") : "",
+                    stream: streamSeat(seat?.st),
                     avatar: seat?.pic ? friends.state.avatars[seat.pic] : undefined,
                     open: index > 0 && seat !== null
                 }))}
@@ -1012,6 +1019,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         activity: !name || roomState === "lobby" ? "" : index === 0 ? "game"
                             : (index === joined.seat ? joined.launched : flags?.launched)
                                 ? (joined.room.watch ? "watch" : "game") : "",
+                        stream: streamSeat(flags?.st),
                         avatar: pic ? friends.state.avatars[pic] : undefined,
                         open: Boolean(name) && index !== joined.seat
                     };

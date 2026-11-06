@@ -9,7 +9,7 @@ import type { VoiceMine } from "../../utils/voiceChat";
 import { PicAvatar } from "./PicAvatar";
 import { MutedPlayerIcon, OwnMicIcon } from "./VoiceIcons";
 
-type StreamSeatState = "pairing" | "connecting" | "streaming" | "relay" | "failed" | "";
+export type StreamSeatState = "pairing" | "connecting" | "streaming" | "relay" | "failed" | "";
 
 const STREAM_LABELS: Record<string, string> = {
     pairing: "Pairing",
