@@ -89,6 +89,7 @@ import { usePushToTalk } from "../utils/voiceChat";
 import { bodyTextStyle, regularButtonSpacingStyle, smallTextStyle } from "../utils/style";
 import { usePageLanding } from "../focusRecords";
 import { removeStreaming } from "../utils/streamPlay";
+import { showMultiplayerProblem } from "../components/multiplayer/ProblemModal";
 
 type TabIconProps = { size?: number };
 
@@ -169,6 +170,18 @@ function SlidersIcon({ size = 18 }: TabIconProps) {
             <path d="M0 416c0 17.7 14.3 32 32 32l54.7 0c12.3 28.3 40.5 48 73.3 48s61-19.7 73.3-48L480 448c17.7 0 32-14.3 32-32s-14.3-32-32-32l-246.7 0c-12.3-28.3-40.5-48-73.3-48s-61 19.7-73.3 48L32 384c-17.7 0-32 14.3-32 32zm128 0a32 32 0 1 1 64 0 32 32 0 1 1 -64 0zM320 256a32 32 0 1 1 64 0 32 32 0 1 1 -64 0zm32-80c-32.8 0-61 19.7-73.3 48L32 224c-17.7 0-32 14.3-32 32s14.3 32 32 32l246.7 0c12.3 28.3 40.5 48 73.3 48s61-19.7 73.3-48l54.7 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-54.7 0c-12.3-28.3-40.5-48-73.3-48zM192 128a32 32 0 1 1 0-64 32 32 0 1 1 0 64zm-32-80c-32.8 0-61 19.7-73.3 48L32 96C14.3 96 0 110.3 0 128s14.3 32 32 32l54.7 0c12.3 28.3 40.5 48 73.3 48s61-19.7 73.3-48L480 160c17.7 0 32-14.3 32-32s-14.3-32-32-32L233.3 96C221 67.7 192.8 48 160 48z" />
         </svg>
     );
+}
+
+const REMOVE_REFUSALS: Record<string, string> = {
+    hosting: "Close or leave your Stream Play room before removing streaming.",
+    busy: "Streaming is still being set up or updated. Try again when it's done."
+};
+
+async function pressRemoveStreaming(language: LanguageCode) {
+    const line = REMOVE_REFUSALS[await removeStreaming()];
+    if (line) {
+        showMultiplayerProblem(language, "Remove Streaming", t(language, line));
+    }
 }
 
 const OPTIONS_TABS: OptionsTabDef[] = [
@@ -990,9 +1003,9 @@ function SystemTab(props: TabContentProps) {
                 focusKey="options:remove-streaming"
                 idleLabel={t(state.language, "Remove Streaming")}
                 armedLabel={t(state.language, "Press again to confirm")}
-                onConfirm={() => void removeStreaming()}
+                onConfirm={() => void pressRemoveStreaming(state.language)}
                 disabled={disabled}
-                help={t(state.language, "Removes Sunshine, Moonlight and the Moonlight shortcut from this device. You can set them up again any time.")}
+                help={t(state.language, "Removes the streaming tools needed for Stream Play. If you host or join a Stream Play room again, CheevoDeck will offer to download them again.")}
             />
             <OptionButton
                 outerStyle={buttonOuterStyle}

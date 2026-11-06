@@ -292,24 +292,24 @@ export async function updateStreaming(): Promise<"ok" | "hosting" | "failed" | "
     }
 }
 
-export async function removeStreaming(): Promise<boolean> {
+export async function removeStreaming(): Promise<string> {
     if (state.job) {
-        return false;
+        return "busy";
     }
     try {
         const result = await streamRemove();
         if (!result.ok) {
-            return false;
+            return result.error ?? "failed";
         }
         if (result.appid) {
             removeMoonlightShortcut(result.appid);
         }
         publish({ stage: "", lastJob: "", size: "" });
         await refreshStreamStatus();
-        return true;
+        return "";
     }
     catch (e) {
         logError("stream play: removing", e);
-        return false;
+        return "failed";
     }
 }
