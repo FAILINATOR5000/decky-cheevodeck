@@ -120,6 +120,14 @@ const SETUP_LINES: Record<string, { key: string; color?: string }> = {
     failed: { key: "Couldn't set up streaming. Check your internet connection and try again.", color: errorRed }
 };
 
+const UPDATE_LINES: Record<string, { key: string; color?: string }> = {
+    sunshine: { key: "Updating Sunshine…" },
+    moonlight: { key: "Updating Moonlight…" },
+    finishing: { key: "Finishing the update…" },
+    done: { key: "Streaming is ready." },
+    failed: { key: "Couldn't update streaming. Check your internet connection and try again.", color: errorRed }
+};
+
 const MODE_FACTS = ["link_system", "link_gc_no_lan", "ds_no_couch", "pcsx2_no_multiplayer", "link_gba_cant_link"];
 
 type MultiplayerPageState = {
@@ -369,7 +377,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const installing = mp.mode === "stream" && setupRunning(stream);
     const settingUp = mp.mode === "stream" && (installing || stream.lastJob === "setup") ? stream.stage : "";
     const setupLine = SETUP_LINES[settingUp] ?? null;
-    const updateLine = stream.lastJob === "update" ? SETUP_LINES[stream.stage] ?? null : null;
+    const updating = setupRunning(stream, "update");
+    const updateLine = updating || stream.lastJob === "update" ? UPDATE_LINES[stream.stage] ?? null : null;
     const needsSetup = mp.mode === "stream" && shownProblem?.code === "stream_not_set_up";
     const setupPending = needsSetup && !installing;
     const problemShown = shownProblem && !(shownProblem.code === "stream_not_set_up" && !setupPending) ? shownProblem : null;
@@ -466,7 +475,9 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             showMultiplayerProblem(language, "Update Streaming", t(language, "Close your Stream Play room before updating."));
             return;
         }
-        void updateStreaming();
+        if (!updating) {
+            void updateStreaming();
+        }
     }
 
     function openSeat(index: number, name: string, game: string, ulid: string, pic: string) {
@@ -1310,12 +1321,17 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     onClick={pressUpdateStreaming}
                     help={t(language, "Updates Sunshine and Moonlight to their latest versions.")}
                 >
-                    {t(language, "Update Streaming")}
+                    <div style={{ opacity: updating ? 0.45 : 1 }}>{t(language, "Update Streaming")}</div>
                 </FocusableItem>
             </PanelSectionRow>
             <PanelSectionRow>
-                <div style={{ ...bodyTextStyle(), minHeight: "1.4em", opacity: 1, color: updateLine?.color }}>
-                    {updateLine ? t(language, updateLine.key) : ""}
+                <div style={{ width: "100%" }}>
+                    {updating && <ProgressBar fraction={stream.progress >= 0 ? stream.progress / 100 : null} />}
+                    <div style={{ ...bodyTextStyle(), minHeight: "1.4em", opacity: 1, color: updateLine?.color,
+                        marginTop: updating ? "6px" : 0 }}>
+                        {updateLine ? t(language, updateLine.key) : ""}
+                        {updating && updateLine && stream.progress >= 0 ? ` ${stream.progress}%` : ""}
+                    </div>
                 </div>
             </PanelSectionRow>
         </>
