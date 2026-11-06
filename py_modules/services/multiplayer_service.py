@@ -2028,6 +2028,22 @@ class MultiplayerService:
             return
         self._spawn(asyncio.to_thread(self._stream_host.stop))
 
+    def _cut_streams(self, room: dict) -> None:
+        loop = self._loop
+        if room.get("streams") is None or self._stream_host is None or self._stopping \
+                or loop is None or loop.is_closed():
+            return
+        decky.logger.info("stream: the round is over, restarting Sunshine to end its streams")
+        self._spawn(self._restart_sunshine(room))
+
+    async def _restart_sunshine(self, room: dict) -> None:
+        try:
+            failed = await asyncio.to_thread(self._stream_host.restart, lambda: self._room is room)
+        except Exception as e:
+            failed = type(e).__name__
+        if failed:
+            decky.logger.warning("stream: Sunshine didn't come back after the round (%s)", failed)
+
     def _end_tail(self, tail: dict) -> None:
         if self._closed_tail is tail and self._room is None:
             self._shut()
@@ -2194,6 +2210,7 @@ class MultiplayerService:
         if error:
             room["lastStart"] = {"round": room["round"], "ok": False, "error": error}
         decky.logger.info("multiplayer: the room is back in the lobby%s", f" ({error})" if error else "")
+        self._cut_streams(room)
         self._announce()
 
     def launch_started(self) -> dict:
@@ -3272,6 +3289,7 @@ class MultiplayerService:
                 "fanfareRound": 0,
                 "autostartRound": 0,
                 "launchedRound": 0,
+                "cutRound": 0,
                 "notice": "",
                 "clock": (time.time(), time.monotonic()),
                 "chat": [],
@@ -3425,8 +3443,14 @@ class MultiplayerService:
 
     def _take_status(self, joined: dict, status: dict) -> None:
         joined["status"] = status
-        if joined.get("stream") is not None:
-            joined["stream"].take(status["stream"], joined["key"])
+        stream = joined.get("stream")
+        if stream is not None:
+            stream.take(status["stream"], joined["key"])
+            if joined["launched"] and (status["state"] == "lobby" or status["round"] != joined["launchedRound"]):
+                if joined["cutRound"] != joined["launchedRound"]:
+                    joined["cutRound"] = joined["launchedRound"]
+                    decky.logger.info("stream: the host's round is over, closing Moonlight")
+                self._end_moonlight(stream)
         for item in status["inbox"]:
             if item["seq"] > joined["fsince"]:
                 joined["fsince"] = item["seq"]

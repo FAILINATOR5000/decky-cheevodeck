@@ -3,6 +3,7 @@ import json
 import os
 import socket
 import ssl
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -73,6 +74,7 @@ class StreamHost:
         self._context = None
         self._name = ""
         self._sink = ""
+        self._lock = threading.RLock()
 
     def _owner(self):
         owner = child_owner()
@@ -154,6 +156,10 @@ class StreamHost:
         return conf
 
     def start(self, name: str, sink: str = "") -> str:
+        with self._lock:
+            return self._start(name, sink)
+
+    def _start(self, name: str, sink: str) -> str:
         tree = self._setup.sunshine_dir()
         if tree is None or self._setup.login() is None:
             return ERROR_NOT_SET_UP
@@ -225,6 +231,10 @@ class StreamHost:
             decky.logger.warning("stream: sunshine: %s", line.rstrip()[:300])
 
     def stop(self, unpair: bool = True) -> None:
+        with self._lock:
+            self._stop(unpair)
+
+    def _stop(self, unpair: bool) -> None:
         if self.unit_active():
             if unpair:
                 try:
@@ -244,8 +254,14 @@ class StreamHost:
         if not self._started_at or time.monotonic() - self._started_at < RUNTIME_MAX_SECONDS - RENEW_BEFORE_SECONDS:
             return
         decky.logger.info("stream: renewing Sunshine before its time limit")
-        self.stop(unpair=False)
-        self.start(self._name, self._sink)
+        self.restart(lambda: True)
+
+    def restart(self, wanted) -> str:
+        with self._lock:
+            self.stop(unpair=False)
+            if not wanted():
+                return ""
+            return self.start(self._name, self._sink)
 
     def end_strays(self) -> list:
         fixed = []
