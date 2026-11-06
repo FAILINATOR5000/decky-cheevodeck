@@ -3806,7 +3806,7 @@ class MultiplayerService:
         if found:
             return {"ok": False, "error": ERROR_GATE, "gate": found[0], "detail": found[1]}
         if mode == "stream":
-            return self._prepare_stream(role, local, original, hardcore, held, screen)
+            return self._prepare_stream(role, local, original, held, screen)
         where = room["where"] if room is not None else joined["row"]["where"]
         if local["emulator"] == "rmg" and room is not None and where != "online" and not self._start_rmg_server(room):
             return {"ok": False, "error": ERROR_RMG_SERVER}
@@ -3947,7 +3947,7 @@ class MultiplayerService:
         }
         return {"ok": True, "appid": local["appid"], "options": options, "original": original, "session": sid}
 
-    def _prepare_stream(self, role: str, local: dict, original: str, hardcore: bool, held, screen: str = "") -> dict:
+    def _prepare_stream(self, role: str, local: dict, original: str, held, screen: str = "") -> dict:
         if held is not None:
             if held["appid"] != local["appid"]:
                 return {"ok": False, "error": ERROR_BUSY}
@@ -3957,23 +3957,11 @@ class MultiplayerService:
         route = local["route"]
         sid = secrets.token_hex(8)
         parts = []
-        files = []
         try:
             ensure_dir(self._session_dir)
             chown_to_data_owner(self._session_dir)
-            if local["emulator"] == "retroarch":
-                cfg_path = self._session_dir / f"session-{sid}.cfg"
-                self._write(cfg_path, f'cheevos_hardcore_mode_enable = "{"true" if hardcore else "false"}"\n')
-                files = [cfg_path]
-                if route["fallback"]:
-                    parts += ["-L", session.quote(route["corePath"])]
-                parts += ["--appendconfig", session.quote(str(cfg_path))]
-                if route["fallback"]:
-                    parts.append(session.quote(route["rom"]))
-            elif route["fallback"]:
+            if route["fallback"]:
                 parts.append(_fallback_args(route))
-            if files and not self._readable_by_owner(files):
-                raise OSError("session files are not the home owner's")
             self._write_restore(local["appid"], original, sid)
         except OSError as e:
             decky.logger.warning("stream: couldn't write the session files (%s)", type(e).__name__)
@@ -3984,7 +3972,7 @@ class MultiplayerService:
             "role": role,
             "mode": "stream",
             "emulator": local["emulator"],
-            "files": files,
+            "files": [],
             "started": 0.0,
             "seen": False,
             "exited": False,

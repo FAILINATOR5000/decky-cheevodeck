@@ -1080,8 +1080,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         </PanelSectionRow>
     );
 
-    const showHardcore = (mp.mode === "link" || !couchGuest) && !runsRmg
-        && (mp.mode !== "stream" || local?.emulator === "retroarch");
+    const showHardcore = (mp.mode === "link" || !couchGuest) && !runsRmg && mp.mode !== "stream";
     const showShare = mp.mode === "couch" && !joined && (hosted?.emulator ?? local?.emulator) === "retroarch";
     const showWatch = showShare || (mp.mode === "stream" && !joined);
     const showChangeGame = hosted !== null || (joined !== null && mp.mode === "link");
