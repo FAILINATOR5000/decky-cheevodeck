@@ -655,6 +655,7 @@ def read_status_reply(key: bytes, message, nonce: str):
         "voice": [item for item in (read_voice_item(raw) for raw in message.get("voice", [])) if item is not None],
         "turn": read_turn(message.get("turn")),
         "stream": read_stream(message.get("stream")),
+        "pipe": read_pipe(message.get("pipe")),
     }
 
 
@@ -735,6 +736,16 @@ def read_stream(raw):
     low, half = raw.get("low", False), raw.get("half", False)
     return {"pin": raw["pin"], "token": raw["token"], "n": nonce, "cap": cap, "full": raw["full"], "occ": occupant,
             "low": low is True, "half": half is True}
+
+
+def read_pipe(raw):
+    if not isinstance(raw, dict):
+        return None
+    nonce, occupant = raw.get("n"), raw.get("occ")
+    if (not is_nonce(nonce) or not isinstance(raw.get("token"), str) or _HEX64.fullmatch(raw["token"]) is None
+            or not isinstance(occupant, str) or _OCCUPANT.fullmatch(occupant) is None):
+        return None
+    return {"token": raw["token"], "n": nonce, "occ": occupant}
 
 
 def _seat_ok(seat) -> bool:

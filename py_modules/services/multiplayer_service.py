@@ -20,7 +20,7 @@ from pathlib import Path
 import cheevo_check_tools
 import decky
 import multiplayer_protocol as proto
-from services import stream_room
+from services import game_pipes, stream_room
 import multiplayer_session as session
 import rom_headers
 import steam_shortcuts
@@ -124,6 +124,8 @@ RMG_SERVER_NAME = "rmg-netplay-server"
 RMG_SERVER_LOG = "rmg-netplay-server.log"
 RMG_SERVER_GAMES = 4
 RMG_SERVER_START_SECONDS = 3.0
+PIPE_TCP_PORTS = (proto.RETROARCH_NETPLAY_PORT, proto.GAMBATTE_LINK_PORT)
+PIPE_UDP_PORTS = ((DOLPHIN_TUNNEL_PORT, proto.DOLPHIN_NETPLAY_PORT),)
 SESSION_SUFFIXES = {".cfg": "retroarch", ".ini": "ppsspp", ".dolphin": "dolphin", ".rmg": "rmg"}
 
 ERROR_NOT_GAME_MODE = "not_game_mode"
@@ -525,8 +527,11 @@ class MultiplayerService:
             return True
 
         async def open_them():
-            if self._guest_tunnels is not None:
+            gpipe = joined.get("gpipe")
+            if self._guest_tunnels is not None or gpipe is not None:
                 self._close_guest_tunnels()
+                if gpipe is not None:
+                    await gpipe.shut()
                 await asyncio.sleep(0.05)
             tunnels = lobby_tunnel.GuestTunnels(server=server, room_id=joined["row"]["room"], seat=joined["seat"],
                                                 seat_key=joined["key"], ports=ports, debug=self._debug)
@@ -1802,6 +1807,8 @@ class MultiplayerService:
                     self._shut()
                     return {"ok": False, "error": ERROR_LOBBY_UNREACHABLE}
                 self._link = link
+            meet = await asyncio.to_thread(stream_room.resolve_meet, server) if online else None
+            digest = hashlib.sha256(self._link.secret.encode("ascii")).digest() if online else b""
             self._room = room
             if mode == "stream":
                 sink = self._voice_canceller.game_sink() if voice and self._voice_canceller is not None else ""
@@ -1810,14 +1817,18 @@ class MultiplayerService:
                 if failed:
                     self._close_room("")
                     return {"ok": False, "error": ERROR_GATE, "gate": failed, "detail": {}}
-                meet = await asyncio.to_thread(stream_room.resolve_meet, server) if online else None
                 room["streams"] = stream_room.HostStreams(
-                    sunshine=self._stream_host, room_id=room_id, online=online, meet=meet,
-                    digest=hashlib.sha256(self._link.secret.encode("ascii")).digest() if online else b"",
+                    sunshine=self._stream_host, room_id=room_id, online=online, meet=meet, digest=digest,
                     slow=self._slow_connection, debug=self._debug,
                 )
                 if online:
                     self._spawn(room["streams"].measure(server))
+            if online:
+                room["pipes"] = game_pipes.HostPipes(
+                    room_id=room_id, meet=meet, digest=digest, tcp_ports=PIPE_TCP_PORTS, udp_ports=PIPE_UDP_PORTS,
+                    gate=lambda index, kind, port: self._room is room and self._game_port_open(room, index, kind, port),
+                    debug=self._debug,
+                )
             self._tell_voice_room()
             self._closed_reason = ""
             self._seen.clear()
@@ -1962,7 +1973,7 @@ class MultiplayerService:
         room["bannedDevices"].add(dropped["device"])
         room["seats"][seat] = None
         self._host_tunnels.close_seat(seat)
-        self._stream_seat_gone(room, seat)
+        self._pipes_seat_gone(room, seat)
         self._voice_forget(room, seat)
         self._turn_forget(room, seat, dropped.get("ulid", ""))
         room["notice"] = None
@@ -1980,6 +1991,8 @@ class MultiplayerService:
         self._host_tunnels.close()
         if room.get("streams") is not None:
             room["streams"].close()
+        if room.get("pipes") is not None:
+            room["pipes"].close()
         if room["mode"] == "stream" and self._stream_host is not None:
             self._stop_sunshine()
         if self._housekeeper is not None:
@@ -2002,9 +2015,11 @@ class MultiplayerService:
             return
         self._spawn(asyncio.to_thread(stream.kill_moonlight))
 
-    def _stream_seat_gone(self, room: dict, index: int) -> None:
+    def _pipes_seat_gone(self, room: dict, index: int) -> None:
         if room.get("streams") is not None:
             room["streams"].seat_gone(index)
+        if room.get("pipes") is not None:
+            room["pipes"].seat_gone(index)
 
     def _slow_connection(self) -> bool:
         return bool(self._settings_store.load_config().get("mpStreamSlowConnection", False))
@@ -2188,7 +2203,7 @@ class MultiplayerService:
                 room["freed"][index] = seat["key"]
                 room["seats"][index] = None
                 self._host_tunnels.close_seat(index)
-                self._stream_seat_gone(room, index)
+                self._pipes_seat_gone(room, index)
                 self._voice_forget(room, index)
                 self._turn_forget(room, index, seat.get("ulid", ""))
                 self._toast_seat(seat["name"], "Left Room", "{{name}} left.")
@@ -2480,6 +2495,12 @@ class MultiplayerService:
             return
         self._host_tunnels.answer(link, ask)
 
+    def _game_port_open(self, room: dict, index: int, kind: str, port: int) -> bool:
+        seat = room["seats"][index] if index < room["max"] else None
+        if seat is None or seat["door"] != "server" or room["state"] == "lobby" or index not in room["roster"]:
+            return False
+        return (kind, port) in proto.tunnel_ports(room["mode"], room["emulator"], room["core"])
+
     def _locked_out(self, room: dict, peer: str, now: float) -> bool:
         if room["lockedUntil"] > now:
             return True
@@ -2526,7 +2547,7 @@ class MultiplayerService:
         if op == "leave":
             room["seats"][index] = None
             self._host_tunnels.close_seat(index)
-            self._stream_seat_gone(room, index)
+            self._pipes_seat_gone(room, index)
             self._voice_forget(room, index)
             self._turn_forget(room, index, seat.get("ulid", ""))
             decky.logger.info("multiplayer: seat %s left", index)
@@ -3008,6 +3029,12 @@ class MultiplayerService:
                 if taken is not None and position > 0:
                     body["seats"][position]["st"] = streams.seat_state(position)
             body["stream"] = streams.body(index, seat["key"])
+        pipes = room.get("pipes")
+        if pipes is not None and seat["door"] == "server":
+            if room["mode"] == "stream":
+                pipes.seat_gone(index)
+            else:
+                body["pipe"] = pipes.body(index, seat["key"])
         cred = room.get("turn", {}).get(index)
         if cred is not None and seat.get("vc"):
             body["turn"] = {"u": cred["u"], "p": proto.wrap_turn(seat["key"], cred["n"], cred["p"]), "ttl": cred["ttl"],
@@ -3317,6 +3344,8 @@ class MultiplayerService:
                 answer = {"ok": False, "error": ERROR_HOST_GONE}
             if not answer["ok"]:
                 return answer
+            online = row["door"] == "server"
+            meet = await asyncio.to_thread(stream_room.resolve_meet, self._lobby_server()) if online else None
             self._joined = {
                 "row": row,
                 "seat": answer["seat"],
@@ -3358,14 +3387,13 @@ class MultiplayerService:
                 "fastUntil": 0.0,
                 "turn": None,
                 "turnSeq": 0,
+                "meet": meet,
+                "gpipe": None,
             }
             if row["mode"] == "stream" and self._stream_setup is not None:
-                online = row["door"] == "server"
                 self._joined["stream"] = stream_room.GuestStream(
                     user_home=self._user_home, config=self._stream_setup.moonlight_config(), room_id=row["room"],
-                    seat=answer["seat"], online=online,
-                    meet=await asyncio.to_thread(stream_room.resolve_meet, self._lobby_server()) if online else None,
-                    host_ip=row["address"], debug=self._debug,
+                    seat=answer["seat"], online=online, meet=meet, host_ip=row["address"], debug=self._debug,
                 )
             self._tell_voice_room()
             self._closed_reason = ""
@@ -3499,8 +3527,27 @@ class MultiplayerService:
         joined.update(local=local, can=local is not None, reason=reason, detail=detail)
         self._debug("the room changed, this seat %s", "can play" if local is not None else f"can't ({reason})")
 
+    def _take_game_pipe(self, joined: dict, status: dict) -> None:
+        raw = status["pipe"]
+        current = joined["gpipe"]
+        if current is not None and (raw is None or raw["occ"] != current.occ):
+            current.close()
+            joined["gpipe"] = current = None
+        if (raw is None or joined["row"]["door"] != "server" or joined["launched"]
+                or self._guest_tunnels is not None or joined["meet"] is None):
+            return
+        if current is not None and (not current.dead
+                                    or time.monotonic() - current.opened_at < game_pipes.RETRY_SECONDS):
+            return
+        joined["gpipe"] = game_pipes.GuestPipe(
+            room_id=joined["row"]["room"], seat=joined["seat"], meet=joined["meet"], occ=raw["occ"],
+            tcp_ports=PIPE_TCP_PORTS, udp_ports=PIPE_UDP_PORTS, debug=self._debug,
+        )
+        joined["gpipe"].take(raw, joined["key"])
+
     def _take_status(self, joined: dict, status: dict) -> None:
         joined["status"] = status
+        self._take_game_pipe(joined, status)
         stream = joined.get("stream")
         if stream is not None:
             if self._stream_setup is None or self._stream_setup.moonlight_present():
@@ -3733,6 +3780,8 @@ class MultiplayerService:
         self._tell_voice_room()
         self._closed_reason = reason
         self._close_guest_tunnels()
+        if joined.get("gpipe") is not None:
+            joined["gpipe"].close()
         if joined.get("stream") is not None:
             joined["stream"].close()
             self._end_moonlight(joined["stream"])
@@ -3754,7 +3803,8 @@ class MultiplayerService:
             "room": dict(joined["row"]),
             "seat": joined["seat"],
             "ip": joined["ip"],
-            "status": {name: value for name, value in status.items() if name not in ("inbox", "voice", "turn", "stream")}
+            "status": {name: value for name, value in status.items()
+                       if name not in ("inbox", "voice", "turn", "stream", "pipe")}
                       if status else None,
             "launched": joined["launched"],
             "error": joined["error"],
@@ -3877,8 +3927,11 @@ class MultiplayerService:
 
         relayed = joined is not None and room is None and joined["row"]["door"] == "server"
         if relayed:
-            if not self._open_guest_tunnels(joined, mode, local):
+            gpipe = joined["gpipe"]
+            piped = gpipe is not None and gpipe.ready(game_pipes.LAUNCH_WAIT_SECONDS)
+            if not piped and not self._open_guest_tunnels(joined, mode, local):
                 return {"ok": False, "error": ERROR_TUNNEL}
+            self._debug("game pipe: launching over %s", f"the pipe ({gpipe.path})" if piped else "the lobby tunnel")
 
         sid = secrets.token_hex(8)
         rom = Path(local["path"])
@@ -4410,7 +4463,7 @@ class MultiplayerService:
         if not self._settings_store.get_debug_logging(self._settings_store.load_config()):
             return {"ok": False, "error": ERROR_UNAVAILABLE}
         stream_room.FORCE_RELAY[0] = bool(on)
-        decky.logger.info("stream: debug, new pipes %s", "relay only" if on else "try direct first")
+        decky.logger.info("multiplayer: debug, new stream and game pipes %s", "relay only" if on else "try direct first")
         return {"ok": True, "on": stream_room.FORCE_RELAY[0]}
 
     def debug_server_door(self, on: bool) -> dict:
