@@ -3401,6 +3401,8 @@ const RU: LocaleTable = {
     "Remove Stream Tools": "Удалить инструменты стрима",
     "Removes the streaming tools needed for Stream Play. If you host or join a Stream Play room again, CheevoDeck will offer to download them again.": "Удаляет инструменты стриминга, нужные для Stream Play. Если вы снова создадите комнату Stream Play или войдёте в неё, CheevoDeck предложит скачать их заново.",
     "Wait for the round to end before removing the stream tools.": "Дождитесь конца раунда, прежде чем удалять инструменты стрима.",
+    "Sunshine Didn't Restart": "Sunshine не перезапустился",
+    "Sunshine failed to restart for some reason. Try restarting your device. If this does not work, press Remove Stream Tools in the room's Misc tab, then Set Up Streaming to reinstall it.": "Sunshine по какой-то причине не удалось перезапустить. Попробуйте перезапустить устройство. Если это не поможет, нажмите «Удалить инструменты стрима» на вкладке «Прочее» в комнате, а затем «Настроить стриминг», чтобы установить его заново.",
     "Streaming is still being set up or updated. Try again when it's done.": "Стриминг ещё настраивается или обновляется. Попробуйте снова, когда это закончится.",
     "Stream Play": "Игра по трансляции",
     "Play your game with anyone even if they don't have it. Only you earn achievements. Requires fast internet to host.": "Играйте в свою игру с кем угодно, даже если у них её нет. Достижения получаете только вы. Для хостинга нужен быстрый интернет.",

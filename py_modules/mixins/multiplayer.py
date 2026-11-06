@@ -75,7 +75,7 @@ class MultiplayerMixin(PluginContext):
         return await self.multiplayer_service.say(str(text or ""))
 
     async def multiplayer_start(self):
-        return self.multiplayer_service.start()
+        return await self.multiplayer_service.start_round()
 
     async def multiplayer_start_cancel(self, error: str = ""):
         return self.multiplayer_service.start_cancel(str(error or ""))

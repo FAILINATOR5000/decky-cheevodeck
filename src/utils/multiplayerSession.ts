@@ -18,6 +18,7 @@ import {
 import { getCurrentLanguage, t } from "../locales";
 import type { MultiplayerRestoreRecord } from "../types";
 import { showNetplaySteps, type NetplaySteps } from "../components/multiplayer/NetplayStepsModal";
+import { showMultiplayerProblem } from "../components/multiplayer/ProblemModal";
 import { currentGameMovedSince } from "./currentGameCheck";
 import { logError } from "./errors";
 import { START_SOUND_MS, playStart } from "./lobbySounds";
@@ -511,6 +512,12 @@ function onSessionEvent(payload: {
         if (payload.mode === "stream") {
             keepHostFirst();
         }
+        return;
+    }
+    if (payload?.state === "sunshine_down") {
+        const language = getCurrentLanguage();
+        showMultiplayerProblem(language, "Sunshine Didn't Restart", t(language,
+            "Sunshine failed to restart for some reason. Try restarting your device. If this does not work, press Remove Stream Tools in the room's Misc tab, then Set Up Streaming to reinstall it."));
         return;
     }
     if (payload?.state !== "failed") {

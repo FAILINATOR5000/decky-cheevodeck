@@ -3353,6 +3353,8 @@ const PT: LocaleTable = {
     "Remove Stream Tools": "Remover ferramentas de stream",
     "Removes the streaming tools needed for Stream Play. If you host or join a Stream Play room again, CheevoDeck will offer to download them again.": "Remove as ferramentas de streaming que o Stream Play precisa. Se você hospedar ou entrar numa sala de Stream Play de novo, o CheevoDeck vai oferecer baixá-las outra vez.",
     "Wait for the round to end before removing the stream tools.": "Espere a rodada terminar antes de remover as ferramentas de stream.",
+    "Sunshine Didn't Restart": "O Sunshine não reiniciou",
+    "Sunshine failed to restart for some reason. Try restarting your device. If this does not work, press Remove Stream Tools in the room's Misc tab, then Set Up Streaming to reinstall it.": "O Sunshine não conseguiu reiniciar por algum motivo. Tente reiniciar o dispositivo. Se isso não resolver, pressione Remover ferramentas de stream na aba Outros da sala e depois Configurar streaming para reinstalá-lo.",
     "Streaming is still being set up or updated. Try again when it's done.": "O streaming ainda está sendo configurado ou atualizado. Tente de novo quando terminar.",
     "Stream Play": "Jogo por streaming",
     "Play your game with anyone even if they don't have it. Only you earn achievements. Requires fast internet to host.": "Jogue seu jogo com qualquer pessoa, mesmo que ela não o tenha. Só você ganha conquistas. Hospedar exige internet rápida.",

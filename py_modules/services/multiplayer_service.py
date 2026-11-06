@@ -112,6 +112,7 @@ VOICE_CANCELLER_EVENT = "multiplayer_voice_canceller"
 
 ARGV_SECONDS = 15
 PAIR_WAIT_SECONDS = 30
+SUNSHINE_RETRY_SECONDS = 2
 SETTLE_SECONDS = 5
 APP_ENDED_GRACE_SECONDS = 10
 FLATPAK_SECONDS = 10
@@ -2070,12 +2071,15 @@ class MultiplayerService:
         self._spawn(self._restart_sunshine(room))
 
     async def _restart_sunshine(self, room: dict) -> None:
-        try:
-            failed = await asyncio.to_thread(self._stream_host.restart, lambda: self._room is room)
-        except Exception as e:
-            failed = type(e).__name__
-        if failed:
+        failed = await self._sunshine_restart(room)
+        if failed and failed != "stream_not_set_up" and self._room is room:
+            decky.logger.warning("stream: Sunshine didn't come back after the round (%s), trying once more", failed)
+            await asyncio.sleep(SUNSHINE_RETRY_SECONDS)
+            failed = await self._sunshine_restart(room)
+        if failed and self._room is room:
             decky.logger.warning("stream: Sunshine didn't come back after the round (%s)", failed)
+            if failed != "stream_not_set_up":
+                self._emit({"state": "sunshine_down"})
 
     async def _sunshine_restart(self, room: dict) -> str:
         try:
@@ -3057,6 +3061,16 @@ class MultiplayerService:
             joined["notice"] = ""
             self._spawn(self._poll_once(joined))
         return {"ok": True}
+
+    async def start_round(self) -> dict:
+        room = self._room
+        if room is not None and room["mode"] == "stream" and room["state"] == "lobby" \
+                and self._stream_host is not None and not await asyncio.to_thread(self._stream_host.unit_active):
+            decky.logger.info("stream: Sunshine isn't running at the round's start, starting it")
+            failed = await self._sunshine_restart(room)
+            if failed:
+                return {"ok": False, "error": failed}
+        return self.start()
 
     def start(self) -> dict:
         room = self._room
