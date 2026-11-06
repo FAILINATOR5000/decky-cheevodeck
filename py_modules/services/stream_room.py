@@ -31,6 +31,8 @@ SPEED_SHARE = 0.8
 
 TIERS = ((800, 10000, 6000), (1080, 20000, 12000))
 STANDARD_KBPS = TIERS[0][1]
+STREAM_HEIGHT_MAX = 1080
+ONLINE_PACKET_SIZE = 1024
 STREAM_MBIT_DECLARED = 20
 FORCE_RELAY = [False]
 
@@ -47,6 +49,22 @@ def resolve_meet(server):
     except OSError:
         return None
     return infos[0][4][:2] if infos else None
+
+
+def stream_size(width: int, height: int):
+    if width <= 0 or height <= 0:
+        return 1280, 800
+    if height > STREAM_HEIGHT_MAX:
+        width = round(width * STREAM_HEIGHT_MAX / height)
+        height = STREAM_HEIGHT_MAX
+    return width - width % 2, height - height % 2
+
+
+def tier_kbps(height: int, relayed: bool) -> int:
+    for top, direct, relay in TIERS:
+        if height <= top:
+            return relay if relayed else direct
+    return TIERS[-1][2] if relayed else TIERS[-1][1]
 
 
 def _bare(address: str) -> str:
@@ -331,6 +349,13 @@ class GuestStream:
             return
         self._pipe = pipe
 
+    def wait_paired(self, seconds: float) -> None:
+        deadline = time.monotonic() + seconds
+        while not self.paired and not self._closed and time.monotonic() < deadline:
+            if self.failed and (self._pairing is None or self._pairing.done()):
+                return
+            time.sleep(0.5)
+
     @property
     def busy(self) -> bool:
         return self._online and self._pipe is not None and self._pipe.path == "busy"
@@ -418,6 +443,27 @@ class GuestStream:
                                         as_data_owner=True)
         except Exception as e:
             self._debug("stream: flatpak kill failed (%s)", type(e).__name__)
+
+    def launch_options(self, width: int, height: int, slow: bool, watch: bool) -> str:
+        width, height = stream_size(width, height)
+        kbps = tier_kbps(height, self.path != "direct")
+        if slow:
+            kbps //= 2
+        if self.cap:
+            kbps = min(kbps, self.cap)
+        parts = ["stream", self.address, "Game", "--resolution", f"{width}x{height}", "--fps", "60",
+                 "--bitrate", str(kbps), "--video-codec", "H.264", "--display-mode", "fullscreen",
+                 "--no-quit-after", "--audio-on-host"]
+        if self._online:
+            parts += ["--packet-size", str(ONLINE_PACKET_SIZE)]
+        inner = f"export XDG_CONFIG_HOME={shlex.quote(str(self._config))}; "
+        if watch:
+            inner += ("export SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD=0 "
+                      "SDL_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT=0x0000/0x0000; ")
+        inner += "exec moonlight " + " ".join(shlex.quote(part) for part in parts)
+        decky.logger.info("stream: launching Moonlight at %sx%s, %s kbps%s", width, height, kbps,
+                          ", relayed" if self.path == "relay" else "")
+        return f"run --user --command=sh {MOONLIGHT_APP} -c {shlex.quote(inner)}"
 
     def close(self) -> None:
         self._closed = True

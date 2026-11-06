@@ -111,6 +111,7 @@ VOICE_DEBUG_EVENT = "multiplayer_voice_debug"
 VOICE_CANCELLER_EVENT = "multiplayer_voice_canceller"
 
 ARGV_SECONDS = 15
+PAIR_WAIT_SECONDS = 30
 SETTLE_SECONDS = 5
 APP_ENDED_GRACE_SECONDS = 10
 FLATPAK_SECONDS = 10
@@ -182,6 +183,8 @@ PLUGIN_VERSION = str(getattr(decky, "DECKY_PLUGIN_VERSION", "") or "").strip()
 
 GB_SYSTEMS = session.GB_SYSTEMS
 PSP_SYSTEM = session.PSP_SYSTEM
+VIRTUAL_PADS = ".local/share/Steam/config/virtualgamepadinfo.txt"
+SUNSHINE_PAD = ("0x045e", "0x0b13")
 STREAM_ONE_CONSOLE = (session.PSP_SYSTEM, session.DS_SYSTEM, 78)
 STREAM_EMULATOR_NAMES = {
     "retroarch": "RetroArch", "ppsspp": "PPSSPP", "dolphin": "Dolphin", "rmg": "RMG", "duckstation": "DuckStation",
@@ -1251,6 +1254,24 @@ class MultiplayerService:
         }
         return local, None, {}
 
+    def _stream_warnings(self, local: dict) -> list:
+        home = self._user_home
+        files = {
+            "pcsx2": (home / ".config/PCSX2/inis/PCSX2.ini",
+                      home / ".var/app/net.pcsx2.PCSX2/config/PCSX2/inis/PCSX2.ini"),
+            "duckstation": (home / ".local/share/duckstation/settings.ini",
+                            home / ".var/app/org.duckstation.DuckStation/config/duckstation/settings.ini"),
+        }.get(local.get("emulator", ""))
+        if files is None:
+            return []
+        found = next((path for path in files if path.is_file()), None)
+        if found is None:
+            return []
+        pad = _ini_section(found, "Pad2")
+        if pad.get("Type", "None") != "None" and any("SDL-1/" in value for value in pad.values()):
+            return []
+        return [{"code": "stream_player_two", "detail": {"emulator": STREAM_EMULATOR_NAMES[local["emulator"]]}}]
+
     def _stream_gates(self, room):
         if room is not None:
             return None
@@ -1491,7 +1512,7 @@ class MultiplayerService:
     def _gates(self, mode: str, local: dict, room, players: int):
         warnings = []
         if mode == "stream":
-            return self._stream_gates(room), warnings
+            return self._stream_gates(room), self._stream_warnings(local) if room is None else warnings
         rom = Path(local["path"])
         system_id = local["systemId"]
         ra = local.get("ra")
@@ -1963,12 +1984,33 @@ class MultiplayerService:
         decky.logger.info("multiplayer: room closed%s", f" ({reason})" if reason else "")
         self._announce()
 
+    def _end_moonlight(self, stream) -> None:
+        loop = self._loop
+        if self._stopping or loop is None or loop.is_closed():
+            stream.kill_moonlight()
+            return
+        self._spawn(asyncio.to_thread(stream.kill_moonlight))
+
     def _stream_seat_gone(self, room: dict, index: int) -> None:
         if room.get("streams") is not None:
             room["streams"].seat_gone(index)
 
     def _slow_connection(self) -> bool:
         return bool(self._settings_store.load_config().get("mpStreamSlowConnection", False))
+
+    def stream_pad_swap(self) -> dict:
+        room = self._room
+        current = self._session
+        if room is None or room["mode"] != "stream" or current is None or current["exited"]:
+            return {"ok": True, "swap": None, "done": True}
+        pads = _virtual_pads(self._user_home)
+        guests = [index for index, pad in enumerate(pads) if pad == SUNSHINE_PAD]
+        wanted = [index for index in range(len(pads)) if index not in guests] + guests
+        for position, index in enumerate(wanted):
+            if index != position:
+                self._debug("stream: moving controller %s to %s so the host stays first", index, position)
+                return {"ok": True, "swap": [index, position], "done": False}
+        return {"ok": True, "swap": None, "done": False}
 
     def hosting_stream(self) -> bool:
         room = self._room
@@ -3601,6 +3643,7 @@ class MultiplayerService:
         self._close_guest_tunnels()
         if joined.get("stream") is not None:
             joined["stream"].close()
+            self._end_moonlight(joined["stream"])
         if self._poller is not None:
             self._poller.cancel()
             self._poller = None
@@ -3666,7 +3709,7 @@ class MultiplayerService:
                 return False
         return True
 
-    def prepare_launch(self, original: str, hardcore: bool) -> dict:
+    def prepare_launch(self, original: str, hardcore: bool, screen: str = "") -> dict:
         if not self._game_mode():
             return {"ok": False, "error": ERROR_NOT_GAME_MODE}
         stale = self._session
@@ -3727,7 +3770,7 @@ class MultiplayerService:
         if found:
             return {"ok": False, "error": ERROR_GATE, "gate": found[0], "detail": found[1]}
         if mode == "stream":
-            return self._prepare_stream(role, local, original, hardcore, held)
+            return self._prepare_stream(role, local, original, hardcore, held, screen)
         where = room["where"] if room is not None else joined["row"]["where"]
         if local["emulator"] == "rmg" and room is not None and where != "online" and not self._start_rmg_server(room):
             return {"ok": False, "error": ERROR_RMG_SERVER}
@@ -3829,13 +3872,52 @@ class MultiplayerService:
             "session": sid,
         }
 
-    def _prepare_stream(self, role: str, local: dict, original: str, hardcore: bool, held) -> dict:
+    def _prepare_moonlight(self, local: dict, original: str, screen: str) -> dict:
+        joined = self._joined
+        stream = joined.get("stream") if joined is not None else None
+        if stream is not None and stream.busy:
+            return {"ok": False, "error": ERROR_GATE, "gate": "stream_busy", "detail": {}}
+        if stream is not None:
+            stream.wait_paired(PAIR_WAIT_SECONDS)
+        if stream is None or not stream.paired:
+            return {"ok": False, "error": ERROR_NOT_READY}
+        if stream.full:
+            return {"ok": False, "error": ERROR_GATE, "gate": "host_too_slow", "detail": {}}
+        width, _sep, height = screen.partition("x")
+        options = stream.launch_options(
+            int(width) if width.isdigit() else 0, int(height) if height.isdigit() else 0,
+            self._slow_connection(), bool(joined["row"].get("watch")),
+        )
+        sid = secrets.token_hex(8)
+        try:
+            ensure_dir(self._session_dir)
+            chown_to_data_owner(self._session_dir)
+            self._write_restore(local["appid"], original, sid)
+        except OSError as e:
+            decky.logger.warning("stream: couldn't write the restore record (%s)", type(e).__name__)
+            return {"ok": False, "error": ERROR_WRITE_FAILED}
+        self._session = {
+            "id": sid,
+            "appid": local["appid"],
+            "role": "guest",
+            "mode": "stream",
+            "emulator": "moonlight",
+            "files": [],
+            "started": 0.0,
+            "seen": False,
+            "exited": False,
+            "error": "",
+            "watch": None,
+        }
+        return {"ok": True, "appid": local["appid"], "options": options, "original": original, "session": sid}
+
+    def _prepare_stream(self, role: str, local: dict, original: str, hardcore: bool, held, screen: str = "") -> dict:
         if held is not None:
             if held["appid"] != local["appid"]:
                 return {"ok": False, "error": ERROR_BUSY}
             original = held["original"]
         if role == "guest":
-            return {"ok": False, "error": ERROR_NOT_READY}
+            return self._prepare_moonlight(local, original, screen)
         route = local["route"]
         sid = secrets.token_hex(8)
         parts = []
@@ -4580,6 +4662,39 @@ def _remove_system_folder(folder: Path) -> None:
         shutil.rmtree(folder)
     except OSError as e:
         decky.logger.warning("multiplayer: couldn't remove a session system folder (%s)", type(e).__name__)
+
+
+def _ini_section(path: Path, name: str) -> dict:
+    values = {}
+    inside = False
+    try:
+        with open(path, encoding="utf-8", errors="replace") as handle:
+            for line in handle:
+                line = line.strip()
+                if line.startswith("["):
+                    inside = line == f"[{name}]"
+                elif inside and "=" in line:
+                    key, _sep, value = line.partition("=")
+                    values[key.strip()] = value.strip()
+    except OSError:
+        return {}
+    return values
+
+
+def _virtual_pads(home: Path) -> list:
+    try:
+        text = (home / VIRTUAL_PADS).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return []
+    pads = []
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith("[slot "):
+            pads.append({})
+        elif pads and "=" in line:
+            name, _sep, value = line.partition("=")
+            pads[-1][name.strip()] = value.strip().lower()
+    return [(pad.get("VID", ""), pad.get("PID", "")) for pad in pads]
 
 
 def _fallback_args(route: dict) -> str:

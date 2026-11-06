@@ -12,7 +12,8 @@ import {
     multiplayerRunningApp,
     multiplayerStart,
     multiplayerStartCancel,
-    refreshCurrentGame
+    refreshCurrentGame,
+    streamPadSwap
 } from "../api";
 import { getCurrentLanguage, t } from "../locales";
 import type { MultiplayerRestoreRecord } from "../types";
@@ -51,6 +52,7 @@ export type MultiplayerLaunchResult = {
 };
 
 let launched: MultiplayerRestoreRecord | null = null;
+const PAD_ORDER_MS = 2000;
 let snapshot: MultiplayerSessionSnapshot = { appid: 0, running: false, failure: "", failureSeq: 0 };
 let launching = false;
 let fanfareEndsAt = 0;
@@ -217,6 +219,15 @@ function forgetPlayed() {
     publishRunning({ playedGameId: 0 });
 }
 
+function screenSize(): string {
+    const view = SteamUIStore.WindowStore?.GamepadUIMainWindowInstance?.m_BrowserWindow;
+    if (!view?.screen) {
+        return "";
+    }
+    const scale = view.devicePixelRatio || 1;
+    return `${Math.round(view.screen.width * scale)}x${Math.round(view.screen.height * scale)}`;
+}
+
 export async function launchMultiplayer(appid: number, hardcore: boolean): Promise<MultiplayerLaunchResult> {
     if (launching) {
         return { ok: false, error: "busy" };
@@ -236,8 +247,8 @@ async function launchOnce(appid: number, hardcore: boolean): Promise<Multiplayer
     if (original === null) {
         return { ok: false, error: "shortcut_unread" };
     }
-    const prepared = await multiplayerPrepareLaunch(original, hardcore);
-    if (!prepared.ok || !prepared.options || !prepared.session) {
+    const prepared = await multiplayerPrepareLaunch(original, hardcore, screenSize());
+    if (!prepared.ok || prepared.options === undefined || !prepared.session) {
         return { ok: false, error: prepared.error ?? "launch_failed", gate: prepared.gate, detail: prepared.detail };
     }
     const record = { appid, original, session: prepared.session };
@@ -445,6 +456,33 @@ function onAppLifetime(event: SteamAppLifetimeEvent) {
     void restore(record);
 }
 
+let padOrderTimer = 0;
+
+function keepHostFirst() {
+    if (padOrderTimer) {
+        return;
+    }
+    padOrderTimer = window.setTimeout(async function look() {
+        let answer: { swap: [number, number] | null; done: boolean };
+        try {
+            answer = await streamPadSwap();
+        }
+        catch (e) {
+            logError("stream play: reading the controller order", e);
+            padOrderTimer = 0;
+            return;
+        }
+        if (answer.done || launched === null) {
+            padOrderTimer = 0;
+            return;
+        }
+        if (Array.isArray(answer.swap)) {
+            SteamClient.Input.SwapControllerOrder(answer.swap[0], answer.swap[1]);
+        }
+        padOrderTimer = window.setTimeout(look, PAD_ORDER_MS);
+    }, PAD_ORDER_MS);
+}
+
 function onSessionEvent(payload: {
     state?: string;
     error?: string;
@@ -469,6 +507,9 @@ function onSessionEvent(payload: {
     if (payload?.state === "playing") {
         if (!((payload.emulator === "dolphin" || payload.emulator === "rmg") && payload.mode === "couch")) {
             followCurrentGame();
+        }
+        if (payload.mode === "stream") {
+            keepHostFirst();
         }
         return;
     }

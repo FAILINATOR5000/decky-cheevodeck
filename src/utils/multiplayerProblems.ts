@@ -103,6 +103,7 @@ const WARNING_TEXT: Record<string, string> = {
     revision_differs: "Your copy is a different version of the game from the host's.",
     game_differs: "Your game differs from the host's, so it may not link.",
     duckstation_switch: "DuckStation can't do Couch Play, and its saves won't carry over. {{core}} works, so this session uses it.",
+    stream_player_two: "Player 2 in {{emulator}} isn't set to a controller, so your guests' controls won't reach the game. Set Player 2 to the second controller (SDL-1) in {{emulator}}'s controller settings.",
     core_build_differs: "Your {{core}} build differs from the host's. Update cores on every device (Main Menu → Online Updater → Update Installed Cores)."
 };
 

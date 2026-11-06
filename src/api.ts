@@ -931,8 +931,9 @@ export const multiplayerOutputVolumeSet = callable<[number], { ok: boolean }>("m
 export const multiplayerRoomVolumesSet = callable<[number, number, number, string, boolean, number], { ok: boolean }>(
     "multiplayer_room_volumes_set"
 );
+export const streamPadSwap = callable<[], { ok: boolean; swap: [number, number] | null; done: boolean }>("stream_pad_swap");
 export const multiplayerPrepareLaunch = callable<
-    [string, boolean],
+    [string, boolean, string],
     MultiplayerReply & { appid?: number; options?: string; original?: string; session?: string }
 >("multiplayer_prepare_launch");
 export const multiplayerLaunchStarted = callable<[], { ok: boolean; error?: string }>("multiplayer_launch_started");

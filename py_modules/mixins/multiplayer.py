@@ -86,9 +86,12 @@ class MultiplayerMixin(PluginContext):
     async def multiplayer_room_status(self):
         return self.multiplayer_service.room_status()
 
-    async def multiplayer_prepare_launch(self, original: str = "", hardcore: bool = False):
+    async def stream_pad_swap(self):
+        return await asyncio.to_thread(self.multiplayer_service.stream_pad_swap)
+
+    async def multiplayer_prepare_launch(self, original: str = "", hardcore: bool = False, screen: str = ""):
         return await asyncio.to_thread(
-            self.multiplayer_service.prepare_launch, str(original or ""), bool(hardcore)
+            self.multiplayer_service.prepare_launch, str(original or ""), bool(hardcore), str(screen or "")[:16]
         )
 
     async def multiplayer_launch_started(self):
