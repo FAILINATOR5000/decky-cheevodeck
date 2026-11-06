@@ -56,6 +56,16 @@ type MultiplayerProblem = { code: string; detail?: Record<string, string> };
 type ActionResult = { ok: boolean; error?: string; gate?: string; detail?: Record<string, string> };
 
 const headerPayloads = new Map<number, Payload>();
+const checkCache = new Map<string, MultiplayerCheck>();
+const CHECK_CACHE_MAX = 30;
+const ALL_MODES: MultiplayerMode[] = ["link", "couch", "stream"];
+
+function rememberCheck(key: string, result: MultiplayerCheck) {
+    if (checkCache.size >= CHECK_CACHE_MAX && !checkCache.has(key)) {
+        checkCache.clear();
+    }
+    checkCache.set(key, result);
+}
 
 const reported = new Set<string>();
 let lastDialog = { titleKey: "", at: 0 };
@@ -326,9 +336,18 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         void (async () => {
             try {
                 const result = await multiplayerCheck(mode, gameId, checkCore, checkRoom);
+                rememberCheck(checkKey, result);
                 if (checkTokenRef.current === token) {
                     setCheck(result);
                     setCheckedFor(checkKey);
+                }
+                if (!hosted && !joined) {
+                    for (const other of ALL_MODES.filter((each) => each !== mode)) {
+                        const otherKey = [other, gameId, checkCore, ""].join("|");
+                        multiplayerCheck(other, gameId, checkCore, "")
+                            .then((answer) => rememberCheck(otherKey, answer))
+                            .catch((e) => logError("multiplayerCheck: the other modes", e));
+                    }
                 }
             }
             catch (e) {
@@ -559,7 +578,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             joined,
             closedReason: status?.role === null ? status.closedReason : "",
             lobby: status?.role === null ? Boolean(status.lobby) : false,
-            check,
+            check: checkedFor === checkKey ? check : checkCache.get(checkKey) ?? check,
             checkCurrent: checkedFor === checkKey,
             games,
             scanned,
