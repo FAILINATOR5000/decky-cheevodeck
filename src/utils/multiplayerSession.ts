@@ -560,7 +560,11 @@ export function registerMultiplayerSession() {
     noteRunningApp(Number(Router.MainRunningApp?.appid ?? 0));
     publishRunning({ appid: Number(Router.MainRunningApp?.appid ?? 0) });
     stopRoomWatch = subscribeMultiplayerRoom(() => {
-        const pending = multiplayerRoomMarker().autostart;
+        const room = multiplayerRoomMarker();
+        if (room.role !== "guest") {
+            startedFor = "";
+        }
+        const pending = room.autostart;
         if (pending) {
             void autoStart(`${pending.room}:${pending.round}`, pending.appid, pending.steps ?? "", pending.game ?? "");
         }

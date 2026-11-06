@@ -3374,6 +3374,7 @@ const PT: LocaleTable = {
     "Checking your connection…": "Verificando sua conexão…",
     "The host's internet connection is too slow to handle another connection.": "A conexão de internet do anfitrião é lenta demais para aceitar outra conexão.",
     "The streaming server is busy right now. Try again in a few minutes.": "O servidor de streaming está ocupado agora. Tente de novo em alguns minutos.",
+    "Couldn't connect to the host's stream. Try Join & Play again.": "Não foi possível conectar à transmissão do anfitrião. Pressione Entrar e jogar de novo.",
     "Player 2 in {{emulator}} isn't set to a controller, so your guests' controls won't reach the game. Set Player 2 to the second controller (SDL-1) in {{emulator}}'s controller settings.": "O jogador 2 no {{emulator}} não tem um controle definido, então os comandos dos seus convidados não chegam ao jogo. Defina o segundo controle (SDL-1) para o jogador 2 nas configurações de controle do {{emulator}}.",
 };
 

@@ -3350,5 +3350,6 @@ export const EN: LocaleTable = {
     "Checking your connection…": "Checking your connection…",
     "The host's internet connection is too slow to handle another connection.": "The host's internet connection is too slow to handle another connection.",
     "The streaming server is busy right now. Try again in a few minutes.": "The streaming server is busy right now. Try again in a few minutes.",
+    "Couldn't connect to the host's stream. Try Join & Play again.": "Couldn't connect to the host's stream. Try Join & Play again.",
     "Player 2 in {{emulator}} isn't set to a controller, so your guests' controls won't reach the game. Set Player 2 to the second controller (SDL-1) in {{emulator}}'s controller settings.": "Player 2 in {{emulator}} isn't set to a controller, so your guests' controls won't reach the game. Set Player 2 to the second controller (SDL-1) in {{emulator}}'s controller settings.",
 };

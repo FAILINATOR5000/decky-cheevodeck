@@ -149,6 +149,7 @@ ERROR_NO_GUESTS = "no_guests"
 ERROR_SEATED = "seated"
 ERROR_GATE = "gate"
 ERROR_NOT_READY = "not_ready"
+ERROR_STREAM_UNREACHABLE = "stream_unreachable"
 ERROR_WRITE_FAILED = "write_failed"
 ERROR_ARGS_DROPPED = "args_dropped"
 ERROR_NOBODY_READY = "nobody_ready"
@@ -3289,6 +3290,7 @@ class MultiplayerService:
                 "fanfareRound": 0,
                 "autostartRound": 0,
                 "launchedRound": 0,
+                "retryRound": 0,
                 "cutRound": 0,
                 "notice": "",
                 "clock": (time.time(), time.monotonic()),
@@ -3534,7 +3536,8 @@ class MultiplayerService:
         if (
             status is None or joined["launched"] or joined["local"] is None
             or joined["autostartRound"] != status["round"] or joined["consentRound"] != status["round"]
-            or joined["launchedRound"] == status["round"] or status["state"] != "playing"
+            or joined["launchedRound"] == status["round"] or joined["retryRound"] == status["round"]
+            or status["state"] != "playing"
         ):
             return None
         return {"room": joined["row"]["room"], "round": status["round"], "appid": joined["local"]["appid"],
@@ -3621,7 +3624,11 @@ class MultiplayerService:
             joined["readyRound"] = status["round"]
             joined["notice"] = ""
         else:
-            joined["consentRound"] = 0
+            if (status is not None and status["state"] == "playing" and status["start"] and _drop_in(joined["row"])
+                    and not joined["launched"] and joined["consentRound"] == status["round"]):
+                joined["retryRound"] = status["round"]
+            else:
+                joined["consentRound"] = 0
             if reason and proto.is_reason(reason):
                 joined["notice"] = reason
         joined["ready"] = bool(ready)
@@ -3695,7 +3702,9 @@ class MultiplayerService:
             "consented": status is not None and joined["consentRound"] == status["round"] and status["start"],
             "streamBusy": joined.get("stream") is not None and joined["stream"].busy,
             "rejoin": status is not None and status["state"] == "playing" and not joined["launched"]
-                      and self._may_launch(joined, status) and joined["launchedRound"] == status["round"],
+                      and self._may_launch(joined, status)
+                      and (joined["launchedRound"] == status["round"]
+                           or (joined["retryRound"] == status["round"] and status["start"])),
             "notice": joined["notice"],
             "hardcore": joined["hardcore"],
             "local": _local_view(joined["local"]) if joined["local"] is not None else None,
@@ -3905,7 +3914,7 @@ class MultiplayerService:
         if stream is not None:
             stream.wait_paired(PAIR_WAIT_SECONDS)
         if stream is None or not stream.paired:
-            return {"ok": False, "error": ERROR_NOT_READY}
+            return {"ok": False, "error": ERROR_STREAM_UNREACHABLE}
         if stream.full:
             return {"ok": False, "error": ERROR_GATE, "gate": "host_too_slow", "detail": {}}
         width, _sep, height = screen.partition("x")

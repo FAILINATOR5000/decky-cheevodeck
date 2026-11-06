@@ -3208,6 +3208,7 @@ const JA: LocaleTable = {
     "Checking your connection…": "接続を確認しています…",
     "The host's internet connection is too slow to handle another connection.": "ホストのインターネット接続が遅すぎて、これ以上の接続を受け付けられません。",
     "The streaming server is busy right now. Try again in a few minutes.": "ストリーミングサーバーが混み合っています。数分後にもう一度お試しください。",
+    "Couldn't connect to the host's stream. Try Join & Play again.": "ホストのストリームに接続できませんでした。もう一度「参加してプレイ」を押してください。",
     "Player 2 in {{emulator}} isn't set to a controller, so your guests' controls won't reach the game. Set Player 2 to the second controller (SDL-1) in {{emulator}}'s controller settings.": "{{emulator}} のプレイヤー2にコントローラーが割り当てられていないため、ゲストの操作がゲームに届きません。{{emulator}} のコントローラー設定で、プレイヤー2を2台目のコントローラー（SDL-1）に設定してください。",
 };
 

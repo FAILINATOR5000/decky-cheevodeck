@@ -3422,6 +3422,7 @@ const RU: LocaleTable = {
     "Checking your connection…": "Проверка соединения…",
     "The host's internet connection is too slow to handle another connection.": "Интернет-соединение хоста слишком медленное для ещё одного подключения.",
     "The streaming server is busy right now. Try again in a few minutes.": "Сервер трансляции сейчас занят. Попробуйте снова через несколько минут.",
+    "Couldn't connect to the host's stream. Try Join & Play again.": "Не удалось подключиться к трансляции хоста. Нажмите «Войти и играть» ещё раз.",
     "Player 2 in {{emulator}} isn't set to a controller, so your guests' controls won't reach the game. Set Player 2 to the second controller (SDL-1) in {{emulator}}'s controller settings.": "Игроку 2 в {{emulator}} не назначен контроллер, поэтому управление гостей не дойдёт до игры. Назначьте игроку 2 второй контроллер (SDL-1) в настройках контроллеров {{emulator}}.",
 };
 
