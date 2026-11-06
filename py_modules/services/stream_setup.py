@@ -438,6 +438,24 @@ class StreamSetup:
         finally:
             self._release_claim()
 
+    def end_stray_moonlight(self) -> bool:
+        marker = f"XDG_CONFIG_HOME={self.moonlight_config()}".encode("utf-8")
+        for entry in os.listdir("/proc"):
+            if not entry.isdigit():
+                continue
+            try:
+                with open(f"/proc/{entry}/comm", encoding="utf-8") as handle:
+                    if handle.read().strip() != "moonlight":
+                        continue
+                with open(f"/proc/{entry}/environ", "rb") as handle:
+                    if marker not in handle.read().split(b"\0"):
+                        continue
+            except OSError:
+                continue
+            self._flatpak(["kill", MOONLIGHT_APP])
+            return True
+        return False
+
     def repair(self, shortcut_exists=None) -> list:
         fixed = []
         if STREAM_ROOT.is_dir():

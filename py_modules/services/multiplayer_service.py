@@ -4601,6 +4601,8 @@ class MultiplayerService:
                 ended = []
             if ended:
                 decky.logger.info("stream: ended %s left by an earlier run", ", ".join(ended))
+        if self._stream_setup is not None and self._joined is None and self._stream_setup.end_stray_moonlight():
+            decky.logger.info("stream: ended a Moonlight left by an earlier run")
         try:
             if not self._session_dir.is_dir():
                 return

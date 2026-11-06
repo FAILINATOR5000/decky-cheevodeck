@@ -131,8 +131,13 @@ class HostStreams:
 
     def seat_gone(self, index: int) -> None:
         entry = self._seats.pop(index, None)
-        if entry is not None and entry["pipe"] is not None:
+        if entry is None:
+            return
+        if entry["pipe"] is not None:
             entry["pipe"].close()
+        if entry["paired"]:
+            asyncio.ensure_future(asyncio.to_thread(self._sunshine.unpair_name, _client_name(entry))) \
+                .add_done_callback(_report_crash)
 
     def report(self, index: int, state: str) -> None:
         entry = self._seats.get(index)
@@ -213,7 +218,7 @@ class HostStreams:
                     continue
                 try:
                     ok = await asyncio.to_thread(self._sunshine.answer_pin, request["id"], entry["pin"],
-                                                 f"cheevodeck-{entry['source'].rsplit('.', 1)[1]}")
+                                                 _client_name(entry))
                 except Exception as e:
                     self._debug("stream: answering a pairing request failed (%s)", type(e).__name__)
                     ok = False
@@ -248,6 +253,10 @@ class HostStreams:
             if entry["pipe"] is not None:
                 entry["pipe"].close()
         self._seats.clear()
+
+
+def _client_name(entry: dict) -> str:
+    return f"cheevodeck-{entry['source'].rsplit('.', 1)[1]}"
 
 
 def _report_crash(task) -> None:

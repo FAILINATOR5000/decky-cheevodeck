@@ -303,6 +303,11 @@ class StreamHost:
             raise ApiShapeError("/api/pin")
         return answer.get("status") is True or answer.get("status") == "true"
 
+    def unpair_name(self, name: str) -> None:
+        for client in self.clients():
+            if isinstance(client, dict) and client.get("name") == name and isinstance(client.get("uuid"), str):
+                self._call("POST", "/api/clients/unpair", {"uuid": client["uuid"]})
+
     def unpair_all(self) -> None:
         self._call("POST", "/api/clients/unpair-all", {})
 

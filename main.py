@@ -1998,7 +1998,10 @@ class Plugin(
 
         await self.multiplayer_friends_service.retire()
         left = await asyncio.to_thread(self.multiplayer_service.put_back_game_volumes)
+        self.multiplayer_service.close()
         removed = await asyncio.to_thread(self.stream_setup.remove)
+        if not removed.get("ok"):
+            decky.logger.warning("factory reset: streaming not removed (%s)", removed.get("error", ""))
         await asyncio.to_thread(self._run_factory_reset_locked)
         await asyncio.to_thread(self.multiplayer_service.keep_game_volume_records, left)
         return {"ok": True, "streamShortcut": removed.get("appid", 0) if removed.get("ok") else 0}
