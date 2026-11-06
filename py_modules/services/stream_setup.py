@@ -107,6 +107,10 @@ class StreamSetup:
         self._moonlight_seen = False
         self._moonlight_at = 0.0
 
+    def set_hosting(self, hosting, in_room) -> None:
+        self._hosting = hosting
+        self._in_room = in_room
+
     def sunshine_dir(self):
         record = self._store.get()
         path = record["sunshinePath"]

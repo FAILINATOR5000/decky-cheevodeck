@@ -39,6 +39,7 @@ from services.data_transfer_service import DataTransferService
 from services.nearby_transfer_service import NearbyTransferService
 from services.multiplayer_service import MultiplayerService
 from services.stream_setup import StreamSetup
+from services.stream_host import StreamHost
 from services.voice_canceller import VoiceCanceller
 from services.multiplayer_friends_service import MultiplayerFriendsService
 from services.ez_friends_heal_service import EzFriendsHealService
@@ -798,6 +799,12 @@ class Plugin(
             data=self.data_transfer_service,
         )
 
+        self.stream_host = StreamHost(
+            setup=self.stream_setup,
+            user_home=self.user_home,
+            debug=self._stream_debug,
+            debug_on=lambda: self.settings_store.get_debug_logging(self.settings_store.load_config()),
+        )
         self.multiplayer_service = MultiplayerService(
             settings_store=self.settings_store,
             game_mode=self.session_mode_service.is_game_mode,
@@ -809,7 +816,9 @@ class Plugin(
             voice_canceller=self.voice_canceller,
             voice_room_changed=self.back_button_service.set_voice_room,
             stream_setup=self.stream_setup,
+            stream_host=self.stream_host,
         )
+        self.stream_setup.set_hosting(self.multiplayer_service.hosting_stream, self.multiplayer_service.in_stream_room)
         self.ez_friends_heal_service = EzFriendsHealService(
             plugin=self,
             settings_store=self.settings_store,
@@ -938,6 +947,10 @@ class Plugin(
             asyncio.run_coroutine_threadsafe(decky.emit(BACK_BUTTON_EVENT, payload), loop)
         except Exception as exc:
             decky.logger.warning("back buttons: event emit failed (%s: %s)", type(exc).__name__, exc)
+
+    def _stream_debug(self, message: str, *args) -> None:
+        if self.settings_store.get_debug_logging(self.settings_store.load_config()):
+            decky.logger.info(message, *args)
 
     def _emit_from_thread(self, event: str, payload: dict) -> None:
         loop = getattr(self, "_asyncio_loop", None)

@@ -224,10 +224,11 @@ class MultiplayerService:
         self, *, settings_store, game_mode, user_home, runtime_dir, cheevo_check_service, cheevo_check_store,
         port: int = proto.PORT, peer_port: int = proto.PORT,
         broadcast: str = "255.255.255.255", bin_dir=None, voice_canceller=None, voice_room_changed=None,
-        stream_setup=None,
+        stream_setup=None, stream_host=None,
     ):
         self._settings_store = settings_store
         self._stream_setup = stream_setup
+        self._stream_host = stream_host
         self._voice_canceller = voice_canceller
         self._voice_room_changed = voice_room_changed
         self._in_voice_room = False
@@ -1768,6 +1769,12 @@ class MultiplayerService:
                     return {"ok": False, "error": ERROR_LOBBY_UNREACHABLE}
                 self._link = link
             self._room = room
+            if mode == "stream":
+                failed = await asyncio.to_thread(self._stream_host.start, room["name"], "") \
+                    if self._stream_host is not None else "stream_not_set_up"
+                if failed:
+                    self._close_room("")
+                    return {"ok": False, "error": ERROR_GATE, "gate": failed, "detail": {}}
             self._tell_voice_room()
             self._closed_reason = ""
             self._seen.clear()
@@ -1927,6 +1934,8 @@ class MultiplayerService:
         self._tell_voice_room()
         self._closed_reason = reason
         self._host_tunnels.close()
+        if room["mode"] == "stream" and self._stream_host is not None:
+            self._stop_sunshine()
         if self._housekeeper is not None:
             self._housekeeper.cancel()
             self._housekeeper = None
@@ -1939,6 +1948,21 @@ class MultiplayerService:
             loop.call_later(CLOSED_TAIL_SECONDS, self._end_tail, tail)
         decky.logger.info("multiplayer: room closed%s", f" ({reason})" if reason else "")
         self._announce()
+
+    def hosting_stream(self) -> bool:
+        room = self._room
+        return room is not None and room["mode"] == "stream"
+
+    def in_stream_room(self) -> bool:
+        room, joined = self._room, self._joined
+        return (room is not None and room["mode"] == "stream") or (joined is not None and joined["row"]["mode"] == "stream")
+
+    def _stop_sunshine(self) -> None:
+        loop = self._loop
+        if self._stopping or loop is None or loop.is_closed():
+            self._stream_host.stop()
+            return
+        self._spawn(asyncio.to_thread(self._stream_host.stop))
 
     def _end_tail(self, tail: dict) -> None:
         if self._closed_tail is tail and self._room is None:
@@ -2015,6 +2039,12 @@ class MultiplayerService:
                     self._tidy(room)
                 except Exception as e:
                     decky.logger.warning("multiplayer: housekeeping failed (%s)", type(e).__name__)
+                streams = room.get("streams")
+                if streams is not None and self._stream_host is not None and not streams.streaming():
+                    try:
+                        await asyncio.to_thread(self._stream_host.renew_if_due)
+                    except Exception as e:
+                        decky.logger.warning("stream: renewing Sunshine failed (%s)", type(e).__name__)
         finally:
             self._stop_rmg_server(room["id"])
 
@@ -4415,6 +4445,14 @@ class MultiplayerService:
 
     def _startup_sweep(self) -> None:
         self._end_stray_rmg_servers()
+        if self._stream_host is not None and self._room is None:
+            try:
+                ended = self._stream_host.end_strays()
+            except Exception as e:
+                decky.logger.warning("stream: the stray sweep failed (%s)", type(e).__name__)
+                ended = []
+            if ended:
+                decky.logger.info("stream: ended %s left by an earlier run", ", ".join(ended))
         try:
             if not self._session_dir.is_dir():
                 return
