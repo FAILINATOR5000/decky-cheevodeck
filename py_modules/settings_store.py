@@ -477,6 +477,7 @@ _KNOBS = (
     Knob("mpVoicePttToggle", default=True, normalize=True, read=READ_BOOL),
     Knob("mpVoiceSensitivity", default=2, normalize=True),
     Knob("mpStreamSlowConnection", default=False, normalize=True, read=READ_BOOL),
+    Knob("mpStreamScreenWarningOff", default=False, normalize=True, read=READ_BOOL),
     Knob("playShortcutFallback", default=True, normalize=True, read=READ_BOOL),
     Knob("automaticRecovery", default=True, normalize=True, read=READ_BOOL),
     Knob("recoveryButtonCombo", default=False, normalize=True, read=READ_BOOL),
@@ -2367,6 +2368,10 @@ class SettingsStore:
     def update_mp_stream_slow_connection(self, value: bool) -> bool:
         cfg = self._update_config("mpStreamSlowConnection", bool(value))
         return bool(cfg.get("mpStreamSlowConnection", False))
+
+    def update_mp_stream_screen_warning_off(self, value: bool) -> bool:
+        cfg = self._update_config("mpStreamScreenWarningOff", bool(value))
+        return bool(cfg.get("mpStreamScreenWarningOff", False))
 
     def update_mp_voice_ptt_toggle(self, value: bool) -> bool:
         cfg = self._update_config("mpVoicePttToggle", bool(value))

@@ -689,6 +689,14 @@ class OptionsMixin(PluginContext):
             "mpVoicePushToTalk": value,
         }
 
+    async def save_mp_stream_screen_warning_off(self, mp_stream_screen_warning_off: bool):
+        value = self.settings_store.update_mp_stream_screen_warning_off(mp_stream_screen_warning_off)
+
+        return {
+            "ok": True,
+            "mpStreamScreenWarningOff": value,
+        }
+
     async def save_mp_stream_slow_connection(self, mp_stream_slow_connection: bool):
         value = self.settings_store.update_mp_stream_slow_connection(mp_stream_slow_connection)
 

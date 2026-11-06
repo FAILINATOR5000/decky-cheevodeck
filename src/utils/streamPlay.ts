@@ -2,6 +2,7 @@ import { addEventListener, removeEventListener } from "@decky/api";
 import { useEffect, useSyncExternalStore } from "react";
 
 import {
+    saveMpStreamScreenWarningOff,
     saveMpStreamSlowConnection,
     streamFinishSetup,
     streamRemove,
@@ -34,6 +35,7 @@ type StreamState = {
 let state: StreamState = { status: null, size: "", stage: "", job: "", lastJob: "" };
 const listeners = new Set<() => void>();
 let slowConnection = false;
+let screenWarningOff = false;
 const slowListeners = new Set<() => void>();
 
 function publishSlow(next: boolean) {
@@ -46,8 +48,24 @@ function publishSlow(next: boolean) {
     }
 }
 
-export function setStreamSettings(next: { mpStreamSlowConnection?: boolean }) {
+export function setStreamSettings(next: { mpStreamSlowConnection?: boolean; mpStreamScreenWarningOff?: boolean }) {
     publishSlow(next.mpStreamSlowConnection ?? slowConnection);
+    screenWarningOff = next.mpStreamScreenWarningOff ?? screenWarningOff;
+}
+
+export function streamScreenWarningOff(): boolean {
+    return screenWarningOff;
+}
+
+export async function hideStreamScreenWarning() {
+    screenWarningOff = true;
+    try {
+        const saved = await saveMpStreamScreenWarningOff(true);
+        screenWarningOff = saved.mpStreamScreenWarningOff;
+    }
+    catch (e) {
+        logError("stream play: saving the screen warning", e);
+    }
 }
 
 export function useSlowConnection(): boolean {

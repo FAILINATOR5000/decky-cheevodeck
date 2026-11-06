@@ -24,6 +24,7 @@ import { openInviteFriends } from "../components/multiplayer/InviteFriendsModal"
 import { openChatSay } from "../components/multiplayer/ChatSayModal";
 import { openMessageCenter } from "../components/multiplayer/MessageCenterModal";
 import { openHostRoom } from "../components/multiplayer/HostRoomModal";
+import { openStreamScreenWarning } from "../components/multiplayer/StreamScreenWarningModal";
 import { openRooms } from "../components/multiplayer/RoomsModal";
 import { SectionTitle } from "../components/ui/SectionTitle";
 import { useMultiplayer } from "../components/multiplayer/MultiplayerContext";
@@ -59,7 +60,7 @@ import {
 } from "../utils/gameVolume";
 import { changeOutputVolume, useOutputVolume } from "../utils/outputVolume";
 import { screenMaxRefresh } from "../utils/screenRefresh";
-import { changeSlowConnection, updateStreaming, useSlowConnection, useStreamSetup } from "../utils/streamPlay";
+import { changeSlowConnection, streamScreenWarningOff, updateStreaming, useSlowConnection, useStreamSetup } from "../utils/streamPlay";
 import { getCurrentControllerGlyphStyle } from "../utils/controllerGlyphs";
 import { ButtonHints, type ButtonHint } from "../components/ui/ButtonHints";
 import { openExternalUrl, raLookupSearchUrl } from "../utils/navigation";
@@ -596,17 +597,23 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         if (mp.gameId === null) {
             return;
         }
-        openHostRoom(language, {
+        const request = {
             mode: mp.mode,
             gameId: mp.gameId,
             hardcore: mp.hardcore,
             core: mp.core,
             share: mp.shareControls,
             watch: mp.watchOnly
-        }, {
+        };
+        const place = {
             online: mp.lobby,
             lanOnly: Boolean(mp.check?.lanOnly)
-        }, describe);
+        };
+        if (mp.mode === "stream" && !streamScreenWarningOff()) {
+            openStreamScreenWarning(language, () => openHostRoom(language, request, place, describe));
+            return;
+        }
+        openHostRoom(language, request, place, describe);
     }
 
     const buttonStyle = regularButtonSpacingStyle(state.buttonSpacing);
