@@ -23,6 +23,8 @@ const SHORTCUT_DIR = "/usr/bin";
 const SHORTCUT_OPTIONS = "run --user com.moonlight_stream.Moonlight";
 const OVERVIEW_TRIES = 20;
 const OVERVIEW_WAIT_MS = 150;
+const SHORTCUT_APP_TYPE = 1073741824;
+const SWEEP_AGAIN_MS = 60000;
 
 type StreamStage = "" | "sunshine" | "moonlight" | "finishing" | "done" | "failed";
 
@@ -235,6 +237,32 @@ async function makeShortcut(): Promise<number> {
     return appid;
 }
 
+function hideMoonlightShortcuts() {
+    try {
+        const shown: number[] = appStore.allApps
+            .filter((app: { appid: number; display_name: string; app_type: number }) => app.display_name === SHORTCUT_NAME
+                && app.app_type === SHORTCUT_APP_TYPE && !collectionStore.BIsHidden(app.appid))
+            .map((app: { appid: number }) => app.appid);
+        if (shown.length > 0) {
+            collectionStore.SetAppsAsHidden(shown, true);
+        }
+    }
+    catch (e) {
+        logError("stream play: hiding Moonlight shortcuts", e);
+    }
+}
+
+let sweepTimer = 0;
+
+export function registerMoonlightSweep() {
+    hideMoonlightShortcuts();
+    sweepTimer = window.setTimeout(hideMoonlightShortcuts, SWEEP_AGAIN_MS);
+}
+
+export function unregisterMoonlightSweep() {
+    window.clearTimeout(sweepTimer);
+}
+
 export function removeMoonlightShortcut(appid: number) {
     if (!shortcutExists(appid)) {
         return;
@@ -264,6 +292,7 @@ export async function setUpStreaming(): Promise<boolean> {
             appid = await makeShortcut();
         }
         const finished = appid > 0 ? await streamFinishSetup(appid) : null;
+        hideMoonlightShortcuts();
         publish({ stage: finished?.ok ? "done" : "failed", job: "", status: finished?.ok ? finished : state.status });
         return Boolean(finished?.ok);
     }

@@ -16,6 +16,7 @@ import { registerScreenDarken, unregisterScreenDarken } from "./components/darke
 import { registerMemoryCapture, unregisterMemoryCapture } from "./components/memories/memoryCapture";
 import { registerMemoryFullscreen, unregisterMemoryFullscreen } from "./components/memories/memoryFullscreen";
 import { registerMultiplayerSession, unregisterMultiplayerSession } from "./utils/multiplayerSession";
+import { registerMoonlightSweep, unregisterMoonlightSweep } from "./utils/streamPlay";
 import { registerMultiplayerRoomState, unregisterMultiplayerRoomState } from "./utils/multiplayerRoomState";
 import { registerVoiceChat, unregisterVoiceChat } from "./utils/voiceChat";
 import { registerGameVolume, unregisterGameVolume } from "./utils/gameVolume";
@@ -92,6 +93,7 @@ export default definePlugin(() => {
     registerScreenDarken();
     registerMemoryCapture();
     registerMultiplayerSession();
+    registerMoonlightSweep();
     registerMultiplayerRoomState();
     registerVoiceChat();
     registerGameVolume();
@@ -116,6 +118,7 @@ export default definePlugin(() => {
             unregisterScreenDarken();
             unregisterMemoryCapture();
             unregisterMultiplayerSession();
+            unregisterMoonlightSweep();
             unregisterVoiceChat();
             unregisterMultiplayerRoomState();
             unregisterMemoryFullscreen();
