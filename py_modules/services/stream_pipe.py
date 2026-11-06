@@ -32,6 +32,7 @@ IDLE_TICK_SECONDS = 0.1
 RTO_INITIAL = 1.0
 RTO_MIN = 0.2
 RTO_MAX = 3.0
+PROBE_MIN = 0.02
 CWND_START = 4
 CWND_MIN = 2
 CWND_MAX = 128
@@ -81,6 +82,10 @@ def global_ipv6():
     if address.is_link_local or address in ipaddress.IPv6Network("fc00::/7") or not address.is_global:
         return None
     return str(address)
+
+
+def _port_pairs(ports):
+    return tuple((port, port) if isinstance(port, int) else (int(port[0]), int(port[1])) for port in ports)
 
 
 def _address(value):
@@ -155,6 +160,8 @@ class _Stream:
         self.rto_base = RTO_INITIAL
         self.rto = RTO_INITIAL
         self.timer_at = None
+        self.probe_at = None
+        self.probed = False
         self.recover = None
         self.dupacks = 0
         self.credit = float(CWND_START)
@@ -189,6 +196,7 @@ class _Stream:
             burst = max(4.0, rate * TICK_SECONDS)
             self.credit = min(burst, self.credit + (now - self.credit_at) * rate)
         self.credit_at = now
+        sent = False
         while self.unsent_from < self.send_next and self.unsent_from - self.una < self.cwnd:
             if self.srtt is not None:
                 if self.credit < 1:
@@ -198,8 +206,26 @@ class _Stream:
             self.unsent_from += 1
             segment.sent_at = now
             self.pipe.send_frame(segment.frame)
+            sent = True
             if self.timer_at is None:
                 self.timer_at = now + self.rto
+        if sent and not self.probed:
+            self._arm_probe(now)
+
+    def _arm_probe(self, now):
+        if self.srtt is None or self.unsent_from <= self.una:
+            self.probe_at = None
+            return
+        self.probe_at = now + max(PROBE_MIN, 2 * self.srtt, self.srtt + 2 * self.rttvar)
+
+    def on_probe(self):
+        self.probe_at = None
+        self.probed = True
+        segment = self.unacked.get(self.una)
+        if segment is None or segment.sent_at is None:
+            return
+        self.pipe.counters["resent"] += 1
+        self.pipe.send_frame(segment.frame)
 
     def resend_oldest(self, now):
         segment = self.unacked.get(self.una)
@@ -212,6 +238,8 @@ class _Stream:
         self.timer_at = now + self.rto
 
     def on_timeout(self, now):
+        self.probe_at = None
+        self.probed = True
         self.cwnd = max(CWND_MIN, self.cwnd // 2)
         self.grown = 0
         self.rto = min(RTO_MAX, self.rto * 2)
@@ -251,6 +279,8 @@ class _Stream:
             self._sample(now - newest.sent_at)
         self.rto = self.rto_base
         self.timer_at = None
+        self.probed = False
+        self._arm_probe(now)
         if self.recover is not None:
             if next_seq > self.recover:
                 self.recover = None
@@ -334,14 +364,16 @@ class _Stream:
 
 class StreamPipe:
     def __init__(self, *, role: str, meet: tuple, room: str, seat: int, token: str, mbit: int, occupant: str,
-                 source: str = "127.0.0.1", on_path=None, debug=None,
+                 label: str = "stream", source: str = "127.0.0.1", on_path=None, debug=None,
                  tcp_ports=TCP_PORTS, udp_ports=UDP_PORTS, local_host: str = "127.0.0.1",
-                 sunshine_host: str = "127.0.0.1", allow_direct: bool = True, drop_rate: float = 0.0,
-                 v6_address=None):
+                 target_host: str = "127.0.0.1", gate=None, skip_busy: bool = False, allow_direct: bool = True,
+                 drop_rate: float = 0.0, v6_address=None):
         self._occupant = occupant
         if role not in ("host", "guest"):
             raise ValueError("role must be host or guest")
         self._role = role
+        self._label = label
+        self._who = f"{label} pipe ({role} seat {seat})"
         self._meet = (meet[0], int(meet[1]))
         self._room = room
         self._seat = seat
@@ -350,10 +382,13 @@ class StreamPipe:
         self._source = source
         self._on_path = on_path
         self._debug = debug
-        self._tcp_ports = tuple(tcp_ports)
-        self._udp_ports = tuple(udp_ports)
+        self._tcp_ports = _port_pairs(tcp_ports)
+        self._tcp_remote = frozenset(remote for _local, remote in self._tcp_ports)
+        self._udp_ports = _port_pairs(udp_ports)
         self._local_host = local_host
-        self._sunshine_host = sunshine_host
+        self._target_host = target_host
+        self._gate = gate
+        self._skip_busy = skip_busy
         self._allow_direct = allow_direct
         self._drop_rate = drop_rate
         self._v6_address = v6_address
@@ -372,7 +407,7 @@ class StreamPipe:
         self._servers = []
         self._tasks = set()
         self._media = []
-        self._moonlight = []
+        self._client = []
 
         self._public = None
         self._started_at = 0.0
@@ -410,6 +445,10 @@ class StreamPipe:
         return self._path
 
     @property
+    def met(self) -> bool:
+        return self._peer_public is not None
+
+    @property
     def unanswered(self) -> bool:
         return self._public is None and self._started_at > 0 and time.monotonic() - self._started_at > MEET_SECONDS
 
@@ -429,28 +468,42 @@ class StreamPipe:
                 raise OSError("closed while starting")
             await self._start_v6()
 
-            for index, port in enumerate(self._udp_ports):
+            for index, (local_port, remote_port) in enumerate(self._udp_ports):
                 local = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 self._sockets.append(local)
                 if self._role == "host":
                     local.bind((self._source, 0))
-                    local.connect((self._sunshine_host, port))
+                    local.connect((self._target_host, remote_port))
                 else:
-                    local.bind((self._local_host, port))
+                    try:
+                        local.bind((self._local_host, local_port))
+                    except OSError as error:
+                        if not self._skip_busy:
+                            raise
+                        self._say("%s: udp %s is taken here, going without it (%s)", self._who, local_port, error)
+                        self._media.append(None)
+                        self._client.append(None)
+                        continue
                 self._media.append(await self._endpoint(_LocalProtocol(self, index), local))
-                self._moonlight.append(None)
+                self._client.append(None)
                 if self._closed:
                     raise OSError("closed while starting")
 
             if self._role == "guest":
-                for port in self._tcp_ports:
-                    server = await asyncio.start_server(self._accepter(port), self._local_host, port,
-                                                        reuse_address=True)
+                for local_port, remote_port in self._tcp_ports:
+                    try:
+                        server = await asyncio.start_server(self._accepter(remote_port), self._local_host, local_port,
+                                                            reuse_address=True)
+                    except OSError as error:
+                        if not self._skip_busy:
+                            raise
+                        self._say("%s: tcp %s is taken here, going without it (%s)", self._who, local_port, error)
+                        continue
                     self._servers.append(server)
                     if self._closed:
                         raise OSError("closed while starting")
         except OSError as error:
-            self._say("stream pipe (%s seat %s) could not start: %s", self._role, self._seat, error)
+            self._say("%s could not start: %s", self._who, error)
             self._closed = True
             self._teardown()
             return False
@@ -460,7 +513,7 @@ class StreamPipe:
         self._spawn(self._hello_loop())
         self._spawn(self._path_loop())
         self._spawn(self._stream_loop())
-        self._say("stream pipe (%s seat %s) up on udp %s%s", self._role, self._seat, self._port,
+        self._say("%s up on udp %s%s", self._who, self._port,
                   f", v6 udp {self._port6}" if self._link6 is not None else "")
         if self._on_path is not None:
             self._on_path(self._path)
@@ -472,6 +525,10 @@ class StreamPipe:
         self._closed = True
         self._path = "closed"
         self._teardown()
+
+    def confirm_relay(self) -> None:
+        if self._path == "relay" and self._direct is None and self._link is not None:
+            self._out(self._link, b"\x01" + _PROBE, self._meet)
 
     def blackout(self, seconds: float) -> None:
         self._blackout_until = time.monotonic() + seconds
@@ -545,7 +602,7 @@ class StreamPipe:
 
     def _hello(self):
         message = {"op": "hello", "room": self._room, "seat": self._seat, "role": self._role,
-                   "occ": self._occupant, "token": self._token, "mbit": self._mbit}
+                   "occ": self._occupant, "token": self._token, "mbit": self._mbit, "kind": self._label}
         ip = lan_ip()
         if ip:
             message["lan"] = [ip, self._port]
@@ -586,7 +643,7 @@ class StreamPipe:
             return
         first = self._peer_public is None
         self._peer_public = public
-        self._say("stream pipe (%s seat %s): peer at %s:%s, lan %s, v6 %s", self._role, self._seat,
+        self._say("%s: peer at %s:%s, lan %s, v6 %s", self._who,
                   public[0], public[1], self._peer_lan, self._peer_v6)
         if self._path == "busy":
             return
@@ -610,7 +667,7 @@ class StreamPipe:
         self._relay_refused = True
         self._busy_at = time.monotonic()
         if self._direct is None and self._path != "busy":
-            self._say("stream pipe (%s seat %s): path busy (the meeting point can't relay)", self._role, self._seat)
+            self._say("%s: path busy (the meeting point can't relay)", self._who)
             self._set_path("busy")
 
     def _set_path(self, path):
@@ -629,10 +686,10 @@ class StreamPipe:
         self._direct = None
         self._direct_via = None
         if self._relay_refused:
-            self._say("stream pipe (%s seat %s): path busy (%s)", self._role, self._seat, why)
+            self._say("%s: path busy (%s)", self._who, why)
             self._set_path("busy")
             return
-        self._say("stream pipe (%s seat %s): path relay (%s)", self._role, self._seat, why)
+        self._say("%s: path relay (%s)", self._who, why)
         self._set_path("relay")
         self._out(self._link, b"\x01" + _PROBE, self._meet)
         self._kick_streams()
@@ -642,7 +699,7 @@ class StreamPipe:
         self._direct_via = self._link6 if ":" in addr[0] else self._link
         self._heard_at = now
         self._keepalive_at = now + KEEPALIVE_SECONDS
-        self._say("stream pipe (%s seat %s): path direct via %s:%s after %.1f s", self._role, self._seat,
+        self._say("%s: path direct via %s:%s after %.1f s", self._who,
                   addr[0], addr[1], now - self._punch_started)
         self._was_direct = True
         self._direct_since = now
@@ -718,7 +775,7 @@ class StreamPipe:
         except OSError as error:
             self._sockets.remove(sock)
             sock.close()
-            self._say("stream pipe (%s seat %s): no fresh socket (%s)", self._role, self._seat, error)
+            self._say("%s: no fresh socket (%s)", self._who, error)
             return
         if self._closed:
             return
@@ -731,7 +788,7 @@ class StreamPipe:
         self._port = sock.getsockname()[1]
         self._hello()
         self._probe_at = time.monotonic()
-        self._say("stream pipe (%s seat %s): fresh socket on udp %s, punching again", self._role, self._seat,
+        self._say("%s: fresh socket on udp %s, punching again", self._who,
                   self._port)
         await asyncio.sleep(OLD_LINK_SECONDS)
         self._retire(old, old_sock)
@@ -753,7 +810,7 @@ class StreamPipe:
             return
         self._link6.abort()
         self._link6 = None
-        self._say("stream pipe (%s seat %s): IPv6 failed, carrying on without it", self._role, self._seat)
+        self._say("%s: IPv6 failed, carrying on without it", self._who)
         if self._direct is not None and ":" in self._direct[0]:
             self._probe_at = time.monotonic()
             self._fall_back("IPv6 path failed, punching again")
@@ -841,18 +898,19 @@ class StreamPipe:
 
     def _media_out(self, index, data, addr):
         if self._role == "guest":
-            self._moonlight[index] = addr
+            self._client[index] = addr
         self.send_frame(bytes((MEDIA, index)) + data)
 
     def _media_in(self, index, payload):
-        if index >= len(self._media):
+        if index >= len(self._media) or self._media[index] is None:
             return
         if self._role == "host":
-            self._media[index].sendto(payload)
+            if self._gate is None or self._gate("udp", self._udp_ports[index][1]):
+                self._media[index].sendto(payload)
         else:
-            moonlight = self._moonlight[index]
-            if moonlight is not None:
-                self._media[index].sendto(payload, moonlight)
+            client = self._client[index]
+            if client is not None:
+                self._media[index].sendto(payload, client)
 
     def _accepter(self, port):
         async def accept(reader, writer):
@@ -898,14 +956,14 @@ class StreamPipe:
     def _open_local(self, stream, port):
         if self._role != "host":
             return
-        if port not in self._tcp_ports:
+        if port not in self._tcp_remote or (self._gate is not None and not self._gate("tcp", port)):
             stream.finish(time.monotonic())
             return
         self._spawn(self._connect(stream, port))
 
     async def _connect(self, stream, port):
         try:
-            reader, writer = await asyncio.open_connection(self._sunshine_host, port,
+            reader, writer = await asyncio.open_connection(self._target_host, port,
                                                            local_addr=(self._source, 0))
         except OSError:
             stream.finish(time.monotonic())
@@ -932,12 +990,14 @@ class StreamPipe:
             now = time.monotonic()
             sending = self.can_send()
             for stream in list(self._streams.values()):
-                if now - stream.active_at > STREAM_IDLE_SECONDS:
+                if now - stream.active_at > STREAM_IDLE_SECONDS and stream.unsent_from > stream.una:
                     self._drop(stream, now)
                     continue
                 if sending:
                     if stream.timer_at is not None and now >= stream.timer_at:
                         stream.on_timeout(now)
+                    elif stream.probe_at is not None and now >= stream.probe_at:
+                        stream.on_probe()
                     stream.transmit(now)
             if self._lingering:
                 for cid in [cid for cid, (_, at) in self._lingering.items() if now - at > LINGER_SECONDS]:
@@ -957,9 +1017,9 @@ class StreamPipe:
         else:
             where = self._path
         rtt = "-" if self._last_rtt is None else f"{self._last_rtt * 1000:.0f}"
-        self._debug("stream pipe (%s seat %s) [%s] up %.2f Mbit/s down %.2f Mbit/s resent %d "
+        self._debug("%s [%s] up %.2f Mbit/s down %.2f Mbit/s resent %d "
                     "probes out/in/answers %d/%d/%d rtt %s ms cwnd %d",
-                    self._role, self._seat, where,
+                    self._who, where,
                     change["up"] * 8 / REPORT_SECONDS / 1e6, change["down"] * 8 / REPORT_SECONDS / 1e6,
                     change["resent"], change["probes_out"], change["probes_in"], change["answers_in"],
                     rtt, self._last_cwnd)
