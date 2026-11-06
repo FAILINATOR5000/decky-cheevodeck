@@ -1261,6 +1261,9 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         ...(streamRoom ? ["misc" as const] : [])
     ];
     const shownRoomTab: MultiplayerRoomTab = tabList.includes(roomTab) ? roomTab : tabList[0] ?? "room";
+    if (roomId && tabList.length > 0 && shownRoomTab !== roomTab) {
+        setRoomTabChoice({ room: roomId, tab: shownRoomTab });
+    }
     const roomTabs = tabList.length > 1 && (
         <>
             <SectionTitle label={t(language, "Options")} />
