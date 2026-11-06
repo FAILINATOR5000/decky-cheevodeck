@@ -240,6 +240,9 @@ class VoiceCanceller:
         decky.logger.info("voice: echo canceller on (%s)", kind)
         return True
 
+    def game_sink(self) -> str:
+        return GAME_SINK if self._game_sink is not None else ""
+
     def _unload(self) -> None:
         if not self._modules:
             return

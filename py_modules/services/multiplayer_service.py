@@ -1794,7 +1794,8 @@ class MultiplayerService:
                 self._link = link
             self._room = room
             if mode == "stream":
-                failed = await asyncio.to_thread(self._stream_host.start, room["name"], "") \
+                sink = self._voice_canceller.game_sink() if voice and self._voice_canceller is not None else ""
+                failed = await asyncio.to_thread(self._stream_host.start, room["name"], sink) \
                     if self._stream_host is not None else "stream_not_set_up"
                 if failed:
                     self._close_room("")
