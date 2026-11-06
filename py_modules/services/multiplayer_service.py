@@ -560,7 +560,7 @@ class MultiplayerService:
                               for index, seat in enumerate(room["seats"])],
                     "rev": room["rev"], "round": room["round"], "state": self._public_state(room),
                     "chat": dict(room["chat"][-1]) if room["chat"] else None, "lobby": self._lobby_state(),
-                    "voice": self._voice_view()}
+                    "voice": self._voice_view(), "roomVoice": bool(room["voice"])}
         joined = self._joined
         if joined is not None:
             status = joined["status"] or {}
@@ -574,7 +574,8 @@ class MultiplayerService:
                     "rev": status.get("rev", 0), "round": status.get("round", 0),
                     "state": status.get("state", "lobby"),
                     "chat": dict(joined["chat"][-1]) if joined["chat"] else None,
-                    "autostart": self._pending_start(joined), "voice": self._voice_view()}
+                    "autostart": self._pending_start(joined), "voice": self._voice_view(),
+                    "roomVoice": bool(joined["row"].get("voice"))}
         return {"role": None, "title": "", "host": "", "seated": 0, "error": "", "seat": 0, "ready": False,
                 "seats": [], "rev": 0, "round": 0, "state": "lobby", "chat": None, "voice": None}
 

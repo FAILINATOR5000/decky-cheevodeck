@@ -31,13 +31,14 @@ export type MultiplayerRoomMarker = {
     chat: ChatLine | null;
     autostart: { room: string; round: number; appid: number; steps: string; game: string } | null;
     voice: RoomVoice | null;
+    roomVoice: boolean;
 };
 
 type RoomEvent = Partial<MultiplayerRoomMarker> & { seq?: number };
 
 const EMPTY: MultiplayerRoomMarker = {
     role: null, title: "", host: "", seated: 0, error: "", seat: 0, ready: false, seats: [], rev: 0, round: 0, state: "lobby",
-    chat: null, autostart: null, voice: null
+    chat: null, autostart: null, voice: null, roomVoice: false
 };
 
 let marker: MultiplayerRoomMarker = EMPTY;
@@ -135,7 +136,8 @@ function onRoomEvent(payload: RoomEvent) {
         state: payload.state ?? "lobby",
         chat: payload.chat && typeof payload.chat.seq === "number" ? payload.chat : null,
         autostart: payload.autostart && typeof payload.autostart.appid === "number" ? payload.autostart : null,
-        voice: readVoice(payload.voice)
+        voice: readVoice(payload.voice),
+        roomVoice: payload.roomVoice === true
     }, Number(payload.seq) || 0, true);
 }
 
@@ -167,7 +169,8 @@ function fromStatus(status: MultiplayerRoomStatus): MultiplayerRoomMarker {
             round: room.round,
             state: room.state,
             chat: room.chat[room.chat.length - 1] ?? null,
-            voice: readVoice(status.voice)
+            voice: readVoice(status.voice),
+            roomVoice: room.voice === true
         };
     }
     if (status.role === "guest") {
@@ -186,7 +189,8 @@ function fromStatus(status: MultiplayerRoomStatus): MultiplayerRoomMarker {
             state: guest?.state ?? "lobby",
             chat: status.chat[status.chat.length - 1] ?? null,
             autostart: status.autostart,
-            voice: readVoice(status.voice)
+            voice: readVoice(status.voice),
+            roomVoice: status.room.voice === true
         };
     }
     return EMPTY;

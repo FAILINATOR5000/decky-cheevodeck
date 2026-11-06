@@ -3148,6 +3148,7 @@ const JA: LocaleTable = {
     "Mic muted while you're in a Steam call": "Steam の通話中はマイクをミュートしています",
     "Mic back on": "マイクを再開しました",
     "Voice chat turned off for this room": "このルームのボイスチャットはオフになりました",
+    "Voice chat turned on for this room": "このルームのボイスチャットはオンになりました",
     "Voice couldn't connect to {{name}}.": "{{name}} とボイスチャットを接続できませんでした。",
     "You're in a Steam Voice Chat": "Steam のボイスチャット中です",
     "The other players will hear you, and your Steam call may hear the room through your speakers. A headset helps.": "ほかのプレイヤーにあなたの声が聞こえます。また、スピーカーから出るルームの声が Steam の通話相手に聞こえることがあります。ヘッドセットの使用をおすすめします。",

@@ -136,6 +136,7 @@ let cancelling = true;
 let limiting = true;
 
 let room: { id: string; where: string; access: string; seat: number; host: boolean } | null = null;
+let voiceWasOff = false;
 let config: IceConfig | null = null;
 let configFor = "";
 let configStamp = "";
@@ -458,9 +459,15 @@ function sync() {
     const marker = multiplayerRoomMarker();
     const view = marker.voice;
     const seated = marker.role !== null && view !== null && Boolean(view.seats[marker.seat]);
+    if (marker.role === null) {
+        voiceWasOff = false;
+    }
+    else if (!marker.roomVoice) {
+        voiceWasOff = true;
+    }
     if (!seated) {
         if (room) {
-            const turnedOff = marker.role !== null && view === null && !room.host;
+            const turnedOff = marker.role !== null && !marker.roomVoice && !room.host;
             leave();
             if (turnedOff) {
                 toast("Voice chat turned off for this room");
@@ -474,6 +481,10 @@ function sync() {
     }
     names = marker.seats.map((seat) => seat.name);
     if (!room) {
+        if (voiceWasOff && marker.role === "guest") {
+            toast("Voice chat turned on for this room");
+        }
+        voiceWasOff = false;
         enter(view, marker.seat, marker.role === "host");
     }
     else if (view.cfg !== configStamp) {

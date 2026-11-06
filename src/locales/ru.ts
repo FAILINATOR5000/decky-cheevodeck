@@ -3362,6 +3362,7 @@ const RU: LocaleTable = {
     "Mic muted while you're in a Steam call": "Микрофон выключен, пока идёт звонок в Steam",
     "Mic back on": "Микрофон снова включён",
     "Voice chat turned off for this room": "Голосовой чат в этой комнате выключен",
+    "Voice chat turned on for this room": "Голосовой чат в этой комнате включён",
     "Voice couldn't connect to {{name}}.": "Не удалось подключить голосовой чат к игроку {{name}}.",
     "You're in a Steam Voice Chat": "Ты в голосовом чате Steam",
     "The other players will hear you, and your Steam call may hear the room through your speakers. A headset helps.": "Другие игроки будут тебя слышать, а собеседники в Steam могут услышать комнату через твои динамики. Лучше надеть гарнитуру.",
