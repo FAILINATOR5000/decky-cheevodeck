@@ -472,11 +472,11 @@ _KNOBS = (
     Knob("mpFriendsEnabled", default=True, normalize=True, read=READ_BOOL),
     Knob("mpShowOnline", default=True, normalize=True, read=READ_BOOL),
     Knob("mpSuggestFriends", default=True, normalize=True, read=READ_BOOL),
-    Knob("mpShortcutFallback", default=False, normalize=True, read=READ_BOOL),
+    Knob("mpShortcutFallback", default=True, normalize=True, read=READ_BOOL),
     Knob("mpVoicePushToTalk", default=False, normalize=True, read=READ_BOOL),
     Knob("mpVoicePttToggle", default=True, normalize=True, read=READ_BOOL),
     Knob("mpVoiceSensitivity", default=2, normalize=True),
-    Knob("playShortcutFallback", default=False, normalize=True, read=READ_BOOL),
+    Knob("playShortcutFallback", default=True, normalize=True, read=READ_BOOL),
     Knob("automaticRecovery", default=True, normalize=True, read=READ_BOOL),
     Knob("recoveryButtonCombo", default=False, normalize=True, read=READ_BOOL),
     Knob("recoveryLogs", default=False, normalize=True, read=READ_BOOL),
@@ -2356,7 +2356,7 @@ class SettingsStore:
     def update_mp_shortcut_fallback(self, value: bool) -> bool:
         cfg = self._update_config("mpShortcutFallback", bool(value))
 
-        return bool(cfg.get("mpShortcutFallback", False))
+        return bool(cfg.get("mpShortcutFallback", True))
 
     def update_mp_voice_push_to_talk(self, value: bool) -> bool:
         cfg = self._update_config("mpVoicePushToTalk", bool(value))
@@ -2376,7 +2376,7 @@ class SettingsStore:
     def update_play_shortcut_fallback(self, value: bool) -> bool:
         cfg = self._update_config("playShortcutFallback", bool(value))
 
-        return bool(cfg.get("playShortcutFallback", False))
+        return bool(cfg.get("playShortcutFallback", True))
 
     def update_browser_snapshot(self, value: bool) -> bool:
         cfg = self._update_config("browserSnapshot", bool(value))

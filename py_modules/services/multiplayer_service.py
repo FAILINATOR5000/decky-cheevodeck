@@ -1122,7 +1122,7 @@ class MultiplayerService:
         return local, None, {}
 
     def _fallback_on(self) -> bool:
-        return bool(self._settings_store.load_config().get("mpShortcutFallback", False))
+        return bool(self._settings_store.load_config().get("mpShortcutFallback", True))
 
     def _play_route(self, game_id: int):
         library = self._library()
@@ -1134,7 +1134,7 @@ class MultiplayerService:
         linked = next((entry for entry in game["paths"] if entry["shortcut"]), None)
         if linked is not None:
             return {"appid": linked["shortcut"]["appid"], "fallback": False}, None, {}
-        if not bool(self._settings_store.load_config().get("playShortcutFallback", False)):
+        if not bool(self._settings_store.load_config().get("playShortcutFallback", True)):
             return None, "no_shortcut", {}
         rom = next((entry["path"] for entry in game["paths"] if os.path.isfile(entry["real"])), None)
         if rom is None:
