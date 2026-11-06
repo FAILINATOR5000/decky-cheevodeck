@@ -36,6 +36,7 @@ RUNTIME_MAX_SECONDS = 4 * 3600
 RENEW_BEFORE_SECONDS = 15 * 60
 START_SECONDS = 25
 API_SECONDS = 5
+PIN_SECONDS = 20
 STOP_SECONDS = 15
 SYSTEMCTL_SECONDS = 20
 LOG_TAIL_LINES = 12
@@ -281,7 +282,7 @@ class StreamHost:
             self._context = context
         return self._context
 
-    def _call(self, method: str, path: str, body=None):
+    def _call(self, method: str, path: str, body=None, timeout: float = API_SECONDS):
         login = self._setup.login()
         if login is None:
             raise OSError("no Sunshine login")
@@ -291,7 +292,7 @@ class StreamHost:
             "Authorization": f"Basic {token}",
             "Content-Type": "application/json",
         })
-        with urllib.request.urlopen(request, timeout=API_SECONDS, context=self._ssl()) as response:
+        with urllib.request.urlopen(request, timeout=timeout, context=self._ssl()) as response:
             raw = response.read()
         try:
             return json.loads(raw.decode("utf-8"))
@@ -314,7 +315,7 @@ class StreamHost:
                 and isinstance(row.get("address"), str)]
 
     def answer_pin(self, pairing_id: str, pin: str, name: str) -> bool:
-        answer = self._call("POST", "/api/pin", {"pairing_id": pairing_id, "pin": pin, "name": name})
+        answer = self._call("POST", "/api/pin", {"pairing_id": pairing_id, "pin": pin, "name": name}, timeout=PIN_SECONDS)
         if not isinstance(answer, dict) or "status" not in answer:
             raise ApiShapeError("/api/pin")
         return answer.get("status") is True or answer.get("status") == "true"
