@@ -30,7 +30,10 @@ SPEED_TIMEOUT = 30
 SPEED_SHARE = 0.8
 
 TIERS = ((800, 10000, 6000), (1080, 20000, 12000))
-STANDARD_KBPS = TIERS[0][1]
+FLOOR_KBPS = TIERS[0][2]
+CEILING_KBPS = TIERS[-1][1]
+LAN_FULL_GUESTS = 3
+SPEED_CONNECTIONS = 4
 STREAM_HEIGHT_MAX = 1080
 ONLINE_PACKET_SIZE = 1024
 STREAM_MBIT_DECLARED = 20
@@ -84,7 +87,6 @@ class HostStreams:
         self._pairing = None
         self._closed = False
         self.speed_mbit = 0.0
-        self.capacity = 0
         self.checking = False
 
     def seat_taken(self, index: int, ip: str, piped: bool) -> None:
@@ -103,6 +105,7 @@ class HostStreams:
             "pipe": None,
             "path": "",
             "reported": "",
+            "kb": 0,
         }
         self._seats[index] = entry
         if entry["piped"] and self._meet is not None:
@@ -139,10 +142,11 @@ class HostStreams:
             asyncio.ensure_future(asyncio.to_thread(self._sunshine.unpair_name, _client_name(entry))) \
                 .add_done_callback(_report_crash)
 
-    def report(self, index: int, state: str) -> None:
+    def report(self, index: int, state: str, kb: int = 0) -> None:
         entry = self._seats.get(index)
         if entry is None:
             return
+        entry["kb"] = kb
         if state == "failed" and entry["paired"] and entry["reported"] != "failed":
             entry["pin"] = f"{secrets.randbelow(10000):04d}"
             entry["paired"] = False
@@ -168,7 +172,8 @@ class HostStreams:
     def body(self, index: int, key: bytes) -> dict:
         entry = self._seats.get(index)
         if entry is None:
-            return {"pin": "", "token": "", "n": secrets.token_hex(16), "cap": 0, "full": False, "occ": ""}
+            return {"pin": "", "token": "", "n": secrets.token_hex(16), "cap": 0, "full": False, "occ": "",
+                    "low": False, "half": False}
         label = f"{index}|{entry['occ']}"
         token = proto.wrap(key, "stoken", entry["n"], bytes.fromhex(stream_token(self._digest, label))) \
             if entry["piped"] else ""
@@ -176,23 +181,37 @@ class HostStreams:
             "pin": proto.wrap_pin(key, entry["n"], entry["pin"]) if not entry["paired"] else "",
             "token": token,
             "n": entry["n"],
-            "cap": self.cap_kbps(entry["piped"]),
-            "full": entry["piped"] and self.capacity > 0 and self._internet_order(index) > self.capacity,
+            **self._share(index),
             "occ": entry["occ"],
+            "low": not entry["piped"] and self._lan_order(index) > LAN_FULL_GUESTS,
+            "half": bool(self._slow()),
         }
 
-    def _internet_order(self, index: int) -> int:
-        return sum(1 for seat, entry in self._seats.items() if seat <= index and entry["piped"])
+    def budget_kbps(self) -> int:
+        return int(self.speed_mbit * 1000 * SPEED_SHARE) if self.speed_mbit > 0 else 0
 
-    def cap_kbps(self, piped: bool) -> int:
-        cap = 0
-        if piped and self.speed_mbit > 0:
-            share = int(self.speed_mbit * 1000 * SPEED_SHARE)
-            if share < STANDARD_KBPS:
-                cap = max(500, share)
-        if self._slow():
-            cap = STANDARD_KBPS // 2 if cap == 0 else max(500, cap // 2)
-        return cap
+    def _share(self, index: int) -> dict:
+        budget = self.budget_kbps()
+        entry = self._seats[index]
+        if not entry["piped"] or budget <= 0:
+            return {"cap": 0, "full": False}
+        used = 0
+        first = True
+        for seat, other in self._seats.items():
+            if seat == index or not other["piped"]:
+                continue
+            if seat < index:
+                first = False
+            if other["kb"]:
+                used += other["kb"]
+            elif seat < index:
+                used += FLOOR_KBPS
+        remaining = budget - used
+        full = remaining < FLOOR_KBPS and not first and not entry["kb"]
+        return {"cap": min(CEILING_KBPS, max(500, remaining)), "full": full}
+
+    def _lan_order(self, index: int) -> int:
+        return sum(1 for seat, entry in self._seats.items() if seat <= index and not entry["piped"])
 
     async def _pair_loop(self) -> None:
         while not self._closed:
@@ -233,20 +252,23 @@ class HostStreams:
     async def measure(self, server) -> None:
         if server is None:
             return
-        size = int(STANDARD_KBPS * 1000 / 8 * SPEED_SECONDS * 4)
+        size = int(CEILING_KBPS * 1000 / 8 * SPEED_SECONDS * 4) // SPEED_CONNECTIONS
         self.checking = True
         try:
-            mbit = await asyncio.wait_for(_speed_check(server, size), SPEED_TIMEOUT)
+            results = await asyncio.wait_for(asyncio.gather(
+                *(_speed_check(server, size) for _ in range(SPEED_CONNECTIONS)), return_exceptions=True),
+                SPEED_TIMEOUT)
         except Exception as e:
             self._debug("stream: the upload check failed (%s)", type(e).__name__)
             return
         finally:
             self.checking = False
+        mbit = sum(result for result in results if isinstance(result, float))
         if mbit <= 0:
+            self._debug("stream: the upload check got no answer")
             return
         self.speed_mbit = mbit
-        self.capacity = max(1, int(mbit * 1000 * SPEED_SHARE // STANDARD_KBPS))
-        decky.logger.info("stream: upload %.1f Mbit/s, room for %s guest(s)", mbit, self.capacity)
+        decky.logger.info("stream: upload %.1f Mbit/s, %s kbps for guests online", mbit, self.budget_kbps())
 
     def close(self) -> None:
         self._closed = True
@@ -312,6 +334,9 @@ class GuestStream:
         self.failed = False
         self.full = False
         self.cap = 0
+        self.low = False
+        self.half = False
+        self.kbps = 0
         self._pin = ""
         self._pipe = None
         self._pipe_task = None
@@ -330,6 +355,8 @@ class GuestStream:
             return
         self.cap = stream["cap"]
         self.full = stream["full"]
+        self.low = stream["low"]
+        self.half = stream["half"]
         if self._online and self._pipe is None and self._pipe_task is None and stream["token"] and self._meet:
             raw = proto.unwrap(key, "stoken", stream["n"], stream["token"])
             if raw is not None and stream["occ"]:
@@ -458,11 +485,14 @@ class GuestStream:
 
     def launch_options(self, width: int, height: int, slow: bool, watch: bool) -> str:
         width, height = stream_size(width, height)
-        kbps = tier_kbps(height, self.path != "direct")
+        kbps = tier_kbps(height, self.path != "direct" or self.low)
+        if self.half:
+            kbps //= 2
         if slow:
             kbps //= 2
         if self.cap:
             kbps = min(kbps, self.cap)
+        self.kbps = kbps
         parts = ["stream", self.address, "Game", "--resolution", f"{width}x{height}", "--fps", "60",
                  "--bitrate", str(kbps), "--video-codec", "H.264", "--display-mode", "fullscreen",
                  "--no-quit-after", "--audio-on-host"]

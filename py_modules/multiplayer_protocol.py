@@ -530,11 +530,13 @@ def tagged_ok(key: bytes, message, now: float) -> bool:
 
 
 def report(*, seq: int, ready: bool, rev: int, round_: int, can: bool, reason: str, game_id: int, title: str,
-           launched: bool, hardcore: bool, st: str = "") -> dict:
+           launched: bool, hardcore: bool, st: str = "", kb: int = 0) -> dict:
     body = {"seq": seq, "ready": ready, "rev": rev, "round": round_, "can": can, "reason": reason,
             "gameId": game_id, "title": title[:_TITLE_MAX], "launched": launched, "hardcore": hardcore}
     if st:
         body["st"] = st
+    if kb:
+        body["kb"] = kb
     return body
 
 
@@ -583,8 +585,9 @@ def read_report(raw):
         or not isinstance(raw.get("title"), str)
     ):
         return None
+    kb = raw.get("kb", 0)
     return {**{name: raw[name] for name in (*numbers, *flags, "reason")}, "title": _clean(raw["title"], _TITLE_MAX),
-            "st": stream_state(raw.get("st"))}
+            "st": stream_state(raw.get("st")), "kb": kb if type(kb) is int and 0 <= kb <= 100000 else 0}
 
 
 def status_reply(key: bytes, nonce: str, body: dict) -> dict:
@@ -729,7 +732,9 @@ def read_stream(raw):
     occupant = raw.get("occ", "")
     if not isinstance(occupant, str) or _OCCUPANT.fullmatch(occupant) is None:
         return None
-    return {"pin": raw["pin"], "token": raw["token"], "n": nonce, "cap": cap, "full": raw["full"], "occ": occupant}
+    low, half = raw.get("low", False), raw.get("half", False)
+    return {"pin": raw["pin"], "token": raw["token"], "n": nonce, "cap": cap, "full": raw["full"], "occ": occupant,
+            "low": low is True, "half": half is True}
 
 
 def _seat_ok(seat) -> bool:

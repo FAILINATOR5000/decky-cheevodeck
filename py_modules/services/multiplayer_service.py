@@ -2883,7 +2883,7 @@ class MultiplayerService:
                     can=report["can"], reason=report["reason"], gameId=report["gameId"],
                     title=report["title"], launched=report["launched"])
         if room.get("streams") is not None:
-            room["streams"].report(index, report["st"])
+            room["streams"].report(index, report["st"], report["kb"])
         if self._seat_ready(room, seat) != was_ready:
             self._debug("seat %s %s", index, "ready" if not was_ready else "not ready")
         if self._late_ready(room, index, seat):
@@ -3552,17 +3552,20 @@ class MultiplayerService:
             joined["seq"] += 1
         stream = joined.get("stream")
         state = ""
+        kb = 0
         if stream is not None:
             current = self._session
             state = stream.state(joined["launched"], current is not None and current["seen"])
-            if state != joined.get("st", ""):
+            kb = stream.kbps if joined["launched"] else 0
+            if (state, kb) != (joined.get("st", ""), joined.get("kb", 0)):
                 joined["st"] = state
+                joined["kb"] = kb
                 joined["seq"] += 1
         return proto.report(
             seq=joined["seq"], ready=joined["ready"], rev=joined["readyRev"], round_=joined["readyRound"],
             can=joined["can"], reason=reason, game_id=local["gameId"] if local else 0,
             title=local["title"] if local else "", launched=joined["launched"], hardcore=joined["hardcore"],
-            st=state,
+            st=state, kb=kb,
         )
 
     def guest_games(self) -> dict:
