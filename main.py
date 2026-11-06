@@ -808,6 +808,7 @@ class Plugin(
             bin_dir=cheevo_check_bin,
             voice_canceller=self.voice_canceller,
             voice_room_changed=self.back_button_service.set_voice_room,
+            stream_setup=self.stream_setup,
         )
         self.ez_friends_heal_service = EzFriendsHealService(
             plugin=self,

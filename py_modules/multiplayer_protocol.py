@@ -16,7 +16,7 @@ MAX_FRAME_BYTES = 16384
 
 CLOCK_SKEW_SECONDS = 120
 
-MODES = ("link", "couch")
+MODES = ("link", "couch", "stream")
 STATES = ("lobby", "starting", "playing")
 
 MAX_SEATS = 10
@@ -218,6 +218,8 @@ def game_port(mode: str, emulator: str, core: str) -> int:
 
 
 def tunnel_ports(mode: str, emulator: str, core: str) -> list:
+    if mode == "stream":
+        return []
     if emulator == "dolphin":
         return [("udp", DOLPHIN_NETPLAY_PORT)] if mode == "couch" else []
     if emulator != "retroarch":

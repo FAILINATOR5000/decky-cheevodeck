@@ -181,6 +181,11 @@ PLUGIN_VERSION = str(getattr(decky, "DECKY_PLUGIN_VERSION", "") or "").strip()
 
 GB_SYSTEMS = session.GB_SYSTEMS
 PSP_SYSTEM = session.PSP_SYSTEM
+STREAM_ONE_CONSOLE = (session.PSP_SYSTEM, session.DS_SYSTEM, 78)
+STREAM_EMULATOR_NAMES = {
+    "retroarch": "RetroArch", "ppsspp": "PPSSPP", "dolphin": "Dolphin", "rmg": "RMG", "duckstation": "DuckStation",
+    "pcsx2": "PCSX2", "melonds": "melonDS",
+}
 
 
 class _Responder(asyncio.DatagramProtocol):
@@ -219,8 +224,10 @@ class MultiplayerService:
         self, *, settings_store, game_mode, user_home, runtime_dir, cheevo_check_service, cheevo_check_store,
         port: int = proto.PORT, peer_port: int = proto.PORT,
         broadcast: str = "255.255.255.255", bin_dir=None, voice_canceller=None, voice_room_changed=None,
+        stream_setup=None,
     ):
         self._settings_store = settings_store
+        self._stream_setup = stream_setup
         self._voice_canceller = voice_canceller
         self._voice_room_changed = voice_room_changed
         self._in_voice_room = False
@@ -864,6 +871,7 @@ class MultiplayerService:
                 "launchable": launchable,
                 "canLink": can_link,
                 "canCouch": can_couch,
+                "canStream": launchable and system_id not in STREAM_ONE_CONSOLE,
             })
         games.sort(key=lambda row: row["title"].lower())
         return {"ok": True, "scanned": True, "games": games, "installedCores": installed}
@@ -914,6 +922,8 @@ class MultiplayerService:
     def _route(self, mode: str, game_id: int, core: str, room):
         if mode not in proto.MODES:
             return None, "unsupported_emulator", {}
+        if mode == "stream":
+            return self._stream_local(game_id, room)
         library = self._library()
         if library is None:
             return None, "no_scan", {}
@@ -1124,7 +1134,7 @@ class MultiplayerService:
     def _fallback_on(self) -> bool:
         return bool(self._settings_store.load_config().get("mpShortcutFallback", True))
 
-    def _play_route(self, game_id: int):
+    def _play_route(self, game_id: int, fallback_on=None):
         library = self._library()
         if library is None:
             return None, "no_scan", {}
@@ -1134,7 +1144,9 @@ class MultiplayerService:
         linked = next((entry for entry in game["paths"] if entry["shortcut"]), None)
         if linked is not None:
             return {"appid": linked["shortcut"]["appid"], "fallback": False}, None, {}
-        if not bool(self._settings_store.load_config().get("playShortcutFallback", True)):
+        if fallback_on is None:
+            fallback_on = bool(self._settings_store.load_config().get("playShortcutFallback", True))
+        if not fallback_on:
             return None, "no_shortcut", {}
         rom = next((entry["path"] for entry in game["paths"] if os.path.isfile(entry["real"])), None)
         if rom is None:
@@ -1154,10 +1166,96 @@ class MultiplayerService:
                     coreless = True
                     continue
                 route["corePath"] = str(ra.core_path(core))
+                route["core"] = core
             return route, None, {}
         if coreless:
             return None, "no_shortcut", {}
         return None, "no_emulator_shortcut", {"emulator": FALLBACK_NAMES[kinds[0]]}
+
+    def _stream_local(self, game_id: int, room):
+        if room is not None:
+            return self._stream_guest_local(room)
+        if self._stream_gates(None) is not None:
+            return None, "stream_not_set_up", {}
+        library = self._library()
+        if library is None:
+            return None, "no_scan", {}
+        game = library.get(game_id)
+        if game is None:
+            return None, "not_in_results", {}
+        system_id = game["systemId"]
+        if system_id in STREAM_ONE_CONSOLE:
+            return None, "stream_one_console", {}
+        route, gate, detail = self._play_route(game_id, self._fallback_on())
+        if route is None:
+            return None, gate, detail
+        if route["fallback"]:
+            emulator, core = route["kind"], route.get("core", "")
+            rom = route["rom"]
+        else:
+            linked = next(entry for entry in game["paths"] if entry["shortcut"])
+            detected = session.detect(linked["shortcut"]["exe"], linked["shortcut"]["launchOptions"])
+            emulator = detected["emulator"] if detected else ""
+            core = detected["core"] if detected and emulator == "retroarch" else ""
+            rom = linked["path"]
+        core_name = STREAM_EMULATOR_NAMES.get(emulator, "")
+        if core:
+            ra = session.RetroArch(self._user_home)
+            core_name = ra.core_name(core) if ra.found else core
+        local = {
+            "gameId": game_id,
+            "title": game["title"],
+            "systemId": system_id,
+            "path": rom,
+            "real": rom,
+            "appid": route["appid"],
+            "emulator": emulator,
+            "core": core,
+            "coreName": core_name,
+            "shortcutCore": core,
+            "shortcutCoreName": core_name,
+            "choices": [],
+            "hash": "",
+            "coreBuild": "",
+            "gameCode": "",
+            "fallback": route["fallback"],
+            "emuVersion": "",
+            "route": route,
+        }
+        return local, None, {}
+
+    def _stream_guest_local(self, room):
+        record = self._stream_setup.status() if self._stream_setup is not None else None
+        if record is None or not record["ready"]:
+            return None, "stream_not_set_up", {}
+        local = {
+            "gameId": room["gameId"],
+            "title": room["title"],
+            "systemId": room["systemId"],
+            "path": "",
+            "real": "",
+            "appid": record["appid"],
+            "emulator": "moonlight",
+            "core": "",
+            "coreName": "",
+            "shortcutCore": "",
+            "shortcutCoreName": "",
+            "choices": [],
+            "hash": "",
+            "coreBuild": "",
+            "gameCode": "",
+            "fallback": False,
+            "emuVersion": "",
+        }
+        return local, None, {}
+
+    def _stream_gates(self, room):
+        if room is not None:
+            return None
+        record = self._stream_setup.status() if self._stream_setup is not None else None
+        if record is None or not record["ready"] or record["busy"]:
+            return "stream_not_set_up", {}
+        return None
 
     def _play_core(self, ra, system_id: int, rom: Path) -> str:
         if not ra.found:
@@ -1275,15 +1373,7 @@ class MultiplayerService:
             return {"ok": False, "error": ERROR_GATE, "gate": gate, "detail": detail}
         if not route["fallback"]:
             return {"ok": False, "error": ERROR_NOT_READY}
-        rom = session.quote(route["rom"])
-        if route["kind"] == "retroarch":
-            args = f"-L {session.quote(route['corePath'])} {rom}"
-        elif route["kind"] == "dolphin":
-            args = f"-e {rom}"
-        elif route["kind"] == "rmg":
-            args = f"--fullscreen --quit-after-emulation {rom}"
-        else:
-            args = rom
+        args = _fallback_args(route)
         sid = secrets.token_hex(8)
         try:
             ensure_dir(self._session_dir)
@@ -1396,6 +1486,8 @@ class MultiplayerService:
 
     def _gates(self, mode: str, local: dict, room, players: int):
         warnings = []
+        if mode == "stream":
+            return self._stream_gates(room), warnings
         rom = Path(local["path"])
         system_id = local["systemId"]
         ra = local.get("ra")
@@ -1545,7 +1637,7 @@ class MultiplayerService:
     def _decide(self, row: dict, own_game: int, core: str):
         mode = row["mode"]
         players = self._players(mode, row)
-        if mode == "couch":
+        if mode in ("couch", "stream"):
             local, gate, detail = self._local(mode, row["gameId"], "", row)
             if local is not None:
                 found, _warnings = self._gates(mode, local, row, players)
@@ -1622,8 +1714,8 @@ class MultiplayerService:
                 "private": private,
                 "friends": bool(friends),
                 "owner": ulid if friends else "",
-                "share": bool(share),
-                "watch": bool(watch) and mode == "couch",
+                "share": bool(share) and mode == "couch",
+                "watch": bool(watch) and mode in ("couch", "stream"),
                 "voice": bool(voice),
                 "max": seats,
                 "seats": [{"name": user, "host": True, "said": 0.0, "ulid": ulid, "pic": pic, "vc": False,
@@ -1699,7 +1791,7 @@ class MultiplayerService:
             "core": local["core"],
             "coreName": local["coreName"],
             "emuVersion": local["emuVersion"],
-            "hash": self._hash_of_path(local, local["systemId"]),
+            "hash": self._hash_of_path(local, local["systemId"]) if mode != "stream" else "",
             "crc": self._crc_of(local["real"]) if mode == "couch" and local["emulator"] == "retroarch" else "",
             "coreBuild": local["coreBuild"],
             "gameCode": local["gameCode"],
@@ -1899,6 +1991,8 @@ class MultiplayerService:
         current = self._session
         if current is None or not current["seen"]:
             return "starting"
+        if room["mode"] == "stream":
+            return "playing"
         if room["emulator"] == "dolphin" and room["mode"] == "link":
             return "playing"
         if room["emulator"] == "rmg":
@@ -3018,7 +3112,7 @@ class MultiplayerService:
             local, reason, detail = await asyncio.to_thread(self._decide, row, 0, "")
             params = proto.join_params(
                 self._user(),
-                self._hash_of_path(local, local["systemId"]) if local else "",
+                self._hash_of_path(local, local["systemId"]) if local and row["mode"] != "stream" else "",
                 self._crc_of(local["real"]) if local and row["mode"] == "couch" and local["emulator"] == "retroarch" else "",
                 local["core"] if local else "",
                 local["emuVersion"] if local else "",
@@ -3270,7 +3364,7 @@ class MultiplayerService:
         if joined["consentRound"] != status["round"]:
             return False
         if joined["launchedRound"] == status["round"]:
-            return joined["row"]["mode"] == "couch" and joined["row"]["emulator"] == "retroarch"
+            return _drop_in(joined["row"])
         return True
 
     def _follow_start(self, joined: dict, status: dict) -> None:
@@ -3513,7 +3607,7 @@ class MultiplayerService:
             host_ip = next((taken["ip"] for taken in roster if taken["door"] == "lan"), "") \
                 or _route_address() or room["address"]
             own_ip = host_ip
-            hardcore = room["hardcore"] if mode == "couch" else bool(hardcore)
+            hardcore = room["hardcore"] if mode in ("couch", "stream") else bool(hardcore)
             share = room["share"]
             watch = room["watch"]
             players = room["max"] if _drop_in(room) else 1 + len(roster)
@@ -3544,6 +3638,8 @@ class MultiplayerService:
         found, _warnings = self._gates(mode, local, peer, players)
         if found:
             return {"ok": False, "error": ERROR_GATE, "gate": found[0], "detail": found[1]}
+        if mode == "stream":
+            return self._prepare_stream(role, local, original, hardcore, held)
         where = room["where"] if room is not None else joined["row"]["where"]
         if local["emulator"] == "rmg" and room is not None and where != "online" and not self._start_rmg_server(room):
             return {"ok": False, "error": ERROR_RMG_SERVER}
@@ -3641,6 +3737,59 @@ class MultiplayerService:
             "ok": True,
             "appid": local["appid"],
             "options": options,
+            "original": original,
+            "session": sid,
+        }
+
+    def _prepare_stream(self, role: str, local: dict, original: str, hardcore: bool, held) -> dict:
+        if held is not None:
+            if held["appid"] != local["appid"]:
+                return {"ok": False, "error": ERROR_BUSY}
+            original = held["original"]
+        if role == "guest":
+            return {"ok": False, "error": ERROR_NOT_READY}
+        route = local["route"]
+        sid = secrets.token_hex(8)
+        parts = []
+        files = []
+        try:
+            ensure_dir(self._session_dir)
+            chown_to_data_owner(self._session_dir)
+            if local["emulator"] == "retroarch":
+                cfg_path = self._session_dir / f"session-{sid}.cfg"
+                self._write(cfg_path, f'cheevos_hardcore_mode_enable = "{"true" if hardcore else "false"}"\n')
+                files = [cfg_path]
+                if route["fallback"]:
+                    parts += ["-L", session.quote(route["corePath"])]
+                parts += ["--appendconfig", session.quote(str(cfg_path))]
+                if route["fallback"]:
+                    parts.append(session.quote(route["rom"]))
+            elif route["fallback"]:
+                parts.append(_fallback_args(route))
+            if files and not self._readable_by_owner(files):
+                raise OSError("session files are not the home owner's")
+            self._write_restore(local["appid"], original, sid)
+        except OSError as e:
+            decky.logger.warning("stream: couldn't write the session files (%s)", type(e).__name__)
+            return {"ok": False, "error": ERROR_WRITE_FAILED}
+        self._session = {
+            "id": sid,
+            "appid": local["appid"],
+            "role": role,
+            "mode": "stream",
+            "emulator": local["emulator"],
+            "files": files,
+            "started": 0.0,
+            "seen": False,
+            "exited": False,
+            "error": "",
+            "watch": None,
+        }
+        decky.logger.info("stream: session %s ready as %s", sid, role)
+        return {
+            "ok": True,
+            "appid": local["appid"],
+            "options": session.compose_launch_options(original, " ".join(parts)) if parts else original,
             "original": original,
             "session": sid,
         }
@@ -3851,6 +4000,9 @@ class MultiplayerService:
         current = self._session
         if current is None or current["exited"]:
             return {"ok": True}
+        if current.get("mode") == "stream" and current["seen"]:
+            self._finish(current)
+            return {"ok": True}
         if not current["seen"] and self._loop is not None:
             self._loop.call_later(APP_ENDED_GRACE_SECONDS, self._ended_unseen, current)
         return {"ok": True}
@@ -3874,6 +4026,11 @@ class MultiplayerService:
         }}
 
     async def _watch(self, current: dict) -> None:
+        if current.get("mode") == "stream":
+            current["seen"] = True
+            self._emit({"state": "playing", "session": current["id"], "emulator": current["emulator"],
+                        "mode": "stream"})
+            return
         needle = str(current["files"][0])
         pid = await asyncio.to_thread(self._find_emulator, needle, ARGV_SECONDS, current["emulator"] == "rmg")
         if self._session is not current:
@@ -4322,6 +4479,17 @@ def _remove_system_folder(folder: Path) -> None:
         decky.logger.warning("multiplayer: couldn't remove a session system folder (%s)", type(e).__name__)
 
 
+def _fallback_args(route: dict) -> str:
+    rom = session.quote(route["rom"])
+    if route["kind"] == "retroarch":
+        return f"-L {session.quote(route['corePath'])} {rom}"
+    if route["kind"] == "dolphin":
+        return f"-e {rom}"
+    if route["kind"] == "rmg":
+        return f"--fullscreen --quit-after-emulation {rom}"
+    return rom
+
+
 def _known(version: str) -> bool:
     return bool(version) and all(version.split("|"))
 
@@ -4354,7 +4522,7 @@ def _access(room: dict) -> str:
 
 
 def _drop_in(room: dict) -> bool:
-    return room.get("mode") == "couch" and room.get("emulator") == "retroarch"
+    return room.get("mode") == "stream" or (room.get("mode") == "couch" and room.get("emulator") == "retroarch")
 
 
 def _steps(row: dict) -> str:
@@ -4375,6 +4543,7 @@ def _local_view(local: dict) -> dict:
         "shortcutCore": local["shortcutCore"],
         "shortcutCoreName": local["shortcutCoreName"],
         "choices": local["choices"],
+        "fallback": local["fallback"],
     }
 
 

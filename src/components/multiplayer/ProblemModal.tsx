@@ -4,8 +4,11 @@ import { t, type LanguageCode } from "../../locales";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { modalSize } from "../../utils/scale";
 
-function ProblemModal(props: { language: LanguageCode; title: string; text: string | string[]; close: () => void }) {
+export type ProblemItem = string | { text: string; onPress: () => void };
+
+function ProblemModal(props: { language: LanguageCode; title: string; text: string | ProblemItem[]; close: () => void }) {
     const { language, close } = props;
+    const text = typeof props.text === "string" ? props.text : null;
     const items = typeof props.text === "string" ? null : props.text;
     const bulleted = items !== null && items.length > 1;
     return (
@@ -15,16 +18,21 @@ function ProblemModal(props: { language: LanguageCode; title: string; text: stri
             </div>
             {items === null ? (
                 <div style={{ fontSize: `${modalSize(16)}px`, lineHeight: 1.4, whiteSpace: "pre-line" }}>
-                    {props.text}
+                    {text}
                 </div>
             ) : items.map((item, index) => (
                 <div key={index} data-focus-key={`problem:item:${index}`}>
                     <Focusable
-                        onActivate={() => { }}
+                        onActivate={() => {
+                            if (typeof item !== "string") {
+                                close();
+                                item.onPress();
+                            }
+                        }}
                         style={{ display: "flex", gap: "8px", fontSize: `${modalSize(16)}px`, lineHeight: 1.4, marginBottom: "10px" }}
                     >
                         {bulleted && <span>•</span>}
-                        <span style={{ flex: 1, whiteSpace: "pre-line" }}>{item}</span>
+                        <span style={{ flex: 1, whiteSpace: "pre-line" }}>{typeof item === "string" ? item : item.text}</span>
                     </Focusable>
                 </div>
             ))}
@@ -35,7 +43,7 @@ function ProblemModal(props: { language: LanguageCode; title: string; text: stri
     );
 }
 
-export function showMultiplayerProblem(language: LanguageCode, titleKey: string, text: string | string[]) {
+export function showMultiplayerProblem(language: LanguageCode, titleKey: string, text: string | ProblemItem[]) {
     showManagedModal((close) => (
         <ProblemModal language={language} title={t(language, titleKey)} text={text} close={close} />
     ));

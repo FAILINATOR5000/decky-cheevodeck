@@ -2937,7 +2937,7 @@ export type ActivityMonthResponse = ActivityMonth | { ok: false; error?: string;
 
 export type ActivitySubject = { ulid: string; username: string; own: boolean };
 
-export type MultiplayerMode = "link" | "couch";
+export type MultiplayerMode = "link" | "couch" | "stream";
 
 export type MultiplayerTab = "play" | "friends";
 
@@ -3125,6 +3125,7 @@ type MultiplayerLocal = {
     shortcutCore: string;
     shortcutCoreName: string;
     choices: MultiplayerCoreChoice[];
+    fallback?: boolean;
 };
 
 type MultiplayerWarning = { code: string; detail: Record<string, string> };
@@ -3148,6 +3149,7 @@ export type MultiplayerGame = {
     launchable: boolean;
     canLink: boolean;
     canCouch: boolean;
+    canStream: boolean;
 };
 
 export type MultiplayerRestoreRecord = { appid: number; original: string; session: string; play?: boolean; gameId?: number };

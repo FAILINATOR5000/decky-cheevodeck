@@ -86,7 +86,9 @@ const PROBLEM_TEXT: Record<string, string> = {
     lobby_unreachable: "Couldn't reach the online lobby",
     no_lobby: "Set a lobby server in Options first",
     lan_only: "This game links over LAN, so it plays Local only.",
-    invite_expired: "That invite expired"
+    invite_expired: "That invite expired",
+    stream_not_set_up: "Stream Play needs Sunshine and Moonlight. Press to set them up (about {{size}}).",
+    stream_one_console: "Stream Play isn't available for this system: its multiplayer needs one console per player."
 };
 
 const WARNING_TEXT: Record<string, string> = {

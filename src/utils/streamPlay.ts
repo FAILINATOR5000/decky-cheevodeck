@@ -158,7 +158,7 @@ export async function setUpStreaming(): Promise<boolean> {
     if (state.job) {
         return false;
     }
-    publish({ stage: "sunshine", job: "setup" });
+    publish({ stage: "sunshine", job: "setup", lastJob: "setup" });
     try {
         const result = await streamSetUp();
         if (!result.ok) {
@@ -184,7 +184,7 @@ export async function updateStreaming(): Promise<"ok" | "hosting" | "failed" | "
     if (state.job) {
         return "busy";
     }
-    publish({ job: "update" });
+    publish({ job: "update", lastJob: "update" });
     try {
         const result = await streamUpdate();
         publish({ job: "", status: result.ok ? result : state.status });

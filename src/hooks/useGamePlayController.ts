@@ -70,7 +70,7 @@ export function useGamePlayController(props: {
         let alive = true;
         void (async () => {
             const first = multiplayerChoices().tab;
-            const modes: MultiplayerMode[] = [first, first === "link" ? "couch" : "link"];
+            const modes: MultiplayerMode[] = [first, ...(["link", "couch", "stream"] as MultiplayerMode[]).filter((each) => each !== first)];
             let result: HostCheck = { gameId, mode: null, gate: null, detail: {} };
             try {
                 for (const each of modes) {

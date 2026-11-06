@@ -88,7 +88,8 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
                 return;
             }
             const room = joined.room;
-            joinedRunningGame = room?.mode === "couch" && room.emulator === "retroarch" && room.state === "playing";
+            joinedRunningGame = (room?.mode === "stream" || (room?.mode === "couch" && room.emulator === "retroarch"))
+                && room.state === "playing";
         }
         catch (e) {
             logError("multiplayerFriendJoin", e);

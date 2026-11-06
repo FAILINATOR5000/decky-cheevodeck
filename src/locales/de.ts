@@ -3318,6 +3318,12 @@ const DE: LocaleTable = {
     "Couldn't set up streaming. Check your internet connection and try again.": "Streaming konnte nicht eingerichtet werden. Prüfe deine Internetverbindung und versuche es erneut.",
     "Remove Streaming": "Streaming entfernen",
     "Removes Sunshine, Moonlight and the Moonlight shortcut from this device. You can set them up again any time.": "Entfernt Sunshine, Moonlight und die Moonlight-Verknüpfung von diesem Gerät. Du kannst sie jederzeit wieder einrichten.",
+    "Stream Play": "Stream-Spiel",
+    "Play your game with anyone even if they don't have it. Only you earn achievements. Requires fast internet to host.": "Spiel dein Spiel mit allen, auch wenn sie es nicht haben. Nur du verdienst Erfolge. Zum Hosten brauchst du schnelles Internet.",
+    "Runs with: {{core}} (from your shortcut)": "Läuft mit: {{core}} (aus deiner Verknüpfung)",
+    "Runs with: {{core}}": "Läuft mit: {{core}}",
+    "Stream Play needs Sunshine and Moonlight. Press to set them up (about {{size}}).": "Stream-Spiel braucht Sunshine und Moonlight. Drücke, um sie einzurichten (etwa {{size}}).",
+    "Stream Play isn't available for this system: its multiplayer needs one console per player.": "Stream-Spiel ist für dieses System nicht verfügbar: Sein Mehrspielermodus braucht eine Konsole pro Person.",
 };
 
 export default DE;

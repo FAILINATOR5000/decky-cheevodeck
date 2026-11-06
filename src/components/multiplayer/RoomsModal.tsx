@@ -219,7 +219,8 @@ function RoomsModal(props: RoomsModalProps) {
             if (joined.ok) {
                 joinedRef.current = true;
                 rememberMultiplayerTab(row.mode);
-                const running = row.mode === "couch" && row.emulator === "retroarch" && row.state === "playing";
+                const running = (row.mode === "stream" || (row.mode === "couch" && row.emulator === "retroarch"))
+                    && row.state === "playing";
                 overrideRecord(entryId, running
                     ? { focusKey: "multiplayer:play", fallbacks: ["multiplayer:leave"] }
                     : { focusKey: "multiplayer:leave" });
@@ -443,7 +444,7 @@ function RoomsModal(props: RoomsModalProps) {
                                                     {" · "}
                                                     {t(language, row.where === "online" ? "Online" : "Local")}
                                                     {" · "}
-                                                    {t(language, row.mode === "link" ? "Link Play" : "Couch Play")}
+                                                    {t(language, row.mode === "link" ? "Link Play" : row.mode === "stream" ? "Stream Play" : "Couch Play")}
                                                     {row.coreName ? ` · ${row.coreName}` : ""}
                                                     {" · "}
                                                     {t(language, "{{taken}} of {{count}} seats", { taken, count: row.max })}

@@ -45,6 +45,7 @@ import {
     subscribeMultiplayerSession
 } from "../utils/multiplayerSession";
 import { pressMultiplayerReady, subscribeMultiplayerRoom } from "../utils/multiplayerRoomState";
+import { useStreamSetup } from "../utils/streamPlay";
 
 const TICK_MS = 2000;
 const RENEW_EVERY = 5;
@@ -313,6 +314,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     }, [gameId]);
 
     const joinedState = joined?.status?.state ?? "";
+    const streamReady = useStreamSetup(isActive && mode === "stream").status?.ready ?? false;
     const hostedSeats = hosted?.seats.filter(Boolean).length ?? 0;
     useEffect(() => {
         if (!isActive || gameId === null) {
@@ -338,7 +340,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             }
         })();
     }, [isActive, mode, gameId, checkCore, checkRoom, hosted?.core, hosted?.rev, hostedSeats, joinedState, joined?.status?.rev,
-        joined?.reason]);
+        joined?.reason, streamReady]);
 
     useEffect(() => {
         if (!isActive || gameId === null || gameId === currentGameId) {
@@ -467,7 +469,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     function setHardcore(next: boolean) {
         rememberMultiplayerHardcore(next);
         setHardcoreState(next);
-        if ((hosted && mode === "couch") || (joined && mode === "link")) {
+        if ((hosted && (mode === "couch" || mode === "stream")) || (joined && mode === "link")) {
             void run("Couldn't Change That", () => multiplayerRoomOptions(next, null, null, null, null));
         }
     }
@@ -548,7 +550,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             pickedGameId,
             hardcore: mode === "couch" && joined?.status
                 ? joined.status.hardcore
-                : hosted && mode === "couch" ? hosted.hardcore : joined ? joined.hardcore : hardcore,
+                : hosted && (mode === "couch" || mode === "stream") ? hosted.hardcore : joined ? joined.hardcore : hardcore,
             shareControls: hosted ? hosted.share : shareControls,
             watchOnly: hosted ? hosted.watch : watchOnly,
             core,
