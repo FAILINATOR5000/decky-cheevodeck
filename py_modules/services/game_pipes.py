@@ -37,6 +37,7 @@ class HostPipes:
         self._udp_ports = udp_ports
         self._gate = gate
         self._debug = debug
+        self._loop = asyncio.get_running_loop()
         self._seats = {}
         self._closed = False
 
@@ -71,6 +72,15 @@ class HostPipes:
         if entry is None or entry["pipe"] is None:
             return ""
         return entry["pipe"].path
+
+    def confirmed_paths(self, indexes) -> dict:
+        relayed = [self._seats[index]["pipe"] for index in indexes
+                   if self.path(index) == "relay" and self._seats[index]["pipe"] is not None]
+        if relayed:
+            for pipe in relayed:
+                self._loop.call_soon_threadsafe(pipe.confirm_relay)
+            time.sleep(RELAY_CONFIRM_SECONDS)
+        return {index: self.path(index) for index in indexes}
 
     def seat_gone(self, index: int) -> None:
         entry = self._seats.pop(index, None)

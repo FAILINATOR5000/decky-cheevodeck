@@ -124,8 +124,10 @@ RMG_SERVER_NAME = "rmg-netplay-server"
 RMG_SERVER_LOG = "rmg-netplay-server.log"
 RMG_SERVER_GAMES = 4
 RMG_SERVER_START_SECONDS = 3.0
-PIPE_TCP_PORTS = (proto.RETROARCH_NETPLAY_PORT, proto.GAMBATTE_LINK_PORT)
-PIPE_UDP_PORTS = ((DOLPHIN_TUNNEL_PORT, proto.DOLPHIN_NETPLAY_PORT),)
+RMG_TCP_PORTS = tuple(range(session.RMG_SERVER_PORT, session.RMG_SERVER_PORT + RMG_SERVER_GAMES + 1))
+RMG_UDP_PORTS = RMG_TCP_PORTS[1:]
+PIPE_TCP_PORTS = (proto.RETROARCH_NETPLAY_PORT, proto.GAMBATTE_LINK_PORT, *RMG_TCP_PORTS)
+PIPE_UDP_PORTS = ((DOLPHIN_TUNNEL_PORT, proto.DOLPHIN_NETPLAY_PORT), *RMG_UDP_PORTS)
 SESSION_SUFFIXES = {".cfg": "retroarch", ".ini": "ppsspp", ".dolphin": "dolphin", ".rmg": "rmg"}
 
 ERROR_NOT_GAME_MODE = "not_game_mode"
@@ -2499,6 +2501,8 @@ class MultiplayerService:
         seat = room["seats"][index] if index < room["max"] else None
         if seat is None or seat["door"] != "server" or room["state"] == "lobby" or index not in room["roster"]:
             return False
+        if room["emulator"] == "rmg":
+            return room.get("rmgRound") == room["round"] and port in (RMG_TCP_PORTS if kind == "tcp" else RMG_UDP_PORTS)
         return (kind, port) in proto.tunnel_ports(room["mode"], room["emulator"], room["core"])
 
     def _locked_out(self, room: dict, peer: str, now: float) -> bool:
@@ -3035,6 +3039,8 @@ class MultiplayerService:
                 pipes.seat_gone(index)
             else:
                 body["pipe"] = pipes.body(index, seat["key"])
+        if room.get("rmgRound"):
+            body["rmg"] = room["rmgRound"]
         cred = room.get("turn", {}).get(index)
         if cred is not None and seat.get("vc"):
             body["turn"] = {"u": cred["u"], "p": proto.wrap_turn(seat["key"], cred["n"], cred["p"]), "ttl": cred["ttl"],
@@ -3920,6 +3926,10 @@ class MultiplayerService:
         where = room["where"] if room is not None else joined["row"]["where"]
         if local["emulator"] == "rmg" and room is not None and where != "online" and not self._start_rmg_server(room):
             return {"ok": False, "error": ERROR_RMG_SERVER}
+        if local["emulator"] == "rmg" and room is not None and where == "online":
+            room["rmgRound"] = room["round"] if self._rmg_round_here(room) else 0
+        rmg_here = local["emulator"] == "rmg" and where == "online" and (
+            room["rmgRound"] == room["round"] if room is not None else status["rmg"] == status["round"])
         if held is not None:
             if held["appid"] != local["appid"]:
                 return {"ok": False, "error": ERROR_BUSY}
@@ -3929,9 +3939,16 @@ class MultiplayerService:
         if relayed:
             gpipe = joined["gpipe"]
             piped = gpipe is not None and gpipe.ready(game_pipes.LAUNCH_WAIT_SECONDS)
-            if not piped and not self._open_guest_tunnels(joined, mode, local):
-                return {"ok": False, "error": ERROR_TUNNEL}
-            self._debug("game pipe: launching over %s", f"the pipe ({gpipe.path})" if piped else "the lobby tunnel")
+            if local["emulator"] == "rmg":
+                if rmg_here and not piped:
+                    decky.logger.warning("multiplayer: the host's N64 server is reached by a game pipe with no path")
+                how = f"the host's server over the pipe ({gpipe.path if gpipe else 'none'})" if rmg_here \
+                    else "the lobby's server"
+            else:
+                if not piped and not self._open_guest_tunnels(joined, mode, local):
+                    return {"ok": False, "error": ERROR_TUNNEL}
+                how = f"the pipe ({gpipe.path})" if piped else "the lobby tunnel"
+            self._debug("game pipe: launching over %s", how)
 
         sid = secrets.token_hex(8)
         rom = Path(local["path"])
@@ -3977,7 +3994,13 @@ class MultiplayerService:
                                                     rom=rom if local["fallback"] else None)
             elif local["emulator"] == "rmg":
                 home = self._session_dir / f"session-{sid}.rmg"
-                self._build_rmg_home(home, local, nick, self._relay_host() if where == "online" else host_ip, rom)
+                if where != "online":
+                    rmg_server = host_ip
+                elif rmg_here:
+                    rmg_server = "127.0.0.1" if room is not None else host_ip
+                else:
+                    rmg_server = self._relay_host()
+                self._build_rmg_home(home, local, nick, rmg_server, rom)
                 files = [home]
                 options = session.rmg_launch_options(original, local["install"], home)
             else:
@@ -4108,6 +4131,21 @@ class MultiplayerService:
             "rename": rename,
             "name": name,
         }
+
+    def _rmg_round_here(self, room: dict) -> bool:
+        pipes = room.get("pipes")
+        seats = [room["seats"][index] for index in room["roster"]]
+        if pipes is None or not seats or any(seat is None or seat["door"] != "server" for seat in seats):
+            self._debug("game pipe: N64 round on the lobby's server, not every guest is relayed")
+            return False
+        paths = pipes.confirmed_paths(room["roster"])
+        if any(path not in game_pipes.USABLE for path in paths.values()):
+            self._debug("game pipe: N64 round on the lobby's server, guest paths %s", paths)
+            return False
+        if not self._start_rmg_server(room):
+            return False
+        self._debug("game pipe: N64 round on this device's server, guest paths %s", paths)
+        return True
 
     def _start_rmg_server(self, room: dict) -> bool:
         current = self._rmg_server
