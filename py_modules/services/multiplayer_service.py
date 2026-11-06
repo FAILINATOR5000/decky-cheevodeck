@@ -2022,9 +2022,37 @@ class MultiplayerService:
         room = self._room
         return room is not None and room["mode"] == "stream"
 
-    def in_stream_room(self) -> bool:
+    def stream_round_running(self) -> bool:
         room, joined = self._room, self._joined
-        return (room is not None and room["mode"] == "stream") or (joined is not None and joined["row"]["mode"] == "stream")
+        if room is not None:
+            return room["mode"] == "stream" and room["state"] != "lobby"
+        if joined is None or joined["row"]["mode"] != "stream":
+            return False
+        status = joined["status"]
+        return joined["launched"] or (status is not None and status["state"] != "lobby")
+
+    def release_sunshine(self) -> None:
+        if self.hosting_stream() and self._stream_host is not None:
+            self._stream_host.stop()
+
+    def streaming_removed(self) -> None:
+        room, joined = self._room, self._joined
+        if room is not None and room.get("streams") is not None:
+            room["streams"].forget_pairings()
+        elif joined is not None and joined.get("stream") is not None:
+            joined["stream"].forget_pairing()
+            joined.update(local=None, can=False, reason="stream_not_set_up", detail={})
+        self._announce()
+
+    async def streaming_ready(self) -> None:
+        room = self._room
+        if room is None or room.get("streams") is None or room["state"] != "lobby" or self._stream_host is None \
+                or await asyncio.to_thread(self._stream_host.unit_active):
+            return
+        decky.logger.info("stream: streaming is set up again, starting Sunshine for the room")
+        failed = await self._sunshine_restart(room)
+        if failed:
+            decky.logger.warning("stream: Sunshine didn't start after setup (%s)", failed)
 
     def _stop_sunshine(self) -> None:
         loop = self._loop
@@ -2048,6 +2076,13 @@ class MultiplayerService:
             failed = type(e).__name__
         if failed:
             decky.logger.warning("stream: Sunshine didn't come back after the round (%s)", failed)
+
+    async def _sunshine_restart(self, room: dict) -> str:
+        try:
+            return await asyncio.to_thread(self._stream_host.restart, lambda: self._room is room)
+        except Exception as e:
+            decky.logger.warning("stream: restarting Sunshine failed (%s)", type(e).__name__)
+            return "sunshine_failed"
 
     def _end_tail(self, tail: dict) -> None:
         if self._closed_tail is tail and self._room is None:
@@ -3451,7 +3486,7 @@ class MultiplayerService:
         stream = joined.get("stream")
         if stream is not None:
             if self._stream_setup is None or self._stream_setup.moonlight_present():
-                stream.take(status["stream"], joined["key"])
+                stream.take(status["stream"], joined["key"], not joined["launched"])
             if joined["launched"] and (status["state"] == "lobby" or status["round"] != joined["launchedRound"]):
                 if joined["cutRound"] != joined["launchedRound"]:
                     joined["cutRound"] = joined["launchedRound"]

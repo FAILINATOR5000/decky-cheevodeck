@@ -98,13 +98,13 @@ The ARM64 build at `bin/aarch64/rmg-netplay-server` is upstream's own ARM64 rele
 
 ## Sunshine — the host side of Stream Play
 
-Stream Play's host runs [**Sunshine**](https://github.com/LizardByte/Sunshine), **LizardByte**'s game-stream server, to capture the game and send it to each guest. CheevoDeck doesn't ship it. When you set up streaming, the plugin downloads the latest stable x86_64 AppImage from LizardByte's own GitHub release, checks it against the sha256 digest GitHub publishes for that file, and unpacks it into a root-owned folder under `/var/lib/cheevodeck/sunshine`. Update Streaming does the same for a newer release, and Remove Streaming deletes it.
+Stream Play's host runs [**Sunshine**](https://github.com/LizardByte/Sunshine), **LizardByte**'s game-stream server, to capture the game and send it to each guest. CheevoDeck doesn't ship it. When you set up streaming, the plugin downloads the latest stable x86_64 AppImage from LizardByte's own GitHub release, checks it against the sha256 digest GitHub publishes for that file, and unpacks it into a root-owned folder under `/var/lib/cheevodeck/sunshine`. Update Streaming does the same for a newer release, and Remove Stream Tools deletes it.
 
 **Sunshine is GPL-3.0.** It runs as its own process while a Stream Play room is open, with no linking and none of its code in CheevoDeck, whose own source stays BSD-3. Sunshine's release also carries its own notes on video codec licensing, which travel with LizardByte's download rather than through this plugin.
 
 ## Moonlight — the guest side of Stream Play
 
-A Stream Play guest watches and plays through [**Moonlight**](https://moonlight-stream.org) (**moonlight-stream**'s moonlight-qt). CheevoDeck installs the Flathub build, `com.moonlight_stream.Moonlight`, for your user with `flatpak install --user`, and starts it through a hidden Steam shortcut called "Moonlight (CheevoDeck)" with a config folder of its own, so a Moonlight you already use is never touched. Remove Streaming uninstalls it again only if CheevoDeck was the one that installed it.
+A Stream Play guest watches and plays through [**Moonlight**](https://moonlight-stream.org) (**moonlight-stream**'s moonlight-qt). CheevoDeck installs the Flathub build, `com.moonlight_stream.Moonlight`, for your user with `flatpak install --user`, and starts it through a hidden Steam shortcut called "Moonlight (CheevoDeck)" with a config folder of its own, so a Moonlight you already use is never touched. Remove Stream Tools uninstalls it again only if CheevoDeck was the one that installed it.
 
 **Moonlight is GPL-3.0**, installed and updated by Flathub, and run as a separate program. The connection code that carries its traffic between devices in online rooms is CheevoDeck's own.
 

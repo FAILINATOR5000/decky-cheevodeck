@@ -5,6 +5,7 @@ import { PanelSection } from "../components/ui/PanelSection";
 import { BackButton } from "../components/ui/BackButton";
 import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
 import { FocusableItem } from "../components/ui/FocusableItem";
+import { ConfirmRow } from "../components/ui/ConfirmRow";
 import { FocusTarget } from "../components/ui/FocusTarget";
 import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { SubTabButton } from "../components/ui/SubTabButton";
@@ -62,6 +63,7 @@ import { changeOutputVolume, useOutputVolume } from "../utils/outputVolume";
 import { screenMaxRefresh } from "../utils/screenRefresh";
 import {
     changeSlowConnection,
+    pressRemoveStreaming,
     setupRunning,
     streamScreenWarningOff,
     updateStreaming,
@@ -1336,6 +1338,20 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         {updating && updateLine && stream.progress >= 0 ? ` ${stream.progress}%` : ""}
                     </div>
                 </div>
+            </PanelSectionRow>
+            <PanelSectionRow>
+                <ConfirmRow
+                    buttonSpacing={state.buttonSpacing}
+                    bottomSeparator="none"
+                    focusKey="multiplayer:removestreaming"
+                    focusFallback={["multiplayer:updatestreaming", "multiplayer:roomtab:misc", ...roomKeys]}
+                    idleLabel={t(language, "Remove Stream Tools")}
+                    armedLabel={t(language, "Press again to confirm")}
+                    disabled={false}
+                    labelStyle={{ fontWeight: "inherit" }}
+                    onConfirm={() => pressRemoveStreaming(language)}
+                    help={t(language, "Removes the streaming tools needed for Stream Play. If you host or join a Stream Play room again, CheevoDeck will offer to download them again.")}
+                />
             </PanelSectionRow>
         </>
     );

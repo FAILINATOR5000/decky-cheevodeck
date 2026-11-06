@@ -12,6 +12,8 @@ import {
     streamUpdate,
     type StreamStatus
 } from "../api";
+import { showMultiplayerProblem } from "../components/multiplayer/ProblemModal";
+import { t, type LanguageCode } from "../locales";
 import { logError } from "./errors";
 
 const SETUP_EVENT = "stream_setup";
@@ -292,7 +294,19 @@ export async function updateStreaming(): Promise<"ok" | "hosting" | "failed" | "
     }
 }
 
-export async function removeStreaming(): Promise<string> {
+const REMOVE_REFUSALS: Record<string, string> = {
+    playing: "Wait for the round to end before removing the stream tools.",
+    busy: "Streaming is still being set up or updated. Try again when it's done."
+};
+
+export async function pressRemoveStreaming(language: LanguageCode) {
+    const line = REMOVE_REFUSALS[await removeStreaming()];
+    if (line) {
+        showMultiplayerProblem(language, "Remove Stream Tools", t(language, line));
+    }
+}
+
+async function removeStreaming(): Promise<string> {
     if (state.job) {
         return "busy";
     }

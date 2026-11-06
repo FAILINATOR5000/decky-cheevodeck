@@ -818,7 +818,7 @@ class Plugin(
             stream_setup=self.stream_setup,
             stream_host=self.stream_host,
         )
-        self.stream_setup.set_hosting(self.multiplayer_service.hosting_stream, self.multiplayer_service.in_stream_room)
+        self.stream_setup.set_hosting(self.multiplayer_service.hosting_stream, self.multiplayer_service.stream_round_running)
         self.ez_friends_heal_service = EzFriendsHealService(
             plugin=self,
             settings_store=self.settings_store,

@@ -94,13 +94,14 @@ class HostStreams:
         if old is not None and old["pipe"] is not None:
             old["pipe"].close()
         entry = {
-            "pin": f"{secrets.randbelow(10000):04d}",
+            "pin": _fresh_pin(),
             "occ": secrets.token_hex(4),
             "n": secrets.token_hex(16),
             "ip": ip,
             "source": f"127.0.0.{index + 1}",
             "piped": piped and self._online,
             "paired": False,
+            "confirmed": False,
             "since": time.monotonic(),
             "pipe": None,
             "path": "",
@@ -147,13 +148,24 @@ class HostStreams:
         if entry is None:
             return
         entry["kb"] = kb
-        if state == "failed" and entry["paired"] and entry["reported"] != "failed":
-            entry["pin"] = f"{secrets.randbelow(10000):04d}"
-            entry["paired"] = False
-            if self._pairing is None or self._pairing.done():
-                self._pairing = asyncio.ensure_future(self._pair_loop())
-                self._pairing.add_done_callback(_report_crash)
+        if entry["paired"] and state in ("", "connecting", "streaming", "relay"):
+            entry["confirmed"] = True
+        lost = state == "pairing" and entry["paired"] and entry["confirmed"]
+        if (state == "failed" and entry["paired"] and entry["reported"] != "failed") or lost:
+            self._rearm(entry)
         entry["reported"] = state
+
+    def _rearm(self, entry: dict) -> None:
+        entry["pin"] = _fresh_pin(entry["pin"])
+        entry["paired"] = False
+        entry["confirmed"] = False
+        if self._pairing is None or self._pairing.done():
+            self._pairing = asyncio.ensure_future(self._pair_loop())
+            self._pairing.add_done_callback(_report_crash)
+
+    def forget_pairings(self) -> None:
+        for entry in self._seats.values():
+            self._rearm(entry)
 
     def streaming(self) -> bool:
         return any(entry["reported"] in ("connecting", "streaming", "relay") or not entry["paired"]
@@ -280,6 +292,13 @@ class HostStreams:
         self._seats.clear()
 
 
+def _fresh_pin(old: str = "") -> str:
+    while True:
+        pin = f"{secrets.randbelow(10000):04d}"
+        if pin != old:
+            return pin
+
+
 def _client_name(entry: dict) -> str:
     return f"cheevodeck-{entry['source'].rsplit('.', 1)[1]}"
 
@@ -350,7 +369,7 @@ class GuestStream:
             return "direct"
         return self._pipe.path if self._pipe is not None else "punching"
 
-    def take(self, stream, key: bytes) -> None:
+    def take(self, stream, key: bytes, idle: bool = True) -> None:
         if stream is None or self._closed:
             return
         self.cap = stream["cap"]
@@ -362,11 +381,16 @@ class GuestStream:
             if raw is not None and stream["occ"]:
                 self._pipe_task = asyncio.ensure_future(self._open_pipe(raw.hex(), stream["occ"]))
                 self._pipe_task.add_done_callback(_report_crash)
-        if self.paired or not stream["pin"]:
+        if not stream["pin"]:
             return
         pin = proto.unwrap_pin(key, stream["n"], stream["pin"])
         if pin is None:
             return
+        if self.paired:
+            if pin == self._pin or not idle:
+                return
+            self.paired = False
+            self.failed = False
         busy = self._pairing is not None and not self._pairing.done()
         if busy or (self.failed and time.monotonic() - self._tried_at < GUEST_PAIR_RETRY_SECONDS):
             return
@@ -387,6 +411,11 @@ class GuestStream:
             pipe.close()
             return
         self._pipe = pipe
+
+    def forget_pairing(self) -> None:
+        self.paired = False
+        self.failed = False
+        self._pin = ""
 
     def wait_paired(self, seconds: float) -> None:
         deadline = time.monotonic() + seconds

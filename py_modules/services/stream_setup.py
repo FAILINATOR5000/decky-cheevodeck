@@ -58,6 +58,7 @@ STAGE_FAILED = "failed"
 
 ERROR_BUSY = "busy"
 ERROR_HOSTING = "hosting"
+ERROR_PLAYING = "playing"
 ERROR_FAILED = "failed"
 
 _SIZE = re.compile(r"Download Size:\s*([\d.]+)\s*([kKMG]?B)")
@@ -99,7 +100,7 @@ class StreamSetup:
         self._user_home = Path(user_home)
         self._emit = emit
         self._hosting = hosting or (lambda: False)
-        self._in_room = self._hosting
+        self._playing = self._hosting
         self._lock = threading.Lock()
         self._busy = ""
         self._stage = ""
@@ -112,9 +113,9 @@ class StreamSetup:
         self._moonlight_seen = False
         self._moonlight_at = 0.0
 
-    def set_hosting(self, hosting, in_room) -> None:
+    def set_hosting(self, hosting, playing) -> None:
         self._hosting = hosting
-        self._in_room = in_room
+        self._playing = playing
 
     def sunshine_dir(self):
         record = self._store.get()
@@ -390,8 +391,10 @@ class StreamSetup:
         with self._lock:
             if self._busy:
                 return ERROR_BUSY
-            if job != "setup" and (self._hosting if job == "update" else self._in_room)():
+            if job == "update" and self._hosting():
                 return ERROR_HOSTING
+            if job == "remove" and self._playing():
+                return ERROR_PLAYING
             self._busy = job
             self._error = ""
             return None
@@ -472,11 +475,13 @@ class StreamSetup:
         finally:
             self._release_claim()
 
-    def remove(self) -> dict:
+    def remove(self, before=None) -> dict:
         refused = self._claim("remove")
         if refused:
             return {"ok": False, "error": refused}
         try:
+            if before is not None:
+                before()
             record = self._store.get()
             if self._store.moonlight_ours():
                 code, _out, err = self._flatpak(["uninstall", "--user", "--noninteractive", "-y", MOONLIGHT_APP],
