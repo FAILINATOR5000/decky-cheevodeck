@@ -3011,6 +3011,7 @@ export type MultiplayerHostedRoom = {
     status: string;
     where: MultiplayerWhere;
     lobby: "" | "up" | "down";
+    streamChecking?: boolean;
     mode: MultiplayerMode;
     title: string;
     gameId: number;
@@ -3066,6 +3067,7 @@ export type MultiplayerRoomStatus =
         ready: boolean;
         consented: boolean;
         rejoin: boolean;
+        streamBusy?: boolean;
         notice: string;
         hardcore: boolean;
         local: MultiplayerLocal | null;

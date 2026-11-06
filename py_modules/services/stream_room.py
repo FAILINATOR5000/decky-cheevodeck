@@ -1,7 +1,10 @@
 import asyncio
+import hashlib
+import hmac
 import os
 import secrets
 import shlex
+import socket
 import subprocess
 import time
 from pathlib import Path
@@ -10,6 +13,8 @@ import decky
 
 import multiplayer_protocol as proto
 import subprocess_util
+from services import lobby_client
+from services.stream_pipe import StreamPipe
 from services.stream_setup import MOONLIGHT_APP
 from utils import child_owner
 
@@ -19,10 +24,29 @@ PAIR_GIVE_UP_SECONDS = 45
 LIST_SECONDS = 10
 GUEST_PAIR_RETRY_SECONDS = 10
 KILL_SECONDS = 10
+SPEED_SECONDS = 3
+SPEED_CHUNK = 64 * 1024
+SPEED_TIMEOUT = 30
+SPEED_SHARE = 0.8
 
 TIERS = ((800, 10000, 6000), (1080, 20000, 12000))
 STANDARD_KBPS = TIERS[0][1]
 STREAM_MBIT_DECLARED = 20
+FORCE_RELAY = [False]
+
+
+def stream_token(digest: bytes, label: str) -> str:
+    return hmac.new(digest, ("stream|" + label).encode("ascii"), hashlib.sha256).hexdigest()
+
+
+def resolve_meet(server):
+    if server is None:
+        return None
+    try:
+        infos = socket.getaddrinfo(server[0], server[1], socket.AF_INET, socket.SOCK_DGRAM)
+    except OSError:
+        return None
+    return infos[0][4][:2] if infos else None
 
 
 def _bare(address: str) -> str:
@@ -30,19 +54,25 @@ def _bare(address: str) -> str:
 
 
 class HostStreams:
-    def __init__(self, *, sunshine, room_id: str, online: bool, slow: bool, debug):
+    def __init__(self, *, sunshine, room_id: str, online: bool, meet, digest: bytes, slow, debug):
         self._sunshine = sunshine
         self._room_id = room_id
         self._online = online
+        self._meet = meet
+        self._digest = digest
         self._slow = slow
         self._debug = debug
         self._seats = {}
         self._pairing = None
         self._closed = False
+        self.speed_mbit = 0.0
         self.capacity = 0
+        self.checking = False
 
     def seat_taken(self, index: int, ip: str, piped: bool) -> None:
-        self._seats.pop(index, None)
+        old = self._seats.pop(index, None)
+        if old is not None and old["pipe"] is not None:
+            old["pipe"].close()
         entry = {
             "pin": f"{secrets.randbelow(10000):04d}",
             "occ": secrets.token_hex(4),
@@ -52,15 +82,39 @@ class HostStreams:
             "piped": piped and self._online,
             "paired": False,
             "since": time.monotonic(),
+            "pipe": None,
+            "path": "",
             "reported": "",
         }
         self._seats[index] = entry
+        if entry["piped"] and self._meet is not None:
+            entry["opening"] = asyncio.ensure_future(self._open_pipe(index, entry))
         if self._pairing is None or self._pairing.done():
             self._pairing = asyncio.ensure_future(self._pair_loop())
             self._pairing.add_done_callback(_report_crash)
 
+    async def _open_pipe(self, index: int, entry: dict) -> None:
+        pipe = StreamPipe(role="host", meet=self._meet, room=self._room_id, seat=index,
+                          token=stream_token(self._digest, "host"), mbit=STREAM_MBIT_DECLARED, occupant=entry["occ"],
+                          allow_direct=not FORCE_RELAY[0],
+                          source=entry["source"], on_path=lambda path: self._on_path(entry, path),
+                          debug=self._debug)
+        if not await pipe.start():
+            decky.logger.warning("stream: couldn't open the pipe for seat %s", index)
+            return
+        if self._closed or self._seats.get(index) is not entry:
+            pipe.close()
+            return
+        entry["pipe"] = pipe
+
+    def _on_path(self, entry: dict, path: str) -> None:
+        entry["path"] = path
+        self._debug("stream: host pipe path %s", path)
+
     def seat_gone(self, index: int) -> None:
-        self._seats.pop(index, None)
+        entry = self._seats.pop(index, None)
+        if entry is not None and entry["pipe"] is not None:
+            entry["pipe"].close()
 
     def report(self, index: int, state: str) -> None:
         entry = self._seats.get(index)
@@ -84,15 +138,20 @@ class HostStreams:
             return ""
         if entry["reported"] == "failed" or entry["paired"]:
             return entry["reported"]
+        if entry["pipe"] is not None and entry["pipe"].unanswered:
+            return "failed"
         return "pairing"
 
     def body(self, index: int, key: bytes, order: int) -> dict:
         entry = self._seats.get(index)
         if entry is None:
-            return {"pin": "", "token": "", "n": secrets.token_hex(16), "cap": 0, "full": False}
+            return {"pin": "", "token": "", "n": secrets.token_hex(16), "cap": 0, "full": False, "occ": ""}
+        label = f"{index}|{entry['occ']}"
+        token = proto.wrap(key, "stoken", entry["n"], bytes.fromhex(stream_token(self._digest, label))) \
+            if entry["piped"] else ""
         return {
             "pin": proto.wrap_pin(key, entry["n"], entry["pin"]) if not entry["paired"] else "",
-            "token": "",
+            "token": token,
             "n": entry["n"],
             "cap": self.cap_kbps(),
             "full": self.capacity > 0 and order > self.capacity,
@@ -101,7 +160,11 @@ class HostStreams:
 
     def cap_kbps(self) -> int:
         cap = 0
-        if self._slow:
+        if self.speed_mbit > 0:
+            share = int(self.speed_mbit * 1000 * SPEED_SHARE)
+            if share < STANDARD_KBPS:
+                cap = max(500, share)
+        if self._slow():
             cap = STANDARD_KBPS // 2 if cap == 0 else max(500, cap // 2)
         return cap
 
@@ -110,6 +173,11 @@ class HostStreams:
             waiting = [entry for entry in self._seats.values() if not entry["paired"]]
             if not waiting:
                 return
+            for index, entry in list(self._seats.items()):
+                opening = entry.get("opening")
+                if entry["piped"] and entry["pipe"] is None and self._meet is not None \
+                        and (opening is None or opening.done()):
+                    entry["opening"] = asyncio.ensure_future(self._open_pipe(index, entry))
             try:
                 pending = await asyncio.to_thread(self._sunshine.pending_pins)
             except Exception as e:
@@ -136,10 +204,31 @@ class HostStreams:
                     decky.logger.info("stream: paired a guest from %s", "the pipe" if entry["piped"] else address)
             await asyncio.sleep(PAIR_POLL_SECONDS)
 
+    async def measure(self, server) -> None:
+        if server is None:
+            return
+        size = int(STANDARD_KBPS * 1000 / 8 * SPEED_SECONDS * 4)
+        self.checking = True
+        try:
+            mbit = await asyncio.wait_for(_speed_check(server, size), SPEED_TIMEOUT)
+        except Exception as e:
+            self._debug("stream: the upload check failed (%s)", type(e).__name__)
+            return
+        finally:
+            self.checking = False
+        if mbit <= 0:
+            return
+        self.speed_mbit = mbit
+        self.capacity = max(1, int(mbit * 1000 * SPEED_SHARE // STANDARD_KBPS))
+        decky.logger.info("stream: upload %.1f Mbit/s, room for %s guest(s)", mbit, self.capacity)
+
     def close(self) -> None:
         self._closed = True
         if self._pairing is not None:
             self._pairing.cancel()
+        for entry in self._seats.values():
+            if entry["pipe"] is not None:
+                entry["pipe"].close()
         self._seats.clear()
 
 
@@ -148,13 +237,44 @@ def _report_crash(task) -> None:
         decky.logger.warning("stream: a background task failed (%r)", task.exception())
 
 
+async def _speed_check(server, size: int) -> float:
+    reader, writer = await asyncio.open_connection(server[0], server[1])
+    try:
+        writer.write(lobby_client.envelope({"op": "speed", "v": proto.VERSION, "bytes": size}))
+        await writer.drain()
+        first = await lobby_client.read_envelope(reader)
+        if not isinstance(first, dict) or first.get("op") != "go":
+            return 0.0
+        filler = bytes(SPEED_CHUNK)
+        sent = 0
+        answer = asyncio.ensure_future(lobby_client.read_envelope(reader))
+        try:
+            while sent < size and not answer.done():
+                writer.write(filler)
+                await writer.drain()
+                sent += len(filler)
+        except OSError:
+            pass
+        try:
+            result = await asyncio.wait_for(answer, SPEED_SECONDS * 2)
+        finally:
+            if not answer.done():
+                answer.cancel()
+        mbit = result.get("mbit") if isinstance(result, dict) and result.get("op") == "speed" else 0
+        return float(mbit) if type(mbit) in (int, float) and mbit > 0 else 0.0
+    finally:
+        writer.close()
+
+
 class GuestStream:
-    def __init__(self, *, user_home: Path, config: Path, room_id: str, seat: int, online: bool, host_ip: str, debug):
+    def __init__(self, *, user_home: Path, config: Path, room_id: str, seat: int, online: bool, meet, host_ip: str,
+                 debug):
         self._user_home = Path(user_home)
         self._config = Path(config)
         self._room_id = room_id
         self._seat = seat
         self._online = online
+        self._meet = meet
         self._host_ip = host_ip
         self._debug = debug
         self.address = "127.0.0.1" if online else host_ip
@@ -163,15 +283,28 @@ class GuestStream:
         self.full = False
         self.cap = 0
         self._pin = ""
+        self._pipe = None
+        self._pipe_task = None
         self._pairing = None
         self._tried_at = 0.0
         self._closed = False
+
+    @property
+    def path(self) -> str:
+        if not self._online:
+            return "direct"
+        return self._pipe.path if self._pipe is not None else "punching"
 
     def take(self, stream, key: bytes) -> None:
         if stream is None or self._closed:
             return
         self.cap = stream["cap"]
         self.full = stream["full"]
+        if self._online and self._pipe is None and self._pipe_task is None and stream["token"] and self._meet:
+            raw = proto.unwrap(key, "stoken", stream["n"], stream["token"])
+            if raw is not None and stream["occ"]:
+                self._pipe_task = asyncio.ensure_future(self._open_pipe(raw.hex(), stream["occ"]))
+                self._pipe_task.add_done_callback(_report_crash)
         if self.paired or not stream["pin"]:
             return
         pin = proto.unwrap_pin(key, stream["n"], stream["pin"])
@@ -180,14 +313,32 @@ class GuestStream:
         busy = self._pairing is not None and not self._pairing.done()
         if busy or (self.failed and time.monotonic() - self._tried_at < GUEST_PAIR_RETRY_SECONDS):
             return
-        if self._online:
+        if self._online and (self._pipe is None or self._pipe.path in ("punching", "busy")):
             return
         self._pin = pin
         self._tried_at = time.monotonic()
         self._pairing = asyncio.ensure_future(asyncio.to_thread(self._pair))
 
+    async def _open_pipe(self, token: str, occupant: str) -> None:
+        pipe = StreamPipe(role="guest", meet=self._meet, room=self._room_id, seat=self._seat, token=token,
+                          mbit=STREAM_MBIT_DECLARED, occupant=occupant, debug=self._debug, allow_direct=not FORCE_RELAY[0])
+        if not await pipe.start():
+            decky.logger.warning("stream: couldn't open the guest pipe (Sunshine's ports taken here?)")
+            self.failed = True
+            return
+        if self._closed:
+            pipe.close()
+            return
+        self._pipe = pipe
+
+    @property
+    def busy(self) -> bool:
+        return self._online and self._pipe is not None and self._pipe.path == "busy"
+
     def state(self, launched: bool, seen: bool) -> str:
         if self.failed and not self.paired:
+            return "failed"
+        if self._online and self._pipe is not None and (self._pipe.path == "busy" or self._pipe.unanswered):
             return "failed"
         if not self.paired:
             return "pairing"
@@ -195,7 +346,7 @@ class GuestStream:
             return ""
         if not seen:
             return "connecting"
-        return "streaming"
+        return "relay" if self.path == "relay" else "streaming"
 
     def _env(self) -> dict:
         owner = child_owner()
@@ -270,3 +421,6 @@ class GuestStream:
 
     def close(self) -> None:
         self._closed = True
+        if self._pipe is not None:
+            self._pipe.close()
+            self._pipe = None

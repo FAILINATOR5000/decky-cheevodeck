@@ -181,6 +181,9 @@ class MultiplayerMixin(PluginContext):
     async def multiplayer_debug_voice_relay(self, on: bool = False):
         return self.multiplayer_service.debug_voice("relay", on is True)
 
+    async def multiplayer_debug_stream_relay(self, on: bool = False):
+        return self.multiplayer_service.debug_stream_relay(bool(on))
+
     async def multiplayer_debug_server_door(self, on: bool = False):
         return self.multiplayer_service.debug_server_door(bool(on))
 

@@ -1778,10 +1778,14 @@ class MultiplayerService:
                 if failed:
                     self._close_room("")
                     return {"ok": False, "error": ERROR_GATE, "gate": failed, "detail": {}}
+                meet = await asyncio.to_thread(stream_room.resolve_meet, server) if online else None
                 room["streams"] = stream_room.HostStreams(
-                    sunshine=self._stream_host, room_id=room_id, online=online, slow=self._slow_connection(),
-                    debug=self._debug,
+                    sunshine=self._stream_host, room_id=room_id, online=online, meet=meet,
+                    digest=hashlib.sha256(self._link.secret.encode("ascii")).digest() if online else b"",
+                    slow=self._slow_connection, debug=self._debug,
                 )
+                if online:
+                    self._spawn(room["streams"].measure(server))
             self._tell_voice_room()
             self._closed_reason = ""
             self._seen.clear()
@@ -1992,6 +1996,7 @@ class MultiplayerService:
             "status": room["status"],
             "where": room["where"],
             "lobby": self._lobby_state(),
+            "streamChecking": room.get("streams") is not None and room["streams"].checking,
             "mode": room["mode"],
             "title": room["title"],
             "gameId": room["gameId"],
@@ -3239,7 +3244,9 @@ class MultiplayerService:
                 online = row["door"] == "server"
                 self._joined["stream"] = stream_room.GuestStream(
                     user_home=self._user_home, config=self._stream_setup.moonlight_config(), room_id=row["room"],
-                    seat=answer["seat"], online=online, host_ip=row["address"], debug=self._debug,
+                    seat=answer["seat"], online=online,
+                    meet=await asyncio.to_thread(stream_room.resolve_meet, self._lobby_server()) if online else None,
+                    host_ip=row["address"], debug=self._debug,
                 )
             self._tell_voice_room()
             self._closed_reason = ""
@@ -3618,6 +3625,7 @@ class MultiplayerService:
             "error": joined["error"],
             "ready": joined["ready"],
             "consented": status is not None and joined["consentRound"] == status["round"] and status["start"],
+            "streamBusy": joined.get("stream") is not None and joined["stream"].busy,
             "rejoin": status is not None and status["state"] == "playing" and not joined["launched"]
                       and self._may_launch(joined, status) and joined["launchedRound"] == status["round"],
             "notice": joined["notice"],
@@ -4215,6 +4223,13 @@ class MultiplayerService:
             asyncio.run_coroutine_threadsafe(decky.emit(event, payload), loop)
         except Exception as e:
             decky.logger.warning("multiplayer: couldn't tell the panel (%s)", type(e).__name__)
+
+    def debug_stream_relay(self, on: bool) -> dict:
+        if not self._settings_store.get_debug_logging(self._settings_store.load_config()):
+            return {"ok": False, "error": ERROR_UNAVAILABLE}
+        stream_room.FORCE_RELAY[0] = bool(on)
+        decky.logger.info("stream: debug, new pipes %s", "relay only" if on else "try direct first")
+        return {"ok": True, "on": stream_room.FORCE_RELAY[0]}
 
     def debug_server_door(self, on: bool) -> dict:
         try:

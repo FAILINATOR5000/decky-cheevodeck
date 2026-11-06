@@ -365,6 +365,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const problemLines = [
         ...(missedLine ? [{ text: problemText(language, missedLine.code, missedLine.detail), color: errorRed }] : []),
         ...(setupLine ? [{ text: t(language, setupLine.key), color: setupLine.color }] : []),
+        ...(hosted?.streamChecking ? [{ text: t(language, "Checking your connection…"), color: undefined }] : []),
+        ...(joined?.streamBusy ? [{ text: problemText(language, "stream_busy"), color: warnAmber }] : []),
         ...(problemShown ? [{ text: problemText(language, problemShown.code, { size: stream.size || "?", ...problemShown.detail }),
             color: warnAmber }] : []),
         ...roomWarnings.map((text) => ({ text, color: warnAmber }))
