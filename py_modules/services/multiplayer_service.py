@@ -2743,7 +2743,7 @@ class MultiplayerService:
             return {"ok": True, "servers": [], "policy": "all", "available": True}
         server = self._lobby_server()
         cred = room["turn"].get(0) if room is not None else joined["turn"]
-        relay = _access(row) == "public" or self._voice_relay
+        relay = self._voice_relay
         if server is None or (relay and cred is None):
             return {"ok": True, "servers": [], "policy": "relay", "available": False}
         servers = [] if relay else [{"urls": [f"stun:{server[0]}:{TURN_PORT}"]}]

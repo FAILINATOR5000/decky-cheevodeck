@@ -29,6 +29,9 @@ const GATHER_MS = 4000;
 const ANSWER_WAIT_MS = 15000;
 const RETRY_MS = [2000, 5000, 10000, 30000];
 const RENEW_RESTART_MS = 10000;
+const DROP_RESTART_MS = 6000;
+const STABLE_MS = 120000;
+const FLAKY_LIMIT = 3;
 const STATS_MS = 30000;
 
 const OPUS_PARAMS: Record<string, string> = { useinbandfec: "1", usedtx: "1", maxaveragebitrate: "24000", stereo: "0" };
@@ -88,6 +91,7 @@ type Peer = {
     state: "connecting" | "connected" | "failed";
     retries: number;
     timer: number | null;
+    dropTimer: number | null;
     audio: HTMLAudioElement | null;
     source: MediaStreamAudioSourceNode | null;
     gain: GainNode | null;
@@ -141,6 +145,7 @@ let config: IceConfig | null = null;
 let configFor = "";
 let configStamp = "";
 const peers = new Map<number, Peer>();
+const paths = new Map<number, { stamp: number; flaky: number; relayOnly: boolean; directSince: number }>();
 const prefs = new Map<string, { muted: boolean }>();
 let prefsRoom = "";
 let names: string[] = [];
@@ -548,6 +553,7 @@ function leave() {
     for (const index of [...peers.keys()]) {
         closePeer(index);
     }
+    paths.clear();
     wantMic = false;
     mutedForSteam = false;
     steamAllowed = false;
@@ -589,8 +595,8 @@ function reconcile(view: RoomVoice) {
 }
 
 function reconfigure() {
-    const policy = config?.policy ?? "all";
     for (const peer of [...peers.values()]) {
+        const policy = policyFor(peer.index, peer.stamp);
         const moved = Boolean(peer.pc) && peer.pc?.getConfiguration().iceTransportPolicy !== policy;
         if (peer.state === "failed" || moved) {
             if (peer.offerer || (room && room.seat < peer.index)) {
@@ -688,11 +694,71 @@ function makeupTrim(audioContext: AudioContext, ceiling: number): GainNode {
     return trim;
 }
 
+function pathFor(index: number, stamp: number) {
+    let path = paths.get(index);
+    if (!path || path.stamp !== stamp) {
+        path = { stamp, flaky: 0, relayOnly: false, directSince: 0 };
+        paths.set(index, path);
+    }
+    return path;
+}
+
+function hasRelay(): boolean {
+    return (config?.servers ?? []).some((server) => JSON.stringify(server.urls).includes("turn:"));
+}
+
+function policyFor(index: number, stamp: number): RTCIceTransportPolicy {
+    const policy = config?.policy ?? "all";
+    return policy === "all" && pathFor(index, stamp).relayOnly && hasRelay() ? "relay" : policy;
+}
+
+function noteDrop(peer: Peer) {
+    const path = pathFor(peer.index, peer.stamp);
+    if (!path.directSince) {
+        return;
+    }
+    path.flaky = performance.now() - path.directSince < STABLE_MS ? path.flaky + 1 : 0;
+    path.directSince = 0;
+    if (path.flaky >= FLAKY_LIMIT && !path.relayOnly && hasRelay()) {
+        path.relayOnly = true;
+        logVoiceDebug(`seat ${peer.index}: the direct path keeps dropping, staying on the relay`);
+    }
+}
+
+function restartAfterDrop(peer: Peer) {
+    if (!peer.offerer || peer.dropTimer !== null) {
+        return;
+    }
+    peer.dropTimer = window.setTimeout(() => {
+        peer.dropTimer = null;
+        const pc = peer.pc;
+        if (peers.get(peer.index) !== peer || !pc || pc.connectionState === "connected") {
+            return;
+        }
+        if (pc.getConfiguration().iceTransportPolicy !== policyFor(peer.index, peer.stamp)) {
+            closePeer(peer.index);
+            void startOffer(peer.index, peer.stamp, peer.retries);
+            return;
+        }
+        peer.gen = nextGen();
+        logVoiceDebug(`seat ${peer.index}: still disconnected, restarting ICE`);
+        void sendOffer(peer, true);
+    }, DROP_RESTART_MS);
+}
+
+function clearDropTimer(peer: Peer) {
+    if (peer.dropTimer !== null) {
+        window.clearTimeout(peer.dropTimer);
+        peer.dropTimer = null;
+    }
+}
+
 function makePeer(index: number, stamp: number, offerer: boolean, retries: number): Peer {
-    const pc = new RTCPeerConnection({ iceServers: config?.servers ?? [], iceTransportPolicy: config?.policy ?? "all" });
+    const pc = new RTCPeerConnection({ iceServers: config?.servers ?? [], iceTransportPolicy: policyFor(index, stamp) });
     const peer: Peer = {
         index, stamp, pc, sender: null, offerer, gen: 0, remoteGen: 0, remoteSession: "", state: "connecting",
-        retries, timer: null, audio: null, source: null, gain: null, limiter: null, analyser: null, speaking: false, loudAt: 0
+        retries, timer: null, dropTimer: null, audio: null, source: null, gain: null, limiter: null, analyser: null,
+        speaking: false, loudAt: 0
     };
     pc.ontrack = (event) => {
         if (peers.get(index) === peer) {
@@ -708,10 +774,19 @@ function makePeer(index: number, stamp: number, offerer: boolean, retries: numbe
             peer.state = "connected";
             peer.retries = 0;
             clearPeerTimer(peer);
-            void logPair(peer);
+            clearDropTimer(peer);
+            void readPair(peer);
             publish();
+            return;
+        }
+        if (pc.connectionState === "disconnected" || pc.connectionState === "failed") {
+            noteDrop(peer);
+        }
+        if (pc.connectionState === "disconnected") {
+            restartAfterDrop(peer);
         }
         else if (pc.connectionState === "failed") {
+            clearDropTimer(peer);
             failed(peer);
         }
     };
@@ -734,6 +809,7 @@ function closePeer(index: number) {
     }
     peers.delete(index);
     clearPeerTimer(peer);
+    clearDropTimer(peer);
     stopPlaying(peer);
     peer.pc?.close();
     peer.pc = null;
@@ -1020,8 +1096,8 @@ function takeBye(from: number, stamp: number) {
     publish();
 }
 
-async function logPair(peer: Peer) {
-    if (!debugLoggingEnabled() || !peer.pc) {
+async function readPair(peer: Peer) {
+    if (!peer.pc) {
         return;
     }
     try {
@@ -1038,7 +1114,11 @@ async function logPair(peer: Peer) {
         }
         const local = stats.get(chosen.localCandidateId) as { candidateType?: string } | undefined;
         const remote = stats.get(chosen.remoteCandidateId) as { candidateType?: string } | undefined;
-        logVoiceDebug(`seat ${peer.index}: pair ${local?.candidateType ?? "?"} <-> ${remote?.candidateType ?? "?"}`);
+        const direct = local?.candidateType !== "relay" && remote?.candidateType !== "relay";
+        pathFor(peer.index, peer.stamp).directSince = direct ? performance.now() : 0;
+        if (debugLoggingEnabled()) {
+            logVoiceDebug(`seat ${peer.index}: pair ${local?.candidateType ?? "?"} <-> ${remote?.candidateType ?? "?"}`);
+        }
     }
     catch (e) {
         logError("voice: reading the chosen pair", e);
