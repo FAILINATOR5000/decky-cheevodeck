@@ -2,6 +2,7 @@ import { addEventListener, removeEventListener } from "@decky/api";
 import { useEffect, useSyncExternalStore } from "react";
 
 import {
+    saveMpStreamSlowConnection,
     streamFinishSetup,
     streamRemove,
     streamSetUp,
@@ -20,7 +21,7 @@ const SHORTCUT_OPTIONS = "run --user com.moonlight_stream.Moonlight";
 const OVERVIEW_TRIES = 20;
 const OVERVIEW_WAIT_MS = 150;
 
-export type StreamStage = "" | "sunshine" | "moonlight" | "finishing" | "done" | "failed";
+type StreamStage = "" | "sunshine" | "moonlight" | "finishing" | "done" | "failed";
 
 type StreamState = {
     status: StreamStatus | null;
@@ -32,6 +33,44 @@ type StreamState = {
 
 let state: StreamState = { status: null, size: "", stage: "", job: "", lastJob: "" };
 const listeners = new Set<() => void>();
+let slowConnection = false;
+const slowListeners = new Set<() => void>();
+
+function publishSlow(next: boolean) {
+    if (next === slowConnection) {
+        return;
+    }
+    slowConnection = next;
+    for (const listener of slowListeners) {
+        listener();
+    }
+}
+
+export function setStreamSettings(next: { mpStreamSlowConnection?: boolean }) {
+    publishSlow(next.mpStreamSlowConnection ?? slowConnection);
+}
+
+export function useSlowConnection(): boolean {
+    return useSyncExternalStore((listener) => {
+        slowListeners.add(listener);
+        return () => {
+            slowListeners.delete(listener);
+        };
+    }, () => slowConnection);
+}
+
+export async function changeSlowConnection(next: boolean) {
+    const was = slowConnection;
+    publishSlow(next);
+    try {
+        const saved = await saveMpStreamSlowConnection(next);
+        publishSlow(saved.mpStreamSlowConnection);
+    }
+    catch (e) {
+        logError("stream play: saving Slow Connection", e);
+        publishSlow(was);
+    }
+}
 
 function publish(next: Partial<StreamState>) {
     state = { ...state, ...next };
@@ -60,7 +99,7 @@ function onSetupEvent(event: { stage?: string; job?: string }) {
 
 let listening = 0;
 
-export async function refreshStreamStatus(): Promise<StreamStatus | null> {
+async function refreshStreamStatus(): Promise<StreamStatus | null> {
     try {
         const status = await streamStatus();
         publish({ status });

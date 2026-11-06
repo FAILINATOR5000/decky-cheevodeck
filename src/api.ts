@@ -922,6 +922,9 @@ export const streamSize = callable<[], { ok: boolean; size: string }>("stream_si
 export const streamSetUp = callable<[], StreamStatus>("stream_set_up");
 export const streamFinishSetup = callable<[appid: number], StreamStatus>("stream_finish_setup");
 export const streamUpdate = callable<[], StreamStatus>("stream_update");
+export const saveMpStreamSlowConnection = callable<[boolean], { ok: boolean; mpStreamSlowConnection: boolean }>(
+    "save_mp_stream_slow_connection"
+);
 export const streamRemove = callable<[], { ok: boolean; appid?: number; error?: string }>("stream_remove");
 export const multiplayerOutputVolumeGet = callable<[], { ok: boolean; volume: number | null }>("multiplayer_output_volume_get");
 export const multiplayerOutputVolumeSet = callable<[number], { ok: boolean }>("multiplayer_output_volume_set");

@@ -1256,6 +1256,8 @@ class MultiplayerService:
         record = self._stream_setup.status() if self._stream_setup is not None else None
         if record is None or not record["ready"] or record["busy"]:
             return "stream_not_set_up", {}
+        if self._room is None and self._stream_host is not None and self._stream_host.foreign_sunshine():
+            return "sunshine_running", {}
         return None
 
     def _play_core(self, ra, system_id: int, rom: Path) -> str:

@@ -689,6 +689,14 @@ class OptionsMixin(PluginContext):
             "mpVoicePushToTalk": value,
         }
 
+    async def save_mp_stream_slow_connection(self, mp_stream_slow_connection: bool):
+        value = self.settings_store.update_mp_stream_slow_connection(mp_stream_slow_connection)
+
+        return {
+            "ok": True,
+            "mpStreamSlowConnection": value,
+        }
+
     async def save_mp_voice_ptt_toggle(self, mp_voice_ptt_toggle: bool):
         value = self.settings_store.update_mp_voice_ptt_toggle(mp_voice_ptt_toggle)
 

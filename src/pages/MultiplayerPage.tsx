@@ -59,7 +59,7 @@ import {
 } from "../utils/gameVolume";
 import { changeOutputVolume, useOutputVolume } from "../utils/outputVolume";
 import { screenMaxRefresh } from "../utils/screenRefresh";
-import { useStreamSetup } from "../utils/streamPlay";
+import { changeSlowConnection, updateStreaming, useSlowConnection, useStreamSetup } from "../utils/streamPlay";
 import { getCurrentControllerGlyphStyle } from "../utils/controllerGlyphs";
 import { ButtonHints, type ButtonHint } from "../components/ui/ButtonHints";
 import { openExternalUrl, raLookupSearchUrl } from "../utils/navigation";
@@ -192,6 +192,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const pushToTalk = usePushToTalk();
     const gameVolume = useGameVolume(visible);
     const stream = useStreamSetup(visible && mp.mode === "stream");
+    const slowConnection = useSlowConnection();
 
     useEffect(() => {
         if (visible) {
@@ -224,7 +225,10 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         setRoomTabChoice({ room: roomId, tab: "room" });
         rememberMultiplayerRoomTab(roomId, "room");
     }
-    const roomTab: MultiplayerRoomTab = roomVoice && roomTabChoice.room === roomId ? roomTabChoice.tab : "room";
+    const streamRoom = (mp.hosted?.mode ?? mp.joined?.room.mode) === "stream";
+    const chosenTab = roomTabChoice.room === roomId ? roomTabChoice.tab : "room";
+    const roomTab: MultiplayerRoomTab = (chosenTab === "audio" && roomVoice) || (chosenTab === "misc" && streamRoom)
+        ? chosenTab : "room";
     function showRoomTab(tab: MultiplayerRoomTab) {
         setRoomTabChoice({ room: roomId, tab });
         rememberMultiplayerRoomTab(roomId, tab);
@@ -246,7 +250,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 actions.setTab(nextMode);
                 changed = true;
             }
-            if ((nextRoomTab === "room" || nextRoomTab === "audio") && roomVoice && nextRoomTab !== roomTab) {
+            if ((nextRoomTab === "room" || (nextRoomTab === "audio" && roomVoice) || (nextRoomTab === "misc" && streamRoom))
+                && (roomVoice || streamRoom) && nextRoomTab !== roomTab) {
                 showRoomTab(nextRoomTab);
                 changed = true;
             }
@@ -347,11 +352,10 @@ function MultiplayerPage(props: MultiplayerPageProps) {
 
     const roomWarnings = (shownCheck?.warnings ?? []).map((warning) => warningText(language, warning.code, warning.detail));
     const settingUp = mp.mode === "stream" && stream.lastJob === "setup" ? stream.stage : "";
-    const setupLine = settingUp && settingUp !== "done" && stream.job !== "setup" && settingUp !== "failed" ? null
-        : SETUP_LINES[settingUp] ?? null;
-    const setupPending = mp.mode === "stream" && stream.status !== null && !stream.status.ready && stream.job !== "setup";
-    const problemShown = shownProblem && !(shownProblem.code === "stream_not_set_up" && (stream.job === "setup" || !setupPending))
-        ? shownProblem : null;
+    const setupLine = SETUP_LINES[settingUp] ?? null;
+    const updateLine = stream.lastJob === "update" ? SETUP_LINES[stream.stage] ?? null : null;
+    const setupPending = mp.mode === "stream" && shownProblem?.code === "stream_not_set_up" && stream.job !== "setup";
+    const problemShown = shownProblem && !(shownProblem.code === "stream_not_set_up" && !setupPending) ? shownProblem : null;
     const problemLines = [
         ...(missedLine ? [{ text: problemText(language, missedLine.code, missedLine.detail), color: errorRed }] : []),
         ...(setupLine ? [{ text: t(language, setupLine.key), color: setupLine.color }] : []),
@@ -361,8 +365,11 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     ];
     const warnings = [
         ...(runsPpsspp ? [t(language, "PSP multiplayer is experimental. Some games lose the connection when a match starts.")] : []),
-        ...(screenHz !== null && (screenHz === 0 || screenHz > 60)
-            ? [t(language, "Multiplayer runs best at 60 Hz. If a game jitters, set 60 Hz in Steam's Performance menu while it runs.")]
+        ...(screenHz !== null && (screenHz === 0 || screenHz > 60) && mp.mode === "couch"
+            ? [t(language, "Couch Play runs best when every player's screen runs at the same refresh rate. A mismatch, such as 90 Hz and 60 Hz, makes the game jitter or warp. 60 Hz is the safest choice: set it in Steam's Performance menu while the game runs.")]
+            : []),
+        ...(screenHz !== null && (screenHz === 0 || screenHz > 60) && mp.mode === "stream" && !joined
+            ? [t(language, "Stream rooms run best with your screen at 60 Hz. Above that, your game looks smooth to you but jitters for your guests, because the stream runs at 60 fps and the mismatch skips frames unevenly.")]
             : []),
         ...(runsRmg ? [t(language, "rmg_heads_up")] : [])
     ];
@@ -433,6 +440,14 @@ function MultiplayerPage(props: MultiplayerPageProps) {
 
     function pressBack() {
         void page.onBack();
+    }
+
+    function pressUpdateStreaming() {
+        if (hosted && hosted.mode === "stream") {
+            showMultiplayerProblem(language, "Update Streaming", t(language, "Close your Stream Play room before updating."));
+            return;
+        }
+        void updateStreaming();
     }
 
     function openSeat(index: number, name: string, game: string, ulid: string, pic: string) {
@@ -594,7 +609,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 ? t(language, "Core: {{core}} (matches the host)", { core: local.coreName })
                 : t(language, "Core: {{core}}", { core: local.coreName })
         : "";
-    const showCores = local?.emulator === "retroarch" && choices.length > 0 && !joined;
+    const showCores = local?.emulator === "retroarch" && choices.length > 0 && !joined && mp.mode !== "stream";
 
     const scopeKey = joined ? "multiplayer:room" : `multiplayer:${mp.mode}`;
 
@@ -1207,29 +1222,80 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             )}
         </>
     );
-    const shownRoomTab = roomVoice && !roomHasOptions ? "audio" : roomTab;
-    const roomTabs = roomVoice && roomHasOptions && (
+    const tabList: MultiplayerRoomTab[] = [
+        ...(roomHasOptions ? ["room" as const] : []),
+        ...(roomVoice ? ["audio" as const] : []),
+        ...(streamRoom ? ["misc" as const] : [])
+    ];
+    const shownRoomTab: MultiplayerRoomTab = tabList.includes(roomTab) ? roomTab : tabList[0] ?? "room";
+    const roomTabs = tabList.length > 1 && (
         <>
             <SectionTitle label={t(language, "Options")} />
             <Focusable
                 flow-children="row"
                 style={{ width: "100%", display: "flex", gap: "6px", margin: "6px 0 4px 0" }}
             >
-                <SubTabButton
-                    label={t(language, "Room")}
-                    active={roomTab === "room"}
-                    onClick={() => showRoomTab("room")}
-                    focusKey="multiplayer:roomtab:room"
-                    focusFallback={roomKeys}
-                />
-                <SubTabButton
-                    label={t(language, "Audio")}
-                    active={roomTab === "audio"}
-                    onClick={() => showRoomTab("audio")}
-                    focusKey="multiplayer:roomtab:audio"
-                    focusFallback={["multiplayer:roomtab:room", ...roomKeys]}
-                />
+                {tabList.includes("room") && (
+                    <SubTabButton
+                        label={t(language, "Room")}
+                        active={shownRoomTab === "room"}
+                        onClick={() => showRoomTab("room")}
+                        focusKey="multiplayer:roomtab:room"
+                        focusFallback={roomKeys}
+                    />
+                )}
+                {roomVoice && (
+                    <SubTabButton
+                        label={t(language, "Audio")}
+                        active={shownRoomTab === "audio"}
+                        onClick={() => showRoomTab("audio")}
+                        focusKey="multiplayer:roomtab:audio"
+                        focusFallback={["multiplayer:roomtab:room", "multiplayer:roomtab:misc", ...roomKeys]}
+                    />
+                )}
+                {streamRoom && (
+                    <SubTabButton
+                        label={t(language, "Misc")}
+                        active={shownRoomTab === "misc"}
+                        onClick={() => showRoomTab("misc")}
+                        focusKey="multiplayer:roomtab:misc"
+                        focusFallback={["multiplayer:roomtab:audio", "multiplayer:roomtab:room", ...roomKeys]}
+                    />
+                )}
             </Focusable>
+        </>
+    );
+    const miscRows = streamRoom && (
+        <>
+            {!roomTabs && <SectionTitle label={t(language, "Options")} />}
+            <ToggleRow
+                bottomSeparator="none"
+                controlled
+                label={t(language, "Slow Connection")}
+                value={slowConnection}
+                outerStyle={buttonStyle}
+                focusKey="multiplayer:toggle:slowconnection"
+                focusFallback={["multiplayer:roomtab:misc", ...roomKeys]}
+                onChange={(next) => void changeSlowConnection(next)}
+                help={t(language, "Halves the stream's quality so it fits a slow internet connection. Affects rooms you host and rooms you join.")}
+            />
+            <PanelSectionRow>
+                <FocusableItem
+                    bottomSeparator="none"
+                    outerStyle={buttonStyle}
+                    focusKey="multiplayer:updatestreaming"
+                    focusFallback={["multiplayer:toggle:slowconnection", "multiplayer:roomtab:misc", ...roomKeys]}
+                    onClick={pressUpdateStreaming}
+                    help={t(language, "Updates Sunshine and Moonlight to their latest versions.")}
+                >
+                    {t(language, "Update Streaming")}
+                </FocusableItem>
+            </PanelSectionRow>
+            <PanelSectionRow>
+                <div style={{ ...bodyTextStyle(), minHeight: "1.4em", opacity: 1, color: updateLine?.color }}>
+                    {updateLine ? t(language, updateLine.key) : ""}
+                </div>
+            </PanelSectionRow>
         </>
     );
     const optionRows = roomHasOptions && (
@@ -1369,7 +1435,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                                     {roomTabs}
                                     <Focusable key={`multiplayer:roomtab:${shownRoomTab}`} flow-children="column" resetNavOnEntry
                                         navEntryPreferPosition={NAV_ENTER_MAINTAIN_Y}>
-                                        {shownRoomTab === "audio" ? voiceSliders : optionRows}
+                                        {shownRoomTab === "audio" ? voiceSliders : shownRoomTab === "misc" ? miscRows : optionRows}
                                     </Focusable>
                                     <BottomFocusAnchor focusKey="multiplayer:bottom:anchor" />
                                 </Focusable>

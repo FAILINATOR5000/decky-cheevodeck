@@ -9,12 +9,23 @@ import type { VoiceMine } from "../../utils/voiceChat";
 import { PicAvatar } from "./PicAvatar";
 import { MutedPlayerIcon, OwnMicIcon } from "./VoiceIcons";
 
+type StreamSeatState = "pairing" | "connecting" | "streaming" | "relay" | "failed" | "";
+
+const STREAM_LABELS: Record<string, string> = {
+    pairing: "Pairing",
+    connecting: "Connecting",
+    streaming: "Streaming",
+    relay: "Streaming (relay)",
+    failed: "Couldn't connect"
+};
+
 type RoomTableSeat = {
     name: string;
     game: string;
     tag: "host" | "";
     mark?: "ready" | "cant" | "";
     activity?: "game" | "watch" | "";
+    stream?: StreamSeatState;
     avatar?: string;
     open: boolean;
 };
@@ -84,7 +95,8 @@ export function RoomTable(props: {
                     {seats.map((seat, index) => {
                         const tags = seat.name ? [
                             t(language, seat.tag === "host" ? "Host" : "Guest"),
-                            t(language, seat.activity === "game" ? "In-Game" : seat.activity === "watch" ? "Watching" : "In-Lobby")
+                            t(language, seat.stream ? STREAM_LABELS[seat.stream]
+                                : seat.activity === "game" ? "In-Game" : seat.activity === "watch" ? "Watching" : "In-Lobby")
                         ].join(" · ") : "";
                         const own = voice !== undefined && index === voice.own;
                         const heard = voice?.seats[index];
