@@ -2960,8 +2960,7 @@ class MultiplayerService:
             for position, taken in enumerate(room["seats"]):
                 if taken is not None and position > 0:
                     body["seats"][position]["st"] = streams.seat_state(position)
-            order = sum(1 for position, taken in enumerate(room["seats"]) if 0 < position <= index and taken)
-            body["stream"] = streams.body(index, seat["key"], order)
+            body["stream"] = streams.body(index, seat["key"])
         cred = room.get("turn", {}).get(index)
         if cred is not None and seat.get("vc"):
             body["turn"] = {"u": cred["u"], "p": proto.wrap_turn(seat["key"], cred["n"], cred["p"]), "ttl": cred["ttl"],

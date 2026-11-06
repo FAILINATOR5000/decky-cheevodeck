@@ -165,7 +165,7 @@ class HostStreams:
             return "failed"
         return "pairing"
 
-    def body(self, index: int, key: bytes, order: int) -> dict:
+    def body(self, index: int, key: bytes) -> dict:
         entry = self._seats.get(index)
         if entry is None:
             return {"pin": "", "token": "", "n": secrets.token_hex(16), "cap": 0, "full": False, "occ": ""}
@@ -176,14 +176,17 @@ class HostStreams:
             "pin": proto.wrap_pin(key, entry["n"], entry["pin"]) if not entry["paired"] else "",
             "token": token,
             "n": entry["n"],
-            "cap": self.cap_kbps(),
-            "full": self.capacity > 0 and order > self.capacity,
+            "cap": self.cap_kbps(entry["piped"]),
+            "full": entry["piped"] and self.capacity > 0 and self._internet_order(index) > self.capacity,
             "occ": entry["occ"],
         }
 
-    def cap_kbps(self) -> int:
+    def _internet_order(self, index: int) -> int:
+        return sum(1 for seat, entry in self._seats.items() if seat <= index and entry["piped"])
+
+    def cap_kbps(self, piped: bool) -> int:
         cap = 0
-        if self.speed_mbit > 0:
+        if piped and self.speed_mbit > 0:
             share = int(self.speed_mbit * 1000 * SPEED_SHARE)
             if share < STANDARD_KBPS:
                 cap = max(500, share)
