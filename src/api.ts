@@ -906,6 +906,23 @@ export const multiplayerRoomVolumesGet = callable<[number], {
 }>(
     "multiplayer_room_volumes_get"
 );
+export type StreamStatus = {
+    ok: boolean;
+    ready: boolean;
+    sunshine: boolean;
+    moonlight: boolean;
+    appid: number;
+    version: string;
+    busy: string;
+    stage: string;
+    error: string;
+};
+export const streamStatus = callable<[], StreamStatus>("stream_status");
+export const streamSize = callable<[], { ok: boolean; size: string }>("stream_size");
+export const streamSetUp = callable<[], StreamStatus>("stream_set_up");
+export const streamFinishSetup = callable<[appid: number], StreamStatus>("stream_finish_setup");
+export const streamUpdate = callable<[], StreamStatus>("stream_update");
+export const streamRemove = callable<[], { ok: boolean; appid?: number; error?: string }>("stream_remove");
 export const multiplayerOutputVolumeGet = callable<[], { ok: boolean; volume: number | null }>("multiplayer_output_volume_get");
 export const multiplayerOutputVolumeSet = callable<[number], { ok: boolean }>("multiplayer_output_volume_set");
 export const multiplayerRoomVolumesSet = callable<[number, number, number, string, boolean, number], { ok: boolean }>(
@@ -1543,7 +1560,7 @@ export const setFriendFavorite = callable<[string, boolean], { ok: boolean; favo
 );
 export const clearApiKey = callable<[], { ok: boolean }>("clear_api_key");
 export const clearCache = callable<[], { ok: boolean; cleared: string[] }>("clear_cache");
-export const factoryReset = callable<[], { ok: boolean; error?: string }>("factory_reset");
+export const factoryReset = callable<[], { ok: boolean; error?: string; streamShortcut?: number }>("factory_reset");
 export const clearCacheGroup = callable<
     [CacheClearGroup],
     { ok: boolean; group?: CacheClearGroup; cleared: string[]; error?: string }

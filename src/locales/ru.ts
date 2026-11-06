@@ -3389,6 +3389,16 @@ const RU: LocaleTable = {
     "How much quieter the game gets while you talk.": "Насколько тише становится игра, пока вы говорите.",
     "Mid": "Средне",
     "Max": "Макс.",
+    "Set Up Streaming": "Настроить стриминг",
+    "Stream Play uses two free programs: Sunshine shares your game when you host, and Moonlight shows a host's game when you join. CheevoDeck will download and set them up for you (about {{size}}). You only need to do this once.": "Игра по трансляции использует две бесплатные программы: Sunshine транслирует вашу игру, когда вы хост, а Moonlight показывает игру хоста, когда вы присоединяетесь. CheevoDeck скачает и настроит их за вас (около {{size}}). Это нужно сделать только один раз.",
+    "Set Up": "Настроить",
+    "Downloading Sunshine…": "Загрузка Sunshine…",
+    "Installing Moonlight…": "Установка Moonlight…",
+    "Finishing setup…": "Завершение настройки…",
+    "Streaming is ready.": "Стриминг готов.",
+    "Couldn't set up streaming. Check your internet connection and try again.": "Не удалось настроить стриминг. Проверьте подключение к интернету и попробуйте снова.",
+    "Remove Streaming": "Удалить стриминг",
+    "Removes Sunshine, Moonlight and the Moonlight shortcut from this device. You can set them up again any time.": "Удаляет Sunshine, Moonlight и ярлык Moonlight с этого устройства. Их можно настроить снова в любое время.",
 };
 
 export default RU;

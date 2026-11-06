@@ -42,6 +42,7 @@ import type {
 } from "../types";
 import { getErrorMessage, logError } from "../utils/errors";
 import { showManagedModal } from "../utils/modalRegistry";
+import { removeMoonlightShortcut } from "../utils/streamPlay";
 import type { ScalePreset } from "../types";
 import type { MainUiPreset } from "../utils/options";
 
@@ -413,6 +414,9 @@ export function useAccountActions({
 
         try {
             const result = await factoryReset();
+            if (result.ok && result.streamShortcut) {
+                removeMoonlightShortcut(result.streamShortcut);
+            }
             if (!result.ok) {
                 toaster.toast({
                     title: t(language, "Factory Reset"),

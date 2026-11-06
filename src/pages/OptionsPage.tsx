@@ -88,6 +88,7 @@ import { playOkSound } from "../utils/navSound";
 import { usePushToTalk } from "../utils/voiceChat";
 import { bodyTextStyle, regularButtonSpacingStyle, smallTextStyle } from "../utils/style";
 import { usePageLanding } from "../focusRecords";
+import { removeStreaming } from "../utils/streamPlay";
 
 type TabIconProps = { size?: number };
 
@@ -983,6 +984,15 @@ function SystemTab(props: TabContentProps) {
                 onChange={actions.onTogglePlayShortcutFallback}
                 disabled={disabled}
                 help={t(state.language, "help_play_shortcut_fallback")}
+            />
+            <OptionConfirm
+                buttonSpacing={state.buttonSpacing}
+                focusKey="options:remove-streaming"
+                idleLabel={t(state.language, "Remove Streaming")}
+                armedLabel={t(state.language, "Press again to confirm")}
+                onConfirm={() => void removeStreaming()}
+                disabled={disabled}
+                help={t(state.language, "Removes Sunshine, Moonlight and the Moonlight shortcut from this device. You can set them up again any time.")}
             />
             <OptionButton
                 outerStyle={buttonOuterStyle}

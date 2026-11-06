@@ -2,6 +2,7 @@ import os
 
 import decky
 
+import steam_shortcuts
 from dolphin_ini import DOLPHIN_FLATPAK_APP_ID
 
 
@@ -33,7 +34,8 @@ class RepairService:
     """
 
     def __init__(self, *, update_checker_service, memories_store, milestones_store, milestones_service,
-                 multiplayer_friends_store, multiplayer_messages_store, settings_store, user_home, voice_canceller):
+                 multiplayer_friends_store, multiplayer_messages_store, settings_store, user_home, voice_canceller,
+                 stream_setup):
         self._update_checker_service = update_checker_service
         self._memories_store = memories_store
         self._milestones_store = milestones_store
@@ -43,6 +45,7 @@ class RepairService:
         self._settings_store = settings_store
         self._user_home = user_home
         self._voice_canceller = voice_canceller
+        self._stream_setup = stream_setup
 
     def run_startup_repairs(self) -> dict:
         """Run every repair in turn and report which ones did anything.
@@ -153,9 +156,22 @@ class RepairService:
                 type(e).__name__,
             )
 
+        try:
+            fixed.extend(self._stream_setup.repair(self._shortcut_exists))
+        except Exception as e:
+            decky.logger.warning(
+                "repair: Stream Play cleanup failed: %s",
+                type(e).__name__,
+            )
+
         if fixed:
             decky.logger.info("repair: fixed %s", ", ".join(fixed))
         return {"fixed": fixed}
+
+    def _shortcut_exists(self, appid: int):
+        if not any(True for _path in steam_shortcuts.iter_shortcuts_files(self._user_home)):
+            return None
+        return steam_shortcuts.find_shortcut(appid, self._user_home) is not None
 
     def _hand_back_dolphin_folders(self) -> bool:
         if os.geteuid() != 0:

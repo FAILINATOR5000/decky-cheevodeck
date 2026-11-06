@@ -38,12 +38,14 @@ from services.memories_transfer_service import MemoriesTransferService
 from services.data_transfer_service import DataTransferService
 from services.nearby_transfer_service import NearbyTransferService
 from services.multiplayer_service import MultiplayerService
+from services.stream_setup import StreamSetup
 from services.voice_canceller import VoiceCanceller
 from services.multiplayer_friends_service import MultiplayerFriendsService
 from services.ez_friends_heal_service import EzFriendsHealService
 from multiplayer_friends_store import MultiplayerFriendsStore
 from multiplayer_messages_store import MultiplayerMessagesStore
 from multiplayer_volumes_store import MultiplayerVolumesStore
+from stream_store import StreamStore
 from services.smb_mount_service import SmbMountService
 from services.comments_service import CommentsService
 from services.new_sets_service import NewSetsService
@@ -123,6 +125,7 @@ from mixins.activity import ActivityMixin
 from mixins.milestones import MilestonesMixin
 from mixins.data_transfer import DataTransferMixin
 from mixins.multiplayer import MultiplayerMixin
+from mixins.stream_play import StreamPlayMixin
 
 
 DEFAULT_IPC_SLOW_THRESHOLD_MS = 250
@@ -186,6 +189,7 @@ class Plugin(
     MilestonesMixin,
     DataTransferMixin,
     MultiplayerMixin,
+    StreamPlayMixin,
 ):
     DEFAULT_LANGUAGE = "en"
     RECENT_UNLOCK_LOOKBACK_MINUTES = 1440
@@ -372,6 +376,7 @@ class Plugin(
         self.multiplayer_friends_store = MultiplayerFriendsStore(base_dir=self.runtime_dir)
         self.multiplayer_messages_store = MultiplayerMessagesStore(base_dir=self.runtime_dir)
         self.multiplayer_volumes_store = MultiplayerVolumesStore(base_dir=self.runtime_dir)
+        self.stream_store = StreamStore(base_dir=self.runtime_dir)
         milestones_defs_path = self.plugin_dir / "milestones" / "milestones.json"
         if not milestones_defs_path.exists():
             milestones_defs_path = self.plugin_dir / "defaults" / "milestones" / "milestones.json"
@@ -562,6 +567,12 @@ class Plugin(
         self.notes_store.set_milestone_event(record_milestone)
         self.tracked_sets_monitor_service.set_milestone_event(record_milestone)
         self.voice_canceller = VoiceCanceller(user_home=self.user_home)
+        self.stream_setup = StreamSetup(
+            store=self.stream_store,
+            ssl_context=self._ssl_ctx,
+            user_home=self.user_home,
+            emit=self._emit_from_thread,
+        )
         self.repair_service = RepairService(
             update_checker_service=self.update_checker_service,
             memories_store=self.memories_store,
@@ -572,6 +583,7 @@ class Plugin(
             settings_store=self.settings_store,
             user_home=self.user_home,
             voice_canceller=self.voice_canceller,
+            stream_setup=self.stream_setup,
         )
         self.developer_message_service = DeveloperMessageService(
             settings_store=self.settings_store,
@@ -925,6 +937,15 @@ class Plugin(
             asyncio.run_coroutine_threadsafe(decky.emit(BACK_BUTTON_EVENT, payload), loop)
         except Exception as exc:
             decky.logger.warning("back buttons: event emit failed (%s: %s)", type(exc).__name__, exc)
+
+    def _emit_from_thread(self, event: str, payload: dict) -> None:
+        loop = getattr(self, "_asyncio_loop", None)
+        if loop is None:
+            return
+        try:
+            asyncio.run_coroutine_threadsafe(decky.emit(event, payload), loop)
+        except Exception as exc:
+            decky.logger.warning("%s: event emit failed (%s)", event, type(exc).__name__)
 
     def _emit_freeze_incident(self) -> None:
         loop = getattr(self, "_asyncio_loop", None)
@@ -1963,9 +1984,10 @@ class Plugin(
 
         await self.multiplayer_friends_service.retire()
         left = await asyncio.to_thread(self.multiplayer_service.put_back_game_volumes)
+        removed = await asyncio.to_thread(self.stream_setup.remove)
         await asyncio.to_thread(self._run_factory_reset_locked)
         await asyncio.to_thread(self.multiplayer_service.keep_game_volume_records, left)
-        return {"ok": True}
+        return {"ok": True, "streamShortcut": removed.get("appid", 0) if removed.get("ok") else 0}
 
     async def get_cached_payload(self):
         cached = self.cache_store.load_payload()

@@ -39,6 +39,16 @@ declare const SteamClient: {
     [key: string]: any;
 };
 
+declare const appStore: {
+    GetAppOverviewByAppID(appId: number): object | null;
+    [key: string]: any;
+};
+
+declare const collectionStore: {
+    SetAppsAsHidden(appIds: number[], hidden: boolean): void;
+    [key: string]: any;
+};
+
 declare const SteamUIStore: {
     WindowStore?: {
         GamepadUIMainWindowInstance?: SteamWindowInstance;
