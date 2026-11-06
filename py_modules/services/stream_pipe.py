@@ -19,6 +19,9 @@ V6_HEAD_START = 1.0
 KEEPALIVE_SECONDS = 1.0
 QUIET_SECONDS = 6.0
 REPUNCH_SECONDS = 0.5
+RENEW_FIRST_SECONDS = 10.0
+RENEW_SECONDS = 60.0
+OLD_LINK_SECONDS = 5.0
 BUSY_RETRY_SECONDS = 20.0
 MEET_SECONDS = 15.0
 REPORT_SECONDS = 5.0
@@ -358,6 +361,7 @@ class StreamPipe:
         self._closed = False
         self._started = False
         self._link = None
+        self._link_sock = None
         self._link6 = None
         self._port = 0
         self._port6 = 0
@@ -383,6 +387,8 @@ class StreamPipe:
         self._probe_at = 0.0
         self._relay_refused = False
         self._busy_at = 0.0
+        self._was_direct = False
+        self._renew_at = 0.0
 
         self._streams = {}
         self._lingering = {}
@@ -412,6 +418,7 @@ class StreamPipe:
             link = self._socket(socket.AF_INET)
             link.bind(("0.0.0.0", 0))
             self._port = link.getsockname()[1]
+            self._link_sock = link
             self._link = await self._endpoint(_LinkProtocol(self._received, None), link)
             if self._closed:
                 raise OSError("closed while starting")
@@ -610,6 +617,8 @@ class StreamPipe:
         return self._direct is not None or self._path == "relay"
 
     def _fall_back(self, why):
+        if self._direct is not None:
+            self._renew_at = time.monotonic() + RENEW_FIRST_SECONDS
         self._direct = None
         self._direct_via = None
         if self._relay_refused:
@@ -628,6 +637,7 @@ class StreamPipe:
         self._keepalive_at = now + KEEPALIVE_SECONDS
         self._say("stream pipe (%s seat %s): path direct via %s:%s after %.1f s", self._role, self._seat,
                   addr[0], addr[1], now - self._punch_started)
+        self._was_direct = True
         self._set_path("direct")
         self._kick_streams()
 
@@ -669,6 +679,9 @@ class StreamPipe:
         elif now >= self._probe_at:
             self._probe_at = now + REPUNCH_SECONDS
             self._send_probes(PUNCH_SECONDS)
+            if self._path == "relay" and self._was_direct and now >= self._renew_at:
+                self._renew_at = now + RENEW_SECONDS
+                self._spawn(self._renew_link())
 
     def _send_probes(self, elapsed):
         both_v6 = self._link6 is not None and self._peer_v6 is not None
@@ -681,6 +694,44 @@ class StreamPipe:
         self._out(self._link, _PROBE, self._peer_public)
         if self._peer_lan is not None and self._peer_lan != self._peer_public:
             self._out(self._link, _PROBE, self._peer_lan)
+
+    async def _renew_link(self):
+        sock = self._socket(socket.AF_INET)
+        try:
+            sock.bind(("0.0.0.0", 0))
+            link = await self._endpoint(_LinkProtocol(self._received, None), sock)
+        except OSError as error:
+            self._sockets.remove(sock)
+            sock.close()
+            self._say("stream pipe (%s seat %s): no fresh socket (%s)", self._role, self._seat, error)
+            return
+        if self._closed:
+            return
+        if self._direct is not None:
+            self._retire(link, sock)
+            return
+        old, old_sock = self._link, self._link_sock
+        old.get_protocol()._on_datagram = self._received_relay_only
+        self._link, self._link_sock = link, sock
+        self._port = sock.getsockname()[1]
+        self._hello()
+        self._probe_at = time.monotonic()
+        self._say("stream pipe (%s seat %s): fresh socket on udp %s, punching again", self._role, self._seat,
+                  self._port)
+        await asyncio.sleep(OLD_LINK_SECONDS)
+        self._retire(old, old_sock)
+
+    def _retire(self, link, sock):
+        link.abort()
+        if link in self._transports:
+            self._transports.remove(link)
+        if sock in self._sockets:
+            self._sockets.remove(sock)
+        sock.close()
+
+    def _received_relay_only(self, data, addr):
+        if addr == self._meet:
+            self._received(data, addr)
 
     def _drop_v6(self):
         if self._link6 is None:
