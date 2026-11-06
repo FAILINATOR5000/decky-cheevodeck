@@ -22,6 +22,8 @@ REPUNCH_SECONDS = 0.5
 RENEW_FIRST_SECONDS = 10.0
 RENEW_SECONDS = 60.0
 OLD_LINK_SECONDS = 5.0
+STABLE_SECONDS = 120.0
+FLAKY_LIMIT = 3
 BUSY_RETRY_SECONDS = 20.0
 MEET_SECONDS = 15.0
 REPORT_SECONDS = 5.0
@@ -389,6 +391,9 @@ class StreamPipe:
         self._busy_at = 0.0
         self._was_direct = False
         self._renew_at = 0.0
+        self._direct_since = 0.0
+        self._flaky = 0
+        self._no_direct = False
 
         self._streams = {}
         self._lingering = {}
@@ -586,6 +591,8 @@ class StreamPipe:
         if self._path == "busy":
             return
         now = time.monotonic()
+        if self._no_direct:
+            return
         if not self._allow_direct:
             self._fall_back("relay forced")
             return
@@ -638,6 +645,7 @@ class StreamPipe:
         self._say("stream pipe (%s seat %s): path direct via %s:%s after %.1f s", self._role, self._seat,
                   addr[0], addr[1], now - self._punch_started)
         self._was_direct = True
+        self._direct_since = now
         self._set_path("direct")
         self._kick_streams()
 
@@ -658,13 +666,20 @@ class StreamPipe:
         if self._path == "busy" and now - self._busy_at > BUSY_RETRY_SECONDS:
             self._relay_refused = False
             self._fall_back("asking the relay again")
-        if self._peer_public is None or not self._allow_direct:
+        if self._peer_public is None or not self._allow_direct or self._no_direct:
             return
         if self._direct is not None:
             if now - self._heard_at > QUIET_SECONDS:
                 self._probe_at = now
                 self._punch_started = now
+                self._flaky = self._flaky + 1 if now - self._direct_since < STABLE_SECONDS else 0
+                if self._flaky >= FLAKY_LIMIT:
+                    self._fall_back("direct path keeps dropping, staying on the relay")
+                    self._no_direct = True
+                    return
                 self._fall_back(f"direct path quiet for {QUIET_SECONDS:.0f} s, punching again")
+                if self._flaky > 1:
+                    self._renew_at = now + RENEW_SECONDS * (self._flaky - 1)
             elif now >= self._keepalive_at:
                 self._keepalive_at = now + KEEPALIVE_SECONDS
                 self.counters["probes_out"] += 1
@@ -780,7 +795,7 @@ class StreamPipe:
             return
         if self._blackout_until and time.monotonic() < self._blackout_until:
             return
-        if not self._allow_direct:
+        if not self._allow_direct or self._no_direct:
             return
         kind = data[0]
         if addr == self._direct:
