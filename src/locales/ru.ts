@@ -3430,6 +3430,7 @@ const RU: LocaleTable = {
     "Couldn't connect": "Не удалось подключиться",
     "Sunshine is already running on this device. Close it before hosting a Stream Play room.": "Sunshine уже запущен на этом устройстве. Закройте его, прежде чем создавать комнату игры по трансляции.",
     "Streaming needs a CheevoDeck update.": "Для стриминга нужно обновить CheevoDeck.",
+    "Streaming didn't start on this device. Try again. If it keeps happening, restart your device.": "Стриминг не запустился на этом устройстве. Попробуйте ещё раз. Если это повторяется, перезапустите устройство.",
     "Checking your connection…": "Проверка соединения…",
     "The host's internet connection is too slow to handle another connection.": "Интернет-соединение хоста слишком медленное для ещё одного подключения.",
     "The streaming server is busy right now. Try again in a few minutes.": "Сервер трансляции сейчас занят. Попробуйте снова через несколько минут.",

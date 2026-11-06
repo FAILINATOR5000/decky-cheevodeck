@@ -93,6 +93,7 @@ const PROBLEM_TEXT: Record<string, string> = {
     stream_one_console: "Stream Play isn't available for this system: its multiplayer needs one console per player.",
     sunshine_running: "Sunshine is already running on this device. Close it before hosting a Stream Play room.",
     stream_needs_update: "Streaming needs a CheevoDeck update.",
+    sunshine_failed: "Streaming didn't start on this device. Try again. If it keeps happening, restart your device.",
     host_too_slow: "The host's internet connection is too slow to handle another connection.",
     stream_busy: "The streaming server is busy right now. Try again in a few minutes.",
     stream_unreachable: "Couldn't connect to the host's stream. Try Join & Play again."
