@@ -28,6 +28,8 @@ import { multiplayerRoomMarker, pressMultiplayerReady, subscribeMultiplayerRoom 
 const SESSION_EVENT = "multiplayer_session";
 const OPTIONS_WAIT_MS = 5000;
 const READ_WAIT_MS = 3000;
+const NAME_WAIT_MS = 3000;
+const NAME_POLL_MS = 100;
 const LAUNCH_SOURCE = 100;
 const FOLLOW_AFTER_MS = 16000;
 const PLAY_START_WAIT_MS = 60000;
@@ -188,15 +190,49 @@ function writeLaunchOptions(appid: number, options: string): Promise<boolean> {
     });
 }
 
+function shortcutName(appid: number): string | null {
+    return appStore.GetAppOverviewByAppID(appid)?.display_name ?? null;
+}
+
+async function writeShortcutName(appid: number, name: string): Promise<boolean> {
+    if (shortcutName(appid) === name) {
+        return true;
+    }
+    SteamClient.Apps.SetShortcutName(appid, name);
+    for (let waited = 0; waited < NAME_WAIT_MS; waited += NAME_POLL_MS) {
+        await new Promise((resolve) => window.setTimeout(resolve, NAME_POLL_MS));
+        if (shortcutName(appid) === name) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function letGo(record: MultiplayerRestoreRecord) {
+    if (played?.session === record.session) {
+        forgetPlayed();
+    }
+    if (launched?.session === record.session) {
+        launched = null;
+    }
+}
+
+async function showTitle(record: MultiplayerRestoreRecord) {
+    if (record.renamed && !(await writeShortcutName(record.appid, record.renamed))) {
+        logError("multiplayer: Steam didn't confirm the game's title on the shortcut", record.appid);
+    }
+}
+
 async function restore(record: MultiplayerRestoreRecord) {
     if (!(await writeLaunchOptions(record.appid, record.original))) {
         logError("multiplayer: Steam didn't confirm the restored launch options", record.appid);
-        if (played?.session === record.session) {
-            forgetPlayed();
-        }
-        if (launched?.session === record.session) {
-            launched = null;
-        }
+        letGo(record);
+        return;
+    }
+    if (record.renamed && record.name && shortcutName(record.appid) === record.renamed
+        && !(await writeShortcutName(record.appid, record.name))) {
+        logError("multiplayer: Steam didn't confirm the shortcut's name back", record.appid);
+        letGo(record);
         return;
     }
     try {
@@ -248,11 +284,12 @@ async function launchOnce(appid: number, hardcore: boolean): Promise<Multiplayer
     if (original === null) {
         return { ok: false, error: "shortcut_unread" };
     }
-    const prepared = await multiplayerPrepareLaunch(original, hardcore, screenSize());
+    const name = shortcutName(appid) ?? "";
+    const prepared = await multiplayerPrepareLaunch(original, hardcore, screenSize(), name);
     if (!prepared.ok || prepared.options === undefined || !prepared.session) {
         return { ok: false, error: prepared.error ?? "launch_failed", gate: prepared.gate, detail: prepared.detail };
     }
-    const record = { appid, original, session: prepared.session };
+    const record = { appid, original, session: prepared.session, name: prepared.name ?? name, renamed: prepared.rename ?? "" };
     if (!(await writeLaunchOptions(appid, prepared.options))) {
         await restore(record);
         return { ok: false, error: "shortcut_unset" };
@@ -262,6 +299,7 @@ async function launchOnce(appid: number, hardcore: boolean): Promise<Multiplayer
         await restore(record);
         return { ok: false, error: "shortcut_gone" };
     }
+    await showTitle(record);
     launched = record;
     publish({ appid, running: false });
     const started = await multiplayerLaunchStarted();
@@ -303,11 +341,14 @@ async function playThroughEmulator(gameId: number, appid: number): Promise<Multi
     if (original === null) {
         return { ok: false, error: "shortcut_unread" };
     }
-    const prepared = await multiplayerPreparePlay(gameId, original);
+    const name = shortcutName(appid) ?? "";
+    const prepared = await multiplayerPreparePlay(gameId, original, name);
     if (!prepared.ok || !prepared.options || !prepared.session) {
         return { ok: false, error: prepared.error ?? "launch_failed", gate: prepared.gate, detail: prepared.detail };
     }
-    const record = { appid, original, session: prepared.session, play: true };
+    const record = {
+        appid, original, session: prepared.session, play: true, name: prepared.name ?? name, renamed: prepared.rename ?? ""
+    };
     if (prepared.appid !== appid) {
         await multiplayerClearRestore(prepared.session).catch((e) => logError("multiplayerClearRestore", e));
         return { ok: false, error: "launch_failed" };
@@ -321,6 +362,7 @@ async function playThroughEmulator(gameId: number, appid: number): Promise<Multi
         await restore(record);
         return { ok: false, error: "shortcut_gone" };
     }
+    await showTitle(record);
     played = record;
     playedRunning = false;
     publishRunning({ playedGameId: gameId });

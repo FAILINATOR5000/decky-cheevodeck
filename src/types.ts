@@ -3157,7 +3157,15 @@ export type MultiplayerGame = {
     canStream: boolean;
 };
 
-export type MultiplayerRestoreRecord = { appid: number; original: string; session: string; play?: boolean; gameId?: number };
+export type MultiplayerRestoreRecord = {
+    appid: number;
+    original: string;
+    session: string;
+    play?: boolean;
+    gameId?: number;
+    name?: string;
+    renamed?: string;
+};
 
 export type MultiplayerSource = "achievements" | "utils" | "gameOverview";
 

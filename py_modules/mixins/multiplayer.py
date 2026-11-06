@@ -89,9 +89,11 @@ class MultiplayerMixin(PluginContext):
     async def stream_pad_swap(self):
         return await asyncio.to_thread(self.multiplayer_service.stream_pad_swap)
 
-    async def multiplayer_prepare_launch(self, original: str = "", hardcore: bool = False, screen: str = ""):
+    async def multiplayer_prepare_launch(self, original: str = "", hardcore: bool = False, screen: str = "",
+                                         name: str = ""):
         return await asyncio.to_thread(
-            self.multiplayer_service.prepare_launch, str(original or ""), bool(hardcore), str(screen or "")[:16]
+            self.multiplayer_service.prepare_launch, str(original or ""), bool(hardcore), str(screen or "")[:16],
+            str(name or "")[:256],
         )
 
     async def multiplayer_launch_started(self):
@@ -106,9 +108,9 @@ class MultiplayerMixin(PluginContext):
     async def multiplayer_play_info(self, game_id: int = 0):
         return await asyncio.to_thread(self.multiplayer_service.play_info, to_int(game_id, 0))
 
-    async def multiplayer_prepare_play(self, game_id: int = 0, original: str = ""):
+    async def multiplayer_prepare_play(self, game_id: int = 0, original: str = "", name: str = ""):
         return await asyncio.to_thread(
-            self.multiplayer_service.prepare_play, to_int(game_id, 0), str(original or "")
+            self.multiplayer_service.prepare_play, to_int(game_id, 0), str(original or ""), str(name or "")[:256]
         )
 
     async def multiplayer_open_in_desktop(self, tool: str = ""):

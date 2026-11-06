@@ -1390,7 +1390,7 @@ class MultiplayerService:
         decky.logger.info("play: switching to Desktop Mode to open %s", tool)
         return {"ok": True}
 
-    def prepare_play(self, game_id: int, original: str) -> dict:
+    def prepare_play(self, game_id: int, original: str, name: str = "") -> dict:
         current = self._session
         if current is not None and not current["exited"]:
             return {"ok": False, "error": ERROR_BUSY}
@@ -1402,11 +1402,13 @@ class MultiplayerService:
         if not route["fallback"]:
             return {"ok": False, "error": ERROR_NOT_READY}
         args = _fallback_args(route)
+        game = (self._library() or {}).get(game_id)
+        rename = _status_title(game["title"] if game is not None else "", name)
         sid = secrets.token_hex(8)
         try:
             ensure_dir(self._session_dir)
             chown_to_data_owner(self._session_dir)
-            self._write_restore(route["appid"], original, sid, play_game=game_id)
+            self._write_restore(route["appid"], original, sid, play_game=game_id, name=name, renamed=rename)
         except OSError as e:
             decky.logger.warning("play: couldn't write the restore record (%s)", type(e).__name__)
             return {"ok": False, "error": ERROR_WRITE_FAILED}
@@ -1417,6 +1419,8 @@ class MultiplayerService:
             "options": session.compose_launch_options(original, args),
             "original": original,
             "session": sid,
+            "rename": rename,
+            "name": name,
         }
 
     def _fallback_kinds(self, mode: str, system_id: int) -> tuple:
@@ -3799,7 +3803,7 @@ class MultiplayerService:
                 return False
         return True
 
-    def prepare_launch(self, original: str, hardcore: bool, screen: str = "") -> dict:
+    def prepare_launch(self, original: str, hardcore: bool, screen: str = "", name: str = "") -> dict:
         if not self._game_mode():
             return {"ok": False, "error": ERROR_NOT_GAME_MODE}
         stale = self._session
@@ -3859,8 +3863,10 @@ class MultiplayerService:
         found, _warnings = self._gates(mode, local, peer, players)
         if found:
             return {"ok": False, "error": ERROR_GATE, "gate": found[0], "detail": found[1]}
+        if held is not None and held["renamed"]:
+            name = held["name"]
         if mode == "stream":
-            return self._prepare_stream(role, local, original, held, screen)
+            return self._prepare_stream(role, local, original, held, screen, name)
         where = room["where"] if room is not None else joined["row"]["where"]
         if local["emulator"] == "rmg" and room is not None and where != "online" and not self._start_rmg_server(room):
             return {"ok": False, "error": ERROR_RMG_SERVER}
@@ -3931,7 +3937,8 @@ class MultiplayerService:
                                            rom=rom if local["fallback"] else None)
             if not self._readable_by_owner(files):
                 raise OSError("session files are not the home owner's")
-            self._write_restore(local["appid"], original, sid)
+            rename = _status_title(local["title"], name) if local["fallback"] else ""
+            self._write_restore(local["appid"], original, sid, name=name, renamed=rename)
         except OSError as e:
             decky.logger.warning("multiplayer: couldn't write the session files (%s)", type(e).__name__)
             if relayed:
@@ -3960,9 +3967,11 @@ class MultiplayerService:
             "options": options,
             "original": original,
             "session": sid,
+            "rename": rename,
+            "name": name,
         }
 
-    def _prepare_moonlight(self, local: dict, original: str, screen: str) -> dict:
+    def _prepare_moonlight(self, local: dict, original: str, screen: str, name: str) -> dict:
         joined = self._joined
         stream = joined.get("stream") if joined is not None else None
         if stream is not None and stream.busy:
@@ -3979,10 +3988,11 @@ class MultiplayerService:
             self._slow_connection(), bool(joined["row"].get("watch")),
         )
         sid = secrets.token_hex(8)
+        rename = _status_title(local["title"], name)
         try:
             ensure_dir(self._session_dir)
             chown_to_data_owner(self._session_dir)
-            self._write_restore(local["appid"], original, sid)
+            self._write_restore(local["appid"], original, sid, name=name, renamed=rename)
         except OSError as e:
             decky.logger.warning("stream: couldn't write the restore record (%s)", type(e).__name__)
             return {"ok": False, "error": ERROR_WRITE_FAILED}
@@ -3999,15 +4009,16 @@ class MultiplayerService:
             "error": "",
             "watch": None,
         }
-        return {"ok": True, "appid": local["appid"], "options": options, "original": original, "session": sid}
+        return {"ok": True, "appid": local["appid"], "options": options, "original": original, "session": sid,
+                "rename": rename, "name": name}
 
-    def _prepare_stream(self, role: str, local: dict, original: str, held, screen: str = "") -> dict:
+    def _prepare_stream(self, role: str, local: dict, original: str, held, screen: str, name: str) -> dict:
         if held is not None:
             if held["appid"] != local["appid"]:
                 return {"ok": False, "error": ERROR_BUSY}
             original = held["original"]
         if role == "guest":
-            return self._prepare_moonlight(local, original, screen)
+            return self._prepare_moonlight(local, original, screen, name)
         route = local["route"]
         sid = secrets.token_hex(8)
         parts = []
@@ -4016,7 +4027,8 @@ class MultiplayerService:
             chown_to_data_owner(self._session_dir)
             if route["fallback"]:
                 parts.append(_fallback_args(route))
-            self._write_restore(local["appid"], original, sid)
+            rename = _status_title(local["title"], name) if route["fallback"] else ""
+            self._write_restore(local["appid"], original, sid, name=name, renamed=rename)
         except OSError as e:
             decky.logger.warning("stream: couldn't write the session files (%s)", type(e).__name__)
             return {"ok": False, "error": ERROR_WRITE_FAILED}
@@ -4040,6 +4052,8 @@ class MultiplayerService:
             "options": session.compose_launch_options(original, " ".join(parts)) if parts else original,
             "original": original,
             "session": sid,
+            "rename": rename,
+            "name": name,
         }
 
     def _start_rmg_server(self, room: dict) -> bool:
@@ -4199,12 +4213,16 @@ class MultiplayerService:
                 except OSError:
                     pass
 
-    def _write_restore(self, appid: int, original: str, sid: str, play_game: int = 0) -> None:
+    def _write_restore(self, appid: int, original: str, sid: str, play_game: int = 0, name: str = "",
+                       renamed: str = "") -> None:
         record = {"schemaVersion": RESTORE_SCHEMA, "appid": appid, "original": original, "session": sid,
                   "at": int(time.time())}
         if play_game:
             record["play"] = True
             record["gameId"] = play_game
+        if renamed:
+            record["name"] = name
+            record["renamed"] = renamed
         self._write(self._session_dir / RESTORE_RECORD, json.dumps(record))
 
     def restore_record(self) -> dict:
@@ -4217,9 +4235,13 @@ class MultiplayerService:
         ):
             return {"ok": True, "record": None}
         game_id = raw.get("gameId")
+        name, renamed = raw.get("name"), raw.get("renamed")
+        if not (isinstance(name, str) and isinstance(renamed, str) and name):
+            name = renamed = ""
         return {"ok": True, "record": {"appid": raw["appid"], "original": raw["original"], "session": raw["session"],
                                        "play": raw.get("play") is True,
-                                       "gameId": game_id if type(game_id) is int else 0}}
+                                       "gameId": game_id if type(game_id) is int else 0,
+                                       "name": name, "renamed": renamed}}
 
     def clear_restore(self, sid: str) -> dict:
         path = self._session_dir / RESTORE_RECORD
@@ -4775,6 +4797,11 @@ def _virtual_pads(home: Path) -> list:
             name, _sep, value = line.partition("=")
             pads[-1][name.strip()] = value.strip().lower()
     return [(pad.get("VID", ""), pad.get("PID", "")) for pad in pads]
+
+
+def _status_title(title: str, name: str) -> str:
+    title = (title or "").strip()
+    return title if title and name and title != name else ""
 
 
 def _fallback_args(route: dict) -> str:

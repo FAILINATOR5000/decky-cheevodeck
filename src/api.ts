@@ -937,16 +937,16 @@ export const multiplayerRoomVolumesSet = callable<[number, number, number, strin
 );
 export const streamPadSwap = callable<[], { ok: boolean; swap: [number, number] | null; done: boolean }>("stream_pad_swap");
 export const multiplayerPrepareLaunch = callable<
-    [string, boolean, string],
-    MultiplayerReply & { appid?: number; options?: string; original?: string; session?: string }
+    [string, boolean, string, string],
+    MultiplayerReply & { appid?: number; options?: string; original?: string; session?: string; rename?: string; name?: string }
 >("multiplayer_prepare_launch");
 export const multiplayerLaunchStarted = callable<[], { ok: boolean; error?: string }>("multiplayer_launch_started");
 export const multiplayerLaunchEnded = callable<[], { ok: boolean }>("multiplayer_launch_ended");
 export const multiplayerPlayInfo = callable<[number], PlayInfo>("multiplayer_play_info");
 export const multiplayerOpenInDesktop = callable<[string], { ok: boolean; error?: string }>("multiplayer_open_in_desktop");
 export const multiplayerPreparePlay = callable<
-    [number, string],
-    MultiplayerReply & { appid?: number; options?: string; original?: string; session?: string }
+    [number, string, string],
+    MultiplayerReply & { appid?: number; options?: string; original?: string; session?: string; rename?: string; name?: string }
 >("multiplayer_prepare_play");
 export const multiplayerRestoreRecord = callable<[], { ok: boolean; record: MultiplayerRestoreRecord | null }>("multiplayer_restore_record");
 export const multiplayerClearRestore = callable<[string], { ok: boolean; error?: string }>("multiplayer_clear_restore");
