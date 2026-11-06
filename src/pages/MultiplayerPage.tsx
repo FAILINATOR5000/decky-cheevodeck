@@ -9,7 +9,7 @@ import { FocusTarget } from "../components/ui/FocusTarget";
 import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { SubTabButton } from "../components/ui/SubTabButton";
 import { ModeChoice } from "../components/multiplayer/ModeChoice";
-import { showMultiplayerProblem, type ProblemItem } from "../components/multiplayer/ProblemModal";
+import { showMultiplayerProblem } from "../components/multiplayer/ProblemModal";
 import { openStreamSetup } from "../components/multiplayer/StreamSetupModal";
 import { TextViewerModal } from "../components/ui/TextViewerModal";
 import { ToggleRow } from "../components/ui/ToggleRow";
@@ -60,7 +60,15 @@ import {
 } from "../utils/gameVolume";
 import { changeOutputVolume, useOutputVolume } from "../utils/outputVolume";
 import { screenMaxRefresh } from "../utils/screenRefresh";
-import { changeSlowConnection, streamScreenWarningOff, updateStreaming, useSlowConnection, useStreamSetup } from "../utils/streamPlay";
+import {
+    changeSlowConnection,
+    setupRunning,
+    streamScreenWarningOff,
+    updateStreaming,
+    useSlowConnection,
+    useStreamSetup
+} from "../utils/streamPlay";
+import { ProgressBar } from "../components/ui/ProgressBar";
 import { getCurrentControllerGlyphStyle } from "../utils/controllerGlyphs";
 import { ButtonHints, type ButtonHint } from "../components/ui/ButtonHints";
 import { openExternalUrl, raLookupSearchUrl } from "../utils/navigation";
@@ -358,14 +366,16 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const missedLine = mp.missed ?? (endedCode && !mp.endedLineCleared ? { code: endedCode } : null);
 
     const roomWarnings = (shownCheck?.warnings ?? []).map((warning) => warningText(language, warning.code, warning.detail));
-    const settingUp = mp.mode === "stream" && stream.lastJob === "setup" ? stream.stage : "";
+    const installing = mp.mode === "stream" && setupRunning(stream);
+    const settingUp = mp.mode === "stream" && (installing || stream.lastJob === "setup") ? stream.stage : "";
     const setupLine = SETUP_LINES[settingUp] ?? null;
     const updateLine = stream.lastJob === "update" ? SETUP_LINES[stream.stage] ?? null : null;
-    const setupPending = mp.mode === "stream" && shownProblem?.code === "stream_not_set_up" && stream.job !== "setup";
+    const needsSetup = mp.mode === "stream" && shownProblem?.code === "stream_not_set_up";
+    const setupPending = needsSetup && !installing;
     const problemShown = shownProblem && !(shownProblem.code === "stream_not_set_up" && !setupPending) ? shownProblem : null;
     const problemLines = [
         ...(missedLine ? [{ text: problemText(language, missedLine.code, missedLine.detail), color: errorRed }] : []),
-        ...(setupLine ? [{ text: t(language, setupLine.key), color: setupLine.color }] : []),
+        ...(setupLine && !installing ? [{ text: t(language, setupLine.key), color: setupLine.color }] : []),
         ...(hosted?.streamChecking ? [{ text: t(language, "Checking your connection…"), color: undefined }] : []),
         ...(joined?.streamBusy ? [{ text: problemText(language, "stream_busy"), color: warnAmber }] : []),
         ...(problemShown ? [{ text: problemText(language, problemShown.code, { size: stream.size || "?", ...problemShown.detail }),
@@ -1052,11 +1062,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         </>
     );
 
-    const setupItems: ProblemItem[] = setupPending
-        ? [{ text: problemText(language, "stream_not_set_up", { size: stream.size || "?" }),
-            onPress: () => openStreamSetup(language, stream.size || "?") }]
-        : [];
-    const noteCount = setupItems.length + warnings.length + tips.length;
+    const noteCount = warnings.length + tips.length;
     const notesRow = (
         <PanelSectionRow>
             <FocusableItem
@@ -1065,7 +1071,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 focusKey="multiplayer:notes"
                 focusFallback={[joined ? "multiplayer:leave" : "multiplayer:host", `multiplayer:mode:${mp.mode}`, "multiplayer:back"]}
                 onClick={() => showMultiplayerProblem(language, "Before You Play",
-                    noteCount > 0 ? [...setupItems, ...warnings, ...tips] : t(language, "Nothing to note for this game."))}
+                    noteCount > 0 ? [...warnings, ...tips] : t(language, "Nothing to note for this game."))}
             >
                 <div style={{ width: "100%", textAlign: "center" }}>
                     {t(language, "Before You Play")}
@@ -1443,6 +1449,36 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                                         </div>
                                     </PanelSectionRow>
                                 ))}
+                                {needsSetup && (
+                                    <PanelSectionRow>
+                                        <FocusableItem
+                                            bottomSeparator="none"
+                                            outerStyle={buttonStyle}
+                                            focusKey="multiplayer:stream:setup"
+                                            focusFallback={["multiplayer:mode:stream", "multiplayer:notes", "multiplayer:back"]}
+                                            onClick={() => {
+                                                if (!installing) {
+                                                    openStreamSetup(language, stream.size || "?");
+                                                }
+                                            }}
+                                        >
+                                            <div style={{ width: "100%", textAlign: "center", opacity: installing ? 0.45 : 1 }}>
+                                                {t(language, "Set Up Streaming")}
+                                            </div>
+                                        </FocusableItem>
+                                    </PanelSectionRow>
+                                )}
+                                {needsSetup && installing && (
+                                    <PanelSectionRow>
+                                        <div style={{ width: "100%", paddingTop: "4px" }}>
+                                            <ProgressBar fraction={stream.progress >= 0 ? stream.progress / 100 : null} />
+                                            <div style={{ ...bodyTextStyle(), marginTop: "6px" }}>
+                                                {setupLine ? t(language, setupLine.key) : ""}
+                                                {setupLine && stream.progress >= 0 ? ` ${stream.progress}%` : ""}
+                                            </div>
+                                        </div>
+                                    </PanelSectionRow>
+                                )}
 
                                 <Focusable key={scopeKey} flow-children="column" resetNavOnEntry>
                                     {notesRow}

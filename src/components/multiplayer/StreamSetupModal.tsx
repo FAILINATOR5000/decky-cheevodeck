@@ -31,7 +31,9 @@ function StreamSetupModal(props: { language: LanguageCode; size: string; close: 
                 {t(language, "Set Up Streaming")}
             </div>
             <div style={{ fontSize: `${modalSize(16)}px`, lineHeight: 1.4 }}>
-                {t(language, "Stream Play uses two free programs: Sunshine shares your game when you host, and Moonlight shows a host's game when you join. CheevoDeck will download and set them up for you (about {{size}}). You only need to do this once.", { size })}
+                {size && size !== "?"
+                    ? t(language, "Stream Play uses two free programs: Sunshine shares your game when you host, and Moonlight shows a host's game when you join. CheevoDeck will download and set them up for you (about {{size}}). You only need to do this once.", { size })
+                    : t(language, "Stream Play uses two free programs: Sunshine shares your game when you host, and Moonlight shows a host's game when you join. CheevoDeck will download and set them up for you. You only need to do this once.")}
             </div>
             <Focusable style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "16px" }} flow-children="row">
                 <div data-focus-key="multiplayer:stream:setup">

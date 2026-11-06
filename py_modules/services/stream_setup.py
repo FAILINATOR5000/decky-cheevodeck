@@ -61,6 +61,9 @@ ERROR_HOSTING = "hosting"
 ERROR_FAILED = "failed"
 
 _SIZE = re.compile(r"Download Size:\s*([\d.]+)\s*([kKMG]?B)")
+_INSTALLED = re.compile(r"Installed Size:\s*([\d.]+)\s*([kKMG]?B)")
+PROGRESS_SECONDS = 0.5
+WATCH_SECONDS = 1.0
 _VERSION = re.compile(r"v?(\d+(?:\.\d+)+)")
 
 
@@ -68,8 +71,8 @@ class SetupFailed(Exception):
     pass
 
 
-def _size_bytes(text: str) -> int:
-    match = _SIZE.search(text or "")
+def _size_bytes(text: str, pattern=_SIZE) -> int:
+    match = pattern.search(text or "")
     if match is None:
         return 0
     scale = {"B": 1, "kB": 1000, "KB": 1000, "MB": 1000 ** 2, "GB": 1000 ** 3}.get(match.group(2), 1)
@@ -101,6 +104,8 @@ class StreamSetup:
         self._busy = ""
         self._stage = ""
         self._error = ""
+        self._progress = -1
+        self._progress_at = 0.0
         self._size_text = ""
         self._size_for = None
         self._release = None
@@ -195,6 +200,7 @@ class StreamSetup:
             "busy": self._busy,
             "stage": self._stage,
             "error": self._error,
+            "progress": self._progress,
         }
 
     def size(self) -> dict:
@@ -261,6 +267,7 @@ class StreamSetup:
         request = urllib.request.Request(release["url"], headers={"User-Agent": build_user_agent()})
         digest = hashlib.sha256()
         got = 0
+        total = release.get("size") or 0
         try:
             with urllib.request.urlopen(request, timeout=DOWNLOAD_SECONDS, context=self._ssl_context) as response, \
                     open(target, "wb") as out:
@@ -273,6 +280,8 @@ class StreamSetup:
                         raise SetupFailed("download larger than expected")
                     digest.update(chunk)
                     out.write(chunk)
+                    if total:
+                        self._advance(got * 100 // total)
         except (urllib.error.URLError, OSError) as e:
             raise SetupFailed(f"download failed ({type(e).__name__})") from e
         if digest.hexdigest() != release["sha256"]:
@@ -319,23 +328,69 @@ class StreamSetup:
         if self.moonlight_installed():
             return False
         self._user_flathub()
-        code, _out, err = self._flatpak(["install", "--user", "--noninteractive", "-y", MOONLIGHT_REMOTE, MOONLIGHT_APP],
-                                        timeout=FLATPAK_INSTALL_SECONDS)
+        expected = self._moonlight_install_bytes()
+        done = threading.Event()
+        watcher = threading.Thread(target=self._watch_install, args=(expected, done), daemon=True)
+        watcher.start()
+        try:
+            code, _out, err = self._flatpak(["install", "--user", "--noninteractive", "-y", MOONLIGHT_REMOTE,
+                                             MOONLIGHT_APP], timeout=FLATPAK_INSTALL_SECONDS)
+        finally:
+            done.set()
+            watcher.join(WATCH_SECONDS * 2)
         self._forget_installed()
         if code != 0 or not self.moonlight_installed():
             raise SetupFailed(f"Moonlight install failed ({code}: {err.strip()[-200:]})")
         return True
 
-    def _say(self, stage: str) -> None:
+    def _moonlight_install_bytes(self) -> int:
+        _code, out, _err = self._flatpak(["remote-info", "--user", MOONLIGHT_REMOTE, MOONLIGHT_APP])
+        total = _size_bytes(out, _INSTALLED)
+        runtime = re.search(r"Runtime:\s*(\S+)", out)
+        if runtime:
+            code, _out, _err = self._flatpak(["info", runtime.group(1).replace("/x86_64/", "//").replace("/aarch64/", "//")])
+            if code != 0:
+                _code, out, _err = self._flatpak(["remote-info", "--user", MOONLIGHT_REMOTE, runtime.group(1)])
+                total += _size_bytes(out, _INSTALLED)
+        return total
+
+    def _watch_install(self, expected: int, done: threading.Event) -> None:
+        root = self._user_home / ".local" / "share"
+        try:
+            start = os.statvfs(root)
+        except OSError:
+            return
+        while not done.wait(WATCH_SECONDS):
+            if expected <= 0:
+                continue
+            try:
+                now = os.statvfs(root)
+            except OSError:
+                return
+            used = (start.f_bavail - now.f_bavail) * now.f_frsize
+            self._advance(min(95, used * 100 // expected))
+
+    def moonlight_present(self) -> bool:
+        return (self._user_home / ".local" / "share" / "flatpak" / "app" / MOONLIGHT_APP / "current" / "active").exists()
+
+    def _say(self, stage: str, progress: int = -1) -> None:
         self._stage = stage
+        self._progress = progress
+        self._progress_at = time.monotonic()
         if self._emit is not None:
-            self._emit(SETUP_EVENT, {"stage": stage, "job": self._busy, "error": self._error})
+            self._emit(SETUP_EVENT, {"stage": stage, "job": self._busy, "error": self._error, "progress": progress})
+
+    def _advance(self, percent: int) -> None:
+        percent = max(0, min(99, percent))
+        if percent == self._progress or time.monotonic() - self._progress_at < PROGRESS_SECONDS:
+            return
+        self._say(self._stage, percent)
 
     def _claim(self, job: str):
         with self._lock:
             if self._busy:
                 return ERROR_BUSY
-            if (self._hosting if job == "update" else self._in_room)():
+            if job != "setup" and (self._hosting if job == "update" else self._in_room)():
                 return ERROR_HOSTING
             self._busy = job
             self._error = ""

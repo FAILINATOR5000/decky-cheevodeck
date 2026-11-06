@@ -916,6 +916,7 @@ export type StreamStatus = {
     busy: string;
     stage: string;
     error: string;
+    progress: number;
 };
 export const streamStatus = callable<[], StreamStatus>("stream_status");
 export const streamSize = callable<[], { ok: boolean; size: string }>("stream_size");

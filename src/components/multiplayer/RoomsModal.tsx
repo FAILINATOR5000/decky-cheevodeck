@@ -457,8 +457,16 @@ function RoomsModal(props: RoomsModalProps) {
                                                     <div style={{ color: row.verdict.can ? achievementGreen : warnAmber }}>
                                                         {row.verdict.can
                                                             ? `✔ ${t(language, "Game compatible")}`
-                                                            : `✖ ${t(language, "Game not compatible")}`}
-                                                        {!row.verdict.can && <div>{describe(row.verdict.reason, row.verdict.detail)}</div>}
+                                                            : row.verdict.reason === "stream_not_set_up"
+                                                                ? `✖ ${t(language, "Streaming isn't set up")}`
+                                                                : `✖ ${t(language, "Game not compatible")}`}
+                                                        {!row.verdict.can && (
+                                                            <div>
+                                                                {row.verdict.reason === "stream_not_set_up"
+                                                                    ? t(language, "Join the room, then press Set Up Streaming.")
+                                                                    : describe(row.verdict.reason, row.verdict.detail)}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>

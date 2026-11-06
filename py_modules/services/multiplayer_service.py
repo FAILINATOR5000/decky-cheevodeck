@@ -1647,6 +1647,9 @@ class MultiplayerService:
         }
 
     def _joined_check(self, joined: dict) -> dict:
+        if joined["reason"] == "stream_not_set_up":
+            local, reason, detail = self._decide(joined["row"], joined["own"], joined["core"])
+            joined.update(local=local, can=local is not None, reason=reason, detail=detail)
         local = joined["local"]
         warnings = []
         if local is not None:
@@ -3446,7 +3449,8 @@ class MultiplayerService:
         joined["status"] = status
         stream = joined.get("stream")
         if stream is not None:
-            stream.take(status["stream"], joined["key"])
+            if self._stream_setup is None or self._stream_setup.moonlight_present():
+                stream.take(status["stream"], joined["key"])
             if joined["launched"] and (status["state"] == "lobby" or status["round"] != joined["launchedRound"]):
                 if joined["cutRound"] != joined["launchedRound"]:
                     joined["cutRound"] = joined["launchedRound"]

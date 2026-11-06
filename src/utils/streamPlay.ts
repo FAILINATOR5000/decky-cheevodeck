@@ -30,9 +30,14 @@ type StreamState = {
     stage: StreamStage;
     job: string;
     lastJob: string;
+    progress: number;
 };
 
-let state: StreamState = { status: null, size: "", stage: "", job: "", lastJob: "" };
+let state: StreamState = { status: null, size: "", stage: "", job: "", lastJob: "", progress: -1 };
+const STAGES: StreamStage[] = ["sunshine", "moonlight", "finishing", "done", "failed"];
+const STATUS_POLL_MS = 1500;
+const JOB_LOST_MS = 15000;
+let jobIdleSince = 0;
 const listeners = new Set<() => void>();
 let slowConnection = false;
 let screenWarningOff = false;
@@ -108,11 +113,15 @@ function current(): StreamState {
     return state;
 }
 
-function onSetupEvent(event: { stage?: string; job?: string }) {
+function onSetupEvent(event: { stage?: string; job?: string; progress?: number }) {
     const stage = event?.stage;
     if (stage === "sunshine" || stage === "moonlight" || stage === "finishing" || stage === "done" || stage === "failed") {
-        publish({ stage });
+        publish({ stage, progress: typeof event.progress === "number" ? event.progress : -1 });
     }
+}
+
+export function setupRunning(snapshot: StreamState, job = "setup"): boolean {
+    return snapshot.status?.busy === job || snapshot.job === job;
 }
 
 let listening = 0;
@@ -120,7 +129,19 @@ let listening = 0;
 async function refreshStreamStatus(): Promise<StreamStatus | null> {
     try {
         const status = await streamStatus();
-        publish({ status });
+        const stage = STAGES.find((known) => known === status.stage);
+        const running = status.busy && stage ? { stage, progress: status.progress } : {};
+        let lost = {};
+        if (state.job && !status.busy) {
+            jobIdleSince = jobIdleSince || Date.now();
+            if (Date.now() - jobIdleSince > JOB_LOST_MS) {
+                lost = { job: "" };
+            }
+        }
+        else {
+            jobIdleSince = 0;
+        }
+        publish({ status, ...running, ...lost });
         return status;
     }
     catch (e) {
@@ -141,6 +162,10 @@ export async function readStreamSize(): Promise<string> {
         logError("stream play: reading the download size", e);
     }
     return "";
+}
+
+export function knownStreamSize(): string {
+    return state.size;
 }
 
 export function useStreamSetup(active: boolean): StreamState {
@@ -167,7 +192,16 @@ export function useStreamSetup(active: boolean): StreamState {
             }
         };
     }, [active]);
-    return useSyncExternalStore(subscribe, current);
+    const snapshot = useSyncExternalStore(subscribe, current);
+    const running = Boolean(snapshot.job || snapshot.status?.busy);
+    useEffect(() => {
+        if (!active || !running) {
+            return;
+        }
+        const timer = window.setInterval(() => void refreshStreamStatus(), STATUS_POLL_MS);
+        return () => window.clearInterval(timer);
+    }, [active, running]);
+    return snapshot;
 }
 
 function shortcutExists(appid: number): boolean {
@@ -215,7 +249,8 @@ export async function setUpStreaming(): Promise<boolean> {
     if (state.job) {
         return false;
     }
-    publish({ stage: "sunshine", job: "setup", lastJob: "setup" });
+    jobIdleSince = 0;
+    publish({ stage: "sunshine", job: "setup", lastJob: "setup", progress: -1 });
     try {
         const result = await streamSetUp();
         if (!result.ok) {

@@ -1,4 +1,6 @@
 import { t, type LanguageCode } from "../locales";
+import { logError } from "./errors";
+import { knownStreamSize } from "./streamPlay";
 
 export const ROOM_ENDED = ["dropped", "timed_out", "closed", "network_changed"];
 
@@ -87,7 +89,7 @@ const PROBLEM_TEXT: Record<string, string> = {
     no_lobby: "Set a lobby server in Options first",
     lan_only: "This game links over LAN, so it plays Local only.",
     invite_expired: "That invite expired",
-    stream_not_set_up: "Stream Play needs Sunshine and Moonlight. Press to set them up (about {{size}}).",
+    stream_not_set_up: "Stream Play needs Sunshine and Moonlight. Press Set Up Streaming below to install them (about {{size}}).",
     stream_one_console: "Stream Play isn't available for this system: its multiplayer needs one console per player.",
     sunshine_running: "Sunshine is already running on this device. Close it before hosting a Stream Play room.",
     stream_needs_update: "Streaming needs a CheevoDeck update.",
@@ -108,8 +110,18 @@ const WARNING_TEXT: Record<string, string> = {
     core_build_differs: "Your {{core}} build differs from the host's. Update cores on every device (Main Menu → Online Updater → Update Installed Cores)."
 };
 
+const UNSIZED_SETUP = "Stream Play needs Sunshine and Moonlight. Press Set Up Streaming below to install them.";
+
 export function problemText(language: LanguageCode, code: string, detail?: Record<string, string>): string {
-    return t(language, PROBLEM_TEXT[code] ?? PROBLEM_TEXT.launch_failed, detail);
+    if (code === "stream_not_set_up") {
+        const size = detail?.size && detail.size !== "?" ? detail.size : knownStreamSize();
+        return size ? t(language, PROBLEM_TEXT.stream_not_set_up, { size }) : t(language, UNSIZED_SETUP);
+    }
+    const text = t(language, PROBLEM_TEXT[code] ?? PROBLEM_TEXT.launch_failed, detail);
+    if (text.includes("{{")) {
+        logError(`multiplayer: ${code} left a placeholder unfilled`, new Error(text));
+    }
+    return text;
 }
 
 export function warningText(language: LanguageCode, code: string, detail?: Record<string, string>): string {
