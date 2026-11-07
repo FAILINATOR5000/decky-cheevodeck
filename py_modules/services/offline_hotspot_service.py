@@ -13,6 +13,7 @@ from pathlib import Path
 import decky
 import multiplayer_protocol as proto
 import nm_dbus
+from notifications import NOTIFICATION_EVENT
 from nm_dbus import Variant
 from subprocess_util import run_command
 
@@ -28,6 +29,13 @@ CHANNEL = 6
 BAND = "bg"
 AP_INTERFACE = "cdap0"
 AP_INTERFACE_SECONDS = 8
+
+SHARE_TABLE = "cheevodeck_hotspot"
+RUN_DIR = Path("/run/cheevodeck")
+FORWARD_RECORD = RUN_DIR / "hotspot-ip-forward"
+RULES_FILE = RUN_DIR / "hotspot.nft"
+IP_FORWARD = Path("/proc/sys/net/ipv4/ip_forward")
+DNS_MAX = 3
 STAY_DRIVERS = frozenset({"ath11k_pci"})
 
 INFO_PORT = 49735
@@ -47,6 +55,7 @@ JOIN_ATTEMPTS = 3
 
 DEVICE_ACTIVATED = 100
 DEVICE_DISCONNECTED = 30
+DEVICE_FAILED = 120
 REASON_NO_SECRETS = 7
 REASON_IP_UNAVAILABLE = 5
 
@@ -88,6 +97,43 @@ def _ap_mac(interface: str) -> str:
     return ":".join(f"{octet:02x}" for octet in octets)
 
 
+def default_route_interface(exclude: str) -> str:
+    code, out, _err = run_command(["ip", "-4", "route", "show", "default"], timeout=5)
+    for line in out.splitlines() if code == 0 else []:
+        parts = line.split()
+        if "dev" in parts:
+            device = parts[parts.index("dev") + 1]
+            if device != exclude:
+                return device
+    return ""
+
+
+def stop_sharing() -> bool:
+    changed = False
+    code, _out, _err = run_command(["nft", "list", "table", "ip", SHARE_TABLE], timeout=5)
+    if code == 0:
+        code, _out, err = run_command(["nft", "delete", "table", "ip", SHARE_TABLE], timeout=5)
+        if code != 0:
+            decky.logger.warning("hotspot: couldn't remove the sharing table (%s)", err.strip())
+        changed = True
+    try:
+        original = FORWARD_RECORD.read_text().strip()
+    except OSError:
+        original = ""
+    if original in ("0", "1"):
+        try:
+            IP_FORWARD.write_text(original)
+            FORWARD_RECORD.unlink()
+        except OSError as exc:
+            decky.logger.warning("hotspot: couldn't put forwarding back (%s)", exc)
+        changed = True
+    try:
+        RULES_FILE.unlink()
+    except OSError:
+        pass
+    return changed
+
+
 def drop_ap_interface() -> bool:
     if not Path(f"/sys/class/net/{AP_INTERFACE}").exists():
         return False
@@ -127,6 +173,7 @@ def _ap_settings(ssid: str, interface: str, passphrase: str, address: str, *, pr
     }
     if mode == "infrastructure":
         ipv4["dad-timeout"] = Variant("i", DAD_MS)
+        ipv4["may-fail"] = Variant("b", False)
     return {
         "connection": {
             "id": Variant("s", profile),
@@ -145,8 +192,9 @@ _BOUND = {"persist": Variant("s", "volatile"), "bind-activation": Variant("s", "
 
 
 class OfflineHotspotService:
-    def __init__(self, *, settings_store, game_mode, room_role):
+    def __init__(self, *, settings_store, game_mode, room_role, notifications_store):
         self._settings_store = settings_store
+        self._notifications = notifications_store
         self._game_mode = game_mode
         self._room_role = room_role
         self._loop = None
@@ -169,6 +217,9 @@ class OfflineHotspotService:
         self._spec = None
         self._uplink = ""
         self._dfs = False
+        self._sharing = False
+        self._share_dns = []
+        self._shared_in = False
         self._active = ""
         self._connection = ""
         self._resume = ""
@@ -180,12 +231,14 @@ class OfflineHotspotService:
         self._devices = []
         self._names = {}
         self._host_name = ""
-        self._last_info = 0.0
 
         self._bus = None
         self._nm = None
         self._stop = None
         self._ending = False
+        self._closed = False
+        self._carried = ""
+        self._failed_reason = 0
 
     def set_event_loop(self, loop) -> None:
         self._loop = loop
@@ -208,6 +261,7 @@ class OfflineHotspotService:
                 "paused": self._paused,
                 "uplink": self._uplink,
                 "dfs": self._dfs,
+                "sharing": self._sharing,
                 "internet": self._internet,
                 "startedAt": self._started_wall,
                 "endsAt": self._started_wall + CAP_SECONDS if self._started_wall else 0,
@@ -239,11 +293,14 @@ class OfflineHotspotService:
             self._off_soon("game_mode")
 
     def stop(self) -> None:
+        self._closed = True
         if not self._op_lock.acquire(timeout=5):
             with self._lock:
                 bus = self._bus
             if bus is not None:
                 bus.close()
+            stop_sharing()
+            drop_ap_interface()
             return
         try:
             self._end("unload")
@@ -256,7 +313,7 @@ class OfflineHotspotService:
     def _host(self, private: bool) -> dict:
         if not self._game_mode():
             return {**self.status(), "ok": False, "error": REFUSED_GAME_MODE}
-        if not self._op_lock.acquire(blocking=False):
+        if self._closed or not self._op_lock.acquire(blocking=False):
             return {**self.status(), "ok": False, "error": REFUSED_BUSY}
         try:
             if self._state == "host":
@@ -292,13 +349,16 @@ class OfflineHotspotService:
         if not device:
             bus.close()
             return REFUSED_NO_WIFI
+        resume = self._station_connection(nm, props) or self._carried
+        paused = self._network_name(nm, resume) if resume else ""
         with self._lock:
             self._bus = bus
             self._nm = nm
             self._device = device
             self._interface = str(props.get("Interface") or "wlan0")
-            self._resume = self._station_connection(nm, props)
-            self._paused = self._network_name(nm, self._resume) if self._resume else ""
+            self._resume = resume
+            self._paused = paused
+            self._carried = ""
         return ""
 
     def _station_connection(self, nm, props: dict) -> str:
@@ -344,7 +404,7 @@ class OfflineHotspotService:
             error = self._activate(_ap_settings(ssid, self._interface, passphrase, address, profile=HOST_PROFILE + tag,
                                                 mode="ap", channel=CHANNEL, band=BAND), self._device)
         if error:
-            self._teardown()
+            self._teardown(reconnect=True)
             self._reset_state()
             self._emit()
             return error
@@ -355,7 +415,13 @@ class OfflineHotspotService:
             self._code = code
             self._subnet = subnet
             self._address = address
+        if self._closed:
+            self._teardown()
+            self._reset_state()
+            return FAILED
+        self._start_sharing()
         self._begin()
+        self._file_card()
         decky.logger.info("hotspot: hosting %s on %s channel %s (%s)%s", ssid, self._ap_interface, self._ap_channel,
                           address, f", {self._paused} paused" if self._paused else
                           f", staying on {self._uplink}" if self._uplink else "")
@@ -421,6 +487,55 @@ class OfflineHotspotService:
         drop_ap_interface()
         return ""
 
+    def _start_sharing(self) -> None:
+        with self._lock:
+            ap, subnet = self._ap_interface, self._subnet
+        uplink = default_route_interface(ap)
+        if not uplink:
+            return
+        device = self._nm.device_by_interface(uplink)
+        try:
+            dns = [server for server in self._nm.nameservers(device) if proto.is_ipv4(server)][:DNS_MAX] if device else []
+        except nm_dbus.DBusError:
+            dns = []
+        if not dns:
+            decky.logger.info("hotspot: %s has no DNS servers to hand on, not sharing", uplink)
+            return
+        rules = (f"table ip {SHARE_TABLE} {{\n"
+                 "    chain postrouting {\n"
+                 "        type nat hook postrouting priority srcnat; policy accept;\n"
+                 f"        ip saddr 10.73.{subnet}.0/24 oifname \"{uplink}\" masquerade\n"
+                 "    }\n"
+                 "    chain forward {\n"
+                 "        type filter hook forward priority filter; policy accept;\n"
+                 f"        iifname \"{ap}\" oifname != \"{uplink}\" drop\n"
+                 "    }\n"
+                 "}\n")
+        try:
+            RUN_DIR.mkdir(mode=0o700, exist_ok=True)
+            if not FORWARD_RECORD.exists():
+                FORWARD_RECORD.write_text(IP_FORWARD.read_text().strip())
+            RULES_FILE.write_text(rules)
+        except OSError as exc:
+            decky.logger.warning("hotspot: couldn't prepare sharing (%s)", exc)
+            return
+        run_command(["nft", "delete", "table", "ip", SHARE_TABLE], timeout=5)
+        code, _out, err = run_command(["nft", "-f", str(RULES_FILE)], timeout=5)
+        if code != 0:
+            decky.logger.warning("hotspot: couldn't add the sharing rule (%s)", err.strip())
+            stop_sharing()
+            return
+        try:
+            IP_FORWARD.write_text("1")
+        except OSError as exc:
+            decky.logger.warning("hotspot: couldn't turn on forwarding (%s)", exc)
+            stop_sharing()
+            return
+        with self._lock:
+            self._sharing = True
+            self._share_dns = dns
+        decky.logger.info("hotspot: sharing %s's internet", uplink)
+
     def _follow_channel(self) -> None:
         with self._lock:
             if self._ap_interface != AP_INTERFACE or self._state != "host":
@@ -434,6 +549,9 @@ class OfflineHotspotService:
         if not self._op_lock.acquire(blocking=False):
             return
         try:
+            with self._lock:
+                if self._state != "host" or self._nm is None:
+                    return
             if not can_host_on(mhz):
                 decky.logger.info("hotspot: the network moved to channel %s, which can't carry an access point", channel)
                 self._end("channel")
@@ -462,6 +580,13 @@ class OfflineHotspotService:
 
     def _activate(self, settings: dict, device: str) -> str:
         nm = self._nm
+        with self._lock:
+            self._failed_reason = 0
+        try:
+            self._bus.add_match("type='signal',sender='org.freedesktop.NetworkManager',"
+                                f"interface='{nm_dbus.NM_DEVICE}',member='StateChanged',path='{device}'")
+        except nm_dbus.DBusError:
+            pass
         try:
             connection, active = nm.add_and_activate(settings, device, _BOUND)
         except nm_dbus.DBusError as exc:
@@ -486,7 +611,9 @@ class OfflineHotspotService:
             if state == nm_dbus.ACTIVE_DEACTIVATED:
                 break
             time.sleep(0.25)
-        reason = self._device_reason(device)
+        with self._lock:
+            reason = self._failed_reason
+        reason = reason or self._device_reason(device)
         decky.logger.info("hotspot: activation didn't finish (device reason %s)", reason)
         if reason == REASON_NO_SECRETS:
             return BAD_CODE
@@ -512,6 +639,7 @@ class OfflineHotspotService:
                 bus.add_match(rule)
             except nm_dbus.DBusError as exc:
                 decky.logger.warning("hotspot: couldn't watch for %s (%s)", rule.split("member=")[-1], exc)
+        internet = self._read_internet()
         with self._lock:
             self._started = time.monotonic()
             self._started_wall = int(time.time())
@@ -519,10 +647,12 @@ class OfflineHotspotService:
             self._ending = False
             self._devices = []
             self._names = {}
-            self._internet = self._read_internet()
+            self._internet = internet
             stop = self._stop = threading.Event()
         threading.Thread(target=self._run, args=(stop,), name="hotspot", daemon=True).start()
         self._emit()
+        if not self._game_mode():
+            self._off_soon("game_mode")
 
     def _read_internet(self) -> bool:
         nm = self._nm
@@ -568,7 +698,7 @@ class OfflineHotspotService:
                 strength = int(point.get("Strength", 0))
                 if ssid not in best or strength > best[ssid]["strength"]:
                     best[ssid] = {"ssid": ssid, "private": ssid.endswith("-P"), "strength": strength}
-            rows = sorted(best.values(), key=lambda row: (-row["strength"], row["ssid"]))
+            rows = sorted(best.values(), key=lambda row: row["ssid"])
             return {"ok": True, "hotspots": rows}
         except nm_dbus.DBusError as exc:
             decky.logger.info("hotspot: scan failed (%s)", exc)
@@ -589,7 +719,7 @@ class OfflineHotspotService:
         role = self._room_role()
         if role:
             return {**self.status(), "ok": False, "error": REFUSED_HOSTING if role == "host" else REFUSED_SEATED}
-        if not self._op_lock.acquire(blocking=False):
+        if self._closed or not self._op_lock.acquire(blocking=False):
             return {**self.status(), "ok": False, "error": REFUSED_BUSY}
         try:
             if self._state == "guest" and self._ssid == ssid:
@@ -627,7 +757,7 @@ class OfflineHotspotService:
             decky.logger.info("hotspot: %s is taken on %s, trying another", address, ssid)
             self._drop_profile()
         if error:
-            self._teardown()
+            self._teardown(reconnect=True)
             self._reset_state()
             self._emit()
             if error == FAILED and ssid.endswith("-P"):
@@ -668,8 +798,10 @@ class OfflineHotspotService:
         if stop is not None:
             stop.set()
         self._emit()
+        carried = self._resume if reason == "switch" else ""
         self._teardown(reconnect=reason not in ("unload", "switch"))
         self._reset_state()
+        self._carried = carried
         decky.logger.info("hotspot: %s %s ended (%s)", "hosting" if role == "host" else "joined", ssid, reason)
         toast = ""
         if reason == "cap":
@@ -690,6 +822,8 @@ class OfflineHotspotService:
             except nm_dbus.DBusError:
                 pass
         self._drop_profile()
+        if self._sharing and stop_sharing():
+            decky.logger.info("hotspot: stopped sharing and put forwarding back")
         if self._ap_interface == AP_INTERFACE:
             drop_ap_interface()
         if nm is not None and reconnect and resume:
@@ -760,6 +894,9 @@ class OfflineHotspotService:
             self._ap_device = ""
             self._ap_channel = 0
             self._spec = None
+            self._sharing = False
+            self._share_dns = []
+            self._shared_in = False
             self._internet = False
             self._started = 0.0
             self._started_wall = 0
@@ -779,6 +916,10 @@ class OfflineHotspotService:
                 with self._lock:
                     self._internet = changed["Connectivity"] == nm_dbus.CONNECTIVITY_FULL
                 self._emit()
+        elif message.member == "StateChanged" and message.interface == nm_dbus.NM_DEVICE:
+            if len(message.body) > 2 and message.body[0] == DEVICE_FAILED:
+                with self._lock:
+                    self._failed_reason = int(message.body[2])
         elif message.member == "StateChanged" and message.interface == nm_dbus.NM_ACTIVE:
             with self._lock:
                 ours = message.path == self._active and self._state in ("host", "guest")
@@ -885,16 +1026,62 @@ class OfflineHotspotService:
             self._take_info(message)
 
     def _info(self) -> dict:
-        return {"k": INFO_KIND, "op": "info", "name": self._user()}
+        with self._lock:
+            share, dns = self._sharing, list(self._share_dns)
+        return {"k": INFO_KIND, "op": "info", "name": self._user(), "share": share, "dns": dns}
 
     def _take_info(self, message: dict) -> None:
         name = proto.clean_user(message.get("name") or "")
+        dns = message.get("dns")
+        dns = [server for server in dns if proto.is_ipv4(server)][:DNS_MAX] if isinstance(dns, list) else []
+        share = message.get("share") is True and bool(dns)
         with self._lock:
             changed = name != self._host_name
             self._host_name = name
-            self._last_info = time.monotonic()
+            applied = self._shared_in
+        if share != applied:
+            changed = self._use_shared(share, dns) or changed
         if changed:
             self._emit()
+
+    def _use_shared(self, share: bool, dns: list) -> bool:
+        with self._lock:
+            device, interface, subnet, nm = self._device, self._interface, self._subnet, self._nm
+        if nm is None or (share and default_route_interface(interface)):
+            return False
+        try:
+            settings, version = nm.applied_connection(device)
+            applied = settings.get("connection", {}).get("id")
+            name = str(applied.value) if isinstance(applied, Variant) else ""
+            if not name.startswith(GUEST_PROFILE):
+                return False
+            ipv4 = settings.get("ipv4", {})
+            if "address-data" in ipv4:
+                ipv4.pop("addresses", None)
+            ipv4["never-default"] = Variant("b", not share)
+            if share:
+                ipv4["gateway"] = Variant("s", f"10.73.{subnet}.1")
+            else:
+                ipv4.pop("gateway", None)
+            if "dns-data" in ipv4:
+                ipv4["dns-data"] = Variant("as", dns if share else [])
+            ipv4["dns"] = Variant("au", [nm_dbus.ipv4_number(server) for server in dns] if share else [])
+            settings["ipv4"] = ipv4
+            nm.reapply(device, settings, version)
+        except (nm_dbus.DBusError, OSError) as exc:
+            decky.logger.info("hotspot: couldn't %s the host's internet (%s)", "take" if share else "drop", exc)
+            return False
+        with self._lock:
+            self._shared_in = share
+        decky.logger.info("hotspot: %s the host's internet", "using" if share else "no longer using")
+        try:
+            internet = nm.check_connectivity() == nm_dbus.CONNECTIVITY_FULL
+        except nm_dbus.DBusError:
+            internet = share
+        with self._lock:
+            if self._state == "guest":
+                self._internet = internet
+        return True
 
     def _user(self) -> str:
         cfg = self._settings_store.load_config()
@@ -925,6 +1112,10 @@ class OfflineHotspotService:
 
     def _sweep(self) -> None:
         with self._op_lock:
+            if drop_ap_interface():
+                decky.logger.info("hotspot: removed a leftover %s", AP_INTERFACE)
+            if stop_sharing():
+                decky.logger.info("hotspot: removed leftover sharing and put forwarding back")
             bus = nm_dbus.Bus()
             try:
                 bus.open()
@@ -947,12 +1138,28 @@ class OfflineHotspotService:
                         continue
                 if removed:
                     decky.logger.info("hotspot: removed leftover profiles %s", ", ".join(removed))
-                if drop_ap_interface():
-                    decky.logger.info("hotspot: removed a leftover %s", AP_INTERFACE)
             except nm_dbus.DBusError as exc:
                 decky.logger.info("hotspot: startup sweep failed (%s)", exc)
             finally:
                 bus.close()
+
+    def _file_card(self) -> None:
+        try:
+            self._notifications.append({
+                "type": "system",
+                "kind": "actionable",
+                "iconSource": "none",
+                "title": "Offline Hotspot",
+                "body": "Offline Hotspot is now on. Select here to go to the page to turn it back off.",
+                "source": "notifications",
+                "target": {"view": "offlineHotspot"},
+            })
+        except Exception as exc:
+            decky.logger.warning("hotspot: the notification could not be filed (%s)", type(exc).__name__)
+            return
+        loop = self._loop
+        if loop is not None and not loop.is_closed():
+            asyncio.run_coroutine_threadsafe(decky.emit(NOTIFICATION_EVENT, {"toast": False}), loop)
 
     def _emit(self, toast: str = "") -> None:
         loop = self._loop
