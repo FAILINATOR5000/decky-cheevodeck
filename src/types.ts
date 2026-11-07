@@ -455,6 +455,7 @@ export type ViewKey =
     | "memories"
     | "memoriesTransfer"
     | "dataTransfer"
+    | "offlineHotspot"
     | "multiplayer"
     | "qamGuard"
     | "guides"
@@ -875,6 +876,7 @@ export type SettingsResponse = {
     mpVoicePushToTalk: boolean;
     mpStreamSlowConnection: boolean;
     mpStreamScreenWarningOff: boolean;
+    hotspotIntroOff: boolean;
     mpVoicePttToggle: boolean;
     mpVoiceSensitivity: number;
     playShortcutFallback: boolean;

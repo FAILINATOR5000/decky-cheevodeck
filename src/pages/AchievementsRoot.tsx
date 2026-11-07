@@ -92,6 +92,7 @@ import CheevoCheckPage from "./CheevoCheckPage";
 import FileWatcherPage from "./FileWatcherPage";
 import MemoriesTransferPage from "./MemoriesTransferPage";
 import DataTransferPage from "./DataTransferPage";
+import OfflineHotspotPage from "./OfflineHotspotPage";
 import MultiplayerPage from "./MultiplayerPage";
 import MemoriesPage from "./MemoriesPage";
 import { CheevoCheckGamesModal } from "../components/pickers/CheevoCheckGamesModal";
@@ -476,6 +477,8 @@ function panelEntryOverlay(entry: PanelEntry): Partial<ResumeState> & Pick<Resum
             return { view: "memoriesTransfer", focusKey: "memoriesTransfer:back" };
         case "dataTransfer":
             return { view: "dataTransfer", focusKey: "dataTransfer:back" };
+        case "offlineHotspot":
+            return { view: "offlineHotspot", focusKey: "offlineHotspot:back" };
         case "multiplayer":
             return { view: "multiplayer", focusKey: "multiplayer:back", multiplayerSource: "achievements" };
     }
@@ -3666,6 +3669,12 @@ function AchievementsRoot() {
         setPendingFocusKey("dataTransfer:back");
     }
 
+    function goToOfflineHotspot(intent: NavIntent = "push") {
+        friendGameSessionRefreshKeysRef.current = new Set();
+        setView("offlineHotspot", intent);
+        setPendingFocusKey("offlineHotspot:back");
+    }
+
     function goToMultiplayer(intent: NavIntent = "push", land?: string) {
         friendGameSessionRefreshKeysRef.current = new Set();
         if (intent !== "back") {
@@ -5188,6 +5197,7 @@ function AchievementsRoot() {
                                         onOpenMemoriesTransfer: () => goToMemoriesTransfer(),
                                         onOpenDataTransfer: () => goToDataTransfer(),
                                         onOpenMultiplayer: () => goToMultiplayer(),
+                                        onOpenOfflineHotspot: () => goToOfflineHotspot(),
                                         onOpenQamGuard: () => goToQamGuard()
                                     }}
                                 />
@@ -5330,6 +5340,18 @@ function AchievementsRoot() {
                                         buttonSpacing,
                                         gameId: payload?.gameId ?? null,
                                         gameTitle: payload?.title ?? null
+                                    }}
+                                    actions={{
+                                        onBack: backFromUtilityTool,
+                                        onHome: goToAchievements
+                                    }}
+                                />
+
+                                <OfflineHotspotPage
+                                    state={{
+                                        view,
+                                        language,
+                                        buttonSpacing
                                     }}
                                     actions={{
                                         onBack: backFromUtilityTool,

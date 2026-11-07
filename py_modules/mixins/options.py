@@ -697,6 +697,14 @@ class OptionsMixin(PluginContext):
             "mpStreamScreenWarningOff": value,
         }
 
+    async def save_hotspot_intro_off(self, hotspot_intro_off: bool):
+        value = self.settings_store.update_hotspot_intro_off(hotspot_intro_off)
+
+        return {
+            "ok": True,
+            "hotspotIntroOff": value,
+        }
+
     async def save_mp_stream_slow_connection(self, mp_stream_slow_connection: bool):
         value = self.settings_store.update_mp_stream_slow_connection(mp_stream_slow_connection)
 

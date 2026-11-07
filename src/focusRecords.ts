@@ -85,6 +85,7 @@ const LANDING_VIEWS: ReadonlySet<ViewKey> = new Set<ViewKey>([
     "fileWatcher",
     "memoriesTransfer",
     "dataTransfer",
+    "offlineHotspot",
     "multiplayer",
     "memories",
     "options",

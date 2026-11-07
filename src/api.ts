@@ -930,6 +930,36 @@ export const saveMpStreamScreenWarningOff = callable<[boolean], { ok: boolean; m
     "save_mp_stream_screen_warning_off"
 );
 export const streamRemove = callable<[], { ok: boolean; appid?: number; error?: string }>("stream_remove");
+
+export type HotspotDevice = { mac: string; address: string; name: string };
+export type HotspotStatus = {
+    ok: boolean;
+    error?: string;
+    seq: number;
+    state: "off" | "starting" | "host" | "joining" | "guest" | "stopping";
+    role: "host" | "guest" | "";
+    ssid: string;
+    private: boolean;
+    code: string;
+    address: string;
+    example: string;
+    devices: HotspotDevice[];
+    host: string;
+    paused: string;
+    uplink: string;
+    dfs: boolean;
+    sharing: boolean;
+    internet: boolean;
+    startedAt: number;
+    endsAt: number;
+};
+export type HotspotRow = { ssid: string; private: boolean; strength: number };
+export const hotspotStatus = callable<[], HotspotStatus>("hotspot_status");
+export const hotspotSet = callable<[on: boolean, privateHotspot: boolean], HotspotStatus>("hotspot_set");
+export const hotspotScan = callable<[], { ok: boolean; error?: string; hotspots: HotspotRow[] }>("hotspot_scan");
+export const hotspotJoin = callable<[ssid: string, code: string], HotspotStatus>("hotspot_join");
+export const hotspotLeave = callable<[], HotspotStatus>("hotspot_leave");
+export const saveHotspotIntroOff = callable<[boolean], { ok: boolean; hotspotIntroOff: boolean }>("save_hotspot_intro_off");
 export const multiplayerOutputVolumeGet = callable<[], { ok: boolean; volume: number | null }>("multiplayer_output_volume_get");
 export const multiplayerOutputVolumeSet = callable<[number], { ok: boolean }>("multiplayer_output_volume_set");
 export const multiplayerRoomVolumesSet = callable<[number, number, number, string, boolean, number], { ok: boolean }>(
