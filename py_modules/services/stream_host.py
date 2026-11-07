@@ -24,6 +24,7 @@ from utils import child_owner
 
 API = "https://127.0.0.1:47990"
 SUNSHINE_PORTS = (47984, 47989, 47990, 48010)
+FOREIGN_LOG_SECONDS = 60
 CONF_FILE = "sunshine.conf"
 APPS_FILE = "apps.json"
 LOG_FILE = "sunshine.log"
@@ -51,12 +52,20 @@ class ApiShapeError(Exception):
     pass
 
 
+def _listener(port: int) -> str:
+    try:
+        code, out, _err = subprocess_util.run_command(["ss", "-Htlnp", f"sport = :{port}"], timeout=2)
+    except Exception as e:
+        return f"ss failed: {type(e).__name__}"
+    return " ".join(out.split())[:200] if code == 0 and out.strip() else "no listener found"
+
+
 def _port_open(port: int) -> bool:
     for family, address in ((socket.AF_INET, "127.0.0.1"), (socket.AF_INET6, "::1")):
         probe = socket.socket(family, socket.SOCK_STREAM)
         probe.settimeout(0.3)
         try:
-            if probe.connect_ex((address, port)) == 0:
+            if probe.connect_ex((address, port)) == 0 and probe.getsockname()[:2] != probe.getpeername()[:2]:
                 return True
         except OSError:
             pass
@@ -71,6 +80,7 @@ class StreamHost:
         self._user_home = Path(user_home)
         self._debug = debug or (lambda *_args: None)
         self._debug_on = debug_on or (lambda: False)
+        self._foreign_logged = 0.0
         self._started_at = 0.0
         self._context = None
         self._name = ""
@@ -127,7 +137,14 @@ class StreamHost:
     def foreign_sunshine(self) -> bool:
         if self.unit_active():
             return False
-        return any(_port_open(port) for port in SUNSHINE_PORTS)
+        port = next((port for port in SUNSHINE_PORTS if _port_open(port)), None)
+        if port is None:
+            return False
+        now = time.monotonic()
+        if now - self._foreign_logged > FOREIGN_LOG_SECONDS:
+            self._foreign_logged = now
+            decky.logger.warning("stream: something else answers on Sunshine's port %s (%s)", port, _listener(port))
+        return True
 
     def _write_config(self, state: Path, name: str, sink: str) -> Path:
         lines = [

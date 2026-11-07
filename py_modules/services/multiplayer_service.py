@@ -1190,8 +1190,9 @@ class MultiplayerService:
     def _stream_local(self, game_id: int, room):
         if room is not None:
             return self._stream_guest_local(room)
-        if self._stream_gates(None) is not None:
-            return None, "stream_not_set_up", {}
+        gated = self._stream_gates(None)
+        if gated is not None:
+            return None, gated[0], gated[1]
         library = self._library()
         if library is None:
             return None, "no_scan", {}
@@ -1287,6 +1288,8 @@ class MultiplayerService:
             return None
         record = self._stream_setup.status() if self._stream_setup is not None else None
         if record is None or not record["ready"] or record["busy"]:
+            self._debug("stream: not set up (%s)", "no setup" if record is None
+                        else "busy" if record["busy"] else "not ready")
             return "stream_not_set_up", {}
         if self._room is None and self._stream_host is not None and self._stream_host.foreign_sunshine():
             return "sunshine_running", {}
