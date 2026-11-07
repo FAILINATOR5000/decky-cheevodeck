@@ -33,6 +33,7 @@ const DROP_RESTART_MS = 6000;
 const STABLE_MS = 120000;
 const FLAKY_LIMIT = 3;
 const STATS_MS = 30000;
+const PAIR_SETTLE_MS = 2000;
 
 const OPUS_PARAMS: Record<string, string> = { useinbandfec: "1", usedtx: "1", maxaveragebitrate: "24000", stereo: "0" };
 
@@ -771,6 +772,12 @@ function makePeer(index: number, stamp: number, offerer: boolean, retries: numbe
         }
         logVoiceDebug(`seat ${index}: ${pc.connectionState}`);
         if (pc.connectionState === "connected") {
+            if (peer.offerer && pc.getConfiguration().iceTransportPolicy !== policyFor(index, peer.stamp)) {
+                logVoiceDebug(`seat ${index}: back, starting over on the relay`);
+                closePeer(index);
+                void startOffer(index, peer.stamp, 0);
+                return;
+            }
             peer.state = "connected";
             peer.retries = 0;
             clearPeerTimer(peer);
@@ -957,7 +964,7 @@ async function sendOffer(peer: Peer, restart: boolean) {
         clearPeerTimer(peer);
         peer.timer = window.setTimeout(() => {
             peer.timer = null;
-            if (peers.get(peer.index) === peer && peer.state !== "connected") {
+            if (peers.get(peer.index) === peer && peer.pc === pc && pc.connectionState !== "connected") {
                 logVoiceDebug(`no answer from seat ${peer.index}`);
                 failed(peer);
             }
@@ -1096,25 +1103,38 @@ function takeBye(from: number, stamp: number) {
     publish();
 }
 
-async function readPair(peer: Peer) {
-    if (!peer.pc) {
+async function readPair(peer: Peer, settled = false) {
+    const pc = peer.pc;
+    if (!pc) {
         return;
     }
     try {
-        const stats = await peer.pc.getStats();
+        const stats = await pc.getStats();
+        if (peers.get(peer.index) !== peer || peer.pc !== pc) {
+            return;
+        }
+        let selected = "";
         let pair: RTCIceCandidatePairStats | null = null;
         stats.forEach((entry) => {
+            if (entry.type === "transport" && entry.selectedCandidatePairId) {
+                selected = entry.selectedCandidatePairId;
+            }
             if (entry.type === "candidate-pair" && entry.nominated && entry.state === "succeeded") {
                 pair = entry as RTCIceCandidatePairStats;
             }
         });
-        const chosen = pair as RTCIceCandidatePairStats | null;
+        const chosen = (selected ? stats.get(selected) : pair) as RTCIceCandidatePairStats | null | undefined;
         if (!chosen) {
+            return;
+        }
+        if (!chosen.nominated && !settled) {
+            window.setTimeout(() => void readPair(peer, true), PAIR_SETTLE_MS);
             return;
         }
         const local = stats.get(chosen.localCandidateId) as { candidateType?: string } | undefined;
         const remote = stats.get(chosen.remoteCandidateId) as { candidateType?: string } | undefined;
-        const direct = local?.candidateType !== "relay" && remote?.candidateType !== "relay";
+        const direct = Boolean(local?.candidateType && remote?.candidateType)
+            && local?.candidateType !== "relay" && remote?.candidateType !== "relay";
         pathFor(peer.index, peer.stamp).directSince = direct ? performance.now() : 0;
         if (debugLoggingEnabled()) {
             logVoiceDebug(`seat ${peer.index}: pair ${local?.candidateType ?? "?"} <-> ${remote?.candidateType ?? "?"}`);
