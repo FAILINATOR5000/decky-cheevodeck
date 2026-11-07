@@ -26,6 +26,9 @@ const JOIN_KEY = "notif:multiplayer:join";
 const CLOSE_KEY = "notif:multiplayer:close";
 const SIDE_BUTTON = 24;
 const SIDE_GAP = 4;
+const SIDE_FILL = "rgb(81, 85, 90)";
+const TILE_FILL = "rgb(71, 75, 80)";
+const TILE_EDGE = "rgb(78, 82, 88)";
 const COUNT_MARK = "\u0000";
 
 type Waiting = { on: boolean; unread: number; requests: number; online: number };
@@ -149,7 +152,8 @@ function SideButton(props: FocusProps & {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    color: props.lit ? achievementGreen : undefined
+                    background: selected ? undefined : SIDE_FILL,
+                    color: props.lit ? achievementGreen : selected ? undefined : "#fff"
                 }}
             >
                 {props.children}
@@ -264,9 +268,12 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
                                 width: `${metrics.iconSize}px`,
                                 height: `${metrics.iconSize}px`,
                                 flex: "none",
-                                borderRadius: `${modalSize(6)}px`,
+                                borderRadius: "7px",
                                 overflow: "hidden",
-                                background: "rgba(255, 255, 255, 0.08)",
+                                background: TILE_FILL,
+                                border: `1px solid ${TILE_EDGE}`,
+                                boxSizing: "border-box",
+                                color: "#dcdedf",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center"
@@ -286,7 +293,7 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
                                 lineHeight: metrics.bodyLineHeight
                             }}
                         >
-                            <div style={{ color: "#fff", fontSize: `${metrics.titleFontSize}px`, fontWeight: 800, lineHeight: metrics.titleLineHeight }}>
+                            <div style={{ fontSize: `${metrics.titleFontSize}px`, fontWeight: 800, lineHeight: metrics.titleLineHeight }}>
                                 {t(language, "EZ Multiplayer")}
                             </div>
                             {inRoom && <Parts parts={roomParts} />}
