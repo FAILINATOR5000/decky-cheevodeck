@@ -1706,7 +1706,8 @@ class MultiplayerService:
 
     async def host(self, mode: str, game_id: int, hardcore: bool, core: str = "", share: bool = False,
                    name: str = "", size: int = proto.DEFAULT_SEATS, password: str = "", status: str = "",
-                   where: str = "local", watch: bool = False, friends: bool = False, voice: bool = False) -> dict:
+                   where: str = "local", watch: bool = False, friends: bool = False, voice: bool = False,
+                   screen: str = "") -> dict:
         async with self._lock:
             refused = self._refusal()
             if refused is not None:
@@ -1823,6 +1824,7 @@ class MultiplayerService:
                     sunshine=self._stream_host, room_id=room_id, online=online, meet=meet, digest=digest,
                     slow=self._slow_connection, debug=self._debug,
                 )
+                room["streams"].host_size = stream_room.parse_screen(screen)
                 if online:
                     self._spawn(room["streams"].measure(server))
             if online:
@@ -3099,8 +3101,11 @@ class MultiplayerService:
             self._spawn(self._poll_once(joined))
         return {"ok": True}
 
-    async def start_round(self) -> dict:
+    async def start_round(self, screen: str = "") -> dict:
         room = self._room
+        size = stream_room.parse_screen(screen)
+        if room is not None and room.get("streams") is not None and size is not None:
+            room["streams"].host_size = size
         if room is not None and room["mode"] == "stream" and room["state"] == "lobby" \
                 and self._stream_host is not None and not await asyncio.to_thread(self._stream_host.unit_active):
             decky.logger.info("stream: Sunshine isn't running at the round's start, starting it")

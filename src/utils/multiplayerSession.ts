@@ -256,7 +256,7 @@ function forgetPlayed() {
     publishRunning({ playedGameId: 0 });
 }
 
-function screenSize(): string {
+export function screenSize(): string {
     const view = SteamUIStore.WindowStore?.GamepadUIMainWindowInstance?.m_BrowserWindow;
     if (!view?.screen) {
         return "";
@@ -380,7 +380,7 @@ export async function startMultiplayerRound(steps: NetplaySteps | "" = "", game 
     if (steps) {
         await showNetplaySteps(getCurrentLanguage(), steps, true, game);
     }
-    const started = await multiplayerStart();
+    const started = await multiplayerStart(screenSize());
     if (!started.ok || !started.appid) {
         return { ok: false, error: started.error ?? "launch_failed" };
     }

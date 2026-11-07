@@ -826,7 +826,7 @@ export const multiplayerLookup = callable<[string], { ok: boolean; error?: strin
 export const multiplayerGames = callable<[], { ok: boolean; scanned: boolean; games: MultiplayerGame[]; installedCores?: string[] }>("multiplayer_games");
 export const multiplayerCheck = callable<[MultiplayerMode, number, string, string], MultiplayerCheck>("multiplayer_check");
 export const multiplayerHost = callable<
-    [MultiplayerMode, number, boolean, string, boolean, string, number, string, string, MultiplayerWhere, boolean, boolean, boolean],
+    [MultiplayerMode, number, boolean, string, boolean, string, number, string, string, MultiplayerWhere, boolean, boolean, boolean, string],
     MultiplayerReply & { room?: MultiplayerHostedRoom }
 >("multiplayer_host");
 export const multiplayerRoomOptions = callable<
@@ -837,7 +837,7 @@ export const multiplayerCloseRoom = callable<[], { ok: boolean; error?: string }
 export const multiplayerDropSeat = callable<[number, string], { ok: boolean; error?: string }>("multiplayer_drop_seat");
 export const multiplayerJoin = callable<[string, string, boolean], MultiplayerReply>("multiplayer_join");
 export const multiplayerSetReady = callable<[boolean, string], MultiplayerReply>("multiplayer_set_ready");
-export const multiplayerStart = callable<[], MultiplayerReply & { appid?: number; title?: string; round?: number }>("multiplayer_start");
+export const multiplayerStart = callable<[string], MultiplayerReply & { appid?: number; title?: string; round?: number }>("multiplayer_start");
 export const multiplayerStartCancel = callable<[string], MultiplayerReply>("multiplayer_start_cancel");
 export const multiplayerSay = callable<[string], MultiplayerReply>("multiplayer_say");
 export const multiplayerFriends = callable<[], MultiplayerFriendsState>("multiplayer_friends");

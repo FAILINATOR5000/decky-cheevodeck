@@ -7,6 +7,7 @@ import { t, type LanguageCode } from "../../locales";
 import type { MultiplayerAccess, MultiplayerMode, MultiplayerWhere } from "../../types";
 import { logError } from "../../utils/errors";
 import { multiplayerChoices, rememberMultiplayerHostPicks, rememberMultiplayerVoice } from "../../utils/multiplayerChoices";
+import { screenSize } from "../../utils/multiplayerSession";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { modalSize } from "../../utils/scale";
 import { achievementGreen, compactButtonStyle, modalBodyStyle, warnAmber } from "../../utils/style";
@@ -89,7 +90,7 @@ function HostRoomModal(props: HostRoomModalProps) {
             await multiplayerSetVisible(true, true);
             const hosted = await multiplayerHost(request.mode, request.gameId, request.hardcore, request.core,
                 request.share, name.trim(), seats, access === "private" ? password : "", status, where, request.watch,
-                access === "friends", voice);
+                access === "friends", voice, screenSize());
             if (hosted.ok) {
                 overrideRecord(entryId, { focusKey: "multiplayer:host" });
                 close();

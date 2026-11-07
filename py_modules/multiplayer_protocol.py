@@ -736,7 +736,13 @@ def read_stream(raw):
         return None
     low, half = raw.get("low", False), raw.get("half", False)
     return {"pin": raw["pin"], "token": raw["token"], "n": nonce, "cap": cap, "full": raw["full"], "occ": occupant,
-            "low": low is True, "half": half is True}
+            "low": low is True, "half": half is True, "hs": _host_size(raw.get("hs"))}
+
+
+def _host_size(raw):
+    if (isinstance(raw, list) and len(raw) == 2 and all(type(value) is int and 0 < value <= 8192 for value in raw)):
+        return (raw[0], raw[1])
+    return None
 
 
 def read_pipe(raw):

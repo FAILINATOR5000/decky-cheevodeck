@@ -54,6 +54,14 @@ def resolve_meet(server):
     return infos[0][4][:2] if infos else None
 
 
+def parse_screen(text: str):
+    width, _sep, height = (text or "").partition("x")
+    if not (width.isdigit() and height.isdigit()):
+        return None
+    width, height = int(width), int(height)
+    return (width, height) if 0 < width <= 8192 and 0 < height <= 8192 else None
+
+
 def stream_size(width: int, height: int):
     if width <= 0 or height <= 0:
         return 1280, 800
@@ -86,6 +94,7 @@ class HostStreams:
         self._seats = {}
         self._pairing = None
         self._closed = False
+        self.host_size = None
         self.speed_mbit = 0.0
         self.checking = False
 
@@ -189,7 +198,7 @@ class HostStreams:
         label = f"{index}|{entry['occ']}"
         token = proto.wrap(key, "stoken", entry["n"], bytes.fromhex(stream_token(self._digest, label))) \
             if entry["piped"] else ""
-        return {
+        body = {
             "pin": proto.wrap_pin(key, entry["n"], entry["pin"]) if not entry["paired"] else "",
             "token": token,
             "n": entry["n"],
@@ -198,6 +207,9 @@ class HostStreams:
             "low": not entry["piped"] and self._lan_order(index) > LAN_FULL_GUESTS,
             "half": bool(self._slow()),
         }
+        if self.host_size is not None:
+            body["hs"] = list(self.host_size)
+        return body
 
     def budget_kbps(self) -> int:
         return int(self.speed_mbit * 1000 * SPEED_SHARE) if self.speed_mbit > 0 else 0
@@ -355,6 +367,7 @@ class GuestStream:
         self.cap = 0
         self.low = False
         self.half = False
+        self.host_size = None
         self.kbps = 0
         self._pin = ""
         self._pipe = None
@@ -376,6 +389,7 @@ class GuestStream:
         self.full = stream["full"]
         self.low = stream["low"]
         self.half = stream["half"]
+        self.host_size = stream["hs"]
         if self._online and self._pipe is None and self._pipe_task is None and stream["token"] and self._meet:
             raw = proto.unwrap(key, "stoken", stream["n"], stream["token"])
             if raw is not None and stream["occ"]:
@@ -514,6 +528,9 @@ class GuestStream:
 
     def launch_options(self, width: int, height: int, slow: bool, watch: bool) -> str:
         width, height = stream_size(width, height)
+        if self.host_size is not None and self.host_size[1] < height:
+            width, height = stream_size(*self.host_size)
+            self._debug("stream: capped at the host's %sx%s", width, height)
         kbps = tier_kbps(height, self.path != "direct" or self.low)
         if self.half:
             kbps //= 2
