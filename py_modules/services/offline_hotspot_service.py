@@ -8,6 +8,8 @@ import socket
 import threading
 import time
 
+from pathlib import Path
+
 import decky
 import multiplayer_protocol as proto
 import nm_dbus
@@ -24,6 +26,9 @@ PASSPHRASE_KEY = b"cheevodeck-hotspot-v1"
 CODE_DIGITS = 8
 CHANNEL = 6
 BAND = "bg"
+AP_INTERFACE = "cdap0"
+AP_INTERFACE_SECONDS = 8
+STAY_DRIVERS = frozenset({"ath11k_pci"})
 
 INFO_PORT = 49735
 INFO_KIND = "cheevodeck.hotspot"
@@ -36,7 +41,7 @@ TICK_SECONDS = 1.0
 DEVICES_SECONDS = 5.0
 HELLO_SECONDS = 5.0
 NAME_SECONDS = 20.0
-RECONNECT_SECONDS = 8.0
+RECONNECT_SECONDS = 15.0
 DAD_MS = 2000
 JOIN_ATTEMPTS = 3
 
@@ -56,6 +61,40 @@ NOT_FOUND = "not_found"
 BAD_CODE = "code"
 
 _MAC = re.compile(r"^Station ([0-9a-f:]{17}) ", re.MULTILINE)
+_CHANNEL = re.compile(r"channel (\d+) \((\d+) MHz\)")
+
+
+def station_channel(interface: str):
+    code, out, _err = run_command(["iw", "dev", interface, "info"], timeout=5)
+    if code != 0 or "type managed" not in out:
+        return None
+    match = _CHANNEL.search(out)
+    return (int(match.group(1)), int(match.group(2))) if match else None
+
+
+def can_host_on(mhz: int) -> bool:
+    return mhz < 2500 or 5150 <= mhz < 5250 or 5735 <= mhz <= 5895
+
+
+def _ap_mac(interface: str) -> str:
+    try:
+        octets = [int(part, 16) for part in Path(f"/sys/class/net/{interface}/address").read_text().strip().split(":")]
+    except (OSError, ValueError):
+        return ""
+    if len(octets) != 6:
+        return ""
+    octets[0] |= 0x02
+    octets[5] ^= 0x5A
+    return ":".join(f"{octet:02x}" for octet in octets)
+
+
+def drop_ap_interface() -> bool:
+    if not Path(f"/sys/class/net/{AP_INTERFACE}").exists():
+        return False
+    code, _out, err = run_command(["iw", "dev", AP_INTERFACE, "del"], timeout=5)
+    if code != 0:
+        decky.logger.warning("hotspot: couldn't remove %s (%s)", AP_INTERFACE, err.strip())
+    return code == 0
 
 
 def subnet_of(ssid: str) -> int:
@@ -115,6 +154,7 @@ class OfflineHotspotService:
         self._op_lock = threading.Lock()
 
         self._state = "off"
+        self._seq = 0
         self._role = ""
         self._ssid = ""
         self._private = False
@@ -123,6 +163,12 @@ class OfflineHotspotService:
         self._address = ""
         self._interface = ""
         self._device = ""
+        self._ap_interface = ""
+        self._ap_device = ""
+        self._ap_channel = 0
+        self._spec = None
+        self._uplink = ""
+        self._dfs = False
         self._active = ""
         self._connection = ""
         self._resume = ""
@@ -149,6 +195,7 @@ class OfflineHotspotService:
             subnet = self._subnet
             return {
                 "ok": True,
+                "seq": self._seq,
                 "state": self._state,
                 "role": self._role,
                 "ssid": self._ssid,
@@ -159,6 +206,8 @@ class OfflineHotspotService:
                 "devices": list(self._devices),
                 "host": self._host_name,
                 "paused": self._paused,
+                "uplink": self._uplink,
+                "dfs": self._dfs,
                 "internet": self._internet,
                 "startedAt": self._started_wall,
                 "endsAt": self._started_wall + CAP_SECONDS if self._started_wall else 0,
@@ -278,13 +327,22 @@ class OfflineHotspotService:
         subnet = subnet_of(ssid)
         code = "".join(secrets.choice("0123456789") for _ in range(CODE_DIGITS)) if private else ""
         address = f"10.73.{subnet}.1"
-        settings = _ap_settings(ssid, self._interface, code or open_passphrase(ssid), address,
-                                profile=HOST_PROFILE + tag, mode="ap", channel=CHANNEL, band=BAND)
+        passphrase = code or open_passphrase(ssid)
         with self._lock:
             self._state = "starting"
             self._role = "host"
+            self._spec = (ssid, passphrase, address, HOST_PROFILE + tag)
         self._emit()
-        error = self._activate(settings)
+        error = self._stay_on_network() if self._resume else "plain"
+        if error:
+            if error != "plain":
+                decky.logger.info("hotspot: hosting without staying on %s (%s)", self._paused, error)
+            with self._lock:
+                self._ap_interface = self._interface
+                self._ap_device = self._device
+                self._ap_channel = CHANNEL
+            error = self._activate(_ap_settings(ssid, self._interface, passphrase, address, profile=HOST_PROFILE + tag,
+                                                mode="ap", channel=CHANNEL, band=BAND), self._device)
         if error:
             self._teardown()
             self._reset_state()
@@ -298,14 +356,114 @@ class OfflineHotspotService:
             self._subnet = subnet
             self._address = address
         self._begin()
-        decky.logger.info("hotspot: hosting %s on %s (%s)%s", ssid, self._interface, address,
-                          f", {self._paused} paused" if self._paused else "")
+        decky.logger.info("hotspot: hosting %s on %s channel %s (%s)%s", ssid, self._ap_interface, self._ap_channel,
+                          address, f", {self._paused} paused" if self._paused else
+                          f", staying on {self._uplink}" if self._uplink else "")
         return ""
 
-    def _activate(self, settings: dict) -> str:
+    def _stay_on_network(self) -> str:
+        try:
+            driver = Path(f"/sys/class/net/{self._interface}/device/driver").resolve().name
+        except OSError:
+            driver = ""
+        if driver not in STAY_DRIVERS:
+            return f"the {driver or 'unknown'} driver can't keep both"
+        link = station_channel(self._interface)
+        if link is None:
+            return "plain"
+        channel, mhz = link
+        if not can_host_on(mhz):
+            with self._lock:
+                self._dfs = True
+            return f"channel {channel} can't carry an access point"
+        device = self._add_ap_interface()
+        if not device:
+            return f"no {AP_INTERFACE}"
+        ssid, passphrase, address, profile = self._spec
+        with self._lock:
+            self._ap_interface = AP_INTERFACE
+            self._ap_device = device
+            self._ap_channel = channel
+        error = self._activate(_ap_settings(ssid, AP_INTERFACE, passphrase, address, profile=profile, mode="ap",
+                                            channel=channel, band="bg" if mhz < 3000 else "a"), device)
+        if not error:
+            with self._lock:
+                self._uplink, self._paused = self._paused, ""
+            return ""
+        self._drop_profile()
+        drop_ap_interface()
+        with self._lock:
+            self._ap_interface = ""
+            self._ap_device = ""
+        return error
+
+    def _add_ap_interface(self) -> str:
+        drop_ap_interface()
+        mac = _ap_mac(self._interface)
+        argv = ["iw", "dev", self._interface, "interface", "add", AP_INTERFACE, "type", "__ap"]
+        code, _out, err = run_command(argv + (["addr", mac] if mac else []), timeout=5)
+        if code != 0 and mac:
+            code, _out, err = run_command(argv, timeout=5)
+        if code != 0:
+            decky.logger.info("hotspot: the Wi-Fi card refused a second interface (%s)", err.strip())
+            return ""
+        deadline = time.monotonic() + AP_INTERFACE_SECONDS
+        while time.monotonic() < deadline:
+            device = self._nm.device_by_interface(AP_INTERFACE)
+            if device:
+                try:
+                    if int(self._nm.device(device).get("State", 0)) >= DEVICE_DISCONNECTED:
+                        return device
+                except nm_dbus.DBusError:
+                    pass
+            time.sleep(0.25)
+        decky.logger.info("hotspot: NetworkManager didn't take up %s", AP_INTERFACE)
+        drop_ap_interface()
+        return ""
+
+    def _follow_channel(self) -> None:
+        with self._lock:
+            if self._ap_interface != AP_INTERFACE or self._state != "host":
+                return
+            current = self._ap_channel
+            interface = self._interface
+        link = station_channel(interface)
+        if link is None or link[0] == current:
+            return
+        channel, mhz = link
+        if not self._op_lock.acquire(blocking=False):
+            return
+        try:
+            if not can_host_on(mhz):
+                decky.logger.info("hotspot: the network moved to channel %s, which can't carry an access point", channel)
+                self._end("channel")
+                return
+            decky.logger.info("hotspot: the network moved to channel %s, moving the access point", channel)
+            with self._lock:
+                active, ssid_spec, device = self._active, self._spec, self._ap_device
+                self._state = "starting"
+            try:
+                self._nm.deactivate(active)
+            except nm_dbus.DBusError:
+                pass
+            self._drop_profile()
+            ssid, passphrase, address, profile = ssid_spec
+            error = self._activate(_ap_settings(ssid, AP_INTERFACE, passphrase, address, profile=profile, mode="ap",
+                                                channel=channel, band="bg" if mhz < 3000 else "a"), device)
+            if error:
+                self._end("channel")
+                return
+            with self._lock:
+                self._ap_channel = channel
+                self._state = "host"
+            self._emit()
+        finally:
+            self._op_lock.release()
+
+    def _activate(self, settings: dict, device: str) -> str:
         nm = self._nm
         try:
-            connection, active = nm.add_and_activate(settings, self._device, _BOUND)
+            connection, active = nm.add_and_activate(settings, device, _BOUND)
         except nm_dbus.DBusError as exc:
             decky.logger.warning("hotspot: NetworkManager refused the profile (%s)", exc)
             return FAILED
@@ -328,7 +486,7 @@ class OfflineHotspotService:
             if state == nm_dbus.ACTIVE_DEACTIVATED:
                 break
             time.sleep(0.25)
-        reason = self._device_reason()
+        reason = self._device_reason(device)
         decky.logger.info("hotspot: activation didn't finish (device reason %s)", reason)
         if reason == REASON_NO_SECRETS:
             return BAD_CODE
@@ -336,9 +494,9 @@ class OfflineHotspotService:
             return "address"
         return FAILED
 
-    def _device_reason(self) -> int:
+    def _device_reason(self, device: str) -> int:
         try:
-            state_reason = self._bus.get(nm_dbus.NM, self._device, nm_dbus.NM_DEVICE, "StateReason")
+            state_reason = self._bus.get(nm_dbus.NM, device, nm_dbus.NM_DEVICE, "StateReason")
             return int(state_reason[1])
         except (nm_dbus.DBusError, TypeError, IndexError, ValueError):
             return 0
@@ -463,7 +621,7 @@ class OfflineHotspotService:
             address = f"10.73.{subnet}.{guest_number(mac or secrets.token_hex(6), attempt)}"
             settings = _ap_settings(ssid, self._interface, passphrase, address, profile=GUEST_PROFILE + tag,
                                     mode="infrastructure")
-            error = self._activate(settings)
+            error = self._activate(settings, self._device)
             if error != "address":
                 break
             decky.logger.info("hotspot: %s is taken on %s, trying another", address, ssid)
@@ -518,7 +676,7 @@ class OfflineHotspotService:
             toast = "Off"
         elif reason == "host_gone":
             toast = "The hotspot ended"
-        elif reason in ("wifi_off", "game_mode", "sleep", "dropped"):
+        elif reason in ("wifi_off", "game_mode", "sleep", "dropped", "channel"):
             toast = "Off"
         self._emit(toast)
 
@@ -532,8 +690,11 @@ class OfflineHotspotService:
             except nm_dbus.DBusError:
                 pass
         self._drop_profile()
+        if self._ap_interface == AP_INTERFACE:
+            drop_ap_interface()
         if nm is not None and reconnect and resume:
-            self._reconnect(nm, device, resume, active)
+            threading.Thread(target=self._reconnect, args=(device, resume, active), name="hotspot-reconnect",
+                             daemon=True).start()
         with self._lock:
             self._bus = None
             self._nm = None
@@ -552,7 +713,18 @@ class OfflineHotspotService:
         except nm_dbus.DBusError:
             pass
 
-    def _reconnect(self, nm, device: str, resume: str, ours: str) -> None:
+    def _reconnect(self, device: str, resume: str, ours: str) -> None:
+        bus = nm_dbus.Bus()
+        try:
+            bus.open()
+        except (OSError, nm_dbus.DBusError):
+            return
+        try:
+            self._reconnect_on(nm_dbus.NetworkManager(bus), device, resume, ours)
+        finally:
+            bus.close()
+
+    def _reconnect_on(self, nm, device: str, resume: str, ours: str) -> None:
         deadline = time.monotonic() + RECONNECT_SECONDS
         while time.monotonic() < deadline:
             try:
@@ -582,6 +754,12 @@ class OfflineHotspotService:
             self._connection = ""
             self._resume = ""
             self._paused = ""
+            self._uplink = ""
+            self._dfs = False
+            self._ap_interface = ""
+            self._ap_device = ""
+            self._ap_channel = 0
+            self._spec = None
             self._internet = False
             self._started = 0.0
             self._started_wall = 0
@@ -640,6 +818,7 @@ class OfflineHotspotService:
                 if role == "host" and now >= next_devices:
                     next_devices = now + DEVICES_SECONDS
                     self._refresh_devices()
+                    self._follow_channel()
                 if role == "guest" and sock is not None and now >= next_hello:
                     next_hello = now + HELLO_SECONDS
                     self._hello(sock)
@@ -723,7 +902,7 @@ class OfflineHotspotService:
 
     def _refresh_devices(self) -> None:
         with self._lock:
-            interface = self._interface
+            interface = self._ap_interface or self._interface
         code, out, _err = run_command(["iw", "dev", interface, "station", "dump"], timeout=5)
         macs = _MAC.findall(out) if code == 0 else []
         code, neigh, _err = run_command(["ip", "-4", "neigh", "show", "dev", interface], timeout=5)
@@ -768,6 +947,8 @@ class OfflineHotspotService:
                         continue
                 if removed:
                     decky.logger.info("hotspot: removed leftover profiles %s", ", ".join(removed))
+                if drop_ap_interface():
+                    decky.logger.info("hotspot: removed a leftover %s", AP_INTERFACE)
             except nm_dbus.DBusError as exc:
                 decky.logger.info("hotspot: startup sweep failed (%s)", exc)
             finally:
@@ -777,7 +958,9 @@ class OfflineHotspotService:
         loop = self._loop
         if loop is None or loop.is_closed():
             return
-        payload = self.status()
+        with self._lock:
+            self._seq += 1
+            payload = self.status()
         if toast:
             payload["toast"] = toast
         try:
