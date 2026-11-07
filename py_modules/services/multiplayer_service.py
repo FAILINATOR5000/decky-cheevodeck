@@ -1523,7 +1523,7 @@ class MultiplayerService:
                     break
         return machine_id
 
-    def _gates(self, mode: str, local: dict, room, players: int):
+    def _gates(self, mode: str, local: dict, room, players: int, warn_crc: bool = True):
         warnings = []
         if mode == "stream":
             return self._stream_gates(room), self._stream_warnings(local) if room is None else warnings
@@ -1542,7 +1542,8 @@ class MultiplayerService:
                     if not ra or not ra.installed(room["core"]):
                         return ("host_core_missing", {"core": room["coreName"] or room["core"]}), warnings
                     return ("match_host_core", {"core": room["coreName"] or room["core"]}), warnings
-                crc = self._crc_of(local["real"]) if local["emulator"] == "retroarch" else ""
+                check_crc = local["emulator"] == "retroarch" and (warn_crc or system_id == session.NES_SYSTEM)
+                crc = self._crc_of(local["real"]) if check_crc else ""
                 if room["crc"] and crc and crc != room["crc"]:
                     if system_id == session.NES_SYSTEM:
                         return ("crc_mismatch", {}), warnings
@@ -1682,7 +1683,7 @@ class MultiplayerService:
         if mode in ("couch", "stream"):
             local, gate, detail = self._local(mode, row["gameId"], "", row)
             if local is not None:
-                found, _warnings = self._gates(mode, local, row, players)
+                found, _warnings = self._gates(mode, local, row, players, warn_crc=False)
                 if found:
                     gate, detail = found
             return (local, "", {}) if not gate else (None, gate, detail)
@@ -1697,7 +1698,7 @@ class MultiplayerService:
         for game_id, chosen in tries:
             local, gate, detail = self._local(mode, game_id, chosen, row)
             if local is not None:
-                found, _warnings = self._gates(mode, local, row, players)
+                found, _warnings = self._gates(mode, local, row, players, warn_crc=False)
                 if not found:
                     return local, "", {}
                 gate, detail = found
