@@ -38,6 +38,7 @@ from services.memories_transfer_service import MemoriesTransferService
 from services.data_transfer_service import DataTransferService
 from services.nearby_transfer_service import NearbyTransferService
 from services.multiplayer_service import MultiplayerService
+from services.offline_hotspot_service import OfflineHotspotService
 from services.stream_setup import StreamSetup
 from services.stream_host import StreamHost
 from services.voice_canceller import VoiceCanceller
@@ -127,6 +128,7 @@ from mixins.milestones import MilestonesMixin
 from mixins.data_transfer import DataTransferMixin
 from mixins.multiplayer import MultiplayerMixin
 from mixins.stream_play import StreamPlayMixin
+from mixins.offline_hotspot import OfflineHotspotMixin
 
 
 DEFAULT_IPC_SLOW_THRESHOLD_MS = 250
@@ -191,6 +193,7 @@ class Plugin(
     DataTransferMixin,
     MultiplayerMixin,
     StreamPlayMixin,
+    OfflineHotspotMixin,
 ):
     DEFAULT_LANGUAGE = "en"
     RECENT_UNLOCK_LOOKBACK_MINUTES = 1440
@@ -842,6 +845,13 @@ class Plugin(
             ra=self.ra,
         )
         self.multiplayer_service.set_friends(self.multiplayer_friends_service)
+        self.offline_hotspot_service = OfflineHotspotService(
+            settings_store=self.settings_store,
+            game_mode=self.session_mode_service.is_game_mode,
+            room_role=self.multiplayer_service.room_role,
+        )
+        self.multiplayer_service.set_hotspot(self.offline_hotspot_service)
+        self.multiplayer_friends_service.set_hotspot(self.offline_hotspot_service)
 
         self._memory_share_lock = threading.Lock()
         self._memory_share_cancel = None
@@ -974,6 +984,7 @@ class Plugin(
         self.multiplayer_service.sync()
         self.multiplayer_friends_service.sync()
         self.ez_friends_heal_service.sync()
+        self.offline_hotspot_service.sync()
 
     def _toast_newer_schema(self) -> None:
         emit_notification(
@@ -1031,6 +1042,8 @@ class Plugin(
         self.multiplayer_friends_service.set_event_loop(self._asyncio_loop)
         self.ez_friends_heal_service.set_event_loop(self._asyncio_loop)
         self.ez_friends_heal_service.start()
+        self.offline_hotspot_service.set_event_loop(self._asyncio_loop)
+        self.offline_hotspot_service.start()
         try:
             await asyncio.to_thread(self.cheevo_check_service.prepare)
         except Exception as e:
@@ -1182,6 +1195,7 @@ class Plugin(
         self.ez_friends_heal_service.stop()
         self.data_transfer_service.stop()
         self._restore_deck_controller_safe()
+        await asyncio.to_thread(self.offline_hotspot_service.stop)
 
     def _validate_credentials_or_raise(self, username: str, web_api_key: str, *, expected_ulid: str = "", skip_name_match: bool = False):
         username = str(username or "").strip()
@@ -1986,6 +2000,8 @@ class Plugin(
     async def factory_reset(self):
         if self._memories_job_running():
             return {"ok": False, "error": "busy"}
+
+        await asyncio.to_thread(self.offline_hotspot_service.turn_off, "reset")
 
         self.players_near_you_service.note_cache_cleared()
 

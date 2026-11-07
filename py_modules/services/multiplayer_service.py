@@ -309,10 +309,23 @@ class MultiplayerService:
         self._host_tunnels = lobby_tunnel.HostTunnels(debug=self._debug)
         self._guest_tunnels = None
         self._friends = None
+        self._hotspot = None
         self._voice_relay = False
 
     def set_friends(self, friends) -> None:
         self._friends = friends
+
+    def set_hotspot(self, hotspot) -> None:
+        self._hotspot = hotspot
+
+    def room_role(self) -> str:
+        if self._room is not None:
+            return "host"
+        return "guest" if self._joined is not None else ""
+
+    def _lan_address(self) -> str:
+        hotspot = self._hotspot
+        return (hotspot.lan_address() if hotspot is not None else "") or _route_address()
 
     def _identity(self) -> tuple:
         friends = self._friends
@@ -1797,7 +1810,7 @@ class MultiplayerService:
                 "bannedDevices": set(),
                 "freed": {},
                 "addressGoneAt": 0.0,
-                "address": _route_address(),
+                "address": self._lan_address(),
                 "pv": PLUGIN_VERSION,
                 "local": local,
             }
@@ -3203,7 +3216,8 @@ class MultiplayerService:
         return found
 
     def _broadcast_targets(self) -> list:
-        return [self._broadcast]
+        subnet = self._hotspot.broadcast_address() if self._hotspot is not None else ""
+        return [self._broadcast, subnet] if subnet else [self._broadcast]
 
     async def discover(self) -> dict:
         refused = self._refusal()

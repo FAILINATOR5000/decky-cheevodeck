@@ -34,6 +34,8 @@ LIST_MAX = 500
 REPORT_ULIDS_MAX = 520
 SEEN_INVITES = 256
 ACK_GATHER_SECONDS = 0.3
+LAN_HERE_SECONDS = 10
+LAN_SEEN_SECONDS = 35
 OUTBOX_GAP_SECONDS = 0.1
 ACK_MAX = 500
 FIND_ROUNDS = 3
@@ -64,6 +66,10 @@ def _signed(key_hex: str, label: str, body, tag) -> bool:
         return hmac.compare_digest(_sign(key_hex, label, body), tag)
     except (TypeError, ValueError):
         return False
+
+
+def _here_slot(key_hex: str, body: dict) -> str:
+    return _sign(key_hex, "here-slot", {"at": body.get("at")})[:16]
 
 
 class _Listener(asyncio.DatagramProtocol):
@@ -124,6 +130,9 @@ class MultiplayerFriendsService:
         self._session_account = ""
         self._acks = []
         self._tasks = set()
+        self._hotspot = None
+        self._lan_seen = {}
+        self._lan_here = None
 
     def set_event_loop(self, loop) -> None:
         self._loop = loop
@@ -137,6 +146,12 @@ class MultiplayerFriendsService:
 
     def sync(self) -> None:
         self._soon(self._follow)
+
+    def set_hotspot(self, hotspot) -> None:
+        self._hotspot = hotspot
+
+    def _hotspot_broadcast(self) -> str:
+        return self._hotspot.broadcast_address() if self._hotspot is not None else ""
 
     def settings_changed(self) -> None:
         self._soon(self._restart)
@@ -774,7 +789,7 @@ class MultiplayerFriendsService:
         alerts = []
         if data is not None:
             for friend in data["friends"]:
-                seen = self._presence.get(friend["ulid"], {})
+                seen = self._seen(friend["ulid"])
                 friends.append({
                     "ulid": friend["ulid"],
                     "name": friend["name"],
@@ -1094,6 +1109,9 @@ class MultiplayerFriendsService:
                                      "body": body, "t": tag}, separators=(",", ":"), sort_keys=True).encode("ascii")
                 if len(packet) <= DATAGRAM_BYTES:
                     listener.transport.sendto(packet, (self._broadcast, self._peer_port))
+                    subnet = self._hotspot_broadcast()
+                    if subnet:
+                        listener.transport.sendto(packet, (subnet, self._peer_port))
             if self._up and self._presence.get(ulid, {}).get("online"):
                 reply = await self._ask({"op": "invite", "iid": iid, "to": ulid, "body": body, "t": tag},
                                         "invite:" + iid)
@@ -1196,7 +1214,7 @@ class MultiplayerFriendsService:
         return row is not None and (not address or row["door"] == "server" or row["address"] == address)
 
     async def join_friend(self, ulid: str, password: str, hardcore: bool) -> dict:
-        room = self._presence.get(ulid, {}).get("room")
+        room = self._seen(ulid).get("room")
         if room is None or not await self._find_room(room["id"], ""):
             return {"ok": False, "error": "room_gone"}
         return await self._mp.join(room["id"], password, hardcore)
@@ -1215,11 +1233,101 @@ class MultiplayerFriendsService:
             return
         if self._listener is not listener:
             listener.transport.close()
+            return
+        if self._lan_here is None:
+            self._lan_here = self._spawn(self._say_here())
+
+    async def _say_here(self) -> None:
+        while True:
+            try:
+                self._say_here_once()
+            except Exception as e:
+                decky.logger.warning("friends: couldn't say here on the hotspot (%s)", type(e).__name__)
+            await asyncio.sleep(LAN_HERE_SECONDS)
+
+    def _say_here_once(self) -> None:
+        now = time.monotonic()
+        gone = [ulid for ulid, seen in self._lan_seen.items() if seen["until"] < now]
+        for ulid in gone:
+            del self._lan_seen[ulid]
+        if gone:
+            self._changed()
+        subnet = self._hotspot_broadcast()
+        listener = self._listener
+        if not subnet or listener is None or listener.transport is None or not self._me() \
+                or not self._cfg().get("mpShowOnline", True):
+            return
+        data = self._data()
+        if data is not None:
+            for packet in self._here_packets(data):
+                listener.transport.sendto(packet, (subnet, self._peer_port))
+
+    def _here_packets(self, data) -> list:
+        body = {"from": self._me(), "at": int(time.time()), "game": self._game(), "room": self._mp.current_room()}
+        tags = {_here_slot(friend["pairKey"], body): _sign(friend["pairKey"], "here", body) for friend in data["friends"]}
+        packets = []
+        batch = {}
+        for ulid, tag in tags.items():
+            batch[ulid] = tag
+            packet = self._here_packet(body, batch)
+            if len(packet) > DATAGRAM_BYTES:
+                del batch[ulid]
+                if batch:
+                    packets.append(self._here_packet(body, batch))
+                batch = {ulid: tag}
+        if batch:
+            packets.append(self._here_packet(body, batch))
+        return packets
+
+    def _here_packet(self, body: dict, tags: dict) -> bytes:
+        return json.dumps({"k": FRIEND_KIND, "v": proto.VERSION, "op": "here", "from": self._me(), "body": body,
+                           "t": tags}, separators=(",", ":"), sort_keys=True).encode("ascii")
+
+    def _take_here(self, message: dict, addr) -> None:
+        sender = message.get("from")
+        body = message.get("body")
+        tags = message.get("t")
+        data = self._data()
+        friend = self._find(data, sender) if data is not None and is_ulid(sender) else None
+        if friend is None or not isinstance(tags, dict) or not isinstance(body, dict):
+            return
+        if not _signed(friend["pairKey"], "here", body, tags.get(_here_slot(friend["pairKey"], body))):
+            return
+        at = body.get("at")
+        if body.get("from") != sender or type(at) is not int or abs(at - time.time()) > CLOCK_SKEW_SECONDS:
+            return
+        room = body.get("room")
+        if not (isinstance(room, dict) and proto.is_room_id(room.get("id")) and room.get("where") in proto.WHERES):
+            room = None
+        else:
+            room = {"id": room["id"], "name": proto.clean_room_name(room.get("name")) or "Room",
+                    "where": room["where"], "playing": room.get("playing") is True}
+        seen = {"game": proto.clean_chat(body.get("game"))[:64], "room": room,
+                "address": addr[0] if isinstance(addr, tuple) and addr else ""}
+        before = self._lan_seen.get(sender)
+        self._lan_seen[sender] = {**seen, "until": time.monotonic() + LAN_SEEN_SECONDS}
+        if before is None or {key: before[key] for key in seen} != seen:
+            self._changed()
+
+    def _seen(self, ulid: str) -> dict:
+        seen = self._presence.get(ulid, {})
+        if seen.get("online"):
+            return seen
+        here = self._lan_seen.get(ulid)
+        if here is None or here["until"] < time.monotonic():
+            return seen
+        return {"online": True, "game": here["game"], "room": here["room"], "seen": 0}
 
     def _close_listener(self) -> None:
         listener, self._listener = self._listener, None
         if listener is not None and listener.transport is not None:
             listener.transport.close()
+        if self._lan_here is not None:
+            self._lan_here.cancel()
+            self._lan_here = None
+        if self._lan_seen:
+            self._lan_seen = {}
+            self._changed()
 
     def _heard(self, data: bytes, addr) -> None:
         now = time.monotonic()
@@ -1253,6 +1361,8 @@ class MultiplayerFriendsService:
             self._take_invite(message.get("from"), message.get("body"), message.get("t"), addr)
         elif op == "invite_ack":
             self._take_ack(message)
+        elif op == "here":
+            self._take_here(message, addr)
 
     def _take_ack(self, message: dict) -> None:
         waiting = self._invite_acks.get(message.get("id")) if isinstance(message.get("id"), str) else None
