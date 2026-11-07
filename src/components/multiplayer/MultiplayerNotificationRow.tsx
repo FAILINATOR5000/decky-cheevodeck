@@ -1,19 +1,32 @@
 import { addEventListener, removeEventListener } from "@decky/api";
 import { DialogButton, Focusable } from "@decky/ui";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+// Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
+import { FaDoorOpen, FaSignInAlt, FaSignOutAlt, FaUserFriends, FaWifi } from "react-icons/fa";
 
-import { multiplayerFriends } from "../../api";
+import { getGameIconCached, multiplayerFriends } from "../../api";
+import { useGameIcon } from "../../hooks/useGameIcon";
 import { t, type LanguageCode } from "../../locales";
 import type { NotificationNav } from "../../notifications/registry";
 import type { MultiplayerFriendsState } from "../../types";
 import { logError } from "../../utils/errors";
+import { hotspotIsOn, leaveHotspot, toggleHotspot, useHotspot } from "../../utils/hotspotState";
 import { rememberMultiplayerPage } from "../../utils/multiplayerChoices";
 import { endMultiplayerRoom, useMultiplayerRoomMarker } from "../../utils/multiplayerRoomState";
+import { modalSize } from "../../utils/scale";
 import { achievementGreen } from "../../utils/style";
+import { notificationCardMetrics } from "../notifications/NotificationCard";
 import { FocusTarget } from "../ui/FocusTarget";
+import { openHotspotJoin } from "../hotspot/HotspotJoinModal";
 
 const FRIENDS_EVENT = "cheevodeck_multiplayer_friends";
 const ROW_KEY = "notif:multiplayer:room";
+const HOTSPOT_KEY = "notif:multiplayer:hotspot";
+const JOIN_KEY = "notif:multiplayer:join";
+const CLOSE_KEY = "notif:multiplayer:close";
+const SIDE_BUTTON = 24;
+const SIDE_GAP = 4;
+const COUNT_MARK = "\u0000";
 
 type Waiting = { on: boolean; unread: number; requests: number; online: number };
 
@@ -64,26 +77,44 @@ function useWaiting(): Waiting | null {
     return waiting;
 }
 
+function Counted(props: { language: LanguageCode; text: string; count: number }) {
+    const [before, after = ""] = t(props.language, props.text, { count: COUNT_MARK }).split(COUNT_MARK);
+    return (
+        <span>
+            {before}
+            <span style={props.count > 0 ? { color: achievementGreen, fontWeight: 700 } : undefined}>{props.count}</span>
+            {after}
+        </span>
+    );
+}
+
+function Parts(props: { parts: ReactNode[] }) {
+    return (
+        <div style={{ whiteSpace: "normal", overflowWrap: "anywhere" }}>
+            {props.parts.map((part, index) => (
+                <span key={index}>
+                    {index > 0 && <span style={{ opacity: 0.8 }}>{" · "}</span>}
+                    {part}
+                </span>
+            ))}
+        </div>
+    );
+}
+
 function WaitingLine(props: { language: LanguageCode; waiting: Waiting | null }) {
     const { language, waiting } = props;
     if (!waiting?.on) {
         return null;
     }
-    const parts = [
-        waiting.unread > 0 ? { text: t(language, "Unread messages: {{count}}", { count: waiting.unread }), lit: true } : null,
-        waiting.requests > 0 ? { text: t(language, "Friend requests: {{count}}", { count: waiting.requests }), lit: true } : null,
-        { text: t(language, "Friends online: {{count}}", { count: waiting.online }), lit: waiting.online > 0 }
-    ].filter((part): part is { text: string; lit: boolean } => part !== null);
-    return (
-        <div style={{ whiteSpace: "normal", overflowWrap: "anywhere" }}>
-            {parts.map((part, index) => (
-                <span key={part.text}>
-                    {index > 0 && <span style={{ opacity: 0.8 }}>{" · "}</span>}
-                    <span style={part.lit ? { color: achievementGreen } : { opacity: 0.8 }}>{part.text}</span>
-                </span>
-            ))}
-        </div>
-    );
+    const parts: ReactNode[] = [];
+    if (waiting.unread > 0) {
+        parts.push(<Counted language={language} text="Unread messages: {{count}}" count={waiting.unread} />);
+    }
+    if (waiting.requests > 0) {
+        parts.push(<Counted language={language} text="Friend requests: {{count}}" count={waiting.requests} />);
+    }
+    parts.push(<Counted language={language} text="Friends online: {{count}}" count={waiting.online} />);
+    return <Parts parts={parts} />;
 }
 
 type FocusProps = {
@@ -92,12 +123,76 @@ type FocusProps = {
     actionDescriptionMap: Record<number, string>;
 };
 
+function SideButton(props: FocusProps & {
+    focusKey: string;
+    label: string;
+    lit: boolean;
+    onClick: () => void;
+    children: ReactNode;
+}) {
+    const [selected, setSelected] = useState(false);
+    const size = modalSize(SIDE_BUTTON);
+    return (
+        <FocusTarget focusKey={props.focusKey} style={{ position: "relative", display: "flex" }}>
+            <DialogButton
+                onClick={props.onClick}
+                onGamepadFocus={() => setSelected(true)}
+                onGamepadBlur={() => setSelected(false)}
+                onMenuButton={props.onMenuButton}
+                onButtonDown={props.onButtonDown}
+                actionDescriptionMap={props.actionDescriptionMap}
+                style={{
+                    width: `${size}px`,
+                    height: `${size}px`,
+                    minWidth: 0,
+                    padding: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: props.lit ? achievementGreen : undefined
+                }}
+            >
+                {props.children}
+            </DialogButton>
+            {selected && (
+                <div
+                    style={{
+                        position: "absolute",
+                        right: `${size + modalSize(6)}px`,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        whiteSpace: "nowrap",
+                        pointerEvents: "none",
+                        padding: `${modalSize(5)}px ${modalSize(10)}px`,
+                        borderRadius: `${modalSize(16)}px`,
+                        background: "rgba(14, 20, 27, 0.92)",
+                        color: "#fff",
+                        fontSize: `${modalSize(14)}px`
+                    }}
+                >
+                    {props.label}
+                </div>
+            )}
+        </FocusTarget>
+    );
+}
+
 export function MultiplayerNotificationRow(props: FocusProps & { language: LanguageCode; nav: NotificationNav; close: () => void }) {
     const { language, nav, close } = props;
     const room = useMultiplayerRoomMarker();
+    const hotspot = useHotspot();
     const waiting = useWaiting();
     const inRoom = room.role !== null;
     const box = useRef<HTMLDivElement>(null);
+    const metrics = notificationCardMetrics();
+    const game = room.own ?? (room.gameId ? { gameId: room.gameId, title: room.title, imageIcon: room.imageIcon } : null);
+    const iconGame = inRoom && game ? game.gameId : null;
+    const { iconDataUri } = useGameIcon(iconGame, game?.imageIcon, "notifications: EZ card icon");
+    useEffect(() => {
+        if (iconGame !== null) {
+            getGameIconCached(iconGame, game?.imageIcon).catch((e) => logError("notifications: EZ card icon", e));
+        }
+    }, [iconGame, game?.imageIcon]);
 
     const wasInRoom = useRef(inRoom);
     useEffect(() => {
@@ -111,8 +206,8 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
         if (!doc || (active && active !== doc.body && active.isConnected)) {
             return;
         }
-        const row = box.current?.querySelector(`[data-focus-key="${ROW_KEY}"]`);
-        (row?.querySelector("button, [tabindex]") as HTMLElement | null | undefined)?.focus();
+        const target = box.current?.querySelector(`[data-focus-key="${HOTSPOT_KEY}"]`);
+        (target?.querySelector("button, [tabindex]") as HTMLElement | null | undefined)?.focus();
     }, [inRoom]);
 
     function open() {
@@ -121,6 +216,26 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
         close();
     }
 
+    const players = room.size > 0 ? t(language, "{{taken}}/{{count}} players", { taken: room.taken, count: room.size }) : "";
+    const gameText = room.own
+        ? t(language, "{{game}} · linked with {{other}}", { game: room.own.title, other: room.title })
+        : room.title;
+    const roomParts: ReactNode[] = inRoom
+        ? [
+            <span style={{ color: achievementGreen, fontWeight: 700 }}>
+                {room.role === "host" ? t(language, "Room open") : t(language, "In {{name}}'s room", { name: room.host })}
+            </span>,
+            gameText,
+            ...(players ? [players] : [])
+        ]
+        : [];
+    const button = modalSize(SIDE_BUTTON);
+    const gap = modalSize(SIDE_GAP);
+    const inset = modalSize(8);
+    const buttons = inRoom ? 3 : 2;
+    const hotspotOn = hotspotIsOn(hotspot);
+    const joined = hotspot.role === "guest" && hotspot.state !== "stopping";
+
     return (
         <div ref={box}>
             <Focusable
@@ -128,30 +243,106 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
                 onMenuButton={props.onMenuButton}
                 onButtonDown={props.onButtonDown}
                 actionDescriptionMap={props.actionDescriptionMap}
-                style={{ display: "flex", flexDirection: "row", alignItems: "stretch", gap: "8px", marginBottom: "12px" }}
+                style={{ position: "relative", display: "flex", flexDirection: "row", marginBottom: "12px" }}
             >
                 <FocusTarget focusKey={ROW_KEY} style={{ flex: 1, minWidth: 0, display: "flex" }}>
-                    <DialogButton onClick={open} style={{ width: "100%", minWidth: 0, textAlign: "left" }}>
-                        <div style={{ color: inRoom ? achievementGreen : undefined, fontWeight: 700, whiteSpace: "normal", overflowWrap: "anywhere" }}>
-                            {room.role === "host"
-                                ? t(language, "EZ Multiplayer room open")
-                                : room.role === "guest"
-                                    ? t(language, "In {{name}}'s EZ Multiplayer room", { name: room.host })
-                                    : t(language, "EZ Multiplayer")}
+                    <DialogButton
+                        onClick={open}
+                        style={{
+                            width: "100%",
+                            minWidth: 0,
+                            minHeight: `${button * buttons + gap * (buttons - 1) + modalSize(6) * 2}px`,
+                            textAlign: "left",
+                            paddingRight: `${button + inset * 2}px`,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: `${metrics.iconGap}px`
+                        }}
+                    >
+                        <div
+                            style={{
+                                width: `${metrics.iconSize}px`,
+                                height: `${metrics.iconSize}px`,
+                                flex: "none",
+                                borderRadius: `${modalSize(6)}px`,
+                                overflow: "hidden",
+                                background: "rgba(255, 255, 255, 0.08)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center"
+                            }}
+                        >
+                            {inRoom && iconDataUri
+                                ? <img src={iconDataUri} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                : <FaUserFriends style={{ width: "50%", height: "50%", opacity: 0.85 }} />}
                         </div>
-                        {inRoom && (
-                            <div style={{ opacity: 0.8, whiteSpace: "normal", overflowWrap: "anywhere" }}>{room.title}</div>
-                        )}
-                        <WaitingLine language={language} waiting={waiting} />
+                        <div
+                            style={{
+                                minWidth: 0,
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: `${metrics.contentGap}px`,
+                                fontSize: `${metrics.bodyFontSize}px`,
+                                lineHeight: metrics.bodyLineHeight
+                            }}
+                        >
+                            <div style={{ color: "#fff", fontSize: `${metrics.titleFontSize}px`, fontWeight: 800, lineHeight: metrics.titleLineHeight }}>
+                                {t(language, "EZ Multiplayer")}
+                            </div>
+                            {inRoom && <Parts parts={roomParts} />}
+                            <WaitingLine language={language} waiting={waiting} />
+                        </div>
                     </DialogButton>
                 </FocusTarget>
-                {inRoom && (
-                    <FocusTarget focusKey="notif:multiplayer:close" style={{ display: "flex" }}>
-                        <DialogButton onClick={() => void endMultiplayerRoom()} style={{ minWidth: 0, width: "auto" }}>
-                            {t(language, room.role === "host" ? "Close Room" : "Leave Room")}
-                        </DialogButton>
-                    </FocusTarget>
-                )}
+                <Focusable
+                    flow-children="column"
+                    style={{
+                        position: "absolute",
+                        right: `${inset}px`,
+                        top: 0,
+                        bottom: 0,
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "center",
+                        gap: `${gap}px`
+                    }}
+                >
+                    <SideButton
+                        {...props}
+                        focusKey={HOTSPOT_KEY}
+                        label={t(language, joined ? "Connected to Offline Hotspot" : hotspotOn ? "Offline Hotspot On" : "Offline Hotspot Off")}
+                        lit={hotspotOn}
+                        onClick={() => {
+                            if (!joined) {
+                                void toggleHotspot();
+                            }
+                        }}
+                    >
+                        <FaWifi style={{ width: "60%", height: "60%" }} />
+                    </SideButton>
+                    <SideButton
+                        {...props}
+                        focusKey={JOIN_KEY}
+                        label={t(language, joined ? "Leave Offline Hotspot" : "Join Offline Hotspot")}
+                        lit={false}
+                        onClick={joined ? () => void leaveHotspot() : openHotspotJoin}
+                    >
+                        {joined
+                            ? <FaSignOutAlt style={{ width: "60%", height: "60%" }} />
+                            : <FaSignInAlt style={{ width: "60%", height: "60%" }} />}
+                    </SideButton>
+                    {inRoom && (
+                        <SideButton
+                            {...props}
+                            focusKey={CLOSE_KEY}
+                            label={t(language, room.role === "host" ? "Close Room" : "Leave Room")}
+                            lit={false}
+                            onClick={() => void endMultiplayerRoom()}
+                        >
+                            <FaDoorOpen style={{ width: "60%", height: "60%" }} />
+                        </SideButton>
+                    )}
+                </Focusable>
             </Focusable>
         </div>
     );

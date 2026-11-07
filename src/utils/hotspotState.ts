@@ -59,8 +59,16 @@ export function useHotspot(): HotspotStatus {
     return useSyncExternalStore(subscribe, () => status);
 }
 
-function hotspotIsOn(value: HotspotStatus = status): boolean {
+export function hotspotIsOn(value: HotspotStatus = status): boolean {
     return value.state === "host" || value.state === "guest" || value.state === "starting" || value.state === "joining";
+}
+
+export function useHotspotOn(): boolean {
+    return useSyncExternalStore(subscribe, () => hotspotIsOn(status));
+}
+
+export function hotspotWithoutInternet(value: HotspotStatus = status): boolean {
+    return (value.state === "host" || value.state === "guest") && !value.internet;
 }
 
 export function setHotspotPrivateNext(value: boolean) {
@@ -106,6 +114,10 @@ async function apply(on: boolean) {
     finally {
         busy = false;
     }
+}
+
+export async function toggleHotspot() {
+    await switchHotspot(!hotspotIsOn());
 }
 
 export async function switchHotspot(on: boolean) {

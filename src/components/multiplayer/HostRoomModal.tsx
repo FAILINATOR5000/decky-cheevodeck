@@ -36,6 +36,7 @@ type HostRequest = {
 type HostPlace = {
     online: boolean;
     lanOnly: boolean;
+    noInternet: boolean;
 };
 
 const WHERES: { code: MultiplayerWhere; labelKey: string }[] = [
@@ -54,8 +55,9 @@ type HostRoomModalProps = {
 function HostRoomModal(props: HostRoomModalProps) {
     const { language, request, place, describe, close } = props;
     const picks = multiplayerChoices();
+    const localOnly = place.lanOnly || place.noInternet;
     const [where, setWhere] = useState<MultiplayerWhere>(
-        () => (place.online && !place.lanOnly ? picks.where : "local")
+        () => (place.online && !localOnly ? picks.where : "local")
     );
     const [name, setName] = useState(() => t(language, "Room"));
     const [seats, setSeats] = useState(picks.seats);
@@ -84,7 +86,7 @@ function HostRoomModal(props: HostRoomModalProps) {
         }
         setHosting(true);
         setLine({ tone: "busy", text: t(language, "Hosting...") });
-        rememberMultiplayerHostPicks(seats, status, place.online && !place.lanOnly ? where : picks.where, access);
+        rememberMultiplayerHostPicks(seats, status, place.online && !localOnly ? where : picks.where, access);
         rememberMultiplayerVoice(voice);
         try {
             await multiplayerSetVisible(true, true);
@@ -223,7 +225,7 @@ function HostRoomModal(props: HostRoomModalProps) {
                                 >
                                     <DialogButton
                                         onClick={() => setWhere(entry.code)}
-                                        disabled={hosting || (entry.code === "online" && place.lanOnly)}
+                                        disabled={hosting || (entry.code === "online" && localOnly)}
                                         style={compactButtonStyle}
                                     >
                                         {t(language, entry.labelKey)}
@@ -231,10 +233,12 @@ function HostRoomModal(props: HostRoomModalProps) {
                                 </div>
                             ))}
                         </Focusable>
-                        <div style={{ ...modalBodyStyle(), marginTop: "6px", color: place.lanOnly ? warnAmber : undefined, opacity: place.lanOnly ? 1 : undefined }}>
+                        <div style={{ ...modalBodyStyle(), marginTop: "6px", color: localOnly ? warnAmber : undefined, opacity: localOnly ? 1 : undefined }}>
                             {place.lanOnly
                                 ? t(language, "This game links over LAN, so it plays Local only.")
-                                : t(language, "help_multiplayer_where")}
+                                : place.noInternet
+                                    ? t(language, "No internet here, so it plays Local only.")
+                                    : t(language, "help_multiplayer_where")}
                         </div>
                     </>
                 )}

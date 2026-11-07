@@ -71,7 +71,7 @@ import {
     useStreamSetup
 } from "../utils/streamPlay";
 import { ProgressBar } from "../components/ui/ProgressBar";
-import { switchHotspot, useHotspot } from "../utils/hotspotState";
+import { hotspotWithoutInternet, switchHotspot, useHotspot } from "../utils/hotspotState";
 import { getCurrentControllerGlyphStyle } from "../utils/controllerGlyphs";
 import { ButtonHints, type ButtonHint } from "../components/ui/ButtonHints";
 import { openExternalUrl, raLookupSearchUrl } from "../utils/navigation";
@@ -632,7 +632,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         };
         const place = {
             online: mp.lobby,
-            lanOnly: Boolean(mp.check?.lanOnly)
+            lanOnly: Boolean(mp.check?.lanOnly),
+            noInternet: hotspotWithoutInternet(hotspot)
         };
         if (mp.mode === "stream" && !streamScreenWarningOff()) {
             openStreamScreenWarning(language, () => openHostRoom(language, request, place, describe));

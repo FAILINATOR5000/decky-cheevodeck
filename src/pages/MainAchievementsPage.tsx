@@ -80,6 +80,7 @@ import { MilestonesQuickMenuButton } from "../components/milestones/MilestonesQu
 import { useSetupCatchUp } from "../hooks/useSetupCatchUp";
 import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 import { useMultiplayerRoomRole } from "../utils/multiplayerRoomState";
+import { useHotspotOn } from "../utils/hotspotState";
 import { PlaySplitButton } from "../components/game/PlaySplitButton";
 import { useGamePlayController } from "../hooks/useGamePlayController";
 
@@ -1896,6 +1897,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
 
     const roomRole = useMultiplayerRoomRole();
     const inRoom = roomRole !== null;
+    const hotspotOn = useHotspotOn();
 
     if (view !== "achievements") {
         return null;
@@ -2078,7 +2080,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                     justifyContent: "center",
                     scrollMarginTop: `${FIRST_FOCUSABLE_SCROLL_MARGIN_PX}px`,
                     opacity: previewStripButton === "notifications" ? 1 : 0.82,
-                    color: inRoom ? achievementGreen : undefined,
+                    color: inRoom ? achievementGreen : hotspotOn ? skyBlue : undefined,
                     boxShadow: previewStripButton === "notifications"
                         ? "0 0 0 2px rgba(255,255,255,0.55), 0 2px 8px rgba(0,0,0,0.35)"
                         : undefined

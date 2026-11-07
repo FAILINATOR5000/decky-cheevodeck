@@ -162,6 +162,10 @@ declare const appDetailsStore: {
 
 declare module "react-icons/fa" {
     export const FaTrophy: any;
+    export const FaWifi: any;
+    export const FaDoorOpen: any;
+    export const FaSignInAlt: any;
+    export const FaSignOutAlt: any;
     export const FaThumbtack: any;
     export const FaList: any;
     export const FaTag: any;

@@ -2934,7 +2934,6 @@ const JA: LocaleTable = {
     "Unread messages: {{count}}": "未読メッセージ: {{count}}",
     "Friend requests: {{count}}": "フレンド申請: {{count}}",
     "Friends online: {{count}}": "オンラインのフレンド: {{count}}",
-    "In {{name}}'s EZ Multiplayer room": "{{name}}のEZ Multiplayerルームに参加中",
     "In an EZ Multiplayer room": "EZ Multiplayerのルームに参加中",
     "In-Game": "ゲーム中",
     "Ready": "準備完了",
@@ -3259,7 +3258,18 @@ const JA: LocaleTable = {
     "No CheevoDeck hotspots nearby.": "近くにCheevoDeckのホットスポットはありません。",
     "Couldn't join. Check the code.": "参加できませんでした。コードを確認してください。",
     "help_multiplayer_hotspot": "近くにWi-Fiがない場合はオンにすると、近くの端末がこの端末に直接参加できます。",
+    "Offline Hotspot On": "オフラインホットスポット：オン",
+    "Offline Hotspot Off": "オフラインホットスポット：オフ",
+    "Room open": "ルーム開催中",
+    "In {{name}}'s room": "{{name}}のルームに参加中",
+    "{{taken}}/{{count}} players": "{{taken}}/{{count}}人",
+    "{{game}} · linked with {{other}}": "{{game}} · {{other}}と接続",
+    "Offline Hotspot is now on. Select here to go to the page to turn it back off.": "オフラインホットスポットがオンになりました。ここを選ぶとページに移動してオフにできます。",
+    "No internet here, so it plays Local only.": "ここにはインターネットがないため、ローカルのみで遊べます。",
     "tag_private_hotspot": "プライベート",
+    "Join Offline Hotspot": "オフラインホットスポットに参加",
+    "Leave Offline Hotspot": "オフラインホットスポットから出る",
+    "Connected to Offline Hotspot": "オフラインホットスポットに接続中",
 };
 
 export default JA;

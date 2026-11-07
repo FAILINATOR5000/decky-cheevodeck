@@ -581,7 +581,9 @@ class MultiplayerService:
                               for index, seat in enumerate(room["seats"])],
                     "rev": room["rev"], "round": room["round"], "state": self._public_state(room),
                     "chat": dict(room["chat"][-1]) if room["chat"] else None, "lobby": self._lobby_state(),
-                    "voice": self._voice_view(), "roomVoice": bool(room["voice"])}
+                    "voice": self._voice_view(), "roomVoice": bool(room["voice"]),
+                    "gameId": room["gameId"], "imageIcon": room["local"].get("imageIcon", ""),
+                    "size": len(room["seats"]), "taken": 1 + len(_guests(room)), "own": None}
         joined = self._joined
         if joined is not None:
             status = joined["status"] or {}
@@ -596,9 +598,20 @@ class MultiplayerService:
                     "state": status.get("state", "lobby"),
                     "chat": dict(joined["chat"][-1]) if joined["chat"] else None,
                     "autostart": self._pending_start(joined), "voice": self._voice_view(),
-                    "roomVoice": bool(joined["row"].get("voice"))}
+                    "roomVoice": bool(joined["row"].get("voice")),
+                    "gameId": joined["row"]["gameId"], "size": len(members),
+                    "taken": sum(1 for name in members if name), **self._guest_game(joined)}
         return {"role": None, "title": "", "host": "", "seated": 0, "error": "", "seat": 0, "ready": False,
                 "seats": [], "rev": 0, "round": 0, "state": "lobby", "chat": None, "voice": None}
+
+    def _guest_game(self, joined: dict) -> dict:
+        local = joined["local"]
+        if local is None:
+            return {"imageIcon": "", "own": None}
+        if local["gameId"] == joined["row"]["gameId"]:
+            return {"imageIcon": local.get("imageIcon", ""), "own": None}
+        return {"imageIcon": "", "own": {"gameId": local["gameId"], "title": local["title"],
+                                          "imageIcon": local.get("imageIcon", "")}}
 
     def _voice_view(self):
         room = self._room
@@ -990,6 +1003,7 @@ class MultiplayerService:
         local = {
             "gameId": game_id,
             "title": game["title"],
+            "imageIcon": game.get("imageIcon", ""),
             "systemId": system_id,
             "path": pick["path"],
             "real": pick["real"],
@@ -1234,6 +1248,7 @@ class MultiplayerService:
         local = {
             "gameId": game_id,
             "title": game["title"],
+            "imageIcon": game.get("imageIcon", ""),
             "systemId": system_id,
             "path": rom,
             "real": rom,

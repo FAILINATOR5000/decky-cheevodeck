@@ -3100,7 +3100,6 @@ const FR: LocaleTable = {
     "Unread messages: {{count}}": "Messages non lus : {{count}}",
     "Friend requests: {{count}}": "Demandes d'ami : {{count}}",
     "Friends online: {{count}}": "Amis en ligne : {{count}}",
-    "In {{name}}'s EZ Multiplayer room": "Dans la salle EZ Multiplayer de {{name}}",
     "In an EZ Multiplayer room": "Dans une salle EZ Multiplayer",
     "In-Game": "En jeu",
     "Ready": "Prêt",
@@ -3425,7 +3424,18 @@ const FR: LocaleTable = {
     "No CheevoDeck hotspots nearby.": "Aucun point d'accès CheevoDeck à proximité.",
     "Couldn't join. Check the code.": "Connexion impossible. Vérifie le code.",
     "help_multiplayer_hotspot": "Pas de Wi-Fi à proximité ? Active ceci pour que les appareils à proximité rejoignent directement celui-ci.",
+    "Offline Hotspot On": "Point d'accès hors ligne activé",
+    "Offline Hotspot Off": "Point d'accès hors ligne désactivé",
+    "Room open": "Salle ouverte",
+    "In {{name}}'s room": "Dans la salle de {{name}}",
+    "{{taken}}/{{count}} players": "{{taken}}/{{count}} joueurs",
+    "{{game}} · linked with {{other}}": "{{game}} · relié à {{other}}",
+    "Offline Hotspot is now on. Select here to go to the page to turn it back off.": "Le point d'accès hors ligne est maintenant activé. Sélectionne ici pour aller à la page et le désactiver.",
+    "No internet here, so it plays Local only.": "Pas d'internet ici, donc en Local uniquement.",
     "tag_private_hotspot": "Privé",
+    "Join Offline Hotspot": "Rejoindre un point d'accès hors ligne",
+    "Leave Offline Hotspot": "Quitter le point d'accès hors ligne",
+    "Connected to Offline Hotspot": "Connecté au point d'accès hors ligne",
 };
 
 export default FR;

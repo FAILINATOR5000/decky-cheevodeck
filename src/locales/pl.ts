@@ -3179,7 +3179,6 @@ const PL: LocaleTable = {
     "Unread messages: {{count}}": "Nieprzeczytane wiadomości: {{count}}",
     "Friend requests: {{count}}": "Prośby o znajomość: {{count}}",
     "Friends online: {{count}}": "Znajomi online: {{count}}",
-    "In {{name}}'s EZ Multiplayer room": "W pokoju EZ Multiplayer: {{name}}",
     "In an EZ Multiplayer room": "W pokoju EZ Multiplayer",
     "In-Game": "W grze",
     "Ready": "Gotowe",
@@ -3504,7 +3503,18 @@ const PL: LocaleTable = {
     "No CheevoDeck hotspots nearby.": "Brak hotspotów CheevoDeck w pobliżu.",
     "Couldn't join. Check the code.": "Nie udało się dołączyć. Sprawdź kod.",
     "help_multiplayer_hotspot": "Brak Wi-Fi w pobliżu? Włącz to, aby pobliskie urządzenia mogły dołączyć bezpośrednio do tego.",
+    "Offline Hotspot On": "Hotspot offline włączony",
+    "Offline Hotspot Off": "Hotspot offline wyłączony",
+    "Room open": "Pokój otwarty",
+    "In {{name}}'s room": "W pokoju: {{name}}",
+    "{{taken}}/{{count}} players": "Gracze: {{taken}}/{{count}}",
+    "{{game}} · linked with {{other}}": "{{game}} · połączono z: {{other}}",
+    "Offline Hotspot is now on. Select here to go to the page to turn it back off.": "Hotspot offline jest teraz włączony. Wybierz tutaj, aby przejść do strony i go wyłączyć.",
+    "No internet here, so it plays Local only.": "Brak internetu, więc gra tylko lokalnie.",
     "tag_private_hotspot": "Prywatny",
+    "Join Offline Hotspot": "Dołącz do hotspotu offline",
+    "Leave Offline Hotspot": "Opuść hotspot offline",
+    "Connected to Offline Hotspot": "Połączono z hotspotem offline",
 };
 
 export default PL;

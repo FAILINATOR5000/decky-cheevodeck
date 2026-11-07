@@ -849,6 +849,7 @@ class Plugin(
             settings_store=self.settings_store,
             game_mode=self.session_mode_service.is_game_mode,
             room_role=self.multiplayer_service.room_role,
+            notifications_store=self.notifications_store,
         )
         self.multiplayer_service.set_hotspot(self.offline_hotspot_service)
         self.multiplayer_friends_service.set_hotspot(self.offline_hotspot_service)

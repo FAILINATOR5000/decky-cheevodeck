@@ -3882,6 +3882,10 @@ function AchievementsRoot() {
             requestPanelEntry({ kind: "dataTransfer" });
             goToDataTransfer("hub");
         },
+        openOfflineHotspot: () => {
+            requestPanelEntry({ kind: "offlineHotspot" });
+            goToOfflineHotspot("hub");
+        },
         openMultiplayer: (land) => {
             requestPanelEntry({ kind: "multiplayer" }, land ? { land } : undefined);
             goToMultiplayer("hub", land);

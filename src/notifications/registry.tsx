@@ -18,6 +18,7 @@ export type NotificationNav = {
     openFileWatcher?: () => void;
     openMemoriesTransfer?: () => void;
     openDataTransfer?: () => void;
+    openOfflineHotspot?: () => void;
     openMultiplayer?: (land?: string) => void;
     openChangelog?: (body: string) => void;
     openMessage?: (body: string) => void;
@@ -194,6 +195,10 @@ export const NOTIFICATION_REGISTRY: Record<NotificationType, NotificationTypeEnt
             }
             if (n.target?.view === "dataTransfer" && nav.openDataTransfer) {
                 nav.openDataTransfer();
+                return;
+            }
+            if (n.target?.view === "offlineHotspot" && nav.openOfflineHotspot) {
+                nav.openOfflineHotspot();
                 return;
             }
             if (n.target?.view === "multiplayer" && nav.openMultiplayer) {

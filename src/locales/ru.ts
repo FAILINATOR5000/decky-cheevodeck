@@ -3148,7 +3148,6 @@ const RU: LocaleTable = {
     "Unread messages: {{count}}": "Непрочитанных сообщений: {{count}}",
     "Friend requests: {{count}}": "Заявок в друзья: {{count}}",
     "Friends online: {{count}}": "Друзей в сети: {{count}}",
-    "In {{name}}'s EZ Multiplayer room": "В комнате EZ Multiplayer: {{name}}",
     "In an EZ Multiplayer room": "В комнате EZ Multiplayer",
     "In-Game": "В игре",
     "Ready": "Готово",
@@ -3473,7 +3472,18 @@ const RU: LocaleTable = {
     "No CheevoDeck hotspots nearby.": "Рядом нет точек доступа CheevoDeck.",
     "Couldn't join. Check the code.": "Не удалось подключиться. Проверь код.",
     "help_multiplayer_hotspot": "Нет Wi-Fi рядом? Включи это, чтобы ближайшие устройства подключались прямо к этому.",
+    "Offline Hotspot On": "Офлайн-точка доступа включена",
+    "Offline Hotspot Off": "Офлайн-точка доступа выключена",
+    "Room open": "Комната открыта",
+    "In {{name}}'s room": "В комнате: {{name}}",
+    "{{taken}}/{{count}} players": "Игроки: {{taken}}/{{count}}",
+    "{{game}} · linked with {{other}}": "{{game}} · связь с: {{other}}",
+    "Offline Hotspot is now on. Select here to go to the page to turn it back off.": "Офлайн-точка доступа включена. Выбери здесь, чтобы перейти на страницу и выключить её.",
+    "No internet here, so it plays Local only.": "Здесь нет интернета, поэтому только локально.",
     "tag_private_hotspot": "Закрытая",
+    "Join Offline Hotspot": "Подключиться к офлайн-точке доступа",
+    "Leave Offline Hotspot": "Отключиться от офлайн-точки доступа",
+    "Connected to Offline Hotspot": "Подключено к офлайн-точке доступа",
 };
 
 export default RU;

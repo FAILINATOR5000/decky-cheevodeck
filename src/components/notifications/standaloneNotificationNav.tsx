@@ -145,6 +145,9 @@ export function buildStandaloneNotificationNav(language: LanguageCode, settings:
         openDataTransfer: () => {
             landLater({ kind: "dataTransfer" });
         },
+        openOfflineHotspot: () => {
+            landLater({ kind: "offlineHotspot" });
+        },
         openMultiplayer: (land) => {
             landLater({ kind: "multiplayer" }, land);
         },

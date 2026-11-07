@@ -32,13 +32,18 @@ export type MultiplayerRoomMarker = {
     autostart: { room: string; round: number; appid: number; steps: string; game: string } | null;
     voice: RoomVoice | null;
     roomVoice: boolean;
+    gameId: number;
+    imageIcon: string;
+    size: number;
+    taken: number;
+    own: { gameId: number; title: string; imageIcon: string } | null;
 };
 
 type RoomEvent = Partial<MultiplayerRoomMarker> & { seq?: number };
 
 const EMPTY: MultiplayerRoomMarker = {
     role: null, title: "", host: "", seated: 0, error: "", seat: 0, ready: false, seats: [], rev: 0, round: 0, state: "lobby",
-    chat: null, autostart: null, voice: null, roomVoice: false
+    chat: null, autostart: null, voice: null, roomVoice: false, gameId: 0, imageIcon: "", size: 0, taken: 0, own: null
 };
 
 let marker: MultiplayerRoomMarker = EMPTY;
@@ -137,7 +142,12 @@ function onRoomEvent(payload: RoomEvent) {
         chat: payload.chat && typeof payload.chat.seq === "number" ? payload.chat : null,
         autostart: payload.autostart && typeof payload.autostart.appid === "number" ? payload.autostart : null,
         voice: readVoice(payload.voice),
-        roomVoice: payload.roomVoice === true
+        roomVoice: payload.roomVoice === true,
+        gameId: Number(payload.gameId) || 0,
+        imageIcon: typeof payload.imageIcon === "string" ? payload.imageIcon : "",
+        size: Number(payload.size) || 0,
+        taken: Number(payload.taken) || 0,
+        own: payload.own && typeof payload.own.gameId === "number" ? payload.own : null
     }, Number(payload.seq) || 0, true);
 }
 

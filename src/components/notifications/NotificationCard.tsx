@@ -181,6 +181,10 @@ function isDataTransfer(notification: CheevoNotification): boolean {
     return notification.type === "system" && notification.target?.view === "dataTransfer";
 }
 
+function isHotspotRow(notification: CheevoNotification): boolean {
+    return notification.type === "system" && notification.target?.view === "offlineHotspot";
+}
+
 function isMultiplayerRow(notification: CheevoNotification): boolean {
     return notification.type === "system" && notification.target?.view === "multiplayer";
 }
@@ -694,6 +698,7 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
         && !isMemoriesTransfer(notification)
         && !isDataTransfer(notification)
         && !isMultiplayerRow(notification)
+        && !isHotspotRow(notification)
         && !isChangelogRow(notification)
         && !isDeveloperMessage(notification);
     const isRoomInvite = isFriendRow(notification) && friendCardKind(notification) === "invite";
@@ -731,7 +736,7 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                                 ? notification.body
                                 : isFriendRow(notification)
                                 ? friendCardText(notification, language, 1) || null
-                                : isMultiplayerRow(notification)
+                                : isMultiplayerRow(notification) || isHotspotRow(notification)
                                 ? t(language, notification.body)
                                 : isChangelogRow(notification)
                                     ? null
@@ -813,6 +818,8 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
                                         ? friendCardText(notification, language, 0)
                                         : isMultiplayerRow(notification)
                                         ? t(language, "EZ Multiplayer")
+                                        : isHotspotRow(notification)
+                                        ? t(language, "Offline Hotspot")
                                         : isChangelogRow(notification)
                                             ? t(language, "What's New in CheevoDeck")
                                             : isDeveloperMessage(notification)

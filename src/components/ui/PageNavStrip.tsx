@@ -1,7 +1,7 @@
 import React from "react";
 import { DialogButton, Focusable } from "@decky/ui";
 import { FaRegQuestionCircle } from "react-icons/fa";
-import { NOTES_DOT_KEYFRAMES, NOTES_DOT_PULSE, achievementGreen, headerCase, regularButtonSpacingStyle, warnAmber } from "../../utils/style";
+import { NOTES_DOT_KEYFRAMES, NOTES_DOT_PULSE, achievementGreen, headerCase, regularButtonSpacingStyle, skyBlue, warnAmber } from "../../utils/style";
 import { QuickGuideColumn, QuickGuidePin } from "../guides/QuickGuidePin";
 import { FocusTarget } from "./FocusTarget";
 import { useQuickGuide } from "../../utils/quickGuide";
@@ -11,6 +11,7 @@ import { getCurrentTitleScale, scaleMultiplier } from "../../utils/scale";
 import { recordMilestoneEvent } from "../../utils/milestoneEvents";
 import { openExternalUrl } from "../../utils/navigation";
 import { useMultiplayerRoomRole } from "../../utils/multiplayerRoomState";
+import { useHotspotOn } from "../../utils/hotspotState";
 
 // Font Awesome Free icon path, CC BY 4.0. See ATTRIBUTIONS.md.
 function BellIcon(props: { size?: number }) {
@@ -99,6 +100,7 @@ export function PageNavStrip(props: PageNavStripProps) {
     const quickGuide = useQuickGuide();
     const notifications = useNotificationsChrome();
     const inRoom = useMultiplayerRoomRole() !== null;
+    const hotspotOn = useHotspotOn();
 
     const iconRow = (
         <Focusable
@@ -120,7 +122,7 @@ export function PageNavStrip(props: PageNavStripProps) {
             <FocusTarget focusKey="nav:bell" style={{ position: "relative" }}>
                 <DialogButton
                     onClick={notifications.openNotifications}
-                    style={inRoom ? { ...navButtonStyle, color: achievementGreen } : navButtonStyle}
+                    style={inRoom ? { ...navButtonStyle, color: achievementGreen } : hotspotOn ? { ...navButtonStyle, color: skyBlue } : navButtonStyle}
                 >
                     {notifications.doNotDisturb ? <BellSlashIcon size={18} /> : <BellIcon size={18} />}
                 </DialogButton>

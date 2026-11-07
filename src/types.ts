@@ -731,7 +731,7 @@ export type NotificationIconSource = "game" | "achievement" | "avatar" | "setMos
 type NotificationSource = "notifications";
 
 type NotificationNavTarget = {
-    view: "gameNotes" | "trackedSetOpen" | "gameOverview" | "achievementOverview" | "cheevoCheck" | "fileWatcher" | "memoriesTransfer" | "dataTransfer" | "multiplayer" | "changelog" | "message" | "external" | "milestones";
+    view: "gameNotes" | "trackedSetOpen" | "gameOverview" | "achievementOverview" | "cheevoCheck" | "fileWatcher" | "memoriesTransfer" | "dataTransfer" | "offlineHotspot" | "multiplayer" | "changelog" | "message" | "external" | "milestones";
     gameId?: number | null;
     achievementId?: number | null;
     noteId?: string | null;
