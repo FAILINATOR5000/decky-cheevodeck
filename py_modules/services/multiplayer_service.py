@@ -1938,6 +1938,8 @@ class MultiplayerService:
     def _set_room_voice(self, room: dict, on: bool) -> None:
         room["voice"] = on
         self._tell_voice_room()
+        if on and room.get("streams") is not None:
+            self._spawn(self._stream_voice_on(room))
         if not on:
             for seat in room["seats"]:
                 if seat is not None:
@@ -1992,6 +1994,7 @@ class MultiplayerService:
             elif mode != "stream" and room.get("streams") is not None:
                 room["streams"].close()
                 room["streams"] = None
+                self._release_game_sink()
                 if self._stream_host is not None:
                     await asyncio.to_thread(self._stream_host.stop)
             room.update(described, mode=mode, local=local)
@@ -1999,10 +2002,36 @@ class MultiplayerService:
             self._changed(room)
             return {"ok": True, "room": self._host_view(room)}
 
+    async def _hold_game_sink(self, room: dict) -> str:
+        canceller = self._voice_canceller
+        if canceller is None or not room["voice"]:
+            return ""
+        return await asyncio.to_thread(canceller.hold, self._in_voice, self._output_changed,
+                                       lambda: self._room is room and room["state"] != "lobby")
+
+    def _release_game_sink(self) -> None:
+        canceller, loop = self._voice_canceller, self._loop
+        if canceller is None:
+            return
+        if self._stopping or loop is None or loop.is_closed():
+            canceller.release()
+            return
+        loop.run_in_executor(None, canceller.release)
+
+    async def _stream_voice_on(self, room: dict) -> None:
+        sink = await self._hold_game_sink(room)
+        if not sink or self._room is not room or room.get("streams") is None or self._stream_host is None:
+            return
+        if self._stream_host.use_sink(sink) and room["state"] == "lobby":
+            decky.logger.info("stream: voice chat is on, restarting Sunshine to leave it out of the stream")
+            failed = await self._sunshine_restart(room)
+            if failed:
+                decky.logger.warning("stream: Sunshine didn't come back (%s)", failed)
+
     async def _open_streams(self, room: dict, server) -> str:
         if self._stream_host is None:
             return "stream_not_set_up"
-        sink = self._voice_canceller.game_sink() if room["voice"] and self._voice_canceller is not None else ""
+        sink = await self._hold_game_sink(room)
         failed = await asyncio.to_thread(self._stream_host.start, room["name"], sink)
         if failed:
             return failed
@@ -2058,6 +2087,7 @@ class MultiplayerService:
         self._host_tunnels.close()
         if room.get("streams") is not None:
             room["streams"].close()
+            self._release_game_sink()
         if room.get("pipes") is not None:
             room["pipes"].close()
         if room["mode"] == "stream" and self._stream_host is not None:

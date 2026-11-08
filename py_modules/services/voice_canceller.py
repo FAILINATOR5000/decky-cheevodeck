@@ -79,6 +79,12 @@ class VoiceCanceller:
         self._duck_db = DUCK_DB
         self._released_at = 0.0
         self._shut = False
+        self._hold = False
+        self._live = None
+        self._cancelling = False
+        self._pinned = {}
+        self._pin_apps = set()
+        self._pin_targets = set()
 
     def _env(self) -> dict:
         owner = child_owner()
@@ -107,16 +113,16 @@ class VoiceCanceller:
     def _defaults(self):
         code, sink, _err = self._run("pactl", "get-default-sink")
         code2, source, _err2 = self._run("pactl", "get-default-source")
-        sink, source = sink.strip(), source.strip()
-        if code != 0 or code2 != 0 or not sink or not source:
+        sink, source = sink.strip(), source.strip() if code2 == 0 else ""
+        if code != 0 or not sink:
             return None
         if sink in OUR_NODES or source in OUR_NODES:
             return None
         mic = next((row for row in self._json("list", "sources") or []
-                    if isinstance(row, dict) and row.get("name") == source), None)
+                    if isinstance(row, dict) and row.get("name") == source), None) if source else None
         mic_props = mic.get("properties") if mic is not None and isinstance(mic.get("properties"), dict) else {}
         if mic is None or mic_props.get("device.class") == "monitor":
-            return None
+            source = ""
         row = next((row for row in self._json("list", "sinks") or []
                     if isinstance(row, dict) and row.get("name") == sink), None)
         if row is None:
@@ -172,15 +178,18 @@ class VoiceCanceller:
             if defaults is None:
                 return {"active": False, "duck": False, "kind": ""}
             kind = output_kind(*defaults)
+            cancel = kind != "headset" and bool(defaults[1])
             if self._modules and defaults == self._seen:
-                return {"active": True, "duck": self._kind in DUCKED_KINDS, "kind": self._kind}
+                if self._cancelling or not cancel:
+                    return self._state()
+                if self._live is not None and self._live():
+                    return {"active": False, "duck": False, "kind": kind}
             moved = self._seen is not None and defaults != self._seen
             self._unload()
             self._seen = defaults
-            if kind == "headset" or not self._load(defaults, kind):
-                state = {"active": False, "duck": False, "kind": kind}
-            else:
-                state = {"active": True, "duck": kind in DUCKED_KINDS, "kind": kind}
+            if cancel or self._hold:
+                self._load(defaults, kind, cancel)
+            state = self._state() if self._modules else {"active": False, "duck": False, "kind": kind}
         if moved and changed is not None:
             try:
                 changed("output", kind)
@@ -188,36 +197,74 @@ class VoiceCanceller:
                 decky.logger.warning("voice: couldn't tell the panel (%s)", type(e).__name__)
         return state
 
+    def _state(self) -> dict:
+        return {"active": self._cancelling, "duck": self._cancelling and self._kind in DUCKED_KINDS, "kind": self._kind}
+
     def stop(self) -> None:
         with self._lock:
             self._wanted = False
-            self._unload()
+            if not self._hold:
+                self._unload()
 
     def shutdown(self) -> None:
         self._shut = True
+        with self._lock:
+            self._hold = False
+            self._live = None
         self.close()
 
     def close(self) -> None:
         with self._lock:
-            self._watching = False
             self._wanted = False
+            if self._hold:
+                return
+            self._watching = False
             self._seen = None
             self._unload()
 
-    def _load(self, defaults, kind) -> bool:
+    def hold(self, still_wanted, changed, live) -> str:
+        self.watch(still_wanted, changed)
+        with self._lock:
+            if self._shut:
+                return ""
+            self._hold = True
+            self._live = live
+            if not self._modules:
+                defaults = self._defaults()
+                if defaults is None:
+                    return ""
+                self._seen = defaults
+                if not self._load(defaults, output_kind(*defaults), cancel=False):
+                    return ""
+            return GAME_SINK
+
+    def release(self) -> None:
+        with self._lock:
+            self._hold = False
+            self._live = None
+            if not self._wanted:
+                self._seen = None
+                self._unload()
+            else:
+                self._unpin()
+
+    def _load(self, defaults, kind, cancel=True) -> bool:
         sink, source = defaults[:2]
         self._unload_strays()
+        master = sink
+        if cancel:
+            code, out, _err = self._run(
+                "pactl", "load-module", "module-echo-cancel", "aec_method=webrtc",
+                f"source_master={source}", f"sink_master={sink}", f"source_name={EC_SOURCE}", f"sink_name={EC_SINK}",
+                f"source_properties={NODE_PROPS}", f"sink_properties={NODE_PROPS}", f"aec_args={AEC_ARGS}",
+            )
+            if code != 0 or not out.strip().isdigit():
+                decky.logger.warning("voice: couldn't load the echo canceller")
+                return False
+            self._modules.append(out.strip())
+            master = EC_SINK
         code, out, _err = self._run(
-            "pactl", "load-module", "module-echo-cancel", "aec_method=webrtc",
-            f"source_master={source}", f"sink_master={sink}", f"source_name={EC_SOURCE}", f"sink_name={EC_SINK}",
-            f"source_properties={NODE_PROPS}", f"sink_properties={NODE_PROPS}", f"aec_args={AEC_ARGS}",
-        )
-        if code != 0 or not out.strip().isdigit():
-            decky.logger.warning("voice: couldn't load the echo canceller")
-            return False
-        self._modules.append(out.strip())
-        code, out, _err = self._run(
-            "pactl", "load-module", "module-remap-sink", f"sink_name={GAME_SINK}", f"master={EC_SINK}",
+            "pactl", "load-module", "module-remap-sink", f"sink_name={GAME_SINK}", f"master={master}",
             f"sink_properties={NODE_PROPS}",
         )
         if code != 0 or not out.strip().isdigit():
@@ -234,19 +281,20 @@ class VoiceCanceller:
             return False
         self._game_sink = (str(found["object.id"]), str(found["object.serial"]))
         self._kind = kind
+        self._cancelling = cancel
         self._move_games()
-        if kind in DUCKED_KINDS:
+        if cancel and kind in DUCKED_KINDS:
             stop = threading.Event()
             with self._ramp_wake:
                 self._ducked = False
                 self._ramp = stop
             threading.Thread(target=self._ramp_loop, args=(stop, self._game_sink[0]), name="voice-duck",
                              daemon=True).start()
-        decky.logger.info("voice: echo canceller on (%s)", kind)
+        if cancel:
+            decky.logger.info("voice: echo canceller on (%s)", kind)
+        else:
+            decky.logger.info("voice: game sink on, no echo canceller (%s)", kind)
         return True
-
-    def game_sink(self) -> str:
-        return GAME_SINK if self._game_sink is not None else ""
 
     def _unload(self) -> None:
         if not self._modules:
@@ -257,21 +305,51 @@ class VoiceCanceller:
                 self._ramp = None
                 self._ramp_wake.notify_all()
         live = {str(row["properties"].get("object.id")) for row in self._sink_inputs()}
-        for node in self._moved:
+        for node in [*self._moved, *self._pinned]:
             if node in live:
                 self._run("pw-metadata", "-n", "default", "-d", node, "target.object")
         self._moved = {}
+        self._pinned = {}
+        pins = frozenset() if self._hold else self._take_pins()
         for module in reversed(self._modules):
             self._run("pactl", "unload-module", module)
         self._modules = []
         self._game_sink = None
         self._kind = ""
-        decky.logger.info("voice: echo canceller off")
-        threading.Thread(target=self._tidy_later, name="voice-tidy", daemon=True).start()
+        decky.logger.info("voice: %s off", "echo canceller" if self._cancelling else "game sink")
+        self._cancelling = False
+        threading.Thread(target=self._tidy_later, args=(pins,), name="voice-tidy", daemon=True).start()
 
-    def _tidy_later(self) -> None:
+    def _take_pins(self) -> frozenset:
+        targets = frozenset(self._pin_targets)
+        pins = frozenset((app, targets) for app in self._pin_apps)
+        self._pin_apps, self._pin_targets = set(), set()
+        return pins
+
+    def _unpin(self) -> None:
+        if self._pinned:
+            live = {str(row["properties"].get("object.id")) for row in self._sink_inputs()}
+            for node in self._pinned:
+                if node in live:
+                    self._run("pw-metadata", "-n", "default", "-d", node, "target.object")
+            self._pinned = {}
+        pins = self._take_pins()
+        if pins:
+            threading.Thread(target=self._tidy_later, args=(pins,), name="voice-tidy", daemon=True).start()
+
+    def _tidy_later(self, pins=frozenset()) -> None:
         time.sleep(SAVED_SECONDS)
         self.clear_saved_targets()
+        if not pins:
+            return
+        try:
+            saved = self._saved_targets(None)
+        except OSError:
+            return
+        for app, targets in pins:
+            prop, _sep, value = app.partition(":")
+            if saved.get(app) in targets and prop in GAME_AUDIO_KEYS and value:
+                self._clear_target(prop, value)
 
     def _watch(self) -> None:
         while True:
@@ -290,7 +368,7 @@ class VoiceCanceller:
             with self._lock:
                 if not self._watching:
                     continue
-                if not wanted:
+                if not wanted and not self._hold:
                     self._watching = False
                     self._wanted = False
                     self._seen = None
@@ -304,6 +382,8 @@ class VoiceCanceller:
                         self._unload()
                         self._seen = defaults
                         reason = "output"
+                        if self._hold:
+                            self._load(defaults, output_kind(*defaults), cancel=False)
                     elif self._modules:
                         self._move_games()
             if reason:
@@ -339,6 +419,40 @@ class VoiceCanceller:
                 self._moved[node] = app
         for node in [node for node in self._moved if node not in live]:
             del self._moved[node]
+        if self._hold and self._seen is not None:
+            self._pin_others(rows, live)
+
+    def _pin_others(self, rows, live) -> None:
+        hardware = self._seen[0]
+        sink = next((row for row in self._json("list", "sinks") or []
+                     if isinstance(row, dict) and row.get("name") == hardware), None)
+        serial = str((sink or {}).get("properties", {}).get("object.serial", ""))
+        if not serial.isdigit():
+            return
+        for row in rows:
+            props = row["properties"]
+            node = str(props.get("object.id", ""))
+            binary = props.get("application.process.binary")
+            names = f"{props.get('node.name', '')} {props.get('media.name', '')}"
+            if not node.isdigit() or node in self._moved or node in self._pinned or not binary \
+                    or binary in EMULATOR_NAMES or props.get("target.object") \
+                    or any(ours in names for ours in (*OUR_NODES, "cheevodeck-tidy-")):
+                continue
+            app = next((f"{key}:{props[key]}" for key in GAME_AUDIO_KEYS
+                        if isinstance(props.get(key), str) and props[key]), "")
+            if app and app not in self._pin_apps:
+                try:
+                    saved = self._saved_targets(None)
+                except OSError:
+                    saved = {}
+                if saved.get(app) is None or saved.get(app) in self._pin_targets:
+                    self._pin_apps.add(app)
+            code, _out, _err = self._run("pw-metadata", "-n", "default", node, "target.object", serial)
+            if code == 0:
+                self._pinned[node] = app
+                self._pin_targets.add(hardware)
+        for node in [node for node in self._pinned if node not in live]:
+            del self._pinned[node]
 
     def duck(self, on: bool, db=DUCK_DB) -> bool:
         with self._ramp_wake:
@@ -422,7 +536,7 @@ class VoiceCanceller:
                 found = True
         return found
 
-    def _saved_targets(self) -> dict:
+    def _saved_targets(self, targets=OUR_NODES) -> dict:
         fd = os.open(self._user_home / WIREPLUMBER_STATE, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
         try:
             info = os.fstat(fd)
@@ -437,7 +551,7 @@ class VoiceCanceller:
             if not sep or not key.startswith("Output/Audio:"):
                 continue
             target = SAVED_TARGET.search(body)
-            if target is None or target.group(1) not in OUR_NODES:
+            if target is None or (targets is not None and target.group(1) not in targets):
                 continue
             name = re.sub(r"\\(.)", lambda m: WIREPLUMBER_ESCAPES.get(m.group(1), m.group(0)), key[len("Output/Audio:"):])
             found[name] = target.group(1)

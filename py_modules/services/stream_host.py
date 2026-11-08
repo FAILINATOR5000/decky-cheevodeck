@@ -176,6 +176,13 @@ class StreamHost:
         _write_root(state / APPS_FILE, json.dumps({"env": {}, "apps": [{"name": "Game", "image-path": ""}]}), 0o600)
         return conf
 
+    def use_sink(self, sink: str) -> bool:
+        with self._lock:
+            if sink == self._sink:
+                return False
+            self._sink = sink
+            return True
+
     def start(self, name: str, sink: str = "") -> str:
         with self._lock:
             return self._start(name, sink)
