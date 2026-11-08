@@ -141,7 +141,7 @@ function started(language: LanguageCode, result: EmulatorJobStart | null | undef
             noteEmulatorJobStarted();
         }
         if (result.kept) {
-            notice(language, t(language, "{{count}} cores kept because yours are newer", { count: result.kept }));
+            notice(language, t(language, "Kept {{count}} cores that are newer", { count: result.kept }));
         }
         else if (!result.job) {
             notice(language, t(language, "Up to date"));
@@ -152,7 +152,10 @@ function started(language: LanguageCode, result: EmulatorJobStart | null | undef
         notice(language, name ? t(language, "Close {{name}} first.", { name }) : t(language, "Close RetroArch first."));
     }
     else if (result?.error === "no_network") {
-        notice(language, t(language, "Couldn't reach the download server."));
+        notice(language, t(language, "Couldn't reach the server."));
+    }
+    else if (result?.error === "busy") {
+        notice(language, t(language, "Another install is running."));
     }
     else {
         notice(language, t(language, "Couldn't start that."));
@@ -208,11 +211,11 @@ async function installMissingCores(language: LanguageCode, systems: number, targ
     try {
         const offer = await emulatorsCoresOffer();
         if (!offer?.ok) {
-            notice(language, t(language, "Couldn't reach the download server."));
+            notice(language, t(language, "Couldn't reach the server."));
             return;
         }
         if (offer.recommended.length === 0) {
-            notice(language, t(language, "Every system with games already has a core."));
+            notice(language, t(language, "Every system has a core already."));
             return;
         }
         const choice = await askInstallCores(language, { ...offer, systems });

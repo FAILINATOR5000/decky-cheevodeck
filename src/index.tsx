@@ -21,6 +21,7 @@ import { registerMultiplayerRoomState, unregisterMultiplayerRoomState } from "./
 import { registerHotspotState, unregisterHotspotState } from "./utils/hotspotState";
 import { registerHotspotIntro } from "./components/hotspot/HotspotIntroModal";
 import { registerEmulatorJobs, unregisterEmulatorJobs } from "./utils/emulatorJobs";
+import { finishPendingFixes } from "./utils/fixPlan";
 import { registerVoiceChat, unregisterVoiceChat } from "./utils/voiceChat";
 import { registerGameVolume, unregisterGameVolume } from "./utils/gameVolume";
 import { closeBrowserForUnload } from "./components/browser/BrowserModal";
@@ -101,6 +102,7 @@ export default definePlugin(() => {
     registerHotspotState();
     registerHotspotIntro();
     registerEmulatorJobs();
+    void finishPendingFixes();
     registerVoiceChat();
     registerGameVolume();
     registerMemoryFullscreen();

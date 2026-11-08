@@ -3595,16 +3595,9 @@ const RU: LocaleTable = {
     },
     "Not enough free space.": "Недостаточно свободного места.",
     "Close RetroArch first.": "Сначала закрой RetroArch.",
-    "Couldn't reach the download server.": "Не удалось связаться с сервером загрузки.",
     "A file wasn't the way CheevoDeck expected, so it stopped.": "Файл оказался не таким, как ожидал CheevoDeck, поэтому всё остановлено.",
     "Couldn't put these back: {{files}}": "Не удалось вернуть: {{files}}",
     "Up to date": "Всё обновлено",
-    "{{count}} cores kept because yours are newer": {
-        one: "Оставлено {{count}} ядро: твоё новее",
-        few: "Оставлено {{count}} ядра: твои новее",
-        many: "Оставлено {{count}} ядер: твои новее"
-    },
-    "Every system with games already has a core.": "У каждой системы с играми уже есть ядро.",
     "Couldn't start that.": "Не удалось запустить.",
     "Install Cores": "Установить ядра",
     "{{count}} systems with games have no core yet. Install the recommended one for each?": {
@@ -3635,10 +3628,35 @@ const RU: LocaleTable = {
     "Remove {{file}} from Steam": "Убрать {{file}} из Steam",
     "Remove from Steam": "Убрать из Steam",
     "Remove the {{name}} shortcut CheevoDeck added to Steam?": "Убрать ярлык {{name}}, который CheevoDeck добавил в Steam?",
-    "Couldn't add it to Steam.": "Не удалось добавить в Steam.",
     "Games without their own shortcut or a remembered Play With… pick will play in RetroArch.": "Игры без своего ярлыка и без запомненного выбора «Играть через…» будут запускаться в RetroArch.",
     "{{system}} games without their own shortcut or a remembered Play With… pick will play in {{emulator}} instead of {{current}}.": "Игры для {{system}} без своего ярлыка и без запомненного выбора «Играть через…» будут запускаться в {{emulator}} вместо {{current}}.",
     "{{system}} games without their own shortcut or a remembered Play With… pick will play in {{emulator}}.": "Игры для {{system}} без своего ярлыка и без запомненного выбора «Играть через…» будут запускаться в {{emulator}}.",
+    "Install {{core}}": "Установить {{core}}",
+    "Update {{core}}": "Обновить {{core}}",
+    "Install {{emulator}} (Flatpak, about {{size}})": "Установить {{emulator}} (Flatpak, около {{size}})",
+    "Install {{emulator}} (Flatpak)": "Установить {{emulator}} (Flatpak)",
+    "Install {{emulator}} (AppImage, about {{size}})": "Установить {{emulator}} (AppImage, около {{size}})",
+    "Install {{emulator}} (AppImage)": "Установить {{emulator}} (AppImage)",
+    "Update {{emulator}}": "Обновить {{emulator}}",
+    "Add {{emulator}} to Steam": "Добавить {{emulator}} в Steam",
+    "Matches the host's {{emulator}} {{version}}": "Совпадает с {{emulator}} {{version}} у хоста",
+    "Same install as this game's shortcut": "Та же установка, что и у ярлыка этой игры",
+    "Kept yours": "Твой оставлен",
+    "Nothing was changed.": "Ничего не изменено.",
+    "Step {{step}} of {{count}}": "Шаг {{step}} из {{count}}",
+    "Fix It": "Исправить",
+    "{{name}} on this device is newer than the stable one, probably a nightly or dev build you installed. CheevoDeck leaves it alone unless you choose to replace it.": "{{name}} на этом устройстве новее стабильного, скорее всего это ночная или dev-сборка, которую ты установил. CheevoDeck не трогает его, пока ты сам не решишь заменить.",
+    "Every system has a core already.": "У каждой системы уже есть ядро.",
+    "Another install is running.": "Идёт другая установка.",
+    "Couldn't reach the server.": "Не удалось связаться с сервером.",
+    "Kept {{count}} cores that are newer": {
+        one: "Оставлено {{count}} более новое ядро",
+        few: "Оставлено {{count}} более новых ядра",
+        many: "Оставлено {{count}} более новых ядер"
+    },
+    "Ready to play": "Можно играть",
+    "Couldn't finish the setup": "Не удалось завершить настройку",
+    "Couldn't add it to Steam.": "Не удалось добавить в Steam.",
 };
 
 export default RU;

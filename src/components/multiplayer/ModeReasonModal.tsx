@@ -7,7 +7,7 @@ import { modalSize } from "../../utils/scale";
 import { DesktopToolButtons } from "../game/ShortcutNeededModal";
 import { STATE_LOOKS } from "./ModeChart";
 
-const TITLES: Record<MultiplayerMode, Record<"setup" | "never", string>> = {
+export const TITLES: Record<MultiplayerMode, Record<"setup" | "never", string>> = {
     link: { setup: "Link Play: Needs setup", never: "Link Play: Won't work" },
     couch: { setup: "Couch Play: Needs setup", never: "Couch Play: Won't work" },
     stream: { setup: "Stream Play: Needs setup", never: "Stream Play: Won't work" }

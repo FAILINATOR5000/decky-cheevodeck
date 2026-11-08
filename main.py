@@ -833,6 +833,7 @@ class Plugin(
             voice_room_changed=self.back_button_service.set_voice_room,
             stream_setup=self.stream_setup,
             stream_host=self.stream_host,
+            emulator_service=self.emulator_service,
         )
         self.stream_setup.set_hosting(self.multiplayer_service.hosting_stream, self.multiplayer_service.stream_round_running)
         self.ez_friends_heal_service = EzFriendsHealService(

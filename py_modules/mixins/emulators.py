@@ -54,3 +54,28 @@ class EmulatorsMixin(PluginContext):
 
     async def emulators_shortcut_changes(self, kind: str = ""):
         return await asyncio.to_thread(self.multiplayer_service.shortcut_changes, str(kind or ""))
+
+    async def emulators_plan_begin(self):
+        return await asyncio.to_thread(self.emulator_service.plan_begin)
+
+    async def emulators_plan_step(self, plan: str = "", step=None, force: bool = False):
+        return await asyncio.to_thread(self.emulator_service.plan_step, str(plan or ""), step, bool(force))
+
+    async def emulators_plan_client(self, plan: str = "", undo=None):
+        return await asyncio.to_thread(self.emulator_service.plan_client, str(plan or ""), undo)
+
+    async def emulators_plan_end(self, plan: str = ""):
+        return await asyncio.to_thread(self.emulator_service.plan_end, str(plan or ""))
+
+    async def emulators_plan_abort(self, plan: str = ""):
+        return await asyncio.to_thread(self.emulator_service.plan_abort, str(plan or ""))
+
+    async def emulators_pending_client(self):
+        return {"ok": True, "client": await asyncio.to_thread(self.emulator_service.pending_client)}
+
+    async def emulators_clear_pending_client(self):
+        await asyncio.to_thread(self.emulator_service.clear_pending_client)
+        return {"ok": True}
+
+    async def emulators_plan_abandon(self):
+        return await asyncio.to_thread(self.emulator_service.plan_abandon)

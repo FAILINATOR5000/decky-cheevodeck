@@ -224,7 +224,8 @@ import type {
     ActivityMonthResponse,
     MilestonesSort,
     MilestonesStateResponse,
-    QuestPeriod
+    QuestPeriod,
+    FixStep
 } from "./types";
 
 // Settings and accounts
@@ -1092,6 +1093,18 @@ export const emulatorsInstallFlatpak = callable<[kind: string, target: string], 
 export const emulatorsUpdateFlatpak = callable<[kind: string, force: boolean, target: string], EmulatorJobStart>(
     "emulators_update_flatpak"
 );
+export const emulatorsPlanBegin = callable<[], { ok: boolean; error?: string; plan?: string }>("emulators_plan_begin");
+export const emulatorsPlanStep = callable<[plan: string, step: FixStep, force: boolean], EmulatorJobStart>("emulators_plan_step");
+export const emulatorsPlanClient = callable<[plan: string, undo: { do: string; appid?: number; kind?: string; via?: string; path?: string }],
+    { ok: boolean }>("emulators_plan_client");
+export const emulatorsPlanEnd = callable<[plan: string], { ok: boolean }>("emulators_plan_end");
+export const emulatorsPlanAbort = callable<[plan: string], { ok: boolean; client: EmulatorClientUndo[]; left?: string[] }>(
+    "emulators_plan_abort"
+);
+export type EmulatorClientUndo = { undo: "client"; do: string; appid?: number; key?: string };
+export const emulatorsPlanAbandon = callable<[], { ok: boolean; client: EmulatorClientUndo[] }>("emulators_plan_abandon");
+export const emulatorsPendingClient = callable<[], { ok: boolean; client: EmulatorClientUndo[] }>("emulators_pending_client");
+export const emulatorsClearPendingClient = callable<[], { ok: boolean }>("emulators_clear_pending_client");
 export const emulatorsRecordShortcut = callable<[key: string, appid: number], { ok: boolean }>("emulators_record_shortcut");
 export const emulatorsForgetShortcut = callable<[key: string], { ok: boolean }>("emulators_forget_shortcut");
 export const emulatorsShortcutChanges = callable<[kind: string], { ok: boolean; changes: { system: string; current: string }[] }>(

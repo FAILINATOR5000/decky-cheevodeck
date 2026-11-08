@@ -41,6 +41,7 @@ PACK_MAX = 1 << 30
 INFO_MAX = 8 << 20
 PACK_LINGER_SECONDS = 30 * 60
 RELEASE_SECONDS = 600
+PLAN_SETTLE_SECONDS = 30
 FLATPAK_INSTALL_SECONDS = 1800
 WATCH_SECONDS = 1.0
 APPIMAGE_MAX = 512 << 20
@@ -62,6 +63,12 @@ PROCESS_NAMES = {
     "rmg": ("RMG",),
     "melonds": ("melonDS",),
 }
+
+LINK_GATES = {"link_needs_gambatte": "gambatte", "link_needs_gpsp": "gpsp", "link_needs_melondsds": "melondsds",
+              "link_needs_ppsspp": "ppsspp"}
+UPDATE_GATES = {"gpsp_too_old": "gpsp", "melondsds_too_old": "melondsds"}
+MISMATCH_GATES = {"dolphin_version_mismatch": "dolphin", "rmg_version_mismatch": "rmg", "ppsspp_version_mismatch": "ppsspp"}
+CLIENT_UNDOS = ("remove_shortcut", "shortcut_fallback_off")
 
 _CORE = re.compile(r"^[A-Za-z0-9_+.-]{1,64}$")
 _STABLE = re.compile(r"^\d+(?:\.\d+)+$")
@@ -137,6 +144,7 @@ class EmulatorService:
         self._releases = {}
         self._flathub = (0.0, None)
         self._sha256s = {}
+        self._plan_run = None
 
     def _work_dir(self) -> Path:
         return self._runtime_dir / WORK_FOLDER
@@ -683,12 +691,16 @@ class EmulatorService:
             queued = [job["id"] for job in self._jobs]
         return {"ok": True, "busy": busy, "queued": queued, "state": self._state}
 
-    def _submit(self, kind: str, steps: list, *, target: str = "", names=None, kept: int = 0) -> dict:
+    def _submit(self, kind: str, steps: list, *, target: str = "", names=None, kept: int = 0, plan: str = "") -> dict:
         if not self._repaired:
             self.repair()
         job = {"id": secrets.token_hex(6), "kind": kind, "steps": steps, "target": target,
-               "names": list(names or []), "kept": kept}
+               "names": list(names or []), "kept": kept, "plan": plan}
         with self._job_lock:
+            if self._plan_run is not None and not plan:
+                return {"ok": False, "error": "busy"}
+            if plan and (self._plan_run is None or self._plan_run["id"] != plan):
+                return {"ok": False, "error": "not_found"}
             self._jobs.append(job)
             if self._runner is None:
                 self._runner = threading.Thread(target=self._run_jobs, name="emulator-jobs", daemon=True)
@@ -710,6 +722,7 @@ class EmulatorService:
             finally:
                 with self._job_lock:
                     self._job = None
+                    self._job_lock.notify_all()
 
     def _journal_path(self) -> Path:
         return self._runtime_dir / JOURNAL_FILE
@@ -724,9 +737,13 @@ class EmulatorService:
     def _run_job(self, job: dict) -> None:
         if self._pack_timer is not None:
             self._pack_timer.cancel()
-        journal = {"schemaVersion": 1, "job": job["id"], "kind": job["kind"], "done": [], "pendingClient": []}
+        plan = self._open_plan(job["plan"]) if job["plan"] else None
+        journal = plan["journal"] if plan is not None else \
+            {"schemaVersion": 1, "job": job["id"], "kind": job["kind"], "done": [], "pendingClient": self.pending_client()}
         index = 0
         try:
+            if job["plan"] and plan is None:
+                raise StepFailed("not_found", "the plan is gone")
             self._journal_write(journal)
             for index, step in enumerate(job["steps"]):
                 if self._stop.is_set():
@@ -734,14 +751,17 @@ class EmulatorService:
                 job["at"] = index
                 self._say(job, "step")
                 self._apply(job, step, journal)
-            self._finish(journal)
+            if plan is None:
+                self._finish(journal)
             self._say(job, "done", 100, step=len(job["steps"]) - 1)
         except Exception as e:
             code = e.code if isinstance(e, StepFailed) else "failed"
             decky.logger.warning("emulators: %s failed at step %d (%s: %s)", job["kind"], index + 1, code,
                                  e if isinstance(e, StepFailed) else type(e).__name__)
-            left = self._rollback(journal)
-            self._close_journal(journal)
+            left = []
+            if plan is None:
+                left = self._rollback(journal)
+                self._close_journal(journal)
             self._say(job, "failed", step=index, error=code, left=left)
         finally:
             shutil.rmtree(self._work_dir() / ".work" / f"job-{job['id']}", ignore_errors=True)
@@ -792,10 +812,14 @@ class EmulatorService:
         except FileNotFoundError:
             pass
 
+    def _cores_retroarch(self):
+        ra = session.RetroArch(self._user_home)
+        return ra if ra.found else None
+
     def _allowed_roots(self) -> list:
         roots = [self._runtime_dir, self._user_home / "Applications"]
-        ra = session.RetroArch(self._user_home)
-        if ra.found:
+        ra = self._cores_retroarch()
+        if ra is not None:
             roots.append(ra.cores_dir)
         inventory = self._inventory
         for emulator in (inventory or {}).get("emulators") or []:
@@ -897,6 +921,8 @@ class EmulatorService:
                     raise StepFailed("failed", err.strip()[-200:])
         elif kind == "client":
             journal.setdefault("pendingClient", []).append(undo)
+            if undo.get("do") == "remove_shortcut" and undo.get("key"):
+                self.forget_shortcut(str(undo["key"]))
         else:
             raise StepFailed("failed", f"unknown undo {kind}")
 
@@ -933,6 +959,7 @@ class EmulatorService:
         fixed = []
         if self._forget_gone_shortcuts():
             fixed.append("emulators_shortcuts")
+        self._plan_run = None
         journal = load_json_file(self._journal_path(), None)
         if isinstance(journal, dict) and isinstance(journal.get("done"), list):
             left = self._rollback(journal)
@@ -1042,8 +1069,8 @@ class EmulatorService:
         return final
 
     def _core_context(self, core: str):
-        ra = session.RetroArch(self._user_home)
-        if not ra.found:
+        ra = self._cores_retroarch()
+        if ra is None:
             raise StepFailed("not_found", "RetroArch isn't set up")
         bundle = self._store.get()["bundle"]
         stable = (bundle.get("cores") or {}).get(core)
@@ -1563,3 +1590,283 @@ class EmulatorService:
     def _record_appimage(self, path: str, release: dict) -> None:
         self._store.change(lambda record: record["installed"]["appimages"].__setitem__(
             path, {"version": release["version"], "repo": release["repo"]}))
+
+    def _cores_by_name(self, inventory: dict) -> dict:
+        found = {}
+        for system in inventory["retroarch"]["systems"]:
+            for core in system["cores"]:
+                found.setdefault(core["core"], core)
+        return found
+
+    def _retroarch_steps(self, inventory: dict):
+        return [] if inventory["retroarch"]["configFound"] else None
+
+    def _core_step(self, inventory: dict, core: str, do: str = "install_core"):
+        packed = (self._store.get()["bundle"].get("cores") or {})
+        if not core or core not in packed:
+            return None
+        row = self._cores_by_name(inventory).get(core) or {}
+        return {"do": do, "where": "backend", "core": core, "name": row.get("name") or self._core_names([core])[0],
+                "size": (packed.get(core) or {}).get("size", 0)}
+
+    def _core_plan(self, inventory: dict, core: str):
+        if (self._cores_by_name(inventory).get(core) or {}).get("installed"):
+            return None
+        first = self._retroarch_steps(inventory)
+        step = self._core_step(inventory, core)
+        if first is None or step is None:
+            return None
+        return first + [step]
+
+    def _couch_core_plan(self, inventory: dict, system_id):
+        system = next((row for row in inventory["retroarch"]["systems"] if row["id"] == system_id), None)
+        if system is None:
+            return None
+        ra = session.RetroArch(self._user_home)
+        infos = self._info_cores(ra) if ra.found else {}
+        packed = (self._store.get()["bundle"].get("cores") or {})
+        couch = [core for core in system["cores"]
+                 if ((infos.get(core["core"]) or {}).get("savestate_features") or "").strip() in ("", "deterministic")
+                 and core["core"] in packed]
+        if not couch:
+            return None
+        table = session.COUCH_CORES.get(system_id)
+        recommended = table if any(core["core"] == table for core in couch) else couch[0]["core"]
+        first = self._retroarch_steps(inventory)
+        step = self._core_step(inventory, recommended)
+        if first is None or step is None:
+            return None
+        step["choices"] = [{"core": core["core"], "name": core["name"], "size": core["size"],
+                            "recommended": core["core"] == recommended} for core in couch]
+        step["choices"].sort(key=lambda row: not row["recommended"])
+        return first + [step]
+
+    def _row_for(self, inventory: dict, kind: str):
+        if kind == catalog.RETROARCH:
+            return inventory["retroarch"]
+        return next((row for row in inventory["emulators"] if row["kind"] == kind), None)
+
+    def _install_choices(self, inventory: dict, kind: str, only: str, host_version: str) -> list:
+        entry = catalog.BY_KIND[kind]
+        row = self._row_for(inventory, kind)
+        choices = []
+        if inventory["flatpakAvailable"] and only in ("", "flatpak"):
+            choices.append({"via": "flatpak", "size": row["flatpak"]["size"], "latest": row["flatpak"]["latest"],
+                            "id": entry["flatpak"], "scope": "user"})
+        if entry["repo"] and only in ("", "appimage"):
+            source = self._release_source(kind)
+            cached = self._releases.get((source["repo"], source["tag"], source["asset"]))
+            release = cached[1] if cached is not None else None
+            choices.append({"via": "appimage", "size": release["size"] if release else 0,
+                            "latest": release["version"] if release else "",
+                            "path": str(self._user_home / "Applications" / entry["fileName"])})
+        if host_version:
+            choices = [choice for choice in choices if choice["latest"] == host_version]
+        for choice in choices:
+            choice["recommended"] = choice["via"] == entry["via"]
+        if choices and not any(choice["recommended"] for choice in choices):
+            choices[0]["recommended"] = True
+        choices.sort(key=lambda choice: not choice["recommended"])
+        return choices
+
+    def _add_step(self, kind: str, name: str, choice: dict) -> dict:
+        step = {"do": "add_to_steam", "where": "client", "kind": kind, "name": name, "via": choice["via"]}
+        if choice["via"] == "flatpak":
+            step.update(id=choice["id"], scope=choice["scope"])
+        else:
+            step["path"] = choice["path"]
+        return step
+
+    def _shortcut_plan(self, inventory: dict, kind: str, only: str, host_version: str = ""):
+        if kind not in catalog.BY_KIND:
+            return None
+        row = self._row_for(inventory, kind)
+        entry = catalog.BY_KIND[kind]
+        installed = []
+        if row["flatpak"]["installed"]:
+            installed.append({"via": "flatpak", "id": entry["flatpak"], "scope": row["flatpak"]["scope"]})
+        for image in row.get("appimages") or []:
+            if not image["missing"]:
+                installed.append({"via": "appimage", "path": image["path"]})
+        usable = [choice for choice in installed if not only or choice["via"] == only]
+        if usable:
+            usable.sort(key=lambda choice: choice["via"] != entry["via"])
+            return [self._add_step(kind, entry["name"], usable[0])]
+        choices = self._install_choices(inventory, kind, only, host_version)
+        if not choices:
+            return None
+        reason = "game_shortcut" if only else "host_version" if host_version else "single" if len(choices) == 1 else ""
+        install = {"do": "install_emulator", "where": "backend", "kind": kind, "name": entry["name"],
+                   "via": choices[0]["via"], "choices": choices, "reason": reason}
+        return [install, self._add_step(kind, entry["name"], choices[0])]
+
+    def _duckstation_plan(self, inventory: dict, context: dict):
+        steps = []
+        ps1 = next((row for row in inventory["retroarch"]["systems"] if row["id"] == session.PS1_SYSTEM), None)
+        ra = session.RetroArch(self._user_home)
+        infos = self._info_cores(ra) if ra.found else {}
+        couch_installed = ps1 is not None and any(
+            core["installed"] and ((infos.get(core["core"]) or {}).get("savestate_features") or "").strip()
+            in ("", "deterministic") for core in ps1["cores"])
+        if not couch_installed:
+            core_steps = self._core_plan(inventory, session.BEETLE_PSX_HW)
+            if core_steps is None:
+                return None
+            steps.extend(core_steps)
+        if not context.get("raShortcut"):
+            entry = catalog.BY_KIND[catalog.RETROARCH]
+            if not inventory["retroarch"]["found"] and not any(step["kind"] == catalog.RETROARCH
+                                                               for step in steps if step["do"] == "install_emulator"):
+                first = self._retroarch_steps(inventory)
+                if first is None:
+                    return None
+                steps = first + steps
+            scope = inventory["retroarch"]["flatpak"]["scope"] or "user"
+            steps.append(self._add_step(catalog.RETROARCH, entry["name"],
+                                        {"via": "flatpak", "id": entry["flatpak"], "scope": scope}))
+        return steps or None
+
+    def _match_plan(self, inventory: dict, kind: str, detail: dict, context: dict):
+        host = str(detail.get("version") or "")
+        row = self._row_for(inventory, kind)
+        if not host or row is None:
+            return None
+        install = detail.get("install") or ("flatpak" if kind == "ppsspp" else "")
+        if install == "flatpak":
+            mine, latest = row["flatpak"]["version"], row["flatpak"]["latest"]
+            target = {"via": "flatpak"}
+        else:
+            image = next((image for image in row["appimages"] if image["path"] == context.get("path")), None)
+            if image is None:
+                return None
+            mine, latest = image["version"], image["latest"]
+            target = {"via": "appimage", "path": image["path"]}
+        older, newest = catalog.version_key(mine), catalog.version_key(latest)
+        if not latest or host != latest or older is None or newest is None or not older < newest:
+            return None
+        return [{"do": "update_emulator", "where": "backend", "kind": kind, "name": row["name"], **target}]
+
+    def plan(self, gate: str, detail: dict, context: dict):
+        try:
+            return self._plan(gate, detail or {}, context or {})
+        except Exception as e:
+            decky.logger.warning("emulators: planning a fix for %s failed (%s)", gate, type(e).__name__)
+            return None
+
+    def _plan(self, gate: str, detail: dict, context: dict):
+        if gate == "stream_not_set_up":
+            return [{"do": "setup_streaming", "where": "client"}]
+        if gate == "no_shortcut":
+            return None if context.get("shortcutFallback", True) else [{"do": "enable_shortcut_fallback", "where": "client"}]
+        if gate == "link_needs_gambatte_both":
+            return None
+        inventory = self._inventory if self._inventory is not None else self.inventory(network=False)
+        host = context.get("hostVersion", "")
+        if gate in LINK_GATES:
+            return self._core_plan(inventory, LINK_GATES[gate])
+        if gate == "host_core_missing":
+            return self._core_plan(inventory, str(detail.get("coreId") or ""))
+        if gate == "no_couch_core":
+            return self._couch_core_plan(inventory, context.get("systemId"))
+        if gate in UPDATE_GATES:
+            core = UPDATE_GATES[gate]
+            step = self._core_step(inventory, core, "update_core")
+            return [step] if step is not None and (self._cores_by_name(inventory).get(core) or {}).get("installed") else None
+        if gate == "no_emulator_shortcut":
+            return self._shortcut_plan(inventory, str(context.get("kind") or ""), "")
+        if gate == "no_dolphin_emulator_shortcut":
+            return self._shortcut_plan(inventory, "dolphin", str(detail.get("install") or ""), host)
+        if gate == "no_rmg_shortcut":
+            return self._shortcut_plan(inventory, "rmg", "", host)
+        if gate == "duckstation_no_multiplayer":
+            return self._duckstation_plan(inventory, context)
+        if gate in MISMATCH_GATES:
+            return self._match_plan(inventory, MISMATCH_GATES[gate], detail, context)
+        return None
+
+    def plan_begin(self) -> dict:
+        if not self._repaired:
+            self.repair()
+        with self._job_lock:
+            if self._plan_run is not None or self._job is not None or self._jobs:
+                return {"ok": False, "error": "busy"}
+            self._plan_run = {"id": secrets.token_hex(6), "journal": {"schemaVersion": 1, "job": "", "kind": "plan",
+                                                                   "done": [], "pendingClient": self.pending_client()}}
+            self._plan_run["journal"]["job"] = self._plan_run["id"]
+            plan_id = self._plan_run["id"]
+        self._journal_write(self._plan_run["journal"])
+        return {"ok": True, "plan": plan_id}
+
+    def _open_plan(self, plan_id: str):
+        plan = self._plan_run
+        return plan if plan is not None and plan["id"] == plan_id else None
+
+    def plan_step(self, plan_id: str, step: dict, force: bool = False) -> dict:
+        plan = self._open_plan(plan_id)
+        if plan is None or not isinstance(step, dict):
+            return {"ok": False, "error": "not_found"}
+        do = step.get("do")
+        if do in ("install_core", "update_core") and isinstance(step.get("core"), str) and _CORE.match(step["core"]):
+            clean = {"do": do, "core": step["core"], "force": bool(force)}
+            name = self._core_names([step["core"]])[0]
+        elif do in ("install_emulator", "update_emulator") and step.get("kind") in catalog.BY_KIND \
+                and step.get("via") in ("flatpak", "appimage"):
+            clean = {"do": do, "kind": step["kind"], "via": step["via"], "force": bool(force)}
+            if do == "update_emulator" and step["via"] == "appimage":
+                clean["path"] = str(step.get("path") or "")
+            name = catalog.BY_KIND[step["kind"]]["name"]
+        else:
+            return {"ok": False, "error": "not_found"}
+        kind = "install_cores" if do == "install_core" else "update_cores" if do == "update_core" else do
+        return self._submit(kind, [clean], target=f"plan:{plan_id}", names=[name], plan=plan_id)
+
+    def plan_client(self, plan_id: str, undo: dict) -> dict:
+        plan = self._open_plan(plan_id)
+        if plan is None or not isinstance(undo, dict) or undo.get("do") not in CLIENT_UNDOS:
+            return {"ok": False}
+        record = {"undo": "client", "do": undo["do"]}
+        if undo["do"] == "remove_shortcut":
+            kind, via, path = undo.get("kind"), undo.get("via"), str(undo.get("path") or "")
+            if type(undo.get("appid")) is not int or not 0 < undo["appid"] <= 0xFFFFFFFF or kind not in catalog.BY_KIND \
+                    or via not in ("flatpak", "appimage") or (via == "appimage" and not path.startswith("/")):
+                return {"ok": False}
+            record["appid"] = undo["appid"]
+            record["key"] = f"{kind}:flatpak" if via == "flatpak" else f"{kind}:{path_key(path)}"
+        with self._job_lock:
+            self._note(plan["journal"], record)
+        if undo["do"] == "remove_shortcut":
+            self.record_shortcut(record["key"], record["appid"])
+        return {"ok": True}
+
+    def plan_end(self, plan_id: str) -> dict:
+        with self._job_lock:
+            self._job_lock.wait_for(lambda: self._job is None and not self._jobs, PLAN_SETTLE_SECONDS)
+            plan = self._open_plan(plan_id)
+            if plan is None or self._job is not None:
+                return {"ok": False}
+            self._plan_run = None
+        self._finish(plan["journal"])
+        self._inventory = None
+        return {"ok": True}
+
+    def plan_abort(self, plan_id: str) -> dict:
+        with self._job_lock:
+            self._job_lock.wait_for(lambda: self._job is None and not self._jobs, PLAN_SETTLE_SECONDS)
+            plan = self._open_plan(plan_id)
+            if plan is None or self._job is not None:
+                return {"ok": False, "client": []}
+            self._plan_run = None
+        journal = plan["journal"]
+        left = self._rollback(journal)
+        self._close_journal(journal)
+        self._inventory = None
+        return {"ok": True, "client": journal.get("pendingClient") or [], "left": left}
+
+    def plan_abandon(self) -> dict:
+        plan = self._plan_run
+        if plan is None:
+            return {"ok": True, "client": []}
+        return self.plan_abort(plan["id"])
+
+    def latest_known(self) -> bool:
+        return self._flathub[1] is not None

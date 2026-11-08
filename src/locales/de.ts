@@ -3509,15 +3509,9 @@ const DE: LocaleTable = {
     },
     "Not enough free space.": "Nicht genug freier Speicher.",
     "Close RetroArch first.": "Schließe zuerst RetroArch.",
-    "Couldn't reach the download server.": "Der Download-Server war nicht erreichbar.",
     "A file wasn't the way CheevoDeck expected, so it stopped.": "Eine Datei war nicht so, wie CheevoDeck es erwartet hat, deshalb wurde abgebrochen.",
     "Couldn't put these back: {{files}}": "Konnte nicht wiederhergestellt werden: {{files}}",
     "Up to date": "Auf dem neuesten Stand",
-    "{{count}} cores kept because yours are newer": {
-        one: "{{count}} Core behalten, weil deiner neuer ist",
-        other: "{{count}} Cores behalten, weil deine neuer sind"
-    },
-    "Every system with games already has a core.": "Jedes System mit Spielen hat schon einen Core.",
     "Couldn't start that.": "Das konnte nicht gestartet werden.",
     "Install Cores": "Cores installieren",
     "{{count}} systems with games have no core yet. Install the recommended one for each?": {
@@ -3547,10 +3541,34 @@ const DE: LocaleTable = {
     "Remove {{file}} from Steam": "{{file}} aus Steam entfernen",
     "Remove from Steam": "Aus Steam entfernen",
     "Remove the {{name}} shortcut CheevoDeck added to Steam?": "Die {{name}}-Verknüpfung entfernen, die CheevoDeck zu Steam hinzugefügt hat?",
-    "Couldn't add it to Steam.": "Konnte nicht zu Steam hinzugefügt werden.",
     "Games without their own shortcut or a remembered Play With… pick will play in RetroArch.": "Spiele ohne eigene Verknüpfung oder gemerkte „Spielen mit…“-Wahl laufen dann in RetroArch.",
     "{{system}} games without their own shortcut or a remembered Play With… pick will play in {{emulator}} instead of {{current}}.": "{{system}}-Spiele ohne eigene Verknüpfung oder gemerkte „Spielen mit…“-Wahl laufen dann in {{emulator}} statt in {{current}}.",
     "{{system}} games without their own shortcut or a remembered Play With… pick will play in {{emulator}}.": "{{system}}-Spiele ohne eigene Verknüpfung oder gemerkte „Spielen mit…“-Wahl laufen dann in {{emulator}}.",
+    "Install {{core}}": "{{core}} installieren",
+    "Update {{core}}": "{{core}} aktualisieren",
+    "Install {{emulator}} (Flatpak, about {{size}})": "{{emulator}} installieren (Flatpak, etwa {{size}})",
+    "Install {{emulator}} (Flatpak)": "{{emulator}} installieren (Flatpak)",
+    "Install {{emulator}} (AppImage, about {{size}})": "{{emulator}} installieren (AppImage, etwa {{size}})",
+    "Install {{emulator}} (AppImage)": "{{emulator}} installieren (AppImage)",
+    "Update {{emulator}}": "{{emulator}} aktualisieren",
+    "Add {{emulator}} to Steam": "{{emulator}} zu Steam hinzufügen",
+    "Matches the host's {{emulator}} {{version}}": "Passt zu {{emulator}} {{version}} des Hosts",
+    "Same install as this game's shortcut": "Dieselbe Installation wie die Verknüpfung dieses Spiels",
+    "Kept yours": "Deinen behalten",
+    "Nothing was changed.": "Es wurde nichts geändert.",
+    "Step {{step}} of {{count}}": "Schritt {{step}} von {{count}}",
+    "Fix It": "Beheben",
+    "{{name}} on this device is newer than the stable one, probably a nightly or dev build you installed. CheevoDeck leaves it alone unless you choose to replace it.": "{{name}} auf diesem Gerät ist neuer als die stabile Version, wahrscheinlich ein Nightly- oder Dev-Build, den du installiert hast. CheevoDeck lässt ihn in Ruhe, außer du entscheidest dich, ihn zu ersetzen.",
+    "Every system has a core already.": "Jedes System hat schon einen Core.",
+    "Another install is running.": "Eine andere Installation läuft.",
+    "Couldn't reach the server.": "Server nicht erreichbar.",
+    "Kept {{count}} cores that are newer": {
+        one: "{{count}} neuerer Core behalten",
+        other: "{{count}} neuere Cores behalten"
+    },
+    "Ready to play": "Bereit zum Spielen",
+    "Couldn't finish the setup": "Einrichtung nicht abgeschlossen",
+    "Couldn't add it to Steam.": "Nicht zu Steam hinzugefügt.",
 };
 
 export default DE;

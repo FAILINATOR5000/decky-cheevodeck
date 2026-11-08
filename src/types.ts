@@ -2992,7 +2992,13 @@ export type MultiplayerRoomRow = {
     address: string;
     door: "lan" | "server";
     away: boolean;
-    verdict?: { can: boolean; reason: string; detail: Record<string, string>; state?: MultiplayerModeState["state"] };
+    verdict?: {
+        can: boolean;
+        reason: string;
+        detail: Record<string, string>;
+        state?: MultiplayerModeState["state"];
+        fix?: FixStep[] | null;
+    };
 };
 
 type MultiplayerSeat = {
@@ -3152,6 +3158,8 @@ export type MultiplayerCheck = {
     warnings: MultiplayerWarning[];
     local: MultiplayerLocal | null;
     lanOnly?: boolean;
+    fix?: FixStep[] | null;
+    state?: MultiplayerModeState["state"];
 };
 
 export type PlayPick = { appid: number; kind: string; core: string };
@@ -3182,10 +3190,39 @@ export type CouchChoices = {
     saved: PlayPick | null;
 };
 
+type FixChoice = {
+    via?: "flatpak" | "appimage";
+    core?: string;
+    name?: string;
+    size: number;
+    recommended: boolean;
+    latest?: string;
+    id?: string;
+    scope?: string;
+    path?: string;
+};
+
+export type FixStep = {
+    do: "install_core" | "update_core" | "install_emulator" | "update_emulator" | "add_to_steam" | "enable_shortcut_fallback"
+        | "setup_streaming";
+    where: "backend" | "client";
+    core?: string;
+    name?: string;
+    size?: number;
+    kind?: string;
+    via?: "flatpak" | "appimage";
+    id?: string;
+    scope?: string;
+    path?: string;
+    choices?: FixChoice[];
+    reason?: "" | "host_version" | "game_shortcut" | "single";
+};
+
 export type MultiplayerModeState = {
     state: "ready" | "setup" | "never";
     gate: string | null;
     detail: Record<string, string>;
+    fix?: FixStep[] | null;
 };
 
 export type MultiplayerModes = {

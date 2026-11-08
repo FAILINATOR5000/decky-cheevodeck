@@ -11,6 +11,9 @@ import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { SubTabButton } from "../components/ui/SubTabButton";
 import { ModeChart } from "../components/multiplayer/ModeChart";
 import { showModeReason, type ModeFix } from "../components/multiplayer/ModeReasonModal";
+import { fixStepLabel, showFixIt } from "../components/multiplayer/FixItModal";
+import { jobErrorText } from "../utils/emulatorJobs";
+import { runFixPlan, setMultiplayerPageShown, useFixPlan } from "../utils/fixPlan";
 import { showMultiplayerProblem } from "../components/multiplayer/ProblemModal";
 import { openStreamSetup } from "../components/multiplayer/StreamSetupModal";
 import { TextViewerModal } from "../components/ui/TextViewerModal";
@@ -80,6 +83,7 @@ import { ButtonHints, type ButtonHint } from "../components/ui/ButtonHints";
 import { openExternalUrl, raLookupSearchUrl } from "../utils/navigation";
 import { ROOM_ENDED, problemText, streamHostProblemText, warningText } from "../utils/multiplayerProblems";
 import {
+    achievementGreen,
     bodyTextStyle,
     errorRed,
     regularButtonSpacingStyle,
@@ -91,6 +95,7 @@ import {
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 const NAV_ENTER_MAINTAIN_Y = 3;
+const FIX_DONE_MS = 4000;
 
 const LINK_SYSTEMS = [4, 5, 6, 16, 18, 41];
 const DOLPHIN_CONSOLES = ["GameCube", "Wii"];
@@ -224,6 +229,23 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const { language } = state;
     const visible = state.view === "multiplayer";
     const { state: mp, actions, friends, page: tabs } = useMultiplayer();
+    const fixPlan = useFixPlan();
+    const fixRun = fixPlan.run;
+    const [fixDoneShown, setFixDoneShown] = useState(false);
+
+    useEffect(() => {
+        setMultiplayerPageShown(visible);
+        return () => setMultiplayerPageShown(false);
+    }, [visible]);
+
+    useEffect(() => {
+        if (!fixRun?.done) {
+            return;
+        }
+        setFixDoneShown(true);
+        const timer = window.setTimeout(() => setFixDoneShown(false), FIX_DONE_MS);
+        return () => window.clearTimeout(timer);
+    }, [fixPlan.finished]);
     const landingWindows = useRef<LandingWindows | null>(null);
     const [playFocused, setPlayFocused] = useState(false);
     const [screenHz, setScreenHz] = useState<number | null>(null);
@@ -399,6 +421,14 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     }
 
     const roomWarnings = (shownCheck?.warnings ?? []).map((warning) => warningText(language, warning.code, warning.detail));
+    const fixHere = fixRun !== null && (fixRun.running || fixRun.gameId === mp.gameId) ? fixRun : null;
+    const fixStep = fixHere?.running ? fixHere.steps[fixHere.current] ?? null : null;
+    const fixProgress = fixStep ? (fixStep.step.do === "setup_streaming" ? stream.progress : fixStep.progress) : -1;
+    const failedStep = fixHere?.failed ? fixHere.steps.find((row) => row.state === "failed" || row.state === "kept") : undefined;
+    const fixFailure = !fixHere?.failed ? "" : failedStep?.state === "kept"
+        ? t(language, "Kept yours")
+        : [jobErrorText(language, fixHere.error, failedStep?.step.name ?? "", failedStep?.step.do.endsWith("_core") ?? false),
+            t(language, "Nothing was changed.")].filter(Boolean).join(" ");
     const installing = mp.mode === "stream" && setupRunning(stream);
     const settingUp = mp.mode === "stream" && (installing || stream.lastJob === "setup") ? stream.stage : "";
     const setupLine = SETUP_LINES[settingUp] ?? null;
@@ -588,9 +618,31 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         return forMode === "stream" && !joined ? streamHostProblemText(language, gate, filled) : problemText(language, gate, filled);
     }
 
+    function fixReason(forMode: MultiplayerMode) {
+        const entry = mp.modes?.modes[forMode];
+        const gate = entry?.gate ?? "";
+        return {
+            mode: forMode,
+            gameId: fixRun?.running ? fixRun.gameId : mp.gameId ?? 0,
+            state: entry?.state === "never" ? "never" as const : "setup" as const,
+            text: gate ? reasonText(forMode, gate, entry?.detail ?? {}) : "",
+            steps: entry?.fix ?? [],
+            tools: gate === "no_shortcut" ? mp.modes?.tools ?? null : null,
+            refresh: () => actions.fixFor(forMode)
+        };
+    }
+
     function openModeReason(forMode: MultiplayerMode) {
+        if (fixRun?.running) {
+            showFixIt(language, fixReason(fixRun.mode));
+            return;
+        }
         const entry = mp.modes?.modes[forMode];
         if (!mp.modes || !entry?.gate || entry.state === "ready") {
+            return;
+        }
+        if (entry.fix && entry.fix.length > 0) {
+            showFixIt(language, fixReason(forMode));
             return;
         }
         const { shortcutFallback, tools } = mp.modes;
@@ -1697,7 +1749,49 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                                         </FocusableItem>
                                     </PanelSectionRow>
                                 )}
-                                {needsSetup && installing && (
+                                {fixHere !== null && (fixHere.running || fixHere.failed) && (
+                                    <PanelSectionRow>
+                                        <div style={{ width: "100%", paddingTop: "4px" }}>
+                                            {fixStep !== null && (
+                                                <>
+                                                    <div style={bodyTextStyle()}>
+                                                        {fixStepLabel(language, fixStep.step)}
+                                                    </div>
+                                                    <div style={{ marginTop: "6px" }}>
+                                                        <ProgressBar fraction={fixProgress >= 0 ? fixProgress / 100 : null} />
+                                                    </div>
+                                                    <div style={{ ...bodyTextStyle(), marginTop: "6px" }}>
+                                                        {t(language, "Step {{step}} of {{count}}", { step: fixHere.current + 1, count: fixHere.steps.length })}
+                                                        {fixProgress >= 0 ? ` · ${fixProgress}%` : ""}
+                                                    </div>
+                                                </>
+                                            )}
+                                            {fixHere.failed && (
+                                                <div style={{ ...bodyTextStyle(), color: errorRed, opacity: 1 }}>{fixFailure}</div>
+                                            )}
+                                        </div>
+                                    </PanelSectionRow>
+                                )}
+                                {fixHere !== null && fixHere.failed && (
+                                    <PanelSectionRow>
+                                        <FocusableItem
+                                            bottomSeparator="none"
+                                            outerStyle={buttonStyle}
+                                            focusKey="multiplayer:fix:retry"
+                                            focusFallback={[`multiplayer:mode:${fixHere.mode}:status`, `multiplayer:mode:${fixHere.mode}`]}
+                                            onClick={() => void runFixPlan(fixHere.mode, fixHere.gameId, fixHere.steps.map((row) => row.step),
+                                                () => actions.fixFor(fixHere.mode))}
+                                        >
+                                            <div style={{ width: "100%", textAlign: "center" }}>{t(language, "Try Again")}</div>
+                                        </FocusableItem>
+                                    </PanelSectionRow>
+                                )}
+                                {fixDoneShown && fixHere?.done && !fixHere.running && (
+                                    <PanelSectionRow>
+                                        <div style={{ ...bodyTextStyle(), color: achievementGreen, opacity: 1 }}>{t(language, "Done")}</div>
+                                    </PanelSectionRow>
+                                )}
+                                {needsSetup && installing && !fixRun?.running && (
                                     <PanelSectionRow>
                                         <div style={{ width: "100%", paddingTop: "4px" }}>
                                             <ProgressBar fraction={stream.progress >= 0 ? stream.progress / 100 : null} />

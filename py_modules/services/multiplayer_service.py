@@ -215,6 +215,13 @@ SETUP_GATES = {
     "gpsp_too_old", "melondsds_too_old",
     "dolphin_version_mismatch", "rmg_version_mismatch", "ppsspp_version_mismatch",
 }
+VERSION_GATES = {"dolphin_version_mismatch", "rmg_version_mismatch", "ppsspp_version_mismatch"}
+PLANNED_GATES = {
+    "stream_not_set_up", "no_shortcut", "host_core_missing", "no_couch_core",
+    "link_needs_gambatte", "link_needs_gambatte_both", "link_needs_gpsp", "link_needs_melondsds", "link_needs_ppsspp",
+    "gpsp_too_old", "melondsds_too_old", "no_emulator_shortcut", "no_dolphin_emulator_shortcut", "no_rmg_shortcut",
+    "duckstation_no_multiplayer", "dolphin_version_mismatch", "rmg_version_mismatch", "ppsspp_version_mismatch",
+}
 
 
 class _Responder(asyncio.DatagramProtocol):
@@ -253,9 +260,10 @@ class MultiplayerService:
         self, *, settings_store, game_mode, user_home, runtime_dir, cheevo_check_service, cheevo_check_store,
         port: int = proto.PORT, peer_port: int = proto.PORT,
         broadcast: str = "255.255.255.255", bin_dir=None, voice_canceller=None, voice_room_changed=None,
-        stream_setup=None, stream_host=None,
+        stream_setup=None, stream_host=None, emulator_service=None,
     ):
         self._settings_store = settings_store
+        self._emulators = emulator_service
         self._stream_setup = stream_setup
         self._stream_host = stream_host
         self._voice_canceller = voice_canceller
@@ -1124,13 +1132,13 @@ class MultiplayerService:
                     return None, "melondsds_dsi_mode", {}
         elif chosen not in compatible:
             if room is not None and room_core and not ra.installed(room_core):
-                return None, "host_core_missing", {"core": room["coreName"] or room_core}
+                return None, "host_core_missing", {"core": room["coreName"] or room_core, "coreId": room_core}
             works = [ra.core_name(name) for name in compatible]
             if not works:
                 return None, "no_couch_core", {}
             return None, "core_cant_couch", {"core": ra.core_name(chosen) if chosen else "", "works": ", ".join(works)}
         if not ra.installed(chosen):
-            return None, "host_core_missing", {"core": ra.core_name(chosen)}
+            return None, "host_core_missing", {"core": ra.core_name(chosen), "coreId": chosen}
 
         local.update(core=chosen, coreName=ra.core_name(chosen),
                      emuVersion=f"{self._flatpak_version(session.RETROARCH_FLATPAK)}|{ra.version(chosen)}")
@@ -1165,7 +1173,7 @@ class MultiplayerService:
             emulator = self._emulator_shortcut("dolphin", install)
         local["vehicles"] = self._emulator_count("dolphin")
         if emulator is None:
-            return None, "no_dolphin_emulator_shortcut", {}
+            return None, "no_dolphin_emulator_shortcut", {"install": install}
         folder = session.dolphin_missing_folder(self._user_home, install, pick["real"])
         if folder:
             return None, "dolphin_game_list", {"folder": folder}
@@ -1213,7 +1221,7 @@ class MultiplayerService:
             chosen = saved_core
         elif room_core:
             if not ra.installed(room_core) or room_core not in compatible:
-                return None, "host_core_missing", {"core": room["coreName"] or room_core}
+                return None, "host_core_missing", {"core": room["coreName"] or room_core, "coreId": room_core}
             chosen = room_core
         else:
             chosen = session.BEETLE_PSX_HW if session.BEETLE_PSX_HW in compatible else compatible[0]
@@ -1874,10 +1882,12 @@ class MultiplayerService:
                 and room["emuVersion"] != local["emuVersion"]
             if mode == "couch" and local["emulator"] == "dolphin" and room["emuVersion"] and local["emuVersion"] \
                     and room["emuVersion"] != local["emuVersion"]:
-                return ("dolphin_version_mismatch", {"version": room["emuVersion"]}), warnings
+                return ("dolphin_version_mismatch", {"version": room["emuVersion"], "install": local.get("install", ""),
+                                                     "appid": local["appid"]}), warnings
             if local["emulator"] == "rmg" and room["emuVersion"] and local["emuVersion"] \
                     and room["emuVersion"] != local["emuVersion"]:
-                return ("rmg_version_mismatch", {"version": room["emuVersion"]}), warnings
+                return ("rmg_version_mismatch", {"version": room["emuVersion"], "install": local.get("install", ""),
+                                                 "appid": local["appid"]}), warnings
             if mode == "couch" and room["coreBuild"] and local["coreBuild"] \
                     and room["coreBuild"] != local["coreBuild"]:
                 warnings.append({"code": "core_build_differs", "detail": {"core": room["coreName"]}})
@@ -1960,18 +1970,48 @@ class MultiplayerService:
             answer["modes"][mode] = _mode_state(self._check(mode, game_id, core, room))
         return answer
 
+    def _fix(self, gate, detail: dict, mode: str, game_id: int, room):
+        if self._emulators is None or gate not in PLANNED_GATES:
+            return None
+        library = self._library() or {}
+        game = library.get(room["gameId"] if room is not None and mode == "couch" else game_id) or {}
+        context = {
+            "mode": mode,
+            "systemId": game.get("systemId"),
+            "shortcutFallback": self._fallback_on(),
+            "hostVersion": str(room.get("emuVersion") or "") if room is not None and mode == "couch" else "",
+            "raShortcut": self._emulator_shortcut("retroarch") is not None,
+        }
+        if gate == "no_emulator_shortcut":
+            context["kind"] = next((kind for kind, name in FALLBACK_NAMES.items() if name == detail.get("emulator")), "")
+        if gate in ("dolphin_version_mismatch", "rmg_version_mismatch"):
+            shortcut = self._emulator_by_appid(detail.get("appid") or 0)
+            if shortcut is not None:
+                find = session.dolphin_appimage if gate.startswith("dolphin") else session.rmg_appimage
+                context["path"] = find(shortcut["exe"], shortcut["launchOptions"], self._user_home)
+        return self._emulators.plan(gate, detail, context)
+
+    def _gate_answer(self, gate, detail: dict, mode: str, game_id: int, room) -> dict:
+        fix = self._fix(gate, detail, mode, game_id, room)
+        planned = self._emulators is not None and gate in PLANNED_GATES \
+            and (gate not in VERSION_GATES or self._emulators.latest_known())
+        return {"fix": fix, "state": _gate_state(gate, fix, planned)}
+
     def _check(self, mode: str, game_id: int, core: str, room) -> dict:
         local, gate, detail = self._local(mode, game_id, core, room)
         if local is None:
-            return {"ok": True, "gate": gate, "detail": detail, "warnings": [], "local": None}
+            return {"ok": True, "gate": gate, "detail": detail, "warnings": [], "local": None,
+                    **self._gate_answer(gate, detail, mode, game_id, room)}
         found, warnings = self._gates(mode, local, room, self._players(mode, room))
+        gate, detail = (found[0], found[1]) if found else (None, {})
         return {
             "ok": True,
-            "gate": found[0] if found else None,
-            "detail": found[1] if found else {},
+            "gate": gate,
+            "detail": detail,
             "warnings": warnings,
             "local": _local_view(local),
             "lanOnly": _lan_only(mode, local),
+            **self._gate_answer(gate, detail, mode, game_id, room),
         }
 
     def _joined_check(self, joined: dict) -> dict:
@@ -1983,12 +2023,16 @@ class MultiplayerService:
         if local is not None:
             row = joined["row"]
             _found, warnings = self._gates(row["mode"], local, row, self._players(row["mode"], row))
+        gate = None if joined["can"] else joined["reason"]
+        detail = {} if joined["can"] else joined["detail"]
         return {
             "ok": True,
-            "gate": None if joined["can"] else joined["reason"],
-            "detail": {} if joined["can"] else joined["detail"],
+            "gate": gate,
+            "detail": detail,
             "warnings": warnings,
             "local": _local_view(local) if local is not None else None,
+            **self._gate_answer(gate, detail, joined["row"]["mode"], joined["own"] or joined["row"]["gameId"],
+                                joined["row"]),
         }
 
     def _decide(self, row: dict, own_game: int, core: str):
@@ -3764,7 +3808,7 @@ class MultiplayerService:
             if verdict is None or not verdict["can"]:
                 local, reason, detail = self._decide(row, 0, "")
                 verdict = {"can": local is not None, "reason": reason, "detail": detail,
-                           "state": _gate_state(reason)}
+                           **self._gate_answer(reason, detail, row["mode"], row["gameId"], row)}
                 self._verdict_memo[key] = verdict
             found[row["room"]] = verdict
         return found
@@ -5554,14 +5598,16 @@ def _steps(row: dict) -> str:
     return ""
 
 
-def _gate_state(gate) -> str:
+def _gate_state(gate, fix=None, planned: bool = False) -> str:
     if not gate:
         return "ready"
+    if planned:
+        return "setup" if fix else "never"
     return "setup" if gate in SETUP_GATES else "never"
 
 
 def _mode_state(checked: dict) -> dict:
-    return {"state": _gate_state(checked["gate"]), "gate": checked["gate"], "detail": checked["detail"]}
+    return {"state": checked["state"], "gate": checked["gate"], "detail": checked["detail"], "fix": checked["fix"]}
 
 
 def _local_view(local: dict) -> dict:

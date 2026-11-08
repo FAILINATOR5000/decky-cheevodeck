@@ -23,7 +23,8 @@ import type {
     MultiplayerAdapter,
     MultiplayerMode,
     MultiplayerRoomStatus,
-    Payload
+    Payload,
+    FixStep
 } from "../types";
 import { logError } from "../utils/errors";
 import { getCurrentLanguage } from "../locales";
@@ -49,6 +50,7 @@ import {
 } from "../utils/multiplayerSession";
 import { pressMultiplayerReady, subscribeMultiplayerRoom } from "../utils/multiplayerRoomState";
 import { useStreamSetup } from "../utils/streamPlay";
+import { useFixPlan } from "../utils/fixPlan";
 
 const TICK_MS = 2000;
 const RENEW_EVERY = 5;
@@ -337,6 +339,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
 
     const joinedState = joined?.status?.state ?? "";
     const streamReady = useStreamSetup(isActive).status?.ready ?? false;
+    const fixesFinished = useFixPlan().finished;
     const hostedSeats = hosted?.seats.filter(Boolean).length ?? 0;
     useEffect(() => {
         if (!isActive || gameId === null) {
@@ -371,7 +374,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             }
         })();
     }, [isActive, mode, gameId, checkCore, checkRoom, hosted?.core, hosted?.rev, hostedSeats, joinedState, joined?.status?.rev,
-        joined?.reason, streamReady]);
+        joined?.reason, streamReady, fixesFinished]);
 
     const modesKey = [gameId ?? 0, checkRoom].join("|");
     useEffect(() => {
@@ -397,7 +400,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
                 }
             });
     }, [isActive, gameId, checkRoom, games, hosted?.mode, hosted?.core, hosted?.rev, hostedSeats, joinedState,
-        joined?.status?.rev, joined?.reason, streamReady]);
+        joined?.status?.rev, joined?.reason, streamReady, fixesFinished]);
 
     useEffect(() => {
         if (!isActive || gameId === null || gameId === currentGameId) {
@@ -570,6 +573,14 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         }
     }
 
+    async function fixFor(forMode: MultiplayerMode): Promise<{ state: string; fix: FixStep[] | null } | null> {
+        if (gameId === null) {
+            return null;
+        }
+        const entry = (await multiplayerModes(gameId, checkRoom)).modes[forMode];
+        return entry ? { state: entry.state, fix: entry.fix ?? null } : null;
+    }
+
     function play() {
         const appid = check?.local?.appid ?? 0;
         if (!appid) {
@@ -633,6 +644,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             loaded: games !== null && status !== null
         },
         actions: {
+            fixFor,
             setCurrentGameId,
             setTab,
             pickGame,

@@ -29,6 +29,7 @@ import { pendingLandingKey, subLandingAhead, usePageLanding } from "../focusReco
 import { useSlidingWindow } from "../hooks/useSlidingWindow";
 import { t, type LanguageCode } from "../locales";
 import type { ButtonSpacing, ControllerGlyphStyle, ViewKey } from "../types";
+import { jobErrorText } from "../utils/emulatorJobs";
 import type { EmulatorInstall } from "../utils/emulatorShortcuts";
 import { BUTTON_BUMPER_RIGHT, BUTTON_OPTIONS, BUTTON_SECONDARY } from "../utils/gamepadButtons";
 import { textSize } from "../utils/scale";
@@ -200,19 +201,8 @@ function emulatorTitle(language: LanguageCode, emulator: EmulatorEntry): string 
     return emulator.achievements ? emulator.name : t(language, "{{emulator}} · No achievements", { emulator: emulator.name });
 }
 
-const ERROR_LINES: Record<string, string> = {
-    no_space: "Not enough free space.",
-    no_network: "Couldn't reach the download server.",
-    unsafe: "A file wasn't the way CheevoDeck expected, so it stopped."
-};
-
 function errorLine(language: LanguageCode, state: EmulatorJobState): string {
-    if (state.error === "running") {
-        return state.kind.endsWith("_cores")
-            ? t(language, "Close RetroArch first.")
-            : t(language, "Close {{name}} first.", { name: state.names[0] ?? "" });
-    }
-    return ERROR_LINES[state.error] ? t(language, ERROR_LINES[state.error]) : "";
+    return jobErrorText(language, state.error, state.names[0] ?? "", state.kind.endsWith("_cores"));
 }
 
 function jobLine(language: LanguageCode, state: EmulatorJobState): string {
