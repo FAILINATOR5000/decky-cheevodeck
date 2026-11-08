@@ -12,7 +12,8 @@ export type EmulatorDetails =
     | { type: "core"; core: RetroArchCore; coresDir: string; systems: string[] }
     | { type: "retroarch"; name: string; flatpak: EmulatorFlatpak; coresDir: string; found: boolean }
     | { type: "flatpak"; emulator: EmulatorEntry }
-    | { type: "appimage"; emulator: EmulatorEntry; image: EmulatorAppImage };
+    | { type: "appimage"; emulator: EmulatorEntry; image: EmulatorAppImage }
+    | { type: "offer"; emulator: EmulatorEntry; appsDir: string };
 
 const HOW_FOUND: Record<EmulatorAppImage["howFound"], string> = {
     pointed: "You pointed to it.",
@@ -27,12 +28,21 @@ function joinPath(folder: string, name: string): string {
     return folder.endsWith("/") ? folder + name : `${folder}/${name}`;
 }
 
+function latestLine(language: LanguageCode, latest: string): DetailLine[] {
+    return latest ? [{ label: t(language, "Latest stable"), value: latest }] : [];
+}
+
 function flatpakLines(language: LanguageCode, flatpak: EmulatorFlatpak): DetailLine[] {
     if (!flatpak.installed) {
-        return [{ label: t(language, "Source"), value: "Flathub" }, { label: "Flatpak", value: t(language, "Not installed") }];
+        return [
+            { label: t(language, "Source"), value: "Flathub" },
+            { label: "Flatpak", value: t(language, "Not installed") },
+            ...latestLine(language, flatpak.latest)
+        ];
     }
     return [
         { label: t(language, "Version"), value: flatpak.version || "?" },
+        ...latestLine(language, flatpak.latest),
         { label: t(language, "Source"), value: "Flathub" },
         { label: "Flatpak", value: `${flatpak.id} (${flatpak.scope})` }
     ];
@@ -66,11 +76,22 @@ function detailLines(language: LanguageCode, details: EmulatorDetails): { title:
     if (details.type === "flatpak") {
         return { title: details.emulator.name, lines: flatpakLines(language, details.emulator.flatpak), note: "" };
     }
+    if (details.type === "offer") {
+        return {
+            title: details.emulator.name,
+            lines: [
+                { label: t(language, "Source"), value: "GitHub" },
+                { label: t(language, "File"), value: joinPath(details.appsDir, details.emulator.fileName) }
+            ],
+            note: t(language, "AppImage · Not installed")
+        };
+    }
     const { image } = details;
     return {
         title: details.emulator.name,
         lines: [
             { label: t(language, "Version"), value: image.version || "?" },
+            ...latestLine(language, image.latest),
             { label: t(language, "File"), value: image.path },
             { label: t(language, "Source"), value: image.repo || "?" },
             { label: t(language, "How it was found"), value: t(language, HOW_FOUND[image.howFound]) }

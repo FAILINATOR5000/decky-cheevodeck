@@ -1,4 +1,6 @@
+import fnmatch
 import hashlib
+import json
 import os
 import re
 import secrets
@@ -38,6 +40,12 @@ CHUNK = 1 << 16
 PACK_MAX = 1 << 30
 INFO_MAX = 8 << 20
 PACK_LINGER_SECONDS = 30 * 60
+RELEASE_SECONDS = 600
+FLATPAK_INSTALL_SECONDS = 1800
+WATCH_SECONDS = 1.0
+APPIMAGE_MAX = 512 << 20
+FLATHUB_REPO = "https://dl.flathub.org/repo/flathub.flatpakrepo"
+RELEASES_URL = "https://api.github.com/repos/{repo}/releases/{which}"
 SPACE_MARGIN = 64 << 20
 STABLE_URL = "https://buildbot.libretro.com/stable/"
 PACK_URL = STABLE_URL + "{version}/linux/x86_64/RetroArch_cores.7z"
@@ -126,6 +134,9 @@ class EmulatorService:
         self._said = (None, 0.0, -2)
         self._pack = None
         self._pack_timer = None
+        self._releases = {}
+        self._flathub = (0.0, None)
+        self._sha256s = {}
 
     def _work_dir(self) -> Path:
         return self._runtime_dir / WORK_FOLDER
@@ -148,14 +159,15 @@ class EmulatorService:
             return 1, "", type(e).__name__
 
     def _flatpaks(self):
-        code, out, _err = self._run(["flatpak", "list", "--app", "--columns=application,version,installation"])
+        code, out, _err = self._run(["flatpak", "list", "--app", "--columns=application,version,installation,branch,active"])
         if code != 0:
             return None
         found = {}
         for line in out.splitlines():
-            parts = [part.strip() for part in line.split("\t")]
-            if len(parts) >= 3 and parts[0]:
-                found[parts[0]] = {"version": parts[1], "scope": "system" if parts[2] == "system" else "user"}
+            parts = [part.strip() for part in line.split("\t")] + ["", ""]
+            if parts[0]:
+                found[parts[0]] = {"version": parts[1], "scope": "system" if parts[2] == "system" else "user",
+                                   "branch": parts[3], "commit": parts[4]}
         return found
 
     def _appimage_version(self, image: str) -> str:
@@ -249,10 +261,11 @@ class EmulatorService:
             "ours": ours is not None,
             "missing": False,
             "latest": "",
+            "update": False,
             "newerThanStable": False,
         }
 
-    def _standalones(self, record: dict, flatpaks) -> list:
+    def _standalones(self, record: dict, flatpaks, network: bool) -> list:
         emudeck = catalog.emudeck_paths(self._user_home)
         launched = {}
         for kind, image in self._launcher_images(emudeck["toolsPath"]):
@@ -280,14 +293,21 @@ class EmulatorService:
                     else:
                         rows[kind].append({"path": path, "key": path_key(path), "fileName": Path(path).name,
                                            "version": "", "repo": "", "howFound": "pointed", "ours": False,
-                                           "missing": True, "latest": "", "newerThanStable": False})
+                                           "missing": True, "latest": "", "update": False,
+                                           "newerThanStable": False})
         emulators = []
         for kind in catalog.STANDALONES:
             entry = catalog.BY_KIND[kind]
+            for row in rows[kind]:
+                release = self._release_for(kind, row["path"], network) if not row["missing"] else None
+                if release is not None:
+                    row["latest"] = release["version"]
+                    row.update(self._appimage_compare(row, release))
             emulators.append({
                 "kind": kind,
                 "name": entry["name"],
                 "achievements": entry["achievements"],
+                "fileName": entry["fileName"],
                 "flatpak": self._flatpak_row(entry, flatpaks),
                 "appimages": rows[kind],
                 "found": bool(rows[kind]) or bool(flatpaks and entry["flatpak"] in flatpaks),
@@ -296,14 +316,27 @@ class EmulatorService:
 
     def _flatpak_row(self, entry: dict, flatpaks) -> dict:
         installed = (flatpaks or {}).get(entry["flatpak"])
-        return {
+        remote = (self._flathub[1] or {}).get(entry["flatpak"]) or {}
+        row = {
             "id": entry["flatpak"],
             "installed": installed is not None,
             "version": installed["version"] if installed else "",
             "scope": installed["scope"] if installed else "",
-            "latest": "",
+            "latest": remote.get("version", ""),
+            "size": remote.get("download", 0),
+            "update": False,
             "newerThanStable": False,
         }
+        if installed and remote.get("commit"):
+            row.update(self._flatpak_compare(installed, remote))
+        return row
+
+    def _flatpak_compare(self, installed: dict, remote: dict) -> dict:
+        if remote["commit"].startswith(installed["commit"][:12]) or installed["commit"].startswith(remote["commit"]):
+            return {"update": False, "newerThanStable": False}
+        mine, theirs = catalog.version_key(installed["version"]), catalog.version_key(remote.get("version", ""))
+        newer = installed["branch"] not in ("", "stable") or (mine is not None and theirs is not None and mine > theirs)
+        return {"update": not newer, "newerThanStable": newer}
 
     def _systems_with_games(self) -> frozenset:
         stamp = self._cheevo_check_store.results_fingerprint()
@@ -441,12 +474,14 @@ class EmulatorService:
                 return self._inventory
             record = self._store.get()
             flatpaks = self._flatpaks()
+            if network and flatpaks is not None and (refresh or self._flathub[1] is None):
+                self._read_flathub(flatpaks)
             self._inventory = {
                 "ok": True,
                 "appsDir": str(self._user_home / "Applications"),
                 "flatpakAvailable": flatpaks is not None,
                 "retroarch": self._retroarch(record, flatpaks, network),
-                "emulators": self._standalones(record, flatpaks),
+                "emulators": self._standalones(record, flatpaks, network),
             }
             return self._inventory
 
@@ -689,10 +724,32 @@ class EmulatorService:
             self._install_core(job, step, journal)
         elif do == "update_core":
             self._update_core(job, step, journal)
+        elif do == "install_emulator" and step.get("via") == "flatpak" and step.get("kind") in catalog.BY_KIND:
+            self._install_flatpak_step(job, step, journal)
+        elif do == "install_emulator" and step.get("via") == "appimage" and step.get("kind") in catalog.STANDALONES:
+            self._install_appimage_step(job, step, journal)
+        elif do == "update_emulator" and step.get("via") == "flatpak" and step.get("kind") in catalog.BY_KIND:
+            self._update_flatpak_step(job, step, journal)
+        elif do == "update_emulator" and step.get("via") == "appimage" and step.get("kind") in catalog.STANDALONES:
+            self._update_appimage_step(job, step, journal)
         else:
             raise StepFailed("failed", f"unknown step {do}")
 
     def _finish(self, journal: dict) -> None:
+        for trim in journal.get("trim") or []:
+            path = Path(trim["path"])
+            try:
+                names = os.listdir(path.parent)
+            except OSError:
+                continue
+            for name in names:
+                old = path.parent / name
+                if name.startswith(path.name + ".bak-") and str(old) != trim["keep"] and old.is_file() \
+                        and not old.is_symlink():
+                    try:
+                        os.unlink(old)
+                    except OSError:
+                        pass
         self._close_journal(journal)
 
     def _close_journal(self, journal: dict) -> None:
@@ -766,7 +823,8 @@ class EmulatorService:
         if kind == "remove_file":
             path = Path(undo["path"])
             self._check_target(path)
-            if path.is_file() and (not undo.get("crc") or file_crc(path) == undo["crc"]):
+            if path.is_file() and (not undo.get("crc") or file_crc(path) == undo["crc"]) \
+                    and (not undo.get("sha256") or self._sha256(str(path)) == undo["sha256"]):
                 os.unlink(path)
         elif kind == "restore":
             path, backup = Path(undo["path"]), Path(undo["backup"])
@@ -784,6 +842,28 @@ class EmulatorService:
                     record["installed"]["cores"][core] = previous
 
             self._store.change(edit)
+        elif kind == "store_appimage":
+            path, previous = undo["path"], undo.get("previous")
+
+            def edit_appimage(record):
+                if previous is None:
+                    record["installed"]["appimages"].pop(path, None)
+                else:
+                    record["installed"]["appimages"][path] = previous
+
+            self._store.change(edit_appimage)
+        elif kind == "flatpak_uninstall":
+            if undo["id"] in {row["flatpak"] for row in catalog.CATALOG}:
+                self._run(["flatpak", "uninstall", "--user", "-y", "--noninteractive", undo["id"]],
+                          FLATPAK_INSTALL_SECONDS)
+        elif kind == "flatpak_commit":
+            installed = self._installed_flatpak(undo["id"])
+            if undo["id"] in {row["flatpak"] for row in catalog.CATALOG} and installed is not None \
+                    and not undo["commit"].startswith(installed["commit"]) and undo["scope"] in ("user", "system"):
+                code, _out, err = self._run(["flatpak", "update", f"--{undo['scope']}", "-y", "--noninteractive",
+                                             f"--commit={undo['commit']}", undo["id"]], FLATPAK_INSTALL_SECONDS)
+                if code != 0:
+                    raise StepFailed("failed", err.strip()[-200:])
         elif kind == "client":
             journal.setdefault("pendingClient", []).append(undo)
         else:
@@ -1053,3 +1133,372 @@ class EmulatorService:
             return {"ok": True, "job": "", "kept": kept}
         return self._submit("update_cores", steps, target=target,
                             names=self._core_names([step["core"] for step in steps]), kept=kept)
+
+    def _flathub_scope(self) -> str:
+        code, out, _err = self._run(["flatpak", "remotes", "--columns=name,options"])
+        if code != 0:
+            return ""
+        scopes = [line.split("\t")[1] for line in out.splitlines()
+                  if line.split("\t")[0].strip() == "flathub" and "\t" in line]
+        if any("user" in scope for scope in scopes):
+            return "--user"
+        return "--system" if scopes else ""
+
+    def _read_flathub(self, flatpaks: dict) -> None:
+        scope = self._flathub_scope()
+        if not scope:
+            self._flathub = (time.monotonic(), {})
+            return
+        code, out, _err = self._run(["flatpak", "remote-ls", scope, "flathub", "--app",
+                                     "--columns=application,version,commit,download-size"])
+        remote = {}
+        if code == 0:
+            wanted = {row["flatpak"] for row in catalog.CATALOG}
+            for line in out.splitlines():
+                parts = [part.strip() for part in line.split("\t")]
+                if len(parts) >= 4 and parts[0] in wanted:
+                    remote[parts[0]] = {"version": parts[1], "commit": parts[2],
+                                        "download": catalog.flatpak_size(parts[3])}
+        for app in flatpaks:
+            if app in {row["flatpak"] for row in catalog.CATALOG} and app not in remote:
+                found = self._flathub_info(scope, app)
+                if found:
+                    remote[app] = found
+        self._flathub = (time.monotonic(), remote)
+
+    def _flathub_info(self, scope: str, app: str) -> dict:
+        code, out, _err = self._run(["flatpak", "remote-info", scope, "flathub", app])
+        if code != 0:
+            return {}
+        fields = {}
+        for line in out.splitlines():
+            key, sep, value = line.partition(":")
+            if sep:
+                fields[key.strip()] = value.strip()
+        return {"version": fields.get("Version", ""), "commit": fields.get("Commit", "")[:12],
+                "download": catalog.flatpak_size(fields.get("Download Size", ""))}
+
+    def _release_source(self, kind: str, path: str = "") -> dict:
+        entry = catalog.BY_KIND[kind]
+        source = catalog.update_source(catalog.update_info(path)) if path else {}
+        if source and catalog.valid_repo(source["repo"]) and catalog.kind_by_repo(source["repo"]) == kind:
+            return {"repo": source["repo"], "tag": source["tag"], "asset": source["asset"]}
+        return {"repo": entry["repo"], "tag": entry["tag"], "asset": entry["asset"]}
+
+    def _release_for(self, kind: str, path: str, network: bool):
+        source = self._release_source(kind, path)
+        key = (source["repo"], source["tag"], source["asset"])
+        cached = self._releases.get(key)
+        if cached is not None and (not network or time.monotonic() - cached[0] < RELEASE_SECONDS):
+            return cached[1]
+        if not network:
+            return None
+        try:
+            release = self._github_release(**source)
+        except (StepFailed, urllib.error.URLError, OSError, ValueError) as e:
+            decky.logger.info("emulators: couldn't read %s's latest release (%s)", source["repo"], type(e).__name__)
+            return cached[1] if cached is not None else None
+        self._releases[key] = (time.monotonic(), release)
+        return release
+
+    def _github_release(self, repo: str, tag: str, asset: str):
+        which = f"tags/{tag}" if tag else "latest"
+        with self._open(RELEASES_URL.format(repo=repo, which=which), {"Accept": "application/vnd.github+json"}) as response:
+            raw = json.loads(response.read(4 << 20).decode("utf-8"))
+        if not isinstance(raw, dict) or raw.get("prerelease") or raw.get("draft"):
+            return None
+        tag_name = str(raw.get("tag_name") or "")
+        if not tag and not catalog.stable_tag(tag_name):
+            return None
+        for row in raw.get("assets") or []:
+            if not isinstance(row, dict):
+                continue
+            name = str(row.get("name") or "")
+            digest = str(row.get("digest") or "")
+            url = str(row.get("browser_download_url") or "")
+            size = row.get("size")
+            if not fnmatch.fnmatch(name, asset) or name.endswith(".zsync") or "/" in name:
+                continue
+            if not url.startswith("https://github.com/") or type(size) is not int or not 0 < size <= APPIMAGE_MAX:
+                continue
+            if digest and (not digest.startswith("sha256:") or len(digest) != 71):
+                continue
+            version = catalog.tag_version(tag_name) if not tag else str(raw.get("published_at") or "")[:10]
+            return {"version": version, "url": url, "sha256": digest[7:].lower(), "size": size, "name": name,
+                    "zip": name.lower().endswith(".zip"), "repo": repo, "dated": bool(tag)}
+        return None
+
+    def _sha256(self, path: str) -> str:
+        try:
+            st = os.stat(path)
+        except OSError:
+            return ""
+        key = (path, st.st_mtime_ns, st.st_size)
+        if key not in self._sha256s:
+            digest = hashlib.sha256()
+            try:
+                with open(path, "rb") as handle:
+                    while True:
+                        block = handle.read(1 << 20)
+                        if not block:
+                            break
+                        digest.update(block)
+            except OSError:
+                return ""
+            self._sha256s[key] = digest.hexdigest()
+        return self._sha256s[key]
+
+    def _appimage_compare(self, row: dict, release: dict) -> dict:
+        mine = catalog.version_key(row["version"])
+        theirs = None if release["dated"] else catalog.version_key(release["version"])
+        if mine is not None and theirs is not None and mine != theirs:
+            return {"update": mine < theirs, "newerThanStable": mine > theirs}
+        if mine is not None and mine == theirs:
+            return {"update": False, "newerThanStable": False}
+        if release["sha256"] and self._sha256(row["path"]) == release["sha256"]:
+            return {"update": False, "newerThanStable": False}
+        return {"update": row["ours"], "newerThanStable": not row["ours"]}
+
+    def _emulator(self, kind: str):
+        return next((row for row in self.inventory()["emulators"] if row["kind"] == kind), None)
+
+    def install_flatpak(self, kind: str, target: str = "") -> dict:
+        if kind not in catalog.BY_KIND:
+            return {"ok": False, "error": "not_found"}
+        if running(kind):
+            return {"ok": False, "error": "running"}
+        return self._submit("install_emulator", [{"do": "install_emulator", "kind": kind, "via": "flatpak"}],
+                            target=target, names=[catalog.BY_KIND[kind]["name"]])
+
+    def update_flatpak(self, kind: str, force: bool = False, target: str = "") -> dict:
+        if kind not in catalog.BY_KIND:
+            return {"ok": False, "error": "not_found"}
+        inventory = self.inventory(refresh=self._flathub[1] is None)
+        rows = [inventory["retroarch"]] + inventory["emulators"]
+        row = next(row for row in rows if row["kind"] == kind)["flatpak"]
+        if not row["installed"]:
+            return {"ok": False, "error": "not_found"}
+        if running(kind):
+            return {"ok": False, "error": "running"}
+        if row["newerThanStable"] and not force:
+            return {"ok": False, "error": "newer_than_stable", "name": catalog.BY_KIND[kind]["name"],
+                    "installed": row["version"], "stable": row["latest"]}
+        if not row["update"] and not force:
+            return {"ok": True, "job": "", "kept": 0}
+        return self._submit("update_emulator", [{"do": "update_emulator", "kind": kind, "via": "flatpak",
+                                                 "force": bool(force)}],
+                            target=target, names=[catalog.BY_KIND[kind]["name"]])
+
+    def install_appimage(self, kind: str, target: str = "") -> dict:
+        if kind not in catalog.STANDALONES:
+            return {"ok": False, "error": "not_found"}
+        if running(kind):
+            return {"ok": False, "error": "running"}
+        if self._release_for(kind, "", True) is None:
+            return {"ok": False, "error": "no_network"}
+        return self._submit("install_emulator", [{"do": "install_emulator", "kind": kind, "via": "appimage"}],
+                            target=target, names=[catalog.BY_KIND[kind]["name"]])
+
+    def update_appimage(self, path: str, force: bool = False, target: str = "") -> dict:
+        found = None
+        for emulator in self.inventory()["emulators"]:
+            for row in emulator["appimages"]:
+                if row["path"] == path and not row["missing"]:
+                    found = (emulator, row)
+        if found is None:
+            return {"ok": False, "error": "not_found"}
+        emulator, row = found
+        if running(emulator["kind"]):
+            return {"ok": False, "error": "running"}
+        release = self._release_for(emulator["kind"], path, True)
+        if release is None:
+            return {"ok": False, "error": "no_network"}
+        state = self._appimage_compare(row, release)
+        if state["newerThanStable"] and not force:
+            return {"ok": False, "error": "newer_than_stable", "name": emulator["name"],
+                    "installed": row["version"] or row["fileName"], "stable": release["version"]}
+        if not state["update"] and not force:
+            return {"ok": True, "job": "", "kept": 0}
+        return self._submit("update_emulator", [{"do": "update_emulator", "kind": emulator["kind"], "via": "appimage",
+                                                 "path": path, "force": bool(force)}],
+                            target=target, names=[emulator["name"]])
+
+    def _watch_install(self, job: dict, expected: int, done: threading.Event) -> None:
+        root = self._user_home / ".local" / "share"
+        try:
+            start = os.statvfs(root)
+        except OSError:
+            return
+        while not done.wait(WATCH_SECONDS):
+            if expected <= 0:
+                continue
+            try:
+                now = os.statvfs(root)
+            except OSError:
+                return
+            used = (start.f_bavail - now.f_bavail) * now.f_frsize
+            self._say(job, "flatpak", max(0, min(95, used * 100 // expected)))
+
+    def _flatpak_job(self, job: dict, argv: list, expected: int) -> None:
+        done = threading.Event()
+        watcher = threading.Thread(target=self._watch_install, args=(job, expected, done), daemon=True)
+        watcher.start()
+        try:
+            code, _out, err = self._run(["flatpak", *argv], FLATPAK_INSTALL_SECONDS, self._stop)
+        finally:
+            done.set()
+            watcher.join(WATCH_SECONDS * 2)
+        if code != 0:
+            raise StepFailed("stopped" if self._stop.is_set() else "failed",
+                             f"flatpak {argv[0]} failed ({code}: {err.strip()[-200:]})")
+
+    def _installed_flatpak(self, app: str):
+        return (self._flatpaks() or {}).get(app)
+
+    def _install_flatpak_step(self, job: dict, step: dict, journal: dict) -> None:
+        app = catalog.BY_KIND[step["kind"]]["flatpak"]
+        if self._installed_flatpak(app) is not None:
+            return
+        if running(step["kind"]):
+            raise StepFailed("running")
+        self._run(["flatpak", "remote-add", "--user", "--if-not-exists", "flathub", FLATHUB_REPO], FLATPAK_SECONDS)
+        expected = ((self._flathub[1] or {}).get(app) or {}).get("download", 0) * 2
+        self._note(journal, {"undo": "flatpak_uninstall", "id": app})
+        self._say(job, "flatpak", 0)
+        self._flatpak_job(job, ["install", "--user", "-y", "--noninteractive", "flathub", app], expected)
+        if self._installed_flatpak(app) is None:
+            raise StepFailed("failed", f"{app} didn't install")
+
+    def _update_flatpak_step(self, job: dict, step: dict, journal: dict) -> None:
+        app = catalog.BY_KIND[step["kind"]]["flatpak"]
+        installed = self._installed_flatpak(app)
+        if installed is None:
+            raise StepFailed("not_found", f"{app} isn't installed")
+        if running(step["kind"]):
+            raise StepFailed("running")
+        code, out, _err = self._run(["flatpak", "info", f"--{installed['scope']}", "--show-commit", app])
+        previous = out.strip() if code == 0 else ""
+        if not previous:
+            raise StepFailed("failed", f"couldn't read {app}'s commit")
+        self._note(journal, {"undo": "flatpak_commit", "id": app, "scope": installed["scope"], "commit": previous})
+        self._say(job, "flatpak", 0)
+        self._flatpak_job(job, ["update", f"--{installed['scope']}", "-y", "--noninteractive", app],
+                          ((self._flathub[1] or {}).get(app) or {}).get("download", 0))
+
+    def _download(self, job: dict, release: dict, folder: Path, name: str) -> Path:
+        temp = folder / f".{name}.cheevodeck-download"
+        digest = hashlib.sha256()
+        got = 0
+        try:
+            with self._open(release["url"], timeout=DOWNLOAD_SECONDS) as response, \
+                    exclusive_file(temp, replace=True) as out:
+                while True:
+                    if self._stop.is_set():
+                        raise StepFailed("stopped")
+                    chunk = response.read(CHUNK)
+                    if not chunk:
+                        break
+                    got += len(chunk)
+                    if got > release["size"]:
+                        raise StepFailed("failed", "download larger than expected")
+                    digest.update(chunk)
+                    out.write(chunk)
+                    self._say(job, "download", min(99, got * 100 // release["size"]))
+        except (urllib.error.URLError, OSError) as e:
+            if os.path.lexists(temp):
+                os.unlink(temp)
+            raise StepFailed("no_network", type(e).__name__) from e
+        except StepFailed:
+            if os.path.lexists(temp):
+                os.unlink(temp)
+            raise
+        if got != release["size"] or (release["sha256"] and digest.hexdigest() != release["sha256"]):
+            os.unlink(temp)
+            raise StepFailed("failed", "download didn't match the release")
+        return temp
+
+    def _fetch_appimage(self, job: dict, release: dict, folder: Path, name: str) -> Path:
+        if free_bytes(folder) < release["size"] * 3 + SPACE_MARGIN:
+            raise StepFailed("no_space")
+        if not release["zip"]:
+            fetched = self._download(job, release, folder, name)
+        else:
+            work = self._work_dir() / ".work" / f"job-{job['id']}"
+            ensure_dir(work)
+            archive = self._download(job, release, work, "release.zip")
+            fetched = folder / f".{name}.cheevodeck-download"
+            try:
+                with zipfile.ZipFile(archive) as bundle:
+                    members = [row for row in bundle.infolist()
+                               if row.filename.lower().endswith(".appimage") and not row.is_dir()]
+                    if len(members) != 1 or members[0].file_size > APPIMAGE_MAX:
+                        raise StepFailed("failed", "the release zip doesn't hold one AppImage")
+                    with bundle.open(members[0]) as source, exclusive_file(fetched, replace=True) as out:
+                        shutil.copyfileobj(source, out, CHUNK)
+            except (OSError, zipfile.BadZipFile) as e:
+                if os.path.lexists(fetched):
+                    os.unlink(fetched)
+                raise StepFailed("failed", type(e).__name__) from e
+        os.chmod(fetched, 0o755)
+        chown_to_data_owner(fetched)
+        return fetched
+
+    def _install_appimage_step(self, job: dict, step: dict, journal: dict) -> None:
+        kind = step["kind"]
+        entry = catalog.BY_KIND[kind]
+        if any(not row["missing"] for row in (self._emulator(kind) or {}).get("appimages") or []):
+            return
+        folder = self._user_home / "Applications"
+        ensure_dir(folder)
+        target = folder / entry["fileName"]
+        self._check_target(target)
+        if os.path.lexists(target):
+            raise StepFailed("unsafe", f"{target} is already there")
+        if running(kind):
+            raise StepFailed("running")
+        release = self._release_for(kind, "", True)
+        if release is None:
+            raise StepFailed("no_network")
+        fetched = self._fetch_appimage(job, release, folder, entry["fileName"])
+        sha = self._sha256(str(fetched))
+        self._note(journal, {"undo": "remove_file", "path": str(target), "sha256": sha})
+        self._note(journal, {"undo": "store_appimage", "path": str(target), "previous": None})
+        os.replace(fetched, target)
+        self._verify(target)
+        self._record_appimage(str(target), release)
+
+    def _update_appimage_step(self, job: dict, step: dict, journal: dict) -> None:
+        kind, path = step["kind"], Path(step["path"])
+        self._check_target(path)
+        if not path.is_file():
+            raise StepFailed("not_found", f"{path} is gone")
+        if running(kind):
+            raise StepFailed("running")
+        release = self._release_for(kind, str(path), True)
+        if release is None:
+            raise StepFailed("no_network")
+        version = self._appimage_version(str(path))
+        record = self._store.get()["installed"]["appimages"].get(str(path))
+        row = {"path": str(path), "version": version, "ours": record is not None}
+        state = self._appimage_compare(row, release)
+        if state["newerThanStable"] and not step.get("force"):
+            raise StepFailed("newer_than_stable")
+        if not state["update"] and not state["newerThanStable"]:
+            return
+        fetched = self._fetch_appimage(job, release, path.parent, path.name)
+        label = re.sub(r"[^A-Za-z0-9._-]", "_", version or "unknown")[:64]
+        backup = path.with_name(f"{path.name}.bak-{label}")
+        self._check_target(backup)
+        if os.path.lexists(backup):
+            os.unlink(backup)
+        self._note(journal, {"undo": "restore", "path": str(path), "backup": str(backup)})
+        self._note(journal, {"undo": "store_appimage", "path": str(path), "previous": record})
+        journal.setdefault("trim", []).append({"path": str(path), "keep": str(backup)})
+        os.replace(path, backup)
+        os.replace(fetched, path)
+        self._verify(path)
+        self._record_appimage(str(path), release)
+
+    def _record_appimage(self, path: str, release: dict) -> None:
+        self._store.change(lambda record: record["installed"]["appimages"].__setitem__(
+            path, {"version": release["version"], "repo": release["repo"]}))

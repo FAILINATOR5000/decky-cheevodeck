@@ -55,7 +55,8 @@ type Row =
     | { type: "core"; system: RetroArchSystem; core: RetroArchCore }
     | { type: "emulator"; emulator: EmulatorEntry; collapsed: boolean }
     | { type: "flatpak"; emulator: EmulatorEntry }
-    | { type: "appimage"; emulator: EmulatorEntry; image: EmulatorAppImage };
+    | { type: "appimage"; emulator: EmulatorEntry; image: EmulatorAppImage }
+    | { type: "offer"; emulator: EmulatorEntry };
 
 const folded = new Map<string, boolean>();
 
@@ -85,6 +86,8 @@ function rowKey(row: Row): string {
             return `${emulatorKey(row.emulator)}:flatpak`;
         case "appimage":
             return `${emulatorKey(row.emulator)}:appimage:${row.image.key}`;
+        case "offer":
+            return `${emulatorKey(row.emulator)}:appimage:new`;
     }
 }
 
@@ -113,6 +116,9 @@ function buildRows(inventory: EmulatorInventory | null): Row[] {
             rows.push({ type: "flatpak", emulator });
             for (const image of emulator.appimages) {
                 rows.push({ type: "appimage", emulator, image });
+            }
+            if (!emulator.appimages.some((image) => !image.missing)) {
+                rows.push({ type: "offer", emulator });
             }
         }
     }
@@ -147,15 +153,23 @@ function emulatorTitle(language: LanguageCode, emulator: EmulatorEntry): string 
 
 const ERROR_LINES: Record<string, string> = {
     no_space: "Not enough free space.",
-    running: "Close RetroArch first.",
     no_network: "Couldn't reach the download server.",
     unsafe: "A file wasn't the way CheevoDeck expected, so it stopped."
 };
 
+function errorLine(language: LanguageCode, state: EmulatorJobState): string {
+    if (state.error === "running") {
+        return state.kind.endsWith("_cores")
+            ? t(language, "Close RetroArch first.")
+            : t(language, "Close {{name}} first.", { name: state.names[0] ?? "" });
+    }
+    return ERROR_LINES[state.error] ? t(language, ERROR_LINES[state.error]) : "";
+}
+
 function jobLine(language: LanguageCode, state: EmulatorJobState): string {
     const count = state.names.length;
     const name = state.names[0] ?? "";
-    const installing = state.kind === "install_cores";
+    const installing = state.kind === "install_cores" || state.kind === "install_emulator";
     if (state.stage === "failed") {
         if (installing) {
             return count === 1
@@ -167,7 +181,10 @@ function jobLine(language: LanguageCode, state: EmulatorJobState): string {
             : t(language, "Couldn't update {{count}} cores. Nothing was changed.", { count });
     }
     let line: string;
-    if (state.stage === "download") {
+    if (state.stage === "download" && !state.kind.endsWith("_cores")) {
+        line = t(language, "Downloading {{name}}...", { name });
+    }
+    else if (state.stage === "download") {
         line = t(language, "Downloading RetroArch's stable cores...");
     }
     else if (state.stage === "extract") {
@@ -267,6 +284,9 @@ function EmulatorsPage(props: EmulatorsPageProps) {
         else if (row.type === "appimage") {
             openEmulatorDetails(language, { type: "appimage", emulator: row.emulator, image: row.image });
         }
+        else if (row.type === "offer") {
+            openEmulatorDetails(language, { type: "offer", emulator: row.emulator, appsDir: inventory.appsDir });
+        }
     }
 
     function handleButton(evt: { detail?: { button?: number } }) {
@@ -276,7 +296,7 @@ function EmulatorsPage(props: EmulatorsPageProps) {
             return;
         }
         if (button === BUTTON_BUMPER_RIGHT) {
-            if (row.type === "emulator" || row.type === "flatpak" || row.type === "appimage") {
+            if (row.type === "emulator" || row.type === "flatpak" || row.type === "appimage" || row.type === "offer") {
                 emulators.actions.pointTo(row.emulator.kind, row.emulator.name);
             }
             return;
@@ -285,6 +305,44 @@ function EmulatorsPage(props: EmulatorsPageProps) {
             return;
         }
         const key = rowKey(row);
+        if (row.type === "ra" && !inventory.retroarch.found) {
+            if (button === BUTTON_SECONDARY) {
+                emulators.actions.installFlatpak("retroarch", inventory.retroarch.name, key);
+            }
+            return;
+        }
+        if (row.type === "flatpak") {
+            const { emulator } = row;
+            if (button === BUTTON_SECONDARY && !emulator.flatpak.installed) {
+                emulators.actions.installFlatpak(emulator.kind, emulator.name, key);
+            }
+            else if (button === BUTTON_OPTIONS && emulator.flatpak.installed) {
+                if (emulator.flatpak.update || emulator.flatpak.newerThanStable) {
+                    emulators.actions.updateFlatpak(emulator.kind, emulator.name, key);
+                }
+                else {
+                    emulators.actions.notice(t(language, "Up to date"));
+                }
+            }
+            return;
+        }
+        if (row.type === "offer") {
+            if (button === BUTTON_SECONDARY) {
+                emulators.actions.installAppImage(row.emulator.kind, row.emulator.name, key);
+            }
+            return;
+        }
+        if (row.type === "appimage") {
+            if (button === BUTTON_OPTIONS && !row.image.missing) {
+                if (row.image.update || row.image.newerThanStable) {
+                    emulators.actions.updateAppImage(row.image.path, row.emulator.name, key);
+                }
+                else {
+                    emulators.actions.notice(t(language, "Up to date"));
+                }
+            }
+            return;
+        }
         if (row.type === "ra" && inventory.retroarch.configFound) {
             const systems = inventory.retroarch.systems;
             if (button === BUTTON_SECONDARY) {
@@ -333,7 +391,7 @@ function EmulatorsPage(props: EmulatorsPageProps) {
             const near = [titles[own + 1], titles[own - 1]].filter((key): key is string => key !== undefined);
             return [...near, ...(row.type === "system" ? [RA_KEY] : []), REFRESH_KEY];
         }
-        if (row.type === "flatpak" || row.type === "appimage") {
+        if (row.type === "flatpak" || row.type === "appimage" || row.type === "offer") {
             return [emulatorKey(row.emulator), REFRESH_KEY];
         }
         return [REFRESH_KEY];
@@ -395,10 +453,21 @@ function EmulatorsPage(props: EmulatorsPageProps) {
         }
         else if (row.type === "flatpak") {
             left = flatpakLabel(language, row.emulator);
+            if (row.emulator.flatpak.update) {
+                right = t(language, "Update available");
+                rightColor = warnAmber;
+            }
+        }
+        else if (row.type === "offer") {
+            left = t(language, "AppImage · Not installed");
         }
         else {
             left = appImageLabel(language, row.image);
             help = row.image.path;
+            if (row.image.update) {
+                right = t(language, "Update available");
+                rightColor = warnAmber;
+            }
         }
         return (
             <PanelSectionRow key={key}>
@@ -456,7 +525,7 @@ function EmulatorsPage(props: EmulatorsPageProps) {
                     <PanelSectionRow>
                         <div style={{ ...bodyTextStyle(), color: job.stage === "failed" ? warnAmber : undefined }}>
                             <div>{jobLine(language, job)}</div>
-                            {job.stage === "failed" && ERROR_LINES[job.error] && <div>{t(language, ERROR_LINES[job.error])}</div>}
+                            {job.stage === "failed" && errorLine(language, job) && <div>{errorLine(language, job)}</div>}
                             {job.left.length > 0 && <div>{t(language, "Couldn't put these back: {{files}}", { files: job.left.join(", ") })}</div>}
                         </div>
                     </PanelSectionRow>

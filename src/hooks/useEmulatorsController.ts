@@ -4,10 +4,14 @@ import {
     emulatorsCoresOffer,
     emulatorsForget,
     emulatorsIdentify,
+    emulatorsInstallAppimage,
     emulatorsInstallCores,
+    emulatorsInstallFlatpak,
     emulatorsInventory,
     emulatorsPoint,
+    emulatorsUpdateAppimage,
     emulatorsUpdateCores,
+    emulatorsUpdateFlatpak,
     type EmulatorInventory,
     type EmulatorJobStart,
     type EmulatorKind
@@ -125,7 +129,7 @@ function notice(language: LanguageCode, body: string) {
     showToastAfter({ title: t(language, "Manage Emulators"), body, duration: 2000 }, 0);
 }
 
-function started(language: LanguageCode, result: EmulatorJobStart | null | undefined) {
+function started(language: LanguageCode, result: EmulatorJobStart | null | undefined, name = "") {
     if (result?.ok) {
         if (result.job) {
             noteEmulatorJobStarted();
@@ -139,7 +143,7 @@ function started(language: LanguageCode, result: EmulatorJobStart | null | undef
         return;
     }
     if (result?.error === "running") {
-        notice(language, t(language, "Close RetroArch first."));
+        notice(language, name ? t(language, "Close {{name}} first.", { name }) : t(language, "Close RetroArch first."));
     }
     else if (result?.error === "no_network") {
         notice(language, t(language, "Couldn't reach the download server."));
@@ -215,6 +219,34 @@ async function installMissingCores(language: LanguageCode, systems: number, targ
     }
 }
 
+async function startEmulatorJob(language: LanguageCode, name: string, start: (force: boolean) => Promise<EmulatorJobStart>) {
+    try {
+        const result = await start(false);
+        if (result?.ok === false && result.error === "newer_than_stable") {
+            const replace = await askEmulatorQuestion({
+                language,
+                title: t(language, "Newer Than Stable"),
+                text: t(language, "{{name}} {{installed}} is newer than the stable {{stable}}, probably a nightly or dev build you installed. CheevoDeck leaves it alone unless you choose to replace it.", {
+                    name: result.name ?? name,
+                    installed: result.installed ?? "",
+                    stable: result.stable ?? ""
+                }),
+                confirm: t(language, "Replace with {{version}}", { version: result.stable ?? "" }),
+                cancel: t(language, "Keep Mine"),
+                focusConfirm: false
+            });
+            if (replace) {
+                started(language, await start(true), name);
+            }
+            return;
+        }
+        started(language, result, name);
+    }
+    catch (e) {
+        logError("emulators: starting an emulator job", e);
+    }
+}
+
 export function useEmulatorsController(props: { isActive: boolean; language: LanguageCode }) {
     const state = useSyncExternalStore(subscribe, () => loaded);
     const jobs = useEmulatorJobs();
@@ -236,6 +268,14 @@ export function useEmulatorsController(props: { isActive: boolean; language: Lan
             updateCore: (core: string, target: string) => void updateCore(language, core, target),
             updateEveryCore: (cores: string[], target: string) => void updateEveryCore(language, cores, target),
             installMissingCores: (systems: number, target: string) => void installMissingCores(language, systems, target),
+            installFlatpak: (kind: EmulatorKind, name: string, target: string) =>
+                void startEmulatorJob(language, name, () => emulatorsInstallFlatpak(kind, target)),
+            updateFlatpak: (kind: EmulatorKind, name: string, target: string) =>
+                void startEmulatorJob(language, name, (force) => emulatorsUpdateFlatpak(kind, force, target)),
+            installAppImage: (kind: EmulatorKind, name: string, target: string) =>
+                void startEmulatorJob(language, name, () => emulatorsInstallAppimage(kind, target)),
+            updateAppImage: (path: string, name: string, target: string) =>
+                void startEmulatorJob(language, name, (force) => emulatorsUpdateAppimage(path, force, target)),
             notice: (body: string) => notice(language, body)
         }
     };

@@ -291,3 +291,35 @@ def stable_versions(listing: str) -> list:
     for raw in re.findall(r'href="/stable/(\d+(?:\.\d+)+)/"', listing):
         found.add(tuple(int(part) for part in raw.split(".")))
     return [".".join(str(part) for part in version) for version in sorted(found)]
+
+
+_PRERELEASE = re.compile(r"(?i)nightly|dev|alpha|beta|rc\d*$|preview")
+_REPO = re.compile(r"^[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}$")
+_VERSION_TOKEN = re.compile(r"\d+|[a-z]+")
+
+
+def version_key(version: str):
+    tokens = _VERSION_TOKEN.findall((version or "").lower().lstrip("v"))
+    if not any(token.isdigit() for token in tokens):
+        return None
+    return tuple((0, int(token), "") if token.isdigit() else (1, 0, token) for token in tokens)
+
+
+def tag_version(tag: str) -> str:
+    return tag.split("@", 1)[0].lstrip("vV")
+
+
+def stable_tag(tag: str) -> bool:
+    return bool(tag) and not _PRERELEASE.search(tag)
+
+
+def valid_repo(repo: str) -> bool:
+    return bool(_REPO.match(repo or "")) and ".." not in repo
+
+
+def flatpak_size(text: str) -> int:
+    found = re.match(r"^\s*([\d.]+)\s*([kKMG]?B)", text or "")
+    if found is None:
+        return 0
+    scale = {"B": 1, "kB": 1000, "KB": 1000, "MB": 1000 ** 2, "GB": 1000 ** 3}.get(found.group(2), 1)
+    return int(float(found.group(1)) * scale)

@@ -3565,6 +3565,12 @@ const FR: LocaleTable = {
     "{{name}} on this device isn't the one from RetroArch {{stable}}'s stable cores, probably a nightly or dev build you installed. CheevoDeck leaves it alone unless you choose to replace it.": "{{name}} sur cet appareil n'est pas celui des cœurs stables de RetroArch {{stable}}, sans doute une version nightly ou de développement que tu as installée. CheevoDeck n'y touche pas, sauf si tu choisis de le remplacer.",
     "Replace with Stable": "Remplacer par la stable",
     "Keep Mine": "Garder le mien",
+    "AppImage · Not installed": "AppImage · Non installé",
+    "Downloading {{name}}...": "Téléchargement de {{name}}...",
+    "Close {{name}} first.": "Ferme d'abord {{name}}.",
+    "{{name}} {{installed}} is newer than the stable {{stable}}, probably a nightly or dev build you installed. CheevoDeck leaves it alone unless you choose to replace it.": "{{name}} {{installed}} est plus récent que la version stable {{stable}}, sans doute une version nightly ou de développement que tu as installée. CheevoDeck n'y touche pas, sauf si tu choisis de le remplacer.",
+    "Replace with {{version}}": "Remplacer par {{version}}",
+    "Latest stable": "Dernière stable",
 };
 
 export default FR;

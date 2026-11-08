@@ -976,6 +976,8 @@ export type EmulatorFlatpak = {
     version: string;
     scope: "" | "user" | "system";
     latest: string;
+    size: number;
+    update: boolean;
     newerThanStable: boolean;
 };
 export type EmulatorAppImage = {
@@ -988,12 +990,14 @@ export type EmulatorAppImage = {
     ours: boolean;
     missing: boolean;
     latest: string;
+    update: boolean;
     newerThanStable: boolean;
 };
 export type EmulatorEntry = {
     kind: EmulatorKind;
     name: string;
     achievements: boolean;
+    fileName: string;
     flatpak: EmulatorFlatpak;
     appimages: EmulatorAppImage[];
     found: boolean;
@@ -1080,6 +1084,14 @@ export const emulatorsCoresOffer = callable<[], {
 export const emulatorsInstallCores = callable<[cores: string[], target: string], EmulatorJobStart>("emulators_install_cores");
 export const emulatorsUpdateCores = callable<[cores: string[], force: boolean, skipNewer: boolean, target: string], EmulatorJobStart>(
     "emulators_update_cores"
+);
+export const emulatorsInstallFlatpak = callable<[kind: string, target: string], EmulatorJobStart>("emulators_install_flatpak");
+export const emulatorsUpdateFlatpak = callable<[kind: string, force: boolean, target: string], EmulatorJobStart>(
+    "emulators_update_flatpak"
+);
+export const emulatorsInstallAppimage = callable<[kind: string, target: string], EmulatorJobStart>("emulators_install_appimage");
+export const emulatorsUpdateAppimage = callable<[path: string, force: boolean, target: string], EmulatorJobStart>(
+    "emulators_update_appimage"
 );
 export const multiplayerOutputVolumeGet = callable<[], { ok: boolean; volume: number | null }>("multiplayer_output_volume_get");
 export const multiplayerOutputVolumeSet = callable<[number], { ok: boolean }>("multiplayer_output_volume_set");

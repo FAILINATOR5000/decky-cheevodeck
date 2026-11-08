@@ -29,3 +29,17 @@ class EmulatorsMixin(PluginContext):
     async def emulators_update_cores(self, cores=None, force: bool = False, skip_newer: bool = False, target: str = ""):
         return await asyncio.to_thread(self.emulator_service.update_cores, list(cores or []), bool(force),
                                        bool(skip_newer), str(target or ""))
+
+    async def emulators_install_flatpak(self, kind: str = "", target: str = ""):
+        return await asyncio.to_thread(self.emulator_service.install_flatpak, str(kind or ""), str(target or ""))
+
+    async def emulators_update_flatpak(self, kind: str = "", force: bool = False, target: str = ""):
+        return await asyncio.to_thread(self.emulator_service.update_flatpak, str(kind or ""), bool(force),
+                                       str(target or ""))
+
+    async def emulators_install_appimage(self, kind: str = "", target: str = ""):
+        return await asyncio.to_thread(self.emulator_service.install_appimage, str(kind or ""), str(target or ""))
+
+    async def emulators_update_appimage(self, path: str = "", force: bool = False, target: str = ""):
+        return await asyncio.to_thread(self.emulator_service.update_appimage, str(path or ""), bool(force),
+                                       str(target or ""))
