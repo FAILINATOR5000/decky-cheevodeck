@@ -31,6 +31,7 @@ type UtilsPageActions = {
     onOpenDataTransfer: () => void | Promise<void>;
     onOpenMultiplayer: () => void | Promise<void>;
     onOpenOfflineHotspot: () => void | Promise<void>;
+    onOpenEmulators: () => void | Promise<void>;
     onOpenQamGuard: () => void | Promise<void>;
 };
 
@@ -153,6 +154,16 @@ function UtilsPage(props: UtilsPageProps) {
                     help={t(state.language, "help_utils_offline_hotspot")}
                 >
                     {t(state.language, "Offline Hotspot")}
+                </FocusableItem>
+            </PanelSectionRow>
+            <PanelSectionRow>
+                <FocusableItem
+                    outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                    focusKey="utils:emulators"
+                    onClick={actions.onOpenEmulators}
+                    help={t(state.language, "help_utils_emulators")}
+                >
+                    {t(state.language, "Manage Emulators")}
                 </FocusableItem>
             </PanelSectionRow>
             <PanelSectionRow>

@@ -86,6 +86,7 @@ const LANDING_VIEWS: ReadonlySet<ViewKey> = new Set<ViewKey>([
     "memoriesTransfer",
     "dataTransfer",
     "offlineHotspot",
+    "emulators",
     "multiplayer",
     "memories",
     "options",

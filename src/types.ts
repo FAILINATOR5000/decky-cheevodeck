@@ -456,6 +456,7 @@ export type ViewKey =
     | "memoriesTransfer"
     | "dataTransfer"
     | "offlineHotspot"
+    | "emulators"
     | "multiplayer"
     | "qamGuard"
     | "guides"

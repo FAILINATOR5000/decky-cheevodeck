@@ -165,6 +165,7 @@ _ALLOWED_RESUME_VIEWS = {
     "memoriesTransfer",
     "dataTransfer",
     "offlineHotspot",
+    "emulators",
     "multiplayer",
     "qamGuard",
     "guides",

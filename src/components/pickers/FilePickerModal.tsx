@@ -82,6 +82,7 @@ export type PathPickerOptions = {
     includeFolders?: boolean;
     extensions?: string[] | null;
     showHidden?: boolean;
+    selectFile?: boolean;
 };
 
 type FilePickerModalProps = PathPickerOptions & {
@@ -184,6 +185,7 @@ function FilePickerModal(props: FilePickerModalProps) {
     const { language, prompt, onSubmit, close } = props;
     const includeFiles = props.includeFiles ?? false;
     const includeFolders = props.includeFolders ?? true;
+    const selectFile = props.selectFile ?? false;
 
     const extensionsRef = useRef(props.extensions ?? null);
 
@@ -299,6 +301,11 @@ function FilePickerModal(props: FilePickerModalProps) {
 
     function openEntry(entry: DirectoryEntry) {
         if (!entry.isDir) {
+            if (selectFile && listing?.ok) {
+                playOkSound();
+                onSubmit({ path: joinPath(listing.path, entry.name), realpath: joinPath(listing.realpath, entry.name) });
+                close();
+            }
             return;
         }
         playOkSound();
@@ -370,7 +377,7 @@ function FilePickerModal(props: FilePickerModalProps) {
                         <Focusable
                             key={entry.name}
                             data-focus-key={`picker:entry:${entry.name}`}
-                            focusable={entry.isDir}
+                            focusable={entry.isDir || selectFile}
                             onActivate={() => openEntry(entry)}
                             onGamepadFocus={() => {
                                 onItemFocus(position);
@@ -380,7 +387,7 @@ function FilePickerModal(props: FilePickerModalProps) {
                             preferredFocus={preferredName ? entry.name === preferredName : position === 0}
                             style={ENTRY_ROW_STYLE}
                         >
-                            <div style={{ width: "100%", display: "flex", alignItems: "center", gap: "10px", opacity: entry.isDir ? 1 : 0.6 }}>
+                            <div style={{ width: "100%", display: "flex", alignItems: "center", gap: "10px", opacity: entry.isDir || selectFile ? 1 : 0.6 }}>
                                 <Glyph size={iconSize} style={{ flexShrink: 0, opacity: 0.85 }} />
                                 <span
                                     style={{
@@ -419,17 +426,19 @@ function FilePickerModal(props: FilePickerModalProps) {
                 {prompt}
             </div>
 
-            <Focusable
-                key={`picker:top:${topFocusToken}`}
-                autoFocus={topFocusToken > 0 || undefined}
-                onButtonDown={handleModalButtons}
-                actionDescriptionMap={modalLegend}
-                style={{ display: "flex", marginBottom: "8px" }}
-            >
-                <DialogButton onClick={submit} disabled={!canSubmit} style={{ width: "100%" }}>
-                    {selectLabel}
-                </DialogButton>
-            </Focusable>
+            {!selectFile && (
+                <Focusable
+                    key={`picker:top:${topFocusToken}`}
+                    autoFocus={topFocusToken > 0 || undefined}
+                    onButtonDown={handleModalButtons}
+                    actionDescriptionMap={modalLegend}
+                    style={{ display: "flex", marginBottom: "8px" }}
+                >
+                    <DialogButton onClick={submit} disabled={!canSubmit} style={{ width: "100%" }}>
+                        {selectLabel}
+                    </DialogButton>
+                </Focusable>
+            )}
 
             <div style={{ ...smallTextStyle(), wordBreak: "break-all", marginBottom: "6px" }}>
                 {listing?.realpath || path}
@@ -512,9 +521,11 @@ function FilePickerModal(props: FilePickerModalProps) {
                 actionDescriptionMap={modalLegend}
                 style={{ display: "flex", gap: "8px", marginTop: "12px" }}
             >
-                <DialogButton onClick={submit} disabled={!canSubmit} style={{ flex: 1, minWidth: 0 }}>
-                    {selectLabel}
-                </DialogButton>
+                {!selectFile && (
+                    <DialogButton onClick={submit} disabled={!canSubmit} style={{ flex: 1, minWidth: 0 }}>
+                        {selectLabel}
+                    </DialogButton>
+                )}
                 <DialogButton onClick={handleCancel} style={{ flex: 1, minWidth: 0 }}>
                     {t(language, "Cancel")}
                 </DialogButton>

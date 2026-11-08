@@ -297,8 +297,43 @@ class EmulatorService:
             flatpaks = self._flatpaks()
             self._inventory = {
                 "ok": True,
+                "appsDir": str(self._user_home / "Applications"),
                 "flatpakAvailable": flatpaks is not None,
                 "retroarch": self._retroarch(record, flatpaks),
                 "emulators": self._standalones(record, flatpaks),
             }
             return self._inventory
+
+    def identify(self, path: str) -> dict:
+        path = os.path.abspath(path)
+        if not catalog.is_candidate(Path(path).name) or catalog.under_desktop(path, self._user_home) \
+                or not os.path.isfile(path):
+            return {"ok": False, "error": "not_appimage"}
+        source = catalog.update_source(catalog.update_info(path))
+        kind = catalog.kind_by_repo(source["repo"]) if source else ""
+        return {"ok": True, "path": path, "kind": kind or catalog.kind_by_name(Path(path).name)}
+
+    def point(self, kind: str, path: str) -> dict:
+        if kind not in catalog.STANDALONES:
+            return {"ok": False, "error": "not_found"}
+        found = self.identify(path)
+        if not found["ok"]:
+            return found
+
+        def edit(record):
+            for paths in record["paths"].values():
+                if found["path"] in paths:
+                    paths.remove(found["path"])
+            record["paths"].setdefault(kind, []).insert(0, found["path"])
+
+        saved = self._store.change(edit)
+        return {"ok": saved, "inventory": self.inventory(refresh=True)}
+
+    def forget(self, kind: str, path: str) -> dict:
+        def edit(record):
+            paths = record["paths"].get(kind) or []
+            if path in paths:
+                paths.remove(path)
+
+        saved = self._store.change(edit)
+        return {"ok": saved, "inventory": self.inventory(refresh=True)}

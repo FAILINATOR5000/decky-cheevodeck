@@ -7,6 +7,7 @@ import { MemoriesTransferProvider } from "../memories/MemoriesTransferContext";
 import { DataTransferProvider } from "../dataTransfer/DataTransferContext";
 import { MultiplayerProvider } from "../multiplayer/MultiplayerContext";
 import { EventsProvider } from "../events/EventsContext";
+import { EmulatorsProvider } from "../emulators/EmulatorsContext";
 import type { SettingsController } from "../../hooks/useSettingsController";
 import type { LanguageCode } from "../../locales";
 import type { ViewKey } from "../../types";
@@ -43,7 +44,9 @@ export function PanelProviders(props: {
                                         isActive={props.view === "social" || props.view === "eventViewer"}
                                         settings={props.settings}
                                     >
-                                        {props.children}
+                                        <EmulatorsProvider isActive={props.view === "emulators"} language={props.language}>
+                                            {props.children}
+                                        </EmulatorsProvider>
                                     </EventsProvider>
                                 </MultiplayerProvider>
                             </DataTransferProvider>

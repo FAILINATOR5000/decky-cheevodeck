@@ -969,6 +969,76 @@ export const hotspotLeave = callable<[], HotspotStatus>("hotspot_leave");
 export const hotspotSetPrivate = callable<[boolean], HotspotStatus>("hotspot_set_private");
 export const saveHotspotIntroOff = callable<[boolean], { ok: boolean; hotspotIntroOff: boolean }>("save_hotspot_intro_off");
 export const saveHotspotDedicated = callable<[boolean], { ok: boolean; hotspotDedicated: boolean }>("save_hotspot_dedicated");
+export type EmulatorKind = "retroarch" | "dolphin" | "pcsx2" | "duckstation" | "ppsspp" | "rmg" | "melonds";
+export type EmulatorFlatpak = {
+    id: string;
+    installed: boolean;
+    version: string;
+    scope: "" | "user" | "system";
+    latest: string;
+    newerThanStable: boolean;
+};
+export type EmulatorAppImage = {
+    path: string;
+    key: string;
+    fileName: string;
+    version: string;
+    repo: string;
+    howFound: "pointed" | "updInfo" | "launcher" | "name";
+    ours: boolean;
+    missing: boolean;
+    latest: string;
+    newerThanStable: boolean;
+};
+export type EmulatorEntry = {
+    kind: EmulatorKind;
+    name: string;
+    achievements: boolean;
+    flatpak: EmulatorFlatpak;
+    appimages: EmulatorAppImage[];
+    found: boolean;
+};
+export type RetroArchCore = {
+    core: string;
+    name: string;
+    version: string;
+    installed: boolean;
+    ours: boolean;
+    update: boolean;
+    newerThanStable: boolean;
+};
+export type RetroArchSystem = {
+    id: number;
+    name: string;
+    hasGames: boolean;
+    recommendedCore: string;
+    cores: RetroArchCore[];
+};
+export type EmulatorInventory = {
+    ok: boolean;
+    appsDir: string;
+    flatpakAvailable: boolean;
+    retroarch: {
+        kind: "retroarch";
+        name: string;
+        flatpak: EmulatorFlatpak;
+        found: boolean;
+        configFound: boolean;
+        coresDir: string;
+        systems: RetroArchSystem[];
+    };
+    emulators: EmulatorEntry[];
+};
+export const emulatorsInventory = callable<[refresh: boolean], EmulatorInventory>("emulators_inventory");
+export const emulatorsIdentify = callable<[path: string], { ok: boolean; error?: string; path?: string; kind?: string }>(
+    "emulators_identify"
+);
+export const emulatorsPoint = callable<[kind: string, path: string], { ok: boolean; error?: string; inventory?: EmulatorInventory }>(
+    "emulators_point"
+);
+export const emulatorsForget = callable<[kind: string, path: string], { ok: boolean; inventory?: EmulatorInventory }>(
+    "emulators_forget"
+);
 export const multiplayerOutputVolumeGet = callable<[], { ok: boolean; volume: number | null }>("multiplayer_output_volume_get");
 export const multiplayerOutputVolumeSet = callable<[number], { ok: boolean }>("multiplayer_output_volume_set");
 export const multiplayerRoomVolumesSet = callable<[number, number, number, string, boolean, number], { ok: boolean }>(

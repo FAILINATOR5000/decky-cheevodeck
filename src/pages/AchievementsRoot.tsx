@@ -93,6 +93,7 @@ import FileWatcherPage from "./FileWatcherPage";
 import MemoriesTransferPage from "./MemoriesTransferPage";
 import DataTransferPage from "./DataTransferPage";
 import OfflineHotspotPage from "./OfflineHotspotPage";
+import EmulatorsPage from "./EmulatorsPage";
 import MultiplayerPage from "./MultiplayerPage";
 import MemoriesPage from "./MemoriesPage";
 import { CheevoCheckGamesModal } from "../components/pickers/CheevoCheckGamesModal";
@@ -479,6 +480,8 @@ function panelEntryOverlay(entry: PanelEntry): Partial<ResumeState> & Pick<Resum
             return { view: "dataTransfer", focusKey: "dataTransfer:back" };
         case "offlineHotspot":
             return { view: "offlineHotspot", focusKey: "offlineHotspot:back" };
+        case "emulators":
+            return { view: "emulators", focusKey: "emulators:back" };
         case "multiplayer":
             return { view: "multiplayer", focusKey: "multiplayer:back", multiplayerSource: "achievements" };
     }
@@ -3675,6 +3678,12 @@ function AchievementsRoot() {
         setPendingFocusKey("offlineHotspot:back");
     }
 
+    function goToEmulators(intent: NavIntent = "push") {
+        friendGameSessionRefreshKeysRef.current = new Set();
+        setView("emulators", intent);
+        setPendingFocusKey("emulators:back");
+    }
+
     function goToMultiplayer(intent: NavIntent = "push", land?: string) {
         friendGameSessionRefreshKeysRef.current = new Set();
         if (intent !== "back") {
@@ -5202,6 +5211,7 @@ function AchievementsRoot() {
                                         onOpenDataTransfer: () => goToDataTransfer(),
                                         onOpenMultiplayer: () => goToMultiplayer(),
                                         onOpenOfflineHotspot: () => goToOfflineHotspot(),
+                                        onOpenEmulators: () => goToEmulators(),
                                         onOpenQamGuard: () => goToQamGuard()
                                     }}
                                 />
@@ -5356,6 +5366,19 @@ function AchievementsRoot() {
                                         view,
                                         language,
                                         buttonSpacing
+                                    }}
+                                    actions={{
+                                        onBack: backFromUtilityTool,
+                                        onHome: goToAchievements
+                                    }}
+                                />
+
+                                <EmulatorsPage
+                                    state={{
+                                        view,
+                                        language,
+                                        buttonSpacing,
+                                        controllerGlyphStyle
                                     }}
                                     actions={{
                                         onBack: backFromUtilityTool,
