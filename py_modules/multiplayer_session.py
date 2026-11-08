@@ -855,11 +855,10 @@ def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcor
         for key in ("input_netplay_game_watch", "input_netplay_game_watch_btn", "input_netplay_game_watch_axis"):
             cfg.append((key, "nul"))
     taps = multitap(core, adapter) if mode == "couch" and players > 2 and not watch_only else {}
-    devices = {port: "0" for port in range(2, 17)} if watch_only else taps.get("devices")
     remap = None
-    if devices and remap_dir is not None:
+    if taps.get("devices") and remap_dir is not None:
         cfg += [("input_remap_binds_enable", "true"), ("input_remapping_directory", str(remap_dir))]
-        remap = session_remap(ra, core=core, rom=rom, devices=devices)
+        remap = session_remap(ra, core=core, rom=rom, devices=taps["devices"])
 
     options = dict(ra.effective_options(core, rom))
     if mode == "link" and core == GAMBATTE:
