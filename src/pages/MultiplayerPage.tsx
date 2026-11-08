@@ -402,14 +402,22 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             color: warnAmber }] : []),
         ...roomWarnings.map((text) => ({ text, color: warnAmber }))
     ];
+    function sixtyHzNote() {
+        if (mp.mode === "couch") {
+            return t(language, "Couch Play runs best when every player's screen runs at the same refresh rate. A mismatch, such as 90 Hz and 60 Hz, makes the game jitter or warp. 60 Hz is the safest choice: set it in Steam's Performance menu while the game runs.");
+        }
+        if (mp.mode === "stream" && joined) {
+            return t(language, "Stream Play looks smoothest with your screen at 60 Hz. The stream runs at 60 fps, so a faster screen shows it unevenly. Set 60 Hz in Steam's Performance menu while you play.");
+        }
+        if (mp.mode === "stream") {
+            return t(language, "Stream rooms run best with your screen at 60 Hz. Above that, your game looks smooth to you but jitters for your guests, because the stream runs at 60 fps and the mismatch skips frames unevenly.");
+        }
+        return t(language, "Multiplayer runs best with every player's screen at 60 Hz. If the game jitters, set 60 Hz in Steam's Performance menu while it runs.");
+    }
+
     const warnings = [
         ...(runsPpsspp ? [t(language, "PSP multiplayer is experimental. Some games lose the connection when a match starts.")] : []),
-        ...(screenHz !== null && (screenHz === 0 || screenHz > 60) && mp.mode === "couch"
-            ? [t(language, "Couch Play runs best when every player's screen runs at the same refresh rate. A mismatch, such as 90 Hz and 60 Hz, makes the game jitter or warp. 60 Hz is the safest choice: set it in Steam's Performance menu while the game runs.")]
-            : []),
-        ...(screenHz !== null && (screenHz === 0 || screenHz > 60) && mp.mode === "stream" && !joined
-            ? [t(language, "Stream rooms run best with your screen at 60 Hz. Above that, your game looks smooth to you but jitters for your guests, because the stream runs at 60 fps and the mismatch skips frames unevenly.")]
-            : []),
+        ...(screenHz !== null && (screenHz === 0 || screenHz > 60) ? [sixtyHzNote()] : []),
         ...(runsRmg ? [t(language, "rmg_heads_up")] : [])
     ];
     const tips = [

@@ -3357,6 +3357,8 @@ export const EN: LocaleTable = {
     "Close your Stream Play room before updating.": "Close your Stream Play room before updating.",
     "Couch Play runs best when every player's screen runs at the same refresh rate. A mismatch, such as 90 Hz and 60 Hz, makes the game jitter or warp. 60 Hz is the safest choice: set it in Steam's Performance menu while the game runs.": "Couch Play runs best when every player's screen runs at the same refresh rate. A mismatch, such as 90 Hz and 60 Hz, makes the game jitter or warp. 60 Hz is the safest choice: set it in Steam's Performance menu while the game runs.",
     "Stream rooms run best with your screen at 60 Hz. Above that, your game looks smooth to you but jitters for your guests, because the stream runs at 60 fps and the mismatch skips frames unevenly.": "Stream rooms run best with your screen at 60 Hz. Above that, your game looks smooth to you but jitters for your guests, because the stream runs at 60 fps and the mismatch skips frames unevenly.",
+    "Stream Play looks smoothest with your screen at 60 Hz. The stream runs at 60 fps, so a faster screen shows it unevenly. Set 60 Hz in Steam's Performance menu while you play.": "Stream Play looks smoothest with your screen at 60 Hz. The stream runs at 60 fps, so a faster screen shows it unevenly. Set 60 Hz in Steam's Performance menu while you play.",
+    "Multiplayer runs best with every player's screen at 60 Hz. If the game jitters, set 60 Hz in Steam's Performance menu while it runs.": "Multiplayer runs best with every player's screen at 60 Hz. If the game jitters, set 60 Hz in Steam's Performance menu while it runs.",
     "Pairing": "Pairing",
     "Connecting": "Connecting",
     "Streaming": "Streaming",
