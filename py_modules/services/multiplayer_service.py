@@ -5125,11 +5125,17 @@ def _fallback_args(route: dict) -> str:
     if route["kind"] == "retroarch":
         return f"-L {session.quote(route['corePath'])} {rom}"
     if route["kind"] == "dolphin":
-        return f"-e {rom}"
+        return f"-b -e {rom}"
     if route["kind"] == "rmg":
         return f"--fullscreen --quit-after-emulation {rom}"
-    if route["kind"] in ("duckstation", "pcsx2"):
+    if route["kind"] == "duckstation":
+        return f"-batch -fullscreen {rom}"
+    if route["kind"] == "pcsx2":
         return f"-batch -fullscreen -nogui {rom}"
+    if route["kind"] == "ppsspp":
+        return f"--fullscreen {rom}"
+    if route["kind"] == "melonds":
+        return f"-f {rom}"
     return rom
 
 
