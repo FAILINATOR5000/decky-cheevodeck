@@ -1101,6 +1101,7 @@ class MultiplayerService:
         chosen = core or self._default_core(ra, compatible, usual, room_core)
         if not core and mode == "couch" and saved_core in compatible:
             chosen = saved_core
+        if mode == "couch" and saved_core and chosen == saved_core:
             local["picked"] = True
 
         if mode == "link":
@@ -1208,13 +1209,14 @@ class MultiplayerService:
             chosen = core
         elif saved_core in compatible and not room_core:
             chosen = saved_core
-            local["picked"] = True
         elif room_core:
             if not ra.installed(room_core) or room_core not in compatible:
                 return None, "host_core_missing", {"core": room["coreName"] or room_core}
             chosen = room_core
         else:
             chosen = session.BEETLE_PSX_HW if session.BEETLE_PSX_HW in compatible else compatible[0]
+        if saved_core and chosen == saved_core and room is None:
+            local["picked"] = True
         local.update(
             emulator="retroarch", ra=ra, core=chosen, coreName=ra.core_name(chosen), shortcutCore="",
             shortcutCoreName="DuckStation", gameAppid=local["appid"], appid=emulator["appid"], duckstation=True,
@@ -2301,6 +2303,8 @@ class MultiplayerService:
                 return
             described = await asyncio.to_thread(self._describe, mode, local)
             if self._room is not room or room["state"] != "lobby":
+                return
+            if _runs_same(room["local"], local):
                 return
             room.update(described, local=local)
             decky.logger.info("multiplayer: the room now runs %s on %s", game_id, local["core"] or local["emulator"])
@@ -5443,6 +5447,13 @@ def _fallback_args(route: dict) -> str:
     if route["kind"] == "melonds":
         return f"-f {rom}"
     return rom
+
+
+def _runs_same(old: dict, new: dict) -> bool:
+    fields = ("appid", "emulator", "core", "gameAppid", "install")
+    if any(old.get(field) != new.get(field) for field in fields):
+        return False
+    return _route_args(old["route"]) == _route_args(new["route"]) if "route" in old and "route" in new else True
 
 
 def _route_args(route: dict) -> str:

@@ -15,7 +15,7 @@ type PlayWithProps = {
     purpose: "launch" | "set";
     choices: PlayChoices;
     onPick: (pick: PlayPick | null, remember: boolean) => void | Promise<void>;
-    onForget: () => void;
+    onForget: () => Promise<void>;
     close: () => void;
 };
 
@@ -96,10 +96,7 @@ function PlayWithModal(props: PlayWithProps) {
                     <div data-focus-key="playwith:forget">
                         <DialogButton
                             style={{ minWidth: 0, padding: "4px 14px" }}
-                            onClick={() => {
-                                close();
-                                props.onForget();
-                            }}
+                            onClick={() => void props.onForget().finally(close)}
                         >
                             {t(language, "Forget")}
                         </DialogButton>

@@ -723,7 +723,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     onPick: (pick, remember) => multiplayerSetStreamPick(forGame, pick, remember)
                         .then(() => undefined)
                         .catch((e) => logError("multiplayer: saving the Stream pick", e)),
-                    onForget: () => void multiplayerSetStreamPick(forGame, null, true)
+                    onForget: () => multiplayerSetStreamPick(forGame, null, true)
+                        .then(() => undefined)
                         .catch((e) => logError("multiplayer: forgetting the Stream pick", e))
                 });
             })
