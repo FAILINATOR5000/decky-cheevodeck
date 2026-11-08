@@ -108,6 +108,12 @@ function playsIn(game: MultiplayerGame, mode: MultiplayerMode) {
     return mode === "couch" ? game.canCouch : LINK_SYSTEMS.includes(game.systemId) && game.canLink;
 }
 
+const NOT_COMPATIBLE: Record<MultiplayerMode, string> = {
+    couch: "Not compatible with Couch Play.",
+    link: "Not compatible with Link Play.",
+    stream: "Not compatible with Stream Play."
+};
+
 const TABS: { tab: MultiplayerTab; labelKey: string; focusKey: string }[] = [
     { tab: "play", labelKey: "Play", focusKey: "multiplayer:tab:play" },
     { tab: "friends", labelKey: "Friends", focusKey: "multiplayer:tab:friends" }
@@ -133,6 +139,7 @@ const UPDATE_LINES: Record<string, { key: string; color?: string }> = {
 };
 
 const MODE_FACTS = ["link_system", "link_gc_no_lan", "ds_no_couch", "pcsx2_no_multiplayer", "link_gba_cant_link"];
+const NEVER_CODES = [...MODE_FACTS, "stream_one_console"];
 
 type MultiplayerPageState = {
     view: ViewKey;
@@ -395,6 +402,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const setupPending = needsSetup && !installing;
     const problemShown = shownProblem && !(shownProblem.code === "stream_not_set_up" && !setupPending) ? shownProblem : null;
     const problemLines = [
+        ...(problem && NEVER_CODES.includes(problem.code)
+            ? [{ text: t(language, NOT_COMPATIBLE[mp.mode]), color: errorRed }] : []),
         ...(missedLine ? [{ text: problemText(language, missedLine.code, missedLine.detail), color: errorRed }] : []),
         ...(setupLine && !installing ? [{ text: t(language, setupLine.key), color: setupLine.color }] : []),
         ...(hosted?.streamChecking ? [{ text: t(language, "Checking your connection…"), color: undefined }] : []),
@@ -521,9 +530,9 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         });
     }
 
-    function openGamePicker(pick: (gameId: number) => void = actions.pickGame, forMode: MultiplayerMode = mp.mode) {
+    function openGamePicker(pick: (gameId: number) => void, forMode: MultiplayerMode | null) {
         const rows = (mp.games ?? [])
-            .filter((game) => game.launchable && playsIn(game, forMode))
+            .filter((game) => game.launchable && (forMode === null || playsIn(game, forMode)))
             .map((game) => ({
                 key: `${game.systemId}:${game.gameId}`,
                 system: game.system,
@@ -737,7 +746,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     >
                         <DialogButton
                             disabled={!mp.games || mp.games.length === 0}
-                            onClick={() => openGamePicker()}
+                            onClick={() => openGamePicker(actions.pickGame, null)}
                             style={slotButtonStyle}
                         >
                             {t(language, "Pick Another Game")}
@@ -1437,7 +1446,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         disabled={!inLobby || Boolean(joined?.ready)}
                         onClick={() => {
                             if (!mp.busy) {
-                                void (hosted ? openGamePicker(actions.changeGame) : openGuestGames());
+                                void (hosted ? openGamePicker(actions.changeGame, mp.mode) : openGuestGames());
                             }
                         }}
                     >
