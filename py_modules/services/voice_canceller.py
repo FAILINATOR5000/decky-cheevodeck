@@ -112,6 +112,11 @@ class VoiceCanceller:
             return None
         if sink in OUR_NODES or source in OUR_NODES:
             return None
+        mic = next((row for row in self._json("list", "sources") or []
+                    if isinstance(row, dict) and row.get("name") == source), None)
+        mic_props = mic.get("properties") if mic is not None and isinstance(mic.get("properties"), dict) else {}
+        if mic is None or mic_props.get("device.class") == "monitor":
+            return None
         row = next((row for row in self._json("list", "sinks") or []
                     if isinstance(row, dict) and row.get("name") == sink), None)
         if row is None:
