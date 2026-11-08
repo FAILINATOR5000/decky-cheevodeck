@@ -38,6 +38,10 @@ FORWARD_RECORD = RUN_DIR / "hotspot-ip-forward"
 RULES_FILE = RUN_DIR / "hotspot.nft"
 IP_FORWARD = Path("/proc/sys/net/ipv4/ip_forward")
 DNS_MAX = 3
+FALLBACK_PROTO = "73"
+FALLBACK_METRIC = "4000"
+FALLBACK_TABLE = "cheevodeck_fallback"
+FALLBACK_RULES = RUN_DIR / "hotspot-fallback.nft"
 STAY_DRIVERS = frozenset({"ath11k_pci"})
 
 INFO_PORT = 49735
@@ -174,6 +178,27 @@ def drop_ap_interface() -> bool:
     if code != 0:
         decky.logger.warning("hotspot: couldn't remove %s (%s)", AP_INTERFACE, err.strip())
     return code == 0
+
+
+def drop_fallback_route() -> bool:
+    dropped = False
+    code, _out, _err = run_command(["nft", "list", "table", "ip", FALLBACK_TABLE], timeout=5)
+    if code == 0:
+        code, _out, err = run_command(["nft", "delete", "table", "ip", FALLBACK_TABLE], timeout=5)
+        if code != 0:
+            decky.logger.warning("hotspot: couldn't remove the fallback refusal (%s)", err.strip())
+        dropped = True
+    try:
+        FALLBACK_RULES.unlink()
+    except OSError:
+        pass
+    code, out, _err = run_command(["ip", "-4", "route", "show", "proto", FALLBACK_PROTO], timeout=5)
+    if code != 0 or not out.strip():
+        return dropped
+    code, _out, err = run_command(["ip", "-4", "route", "flush", "proto", FALLBACK_PROTO], timeout=5)
+    if code != 0:
+        decky.logger.warning("hotspot: couldn't remove the fallback route (%s)", err.strip())
+    return True
 
 
 def subnet_of(ssid: str) -> int:
@@ -339,6 +364,7 @@ class OfflineHotspotService:
                 bus.close()
             stop_sharing()
             drop_ap_interface()
+            drop_fallback_route()
             return
         try:
             self._end("unload")
@@ -468,6 +494,7 @@ class OfflineHotspotService:
             self._reset_state()
             return FAILED
         self._start_sharing()
+        self._add_fallback_route()
         self._begin()
         if not restart:
             self._file_card()
@@ -637,6 +664,42 @@ class OfflineHotspotService:
             self._sharing = True
             self._share_dns = dns
         decky.logger.info("hotspot: sharing %s's internet", uplink)
+
+    def _add_fallback_route(self) -> None:
+        if default_route_interface(""):
+            return
+        with self._lock:
+            host = self._role == "host"
+            interface = self._ap_interface if host else self._interface
+            subnet = self._subnet
+        via = [] if host else ["via", f"10.73.{subnet}.1"]
+        code, _out, err = run_command(["ip", "-4", "route", "add", "default", *via, "dev", interface,
+                                       "metric", FALLBACK_METRIC, "proto", FALLBACK_PROTO], timeout=5)
+        if code != 0:
+            decky.logger.warning("hotspot: couldn't add the fallback route (%s)", err.strip())
+            return
+        outside = (f"oifname \"{interface}\" ip daddr != {{ 10.73.{subnet}.0/24, 224.0.0.0/4, 255.255.255.255 }}")
+        rules = (f"table ip {FALLBACK_TABLE} {{\n"
+                 "    chain output {\n"
+                 "        type filter hook output priority filter; policy accept;\n"
+                 f"        {outside} meta l4proto tcp reject with tcp reset\n"
+                 f"        {outside} reject with icmp type net-unreachable\n"
+                 "    }\n"
+                 "}\n")
+        try:
+            RUN_DIR.mkdir(mode=0o700, exist_ok=True)
+            FALLBACK_RULES.write_text(rules)
+        except OSError as exc:
+            decky.logger.warning("hotspot: couldn't prepare the fallback refusal (%s), taking the route back", exc)
+            drop_fallback_route()
+            return
+        run_command(["nft", "delete", "table", "ip", FALLBACK_TABLE], timeout=5)
+        code, _out, err = run_command(["nft", "-f", str(FALLBACK_RULES)], timeout=5)
+        if code != 0:
+            decky.logger.warning("hotspot: couldn't add the fallback refusal (%s), taking the route back", err.strip())
+            drop_fallback_route()
+            return
+        decky.logger.info("hotspot: no internet here, added a fallback route on %s for voice chat", interface)
 
     def _follow_channel(self) -> None:
         with self._lock:
@@ -877,6 +940,7 @@ class OfflineHotspotService:
             self._private = ssid.endswith("-P")
             self._subnet = subnet
             self._address = address
+        self._add_fallback_route()
         self._begin()
         decky.logger.info("hotspot: joined %s as %s", ssid, address)
         return ""
@@ -933,6 +997,7 @@ class OfflineHotspotService:
         self._drop_profile()
         if self._sharing and stop_sharing():
             decky.logger.info("hotspot: stopped sharing and put forwarding back")
+        drop_fallback_route()
         if self._ap_interface == AP_INTERFACE:
             drop_ap_interface()
         if nm is not None and reconnect and resume:
@@ -1183,6 +1248,10 @@ class OfflineHotspotService:
         with self._lock:
             self._shared_in = share
         decky.logger.info("hotspot: %s the host's internet", "using" if share else "no longer using")
+        if share:
+            drop_fallback_route()
+        else:
+            self._add_fallback_route()
         try:
             internet = nm.check_connectivity() == nm_dbus.CONNECTIVITY_FULL
         except nm_dbus.DBusError:
@@ -1225,6 +1294,8 @@ class OfflineHotspotService:
                 decky.logger.info("hotspot: removed a leftover %s", AP_INTERFACE)
             if stop_sharing():
                 decky.logger.info("hotspot: removed leftover sharing and put forwarding back")
+            if drop_fallback_route():
+                decky.logger.info("hotspot: removed a leftover fallback route")
             bus = nm_dbus.Bus()
             try:
                 bus.open()
