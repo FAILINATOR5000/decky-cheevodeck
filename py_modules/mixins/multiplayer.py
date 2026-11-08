@@ -253,6 +253,8 @@ class MultiplayerMixin(PluginContext):
 
     async def multiplayer_running_app(self, name: str = ""):
         self.multiplayer_friends_service.running_app(str(name or ""))
+        if name:
+            await self.multiplayer_service.stop_parked_for_game()
         return {"ok": True}
 
     async def multiplayer_friend_dismiss(self, ulid: str = ""):

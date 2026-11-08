@@ -117,6 +117,7 @@ MOONLIGHT_AUDIO_SECONDS = 30
 SUNSHINE_RETRY_SECONDS = 2
 SETTLE_SECONDS = 5
 SUNSHINE_PARK_SECONDS = 120
+PARK_UNPAIR_AGAIN_SECONDS = 21
 APP_ENDED_GRACE_SECONDS = 10
 FLATPAK_SECONDS = 10
 
@@ -2279,8 +2280,11 @@ class MultiplayerService:
                 room["streams"] = None
                 self._release_game_sink()
                 if self._stream_host is not None:
-                    await asyncio.to_thread(self._stream_host.unpair_quietly)
-                    self._park_sunshine()
+                    unpaired = await asyncio.to_thread(self._stream_host.unpair_quietly)
+                    if unpaired and self._room is room:
+                        self._park_sunshine()
+                    else:
+                        await asyncio.to_thread(self._stream_host.stop)
             if local["gameId"] != room["gameId"]:
                 room["adapter"] = "auto"
             room.update(described, mode=mode, local=local)
@@ -2347,6 +2351,9 @@ class MultiplayerService:
             failed = await asyncio.to_thread(self._stream_host.start, room["name"], sink)
             if failed:
                 return failed
+        if self._room is not room:
+            await asyncio.to_thread(self._stream_host.stop)
+            return ERROR_NO_ROOM
         online = room["where"] == "online"
         room["streams"] = stream_room.HostStreams(
             sunshine=self._stream_host, room_id=room["id"], online=online, meet=room["meet"], digest=room["digest"],
@@ -2373,7 +2380,14 @@ class MultiplayerService:
         return parked
 
     async def _stop_parked_later(self) -> None:
-        await asyncio.sleep(SUNSHINE_PARK_SECONDS)
+        await asyncio.sleep(PARK_UNPAIR_AGAIN_SECONDS)
+        async with self._lock:
+            if self._sunshine_parked and not await asyncio.to_thread(self._stream_host.unpair_quietly):
+                self._sunshine_parked = False
+                self._park_task = None
+                await asyncio.to_thread(self._stream_host.stop)
+                return
+        await asyncio.sleep(max(0.0, SUNSHINE_PARK_SECONDS - PARK_UNPAIR_AGAIN_SECONDS))
         async with self._lock:
             room = self._room
             if not self._sunshine_parked or (room is not None and room["mode"] == "stream"):
@@ -2381,6 +2395,15 @@ class MultiplayerService:
             self._sunshine_parked = False
             self._park_task = None
             decky.logger.info("stream: the room left Stream Play %ss ago, stopping Sunshine", SUNSHINE_PARK_SECONDS)
+            await asyncio.to_thread(self._stream_host.stop)
+
+    async def stop_parked_for_game(self) -> None:
+        async with self._lock:
+            room = self._room
+            if not self._sunshine_parked or self._stream_host is None or (room is not None and room["mode"] == "stream"):
+                return
+            self._unpark()
+            decky.logger.info("stream: a game started, stopping the idle Sunshine")
             await asyncio.to_thread(self._stream_host.stop)
 
     async def _stop_parked(self) -> None:

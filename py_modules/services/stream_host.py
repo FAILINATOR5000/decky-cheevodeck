@@ -381,14 +381,16 @@ class StreamHost:
         with self._lock:
             return bool(self._started_at) and (self._name, self._sink) == (name, sink) and self.unit_active()
 
-    def unpair_quietly(self) -> None:
+    def unpair_quietly(self) -> bool:
         with self._lock:
             if not self.unit_active():
-                return
+                return False
             try:
                 self.unpair_all()
             except Exception as e:
-                self._debug("stream: unpair while parking failed (%s)", type(e).__name__)
+                decky.logger.warning("stream: couldn't unpair Sunshine's clients (%s)", type(e).__name__)
+                return False
+            return True
 
     def unpair_all(self) -> None:
         self._call("POST", "/api/clients/unpair-all", {})
