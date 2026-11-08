@@ -126,7 +126,7 @@ type Mic = {
 type Canceller = { source: string; sink: string; duck: boolean };
 type CancellerAnswer = { canceller: Canceller | null; echoPath: boolean };
 
-let volume = 80;
+let volume = 100;
 let pushToTalk = false;
 let pushToTalkBound = false;
 let pttToggle = true;
@@ -172,7 +172,7 @@ let settled = false;
 
 const listeners = new Set<() => void>();
 
-const OFF: VoiceState = { on: false, available: true, mine: "off", speaking: false, seats: {}, volume: 80, micLevel: null };
+const OFF: VoiceState = { on: false, available: true, mine: "off", speaking: false, seats: {}, volume: 100, micLevel: null };
 let snapshot: VoiceState = OFF;
 let snapshotText = JSON.stringify(OFF);
 let micDevice = -1;

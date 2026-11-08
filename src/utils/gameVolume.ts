@@ -18,9 +18,9 @@ type Lowered = { original: number; set: number };
 
 export type GameVolumeState = { level: number; playing: boolean; output: string; duck: boolean; duckStrength: number };
 
-const DEFAULT_GAME = 40;
+const DEFAULT_GAME = 60;
 const OUTPUT_EVENT = "multiplayer_voice_canceller";
-const DEFAULT_INCOMING = 80;
+const DEFAULT_INCOMING = 100;
 const DEFAULT_DUCK_STRENGTH = 2;
 const ECHO = 0.02;
 const SAVE_MS = 500;

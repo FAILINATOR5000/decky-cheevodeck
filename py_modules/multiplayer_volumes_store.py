@@ -18,8 +18,8 @@ from utils import (
 CURRENT_SCHEMA_VERSION = 1
 FILENAME = "multiplayer_volumes.json"
 
-DEFAULT_GAMES = {"speaker": 40, "headset": 90, "external": 40}
-DEFAULT_INCOMING = 80
+DEFAULT_GAMES = {"speaker": 60, "headset": 90, "external": 60}
+DEFAULT_INCOMING = 100
 OUTPUTS = tuple(DEFAULT_GAMES)
 DEFAULT_DUCKS = {"speaker": True, "external": False}
 DEFAULT_DUCK_STRENGTH = 2
