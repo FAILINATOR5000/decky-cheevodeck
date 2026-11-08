@@ -11,7 +11,7 @@ from pathlib import Path
 import decky
 import subprocess_util
 from services.multiplayer_service import (
-    EMULATOR_NAMES,
+    GAME_AUDIO_BINARIES,
     GAME_AUDIO_KEYS,
     SILENCE_BYTES,
     WIREPLUMBER_ESCAPES,
@@ -408,7 +408,7 @@ class VoiceCanceller:
             props = row["properties"]
             node = str(props.get("object.id", ""))
             live.add(node)
-            if props.get("application.process.binary") not in EMULATOR_NAMES or not node.isdigit():
+            if props.get("application.process.binary") not in GAME_AUDIO_BINARIES or not node.isdigit():
                 continue
             if node in self._moved:
                 continue
@@ -435,7 +435,7 @@ class VoiceCanceller:
             binary = props.get("application.process.binary")
             names = f"{props.get('node.name', '')} {props.get('media.name', '')}"
             if not node.isdigit() or node in self._moved or node in self._pinned or not binary \
-                    or binary in EMULATOR_NAMES or props.get("target.object") \
+                    or binary in GAME_AUDIO_BINARIES or props.get("target.object") \
                     or any(ours in names for ours in (*OUR_NODES, "cheevodeck-tidy-")):
                 continue
             app = next((f"{key}:{props[key]}" for key in GAME_AUDIO_KEYS

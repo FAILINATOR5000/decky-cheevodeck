@@ -119,6 +119,7 @@ APP_ENDED_GRACE_SECONDS = 10
 FLATPAK_SECONDS = 10
 
 EMULATOR_NAMES = ("retroarch", "PPSSPPSDL", "PPSSPPQt", "dolphin-emu", "RMG")
+GAME_AUDIO_BINARIES = (*EMULATOR_NAMES, "moonlight")
 FALLBACK_NAMES = {"retroarch": "RetroArch", "ppsspp": "PPSSPP", "dolphin": "Dolphin", "rmg": "RMG"}
 
 RMG_SERVER_NAME = "rmg-netplay-server"
@@ -4715,7 +4716,7 @@ class MultiplayerService:
         streams = []
         for row in rows:
             props = row["properties"]
-            if props.get("application.process.binary") not in EMULATOR_NAMES:
+            if props.get("application.process.binary") not in GAME_AUDIO_BINARIES:
                 continue
             app = next((f"{key}:{props[key]}" for key in GAME_AUDIO_KEYS
                         if isinstance(props.get(key), str) and props[key]), "")
