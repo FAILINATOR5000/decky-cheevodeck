@@ -838,17 +838,15 @@ def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcor
         for number in range(1, 17):
             wanted = not watch_only and role == "guest" and number == (1 if share_controls else seat + 1)
             cfg.append((f"netplay_request_device_p{number}", "true" if wanted else "false"))
-    if watch_only:
-        if role == "guest":
-            for key in ("input_netplay_game_watch", "input_netplay_game_watch_btn", "input_netplay_game_watch_axis"):
-                cfg.append((key, "nul"))
-        for port in range(2, 17):
-            cfg.append((f"input_libretro_device_p{port}", "0"))
+    if watch_only and role == "guest":
+        for key in ("input_netplay_game_watch", "input_netplay_game_watch_btn", "input_netplay_game_watch_axis"):
+            cfg.append((key, "nul"))
     taps = MULTITAP.get(core, {}) if mode == "couch" and players > 2 and not watch_only else {}
+    devices = {port: "0" for port in range(2, 17)} if watch_only else taps.get("devices")
     remap = None
-    if taps.get("devices") and remap_dir is not None:
+    if devices and remap_dir is not None:
         cfg += [("input_remap_binds_enable", "true"), ("input_remapping_directory", str(remap_dir))]
-        remap = session_remap(ra, core=core, rom=rom, devices=taps["devices"])
+        remap = session_remap(ra, core=core, rom=rom, devices=devices)
 
     options = dict(ra.effective_options(core, rom))
     if mode == "link" and core == GAMBATTE:
