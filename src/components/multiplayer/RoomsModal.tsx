@@ -11,7 +11,7 @@ import { showManagedModal } from "../../utils/modalRegistry";
 import { multiplayerChoices, rememberMultiplayerRoomFilter, rememberMultiplayerTab } from "../../utils/multiplayerChoices";
 import { getCurrentModalScale, modalSize } from "../../utils/scale";
 import { searchKey } from "../../utils/searchText";
-import { achievementGreen, compactButtonStyle, modalBodyStyle, warnAmber } from "../../utils/style";
+import { compactButtonStyle, modalBodyStyle, warnAmber } from "../../utils/style";
 import { FocusableItem } from "../ui/FocusableItem";
 import { InlineSpinner } from "../ui/InlineSpinner";
 import { LabeledRow } from "../ui/LabeledRow";
@@ -19,6 +19,8 @@ import { SaveOnStart } from "../ui/SaveOnStart";
 import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { DialogLine, type DialogLineState } from "./DialogLine";
+import { ModeStateLabel, type ModeState } from "./ModeChart";
+import { showModeReason } from "./ModeReasonModal";
 import { RoomAccessLabel, roomAccess } from "./roomAccess";
 import { RoomVoiceIcon } from "./VoiceIcons";
 import { RoomsFilterModal, roomFilterLabel, roomPasses } from "./RoomsFilterModal";
@@ -35,6 +37,10 @@ const LINE_INSET = "12px";
 
 function rowKey(row: MultiplayerRoomRow): string {
     return `multiplayer:rooms:${row.room}`;
+}
+
+function verdictState(verdict: NonNullable<MultiplayerRoomRow["verdict"]>): ModeState {
+    return verdict.state ?? (verdict.can ? "ready" : "setup");
 }
 
 function validAddress(address: string): boolean {
@@ -239,6 +245,16 @@ function RoomsModal(props: RoomsModalProps) {
 
     function choose(row: MultiplayerRoomRow) {
         setLine({ tone: "hint", text: "" });
+        if (row.verdict && verdictState(row.verdict) === "never") {
+            showModeReason(language, {
+                mode: row.mode,
+                state: "never",
+                text: describe(row.verdict.reason, row.verdict.detail),
+                fixes: [],
+                tools: null
+            });
+            return;
+        }
         if (row.private) {
             setPicked(row);
             setPassword("");
@@ -457,19 +473,8 @@ function RoomsModal(props: RoomsModalProps) {
                                                 </div>
                                                 {tags && <div style={{ color: warnAmber }}>{tags}</div>}
                                                 {row.verdict && (
-                                                    <div style={{ color: row.verdict.can ? achievementGreen : warnAmber }}>
-                                                        {row.verdict.can
-                                                            ? `✔ ${t(language, "Game compatible")}`
-                                                            : row.verdict.reason === "stream_not_set_up"
-                                                                ? `✖ ${t(language, "Streaming isn't set up")}`
-                                                                : `✖ ${t(language, "Game not compatible")}`}
-                                                        {!row.verdict.can && (
-                                                            <div>
-                                                                {row.verdict.reason === "stream_not_set_up"
-                                                                    ? t(language, "Join the room, then press Set Up Streaming.")
-                                                                    : describe(row.verdict.reason, row.verdict.detail)}
-                                                            </div>
-                                                        )}
+                                                    <div>
+                                                        <ModeStateLabel language={language} state={verdictState(row.verdict)} />
                                                     </div>
                                                 )}
                                             </div>

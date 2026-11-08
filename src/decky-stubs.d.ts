@@ -218,6 +218,8 @@ declare module "react-icons/fa" {
     export const FaRegQuestionCircle: any;
     export const FaCheck: any;
     export const FaCheckCircle: any;
+    export const FaExclamationCircle: any;
+    export const FaTimesCircle: any;
     export const FaRegCircle: any;
     export const FaFolderPlus: any;
     export const FaPen: any;

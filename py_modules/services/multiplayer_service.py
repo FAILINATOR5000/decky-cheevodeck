@@ -202,6 +202,13 @@ STREAM_EMULATOR_NAMES = {
     "retroarch": "RetroArch", "ppsspp": "PPSSPP", "dolphin": "Dolphin", "rmg": "RMG", "duckstation": "DuckStation",
     "pcsx2": "PCSX2", "melonds": "melonDS",
 }
+SETUP_GATES = {
+    "stream_not_set_up", "stream_needs_update",
+    "host_core_missing", "no_couch_core", "core_cant_couch", "match_host_core",
+    "link_needs_gambatte", "link_needs_gambatte_both", "link_needs_gpsp", "link_needs_melondsds", "link_needs_ppsspp",
+    "gpsp_too_old", "melondsds_too_old",
+    "dolphin_version_mismatch", "rmg_version_mismatch", "ppsspp_version_mismatch",
+}
 
 
 class _Responder(asyncio.DatagramProtocol):
@@ -1700,6 +1707,24 @@ class MultiplayerService:
             mode = self._room["mode"]
             game_id = self._room["gameId"]
             core = core or self._room["core"]
+        return self._check(mode, game_id, core, room)
+
+    def modes(self, game_id: int, room_id: str = "") -> dict:
+        answer = {"ok": True, "modes": {}, "shortcutFallback": self._fallback_on(), "tools": self.desktop_tools()}
+        joined = self._joined
+        if joined is not None and self._room is None:
+            answer["modes"][joined["row"]["mode"]] = _mode_state(self._joined_check(joined))
+            return answer
+        room = self._room_row(room_id) if self._room is None else None
+        hosted = self._room
+        if hosted is not None:
+            game_id = hosted["gameId"]
+        for mode in proto.MODES:
+            core = hosted["core"] if hosted is not None and mode == hosted["mode"] else ""
+            answer["modes"][mode] = _mode_state(self._check(mode, game_id, core, room))
+        return answer
+
+    def _check(self, mode: str, game_id: int, core: str, room) -> dict:
         local, gate, detail = self._local(mode, game_id, core, room)
         if local is None:
             return {"ok": True, "gate": gate, "detail": detail, "warnings": [], "local": None}
@@ -3415,7 +3440,8 @@ class MultiplayerService:
             verdict = self._verdict_memo.get(key)
             if verdict is None or not verdict["can"]:
                 local, reason, detail = self._decide(row, 0, "")
-                verdict = {"can": local is not None, "reason": reason, "detail": detail}
+                verdict = {"can": local is not None, "reason": reason, "detail": detail,
+                           "state": _gate_state(reason)}
                 self._verdict_memo[key] = verdict
             found[row["room"]] = verdict
         return found
@@ -5178,6 +5204,16 @@ def _steps(row: dict) -> str:
     if row["mode"] == "couch" and row["emulator"] in ("dolphin", "rmg"):
         return row["emulator"]
     return ""
+
+
+def _gate_state(gate) -> str:
+    if not gate:
+        return "ready"
+    return "setup" if gate in SETUP_GATES else "never"
+
+
+def _mode_state(checked: dict) -> dict:
+    return {"state": _gate_state(checked["gate"]), "gate": checked["gate"], "detail": checked["detail"]}
 
 
 def _local_view(local: dict) -> dict:

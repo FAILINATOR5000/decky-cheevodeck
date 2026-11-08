@@ -30,6 +30,9 @@ class MultiplayerMixin(PluginContext):
             self.multiplayer_service.check, str(mode or ""), to_int(game_id, 0), str(core or ""), str(room_id or "")
         )
 
+    async def multiplayer_modes(self, game_id: int = 0, room_id: str = ""):
+        return await asyncio.to_thread(self.multiplayer_service.modes, to_int(game_id, 0), str(room_id or ""))
+
     async def multiplayer_host(
         self, mode: str = "", game_id: int = 0, hardcore: bool = False, core: str = "", share: bool = False,
         name: str = "", size: int = 4, password: str = "", status: str = "", where: str = "local",

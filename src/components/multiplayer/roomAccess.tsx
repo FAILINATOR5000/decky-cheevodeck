@@ -20,8 +20,8 @@ export function roomAccess(room: { private: boolean; friends: boolean }): Multip
 export function RoomAccessLabel(props: { access: MultiplayerAccess; language: LanguageCode }) {
     const entry = ROOM_ACCESS.find((item) => item.code === props.access) ?? ROOM_ACCESS[0];
     return (
-        <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
-            <entry.Icon style={{ flexShrink: 0 }} />
+        <span>
+            <entry.Icon style={{ verticalAlign: "-0.125em", marginRight: "4px" }} />
             {t(props.language, entry.labelKey)}
         </span>
     );

@@ -1,5 +1,5 @@
 import { Focusable, PanelSectionRow } from "@decky/ui";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 
 import { FocusTarget } from "../ui/FocusTarget";
 import { SectionTitle } from "../ui/SectionTitle";
@@ -116,6 +116,14 @@ export function RoomTable(props: {
                                 : heard?.failed ? <span style={{ color: warnAmber, fontWeight: 800 }}>!</span>
                                     : heard?.mutedByMe ? <MutedPlayerIcon /> : null;
                         const speaking = own ? Boolean(voice?.speaking && voice.mine === "on") : Boolean(heard?.speaking);
+                        const seatCell: CSSProperties = {
+                            alignSelf: "start",
+                            height: `${AVATAR_PX}px`,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "flex-end",
+                            minWidth: "1em"
+                        };
                         const rowStyle = {
                             display: "grid",
                             gridTemplateColumns: "auto auto 1fr",
@@ -128,11 +136,11 @@ export function RoomTable(props: {
                         const cells = (
                             <>
                                 {seat.mark === "ready" ? (
-                                    <span style={{ ...bodyTextStyle(), opacity: 1, color: masteredGold, fontWeight: 800, minWidth: "1em", textAlign: "right" }}>✔</span>
+                                    <span style={{ ...bodyTextStyle(), ...seatCell, opacity: 1, color: masteredGold, fontWeight: 800 }}>✔</span>
                                 ) : seat.mark === "cant" ? (
-                                    <span style={{ ...bodyTextStyle(), opacity: 1, color: errorRed, fontWeight: 800, minWidth: "1em", textAlign: "right" }}>✖</span>
+                                    <span style={{ ...bodyTextStyle(), ...seatCell, opacity: 1, color: errorRed, fontWeight: 800 }}>✖</span>
                                 ) : (
-                                    <span style={{ ...bodyTextStyle(), minWidth: "1em", textAlign: "right" }}>{index + 1}</span>
+                                    <span style={{ ...bodyTextStyle(), ...seatCell }}>{index + 1}</span>
                                 )}
                                 {seat.name ? (
                                     <div

@@ -31,9 +31,32 @@ function openInDesktop(language: LanguageCode, tool: DesktopTool) {
         .catch((e) => logError("play: the switch to Desktop Mode threw", e));
 }
 
+function toolsFound(tools: { emudeck?: boolean; srm?: boolean }): DesktopTool[] {
+    return tools.emudeck ? ["emudeck"] : tools.srm ? ["srm"] : [];
+}
+
+export function DesktopToolButtons(props: { language: LanguageCode; tools: { emudeck?: boolean; srm?: boolean }; close: () => void }) {
+    const { language, close } = props;
+    return (
+        <>
+            {toolsFound(props.tools).map((tool) => (
+                <DialogButton
+                    key={tool}
+                    onClick={() => {
+                        close();
+                        openInDesktop(language, tool);
+                    }}
+                >
+                    {t(language, TOOL_LABELS[tool])}
+                </DialogButton>
+            ))}
+        </>
+    );
+}
+
 function ShortcutNeededModal(props: {
     language: LanguageCode;
-    tools: DesktopTool[];
+    tools: { emudeck?: boolean; srm?: boolean };
     host: boolean;
     close: () => void;
 }) {
@@ -57,17 +80,7 @@ function ShortcutNeededModal(props: {
                 >
                     {t(language, "Run Cheevo Check Scan")}
                 </DialogButton>
-                {props.tools.map((tool) => (
-                    <DialogButton
-                        key={tool}
-                        onClick={() => {
-                            close();
-                            openInDesktop(language, tool);
-                        }}
-                    >
-                        {t(language, TOOL_LABELS[tool])}
-                    </DialogButton>
-                ))}
+                <DesktopToolButtons language={language} tools={props.tools} close={close} />
                 <DialogButton onClick={close}>{t(language, "Close")}</DialogButton>
             </Focusable>
         </ModalRoot>
@@ -75,6 +88,5 @@ function ShortcutNeededModal(props: {
 }
 
 export function showShortcutNeeded(language: LanguageCode, tools: { emudeck?: boolean; srm?: boolean }, host = false) {
-    const found: DesktopTool[] = tools.emudeck ? ["emudeck"] : tools.srm ? ["srm"] : [];
-    showManagedModal((close) => <ShortcutNeededModal language={language} tools={found} host={host} close={close} />);
+    showManagedModal((close) => <ShortcutNeededModal language={language} tools={tools} host={host} close={close} />);
 }

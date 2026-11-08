@@ -5,6 +5,7 @@ import {
     multiplayerAcceptInvite,
     multiplayerChangeGame,
     multiplayerCheck,
+    multiplayerModes,
     multiplayerCloseRoom,
     multiplayerGames,
     multiplayerGuestGame,
@@ -15,6 +16,7 @@ import {
 } from "../api";
 import type {
     MultiplayerCheck,
+    MultiplayerModes,
     MultiplayerGame,
     MultiplayerAdapter,
     MultiplayerMode,
@@ -60,6 +62,7 @@ const headerPayloads = new Map<number, Payload>();
 const checkCache = new Map<string, MultiplayerCheck>();
 const CHECK_CACHE_MAX = 30;
 const ALL_MODES: MultiplayerMode[] = ["link", "couch", "stream"];
+const NO_MODES: MultiplayerModes = { ok: false, modes: {}, shortcutFallback: true, tools: {} };
 
 function rememberCheck(key: string, result: MultiplayerCheck) {
     if (checkCache.size >= CHECK_CACHE_MAX && !checkCache.has(key)) {
@@ -110,6 +113,8 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     }
     const session = useSyncExternalStore(subscribeMultiplayerSession, multiplayerSessionSnapshot);
     const checkTokenRef = useRef(0);
+    const modesTokenRef = useRef(0);
+    const [modes, setModes] = useState<{ key: string; answer: MultiplayerModes } | null>(null);
     const statusTokenRef = useRef(0);
     const previousStatusRef = useRef<MultiplayerRoomStatus | null>(null);
     const failureSeqRef = useRef<number | null>(null);
@@ -208,6 +213,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         failureSeqRef.current = null;
         setStatus(null);
         setCheck(null);
+        setModes(null);
         setVisibleError("");
     }, [isActive]);
 
@@ -325,7 +331,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     }, [gameId]);
 
     const joinedState = joined?.status?.state ?? "";
-    const streamReady = useStreamSetup(isActive && mode === "stream").status?.ready ?? false;
+    const streamReady = useStreamSetup(isActive).status?.ready ?? false;
     const hostedSeats = hosted?.seats.filter(Boolean).length ?? 0;
     useEffect(() => {
         if (!isActive || gameId === null) {
@@ -361,6 +367,29 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         })();
     }, [isActive, mode, gameId, checkCore, checkRoom, hosted?.core, hosted?.rev, hostedSeats, joinedState, joined?.status?.rev,
         joined?.reason, streamReady]);
+
+    const modesKey = [gameId ?? 0, checkRoom].join("|");
+    useEffect(() => {
+        if (!isActive || gameId === null) {
+            return;
+        }
+        const token = modesTokenRef.current + 1;
+        modesTokenRef.current = token;
+        const key = [gameId, checkRoom].join("|");
+        multiplayerModes(gameId, checkRoom)
+            .then((answer) => {
+                if (modesTokenRef.current === token) {
+                    setModes({ key, answer });
+                }
+            })
+            .catch((e) => {
+                logError("multiplayerModes", e);
+                if (modesTokenRef.current === token) {
+                    setModes({ key, answer: NO_MODES });
+                }
+            });
+    }, [isActive, gameId, checkRoom, games, hosted?.mode, hosted?.core, hosted?.rev, hostedSeats, joinedState,
+        joined?.status?.rev, joined?.reason, streamReady]);
 
     useEffect(() => {
         if (!isActive || gameId === null || gameId === currentGameId) {
@@ -587,6 +616,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             lobby: status?.role === null ? Boolean(status.lobby) : false,
             check: checkedFor === checkKey ? check : checkCache.get(checkKey) ?? check,
             checkCurrent: checkedFor === checkKey,
+            modes: modes?.key === modesKey ? modes.answer : null,
             games,
             scanned,
             installedCores,

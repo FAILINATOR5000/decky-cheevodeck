@@ -9,7 +9,8 @@ import { ConfirmRow } from "../components/ui/ConfirmRow";
 import { FocusTarget } from "../components/ui/FocusTarget";
 import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { SubTabButton } from "../components/ui/SubTabButton";
-import { ModeChoice } from "../components/multiplayer/ModeChoice";
+import { ModeChart } from "../components/multiplayer/ModeChart";
+import { showModeReason, type ModeFix } from "../components/multiplayer/ModeReasonModal";
 import { showMultiplayerProblem } from "../components/multiplayer/ProblemModal";
 import { openStreamSetup } from "../components/multiplayer/StreamSetupModal";
 import { TextViewerModal } from "../components/ui/TextViewerModal";
@@ -31,7 +32,7 @@ import { SectionTitle } from "../components/ui/SectionTitle";
 import { useMultiplayer } from "../components/multiplayer/MultiplayerContext";
 import { CheevoCheckGamesModal } from "../components/pickers/CheevoCheckGamesModal";
 import { skipWhileHidden } from "../components/panel/skipWhileHidden";
-import { usePageLanding, type LandingWindows } from "../focusRecords";
+import { overrideRecord, topEntryId, usePageLanding, type LandingWindows } from "../focusRecords";
 import { t, type LanguageCode } from "../locales";
 import type {
     ButtonSpacing,
@@ -48,9 +49,9 @@ import type {
 } from "../types";
 import { showManagedModal } from "../utils/modalRegistry";
 import { logError } from "../utils/errors";
-import { multiplayerGuestGames } from "../api";
+import { multiplayerGuestGames, saveMpShortcutFallback } from "../api";
 import { anyGameRunning, otherGameRunning } from "../utils/multiplayerSession";
-import { multiplayerChoices, rememberMultiplayerRoomTab } from "../utils/multiplayerChoices";
+import { multiplayerChoices, rememberMultiplayerRoomTab, rememberMultiplayerTab } from "../utils/multiplayerChoices";
 import { shortcutButtonGlyphs } from "../utils/options";
 import { changeMicLevel, changePttToggle, changePushToTalk, changeSensitivity, usePushToTalk, useVoiceChat } from "../utils/voiceChat";
 import {
@@ -108,12 +109,6 @@ function playsIn(game: MultiplayerGame, mode: MultiplayerMode) {
     return mode === "couch" ? game.canCouch : LINK_SYSTEMS.includes(game.systemId) && game.canLink;
 }
 
-const NOT_COMPATIBLE: Record<MultiplayerMode, string> = {
-    couch: "Not compatible with Couch Play.",
-    link: "Not compatible with Link Play.",
-    stream: "Not compatible with Stream Play."
-};
-
 const TABS: { tab: MultiplayerTab; labelKey: string; focusKey: string }[] = [
     { tab: "play", labelKey: "Play", focusKey: "multiplayer:tab:play" },
     { tab: "friends", labelKey: "Friends", focusKey: "multiplayer:tab:friends" }
@@ -139,7 +134,6 @@ const UPDATE_LINES: Record<string, { key: string; color?: string }> = {
 };
 
 const MODE_FACTS = ["link_system", "link_gc_no_lan", "ds_no_couch", "pcsx2_no_multiplayer", "link_gba_cant_link"];
-const NEVER_CODES = [...MODE_FACTS, "stream_one_console"];
 
 type MultiplayerPageState = {
     view: ViewKey;
@@ -293,7 +287,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             return changed;
         },
         defaultKey: "multiplayer:back",
-        ready: tabs.tab === "friends" ? friends.state.data !== null : drawLower,
+        ready: tabs.tab === "friends" ? friends.state.data !== null : drawLower && (mp.gameId === null || mp.modes !== null),
         holds: (key) => landingWindows.current?.holds(key) ?? false,
         open: (key) => landingWindows.current?.open(key),
         timing: { revealDeadlineMs: 1000, pressGuardCeilingMs: 1050 }
@@ -401,14 +395,14 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const needsSetup = mp.mode === "stream" && shownProblem?.code === "stream_not_set_up";
     const setupPending = needsSetup && !installing;
     const problemShown = shownProblem && !(shownProblem.code === "stream_not_set_up" && !setupPending) ? shownProblem : null;
+    const chartShowsGate = mp.modes === null || mp.modes.modes[mp.mode] !== undefined;
+    const lineProblem = problemShown && (mp.visibleError || !chartShowsGate) ? problemShown : null;
     const problemLines = [
-        ...(problem && NEVER_CODES.includes(problem.code)
-            ? [{ text: t(language, NOT_COMPATIBLE[mp.mode]), color: errorRed }] : []),
         ...(missedLine ? [{ text: problemText(language, missedLine.code, missedLine.detail), color: errorRed }] : []),
         ...(setupLine && !installing ? [{ text: t(language, setupLine.key), color: setupLine.color }] : []),
         ...(hosted?.streamChecking ? [{ text: t(language, "Checking your connection…"), color: undefined }] : []),
         ...(joined?.streamBusy ? [{ text: problemText(language, "stream_busy"), color: warnAmber }] : []),
-        ...(problemShown ? [{ text: problemLine(problemShown.code, { size: stream.size || "?", ...problemShown.detail }),
+        ...(lineProblem ? [{ text: problemLine(lineProblem.code, { size: stream.size || "?", ...lineProblem.detail }),
             color: warnAmber }] : []),
         ...roomWarnings.map((text) => ({ text, color: warnAmber }))
     ];
@@ -572,6 +566,61 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             return;
         }
         actions.setTab(next);
+    }
+
+    function reasonText(forMode: MultiplayerMode, gate: string, detail: Record<string, string>) {
+        if (gate === "not_in_results" && detail.dolphinSkipped && DOLPHIN_CONSOLES.includes(shown?.consoleName ?? "")) {
+            return problemText(language, "dolphin_flatpak_needed");
+        }
+        const filled = { size: stream.size || "?", ...detail };
+        return forMode === "stream" && !joined ? streamHostProblemText(language, gate, filled) : problemText(language, gate, filled);
+    }
+
+    function openModeReason(forMode: MultiplayerMode) {
+        const entry = mp.modes?.modes[forMode];
+        if (!mp.modes || !entry?.gate || entry.state === "ready") {
+            return;
+        }
+        const { shortcutFallback, tools } = mp.modes;
+        const gate = entry.gate;
+        const entryId = topEntryId();
+        const fixes: ModeFix[] = [];
+        if (gate === "stream_not_set_up") {
+            fixes.push({
+                labelKey: "Set Up Streaming",
+                onPress: (close) => {
+                    close();
+                    if (!hosted && !joined && mp.mode !== "stream") {
+                        rememberMultiplayerTab("stream");
+                        overrideRecord(entryId, {
+                            focusKey: "multiplayer:mode:stream:status",
+                            fallbacks: ["multiplayer:stream:setup", "multiplayer:mode:stream"],
+                            tabPath: [tabs.tab, "stream", roomTab]
+                        });
+                    }
+                    if (!installing) {
+                        openStreamSetup(language, stream.size || "?");
+                    }
+                }
+            });
+        }
+        if (gate === "no_shortcut" && !shortcutFallback) {
+            fixes.push({
+                labelKey: "Turn On Emulator Shortcuts",
+                onPress: (close) => {
+                    saveMpShortcutFallback(true)
+                        .catch((e) => logError("multiplayer: turning on Use Emulator Shortcuts", e))
+                        .finally(close);
+                }
+            });
+        }
+        showModeReason(language, {
+            mode: forMode,
+            state: entry.state,
+            text: reasonText(forMode, gate, entry.detail),
+            fixes,
+            tools: gate === "no_shortcut" || gate === "no_emulator_shortcut" ? tools : null
+        });
     }
 
     async function openGuestGames() {
@@ -1540,11 +1589,13 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         {drawLower && (
                             <>
                                 {statusRow}
-                                <ModeChoice
+                                <ModeChart
                                     language={language}
                                     mode={mp.mode}
                                     locked={joined !== null || (hosted !== null && hosted.state !== "lobby")}
+                                    states={mp.modes?.modes ?? {}}
                                     onChoose={chooseMode}
+                                    onStatus={openModeReason}
                                 />
                                 <PanelSectionRow>
                                     <div style={bodyTextStyle()}>

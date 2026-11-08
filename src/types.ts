@@ -2991,7 +2991,7 @@ export type MultiplayerRoomRow = {
     address: string;
     door: "lan" | "server";
     away: boolean;
-    verdict?: { can: boolean; reason: string; detail: Record<string, string> };
+    verdict?: { can: boolean; reason: string; detail: Record<string, string>; state?: MultiplayerModeState["state"] };
 };
 
 type MultiplayerSeat = {
@@ -3149,6 +3149,19 @@ export type MultiplayerCheck = {
     warnings: MultiplayerWarning[];
     local: MultiplayerLocal | null;
     lanOnly?: boolean;
+};
+
+export type MultiplayerModeState = {
+    state: "ready" | "setup" | "never";
+    gate: string | null;
+    detail: Record<string, string>;
+};
+
+export type MultiplayerModes = {
+    ok: boolean;
+    modes: Partial<Record<MultiplayerMode, MultiplayerModeState>>;
+    shortcutFallback: boolean;
+    tools: { emudeck?: boolean; srm?: boolean };
 };
 
 export type MultiplayerGame = {
