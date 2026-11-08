@@ -1160,7 +1160,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     game: seat?.title ?? "",
                     tag: index === 0 ? "host" : "",
                     mark: !seat || index === 0 ? "" : !seat.can ? "cant" : seat.ready ? "ready" : "",
-                    activity: hosted.state === "lobby" || !seat ? "" : index === 0 ? "game"
+                    activity: !seat ? "" : index === 0 ? (hosted.state === "lobby" ? "" : "game")
                         : seat.launched ? (hosted.watch ? "watch" : "game") : "",
                     stream: streamSeat(seat?.st),
                     avatar: seat?.pic ? friends.state.avatars[seat.pic] : undefined,
@@ -1210,7 +1210,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         game: index === 0 ? joined.room.title : flags?.title ?? "",
                         tag: index === 0 ? "host" : "",
                         mark: !name || index === 0 || !flags ? "" : !flags.can ? "cant" : flags.ready ? "ready" : "",
-                        activity: !name || roomState === "lobby" ? "" : index === 0 ? "game"
+                        activity: !name ? "" : index === 0 ? (roomState === "lobby" ? "" : "game")
                             : (index === joined.seat ? joined.launched : flags?.launched)
                                 ? (joined.room.watch ? "watch" : "game") : "",
                         stream: streamSeat(flags?.st),
