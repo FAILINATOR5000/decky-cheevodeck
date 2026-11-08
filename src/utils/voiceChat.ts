@@ -10,7 +10,8 @@ import {
     multiplayerVoiceLog,
     multiplayerVoiceSend,
     saveMpVoicePttToggle,
-    saveMpVoicePushToTalk
+    saveMpVoicePushToTalk,
+    saveMpVoiceSensitivity
 } from "../api";
 import { getCurrentLanguage, t } from "../locales";
 import { logError } from "./errors";
@@ -284,6 +285,7 @@ export function setVoiceSettings(next: {
         pushToTalkBound = pttButton !== "";
     }
     sensitivity = next.mpVoiceSensitivity ?? sensitivity;
+    publishPushToTalk();
     settled = true;
     pushToTalkMoved(was);
     setIncomingVolume(volume);
@@ -334,6 +336,23 @@ export function changePushToTalk(on: boolean) {
     });
 }
 
+export function changeSensitivity(value: number) {
+    const before = sensitivity;
+    sensitivity = value;
+    publishPushToTalk();
+    saveMpVoiceSensitivity(value).then((result) => {
+        if (!result.ok) {
+            throw new Error("not saved");
+        }
+    }).catch((e) => {
+        logError("voice: saving Mic Sensitivity", e);
+        if (sensitivity === value) {
+            sensitivity = before;
+            publishPushToTalk();
+        }
+    });
+}
+
 export function changePttToggle(on: boolean) {
     const before = pttToggle;
     pttToggle = on;
@@ -356,17 +375,25 @@ export function changePttToggle(on: boolean) {
     });
 }
 
-type PushToTalkState = { on: boolean; working: boolean; toggle: boolean; pttButton: string; muteButton: string };
+type PushToTalkState = {
+    on: boolean;
+    working: boolean;
+    toggle: boolean;
+    pttButton: string;
+    muteButton: string;
+    sensitivity: number;
+};
 
 const pttListeners = new Set<() => void>();
-let pttSnapshot: PushToTalkState = { on: false, working: false, toggle: true, pttButton: "", muteButton: "" };
+let pttSnapshot: PushToTalkState = { on: false, working: false, toggle: true, pttButton: "", muteButton: "", sensitivity: 2 };
 
 function publishPushToTalk() {
     if (pttSnapshot.on === pushToTalk && pttSnapshot.working === pttWorking() && pttSnapshot.toggle === pttToggle
-        && pttSnapshot.pttButton === pttButton && pttSnapshot.muteButton === muteButton) {
+        && pttSnapshot.pttButton === pttButton && pttSnapshot.muteButton === muteButton
+        && pttSnapshot.sensitivity === sensitivity) {
         return;
     }
-    pttSnapshot = { on: pushToTalk, working: pttWorking(), toggle: pttToggle, pttButton, muteButton };
+    pttSnapshot = { on: pushToTalk, working: pttWorking(), toggle: pttToggle, pttButton, muteButton, sensitivity };
     for (const listener of pttListeners) {
         listener();
     }

@@ -3280,6 +3280,7 @@ const DE: LocaleTable = {
     "Not used while Push to Talk is on.": "Wird nicht genutzt, solange Push-to-Talk an ist.",
     "help_mp_ptt_setup": "Richte Push-to-Talk und Mikro stumm in den Optionen unter Tastenbelegung ein. Dieser Knopf bringt dich dorthin, um sie einer Taste zuzuweisen. Funktioniert in einem Sprachraum auch ohne Globale Tasten, auf Rücktasten oder Tastenkombinationen.",
     "Mic Sensitivity": "Mikrofonempfindlichkeit",
+    "help_mic_sensitivity": "Wie laut du sprechen musst, bevor dein Mikrofon öffnet. Hoch nimmt leisere Stimmen auf, aber auch mehr vom Raum um dich herum.",
     "Low": "Niedrig",
     "High": "Hoch",
     "Mic muted while you're in a Steam call": "Mikrofon stumm, solange du in einem Steam-Anruf bist",

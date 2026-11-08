@@ -3392,6 +3392,7 @@ const PL: LocaleTable = {
     "Not used while Push to Talk is on.": "Nieużywane, gdy Naciśnij, aby mówić jest włączone.",
     "help_mp_ptt_setup": "Ustaw Naciśnij, aby mówić i Wyciszenie głosu jako przypisane skróty w Opcjach. Ten przycisk przeniesie cię tam, aby przypisać je do przycisku. Działa w pokoju głosowym bez Globalnych przycisków, na tylnych przyciskach lub kombinacjach przycisków.",
     "Mic Sensitivity": "Czułość mikrofonu",
+    "help_mic_sensitivity": "Jak głośno musisz mówić, zanim mikrofon się otworzy. Wysoka wychwytuje cichsze głosy, ale też więcej dźwięków z otoczenia.",
     "Low": "Niski",
     "High": "Wysoki",
     "Mic muted while you're in a Steam call": "Mikrofon wyciszony na czas rozmowy na Steamie",

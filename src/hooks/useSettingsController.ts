@@ -79,7 +79,6 @@ export function useSettingsController({
     const [mpShowOnline, setMpShowOnline] = useState(true);
     const [mpSuggestFriends, setMpSuggestFriends] = useState(true);
     const [mpShortcutFallback, setMpShortcutFallback] = useState(false);
-    const [mpVoiceSensitivity, setMpVoiceSensitivity] = useState(2);
     const [playShortcutFallback, setPlayShortcutFallback] = useState(false);
     const [lobbyServer, setLobbyServer] = useState("");
     const [automaticRecovery, setAutomaticRecovery] = useState(true);
@@ -378,7 +377,6 @@ export function useSettingsController({
         setMpShowOnline(source.mpShowOnline);
         setMpSuggestFriends(source.mpSuggestFriends);
         setMpShortcutFallback(source.mpShortcutFallback);
-        setMpVoiceSensitivity(source.mpVoiceSensitivity);
         setPlayShortcutFallback(source.playShortcutFallback);
         setLobbyServer(source.lobbyServer);
         setAutomaticRecovery(source.automaticRecovery);
@@ -669,7 +667,6 @@ export function useSettingsController({
         mpShowOnline,
         mpSuggestFriends,
         mpShortcutFallback,
-        mpVoiceSensitivity,
         playShortcutFallback,
         lobbyServer,
         automaticRecovery,
@@ -927,7 +924,6 @@ export function useSettingsController({
         setMpShowOnline,
         setMpSuggestFriends,
         setMpShortcutFallback,
-        setMpVoiceSensitivity,
         setPlayShortcutFallback,
         setLobbyServer,
         setAutomaticRecovery,

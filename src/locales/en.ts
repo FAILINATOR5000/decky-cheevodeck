@@ -3289,6 +3289,7 @@ export const EN: LocaleTable = {
     "Not used while Push to Talk is on.": "Not used while Push to Talk is on.",
     "help_mp_ptt_setup": "Set up Push-To-Talk and Voice Mute by configuring them as mapped shortcuts in Options. Press this button to be brought there to assign them to a button. Works in a voice room without Global Buttons, mapped to either back paddles or button combos.",
     "Mic Sensitivity": "Mic Sensitivity",
+    "help_mic_sensitivity": "How loud you need to speak before your mic opens. High picks up quieter voices, and more of the room around you.",
     "Low": "Low",
     "High": "High",
     "Mic muted while you're in a Steam call": "Mic muted while you're in a Steam call",

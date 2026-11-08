@@ -3313,6 +3313,7 @@ const PT: LocaleTable = {
     "Not used while Push to Talk is on.": "Não é usado enquanto Pressione para falar estiver ligado.",
     "help_mp_ptt_setup": "Configure Pressione para falar e Silenciar voz como atalhos atribuídos em Opções. Este botão leva você até lá para atribuí-los a um botão. Funciona em uma sala de voz sem Botões globais, nos botões traseiros ou em combinações de botões.",
     "Mic Sensitivity": "Sensibilidade do microfone",
+    "help_mic_sensitivity": "O quanto você precisa falar alto antes de o microfone abrir. Alta capta vozes mais baixas, e também mais do ambiente ao seu redor.",
     "Low": "Baixo",
     "High": "Alto",
     "Mic muted while you're in a Steam call": "Microfone silenciado enquanto você estiver em uma chamada do Steam",

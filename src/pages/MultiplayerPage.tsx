@@ -51,7 +51,7 @@ import { multiplayerGuestGames } from "../api";
 import { anyGameRunning, otherGameRunning } from "../utils/multiplayerSession";
 import { multiplayerChoices, rememberMultiplayerRoomTab } from "../utils/multiplayerChoices";
 import { shortcutButtonGlyphs } from "../utils/options";
-import { changeMicLevel, changePttToggle, changePushToTalk, usePushToTalk, useVoiceChat } from "../utils/voiceChat";
+import { changeMicLevel, changePttToggle, changePushToTalk, changeSensitivity, usePushToTalk, useVoiceChat } from "../utils/voiceChat";
 import {
     changeDuck,
     changeDuckStrength,
@@ -1194,6 +1194,31 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 >
                     {t(language, "Set Up PTT/Mute")}
                 </FocusableItem>
+            </PanelSectionRow>
+            <PanelSectionRow>
+                <FocusTarget focusKey="multiplayer:voice:sensitivity"
+                    focusFallback={["multiplayer:pttsetup", "multiplayer:toggle:ptttoggle", "multiplayer:toggle:ptt", ...afterSliders]}
+                    style={buttonStyle}>
+                    <SliderField
+                        label={t(language, "Mic Sensitivity")}
+                        description={t(language, pushToTalk.working ? "Not used while Push to Talk is on." : "help_mic_sensitivity")}
+                        value={pushToTalk.sensitivity}
+                        min={1}
+                        max={3}
+                        step={1}
+                        notchCount={3}
+                        notchLabels={[
+                            { notchIndex: 0, label: t(language, "Low") },
+                            { notchIndex: 1, label: t(language, "Medium") },
+                            { notchIndex: 2, label: t(language, "High") }
+                        ]}
+                        notchTicksVisible
+                        layout="below"
+                        bottomSeparator="none"
+                        disabled={pushToTalk.working}
+                        onChange={changeSensitivity}
+                    />
+                </FocusTarget>
             </PanelSectionRow>
             <SectionTitle label={t(language, "Per-Game")} />
             <PanelSectionRow>

@@ -3324,6 +3324,7 @@ const ES: LocaleTable = {
     "Not used while Push to Talk is on.": "No se usa mientras Pulsar para hablar está activado.",
     "help_mp_ptt_setup": "Configura Pulsar para hablar y Silenciar voz como atajos asignados en Opciones. Este botón te lleva allí para asignarles un botón. Funciona en una sala de voz sin Botones globales, en los botones traseros o en combinaciones de botones.",
     "Mic Sensitivity": "Sensibilidad del micrófono",
+    "help_mic_sensitivity": "Lo alto que tienes que hablar para que se abra tu micrófono. Alta capta voces más bajas, y también más ruido de tu alrededor.",
     "Low": "Bajo",
     "High": "Alto",
     "Mic muted while you're in a Steam call": "Micrófono silenciado mientras estés en una llamada de Steam",

@@ -3147,6 +3147,7 @@ const JA: LocaleTable = {
     "Not used while Push to Talk is on.": "プッシュトゥトークがオンの間は使われません。",
     "help_mp_ptt_setup": "プッシュトゥトークとボイスミュートを設定のボタン割り当てで設定します。このボタンでそこへ移動し、ボタンに割り当てられます。ボイスルームではグローバルボタンなしで、背面ボタンまたはボタンの組み合わせで機能します。",
     "Mic Sensitivity": "マイク感度",
+    "help_mic_sensitivity": "マイクがオンになるのに必要な声の大きさです。「高」は小さな声も拾いますが、周りの音も拾いやすくなります。",
     "Low": "低",
     "High": "高",
     "Mic muted while you're in a Steam call": "Steam の通話中はマイクをミュートしています",

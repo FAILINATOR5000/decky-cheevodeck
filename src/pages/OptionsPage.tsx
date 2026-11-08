@@ -1,4 +1,4 @@
-import { DialogButton, Focusable, PanelSectionRow, SliderField } from "@decky/ui";
+import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
 import { Fragment, useState, type ComponentType } from "react";
 import { BackButton } from "../components/ui/BackButton";
@@ -85,7 +85,6 @@ import { videoMoveErrorKey } from "../utils/memoriesTransferErrors";
 import { armMainListOpenAt, type MainListOpenTarget } from "../utils/mainListOpenAt";
 import { BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT, BUTTON_SECONDARY } from "../utils/gamepadButtons";
 import { playOkSound } from "../utils/navSound";
-import { usePushToTalk } from "../utils/voiceChat";
 import { bodyTextStyle, regularButtonSpacingStyle, smallTextStyle } from "../utils/style";
 import { usePageLanding } from "../focusRecords";
 import { pressRemoveStreaming } from "../utils/streamPlay";
@@ -264,7 +263,6 @@ type OptionsPageState = {
     mpShowOnline: boolean;
     mpSuggestFriends: boolean;
     mpShortcutFallback: boolean;
-    mpVoiceSensitivity: number;
     playShortcutFallback: boolean;
     lobbyServer: string;
     libraryBadge: boolean;
@@ -529,7 +527,6 @@ type OptionsPageActions = {
     onToggleMpShowOnline: (nextValue: boolean) => void | Promise<void>;
     onToggleMpSuggestFriends: (nextValue: boolean) => void | Promise<void>;
     onToggleMpShortcutFallback: (nextValue: boolean) => void | Promise<void>;
-    onChangeMpVoiceSensitivity: (nextValue: number) => void | Promise<void>;
     onTogglePlayShortcutFallback: (nextValue: boolean) => void | Promise<void>;
     onEditLobbyServer: () => void;
     onToggleLibraryBadge: (nextValue: boolean) => void | Promise<void>;
@@ -1906,7 +1903,6 @@ function GuiTab(props: TabContentProps) {
 
 function SocialTab(props: TabContentProps) {
     const { state, actions, buttonOuterStyle, disabled } = props;
-    const pushToTalk = usePushToTalk();
 
     return (
         <>
@@ -2172,30 +2168,6 @@ function SocialTab(props: TabContentProps) {
                 disabled={disabled || !state.mpFriendsEnabled}
                 help={t(state.language, "help_mp_suggest_friends")}
             />
-            <SectionTitle label={t(state.language, "Voice Chat")} />
-            <PanelSectionRow>
-                <FocusTarget focusKey="options:mp-voice-sensitivity" style={buttonOuterStyle}>
-                    <SliderField
-                        label={t(state.language, "Mic Sensitivity")}
-                        description={pushToTalk.working ? t(state.language, "Not used while Push to Talk is on.") : undefined}
-                        value={state.mpVoiceSensitivity}
-                        min={1}
-                        max={3}
-                        step={1}
-                        notchCount={3}
-                        notchLabels={[
-                            { notchIndex: 0, label: t(state.language, "Low") },
-                            { notchIndex: 1, label: t(state.language, "Medium") },
-                            { notchIndex: 2, label: t(state.language, "High") }
-                        ]}
-                        notchTicksVisible
-                        layout="below"
-                        bottomSeparator="none"
-                        disabled={disabled || pushToTalk.working}
-                        onChange={(value) => void actions.onChangeMpVoiceSensitivity(value)}
-                    />
-                </FocusTarget>
-            </PanelSectionRow>
         </>
     );
 }

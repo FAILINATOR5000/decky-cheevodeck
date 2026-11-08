@@ -3313,6 +3313,7 @@ const FR: LocaleTable = {
     "Not used while Push to Talk is on.": "Inutilisé tant qu'Appuyer pour parler est activé.",
     "help_mp_ptt_setup": "Configure Appuyer pour parler et Couper le micro comme raccourcis assignés dans Options. Ce bouton t'y emmène pour leur attribuer un bouton. Fonctionne dans un salon vocal sans Boutons globaux, sur les boutons arrière ou des combinaisons de boutons.",
     "Mic Sensitivity": "Sensibilité du micro",
+    "help_mic_sensitivity": "À quel volume parler avant que ton micro s'ouvre. Élevée capte les voix plus basses, mais aussi davantage la pièce autour de toi.",
     "Low": "Faible",
     "High": "Élevé",
     "Mic muted while you're in a Steam call": "Micro coupé pendant ton appel Steam",
