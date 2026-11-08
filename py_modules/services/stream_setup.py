@@ -359,6 +359,10 @@ class StreamSetup:
 
     def _install_moonlight(self) -> bool:
         if self.moonlight_installed():
+            code, _out, err = self._flatpak(["update", "--user", "--noninteractive", "-y", MOONLIGHT_APP],
+                                            timeout=FLATPAK_INSTALL_SECONDS)
+            if code != 0:
+                decky.logger.info("stream: couldn't update the Moonlight already here (%s)", err.strip()[-200:])
             return False
         self._user_flathub()
         expected = self._moonlight_install_bytes()
