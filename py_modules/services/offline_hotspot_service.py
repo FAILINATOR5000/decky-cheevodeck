@@ -48,6 +48,7 @@ CAP_SECONDS = 23 * 3600
 WARN_SECONDS = 5 * 60
 ACTIVATE_SECONDS = 25
 TICK_SECONDS = 1.0
+SCAN_WAIT_SECONDS = 8.0
 DEVICES_SECONDS = 5.0
 HELLO_SECONDS = 5.0
 NAME_SECONDS = 20.0
@@ -696,6 +697,7 @@ class OfflineHotspotService:
                 return {"ok": True, "hotspots": []}
             nm = self._nm
             device = self._device
+            joined = self._role == "guest"
         bus = None
         if nm is None:
             bus = nm_dbus.Bus()
@@ -712,10 +714,16 @@ class OfflineHotspotService:
         try:
             if not device:
                 return {"ok": False, "error": REFUSED_NO_WIFI, "hotspots": []}
-            try:
-                nm.request_scan(device)
-            except nm_dbus.DBusError:
-                pass
+            if not joined:
+                before = nm.last_scan(device)
+                try:
+                    nm.request_scan(device)
+                except nm_dbus.DBusError:
+                    pass
+                else:
+                    deadline = time.monotonic() + SCAN_WAIT_SECONDS
+                    while time.monotonic() < deadline and nm.last_scan(device) == before:
+                        time.sleep(0.25)
             best = {}
             for point in nm.access_points(device):
                 ssid = bytes(point.get("Ssid") or b"").decode("ascii", "replace")

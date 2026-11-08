@@ -556,6 +556,9 @@ class NetworkManager:
     def request_scan(self, device: str) -> None:
         self.bus.call(NM, device, NM_WIRELESS, "RequestScan", "a{sv}", ({},), timeout=15.0)
 
+    def last_scan(self, device: str) -> int:
+        return int(self._get(device, NM_WIRELESS, "LastScan"))
+
     def access_points(self, device: str) -> list:
         points = []
         for path in self.bus.call(NM, device, NM_WIRELESS, "GetAllAccessPoints")[0]:
