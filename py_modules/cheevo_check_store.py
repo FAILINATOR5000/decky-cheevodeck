@@ -10,9 +10,11 @@ from utils import ensure_dir, load_json_file, save_json_file, to_int
 
 CURRENT_SCHEMA_VERSION = 1
 
-MAX_ROWS_PER_SECTION = 2000
+MAX_ROWS_PER_SECTION = 10000
 
 MAX_SUPPORTED_ROWS = 25000
+
+MAX_NO_SET_ROWS = 25000
 
 
 class CheevoCheckStore:
@@ -90,7 +92,7 @@ class CheevoCheckStore:
 
     _SECTIONS = (
         ("unsupported", MAX_ROWS_PER_SECTION),
-        ("noAchievements", MAX_ROWS_PER_SECTION),
+        ("noAchievements", MAX_NO_SET_ROWS),
         ("failed", MAX_ROWS_PER_SECTION),
         ("supportedGames", MAX_SUPPORTED_ROWS),
     )
