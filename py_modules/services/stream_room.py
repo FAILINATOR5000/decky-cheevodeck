@@ -6,6 +6,7 @@ import secrets
 import shlex
 import socket
 import subprocess
+import tempfile
 import time
 import urllib.request
 from pathlib import Path
@@ -244,6 +245,7 @@ class HostStreams:
         return sum(1 for seat, entry in self._seats.items() if seat <= index and not entry["piped"])
 
     async def _pair_loop(self) -> None:
+        said = {}
         while not self._closed:
             waiting = [entry for entry in self._seats.values() if not entry["paired"]]
             if not waiting:
@@ -256,12 +258,20 @@ class HostStreams:
             try:
                 pending = await asyncio.to_thread(self._sunshine.pending_pins)
             except Exception as e:
-                self._debug("stream: reading Sunshine's pairing requests failed (%s)", type(e).__name__)
+                failure = type(e).__name__
+                if failure != said.get("read"):
+                    decky.logger.warning("stream: can't read Sunshine's pairing requests (%s: %s)", failure, e)
+                said["read"] = failure
                 pending = []
+            else:
+                said.pop("read", None)
             if pending:
-                self._debug("stream: pairing requests from %s, waiting on %s",
-                            [_bare(request["address"]) for request in pending],
-                            [each["source"] if each["piped"] else each["ip"] for each in waiting])
+                heard = sorted(_bare(request["address"]) for request in pending)
+                expected = sorted(each["source"] if each["piped"] else each["ip"] for each in waiting)
+                if not set(heard) & set(expected) and (heard, expected) != said.get("match"):
+                    decky.logger.info("stream: Sunshine has pairing requests from %s, the seats waiting are %s",
+                                      heard, expected)
+                said["match"] = (heard, expected)
             for request in pending:
                 address = _bare(request["address"])
                 entry = next((each for each in waiting
@@ -514,32 +524,38 @@ class GuestStream:
             self.failed = True
             return
         uid, gid = self._owner_ids()
+        output = tempfile.TemporaryFile()
         try:
             proc = subprocess.Popen(self._moonlight(f"pair {shlex.quote(self.address)} --pin {self._pin}"),
-                                    env=self._env(), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                    env=self._env(), stdout=output, stderr=subprocess.STDOUT,
                                     user=uid, group=gid, extra_groups=[] if uid is not None else None)
         except OSError as e:
+            output.close()
             decky.logger.warning("stream: couldn't run Moonlight to pair (%s)", e)
             self.failed = True
             return
         deadline = time.monotonic() + PAIR_GIVE_UP_SECONDS
         paired = False
+        listed = ""
         try:
             while time.monotonic() < deadline and not self._closed:
                 time.sleep(1.5)
                 ended = proc.poll() is not None
                 try:
-                    code, _out, _err = subprocess_util.run_command(
+                    code, out, err = subprocess_util.run_command(
                         self._moonlight(f"list {shlex.quote(self.address)}"), timeout=LIST_SECONDS, env=self._env(),
                         as_data_owner=True)
-                except Exception:
+                    listed = (err or out).strip()
+                except Exception as e:
                     code = 1
+                    listed = type(e).__name__
                 if code == 0:
                     paired = True
                     break
                 if ended:
                     break
         finally:
+            exit_code = proc.poll()
             self.kill_moonlight()
             try:
                 proc.wait(timeout=KILL_SECONDS)
@@ -548,7 +564,21 @@ class GuestStream:
                 proc.wait()
         self.paired = paired
         self.failed = not paired
-        decky.logger.info("stream: %s with the host", "paired" if paired else "couldn't pair")
+        if paired:
+            output.close()
+            decky.logger.info("stream: paired with the host")
+            return
+        try:
+            output.seek(0)
+            said = output.read()[-2000:].decode("utf-8", errors="replace")
+        except OSError:
+            said = ""
+        finally:
+            output.close()
+        lines = [line.strip() for line in said.splitlines() if line.strip()]
+        decky.logger.info("stream: couldn't pair with the host at %s (pair %s; Moonlight: %s; list: %s)", self.address,
+                          f"exited {exit_code}" if exit_code is not None else "still waiting", " | ".join(lines[-3:]) or "nothing",
+                          listed.splitlines()[-1][:200] if listed else "nothing")
 
     def kill_moonlight(self) -> None:
         try:
