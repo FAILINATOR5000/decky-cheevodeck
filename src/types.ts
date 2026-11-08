@@ -3227,6 +3227,7 @@ export type PlayInfo = {
     gate: string | null;
     detail: Record<string, string>;
     tools: { emudeck?: boolean; srm?: boolean };
+    kind?: string;
 };
 
 export type MultiplayerGuestGame = { gameId: number; title: string; systemId: number; system: string; imageIcon: string };

@@ -110,12 +110,12 @@ export function useGamePlayController(props: {
         showMultiplayerProblem(language, "Another Game Is Running", t(language, "Close the running game first"));
     }
 
-    function launch(forGame: number, appid: number, fallback: boolean, choice: PlayChoice = null) {
+    function launch(forGame: number, appid: number, fallback: boolean, choice: PlayChoice = null, kind = "") {
         if (anyGameRunning() || launchInFlight()) {
             anotherGameRunning();
             return;
         }
-        playGame(forGame, appid, fallback, choice)
+        playGame(forGame, appid, fallback, choice, kind)
             .then((result) => {
                 if (result.error === "busy") {
                     anotherGameRunning();
@@ -139,7 +139,7 @@ export function useGamePlayController(props: {
                 showMultiplayerProblem(language, "Couldn't Start", problemText(language, picked.gate ?? "launch_failed", picked.detail));
                 return;
             }
-            launch(forGame, picked.appid, picked.fallback, choice);
+            launch(forGame, picked.appid, picked.fallback, choice, picked.kind ?? "");
         }
         catch (e) {
             logError("play: Play With couldn't start the pick", e);
@@ -218,8 +218,8 @@ export function useGamePlayController(props: {
     else {
         label = t(language, "play_game");
         if (info?.launchable && gameId != null) {
-            const ready = { gameId, appid: info.appid, fallback: info.fallback };
-            press = () => launch(ready.gameId, ready.appid, ready.fallback);
+            const ready = { gameId, appid: info.appid, fallback: info.fallback, kind: info.kind ?? "" };
+            press = () => launch(ready.gameId, ready.appid, ready.fallback, null, ready.kind);
         }
         else if (info) {
             const tools = info.tools ?? {};

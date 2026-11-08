@@ -34,6 +34,9 @@ const NAME_WAIT_MS = 3000;
 const NAME_POLL_MS = 100;
 const LAUNCH_SOURCE = 100;
 const FOLLOW_AFTER_MS = 16000;
+const PLAY_FOLLOW_EVERY_MS = 30000;
+const PLAY_FOLLOW_FOR_MS = 180000;
+const NO_ACHIEVEMENTS = ["rmg", "melonds"];
 const PLAY_START_WAIT_MS = 60000;
 
 export type MultiplayerSessionSnapshot = {
@@ -73,6 +76,8 @@ let playedRunning = false;
 let playStartTimer = 0;
 let running: RunningSnapshot = { appid: 0, playedGameId: 0 };
 let roundGameId = 0;
+type PlayFollow = { appid: number; kind: string; timer: number; started: boolean };
+let playFollow: PlayFollow | null = null;
 const runningListeners = new Set<() => void>();
 
 function publish(next: Partial<MultiplayerSessionSnapshot>) {
@@ -291,6 +296,7 @@ export async function launchMultiplayer(appid: number, hardcore: boolean): Promi
 }
 
 async function launchOnce(appid: number, hardcore: boolean): Promise<MultiplayerLaunchResult> {
+    stopPlayFollow();
     await restoreLeftover();
     const original = await readLaunchOptions(appid);
     if (original === null) {
@@ -326,13 +332,25 @@ async function launchOnce(appid: number, hardcore: boolean): Promise<Multiplayer
     return { ok: true };
 }
 
-export async function playGame(gameId: number, appid: number, fallback: boolean, choice: PlayChoice = null): Promise<MultiplayerLaunchResult> {
+export async function playGame(gameId: number, appid: number, fallback: boolean, choice: PlayChoice = null,
+    kind = ""): Promise<MultiplayerLaunchResult> {
     if (launching) {
         return { ok: false, error: "busy" };
     }
     launching = true;
     try {
-        return fallback ? await playThroughEmulator(gameId, appid, choice) : runShortcut(appid);
+        const result = fallback ? await playThroughEmulator(gameId, appid, choice) : runShortcut(appid);
+        if (result.ok) {
+            stopPlayFollow();
+            const follow: PlayFollow = { appid, kind, timer: 0, started: false };
+            follow.timer = window.setTimeout(() => {
+                if (playFollow === follow && !follow.started) {
+                    playFollow = null;
+                }
+            }, PLAY_START_WAIT_MS);
+            playFollow = follow;
+        }
+        return result;
     }
     finally {
         launching = false;
@@ -471,6 +489,43 @@ function followCurrentGame() {
     }, FOLLOW_AFTER_MS);
 }
 
+function stopPlayFollow() {
+    if (playFollow) {
+        window.clearTimeout(playFollow.timer);
+        playFollow = null;
+    }
+}
+
+function followPlayedGame(follow: PlayFollow) {
+    const since = Date.now();
+    const until = since + PLAY_FOLLOW_FOR_MS;
+    const check = async () => {
+        if (playFollow !== follow || !registered || currentGameMovedSince(since)) {
+            return;
+        }
+        try {
+            const checked = await checkCurrentGame();
+            const moved = checked?.currentGameId != null && checked.currentGameId !== checked.cachedGameId;
+            if (playFollow === follow && checked?.changed) {
+                if (moved) {
+                    playFollow = null;
+                }
+                await refreshCurrentGame(true);
+                if (moved) {
+                    return;
+                }
+            }
+        }
+        catch (e) {
+            logError("play: following the launched game", e);
+        }
+        if (playFollow === follow && Date.now() + PLAY_FOLLOW_EVERY_MS <= until) {
+            follow.timer = window.setTimeout(() => void check(), PLAY_FOLLOW_EVERY_MS);
+        }
+    };
+    follow.timer = window.setTimeout(() => void check(), FOLLOW_AFTER_MS);
+}
+
 function noteRunningApp(appid: number) {
     const name = appid ? appStore.GetAppOverviewByAppID(appid)?.display_name ?? "" : "";
     multiplayerRunningApp(name).catch((e) => logError("multiplayerRunningApp", e));
@@ -483,6 +538,19 @@ function onAppLifetime(event: SteamAppLifetimeEvent) {
     }
     else if (event?.unAppID === running.appid) {
         publishRunning({ appid: 0 });
+    }
+    const follow = playFollow;
+    if (follow && event?.unAppID === follow.appid) {
+        if (!event.bRunning) {
+            stopPlayFollow();
+        }
+        else if (!follow.started) {
+            follow.started = true;
+            window.clearTimeout(follow.timer);
+            if (!NO_ACHIEVEMENTS.includes(follow.kind)) {
+                followPlayedGame(follow);
+            }
+        }
     }
     const mine = played;
     if (mine && event?.unAppID === mine.appid) {
@@ -644,6 +712,7 @@ export function unregisterMultiplayerSession() {
     stopRoomWatch = null;
     window.clearTimeout(followTimer);
     window.clearTimeout(playStartTimer);
+    stopPlayFollow();
     lifetimeHandle?.unregister();
     lifetimeHandle = null;
     removeEventListener(SESSION_EVENT, onSessionEvent);
