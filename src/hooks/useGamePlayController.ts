@@ -123,6 +123,10 @@ export function useGamePlayController(props: {
                 props.openMultiplayer();
             };
         }
+        else if (host?.gate === "no_shortcut" && info) {
+            const tools = info.tools ?? {};
+            explain = () => showShortcutNeeded(language, tools, true);
+        }
         else if (host?.gate) {
             const reason = problemText(language, host.gate, host.detail);
             explain = () => showMultiplayerProblem(language, "Can't Host", reason);

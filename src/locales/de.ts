@@ -3168,6 +3168,7 @@ const DE: LocaleTable = {
     "Shortcut Needed": "Verknüpfung nötig",
     "play_shortcut_needed_body": "Damit CheevoDeck Spiele starten kann, braucht jedes Spiel eine Nicht-Steam-Spiel-Verknüpfung. Du kannst sie selbst hinzufügen oder Tools wie EmuDeck und Steam ROM Manager nutzen. Außerdem muss CheevoDeck deine Spiele zuerst erkennen. Führe deshalb einen Cheevo Check-Scan über deine gesamte Bibliothek aus, indem du den Basisordner deiner ROMs auswählst.",
     "play_shortcut_needed_emulators": "Mit „Über Emulator-Verknüpfungen spielen“ (Optionen → System → Allgemein) funktioniert auch eine Verknüpfung zu RetroArch, PPSSPP, Dolphin oder RMG selbst. Dann braucht nicht jedes Spiel eine eigene Nicht-Steam-Spiel-Verknüpfung, solange der Emulator selbst eine hat.",
+    "host_shortcut_needed_emulators": "Mit „Emulator-Verknüpfungen nutzen“ (Optionen → Social → EZ Multiplayer) funktioniert auch eine Verknüpfung zu RetroArch, PPSSPP, Dolphin oder RMG selbst. Dann braucht ein Spiel keine eigene Nicht-Steam-Spiel-Verknüpfung, um einen Raum zu hosten oder beizutreten, solange der Emulator selbst eine hat.",
     "Run Cheevo Check Scan": "Cheevo Check-Scan starten",
     "Open EmuDeck in Desktop Mode": "EmuDeck im Desktop-Modus öffnen",
     "Open Steam ROM Manager in Desktop Mode": "Steam ROM Manager im Desktop-Modus öffnen",

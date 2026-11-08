@@ -3177,6 +3177,7 @@ export const EN: LocaleTable = {
     "Shortcut Needed": "Shortcut Needed",
     "play_shortcut_needed_body": "To launch games through CheevoDeck, each game needs a non-Steam game shortcut. You can add them yourself or use tools like EmuDeck and Steam ROM Manager. CheevoDeck also has to identify your games first, so run a Cheevo Check scan that covers your entire library by choosing the base folder of your ROMs.",
     "play_shortcut_needed_emulators": "With Play Through Emulator Shortcuts on (Options → System → General), a shortcut to RetroArch, PPSSPP, Dolphin or RMG itself also works, meaning a non-Steam game shortcut isn't needed for each game as long as the emulator itself has a shortcut.",
+    "host_shortcut_needed_emulators": "With Use Emulator Shortcuts on (Options → Social → EZ Multiplayer), a shortcut to RetroArch, PPSSPP, Dolphin or RMG itself also works, meaning a game doesn't need its own non-Steam game shortcut to host or join a room as long as the emulator itself has a shortcut.",
     "Run Cheevo Check Scan": "Run Cheevo Check Scan",
     "Open EmuDeck in Desktop Mode": "Open EmuDeck in Desktop Mode",
     "Open Steam ROM Manager in Desktop Mode": "Open Steam ROM Manager in Desktop Mode",

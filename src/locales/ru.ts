@@ -3249,6 +3249,7 @@ const RU: LocaleTable = {
     "Shortcut Needed": "Нужен ярлык",
     "play_shortcut_needed_body": "Чтобы запускать игры через CheevoDeck, каждой игре нужен ярлык сторонней игры. Добавь их сам или используй EmuDeck и Steam ROM Manager. Ещё CheevoDeck должен сначала опознать твои игры, поэтому запусти сканирование Cheevo Check по всей библиотеке, выбрав основную папку с ROM-ами.",
     "play_shortcut_needed_emulators": "Если включено «Играть через ярлыки эмуляторов» (Настройки → Система → Общее), подойдёт и ярлык самого RetroArch, PPSSPP, Dolphin или RMG: тогда отдельный ярлык для каждой игры не нужен, если у эмулятора есть свой.",
+    "host_shortcut_needed_emulators": "Если включено «Использовать ярлыки эмуляторов» (Настройки → Общение → EZ Multiplayer), подойдёт и ярлык самого RetroArch, PPSSPP, Dolphin или RMG: тогда игре не нужен собственный ярлык, чтобы создать комнату или присоединиться к ней, если у эмулятора есть свой.",
     "Run Cheevo Check Scan": "Сканировать в Cheevo Check",
     "Open EmuDeck in Desktop Mode": "Открыть EmuDeck в режиме рабочего стола",
     "Open Steam ROM Manager in Desktop Mode": "Открыть Steam ROM Manager в режиме рабочего стола",

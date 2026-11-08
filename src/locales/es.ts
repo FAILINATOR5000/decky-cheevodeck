@@ -3212,6 +3212,7 @@ const ES: LocaleTable = {
     "Shortcut Needed": "Se necesita un acceso directo",
     "play_shortcut_needed_body": "Para iniciar juegos desde CheevoDeck, cada juego necesita un acceso directo de juego que no es de Steam. Puedes añadirlos tú mismo o usar herramientas como EmuDeck y Steam ROM Manager. Además, CheevoDeck tiene que identificar tus juegos primero, así que haz un escaneo de Cheevo Check que cubra toda tu biblioteca eligiendo la carpeta base de tus ROMs.",
     "play_shortcut_needed_emulators": "Con Jugar mediante accesos directos de emuladores activado (Opciones → Sistema → General), también sirve un acceso directo al propio RetroArch, PPSSPP, Dolphin o RMG, así que no hace falta un acceso directo para cada juego mientras el emulador tenga el suyo.",
+    "host_shortcut_needed_emulators": "Con Usar accesos directos de emuladores activado (Opciones → Social → EZ Multiplayer), también sirve un acceso directo al propio RetroArch, PPSSPP, Dolphin o RMG, así que un juego no necesita su propio acceso directo para crear o unirse a una sala mientras el emulador tenga el suyo.",
     "Run Cheevo Check Scan": "Escanear con Cheevo Check",
     "Open EmuDeck in Desktop Mode": "Abrir EmuDeck en modo escritorio",
     "Open Steam ROM Manager in Desktop Mode": "Abrir Steam ROM Manager en modo escritorio",

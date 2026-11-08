@@ -3280,6 +3280,7 @@ const PL: LocaleTable = {
     "Shortcut Needed": "Potrzebny skrót",
     "play_shortcut_needed_body": "Aby uruchamiać gry przez CheevoDeck, każda gra potrzebuje skrótu gry spoza Steam. Możesz dodać je sam albo użyć narzędzi takich jak EmuDeck i Steam ROM Manager. CheevoDeck musi też najpierw rozpoznać twoje gry, więc uruchom skanowanie Cheevo Check całej biblioteki, wybierając główny folder z ROM-ami.",
     "play_shortcut_needed_emulators": "Gdy opcja Graj przez skróty emulatorów jest włączona (Opcje → System → Ogólne), działa też skrót do samego RetroArch, PPSSPP, Dolphin lub RMG, więc nie każda gra potrzebuje własnego skrótu, o ile sam emulator ma skrót.",
+    "host_shortcut_needed_emulators": "Gdy opcja Używaj skrótów emulatorów jest włączona (Opcje → Społeczne → EZ Multiplayer), działa też skrót do samego RetroArch, PPSSPP, Dolphin lub RMG, więc gra nie potrzebuje własnego skrótu, aby hostować pokój lub do niego dołączyć, o ile sam emulator ma skrót.",
     "Run Cheevo Check Scan": "Skanuj w Cheevo Check",
     "Open EmuDeck in Desktop Mode": "Otwórz EmuDeck w trybie pulpitu",
     "Open Steam ROM Manager in Desktop Mode": "Otwórz Steam ROM Manager w trybie pulpitu",

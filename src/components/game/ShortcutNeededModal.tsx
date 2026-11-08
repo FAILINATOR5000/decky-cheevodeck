@@ -34,6 +34,7 @@ function openInDesktop(language: LanguageCode, tool: DesktopTool) {
 function ShortcutNeededModal(props: {
     language: LanguageCode;
     tools: DesktopTool[];
+    host: boolean;
     close: () => void;
 }) {
     const { language, close } = props;
@@ -45,7 +46,7 @@ function ShortcutNeededModal(props: {
                     {t(language, "Shortcut Needed")}
                 </div>
                 <div style={paragraph}>{t(language, "play_shortcut_needed_body")}</div>
-                <div style={paragraph}>{t(language, "play_shortcut_needed_emulators")}</div>
+                <div style={paragraph}>{t(language, props.host ? "host_shortcut_needed_emulators" : "play_shortcut_needed_emulators")}</div>
             </Focusable>
             <Focusable style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px" }} flow-children="column">
                 <DialogButton
@@ -73,7 +74,7 @@ function ShortcutNeededModal(props: {
     );
 }
 
-export function showShortcutNeeded(language: LanguageCode, tools: { emudeck?: boolean; srm?: boolean }) {
+export function showShortcutNeeded(language: LanguageCode, tools: { emudeck?: boolean; srm?: boolean }, host = false) {
     const found: DesktopTool[] = tools.emudeck ? ["emudeck"] : tools.srm ? ["srm"] : [];
-    showManagedModal((close) => <ShortcutNeededModal language={language} tools={found} close={close} />);
+    showManagedModal((close) => <ShortcutNeededModal language={language} tools={found} host={host} close={close} />);
 }

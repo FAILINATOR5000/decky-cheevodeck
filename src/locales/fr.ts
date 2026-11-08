@@ -3201,6 +3201,7 @@ const FR: LocaleTable = {
     "Shortcut Needed": "Raccourci nécessaire",
     "play_shortcut_needed_body": "Pour lancer des jeux depuis CheevoDeck, chaque jeu a besoin d'un raccourci de jeu non-Steam. Tu peux les ajouter toi-même ou utiliser des outils comme EmuDeck et Steam ROM Manager. CheevoDeck doit aussi identifier tes jeux d'abord : lance une analyse Cheevo Check qui couvre toute ta bibliothèque en choisissant le dossier de base de tes ROMs.",
     "play_shortcut_needed_emulators": "Avec Jouer via les raccourcis d'émulateurs activé (Options → Système → Général), un raccourci vers RetroArch, PPSSPP, Dolphin ou RMG lui-même fonctionne aussi : pas besoin d'un raccourci non-Steam pour chaque jeu, tant que l'émulateur a le sien.",
+    "host_shortcut_needed_emulators": "Avec Utiliser les raccourcis d'émulateurs activé (Options → Social → EZ Multiplayer), un raccourci vers RetroArch, PPSSPP, Dolphin ou RMG lui-même fonctionne aussi : un jeu n'a pas besoin de son propre raccourci non-Steam pour héberger ou rejoindre un salon, tant que l'émulateur a le sien.",
     "Run Cheevo Check Scan": "Lancer une analyse Cheevo Check",
     "Open EmuDeck in Desktop Mode": "Ouvrir EmuDeck en mode Bureau",
     "Open Steam ROM Manager in Desktop Mode": "Ouvrir Steam ROM Manager en mode Bureau",

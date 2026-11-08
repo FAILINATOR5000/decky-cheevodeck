@@ -3035,6 +3035,7 @@ const JA: LocaleTable = {
     "Shortcut Needed": "ショートカットが必要です",
     "play_shortcut_needed_body": "CheevoDeckからゲームを起動するには、ゲームごとにSteam以外のゲームのショートカットが必要です。自分で追加するか、EmuDeckやSteam ROM Managerなどのツールを使ってください。また、CheevoDeckが先にゲームを識別する必要があるため、ROMのベースフォルダーを選んで、ライブラリ全体を対象にCheevo Checkのスキャンを実行してください。",
     "play_shortcut_needed_emulators": "「エミュレーターのショートカットでプレイ」をオンにすると（設定 → システム → 全般）、RetroArch、PPSSPP、Dolphin、RMG本体のショートカットでも起動できます。エミュレーター本体にショートカットがあれば、ゲームごとのショートカットは不要です。",
+    "host_shortcut_needed_emulators": "「エミュレーターのショートカットを使用」をオンにすると（設定 → ソーシャル → EZ Multiplayer）、RetroArch、PPSSPP、Dolphin、RMG本体のショートカットでもルームのホストや参加ができます。エミュレーター本体にショートカットがあれば、ゲームごとのショートカットは不要です。",
     "Run Cheevo Check Scan": "Cheevo Checkでスキャン",
     "Open EmuDeck in Desktop Mode": "デスクトップモードでEmuDeckを開く",
     "Open Steam ROM Manager in Desktop Mode": "デスクトップモードでSteam ROM Managerを開く",

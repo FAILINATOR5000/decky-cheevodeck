@@ -3201,6 +3201,7 @@ const PT: LocaleTable = {
     "Shortcut Needed": "Atalho necessário",
     "play_shortcut_needed_body": "Para iniciar jogos pelo CheevoDeck, cada jogo precisa de um atalho de jogo não Steam. Você pode adicioná-los por conta própria ou usar ferramentas como EmuDeck e Steam ROM Manager. O CheevoDeck também precisa identificar seus jogos primeiro, então faça uma varredura do Cheevo Check que cubra toda a sua biblioteca escolhendo a pasta base das suas ROMs.",
     "play_shortcut_needed_emulators": "Com Jogar por atalhos de emuladores ativado (Opções → Sistema → Geral), um atalho para o próprio RetroArch, PPSSPP, Dolphin ou RMG também funciona, ou seja, não é preciso um atalho para cada jogo desde que o emulador tenha o seu.",
+    "host_shortcut_needed_emulators": "Com Usar atalhos de emuladores ativado (Opções → Social → EZ Multiplayer), um atalho para o próprio RetroArch, PPSSPP, Dolphin ou RMG também funciona, ou seja, um jogo não precisa do próprio atalho para hospedar ou entrar em uma sala desde que o emulador tenha o seu.",
     "Run Cheevo Check Scan": "Fazer varredura do Cheevo Check",
     "Open EmuDeck in Desktop Mode": "Abrir EmuDeck no Modo Desktop",
     "Open Steam ROM Manager in Desktop Mode": "Abrir Steam ROM Manager no Modo Desktop",

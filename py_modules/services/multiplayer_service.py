@@ -1340,7 +1340,7 @@ class MultiplayerService:
             return {"ok": True, "appid": 0, "launchable": False, "fallback": False, "gate": gate, "detail": detail,
                     "tools": self.desktop_tools()}
         return {"ok": True, "appid": route["appid"], "launchable": True, "fallback": route["fallback"],
-                "gate": None, "detail": {}, "tools": {}}
+                "gate": None, "detail": {}, "tools": self.desktop_tools()}
 
     def _desktop_tool_command(self, tool: str):
         home = self._user_home
