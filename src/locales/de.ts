@@ -3538,6 +3538,19 @@ const DE: LocaleTable = {
     "{{name}} {{installed}} is newer than the stable {{stable}}, probably a nightly or dev build you installed. CheevoDeck leaves it alone unless you choose to replace it.": "{{name}} {{installed}} ist neuer als die stabile Version {{stable}}, wahrscheinlich ein Nightly- oder Dev-Build, den du installiert hast. CheevoDeck lässt ihn in Ruhe, außer du entscheidest dich, ihn zu ersetzen.",
     "Replace with {{version}}": "Durch {{version}} ersetzen",
     "Latest stable": "Neueste stabile",
+    "Add to Steam": "Zu Steam hinzufügen",
+    "Collection": "Sammlung",
+    "{{name}} (Emulator)": "{{name}} (Emulator)",
+    "Add Flatpak to Steam": "Flatpak zu Steam hinzufügen",
+    "Add {{file}} to Steam": "{{file}} zu Steam hinzufügen",
+    "Remove Flatpak from Steam": "Flatpak aus Steam entfernen",
+    "Remove {{file}} from Steam": "{{file}} aus Steam entfernen",
+    "Remove from Steam": "Aus Steam entfernen",
+    "Remove the {{name}} shortcut CheevoDeck added to Steam?": "Die {{name}}-Verknüpfung entfernen, die CheevoDeck zu Steam hinzugefügt hat?",
+    "Couldn't add it to Steam.": "Konnte nicht zu Steam hinzugefügt werden.",
+    "Games without their own shortcut or a remembered Play With… pick will play in RetroArch.": "Spiele ohne eigene Verknüpfung oder gemerkte „Spielen mit…“-Wahl laufen dann in RetroArch.",
+    "{{system}} games without their own shortcut or a remembered Play With… pick will play in {{emulator}} instead of {{current}}.": "{{system}}-Spiele ohne eigene Verknüpfung oder gemerkte „Spielen mit…“-Wahl laufen dann in {{emulator}} statt in {{current}}.",
+    "{{system}} games without their own shortcut or a remembered Play With… pick will play in {{emulator}}.": "{{system}}-Spiele ohne eigene Verknüpfung oder gemerkte „Spielen mit…“-Wahl laufen dann in {{emulator}}.",
 };
 
 export default DE;

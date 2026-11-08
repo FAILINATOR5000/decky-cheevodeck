@@ -3571,6 +3571,19 @@ const FR: LocaleTable = {
     "{{name}} {{installed}} is newer than the stable {{stable}}, probably a nightly or dev build you installed. CheevoDeck leaves it alone unless you choose to replace it.": "{{name}} {{installed}} est plus récent que la version stable {{stable}}, sans doute une version nightly ou de développement que tu as installée. CheevoDeck n'y touche pas, sauf si tu choisis de le remplacer.",
     "Replace with {{version}}": "Remplacer par {{version}}",
     "Latest stable": "Dernière stable",
+    "Add to Steam": "Ajouter à Steam",
+    "Collection": "Collection",
+    "{{name}} (Emulator)": "{{name}} (Émulateur)",
+    "Add Flatpak to Steam": "Ajouter le Flatpak à Steam",
+    "Add {{file}} to Steam": "Ajouter {{file}} à Steam",
+    "Remove Flatpak from Steam": "Retirer le Flatpak de Steam",
+    "Remove {{file}} from Steam": "Retirer {{file}} de Steam",
+    "Remove from Steam": "Retirer de Steam",
+    "Remove the {{name}} shortcut CheevoDeck added to Steam?": "Retirer le raccourci {{name}} que CheevoDeck a ajouté à Steam ?",
+    "Couldn't add it to Steam.": "Impossible de l'ajouter à Steam.",
+    "Games without their own shortcut or a remembered Play With… pick will play in RetroArch.": "Les jeux sans raccourci à eux ni choix « Jouer avec… » mémorisé se lanceront dans RetroArch.",
+    "{{system}} games without their own shortcut or a remembered Play With… pick will play in {{emulator}} instead of {{current}}.": "Les jeux {{system}} sans raccourci à eux ni choix « Jouer avec… » mémorisé se lanceront dans {{emulator}} au lieu de {{current}}.",
+    "{{system}} games without their own shortcut or a remembered Play With… pick will play in {{emulator}}.": "Les jeux {{system}} sans raccourci à eux ni choix « Jouer avec… » mémorisé se lanceront dans {{emulator}}.",
 };
 
 export default FR;

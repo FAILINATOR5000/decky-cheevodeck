@@ -3,25 +3,31 @@ import { useEffect, useSyncExternalStore } from "react";
 import {
     emulatorsCoresOffer,
     emulatorsForget,
+    emulatorsForgetShortcut,
     emulatorsIdentify,
     emulatorsInstallAppimage,
     emulatorsInstallCores,
     emulatorsInstallFlatpak,
     emulatorsInventory,
     emulatorsPoint,
+    emulatorsRecordShortcut,
+    emulatorsShortcutChanges,
     emulatorsUpdateAppimage,
     emulatorsUpdateCores,
     emulatorsUpdateFlatpak,
     type EmulatorInventory,
     type EmulatorJobStart,
-    type EmulatorKind
+    type EmulatorKind,
+    type EmulatorSteam
 } from "../api";
+import { askAddToSteam } from "../components/emulators/AddToSteamModal";
 import { askEmulatorQuestion } from "../components/emulators/EmulatorQuestionModal";
 import { askInstallCores } from "../components/emulators/InstallCoresModal";
 import { openPathPicker, type PickedPath } from "../components/pickers/FilePickerModal";
 import { t, type LanguageCode } from "../locales";
 import { showToastAfter } from "../utils/delayedToast";
 import { noteEmulatorJobStarted, useEmulatorJobs } from "../utils/emulatorJobs";
+import { addEmulatorShortcut, removeEmulatorShortcut, steamCollections, type EmulatorInstall } from "../utils/emulatorShortcuts";
 import { logError } from "../utils/errors";
 
 type EmulatorsLoad = {
@@ -247,6 +253,81 @@ async function startEmulatorJob(language: LanguageCode, name: string, start: (fo
     }
 }
 
+async function changeLines(language: LanguageCode, kind: EmulatorKind, name: string): Promise<string[]> {
+    let changes: { system: string; current: string }[] = [];
+    try {
+        const result = await emulatorsShortcutChanges(kind);
+        if (result?.ok && Array.isArray(result.changes)) {
+            changes = result.changes;
+        }
+    }
+    catch (e) {
+        logError("emulators: reading what a shortcut changes", e);
+    }
+    if (kind === "retroarch") {
+        return changes.length > 0
+            ? [t(language, "Games without their own shortcut or a remembered Play With… pick will play in RetroArch.")]
+            : [];
+    }
+    return changes.map((change) => change.current
+        ? t(language, "{{system}} games without their own shortcut or a remembered Play With… pick will play in {{emulator}} instead of {{current}}.", {
+            system: change.system,
+            emulator: name,
+            current: change.current
+        })
+        : t(language, "{{system}} games without their own shortcut or a remembered Play With… pick will play in {{emulator}}.", {
+            system: change.system,
+            emulator: name
+        }));
+}
+
+async function addToSteam(language: LanguageCode, kind: EmulatorKind, name: string, install: EmulatorInstall, key: string) {
+    const lines = await changeLines(language, kind, name);
+    const choice = await askAddToSteam(language, {
+        defaultName: t(language, "{{name}} (Emulator)", { name }),
+        lines,
+        collections: steamCollections()
+    });
+    if (choice === null) {
+        return;
+    }
+    try {
+        const appid = await addEmulatorShortcut(choice.name, install, choice.collection);
+        if (appid <= 0) {
+            notice(language, t(language, "Couldn't add it to Steam."));
+            return;
+        }
+        await emulatorsRecordShortcut(key, appid);
+        await loadInventory(false);
+    }
+    catch (e) {
+        logError("emulators: adding a shortcut", e);
+        notice(language, t(language, "Couldn't add it to Steam."));
+    }
+}
+
+async function removeFromSteam(language: LanguageCode, name: string, steam: EmulatorSteam) {
+    const remove = await askEmulatorQuestion({
+        language,
+        title: t(language, "Remove from Steam"),
+        text: t(language, "Remove the {{name}} shortcut CheevoDeck added to Steam?", { name }),
+        confirm: t(language, "Remove"),
+        cancel: t(language, "Cancel"),
+        focusConfirm: false
+    });
+    if (!remove) {
+        return;
+    }
+    try {
+        removeEmulatorShortcut(steam.appid);
+        await emulatorsForgetShortcut(steam.key);
+        await loadInventory(false);
+    }
+    catch (e) {
+        logError("emulators: removing a shortcut", e);
+    }
+}
+
 export function useEmulatorsController(props: { isActive: boolean; language: LanguageCode }) {
     const state = useSyncExternalStore(subscribe, () => loaded);
     const jobs = useEmulatorJobs();
@@ -276,7 +357,10 @@ export function useEmulatorsController(props: { isActive: boolean; language: Lan
                 void startEmulatorJob(language, name, () => emulatorsInstallAppimage(kind, target)),
             updateAppImage: (path: string, name: string, target: string) =>
                 void startEmulatorJob(language, name, (force) => emulatorsUpdateAppimage(path, force, target)),
-            notice: (body: string) => notice(language, body)
+            notice: (body: string) => notice(language, body),
+            addToSteam: (kind: EmulatorKind, name: string, install: EmulatorInstall, key: string) =>
+                void addToSteam(language, kind, name, install, key),
+            removeFromSteam: (name: string, steam: EmulatorSteam) => void removeFromSteam(language, name, steam)
         }
     };
 }

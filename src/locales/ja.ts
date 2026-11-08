@@ -3384,6 +3384,19 @@ const JA: LocaleTable = {
     "{{name}} {{installed}} is newer than the stable {{stable}}, probably a nightly or dev build you installed. CheevoDeck leaves it alone unless you choose to replace it.": "{{name}} {{installed}}は安定版{{stable}}より新しいです。おそらくあなたが入れたナイトリー版か開発版です。置き換えを選ばない限り、CheevoDeckはそのままにします。",
     "Replace with {{version}}": "{{version}}に置き換える",
     "Latest stable": "最新の安定版",
+    "Add to Steam": "Steamに追加",
+    "Collection": "コレクション",
+    "{{name}} (Emulator)": "{{name}}（エミュレーター）",
+    "Add Flatpak to Steam": "FlatpakをSteamに追加",
+    "Add {{file}} to Steam": "{{file}}をSteamに追加",
+    "Remove Flatpak from Steam": "FlatpakをSteamから削除",
+    "Remove {{file}} from Steam": "{{file}}をSteamから削除",
+    "Remove from Steam": "Steamから削除",
+    "Remove the {{name}} shortcut CheevoDeck added to Steam?": "CheevoDeckがSteamに追加した{{name}}のショートカットを削除しますか？",
+    "Couldn't add it to Steam.": "Steamに追加できませんでした。",
+    "Games without their own shortcut or a remembered Play With… pick will play in RetroArch.": "専用のショートカットも「エミュレーターを選んでプレイ…」の記憶もないゲームはRetroArchで遊ぶようになります。",
+    "{{system}} games without their own shortcut or a remembered Play With… pick will play in {{emulator}} instead of {{current}}.": "専用のショートカットも「エミュレーターを選んでプレイ…」の記憶もない{{system}}のゲームは、{{current}}ではなく{{emulator}}で遊ぶようになります。",
+    "{{system}} games without their own shortcut or a remembered Play With… pick will play in {{emulator}}.": "専用のショートカットも「エミュレーターを選んでプレイ…」の記憶もない{{system}}のゲームは{{emulator}}で遊ぶようになります。",
 };
 
 export default JA;

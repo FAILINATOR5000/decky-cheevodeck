@@ -199,6 +199,32 @@ class EmulatorService:
             shutil.rmtree(folder, ignore_errors=True)
         return ""
 
+    def _shortcuts_by_install(self) -> dict:
+        try:
+            shortcuts = steam_shortcuts.emulator_shortcuts(self._user_home)
+        except Exception as e:
+            decky.logger.info("emulators: couldn't read Steam's shortcuts (%s)", type(e).__name__)
+            return {}
+        found = {}
+        for shortcut in shortcuts:
+            kind = session.emulator_kind(shortcut["exe"], shortcut["launchOptions"])
+            if kind not in catalog.BY_KIND:
+                continue
+            via, image = catalog.shortcut_install(kind, shortcut["exe"], shortcut["launchOptions"], self._user_home)
+            if via == "flatpak":
+                found.setdefault(f"{kind}:flatpak", shortcut["appid"])
+            elif via == "appimage":
+                found.setdefault(f"{kind}:{path_key(image)}", shortcut["appid"])
+        return found
+
+    def _steam(self, key: str, shortcuts: dict, record: dict):
+        ours = record["shortcuts"].get(key)
+        if ours is not None:
+            return {"appid": ours, "ours": True, "key": key}
+        if key in shortcuts:
+            return {"appid": shortcuts[key], "ours": False, "key": key}
+        return None
+
     def _launcher_images(self, tools: Path) -> list:
         found = []
         try:
@@ -296,19 +322,23 @@ class EmulatorService:
                                            "missing": True, "latest": "", "update": False,
                                            "newerThanStable": False})
         emulators = []
+        shortcuts = self._shortcuts_by_install()
         for kind in catalog.STANDALONES:
             entry = catalog.BY_KIND[kind]
             for row in rows[kind]:
+                row["steam"] = self._steam(f"{kind}:{row['key']}", shortcuts, record)
                 release = self._release_for(kind, row["path"], network) if not row["missing"] else None
                 if release is not None:
                     row["latest"] = release["version"]
                     row.update(self._appimage_compare(row, release))
+            flatpak = self._flatpak_row(entry, flatpaks)
+            flatpak["steam"] = self._steam(f"{kind}:flatpak", shortcuts, record)
             emulators.append({
                 "kind": kind,
                 "name": entry["name"],
                 "achievements": entry["achievements"],
                 "fileName": entry["fileName"],
-                "flatpak": self._flatpak_row(entry, flatpaks),
+                "flatpak": flatpak,
                 "appimages": rows[kind],
                 "found": bool(rows[kind]) or bool(flatpaks and entry["flatpak"] in flatpaks),
             })
@@ -418,6 +448,7 @@ class EmulatorService:
         entry = catalog.BY_KIND[catalog.RETROARCH]
         ra = session.RetroArch(self._user_home)
         flatpak = self._flatpak_row(entry, flatpaks)
+        flatpak["steam"] = self._steam(f"{catalog.RETROARCH}:flatpak", self._shortcuts_by_install(), record)
         bundle = self._ensure_index(flatpak["version"], network) if ra.found else {}
         infos = self._info_cores(ra) if ra.found else {}
         packed = bundle.get("cores") or {}
@@ -869,9 +900,39 @@ class EmulatorService:
         else:
             raise StepFailed("failed", f"unknown undo {kind}")
 
+    def record_shortcut(self, key: str, appid: int) -> dict:
+        kind = key.split(":", 1)[0]
+        if kind not in catalog.BY_KIND or type(appid) is not int or not 0 < appid <= 0xFFFFFFFF:
+            return {"ok": False}
+        saved = self._store.change(lambda record: record["shortcuts"].__setitem__(key, appid))
+        self._inventory = None
+        return {"ok": saved}
+
+    def forget_shortcut(self, key: str) -> dict:
+        saved = self._store.change(lambda record: record["shortcuts"].pop(key, None))
+        self._inventory = None
+        return {"ok": saved}
+
+    def _forget_gone_shortcuts(self) -> bool:
+        if not any(True for _path in steam_shortcuts.iter_shortcuts_files(self._user_home)):
+            return False
+        gone = [key for key, appid in self._store.get()["shortcuts"].items()
+                if steam_shortcuts.find_shortcut(appid, self._user_home) is None]
+        if not gone:
+            return False
+
+        def edit(record):
+            for key in gone:
+                record["shortcuts"].pop(key, None)
+
+        self._store.change(edit)
+        return True
+
     def repair(self) -> list:
         self._repaired = True
         fixed = []
+        if self._forget_gone_shortcuts():
+            fixed.append("emulators_shortcuts")
         journal = load_json_file(self._journal_path(), None)
         if isinstance(journal, dict) and isinstance(journal.get("done"), list):
             left = self._rollback(journal)

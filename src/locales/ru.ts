@@ -3626,6 +3626,19 @@ const RU: LocaleTable = {
     "{{name}} {{installed}} is newer than the stable {{stable}}, probably a nightly or dev build you installed. CheevoDeck leaves it alone unless you choose to replace it.": "{{name}} {{installed}} новее стабильной версии {{stable}}, скорее всего это ночная или dev-сборка, которую ты установил. CheevoDeck не трогает его, пока ты сам не решишь заменить.",
     "Replace with {{version}}": "Заменить на {{version}}",
     "Latest stable": "Последняя стабильная",
+    "Add to Steam": "Добавить в Steam",
+    "Collection": "Коллекция",
+    "{{name}} (Emulator)": "{{name}} (эмулятор)",
+    "Add Flatpak to Steam": "Добавить Flatpak в Steam",
+    "Add {{file}} to Steam": "Добавить {{file}} в Steam",
+    "Remove Flatpak from Steam": "Убрать Flatpak из Steam",
+    "Remove {{file}} from Steam": "Убрать {{file}} из Steam",
+    "Remove from Steam": "Убрать из Steam",
+    "Remove the {{name}} shortcut CheevoDeck added to Steam?": "Убрать ярлык {{name}}, который CheevoDeck добавил в Steam?",
+    "Couldn't add it to Steam.": "Не удалось добавить в Steam.",
+    "Games without their own shortcut or a remembered Play With… pick will play in RetroArch.": "Игры без своего ярлыка и без запомненного выбора «Играть через…» будут запускаться в RetroArch.",
+    "{{system}} games without their own shortcut or a remembered Play With… pick will play in {{emulator}} instead of {{current}}.": "Игры для {{system}} без своего ярлыка и без запомненного выбора «Играть через…» будут запускаться в {{emulator}} вместо {{current}}.",
+    "{{system}} games without their own shortcut or a remembered Play With… pick will play in {{emulator}}.": "Игры для {{system}} без своего ярлыка и без запомненного выбора «Играть через…» будут запускаться в {{emulator}}.",
 };
 
 export default RU;

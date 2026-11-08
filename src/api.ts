@@ -970,6 +970,7 @@ export const hotspotSetPrivate = callable<[boolean], HotspotStatus>("hotspot_set
 export const saveHotspotIntroOff = callable<[boolean], { ok: boolean; hotspotIntroOff: boolean }>("save_hotspot_intro_off");
 export const saveHotspotDedicated = callable<[boolean], { ok: boolean; hotspotDedicated: boolean }>("save_hotspot_dedicated");
 export type EmulatorKind = "retroarch" | "dolphin" | "pcsx2" | "duckstation" | "ppsspp" | "rmg" | "melonds";
+export type EmulatorSteam = { appid: number; ours: boolean; key: string };
 export type EmulatorFlatpak = {
     id: string;
     installed: boolean;
@@ -979,6 +980,7 @@ export type EmulatorFlatpak = {
     size: number;
     update: boolean;
     newerThanStable: boolean;
+    steam: EmulatorSteam | null;
 };
 export type EmulatorAppImage = {
     path: string;
@@ -992,6 +994,7 @@ export type EmulatorAppImage = {
     latest: string;
     update: boolean;
     newerThanStable: boolean;
+    steam: EmulatorSteam | null;
 };
 export type EmulatorEntry = {
     kind: EmulatorKind;
@@ -1088,6 +1091,11 @@ export const emulatorsUpdateCores = callable<[cores: string[], force: boolean, s
 export const emulatorsInstallFlatpak = callable<[kind: string, target: string], EmulatorJobStart>("emulators_install_flatpak");
 export const emulatorsUpdateFlatpak = callable<[kind: string, force: boolean, target: string], EmulatorJobStart>(
     "emulators_update_flatpak"
+);
+export const emulatorsRecordShortcut = callable<[key: string, appid: number], { ok: boolean }>("emulators_record_shortcut");
+export const emulatorsForgetShortcut = callable<[key: string], { ok: boolean }>("emulators_forget_shortcut");
+export const emulatorsShortcutChanges = callable<[kind: string], { ok: boolean; changes: { system: string; current: string }[] }>(
+    "emulators_shortcut_changes"
 );
 export const emulatorsInstallAppimage = callable<[kind: string, target: string], EmulatorJobStart>("emulators_install_appimage");
 export const emulatorsUpdateAppimage = callable<[path: string, force: boolean, target: string], EmulatorJobStart>(

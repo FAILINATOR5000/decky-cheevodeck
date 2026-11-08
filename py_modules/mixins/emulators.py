@@ -1,6 +1,7 @@
 import asyncio
 
 from mixins._context import PluginContext
+from utils import to_int
 
 
 class EmulatorsMixin(PluginContext):
@@ -43,3 +44,13 @@ class EmulatorsMixin(PluginContext):
     async def emulators_update_appimage(self, path: str = "", force: bool = False, target: str = ""):
         return await asyncio.to_thread(self.emulator_service.update_appimage, str(path or ""), bool(force),
                                        str(target or ""))
+
+    async def emulators_record_shortcut(self, key: str = "", appid: int = 0):
+        return await asyncio.to_thread(self.emulator_service.record_shortcut, str(key or ""),
+                                       to_int(appid, 0))
+
+    async def emulators_forget_shortcut(self, key: str = ""):
+        return await asyncio.to_thread(self.emulator_service.forget_shortcut, str(key or ""))
+
+    async def emulators_shortcut_changes(self, kind: str = ""):
+        return await asyncio.to_thread(self.multiplayer_service.shortcut_changes, str(kind or ""))

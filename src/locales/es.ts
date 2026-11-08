@@ -3582,6 +3582,19 @@ const ES: LocaleTable = {
     "{{name}} {{installed}} is newer than the stable {{stable}}, probably a nightly or dev build you installed. CheevoDeck leaves it alone unless you choose to replace it.": "{{name}} {{installed}} es más nuevo que la versión estable {{stable}}, probablemente una versión nightly o de desarrollo que instalaste. CheevoDeck no lo toca a menos que decidas reemplazarlo.",
     "Replace with {{version}}": "Reemplazar por {{version}}",
     "Latest stable": "Última estable",
+    "Add to Steam": "Añadir a Steam",
+    "Collection": "Colección",
+    "{{name}} (Emulator)": "{{name}} (Emulador)",
+    "Add Flatpak to Steam": "Añadir el Flatpak a Steam",
+    "Add {{file}} to Steam": "Añadir {{file}} a Steam",
+    "Remove Flatpak from Steam": "Quitar el Flatpak de Steam",
+    "Remove {{file}} from Steam": "Quitar {{file}} de Steam",
+    "Remove from Steam": "Quitar de Steam",
+    "Remove the {{name}} shortcut CheevoDeck added to Steam?": "¿Quitar el acceso directo de {{name}} que CheevoDeck añadió a Steam?",
+    "Couldn't add it to Steam.": "No se pudo añadir a Steam.",
+    "Games without their own shortcut or a remembered Play With… pick will play in RetroArch.": "Los juegos sin acceso directo propio ni una elección recordada en Jugar con… se jugarán en RetroArch.",
+    "{{system}} games without their own shortcut or a remembered Play With… pick will play in {{emulator}} instead of {{current}}.": "Los juegos de {{system}} sin acceso directo propio ni una elección recordada en Jugar con… se jugarán en {{emulator}} en lugar de {{current}}.",
+    "{{system}} games without their own shortcut or a remembered Play With… pick will play in {{emulator}}.": "Los juegos de {{system}} sin acceso directo propio ni una elección recordada en Jugar con… se jugarán en {{emulator}}.",
 };
 
 export default ES;

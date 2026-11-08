@@ -25,6 +25,7 @@ import multiplayer_session as session
 import rom_headers
 import steam_shortcuts
 import subprocess_util
+from cheevo_check_systems import by_console_id
 from play_picks_store import PlayPicksStore, clean_pick
 from multiplayer_protocol import decode, frame, read_frame
 from nearby_protocol import FrameError, clean_title, is_nonce, verify
@@ -1526,6 +1527,24 @@ class MultiplayerService:
         if core in compatible:
             return core
         return compatible[0] if compatible else ""
+
+    def shortcut_changes(self, kind: str) -> dict:
+        if not bool(self._settings_store.load_config().get("playShortcutFallback", True)):
+            return {"ok": True, "changes": []}
+        library = self._library() or {}
+        have = {session.emulator_kind(row["exe"], row["launchOptions"]) for row in self._emulator_shortcuts()}
+        changes = []
+        for system_id in sorted({game["systemId"] for game in library.values()}):
+            kinds = self._play_kinds(system_id)
+            if kind not in kinds:
+                continue
+            current = next((found for found in kinds if found in have), "")
+            after = next(found for found in kinds if found in have or found == kind)
+            if after != current:
+                system = by_console_id(system_id)
+                changes.append({"system": system.name if system is not None else str(system_id),
+                                "current": STREAM_EMULATOR_NAMES.get(current, "")})
+        return {"ok": True, "changes": changes}
 
     def play_info(self, game_id: int, choice=None) -> dict:
         route, gate, detail = self._play_route(game_id, choice=choice)

@@ -323,3 +323,36 @@ def flatpak_size(text: str) -> int:
         return 0
     scale = {"B": 1, "kB": 1000, "KB": 1000, "MB": 1000 ** 2, "GB": 1000 ** 3}.get(found.group(2), 1)
     return int(float(found.group(1)) * scale)
+
+
+def script_runs_flatpak(path, kind: str, flatpak_id: str) -> bool:
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as handle:
+            text = handle.read(SCRIPT_MAX)
+    except OSError:
+        return False
+    sections = dict(_SECTION.findall(text))
+    body = sections.get(kind, "") if sections else text
+    return re.search(rf"flatpak\s+run\s+(?:--\S+\s+)*{re.escape(flatpak_id)}\b", body, re.I) is not None
+
+
+def shortcut_install(kind: str, exe: str, launch_options: str, home):
+    flatpak_id = BY_KIND[kind]["flatpak"]
+    tokens = []
+    for field in (exe, launch_options):
+        if field:
+            try:
+                tokens.extend(shlex.split(field, posix=True))
+            except ValueError:
+                tokens.extend(field.split())
+    if any(token.lower() == flatpak_id.lower() for token in tokens):
+        return "flatpak", ""
+    for found_kind, image in command_images(exe, launch_options, home):
+        if found_kind == kind:
+            return "appimage", image
+    for token in tokens[:2]:
+        if token.endswith(".sh"):
+            script = _absolute(token, {"HOME": str(home)}, Path(home))
+            if script is not None and script_runs_flatpak(script, kind, flatpak_id):
+                return "flatpak", ""
+    return "", ""

@@ -1,7 +1,16 @@
 import { Focusable, PanelSectionRow } from "@decky/ui";
 import { useMemo, useRef, useState } from "react";
 
-import type { EmulatorAppImage, EmulatorEntry, EmulatorInventory, EmulatorJobState, RetroArchCore, RetroArchSystem } from "../api";
+import type {
+    EmulatorAppImage,
+    EmulatorEntry,
+    EmulatorInventory,
+    EmulatorJobState,
+    EmulatorKind,
+    EmulatorSteam,
+    RetroArchCore,
+    RetroArchSystem
+} from "../api";
 import { openEmulatorDetails } from "../components/emulators/EmulatorDetailsModal";
 import { useEmulators } from "../components/emulators/EmulatorsContext";
 import { skipWhileHidden } from "../components/panel/skipWhileHidden";
@@ -20,6 +29,7 @@ import { pendingLandingKey, subLandingAhead, usePageLanding } from "../focusReco
 import { useSlidingWindow } from "../hooks/useSlidingWindow";
 import { t, type LanguageCode } from "../locales";
 import type { ButtonSpacing, ControllerGlyphStyle, ViewKey } from "../types";
+import type { EmulatorInstall } from "../utils/emulatorShortcuts";
 import { BUTTON_BUMPER_RIGHT, BUTTON_OPTIONS, BUTTON_SECONDARY } from "../utils/gamepadButtons";
 import { textSize } from "../utils/scale";
 import { achievementGreen, bodyTextStyle, regularButtonSpacingStyle, warnAmber } from "../utils/style";
@@ -56,7 +66,19 @@ type Row =
     | { type: "emulator"; emulator: EmulatorEntry; collapsed: boolean }
     | { type: "flatpak"; emulator: EmulatorEntry }
     | { type: "appimage"; emulator: EmulatorEntry; image: EmulatorAppImage }
-    | { type: "offer"; emulator: EmulatorEntry };
+    | { type: "offer"; emulator: EmulatorEntry }
+    | {
+        type: "steam";
+        focusKey: string;
+        anchor: string;
+        title: string;
+        kind: EmulatorKind;
+        name: string;
+        install: EmulatorInstall;
+        steam: EmulatorSteam | null;
+        storeKey: string;
+        file: string;
+    };
 
 const folded = new Map<string, boolean>();
 
@@ -88,6 +110,8 @@ function rowKey(row: Row): string {
             return `${emulatorKey(row.emulator)}:appimage:${row.image.key}`;
         case "offer":
             return `${emulatorKey(row.emulator)}:appimage:new`;
+        case "steam":
+            return row.focusKey;
     }
 }
 
@@ -95,11 +119,26 @@ function isFolded(key: string, byDefault: boolean): boolean {
     return folded.get(key) ?? byDefault;
 }
 
+function steamRow(owner: string, anchor: string, title: string, kind: EmulatorKind, name: string, install: EmulatorInstall,
+    steam: EmulatorSteam | null, storeKey: string, file: string): Row[] {
+    if (steam !== null && !steam.ours) {
+        return [];
+    }
+    const which = install.via === "flatpak" ? "flatpak" : storeKey.split(":")[1];
+    const focusKey = `${owner}:${steam === null ? "addsteam" : "removesteam"}${owner === RA_KEY ? "" : `:${which}`}`;
+    return [{ type: "steam", focusKey, anchor, title, kind, name, install, steam, storeKey, file }];
+}
+
 function buildRows(inventory: EmulatorInventory | null): Row[] {
     if (inventory === null) {
         return [];
     }
     const rows: Row[] = [{ type: "ra" }];
+    const ra = inventory.retroarch;
+    if (ra.flatpak.installed) {
+        rows.push(...steamRow(RA_KEY, RA_KEY, RA_KEY, "retroarch", ra.name,
+            { via: "flatpak", id: ra.flatpak.id, scope: ra.flatpak.scope }, ra.flatpak.steam, "retroarch:flatpak", ""));
+    }
     for (const system of inventory.retroarch.systems) {
         const collapsed = isFolded(systemKey(system), !system.hasGames);
         rows.push({ type: "system", system, collapsed });
@@ -113,9 +152,19 @@ function buildRows(inventory: EmulatorInventory | null): Row[] {
         const collapsed = isFolded(emulatorKey(emulator), false);
         rows.push({ type: "emulator", emulator, collapsed });
         if (!collapsed) {
+            const title = emulatorKey(emulator);
             rows.push({ type: "flatpak", emulator });
+            if (emulator.flatpak.installed) {
+                rows.push(...steamRow(title, `${title}:flatpak`, title, emulator.kind, emulator.name,
+                    { via: "flatpak", id: emulator.flatpak.id, scope: emulator.flatpak.scope }, emulator.flatpak.steam,
+                    `${emulator.kind}:flatpak`, ""));
+            }
             for (const image of emulator.appimages) {
                 rows.push({ type: "appimage", emulator, image });
+                if (!image.missing) {
+                    rows.push(...steamRow(title, `${title}:appimage:${image.key}`, title, emulator.kind, emulator.name,
+                        { via: "appimage", path: image.path }, image.steam, `${emulator.kind}:${image.key}`, image.fileName));
+                }
             }
             if (!emulator.appimages.some((image) => !image.missing)) {
                 rows.push({ type: "offer", emulator });
@@ -287,6 +336,12 @@ function EmulatorsPage(props: EmulatorsPageProps) {
         else if (row.type === "offer") {
             openEmulatorDetails(language, { type: "offer", emulator: row.emulator, appsDir: inventory.appsDir });
         }
+        else if (row.type === "steam" && row.steam === null) {
+            emulators.actions.addToSteam(row.kind, row.name, row.install, row.storeKey);
+        }
+        else if (row.type === "steam" && row.steam !== null) {
+            emulators.actions.removeFromSteam(row.name, row.steam);
+        }
     }
 
     function handleButton(evt: { detail?: { button?: number } }) {
@@ -394,6 +449,9 @@ function EmulatorsPage(props: EmulatorsPageProps) {
         if (row.type === "flatpak" || row.type === "appimage" || row.type === "offer") {
             return [emulatorKey(row.emulator), REFRESH_KEY];
         }
+        if (row.type === "steam") {
+            return row.anchor === row.title ? [row.title, REFRESH_KEY] : [row.anchor, row.title, REFRESH_KEY];
+        }
         return [REFRESH_KEY];
     }
 
@@ -460,6 +518,14 @@ function EmulatorsPage(props: EmulatorsPageProps) {
         }
         else if (row.type === "offer") {
             left = t(language, "AppImage · Not installed");
+        }
+        else if (row.type === "steam") {
+            if (row.steam === null) {
+                left = row.file ? t(language, "Add {{file}} to Steam", { file: row.file }) : t(language, "Add Flatpak to Steam");
+            }
+            else {
+                left = row.file ? t(language, "Remove {{file}} from Steam", { file: row.file }) : t(language, "Remove Flatpak from Steam");
+            }
         }
         else {
             left = appImageLabel(language, row.image);
