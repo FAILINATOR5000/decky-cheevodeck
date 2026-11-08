@@ -31,6 +31,7 @@ const DISCOVER_EVERY = 2;
 const RENEW_EVERY = 5;
 const PASSWORD_MAX = 32;
 const ADDRESS_MAX = 15;
+const LINE_INSET = "12px";
 
 function rowKey(row: MultiplayerRoomRow): string {
     return `multiplayer:rooms:${row.room}`;
@@ -369,7 +370,7 @@ function RoomsModal(props: RoomsModalProps) {
                     bottomSeparator="none"
                 />
                 {visibleError === "cap_reached" ? (
-                    <Focusable flow-children="row" style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "8px" }}>
+                    <Focusable flow-children="row" style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "8px", paddingLeft: LINE_INSET }}>
                         <div style={{ ...modalBodyStyle(), color: warnAmber, opacity: 1, flex: 1, minWidth: 0 }}>
                             {t(language, "Stopped looking for rooms after 10 minutes.")}
                         </div>
@@ -380,29 +381,31 @@ function RoomsModal(props: RoomsModalProps) {
                         </div>
                     </Focusable>
                 ) : visibleError && (
-                    <div style={{ ...modalBodyStyle(), color: warnAmber, opacity: 1, marginTop: "8px" }}>
+                    <div style={{ ...modalBodyStyle(), color: warnAmber, opacity: 1, marginTop: "8px", paddingLeft: LINE_INSET }}>
                         {describe(visibleError)}
                     </div>
                 )}
                 {onlineError && (
-                    <div style={{ ...modalBodyStyle(), color: warnAmber, opacity: 1, marginTop: "8px" }}>
+                    <div style={{ ...modalBodyStyle(), color: warnAmber, opacity: 1, marginTop: "8px", paddingLeft: LINE_INSET }}>
                         {t(language, "Couldn't reach the online lobby. Local rooms still show.")}
                     </div>
                 )}
                 <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: "8px" }}>
                     {rooms === null && !visibleError && (
-                        <InlineSpinner label={t(language, "Looking for rooms...")} />
+                        <div style={{ paddingLeft: LINE_INSET }}>
+                            <InlineSpinner label={t(language, "Looking for rooms...")} />
+                        </div>
                     )}
                     {rooms !== null && listed.length === 0 && (
-                        <div style={modalBodyStyle()}>
+                        <div style={{ ...modalBodyStyle(), paddingLeft: LINE_INSET }}>
                             {t(language, "No rooms yet. Local rooms need the same Wi-Fi; online rooms need the lobby server.")}
                         </div>
                     )}
                     {listed.length > 0 && filtered.length === 0 && (
-                        <div style={modalBodyStyle()}>{t(language, "No rooms match the filter.")}</div>
+                        <div style={{ ...modalBodyStyle(), paddingLeft: LINE_INSET }}>{t(language, "No rooms match the filter.")}</div>
                     )}
                     {filtered.length > 0 && searched.length === 0 && (
-                        <div style={modalBodyStyle()}>{t(language, "Nothing here matches what you typed.")}</div>
+                        <div style={{ ...modalBodyStyle(), paddingLeft: LINE_INSET }}>{t(language, "Nothing here matches what you typed.")}</div>
                     )}
                     {searched.length > 0 && (
                         <SlidingWindowRows list={roomWindow}>
