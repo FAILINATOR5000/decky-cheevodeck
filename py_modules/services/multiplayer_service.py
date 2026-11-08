@@ -1849,21 +1849,14 @@ class MultiplayerService:
                 self._link = link
             meet = await asyncio.to_thread(stream_room.resolve_meet, server) if online else None
             digest = hashlib.sha256(self._link.secret.encode("ascii")).digest() if online else b""
+            room.update(meet=meet, digest=digest)
             self._room = room
             if mode == "stream":
-                sink = self._voice_canceller.game_sink() if voice and self._voice_canceller is not None else ""
-                failed = await asyncio.to_thread(self._stream_host.start, room["name"], sink) \
-                    if self._stream_host is not None else "stream_not_set_up"
+                failed = await self._open_streams(room, server)
                 if failed:
                     self._close_room("")
                     return {"ok": False, "error": ERROR_GATE, "gate": failed, "detail": {}}
-                room["streams"] = stream_room.HostStreams(
-                    sunshine=self._stream_host, room_id=room_id, online=online, meet=meet, digest=digest,
-                    slow=self._slow_connection, debug=self._debug,
-                )
                 room["streams"].host_size = stream_room.parse_screen(screen)
-                if online:
-                    self._spawn(room["streams"].measure(server))
             if online:
                 room["pipes"] = game_pipes.HostPipes(
                     room_id=room_id, meet=meet, digest=digest, tcp_ports=PIPE_TCP_PORTS, udp_ports=PIPE_UDP_PORTS,
@@ -1987,11 +1980,43 @@ class MultiplayerService:
             described = await asyncio.to_thread(self._describe, mode, local)
             if self._room is not room or room["state"] != "lobby":
                 return {"ok": False, "error": ERROR_SEATED}
+            if mode == "stream" and room.get("streams") is None:
+                failed = await self._open_streams(room, self._lobby_server() if room["where"] == "online" else None)
+                if self._room is not room:
+                    return {"ok": False, "error": ERROR_NO_ROOM}
+                if failed:
+                    decky.logger.info("multiplayer: the host's change to %s, stream was refused (%s)", game_id, failed)
+                    room["notice"] = {"code": failed, "detail": {}}
+                    self._announce()
+                    return {"ok": False, "error": ERROR_GATE, "gate": failed, "detail": {}}
+            elif mode != "stream" and room.get("streams") is not None:
+                room["streams"].close()
+                room["streams"] = None
+                if self._stream_host is not None:
+                    await asyncio.to_thread(self._stream_host.stop)
             room.update(described, mode=mode, local=local)
             decky.logger.info("multiplayer: the host changed to %s, %s on %s", local["gameId"], mode, local["core"])
             self._changed(room)
             return {"ok": True, "room": self._host_view(room)}
+
+    async def _open_streams(self, room: dict, server) -> str:
+        if self._stream_host is None:
+            return "stream_not_set_up"
         sink = self._voice_canceller.game_sink() if room["voice"] and self._voice_canceller is not None else ""
+        failed = await asyncio.to_thread(self._stream_host.start, room["name"], sink)
+        if failed:
+            return failed
+        online = room["where"] == "online"
+        room["streams"] = stream_room.HostStreams(
+            sunshine=self._stream_host, room_id=room["id"], online=online, meet=room["meet"], digest=room["digest"],
+            slow=self._slow_connection, debug=self._debug,
+        )
+        for index, seat in enumerate(room["seats"]):
+            if index > 0 and seat is not None:
+                room["streams"].seat_taken(index, seat["peer"] if seat["door"] == "lan" else "", seat["door"] == "server")
+        if online and server is not None:
+            self._spawn(room["streams"].measure(server))
+        return ""
 
     def close_room(self) -> dict:
         if self._room is None:
@@ -3570,6 +3595,17 @@ class MultiplayerService:
         rev = status["rev"]
         if (row["mode"], row["gameId"]) != (joined["row"]["mode"], joined["row"]["gameId"]):
             joined.update(own=0, core="")
+        stream = joined.get("stream")
+        if row["mode"] == "stream" and stream is None and self._stream_setup is not None:
+            joined["stream"] = stream_room.GuestStream(
+                user_home=self._user_home, config=self._stream_setup.moonlight_config(), room_id=row["room"],
+                seat=joined["seat"], online=row["door"] == "server", meet=joined["meet"], host_ip=row["address"],
+                debug=self._debug,
+            )
+            decky.logger.info("stream: the room switched to Stream, getting ready to pair")
+        elif row["mode"] != "stream" and stream is not None:
+            stream.close()
+            joined["stream"] = None
         joined["row"] = row
         joined["rowRev"] = rev
         own = joined["own"]
