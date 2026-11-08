@@ -113,6 +113,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     }
     const session = useSyncExternalStore(subscribeMultiplayerSession, multiplayerSessionSnapshot);
     const checkTokenRef = useRef(0);
+    const changingModeRef = useRef(false);
     const modesTokenRef = useRef(0);
     const [modes, setModes] = useState<{ key: string; answer: MultiplayerModes } | null>(null);
     const statusTokenRef = useRef(0);
@@ -447,9 +448,10 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             return;
         }
         if (hosted) {
-            if (next === hosted.mode) {
+            if (next === hosted.mode || changingModeRef.current) {
                 return;
             }
+            changingModeRef.current = true;
             void run("Couldn't Change the Game", async () => {
                 const changed = await multiplayerChangeGame(next, hosted.gameId, "");
                 if (changed.ok) {
@@ -457,6 +459,8 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
                     setTabState(next);
                 }
                 return changed;
+            }).finally(() => {
+                changingModeRef.current = false;
             });
             return;
         }

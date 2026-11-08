@@ -116,6 +116,7 @@ PAIR_WAIT_SECONDS = 30
 MOONLIGHT_AUDIO_SECONDS = 30
 SUNSHINE_RETRY_SECONDS = 2
 SETTLE_SECONDS = 5
+SUNSHINE_PARK_SECONDS = 120
 APP_ENDED_GRACE_SECONDS = 10
 FLATPAK_SECONDS = 10
 
@@ -262,6 +263,8 @@ class MultiplayerService:
         self._user_home = Path(user_home)
         self._session_dir = Path(runtime_dir) / SESSION_DIR
         self._picks = PlayPicksStore(base_dir=Path(runtime_dir))
+        self._sunshine_parked = False
+        self._park_task = None
         self._session_picks = {}
         self._volume_lock = threading.Lock()
         self._cheevo_check = cheevo_check_service
@@ -2274,7 +2277,8 @@ class MultiplayerService:
                 room["streams"] = None
                 self._release_game_sink()
                 if self._stream_host is not None:
-                    await asyncio.to_thread(self._stream_host.stop)
+                    await asyncio.to_thread(self._stream_host.unpair_quietly)
+                    self._park_sunshine()
             if local["gameId"] != room["gameId"]:
                 room["adapter"] = "auto"
             room.update(described, mode=mode, local=local)
@@ -2332,9 +2336,13 @@ class MultiplayerService:
         if self._stream_host is None:
             return "stream_not_set_up"
         sink = await self._hold_game_sink(room)
-        failed = await asyncio.to_thread(self._stream_host.start, room["name"], sink)
-        if failed:
-            return failed
+        parked = self._unpark()
+        if parked and await asyncio.to_thread(self._stream_host.running_as, room["name"], sink):
+            decky.logger.info("stream: Sunshine was still up, the room goes back to it")
+        else:
+            failed = await asyncio.to_thread(self._stream_host.start, room["name"], sink)
+            if failed:
+                return failed
         online = room["where"] == "online"
         room["streams"] = stream_room.HostStreams(
             sunshine=self._stream_host, room_id=room["id"], online=online, meet=room["meet"], digest=room["digest"],
@@ -2346,6 +2354,35 @@ class MultiplayerService:
         if online and server is not None:
             self._spawn(room["streams"].measure(server))
         return ""
+
+    def _park_sunshine(self) -> None:
+        self._sunshine_parked = True
+        if self._park_task is not None:
+            self._park_task.cancel()
+        self._park_task = self._spawn(self._stop_parked_later())
+
+    def _unpark(self) -> bool:
+        parked, self._sunshine_parked = self._sunshine_parked, False
+        if self._park_task is not None:
+            self._park_task.cancel()
+            self._park_task = None
+        return parked
+
+    async def _stop_parked_later(self) -> None:
+        await asyncio.sleep(SUNSHINE_PARK_SECONDS)
+        async with self._lock:
+            room = self._room
+            if not self._sunshine_parked or (room is not None and room["mode"] == "stream"):
+                return
+            self._sunshine_parked = False
+            self._park_task = None
+            decky.logger.info("stream: the room left Stream Play %ss ago, stopping Sunshine", SUNSHINE_PARK_SECONDS)
+            await asyncio.to_thread(self._stream_host.stop)
+
+    async def _stop_parked(self) -> None:
+        if self._unpark() and self._stream_host is not None:
+            decky.logger.info("stream: stopping the idle Sunshine before the round")
+            await asyncio.to_thread(self._stream_host.stop)
 
     def close_room(self) -> dict:
         if self._room is None:
@@ -2390,7 +2427,8 @@ class MultiplayerService:
             self._release_game_sink()
         if room.get("pipes") is not None:
             room["pipes"].close()
-        if room["mode"] == "stream" and self._stream_host is not None:
+        parked = self._unpark()
+        if (room["mode"] == "stream" or parked) and self._stream_host is not None:
             self._stop_sunshine()
         if self._housekeeper is not None:
             self._housekeeper.cancel()
@@ -2437,7 +2475,7 @@ class MultiplayerService:
 
     def hosting_stream(self) -> bool:
         room = self._room
-        return room is not None and room["mode"] == "stream"
+        return (room is not None and room["mode"] == "stream") or self._sunshine_parked
 
     def stream_round_running(self) -> bool:
         room, joined = self._room, self._joined
@@ -2450,6 +2488,7 @@ class MultiplayerService:
 
     def release_sunshine(self) -> None:
         if self.hosting_stream() and self._stream_host is not None:
+            self._sunshine_parked = False
             self._stream_host.stop()
 
     def streaming_removed(self) -> None:
@@ -3513,6 +3552,8 @@ class MultiplayerService:
             failed = await self._sunshine_restart(room)
             if failed:
                 return {"ok": False, "error": failed}
+        if room is not None and room["mode"] != "stream" and room["state"] == "lobby":
+            await self._stop_parked()
         return self.start()
 
     def start(self) -> dict:

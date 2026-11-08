@@ -377,6 +377,19 @@ class StreamHost:
             if isinstance(client, dict) and client.get("name") == name and isinstance(client.get("uuid"), str):
                 self._call("POST", "/api/clients/unpair", {"uuid": client["uuid"]})
 
+    def running_as(self, name: str, sink: str) -> bool:
+        with self._lock:
+            return bool(self._started_at) and (self._name, self._sink) == (name, sink) and self.unit_active()
+
+    def unpair_quietly(self) -> None:
+        with self._lock:
+            if not self.unit_active():
+                return
+            try:
+                self.unpair_all()
+            except Exception as e:
+                self._debug("stream: unpair while parking failed (%s)", type(e).__name__)
+
     def unpair_all(self) -> None:
         self._call("POST", "/api/clients/unpair-all", {})
 
