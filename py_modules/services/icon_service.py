@@ -936,31 +936,64 @@ class IconService:
         missing = []
         for pic in wanted:
             key = "pic_" + pic[len("/UserPic/"):-len(".png")].lower()
-            cached = self._get_cached_user_avatar(self._cache_store.load_user_avatar(key))
+            entry = self._cache_store.load_user_avatar(key)
+            cached = self._get_cached_user_avatar(entry)
             if cached:
                 avatars[pic] = cached
             else:
-                missing.append((pic, key))
-        if not missing or not fetch:
-            return {"avatars": avatars}
-        workers = min(self._user_avatar_max_workers, len(missing))
-        with ThreadPoolExecutor(max_workers=workers) as executor:
-            futures = {executor.submit(self._fetch_image_data_uri, self._avatar_url_from_pic_path(pic)): (pic, key)
-                       for pic, key in missing}
-            for future in as_completed(futures):
-                pic, key = futures[future]
-                data_uri = future.result()
-                if not data_uri:
-                    continue
-                avatars[pic] = data_uri
-                with self._cache_store.user_avatar_lock(key):
-                    self._cache_store.save_user_avatar(key, {
-                        "dataUri": data_uri,
-                        "cachedAt": int(time.time()),
-                        "sourceUrl": self._avatar_url_from_pic_path(pic),
-                        "source": "pic",
-                    })
+                missing.append((pic, key, entry))
+        known = self._roster_pictures() if missing else {}
+        unfound = []
+        for pic, key, entry in missing:
+            friend = known.get(self._avatar_url_from_pic_path(pic))
+            cached = self._get_cached_user_avatar(friend)
+            if cached:
+                avatars[pic] = cached
+            else:
+                unfound.append((pic, key, entry, friend))
+        if unfound and fetch:
+            workers = min(self._user_avatar_max_workers, len(unfound))
+            with ThreadPoolExecutor(max_workers=workers) as executor:
+                futures = {executor.submit(self._fetch_image_data_uri, self._avatar_url_from_pic_path(pic)): (pic, key)
+                           for pic, key, _entry, _friend in unfound}
+                for future in as_completed(futures):
+                    pic, key = futures[future]
+                    data_uri = future.result()
+                    if not data_uri:
+                        continue
+                    avatars[pic] = data_uri
+                    with self._cache_store.user_avatar_lock(key):
+                        self._cache_store.save_user_avatar(key, {
+                            "dataUri": data_uri,
+                            "cachedAt": int(time.time()),
+                            "sourceUrl": self._avatar_url_from_pic_path(pic),
+                            "source": "pic",
+                        })
+        for pic, _key, entry, friend in unfound:
+            if pic not in avatars:
+                stale = self._any_data_uri(entry) or self._any_data_uri(friend)
+                if stale:
+                    avatars[pic] = stale
         return {"avatars": avatars}
+
+    def _roster_pictures(self) -> dict:
+        payload = self._cache_store.load_friends().get("payload")
+        friends = payload.get("friends") if isinstance(payload, dict) else None
+        found = {}
+        for friend in friends if isinstance(friends, list) else []:
+            key = self._normalise_avatar_key(friend.get("username")) if isinstance(friend, dict) else None
+            if not key:
+                continue
+            entry = self._cache_store.load_user_avatar(key)
+            url = str(entry.get("sourceUrl") or "").strip()
+            if url and self._any_data_uri(entry):
+                found[url] = entry
+        return found
+
+    def _any_data_uri(self, entry):
+        if not isinstance(entry, dict):
+            return None
+        return str(entry.get("dataUri") or "").strip() or None
 
     def put_profile_avatar(self, username, data_uri, source_url) -> None:
         """Write a healed, profile-sourced avatar into the reservoir.
