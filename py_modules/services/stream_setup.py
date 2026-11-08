@@ -4,6 +4,7 @@ import os
 import re
 import secrets
 import shutil
+import signal
 import stat
 import subprocess
 import tempfile
@@ -42,6 +43,7 @@ DOWNLOAD_SECONDS = 600
 EXTRACT_SECONDS = 300
 FLATPAK_INSTALL_SECONDS = 900
 FLATPAK_SECONDS = 30
+END_MOONLIGHT_SECONDS = 5
 INSTALLED_CACHE_SECONDS = 5
 SALT_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 FLATHUB_REPO = "https://dl.flathub.org/repo/flathub.flatpakrepo"
@@ -66,6 +68,36 @@ _INSTALLED = re.compile(r"Installed Size:\s*([\d.]+)\s*([kKMG]?B)")
 PROGRESS_SECONDS = 0.5
 WATCH_SECONDS = 1.0
 _VERSION = re.compile(r"v?(\d+(?:\.\d+)+)")
+
+
+def end_moonlight(config) -> bool:
+    marker = f"XDG_CONFIG_HOME={config}".encode("utf-8")
+    pids = []
+    for entry in os.listdir("/proc"):
+        if not entry.isdigit():
+            continue
+        try:
+            with open(f"/proc/{entry}/comm", encoding="utf-8") as handle:
+                if handle.read().strip() != "moonlight":
+                    continue
+            with open(f"/proc/{entry}/environ", "rb") as handle:
+                if marker not in handle.read().split(b"\0"):
+                    continue
+        except OSError:
+            continue
+        pids.append(int(entry))
+    for wanted in (signal.SIGTERM, signal.SIGKILL):
+        for pid in pids:
+            try:
+                os.kill(pid, wanted)
+            except OSError:
+                pass
+        deadline = time.monotonic() + END_MOONLIGHT_SECONDS
+        while time.monotonic() < deadline and any(os.path.exists(f"/proc/{pid}") for pid in pids):
+            time.sleep(0.2)
+        if not any(os.path.exists(f"/proc/{pid}") for pid in pids):
+            break
+    return bool(pids)
 
 
 class SetupFailed(Exception):
@@ -499,22 +531,7 @@ class StreamSetup:
             self._release_claim()
 
     def end_stray_moonlight(self) -> bool:
-        marker = f"XDG_CONFIG_HOME={self.moonlight_config()}".encode("utf-8")
-        for entry in os.listdir("/proc"):
-            if not entry.isdigit():
-                continue
-            try:
-                with open(f"/proc/{entry}/comm", encoding="utf-8") as handle:
-                    if handle.read().strip() != "moonlight":
-                        continue
-                with open(f"/proc/{entry}/environ", "rb") as handle:
-                    if marker not in handle.read().split(b"\0"):
-                        continue
-            except OSError:
-                continue
-            self._flatpak(["kill", MOONLIGHT_APP])
-            return True
-        return False
+        return end_moonlight(self.moonlight_config())
 
     def repair(self, shortcut_exists=None) -> list:
         fixed = []

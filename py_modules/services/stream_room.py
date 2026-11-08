@@ -17,7 +17,7 @@ import multiplayer_protocol as proto
 import subprocess_util
 from services import lobby_client
 from services.stream_pipe import StreamPipe
-from services.stream_setup import MOONLIGHT_APP
+from services.stream_setup import MOONLIGHT_APP, end_moonlight
 from utils import child_owner
 
 
@@ -581,11 +581,7 @@ class GuestStream:
                           listed.splitlines()[-1][:200] if listed else "nothing")
 
     def kill_moonlight(self) -> None:
-        try:
-            subprocess_util.run_command(["flatpak", "kill", MOONLIGHT_APP], timeout=KILL_SECONDS, env=self._env(),
-                                        as_data_owner=True)
-        except Exception as e:
-            self._debug("stream: flatpak kill failed (%s)", type(e).__name__)
+        end_moonlight(self._config)
 
     def launch_options(self, width: int, height: int, slow: bool, watch: bool) -> str:
         width, height = stream_size(width, height)
