@@ -979,7 +979,7 @@ export const multiplayerPrepareLaunch = callable<
     [string, boolean, string, string],
     MultiplayerReply & { appid?: number; options?: string; original?: string; session?: string; rename?: string; name?: string }
 >("multiplayer_prepare_launch");
-export const multiplayerLaunchStarted = callable<[], { ok: boolean; error?: string }>("multiplayer_launch_started");
+export const multiplayerLaunchStarted = callable<[], { ok: boolean; error?: string; gameId?: number }>("multiplayer_launch_started");
 export const multiplayerLaunchEnded = callable<[], { ok: boolean }>("multiplayer_launch_ended");
 export const multiplayerPlayInfo = callable<[number, PlayPick | Record<string, never> | null], PlayInfo>("multiplayer_play_info");
 export const multiplayerPlayChoices = callable<[number], PlayChoices>("multiplayer_play_choices");

@@ -72,6 +72,7 @@ let played: MultiplayerRestoreRecord | null = null;
 let playedRunning = false;
 let playStartTimer = 0;
 let running: RunningSnapshot = { appid: 0, playedGameId: 0 };
+let roundGameId = 0;
 const runningListeners = new Set<() => void>();
 
 function publish(next: Partial<MultiplayerSessionSnapshot>) {
@@ -216,6 +217,7 @@ function letGo(record: MultiplayerRestoreRecord) {
     }
     if (launched?.session === record.session) {
         launched = null;
+        forgetRound();
     }
 }
 
@@ -245,9 +247,17 @@ async function restore(record: MultiplayerRestoreRecord) {
     }
     if (launched?.session === record.session) {
         launched = null;
+        forgetRound();
     }
     if (played?.session === record.session) {
         forgetPlayed();
+    }
+}
+
+function forgetRound() {
+    if (roundGameId) {
+        roundGameId = 0;
+        publishRunning({ playedGameId: 0 });
     }
 }
 
@@ -311,6 +321,7 @@ async function launchOnce(appid: number, hardcore: boolean): Promise<Multiplayer
         await restore(record);
         return { ok: false, error: started.error ?? "launch_failed" };
     }
+    roundGameId = started.gameId ?? 0;
     SteamClient.Apps.RunGame(gameId, "", -1, LAUNCH_SOURCE);
     return { ok: true };
 }
@@ -494,9 +505,13 @@ function onAppLifetime(event: SteamAppLifetimeEvent) {
     }
     if (event.bRunning) {
         publish({ running: true });
+        if (roundGameId) {
+            publishRunning({ playedGameId: roundGameId });
+        }
         return;
     }
     publish({ appid: 0, running: false });
+    forgetRound();
     multiplayerLaunchEnded().catch((e) => logError("multiplayerLaunchEnded", e));
     void restore(record);
 }

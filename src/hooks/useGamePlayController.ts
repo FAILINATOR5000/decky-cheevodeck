@@ -104,6 +104,7 @@ export function useGamePlayController(props: {
     const ownAppid = info?.launchable && !info.fallback ? info.appid : 0;
     const playing = (ownAppid !== 0 && running.appid === ownAppid)
         || (gameId != null && running.playedGameId === gameId);
+    const gameRunning = anyGameRunning();
 
     function anotherGameRunning() {
         showMultiplayerProblem(language, "Another Game Is Running", t(language, "Close the running game first"));
@@ -171,6 +172,9 @@ export function useGamePlayController(props: {
         if (roomRole !== null) {
             explain = () => showMultiplayerProblem(language, "Can't Host", t(language, "You are already in a room."));
         }
+        else if (playing || gameRunning) {
+            explain = anotherGameRunning;
+        }
         else if (host?.mode && gameId != null) {
             const hostMode = host.mode;
             const hostGame = gameId;
@@ -231,7 +235,7 @@ export function useGamePlayController(props: {
         (press ?? explain)?.();
     }
 
-    const hostPending = mode === "host" && roomRole === null && gameId != null && host === null;
+    const hostPending = mode === "host" && roomRole === null && gameId != null && host === null && !gameRunning && !playing;
     const playLit = Boolean(info?.launchable) && !playing;
 
     return { mode, label, disabled: hostPending ? !playLit : press === null, onPress, onToggleMode };

@@ -2688,9 +2688,10 @@ class MultiplayerService:
             return {"ok": False, "error": ERROR_NO_GUESTS}
         current["started"] = time.monotonic()
         current["watch"] = self._spawn(self._watch(current))
+        game_id = current.get("gameId", 0)
         if room is not None:
             decky.logger.info("multiplayer: host launched with %s guests", len(room["roster"]))
-            return {"ok": True}
+            return {"ok": True, "gameId": game_id}
         joined = self._joined
         if joined is not None and not joined["launched"]:
             joined["launched"] = True
@@ -2701,7 +2702,7 @@ class MultiplayerService:
                 self._spawn(self._unmute_moonlight())
             decky.logger.info("multiplayer: joined game launched")
             self._announce()
-        return {"ok": True}
+        return {"ok": True, "gameId": game_id}
 
     def _heard(self, transport, data, addr) -> None:
         room = self._room
@@ -4460,6 +4461,7 @@ class MultiplayerService:
         self._session = {
             "id": sid,
             "appid": local["appid"],
+            "gameId": local["gameId"],
             "role": role,
             "mode": mode,
             "emulator": local["emulator"],
@@ -4515,6 +4517,7 @@ class MultiplayerService:
         self._session = {
             "id": sid,
             "appid": local["appid"],
+            "gameId": local["gameId"],
             "role": "guest",
             "mode": "stream",
             "emulator": "moonlight",
@@ -4581,6 +4584,7 @@ class MultiplayerService:
         self._session = {
             "id": sid,
             "appid": local["appid"],
+            "gameId": local["gameId"],
             "role": role,
             "mode": "stream",
             "emulator": local["emulator"],
