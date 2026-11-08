@@ -33,8 +33,10 @@ const COUNT_MARK = "\u0000";
 
 type Waiting = { on: boolean; unread: number; requests: number; online: number };
 
+let lastWaiting: Waiting | null = null;
+
 function useWaiting(): Waiting | null {
-    const [waiting, setWaiting] = useState<Waiting | null>(null);
+    const [waiting, setWaiting] = useState<Waiting | null>(lastWaiting);
     useEffect(() => {
         let alive = true;
         let running = false;
@@ -56,7 +58,8 @@ function useWaiting(): Waiting | null {
                     again = false;
                     const state = await multiplayerFriends();
                     if (alive && state.ok) {
-                        setWaiting(count(state));
+                        lastWaiting = count(state);
+                        setWaiting(lastWaiting);
                     }
                 } while (again && alive);
             }
@@ -106,7 +109,10 @@ function Parts(props: { parts: ReactNode[] }) {
 
 function WaitingLine(props: { language: LanguageCode; waiting: Waiting | null }) {
     const { language, waiting } = props;
-    if (!waiting?.on) {
+    if (waiting === null) {
+        return <div>{"\u00a0"}</div>;
+    }
+    if (!waiting.on) {
         return null;
     }
     const parts: ReactNode[] = [];
