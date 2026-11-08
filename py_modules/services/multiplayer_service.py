@@ -1714,7 +1714,7 @@ class MultiplayerService:
         }
 
     def _joined_check(self, joined: dict) -> dict:
-        if joined["reason"] == "stream_not_set_up":
+        if not joined["can"]:
             local, reason, detail = self._decide(joined["row"], joined["own"], joined["core"])
             joined.update(local=local, can=local is not None, reason=reason, detail=detail)
         local = joined["local"]
