@@ -245,7 +245,7 @@ function RoomsModal(props: RoomsModalProps) {
 
     function choose(row: MultiplayerRoomRow) {
         setLine({ tone: "hint", text: "" });
-        if (row.verdict && verdictState(row.verdict) === "never") {
+        if (row.verdict && row.mode !== "link" && verdictState(row.verdict) === "never") {
             showModeReason(language, {
                 mode: row.mode,
                 state: "never",

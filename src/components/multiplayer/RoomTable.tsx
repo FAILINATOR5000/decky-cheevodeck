@@ -117,7 +117,7 @@ export function RoomTable(props: {
                                     : heard?.mutedByMe ? <MutedPlayerIcon /> : null;
                         const speaking = own ? Boolean(voice?.speaking && voice.mine === "on") : Boolean(heard?.speaking);
                         const seatCell: CSSProperties = {
-                            alignSelf: "start",
+                            alignSelf: seat.name ? "start" : "center",
                             height: `${AVATAR_PX}px`,
                             display: "flex",
                             alignItems: "center",
