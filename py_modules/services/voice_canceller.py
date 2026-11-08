@@ -44,12 +44,15 @@ SAVED_TARGET = re.compile(r'"target"\s*:\s*"([^"]*)"')
 
 
 HEADSET_PORTS = ("Headphones", "Headset")
+LOOPBACK_PREFIX = "alsa_loopback_device."
 HEADSET_FORMS = ("headset", "headphone", "hands-free", "handset")
 
 
 def output_kind(sink: str, source: str, port: str = "", form: str = "", bus: str = "") -> str:
     if port in HEADSET_PORTS or form in HEADSET_FORMS or "__Headphones__" in sink or "__Headset__" in sink:
         return "headset"
+    if source.startswith(LOOPBACK_PREFIX):
+        source = source[len(LOOPBACK_PREFIX):]
     for out_prefix, in_prefix in (("bluez_output.", "bluez_input."), ("alsa_output.usb-", "alsa_input.usb-")):
         if sink.startswith(out_prefix) and source.startswith(in_prefix) \
                 and sink[len(out_prefix):].split(".")[0] == source[len(in_prefix):].split(".")[0]:
