@@ -1629,9 +1629,13 @@ class MultiplayerService:
             key = ra.overriding_key(local["core"], rom)
             if key:
                 return ("override", {"key": key}), warnings
-            if mode == "couch" and players > 2 and local["core"] in session.MULTITAP \
-                    and ra.remap_sets_device(local["core"], rom):
+            devices = session.MULTITAP.get(local["core"], {}).get("devices") if mode == "couch" and players > 2 else None
+            if devices and session.remap_port_conflict(ra, core=local["core"], rom=rom, devices=devices):
                 return ("remap", {}), warnings
+            if devices:
+                key = ra.overriding_key(local["core"], rom, session.MULTITAP_CFG_KEYS)
+                if key:
+                    return ("override", {"key": key}), warnings
             if local.get("duckstation") or (local["fallback"] and system_id == session.PS1_SYSTEM
                                             and self._emulator_shortcut("duckstation") is not None):
                 warnings.append({"code": "duckstation_switch", "detail": {"core": local["coreName"]}})
@@ -3888,6 +3892,15 @@ class MultiplayerService:
         with atomic_file(path) as out:
             out.write(text.encode("utf-8"))
 
+    def _write_remap(self, folder: Path, remap) -> Path:
+        relative, text = remap
+        path = folder / relative
+        for level in (folder, path.parent):
+            ensure_dir(level)
+            chown_to_data_owner(level)
+        self._write(path, text)
+        return path
+
     def _readable_by_owner(self, paths) -> bool:
         owner = child_owner()
         if owner is None:
@@ -4006,14 +4019,17 @@ class MultiplayerService:
                 if mode == "link" and local["core"] == session.MELONDS_DS:
                     system_dir = self._session_dir / f"session-{sid}.system"
                     self._build_system_folder(ra, rom, system_dir)
-                cfg_text, opt_text = session.retroarch_session(
+                remap_dir = self._session_dir / f"session-{sid}.remaps"
+                cfg_text, opt_text, remap = session.retroarch_session(
                     ra, core=local["core"], rom=rom, mode=mode, role=role, hardcore=hardcore, opt_path=opt_path,
                     guests=players - 1, seat=seat, host_ip=host_ip, players=players, game_code=local["gameCode"],
-                    system_dir=system_dir, share_controls=share, watch_only=watch,
+                    system_dir=system_dir, share_controls=share, watch_only=watch, remap_dir=remap_dir,
                 )
                 self._write(opt_path, opt_text)
                 self._write(cfg_path, cfg_text)
                 files = [cfg_path, opt_path]
+                if remap is not None:
+                    files.append(self._write_remap(remap_dir, remap))
                 core_path = ra.core_path(local["core"]) if local["core"] != local["shortcutCore"] else None
                 args = session.retroarch_args(mode=mode, role=role, host_ip=host_ip, nick=nick,
                                               cfg_path=cfg_path, core_path=core_path, core=local["core"],
@@ -4149,6 +4165,34 @@ class MultiplayerService:
             chown_to_data_owner(self._session_dir)
             if route["fallback"]:
                 parts.append(_fallback_args(route))
+            room = self._room
+            if local["emulator"] == "retroarch" and local["core"] in session.MULTITAP \
+                    and room is not None and room["max"] > 2:
+                ra = session.RetroArch(self._user_home)
+                rom = Path(local["path"])
+                devices = session.MULTITAP[local["core"]].get("devices", {})
+                if devices and (session.remap_port_conflict(ra, core=local["core"], rom=rom, devices=devices)
+                                or ra.overriding_key(local["core"], rom, session.MULTITAP_CFG_KEYS)):
+                    decky.logger.info("stream: %s's own remap or override sets its controller ports, no multiplayer "
+                                      "adapter", local["core"])
+                else:
+                    cfg_path = self._session_dir / f"session-{sid}.cfg"
+                    opt_path = self._session_dir / f"session-{sid}.opt"
+                    remap_dir = self._session_dir / f"session-{sid}.remaps"
+                    cfg_text, opt_text, remap = session.stream_host_session(ra, core=local["core"], rom=rom,
+                                                                            opt_path=opt_path, remap_dir=remap_dir)
+                    files = [cfg_path]
+                    if opt_text is not None:
+                        self._write(opt_path, opt_text)
+                        files.append(opt_path)
+                    if remap is not None:
+                        files.append(self._write_remap(remap_dir, remap))
+                    self._write(cfg_path, cfg_text)
+                    if not self._readable_by_owner(files):
+                        raise OSError("session files are not the home owner's")
+                    parts.insert(0, f"--appendconfig {session.quote(str(cfg_path))}")
+                    decky.logger.info("stream: %s gets its multiplayer adapter for %s seats", local["core"],
+                                      room["max"])
             rename = _status_title(local["title"], name) if route["fallback"] else ""
             self._write_restore(local["appid"], original, sid, name=name, renamed=rename)
         except OSError as e:
@@ -4533,6 +4577,7 @@ class MultiplayerService:
             except OSError as e:
                 decky.logger.warning("multiplayer: couldn't remove a session file (%s)", type(e).__name__)
         _remove_system_folder(self._session_dir / f"session-{sid}.system")
+        _remove_system_folder(self._session_dir / f"session-{sid}.remaps")
 
     def _emit(self, payload: dict, event: str = SESSION_EVENT) -> None:
         loop = self._loop

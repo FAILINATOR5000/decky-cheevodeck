@@ -107,6 +107,8 @@ SESSION_CFG_KEYS = (
     "system_directory",
 ) + tuple(f"netplay_request_device_p{n}" for n in range(1, 17))
 
+MULTITAP_CFG_KEYS = ("input_remap_binds_enable", "input_remapping_directory")
+
 DATABASES = {
     1: ("Sega - Mega Drive - Genesis",),
     2: ("Nintendo - Nintendo 64",),
@@ -162,6 +164,14 @@ MULTITAP = {
     "mednafen_psx_hw": {"options": {"beetle_psx_hw_enable_multitap_port1": "enabled"}},
     "mednafen_psx": {"options": {"beetle_psx_enable_multitap_port1": "enabled"}},
     "pcsx_rearmed": {"options": {"pcsx_rearmed_multitap": "port 1"}},
+    "mesen-s": {"devices": {2: "513"}},
+    "genesis_plus_gx_wide": {"devices": {1: "1025", 2: "1025"}},
+    "mednafen_supergrafx": {"options": {"sgx_multitap": "enabled"}},
+    "mednafen_saturn": {"options": {"beetle_saturn_multitap_port1": "enabled"}},
+    "swanstation": {"options": {"swanstation_ControllerPorts_MultitapMode": "Port1Only"}},
+    "kronos": {"options": {"kronos_multitap_port1": "enabled"}},
+    "yabause": {"options": {"yabause_multitap_port1": "enabled"}},
+    "yabasanshiro": {"options": {"yabasanshiro_multitap_port1": "enabled"}},
 }
 
 _STANDALONE_NAMES = (
@@ -313,20 +323,11 @@ class RetroArch:
             pairs.extend(read_cfg_lines(path))
         return pairs
 
-    def overriding_key(self, core: str, rom: Path):
+    def overriding_key(self, core: str, rom: Path, keys=SESSION_CFG_KEYS):
         for key, _value in self.override_pairs(core, rom):
-            if key in SESSION_CFG_KEYS:
+            if key in keys:
                 return key
         return None
-
-    def remap_sets_device(self, core: str, rom: Path) -> bool:
-        folder = self.remap_dir / self.core_name(core)
-        for path in (folder / f"{rom.stem}.rmp", folder / f"{rom.parent.name}.rmp",
-                     folder / f"{self.core_name(core)}.rmp"):
-            for key, _value in read_cfg_lines(path):
-                if key.startswith("input_libretro_device_p"):
-                    return True
-        return False
 
     def effective_options(self, core: str, rom: Path) -> list:
         folder = self._core_dir(core)
@@ -813,7 +814,7 @@ def ppsspp_cpu_flag(home) -> str:
 
 def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcore: bool, opt_path: Path,
                       guests: int, seat: int, host_ip: str, players: int, game_code: str = "", system_dir=None,
-                      share_controls: bool = False, watch_only: bool = False):
+                      share_controls: bool = False, watch_only: bool = False, remap_dir=None):
     watch_only = watch_only and mode == "couch"
     cfg = [
         ("config_save_on_exit", "false"),
@@ -844,8 +845,10 @@ def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcor
         for port in range(2, 17):
             cfg.append((f"input_libretro_device_p{port}", "0"))
     taps = MULTITAP.get(core, {}) if mode == "couch" and players > 2 and not watch_only else {}
-    for port, device in taps.get("devices", {}).items():
-        cfg.append((f"input_libretro_device_p{port}", device))
+    remap = None
+    if taps.get("devices") and remap_dir is not None:
+        cfg += [("input_remap_binds_enable", "true"), ("input_remapping_directory", str(remap_dir))]
+        remap = session_remap(ra, core=core, rom=rom, devices=taps["devices"])
 
     options = dict(ra.effective_options(core, rom))
     if mode == "link" and core == GAMBATTE:
@@ -867,7 +870,55 @@ def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcor
         if options.get("melonds_console_mode", "auto") == "auto":
             options["melonds_console_mode"] = "ds"
     options.update(taps.get("options", {}))
-    return write_cfg(cfg), write_cfg(options.items())
+    return write_cfg(cfg), write_cfg(options.items()), remap
+
+
+def stream_host_session(ra, *, core: str, rom: Path, opt_path: Path, remap_dir: Path):
+    taps = MULTITAP.get(core)
+    if taps is None:
+        return None
+    cfg = [
+        ("config_save_on_exit", "false"),
+        ("remap_save_on_exit", "false"),
+    ]
+    remap = None
+    if taps.get("devices"):
+        cfg += [("input_remap_binds_enable", "true"), ("input_remapping_directory", str(remap_dir))]
+        remap = session_remap(ra, core=core, rom=rom, devices=taps["devices"])
+    if not taps.get("options"):
+        return write_cfg(cfg), None, remap
+    cfg += [
+        ("game_specific_options", "false"),
+        ("global_core_options", "true"),
+        ("core_options_path", str(opt_path)),
+    ]
+    options = dict(ra.effective_options(core, rom))
+    options.update(taps["options"])
+    return write_cfg(cfg), write_cfg(options.items()), remap
+
+
+def session_remap(ra, *, core: str, rom: Path, devices: dict):
+    name = ra.core_name(core)
+    chosen, pairs = _effective_remap(ra, core, rom)
+    ports = {f"input_libretro_device_p{port}" for port in devices}
+    pairs = [(key, value) for key, value in pairs if key not in ports]
+    pairs += [(f"input_libretro_device_p{port}", device) for port, device in devices.items()]
+    return f"{name}/{chosen}", write_cfg(pairs)
+
+
+def _effective_remap(ra, core: str, rom: Path):
+    name = ra.core_name(core)
+    for candidate in (f"{rom.stem}.rmp", f"{rom.parent.name}.rmp", f"{name}.rmp"):
+        path = ra.remap_dir / name / candidate
+        if path.is_file():
+            return candidate, read_cfg_lines(path)
+    return f"{name}.rmp", []
+
+
+def remap_port_conflict(ra, *, core: str, rom: Path, devices: dict) -> bool:
+    _chosen, pairs = _effective_remap(ra, core, rom)
+    wanted = {f"input_libretro_device_p{port}": device for port, device in devices.items()}
+    return any(key in wanted and value not in ("1", wanted[key]) for key, value in pairs)
 
 
 def retroarch_args(*, mode: str, role: str, host_ip: str, nick: str, cfg_path: Path, core_path, core: str,
