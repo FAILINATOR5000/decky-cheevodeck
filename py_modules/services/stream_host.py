@@ -24,6 +24,8 @@ from utils import child_owner
 
 API = "https://127.0.0.1:47990"
 SUNSHINE_PORTS = (47984, 47989, 47990, 48010)
+RESERVED_PORTS_FILE = Path("/proc/sys/net/ipv4/ip_local_reserved_ports")
+SUNSHINE_PORT_BLOCK = "47984-48010"
 FOREIGN_LOG_SECONDS = 60
 CONF_FILE = "sunshine.conf"
 APPS_FILE = "apps.json"
@@ -83,6 +85,7 @@ class StreamHost:
         self._foreign_logged = 0.0
         self._started_at = 0.0
         self._context = None
+        self._reserved = False
         self._name = ""
         self._sink = ""
         self._lock = threading.RLock()
@@ -194,6 +197,7 @@ class StreamHost:
             return ERROR_SUNSHINE_FAILED
         self._name, self._sink = name, sink
         self._force_composite(True)
+        self._reserve_ports()
         uid = self._uid()
         env = {
             "HOME": str(state),
@@ -239,6 +243,29 @@ class StreamHost:
         self.stop()
         return ERROR_SUNSHINE_FAILED
 
+    def _reserve_ports(self) -> None:
+        try:
+            text = RESERVED_PORTS_FILE.read_text().strip()
+            entries = [entry for entry in text.split(",") if entry]
+            if SUNSHINE_PORT_BLOCK in entries:
+                return
+            RESERVED_PORTS_FILE.write_text(",".join([*entries, SUNSHINE_PORT_BLOCK]) + "\n")
+            self._reserved = True
+        except OSError as e:
+            decky.logger.warning("stream: couldn't reserve Sunshine's ports (%s)", type(e).__name__)
+
+    def _release_ports(self) -> None:
+        if not self._reserved:
+            return
+        self._reserved = False
+        try:
+            entries = [entry for entry in RESERVED_PORTS_FILE.read_text().strip().split(",") if entry]
+            if SUNSHINE_PORT_BLOCK in entries:
+                entries.remove(SUNSHINE_PORT_BLOCK)
+                RESERVED_PORTS_FILE.write_text(",".join(entries) + "\n")
+        except OSError as e:
+            decky.logger.warning("stream: couldn't release Sunshine's ports (%s)", type(e).__name__)
+
     def _log_tail(self) -> None:
         try:
             with open(self._setup.state_dir() / LOG_FILE, encoding="utf-8", errors="replace") as handle:
@@ -266,6 +293,7 @@ class StreamHost:
             decky.logger.info("stream: Sunshine stopped")
         self._systemctl("reset-failed", UNIT_NAME)
         self._force_composite(False)
+        self._release_ports()
         self._started_at = 0.0
 
     def renew_if_due(self) -> None:
