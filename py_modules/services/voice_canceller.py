@@ -284,12 +284,14 @@ class VoiceCanceller:
         self._cancelling = cancel
         self._move_games()
         if cancel and kind in DUCKED_KINDS:
+            link = next((str(row["properties"].get("object.id")) for row in self._sink_inputs()
+                         if row["properties"].get("node.name") == f"output.{GAME_SINK}"), "")
             stop = threading.Event()
             with self._ramp_wake:
                 self._ducked = False
                 self._ramp = stop
-            threading.Thread(target=self._ramp_loop, args=(stop, self._game_sink[0]), name="voice-duck",
-                             daemon=True).start()
+            threading.Thread(target=self._ramp_loop, args=(stop, link if link.isdigit() else self._game_sink[0]),
+                             name="voice-duck", daemon=True).start()
         if cancel:
             decky.logger.info("voice: echo canceller on (%s)", kind)
         else:
