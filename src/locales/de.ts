@@ -3569,6 +3569,24 @@ const DE: LocaleTable = {
     "Ready to play": "Bereit zum Spielen",
     "Couldn't finish the setup": "Einrichtung nicht abgeschlossen",
     "Couldn't add it to Steam.": "Nicht zu Steam hinzugefügt.",
+    "Clean Up": "Aufräumen",
+    "Clean Up · {{size}}": "Aufräumen · {{size}}",
+    "Emulator backups": "Emulator-Sicherungen",
+    "Core backups": "Core-Sicherungen",
+    "Leftovers": "Reste",
+    "Other old copies": "Andere alte Kopien",
+    "Delete {{count}} files ({{size}})": {
+        one: "{{count}} Datei löschen ({{size}})",
+        other: "{{count}} Dateien löschen ({{size}})"
+    },
+    "Restore {{version}}": "{{version}} wiederherstellen",
+    "Restore Previous": "Vorherige wiederherstellen",
+    "Delete old copy ({{size}})": "Alte Kopie löschen ({{size}})",
+    "Delete the old copy {{file}}? This can't be undone.": "Die alte Kopie {{file}} löschen? Das lässt sich nicht rückgängig machen.",
+    "Restoring {{name}}...": "{{name}} wird wiederhergestellt...",
+    "Couldn't restore {{name}}. Nothing was changed.": "{{name}} konnte nicht wiederhergestellt werden. Es wurde nichts geändert.",
+    "Clearing old copies...": "Alte Kopien werden gelöscht...",
+    "Couldn't clear old copies.": "Alte Kopien konnten nicht gelöscht werden.",
 };
 
 export default DE;

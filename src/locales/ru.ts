@@ -3657,6 +3657,25 @@ const RU: LocaleTable = {
     "Ready to play": "Можно играть",
     "Couldn't finish the setup": "Не удалось завершить настройку",
     "Couldn't add it to Steam.": "Не удалось добавить в Steam.",
+    "Clean Up": "Очистка",
+    "Clean Up · {{size}}": "Очистка · {{size}}",
+    "Emulator backups": "Копии эмуляторов",
+    "Core backups": "Копии ядер",
+    "Leftovers": "Остатки",
+    "Other old copies": "Другие старые копии",
+    "Delete {{count}} files ({{size}})": {
+        one: "Удалить {{count}} файл ({{size}})",
+        few: "Удалить {{count}} файла ({{size}})",
+        many: "Удалить {{count}} файлов ({{size}})"
+    },
+    "Restore {{version}}": "Вернуть {{version}}",
+    "Restore Previous": "Вернуть предыдущую",
+    "Delete old copy ({{size}})": "Удалить старую копию ({{size}})",
+    "Delete the old copy {{file}}? This can't be undone.": "Удалить старую копию {{file}}? Это нельзя отменить.",
+    "Restoring {{name}}...": "Возвращаем {{name}}...",
+    "Couldn't restore {{name}}. Nothing was changed.": "Не удалось вернуть {{name}}. Ничего не изменено.",
+    "Clearing old copies...": "Удаляем старые копии...",
+    "Couldn't clear old copies.": "Не удалось удалить старые копии.",
 };
 
 export default RU;

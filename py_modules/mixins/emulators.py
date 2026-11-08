@@ -79,3 +79,12 @@ class EmulatorsMixin(PluginContext):
 
     async def emulators_plan_abandon(self):
         return await asyncio.to_thread(self.emulator_service.plan_abandon)
+
+    async def emulators_clean_offer(self):
+        return await asyncio.to_thread(self.emulator_service.clean_offer)
+
+    async def emulators_clean(self, paths=None):
+        return await asyncio.to_thread(self.emulator_service.clean, list(paths or []))
+
+    async def emulators_restore(self, path: str = ""):
+        return await asyncio.to_thread(self.emulator_service.restore, str(path or ""))

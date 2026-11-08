@@ -972,6 +972,14 @@ export const saveHotspotIntroOff = callable<[boolean], { ok: boolean; hotspotInt
 export const saveHotspotDedicated = callable<[boolean], { ok: boolean; hotspotDedicated: boolean }>("save_hotspot_dedicated");
 export type EmulatorKind = "retroarch" | "dolphin" | "pcsx2" | "duckstation" | "ppsspp" | "rmg" | "melonds";
 export type EmulatorSteam = { appid: number; ours: boolean; key: string };
+export type EmulatorBackup = { path: string; version: string; size: number };
+export type EmulatorCleanItem = {
+    path: string;
+    fileName: string;
+    group: "emulators" | "cores" | "leftovers" | "others";
+    ours: boolean;
+    size: number;
+};
 export type EmulatorFlatpak = {
     id: string;
     installed: boolean;
@@ -996,6 +1004,7 @@ export type EmulatorAppImage = {
     update: boolean;
     newerThanStable: boolean;
     steam: EmulatorSteam | null;
+    backup: EmulatorBackup | null;
 };
 export type EmulatorEntry = {
     kind: EmulatorKind;
@@ -1011,6 +1020,7 @@ export type RetroArchCore = {
     name: string;
     version: string;
     size: number;
+    backup: EmulatorBackup | null;
     installed: boolean;
     ours: boolean;
     update: boolean;
@@ -1040,6 +1050,7 @@ export type EmulatorInventory = {
         systems: RetroArchSystem[];
     };
     emulators: EmulatorEntry[];
+    cleanup: { count: number; bytes: number };
 };
 export const emulatorsInventory = callable<[refresh: boolean], EmulatorInventory>("emulators_inventory");
 export const emulatorsIdentify = callable<[path: string], { ok: boolean; error?: string; path?: string; kind?: string }>(
@@ -1105,6 +1116,9 @@ export type EmulatorClientUndo = { undo: "client"; do: string; appid?: number; k
 export const emulatorsPlanAbandon = callable<[], { ok: boolean; client: EmulatorClientUndo[] }>("emulators_plan_abandon");
 export const emulatorsPendingClient = callable<[], { ok: boolean; client: EmulatorClientUndo[] }>("emulators_pending_client");
 export const emulatorsClearPendingClient = callable<[], { ok: boolean }>("emulators_clear_pending_client");
+export const emulatorsCleanOffer = callable<[], { ok: boolean; items: EmulatorCleanItem[] }>("emulators_clean_offer");
+export const emulatorsClean = callable<[paths: string[]], EmulatorJobStart>("emulators_clean");
+export const emulatorsRestore = callable<[path: string], EmulatorJobStart>("emulators_restore");
 export const emulatorsRecordShortcut = callable<[key: string, appid: number], { ok: boolean }>("emulators_record_shortcut");
 export const emulatorsForgetShortcut = callable<[key: string], { ok: boolean }>("emulators_forget_shortcut");
 export const emulatorsShortcutChanges = callable<[kind: string], { ok: boolean; changes: { system: string; current: string }[] }>(

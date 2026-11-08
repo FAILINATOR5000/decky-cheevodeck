@@ -1,7 +1,8 @@
 import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
 
-import type { EmulatorAppImage, EmulatorEntry, EmulatorFlatpak, RetroArchCore } from "../../api";
-import { forgetEmulatorPath } from "../../hooks/useEmulatorsController";
+import type { EmulatorAppImage, EmulatorBackup, EmulatorEntry, EmulatorFlatpak, RetroArchCore } from "../../api";
+import { deleteOldCopy, forgetEmulatorPath, restoreOldCopy } from "../../hooks/useEmulatorsController";
+import { sizeText } from "./CleanUpModal";
 import { t, type LanguageCode } from "../../locales";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { modalSize } from "../../utils/scale";
@@ -106,6 +107,13 @@ function EmulatorDetailsModal(props: { language: LanguageCode; details: Emulator
     const { language, details, close } = props;
     const { title, lines, note } = detailLines(language, details);
     const forgettable = details.type === "appimage" && details.image.howFound === "pointed" ? details : null;
+    let old: { backup: EmulatorBackup; target: string; name: string } | null = null;
+    if (details.type === "appimage" && details.image.backup) {
+        old = { backup: details.image.backup, target: details.image.path, name: details.emulator.name };
+    }
+    else if (details.type === "core" && details.core.backup) {
+        old = { backup: details.core.backup, target: joinPath(details.coresDir, `${details.core.core}_libretro.so`), name: "" };
+    }
 
     function forget() {
         if (forgettable !== null) {
@@ -124,6 +132,26 @@ function EmulatorDetailsModal(props: { language: LanguageCode; details: Emulator
                 </div>
             ))}
             {note && <div style={{ ...smallTextStyle(), marginTop: "8px" }}>{note}</div>}
+            {old !== null && (
+                <Focusable style={{ display: "flex", gap: "8px", marginTop: "16px" }} flow-children="row">
+                    <FocusTarget focusKey="emulators:details:restore">
+                        <DialogButton onClick={() => { void restoreOldCopy(old.target, old.name); close(); }}>
+                            {old.backup.version
+                                ? t(language, "Restore {{version}}", { version: old.backup.version })
+                                : t(language, "Restore Previous")}
+                        </DialogButton>
+                    </FocusTarget>
+                    <FocusTarget focusKey="emulators:details:delete-old">
+                        <DialogButton onClick={() => {
+                            const path = old.backup.path;
+                            close();
+                            void deleteOldCopy(path, path.slice(path.lastIndexOf("/") + 1), old.backup.size);
+                        }}>
+                            {t(language, "Delete old copy ({{size}})", { size: sizeText(old.backup.size) })}
+                        </DialogButton>
+                    </FocusTarget>
+                </Focusable>
+            )}
             <Focusable style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "16px" }} flow-children="row">
                 {forgettable !== null && (
                     <FocusTarget focusKey="emulators:details:forget">

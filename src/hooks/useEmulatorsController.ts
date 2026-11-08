@@ -1,6 +1,8 @@
 import { useEffect, useSyncExternalStore } from "react";
 
 import {
+    emulatorsClean,
+    emulatorsCleanOffer,
     emulatorsCoresOffer,
     emulatorsForget,
     emulatorsForgetShortcut,
@@ -11,6 +13,7 @@ import {
     emulatorsInventory,
     emulatorsPoint,
     emulatorsRecordShortcut,
+    emulatorsRestore,
     emulatorsShortcutChanges,
     emulatorsUpdateAppimage,
     emulatorsUpdateCores,
@@ -21,10 +24,11 @@ import {
     type EmulatorSteam
 } from "../api";
 import { askAddToSteam } from "../components/emulators/AddToSteamModal";
+import { askCleanUp, sizeText } from "../components/emulators/CleanUpModal";
 import { askEmulatorQuestion } from "../components/emulators/EmulatorQuestionModal";
 import { askInstallCores } from "../components/emulators/InstallCoresModal";
 import { openPathPicker, type PickedPath } from "../components/pickers/FilePickerModal";
-import { t, type LanguageCode } from "../locales";
+import { getCurrentLanguage, t, type LanguageCode } from "../locales";
 import { showToastAfter } from "../utils/delayedToast";
 import { noteEmulatorJobStarted, useEmulatorJobs } from "../utils/emulatorJobs";
 import { addEmulatorShortcut, removeEmulatorShortcut, steamCollections, type EmulatorInstall } from "../utils/emulatorShortcuts";
@@ -331,6 +335,53 @@ async function removeFromSteam(language: LanguageCode, name: string, steam: Emul
     }
 }
 
+export async function restoreOldCopy(target: string, name: string) {
+    const language = getCurrentLanguage();
+    try {
+        started(language, await emulatorsRestore(target), name);
+    }
+    catch (e) {
+        logError("emulators: restoring an old copy", e);
+    }
+}
+
+export async function deleteOldCopy(path: string, file: string, size: number) {
+    const language = getCurrentLanguage();
+    const yes = await askEmulatorQuestion({
+        language,
+        title: t(language, "Delete old copy ({{size}})", { size: sizeText(size) }),
+        text: t(language, "Delete the old copy {{file}}? This can't be undone.", { file }),
+        confirm: t(language, "Delete"),
+        cancel: t(language, "Cancel"),
+        focusConfirm: false
+    });
+    if (!yes) {
+        return;
+    }
+    try {
+        started(language, await emulatorsClean([path]));
+    }
+    catch (e) {
+        logError("emulators: deleting an old copy", e);
+    }
+}
+
+async function cleanUp(language: LanguageCode) {
+    try {
+        const offer = await emulatorsCleanOffer();
+        if (!offer?.ok || !Array.isArray(offer.items) || offer.items.length === 0) {
+            return;
+        }
+        const paths = await askCleanUp(language, offer.items);
+        if (paths !== null && paths.length > 0) {
+            started(language, await emulatorsClean(paths));
+        }
+    }
+    catch (e) {
+        logError("emulators: cleaning up", e);
+    }
+}
+
 export function useEmulatorsController(props: { isActive: boolean; language: LanguageCode }) {
     const state = useSyncExternalStore(subscribe, () => loaded);
     const jobs = useEmulatorJobs();
@@ -363,7 +414,8 @@ export function useEmulatorsController(props: { isActive: boolean; language: Lan
             notice: (body: string) => notice(language, body),
             addToSteam: (kind: EmulatorKind, name: string, install: EmulatorInstall, key: string) =>
                 void addToSteam(language, kind, name, install, key),
-            removeFromSteam: (name: string, steam: EmulatorSteam) => void removeFromSteam(language, name, steam)
+            removeFromSteam: (name: string, steam: EmulatorSteam) => void removeFromSteam(language, name, steam),
+            cleanUp: () => void cleanUp(language)
         }
     };
 }

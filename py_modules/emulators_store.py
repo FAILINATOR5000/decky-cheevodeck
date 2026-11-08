@@ -55,6 +55,15 @@ def _clean(raw) -> dict:
     for path, row in (installed.get("appimages") if isinstance(installed.get("appimages"), dict) else {}).items():
         if _clean_path(path) and isinstance(row, dict):
             appimages[path] = {"version": _text(row.get("version"), 128), "repo": _text(row.get("repo"), 200)}
+    backups = {}
+    for path, row in (installed.get("backups") if isinstance(installed.get("backups"), dict) else {}).items():
+        if _clean_path(path) and isinstance(row, dict) and _clean_path(row.get("of")) \
+                and row.get("kind") in ("core", "appimage"):
+            kept = row.get("record") if isinstance(row.get("record"), dict) else None
+            if kept is not None:
+                kept = {key: _text(value, 200) for key, value in kept.items() if key in ("crc", "from", "version", "repo")}
+            backups[path] = {"of": row["of"], "kind": row["kind"], "version": _text(row.get("version"), 128),
+                             "record": kept}
     bundle_raw = raw.get("bundle") if isinstance(raw.get("bundle"), dict) else {}
     bundle_cores = {}
     for core, row in (bundle_raw.get("cores") if isinstance(bundle_raw.get("cores"), dict) else {}).items():
@@ -68,7 +77,7 @@ def _clean(raw) -> dict:
     for key, appid in (raw.get("shortcuts") if isinstance(raw.get("shortcuts"), dict) else {}).items():
         if isinstance(key, str) and _SHORTCUT.match(key) and type(appid) is int and 0 < appid <= 0xFFFFFFFF:
             shortcuts[key] = appid
-    return {"paths": paths, "installed": {"cores": cores, "appimages": appimages}, "bundle": bundle,
+    return {"paths": paths, "installed": {"cores": cores, "appimages": appimages, "backups": backups}, "bundle": bundle,
             "shortcuts": shortcuts}
 
 

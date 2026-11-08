@@ -3415,6 +3415,21 @@ const JA: LocaleTable = {
     "Ready to play": "遊ぶ準備ができました",
     "Couldn't finish the setup": "準備を完了できませんでした",
     "Couldn't add it to Steam.": "Steamに追加できませんでした。",
+    "Clean Up": "クリーンアップ",
+    "Clean Up · {{size}}": "クリーンアップ · {{size}}",
+    "Emulator backups": "エミュレーターのバックアップ",
+    "Core backups": "コアのバックアップ",
+    "Leftovers": "残りもの",
+    "Other old copies": "その他の古いコピー",
+    "Delete {{count}} files ({{size}})": "{{count}}個のファイルを削除（{{size}}）",
+    "Restore {{version}}": "{{version}}に戻す",
+    "Restore Previous": "前のものに戻す",
+    "Delete old copy ({{size}})": "古いコピーを削除（{{size}}）",
+    "Delete the old copy {{file}}? This can't be undone.": "古いコピー{{file}}を削除しますか？元に戻せません。",
+    "Restoring {{name}}...": "{{name}}を戻しています...",
+    "Couldn't restore {{name}}. Nothing was changed.": "{{name}}を戻せませんでした。何も変更されていません。",
+    "Clearing old copies...": "古いコピーを削除中...",
+    "Couldn't clear old copies.": "古いコピーを削除できませんでした。",
 };
 
 export default JA;

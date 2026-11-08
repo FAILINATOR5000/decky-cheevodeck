@@ -3581,4 +3581,22 @@ export const EN: LocaleTable = {
     "Ready to play": "Ready to play",
     "Couldn't finish the setup": "Couldn't finish the setup",
     "Couldn't add it to Steam.": "Couldn't add it to Steam.",
+    "Clean Up": "Clean Up",
+    "Clean Up · {{size}}": "Clean Up · {{size}}",
+    "Emulator backups": "Emulator backups",
+    "Core backups": "Core backups",
+    "Leftovers": "Leftovers",
+    "Other old copies": "Other old copies",
+    "Delete {{count}} files ({{size}})": {
+        one: "Delete {{count}} file ({{size}})",
+        other: "Delete {{count}} files ({{size}})"
+    },
+    "Restore {{version}}": "Restore {{version}}",
+    "Restore Previous": "Restore Previous",
+    "Delete old copy ({{size}})": "Delete old copy ({{size}})",
+    "Delete the old copy {{file}}? This can't be undone.": "Delete the old copy {{file}}? This can't be undone.",
+    "Restoring {{name}}...": "Restoring {{name}}...",
+    "Couldn't restore {{name}}. Nothing was changed.": "Couldn't restore {{name}}. Nothing was changed.",
+    "Clearing old copies...": "Clearing old copies...",
+    "Couldn't clear old copies.": "Couldn't clear old copies.",
 };

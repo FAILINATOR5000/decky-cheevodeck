@@ -3613,6 +3613,24 @@ const ES: LocaleTable = {
     "Ready to play": "Listo para jugar",
     "Couldn't finish the setup": "No se pudo terminar la configuración",
     "Couldn't add it to Steam.": "No se pudo añadir a Steam.",
+    "Clean Up": "Limpiar",
+    "Clean Up · {{size}}": "Limpiar · {{size}}",
+    "Emulator backups": "Copias de emuladores",
+    "Core backups": "Copias de núcleos",
+    "Leftovers": "Restos",
+    "Other old copies": "Otras copias antiguas",
+    "Delete {{count}} files ({{size}})": {
+        one: "Borrar {{count}} archivo ({{size}})",
+        other: "Borrar {{count}} archivos ({{size}})"
+    },
+    "Restore {{version}}": "Restaurar {{version}}",
+    "Restore Previous": "Restaurar la anterior",
+    "Delete old copy ({{size}})": "Borrar la copia antigua ({{size}})",
+    "Delete the old copy {{file}}? This can't be undone.": "¿Borrar la copia antigua {{file}}? No se puede deshacer.",
+    "Restoring {{name}}...": "Restaurando {{name}}...",
+    "Couldn't restore {{name}}. Nothing was changed.": "No se pudo restaurar {{name}}. No se cambió nada.",
+    "Clearing old copies...": "Borrando copias antiguas...",
+    "Couldn't clear old copies.": "No se pudieron borrar las copias antiguas.",
 };
 
 export default ES;

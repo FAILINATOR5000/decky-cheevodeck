@@ -12,6 +12,7 @@ import type {
     RetroArchCore,
     RetroArchSystem
 } from "../api";
+import { sizeText } from "../components/emulators/CleanUpModal";
 import { openEmulatorDetails } from "../components/emulators/EmulatorDetailsModal";
 import { useEmulators } from "../components/emulators/EmulatorsContext";
 import { skipWhileHidden } from "../components/panel/skipWhileHidden";
@@ -241,6 +242,14 @@ function errorLine(language: LanguageCode, state: EmulatorJobState): string {
 function jobLine(language: LanguageCode, state: EmulatorJobState): string {
     const count = state.names.length;
     const name = state.names[0] ?? "";
+    if (state.kind === "restore_backup") {
+        return state.stage === "failed"
+            ? t(language, "Couldn't restore {{name}}. Nothing was changed.", { name })
+            : t(language, "Restoring {{name}}...", { name });
+    }
+    if (state.kind === "delete_files") {
+        return state.stage === "failed" ? t(language, "Couldn't clear old copies.") : t(language, "Clearing old copies...");
+    }
     const installing = state.kind === "install_cores" || state.kind === "install_emulator";
     if (state.stage === "failed") {
         if (installing) {
@@ -605,6 +614,21 @@ function EmulatorsPage(props: EmulatorsPageProps) {
                         {t(language, "Refresh")}
                     </FocusableItem>
                 </PanelSectionRow>
+
+                {inventory !== null && inventory.cleanup.count > 0 && (
+                    <PanelSectionRow>
+                        <FocusableItem
+                            outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                            focusKey="emulators:cleanup"
+                            focusFallback={[REFRESH_KEY]}
+                            disabled={loading || jobs.busy}
+                            onClick={emulators.actions.cleanUp}
+                            onGamepadFocus={() => { focusedRef.current = null; }}
+                        >
+                            {t(language, "Clean Up · {{size}}", { size: sizeText(inventory.cleanup.bytes) })}
+                        </FocusableItem>
+                    </PanelSectionRow>
+                )}
 
                 {job !== null && (working || job.stage === "failed") && (
                     <PanelSectionRow>
