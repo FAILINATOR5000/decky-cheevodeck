@@ -23,8 +23,10 @@ import {
     joinHotspot,
     leaveHotspot,
     setHotspotPrivateNext,
+    switchDedicatedHotspot,
     switchHotspot,
     useHotspot,
+    useHotspotDedicated,
     useHotspotPrivateNext
 } from "../utils/hotspotState";
 import { textSize } from "../utils/scale";
@@ -32,6 +34,7 @@ import { bodyTextStyle, regularButtonSpacingStyle, warnAmber } from "../utils/st
 
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 const TOGGLE_KEY = "offlineHotspot:toggle:on";
+const DEDICATED_KEY = "offlineHotspot:toggle:dedicated";
 const PRIVATE_KEY = "offlineHotspot:toggle:private";
 const LEAVE_KEY = "offlineHotspot:leave";
 const DEVICE_PREFIX = "offlineHotspot:device:";
@@ -78,6 +81,7 @@ function OfflineHotspotPage(props: OfflineHotspotPageProps) {
     const visible = state.view === "offlineHotspot";
     const hotspot = useHotspot();
     const privateNext = useHotspotPrivateNext();
+    const dedicated = useHotspotDedicated();
     const hosting = hotspot.role === "host" && hotspot.state !== "stopping";
     const [found, setFound] = useState<HotspotRow[] | null>(null);
     const [joining, setJoining] = useState("");
@@ -185,10 +189,14 @@ function OfflineHotspotPage(props: OfflineHotspotPageProps) {
         else if (hotspot.sharing) {
             lines.push({ text: t(language, "Sharing this device's internet with nearby devices.") });
         }
-        if (hotspot.paused) {
-            lines.push({ text: hotspot.dfs
-                ? t(language, "Your network's channel can't carry a hotspot, so it's paused while the hotspot is on.")
-                : t(language, "Your Wi-Fi network is paused while the hotspot is on, so there's no internet."), warn: true });
+        if (hotspot.paused && hotspot.dfs) {
+            lines.push({ text: t(language, "Your network's channel can't carry a hotspot, so it's paused while the hotspot is on."), warn: true });
+        }
+        else if (hotspot.paused && hotspot.sharing) {
+            lines.push({ text: t(language, "Your Wi-Fi network is paused while the hotspot is on.") });
+        }
+        else if (hotspot.paused) {
+            lines.push({ text: t(language, "Your Wi-Fi network is paused while the hotspot is on, so there's no internet."), warn: true });
         }
     }
     if ((hotspot.state === "host" || guest) && !hotspot.internet) {
@@ -223,6 +231,19 @@ function OfflineHotspotPage(props: OfflineHotspotPageProps) {
                         focusKey={TOGGLE_KEY}
                     />
                 </PanelSectionRow>
+                {hosting && hotspot.canStay && (
+                    <PanelSectionRow>
+                        <ToggleRow
+                            label={t(language, "Dedicated Hotspot")}
+                            value={dedicated}
+                            controlled
+                            onChange={(next) => void switchDedicatedHotspot(next)}
+                            help={t(language, "help_dedicated_hotspot")}
+                            focusKey={DEDICATED_KEY}
+                            focusFallback={[TOGGLE_KEY]}
+                        />
+                    </PanelSectionRow>
+                )}
                 <PanelSectionRow>
                     <ToggleRow
                         label={t(language, "Private Hotspot")}

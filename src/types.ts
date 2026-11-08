@@ -877,6 +877,7 @@ export type SettingsResponse = {
     mpStreamSlowConnection: boolean;
     mpStreamScreenWarningOff: boolean;
     hotspotIntroOff: boolean;
+    hotspotDedicated: boolean;
     mpVoicePttToggle: boolean;
     mpVoiceSensitivity: number;
     playShortcutFallback: boolean;

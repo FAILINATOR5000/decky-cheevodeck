@@ -107,6 +107,13 @@ def plain_channel(interface: str):
     return CHANNEL, BAND
 
 
+def wifi_driver(interface: str) -> str:
+    try:
+        return Path(f"/sys/class/net/{interface}/device/driver").resolve().name
+    except OSError:
+        return ""
+
+
 def can_host_on(mhz: int) -> bool:
     return mhz < 2500 or 5150 <= mhz < 5250 or 5735 <= mhz <= 5895
 
@@ -237,6 +244,7 @@ class OfflineHotspotService:
         self._address = ""
         self._interface = ""
         self._device = ""
+        self._can_stay = False
         self._ap_interface = ""
         self._ap_device = ""
         self._ap_channel = 0
@@ -286,6 +294,7 @@ class OfflineHotspotService:
                 "host": self._host_name,
                 "paused": self._paused,
                 "uplink": self._uplink,
+                "canStay": self._can_stay,
                 "dfs": self._dfs,
                 "sharing": self._sharing,
                 "internet": self._internet,
@@ -313,6 +322,9 @@ class OfflineHotspotService:
     def turn_off(self, reason: str) -> None:
         with self._op_lock:
             self._end(reason)
+
+    def apply_dedicated(self) -> None:
+        threading.Thread(target=self._restart_host, name="hotspot-restart", daemon=True).start()
 
     def sync(self) -> None:
         if not self._game_mode() and self.lan_address():
@@ -382,6 +394,7 @@ class OfflineHotspotService:
             self._nm = nm
             self._device = device
             self._interface = str(props.get("Interface") or "wlan0")
+            self._can_stay = wifi_driver(self._interface) in STAY_DRIVERS
             self._resume = resume
             self._paused = paused
             self._carried = ""
@@ -404,22 +417,30 @@ class OfflineHotspotService:
         ssid = settings.get("802-11-wireless", {}).get("ssid", b"")
         return bytes(ssid).decode("utf-8", "replace") if ssid else str(settings.get("connection", {}).get("id", ""))
 
-    def _bring_up_host(self, private: bool) -> str:
+    def _bring_up_host(self, private: bool, spec=None) -> str:
         error = self._open_bus()
         if error:
             return error
-        tag = secrets.token_hex(2).upper()
-        ssid = SSID_PREFIX + tag + ("-P" if private else "")
+        restart = spec is not None
+        if spec is None:
+            tag = secrets.token_hex(2).upper()
+            ssid = SSID_PREFIX + tag + ("-P" if private else "")
+            code = "".join(secrets.choice("0123456789") for _ in range(CODE_DIGITS)) if private else ""
+            spec = (ssid, code or open_passphrase(ssid), f"10.73.{subnet_of(ssid)}.1", HOST_PROFILE + tag)
+        ssid, passphrase, address, profile = spec
         subnet = subnet_of(ssid)
-        code = "".join(secrets.choice("0123456789") for _ in range(CODE_DIGITS)) if private else ""
-        address = f"10.73.{subnet}.1"
-        passphrase = code or open_passphrase(ssid)
+        code = passphrase if private else ""
         with self._lock:
             self._state = "starting"
             self._role = "host"
-            self._spec = (ssid, passphrase, address, HOST_PROFILE + tag)
+            self._spec = spec
         self._emit()
-        error = self._stay_on_network() if self._resume else "plain"
+        if not self._resume:
+            error = "plain"
+        elif self._dedicated():
+            error = "dedicated"
+        else:
+            error = self._stay_on_network()
         if error:
             if error != "plain":
                 decky.logger.info("hotspot: hosting without staying on %s (%s)", self._paused, error)
@@ -428,7 +449,7 @@ class OfflineHotspotService:
                 self._ap_interface = self._interface
                 self._ap_device = self._device
                 self._ap_channel = channel
-            error = self._activate(_ap_settings(ssid, self._interface, passphrase, address, profile=HOST_PROFILE + tag,
+            error = self._activate(_ap_settings(ssid, self._interface, passphrase, address, profile=profile,
                                                 mode="ap", channel=channel, band=band), self._device)
         if error:
             self._teardown(reconnect=True)
@@ -448,17 +469,71 @@ class OfflineHotspotService:
             return FAILED
         self._start_sharing()
         self._begin()
-        self._file_card()
+        if not restart:
+            self._file_card()
         decky.logger.info("hotspot: hosting %s on %s channel %s (%s)%s", ssid, self._ap_interface, self._ap_channel,
                           address, f", {self._paused} paused" if self._paused else
                           f", staying on {self._uplink}" if self._uplink else "")
         return ""
 
-    def _stay_on_network(self) -> str:
+    def _dedicated(self) -> bool:
+        return bool(self._settings_store.load_config().get("hotspotDedicated", True))
+
+    def _restart_host(self) -> None:
+        with self._op_lock:
+            if self._room_role():
+                return
+            with self._lock:
+                if self._state != "host" or self._closed:
+                    return
+                stay = bool(self._resume) and self._can_stay and not self._dedicated()
+                if stay == (self._ap_interface == AP_INTERFACE):
+                    return
+                spec, private = self._spec, self._private
+                resume, device = self._resume, self._device
+                stop, self._stop = self._stop, None
+                self._state = "starting"
+            if stop is not None:
+                stop.set()
+            self._emit()
+            decky.logger.info("hotspot: restarting %s %s", spec[0],
+                              "to stay on the network" if stay else "as a dedicated hotspot")
+            self._teardown()
+            self._reset_state()
+            self._carried = resume
+            if stay:
+                self._rejoin(device, resume)
+            error = self._bring_up_host(private, spec)
+        if error:
+            decky.logger.info("hotspot: the restart failed (%s)", error)
+            self._emit("Off")
+
+    def _rejoin(self, device: str, resume: str) -> None:
+        bus = nm_dbus.Bus()
         try:
-            driver = Path(f"/sys/class/net/{self._interface}/device/driver").resolve().name
-        except OSError:
-            driver = ""
+            bus.open()
+        except (OSError, nm_dbus.DBusError):
+            return
+        try:
+            nm = nm_dbus.NetworkManager(bus)
+            active = nm.bus.call(nm_dbus.NM, nm_dbus.NM_PATH, nm_dbus.NM, "ActivateConnection", "ooo",
+                                 (resume, device, "/"))[0]
+            deadline = time.monotonic() + ACTIVATE_SECONDS
+            while time.monotonic() < deadline:
+                state = nm.active_state(active)
+                if state == nm_dbus.ACTIVE_ACTIVATED:
+                    return
+                if state == nm_dbus.ACTIVE_DEACTIVATED:
+                    break
+                time.sleep(0.25)
+            decky.logger.info("hotspot: the network didn't come back in time")
+        except nm_dbus.DBusError as exc:
+            decky.logger.info("hotspot: couldn't bring the network back (%s)", exc)
+        finally:
+            bus.close()
+
+    def _stay_on_network(self) -> str:
+        driver = wifi_driver(self._interface)
         if driver not in STAY_DRIVERS:
             return f"the {driver or 'unknown'} driver can't keep both"
         link = station_channel(self._interface)

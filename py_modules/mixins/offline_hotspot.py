@@ -19,3 +19,11 @@ class OfflineHotspotMixin(PluginContext):
 
     async def hotspot_leave(self):
         return await asyncio.to_thread(self.offline_hotspot_service.leave)
+
+    async def save_hotspot_dedicated(self, hotspot_dedicated: bool):
+        value = self.settings_store.update_hotspot_dedicated(hotspot_dedicated)
+        self.offline_hotspot_service.apply_dedicated()
+        return {
+            "ok": True,
+            "hotspotDedicated": value,
+        }

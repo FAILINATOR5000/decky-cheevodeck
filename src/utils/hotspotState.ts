@@ -1,7 +1,15 @@
 import { addEventListener, removeEventListener } from "@decky/api";
 import { useSyncExternalStore } from "react";
 
-import { hotspotJoin, hotspotLeave, hotspotSet, hotspotStatus, saveHotspotIntroOff, type HotspotStatus } from "../api";
+import {
+    hotspotJoin,
+    hotspotLeave,
+    hotspotSet,
+    hotspotStatus,
+    saveHotspotDedicated,
+    saveHotspotIntroOff,
+    type HotspotStatus
+} from "../api";
 import { getCurrentLanguage } from "../locales";
 import { logError } from "./errors";
 import { multiplayerRoomMarker } from "./multiplayerRoomState";
@@ -11,7 +19,7 @@ const HOTSPOT_EVENT = "cheevodeck_hotspot";
 
 const OFF: HotspotStatus = {
     ok: true, seq: -1, state: "off", role: "", ssid: "", private: false, code: "", address: "", example: "", devices: [],
-    host: "", paused: "", uplink: "", dfs: false, sharing: false, internet: false, startedAt: 0, endsAt: 0
+    host: "", paused: "", uplink: "", canStay: false, dfs: false, sharing: false, internet: false, startedAt: 0, endsAt: 0
 };
 
 const REASONS: Record<string, string> = {
@@ -25,6 +33,7 @@ let status: HotspotStatus = OFF;
 let busy = false;
 let privateNext = false;
 let introOff = false;
+let dedicated = true;
 let openIntro: ((onConfirm: (hide: boolean) => void) => void) | null = null;
 const listeners = new Set<() => void>();
 
@@ -82,8 +91,38 @@ export function useHotspotPrivateNext(): boolean {
     return useSyncExternalStore(subscribe, () => privateNext);
 }
 
-export function setHotspotSettings(next: { hotspotIntroOff?: boolean }) {
+export function setHotspotSettings(next: { hotspotIntroOff?: boolean; hotspotDedicated?: boolean }) {
     introOff = next.hotspotIntroOff ?? introOff;
+    dedicated = next.hotspotDedicated ?? dedicated;
+    for (const listener of listeners) {
+        listener();
+    }
+}
+
+export function useHotspotDedicated(): boolean {
+    return useSyncExternalStore(subscribe, () => dedicated);
+}
+
+export async function switchDedicatedHotspot(on: boolean) {
+    const role = multiplayerRoomMarker().role;
+    if (role !== null) {
+        showToggleNotice(getCurrentLanguage(), "Offline Hotspot", REASONS[role === "host" ? "hosting" : "seated"]);
+        return;
+    }
+    dedicated = on;
+    for (const listener of listeners) {
+        listener();
+    }
+    try {
+        await saveHotspotDedicated(on);
+    }
+    catch (e) {
+        logError("offline hotspot: saving Dedicated Hotspot", e);
+        dedicated = !on;
+        for (const listener of listeners) {
+            listener();
+        }
+    }
 }
 
 export function setHotspotIntroOpener(opener: typeof openIntro) {
