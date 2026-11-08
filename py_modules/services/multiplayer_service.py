@@ -25,6 +25,7 @@ import multiplayer_session as session
 import rom_headers
 import steam_shortcuts
 import subprocess_util
+from play_picks_store import PlayPicksStore, clean_pick
 from multiplayer_protocol import decode, frame, read_frame
 from nearby_protocol import FrameError, clean_title, is_nonce, verify
 from notifications import emit_notification
@@ -258,6 +259,8 @@ class MultiplayerService:
         self._game_mode = game_mode
         self._user_home = Path(user_home)
         self._session_dir = Path(runtime_dir) / SESSION_DIR
+        self._picks = PlayPicksStore(base_dir=Path(runtime_dir))
+        self._session_picks = {}
         self._volume_lock = threading.Lock()
         self._cheevo_check = cheevo_check_service
         self._cheevo_check_store = cheevo_check_store
@@ -976,7 +979,7 @@ class MultiplayerService:
             return None, "no_emulator_shortcut", {"emulator": FALLBACK_NAMES[local["emulator"]]}
         return local, gate, detail
 
-    def _route(self, mode: str, game_id: int, core: str, room):
+    def _route(self, mode: str, game_id: int, core: str, room, use_saved: bool = True):
         if mode not in proto.MODES:
             return None, "unsupported_emulator", {}
         if mode == "stream":
@@ -992,7 +995,16 @@ class MultiplayerService:
                 return None, "not_in_results", {"dolphinSkipped": "1"}
             return None, "not_in_results", {}
         system_id = game["systemId"]
-        candidates = [{**entry, "shortcut": self._pick_shortcut(entry["shortcuts"], mode, system_id)}
+        saved = self._picks.get(game_id, "couch") if use_saved and room is None and mode == "couch" else None
+        own_pick, vehicle, saved_core = None, None, ""
+        if saved is not None:
+            saved_core = saved["core"]
+            for entry in game["paths"]:
+                own_pick = own_pick or next((row for row in entry["shortcuts"] if row["appid"] == saved["appid"]), None)
+            if own_pick is None and saved["appid"]:
+                vehicle = self._emulator_by_appid(saved["appid"])
+        candidates = [{**entry, "shortcut": own_pick if own_pick in entry["shortcuts"]
+                       else self._pick_shortcut(entry["shortcuts"], mode, system_id)}
                       for entry in game["paths"] if entry["shortcut"]]
         fallback = None
         if not candidates:
@@ -1033,16 +1045,17 @@ class MultiplayerService:
             "coreBuild": "",
             "gameCode": "",
             "fallback": fallback is not None,
+            "picked": own_pick is not None and pick["shortcut"] is own_pick,
         }
         if n64_couch:
-            return self._rmg_couch_local(local)
+            return self._rmg_couch_local(local, vehicle)
         emulator = detected["emulator"]
         if emulator == "pcsx2":
             return None, "pcsx2_no_multiplayer", {}
         if emulator == "melonds":
             return None, "melonds_standalone", {}
         if emulator == "duckstation" and mode == "couch":
-            return self._duckstation_couch_local(local, core, room)
+            return self._duckstation_couch_local(local, core, room, saved_core)
         if mode == "link" and system_id not in session.LINK_CORES:
             return None, "link_system", {}
         if mode == "couch" and system_id == session.DS_SYSTEM:
@@ -1065,7 +1078,7 @@ class MultiplayerService:
                          emuVersion=self._flatpak_version(session.PPSSPP_FLATPAK))
             return local, None, {}
         if emulator == "dolphin":
-            return self._dolphin_local(mode, local, pick)
+            return self._dolphin_local(mode, local, pick, vehicle)
         if emulator != "retroarch":
             return None, "unsupported_emulator", {}
 
@@ -1081,6 +1094,9 @@ class MultiplayerService:
         if local["fallback"]:
             usual = self._core_with_save(ra, compatible, Path(pick["path"]), session.COUCH_CORES.get(system_id, ""))
         chosen = core or self._default_core(ra, compatible, usual, room_core)
+        if not core and mode == "couch" and saved_core in compatible:
+            chosen = saved_core
+            local["picked"] = True
 
         if mode == "link":
             needed = session.LINK_CORES[system_id]
@@ -1114,9 +1130,9 @@ class MultiplayerService:
             local["coreBuild"] = self._core_build_of(ra.core_path(chosen))
         return local, None, {}
 
-    def _dolphin_local(self, mode: str, local: dict, pick: dict):
+    def _dolphin_local(self, mode: str, local: dict, pick: dict, vehicle=None):
         if mode == "couch":
-            return self._dolphin_netplay_local(local, pick)
+            return self._dolphin_netplay_local(local, pick, vehicle)
         if local["gameId"] not in session.GC_LAN_GAMES:
             return None, "link_gc_no_lan", {}
         install = session.dolphin_install(pick["shortcut"]["exe"], pick["shortcut"]["launchOptions"], self._user_home)
@@ -1128,12 +1144,18 @@ class MultiplayerService:
                      emuVersion=self._flatpak_version(session.DOLPHIN_FLATPAK) if install == "flatpak" else "")
         return local, None, {}
 
-    def _dolphin_netplay_local(self, local: dict, pick: dict):
+    def _dolphin_netplay_local(self, local: dict, pick: dict, vehicle=None):
         if local["systemId"] not in session.DOLPHIN_SYSTEMS:
             return None, "unsupported_emulator", {}
-        exe, options = pick["shortcut"]["exe"], pick["shortcut"]["launchOptions"]
-        install = session.dolphin_install(exe, options, self._user_home)
-        emulator = self._emulator_shortcut("dolphin", install)
+        if vehicle is not None and session.emulator_kind(vehicle["exe"], vehicle["launchOptions"]) == "dolphin":
+            emulator = vehicle
+            install = session.dolphin_install(vehicle["exe"], vehicle["launchOptions"], self._user_home)
+            local["picked"] = True
+        else:
+            exe, options = pick["shortcut"]["exe"], pick["shortcut"]["launchOptions"]
+            install = session.dolphin_install(exe, options, self._user_home)
+            emulator = self._emulator_shortcut("dolphin", install)
+        local["vehicles"] = self._emulator_count("dolphin")
         if emulator is None:
             return None, "no_dolphin_emulator_shortcut", {}
         folder = session.dolphin_missing_folder(self._user_home, install, pick["real"])
@@ -1145,8 +1167,12 @@ class MultiplayerService:
                      emuVersion=self._dolphin_version(install, emulator))
         return local, None, {}
 
-    def _rmg_couch_local(self, local: dict):
+    def _rmg_couch_local(self, local: dict, vehicle=None):
         emulator = self._emulator_shortcut("rmg")
+        if vehicle is not None and session.emulator_kind(vehicle["exe"], vehicle["launchOptions"]) == "rmg":
+            emulator = vehicle
+            local["picked"] = True
+        local["vehicles"] = self._emulator_count("rmg")
         if emulator is None:
             return None, "no_rmg_shortcut", {}
         install = session.rmg_install(emulator["exe"], emulator["launchOptions"], self._user_home)
@@ -1164,7 +1190,7 @@ class MultiplayerService:
             return ""
         return self._appimage_version(session.rmg_appimage(shortcut["exe"], shortcut["launchOptions"], self._user_home))
 
-    def _duckstation_couch_local(self, local: dict, core: str, room):
+    def _duckstation_couch_local(self, local: dict, core: str, room, saved_core: str = ""):
         ra = session.RetroArch(self._user_home)
         if not ra.found:
             return None, "duckstation_no_multiplayer", {}
@@ -1175,6 +1201,9 @@ class MultiplayerService:
         room_core = room["core"] if room is not None else ""
         if core in compatible:
             chosen = core
+        elif saved_core in compatible and not room_core:
+            chosen = saved_core
+            local["picked"] = True
         elif room_core:
             if not ra.installed(room_core) or room_core not in compatible:
                 return None, "host_core_missing", {"core": room["coreName"] or room_core}
@@ -1193,17 +1222,28 @@ class MultiplayerService:
     def _fallback_on(self) -> bool:
         return bool(self._settings_store.load_config().get("mpShortcutFallback", True))
 
-    def _play_route(self, game_id: int, fallback_on=None):
+    def _play_route(self, game_id: int, fallback_on=None, choice=None, session_pick: bool = False):
         library = self._library()
         if library is None:
             return None, "no_scan", {}
         game = library.get(game_id)
         if game is None:
             return None, "not_in_results", {}
+        picked = "chosen"
+        if choice is None and session_pick and game_id in self._session_picks:
+            choice, picked = self._session_picks[game_id], "session"
+        if choice is None:
+            choice, picked = self._picks.get(game_id, "play"), "saved"
+        pick = clean_pick(choice) if choice else None
+        if pick is not None:
+            route = self._choice_route(game, pick)
+            if route is not None:
+                route["picked"] = picked
+                return route, None, {}
         linked = next((entry for entry in game["paths"] if entry["shortcut"]), None)
         if linked is not None:
-            picked = self._pick_shortcut(linked["shortcuts"], "play", game["systemId"])
-            return {"appid": picked["appid"], "fallback": False, "shortcut": picked, "rom": linked["path"]}, None, {}
+            own = self._pick_shortcut(linked["shortcuts"], "play", game["systemId"])
+            return {"appid": own["appid"], "fallback": False, "shortcut": own, "rom": linked["path"]}, None, {}
         if fallback_on is None:
             fallback_on = bool(self._settings_store.load_config().get("playShortcutFallback", True))
         if not fallback_on:
@@ -1232,6 +1272,135 @@ class MultiplayerService:
             return None, "no_shortcut", {}
         return None, "no_emulator_shortcut", {"emulator": FALLBACK_NAMES[kinds[0]]}
 
+    def _choice_route(self, game: dict, pick: dict):
+        system_id = game["systemId"]
+        linked = next((entry for entry in game["paths"] if entry["shortcuts"]), None)
+        own = next((row for row in linked["shortcuts"] if row["appid"] == pick["appid"]), None) \
+            if linked is not None and pick["appid"] else None
+        core = pick["core"]
+        ra = session.RetroArch(self._user_home) if core else None
+        if core and (not ra.found or not ra.installed(core) or not ra.runs_system(core, system_id)):
+            return None
+        if own is not None:
+            route = {"appid": own["appid"], "fallback": False, "shortcut": own, "rom": linked["path"]}
+            detected = session.detect(own["exe"], own["launchOptions"])
+            if core and detected and detected["emulator"] == "retroarch" and core != detected["core"]:
+                route.update(kind="retroarch", core=core, corePath=str(ra.core_path(core)))
+            return route
+        if pick["appid"]:
+            shortcut = self._emulator_by_appid(pick["appid"])
+            kind = session.emulator_kind(shortcut["exe"], shortcut["launchOptions"]) if shortcut else ""
+        else:
+            kind = pick["kind"]
+            shortcut = self._emulator_shortcut(kind, None)
+        if shortcut is None or (kind == "retroarch") != bool(core):
+            return None
+        rom = next((entry["path"] for entry in game["paths"] if os.path.isfile(entry["real"])), None)
+        if rom is None:
+            return None
+        route = {"appid": shortcut["appid"], "fallback": True, "kind": kind, "rom": rom, "corePath": ""}
+        if core:
+            route.update(core=core, corePath=str(ra.core_path(core)))
+        return route
+
+    def _route_name(self, route: dict, ra) -> str:
+        if route.get("core"):
+            return ra.core_name(route["core"]) if ra.found else route["core"]
+        if route["fallback"]:
+            return STREAM_EMULATOR_NAMES.get(route["kind"], route["kind"])
+        return self._shortcut_entry(route["shortcut"], ra)["detail"]
+
+    def _shortcut_entry(self, shortcut: dict, ra) -> dict:
+        detected = session.detect(shortcut["exe"], shortcut["launchOptions"])
+        kind = detected["emulator"] if detected else session.emulator_kind(shortcut["exe"], shortcut["launchOptions"])
+        core = detected["core"] if detected and kind == "retroarch" else ""
+        if core:
+            detail = f"RetroArch · {ra.core_name(core) if ra.found else core}"
+        else:
+            detail = STREAM_EMULATOR_NAMES.get(kind, "") or shortcut["name"]
+        return {"appid": shortcut["appid"], "name": shortcut["name"], "kind": kind, "core": "", "detail": detail}
+
+    def _standalone_entries(self, kinds) -> list:
+        entries = []
+        for shortcut in self._emulator_shortcuts():
+            kind = session.emulator_kind(shortcut["exe"], shortcut["launchOptions"])
+            if kind not in kinds or kind == "retroarch":
+                continue
+            install = session.install_type(kind, shortcut["exe"], shortcut["launchOptions"], self._user_home)
+            name = STREAM_EMULATOR_NAMES.get(kind, kind)
+            label = f"{name} ({'Flatpak' if install == 'flatpak' else 'AppImage'})" if install \
+                else shortcut["name"] or name
+            entries.append({"appid": shortcut["appid"], "kind": kind, "core": "", "label": label,
+                            "noAchievements": kind in ("rmg", "melonds")})
+        return entries
+
+    def play_choices(self, game_id: int) -> dict:
+        game = (self._library() or {}).get(game_id)
+        if game is None:
+            return {"ok": False, "error": ERROR_NO_GAME}
+        system_id = game["systemId"]
+        ra = session.RetroArch(self._user_home)
+        linked = next((entry for entry in game["paths"] if entry["shortcuts"]), None)
+        own = linked["shortcuts"] if linked is not None else []
+        default = self._pick_shortcut(own, "play", system_id) if own else None
+        shortcuts = [{**self._shortcut_entry(row, ra), "default": row is default} for row in own]
+        recommended = ""
+        if not own:
+            route, _gate, _detail = self._play_route(game_id, choice={})
+            recommended = self._route_name(route, ra) if route is not None else ""
+        vehicle = next((row for row in own if self._shortcut_entry(row, ra)["kind"] == "retroarch"), None) \
+            or self._emulator_shortcut("retroarch", None)
+        cores = []
+        if vehicle is not None and ra.found:
+            cores = [{"appid": vehicle["appid"], "kind": "retroarch", "core": core, "label": ra.core_name(core)}
+                     for core in self._compatible(ra, "", system_id)]
+        saved = self._picks.get(game_id, "play")
+        return {
+            "ok": True,
+            "shortcuts": shortcuts,
+            "recommended": recommended,
+            "cores": cores,
+            "standalones": self._standalone_entries(self._play_kinds(system_id)),
+            "saved": saved,
+            "savedMissing": saved is not None and self._choice_route(game, saved) is None,
+            "session": self._session_picks.get(game_id),
+        }
+
+    def couch_choices(self, game_id: int) -> dict:
+        game = (self._library() or {}).get(game_id)
+        if game is None:
+            return {"ok": False, "error": ERROR_NO_GAME}
+        system_id = game["systemId"]
+        ra = session.RetroArch(self._user_home)
+        linked = next((entry for entry in game["paths"] if entry["shortcuts"]), None)
+        own = [row for row in (linked["shortcuts"] if linked is not None else [])
+               if self._shortcut_entry(row, ra)["kind"] in self._couch_kinds(system_id)]
+        default = self._pick_shortcut(own, "couch", system_id) if own else None
+        shortcuts = [{**self._shortcut_entry(row, ra), "default": row is default} for row in own]
+        emulators = []
+        if system_id in session.DOLPHIN_SYSTEMS or system_id == session.N64_SYSTEM:
+            emulators = self._standalone_entries(("dolphin",) if system_id in session.DOLPHIN_SYSTEMS else ("rmg",))
+        local, _gate, _detail = self._route("couch", game_id, "", None, use_saved=False)
+        return {
+            "ok": True,
+            "shortcuts": shortcuts,
+            "emulators": emulators,
+            "defaultCore": local["coreName"] if local is not None and local.get("coreName") else "",
+            "cores": local["choices"] if local is not None else [],
+            "saved": self._picks.get(game_id, "couch"),
+        }
+
+    def save_play_pick(self, game_id: int, use: str, pick) -> dict:
+        return {"ok": self._picks.set(game_id, use, clean_pick(pick) if pick else None)}
+
+    def set_stream_pick(self, game_id: int, pick, remember: bool) -> dict:
+        cleaned = clean_pick(pick) if pick else None
+        if remember:
+            self._session_picks.pop(game_id, None)
+            return {"ok": self._picks.set(game_id, "play", cleaned)}
+        self._session_picks[game_id] = cleaned or {}
+        return {"ok": True}
+
     def _stream_local(self, game_id: int, room):
         if room is not None:
             return self._stream_guest_local(room)
@@ -1247,7 +1416,7 @@ class MultiplayerService:
         system_id = game["systemId"]
         if system_id in STREAM_ONE_CONSOLE:
             return None, "stream_one_console", {}
-        route, gate, detail = self._play_route(game_id, self._fallback_on())
+        route, gate, detail = self._play_route(game_id, self._fallback_on(), session_pick=True)
         if route is None:
             return None, gate, detail
         if route["fallback"]:
@@ -1256,7 +1425,7 @@ class MultiplayerService:
         else:
             detected = session.detect(route["shortcut"]["exe"], route["shortcut"]["launchOptions"])
             emulator = detected["emulator"] if detected else ""
-            core = detected["core"] if detected and emulator == "retroarch" else ""
+            core = route.get("core") or (detected["core"] if detected and emulator == "retroarch" else "")
             rom = route["rom"]
         core_name = STREAM_EMULATOR_NAMES.get(emulator, "")
         if core:
@@ -1282,6 +1451,7 @@ class MultiplayerService:
             "fallback": route["fallback"],
             "emuVersion": "",
             "route": route,
+            "picked": bool(route.get("picked")),
         }
         return local, None, {}
 
@@ -1349,13 +1519,13 @@ class MultiplayerService:
             return core
         return compatible[0] if compatible else ""
 
-    def play_info(self, game_id: int) -> dict:
-        route, gate, detail = self._play_route(game_id)
+    def play_info(self, game_id: int, choice=None) -> dict:
+        route, gate, detail = self._play_route(game_id, choice=choice)
         if route is None:
             return {"ok": True, "appid": 0, "launchable": False, "fallback": False, "gate": gate, "detail": detail,
                     "tools": self.desktop_tools()}
-        return {"ok": True, "appid": route["appid"], "launchable": True, "fallback": route["fallback"],
-                "gate": None, "detail": {}, "tools": self.desktop_tools()}
+        return {"ok": True, "appid": route["appid"], "launchable": True, "fallback": bool(_route_args(route)),
+                "gate": None, "detail": {}, "tools": self.desktop_tools(), "kind": _route_kind(route)}
 
     def _desktop_tool_command(self, tool: str):
         home = self._user_home
@@ -1445,18 +1615,18 @@ class MultiplayerService:
         decky.logger.info("play: switching to Desktop Mode to open %s", tool)
         return {"ok": True}
 
-    def prepare_play(self, game_id: int, original: str, name: str = "") -> dict:
+    def prepare_play(self, game_id: int, original: str, name: str = "", choice=None) -> dict:
         current = self._session
         if current is not None and not current["exited"]:
             return {"ok": False, "error": ERROR_BUSY}
         if self.restore_record()["record"] is not None:
             return {"ok": False, "error": ERROR_BUSY}
-        route, gate, detail = self._play_route(game_id)
+        route, gate, detail = self._play_route(game_id, choice=choice)
         if route is None:
             return {"ok": False, "error": ERROR_GATE, "gate": gate, "detail": detail}
-        if not route["fallback"]:
+        args = _route_args(route)
+        if not args:
             return {"ok": False, "error": ERROR_NOT_READY}
-        args = _fallback_args(route)
         game = (self._library() or {}).get(game_id)
         rename = _status_title(game["title"] if game is not None else "", name)
         sid = secrets.token_hex(8)
@@ -1467,7 +1637,8 @@ class MultiplayerService:
         except OSError as e:
             decky.logger.warning("play: couldn't write the restore record (%s)", type(e).__name__)
             return {"ok": False, "error": ERROR_WRITE_FAILED}
-        decky.logger.info("play: launching %s through the %s shortcut", game_id, route["kind"])
+        decky.logger.info("play: launching %s through the %s shortcut%s", game_id, route["kind"],
+                          f" ({route['picked']} pick)" if route.get("picked") else "")
         return {
             "ok": True,
             "appid": route["appid"],
@@ -1498,14 +1669,16 @@ class MultiplayerService:
             return ("retroarch", "melonds")
         return self._fallback_kinds("link", system_id)
 
+    def _couch_kinds(self, system_id: int) -> tuple:
+        if system_id in session.DOLPHIN_SYSTEMS:
+            return ("dolphin",)
+        if system_id == session.N64_SYSTEM:
+            return ("rmg", "retroarch")
+        return ("retroarch",)
+
     def _pick_shortcut(self, shortcuts: list, mode: str, system_id: int) -> dict:
         if mode == "couch":
-            if system_id in session.DOLPHIN_SYSTEMS:
-                kinds = ("dolphin",)
-            elif system_id == session.N64_SYSTEM:
-                kinds = ("rmg", "retroarch")
-            else:
-                kinds = ("retroarch",)
+            kinds = self._couch_kinds(system_id)
         elif mode == "link":
             kinds = self._fallback_kinds("link", system_id)
         else:
@@ -1528,10 +1701,20 @@ class MultiplayerService:
                 return {**shortcut, "kind": kind}
         return {"appid": 0, "name": "", "exe": "", "launchOptions": "", "kind": kinds[0]}
 
-    def _emulator_shortcut(self, kind: str, install=""):
+    def _emulator_shortcuts(self) -> list:
         held = self.restore_record()["record"]
         held = (held["appid"], held["original"]) if held is not None else None
-        for shortcut in steam_shortcuts.emulator_shortcuts(self._user_home, held):
+        return steam_shortcuts.emulator_shortcuts(self._user_home, held)
+
+    def _emulator_by_appid(self, appid: int):
+        return next((row for row in self._emulator_shortcuts() if row["appid"] == appid), None)
+
+    def _emulator_count(self, kind: str) -> int:
+        return sum(1 for row in self._emulator_shortcuts()
+                   if session.emulator_kind(row["exe"], row["launchOptions"]) == kind)
+
+    def _emulator_shortcut(self, kind: str, install=""):
+        for shortcut in self._emulator_shortcuts():
             if session.emulator_kind(shortcut["exe"], shortcut["launchOptions"]) != kind:
                 continue
             if kind == "dolphin" and install is not None and session.dolphin_install(
@@ -2092,6 +2275,26 @@ class MultiplayerService:
             decky.logger.info("multiplayer: the host changed to %s, %s on %s", local["gameId"], mode, local["core"])
             self._changed(room)
             return {"ok": True, "room": self._host_view(room)}
+
+    async def refresh_room_pick(self, game_id: int) -> None:
+        async with self._lock:
+            room = self._room
+            if room is None or room["state"] != "lobby" or room["gameId"] != game_id or room["mode"] == "link":
+                return
+            mode = room["mode"]
+            local, gate, _detail = await asyncio.to_thread(self._local, mode, game_id, "", None)
+            if local is not None:
+                found, _warnings = await asyncio.to_thread(self._gates, mode, local, None, 2)
+                gate = found[0] if found else None
+            if gate:
+                decky.logger.info("multiplayer: the pick for %s doesn't fit the room (%s), left as it was", game_id, gate)
+                return
+            described = await asyncio.to_thread(self._describe, mode, local)
+            if self._room is not room or room["state"] != "lobby":
+                return
+            room.update(described, local=local)
+            decky.logger.info("multiplayer: the room now runs %s on %s", game_id, local["core"] or local["emulator"])
+            self._changed(room)
 
     async def _hold_game_sink(self, room: dict) -> str:
         canceller = self._voice_canceller
@@ -4332,8 +4535,8 @@ class MultiplayerService:
         try:
             ensure_dir(self._session_dir)
             chown_to_data_owner(self._session_dir)
-            if route["fallback"]:
-                parts.append(_fallback_args(route))
+            if _route_args(route):
+                parts.append(_route_args(route))
             room = self._room
             if local["emulator"] == "retroarch" and local["core"] in session.MULTITAP \
                     and room is not None and room["max"] > 2:
@@ -5191,6 +5394,21 @@ def _fallback_args(route: dict) -> str:
     return rom
 
 
+def _route_args(route: dict) -> str:
+    if route["fallback"]:
+        return _fallback_args(route)
+    if route.get("corePath"):
+        return f"-L {session.quote(route['corePath'])}"
+    return ""
+
+
+def _route_kind(route: dict) -> str:
+    if route.get("kind"):
+        return route["kind"]
+    detected = session.detect(route["shortcut"]["exe"], route["shortcut"]["launchOptions"])
+    return detected["emulator"] if detected else ""
+
+
 def _known(version: str) -> bool:
     return bool(version) and all(version.split("|"))
 
@@ -5255,6 +5473,8 @@ def _local_view(local: dict) -> dict:
         "shortcutCoreName": local["shortcutCoreName"],
         "choices": local["choices"],
         "fallback": local["fallback"],
+        "picked": bool(local.get("picked")),
+        "vehicles": local.get("vehicles", 0),
     }
 
 

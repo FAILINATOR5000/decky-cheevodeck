@@ -16,7 +16,9 @@ import {
     streamPadSwap
 } from "../api";
 import { getCurrentLanguage, t } from "../locales";
-import type { MultiplayerRestoreRecord } from "../types";
+import type { MultiplayerRestoreRecord, PlayPick } from "../types";
+
+export type PlayChoice = PlayPick | Record<string, never> | null;
 import { showNetplaySteps, type NetplaySteps } from "../components/multiplayer/NetplayStepsModal";
 import { showMultiplayerProblem } from "../components/multiplayer/ProblemModal";
 import { currentGameMovedSince } from "./currentGameCheck";
@@ -313,13 +315,13 @@ async function launchOnce(appid: number, hardcore: boolean): Promise<Multiplayer
     return { ok: true };
 }
 
-export async function playGame(gameId: number, appid: number, fallback: boolean): Promise<MultiplayerLaunchResult> {
+export async function playGame(gameId: number, appid: number, fallback: boolean, choice: PlayChoice = null): Promise<MultiplayerLaunchResult> {
     if (launching) {
         return { ok: false, error: "busy" };
     }
     launching = true;
     try {
-        return fallback ? await playThroughEmulator(gameId, appid) : runShortcut(appid);
+        return fallback ? await playThroughEmulator(gameId, appid, choice) : runShortcut(appid);
     }
     finally {
         launching = false;
@@ -335,14 +337,14 @@ function runShortcut(appid: number): MultiplayerLaunchResult {
     return { ok: true };
 }
 
-async function playThroughEmulator(gameId: number, appid: number): Promise<MultiplayerLaunchResult> {
+async function playThroughEmulator(gameId: number, appid: number, choice: PlayChoice): Promise<MultiplayerLaunchResult> {
     await restoreLeftover();
     const original = await readLaunchOptions(appid);
     if (original === null) {
         return { ok: false, error: "shortcut_unread" };
     }
     const name = shortcutName(appid) ?? "";
-    const prepared = await multiplayerPreparePlay(gameId, original, name);
+    const prepared = await multiplayerPreparePlay(gameId, original, name, choice);
     if (!prepared.ok || !prepared.options || !prepared.session) {
         return { ok: false, error: prepared.error ?? "launch_failed", gate: prepared.gate, detail: prepared.detail };
     }

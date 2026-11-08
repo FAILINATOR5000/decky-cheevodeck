@@ -6,6 +6,7 @@ import {
     multiplayerChangeGame,
     multiplayerCheck,
     multiplayerModes,
+    multiplayerSavePlayPick,
     multiplayerCloseRoom,
     multiplayerGames,
     multiplayerGuestGame,
@@ -17,6 +18,7 @@ import {
 import type {
     MultiplayerCheck,
     MultiplayerModes,
+    PlayPick,
     MultiplayerGame,
     MultiplayerAdapter,
     MultiplayerMode,
@@ -30,8 +32,6 @@ import { ROOM_ENDED, problemText } from "../utils/multiplayerProblems";
 import {
     forgetMultiplayerRoomChoices,
     multiplayerChoices,
-    multiplayerCoreFor,
-    rememberMultiplayerCore,
     rememberMultiplayerGame,
     rememberMultiplayerHardcore,
     rememberMultiplayerShare,
@@ -162,9 +162,8 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             setPickedGameId(last);
         }
     }, [roomGameId]);
-    const [core, setCoreState] = useState(() => multiplayerCoreFor(gameId));
     const checkRoom = joined ? joined.room.room : "";
-    const checkCore = hosted ? hosted.core : core;
+    const checkCore = hosted ? hosted.core : "";
     const checkKey = [mode, gameId ?? 0, checkCore, checkRoom].join("|");
 
     const reloadStatus = useCallback(async () => {
@@ -326,10 +325,6 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         report(`failure:${session.failureSeq}`, "Couldn't Start", { code: session.failure }, seen !== null);
     }, [isActive, session.failureSeq]);
 
-    useEffect(() => {
-        setCoreState(multiplayerCoreFor(gameId));
-    }, [gameId]);
-
     const joinedState = joined?.status?.state ?? "";
     const streamReady = useStreamSetup(isActive).status?.ready ?? false;
     const hostedSeats = hosted?.seats.filter(Boolean).length ?? 0;
@@ -475,7 +470,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         pressed();
         if (hosted) {
             const toMode = nextMode ?? hosted.mode;
-            multiplayerChangeGame(toMode, next, multiplayerCoreFor(next))
+            multiplayerChangeGame(toMode, next, "")
                 .then((changed) => {
                     if (changed.ok) {
                         rememberMultiplayerTab(toMode);
@@ -498,21 +493,16 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         pressed();
     }
 
-    function chooseCore(next: string) {
-        if (hosted) {
-            const forGame = gameId;
-            void run("Couldn't Change That", async () => {
-                const changed = await multiplayerRoomOptions(null, next, null, null, null);
-                if (changed.ok) {
-                    rememberMultiplayerCore(forGame, next);
-                    setCoreState(next);
-                }
-                return changed;
-            });
+    async function chooseCouchPick(pick: PlayPick | null) {
+        if (gameId === null) {
             return;
         }
-        rememberMultiplayerCore(gameId, next);
-        setCoreState(next);
+        try {
+            await multiplayerSavePlayPick(gameId, "couch", pick);
+        }
+        catch (e) {
+            logError("multiplayer: saving the Couch pick", e);
+        }
     }
 
     function setHardcore(next: boolean) {
@@ -608,7 +598,6 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
                 : hosted && (mode === "couch" || mode === "stream") ? hosted.hardcore : joined ? joined.hardcore : hardcore,
             shareControls: hosted ? hosted.share : shareControls,
             watchOnly: hosted ? hosted.watch : watchOnly,
-            core,
             visibleError,
             hosted,
             joined,
@@ -632,7 +621,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             setTab,
             pickGame,
             changeGame,
-            chooseCore,
+            chooseCouchPick,
             setHardcore,
             setShare,
             setWatch,

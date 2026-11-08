@@ -3138,6 +3138,8 @@ type MultiplayerLocal = {
     shortcutCoreName: string;
     choices: MultiplayerCoreChoice[];
     fallback?: boolean;
+    picked?: boolean;
+    vehicles?: number;
 };
 
 type MultiplayerWarning = { code: string; detail: Record<string, string> };
@@ -3149,6 +3151,34 @@ export type MultiplayerCheck = {
     warnings: MultiplayerWarning[];
     local: MultiplayerLocal | null;
     lanOnly?: boolean;
+};
+
+export type PlayPick = { appid: number; kind: string; core: string };
+
+type PlayChoiceEntry = PlayPick & { label: string; noAchievements?: boolean };
+
+type PlayShortcutEntry = PlayPick & { name: string; detail: string; default: boolean };
+
+export type PlayChoices = {
+    ok: boolean;
+    error?: string;
+    shortcuts: PlayShortcutEntry[];
+    recommended: string;
+    cores: PlayChoiceEntry[];
+    standalones: PlayChoiceEntry[];
+    saved: PlayPick | null;
+    savedMissing: boolean;
+    session: PlayPick | Record<string, never> | null;
+};
+
+export type CouchChoices = {
+    ok: boolean;
+    error?: string;
+    shortcuts: PlayShortcutEntry[];
+    emulators: PlayChoiceEntry[];
+    defaultCore: string;
+    cores: MultiplayerCoreChoice[];
+    saved: PlayPick | null;
 };
 
 export type MultiplayerModeState = {

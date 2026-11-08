@@ -110,13 +110,34 @@ class MultiplayerMixin(PluginContext):
     async def multiplayer_status(self):
         return self.multiplayer_service.status()
 
-    async def multiplayer_play_info(self, game_id: int = 0):
-        return await asyncio.to_thread(self.multiplayer_service.play_info, to_int(game_id, 0))
+    async def multiplayer_play_info(self, game_id: int = 0, choice=None):
+        return await asyncio.to_thread(self.multiplayer_service.play_info, to_int(game_id, 0), _choice(choice))
 
-    async def multiplayer_prepare_play(self, game_id: int = 0, original: str = "", name: str = ""):
+    async def multiplayer_prepare_play(self, game_id: int = 0, original: str = "", name: str = "", choice=None):
         return await asyncio.to_thread(
-            self.multiplayer_service.prepare_play, to_int(game_id, 0), str(original or ""), str(name or "")[:256]
+            self.multiplayer_service.prepare_play, to_int(game_id, 0), str(original or ""), str(name or "")[:256],
+            _choice(choice),
         )
+
+    async def multiplayer_play_choices(self, game_id: int = 0):
+        return await asyncio.to_thread(self.multiplayer_service.play_choices, to_int(game_id, 0))
+
+    async def multiplayer_couch_choices(self, game_id: int = 0):
+        return await asyncio.to_thread(self.multiplayer_service.couch_choices, to_int(game_id, 0))
+
+    async def multiplayer_save_play_pick(self, game_id: int = 0, use: str = "", pick=None):
+        game_id = to_int(game_id, 0)
+        saved = await asyncio.to_thread(self.multiplayer_service.save_play_pick, game_id, str(use or ""), _choice(pick))
+        await self.multiplayer_service.refresh_room_pick(game_id)
+        return saved
+
+    async def multiplayer_set_stream_pick(self, game_id: int = 0, pick=None, remember: bool = False):
+        game_id = to_int(game_id, 0)
+        saved = await asyncio.to_thread(
+            self.multiplayer_service.set_stream_pick, game_id, _choice(pick), remember is True
+        )
+        await self.multiplayer_service.refresh_room_pick(game_id)
+        return saved
 
     async def multiplayer_open_in_desktop(self, tool: str = ""):
         return await asyncio.to_thread(self.multiplayer_service.open_in_desktop, str(tool or ""))
@@ -260,3 +281,7 @@ class MultiplayerMixin(PluginContext):
         wanted = [str(pic) for pic in pics or [] if isinstance(pic, str)][:100]
         async with self._image_slot():
             return await asyncio.to_thread(self.icon_service.get_pic_avatars, wanted, fetch is not False)
+
+
+def _choice(value):
+    return value if isinstance(value, dict) else None

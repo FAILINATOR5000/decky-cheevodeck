@@ -1,10 +1,11 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 
-import { multiplayerCheck, multiplayerPlayInfo } from "../api";
+import { multiplayerCheck, multiplayerPlayChoices, multiplayerPlayInfo, multiplayerSavePlayPick } from "../api";
+import { showPlayWith } from "../components/game/PlayWithModal";
 import { showShortcutNeeded } from "../components/game/ShortcutNeededModal";
 import { showMultiplayerProblem } from "../components/multiplayer/ProblemModal";
 import { t, type LanguageCode } from "../locales";
-import type { MultiplayerMode, PlayInfo } from "../types";
+import type { MultiplayerMode, PlayInfo, PlayPick } from "../types";
 import { logError } from "../utils/errors";
 import {
     multiplayerChoices,
@@ -19,10 +20,13 @@ import {
     launchInFlight,
     playGame,
     runningAppSnapshot,
+    type PlayChoice,
     subscribeRunningApp
 } from "../utils/multiplayerSession";
 
-export type PlayMode = "play" | "host";
+export type PlayMode = "play" | "host" | "with";
+
+const NEXT_MODE: Record<PlayMode, PlayMode> = { play: "host", host: "with", with: "play" };
 
 type HostCheck = { gameId: number; mode: MultiplayerMode | null; gate: string | null; detail: Record<string, string> };
 
@@ -49,7 +53,7 @@ export function useGamePlayController(props: {
             return;
         }
         let alive = true;
-        multiplayerPlayInfo(gameId)
+        multiplayerPlayInfo(gameId, null)
             .then((next) => {
                 playInfos.set(gameId, next);
                 if (alive) {
@@ -105,6 +109,60 @@ export function useGamePlayController(props: {
         showMultiplayerProblem(language, "Another Game Is Running", t(language, "Close the running game first"));
     }
 
+    function launch(forGame: number, appid: number, fallback: boolean, choice: PlayChoice = null) {
+        if (anyGameRunning() || launchInFlight()) {
+            anotherGameRunning();
+            return;
+        }
+        playGame(forGame, appid, fallback, choice)
+            .then((result) => {
+                if (result.error === "busy") {
+                    anotherGameRunning();
+                }
+                else if (!result.ok) {
+                    showMultiplayerProblem(language, "Couldn't Start",
+                        problemText(language, result.gate ?? result.error ?? "launch_failed", result.detail));
+                }
+            })
+            .catch((e) => logError("play: the launch threw", e));
+    }
+
+    async function launchPicked(forGame: number, pick: PlayPick | null, remember: boolean) {
+        try {
+            if (remember) {
+                await multiplayerSavePlayPick(forGame, "play", pick);
+            }
+            const choice = pick ?? {};
+            const picked = await multiplayerPlayInfo(forGame, choice);
+            if (!picked.launchable) {
+                showMultiplayerProblem(language, "Couldn't Start", problemText(language, picked.gate ?? "launch_failed", picked.detail));
+                return;
+            }
+            launch(forGame, picked.appid, picked.fallback, choice);
+        }
+        catch (e) {
+            logError("play: Play With couldn't start the pick", e);
+        }
+    }
+
+    function openPlayWith(forGame: number) {
+        multiplayerPlayChoices(forGame)
+            .then((choices) => {
+                if (!choices.ok) {
+                    return;
+                }
+                showPlayWith({
+                    language,
+                    purpose: "launch",
+                    choices,
+                    onPick: (pick, remember) => void launchPicked(forGame, pick, remember),
+                    onForget: () => void multiplayerSavePlayPick(forGame, "play", null)
+                        .catch((e) => logError("play: Forget didn't clear the pick", e))
+                });
+            })
+            .catch((e) => logError("play: couldn't list what can play this game", e));
+    }
+
     let label: string;
     let press: (() => void) | null = null;
     let explain: (() => void) | null = null;
@@ -135,27 +193,29 @@ export function useGamePlayController(props: {
     else if (playing) {
         label = t(language, "Playing");
     }
-    else {
-        label = t(language, "play_game");
-        if (info?.launchable && gameId != null) {
-            const launch = { gameId, appid: info.appid, fallback: info.fallback };
+    else if (mode === "with") {
+        label = t(language, "Play With…");
+        const unscanned = info?.gate === "no_scan" || info?.gate === "not_in_results";
+        if (info && !unscanned && gameId != null) {
+            const forGame = gameId;
             press = () => {
                 if (anyGameRunning() || launchInFlight()) {
                     anotherGameRunning();
                     return;
                 }
-                playGame(launch.gameId, launch.appid, launch.fallback)
-                    .then((result) => {
-                        if (result.error === "busy") {
-                            anotherGameRunning();
-                        }
-                        else if (!result.ok) {
-                            showMultiplayerProblem(language, "Couldn't Start",
-                                problemText(language, result.gate ?? result.error ?? "launch_failed", result.detail));
-                        }
-                    })
-                    .catch((e) => logError("play: the launch threw", e));
+                openPlayWith(forGame);
             };
+        }
+        else if (info) {
+            const tools = info.tools ?? {};
+            explain = () => showShortcutNeeded(language, tools);
+        }
+    }
+    else {
+        label = t(language, "play_game");
+        if (info?.launchable && gameId != null) {
+            const ready = { gameId, appid: info.appid, fallback: info.fallback };
+            press = () => launch(ready.gameId, ready.appid, ready.fallback);
         }
         else if (info) {
             const tools = info.tools ?? {};
@@ -164,7 +224,7 @@ export function useGamePlayController(props: {
     }
 
     function onToggleMode() {
-        setChosen({ gameId, mode: mode === "play" ? "host" : "play" });
+        setChosen({ gameId, mode: NEXT_MODE[mode] });
     }
 
     function onPress() {

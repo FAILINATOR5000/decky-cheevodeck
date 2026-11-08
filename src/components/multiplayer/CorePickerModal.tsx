@@ -2,27 +2,65 @@ import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
 import { FocusableItem } from "../ui/FocusableItem";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { t, type LanguageCode } from "../../locales";
-import type { MultiplayerCoreChoice } from "../../types";
+import type { CouchChoices, PlayPick } from "../../types";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { modalSize } from "../../utils/scale";
-import { modalBodyStyle } from "../../utils/style";
+import { achievementGreen, modalBodyStyle } from "../../utils/style";
 
 type CorePickerModalProps = {
     language: LanguageCode;
-    choices: MultiplayerCoreChoice[];
-    current: string;
-    onPick: (core: string) => void;
+    choices: CouchChoices;
+    onPick: (pick: PlayPick | null) => Promise<void>;
     close: () => void;
 };
 
-function CorePickerModal(props: CorePickerModalProps) {
-    const { language, choices, current, onPick, close } = props;
+type Row = { key: string; label: string; pick: PlayPick | null; mark?: string };
 
-    function press(core: string) {
-        if (core !== current) {
-            onPick(core);
+function CorePickerModal(props: CorePickerModalProps) {
+    const { language, choices, onPick, close } = props;
+    const saved = choices.saved;
+
+    const sections: { title: string; rows: Row[] }[] = [];
+    if (choices.shortcuts.length > 0) {
+        sections.push({ title: t(language, "Your shortcuts"), rows: choices.shortcuts.map((row) => ({
+            key: `own:${row.appid}`,
+            label: `${row.name} (${row.detail})`,
+            pick: row.default ? null : { appid: row.appid, kind: row.kind, core: "" },
+            mark: row.default ? t(language, "Default") : undefined
+        })) });
+    }
+    else if (choices.defaultCore) {
+        sections.push({ title: "", rows: [{ key: "default", pick: null,
+            label: t(language, "Default ({{core}})", { core: choices.defaultCore }) }] });
+    }
+    if (choices.emulators.length > 0) {
+        sections.push({ title: "", rows: choices.emulators.map((row) => ({
+            key: `emulator:${row.appid}`,
+            label: row.label,
+            pick: { appid: row.appid, kind: row.kind, core: "" }
+        })) });
+    }
+    if (choices.cores.length > 0) {
+        sections.push({ title: "RetroArch", rows: choices.cores.map((row) => ({
+            key: `core:${row.core}`,
+            label: row.name,
+            pick: { appid: 0, kind: "retroarch", core: row.core }
+        })) });
+    }
+
+    function chosen(pick: PlayPick | null): boolean {
+        if (saved === null || pick === null) {
+            return saved === pick;
         }
-        close();
+        return saved.appid === pick.appid && saved.core === pick.core;
+    }
+
+    function press(row: Row) {
+        if (chosen(row.pick)) {
+            close();
+            return;
+        }
+        void onPick(row.pick).finally(close);
     }
 
     return (
@@ -32,38 +70,33 @@ function CorePickerModal(props: CorePickerModalProps) {
                 {t(language, "Choose a Core")}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                {choices.map((choice) => {
-                    const active = choice.core === current;
-                    return (
-                        <FocusableItem
-                            key={choice.core}
-                            outerStyle={{ width: "100%", minWidth: 0 }}
-                            focusKey={`multiplayer-core-picker:${choice.core}`}
-                            onClick={() => press(choice.core)}
-                            autoFocus={active}
-                        >
-                            <div
-                                style={{
-                                    width: "100%",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "space-between",
-                                    gap: "12px",
-                                    textAlign: "left"
-                                }}
-                            >
-                                <span style={{ fontSize: `${modalSize(15)}px`, fontWeight: active ? 700 : 500, minWidth: 0 }}>
-                                    {choice.name}
-                                </span>
-                                {active && (
-                                    <span style={{ ...modalBodyStyle(), opacity: 0.95, flexShrink: 0 }}>
-                                        {"✔"}
-                                    </span>
-                                )}
-                            </div>
-                        </FocusableItem>
-                    );
-                })}
+                {sections.map((section, index) => (
+                    <div key={index} style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        {section.title && (
+                            <div style={{ ...modalBodyStyle(), fontWeight: 700, marginTop: "6px" }}>{section.title}</div>
+                        )}
+                        {section.rows.map((row) => {
+                            const active = chosen(row.pick);
+                            return (
+                                <FocusableItem
+                                    key={row.key}
+                                    outerStyle={{ width: "100%", minWidth: 0 }}
+                                    focusKey={`multiplayer-core-picker:${row.key}`}
+                                    onClick={() => press(row)}
+                                    autoFocus={active}
+                                >
+                                    <div style={{ width: "100%", display: "flex", alignItems: "center", gap: "12px", textAlign: "left" }}>
+                                        <span style={{ fontSize: `${modalSize(15)}px`, fontWeight: active ? 700 : 500, minWidth: 0, flex: 1 }}>
+                                            {row.label}
+                                        </span>
+                                        {row.mark && <span style={{ ...modalBodyStyle(), flexShrink: 0 }}>{row.mark}</span>}
+                                        {active && <span style={{ color: achievementGreen, flexShrink: 0 }}>{"✔"}</span>}
+                                    </div>
+                                </FocusableItem>
+                            );
+                        })}
+                    </div>
+                ))}
             </div>
             <Focusable
                 style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "16px" }}

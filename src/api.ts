@@ -47,6 +47,9 @@ import type {
     DataTransferSummary,
     MultiplayerCheck,
     MultiplayerModes,
+    CouchChoices,
+    PlayChoices,
+    PlayPick,
     MultiplayerFriendsState,
     MultiplayerGame,
     MultiplayerGuestGame,
@@ -978,10 +981,14 @@ export const multiplayerPrepareLaunch = callable<
 >("multiplayer_prepare_launch");
 export const multiplayerLaunchStarted = callable<[], { ok: boolean; error?: string }>("multiplayer_launch_started");
 export const multiplayerLaunchEnded = callable<[], { ok: boolean }>("multiplayer_launch_ended");
-export const multiplayerPlayInfo = callable<[number], PlayInfo>("multiplayer_play_info");
+export const multiplayerPlayInfo = callable<[number, PlayPick | Record<string, never> | null], PlayInfo>("multiplayer_play_info");
+export const multiplayerPlayChoices = callable<[number], PlayChoices>("multiplayer_play_choices");
+export const multiplayerCouchChoices = callable<[number], CouchChoices>("multiplayer_couch_choices");
+export const multiplayerSavePlayPick = callable<[number, "play" | "couch", PlayPick | null], { ok: boolean }>("multiplayer_save_play_pick");
+export const multiplayerSetStreamPick = callable<[number, PlayPick | null, boolean], { ok: boolean }>("multiplayer_set_stream_pick");
 export const multiplayerOpenInDesktop = callable<[string], { ok: boolean; error?: string }>("multiplayer_open_in_desktop");
 export const multiplayerPreparePlay = callable<
-    [number, string, string],
+    [number, string, string, PlayPick | Record<string, never> | null],
     MultiplayerReply & { appid?: number; options?: string; original?: string; session?: string; rename?: string; name?: string }
 >("multiplayer_prepare_play");
 export const multiplayerRestoreRecord = callable<[], { ok: boolean; record: MultiplayerRestoreRecord | null }>("multiplayer_restore_record");

@@ -21,8 +21,6 @@ type Choices = {
     where: MultiplayerWhere;
     access: MultiplayerAccess;
     filter: MultiplayerRoomFilter;
-    core: string;
-    coreFor: number | null;
     page: MultiplayerTab;
     roomTab: { room: string; tab: MultiplayerRoomTab };
     invite: { id: string; at: number } | null;
@@ -47,8 +45,6 @@ const choices: Choices = {
     where: "local",
     access: "friends",
     filter: NO_ROOM_FILTER,
-    core: "",
-    coreFor: null,
     page: "play",
     roomTab: { room: "", tab: "room" },
     invite: null,
@@ -83,15 +79,6 @@ export function rememberMultiplayerWatch(value: boolean) {
 
 export function rememberMultiplayerVoice(value: boolean) {
     choices.voice = value;
-}
-
-export function rememberMultiplayerCore(gameId: number | null, core: string) {
-    choices.core = core;
-    choices.coreFor = gameId;
-}
-
-export function multiplayerCoreFor(gameId: number | null): string {
-    return choices.coreFor === gameId ? choices.core : "";
 }
 
 export function rememberMultiplayerHostPicks(seats: number, status: string, where: MultiplayerWhere,

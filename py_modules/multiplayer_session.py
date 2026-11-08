@@ -519,6 +519,38 @@ def _script_install(path, emulator: str, flatpak_id: str, wrapper_arm: bool) -> 
     return ""
 
 
+_FLATPAKS = {
+    "dolphin": DOLPHIN_FLATPAK, "rmg": RMG_FLATPAK, "ppsspp": PPSSPP_FLATPAK,
+    "duckstation": "org.duckstation.DuckStation", "pcsx2": "net.pcsx2.PCSX2", "melonds": "net.kuribo64.melonDS",
+}
+
+
+def install_type(kind: str, exe, launch_options, home) -> str:
+    if kind == "dolphin":
+        return dolphin_install(exe, launch_options, home)
+    if kind == "rmg":
+        return rmg_install(exe, launch_options, home)
+    flatpak = _FLATPAKS.get(kind)
+    if flatpak is None:
+        return ""
+    tokens = []
+    for field in (exe, launch_options):
+        if field:
+            try:
+                tokens.extend(shlex.split(field, posix=True))
+            except ValueError:
+                tokens.extend(field.split())
+    names = _program_names(tokens)
+    if flatpak.lower() in names:
+        return "flatpak"
+    if any(name.endswith(".appimage") and kind in name for name in names):
+        return "appimage"
+    for token in tokens[:2]:
+        if token.endswith(".sh"):
+            return _script_install(_expand(token, Path(home), Path(home)), kind, flatpak, kind in names)
+    return ""
+
+
 _RETROARCH_NAMES = ("retroarch", "retroarch.sh", "org.libretro.retroarch")
 
 

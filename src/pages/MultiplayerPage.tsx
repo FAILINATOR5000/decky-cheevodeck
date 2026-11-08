@@ -17,6 +17,7 @@ import { TextViewerModal } from "../components/ui/TextViewerModal";
 import { ToggleRow } from "../components/ui/ToggleRow";
 import { GameHeaderCard, useGameHeaderArt } from "../components/games/GameHeaderCard";
 import { openCorePicker } from "../components/multiplayer/CorePickerModal";
+import { showPlayWith } from "../components/game/PlayWithModal";
 import { RoomChatBox } from "../components/multiplayer/RoomChatBox";
 import { RoomTable, type RoomTableVoice, type StreamSeatState } from "../components/multiplayer/RoomTable";
 import { pressOwnMic } from "../components/multiplayer/VoiceDialogs";
@@ -49,7 +50,7 @@ import type {
 } from "../types";
 import { showManagedModal } from "../utils/modalRegistry";
 import { logError } from "../utils/errors";
-import { multiplayerGuestGames, saveMpShortcutFallback } from "../api";
+import { multiplayerCouchChoices, multiplayerGuestGames, multiplayerPlayChoices, multiplayerSetStreamPick, saveMpShortcutFallback } from "../api";
 import { anyGameRunning, otherGameRunning } from "../utils/multiplayerSession";
 import { multiplayerChoices, rememberMultiplayerRoomTab, rememberMultiplayerTab } from "../utils/multiplayerChoices";
 import { shortcutButtonGlyphs } from "../utils/options";
@@ -617,7 +618,9 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         showModeReason(language, {
             mode: forMode,
             state: entry.state,
-            text: reasonText(forMode, gate, entry.detail),
+            text: gate === "no_shortcut" || gate === "no_emulator_shortcut"
+                ? `${reasonText(forMode, gate, entry.detail)}\n\n${t(language, "A shortcut only counts when it opens the same file Cheevo Check found.")}`
+                : reasonText(forMode, gate, entry.detail),
             fixes,
             tools: gate === "no_shortcut" || gate === "no_emulator_shortcut" ? tools : null
         });
@@ -680,12 +683,40 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     }
 
     function openCores() {
-        openCorePicker({
-            language,
-            choices,
-            current: local?.core ?? "",
-            onPick: actions.chooseCore
-        });
+        if (mp.gameId === null) {
+            return;
+        }
+        multiplayerCouchChoices(mp.gameId)
+            .then((found) => {
+                if (found.ok) {
+                    openCorePicker({ language, choices: found, onPick: actions.chooseCouchPick });
+                }
+            })
+            .catch((e) => logError("multiplayer: listing the Couch choices", e));
+    }
+
+    function openRunsWith() {
+        if (mp.gameId === null) {
+            return;
+        }
+        const forGame = mp.gameId;
+        multiplayerPlayChoices(forGame)
+            .then((found) => {
+                if (!found.ok) {
+                    return;
+                }
+                showPlayWith({
+                    language,
+                    purpose: "set",
+                    choices: found,
+                    onPick: (pick, remember) => multiplayerSetStreamPick(forGame, pick, remember)
+                        .then(() => undefined)
+                        .catch((e) => logError("multiplayer: saving the Stream pick", e)),
+                    onForget: () => void multiplayerSetStreamPick(forGame, null, true)
+                        .catch((e) => logError("multiplayer: forgetting the Stream pick", e))
+                });
+            })
+            .catch((e) => logError("multiplayer: listing what can run the game", e));
     }
 
     function describe(code: string, detail?: Record<string, string>) {
@@ -700,7 +731,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             mode: mp.mode,
             gameId: mp.gameId,
             hardcore: mp.hardcore,
-            core: mp.core,
+            core: "",
             share: mp.shareControls,
             watch: mp.watchOnly
         };
@@ -718,31 +749,43 @@ function MultiplayerPage(props: MultiplayerPageProps) {
 
     const buttonStyle = regularButtonSpacingStyle(state.buttonSpacing);
     const coreLabel = local
-        ? local.core === local.shortcutCore
+        ? local.picked && !joined
+            ? t(language, "Core: {{core}} (your pick)", { core: local.coreName })
+            : local.core === local.shortcutCore
             ? t(language, "Core: {{core}} (from your shortcut)", { core: local.coreName })
             : joined
                 ? t(language, "Core: {{core}} (matches the host)", { core: local.coreName })
                 : t(language, "Core: {{core}}", { core: local.coreName })
         : "";
-    const showCores = local?.emulator === "retroarch" && choices.length > 0 && !joined && mp.mode !== "stream";
+    const showCores = !joined && (mp.mode === "link"
+        ? local?.emulator === "retroarch" && choices.length > 0
+        : mp.mode === "couch" && ((local?.emulator === "retroarch" && choices.length > 0)
+            || ((local?.emulator === "dolphin" || local?.emulator === "rmg") && (local.vehicles ?? 0) > 1)));
+    const showRunsWith = Boolean(mp.mode === "stream" && !joined && local?.coreName);
 
     const scopeKey = joined ? "multiplayer:room" : `multiplayer:${mp.mode}`;
 
     const coreRows = showCores && (
         <>
-            <PanelSectionRow>
-                <FocusableItem
-                    bottomSeparator="none"
-                    outerStyle={buttonStyle}
-                    focusKey="multiplayer:core"
-                    focusFallback={["multiplayer:host", "multiplayer:back"]}
-                    disabled={roomLocked}
-                    onClick={openCores}
-                    help={roomLocked ? t(language, "Close the room to change it") : undefined}
-                >
-                    {coreLabel}
-                </FocusableItem>
-            </PanelSectionRow>
+            {mp.mode === "link" ? (
+                <PanelSectionRow>
+                    <div style={bodyTextStyle()}>{coreLabel}</div>
+                </PanelSectionRow>
+            ) : (
+                <PanelSectionRow>
+                    <FocusableItem
+                        bottomSeparator="none"
+                        outerStyle={buttonStyle}
+                        focusKey="multiplayer:core"
+                        focusFallback={["multiplayer:runswith", "multiplayer:host", "multiplayer:back"]}
+                        disabled={roomLocked}
+                        onClick={openCores}
+                        help={roomLocked ? t(language, "Close the room to change it") : undefined}
+                    >
+                        {coreLabel}
+                    </FocusableItem>
+                </PanelSectionRow>
+            )}
             {mp.mode === "link" && local?.core === "gpsp" && (
                 <PanelSectionRow>
                     <FocusableItem
@@ -822,13 +865,23 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     );
 
     const hardcoreLocked = (mp.mode === "couch" || mp.mode === "stream") && roomLocked;
-    const runsWithRow = mp.mode === "stream" && !joined && local?.coreName && (
+    const runsWithRow = showRunsWith && local && (
         <PanelSectionRow>
-            <div style={bodyTextStyle()}>
-                {local.fallback
-                    ? t(language, "Runs with: {{core}}", { core: local.coreName })
-                    : t(language, "Runs with: {{core}} (from your shortcut)", { core: local.coreName })}
-            </div>
+            <FocusableItem
+                bottomSeparator="none"
+                outerStyle={buttonStyle}
+                focusKey="multiplayer:runswith"
+                focusFallback={["multiplayer:host", "multiplayer:back"]}
+                disabled={roomLocked}
+                onClick={openRunsWith}
+                help={roomLocked ? t(language, "Close the room to change it") : undefined}
+            >
+                {local.picked
+                    ? t(language, "Runs with: {{core}} (your pick)", { core: local.coreName })
+                    : local.fallback
+                        ? t(language, "Runs with: {{core}} (recommended)", { core: local.coreName })
+                        : t(language, "Runs with: {{core}} (from your shortcut)", { core: local.coreName })}
+            </FocusableItem>
         </PanelSectionRow>
     );
     const hardcoreRow = (mp.mode === "link" || !couchGuest) && (
@@ -1204,7 +1257,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const showWatch = showShare || (mp.mode === "stream" && !joined);
     const showChangeGame = hosted !== null || (joined !== null && mp.mode === "link");
     const showAdapter = Boolean(hosted?.adapterShown);
-    const roomKeys = [showChangeGame ? "multiplayer:changegame" : "", showCores ? "multiplayer:core" : "",
+    const roomKeys = [showChangeGame ? "multiplayer:changegame" : "", showCores && mp.mode !== "link" ? "multiplayer:core" : "",
+        showRunsWith ? "multiplayer:runswith" : "",
         showHardcore ? "multiplayer:toggle:hardcore" : "", showShare ? "multiplayer:toggle:share" : "",
         showWatch ? "multiplayer:toggle:watch" : "", showAdapter ? "multiplayer:adapter" : "",
         hosted ? "multiplayer:toggle:voice" : "",
@@ -1491,7 +1545,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         bottomSeparator="none"
                         outerStyle={buttonStyle}
                         focusKey="multiplayer:changegame"
-                        focusFallback={["multiplayer:core", hosted ? "multiplayer:host" : "multiplayer:leave", "multiplayer:back"]}
+                        focusFallback={["multiplayer:core", "multiplayer:runswith", hosted ? "multiplayer:host" : "multiplayer:leave", "multiplayer:back"]}
                         disabled={!inLobby || Boolean(joined?.ready)}
                         onClick={() => {
                             if (!mp.busy) {
