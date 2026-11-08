@@ -197,7 +197,9 @@ PS2_SYSTEM = 21
 DSI_SYSTEM = 78
 VIRTUAL_PADS = ".local/share/Steam/config/virtualgamepadinfo.txt"
 SUNSHINE_PAD = ("0x045e", "0x0b13")
-TAP_NAMES = {"team": "Team Player", "4way": "4-Way Play"}
+TAP_NAMES = {"team": "Team Player", "4way": "4-Way Play", "port1": "the multitap on port 1",
+             "port2": "the multitap on port 2"}
+PORT_TWO_GAMES = {6294}
 STREAM_ONE_CONSOLE = (session.PSP_SYSTEM, session.DS_SYSTEM, 78)
 STREAM_EMULATOR_NAMES = {
     "retroarch": "RetroArch", "ppsspp": "PPSSPP", "dolphin": "Dolphin", "rmg": "RMG", "duckstation": "DuckStation",
@@ -2146,12 +2148,16 @@ class MultiplayerService:
         }
 
     def _tap_auto(self, local: dict) -> str:
-        if local["emulator"] != "retroarch" or local["core"] not in session.TEAM_PLAYER:
+        if local["emulator"] != "retroarch":
             return ""
-        return "team" if rom_headers.genesis_team_player(local["real"]) else "4way"
+        if local["core"] in session.TEAM_PLAYER:
+            return "team" if rom_headers.genesis_team_player(local["real"]) else "4way"
+        if local["core"] in session.PORT_TWO:
+            return "port2" if local["gameId"] in PORT_TWO_GAMES else "port1"
+        return ""
 
     def _room_tap(self, room: dict) -> str:
-        if room["tapAuto"] and room["adapter"] in session.ADAPTERS:
+        if room["tapAuto"] and room["adapter"] in session.adapters_for(room["core"]):
             return room["adapter"]
         return room["tapAuto"]
 
@@ -2188,7 +2194,7 @@ class MultiplayerService:
         if watch is not None and bool(watch) != room["watch"]:
             room["watch"] = bool(watch)
             changed = True
-        if adapter in ("auto", *session.ADAPTERS) and adapter != room["adapter"]:
+        if (adapter == "auto" or adapter in session.adapters_for(room["core"])) and adapter != room["adapter"]:
             room["adapter"] = adapter
             changed = True
         if changed:

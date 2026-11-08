@@ -3472,6 +3472,11 @@ const PT: LocaleTable = {
     "Runs with: {{core}} (your pick)": "Roda com: {{core}} (sua escolha)",
     "Runs with: {{core}} (recommended)": "Roda com: {{core}} (recomendado)",
     "A shortcut only counts when it opens the same file Cheevo Check found.": "Um atalho só conta quando abre o mesmo arquivo que o Cheevo Check encontrou.",
+    "Multitap: Auto (Port 1)": "Multitap: Automático (porta 1)",
+    "Multitap: Auto (Port 2)": "Multitap: Automático (porta 2)",
+    "Multitap: Port 1": "Multitap: porta 1",
+    "Multitap: Port 2": "Multitap: porta 2",
+    "help_multiplayer_multitap": "Em qual porta de controle o multitap do PS1 entra. A maioria dos jogos usa a porta 1; alguns jogos para cinco jogadores só o leem na porta 2. Automático escolhe nos jogos que o CheevoDeck conhece. Se os jogadores 3 em diante não se moverem, tente a outra porta.",
 };
 
 export default PT;

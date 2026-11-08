@@ -3472,6 +3472,11 @@ const FR: LocaleTable = {
     "Runs with: {{core}} (your pick)": "Lancé avec : {{core}} (ton choix)",
     "Runs with: {{core}} (recommended)": "Lancé avec : {{core}} (recommandé)",
     "A shortcut only counts when it opens the same file Cheevo Check found.": "Un raccourci ne compte que s'il ouvre le même fichier que celui trouvé par Cheevo Check.",
+    "Multitap: Auto (Port 1)": "Multitap : Auto (port 1)",
+    "Multitap: Auto (Port 2)": "Multitap : Auto (port 2)",
+    "Multitap: Port 1": "Multitap : port 1",
+    "Multitap: Port 2": "Multitap : port 2",
+    "help_multiplayer_multitap": "Dans quel port de manette va le multitap PS1. La plupart des jeux utilisent le port 1 ; certains jeux à cinq joueurs ne le lisent que sur le port 2. Auto choisit pour les jeux que CheevoDeck connaît. Si les joueurs 3 et suivants ne bougent pas, essaie l'autre port.",
 };
 
 export default FR;

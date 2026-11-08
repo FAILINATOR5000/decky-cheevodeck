@@ -3439,6 +3439,11 @@ const DE: LocaleTable = {
     "Runs with: {{core}} (your pick)": "Läuft mit: {{core}} (deine Wahl)",
     "Runs with: {{core}} (recommended)": "Läuft mit: {{core}} (empfohlen)",
     "A shortcut only counts when it opens the same file Cheevo Check found.": "Eine Verknüpfung zählt nur, wenn sie dieselbe Datei öffnet, die Cheevo Check gefunden hat.",
+    "Multitap: Auto (Port 1)": "Multitap: Auto (Port 1)",
+    "Multitap: Auto (Port 2)": "Multitap: Auto (Port 2)",
+    "Multitap: Port 1": "Multitap: Port 1",
+    "Multitap: Port 2": "Multitap: Port 2",
+    "help_multiplayer_multitap": "In welchen Controller-Anschluss der PS1-Multitap kommt. Die meisten Spiele nutzen Anschluss 1, manche Spiele für fünf Spieler lesen ihn nur an Anschluss 2. Auto wählt für die Spiele, die CheevoDeck kennt. Wenn sich Spieler 3 und weitere nicht bewegen können, probier den anderen Anschluss.",
 };
 
 export default DE;

@@ -136,6 +136,17 @@ const UPDATE_LINES: Record<string, { key: string; color?: string }> = {
 
 const MODE_FACTS = ["link_system", "link_gc_no_lan", "ds_no_couch", "pcsx2_no_multiplayer", "link_gba_cant_link"];
 
+const ADAPTER_LABELS: Record<string, string> = {
+    team: "Multiplayer Adapter: Team Player",
+    "4way": "Multiplayer Adapter: 4-Way Play",
+    port1: "Multitap: Port 1",
+    port2: "Multitap: Port 2",
+    "auto:team": "Multiplayer Adapter: Auto (Team Player)",
+    "auto:4way": "Multiplayer Adapter: Auto (4-Way Play)",
+    "auto:port1": "Multitap: Auto (Port 1)",
+    "auto:port2": "Multitap: Auto (Port 2)"
+};
+
 type MultiplayerPageState = {
     view: ViewKey;
     language: LanguageCode;
@@ -930,7 +941,11 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         />
     );
 
-    const adapterNext: Record<MultiplayerAdapter, MultiplayerAdapter> = { auto: "team", team: "4way", "4way": "auto" };
+    const ps1Tap = hosted?.adapterAuto === "port1" || hosted?.adapterAuto === "port2";
+    const adapterNext: Record<MultiplayerAdapter, MultiplayerAdapter> = ps1Tap
+        ? { auto: "port1", port1: "port2", port2: "auto", team: "auto", "4way": "auto" }
+        : { auto: "team", team: "4way", "4way": "auto", port1: "auto", port2: "auto" };
+    const adapterKey = !hosted ? "" : hosted.adapter === "auto" ? `auto:${hosted.adapterAuto || "4way"}` : hosted.adapter;
     const adapterRow = hosted && (
         <PanelSectionRow>
             <FocusableItem
@@ -940,15 +955,9 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 focusFallback={["multiplayer:toggle:watch", "multiplayer:toggle:share", "multiplayer:toggle:hardcore", "multiplayer:host"]}
                 disabled={roomLocked}
                 onClick={() => actions.setAdapter(adapterNext[hosted.adapter])}
-                help={t(language, roomLocked ? "Close the room to change it" : "help_multiplayer_adapter")}
+                help={t(language, roomLocked ? "Close the room to change it" : ps1Tap ? "help_multiplayer_multitap" : "help_multiplayer_adapter")}
             >
-                {t(language, hosted.adapter === "team"
-                    ? "Multiplayer Adapter: Team Player"
-                    : hosted.adapter === "4way"
-                        ? "Multiplayer Adapter: 4-Way Play"
-                        : hosted.adapterAuto === "team"
-                            ? "Multiplayer Adapter: Auto (Team Player)"
-                            : "Multiplayer Adapter: Auto (4-Way Play)")}
+                {t(language, ADAPTER_LABELS[adapterKey] ?? ADAPTER_LABELS["auto:4way"])}
             </FocusableItem>
         </PanelSectionRow>
     );

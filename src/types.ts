@@ -2943,7 +2943,7 @@ export type ActivityMonthResponse = ActivityMonth | { ok: false; error?: string;
 export type ActivitySubject = { ulid: string; username: string; own: boolean };
 
 export type MultiplayerMode = "link" | "couch" | "stream";
-export type MultiplayerAdapter = "auto" | "team" | "4way";
+export type MultiplayerAdapter = "auto" | "team" | "4way" | "port1" | "port2";
 
 export type MultiplayerTab = "play" | "friends";
 
@@ -3031,7 +3031,7 @@ export type MultiplayerHostedRoom = {
     watch: boolean;
     voice: boolean;
     adapter: MultiplayerAdapter;
-    adapterAuto: "" | "team" | "4way";
+    adapterAuto: "" | "team" | "4way" | "port1" | "port2";
     adapterShown: boolean;
     max: number;
     seats: MultiplayerSeat[];

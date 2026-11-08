@@ -161,8 +161,10 @@ MULTITAP = {
     "genesis_plus_gx": {"devices": {1: "1025", 2: "1025"}},
     "picodrive": {"options": {"picodrive_input1": "4way play"}},
     "mednafen_pce": {"options": {"pce_multitap": "enabled"}},
-    "mednafen_psx_hw": {"options": {"beetle_psx_hw_enable_multitap_port1": "enabled"}},
-    "mednafen_psx": {"options": {"beetle_psx_enable_multitap_port1": "enabled"}},
+    "mednafen_psx_hw": {"options": {"beetle_psx_hw_enable_multitap_port1": "enabled",
+                                    "beetle_psx_hw_enable_multitap_port2": "disabled"}},
+    "mednafen_psx": {"options": {"beetle_psx_enable_multitap_port1": "enabled",
+                                 "beetle_psx_enable_multitap_port2": "disabled"}},
     "pcsx_rearmed": {"options": {"pcsx_rearmed_multitap": "port 1"}},
     "mesen-s": {"devices": {2: "513"}},
     "genesis_plus_gx_wide": {"devices": {1: "1025", 2: "1025"}},
@@ -179,12 +181,26 @@ TEAM_PLAYER = {
     "genesis_plus_gx_wide": {"devices": {1: "1537"}},
     "picodrive": {"options": {"picodrive_input1": "team player"}},
 }
-ADAPTERS = ("team", "4way")
+PORT_TWO = {
+    "mednafen_psx_hw": {"options": {"beetle_psx_hw_enable_multitap_port1": "disabled",
+                                    "beetle_psx_hw_enable_multitap_port2": "enabled"}},
+    "mednafen_psx": {"options": {"beetle_psx_enable_multitap_port1": "disabled",
+                                 "beetle_psx_enable_multitap_port2": "enabled"}},
+    "swanstation": {"options": {"swanstation_ControllerPorts_MultitapMode": "Port2Only"}},
+}
+def adapters_for(core: str) -> tuple:
+    if core in TEAM_PLAYER:
+        return ("team", "4way")
+    if core in PORT_TWO:
+        return ("port1", "port2")
+    return ()
 
 
 def multitap(core: str, adapter: str = "") -> dict:
     if adapter == "team" and core in TEAM_PLAYER:
         return TEAM_PLAYER[core]
+    if adapter == "port2" and core in PORT_TWO:
+        return PORT_TWO[core]
     return MULTITAP.get(core, {})
 
 _STANDALONE_NAMES = (

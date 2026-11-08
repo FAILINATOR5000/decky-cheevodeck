@@ -3306,6 +3306,11 @@ const JA: LocaleTable = {
     "Runs with: {{core}} (your pick)": "起動に使うもの: {{core}}（あなたの選択）",
     "Runs with: {{core}} (recommended)": "起動に使うもの: {{core}}（おすすめ）",
     "A shortcut only counts when it opens the same file Cheevo Check found.": "ショートカットは、Cheevo Check が見つけたのと同じファイルを開く場合にのみ有効です。",
+    "Multitap: Auto (Port 1)": "マルチタップ：自動（ポート1）",
+    "Multitap: Auto (Port 2)": "マルチタップ：自動（ポート2）",
+    "Multitap: Port 1": "マルチタップ：ポート1",
+    "Multitap: Port 2": "マルチタップ：ポート2",
+    "help_multiplayer_multitap": "PS1 のマルチタップをどのコントローラーポートに挿すかです。ほとんどのゲームはポート1を使い、5人用のゲームの一部はポート2でしか読みません。自動は CheevoDeck が知っているゲームで選びます。3人目以降が動けない場合は、もう一方のポートを試してください。",
 };
 
 export default JA;
