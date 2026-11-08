@@ -1986,6 +1986,7 @@ class MultiplayerService:
             decky.logger.info("multiplayer: the host changed to %s, %s on %s", local["gameId"], mode, local["core"])
             self._changed(room)
             return {"ok": True, "room": self._host_view(room)}
+        sink = self._voice_canceller.game_sink() if room["voice"] and self._voice_canceller is not None else ""
 
     def close_room(self) -> dict:
         if self._room is None:
@@ -4096,6 +4097,10 @@ class MultiplayerService:
             return {"ok": False, "error": ERROR_STREAM_UNREACHABLE}
         if stream.full:
             return {"ok": False, "error": ERROR_GATE, "gate": "host_too_slow", "detail": {}}
+        status = joined["status"]
+        if status is not None:
+            stream.wait_turn(sum(1 for index, seat in enumerate(status["seats"])
+                                 if 0 < index < joined["seat"] and seat["playing"]))
         width, _sep, height = screen.partition("x")
         options = stream.launch_options(
             int(width) if width.isdigit() else 0, int(height) if height.isdigit() else 0,

@@ -7,6 +7,7 @@ import shlex
 import socket
 import subprocess
 import time
+import urllib.request
 from pathlib import Path
 
 import decky
@@ -24,6 +25,11 @@ PAIR_GIVE_UP_SECONDS = 15
 LIST_SECONDS = 10
 GUEST_PAIR_RETRY_SECONDS = 10
 KILL_SECONDS = 10
+SERVERINFO_PORT = 47989
+SERVERINFO_SECONDS = 2
+SERVERINFO_MAX = 64 * 1024
+TURN_SECONDS = 15
+TURN_POLL_SECONDS = 0.5
 SPEED_SECONDS = 3
 SPEED_CHUNK = 64 * 1024
 SPEED_TIMEOUT = 30
@@ -434,9 +440,28 @@ class GuestStream:
     def wait_paired(self, seconds: float) -> None:
         deadline = time.monotonic() + seconds
         while not self.paired and not self._closed and time.monotonic() < deadline:
-            if self.failed and (self._pairing is None or self._pairing.done()):
-                return
             time.sleep(0.5)
+
+    def host_busy(self) -> bool:
+        try:
+            with urllib.request.urlopen(f"http://{self.address}:{SERVERINFO_PORT}/serverinfo",
+                                        timeout=SERVERINFO_SECONDS) as reply:
+                text = reply.read(SERVERINFO_MAX).decode("utf-8", errors="replace")
+        except (OSError, ValueError):
+            return False
+        return "SUNSHINE_SERVER_BUSY" in text
+
+    def wait_turn(self, ahead: int) -> None:
+        if ahead <= 0:
+            return
+        self._debug("stream: %s guest(s) ahead, waiting for the host's stream to start", ahead)
+        deadline = time.monotonic() + ahead * TURN_SECONDS
+        while not self._closed and time.monotonic() < deadline:
+            if self.host_busy():
+                return
+            time.sleep(TURN_POLL_SECONDS)
+        if not self._closed:
+            decky.logger.info("stream: the host's stream never started, launching anyway")
 
     @property
     def busy(self) -> bool:
