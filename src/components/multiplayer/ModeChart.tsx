@@ -1,17 +1,19 @@
 // Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
 import { DialogButton, Focusable } from "@decky/ui";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { FaCheckCircle, FaExclamationCircle, FaTimesCircle } from "react-icons/fa";
 
 import { t, type LanguageCode } from "../../locales";
 import type { MultiplayerMode, MultiplayerModeState } from "../../types";
 import { textSize } from "../../utils/scale";
 import { achievementGreen, errorRed, warnAmber } from "../../utils/style";
+import { forgetNavAxisMemory, type NavAxisRef } from "../../utils/navAxisMemory";
 import { FocusTarget } from "../ui/FocusTarget";
 
 export type ModeState = MultiplayerModeState["state"];
 
 const ORDER: MultiplayerMode[] = ["link", "couch", "stream"];
+const NAV_ENTER_MAINTAIN_Y = 3;
 
 const MODE_LABELS: Record<MultiplayerMode, string> = {
     link: "Link Play",
@@ -48,6 +50,7 @@ function StatusLink(props: {
     chosen: MultiplayerMode;
     state: ModeState;
     onPress: () => void;
+    onFocused: () => void;
 }) {
     const [focused, setFocused] = useState(false);
     return (
@@ -58,8 +61,14 @@ function StatusLink(props: {
         >
             <Focusable
                 onActivate={props.onPress}
-                onGamepadFocus={() => setFocused(true)}
-                onGamepadBlur={() => setFocused(false)}
+                onGamepadFocus={() => {
+                    setFocused(true);
+                    props.onFocused();
+                }}
+                onGamepadBlur={() => {
+                    setFocused(false);
+                    props.onFocused();
+                }}
                 style={{
                     fontSize: `${textSize(12)}px`,
                     padding: "4px 6px",
@@ -85,73 +94,94 @@ export function ModeChart(props: {
 }) {
     const { language, mode, locked } = props;
     const [focused, setFocused] = useState<MultiplayerMode | null>(null);
+    const navRef = useRef(null) as NavAxisRef;
+
+    function cellFocused() {
+        forgetNavAxisMemory(navRef);
+    }
 
     function row(each: MultiplayerMode) {
         const chosen = each === mode;
         const disabled = locked && !chosen;
         const hasCursor = focused === each;
         const state = props.states[each]?.state;
-        return (
-            <Focusable key={each} flow-children="row" style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                <FocusTarget
-                    focusKey={`multiplayer:mode:${each}`}
-                    focusFallback={[`multiplayer:mode:${mode}`, "multiplayer:mode:link"].filter((key) => key !== `multiplayer:mode:${each}`)}
-                    style={{ display: "flex", flex: 1, minWidth: 0 }}
+        return [
+            <FocusTarget
+                key={`${each}:pick`}
+                focusKey={`multiplayer:mode:${each}`}
+                focusFallback={[`multiplayer:mode:${mode}`, "multiplayer:mode:link"].filter((key) => key !== `multiplayer:mode:${each}`)}
+                style={{ display: "flex", minWidth: 0 }}
+            >
+                <DialogButton
+                    onClick={() => props.onChoose(each)}
+                    focusable={!disabled}
+                    onGamepadFocus={() => {
+                        setFocused(each);
+                        cellFocused();
+                    }}
+                    onGamepadBlur={() => {
+                        setFocused((current) => current === each ? null : current);
+                        cellFocused();
+                    }}
+                    disabled={disabled}
+                    style={{
+                        background: chosen || hasCursor ? undefined : "transparent",
+                        color: chosen || hasCursor ? undefined : "rgba(220, 222, 223, 0.6)",
+                        minWidth: 0,
+                        width: "100%",
+                        padding: "4px 10px",
+                        fontSize: `${textSize(13)}px`,
+                        fontWeight: chosen ? 800 : 600,
+                        boxShadow: chosen ? `inset 0 -3px 0 ${achievementGreen}` : undefined,
+                        opacity: disabled ? 0.4 : 1,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "flex-start",
+                        gap: "8px"
+                    }}
                 >
-                    <DialogButton
-                        onClick={() => props.onChoose(each)}
-                        focusable={!disabled}
-                        onGamepadFocus={() => setFocused(each)}
-                        onGamepadBlur={() => setFocused((current) => current === each ? null : current)}
-                        disabled={disabled}
+                    <span
                         style={{
-                            background: chosen || hasCursor ? undefined : "transparent",
-                            color: chosen || hasCursor ? undefined : "rgba(220, 222, 223, 0.6)",
-                            minWidth: 0,
-                            width: "100%",
-                            padding: "4px 10px",
-                            fontSize: `${textSize(13)}px`,
-                            fontWeight: chosen ? 800 : 600,
-                            boxShadow: chosen ? `inset 0 -3px 0 ${achievementGreen}` : undefined,
-                            opacity: disabled ? 0.4 : 1,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "flex-start",
-                            gap: "8px"
+                            flexShrink: 0,
+                            width: "0.7em",
+                            height: "0.7em",
+                            borderRadius: "50%",
+                            border: `2px solid ${chosen ? achievementGreen : "currentColor"}`,
+                            background: chosen ? achievementGreen : "transparent"
                         }}
-                    >
-                        <span
-                            style={{
-                                flexShrink: 0,
-                                width: "0.7em",
-                                height: "0.7em",
-                                borderRadius: "50%",
-                                border: `2px solid ${chosen ? achievementGreen : "currentColor"}`,
-                                background: chosen ? achievementGreen : "transparent"
-                            }}
-                        />
-                        {t(language, MODE_LABELS[each])}
-                    </DialogButton>
-                </FocusTarget>
-                {state === "ready" && (
-                    <div style={{ fontSize: `${textSize(12)}px`, padding: "4px 6px", flexShrink: 0 }}>
-                        <ModeStateLabel language={language} state="ready" />
-                    </div>
-                )}
-                {(state === "setup" || state === "never") && (
-                    <StatusLink language={language} mode={each} chosen={mode} state={state} onPress={() => props.onStatus(each)} />
-                )}
-            </Focusable>
-        );
+                    />
+                    {t(language, MODE_LABELS[each])}
+                </DialogButton>
+            </FocusTarget>,
+            state === "setup" || state === "never" ? (
+                <StatusLink
+                    key={`${each}:status`}
+                    language={language}
+                    mode={each}
+                    chosen={mode}
+                    state={state}
+                    onPress={() => props.onStatus(each)}
+                    onFocused={cellFocused}
+                />
+            ) : (
+                <div key={`${each}:status`} style={{ fontSize: `${textSize(12)}px`, padding: "4px 6px" }}>
+                    {state === "ready" && <ModeStateLabel language={language} state="ready" />}
+                </div>
+            )
+        ];
     }
 
     return (
         <Focusable
-            flow-children="column"
+            navRef={navRef}
+            flow-children="grid"
+            resetNavOnEntry
+            navEntryPreferPosition={NAV_ENTER_MAINTAIN_Y}
             style={{
                 width: "100%",
-                display: "flex",
-                flexDirection: "column",
+                display: "grid",
+                gridTemplateColumns: "minmax(0, 1fr) auto",
+                alignItems: "center",
                 gap: "4px",
                 margin: "6px 0 4px 0",
                 padding: "3px",
@@ -160,7 +190,7 @@ export function ModeChart(props: {
                 background: "rgba(0, 0, 0, 0.3)"
             }}
         >
-            {ORDER.map(row)}
+            {ORDER.flatMap(row)}
         </Focusable>
     );
 }
