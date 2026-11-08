@@ -41,13 +41,15 @@ class MultiplayerMixin(PluginContext):
             "online" if where == "online" else "local", bool(watch), bool(friends), voice is True, str(screen or ""),
         )
 
-    async def multiplayer_room_options(self, hardcore=None, core=None, share=None, watch=None, voice=None):
+    async def multiplayer_room_options(self, hardcore=None, core=None, share=None, watch=None, voice=None,
+                                       adapter=None):
         return await self.multiplayer_service.room_options(
             None if hardcore is None else bool(hardcore),
             None if core is None else str(core),
             None if share is None else bool(share),
             None if watch is None else bool(watch),
             None if voice is None else bool(voice),
+            None if adapter is None else str(adapter),
         )
 
     async def multiplayer_change_game(self, mode: str = "", game_id: int = 0, core: str = ""):

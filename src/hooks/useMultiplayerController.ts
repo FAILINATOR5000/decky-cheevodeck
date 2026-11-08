@@ -16,6 +16,7 @@ import {
 import type {
     MultiplayerCheck,
     MultiplayerGame,
+    MultiplayerAdapter,
     MultiplayerMode,
     MultiplayerRoomStatus,
     Payload
@@ -509,6 +510,12 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         }
     }
 
+    function setAdapter(next: MultiplayerAdapter) {
+        if (hosted) {
+            void run("Couldn't Change That", () => multiplayerRoomOptions(null, null, null, null, null, next));
+        }
+    }
+
     function setVoice(next: boolean) {
         rememberMultiplayerVoice(next);
         if (hosted) {
@@ -599,6 +606,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             setHardcore,
             setShare,
             setWatch,
+            setAdapter,
             setVoice,
             closeRoom,
             leave,

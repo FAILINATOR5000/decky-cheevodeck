@@ -38,6 +38,7 @@ import type {
     MultiplayerCoreChoice,
     MultiplayerGame,
     MultiplayerGuestGame,
+    MultiplayerAdapter,
     MultiplayerMode,
     MultiplayerRoomTab,
     MultiplayerTab,
@@ -818,6 +819,29 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         />
     );
 
+    const adapterNext: Record<MultiplayerAdapter, MultiplayerAdapter> = { auto: "team", team: "4way", "4way": "auto" };
+    const adapterRow = hosted && (
+        <PanelSectionRow>
+            <FocusableItem
+                bottomSeparator="none"
+                outerStyle={buttonStyle}
+                focusKey="multiplayer:adapter"
+                focusFallback={["multiplayer:toggle:watch", "multiplayer:toggle:share", "multiplayer:toggle:hardcore", "multiplayer:host"]}
+                disabled={roomLocked}
+                onClick={() => actions.setAdapter(adapterNext[hosted.adapter])}
+                help={t(language, roomLocked ? "Close the room to change it" : "help_multiplayer_adapter")}
+            >
+                {t(language, hosted.adapter === "team"
+                    ? "Multiplayer Adapter: Team Player"
+                    : hosted.adapter === "4way"
+                        ? "Multiplayer Adapter: 4-Way Play"
+                        : hosted.adapterAuto === "team"
+                            ? "Multiplayer Adapter: Auto (Team Player)"
+                            : "Multiplayer Adapter: Auto (4-Way Play)")}
+            </FocusableItem>
+        </PanelSectionRow>
+    );
+
     const voiceRow = hosted && (
         <ToggleRow
             bottomSeparator="none"
@@ -826,7 +850,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             value={hosted.voice}
             outerStyle={buttonStyle}
             focusKey="multiplayer:toggle:voice"
-            focusFallback={["multiplayer:toggle:watch", "multiplayer:toggle:share", "multiplayer:toggle:hardcore", "multiplayer:host"]}
+            focusFallback={["multiplayer:adapter", "multiplayer:toggle:watch", "multiplayer:toggle:share", "multiplayer:toggle:hardcore", "multiplayer:host"]}
             onChange={actions.setVoice}
         />
     );
@@ -1121,9 +1145,11 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const showShare = mp.mode === "couch" && !joined && (hosted?.emulator ?? local?.emulator) === "retroarch";
     const showWatch = showShare || (mp.mode === "stream" && !joined);
     const showChangeGame = hosted !== null || (joined !== null && mp.mode === "link");
+    const showAdapter = Boolean(hosted?.adapterShown);
     const roomKeys = [showChangeGame ? "multiplayer:changegame" : "", showCores ? "multiplayer:core" : "",
         showHardcore ? "multiplayer:toggle:hardcore" : "", showShare ? "multiplayer:toggle:share" : "",
-        showWatch ? "multiplayer:toggle:watch" : "", hosted ? "multiplayer:toggle:voice" : "",
+        showWatch ? "multiplayer:toggle:watch" : "", showAdapter ? "multiplayer:adapter" : "",
+        hosted ? "multiplayer:toggle:voice" : "",
         joined ? "multiplayer:leave" : "multiplayer:host", "multiplayer:back"].filter(Boolean);
     const roomHasOptions = showChangeGame || showCores || showHardcore || showWatch || hosted !== null;
     const afterSliders = roomHasOptions ? ["multiplayer:roomtab:audio", ...roomKeys] : roomKeys;
@@ -1424,6 +1450,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             {showHardcore && hardcoreRow}
             {showShare && shareRow}
             {showWatch && watchRow}
+            {showAdapter && adapterRow}
             {voiceRow}
         </>
     );

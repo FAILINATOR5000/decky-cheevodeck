@@ -159,7 +159,7 @@ DATABASES = {
 MULTITAP = {
     "snes9x": {"devices": {2: "257"}},
     "genesis_plus_gx": {"devices": {1: "1025", 2: "1025"}},
-    "picodrive": {"options": {"picodrive_input1": "4way play", "picodrive_input2": "4way play"}},
+    "picodrive": {"options": {"picodrive_input1": "4way play"}},
     "mednafen_pce": {"options": {"pce_multitap": "enabled"}},
     "mednafen_psx_hw": {"options": {"beetle_psx_hw_enable_multitap_port1": "enabled"}},
     "mednafen_psx": {"options": {"beetle_psx_enable_multitap_port1": "enabled"}},
@@ -173,6 +173,19 @@ MULTITAP = {
     "yabause": {"options": {"yabause_multitap_port1": "enabled"}},
     "yabasanshiro": {"options": {"yabasanshiro_multitap_port1": "enabled"}},
 }
+
+TEAM_PLAYER = {
+    "genesis_plus_gx": {"devices": {1: "1537"}},
+    "genesis_plus_gx_wide": {"devices": {1: "1537"}},
+    "picodrive": {"options": {"picodrive_input1": "team player"}},
+}
+ADAPTERS = ("team", "4way")
+
+
+def multitap(core: str, adapter: str = "") -> dict:
+    if adapter == "team" and core in TEAM_PLAYER:
+        return TEAM_PLAYER[core]
+    return MULTITAP.get(core, {})
 
 _STANDALONE_NAMES = (
     ("ppsspp", ("ppsspp", "ppsspp.sh", "org.ppsspp.ppsspp", "ppssppsdl", "ppssppqt")),
@@ -814,7 +827,7 @@ def ppsspp_cpu_flag(home) -> str:
 
 def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcore: bool, opt_path: Path,
                       guests: int, seat: int, host_ip: str, players: int, game_code: str = "", system_dir=None,
-                      share_controls: bool = False, watch_only: bool = False, remap_dir=None):
+                      share_controls: bool = False, watch_only: bool = False, remap_dir=None, adapter: str = ""):
     watch_only = watch_only and mode == "couch"
     cfg = [
         ("config_save_on_exit", "false"),
@@ -841,7 +854,7 @@ def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcor
     if watch_only and role == "guest":
         for key in ("input_netplay_game_watch", "input_netplay_game_watch_btn", "input_netplay_game_watch_axis"):
             cfg.append((key, "nul"))
-    taps = MULTITAP.get(core, {}) if mode == "couch" and players > 2 and not watch_only else {}
+    taps = multitap(core, adapter) if mode == "couch" and players > 2 and not watch_only else {}
     devices = {port: "0" for port in range(2, 17)} if watch_only else taps.get("devices")
     remap = None
     if devices and remap_dir is not None:
@@ -871,9 +884,9 @@ def retroarch_session(ra, *, core: str, rom: Path, mode: str, role: str, hardcor
     return write_cfg(cfg), write_cfg(options.items()), remap
 
 
-def stream_host_session(ra, *, core: str, rom: Path, opt_path: Path, remap_dir: Path):
-    taps = MULTITAP.get(core)
-    if taps is None:
+def stream_host_session(ra, *, core: str, rom: Path, opt_path: Path, remap_dir: Path, adapter: str = ""):
+    taps = multitap(core, adapter)
+    if not taps:
         return None
     cfg = [
         ("config_save_on_exit", "false"),

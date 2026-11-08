@@ -51,6 +51,7 @@ import type {
     MultiplayerGuestGame,
     MultiplayerHostedRoom,
     MultiplayerMessage,
+    MultiplayerAdapter,
     MultiplayerMode,
     MultiplayerRestoreRecord,
     MultiplayerRoomRow,
@@ -830,7 +831,7 @@ export const multiplayerHost = callable<
     MultiplayerReply & { room?: MultiplayerHostedRoom }
 >("multiplayer_host");
 export const multiplayerRoomOptions = callable<
-    [boolean | null, string | null, boolean | null, boolean | null, boolean | null],
+    [boolean | null, string | null, boolean | null, boolean | null, boolean | null, (MultiplayerAdapter | null)?],
     MultiplayerReply & { room?: MultiplayerHostedRoom }
 >("multiplayer_room_options");
 export const multiplayerCloseRoom = callable<[], { ok: boolean; error?: string }>("multiplayer_close_room");

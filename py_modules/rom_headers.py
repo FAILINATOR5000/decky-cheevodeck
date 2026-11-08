@@ -177,6 +177,16 @@ def dsi_only(path):
     return data is not None and len(data) > _DS_UNIT_OFFSET and data[_DS_UNIT_OFFSET] == _DSI_ONLY
 
 
+_GENESIS_SUFFIXES = (".md", ".bin", ".gen")
+_GENESIS_NAME = slice(0x100, 0x110)
+_GENESIS_IO = slice(0x190, 0x1A0)
+
+
+def genesis_team_player(path):
+    data = _rom_bytes(path, _GENESIS_SUFFIXES, _GENESIS_IO.stop)
+    return data is not None and b"SEGA" in data[_GENESIS_NAME] and b"4" in data[_GENESIS_IO]
+
+
 _DISC_ID_AT = {b"RVZ\x01": 0x58, b"WIA\x01": 0x58, b"CISO": 0x8000}
 _WBFS_MAGIC = b"WBFS"
 _WBFS_SHIFT_OFFSET = 8

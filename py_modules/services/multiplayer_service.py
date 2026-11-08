@@ -193,6 +193,7 @@ GB_SYSTEMS = session.GB_SYSTEMS
 PSP_SYSTEM = session.PSP_SYSTEM
 VIRTUAL_PADS = ".local/share/Steam/config/virtualgamepadinfo.txt"
 SUNSHINE_PAD = ("0x045e", "0x0b13")
+TAP_NAMES = {"team": "Team Player", "4way": "4-Way Play"}
 STREAM_ONE_CONSOLE = (session.PSP_SYSTEM, session.DS_SYSTEM, 78)
 STREAM_EMULATOR_NAMES = {
     "retroarch": "RetroArch", "ppsspp": "PPSSPP", "dolphin": "Dolphin", "rmg": "RMG", "duckstation": "DuckStation",
@@ -1630,7 +1631,8 @@ class MultiplayerService:
             key = ra.overriding_key(local["core"], rom)
             if key:
                 return ("override", {"key": key}), warnings
-            devices = session.MULTITAP.get(local["core"], {}).get("devices") if mode == "couch" and players > 2 else None
+            devices = session.multitap(local["core"], self._current_tap()).get("devices") \
+                if mode == "couch" and players > 2 else None
             if devices and session.remap_port_conflict(ra, core=local["core"], rom=rom, devices=devices):
                 return ("remap", {}), warnings
             if devices:
@@ -1797,6 +1799,7 @@ class MultiplayerService:
                 "owner": ulid if friends else "",
                 "share": bool(share) and mode == "couch",
                 "watch": bool(watch) and mode in ("couch", "stream"),
+                "adapter": "auto",
                 "voice": bool(voice),
                 "max": seats,
                 "seats": [{"name": user, "host": True, "said": 0.0, "ulid": ulid, "pic": pic, "vc": False,
@@ -1891,9 +1894,26 @@ class MultiplayerService:
             "crc": self._crc_of(local["real"]) if mode == "couch" and local["emulator"] == "retroarch" else "",
             "coreBuild": local["coreBuild"],
             "gameCode": local["gameCode"],
+            "tapAuto": self._tap_auto(local),
         }
 
-    async def room_options(self, hardcore=None, core=None, share=None, watch=None, voice=None) -> dict:
+    def _tap_auto(self, local: dict) -> str:
+        if local["emulator"] != "retroarch" or local["core"] not in session.TEAM_PLAYER:
+            return ""
+        return "team" if rom_headers.genesis_team_player(local["real"]) else "4way"
+
+    def _room_tap(self, room: dict) -> str:
+        if room["tapAuto"] and room["adapter"] in session.ADAPTERS:
+            return room["adapter"]
+        return room["tapAuto"]
+
+    def _current_tap(self) -> str:
+        if self._room is not None:
+            return self._room_tap(self._room)
+        status = self._joined["status"] if self._joined is not None else None
+        return status.get("adapter", "") if status else ""
+
+    async def room_options(self, hardcore=None, core=None, share=None, watch=None, voice=None, adapter=None) -> dict:
         room = self._room
         joined = self._joined
         if room is None and joined is not None and hardcore is not None:
@@ -1904,7 +1924,7 @@ class MultiplayerService:
         if voice is not None:
             if bool(voice) != room["voice"]:
                 self._set_room_voice(room, bool(voice))
-            if hardcore is None and core is None and share is None and watch is None:
+            if hardcore is None and core is None and share is None and watch is None and adapter is None:
                 return {"ok": True, "room": self._host_view(room)}
         if room["state"] != "lobby":
             return {"ok": False, "error": ERROR_SEATED}
@@ -1919,6 +1939,9 @@ class MultiplayerService:
             changed = True
         if watch is not None and bool(watch) != room["watch"]:
             room["watch"] = bool(watch)
+            changed = True
+        if adapter in ("auto", *session.ADAPTERS) and adapter != room["adapter"]:
+            room["adapter"] = adapter
             changed = True
         if changed:
             self._changed(room)
@@ -1998,6 +2021,8 @@ class MultiplayerService:
                 self._release_game_sink()
                 if self._stream_host is not None:
                     await asyncio.to_thread(self._stream_host.stop)
+            if local["gameId"] != room["gameId"]:
+                room["adapter"] = "auto"
             room.update(described, mode=mode, local=local)
             decky.logger.info("multiplayer: the host changed to %s, %s on %s", local["gameId"], mode, local["core"])
             self._changed(room)
@@ -2229,6 +2254,10 @@ class MultiplayerService:
             "friends": room["friends"],
             "share": room["share"],
             "watch": room["watch"],
+            "adapter": room["adapter"],
+            "adapterAuto": room["tapAuto"],
+            "adapterShown": bool(room["tapAuto"]) and room["max"] > 2
+                and (room["mode"] == "stream" or (room["mode"] == "couch" and not room["watch"])),
             "voice": room["voice"],
             "max": room["max"],
             "seats": [
@@ -3107,6 +3136,7 @@ class MultiplayerService:
             "start": index in roster,
             "port": room["ports"].get(index, 0) if room["state"] != "lobby" else 0,
             "players": room["players"] if room["state"] != "lobby" else self._players(room["mode"], room),
+            "adapter": self._room_tap(room),
             "seats": [
                 {"ready": False, "can": True, "launched": False, "playing": False, "title": ""}
                 if taken is None or position == 0
@@ -4013,6 +4043,7 @@ class MultiplayerService:
             hardcore = room["hardcore"] if mode in ("couch", "stream") else bool(hardcore)
             share = room["share"]
             watch = room["watch"]
+            adapter = self._room_tap(room)
             players = room["max"] if _drop_in(room) else 1 + len(roster)
             peer = None
             relay = self._relay_host() if room["where"] == "online" else ""
@@ -4032,6 +4063,7 @@ class MultiplayerService:
             hardcore = status["hardcore"] if mode == "couch" else joined["hardcore"]
             share = joined["row"]["share"]
             watch = joined["row"].get("watch", False)
+            adapter = status.get("adapter", "")
             players = status["players"]
             peer = joined["row"]
             relay = self._relay_host() if joined["row"]["where"] == "online" else ""
@@ -4091,7 +4123,11 @@ class MultiplayerService:
                     ra, core=local["core"], rom=rom, mode=mode, role=role, hardcore=hardcore, opt_path=opt_path,
                     guests=players - 1, seat=seat, host_ip=host_ip, players=players, game_code=local["gameCode"],
                     system_dir=system_dir, share_controls=share, watch_only=watch, remap_dir=remap_dir,
+                    adapter=adapter,
                 )
+                if adapter and mode == "couch" and players > 2 and not watch:
+                    decky.logger.info("multiplayer: %s plugs in %s for %s players", local["core"],
+                                      TAP_NAMES[adapter], players)
                 self._write(opt_path, opt_text)
                 self._write(cfg_path, cfg_text)
                 files = [cfg_path, opt_path]
@@ -4237,7 +4273,8 @@ class MultiplayerService:
                     and room is not None and room["max"] > 2:
                 ra = session.RetroArch(self._user_home)
                 rom = Path(local["path"])
-                devices = session.MULTITAP[local["core"]].get("devices", {})
+                adapter = self._room_tap(room)
+                devices = session.multitap(local["core"], adapter).get("devices", {})
                 if devices and (session.remap_port_conflict(ra, core=local["core"], rom=rom, devices=devices)
                                 or ra.overriding_key(local["core"], rom, session.MULTITAP_CFG_KEYS)):
                     decky.logger.info("stream: %s's own remap or override sets its controller ports, no multiplayer "
@@ -4247,7 +4284,8 @@ class MultiplayerService:
                     opt_path = self._session_dir / f"session-{sid}.opt"
                     remap_dir = self._session_dir / f"session-{sid}.remaps"
                     cfg_text, opt_text, remap = session.stream_host_session(ra, core=local["core"], rom=rom,
-                                                                            opt_path=opt_path, remap_dir=remap_dir)
+                                                                            opt_path=opt_path, remap_dir=remap_dir,
+                                                                            adapter=adapter)
                     files = [cfg_path]
                     if opt_text is not None:
                         self._write(opt_path, opt_text)
@@ -4258,8 +4296,8 @@ class MultiplayerService:
                     if not self._readable_by_owner(files):
                         raise OSError("session files are not the home owner's")
                     parts.insert(0, f"--appendconfig {session.quote(str(cfg_path))}")
-                    decky.logger.info("stream: %s gets its multiplayer adapter for %s seats", local["core"],
-                                      room["max"])
+                    decky.logger.info("stream: %s gets its multiplayer adapter for %s seats%s", local["core"],
+                                      room["max"], f" ({TAP_NAMES[adapter]})" if adapter else "")
             rename = _status_title(local["title"], name) if route["fallback"] else ""
             self._write_restore(local["appid"], original, sid, name=name, renamed=rename)
         except OSError as e:
