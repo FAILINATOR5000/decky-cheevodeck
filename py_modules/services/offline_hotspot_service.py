@@ -27,6 +27,8 @@ PASSPHRASE_KEY = b"cheevodeck-hotspot-v1"
 CODE_DIGITS = 8
 CHANNEL = 6
 BAND = "bg"
+FAST_CHANNEL = 36
+FAST_BAND = "a"
 AP_INTERFACE = "cdap0"
 AP_INTERFACE_SECONDS = 8
 
@@ -79,6 +81,29 @@ def station_channel(interface: str):
         return None
     match = _CHANNEL.search(out)
     return (int(match.group(1)), int(match.group(2))) if match else None
+
+
+_SELF_MANAGED = re.compile(r"^phy#(\d+) \(self-managed\)\ncountry (\w\w):[^\n]*\n((?:\t[^\n]*\n)*)", re.MULTILINE)
+_RULE = re.compile(r"\((\d+) - (\d+) @")
+
+
+def plain_channel(interface: str):
+    try:
+        phy = Path(f"/sys/class/net/{interface}/phy80211/name").read_text().strip()
+    except OSError:
+        return CHANNEL, BAND
+    code, out, _err = run_command(["iw", "reg", "get"], timeout=5)
+    if code != 0:
+        return CHANNEL, BAND
+    for match in _SELF_MANAGED.finditer(out):
+        if f"phy{match.group(1)}" != phy or match.group(2) == "00":
+            continue
+        for rule in match.group(3).splitlines():
+            span = _RULE.search(rule)
+            if span and int(span.group(1)) <= 5170 and int(span.group(2)) >= 5250 \
+                    and not any(flag in rule for flag in ("NO-IR", "PASSIVE-SCAN", "DFS")):
+                return FAST_CHANNEL, FAST_BAND
+    return CHANNEL, BAND
 
 
 def can_host_on(mhz: int) -> bool:
@@ -397,12 +422,13 @@ class OfflineHotspotService:
         if error:
             if error != "plain":
                 decky.logger.info("hotspot: hosting without staying on %s (%s)", self._paused, error)
+            channel, band = plain_channel(self._interface)
             with self._lock:
                 self._ap_interface = self._interface
                 self._ap_device = self._device
-                self._ap_channel = CHANNEL
+                self._ap_channel = channel
             error = self._activate(_ap_settings(ssid, self._interface, passphrase, address, profile=HOST_PROFILE + tag,
-                                                mode="ap", channel=CHANNEL, band=BAND), self._device)
+                                                mode="ap", channel=channel, band=band), self._device)
         if error:
             self._teardown(reconnect=True)
             self._reset_state()
