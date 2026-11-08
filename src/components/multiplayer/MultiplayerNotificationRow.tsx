@@ -14,7 +14,7 @@ import { hotspotIsOn, leaveHotspot, toggleHotspot, useHotspot } from "../../util
 import { rememberMultiplayerPage } from "../../utils/multiplayerChoices";
 import { endMultiplayerRoom, useMultiplayerRoomMarker } from "../../utils/multiplayerRoomState";
 import { modalSize } from "../../utils/scale";
-import { achievementGreen } from "../../utils/style";
+import { achievementGreen, skyBlue } from "../../utils/style";
 import { notificationCardMetrics } from "../notifications/NotificationCard";
 import { FocusTarget } from "../ui/FocusTarget";
 import { openHotspotJoin } from "../hotspot/HotspotJoinModal";
@@ -153,7 +153,7 @@ function SideButton(props: FocusProps & {
                     alignItems: "center",
                     justifyContent: "center",
                     background: selected ? undefined : SIDE_FILL,
-                    color: props.lit ? achievementGreen : selected ? undefined : "#fff"
+                    color: props.lit ? skyBlue : selected ? undefined : "#fff"
                 }}
             >
                 {props.children}
