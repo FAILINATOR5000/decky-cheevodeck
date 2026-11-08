@@ -14,8 +14,6 @@ export type StreamSeatState = "pairing" | "connecting" | "streaming" | "relay" |
 const STREAM_LABELS: Record<string, string> = {
     pairing: "Pairing",
     connecting: "Connecting",
-    streaming: "Streaming",
-    relay: "Streaming (relay)",
     failed: "Couldn't connect"
 };
 
@@ -29,6 +27,20 @@ type RoomTableSeat = {
     avatar?: string;
     open: boolean;
 };
+
+function statusLabel(seat: RoomTableSeat): string {
+    const watching = seat.activity === "watch";
+    if (seat.stream === "streaming") {
+        return watching ? "Watching" : "In-Game";
+    }
+    if (seat.stream === "relay") {
+        return watching ? "Watching (relay)" : "In-Game (relay)";
+    }
+    if (seat.stream) {
+        return STREAM_LABELS[seat.stream];
+    }
+    return seat.activity === "game" ? "In-Game" : watching ? "Watching" : "In-Lobby";
+}
 
 export type RoomTableVoice = {
     own: number;
@@ -95,8 +107,7 @@ export function RoomTable(props: {
                     {seats.map((seat, index) => {
                         const tags = seat.name ? [
                             t(language, seat.tag === "host" ? "Host" : "Guest"),
-                            t(language, seat.stream ? STREAM_LABELS[seat.stream]
-                                : seat.activity === "game" ? "In-Game" : seat.activity === "watch" ? "Watching" : "In-Lobby")
+                            t(language, statusLabel(seat))
                         ].join(" · ") : "";
                         const own = voice !== undefined && index === voice.own;
                         const heard = voice?.seats[index];
