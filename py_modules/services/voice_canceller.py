@@ -41,6 +41,9 @@ DUCK_STEP = 0.01
 DUCKED_KINDS = ("speaker", "external")
 
 SAVED_TARGET = re.compile(r'"target"\s*:\s*"([^"]*)"')
+CONFIGURED_KEY = "default.configured.audio.sink"
+CONFIGURED_VALUE = re.compile(r"key:'" + re.escape(CONFIGURED_KEY) + r"' value:'(.*?)' type:'([^']*)'")
+CONFIGURED_SETTLE_SECONDS = 3.0
 
 
 HEADSET_PORTS = ("Headphones", "Headset")
@@ -84,6 +87,7 @@ class VoiceCanceller:
         self._shut = False
         self._hold = False
         self._live = None
+        self._configured = None
         self._cancelling = False
         self._pinned = {}
         self._pin_apps = set()
@@ -212,9 +216,13 @@ class VoiceCanceller:
     def shutdown(self) -> None:
         self._shut = True
         with self._lock:
+            held = self._hold
+            configured, self._configured = self._configured, None
             self._hold = False
             self._live = None
         self.close()
+        if held:
+            self._restore_configured(configured, False)
 
     def close(self) -> None:
         with self._lock:
@@ -230,6 +238,8 @@ class VoiceCanceller:
         with self._lock:
             if self._shut:
                 return ""
+            if not self._hold:
+                self._configured = self._read_configured()
             self._hold = True
             self._live = live
             if not self._modules:
@@ -243,13 +253,39 @@ class VoiceCanceller:
 
     def release(self) -> None:
         with self._lock:
+            if not self._hold:
+                return
             self._hold = False
             self._live = None
+            configured, self._configured = self._configured, None
             if not self._wanted:
                 self._seen = None
                 self._unload()
             else:
                 self._unpin()
+        threading.Thread(target=self._restore_configured, args=(configured, True), name="voice-configured",
+                         daemon=True).start()
+
+    def _read_configured(self):
+        code, out, _err = self._run("pw-metadata", "-n", "default", "0")
+        if code != 0:
+            return None
+        found = CONFIGURED_VALUE.search(out)
+        return (found.group(1), found.group(2)) if found else ("", "")
+
+    def _restore_configured(self, configured, settle) -> None:
+        if configured is None:
+            return
+        if settle:
+            time.sleep(CONFIGURED_SETTLE_SECONDS)
+        with self._lock:
+            if self._hold:
+                return
+        value, kind = configured
+        if value:
+            self._run("pw-metadata", "-n", "default", "0", CONFIGURED_KEY, value, kind)
+        else:
+            self._run("pw-metadata", "-n", "default", "-d", "0", CONFIGURED_KEY)
 
     def _load(self, defaults, kind, cancel=True) -> bool:
         sink, source = defaults[:2]
