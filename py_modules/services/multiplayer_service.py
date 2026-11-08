@@ -740,16 +740,19 @@ class MultiplayerService:
                 if not path:
                     continue
                 real = os.path.realpath(path)
-                shortcut = by_rom.get(real) or by_rom.get(path)
-                if shortcut is not None and held is not None and shortcut["appid"] == held["appid"]:
-                    shortcut = {**shortcut, "launchOptions": held["original"]}
-                    if not {real, path} & set(steam_shortcuts.rom_candidates(shortcut["exe"], held["original"] or None)):
-                        shortcut = None
+                found = []
+                for shortcut in by_rom.get(real) or by_rom.get(path) or []:
+                    if held is not None and shortcut["appid"] == held["appid"]:
+                        shortcut = {**shortcut, "launchOptions": held["original"]}
+                        if not {real, path} & set(steam_shortcuts.rom_candidates(shortcut["exe"], held["original"] or None)):
+                            continue
+                    found.append(shortcut)
                 entry["paths"].append({
                     "path": path,
                     "real": real,
                     "hash": hashes.get(path, ""),
-                    "shortcut": shortcut,
+                    "shortcut": found[0] if found else None,
+                    "shortcuts": found,
                 })
         self._library_cache = (stamp, library)
         return library
@@ -894,7 +897,7 @@ class MultiplayerService:
         for entry in library.values():
             system_id = entry["systemId"]
             linked = next((p for p in entry["paths"] if p["shortcut"]), None)
-            shortcut = linked["shortcut"] if linked else None
+            shortcut = self._pick_shortcut(linked["shortcuts"], "couch", system_id) if linked else None
             if shortcut is not None:
                 detected = session.detect(shortcut["exe"], shortcut["launchOptions"])
                 emulator = detected["emulator"] if detected else "retroarch"
@@ -921,7 +924,7 @@ class MultiplayerService:
                 "systemId": system_id,
                 "system": entry["system"],
                 "imageIcon": entry["imageIcon"],
-                "appid": shortcut["appid"] if shortcut else 0,
+                "appid": self._pick_shortcut(linked["shortcuts"], "play", system_id)["appid"] if linked else 0,
                 "launchable": launchable,
                 "canLink": can_link,
                 "canCouch": can_couch,
@@ -989,7 +992,8 @@ class MultiplayerService:
                 return None, "not_in_results", {"dolphinSkipped": "1"}
             return None, "not_in_results", {}
         system_id = game["systemId"]
-        candidates = [entry for entry in game["paths"] if entry["shortcut"]]
+        candidates = [{**entry, "shortcut": self._pick_shortcut(entry["shortcuts"], mode, system_id)}
+                      for entry in game["paths"] if entry["shortcut"]]
         fallback = None
         if not candidates:
             if not self._fallback_on():
@@ -1198,7 +1202,8 @@ class MultiplayerService:
             return None, "not_in_results", {}
         linked = next((entry for entry in game["paths"] if entry["shortcut"]), None)
         if linked is not None:
-            return {"appid": linked["shortcut"]["appid"], "fallback": False}, None, {}
+            picked = self._pick_shortcut(linked["shortcuts"], "play", game["systemId"])
+            return {"appid": picked["appid"], "fallback": False, "shortcut": picked, "rom": linked["path"]}, None, {}
         if fallback_on is None:
             fallback_on = bool(self._settings_store.load_config().get("playShortcutFallback", True))
         if not fallback_on:
@@ -1249,11 +1254,10 @@ class MultiplayerService:
             emulator, core = route["kind"], route.get("core", "")
             rom = route["rom"]
         else:
-            linked = next(entry for entry in game["paths"] if entry["shortcut"])
-            detected = session.detect(linked["shortcut"]["exe"], linked["shortcut"]["launchOptions"])
+            detected = session.detect(route["shortcut"]["exe"], route["shortcut"]["launchOptions"])
             emulator = detected["emulator"] if detected else ""
             core = detected["core"] if detected and emulator == "retroarch" else ""
-            rom = linked["path"]
+            rom = route["rom"]
         core_name = STREAM_EMULATOR_NAMES.get(emulator, "")
         if core:
             ra = session.RetroArch(self._user_home)
@@ -1493,6 +1497,28 @@ class MultiplayerService:
         if system_id in (session.DS_SYSTEM, DSI_SYSTEM):
             return ("retroarch", "melonds")
         return self._fallback_kinds("link", system_id)
+
+    def _pick_shortcut(self, shortcuts: list, mode: str, system_id: int) -> dict:
+        if mode == "couch":
+            if system_id in session.DOLPHIN_SYSTEMS:
+                kinds = ("dolphin",)
+            elif system_id == session.N64_SYSTEM:
+                kinds = ("rmg", "retroarch")
+            else:
+                kinds = ("retroarch",)
+        elif mode == "link":
+            kinds = self._fallback_kinds("link", system_id)
+        else:
+            kinds = self._play_kinds(system_id)
+        detected = []
+        for shortcut in shortcuts:
+            found = session.detect(shortcut["exe"], shortcut["launchOptions"])
+            detected.append((found["emulator"] if found else "", shortcut))
+        for kind in kinds:
+            for emulator, shortcut in detected:
+                if emulator == kind:
+                    return shortcut
+        return shortcuts[0]
 
     def _fallback(self, mode: str, system_id: int) -> dict:
         kinds = self._fallback_kinds(mode, system_id)

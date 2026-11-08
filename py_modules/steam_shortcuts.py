@@ -345,8 +345,11 @@ def shortcuts_by_rom(home=None):
     found = {}
     for shortcut in shortcuts:
         for candidate in shortcut["roms"]:
-            if os.path.isabs(candidate) and candidate not in found:
-                found[candidate] = {key: shortcut[key] for key in ("appid", "name", "exe", "launchOptions")}
+            if not os.path.isabs(candidate):
+                continue
+            listed = found.setdefault(candidate, [])
+            if all(row["appid"] != shortcut["appid"] for row in listed):
+                listed.append({key: shortcut[key] for key in ("appid", "name", "exe", "launchOptions")})
     _by_rom_cache = (stamp, found)
     return found
 
