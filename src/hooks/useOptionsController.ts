@@ -1344,8 +1344,8 @@ export function buildOptionsController({
         setMpFriendsEnabled(Boolean(result.mpFriendsEnabled ?? true));
         setMpShowOnline(Boolean(result.mpShowOnline ?? true));
         setMpSuggestFriends(Boolean(result.mpSuggestFriends ?? true));
-        setMpShortcutFallback(Boolean(result.mpShortcutFallback ?? false));
-        setPlayShortcutFallback(Boolean(result.playShortcutFallback ?? false));
+        setMpShortcutFallback(Boolean(result.mpShortcutFallback ?? true));
+        setPlayShortcutFallback(Boolean(result.playShortcutFallback ?? true));
         setLobbyServer(String(result.lobbyServer ?? ""));
         setAutomaticRecovery(Boolean(result.automaticRecovery ?? true));
         setRecoveryButtonCombo(Boolean(result.recoveryButtonCombo ?? false));

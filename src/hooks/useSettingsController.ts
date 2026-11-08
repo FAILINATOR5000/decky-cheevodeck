@@ -78,8 +78,8 @@ export function useSettingsController({
     const [mpFriendsEnabled, setMpFriendsEnabled] = useState(true);
     const [mpShowOnline, setMpShowOnline] = useState(true);
     const [mpSuggestFriends, setMpSuggestFriends] = useState(true);
-    const [mpShortcutFallback, setMpShortcutFallback] = useState(false);
-    const [playShortcutFallback, setPlayShortcutFallback] = useState(false);
+    const [mpShortcutFallback, setMpShortcutFallback] = useState(true);
+    const [playShortcutFallback, setPlayShortcutFallback] = useState(true);
     const [lobbyServer, setLobbyServer] = useState("");
     const [automaticRecovery, setAutomaticRecovery] = useState(true);
     const [recoveryButtonCombo, setRecoveryButtonCombo] = useState(false);
