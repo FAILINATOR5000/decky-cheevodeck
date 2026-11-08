@@ -277,6 +277,9 @@ class HostStreams:
                 if ok:
                     entry["paired"] = True
                     decky.logger.info("stream: paired a guest from %s", "the pipe" if entry["piped"] else address)
+                else:
+                    decky.logger.info("stream: Sunshine refused the PIN for a guest from %s",
+                                      "the pipe" if entry["piped"] else address)
             await asyncio.sleep(PAIR_POLL_SECONDS)
 
     async def measure(self, server) -> None:
@@ -524,6 +527,7 @@ class GuestStream:
         try:
             while time.monotonic() < deadline and not self._closed:
                 time.sleep(1.5)
+                ended = proc.poll() is not None
                 try:
                     code, _out, _err = subprocess_util.run_command(
                         self._moonlight(f"list {shlex.quote(self.address)}"), timeout=LIST_SECONDS, env=self._env(),
@@ -532,6 +536,8 @@ class GuestStream:
                     code = 1
                 if code == 0:
                     paired = True
+                    break
+                if ended:
                     break
         finally:
             self.kill_moonlight()
