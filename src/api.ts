@@ -960,6 +960,7 @@ export const hotspotSet = callable<[on: boolean, privateHotspot: boolean], Hotsp
 export const hotspotScan = callable<[], { ok: boolean; error?: string; hotspots: HotspotRow[] }>("hotspot_scan");
 export const hotspotJoin = callable<[ssid: string, code: string], HotspotStatus>("hotspot_join");
 export const hotspotLeave = callable<[], HotspotStatus>("hotspot_leave");
+export const hotspotSetPrivate = callable<[boolean], HotspotStatus>("hotspot_set_private");
 export const saveHotspotIntroOff = callable<[boolean], { ok: boolean; hotspotIntroOff: boolean }>("save_hotspot_intro_off");
 export const saveHotspotDedicated = callable<[boolean], { ok: boolean; hotspotDedicated: boolean }>("save_hotspot_dedicated");
 export const multiplayerOutputVolumeGet = callable<[], { ok: boolean; volume: number | null }>("multiplayer_output_volume_get");

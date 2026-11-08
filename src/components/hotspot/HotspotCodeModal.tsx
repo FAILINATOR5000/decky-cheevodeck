@@ -26,7 +26,7 @@ function HotspotCodeModal(props: { language: LanguageCode; ssid: string; onJoin:
         <ModalRoot onCancel={close} onEscKeypress={close}>
             <SaveOnStart canSave={canJoin} label={t(language, "Join")} onSave={join}>
                 <div style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700, marginBottom: "4px" }}>
-                    {t(language, "Hotspot code")}
+                    {t(language, "Hotspot password")}
                 </div>
                 <div style={{ fontSize: `${modalSize(16)}px`, opacity: 0.8, marginBottom: "12px" }}>{ssid}</div>
                 <FocusTarget focusKey="hotspot:code:field">

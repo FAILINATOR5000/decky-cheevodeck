@@ -351,6 +351,14 @@ class OfflineHotspotService:
     def apply_dedicated(self) -> None:
         threading.Thread(target=self._restart_host, name="hotspot-restart", daemon=True).start()
 
+    def set_private(self, private: bool) -> dict:
+        role = self._room_role()
+        if role:
+            return {**self.status(), "ok": False, "error": REFUSED_HOSTING if role == "host" else REFUSED_SEATED}
+        threading.Thread(target=self._restart_host, args=(bool(private),), name="hotspot-restart",
+                         daemon=True).start()
+        return self.status()
+
     def sync(self) -> None:
         if not self._game_mode() and self.lan_address():
             self._off_soon("game_mode")
@@ -443,11 +451,10 @@ class OfflineHotspotService:
         ssid = settings.get("802-11-wireless", {}).get("ssid", b"")
         return bytes(ssid).decode("utf-8", "replace") if ssid else str(settings.get("connection", {}).get("id", ""))
 
-    def _bring_up_host(self, private: bool, spec=None) -> str:
+    def _bring_up_host(self, private: bool, spec=None, restart: bool = False) -> str:
         error = self._open_bus()
         if error:
             return error
-        restart = spec is not None
         if spec is None:
             tag = secrets.token_hex(2).upper()
             ssid = SSID_PREFIX + tag + ("-P" if private else "")
@@ -506,31 +513,38 @@ class OfflineHotspotService:
     def _dedicated(self) -> bool:
         return bool(self._settings_store.load_config().get("hotspotDedicated", True))
 
-    def _restart_host(self) -> None:
+    def _restart_host(self, private=None) -> None:
         with self._op_lock:
             if self._room_role():
                 return
             with self._lock:
                 if self._state != "host" or self._closed:
                     return
-                stay = bool(self._resume) and self._can_stay and not self._dedicated()
-                if stay == (self._ap_interface == AP_INTERFACE):
+                stay = bool(self._resume) and self._can_stay and not self._dfs and not self._dedicated()
+                staying = self._ap_interface == AP_INTERFACE
+                renew = private is not None and private != self._private
+                if not renew and stay == staying:
                     return
-                spec, private = self._spec, self._private
+                spec = None if renew else self._spec
+                private = private if renew else self._private
+                old = self._ssid
                 resume, device = self._resume, self._device
                 stop, self._stop = self._stop, None
                 self._state = "starting"
             if stop is not None:
                 stop.set()
             self._emit()
-            decky.logger.info("hotspot: restarting %s %s", spec[0],
-                              "to stay on the network" if stay else "as a dedicated hotspot")
+            if renew:
+                how = "as a private hotspot" if private else "as an open hotspot"
+            else:
+                how = "to stay on the network" if stay else "as a dedicated hotspot"
+            decky.logger.info("hotspot: restarting %s %s", old, how)
             self._teardown()
             self._reset_state()
             self._carried = resume
-            if stay:
+            if stay and not staying:
                 self._rejoin(device, resume)
-            error = self._bring_up_host(private, spec)
+            error = self._bring_up_host(private, spec, restart=True)
         if error:
             decky.logger.info("hotspot: the restart failed (%s)", error)
             self._emit("Off")

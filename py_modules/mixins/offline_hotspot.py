@@ -17,6 +17,9 @@ class OfflineHotspotMixin(PluginContext):
     async def hotspot_join(self, ssid: str = "", code: str = ""):
         return await asyncio.to_thread(self.offline_hotspot_service.join, str(ssid or ""), str(code or ""))
 
+    async def hotspot_set_private(self, private: bool = False):
+        return await asyncio.to_thread(self.offline_hotspot_service.set_private, bool(private))
+
     async def hotspot_leave(self):
         return await asyncio.to_thread(self.offline_hotspot_service.leave)
 

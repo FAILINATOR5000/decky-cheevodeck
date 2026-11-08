@@ -5,6 +5,7 @@ import {
     hotspotJoin,
     hotspotLeave,
     hotspotSet,
+    hotspotSetPrivate,
     hotspotStatus,
     saveHotspotDedicated,
     saveHotspotIntroOff,
@@ -80,7 +81,7 @@ export function hotspotWithoutInternet(value: HotspotStatus = status): boolean {
     return (value.state === "host" || value.state === "guest") && !value.internet;
 }
 
-export function setHotspotPrivateNext(value: boolean) {
+function setHotspotPrivateNext(value: boolean) {
     privateNext = value;
     for (const listener of listeners) {
         listener();
@@ -89,6 +90,31 @@ export function setHotspotPrivateNext(value: boolean) {
 
 export function useHotspotPrivateNext(): boolean {
     return useSyncExternalStore(subscribe, () => privateNext);
+}
+
+export async function switchPrivateHotspot(on: boolean) {
+    const language = getCurrentLanguage();
+    if (status.role !== "host" || (status.state !== "host" && status.state !== "starting")) {
+        setHotspotPrivateNext(on);
+        return;
+    }
+    const role = multiplayerRoomMarker().role;
+    if (role !== null) {
+        showToggleNotice(language, "Offline Hotspot", REASONS[role === "host" ? "hosting" : "seated"]);
+        return;
+    }
+    setHotspotPrivateNext(on);
+    try {
+        const result = await hotspotSetPrivate(on);
+        if (!result.ok) {
+            setHotspotPrivateNext(!on);
+            showToggleNotice(language, "Offline Hotspot", refusal(result));
+        }
+    }
+    catch (e) {
+        logError("offline hotspot: switching Private Hotspot", e);
+        setHotspotPrivateNext(!on);
+    }
 }
 
 export function setHotspotSettings(next: { hotspotIntroOff?: boolean; hotspotDedicated?: boolean }) {
@@ -185,7 +211,7 @@ export async function joinHotspot(ssid: string, code: string) {
             showToggleNotice(language, "Offline Hotspot", "Connected to {{network}}", 0, { network: ssid });
         }
         else {
-            showToggleNotice(language, "Offline Hotspot", result.error === "code" ? "Couldn't join. Check the code." : refusal(result));
+            showToggleNotice(language, "Offline Hotspot", result.error === "code" ? "Couldn't join. Check the password." : refusal(result));
         }
     }
     catch (e) {

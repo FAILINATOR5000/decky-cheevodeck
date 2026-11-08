@@ -22,9 +22,9 @@ import { logError } from "../utils/errors";
 import {
     joinHotspot,
     leaveHotspot,
-    setHotspotPrivateNext,
     switchDedicatedHotspot,
     switchHotspot,
+    switchPrivateHotspot,
     useHotspot,
     useHotspotDedicated,
     useHotspotPrivateNext
@@ -181,6 +181,9 @@ function OfflineHotspotPage(props: OfflineHotspotPageProps) {
     const guestNow = hotspot.role === "guest" && hotspot.state !== "stopping";
     const lines: { text: string; warn?: boolean }[] = [];
     if (hosting && hotspot.state === "host") {
+        if (hotspot.code) {
+            lines.push({ text: t(language, "Hotspot password: {{code}}", { code: formatCode(hotspot.code) }), warn: true });
+        }
         if (hotspot.uplink) {
             lines.push({ text: hotspot.sharing
                 ? t(language, "Staying on {{network}}. Nearby devices share its internet.", { network: hotspot.uplink })
@@ -248,8 +251,9 @@ function OfflineHotspotPage(props: OfflineHotspotPageProps) {
                     <ToggleRow
                         label={t(language, "Private Hotspot")}
                         value={privateNext}
-                        onChange={setHotspotPrivateNext}
-                        help={t(language, "Asks for an 8-digit code to join. Applies the next time it turns on.")}
+                        controlled
+                        onChange={(next) => void switchPrivateHotspot(next)}
+                        help={t(language, "help_private_hotspot")}
                         focusKey={PRIVATE_KEY}
                     />
                 </PanelSectionRow>
@@ -275,7 +279,6 @@ function OfflineHotspotPage(props: OfflineHotspotPageProps) {
                                     value={hotspot.private ? `${hotspot.ssid} · ${t(language, "tag_private_hotspot")}` : hotspot.ssid}
                                 />
                             )}
-                            {hotspot.code && <LabeledRow focusKey="offlineHotspot:code" label={t(language, "Hotspot code")} value={formatCode(hotspot.code)} />}
 
                             <SectionTitle label={t(language, "Connected Devices")} />
                             {devices.length > 0 && (
