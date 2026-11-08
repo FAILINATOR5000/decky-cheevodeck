@@ -1,25 +1,33 @@
 import { useEffect, useSyncExternalStore } from "react";
 
 import {
+    emulatorsCoresOffer,
     emulatorsForget,
     emulatorsIdentify,
+    emulatorsInstallCores,
     emulatorsInventory,
     emulatorsPoint,
+    emulatorsUpdateCores,
     type EmulatorInventory,
+    type EmulatorJobStart,
     type EmulatorKind
 } from "../api";
 import { askEmulatorQuestion } from "../components/emulators/EmulatorQuestionModal";
+import { askInstallCores } from "../components/emulators/InstallCoresModal";
 import { openPathPicker, type PickedPath } from "../components/pickers/FilePickerModal";
 import { t, type LanguageCode } from "../locales";
+import { showToastAfter } from "../utils/delayedToast";
+import { noteEmulatorJobStarted, useEmulatorJobs } from "../utils/emulatorJobs";
 import { logError } from "../utils/errors";
 
 type EmulatorsLoad = {
     inventory: EmulatorInventory | null;
     failed: boolean;
     loading: boolean;
+    seen: number;
 };
 
-let loaded: EmulatorsLoad = { inventory: null, failed: false, loading: false };
+let loaded: EmulatorsLoad = { inventory: null, failed: false, loading: false, seen: 0 };
 const listeners = new Set<() => void>();
 
 function publish(next: Partial<EmulatorsLoad>) {
@@ -36,11 +44,11 @@ function subscribe(listener: () => void): () => void {
     };
 }
 
-async function loadInventory(refresh: boolean) {
+async function loadInventory(refresh: boolean, seen = loaded.seen) {
     if (loaded.loading) {
         return;
     }
-    publish({ loading: true });
+    publish({ loading: true, seen });
     try {
         const result = await emulatorsInventory(refresh);
         publish(result?.ok ? { inventory: result, failed: false } : { failed: true });
@@ -113,21 +121,122 @@ export async function forgetEmulatorPath(kind: EmulatorKind, path: string) {
     }
 }
 
+function notice(language: LanguageCode, body: string) {
+    showToastAfter({ title: t(language, "Manage Emulators"), body, duration: 2000 }, 0);
+}
+
+function started(language: LanguageCode, result: EmulatorJobStart | null | undefined) {
+    if (result?.ok) {
+        if (result.job) {
+            noteEmulatorJobStarted();
+        }
+        if (result.kept) {
+            notice(language, t(language, "{{count}} cores kept because yours are newer", { count: result.kept }));
+        }
+        else if (!result.job) {
+            notice(language, t(language, "Up to date"));
+        }
+        return;
+    }
+    if (result?.error === "running") {
+        notice(language, t(language, "Close RetroArch first."));
+    }
+    else if (result?.error === "no_network") {
+        notice(language, t(language, "Couldn't reach the download server."));
+    }
+    else {
+        notice(language, t(language, "Couldn't start that."));
+    }
+}
+
+async function installCores(language: LanguageCode, cores: string[], target: string) {
+    try {
+        started(language, await emulatorsInstallCores(cores, target));
+    }
+    catch (e) {
+        logError("emulators: installing cores", e);
+    }
+}
+
+async function updateCore(language: LanguageCode, core: string, target: string) {
+    try {
+        const result = await emulatorsUpdateCores([core], false, false, target);
+        if (result?.ok === false && result.error === "newer_than_stable") {
+            const replace = await askEmulatorQuestion({
+                language,
+                title: t(language, "Newer Than Stable"),
+                text: t(language, "{{name}} on this device isn't the one from RetroArch {{stable}}'s stable cores, probably a nightly or dev build you installed. CheevoDeck leaves it alone unless you choose to replace it.", {
+                    name: result.name ?? core,
+                    stable: result.stable ?? ""
+                }),
+                confirm: t(language, "Replace with Stable"),
+                cancel: t(language, "Keep Mine"),
+                focusConfirm: false
+            });
+            if (replace) {
+                started(language, await emulatorsUpdateCores([core], true, false, target));
+            }
+            return;
+        }
+        started(language, result);
+    }
+    catch (e) {
+        logError("emulators: updating a core", e);
+    }
+}
+
+async function updateEveryCore(language: LanguageCode, cores: string[], target: string) {
+    try {
+        started(language, await emulatorsUpdateCores(cores, false, true, target));
+    }
+    catch (e) {
+        logError("emulators: updating cores", e);
+    }
+}
+
+async function installMissingCores(language: LanguageCode, systems: number, target: string) {
+    try {
+        const offer = await emulatorsCoresOffer();
+        if (!offer?.ok) {
+            notice(language, t(language, "Couldn't reach the download server."));
+            return;
+        }
+        if (offer.recommended.length === 0) {
+            notice(language, t(language, "Every system with games already has a core."));
+            return;
+        }
+        const choice = await askInstallCores(language, { ...offer, systems });
+        if (choice !== null) {
+            await installCores(language, choice === "all" ? offer.all : offer.recommended, target);
+        }
+    }
+    catch (e) {
+        logError("emulators: offering cores", e);
+    }
+}
+
 export function useEmulatorsController(props: { isActive: boolean; language: LanguageCode }) {
     const state = useSyncExternalStore(subscribe, () => loaded);
+    const jobs = useEmulatorJobs();
     const { isActive, language } = props;
 
     useEffect(() => {
-        if (isActive && loaded.inventory === null) {
-            void loadInventory(false);
+        if (isActive && (loaded.inventory === null || loaded.seen !== jobs.finished)) {
+            void loadInventory(false, jobs.finished);
         }
-    }, [isActive]);
+    }, [isActive, jobs.finished]);
 
     return {
         state,
+        jobs,
         actions: {
             refresh: () => void loadInventory(true),
-            pointTo: (kind: EmulatorKind, name: string) => void pointTo(language, kind, name)
+            pointTo: (kind: EmulatorKind, name: string) => void pointTo(language, kind, name),
+            installCores: (cores: string[], target: string) => void installCores(language, cores, target),
+            updateCore: (core: string, target: string) => void updateCore(language, core, target),
+            updateEveryCore: (cores: string[], target: string) => void updateEveryCore(language, cores, target),
+            installMissingCores: (systems: number, target: string) => void installMissingCores(language, systems, target),
+            notice: (body: string) => notice(language, body)
         }
     };
 }

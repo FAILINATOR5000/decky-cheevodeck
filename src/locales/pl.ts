@@ -3590,6 +3590,67 @@ const PL: LocaleTable = {
     "CheevoDeck didn't install this.": "Nie zainstalował tego CheevoDeck.",
     "Cores folder": "Folder rdzeni",
     "This file isn't there anymore.": "Tego pliku już nie ma.",
+    "Install": "Zainstaluj",
+    "Update": "Aktualizuj",
+    "Update available": "Dostępna aktualizacja",
+    "{{count}} updates": {
+        one: "{{count}} aktualizacja",
+        few: "{{count}} aktualizacje",
+        many: "{{count}} aktualizacji"
+    },
+    "Installing {{name}}...": "Instalowanie {{name}}...",
+    "Installing {{count}} cores...": {
+        one: "Instalowanie {{count}} rdzenia...",
+        few: "Instalowanie {{count}} rdzeni...",
+        many: "Instalowanie {{count}} rdzeni..."
+    },
+    "Updating {{name}}...": "Aktualizowanie {{name}}...",
+    "Updating {{count}} cores...": {
+        one: "Aktualizowanie {{count}} rdzenia...",
+        few: "Aktualizowanie {{count}} rdzeni...",
+        many: "Aktualizowanie {{count}} rdzeni..."
+    },
+    "Downloading RetroArch's stable cores...": "Pobieranie stabilnych rdzeni RetroArch...",
+    "Unpacking cores...": "Rozpakowywanie rdzeni...",
+    "Couldn't install {{name}}. Nothing was changed.": "Nie udało się zainstalować {{name}}. Nic nie zostało zmienione.",
+    "Couldn't install {{count}} cores. Nothing was changed.": {
+        one: "Nie udało się zainstalować {{count}} rdzenia. Nic nie zostało zmienione.",
+        few: "Nie udało się zainstalować {{count}} rdzeni. Nic nie zostało zmienione.",
+        many: "Nie udało się zainstalować {{count}} rdzeni. Nic nie zostało zmienione."
+    },
+    "Couldn't update {{name}}. Nothing was changed.": "Nie udało się zaktualizować {{name}}. Nic nie zostało zmienione.",
+    "Couldn't update {{count}} cores. Nothing was changed.": {
+        one: "Nie udało się zaktualizować {{count}} rdzenia. Nic nie zostało zmienione.",
+        few: "Nie udało się zaktualizować {{count}} rdzeni. Nic nie zostało zmienione.",
+        many: "Nie udało się zaktualizować {{count}} rdzeni. Nic nie zostało zmienione."
+    },
+    "Not enough free space.": "Za mało wolnego miejsca.",
+    "Close RetroArch first.": "Najpierw zamknij RetroArch.",
+    "Couldn't reach the download server.": "Nie udało się połączyć z serwerem pobierania.",
+    "A file wasn't the way CheevoDeck expected, so it stopped.": "Plik nie był taki, jakiego oczekiwał CheevoDeck, więc przerwano.",
+    "Couldn't put these back: {{files}}": "Nie udało się przywrócić: {{files}}",
+    "Up to date": "Aktualne",
+    "{{count}} cores kept because yours are newer": {
+        one: "Zostawiono {{count}} rdzeń, bo twój jest nowszy",
+        few: "Zostawiono {{count}} rdzenie, bo twoje są nowsze",
+        many: "Zostawiono {{count}} rdzeni, bo twoje są nowsze"
+    },
+    "Every system with games already has a core.": "Każdy system z grami ma już rdzeń.",
+    "Couldn't start that.": "Nie udało się tego uruchomić.",
+    "Install Cores": "Zainstaluj rdzenie",
+    "{{count}} systems with games have no core yet. Install the recommended one for each?": {
+        one: "{{count}} system z grami nie ma jeszcze rdzenia. Zainstalować zalecany?",
+        few: "{{count}} systemy z grami nie mają jeszcze rdzenia. Zainstalować zalecany dla każdego?",
+        many: "{{count}} systemów z grami nie ma jeszcze rdzenia. Zainstalować zalecany dla każdego?"
+    },
+    "Recommended cores: {{size}}. Every core for those systems: {{all}}.": "Zalecane rdzenie: {{size}}. Wszystkie rdzenie dla tych systemów: {{all}}.",
+    "CheevoDeck downloads RetroArch's stable core pack ({{download}}) once and deletes it 30 minutes after the last install.": "CheevoDeck pobiera raz paczkę stabilnych rdzeni RetroArch ({{download}}) i usuwa ją 30 minut po ostatniej instalacji.",
+    "Install Recommended": "Zainstaluj zalecane",
+    "Install Every Core": "Zainstaluj wszystkie rdzenie",
+    "Newer Than Stable": "Nowszy niż stabilny",
+    "{{name}} on this device isn't the one from RetroArch {{stable}}'s stable cores, probably a nightly or dev build you installed. CheevoDeck leaves it alone unless you choose to replace it.": "{{name}} na tym urządzeniu nie pochodzi ze stabilnych rdzeni RetroArch {{stable}}, to pewnie wersja nightly lub deweloperska, którą zainstalowałeś. CheevoDeck zostawia go w spokoju, chyba że zdecydujesz się go zastąpić.",
+    "Replace with Stable": "Zastąp stabilnym",
+    "Keep Mine": "Zostaw mój",
 };
 
 export default PL;

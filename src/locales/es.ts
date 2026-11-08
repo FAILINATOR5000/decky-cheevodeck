@@ -3522,6 +3522,60 @@ const ES: LocaleTable = {
     "CheevoDeck didn't install this.": "CheevoDeck no instaló esto.",
     "Cores folder": "Carpeta de núcleos",
     "This file isn't there anymore.": "Este archivo ya no está.",
+    "Install": "Instalar",
+    "Update": "Actualizar",
+    "Update available": "Actualización disponible",
+    "{{count}} updates": {
+        one: "{{count}} actualización",
+        other: "{{count}} actualizaciones"
+    },
+    "Installing {{name}}...": "Instalando {{name}}...",
+    "Installing {{count}} cores...": {
+        one: "Instalando {{count}} núcleo...",
+        other: "Instalando {{count}} núcleos..."
+    },
+    "Updating {{name}}...": "Actualizando {{name}}...",
+    "Updating {{count}} cores...": {
+        one: "Actualizando {{count}} núcleo...",
+        other: "Actualizando {{count}} núcleos..."
+    },
+    "Downloading RetroArch's stable cores...": "Descargando los núcleos estables de RetroArch...",
+    "Unpacking cores...": "Descomprimiendo núcleos...",
+    "Couldn't install {{name}}. Nothing was changed.": "No se pudo instalar {{name}}. No se cambió nada.",
+    "Couldn't install {{count}} cores. Nothing was changed.": {
+        one: "No se pudo instalar {{count}} núcleo. No se cambió nada.",
+        other: "No se pudieron instalar {{count}} núcleos. No se cambió nada."
+    },
+    "Couldn't update {{name}}. Nothing was changed.": "No se pudo actualizar {{name}}. No se cambió nada.",
+    "Couldn't update {{count}} cores. Nothing was changed.": {
+        one: "No se pudo actualizar {{count}} núcleo. No se cambió nada.",
+        other: "No se pudieron actualizar {{count}} núcleos. No se cambió nada."
+    },
+    "Not enough free space.": "No hay suficiente espacio libre.",
+    "Close RetroArch first.": "Cierra RetroArch primero.",
+    "Couldn't reach the download server.": "No se pudo conectar con el servidor de descargas.",
+    "A file wasn't the way CheevoDeck expected, so it stopped.": "Un archivo no estaba como CheevoDeck esperaba, así que se detuvo.",
+    "Couldn't put these back: {{files}}": "No se pudieron restaurar: {{files}}",
+    "Up to date": "Actualizado",
+    "{{count}} cores kept because yours are newer": {
+        one: "Se conservó {{count}} núcleo porque el tuyo es más nuevo",
+        other: "Se conservaron {{count}} núcleos porque los tuyos son más nuevos"
+    },
+    "Every system with games already has a core.": "Todos los sistemas con juegos ya tienen un núcleo.",
+    "Couldn't start that.": "No se pudo iniciar.",
+    "Install Cores": "Instalar núcleos",
+    "{{count}} systems with games have no core yet. Install the recommended one for each?": {
+        one: "{{count}} sistema con juegos aún no tiene núcleo. ¿Instalar el recomendado?",
+        other: "{{count}} sistemas con juegos aún no tienen núcleo. ¿Instalar el recomendado de cada uno?"
+    },
+    "Recommended cores: {{size}}. Every core for those systems: {{all}}.": "Núcleos recomendados: {{size}}. Todos los núcleos de esos sistemas: {{all}}.",
+    "CheevoDeck downloads RetroArch's stable core pack ({{download}}) once and deletes it 30 minutes after the last install.": "CheevoDeck descarga el paquete de núcleos estables de RetroArch ({{download}}) una vez y lo borra 30 minutos después de la última instalación.",
+    "Install Recommended": "Instalar recomendados",
+    "Install Every Core": "Instalar todos los núcleos",
+    "Newer Than Stable": "Más nuevo que el estable",
+    "{{name}} on this device isn't the one from RetroArch {{stable}}'s stable cores, probably a nightly or dev build you installed. CheevoDeck leaves it alone unless you choose to replace it.": "{{name}} en este dispositivo no es el de los núcleos estables de RetroArch {{stable}}, probablemente una versión nightly o de desarrollo que instalaste. CheevoDeck no lo toca a menos que decidas reemplazarlo.",
+    "Replace with Stable": "Reemplazar por el estable",
+    "Keep Mine": "Conservar el mío",
 };
 
 export default ES;

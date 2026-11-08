@@ -3478,6 +3478,60 @@ const DE: LocaleTable = {
     "CheevoDeck didn't install this.": "CheevoDeck hat das nicht installiert.",
     "Cores folder": "Core-Ordner",
     "This file isn't there anymore.": "Diese Datei ist nicht mehr da.",
+    "Install": "Installieren",
+    "Update": "Aktualisieren",
+    "Update available": "Update verfügbar",
+    "{{count}} updates": {
+        one: "{{count}} Update",
+        other: "{{count}} Updates"
+    },
+    "Installing {{name}}...": "{{name}} wird installiert...",
+    "Installing {{count}} cores...": {
+        one: "{{count}} Core wird installiert...",
+        other: "{{count}} Cores werden installiert..."
+    },
+    "Updating {{name}}...": "{{name}} wird aktualisiert...",
+    "Updating {{count}} cores...": {
+        one: "{{count}} Core wird aktualisiert...",
+        other: "{{count}} Cores werden aktualisiert..."
+    },
+    "Downloading RetroArch's stable cores...": "Lade die stabilen Cores von RetroArch herunter...",
+    "Unpacking cores...": "Entpacke Cores...",
+    "Couldn't install {{name}}. Nothing was changed.": "{{name}} konnte nicht installiert werden. Es wurde nichts geändert.",
+    "Couldn't install {{count}} cores. Nothing was changed.": {
+        one: "{{count}} Core konnte nicht installiert werden. Es wurde nichts geändert.",
+        other: "{{count}} Cores konnten nicht installiert werden. Es wurde nichts geändert."
+    },
+    "Couldn't update {{name}}. Nothing was changed.": "{{name}} konnte nicht aktualisiert werden. Es wurde nichts geändert.",
+    "Couldn't update {{count}} cores. Nothing was changed.": {
+        one: "{{count}} Core konnte nicht aktualisiert werden. Es wurde nichts geändert.",
+        other: "{{count}} Cores konnten nicht aktualisiert werden. Es wurde nichts geändert."
+    },
+    "Not enough free space.": "Nicht genug freier Speicher.",
+    "Close RetroArch first.": "Schließe zuerst RetroArch.",
+    "Couldn't reach the download server.": "Der Download-Server war nicht erreichbar.",
+    "A file wasn't the way CheevoDeck expected, so it stopped.": "Eine Datei war nicht so, wie CheevoDeck es erwartet hat, deshalb wurde abgebrochen.",
+    "Couldn't put these back: {{files}}": "Konnte nicht wiederhergestellt werden: {{files}}",
+    "Up to date": "Auf dem neuesten Stand",
+    "{{count}} cores kept because yours are newer": {
+        one: "{{count}} Core behalten, weil deiner neuer ist",
+        other: "{{count}} Cores behalten, weil deine neuer sind"
+    },
+    "Every system with games already has a core.": "Jedes System mit Spielen hat schon einen Core.",
+    "Couldn't start that.": "Das konnte nicht gestartet werden.",
+    "Install Cores": "Cores installieren",
+    "{{count}} systems with games have no core yet. Install the recommended one for each?": {
+        one: "{{count}} System mit Spielen hat noch keinen Core. Den empfohlenen installieren?",
+        other: "{{count}} Systeme mit Spielen haben noch keinen Core. Jeweils den empfohlenen installieren?"
+    },
+    "Recommended cores: {{size}}. Every core for those systems: {{all}}.": "Empfohlene Cores: {{size}}. Alle Cores für diese Systeme: {{all}}.",
+    "CheevoDeck downloads RetroArch's stable core pack ({{download}}) once and deletes it 30 minutes after the last install.": "CheevoDeck lädt das stabile Core-Paket von RetroArch ({{download}}) einmal herunter und löscht es 30 Minuten nach der letzten Installation.",
+    "Install Recommended": "Empfohlene installieren",
+    "Install Every Core": "Alle Cores installieren",
+    "Newer Than Stable": "Neuer als die stabile Version",
+    "{{name}} on this device isn't the one from RetroArch {{stable}}'s stable cores, probably a nightly or dev build you installed. CheevoDeck leaves it alone unless you choose to replace it.": "{{name}} auf diesem Gerät ist nicht der aus den stabilen Cores von RetroArch {{stable}}, wahrscheinlich ein Nightly- oder Dev-Build, den du installiert hast. CheevoDeck lässt ihn in Ruhe, außer du entscheidest dich, ihn zu ersetzen.",
+    "Replace with Stable": "Durch stabile ersetzen",
+    "Keep Mine": "Meinen behalten",
 };
 
 export default DE;

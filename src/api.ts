@@ -1002,6 +1002,7 @@ export type RetroArchCore = {
     core: string;
     name: string;
     version: string;
+    size: number;
     installed: boolean;
     ours: boolean;
     update: boolean;
@@ -1025,6 +1026,9 @@ export type EmulatorInventory = {
         found: boolean;
         configFound: boolean;
         coresDir: string;
+        stable: string;
+        packSize: number;
+        updates: number;
         systems: RetroArchSystem[];
     };
     emulators: EmulatorEntry[];
@@ -1038,6 +1042,44 @@ export const emulatorsPoint = callable<[kind: string, path: string], { ok: boole
 );
 export const emulatorsForget = callable<[kind: string, path: string], { ok: boolean; inventory?: EmulatorInventory }>(
     "emulators_forget"
+);
+export type EmulatorJobState = {
+    job: string;
+    kind: string;
+    target: string;
+    names: string[];
+    stage: "queued" | "step" | "download" | "extract" | "flatpak" | "done" | "failed";
+    progress: number;
+    step: number;
+    steps: number;
+    error: string;
+    left: string[];
+    kept: number;
+};
+export type EmulatorJobStart = {
+    ok: boolean;
+    job?: string;
+    kept?: number;
+    error?: string;
+    name?: string;
+    installed?: string;
+    stable?: string;
+};
+export const emulatorsStatus = callable<[], { ok: boolean; busy: boolean; queued: string[]; state: EmulatorJobState | null }>(
+    "emulators_status"
+);
+export const emulatorsCoresOffer = callable<[], {
+    ok: boolean;
+    error?: string;
+    recommended: string[];
+    all: string[];
+    recommendedBytes: number;
+    allBytes: number;
+    packBytes: number;
+}>("emulators_cores_offer");
+export const emulatorsInstallCores = callable<[cores: string[], target: string], EmulatorJobStart>("emulators_install_cores");
+export const emulatorsUpdateCores = callable<[cores: string[], force: boolean, skipNewer: boolean, target: string], EmulatorJobStart>(
+    "emulators_update_cores"
 );
 export const multiplayerOutputVolumeGet = callable<[], { ok: boolean; volume: number | null }>("multiplayer_output_volume_get");
 export const multiplayerOutputVolumeSet = callable<[number], { ok: boolean }>("multiplayer_output_volume_set");

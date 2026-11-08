@@ -35,7 +35,7 @@ class RepairService:
 
     def __init__(self, *, update_checker_service, memories_store, milestones_store, milestones_service,
                  multiplayer_friends_store, multiplayer_messages_store, settings_store, user_home, voice_canceller,
-                 stream_setup):
+                 stream_setup, emulator_service):
         self._update_checker_service = update_checker_service
         self._memories_store = memories_store
         self._milestones_store = milestones_store
@@ -46,6 +46,7 @@ class RepairService:
         self._user_home = user_home
         self._voice_canceller = voice_canceller
         self._stream_setup = stream_setup
+        self._emulator_service = emulator_service
 
     def run_startup_repairs(self) -> dict:
         """Run every repair in turn and report which ones did anything.
@@ -161,6 +162,14 @@ class RepairService:
         except Exception as e:
             decky.logger.warning(
                 "repair: Stream Play cleanup failed: %s",
+                type(e).__name__,
+            )
+
+        try:
+            fixed.extend(self._emulator_service.repair())
+        except Exception as e:
+            decky.logger.warning(
+                "repair: emulator cleanup failed: %s",
                 type(e).__name__,
             )
 

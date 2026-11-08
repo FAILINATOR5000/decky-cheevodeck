@@ -239,3 +239,55 @@ def core_databases(info) -> set:
 
 def runs_system(databases: set, system_id: int) -> bool:
     return any(name in databases for name in SYSTEM_DATABASES.get(system_id, ()))
+
+
+_INFO_LINE = re.compile(r'^\s*([A-Za-z0-9_]+)\s*=\s*"?(.*?)"?\s*$')
+PACK_MEMBER = re.compile(r"^RetroArch-Linux-x86_64/RetroArch-Linux-x86_64\.AppImage\.home/\.config/retroarch/cores/"
+                         r"([A-Za-z0-9_+.-]+)_libretro\.so$")
+
+
+def parse_info(text: str) -> dict:
+    info = {}
+    for line in text.splitlines():
+        if line.lstrip().startswith("#"):
+            continue
+        found = _INFO_LINE.match(line)
+        if found:
+            info[found.group(1)] = found.group(2)
+    return info
+
+
+def pack_listing(text: str) -> dict:
+    cores = {}
+    for block in text.split("\n\n"):
+        fields = {}
+        for line in block.splitlines():
+            key, sep, value = line.partition(" = ")
+            if sep:
+                fields[key.strip()] = value.strip()
+        found = PACK_MEMBER.match(fields.get("Path", ""))
+        crc = fields.get("CRC", "").lower()
+        if found and re.fullmatch(r"[0-9a-f]{8}", crc) and fields.get("Size", "").isdigit():
+            cores[found.group(1)] = {"crc": crc, "size": int(fields["Size"])}
+    return cores
+
+
+def seven_zip_number(data: bytes, index: int):
+    first = data[index]
+    index += 1
+    mask = 0x80
+    value = 0
+    for shift in range(8):
+        if first & mask == 0:
+            return value | ((first & (mask - 1)) << (8 * shift)), index
+        value |= data[index] << (8 * shift)
+        index += 1
+        mask >>= 1
+    return value, index
+
+
+def stable_versions(listing: str) -> list:
+    found = set()
+    for raw in re.findall(r'href="/stable/(\d+(?:\.\d+)+)/"', listing):
+        found.add(tuple(int(part) for part in raw.split(".")))
+    return [".".join(str(part) for part in version) for version in sorted(found)]

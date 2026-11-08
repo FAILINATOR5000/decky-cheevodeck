@@ -1,7 +1,7 @@
 import { Focusable, PanelSectionRow } from "@decky/ui";
 import { useMemo, useRef, useState } from "react";
 
-import type { EmulatorAppImage, EmulatorEntry, EmulatorInventory, RetroArchCore, RetroArchSystem } from "../api";
+import type { EmulatorAppImage, EmulatorEntry, EmulatorInventory, EmulatorJobState, RetroArchCore, RetroArchSystem } from "../api";
 import { openEmulatorDetails } from "../components/emulators/EmulatorDetailsModal";
 import { useEmulators } from "../components/emulators/EmulatorsContext";
 import { skipWhileHidden } from "../components/panel/skipWhileHidden";
@@ -13,15 +13,16 @@ import { FocusableItem } from "../components/ui/FocusableItem";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
 import { PageNavStrip } from "../components/ui/PageNavStrip";
 import { PanelSection } from "../components/ui/PanelSection";
+import { ProgressBar } from "../components/ui/ProgressBar";
 import { SectionHeaderRow } from "../components/ui/SectionHeaderRow";
 import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
 import { pendingLandingKey, subLandingAhead, usePageLanding } from "../focusRecords";
 import { useSlidingWindow } from "../hooks/useSlidingWindow";
 import { t, type LanguageCode } from "../locales";
 import type { ButtonSpacing, ControllerGlyphStyle, ViewKey } from "../types";
-import { BUTTON_BUMPER_RIGHT } from "../utils/gamepadButtons";
+import { BUTTON_BUMPER_RIGHT, BUTTON_OPTIONS, BUTTON_SECONDARY } from "../utils/gamepadButtons";
 import { textSize } from "../utils/scale";
-import { achievementGreen, bodyTextStyle, regularButtonSpacingStyle } from "../utils/style";
+import { achievementGreen, bodyTextStyle, regularButtonSpacingStyle, warnAmber } from "../utils/style";
 
 const BACK_KEY = "emulators:back";
 const REFRESH_KEY = "emulators:refresh";
@@ -144,12 +145,52 @@ function emulatorTitle(language: LanguageCode, emulator: EmulatorEntry): string 
     return emulator.achievements ? emulator.name : t(language, "{{emulator}} · No achievements", { emulator: emulator.name });
 }
 
+const ERROR_LINES: Record<string, string> = {
+    no_space: "Not enough free space.",
+    running: "Close RetroArch first.",
+    no_network: "Couldn't reach the download server.",
+    unsafe: "A file wasn't the way CheevoDeck expected, so it stopped."
+};
+
+function jobLine(language: LanguageCode, state: EmulatorJobState): string {
+    const count = state.names.length;
+    const name = state.names[0] ?? "";
+    const installing = state.kind === "install_cores";
+    if (state.stage === "failed") {
+        if (installing) {
+            return count === 1
+                ? t(language, "Couldn't install {{name}}. Nothing was changed.", { name })
+                : t(language, "Couldn't install {{count}} cores. Nothing was changed.", { count });
+        }
+        return count === 1
+            ? t(language, "Couldn't update {{name}}. Nothing was changed.", { name })
+            : t(language, "Couldn't update {{count}} cores. Nothing was changed.", { count });
+    }
+    let line: string;
+    if (state.stage === "download") {
+        line = t(language, "Downloading RetroArch's stable cores...");
+    }
+    else if (state.stage === "extract") {
+        line = t(language, "Unpacking cores...");
+    }
+    else if (installing) {
+        line = count === 1 ? t(language, "Installing {{name}}...", { name }) : t(language, "Installing {{count}} cores...", { count });
+    }
+    else {
+        line = count === 1 ? t(language, "Updating {{name}}...", { name }) : t(language, "Updating {{count}} cores...", { count });
+    }
+    return state.progress >= 0 ? `${line} ${state.progress}%` : line;
+}
+
 function EmulatorsPage(props: EmulatorsPageProps) {
     const { state, actions } = props;
     const { language } = state;
     const visible = state.view === "emulators";
     const emulators = useEmulators();
     const { inventory, failed, loading } = emulators.state;
+    const jobs = emulators.jobs;
+    const job = jobs.state;
+    const working = jobs.busy && job !== null && job.stage !== "done" && job.stage !== "failed";
     const [foldings, setFoldings] = useState(0);
     const focusedRef = useRef<Row | null>(null);
 
@@ -230,11 +271,52 @@ function EmulatorsPage(props: EmulatorsPageProps) {
 
     function handleButton(evt: { detail?: { button?: number } }) {
         const row = focusedRef.current;
-        if (row === null || evt?.detail?.button !== BUTTON_BUMPER_RIGHT) {
+        const button = evt?.detail?.button;
+        if (row === null || inventory === null) {
             return;
         }
-        if (row.type === "emulator" || row.type === "flatpak" || row.type === "appimage") {
-            emulators.actions.pointTo(row.emulator.kind, row.emulator.name);
+        if (button === BUTTON_BUMPER_RIGHT) {
+            if (row.type === "emulator" || row.type === "flatpak" || row.type === "appimage") {
+                emulators.actions.pointTo(row.emulator.kind, row.emulator.name);
+            }
+            return;
+        }
+        if (button !== BUTTON_SECONDARY && button !== BUTTON_OPTIONS) {
+            return;
+        }
+        const key = rowKey(row);
+        if (row.type === "ra" && inventory.retroarch.configFound) {
+            const systems = inventory.retroarch.systems;
+            if (button === BUTTON_SECONDARY) {
+                const missing = systems.filter((system) => system.hasGames && !system.cores.some((core) => core.installed)).length;
+                emulators.actions.installMissingCores(missing, key);
+                return;
+            }
+            const stale = [...new Set(systems.flatMap((system) => system.cores)
+                .filter((core) => core.update || core.newerThanStable)
+                .map((core) => core.core))];
+            if (stale.length === 0) {
+                emulators.actions.notice(t(language, "Up to date"));
+                return;
+            }
+            emulators.actions.updateEveryCore(stale, key);
+            return;
+        }
+        if (row.type === "core") {
+            if (button === BUTTON_SECONDARY) {
+                if (!row.core.installed) {
+                    emulators.actions.installCores([row.core.core], key);
+                }
+                return;
+            }
+            if (!row.core.installed) {
+                return;
+            }
+            if (row.core.update || row.core.newerThanStable) {
+                emulators.actions.updateCore(row.core.core, key);
+                return;
+            }
+            emulators.actions.notice(t(language, "Up to date"));
         }
     }
 
@@ -295,11 +377,21 @@ function EmulatorsPage(props: EmulatorsPageProps) {
             const ra = inventory!.retroarch;
             left = ra.name;
             right = ra.flatpak.installed ? ra.flatpak.version : ra.found ? "" : t(language, "Not found");
+            if (ra.updates > 0) {
+                right = `${right} · ${t(language, "{{count}} updates", { count: ra.updates })}`;
+                rightColor = warnAmber;
+            }
         }
         else if (row.type === "core") {
             left = row.core.name;
-            right = row.core.installed ? `✔ ${t(language, "Installed")}` : t(language, "Not installed");
-            rightColor = row.core.installed ? achievementGreen : undefined;
+            if (row.core.update) {
+                right = t(language, "Update available");
+                rightColor = warnAmber;
+            }
+            else {
+                right = row.core.installed ? `✔ ${t(language, "Installed")}` : t(language, "Not installed");
+                rightColor = row.core.installed ? achievementGreen : undefined;
+            }
         }
         else if (row.type === "flatpak") {
             left = flatpakLabel(language, row.emulator);
@@ -323,6 +415,11 @@ function EmulatorsPage(props: EmulatorsPageProps) {
                         <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>{left}</span>
                         {right && <span style={{ ...bodyTextStyle(), flexShrink: 0, color: rightColor }}>{right}</span>}
                     </div>
+                    {working && job.target === key && (
+                        <div style={{ marginTop: "6px" }}>
+                            <ProgressBar fraction={job.progress >= 0 ? job.progress / 100 : null} />
+                        </div>
+                    )}
                 </FocusableItem>
             </PanelSectionRow>
         );
@@ -347,7 +444,7 @@ function EmulatorsPage(props: EmulatorsPageProps) {
                     <FocusableItem
                         outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
                         focusKey={REFRESH_KEY}
-                        disabled={loading}
+                        disabled={loading || jobs.busy}
                         onClick={emulators.actions.refresh}
                         onGamepadFocus={() => { focusedRef.current = null; }}
                     >
@@ -355,11 +452,23 @@ function EmulatorsPage(props: EmulatorsPageProps) {
                     </FocusableItem>
                 </PanelSectionRow>
 
+                {job !== null && (working || job.stage === "failed") && (
+                    <PanelSectionRow>
+                        <div style={{ ...bodyTextStyle(), color: job.stage === "failed" ? warnAmber : undefined }}>
+                            <div>{jobLine(language, job)}</div>
+                            {job.stage === "failed" && ERROR_LINES[job.error] && <div>{t(language, ERROR_LINES[job.error])}</div>}
+                            {job.left.length > 0 && <div>{t(language, "Couldn't put these back: {{files}}", { files: job.left.join(", ") })}</div>}
+                        </div>
+                    </PanelSectionRow>
+                )}
+
                 <PanelSectionRow>
                     <ButtonHints
                         style={state.controllerGlyphStyle}
                         hints={[
                             { button: "a", label: t(language, "Details") },
+                            { button: "x", label: t(language, "Install") },
+                            { button: "y", label: t(language, "Update") },
                             { button: "r1", label: t(language, "Point to AppImage") }
                         ]}
                     />

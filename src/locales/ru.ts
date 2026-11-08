@@ -3559,6 +3559,67 @@ const RU: LocaleTable = {
     "CheevoDeck didn't install this.": "Это установил не CheevoDeck.",
     "Cores folder": "Папка ядер",
     "This file isn't there anymore.": "Этого файла больше нет.",
+    "Install": "Установить",
+    "Update": "Обновить",
+    "Update available": "Есть обновление",
+    "{{count}} updates": {
+        one: "{{count}} обновление",
+        few: "{{count}} обновления",
+        many: "{{count}} обновлений"
+    },
+    "Installing {{name}}...": "Устанавливаем {{name}}...",
+    "Installing {{count}} cores...": {
+        one: "Устанавливаем {{count}} ядро...",
+        few: "Устанавливаем {{count}} ядра...",
+        many: "Устанавливаем {{count}} ядер..."
+    },
+    "Updating {{name}}...": "Обновляем {{name}}...",
+    "Updating {{count}} cores...": {
+        one: "Обновляем {{count}} ядро...",
+        few: "Обновляем {{count}} ядра...",
+        many: "Обновляем {{count}} ядер..."
+    },
+    "Downloading RetroArch's stable cores...": "Скачиваем стабильные ядра RetroArch...",
+    "Unpacking cores...": "Распаковываем ядра...",
+    "Couldn't install {{name}}. Nothing was changed.": "Не удалось установить {{name}}. Ничего не изменено.",
+    "Couldn't install {{count}} cores. Nothing was changed.": {
+        one: "Не удалось установить {{count}} ядро. Ничего не изменено.",
+        few: "Не удалось установить {{count}} ядра. Ничего не изменено.",
+        many: "Не удалось установить {{count}} ядер. Ничего не изменено."
+    },
+    "Couldn't update {{name}}. Nothing was changed.": "Не удалось обновить {{name}}. Ничего не изменено.",
+    "Couldn't update {{count}} cores. Nothing was changed.": {
+        one: "Не удалось обновить {{count}} ядро. Ничего не изменено.",
+        few: "Не удалось обновить {{count}} ядра. Ничего не изменено.",
+        many: "Не удалось обновить {{count}} ядер. Ничего не изменено."
+    },
+    "Not enough free space.": "Недостаточно свободного места.",
+    "Close RetroArch first.": "Сначала закрой RetroArch.",
+    "Couldn't reach the download server.": "Не удалось связаться с сервером загрузки.",
+    "A file wasn't the way CheevoDeck expected, so it stopped.": "Файл оказался не таким, как ожидал CheevoDeck, поэтому всё остановлено.",
+    "Couldn't put these back: {{files}}": "Не удалось вернуть: {{files}}",
+    "Up to date": "Всё обновлено",
+    "{{count}} cores kept because yours are newer": {
+        one: "Оставлено {{count}} ядро: твоё новее",
+        few: "Оставлено {{count}} ядра: твои новее",
+        many: "Оставлено {{count}} ядер: твои новее"
+    },
+    "Every system with games already has a core.": "У каждой системы с играми уже есть ядро.",
+    "Couldn't start that.": "Не удалось запустить.",
+    "Install Cores": "Установить ядра",
+    "{{count}} systems with games have no core yet. Install the recommended one for each?": {
+        one: "У {{count}} системы с играми ещё нет ядра. Установить рекомендованное?",
+        few: "У {{count}} систем с играми ещё нет ядра. Установить рекомендованное для каждой?",
+        many: "У {{count}} систем с играми ещё нет ядра. Установить рекомендованное для каждой?"
+    },
+    "Recommended cores: {{size}}. Every core for those systems: {{all}}.": "Рекомендованные ядра: {{size}}. Все ядра для этих систем: {{all}}.",
+    "CheevoDeck downloads RetroArch's stable core pack ({{download}}) once and deletes it 30 minutes after the last install.": "CheevoDeck один раз скачивает пакет стабильных ядер RetroArch ({{download}}) и удаляет его через 30 минут после последней установки.",
+    "Install Recommended": "Установить рекомендованные",
+    "Install Every Core": "Установить все ядра",
+    "Newer Than Stable": "Новее стабильного",
+    "{{name}} on this device isn't the one from RetroArch {{stable}}'s stable cores, probably a nightly or dev build you installed. CheevoDeck leaves it alone unless you choose to replace it.": "{{name}} на этом устройстве не из стабильных ядер RetroArch {{stable}}, скорее всего это ночная или dev-сборка, которую ты установил. CheevoDeck не трогает его, пока ты сам не решишь заменить.",
+    "Replace with Stable": "Заменить стабильным",
+    "Keep Mine": "Оставить моё",
 };
 
 export default RU;

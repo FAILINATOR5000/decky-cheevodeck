@@ -600,6 +600,7 @@ class Plugin(
             user_home=self.user_home,
             voice_canceller=self.voice_canceller,
             stream_setup=self.stream_setup,
+            emulator_service=self.emulator_service,
         )
         self.developer_message_service = DeveloperMessageService(
             settings_store=self.settings_store,
@@ -1204,6 +1205,7 @@ class Plugin(
         self.nearby_transfer_service.stop()
         self.multiplayer_service.stop()
         self.multiplayer_service.settle(1.0)
+        self.emulator_service.stop()
         self.multiplayer_friends_service.stop()
         self.ez_friends_heal_service.stop()
         self.data_transfer_service.stop()

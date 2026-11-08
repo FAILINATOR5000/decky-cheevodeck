@@ -61,7 +61,9 @@ def _clean(raw) -> dict:
         if isinstance(core, str) and _CORE.match(core) and isinstance(row, dict) and _CRC.match(_text(row.get("crc"), 8)) \
                 and type(row.get("size")) is int and row["size"] >= 0:
             bundle_cores[core] = {"crc": row["crc"], "size": row["size"]}
-    bundle = {"raVersion": _text(bundle_raw.get("raVersion"), 32), "cores": bundle_cores} if bundle_cores else {}
+    pack_size = bundle_raw.get("packSize") if type(bundle_raw.get("packSize")) is int else 0
+    bundle = {"raVersion": _text(bundle_raw.get("raVersion"), 32), "packSize": max(0, pack_size),
+              "cores": bundle_cores} if bundle_cores else {}
     shortcuts = {}
     for key, appid in (raw.get("shortcuts") if isinstance(raw.get("shortcuts"), dict) else {}).items():
         if isinstance(key, str) and _SHORTCUT.match(key) and type(appid) is int and 0 < appid <= 0xFFFFFFFF:

@@ -3490,4 +3490,58 @@ export const EN: LocaleTable = {
     "CheevoDeck didn't install this.": "CheevoDeck didn't install this.",
     "Cores folder": "Cores folder",
     "This file isn't there anymore.": "This file isn't there anymore.",
+    "Install": "Install",
+    "Update": "Update",
+    "Update available": "Update available",
+    "{{count}} updates": {
+        one: "{{count}} update",
+        other: "{{count}} updates"
+    },
+    "Installing {{name}}...": "Installing {{name}}...",
+    "Installing {{count}} cores...": {
+        one: "Installing {{count}} core...",
+        other: "Installing {{count}} cores..."
+    },
+    "Updating {{name}}...": "Updating {{name}}...",
+    "Updating {{count}} cores...": {
+        one: "Updating {{count}} core...",
+        other: "Updating {{count}} cores..."
+    },
+    "Downloading RetroArch's stable cores...": "Downloading RetroArch's stable cores...",
+    "Unpacking cores...": "Unpacking cores...",
+    "Couldn't install {{name}}. Nothing was changed.": "Couldn't install {{name}}. Nothing was changed.",
+    "Couldn't install {{count}} cores. Nothing was changed.": {
+        one: "Couldn't install {{count}} core. Nothing was changed.",
+        other: "Couldn't install {{count}} cores. Nothing was changed."
+    },
+    "Couldn't update {{name}}. Nothing was changed.": "Couldn't update {{name}}. Nothing was changed.",
+    "Couldn't update {{count}} cores. Nothing was changed.": {
+        one: "Couldn't update {{count}} core. Nothing was changed.",
+        other: "Couldn't update {{count}} cores. Nothing was changed."
+    },
+    "Not enough free space.": "Not enough free space.",
+    "Close RetroArch first.": "Close RetroArch first.",
+    "Couldn't reach the download server.": "Couldn't reach the download server.",
+    "A file wasn't the way CheevoDeck expected, so it stopped.": "A file wasn't the way CheevoDeck expected, so it stopped.",
+    "Couldn't put these back: {{files}}": "Couldn't put these back: {{files}}",
+    "Up to date": "Up to date",
+    "{{count}} cores kept because yours are newer": {
+        one: "{{count}} core kept because yours is newer",
+        other: "{{count}} cores kept because yours are newer"
+    },
+    "Every system with games already has a core.": "Every system with games already has a core.",
+    "Couldn't start that.": "Couldn't start that.",
+    "Install Cores": "Install Cores",
+    "{{count}} systems with games have no core yet. Install the recommended one for each?": {
+        one: "{{count}} system with games has no core yet. Install the recommended one?",
+        other: "{{count}} systems with games have no core yet. Install the recommended one for each?"
+    },
+    "Recommended cores: {{size}}. Every core for those systems: {{all}}.": "Recommended cores: {{size}}. Every core for those systems: {{all}}.",
+    "CheevoDeck downloads RetroArch's stable core pack ({{download}}) once and deletes it 30 minutes after the last install.": "CheevoDeck downloads RetroArch's stable core pack ({{download}}) once and deletes it 30 minutes after the last install.",
+    "Install Recommended": "Install Recommended",
+    "Install Every Core": "Install Every Core",
+    "Newer Than Stable": "Newer Than Stable",
+    "{{name}} on this device isn't the one from RetroArch {{stable}}'s stable cores, probably a nightly or dev build you installed. CheevoDeck leaves it alone unless you choose to replace it.": "{{name}} on this device isn't the one from RetroArch {{stable}}'s stable cores, probably a nightly or dev build you installed. CheevoDeck leaves it alone unless you choose to replace it.",
+    "Replace with Stable": "Replace with Stable",
+    "Keep Mine": "Keep Mine",
 };

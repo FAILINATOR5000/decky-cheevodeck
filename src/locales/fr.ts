@@ -3511,6 +3511,60 @@ const FR: LocaleTable = {
     "CheevoDeck didn't install this.": "CheevoDeck ne l'a pas installé.",
     "Cores folder": "Dossier des cœurs",
     "This file isn't there anymore.": "Ce fichier n'est plus là.",
+    "Install": "Installer",
+    "Update": "Mettre à jour",
+    "Update available": "Mise à jour disponible",
+    "{{count}} updates": {
+        one: "{{count}} mise à jour",
+        other: "{{count}} mises à jour"
+    },
+    "Installing {{name}}...": "Installation de {{name}}...",
+    "Installing {{count}} cores...": {
+        one: "Installation de {{count}} cœur...",
+        other: "Installation de {{count}} cœurs..."
+    },
+    "Updating {{name}}...": "Mise à jour de {{name}}...",
+    "Updating {{count}} cores...": {
+        one: "Mise à jour de {{count}} cœur...",
+        other: "Mise à jour de {{count}} cœurs..."
+    },
+    "Downloading RetroArch's stable cores...": "Téléchargement des cœurs stables de RetroArch...",
+    "Unpacking cores...": "Extraction des cœurs...",
+    "Couldn't install {{name}}. Nothing was changed.": "Impossible d'installer {{name}}. Rien n'a été modifié.",
+    "Couldn't install {{count}} cores. Nothing was changed.": {
+        one: "Impossible d'installer {{count}} cœur. Rien n'a été modifié.",
+        other: "Impossible d'installer {{count}} cœurs. Rien n'a été modifié."
+    },
+    "Couldn't update {{name}}. Nothing was changed.": "Impossible de mettre à jour {{name}}. Rien n'a été modifié.",
+    "Couldn't update {{count}} cores. Nothing was changed.": {
+        one: "Impossible de mettre à jour {{count}} cœur. Rien n'a été modifié.",
+        other: "Impossible de mettre à jour {{count}} cœurs. Rien n'a été modifié."
+    },
+    "Not enough free space.": "Pas assez d'espace libre.",
+    "Close RetroArch first.": "Ferme d'abord RetroArch.",
+    "Couldn't reach the download server.": "Impossible de joindre le serveur de téléchargement.",
+    "A file wasn't the way CheevoDeck expected, so it stopped.": "Un fichier n'était pas comme CheevoDeck l'attendait, donc il s'est arrêté.",
+    "Couldn't put these back: {{files}}": "Impossible de remettre en place : {{files}}",
+    "Up to date": "À jour",
+    "{{count}} cores kept because yours are newer": {
+        one: "{{count}} cœur conservé car le tien est plus récent",
+        other: "{{count}} cœurs conservés car les tiens sont plus récents"
+    },
+    "Every system with games already has a core.": "Chaque système avec des jeux a déjà un cœur.",
+    "Couldn't start that.": "Impossible de lancer ça.",
+    "Install Cores": "Installer des cœurs",
+    "{{count}} systems with games have no core yet. Install the recommended one for each?": {
+        one: "{{count}} système avec des jeux n'a pas encore de cœur. Installer celui recommandé ?",
+        other: "{{count}} systèmes avec des jeux n'ont pas encore de cœur. Installer celui recommandé pour chacun ?"
+    },
+    "Recommended cores: {{size}}. Every core for those systems: {{all}}.": "Cœurs recommandés : {{size}}. Tous les cœurs de ces systèmes : {{all}}.",
+    "CheevoDeck downloads RetroArch's stable core pack ({{download}}) once and deletes it 30 minutes after the last install.": "CheevoDeck télécharge une fois le pack de cœurs stables de RetroArch ({{download}}) et le supprime 30 minutes après la dernière installation.",
+    "Install Recommended": "Installer les recommandés",
+    "Install Every Core": "Installer tous les cœurs",
+    "Newer Than Stable": "Plus récent que la version stable",
+    "{{name}} on this device isn't the one from RetroArch {{stable}}'s stable cores, probably a nightly or dev build you installed. CheevoDeck leaves it alone unless you choose to replace it.": "{{name}} sur cet appareil n'est pas celui des cœurs stables de RetroArch {{stable}}, sans doute une version nightly ou de développement que tu as installée. CheevoDeck n'y touche pas, sauf si tu choisis de le remplacer.",
+    "Replace with Stable": "Remplacer par la stable",
+    "Keep Mine": "Garder le mien",
 };
 
 export default FR;

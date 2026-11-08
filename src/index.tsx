@@ -20,6 +20,7 @@ import { registerMoonlightSweep, unregisterMoonlightSweep } from "./utils/stream
 import { registerMultiplayerRoomState, unregisterMultiplayerRoomState } from "./utils/multiplayerRoomState";
 import { registerHotspotState, unregisterHotspotState } from "./utils/hotspotState";
 import { registerHotspotIntro } from "./components/hotspot/HotspotIntroModal";
+import { registerEmulatorJobs, unregisterEmulatorJobs } from "./utils/emulatorJobs";
 import { registerVoiceChat, unregisterVoiceChat } from "./utils/voiceChat";
 import { registerGameVolume, unregisterGameVolume } from "./utils/gameVolume";
 import { closeBrowserForUnload } from "./components/browser/BrowserModal";
@@ -99,6 +100,7 @@ export default definePlugin(() => {
     registerMultiplayerRoomState();
     registerHotspotState();
     registerHotspotIntro();
+    registerEmulatorJobs();
     registerVoiceChat();
     registerGameVolume();
     registerMemoryFullscreen();
@@ -126,6 +128,7 @@ export default definePlugin(() => {
             unregisterVoiceChat();
             unregisterMultiplayerRoomState();
             unregisterHotspotState();
+            unregisterEmulatorJobs();
             unregisterMemoryFullscreen();
             closeBrowserForUnload();
         }
