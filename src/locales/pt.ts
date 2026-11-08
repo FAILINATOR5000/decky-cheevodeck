@@ -3433,7 +3433,6 @@ const PT: LocaleTable = {
     "Searching for hotspots...": "Procurando hotspots...",
     "No CheevoDeck hotspots nearby.": "Nenhum hotspot do CheevoDeck por perto.",
     "Couldn't join. Check the code.": "Não foi possível entrar. Confira o código.",
-    "help_multiplayer_hotspot": "Sem Wi-Fi por perto? Ligue isto para que dispositivos próximos se conectem direto a este.",
     "Offline Hotspot On": "Hotspot offline ligado",
     "Offline Hotspot Off": "Hotspot offline desligado",
     "Room open": "Sala aberta",

@@ -3409,7 +3409,6 @@ export const EN: LocaleTable = {
     "Searching for hotspots...": "Searching for hotspots...",
     "No CheevoDeck hotspots nearby.": "No CheevoDeck hotspots nearby.",
     "Couldn't join. Check the code.": "Couldn't join. Check the code.",
-    "help_multiplayer_hotspot": "No Wi-Fi around? Turn this on so nearby devices can join this one directly.",
     "Offline Hotspot On": "Offline Hotspot On",
     "Offline Hotspot Off": "Offline Hotspot Off",
     "Room open": "Room open",

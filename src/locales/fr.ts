@@ -3433,7 +3433,6 @@ const FR: LocaleTable = {
     "Searching for hotspots...": "Recherche de points d'accès...",
     "No CheevoDeck hotspots nearby.": "Aucun point d'accès CheevoDeck à proximité.",
     "Couldn't join. Check the code.": "Connexion impossible. Vérifie le code.",
-    "help_multiplayer_hotspot": "Pas de Wi-Fi à proximité ? Active ceci pour que les appareils à proximité rejoignent directement celui-ci.",
     "Offline Hotspot On": "Point d'accès hors ligne activé",
     "Offline Hotspot Off": "Point d'accès hors ligne désactivé",
     "Room open": "Salle ouverte",

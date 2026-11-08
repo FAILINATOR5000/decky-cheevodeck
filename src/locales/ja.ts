@@ -3267,7 +3267,6 @@ const JA: LocaleTable = {
     "Searching for hotspots...": "ホットスポットを検索中...",
     "No CheevoDeck hotspots nearby.": "近くにCheevoDeckのホットスポットはありません。",
     "Couldn't join. Check the code.": "参加できませんでした。コードを確認してください。",
-    "help_multiplayer_hotspot": "近くにWi-Fiがない場合はオンにすると、近くの端末がこの端末に直接参加できます。",
     "Offline Hotspot On": "オフラインホットスポット：オン",
     "Offline Hotspot Off": "オフラインホットスポット：オフ",
     "Room open": "ルーム開催中",

@@ -71,7 +71,7 @@ import {
     useStreamSetup
 } from "../utils/streamPlay";
 import { ProgressBar } from "../components/ui/ProgressBar";
-import { hotspotWithoutInternet, switchHotspot, useHotspot } from "../utils/hotspotState";
+import { hotspotWithoutInternet, useHotspot } from "../utils/hotspotState";
 import { getCurrentControllerGlyphStyle } from "../utils/controllerGlyphs";
 import { ButtonHints, type ButtonHint } from "../components/ui/ButtonHints";
 import { openExternalUrl, raLookupSearchUrl } from "../utils/navigation";
@@ -882,22 +882,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     >
                         {t(language, "Find a Room")}
                     </FocusableItem>
-                </PanelSectionRow>
-            )}
-            {!hosted && (
-                <PanelSectionRow>
-                    <ToggleRow
-                        bottomSeparator="none"
-                        controlled
-                        label={t(language, "Offline Hotspot")}
-                        value={hotspot.role === "host" && hotspot.state !== "stopping"}
-                        disabled={hotspot.role === "guest" && hotspot.state !== "stopping"}
-                        outerStyle={buttonStyle}
-                        focusKey="multiplayer:toggle:hotspot"
-                        focusFallback={["multiplayer:find", "multiplayer:host", "multiplayer:back"]}
-                        onChange={(next) => void switchHotspot(next)}
-                        help={t(language, "help_multiplayer_hotspot")}
-                    />
                 </PanelSectionRow>
             )}
         </>

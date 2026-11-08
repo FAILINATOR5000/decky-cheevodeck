@@ -3481,7 +3481,6 @@ const RU: LocaleTable = {
     "Searching for hotspots...": "Поиск точек доступа...",
     "No CheevoDeck hotspots nearby.": "Рядом нет точек доступа CheevoDeck.",
     "Couldn't join. Check the code.": "Не удалось подключиться. Проверь код.",
-    "help_multiplayer_hotspot": "Нет Wi-Fi рядом? Включи это, чтобы ближайшие устройства подключались прямо к этому.",
     "Offline Hotspot On": "Офлайн-точка доступа включена",
     "Offline Hotspot Off": "Офлайн-точка доступа выключена",
     "Room open": "Комната открыта",
