@@ -71,6 +71,15 @@ function rememberCheck(key: string, result: MultiplayerCheck) {
     checkCache.set(key, result);
 }
 
+const modesCache = new Map<string, MultiplayerModes>();
+
+function rememberModes(key: string, answer: MultiplayerModes) {
+    if (modesCache.size >= CHECK_CACHE_MAX && !modesCache.has(key)) {
+        modesCache.clear();
+    }
+    modesCache.set(key, answer);
+}
+
 const reported = new Set<string>();
 let lastDialog = { titleKey: "", at: 0 };
 let missedProblem: MultiplayerProblem | null = null;
@@ -377,6 +386,9 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
                 if (modesTokenRef.current === token) {
                     setModes({ key, answer });
                 }
+                if (answer.ok) {
+                    rememberModes(key, answer);
+                }
             })
             .catch((e) => {
                 logError("multiplayerModes", e);
@@ -609,7 +621,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             lobby: status?.role === null ? Boolean(status.lobby) : false,
             check: checkedFor === checkKey ? check : checkCache.get(checkKey) ?? check,
             checkCurrent: checkedFor === checkKey,
-            modes: modes?.key === modesKey ? modes.answer : null,
+            modes: modes?.key === modesKey ? modes.answer : modesCache.get(modesKey) ?? null,
             games,
             scanned,
             installedCores,
