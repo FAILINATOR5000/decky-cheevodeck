@@ -40,6 +40,7 @@ from services.nearby_transfer_service import NearbyTransferService
 from services.multiplayer_service import MultiplayerService
 from services.offline_hotspot_service import OfflineHotspotService
 from services.stream_setup import StreamSetup
+from services.emulator_service import EmulatorService
 from services.stream_host import StreamHost
 from services.voice_canceller import VoiceCanceller
 from services.multiplayer_friends_service import MultiplayerFriendsService
@@ -48,6 +49,7 @@ from multiplayer_friends_store import MultiplayerFriendsStore
 from multiplayer_messages_store import MultiplayerMessagesStore
 from multiplayer_volumes_store import MultiplayerVolumesStore
 from stream_store import StreamStore
+from emulators_store import EmulatorsStore
 from services.smb_mount_service import SmbMountService
 from services.comments_service import CommentsService
 from services.new_sets_service import NewSetsService
@@ -129,6 +131,7 @@ from mixins.data_transfer import DataTransferMixin
 from mixins.multiplayer import MultiplayerMixin
 from mixins.stream_play import StreamPlayMixin
 from mixins.offline_hotspot import OfflineHotspotMixin
+from mixins.emulators import EmulatorsMixin
 
 
 DEFAULT_IPC_SLOW_THRESHOLD_MS = 250
@@ -194,6 +197,7 @@ class Plugin(
     MultiplayerMixin,
     StreamPlayMixin,
     OfflineHotspotMixin,
+    EmulatorsMixin,
 ):
     DEFAULT_LANGUAGE = "en"
     RECENT_UNLOCK_LOOKBACK_MINUTES = 1440
@@ -575,6 +579,14 @@ class Plugin(
             store=self.stream_store,
             ssl_context=self._ssl_ctx,
             user_home=self.user_home,
+            emit=self._emit_from_thread,
+        )
+        self.emulator_service = EmulatorService(
+            user_home=self.user_home,
+            runtime_dir=self.runtime_dir,
+            ssl_context=self._ssl_ctx,
+            store=EmulatorsStore(base_dir=self.runtime_dir),
+            cheevo_check_store=self.cheevo_check_store,
             emit=self._emit_from_thread,
         )
         self.repair_service = RepairService(
