@@ -112,6 +112,7 @@ VOICE_CANCELLER_EVENT = "multiplayer_voice_canceller"
 
 ARGV_SECONDS = 15
 PAIR_WAIT_SECONDS = 30
+MOONLIGHT_AUDIO_SECONDS = 30
 SUNSHINE_RETRY_SECONDS = 2
 SETTLE_SECONDS = 5
 APP_ENDED_GRACE_SECONDS = 10
@@ -2333,6 +2334,8 @@ class MultiplayerService:
             if joined["status"] is not None:
                 joined["launchedRound"] = joined["status"]["round"]
             self._spawn(self._ask(joined, "launched"))
+            if joined.get("stream") is not None:
+                self._spawn(self._unmute_moonlight())
             decky.logger.info("multiplayer: joined game launched")
             self._announce()
         return {"ok": True}
@@ -4578,6 +4581,21 @@ class MultiplayerService:
             return None
         return [row for row in rows
                 if isinstance(row, dict) and type(row.get("index")) is int and isinstance(row.get("properties"), dict)]
+
+    async def _unmute_moonlight(self) -> None:
+        deadline = time.monotonic() + MOONLIGHT_AUDIO_SECONDS
+        while time.monotonic() < deadline:
+            await asyncio.sleep(1)
+            rows = await asyncio.to_thread(self._sink_inputs) or []
+            stream = next((row for row in rows if row["properties"].get("application.name") == "Moonlight"), None)
+            if stream is None:
+                continue
+            if stream.get("mute") is not True:
+                return
+            code, _out, _err = await asyncio.to_thread(self._pactl, "set-sink-input-mute", str(stream["index"]), "0")
+            if code == 0:
+                decky.logger.info("stream: Moonlight's audio came up muted, unmuted it")
+                return
 
     def _game_stream_rows(self):
         rows = self._sink_inputs()
