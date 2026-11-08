@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import type {
     EmulatorAppImage,
     EmulatorEntry,
+    EmulatorFlatpak,
     EmulatorInventory,
     EmulatorJobState,
     EmulatorKind,
@@ -38,6 +39,7 @@ import { achievementGreen, bodyTextStyle, regularButtonSpacingStyle, warnAmber }
 const BACK_KEY = "emulators:back";
 const REFRESH_KEY = "emulators:refresh";
 const RA_KEY = "emulators:ra";
+const RA_HEADER_KEY = "emulators:ra:header";
 const ROWS_INITIAL = 24;
 const ROWS_STEP = 24;
 const SENTINEL_ROOT_MARGIN_PX = 600;
@@ -61,6 +63,7 @@ type EmulatorsPageProps = {
 };
 
 type Row =
+    | { type: "raHeader"; collapsed: boolean }
     | { type: "ra" }
     | { type: "system"; system: RetroArchSystem; collapsed: boolean }
     | { type: "core"; system: RetroArchSystem; core: RetroArchCore }
@@ -97,6 +100,8 @@ function emulatorKey(emulator: EmulatorEntry): string {
 
 function rowKey(row: Row): string {
     switch (row.type) {
+        case "raHeader":
+            return RA_HEADER_KEY;
         case "ra":
             return RA_KEY;
         case "system":
@@ -116,8 +121,8 @@ function rowKey(row: Row): string {
     }
 }
 
-function isFolded(key: string, byDefault: boolean): boolean {
-    return folded.get(key) ?? byDefault;
+function isFolded(key: string): boolean {
+    return folded.get(key) ?? true;
 }
 
 function steamRow(owner: string, anchor: string, title: string, kind: EmulatorKind, name: string, install: EmulatorInstall,
@@ -134,23 +139,27 @@ function buildRows(inventory: EmulatorInventory | null): Row[] {
     if (inventory === null) {
         return [];
     }
-    const rows: Row[] = [{ type: "ra" }];
     const ra = inventory.retroarch;
-    if (ra.flatpak.installed) {
-        rows.push(...steamRow(RA_KEY, RA_KEY, RA_KEY, "retroarch", ra.name,
-            { via: "flatpak", id: ra.flatpak.id, scope: ra.flatpak.scope }, ra.flatpak.steam, "retroarch:flatpak", ""));
-    }
-    for (const system of inventory.retroarch.systems) {
-        const collapsed = isFolded(systemKey(system), !system.hasGames);
-        rows.push({ type: "system", system, collapsed });
-        if (!collapsed) {
-            for (const core of system.cores) {
-                rows.push({ type: "core", system, core });
+    const raFolded = isFolded(RA_HEADER_KEY);
+    const rows: Row[] = [{ type: "raHeader", collapsed: raFolded }];
+    if (!raFolded) {
+        rows.push({ type: "ra" });
+        if (ra.flatpak.installed) {
+            rows.push(...steamRow(RA_KEY, RA_KEY, RA_HEADER_KEY, "retroarch", ra.name,
+                { via: "flatpak", id: ra.flatpak.id, scope: ra.flatpak.scope }, ra.flatpak.steam, "retroarch:flatpak", ""));
+        }
+        for (const system of ra.systems) {
+            const collapsed = isFolded(systemKey(system));
+            rows.push({ type: "system", system, collapsed });
+            if (!collapsed) {
+                for (const core of system.cores) {
+                    rows.push({ type: "core", system, core });
+                }
             }
         }
     }
     for (const emulator of inventory.emulators) {
-        const collapsed = isFolded(emulatorKey(emulator), false);
+        const collapsed = isFolded(emulatorKey(emulator));
         rows.push({ type: "emulator", emulator, collapsed });
         if (!collapsed) {
             const title = emulatorKey(emulator);
@@ -175,8 +184,7 @@ function buildRows(inventory: EmulatorInventory | null): Row[] {
     return rows;
 }
 
-function flatpakLabel(language: LanguageCode, emulator: EmulatorEntry): string {
-    const flatpak = emulator.flatpak;
+function flatpakLabel(language: LanguageCode, flatpak: EmulatorFlatpak): string {
     if (!flatpak.installed) {
         return t(language, "Flatpak · Not installed");
     }
@@ -194,7 +202,32 @@ function appImageLabel(language: LanguageCode, image: EmulatorAppImage): string 
         : t(language, "AppImage · {{file}}", { file: image.fileName });
 }
 
+function systemTitle(language: LanguageCode, system: RetroArchSystem): string {
+    const line = t(language, "{{system}} · {{installed}} of {{count}} cores installed", {
+        system: system.name,
+        installed: system.cores.filter((core) => core.installed).length,
+        count: system.cores.length
+    });
+    const updates = system.cores.filter((core) => core.update).length;
+    return updates > 0 ? `${line} · ${t(language, "{{count}} updates", { count: updates })}` : line;
+}
+
+function retroarchTitle(language: LanguageCode, inventory: EmulatorInventory): string {
+    const ra = inventory.retroarch;
+    if (!ra.found) {
+        return `${ra.name} · ${t(language, "Not found")}`;
+    }
+    const line = ra.flatpak.version ? `${ra.name} · ${ra.flatpak.version}` : ra.name;
+    return ra.updates > 0 ? `${line} · ${t(language, "{{count}} updates", { count: ra.updates })}` : line;
+}
+
 function emulatorTitle(language: LanguageCode, emulator: EmulatorEntry): string {
+    const line = emulatorLine(language, emulator);
+    const update = emulator.flatpak.update || emulator.appimages.some((image) => image.update);
+    return update ? `${line} · ${t(language, "Update available")}` : line;
+}
+
+function emulatorLine(language: LanguageCode, emulator: EmulatorEntry): string {
     if (!emulator.found) {
         return t(language, "{{emulator}} · Not found", { emulator: emulator.name });
     }
@@ -267,8 +300,8 @@ function EmulatorsPage(props: EmulatorsPageProps) {
         openFirst: pendingLandingKey("emulators") ?? undefined
     });
 
-    function toggle(key: string, byDefault: boolean) {
-        folded.set(key, !isFolded(key, byDefault));
+    function toggle(key: string) {
+        folded.set(key, !isFolded(key));
         setFoldings((count) => count + 1);
     }
 
@@ -283,15 +316,19 @@ function EmulatorsPage(props: EmulatorsPageProps) {
             if (inventory === null) {
                 return false;
             }
+            if (key.startsWith(RA_KEY) && key !== RA_HEADER_KEY && isFolded(RA_HEADER_KEY)) {
+                toggle(RA_HEADER_KEY);
+                return true;
+            }
             for (const system of inventory.retroarch.systems) {
-                if (key.startsWith(`emulators:ra:core:${system.id}:`) && isFolded(systemKey(system), !system.hasGames)) {
-                    toggle(systemKey(system), !system.hasGames);
+                if (key.startsWith(`emulators:ra:core:${system.id}:`) && isFolded(systemKey(system))) {
+                    toggle(systemKey(system));
                     return true;
                 }
             }
             for (const emulator of inventory.emulators) {
-                if (key.startsWith(`${emulatorKey(emulator)}:`) && isFolded(emulatorKey(emulator), false)) {
-                    toggle(emulatorKey(emulator), false);
+                if (key.startsWith(`${emulatorKey(emulator)}:`) && isFolded(emulatorKey(emulator))) {
+                    toggle(emulatorKey(emulator));
                     return true;
                 }
             }
@@ -350,7 +387,7 @@ function EmulatorsPage(props: EmulatorsPageProps) {
             return;
         }
         const key = rowKey(row);
-        if (row.type === "ra" && !inventory.retroarch.found) {
+        if ((row.type === "ra" || row.type === "raHeader") && !inventory.retroarch.found) {
             if (button === BUTTON_SECONDARY) {
                 emulators.actions.installFlatpak("retroarch", inventory.retroarch.name, key);
             }
@@ -388,7 +425,7 @@ function EmulatorsPage(props: EmulatorsPageProps) {
             }
             return;
         }
-        if (row.type === "ra" && inventory.retroarch.configFound) {
+        if ((row.type === "ra" || row.type === "raHeader") && inventory.retroarch.configFound) {
             const systems = inventory.retroarch.systems;
             if (button === BUTTON_SECONDARY) {
                 const missing = systems.filter((system) => system.hasGames && !system.cores.some((core) => core.installed)).length;
@@ -428,19 +465,22 @@ function EmulatorsPage(props: EmulatorsPageProps) {
             const siblings = [rows[at + 1], rows[at - 1]]
                 .filter((other): other is Extract<Row, { type: "core" }> => other?.type === "core" && other.system.id === row.system.id)
                 .map(rowKey);
-            return [...siblings, systemKey(row.system), RA_KEY, REFRESH_KEY];
+            return [...siblings, systemKey(row.system), RA_KEY, RA_HEADER_KEY, REFRESH_KEY];
         }
         if (row.type === "system" || row.type === "emulator") {
             const titles = rows.filter((other) => other.type === row.type).map(rowKey);
             const own = titles.indexOf(rowKey(row));
             const near = [titles[own + 1], titles[own - 1]].filter((key): key is string => key !== undefined);
-            return [...near, ...(row.type === "system" ? [RA_KEY] : []), REFRESH_KEY];
+            return [...near, ...(row.type === "system" ? [RA_KEY, RA_HEADER_KEY] : []), REFRESH_KEY];
         }
         if (row.type === "flatpak" || row.type === "appimage" || row.type === "offer") {
             return [emulatorKey(row.emulator), REFRESH_KEY];
         }
         if (row.type === "steam") {
             return row.anchor === row.title ? [row.title, REFRESH_KEY] : [row.anchor, row.title, REFRESH_KEY];
+        }
+        if (row.type === "ra") {
+            return [RA_HEADER_KEY, REFRESH_KEY];
         }
         return [REFRESH_KEY];
     }
@@ -451,15 +491,9 @@ function EmulatorsPage(props: EmulatorsPageProps) {
             focusedRef.current = row;
             rowWindow.onItemFocus(at);
         };
-        if (row.type === "system" || row.type === "emulator") {
-            const label = row.type === "system"
-                ? t(language, "{{system}} · {{installed}} of {{total}} cores installed", {
-                    system: row.system.name,
-                    installed: row.system.cores.filter((core) => core.installed).length,
-                    total: row.system.cores.length
-                })
-                : emulatorTitle(language, row.emulator);
-            const byDefault = row.type === "system" ? !row.system.hasGames : false;
+        if (row.type === "system" || row.type === "emulator" || row.type === "raHeader") {
+            const label = row.type === "system" ? systemTitle(language, row.system)
+                : row.type === "emulator" ? emulatorTitle(language, row.emulator) : retroarchTitle(language, inventory!);
             return (
                 <SectionHeaderRow key={key} first={at === 0}>
                     <CollapsibleTitle
@@ -468,7 +502,7 @@ function EmulatorsPage(props: EmulatorsPageProps) {
                         focusKey={key}
                         focusFallback={fallbacks(row, at)}
                         preserveCase
-                        onToggle={() => toggle(key, byDefault)}
+                        onToggle={() => toggle(key)}
                         onGamepadFocus={focus}
                         onGamepadDirection={rowWindow.guardTopRow(at)}
                     />
@@ -481,12 +515,7 @@ function EmulatorsPage(props: EmulatorsPageProps) {
         let help: string | undefined;
         if (row.type === "ra") {
             const ra = inventory!.retroarch;
-            left = ra.name;
-            right = ra.flatpak.installed ? ra.flatpak.version : ra.found ? "" : t(language, "Not found");
-            if (ra.updates > 0) {
-                right = `${right} · ${t(language, "{{count}} updates", { count: ra.updates })}`;
-                rightColor = warnAmber;
-            }
+            left = ra.flatpak.installed ? flatpakLabel(language, ra.flatpak) : ra.found ? ra.name : t(language, "Not found");
         }
         else if (row.type === "core") {
             left = row.core.name;
@@ -500,7 +529,7 @@ function EmulatorsPage(props: EmulatorsPageProps) {
             }
         }
         else if (row.type === "flatpak") {
-            left = flatpakLabel(language, row.emulator);
+            left = flatpakLabel(language, row.emulator.flatpak);
             if (row.emulator.flatpak.update) {
                 right = t(language, "Update available");
                 rightColor = warnAmber;
