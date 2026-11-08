@@ -120,7 +120,8 @@ FLATPAK_SECONDS = 10
 
 EMULATOR_NAMES = ("retroarch", "PPSSPPSDL", "PPSSPPQt", "dolphin-emu", "RMG")
 GAME_AUDIO_BINARIES = (*EMULATOR_NAMES, "moonlight")
-FALLBACK_NAMES = {"retroarch": "RetroArch", "ppsspp": "PPSSPP", "dolphin": "Dolphin", "rmg": "RMG"}
+FALLBACK_NAMES = {"retroarch": "RetroArch", "ppsspp": "PPSSPP", "dolphin": "Dolphin", "rmg": "RMG",
+                  "duckstation": "DuckStation", "pcsx2": "PCSX2", "melonds": "melonDS"}
 
 RMG_SERVER_NAME = "rmg-netplay-server"
 RMG_SERVER_LOG = "rmg-netplay-server.log"
@@ -191,6 +192,8 @@ PLUGIN_VERSION = str(getattr(decky, "DECKY_PLUGIN_VERSION", "") or "").strip()
 
 GB_SYSTEMS = session.GB_SYSTEMS
 PSP_SYSTEM = session.PSP_SYSTEM
+PS2_SYSTEM = 21
+DSI_SYSTEM = 78
 VIRTUAL_PADS = ".local/share/Steam/config/virtualgamepadinfo.txt"
 SUNSHINE_PAD = ("0x045e", "0x0b13")
 TAP_NAMES = {"team": "Team Player", "4way": "4-Way Play"}
@@ -894,7 +897,7 @@ class MultiplayerService:
             else:
                 emulator = self._fallback_kinds("couch", system_id)[0]
                 path = next((p for p in entry["paths"] if os.path.isfile(p["real"])), None)
-                kinds = set(self._fallback_kinds("link", system_id) + self._fallback_kinds("couch", system_id))
+                kinds = set(self._play_kinds(system_id) + self._fallback_kinds("couch", system_id))
                 for kind in kinds - emulators.keys():
                     emulators[kind] = self._emulator_shortcut(kind, None) is not None
                 launchable = path is not None and any(emulators[kind] for kind in kinds)
@@ -1197,7 +1200,7 @@ class MultiplayerService:
         if rom is None:
             return None, "rom_missing", {}
         system_id = game["systemId"]
-        kinds = self._fallback_kinds("link", system_id)
+        kinds = self._play_kinds(system_id)
         coreless = False
         for kind in kinds:
             shortcut = self._emulator_shortcut(kind, None)
@@ -1472,6 +1475,17 @@ class MultiplayerService:
         if system_id == PSP_SYSTEM and mode == "link":
             return ("ppsspp", "retroarch")
         return ("retroarch",)
+
+    def _play_kinds(self, system_id: int) -> tuple:
+        if system_id == session.PS1_SYSTEM:
+            return ("duckstation", "retroarch")
+        if system_id == PS2_SYSTEM:
+            return ("pcsx2", "retroarch")
+        if system_id == PSP_SYSTEM:
+            return ("ppsspp", "retroarch")
+        if system_id in (session.DS_SYSTEM, DSI_SYSTEM):
+            return ("retroarch", "melonds")
+        return self._fallback_kinds("link", system_id)
 
     def _fallback(self, mode: str, system_id: int) -> dict:
         kinds = self._fallback_kinds(mode, system_id)
@@ -5114,6 +5128,8 @@ def _fallback_args(route: dict) -> str:
         return f"-e {rom}"
     if route["kind"] == "rmg":
         return f"--fullscreen --quit-after-emulation {rom}"
+    if route["kind"] in ("duckstation", "pcsx2"):
+        return f"-batch -fullscreen -nogui {rom}"
     return rom
 
 
