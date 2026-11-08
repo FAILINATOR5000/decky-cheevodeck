@@ -125,6 +125,19 @@ export function problemText(language: LanguageCode, code: string, detail?: Recor
     return text;
 }
 
+const STREAM_HOST_TEXT: Record<string, string> = {
+    no_scan: "Run Cheevo Check first to host",
+    not_in_results: "To host, this game needs to be in your Cheevo Check results",
+    no_shortcut: "To host, this game needs a Steam ROM Manager shortcut",
+    rom_missing: "This game's file isn't where Cheevo Check last saw it. Run Cheevo Check again to host.",
+    no_emulator_shortcut: "To host, add this game, or {{emulator}} itself, to Steam as a non-Steam game."
+};
+
+export function streamHostProblemText(language: LanguageCode, code: string, detail?: Record<string, string>): string {
+    const text = STREAM_HOST_TEXT[code];
+    return text ? t(language, text, detail) : problemText(language, code, detail);
+}
+
 export function warningText(language: LanguageCode, code: string, detail?: Record<string, string>): string {
     return t(language, WARNING_TEXT[code] ?? WARNING_TEXT.version_mismatch, detail);
 }

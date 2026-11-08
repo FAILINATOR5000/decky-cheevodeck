@@ -75,7 +75,7 @@ import { hotspotWithoutInternet, switchHotspot, useHotspot } from "../utils/hots
 import { getCurrentControllerGlyphStyle } from "../utils/controllerGlyphs";
 import { ButtonHints, type ButtonHint } from "../components/ui/ButtonHints";
 import { openExternalUrl, raLookupSearchUrl } from "../utils/navigation";
-import { ROOM_ENDED, problemText, warningText } from "../utils/multiplayerProblems";
+import { ROOM_ENDED, problemText, streamHostProblemText, warningText } from "../utils/multiplayerProblems";
 import {
     bodyTextStyle,
     errorRed,
@@ -377,6 +377,13 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         : joined && ROOM_ENDED.includes(joined.error) ? joined.error : "";
     const missedLine = mp.missed ?? (endedCode && !mp.endedLineCleared ? { code: endedCode } : null);
 
+    function problemLine(code: string, detail?: Record<string, string>) {
+        if (mp.mode === "stream" && !joined) {
+            return streamHostProblemText(language, code, detail);
+        }
+        return problemText(language, code, detail);
+    }
+
     const roomWarnings = (shownCheck?.warnings ?? []).map((warning) => warningText(language, warning.code, warning.detail));
     const installing = mp.mode === "stream" && setupRunning(stream);
     const settingUp = mp.mode === "stream" && (installing || stream.lastJob === "setup") ? stream.stage : "";
@@ -391,7 +398,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         ...(setupLine && !installing ? [{ text: t(language, setupLine.key), color: setupLine.color }] : []),
         ...(hosted?.streamChecking ? [{ text: t(language, "Checking your connection…"), color: undefined }] : []),
         ...(joined?.streamBusy ? [{ text: problemText(language, "stream_busy"), color: warnAmber }] : []),
-        ...(problemShown ? [{ text: problemText(language, problemShown.code, { size: stream.size || "?", ...problemShown.detail }),
+        ...(problemShown ? [{ text: problemLine(problemShown.code, { size: stream.size || "?", ...problemShown.detail }),
             color: warnAmber }] : []),
         ...roomWarnings.map((text) => ({ text, color: warnAmber }))
     ];
