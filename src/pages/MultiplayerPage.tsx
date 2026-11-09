@@ -82,6 +82,7 @@ import { getCurrentControllerGlyphStyle } from "../utils/controllerGlyphs";
 import { ButtonHints, type ButtonHint } from "../components/ui/ButtonHints";
 import { openExternalUrl, raLookupSearchUrl } from "../utils/navigation";
 import { ROOM_ENDED, problemText, streamHostProblemText, warningText } from "../utils/multiplayerProblems";
+import { playMoveSound } from "../utils/navSound";
 import {
     achievementGreen,
     bodyTextStyle,
@@ -96,6 +97,7 @@ import {
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 const NAV_ENTER_MAINTAIN_Y = 3;
 const FIX_DONE_MS = 4000;
+const DIR_UP = 9;
 
 const LINK_SYSTEMS = [4, 5, 6, 16, 18, 41];
 const DOLPHIN_CONSOLES = ["GameCube", "Wii"];
@@ -1291,6 +1293,21 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     );
 
     const noteCount = warnings.length + tips.length;
+
+    function upIntoChart(evt: { detail?: { button?: number }; currentTarget?: EventTarget | null }) {
+        if (evt.detail?.button !== DIR_UP) {
+            return false;
+        }
+        const root = (evt.currentTarget as HTMLElement | null)?.closest("[data-cheevodeck-root]");
+        const stream = root?.querySelector<HTMLElement>('[data-focus-key="multiplayer:mode:stream"] button:not([disabled])');
+        if (!stream) {
+            return false;
+        }
+        stream.focus();
+        playMoveSound();
+        return true;
+    }
+
     const notesRow = (
         <PanelSectionRow>
             <FocusableItem
@@ -1298,6 +1315,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 outerStyle={buttonStyle}
                 focusKey="multiplayer:notes"
                 focusFallback={[joined ? "multiplayer:leave" : "multiplayer:host", `multiplayer:mode:${mp.mode}`, "multiplayer:back"]}
+                onGamepadDirection={upIntoChart}
                 onClick={() => showMultiplayerProblem(language, "Before You Play",
                     noteCount > 0 ? [...warnings, ...tips] : t(language, "Nothing to note for this game."))}
             >
