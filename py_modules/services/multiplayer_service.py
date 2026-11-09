@@ -210,7 +210,7 @@ STREAM_EMULATOR_NAMES = {
     "pcsx2": "PCSX2", "melonds": "melonDS",
 }
 SETUP_GATES = {
-    "stream_not_set_up", "stream_needs_update",
+    "stream_not_set_up", "stream_needs_update", "no_play_core", "emulator_missing", "retroarch_first_run",
     "host_core_missing", "no_couch_core", "core_cant_couch", "match_host_core",
     "link_needs_gambatte", "link_needs_gambatte_both", "link_needs_gpsp", "link_needs_melondsds", "link_needs_ppsspp",
     "gpsp_too_old", "melondsds_too_old",
@@ -229,6 +229,7 @@ PLANNED_GATES = {
     "link_needs_gambatte", "link_needs_gambatte_both", "link_needs_gpsp", "link_needs_melondsds", "link_needs_ppsspp",
     "gpsp_too_old", "melondsds_too_old", "no_emulator_shortcut", "no_dolphin_emulator_shortcut", "no_rmg_shortcut",
     "duckstation_no_multiplayer", "dolphin_version_mismatch", "rmg_version_mismatch", "ppsspp_version_mismatch",
+    "no_play_core", "emulator_missing",
 }
 
 
@@ -241,6 +242,7 @@ class _Overlay:
         self.shortcuts = []
         self.cores = set()
         self.versions = {}
+        self.files = set()
 
 
 class _RetroArchAfter(session.RetroArch):
@@ -982,16 +984,27 @@ class MultiplayerService:
         overlay = self._overlay()
         if overlay is not None and app in overlay.versions:
             return overlay.versions[app]
-        versions = self._versions
-        if versions is None:
+        return self._flatpak_listing()[1].get(app, "")
+
+    def _flatpak_installed(self, app: str):
+        overlay = self._overlay()
+        if overlay is not None and app in overlay.flatpaks:
+            return True
+        listed, versions = self._flatpak_listing()
+        return app in versions if listed else None
+
+    def _flatpak_listing(self) -> tuple:
+        found = self._versions
+        if found is None:
             versions = {}
-            out = self._flatpak("list", "--app", "--columns=application,version") or ""
-            for line in out.splitlines():
+            out = self._flatpak("list", "--app", "--columns=application,version")
+            for line in (out or "").splitlines():
                 parts = line.split("\t")
                 if len(parts) >= 2:
                     versions[parts[0].strip()] = parts[1].strip()
-            self._versions = versions
-        return versions.get(app, "")
+            found = (out is not None, versions)
+            self._versions = found
+        return found
 
     def _flatpak_reads_home(self, app: str) -> bool:
         overlay = self._overlay()
@@ -1133,7 +1146,24 @@ class MultiplayerService:
         local, gate, detail = self._route(mode, game_id, core, room)
         if local is not None and local["fallback"] and not local["appid"]:
             return None, "no_emulator_shortcut", {"emulator": FALLBACK_NAMES[local["emulator"]]}
+        vehicle = self._emulator_by_appid(local["appid"]) if local is not None else None
+        gone = self._gone(vehicle) if vehicle is not None else None
+        if gone is not None:
+            return None, "emulator_missing", gone
         return local, gate, detail
+
+    def _gone(self, shortcut: dict):
+        kind = session.emulator_kind(shortcut["exe"], shortcut["launchOptions"])
+        if kind not in catalog.BY_KIND:
+            return None
+        via, image = catalog.shortcut_install(kind, shortcut["exe"], shortcut["launchOptions"], self._user_home)
+        detail = {"emulator": FALLBACK_NAMES[kind], "kind": kind, "via": via, "path": image}
+        if via == "flatpak" and self._flatpak_installed(catalog.BY_KIND[kind]["flatpak"]) is False:
+            return detail
+        overlay = self._overlay()
+        if via == "appimage" and not os.path.isfile(image) and (overlay is None or image not in overlay.files):
+            return detail
+        return None
 
     def _route(self, mode: str, game_id: int, core: str, room, use_saved: bool = True):
         if mode not in proto.MODES:
@@ -1244,7 +1274,9 @@ class MultiplayerService:
 
         ra = self._retroarch()
         if not ra.found:
-            return None, "no_shortcut" if local["fallback"] else "unsupported_emulator", {}
+            if not local["fallback"]:
+                return None, "unsupported_emulator", {}
+            return self._no_retroarch(pick["shortcut"])
         local["ra"] = ra
         local["shortcutCoreName"] = ra.core_name(detected["core"])
         compatible = self._compatible(ra, mode, system_id)
@@ -1290,6 +1322,14 @@ class MultiplayerService:
         if mode == "couch":
             local["coreBuild"] = self._core_build_of(ra.core_path(chosen))
         return local, None, {}
+
+    def _no_retroarch(self, shortcut: dict):
+        if self._flatpak_installed(session.RETROARCH_FLATPAK):
+            return None, "retroarch_first_run", {}
+        gone = self._gone(shortcut) if shortcut["appid"] else None
+        if gone is not None:
+            return None, "emulator_missing", gone
+        return None, "no_emulator_shortcut", {"emulator": FALLBACK_NAMES["retroarch"]}
 
     def _dolphin_local(self, mode: str, local: dict, pick: dict, vehicle=None):
         if mode == "couch":
@@ -1426,14 +1466,21 @@ class MultiplayerService:
             return None, "rom_missing", {}
         system_id = game["systemId"]
         kinds = self._play_kinds(system_id)
-        coreless = False
+        coreless, first_run, missing = False, False, None
         for kind in kinds:
             shortcut = self._emulator_shortcut(kind, None)
             if shortcut is None:
                 continue
+            gone = self._gone(shortcut)
+            if gone is not None:
+                missing = missing or gone
+                continue
             route = {"appid": shortcut["appid"], "fallback": True, "kind": kind, "rom": rom, "corePath": ""}
             if kind == "retroarch":
                 ra = self._retroarch()
+                if not ra.found:
+                    first_run = True
+                    continue
                 core = self._play_core(ra, system_id, Path(rom))
                 if not core:
                     coreless = True
@@ -1441,8 +1488,12 @@ class MultiplayerService:
                 route["corePath"] = str(ra.core_path(core))
                 route["core"] = core
             return route, None, {}
+        if missing is not None:
+            return None, "emulator_missing", missing
+        if first_run:
+            return None, "retroarch_first_run", {}
         if coreless:
-            return None, "no_shortcut", {}
+            return None, "no_play_core", {}
         return None, "no_emulator_shortcut", {"emulator": FALLBACK_NAMES[kinds[0]]}
 
     def _choice_route(self, game: dict, pick: dict):
@@ -2147,12 +2198,14 @@ class MultiplayerService:
         context = {
             "mode": mode,
             "systemId": game.get("systemId"),
-            "shortcutFallback": self._fallback_on() if mode != "play" else True,
+            "shortcutFallback": self._fallback_on() if mode != "play" else self._play_fallback_on(),
             "hostVersion": str(room.get("emuVersion") or "") if room is not None and mode == "couch" else "",
             "raShortcut": self._emulator_shortcut("retroarch") is not None,
         }
         if gate == "no_emulator_shortcut":
             context["kind"] = next((kind for kind, name in FALLBACK_NAMES.items() if name == detail.get("emulator")), "")
+        if gate == "emulator_missing":
+            context["kind"] = detail.get("kind", "")
         if gate in ("dolphin_version_mismatch", "rmg_version_mismatch"):
             shortcut = self._emulator_by_appid(detail.get("appid") or 0)
             if shortcut is not None:
@@ -2270,6 +2323,8 @@ class MultiplayerService:
                 choice = next((option for option in step.get("choices") or [] if option["via"] == step["via"]), {})
                 if step["via"] == "flatpak":
                     overlay.flatpaks.add(choice.get("id") or catalog.BY_KIND[step["kind"]]["flatpak"])
+                else:
+                    overlay.files.add(choice.get("path", ""))
             elif do == "update_emulator":
                 key = catalog.BY_KIND[step["kind"]]["flatpak"] if step["via"] == "flatpak" else step.get("path", "")
                 overlay.versions[key] = str(detail.get("version") or "")

@@ -66,7 +66,7 @@ LINK_GATES = {"link_needs_gambatte": "gambatte", "link_needs_gpsp": "gpsp", "lin
               "link_needs_ppsspp": "ppsspp"}
 UPDATE_GATES = {"gpsp_too_old": "gpsp", "melondsds_too_old": "melondsds"}
 MISMATCH_GATES = {"dolphin_version_mismatch": "dolphin", "rmg_version_mismatch": "rmg", "ppsspp_version_mismatch": "ppsspp"}
-CLIENT_UNDOS = ("remove_shortcut", "shortcut_fallback_off")
+CLIENT_UNDOS = ("remove_shortcut", "shortcut_fallback_off", "play_shortcut_fallback_off")
 OLD_COPY = re.compile(r"(?i)\.appimage.*(\.bak|\.old$)")
 
 _CORE = re.compile(r"^[A-Za-z0-9_+.-]{1,64}$")
@@ -1522,26 +1522,27 @@ class EmulatorService:
             return None
         return first + [step]
 
-    def _couch_core_plan(self, inventory: dict, system_id):
+    def _system_core_plan(self, inventory: dict, system_id, couch: bool = True):
         system = next((row for row in inventory["retroarch"]["systems"] if row["id"] == system_id), None)
         if system is None:
             return None
         ra = session.RetroArch(self._user_home)
-        infos = self._info_cores(ra) if ra.found else {}
+        infos = self._info_cores(ra) if ra.found and couch else {}
         packed = (self._store.get()["nightly"].get("cores") or {})
-        couch = [core for core in system["cores"]
-                 if ((infos.get(core["core"]) or {}).get("savestate_features") or "").strip() in ("", "deterministic")
-                 and core["core"] in packed]
-        if not couch:
+        fits = [core for core in system["cores"]
+                if (not couch or ((infos.get(core["core"]) or {}).get("savestate_features") or "").strip()
+                    in ("", "deterministic"))
+                and core["core"] in packed]
+        if not fits:
             return None
-        table = session.COUCH_CORES.get(system_id)
-        recommended = table if any(core["core"] == table for core in couch) else couch[0]["core"]
+        table = session.COUCH_CORES.get(system_id) if couch else catalog.RECOMMENDED_CORES.get(system_id)
+        recommended = table if any(core["core"] == table for core in fits) else fits[0]["core"]
         first = self._retroarch_steps(inventory)
         step = self._core_step(inventory, recommended)
         if first is None or step is None:
             return None
         step["choices"] = [{"core": core["core"], "name": core["name"], "size": core["size"],
-                            "recommended": core["core"] == recommended} for core in couch]
+                            "recommended": core["core"] == recommended} for core in fits]
         step["choices"].sort(key=lambda row: not row["recommended"])
         return first + [step]
 
@@ -1605,7 +1606,26 @@ class EmulatorService:
         reason = "game_shortcut" if only else "host_version" if host_version else "single" if len(choices) == 1 else ""
         install = {"do": "install_emulator", "where": "backend", "kind": kind, "name": entry["name"],
                    "via": choices[0]["via"], "choices": choices, "reason": reason}
+        if self._steam_for(row, choices[0]) is not None:
+            return [{**install, "choices": choices[:1], "reason": "missing"}]
         return [install, self._add_step(kind, entry["name"], choices[0])]
+
+    def _steam_for(self, row: dict, choice: dict):
+        if choice["via"] == "flatpak":
+            return row["flatpak"].get("steam")
+        image = next((image for image in row.get("appimages") or [] if image["path"] == choice.get("path")), None)
+        return image.get("steam") if image is not None else None
+
+    def _reinstall_plan(self, inventory: dict, kind: str, detail: dict):
+        if kind not in catalog.BY_KIND or self._row_for(inventory, kind) is None:
+            return None
+        via = detail.get("via")
+        choices = [choice for choice in self._install_choices(inventory, kind, str(via or ""), "")
+                   if via == "flatpak" or (via == "appimage" and choice.get("path") == detail.get("path"))]
+        if via not in ("flatpak", "appimage") or not choices:
+            return None
+        return [{"do": "install_emulator", "where": "backend", "kind": kind, "name": catalog.BY_KIND[kind]["name"],
+                 "via": via, "choices": choices[:1], "reason": "missing"}]
 
     def _duckstation_plan(self, inventory: dict, context: dict):
         steps = []
@@ -1664,7 +1684,10 @@ class EmulatorService:
         if gate == "stream_not_set_up":
             return [{"do": "setup_streaming", "where": "client"}]
         if gate == "no_shortcut":
-            return None if context.get("shortcutFallback", True) else [{"do": "enable_shortcut_fallback", "where": "client"}]
+            if context.get("shortcutFallback", True):
+                return None
+            toggle = "enable_play_shortcut_fallback" if context.get("mode") == "play" else "enable_shortcut_fallback"
+            return [{"do": toggle, "where": "client"}]
         if gate == "link_needs_gambatte_both":
             return None
         if inventory is None:
@@ -1675,7 +1698,11 @@ class EmulatorService:
         if gate == "host_core_missing":
             return self._core_plan(inventory, str(detail.get("coreId") or ""))
         if gate == "no_couch_core":
-            return self._couch_core_plan(inventory, context.get("systemId"))
+            return self._system_core_plan(inventory, context.get("systemId"))
+        if gate == "no_play_core":
+            return self._system_core_plan(inventory, context.get("systemId"), couch=False)
+        if gate == "emulator_missing":
+            return self._reinstall_plan(inventory, str(context.get("kind") or ""), detail)
         if gate in UPDATE_GATES:
             core = UPDATE_GATES[gate]
             step = self._core_step(inventory, core, "update_core")
