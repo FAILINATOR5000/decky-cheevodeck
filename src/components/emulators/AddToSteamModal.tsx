@@ -1,5 +1,5 @@
 import { DialogButton, Focusable, ModalRoot, ScrollPanelGroup, TextField } from "@decky/ui";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { useSlidingWindow } from "../../hooks/useSlidingWindow";
 import { t, type LanguageCode } from "../../locales";
@@ -29,7 +29,7 @@ function AddToSteamModal(props: { language: LanguageCode; offer: AddToSteamOffer
     const { language, offer, onAdd, close } = props;
     const [name, setName] = useState(offer.defaultName);
     const [chosen, setChosen] = useState("");
-    const items = [{ id: "", name: t(language, "None") }, ...offer.collections];
+    const items = useMemo(() => [{ id: "", name: t(language, "None") }, ...offer.collections], [language, offer.collections]);
     const list = useSlidingWindow({
         items,
         itemKey: (collection) => collection.id || "none",
