@@ -465,6 +465,8 @@ class MultiplayerService:
                 return {"ok": False, "error": ERROR_CAP_REACHED}
 
             self._visible_until = min(now + LEASE_SECONDS, self._cap_until)
+            if self._room is not None and self._room["state"] == "lobby":
+                self._spawn(self.refresh_room_version())
             if self._expiry is not None:
                 self._expiry.cancel()
             self._expiry = asyncio.get_running_loop().call_later(
@@ -2711,6 +2713,27 @@ class MultiplayerService:
                 return
             room.update(described, local=local)
             decky.logger.info("multiplayer: the room now runs %s on %s", game_id, local["core"] or local["emulator"])
+            self._changed(room)
+
+    async def refresh_room_version(self) -> None:
+        async with self._lock:
+            room = self._room
+            if room is None or room["state"] != "lobby":
+                return
+            mode = room["mode"]
+            local, gate, _detail = await asyncio.to_thread(self._local, mode, room["gameId"], room["core"], None)
+            if local is not None:
+                found, _warnings = await asyncio.to_thread(self._gates, mode, local, None, 2, False)
+                gate = found[0] if found else None
+            if gate or self._room is not room or room["state"] != "lobby":
+                return
+            if not _runs_same(room["local"], local):
+                return
+            if (local["emuVersion"], local["coreBuild"]) == (room["emuVersion"], room["coreBuild"]):
+                return
+            decky.logger.info("multiplayer: the room's %s is now %s", local["coreName"] or local["emulator"],
+                              local["emuVersion"] or "an unknown version")
+            room.update(emuVersion=local["emuVersion"], coreBuild=local["coreBuild"], local=local)
             self._changed(room)
 
     async def _hold_game_sink(self, room: dict) -> str:
