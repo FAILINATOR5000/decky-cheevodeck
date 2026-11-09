@@ -81,8 +81,8 @@ import { hotspotWithoutInternet, useHotspot } from "../utils/hotspotState";
 import { getCurrentControllerGlyphStyle } from "../utils/controllerGlyphs";
 import { ButtonHints, type ButtonHint } from "../components/ui/ButtonHints";
 import { openExternalUrl, raLookupSearchUrl } from "../utils/navigation";
-import { ROOM_ENDED, problemText, streamHostProblemText, warningText } from "../utils/multiplayerProblems";
 import { playMoveSound } from "../utils/navSound";
+import { ROOM_ENDED, fixableProblemText, problemText, streamHostProblemText, warningText } from "../utils/multiplayerProblems";
 import {
     achievementGreen,
     bodyTextStyle,
@@ -612,12 +612,15 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         actions.setTab(next);
     }
 
-    function reasonText(forMode: MultiplayerMode, gate: string, detail: Record<string, string>) {
+    function reasonText(forMode: MultiplayerMode, gate: string, detail: Record<string, string>, fixable = false) {
         if (gate === "not_in_results" && detail.dolphinSkipped && DOLPHIN_CONSOLES.includes(shown?.consoleName ?? "")) {
             return problemText(language, "dolphin_flatpak_needed");
         }
         const filled = { size: stream.size || "?", ...detail };
-        return forMode === "stream" && !joined ? streamHostProblemText(language, gate, filled) : problemText(language, gate, filled);
+        if (forMode === "stream" && !joined) {
+            return streamHostProblemText(language, gate, filled);
+        }
+        return fixable ? fixableProblemText(language, gate, filled) : problemText(language, gate, filled);
     }
 
     function fixReason(forMode: MultiplayerMode) {
@@ -627,7 +630,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             mode: forMode,
             gameId: fixRun?.running ? fixRun.gameId : mp.gameId ?? 0,
             state: entry?.state === "never" ? "never" as const : "setup" as const,
-            text: gate ? reasonText(forMode, gate, entry?.detail ?? {}) : "",
+            text: gate ? reasonText(forMode, gate, entry?.detail ?? {}, (entry?.fix ?? []).length > 0) : "",
             steps: entry?.fix ?? [],
             tools: gate === "no_shortcut" ? mp.modes?.tools ?? null : null,
             refresh: () => actions.fixFor(forMode)

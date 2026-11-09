@@ -99,6 +99,15 @@ const PROBLEM_TEXT: Record<string, string> = {
     stream_unreachable: "Couldn't connect to the host's stream. Try Join & Play again."
 };
 
+const FIXABLE_TEXT: Record<string, string> = {
+    link_needs_gpsp: "Link Play needs gpSP",
+    gpsp_too_old: "Link Play needs a newer gpSP",
+    link_needs_melondsds: "Link Play needs melonDS DS",
+    host_core_missing: "The host uses {{core}}, which isn't installed here",
+    no_dolphin_emulator_shortcut: "Couch Play needs Dolphin itself in Steam",
+    no_rmg_shortcut: "N64 Couch Play needs RMG itself in Steam"
+};
+
 const WARNING_TEXT: Record<string, string> = {
     core_override: "Using {{core}} for this session. Your shortcut stays on {{shortcutCore}}.",
     saves_by_core: "Your RetroArch saves are sorted by core, so {{core}} won't see your usual save.",
@@ -123,6 +132,11 @@ export function problemText(language: LanguageCode, code: string, detail?: Recor
         logError(`multiplayer: ${code} left a placeholder unfilled`, new Error(text));
     }
     return text;
+}
+
+export function fixableProblemText(language: LanguageCode, code: string, detail?: Record<string, string>): string {
+    const text = FIXABLE_TEXT[code];
+    return text ? t(language, text, detail) : problemText(language, code, detail);
 }
 
 const STREAM_HOST_TEXT: Record<string, string> = {
