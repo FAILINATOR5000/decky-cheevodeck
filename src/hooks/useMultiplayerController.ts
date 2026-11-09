@@ -51,6 +51,7 @@ import {
 import { pressMultiplayerReady, subscribeMultiplayerRoom } from "../utils/multiplayerRoomState";
 import { useStreamSetup } from "../utils/streamPlay";
 import { useFixPlan } from "../utils/fixPlan";
+import { useGameFilePick } from "../utils/gameFilePick";
 
 const TICK_MS = 2000;
 const RENEW_EVERY = 5;
@@ -340,6 +341,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     const joinedState = joined?.status?.state ?? "";
     const streamReady = useStreamSetup(isActive).status?.ready ?? false;
     const fixesFinished = useFixPlan().finished;
+    const gameFilesChanged = useGameFilePick().changed;
     const hostedSeats = hosted?.seats.filter(Boolean).length ?? 0;
     useEffect(() => {
         if (!isActive || gameId === null) {
@@ -374,7 +376,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             }
         })();
     }, [isActive, mode, gameId, checkCore, checkRoom, hosted?.core, hosted?.rev, hostedSeats, joinedState, joined?.status?.rev,
-        joined?.reason, streamReady, fixesFinished]);
+        joined?.reason, streamReady, fixesFinished, gameFilesChanged]);
 
     const modesKey = [gameId ?? 0, checkRoom].join("|");
     useEffect(() => {
@@ -400,7 +402,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
                 }
             });
     }, [isActive, gameId, checkRoom, games, hosted?.mode, hosted?.core, hosted?.rev, hostedSeats, joinedState,
-        joined?.status?.rev, joined?.reason, streamReady, fixesFinished]);
+        joined?.status?.rev, joined?.reason, streamReady, fixesFinished, gameFilesChanged]);
 
     useEffect(() => {
         if (!isActive || gameId === null || gameId === currentGameId) {

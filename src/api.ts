@@ -832,6 +832,10 @@ export const multiplayerLookup = callable<[string], { ok: boolean; error?: strin
 export const multiplayerGames = callable<[], { ok: boolean; scanned: boolean; games: MultiplayerGame[]; installedCores?: string[] }>("multiplayer_games");
 export const multiplayerCheck = callable<[MultiplayerMode, number, string, string], MultiplayerCheck>("multiplayer_check");
 export const multiplayerModes = callable<[number, string], MultiplayerModes>("multiplayer_modes");
+export type GameFilePickResult = { ok: boolean; error?: string; title?: string; label?: string };
+export const multiplayerPickGameFile = callable<[gameId: number, path: string], GameFilePickResult>("multiplayer_pick_game_file");
+export const multiplayerForgetPickedGame = callable<[gameId: number], { ok: boolean }>("multiplayer_forget_picked_game");
+export const multiplayerPickStartFolder = callable<[], { ok: boolean; folder: string }>("multiplayer_pick_start_folder");
 export const multiplayerHost = callable<
     [MultiplayerMode, number, boolean, string, boolean, string, number, string, string, MultiplayerWhere, boolean, boolean, boolean, string],
     MultiplayerReply & { room?: MultiplayerHostedRoom }

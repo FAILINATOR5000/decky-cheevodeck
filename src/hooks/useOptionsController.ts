@@ -815,6 +815,7 @@ type UseOptionsControllerArgs = {
     onClearAllCache: () => void | Promise<void>;
     onClearSetsCache: () => void | Promise<void>;
     onClearCheevoCheckResults: () => void | Promise<void>;
+    onClearPickedGameFiles: () => void | Promise<void>;
     onClearCheevoCheckHashes: () => void | Promise<void>;
     onClearCheevoCheckRaData: () => void | Promise<void>;
     onClearFileWatcherReport: () => void | Promise<void>;
@@ -1306,6 +1307,7 @@ export function buildOptionsController({
     onClearAllCache,
     onClearSetsCache,
     onClearCheevoCheckResults,
+    onClearPickedGameFiles,
     onClearCheevoCheckHashes,
     onClearCheevoCheckRaData,
     onClearFileWatcherReport,
@@ -4133,6 +4135,7 @@ export function buildOptionsController({
         onClearAllCache,
         onClearSetsCache,
         onClearCheevoCheckResults,
+        onClearPickedGameFiles,
         onClearCheevoCheckHashes,
         onClearCheevoCheckRaData,
         onClearFileWatcherReport,

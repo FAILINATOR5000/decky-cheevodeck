@@ -12,8 +12,11 @@ import { SubTabButton } from "../components/ui/SubTabButton";
 import { ModeChart } from "../components/multiplayer/ModeChart";
 import { showModeReason, type ModeFix } from "../components/multiplayer/ModeReasonModal";
 import { fixStepLabel, showFixIt } from "../components/multiplayer/FixItModal";
+import { showGameFile } from "../components/multiplayer/GameFileModal";
+import { ScanOrPickLines } from "../components/multiplayer/ScanOrPickLines";
 import { jobErrorText } from "../utils/emulatorJobs";
 import { runFixPlan, setMultiplayerPageShown, useFixPlan } from "../utils/fixPlan";
+import { forgetGameFile, gameFilePickFailure, pickGameFile, useGameFilePick } from "../utils/gameFilePick";
 import { showMultiplayerProblem } from "../components/multiplayer/ProblemModal";
 import { openStreamSetup } from "../components/multiplayer/StreamSetupModal";
 import { TextViewerModal } from "../components/ui/TextViewerModal";
@@ -233,6 +236,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const visible = state.view === "multiplayer";
     const { state: mp, actions, friends, page: tabs } = useMultiplayer();
     const fixPlan = useFixPlan();
+    const gameFilePick = useGameFilePick().pick;
     const fixRun = fixPlan.run;
     const [fixDoneShown, setFixDoneShown] = useState(false);
 
@@ -638,9 +642,20 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         };
     }
 
+    function startGameFilePick() {
+        if (mp.gameId === null) {
+            return;
+        }
+        void pickGameFile(language, mp.gameId, title ?? String(mp.gameId), () => showGameFile(language, startGameFilePick));
+    }
+
     function openModeReason(forMode: MultiplayerMode) {
         if (fixRun?.running) {
             showFixIt(language, fixReason(fixRun.mode));
+            return;
+        }
+        if (gameFilePick?.state === "running" && gameFilePick.gameId === mp.gameId) {
+            showGameFile(language, startGameFilePick);
             return;
         }
         const entry = mp.modes?.modes[forMode];
@@ -682,6 +697,25 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     close();
                 }
             });
+            fixes.push({
+                labelKey: "Pick the Game's File",
+                onPress: (close) => {
+                    close();
+                    startGameFilePick();
+                }
+            });
+            if (entry.detail.picked) {
+                const forGame = mp.gameId;
+                fixes.push({
+                    labelKey: "Forget This File",
+                    onPress: (close) => {
+                        close();
+                        if (forGame !== null) {
+                            void forgetGameFile(forGame);
+                        }
+                    }
+                });
+            }
         }
         if (gate === "no_shortcut" && !shortcutFallback) {
             fixes.push({
@@ -699,6 +733,9 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             text: gate === "no_shortcut" || gate === "no_emulator_shortcut"
                 ? `${reasonText(forMode, gate, entry.detail)}\n\n${t(language, "A shortcut only counts when it opens the same file Cheevo Check found.")}`
                 : reasonText(forMode, gate, entry.detail),
+            extra: gate === "no_scan" || gate === "not_in_results" || gate === "rom_missing"
+                ? <ScanOrPickLines language={language} />
+                : undefined,
             fixes,
             tools: gate === "no_shortcut" || gate === "no_emulator_shortcut" ? tools : null
         });
@@ -1815,6 +1852,26 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                                         >
                                             <div style={{ width: "100%", textAlign: "center" }}>{t(language, "Try Again")}</div>
                                         </FocusableItem>
+                                    </PanelSectionRow>
+                                )}
+                                {gameFilePick !== null && gameFilePick.gameId === mp.gameId && gameFilePick.state !== "done" && (
+                                    <PanelSectionRow>
+                                        <div style={{ width: "100%", paddingTop: "4px" }}>
+                                            {gameFilePick.state === "running" ? (
+                                                <>
+                                                    <div style={bodyTextStyle()}>
+                                                        {t(language, "Checking {{file}} with RetroAchievements...", { file: gameFilePick.fileName })}
+                                                    </div>
+                                                    <div style={{ marginTop: "6px" }}>
+                                                        <ProgressBar fraction={null} />
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <div style={{ ...bodyTextStyle(), color: errorRed, opacity: 1 }}>
+                                                    {gameFilePickFailure(language, gameFilePick)}
+                                                </div>
+                                            )}
+                                        </div>
                                     </PanelSectionRow>
                                 )}
                                 {fixDoneShown && fixHere?.done && !fixHere.running && (

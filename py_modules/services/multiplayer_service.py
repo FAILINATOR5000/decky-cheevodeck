@@ -19,6 +19,7 @@ from pathlib import Path
 
 import cheevo_check_tools
 import decky
+import emulator_catalog as catalog
 import multiplayer_protocol as proto
 from services import game_pipes, stream_room
 import multiplayer_session as session
@@ -31,7 +32,7 @@ from multiplayer_protocol import decode, frame, read_frame
 from nearby_protocol import FrameError, clean_title, is_nonce, verify
 from notifications import emit_notification
 from services import lobby_client, lobby_tunnel
-from utils import atomic_file, child_owner, chown_to_data_owner, ensure_dir, load_json_file
+from utils import atomic_file, child_owner, chown_to_data_owner, ensure_dir, load_json_file, to_int
 
 LEASE_SECONDS = 30
 VISIT_CAP_SECONDS = 600
@@ -214,6 +215,7 @@ SETUP_GATES = {
     "link_needs_gambatte", "link_needs_gambatte_both", "link_needs_gpsp", "link_needs_melondsds", "link_needs_ppsspp",
     "gpsp_too_old", "melondsds_too_old",
     "dolphin_version_mismatch", "rmg_version_mismatch", "ppsspp_version_mismatch",
+    "no_scan", "not_in_results", "rom_missing",
 }
 VERSION_GATES = {"dolphin_version_mismatch", "rmg_version_mismatch", "ppsspp_version_mismatch"}
 PLANNED_GATES = {
@@ -326,6 +328,7 @@ class MultiplayerService:
         self._stopping = False
         self._goodbye = None
         self._library_cache = (None, None)
+        self._picked_cache = (None, {})
         self._verdict_memo = {}
         self._hash_memo = {}
         self._crc_memo = {}
@@ -717,16 +720,22 @@ class MultiplayerService:
 
     def _library(self):
         results_stamp = self._cheevo_check_store.results_fingerprint()
-        if results_stamp is None:
+        picked_stamp = self._cheevo_check_store.picked_fingerprint()
+        if results_stamp is None and picked_stamp is None:
             return None
         by_rom = steam_shortcuts.shortcuts_by_rom(self._user_home)
         held = self.restore_record()["record"]
-        stamp = (results_stamp, id(by_rom), held and (held["appid"], held["original"]))
+        if self._picked_cache[0] != picked_stamp:
+            self._picked_cache = (picked_stamp, self._cheevo_check_store.load_picked() if picked_stamp is not None else {})
+        picked = self._picked_cache[1]
+        unchanged = {key: self._picked_unchanged(row) for key, row in picked.items()}
+        stamp = (results_stamp, picked_stamp, tuple(unchanged.items()), id(by_rom), held and (held["appid"], held["original"]))
         if self._library_cache[0] == stamp:
             return self._library_cache[1]
-        results = self._cheevo_check_store.load_results()
-        if results is None:
+        results = self._cheevo_check_store.load_results() if results_stamp is not None else None
+        if results is None and not picked:
             return None
+        results = results or {}
         self._dolphin_skipped = bool(results.get("skippedDolphin"))
         library = {}
         games = list(results.get("supportedGames") or [])
@@ -772,8 +781,81 @@ class MultiplayerService:
                     "shortcut": found[0] if found else None,
                     "shortcuts": found,
                 })
+        for key, row in picked.items():
+            game_id = int(key)
+            if game_id in library:
+                continue
+            system = by_console_id(row["systemId"])
+            entry = {
+                "gameId": game_id,
+                "title": clean_title(row["title"]) or str(game_id),
+                "systemId": row["systemId"],
+                "system": system.name if system is not None else "",
+                "imageIcon": row["imageIcon"],
+                "paths": [],
+                "picked": True,
+                "changed": not unchanged[key],
+            }
+            library[game_id] = entry
+            if entry["changed"]:
+                continue
+            path = row["path"]
+            real = os.path.realpath(path)
+            found = [shortcut for shortcut in by_rom.get(real) or by_rom.get(path) or []
+                     if held is None or shortcut["appid"] != held["appid"]]
+            entry["paths"].append({"path": path, "real": real, "hash": row["raHash"],
+                                   "shortcut": found[0] if found else None, "shortcuts": found})
         self._library_cache = (stamp, library)
         return library
+
+    def pick_game_file(self, game_id: int, path: str, game: dict, hashes: list) -> dict:
+        try:
+            before = os.stat(path)
+        except OSError:
+            return {"ok": False, "error": "unreadable"}
+        system_id = to_int(game.get("ConsoleID"), 0)
+        if not stat.S_ISREG(before.st_mode) or system_id <= 0 or self._cheevo_check is None:
+            return {"ok": False, "error": "unreadable"}
+        digest = (self._cheevo_check.hash_rom_for_room(path, system_id) or "").lower()
+        if not digest:
+            return {"ok": False, "error": "unreadable"}
+        match = next((row for row in hashes if str(row.get("md5") or "").lower() == digest), None)
+        title = clean_title(str(game.get("Title") or "")) or str(game_id)
+        if match is None:
+            return {"ok": False, "error": "not_this_game", "title": title}
+        try:
+            after = os.stat(path)
+        except OSError:
+            return {"ok": False, "error": "unreadable"}
+        if (after.st_size, after.st_mtime_ns) != (before.st_size, before.st_mtime_ns):
+            return {"ok": False, "error": "unreadable"}
+        label = str(match.get("name") or "")
+        saved = self._cheevo_check_store.save_picked(game_id, {
+            "path": path, "raHash": digest, "label": label, "systemId": system_id, "title": title,
+            "imageIcon": str(game.get("ImageIcon") or ""), "size": after.st_size, "mtimeNs": after.st_mtime_ns,
+        })
+        if not saved:
+            return {"ok": False, "error": "unreadable"}
+        decky.logger.info("multiplayer: picked a file for game %d (%s)", game_id, label or "no label")
+        return {"ok": True, "title": title, "label": label}
+
+    def forget_picked_game(self, game_id: int) -> dict:
+        return {"ok": self._cheevo_check_store.forget_picked(game_id)}
+
+    def pick_start_folder(self) -> str:
+        results = self._cheevo_check_store.load_results() if self._cheevo_check_store.results_fingerprint() else None
+        emudeck_roms = catalog.emudeck_paths(self._user_home)["emulationPath"] / "roms"
+        for folder in (str((results or {}).get("root") or ""), str(emudeck_roms)):
+            if folder.startswith("/") and os.path.isdir(folder):
+                return folder
+        return str(self._user_home)
+
+    def _picked_unchanged(self, row: dict) -> bool:
+        try:
+            st = os.stat(row["path"])
+        except OSError:
+            return False
+        return stat.S_ISREG(st.st_mode) and st.st_size == row["size"] and st.st_mtime_ns == row["mtimeNs"]
 
     def _hash_of(self, entry: dict, system_id: int) -> str:
         if entry["hash"]:
@@ -1009,6 +1091,8 @@ class MultiplayerService:
             if self._dolphin_skipped and not self._flatpak_version(session.DOLPHIN_FLATPAK):
                 return None, "not_in_results", {"dolphinSkipped": "1"}
             return None, "not_in_results", {}
+        if game.get("changed"):
+            return None, "rom_missing", {"picked": "1"}
         system_id = game["systemId"]
         saved = self._picks.get(game_id, "couch") if use_saved and room is None and mode == "couch" else None
         own_pick, vehicle, saved_core = None, None, ""
@@ -1246,6 +1330,8 @@ class MultiplayerService:
         game = library.get(game_id)
         if game is None:
             return None, "not_in_results", {}
+        if game.get("changed"):
+            return None, "rom_missing", {"picked": "1"}
         picked = "chosen"
         if choice is None and session_pick and game_id in self._session_picks:
             choice, picked = self._session_picks[game_id], "session"
@@ -3797,7 +3883,7 @@ class MultiplayerService:
         self._online_error = ""
 
     def _verdicts(self, rows: list) -> dict:
-        stamp = self._cheevo_check_store.results_fingerprint()
+        stamp = (self._cheevo_check_store.results_fingerprint(), self._cheevo_check_store.picked_fingerprint())
         if len(self._verdict_memo) > 64:
             self._verdict_memo.clear()
         found = {}

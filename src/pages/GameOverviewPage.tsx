@@ -335,6 +335,7 @@ function GameOverviewPage(props: GameOverviewPageProps) {
         && !restoreClaim?.armed;
     const play = useGamePlayController({
         gameId,
+        title: payloadHere ? loadedPayload?.title ?? "" : "",
         isActive: view === "gameOverview",
         language,
         openMultiplayer: onOpenMultiplayer

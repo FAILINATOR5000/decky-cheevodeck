@@ -1,0 +1,126 @@
+import { useSyncExternalStore } from "react";
+
+import { multiplayerForgetPickedGame, multiplayerPickGameFile, multiplayerPickStartFolder } from "../api";
+import { openPathPicker } from "../components/pickers/FilePickerModal";
+import { t, type LanguageCode } from "../locales";
+import { showToastAfter } from "./delayedToast";
+import { logError } from "./errors";
+
+export type GameFilePick = {
+    gameId: number;
+    title: string;
+    fileName: string;
+    state: "running" | "done" | "failed";
+    error: string;
+    label: string;
+};
+
+type GameFilePickStore = { pick: GameFilePick | null; changed: number };
+
+let store: GameFilePickStore = { pick: null, changed: 0 };
+let windowOpen = false;
+let lastFolder = "";
+const listeners = new Set<() => void>();
+
+function publish(next: Partial<GameFilePickStore>) {
+    store = { ...store, ...next };
+    for (const listener of listeners) {
+        listener();
+    }
+}
+
+function subscribe(listener: () => void): () => void {
+    listeners.add(listener);
+    return () => {
+        listeners.delete(listener);
+    };
+}
+
+export function useGameFilePick(): GameFilePickStore {
+    return useSyncExternalStore(subscribe, () => store);
+}
+
+export function setGameFileWindowOpen(open: boolean) {
+    windowOpen = open;
+}
+
+export function gameFilePickFailure(language: LanguageCode, pick: GameFilePick): string {
+    if (pick.error === "not_this_game") {
+        return t(language, "That file isn't {{game}}, or it's a version RetroAchievements doesn't recognize.", { game: pick.title });
+    }
+    if (pick.error === "no_network") {
+        return t(language, "Couldn't reach RetroAchievements");
+    }
+    if (pick.error === "no_account") {
+        return t(language, "Sign in to RetroAchievements first");
+    }
+    return t(language, "Couldn't read that file.");
+}
+
+export async function pickGameFile(language: LanguageCode, gameId: number, title: string, onStarted: () => void) {
+    if (store.pick?.state === "running") {
+        onStarted();
+        return;
+    }
+    let folder = lastFolder;
+    if (!folder) {
+        try {
+            folder = (await multiplayerPickStartFolder()).folder ?? "";
+        }
+        catch (e) {
+            logError("ez: finding where to pick a game's file", e);
+        }
+    }
+    let path: string;
+    try {
+        path = (await openPathPicker({
+            language,
+            prompt: title ? t(language, "Choose {{game}}'s file", { game: title }) : t(language, "Choose the game's file"),
+            startPath: folder,
+            includeFiles: true,
+            selectFile: true
+        })).path;
+    }
+    catch {
+        return;
+    }
+    lastFolder = path.slice(0, path.lastIndexOf("/")) || "/";
+    publish({ pick: { gameId, title, fileName: path.split("/").pop() ?? path, state: "running", error: "", label: "" } });
+    onStarted();
+    let result: Awaited<ReturnType<typeof multiplayerPickGameFile>> | null = null;
+    try {
+        result = await multiplayerPickGameFile(gameId, path);
+    }
+    catch (e) {
+        logError("ez: checking a picked game file", e);
+    }
+    const ended: GameFilePick = {
+        ...store.pick!,
+        title: result?.title || title,
+        state: result?.ok ? "done" : "failed",
+        error: result?.ok ? "" : result?.error ?? "unreadable",
+        label: result?.label ?? ""
+    };
+    publish({ pick: ended, changed: store.changed + 1 });
+    if (!windowOpen) {
+        showToastAfter({
+            title: ended.title,
+            body: ended.state === "done" ? t(language, "Game file found")
+                : ended.error === "not_this_game" ? t(language, "That isn't this game's file") : t(language, "Couldn't check that file"),
+            duration: 3000
+        }, 0);
+    }
+}
+
+export async function forgetGameFile(gameId: number) {
+    try {
+        await multiplayerForgetPickedGame(gameId);
+    }
+    catch (e) {
+        logError("ez: forgetting a picked game file", e);
+    }
+    if (store.pick?.gameId === gameId && store.pick.state !== "running") {
+        publish({ pick: null });
+    }
+    publish({ changed: store.changed + 1 });
+}

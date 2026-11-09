@@ -448,6 +448,7 @@ type OptionsPageActions = {
     onClearFileWatcherEverything: () => void | Promise<void>;
     onClearFileWatcherRunTimes: () => void | Promise<void>;
     onClearCheevoCheckResults: () => void | Promise<void>;
+    onClearPickedGameFiles: () => void | Promise<void>;
     onClearCheevoCheckHashes: () => void | Promise<void>;
     onClearCheevoCheckRaData: () => void | Promise<void>;
     onUpdateCheevoCheckReferenceData: () => void | Promise<void>;
@@ -2482,6 +2483,15 @@ function CacheTab(props: CacheTabProps) {
                 disabled={clearCacheDisabled}
                 label={t(state.language, "Clear Last Scan Results")}
                 help={t(state.language, "help_clear_cheevo_check_results")}
+            />
+            <OptionConfirm
+                focusKey="options:clear-picked-game-files"
+                idleLabel={t(state.language, "Clear Picked Game Files")}
+                armedLabel={t(state.language, "Press again to confirm")}
+                onConfirm={actions.onClearPickedGameFiles}
+                disabled={clearCacheDisabled}
+                buttonSpacing={state.buttonSpacing}
+                help={t(state.language, "help_clear_picked_game_files")}
             />
             <OptionButton
                 outerStyle={buttonOuterStyle}

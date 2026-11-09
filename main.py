@@ -1842,6 +1842,7 @@ class Plugin(
 
     UNTICKED_CLEAR_GROUPS = frozenset((
         "cheevoCheckResults",
+        "pickedGameFiles",
         "cheevoCheckHashes",
         "cheevoCheckRaData",
         "memoryThumbs",
@@ -1866,6 +1867,7 @@ class Plugin(
             "events": self.events_cache_store.clear_all,
             "setsList": self.cache_store.clear_sets_list_cache,
             "cheevoCheckResults": self.cheevo_check_store.clear_results,
+            "pickedGameFiles": self.cheevo_check_store.clear_picked,
             "cheevoCheckHashes": self.cheevo_check_store.clear_hash_cache,
             "cheevoCheckRaData": self.cheevo_check_store.clear_ra_data,
             "memoryThumbs": self.memories_store.clear_thumbs,

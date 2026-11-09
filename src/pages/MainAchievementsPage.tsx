@@ -1110,6 +1110,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
     const mainDefaultKey = hamburgerDisabled ? `main:tab:${mainTab}` : "action:quickmenu";
     const play = useGamePlayController({
         gameId: payload?.gameId ?? null,
+        title: payload?.title ?? "",
         isActive: view === "achievements",
         language,
         openMultiplayer

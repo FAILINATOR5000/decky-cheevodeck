@@ -314,6 +314,18 @@ export function useCacheClearing({
         );
     }
 
+    async function onClearPickedGameFiles() {
+        await runClearWithSpinner(
+            "options:clear-picked-game-files",
+            setClearingAllCache,
+            "onClearPickedGameFiles",
+            "Couldn't clear the picked game files.",
+            async () => {
+                await clearCacheGroup("pickedGameFiles");
+            }
+        );
+    }
+
     async function onClearCheevoCheckHashes() {
         await runClearWithSpinner(
             "options:clear-cheevo-check-hashes",
@@ -458,6 +470,7 @@ export function useCacheClearing({
         onClearGameOverviewCache,
         onClearSetsCache,
         onClearCheevoCheckResults,
+        onClearPickedGameFiles,
         onClearCheevoCheckHashes,
         onClearCheevoCheckRaData,
         onClearFileWatcherReport,

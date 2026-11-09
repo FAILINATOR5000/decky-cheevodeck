@@ -1,4 +1,5 @@
 import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
+import type { ReactNode } from "react";
 
 import { t, type LanguageCode } from "../../locales";
 import type { MultiplayerMode } from "../../types";
@@ -19,6 +20,7 @@ export type ModeReason = {
     mode: MultiplayerMode;
     state: "setup" | "never";
     text: string;
+    extra?: ReactNode;
     fixes: ModeFix[];
     tools: { emudeck?: boolean; srm?: boolean } | null;
 };
@@ -44,6 +46,7 @@ function ModeReasonModal(props: { language: LanguageCode; reason: ModeReason; cl
             <div style={{ fontSize: `${modalSize(16)}px`, lineHeight: 1.4, whiteSpace: "pre-line" }}>
                 {reason.text}
             </div>
+            {reason.extra}
             <Focusable style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "16px" }} flow-children="column">
                 {reason.fixes.map((fix) => (
                     <DialogButton key={fix.labelKey} onClick={() => fix.onPress(close)}>

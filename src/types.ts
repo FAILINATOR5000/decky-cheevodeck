@@ -710,7 +710,7 @@ export type ShortcutAction =
 
 export type TrackedTab = "thisGame" | "otherGames" | "addAllMissable" | "applyTag" | "clear";
 
-export type CacheClearGroup = "gameData" | "friendGamePayloads" | "friends" | "images" | "awardIcons" | "socialActivity" | "gameActivity" | "playersNearYou" | "gamesList" | "awardsList" | "wantToPlayList" | "setsList" | "leaderboards" | "cheevoCheckResults" | "cheevoCheckHashes" | "cheevoCheckRaData" | "events";
+export type CacheClearGroup = "gameData" | "friendGamePayloads" | "friends" | "images" | "awardIcons" | "socialActivity" | "gameActivity" | "playersNearYou" | "gamesList" | "awardsList" | "wantToPlayList" | "setsList" | "leaderboards" | "cheevoCheckResults" | "pickedGameFiles" | "cheevoCheckHashes" | "cheevoCheckRaData" | "events";
 
 // Notifications
 export type NotificationType =

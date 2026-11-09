@@ -7,6 +7,7 @@ import { showMultiplayerProblem } from "../components/multiplayer/ProblemModal";
 import { t, type LanguageCode } from "../locales";
 import type { MultiplayerMode, PlayInfo, PlayPick } from "../types";
 import { logError } from "../utils/errors";
+import { useGameFilePick } from "../utils/gameFilePick";
 import {
     multiplayerChoices,
     rememberMultiplayerGame,
@@ -34,11 +35,13 @@ const playInfos = new Map<number, PlayInfo>();
 
 export function useGamePlayController(props: {
     gameId: number | null;
+    title: string;
     isActive: boolean;
     language: LanguageCode;
     openMultiplayer: () => void;
 }) {
     const { gameId, isActive, language } = props;
+    const gameFilesChanged = useGameFilePick().changed;
     const [chosen, setChosen] = useState<{ gameId: number | null; mode: PlayMode }>({ gameId, mode: "play" });
     const mode: PlayMode = chosen.gameId === gameId ? chosen.mode : "play";
     const [loaded, setLoaded] = useState<{ gameId: number; info: PlayInfo } | null>(null);
@@ -64,7 +67,11 @@ export function useGamePlayController(props: {
         return () => {
             alive = false;
         };
-    }, [isActive, gameId]);
+    }, [isActive, gameId, gameFilesChanged]);
+
+    useEffect(() => {
+        setHostCheck(null);
+    }, [gameFilesChanged]);
 
     const hostChecked = host !== null;
     useEffect(() => {
@@ -190,6 +197,11 @@ export function useGamePlayController(props: {
             const tools = info.tools ?? {};
             explain = () => showShortcutNeeded(language, tools, true);
         }
+        else if (host?.gate && needsCheevoCheck(host.gate) && info) {
+            const tools = info.tools ?? {};
+            const pick = toPick();
+            explain = () => showShortcutNeeded(language, tools, true, pick);
+        }
         else if (host?.gate) {
             const reason = problemText(language, host.gate, host.detail);
             explain = () => showMultiplayerProblem(language, "Can't Host", reason);
@@ -213,7 +225,8 @@ export function useGamePlayController(props: {
         }
         else if (info) {
             const tools = info.tools ?? {};
-            explain = () => showShortcutNeeded(language, tools);
+            const pick = needsCheevoCheck(info.gate) ? toPick() : null;
+            explain = () => showShortcutNeeded(language, tools, false, pick);
         }
     }
     else {
@@ -224,8 +237,13 @@ export function useGamePlayController(props: {
         }
         else if (info) {
             const tools = info.tools ?? {};
-            explain = () => showShortcutNeeded(language, tools);
+            const pick = needsCheevoCheck(info.gate) ? toPick() : null;
+            explain = () => showShortcutNeeded(language, tools, false, pick);
         }
+    }
+
+    function toPick() {
+        return gameId != null ? { gameId, title: props.title } : null;
     }
 
     function onToggleMode() {
@@ -240,4 +258,8 @@ export function useGamePlayController(props: {
     const playLit = Boolean(info?.launchable) && !playing;
 
     return { mode, label, disabled: hostPending ? !playLit : press === null, onPress, onToggleMode };
+}
+
+function needsCheevoCheck(gate: string | null | undefined): boolean {
+    return gate === "no_scan" || gate === "not_in_results" || gate === "rom_missing";
 }

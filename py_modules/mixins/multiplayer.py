@@ -33,6 +33,34 @@ class MultiplayerMixin(PluginContext):
     async def multiplayer_modes(self, game_id: int = 0, room_id: str = ""):
         return await asyncio.to_thread(self.multiplayer_service.modes, to_int(game_id, 0), str(room_id or ""))
 
+    async def multiplayer_pick_game_file(self, game_id: int = 0, path: str = ""):
+        game_id, path = to_int(game_id, 0), str(path or "")
+        if game_id <= 0 or not path.startswith("/"):
+            return {"ok": False, "error": "unreadable"}
+        web_api_key = str(self.settings_store.load_config().get("webApiKey", "")).strip()
+        if not web_api_key:
+            return {"ok": False, "error": "no_account"}
+        try:
+            async with self._ra_slot():
+                game, hashes = await asyncio.to_thread(self._picked_game_ra_data, game_id, web_api_key)
+        except Exception as e:
+            decky.logger.info("multiplayer: couldn't read RA's data for a picked file (%s)", type(e).__name__)
+            return {"ok": False, "error": "no_network"}
+        return await asyncio.to_thread(self.multiplayer_service.pick_game_file, game_id, path, game, hashes)
+
+    def _picked_game_ra_data(self, game_id: int, web_api_key: str):
+        game = self.ra.get_game(game_id, web_api_key)
+        hashes = self.game_hashes_service.get_game_hashes(web_api_key, game_id)
+        if not isinstance(game, dict) or hashes.get("error"):
+            raise ValueError("no game data")
+        return game, hashes.get("results") or []
+
+    async def multiplayer_forget_picked_game(self, game_id: int = 0):
+        return await asyncio.to_thread(self.multiplayer_service.forget_picked_game, to_int(game_id, 0))
+
+    async def multiplayer_pick_start_folder(self):
+        return {"ok": True, "folder": await asyncio.to_thread(self.multiplayer_service.pick_start_folder)}
+
     async def multiplayer_host(
         self, mode: str = "", game_id: int = 0, hardcore: bool = False, core: str = "", share: bool = False,
         name: str = "", size: int = 4, password: str = "", status: str = "", where: str = "local",

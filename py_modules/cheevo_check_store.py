@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import threading
@@ -5,7 +6,16 @@ import time
 
 import decky
 
-from utils import ensure_dir, load_json_file, save_json_file, to_int
+from utils import (
+    NewerSchemaFile,
+    ensure_dir,
+    is_newer_schema,
+    load_json_file,
+    refuse_newer_file,
+    report_newer_schema,
+    save_json_file,
+    to_int,
+)
 
 
 CURRENT_SCHEMA_VERSION = 1
@@ -15,6 +25,10 @@ MAX_ROWS_PER_SECTION = 10000
 MAX_SUPPORTED_ROWS = 25000
 
 MAX_NO_SET_ROWS = 25000
+
+PICKED_SCHEMA_VERSION = 1
+MAX_PICKED_GAMES = 500
+_PICKED_HASH = re.compile(r"^[0-9a-f]{32}$")
 
 
 class CheevoCheckStore:
@@ -90,6 +104,9 @@ class CheevoCheckStore:
     def _verify_results_path(self) -> Path:
         return self._dir() / "verify_results.json"
 
+    def _picked_path(self) -> Path:
+        return self._dir() / "picked_games.json"
+
     _SECTIONS = (
         ("unsupported", MAX_ROWS_PER_SECTION),
         ("noAchievements", MAX_NO_SET_ROWS),
@@ -163,6 +180,46 @@ class CheevoCheckStore:
 
     def clear_results(self) -> list:
         return self._unlink(self._results_path()) + self._unlink(self._verify_results_path())
+
+    def clear_picked(self) -> list:
+        return self._unlink(self._picked_path())
+
+    def picked_fingerprint(self):
+        try:
+            stat = self._picked_path().stat()
+        except OSError:
+            return None
+        return (stat.st_mtime_ns, stat.st_size)
+
+    def load_picked(self) -> dict:
+        raw = load_json_file(self._picked_path(), {})
+        if is_newer_schema(raw, PICKED_SCHEMA_VERSION):
+            report_newer_schema(self._picked_path())
+            return {}
+        return _clean_picked(raw.get("games") if isinstance(raw, dict) else None)
+
+    def _write_picked(self, edit) -> bool:
+        with self._lock:
+            raw = load_json_file(self._picked_path(), {})
+            games = _clean_picked(raw.get("games") if isinstance(raw, dict) else None)
+            edit(games)
+            try:
+                refuse_newer_file(self._picked_path(), PICKED_SCHEMA_VERSION)
+                ensure_dir(self._dir())
+                save_json_file(self._picked_path(), {"schemaVersion": PICKED_SCHEMA_VERSION,
+                                                     "games": _clean_picked(games)}, compact=True)
+            except NewerSchemaFile:
+                return False
+            except OSError as e:
+                decky.logger.warning("cheevocheck: couldn't save a picked game (%s)", type(e).__name__)
+                return False
+        return True
+
+    def save_picked(self, game_id: int, row: dict) -> bool:
+        return self._write_picked(lambda games: games.__setitem__(str(game_id), row))
+
+    def forget_picked(self, game_id: int) -> bool:
+        return self._write_picked(lambda games: games.pop(str(game_id), None))
 
     _VERIFY_SECTIONS = (
         "verified",
@@ -281,3 +338,35 @@ class CheevoCheckStore:
             except (FileNotFoundError, OSError):
                 return []
         return [path.name]
+
+
+def _picked_text(value, limit: int) -> str:
+    return value if isinstance(value, str) and len(value) <= limit else ""
+
+
+def _clean_picked(raw) -> dict:
+    games = {}
+    for key, row in (raw if isinstance(raw, dict) else {}).items():
+        if len(games) >= MAX_PICKED_GAMES:
+            break
+        if not isinstance(key, str) or not key.isdigit() or not isinstance(row, dict):
+            continue
+        path = _picked_text(row.get("path"), 4096)
+        ra_hash = _picked_text(row.get("raHash"), 32).lower()
+        system_id = row.get("systemId")
+        size, mtime = row.get("size"), row.get("mtimeNs")
+        if not path.startswith("/") or "\0" in path or not _PICKED_HASH.match(ra_hash):
+            continue
+        if type(system_id) is not int or system_id <= 0 or type(size) is not int or type(mtime) is not int:
+            continue
+        games[key] = {
+            "path": path,
+            "raHash": ra_hash,
+            "label": _picked_text(row.get("label"), 300),
+            "systemId": system_id,
+            "title": _picked_text(row.get("title"), 300),
+            "imageIcon": _picked_text(row.get("imageIcon"), 300),
+            "size": size,
+            "mtimeNs": mtime,
+        }
+    return games
