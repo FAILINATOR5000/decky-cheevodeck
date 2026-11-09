@@ -262,14 +262,8 @@ function jobLine(language: LanguageCode, state: EmulatorJobState): string {
             : t(language, "Couldn't update {{count}} cores. Nothing was changed.", { count });
     }
     let line: string;
-    if (state.stage === "download" && !state.kind.endsWith("_cores")) {
-        line = t(language, "Downloading {{name}}...", { name });
-    }
-    else if (state.stage === "download") {
-        line = t(language, "Downloading RetroArch's stable cores...");
-    }
-    else if (state.stage === "extract") {
-        line = t(language, "Unpacking cores...");
+    if (state.stage === "download") {
+        line = t(language, "Downloading {{name}}...", { name: state.names[state.step] ?? name });
     }
     else if (installing) {
         line = count === 1 ? t(language, "Installing {{name}}...", { name }) : t(language, "Installing {{count}} cores...", { count });
@@ -442,13 +436,13 @@ function EmulatorsPage(props: EmulatorsPageProps) {
                 return;
             }
             const stale = [...new Set(systems.flatMap((system) => system.cores)
-                .filter((core) => core.update || core.newerThanStable)
+                .filter((core) => core.update)
                 .map((core) => core.core))];
             if (stale.length === 0) {
                 emulators.actions.notice(t(language, "Up to date"));
                 return;
             }
-            emulators.actions.updateEveryCore(stale, key);
+            emulators.actions.updateCores(stale, key);
             return;
         }
         if (row.type === "core") {
@@ -461,8 +455,8 @@ function EmulatorsPage(props: EmulatorsPageProps) {
             if (!row.core.installed) {
                 return;
             }
-            if (row.core.update || row.core.newerThanStable) {
-                emulators.actions.updateCore(row.core.core, key);
+            if (row.core.update) {
+                emulators.actions.updateCores([row.core.core], key);
                 return;
             }
             emulators.actions.notice(t(language, "Up to date"));

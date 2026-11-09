@@ -242,8 +242,10 @@ def runs_system(databases: set, system_id: int) -> bool:
 
 
 _INFO_LINE = re.compile(r'^\s*([A-Za-z0-9_]+)\s*=\s*"?(.*?)"?\s*$')
-PACK_MEMBER = re.compile(r"^RetroArch-Linux-x86_64/RetroArch-Linux-x86_64\.AppImage\.home/\.config/retroarch/cores/"
-                         r"([A-Za-z0-9_+.-]+)_libretro\.so$")
+NIGHTLY_LINE = re.compile(r"^(\d{4}-\d{2}-\d{2}) ([0-9A-Fa-f]{8}) ([A-Za-z0-9_+.-]{1,64})_libretro\.so\.zip$")
+NIGHTLY_SIZE = re.compile(r'/([A-Za-z0-9_+.-]{1,64})_libretro\.so\.zip">[^<]*</a>\s*</td>\s*<td class="fb-d">[^<]*</td>\s*'
+                          r'<td class="fb-s">(\d+(?:\.\d+)?) (B|KB|MB|GB)</td>', re.IGNORECASE)
+SIZE_UNITS = {"B": 1, "KB": 1 << 10, "MB": 1 << 20, "GB": 1 << 30}
 
 
 def parse_info(text: str) -> dict:
@@ -257,40 +259,20 @@ def parse_info(text: str) -> dict:
     return info
 
 
-def pack_listing(text: str) -> dict:
+def nightly_index(text: str) -> dict:
     cores = {}
-    for block in text.split("\n\n"):
-        fields = {}
-        for line in block.splitlines():
-            key, sep, value = line.partition(" = ")
-            if sep:
-                fields[key.strip()] = value.strip()
-        found = PACK_MEMBER.match(fields.get("Path", ""))
-        crc = fields.get("CRC", "").lower()
-        if found and re.fullmatch(r"[0-9a-f]{8}", crc) and fields.get("Size", "").isdigit():
-            cores[found.group(1)] = {"crc": crc, "size": int(fields["Size"])}
+    for line in text.splitlines():
+        found = NIGHTLY_LINE.match(line.strip())
+        if found:
+            cores[found.group(3)] = {"crc": found.group(2).lower(), "date": found.group(1), "size": 0}
     return cores
 
 
-def seven_zip_number(data: bytes, index: int):
-    first = data[index]
-    index += 1
-    mask = 0x80
-    value = 0
-    for shift in range(8):
-        if first & mask == 0:
-            return value | ((first & (mask - 1)) << (8 * shift)), index
-        value |= data[index] << (8 * shift)
-        index += 1
-        mask >>= 1
-    return value, index
-
-
-def stable_versions(listing: str) -> list:
-    found = set()
-    for raw in re.findall(r'href="/stable/(\d+(?:\.\d+)+)/"', listing):
-        found.add(tuple(int(part) for part in raw.split(".")))
-    return [".".join(str(part) for part in version) for version in sorted(found)]
+def listing_sizes(html: str) -> dict:
+    sizes = {}
+    for core, number, unit in NIGHTLY_SIZE.findall(html):
+        sizes[core] = int(float(number) * SIZE_UNITS[unit.upper()])
+    return sizes
 
 
 _PRERELEASE = re.compile(r"(?i)nightly|dev|alpha|beta|rc\d*$|preview")

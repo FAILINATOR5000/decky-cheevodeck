@@ -3495,8 +3495,6 @@ const DE: LocaleTable = {
         one: "{{count}} Core wird aktualisiert...",
         other: "{{count}} Cores werden aktualisiert..."
     },
-    "Downloading RetroArch's stable cores...": "Lade die stabilen Cores von RetroArch herunter...",
-    "Unpacking cores...": "Entpacke Cores...",
     "Couldn't install {{name}}. Nothing was changed.": "{{name}} konnte nicht installiert werden. Es wurde nichts geändert.",
     "Couldn't install {{count}} cores. Nothing was changed.": {
         one: "{{count}} Core konnte nicht installiert werden. Es wurde nichts geändert.",
@@ -3519,11 +3517,10 @@ const DE: LocaleTable = {
         other: "{{count}} Systeme mit Spielen haben noch keinen Core. Jeweils den empfohlenen installieren?"
     },
     "Recommended cores: {{size}}. Every core for those systems: {{all}}.": "Empfohlene Cores: {{size}}. Alle Cores für diese Systeme: {{all}}.",
-    "CheevoDeck downloads RetroArch's stable core pack ({{download}}) once and deletes it 30 minutes after the last install.": "CheevoDeck lädt das stabile Core-Paket von RetroArch ({{download}}) einmal herunter und löscht es 30 Minuten nach der letzten Installation.",
+    "Cores come from RetroArch's nightly builds, the same place RetroArch's own updater gets them.": "Die Cores stammen aus den Nightly-Builds von RetroArch, also von derselben Stelle, von der auch der Updater von RetroArch sie holt.",
     "Install Recommended": "Empfohlene installieren",
     "Install Every Core": "Alle Cores installieren",
     "Newer Than Stable": "Neuer als die stabile Version",
-    "{{name}} on this device isn't the one from RetroArch {{stable}}'s stable cores, probably a nightly or dev build you installed. CheevoDeck leaves it alone unless you choose to replace it.": "{{name}} auf diesem Gerät ist nicht der aus den stabilen Cores von RetroArch {{stable}}, wahrscheinlich ein Nightly- oder Dev-Build, den du installiert hast. CheevoDeck lässt ihn in Ruhe, außer du entscheidest dich, ihn zu ersetzen.",
     "Replace with Stable": "Durch stabile ersetzen",
     "Keep Mine": "Meinen behalten",
     "AppImage · Not installed": "AppImage · Nicht installiert",
@@ -3562,10 +3559,6 @@ const DE: LocaleTable = {
     "Every system has a core already.": "Jedes System hat schon einen Core.",
     "Another install is running.": "Eine andere Installation läuft.",
     "Couldn't reach the server.": "Server nicht erreichbar.",
-    "Kept {{count}} cores that are newer": {
-        one: "{{count}} neuerer Core behalten",
-        other: "{{count}} neuere Cores behalten"
-    },
     "Ready to play": "Bereit zum Spielen",
     "Couldn't finish the setup": "Einrichtung nicht abgeschlossen",
     "Couldn't add it to Steam.": "Nicht zu Steam hinzugefügt.",

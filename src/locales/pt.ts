@@ -3528,8 +3528,6 @@ const PT: LocaleTable = {
         one: "Atualizando {{count}} núcleo...",
         other: "Atualizando {{count}} núcleos..."
     },
-    "Downloading RetroArch's stable cores...": "Baixando os núcleos estáveis do RetroArch...",
-    "Unpacking cores...": "Descompactando núcleos...",
     "Couldn't install {{name}}. Nothing was changed.": "Não foi possível instalar {{name}}. Nada foi alterado.",
     "Couldn't install {{count}} cores. Nothing was changed.": {
         one: "Não foi possível instalar {{count}} núcleo. Nada foi alterado.",
@@ -3552,11 +3550,10 @@ const PT: LocaleTable = {
         other: "{{count}} sistemas com jogos ainda não têm núcleo. Instalar o recomendado de cada um?"
     },
     "Recommended cores: {{size}}. Every core for those systems: {{all}}.": "Núcleos recomendados: {{size}}. Todos os núcleos desses sistemas: {{all}}.",
-    "CheevoDeck downloads RetroArch's stable core pack ({{download}}) once and deletes it 30 minutes after the last install.": "O CheevoDeck baixa o pacote de núcleos estáveis do RetroArch ({{download}}) uma vez e o apaga 30 minutos depois da última instalação.",
+    "Cores come from RetroArch's nightly builds, the same place RetroArch's own updater gets them.": "Os núcleos vêm das compilações nightly do RetroArch, o mesmo lugar de onde o atualizador do próprio RetroArch os baixa.",
     "Install Recommended": "Instalar recomendados",
     "Install Every Core": "Instalar todos os núcleos",
     "Newer Than Stable": "Mais novo que o estável",
-    "{{name}} on this device isn't the one from RetroArch {{stable}}'s stable cores, probably a nightly or dev build you installed. CheevoDeck leaves it alone unless you choose to replace it.": "O {{name}} neste dispositivo não é o dos núcleos estáveis do RetroArch {{stable}}, provavelmente uma versão nightly ou de desenvolvimento que você instalou. O CheevoDeck não mexe nele, a menos que você escolha substituí-lo.",
     "Replace with Stable": "Substituir pelo estável",
     "Keep Mine": "Manter o meu",
     "AppImage · Not installed": "AppImage · Não instalado",
@@ -3595,10 +3592,6 @@ const PT: LocaleTable = {
     "Every system has a core already.": "Todo sistema já tem um núcleo.",
     "Another install is running.": "Outra instalação está em andamento.",
     "Couldn't reach the server.": "Não foi possível acessar o servidor.",
-    "Kept {{count}} cores that are newer": {
-        one: "{{count}} núcleo mais novo mantido",
-        other: "{{count}} núcleos mais novos mantidos"
-    },
     "Ready to play": "Pronto para jogar",
     "Couldn't finish the setup": "Não foi possível concluir a configuração",
     "Couldn't add it to Steam.": "Não foi possível adicionar à Steam.",

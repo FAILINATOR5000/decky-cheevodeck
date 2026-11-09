@@ -9,7 +9,6 @@ export type CoresOffer = {
     systems: number;
     recommendedBytes: number;
     allBytes: number;
-    packBytes: number;
 };
 
 export type CoresChoice = "recommended" | "all";
@@ -39,9 +38,7 @@ function InstallCoresModal(props: { language: LanguageCode; offer: CoresOffer; o
                 })}
             </div>
             <div style={{ fontSize: `${modalSize(15)}px`, lineHeight: 1.4, marginTop: "8px", opacity: 0.8 }}>
-                {t(language, "CheevoDeck downloads RetroArch's stable core pack ({{download}}) once and deletes it 30 minutes after the last install.", {
-                    download: megabytes(offer.packBytes)
-                })}
+                {t(language, "Cores come from RetroArch's nightly builds, the same place RetroArch's own updater gets them.")}
             </div>
             <Focusable style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "16px" }} flow-children="column">
                 <FocusTarget focusKey="emulators:cores:recommended">

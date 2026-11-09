@@ -3507,8 +3507,6 @@ export const EN: LocaleTable = {
         one: "Updating {{count}} core...",
         other: "Updating {{count}} cores..."
     },
-    "Downloading RetroArch's stable cores...": "Downloading RetroArch's stable cores...",
-    "Unpacking cores...": "Unpacking cores...",
     "Couldn't install {{name}}. Nothing was changed.": "Couldn't install {{name}}. Nothing was changed.",
     "Couldn't install {{count}} cores. Nothing was changed.": {
         one: "Couldn't install {{count}} core. Nothing was changed.",
@@ -3531,11 +3529,10 @@ export const EN: LocaleTable = {
         other: "{{count}} systems with games have no core yet. Install the recommended one for each?"
     },
     "Recommended cores: {{size}}. Every core for those systems: {{all}}.": "Recommended cores: {{size}}. Every core for those systems: {{all}}.",
-    "CheevoDeck downloads RetroArch's stable core pack ({{download}}) once and deletes it 30 minutes after the last install.": "CheevoDeck downloads RetroArch's stable core pack ({{download}}) once and deletes it 30 minutes after the last install.",
+    "Cores come from RetroArch's nightly builds, the same place RetroArch's own updater gets them.": "Cores come from RetroArch's nightly builds, the same place RetroArch's own updater gets them.",
     "Install Recommended": "Install Recommended",
     "Install Every Core": "Install Every Core",
     "Newer Than Stable": "Newer Than Stable",
-    "{{name}} on this device isn't the one from RetroArch {{stable}}'s stable cores, probably a nightly or dev build you installed. CheevoDeck leaves it alone unless you choose to replace it.": "{{name}} on this device isn't the one from RetroArch {{stable}}'s stable cores, probably a nightly or dev build you installed. CheevoDeck leaves it alone unless you choose to replace it.",
     "Replace with Stable": "Replace with Stable",
     "Keep Mine": "Keep Mine",
     "AppImage · Not installed": "AppImage · Not installed",
@@ -3574,10 +3571,6 @@ export const EN: LocaleTable = {
     "Every system has a core already.": "Every system has a core already.",
     "Another install is running.": "Another install is running.",
     "Couldn't reach the server.": "Couldn't reach the server.",
-    "Kept {{count}} cores that are newer": {
-        one: "Kept {{count}} core that's newer",
-        other: "Kept {{count}} cores that are newer"
-    },
     "Ready to play": "Ready to play",
     "Couldn't finish the setup": "Couldn't finish the setup",
     "Couldn't add it to Steam.": "Couldn't add it to Steam.",

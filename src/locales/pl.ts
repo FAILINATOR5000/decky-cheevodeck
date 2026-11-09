@@ -3610,8 +3610,6 @@ const PL: LocaleTable = {
         few: "Aktualizowanie {{count}} rdzeni...",
         many: "Aktualizowanie {{count}} rdzeni..."
     },
-    "Downloading RetroArch's stable cores...": "Pobieranie stabilnych rdzeni RetroArch...",
-    "Unpacking cores...": "Rozpakowywanie rdzeni...",
     "Couldn't install {{name}}. Nothing was changed.": "Nie udało się zainstalować {{name}}. Nic nie zostało zmienione.",
     "Couldn't install {{count}} cores. Nothing was changed.": {
         one: "Nie udało się zainstalować {{count}} rdzenia. Nic nie zostało zmienione.",
@@ -3637,11 +3635,10 @@ const PL: LocaleTable = {
         many: "{{count}} systemów z grami nie ma jeszcze rdzenia. Zainstalować zalecany dla każdego?"
     },
     "Recommended cores: {{size}}. Every core for those systems: {{all}}.": "Zalecane rdzenie: {{size}}. Wszystkie rdzenie dla tych systemów: {{all}}.",
-    "CheevoDeck downloads RetroArch's stable core pack ({{download}}) once and deletes it 30 minutes after the last install.": "CheevoDeck pobiera raz paczkę stabilnych rdzeni RetroArch ({{download}}) i usuwa ją 30 minut po ostatniej instalacji.",
+    "Cores come from RetroArch's nightly builds, the same place RetroArch's own updater gets them.": "Rdzenie pochodzą z nocnych kompilacji RetroArch, z tego samego miejsca, z którego pobiera je aktualizator RetroArch.",
     "Install Recommended": "Zainstaluj zalecane",
     "Install Every Core": "Zainstaluj wszystkie rdzenie",
     "Newer Than Stable": "Nowszy niż stabilny",
-    "{{name}} on this device isn't the one from RetroArch {{stable}}'s stable cores, probably a nightly or dev build you installed. CheevoDeck leaves it alone unless you choose to replace it.": "{{name}} na tym urządzeniu nie pochodzi ze stabilnych rdzeni RetroArch {{stable}}, to pewnie wersja nightly lub deweloperska, którą zainstalowałeś. CheevoDeck zostawia go w spokoju, chyba że zdecydujesz się go zastąpić.",
     "Replace with Stable": "Zastąp stabilnym",
     "Keep Mine": "Zostaw mój",
     "AppImage · Not installed": "AppImage · Niezainstalowany",
@@ -3680,11 +3677,6 @@ const PL: LocaleTable = {
     "Every system has a core already.": "Każdy system ma już rdzeń.",
     "Another install is running.": "Trwa inna instalacja.",
     "Couldn't reach the server.": "Brak połączenia z serwerem.",
-    "Kept {{count}} cores that are newer": {
-        one: "Zostawiono {{count}} nowszy rdzeń",
-        few: "Zostawiono {{count}} nowsze rdzenie",
-        many: "Zostawiono {{count}} nowszych rdzeni"
-    },
     "Ready to play": "Gotowe do gry",
     "Couldn't finish the setup": "Nie udało się dokończyć konfiguracji",
     "Couldn't add it to Steam.": "Nie udało się dodać do Steam.",

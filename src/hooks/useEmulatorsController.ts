@@ -144,10 +144,7 @@ function started(language: LanguageCode, result: EmulatorJobStart | null | undef
         if (result.job) {
             noteEmulatorJobStarted();
         }
-        if (result.kept) {
-            notice(language, t(language, "Kept {{count}} cores that are newer", { count: result.kept }));
-        }
-        else if (!result.job) {
+        if (!result.job) {
             notice(language, t(language, "Up to date"));
         }
         return;
@@ -175,36 +172,9 @@ async function installCores(language: LanguageCode, cores: string[], target: str
     }
 }
 
-async function updateCore(language: LanguageCode, core: string, target: string) {
+async function updateCores(language: LanguageCode, cores: string[], target: string) {
     try {
-        const result = await emulatorsUpdateCores([core], false, false, target);
-        if (result?.ok === false && result.error === "newer_than_stable") {
-            const replace = await askEmulatorQuestion({
-                language,
-                title: t(language, "Newer Than Stable"),
-                text: t(language, "{{name}} on this device isn't the one from RetroArch {{stable}}'s stable cores, probably a nightly or dev build you installed. CheevoDeck leaves it alone unless you choose to replace it.", {
-                    name: result.name ?? core,
-                    stable: result.stable ?? ""
-                }),
-                confirm: t(language, "Replace with Stable"),
-                cancel: t(language, "Keep Mine"),
-                focusConfirm: false
-            });
-            if (replace) {
-                started(language, await emulatorsUpdateCores([core], true, false, target));
-            }
-            return;
-        }
-        started(language, result);
-    }
-    catch (e) {
-        logError("emulators: updating a core", e);
-    }
-}
-
-async function updateEveryCore(language: LanguageCode, cores: string[], target: string) {
-    try {
-        started(language, await emulatorsUpdateCores(cores, false, true, target));
+        started(language, await emulatorsUpdateCores(cores, target));
     }
     catch (e) {
         logError("emulators: updating cores", e);
@@ -400,8 +370,7 @@ export function useEmulatorsController(props: { isActive: boolean; language: Lan
             refresh: () => void loadInventory(true),
             pointTo: (kind: EmulatorKind, name: string) => void pointTo(language, kind, name),
             installCores: (cores: string[], target: string) => void installCores(language, cores, target),
-            updateCore: (core: string, target: string) => void updateCore(language, core, target),
-            updateEveryCore: (cores: string[], target: string) => void updateEveryCore(language, cores, target),
+            updateCores: (cores: string[], target: string) => void updateCores(language, cores, target),
             installMissingCores: (systems: number, target: string) => void installMissingCores(language, systems, target),
             installFlatpak: (kind: EmulatorKind, name: string, target: string) =>
                 void startEmulatorJob(language, name, () => emulatorsInstallFlatpak(kind, target)),

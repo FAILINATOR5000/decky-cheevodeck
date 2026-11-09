@@ -3528,8 +3528,6 @@ const FR: LocaleTable = {
         one: "Mise à jour de {{count}} cœur...",
         other: "Mise à jour de {{count}} cœurs..."
     },
-    "Downloading RetroArch's stable cores...": "Téléchargement des cœurs stables de RetroArch...",
-    "Unpacking cores...": "Extraction des cœurs...",
     "Couldn't install {{name}}. Nothing was changed.": "Impossible d'installer {{name}}. Rien n'a été modifié.",
     "Couldn't install {{count}} cores. Nothing was changed.": {
         one: "Impossible d'installer {{count}} cœur. Rien n'a été modifié.",
@@ -3552,11 +3550,10 @@ const FR: LocaleTable = {
         other: "{{count}} systèmes avec des jeux n'ont pas encore de cœur. Installer celui recommandé pour chacun ?"
     },
     "Recommended cores: {{size}}. Every core for those systems: {{all}}.": "Cœurs recommandés : {{size}}. Tous les cœurs de ces systèmes : {{all}}.",
-    "CheevoDeck downloads RetroArch's stable core pack ({{download}}) once and deletes it 30 minutes after the last install.": "CheevoDeck télécharge une fois le pack de cœurs stables de RetroArch ({{download}}) et le supprime 30 minutes après la dernière installation.",
+    "Cores come from RetroArch's nightly builds, the same place RetroArch's own updater gets them.": "Les cœurs viennent des builds nightly de RetroArch, au même endroit que ceux du programme de mise à jour de RetroArch.",
     "Install Recommended": "Installer les recommandés",
     "Install Every Core": "Installer tous les cœurs",
     "Newer Than Stable": "Plus récent que la version stable",
-    "{{name}} on this device isn't the one from RetroArch {{stable}}'s stable cores, probably a nightly or dev build you installed. CheevoDeck leaves it alone unless you choose to replace it.": "{{name}} sur cet appareil n'est pas celui des cœurs stables de RetroArch {{stable}}, sans doute une version nightly ou de développement que tu as installée. CheevoDeck n'y touche pas, sauf si tu choisis de le remplacer.",
     "Replace with Stable": "Remplacer par la stable",
     "Keep Mine": "Garder le mien",
     "AppImage · Not installed": "AppImage · Non installé",
@@ -3595,10 +3592,6 @@ const FR: LocaleTable = {
     "Every system has a core already.": "Chaque système a déjà un cœur.",
     "Another install is running.": "Une autre installation est en cours.",
     "Couldn't reach the server.": "Impossible de joindre le serveur.",
-    "Kept {{count}} cores that are newer": {
-        one: "{{count}} cœur plus récent conservé",
-        other: "{{count}} cœurs plus récents conservés"
-    },
     "Ready to play": "Prêt à jouer",
     "Couldn't finish the setup": "Configuration inachevée",
     "Couldn't add it to Steam.": "Impossible de l'ajouter à Steam.",

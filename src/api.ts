@@ -1024,7 +1024,6 @@ export type RetroArchCore = {
     installed: boolean;
     ours: boolean;
     update: boolean;
-    newerThanStable: boolean;
 };
 export type RetroArchSystem = {
     id: number;
@@ -1044,8 +1043,7 @@ export type EmulatorInventory = {
         found: boolean;
         configFound: boolean;
         coresDir: string;
-        stable: string;
-        packSize: number;
+        nightlyDate: string;
         updates: number;
         systems: RetroArchSystem[];
     };
@@ -1067,18 +1065,16 @@ export type EmulatorJobState = {
     kind: string;
     target: string;
     names: string[];
-    stage: "queued" | "step" | "download" | "extract" | "flatpak" | "done" | "failed";
+    stage: "queued" | "step" | "download" | "flatpak" | "done" | "failed";
     progress: number;
     step: number;
     steps: number;
     error: string;
     left: string[];
-    kept: number;
 };
 export type EmulatorJobStart = {
     ok: boolean;
     job?: string;
-    kept?: number;
     error?: string;
     name?: string;
     installed?: string;
@@ -1094,10 +1090,9 @@ export const emulatorsCoresOffer = callable<[], {
     all: string[];
     recommendedBytes: number;
     allBytes: number;
-    packBytes: number;
 }>("emulators_cores_offer");
 export const emulatorsInstallCores = callable<[cores: string[], target: string], EmulatorJobStart>("emulators_install_cores");
-export const emulatorsUpdateCores = callable<[cores: string[], force: boolean, skipNewer: boolean, target: string], EmulatorJobStart>(
+export const emulatorsUpdateCores = callable<[cores: string[], target: string], EmulatorJobStart>(
     "emulators_update_cores"
 );
 export const emulatorsInstallFlatpak = callable<[kind: string, target: string], EmulatorJobStart>("emulators_install_flatpak");

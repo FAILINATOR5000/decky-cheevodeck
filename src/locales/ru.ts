@@ -3579,8 +3579,6 @@ const RU: LocaleTable = {
         few: "Обновляем {{count}} ядра...",
         many: "Обновляем {{count}} ядер..."
     },
-    "Downloading RetroArch's stable cores...": "Скачиваем стабильные ядра RetroArch...",
-    "Unpacking cores...": "Распаковываем ядра...",
     "Couldn't install {{name}}. Nothing was changed.": "Не удалось установить {{name}}. Ничего не изменено.",
     "Couldn't install {{count}} cores. Nothing was changed.": {
         one: "Не удалось установить {{count}} ядро. Ничего не изменено.",
@@ -3606,11 +3604,10 @@ const RU: LocaleTable = {
         many: "У {{count}} систем с играми ещё нет ядра. Установить рекомендованное для каждой?"
     },
     "Recommended cores: {{size}}. Every core for those systems: {{all}}.": "Рекомендованные ядра: {{size}}. Все ядра для этих систем: {{all}}.",
-    "CheevoDeck downloads RetroArch's stable core pack ({{download}}) once and deletes it 30 minutes after the last install.": "CheevoDeck один раз скачивает пакет стабильных ядер RetroArch ({{download}}) и удаляет его через 30 минут после последней установки.",
+    "Cores come from RetroArch's nightly builds, the same place RetroArch's own updater gets them.": "Ядра берутся из ночных сборок RetroArch, оттуда же, откуда их берёт встроенное средство обновления RetroArch.",
     "Install Recommended": "Установить рекомендованные",
     "Install Every Core": "Установить все ядра",
     "Newer Than Stable": "Новее стабильного",
-    "{{name}} on this device isn't the one from RetroArch {{stable}}'s stable cores, probably a nightly or dev build you installed. CheevoDeck leaves it alone unless you choose to replace it.": "{{name}} на этом устройстве не из стабильных ядер RetroArch {{stable}}, скорее всего это ночная или dev-сборка, которую ты установил. CheevoDeck не трогает его, пока ты сам не решишь заменить.",
     "Replace with Stable": "Заменить стабильным",
     "Keep Mine": "Оставить моё",
     "AppImage · Not installed": "AppImage · Не установлен",
@@ -3649,11 +3646,6 @@ const RU: LocaleTable = {
     "Every system has a core already.": "У каждой системы уже есть ядро.",
     "Another install is running.": "Идёт другая установка.",
     "Couldn't reach the server.": "Не удалось связаться с сервером.",
-    "Kept {{count}} cores that are newer": {
-        one: "Оставлено {{count}} более новое ядро",
-        few: "Оставлено {{count}} более новых ядра",
-        many: "Оставлено {{count}} более новых ядер"
-    },
     "Ready to play": "Можно играть",
     "Couldn't finish the setup": "Не удалось завершить настройку",
     "Couldn't add it to Steam.": "Не удалось добавить в Steam.",

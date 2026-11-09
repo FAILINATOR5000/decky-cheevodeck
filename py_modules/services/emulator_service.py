@@ -6,7 +6,6 @@ import re
 import secrets
 import shutil
 import stat
-import struct
 import threading
 import time
 import urllib.error
@@ -37,9 +36,10 @@ DOWNLOAD_SECONDS = 1800
 EXTRACT_SECONDS = 1200
 STOP_SECONDS = 5
 CHUNK = 1 << 16
-PACK_MAX = 1 << 30
+CORE_ZIP_MAX = 512 << 20
+CORE_MAX = 1 << 30
 INFO_MAX = 8 << 20
-PACK_LINGER_SECONDS = 30 * 60
+INDEX_SECONDS = 600
 RELEASE_SECONDS = 600
 PLAN_SETTLE_SECONDS = 30
 FLATPAK_INSTALL_SECONDS = 1800
@@ -48,12 +48,9 @@ APPIMAGE_MAX = 512 << 20
 FLATHUB_REPO = "https://dl.flathub.org/repo/flathub.flatpakrepo"
 RELEASES_URL = "https://api.github.com/repos/{repo}/releases/{which}"
 SPACE_MARGIN = 64 << 20
-STABLE_URL = "https://buildbot.libretro.com/stable/"
-PACK_URL = STABLE_URL + "{version}/linux/x86_64/RetroArch_cores.7z"
+NIGHTLY_URL = "https://buildbot.libretro.com/nightly/linux/x86_64/latest/"
+NIGHTLY_HOST = "https://buildbot.libretro.com/"
 INFO_URL = "https://buildbot.libretro.com/assets/frontend/info.zip"
-PACK_PATH = "RetroArch-Linux-x86_64/RetroArch-Linux-x86_64.AppImage.home/.config/retroarch/cores/{core}_libretro.so"
-PACK_PREFIX = "cores-"
-DOWNLOAD_PREFIX = ".download-"
 PROCESS_NAMES = {
     "retroarch": ("retroarch",),
     "dolphin": ("dolphin-emu", "dolphin-emu-nogui"),
@@ -72,7 +69,6 @@ CLIENT_UNDOS = ("remove_shortcut", "shortcut_fallback_off")
 OLD_COPY = re.compile(r"(?i)\.appimage.*(\.bak|\.old$)")
 
 _CORE = re.compile(r"^[A-Za-z0-9_+.-]{1,64}$")
-_STABLE = re.compile(r"^\d+(?:\.\d+)+$")
 
 
 class StepFailed(Exception):
@@ -140,8 +136,6 @@ class EmulatorService:
         self._repaired = False
         self._state = None
         self._said = (None, 0.0, -2)
-        self._pack = None
-        self._pack_timer = None
         self._releases = {}
         self._flathub = (0.0, None)
         self._sha256s = {}
@@ -434,34 +428,29 @@ class EmulatorService:
                 return ""
         return self._crcs[key]
 
-    def _core_state(self, ra, core: str, packed: dict, ours: dict) -> dict:
+    def _core_state(self, ra, core: str, nightly: dict, ours: dict) -> dict:
         path = ra.core_path(core)
-        state = {"installed": False, "ours": False, "update": False, "newerThanStable": False}
+        state = {"installed": False, "ours": False, "update": False}
         try:
             st = os.stat(path)
         except OSError:
             return state
         state["installed"] = True
-        stable = packed.get(core)
+        latest = nightly.get(core)
         record = ours.get(core)
-        if record is None and (stable is None or st.st_size != stable["size"]):
-            state["newerThanStable"] = stable is not None
-            return state
         crc = self._crc(path, st)
         state["ours"] = record is not None and record["crc"] == crc
-        if stable is not None and crc != stable["crc"]:
-            state["update"] = state["ours"]
-            state["newerThanStable"] = not state["ours"]
+        state["update"] = latest is not None and crc != "" and crc != latest["crc"]
         return state
 
-    def _retroarch(self, record: dict, flatpaks, network: bool) -> dict:
+    def _retroarch(self, record: dict, flatpaks, network: bool, refresh: bool = False) -> dict:
         entry = catalog.BY_KIND[catalog.RETROARCH]
         ra = session.RetroArch(self._user_home)
         flatpak = self._flatpak_row(entry, flatpaks)
         flatpak["steam"] = self._steam(f"{catalog.RETROARCH}:flatpak", self._shortcuts_by_install(), record)
-        bundle = self._ensure_index(flatpak["version"], network) if ra.found else {}
+        index = self._nightly(network, refresh) if ra.found else {}
         infos = self._info_cores(ra) if ra.found else {}
-        packed = bundle.get("cores") or {}
+        packed = index.get("cores") or {}
         ours = record["installed"]["cores"]
         games = self._systems_with_games()
         states = {}
@@ -504,8 +493,7 @@ class EmulatorService:
             "found": ra.found or flatpak["installed"],
             "configFound": ra.found,
             "coresDir": str(ra.cores_dir) if ra.found else "",
-            "stable": bundle.get("raVersion", ""),
-            "packSize": bundle.get("packSize", 0),
+            "nightlyDate": max((row["date"] for row in packed.values()), default=""),
             "updates": sum(1 for state in states.values() if state["update"]),
             "systems": systems,
         }
@@ -523,7 +511,7 @@ class EmulatorService:
                 "ok": True,
                 "appsDir": str(self._user_home / "Applications"),
                 "flatpakAvailable": flatpaks is not None,
-                "retroarch": self._retroarch(record, flatpaks, network),
+                "retroarch": self._retroarch(record, flatpaks, network, refresh),
                 "emulators": emulators,
                 "cleanup": self._cleanup_summary(emulators),
             }
@@ -567,66 +555,27 @@ class EmulatorService:
         request = urllib.request.Request(url, headers={"User-Agent": build_user_agent(), **(headers or {})})
         return urllib.request.urlopen(request, timeout=timeout, context=self._ssl_context)
 
-    def _range(self, url: str, start: int, length: int):
-        with self._open(url, {"Range": f"bytes={start}-{start + length - 1}"}) as response:
-            data = response.read(length + 1)
-            total = response.headers.get("Content-Range", "").rpartition("/")[2]
-            partial = response.status == 206
-        if not partial or len(data) != length or not total.isdigit():
-            raise StepFailed("no_network", "range read refused")
-        return data, int(total)
+    def _cores_url(self) -> str:
+        url = session.RetroArch(self._user_home).cfg.get("core_updater_buildbot_cores_url", "").strip()
+        if not url.startswith(NIGHTLY_HOST) or any(char in url for char in "\\?#\" ") or ".." in url:
+            return NIGHTLY_URL
+        return url if url.endswith("/") else url + "/"
 
-    def _latest_stable(self) -> str:
-        with self._open(STABLE_URL) as response:
-            listing = response.read(1 << 20).decode("utf-8", "replace")
-        versions = catalog.stable_versions(listing)
-        if not versions:
-            raise StepFailed("no_network", "no stable versions listed")
-        return versions[-1]
-
-    def _read_index(self, version: str) -> dict:
-        url = PACK_URL.format(version=version)
-        start, total = self._range(url, 0, 32)
-        if start[:6] != b"7z\xbc\xaf\x27\x1c":
-            raise StepFailed("failed", "not a 7z pack")
-        offset, size, _crc = struct.unpack("<QQI", start[12:32])
-        if not 0 < size <= 1 << 20 or 32 + offset + size > total:
-            raise StepFailed("failed", "pack header out of range")
-        header, _total = self._range(url, 32 + offset, size)
-        parts = [(0, start), (32 + offset, header)]
-        if header[0] == 0x17:
-            if header[1] != 0x06:
-                raise StepFailed("failed", "pack header unreadable")
-            packed_at, at = catalog.seven_zip_number(header, 2)
-            _streams, at = catalog.seven_zip_number(header, at)
-            if header[at] != 0x09:
-                raise StepFailed("failed", "pack header unreadable")
-            packed_size, at = catalog.seven_zip_number(header, at + 1)
-            if not 0 < packed_size <= 1 << 22 or 32 + packed_at + packed_size > total:
-                raise StepFailed("failed", "pack header out of range")
-            packed, _total = self._range(url, 32 + packed_at, packed_size)
-            parts.append((32 + packed_at, packed))
-        elif header[0] != 0x01:
-            raise StepFailed("failed", "pack header unreadable")
-        folder = self._work_dir() / ".work"
-        ensure_dir(folder)
-        sparse = folder / f"index-{secrets.token_hex(4)}.7z"
-        try:
-            with exclusive_file(sparse, trusted=self._runtime_dir) as out:
-                out.truncate(total)
-                for at, data in parts:
-                    out.seek(at)
-                    out.write(data)
-            code, listing, err = self._run(["7z", "l", "-slt", str(sparse)], FETCH_SECONDS, self._stop)
-        finally:
-            try:
-                os.unlink(sparse)
-            except OSError:
-                pass
-        cores = catalog.pack_listing(listing) if code == 0 else {}
+    def _read_nightly(self, url: str) -> dict:
+        with self._open(url + ".index-extended") as response:
+            text = response.read(1 << 20).decode("utf-8", "replace")
+        cores = catalog.nightly_index(text)
         if not cores:
-            raise StepFailed("failed", f"pack listing failed ({code}: {err.strip()[-200:]})")
-        return {"raVersion": version, "packSize": total, "cores": cores}
+            raise StepFailed("failed", "the core index was empty")
+        try:
+            with self._open(url) as response:
+                sizes = catalog.listing_sizes(response.read(4 << 20).decode("utf-8", "replace"))
+        except (urllib.error.URLError, OSError) as e:
+            decky.logger.info("emulators: couldn't read the core sizes (%s)", type(e).__name__)
+            sizes = {}
+        for core, row in cores.items():
+            row["size"] = sizes.get(core, 0)
+        return {"url": url, "fetched": int(time.time()), "cores": cores}
 
     def _fetch_info(self) -> None:
         folder = self._work_dir()
@@ -640,31 +589,25 @@ class EmulatorService:
             out.write(data)
         os.replace(folder / ".info.zip.tmp", save_path)
 
-    def _ensure_index(self, ra_version: str, network: bool) -> dict:
-        bundle = self._store.get()["bundle"]
-        wanted = ra_version if _STABLE.match(ra_version or "") else ""
-        if bundle and (not wanted or bundle["raVersion"] == wanted):
-            return bundle
-        if not network:
-            return bundle
+    def _nightly(self, network: bool, refresh: bool = False) -> dict:
+        index = self._store.get()["nightly"]
+        url = self._cores_url()
+        fresh = index and index["url"] == url and time.time() - index["fetched"] < INDEX_SECONDS
+        if not network or (fresh and not refresh):
+            return index
         try:
-            try:
-                fetched = self._read_index(wanted or self._latest_stable())
-            except urllib.error.HTTPError as e:
-                if e.code != 404 or not wanted:
-                    raise
-                fetched = self._read_index(self._latest_stable())
-            try:
-                self._fetch_info()
-            except (StepFailed, urllib.error.URLError, OSError) as e:
-                decky.logger.info("emulators: couldn't fetch the core info list (%s)", type(e).__name__)
-        except (StepFailed, urllib.error.URLError, OSError, ValueError, IndexError, struct.error) as e:
-            decky.logger.info("emulators: couldn't read the stable core pack's index (%s: %s)", type(e).__name__, e)
-            return bundle
-        self._store.change(lambda record: record.__setitem__("bundle", fetched))
-        decky.logger.info("emulators: indexed RetroArch %s's stable cores (%d)", fetched["raVersion"],
-                          len(fetched["cores"]))
-        return self._store.get()["bundle"]
+            fetched = self._read_nightly(url)
+        except (StepFailed, urllib.error.URLError, OSError, ValueError) as e:
+            decky.logger.info("emulators: couldn't read the nightly core index (%s: %s)", type(e).__name__, e)
+            return index
+        try:
+            self._fetch_info()
+        except (StepFailed, urllib.error.URLError, OSError) as e:
+            decky.logger.info("emulators: couldn't fetch the core info list (%s)", type(e).__name__)
+        self._store.change(lambda record: record.__setitem__("nightly", fetched))
+        if not index:
+            decky.logger.info("emulators: indexed the nightly cores (%d)", len(fetched["cores"]))
+        return self._store.get()["nightly"]
 
     def _say(self, job: dict, stage: str, progress: int = -1, *, step=None, error: str = "", left=None) -> None:
         step = job.get("at", 0) if step is None else step
@@ -685,7 +628,6 @@ class EmulatorService:
             "steps": len(job["steps"]),
             "error": error,
             "left": left or [],
-            "kept": job.get("kept", 0),
         }
         if self._emit is not None:
             self._emit(JOB_EVENT, dict(self._state))
@@ -696,11 +638,11 @@ class EmulatorService:
             queued = [job["id"] for job in self._jobs]
         return {"ok": True, "busy": busy, "queued": queued, "state": self._state}
 
-    def _submit(self, kind: str, steps: list, *, target: str = "", names=None, kept: int = 0, plan: str = "") -> dict:
+    def _submit(self, kind: str, steps: list, *, target: str = "", names=None, plan: str = "") -> dict:
         if not self._repaired:
             self.repair()
         job = {"id": secrets.token_hex(6), "kind": kind, "steps": steps, "target": target,
-               "names": list(names or []), "kept": kept, "plan": plan}
+               "names": list(names or []), "plan": plan}
         with self._job_lock:
             if self._plan_run is not None and not plan:
                 return {"ok": False, "error": "busy"}
@@ -712,7 +654,7 @@ class EmulatorService:
                 self._runner.start()
             self._job_lock.notify()
         self._say(job, "queued")
-        return {"ok": True, "job": job["id"], "kept": kept}
+        return {"ok": True, "job": job["id"]}
 
     def _run_jobs(self) -> None:
         while True:
@@ -740,8 +682,6 @@ class EmulatorService:
         self._journal_write(journal)
 
     def _run_job(self, job: dict) -> None:
-        if self._pack_timer is not None:
-            self._pack_timer.cancel()
         plan = self._open_plan(job["plan"]) if job["plan"] else None
         journal = plan["journal"] if plan is not None else \
             {"schemaVersion": 1, "job": job["id"], "kind": job["kind"], "done": [], "pendingClient": self.pending_client()}
@@ -771,8 +711,6 @@ class EmulatorService:
         finally:
             shutil.rmtree(self._work_dir() / ".work" / f"job-{job['id']}", ignore_errors=True)
             self._inventory = None
-            if any(step["do"] in ("install_core", "update_core") for step in job["steps"]):
-                self._linger_pack()
 
     def _apply(self, job: dict, step: dict, journal: dict) -> None:
         do = step.get("do")
@@ -1004,17 +942,6 @@ class EmulatorService:
         if os.path.isdir(work / ".work"):
             shutil.rmtree(work / ".work", ignore_errors=True)
             fixed.append("emulators_work")
-        try:
-            names = os.listdir(work)
-        except OSError:
-            names = []
-        for name in names:
-            if name.startswith(PACK_PREFIX) or name.startswith(DOWNLOAD_PREFIX):
-                try:
-                    os.unlink(work / name)
-                    fixed.append("emulators_pack")
-                except OSError:
-                    pass
         return fixed
 
     def pending_client(self) -> list:
@@ -1033,50 +960,33 @@ class EmulatorService:
 
     def stop(self) -> None:
         self._stop.set()
-        if self._pack_timer is not None:
-            self._pack_timer.cancel()
         runner = self._runner
         if runner is not None:
             runner.join(STOP_SECONDS)
 
-    def _linger_pack(self) -> None:
-        if self._pack_timer is not None:
-            self._pack_timer.cancel()
-        self._pack_timer = threading.Timer(PACK_LINGER_SECONDS, self._drop_pack)
-        self._pack_timer.daemon = True
-        self._pack_timer.start()
+    def _core_context(self, core: str):
+        ra = self._cores_retroarch()
+        if ra is None:
+            raise StepFailed("not_found", "RetroArch isn't set up")
+        index = self._store.get()["nightly"]
+        latest = (index.get("cores") or {}).get(core)
+        if latest is None:
+            raise StepFailed("not_found", f"{core} isn't in the nightly index")
+        if running(catalog.RETROARCH):
+            raise StepFailed("running")
+        return ra, index, latest
 
-    def _drop_pack(self) -> None:
-        with self._job_lock:
-            if self._job is not None or self._jobs:
-                return
-            self._pack = None
-        try:
-            names = os.listdir(self._work_dir())
-        except OSError:
-            return
-        for name in names:
-            if name.startswith(PACK_PREFIX):
-                try:
-                    os.unlink(self._work_dir() / name)
-                except OSError:
-                    pass
-
-    def _pack_file(self, job: dict, bundle: dict, wanted: int) -> Path:
-        version = bundle["raVersion"]
-        if self._pack is not None and self._pack[0] == version and os.path.isfile(self._pack[1]):
-            return self._pack[1]
-        folder = self._work_dir()
+    def _fetch_core(self, job: dict, core: str, index: dict, latest: dict, ra) -> Path:
+        folder = self._work_dir() / ".work" / f"job-{job['id']}"
         ensure_dir(folder)
-        total = bundle.get("packSize") or 0
-        if free_bytes(folder) < total + wanted + SPACE_MARGIN:
+        if free_bytes(folder) < latest["size"] * 4 + SPACE_MARGIN or \
+                free_bytes(ra.cores_dir) < latest["size"] * 4 + SPACE_MARGIN:
             raise StepFailed("no_space")
-        final = folder / f"{PACK_PREFIX}{version}.7z"
-        partial = folder / f"{DOWNLOAD_PREFIX}{PACK_PREFIX}{version}.7z"
+        archive = folder / f"{core}.zip"
         got = 0
         try:
-            with self._open(PACK_URL.format(version=version), timeout=DOWNLOAD_SECONDS) as response, \
-                    exclusive_file(partial, trusted=self._runtime_dir, replace=True) as out:
+            with self._open(index["url"] + f"{core}_libretro.so.zip", timeout=DOWNLOAD_SECONDS) as response, \
+                    exclusive_file(archive, trusted=self._runtime_dir, replace=True) as out:
                 while True:
                     if self._stop.is_set():
                         raise StepFailed("stopped")
@@ -1084,91 +994,59 @@ class EmulatorService:
                     if not chunk:
                         break
                     got += len(chunk)
-                    if got > PACK_MAX:
-                        raise StepFailed("failed", "core pack larger than expected")
+                    if got > CORE_ZIP_MAX:
+                        raise StepFailed("failed", "core download larger than expected")
                     out.write(chunk)
-                    if total:
-                        self._say(job, "download", min(99, got * 100 // total))
-            if total and got != total:
-                raise StepFailed("no_network", "core pack download cut short")
-            os.replace(partial, final)
+                    if latest["size"]:
+                        self._say(job, "download", min(99, got * 100 // latest["size"]))
         except (urllib.error.URLError, OSError) as e:
             raise StepFailed("no_network", type(e).__name__) from e
+        source = folder / f"{core}_libretro.so"
+        try:
+            with zipfile.ZipFile(archive) as bundle:
+                members = bundle.infolist()
+                if len(members) != 1 or members[0].filename != f"{core}_libretro.so" or members[0].file_size > CORE_MAX:
+                    raise StepFailed("failed", f"{core}'s download doesn't hold just the core")
+                with bundle.open(members[0]) as inner, exclusive_file(source, trusted=self._runtime_dir, replace=True) as out:
+                    shutil.copyfileobj(inner, out, CHUNK)
+        except (OSError, zipfile.BadZipFile) as e:
+            raise StepFailed("failed", type(e).__name__) from e
         finally:
-            if os.path.lexists(partial):
-                os.unlink(partial)
-        self._pack = (version, final)
-        return final
-
-    def _core_context(self, core: str):
-        ra = self._cores_retroarch()
-        if ra is None:
-            raise StepFailed("not_found", "RetroArch isn't set up")
-        bundle = self._store.get()["bundle"]
-        stable = (bundle.get("cores") or {}).get(core)
-        if stable is None:
-            raise StepFailed("not_found", f"{core} isn't in the stable pack")
-        if running(catalog.RETROARCH):
-            raise StepFailed("running")
-        return ra, bundle, stable
-
-    def _extracted(self, job: dict, core: str) -> Path:
-        files = job.get("extracted")
-        if files is None:
-            ra, bundle, _stable = self._core_context(core)
-            cores = [step["core"] for step in job["steps"] if step["do"] in ("install_core", "update_core")]
-            sizes = sum(bundle["cores"].get(name, {}).get("size", 0) for name in cores)
-            if free_bytes(ra.cores_dir) < sizes + SPACE_MARGIN:
-                raise StepFailed("no_space")
-            pack = self._pack_file(job, bundle, sizes)
-            folder = self._work_dir() / ".work" / f"job-{job['id']}"
-            ensure_dir(folder)
-            self._say(job, "extract")
-            members = [PACK_PATH.format(core=name) for name in cores]
-            code, _out, err = self._run(["7z", "e", "-y", f"-o{folder}", str(pack), *members], EXTRACT_SECONDS, self._stop)
-            if code != 0:
-                raise StepFailed("stopped" if self._stop.is_set() else "failed",
-                                 f"core extract failed ({code}: {err.strip()[-200:]})")
-            files = {name: folder / f"{name}_libretro.so" for name in cores}
-            job["extracted"] = files
-        source = files.get(core)
-        bundle = self._store.get()["bundle"]
-        if source is None or not source.is_file() or file_crc(source) != bundle["cores"][core]["crc"]:
-            raise StepFailed("failed", f"{core} came out of the pack damaged")
+            if os.path.lexists(archive):
+                os.unlink(archive)
+        if file_crc(source) != latest["crc"]:
+            raise StepFailed("failed", f"{core} doesn't match the nightly index")
         return source
 
-    def _record_core(self, core: str, crc: str, version: str) -> None:
+    def _record_core(self, core: str, crc: str, date: str) -> None:
         self._store.change(lambda record: record["installed"]["cores"].__setitem__(
-            core, {"crc": crc, "from": f"stable-{version}"}))
+            core, {"crc": crc, "from": f"nightly-{date}"}))
 
     def _install_core(self, job: dict, step: dict, journal: dict) -> None:
         core = step["core"]
-        ra, bundle, stable = self._core_context(core)
+        ra, index, latest = self._core_context(core)
         target = ra.core_path(core)
         if os.path.lexists(target):
             return
-        source = self._extracted(job, core)
+        source = self._fetch_core(job, core, index, latest, ra)
         self._check_target(target)
         previous = self._store.get()["installed"]["cores"].get(core)
-        self._note(journal, {"undo": "remove_file", "path": str(target), "crc": stable["crc"]})
+        self._note(journal, {"undo": "remove_file", "path": str(target), "crc": latest["crc"]})
         self._note(journal, {"undo": "store_core", "core": core, "previous": previous})
         self._place(source, target, 0o644)
         self._verify(target)
-        self._record_core(core, stable["crc"], bundle["raVersion"])
+        self._record_core(core, latest["crc"], latest["date"])
 
     def _update_core(self, job: dict, step: dict, journal: dict) -> None:
         core = step["core"]
-        ra, bundle, stable = self._core_context(core)
+        ra, index, latest = self._core_context(core)
         target = ra.core_path(core)
         if not target.is_file():
             raise StepFailed("not_found", f"{core} isn't installed")
-        crc = file_crc(target)
-        if crc == stable["crc"]:
+        if file_crc(target) == latest["crc"]:
             return
+        source = self._fetch_core(job, core, index, latest, ra)
         record = self._store.get()["installed"]["cores"].get(core)
-        if not step.get("force") and (record is None or record["crc"] != crc):
-            raise StepFailed("newer_than_stable")
-        source = self._extracted(job, core)
         self._check_target(target)
         backup = target.with_name(target.name + ".prev")
         self._check_target(backup)
@@ -1181,7 +1059,7 @@ class EmulatorService:
         os.replace(target, backup)
         self._place(source, target, 0o644)
         self._verify(target)
-        self._record_core(core, stable["crc"], bundle["raVersion"])
+        self._record_core(core, latest["crc"], latest["date"])
 
     def _core_names(self, cores) -> list:
         ra = session.RetroArch(self._user_home)
@@ -1190,8 +1068,7 @@ class EmulatorService:
 
     def cores_offer(self) -> dict:
         inventory = self.inventory()
-        bundle = self._ensure_index(inventory["retroarch"]["flatpak"]["version"], True)
-        packed = bundle.get("cores") or {}
+        packed = self._nightly(True).get("cores") or {}
         if not packed:
             return {"ok": False, "error": "no_network"}
         recommended, everything = [], []
@@ -1209,7 +1086,6 @@ class EmulatorService:
             "all": everything,
             "recommendedBytes": sum(packed[core]["size"] for core in recommended),
             "allBytes": sum(packed[core]["size"] for core in everything),
-            "packBytes": bundle.get("packSize", 0),
         }
 
     def install_cores(self, cores, target: str = "") -> dict:
@@ -1219,42 +1095,31 @@ class EmulatorService:
             return {"ok": False, "error": "not_found"}
         if running(catalog.RETROARCH):
             return {"ok": False, "error": "running"}
-        bundle = self._ensure_index(self.inventory()["retroarch"]["flatpak"]["version"], True)
-        if not bundle:
+        packed = self._nightly(True).get("cores") or {}
+        if not packed:
             return {"ok": False, "error": "no_network"}
-        if any(core not in bundle["cores"] for core in cores):
+        if any(core not in packed for core in cores):
             return {"ok": False, "error": "not_found"}
         return self._submit("install_cores", [{"do": "install_core", "core": core} for core in cores],
                             target=target, names=self._core_names(cores))
 
-    def update_cores(self, cores, force: bool = False, skip_newer: bool = False, target: str = "") -> dict:
+    def update_cores(self, cores, target: str = "") -> dict:
         cores = [core for core in dict.fromkeys(cores or []) if isinstance(core, str) and _CORE.match(core)]
         ra = session.RetroArch(self._user_home)
         if not cores or not ra.found:
             return {"ok": False, "error": "not_found"}
         if running(catalog.RETROARCH):
             return {"ok": False, "error": "running"}
-        bundle = self._ensure_index(self.inventory()["retroarch"]["flatpak"]["version"], True)
-        if not bundle:
+        packed = self._nightly(True).get("cores") or {}
+        if not packed:
             return {"ok": False, "error": "no_network"}
         ours = self._store.get()["installed"]["cores"]
-        steps, kept = [], 0
-        for core in cores:
-            state = self._core_state(ra, core, bundle["cores"], ours)
-            if state["update"]:
-                steps.append({"do": "update_core", "core": core})
-            elif state["newerThanStable"] and force:
-                steps.append({"do": "update_core", "core": core, "force": True})
-            elif state["newerThanStable"] and skip_newer:
-                kept += 1
-            elif state["newerThanStable"]:
-                return {"ok": False, "error": "newer_than_stable", "core": core,
-                        "name": self._core_names([core])[0], "installed": ra.version(core),
-                        "stable": bundle["raVersion"]}
+        steps = [{"do": "update_core", "core": core} for core in cores
+                 if self._core_state(ra, core, packed, ours)["update"]]
         if not steps:
-            return {"ok": True, "job": "", "kept": kept}
+            return {"ok": True, "job": ""}
         return self._submit("update_cores", steps, target=target,
-                            names=self._core_names([step["core"] for step in steps]), kept=kept)
+                            names=self._core_names([step["core"] for step in steps]))
 
     def _flathub_scope(self) -> str:
         code, out, _err = self._run(["flatpak", "remotes", "--columns=name,options"])
@@ -1406,7 +1271,7 @@ class EmulatorService:
             return {"ok": False, "error": "newer_than_stable", "name": catalog.BY_KIND[kind]["name"],
                     "installed": row["version"], "stable": row["latest"]}
         if not row["update"] and not force:
-            return {"ok": True, "job": "", "kept": 0}
+            return {"ok": True, "job": ""}
         return self._submit("update_emulator", [{"do": "update_emulator", "kind": kind, "via": "flatpak",
                                                  "force": bool(force)}],
                             target=target, names=[catalog.BY_KIND[kind]["name"]])
@@ -1440,7 +1305,7 @@ class EmulatorService:
             return {"ok": False, "error": "newer_than_stable", "name": emulator["name"],
                     "installed": row["version"] or row["fileName"], "stable": release["version"]}
         if not state["update"] and not force:
-            return {"ok": True, "job": "", "kept": 0}
+            return {"ok": True, "job": ""}
         return self._submit("update_emulator", [{"do": "update_emulator", "kind": emulator["kind"], "via": "appimage",
                                                  "path": path, "force": bool(force)}],
                             target=target, names=[emulator["name"]])
@@ -1637,7 +1502,7 @@ class EmulatorService:
         return [] if inventory["retroarch"]["configFound"] else None
 
     def _core_step(self, inventory: dict, core: str, do: str = "install_core"):
-        packed = (self._store.get()["bundle"].get("cores") or {})
+        packed = (self._store.get()["nightly"].get("cores") or {})
         if not core or core not in packed:
             return None
         row = self._cores_by_name(inventory).get(core) or {}
@@ -1659,7 +1524,7 @@ class EmulatorService:
             return None
         ra = session.RetroArch(self._user_home)
         infos = self._info_cores(ra) if ra.found else {}
-        packed = (self._store.get()["bundle"].get("cores") or {})
+        packed = (self._store.get()["nightly"].get("cores") or {})
         couch = [core for core in system["cores"]
                  if ((infos.get(core["core"]) or {}).get("savestate_features") or "").strip() in ("", "deterministic")
                  and core["core"] in packed]
@@ -1842,7 +1707,7 @@ class EmulatorService:
             return {"ok": False, "error": "not_found"}
         do = step.get("do")
         if do in ("install_core", "update_core") and isinstance(step.get("core"), str) and _CORE.match(step["core"]):
-            clean = {"do": do, "core": step["core"], "force": bool(force)}
+            clean = {"do": do, "core": step["core"]}
             name = self._core_names([step["core"]])[0]
         elif do in ("install_emulator", "update_emulator") and step.get("kind") in catalog.BY_KIND \
                 and step.get("via") in ("flatpak", "appimage"):
@@ -1935,10 +1800,6 @@ class EmulatorService:
                 unique.append(folder)
         return unique
 
-    def _core_job_waiting(self) -> bool:
-        jobs = list(self._jobs) + ([self._job] if self._job is not None else [])
-        return any(step.get("do") in ("install_core", "update_core") for job in jobs for step in job["steps"])
-
     def clean_offer(self, emulators=None) -> dict:
         backups = self._store.get()["installed"]["backups"]
         items = []
@@ -1976,14 +1837,6 @@ class EmulatorService:
                     add(folder / name, "leftovers", True)
                 elif OLD_COPY.search(name):
                     add(folder / name, "others", False)
-        if not self._core_job_waiting():
-            try:
-                names = os.listdir(self._work_dir())
-            except OSError:
-                names = []
-            for name in names:
-                if name.startswith(PACK_PREFIX):
-                    add(self._work_dir() / name, "leftovers", True)
         return {"ok": True, "items": items}
 
     def _cleanup_summary(self, emulators) -> dict:

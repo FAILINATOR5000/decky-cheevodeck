@@ -21,6 +21,8 @@ PATHS_PER_KIND = 8
 
 _CORE = re.compile(r"^[A-Za-z0-9_+.-]{1,64}$")
 _CRC = re.compile(r"^[0-9a-f]{8}$")
+_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_NIGHTLY_URL = re.compile(r"^https://buildbot\.libretro\.com/[A-Za-z0-9_./-]*/$")
 _SHORTCUT = re.compile(r"^[a-z0-9]{1,16}:(flatpak|[0-9a-f]{16})$")
 
 
@@ -64,20 +66,22 @@ def _clean(raw) -> dict:
                 kept = {key: _text(value, 200) for key, value in kept.items() if key in ("crc", "from", "version", "repo")}
             backups[path] = {"of": row["of"], "kind": row["kind"], "version": _text(row.get("version"), 128),
                              "record": kept}
-    bundle_raw = raw.get("bundle") if isinstance(raw.get("bundle"), dict) else {}
-    bundle_cores = {}
-    for core, row in (bundle_raw.get("cores") if isinstance(bundle_raw.get("cores"), dict) else {}).items():
+    nightly_raw = raw.get("nightly") if isinstance(raw.get("nightly"), dict) else {}
+    nightly_cores = {}
+    for core, row in (nightly_raw.get("cores") if isinstance(nightly_raw.get("cores"), dict) else {}).items():
         if isinstance(core, str) and _CORE.match(core) and isinstance(row, dict) and _CRC.match(_text(row.get("crc"), 8)) \
-                and type(row.get("size")) is int and row["size"] >= 0:
-            bundle_cores[core] = {"crc": row["crc"], "size": row["size"]}
-    pack_size = bundle_raw.get("packSize") if type(bundle_raw.get("packSize")) is int else 0
-    bundle = {"raVersion": _text(bundle_raw.get("raVersion"), 32), "packSize": max(0, pack_size),
-              "cores": bundle_cores} if bundle_cores else {}
+                and _DATE.match(_text(row.get("date"), 10)) and type(row.get("size")) is int and row["size"] >= 0:
+            nightly_cores[core] = {"crc": row["crc"], "date": row["date"], "size": row["size"]}
+    url = _text(nightly_raw.get("url"), 512)
+    if not _NIGHTLY_URL.match(url):
+        url = ""
+    fetched = nightly_raw.get("fetched") if type(nightly_raw.get("fetched")) is int else 0
+    nightly = {"url": url, "fetched": max(0, fetched), "cores": nightly_cores} if nightly_cores and url else {}
     shortcuts = {}
     for key, appid in (raw.get("shortcuts") if isinstance(raw.get("shortcuts"), dict) else {}).items():
         if isinstance(key, str) and _SHORTCUT.match(key) and type(appid) is int and 0 < appid <= 0xFFFFFFFF:
             shortcuts[key] = appid
-    return {"paths": paths, "installed": {"cores": cores, "appimages": appimages, "backups": backups}, "bundle": bundle,
+    return {"paths": paths, "installed": {"cores": cores, "appimages": appimages, "backups": backups}, "nightly": nightly,
             "shortcuts": shortcuts}
 
 
