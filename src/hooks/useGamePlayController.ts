@@ -2,7 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { multiplayerCheck, multiplayerPlayChoices, multiplayerPlayInfo, multiplayerSavePlayPick } from "../api";
 import { showPlayWith } from "../components/game/PlayWithModal";
-import { showShortcutNeeded } from "../components/game/ShortcutNeededModal";
+import { openFixIt } from "../components/multiplayer/FixItModal";
 import { showMultiplayerProblem } from "../components/multiplayer/ProblemModal";
 import { t, type LanguageCode } from "../locales";
 import type { MultiplayerMode, PlayInfo, PlayPick } from "../types";
@@ -29,7 +29,7 @@ export type PlayMode = "play" | "host" | "with";
 
 const NEXT_MODE: Record<PlayMode, PlayMode> = { play: "host", host: "with", with: "play" };
 
-type HostCheck = { gameId: number; mode: MultiplayerMode | null; gate: string | null; detail: Record<string, string> };
+type HostCheck = { gameId: number; mode: MultiplayerMode | null; first: MultiplayerMode; gate: string | null; detail: Record<string, string> };
 
 const playInfos = new Map<number, PlayInfo>();
 
@@ -82,16 +82,16 @@ export function useGamePlayController(props: {
         void (async () => {
             const first = multiplayerChoices().tab;
             const modes: MultiplayerMode[] = [first, ...(["link", "couch", "stream"] as MultiplayerMode[]).filter((each) => each !== first)];
-            let result: HostCheck = { gameId, mode: null, gate: null, detail: {} };
+            let result: HostCheck = { gameId, mode: null, first, gate: null, detail: {} };
             try {
                 for (const each of modes) {
                     const checked = await multiplayerCheck(each, gameId, "", "");
                     if (!checked.gate) {
-                        result = { gameId, mode: each, gate: null, detail: {} };
+                        result = { gameId, mode: each, first, gate: null, detail: {} };
                         break;
                     }
                     if (result.gate === null) {
-                        result = { gameId, mode: null, gate: checked.gate, detail: checked.detail ?? {} };
+                        result = { gameId, mode: null, first, gate: checked.gate, detail: checked.detail ?? {} };
                     }
                 }
             }
@@ -193,18 +193,9 @@ export function useGamePlayController(props: {
                 props.openMultiplayer();
             };
         }
-        else if (host?.gate === "no_shortcut" && info) {
-            const tools = info.tools ?? {};
-            explain = () => showShortcutNeeded(language, tools, true);
-        }
-        else if (host?.gate && needsCheevoCheck(host.gate) && info) {
-            const tools = info.tools ?? {};
-            const pick = toPick();
-            explain = () => showShortcutNeeded(language, tools, true, pick);
-        }
-        else if (host?.gate) {
-            const reason = problemText(language, host.gate, host.detail);
-            explain = () => showMultiplayerProblem(language, "Can't Host", reason);
+        else if (host?.gate && gameId != null) {
+            const about = { target: host.first, gameId, title: props.title, switchable: true, tools: info?.tools ?? null };
+            explain = () => void openFixIt(language, about);
         }
     }
     else if (playing) {
@@ -223,10 +214,9 @@ export function useGamePlayController(props: {
                 openPlayWith(forGame);
             };
         }
-        else if (info) {
-            const tools = info.tools ?? {};
-            const pick = needsCheevoCheck(info.gate) ? toPick() : null;
-            explain = () => showShortcutNeeded(language, tools, false, pick);
+        else if (info && gameId != null) {
+            const about = { target: "play" as const, gameId, title: props.title };
+            explain = () => void openFixIt(language, about);
         }
     }
     else {
@@ -235,15 +225,10 @@ export function useGamePlayController(props: {
             const ready = { gameId, appid: info.appid, fallback: info.fallback, kind: info.kind ?? "" };
             press = () => launch(ready.gameId, ready.appid, ready.fallback, null, ready.kind);
         }
-        else if (info) {
-            const tools = info.tools ?? {};
-            const pick = needsCheevoCheck(info.gate) ? toPick() : null;
-            explain = () => showShortcutNeeded(language, tools, false, pick);
+        else if (info && gameId != null) {
+            const about = { target: "play" as const, gameId, title: props.title };
+            explain = () => void openFixIt(language, about);
         }
-    }
-
-    function toPick() {
-        return gameId != null ? { gameId, title: props.title } : null;
     }
 
     function onToggleMode() {
@@ -258,8 +243,4 @@ export function useGamePlayController(props: {
     const playLit = Boolean(info?.launchable) && !playing;
 
     return { mode, label, disabled: hostPending ? !playLit : press === null, onPress, onToggleMode };
-}
-
-function needsCheevoCheck(gate: string | null | undefined): boolean {
-    return gate === "no_scan" || gate === "not_in_results" || gate === "rom_missing";
 }

@@ -20,7 +20,7 @@ import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { SnapshotHotkey } from "../ui/SnapshotHotkey";
 import { DialogLine, type DialogLineState } from "./DialogLine";
 import { ModeStateLabel, type ModeState } from "./ModeChart";
-import { showModeReason } from "./ModeReasonModal";
+import { openFixIt } from "./FixItModal";
 import { RoomAccessLabel, roomAccess } from "./roomAccess";
 import { RoomVoiceIcon } from "./VoiceIcons";
 import { RoomsFilterModal, roomFilterLabel, roomPasses } from "./RoomsFilterModal";
@@ -246,13 +246,7 @@ function RoomsModal(props: RoomsModalProps) {
     function choose(row: MultiplayerRoomRow) {
         setLine({ tone: "hint", text: "" });
         if (row.verdict && row.mode !== "link" && verdictState(row.verdict) === "never") {
-            showModeReason(language, {
-                mode: row.mode,
-                state: "never",
-                text: describe(row.verdict.reason, row.verdict.detail),
-                fixes: [],
-                tools: null
-            });
+            void openFixIt(language, { target: row.mode, gameId: row.gameId, title: row.title, roomId: row.room });
             return;
         }
         if (row.private) {

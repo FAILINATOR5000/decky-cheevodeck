@@ -435,7 +435,7 @@ export async function runFixPlan(target: FixTarget, gameId: number, title: strin
         if (pickAt >= 0) {
             const at = offset + pickAt;
             update(at, { state: "running", progress: -1 }, { current: at });
-            const found = await pickGameFile(language, gameId, title, () => undefined, false);
+            const found = await pickGameFile(language, gameId, title);
             if (found === null) {
                 update(at, { state: "waiting" });
                 finish(language, { done: true, next: await fetchAnswer(refresh) });

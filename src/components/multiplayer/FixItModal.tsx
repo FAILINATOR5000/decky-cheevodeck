@@ -1,9 +1,11 @@
 import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
 import { useEffect, useState, type ReactNode } from "react";
 
+import { multiplayerCheck, multiplayerPlayInfo } from "../../api";
 import { t, type LanguageCode } from "../../locales";
 import type { FixPlan, FixStep, MultiplayerMode } from "../../types";
 import { jobErrorText } from "../../utils/emulatorJobs";
+import { logError } from "../../utils/errors";
 import {
     chooseFixCore,
     chooseFixVia,
@@ -15,17 +17,17 @@ import {
     type FixRunStep,
     type FixTarget
 } from "../../utils/fixPlan";
-import { gameFilePickFailure, useGameFilePick } from "../../utils/gameFilePick";
+import { forgetGameFile, gameFilePickFailure, useGameFilePick } from "../../utils/gameFilePick";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { requestRoute } from "../../utils/pendingPanelEntry";
+import { gateText } from "../../utils/multiplayerProblems";
 import { modalSize } from "../../utils/scale";
 import { useStreamSetup } from "../../utils/streamPlay";
 import { achievementGreen, errorRed, smallTextStyle } from "../../utils/style";
-import { DesktopToolButtons } from "../game/ShortcutNeededModal";
+import { DesktopToolButtons } from "../game/DesktopToolButtons";
 import { FocusTarget } from "../ui/FocusTarget";
 import { ProgressBar } from "../ui/ProgressBar";
 import { STATE_LOOKS } from "./ModeChart";
-import { TITLES } from "./ModeReasonModal";
 import { ScanOrPickLines } from "./ScanOrPickLines";
 
 export type FixItRequest = {
@@ -37,9 +39,18 @@ export type FixItRequest = {
     explain: (gate: string, detail: Record<string, string>) => string;
     refresh: () => Promise<FixAnswer | null>;
     forget?: () => void;
+    switchTo?: (mode: MultiplayerMode) => void;
 };
 
+const MODES: MultiplayerMode[] = ["link", "couch", "stream"];
+
 const MODE_NAMES: Record<MultiplayerMode, string> = { link: "Link Play", couch: "Couch Play", stream: "Stream Play" };
+
+const TITLES: Record<MultiplayerMode, Record<"setup" | "never", string>> = {
+    link: { setup: "Link Play: Needs setup", never: "Link Play: Won't work" },
+    couch: { setup: "Couch Play: Needs setup", never: "Couch Play: Won't work" },
+    stream: { setup: "Stream Play: Needs setup", never: "Stream Play: Won't work" }
+};
 
 const WILL_BE_READY: Record<FixTarget, string> = {
     link: "Link Play will be ready.",
@@ -221,7 +232,11 @@ function Section(props: { label: string; children: ReactNode }) {
 }
 
 function Line(props: { children: ReactNode; color?: string }) {
-    return <div style={{ fontSize: `${modalSize(16)}px`, lineHeight: 1.4, color: props.color, marginBottom: "4px" }}>{props.children}</div>;
+    return (
+        <div style={{ fontSize: `${modalSize(16)}px`, lineHeight: 1.4, whiteSpace: "pre-line", color: props.color, marginBottom: "4px" }}>
+            {props.children}
+        </div>
+    );
 }
 
 function FixItModal(props: { language: LanguageCode; request: FixItRequest; close: () => void }) {
@@ -321,6 +336,11 @@ function FixItModal(props: { language: LanguageCode; request: FixItRequest; clos
                         )}
                         <ProgressBar fraction={percent >= 0 ? percent / 100 : null} />
                         {percent >= 0 && <div style={smallTextStyle()}>{`${percent}%`}</div>}
+                        {checking && (
+                            <div style={{ ...smallTextStyle(), marginTop: "6px" }}>
+                                {t(language, "Big games, like GameCube and Wii discs, can take a few minutes. You can close this and keep going.")}
+                            </div>
+                        )}
                     </div>
                 )}
                 {(row.state === "failed" || row.state === "kept") && (
@@ -398,6 +418,26 @@ function FixItModal(props: { language: LanguageCode; request: FixItRequest; clos
                 <look.Icon style={{ color: look.color, flexShrink: 0 }} />
                 {title}
             </div>
+            {request.switchTo && request.target !== "play" && phase !== "running" && (
+                <Focusable key="fix:modes" flow-children="row" style={{ display: "flex", gap: "6px", marginBottom: "12px" }}>
+                    {MODES.map((mode) => (
+                        <FocusTarget key={mode} focusKey={`fix:mode:${mode}`}>
+                            <DialogButton
+                                onClick={() => {
+                                    if (mode !== request.target) {
+                                        close();
+                                        request.switchTo?.(mode);
+                                    }
+                                }}
+                                style={{ outline: mode === request.target ? `2px solid ${achievementGreen}` : undefined, borderRadius: "4px",
+                                    padding: "4px 10px", minWidth: 0 }}
+                            >
+                                {t(language, MODE_NAMES[mode])}
+                            </DialogButton>
+                        </FocusTarget>
+                    ))}
+                </Focusable>
+            )}
             {live !== null ? (
                 <div>
                     {live.running && (
@@ -462,4 +502,55 @@ function FixItModal(props: { language: LanguageCode; request: FixItRequest; clos
 
 export function showFixIt(language: LanguageCode, request: FixItRequest) {
     showManagedModal((close) => <FixItModal language={language} request={request} close={close} />);
+}
+
+type FixItFor = {
+    target: FixTarget;
+    gameId: number;
+    title: string;
+    roomId?: string;
+    switchable?: boolean;
+    tools?: { emudeck?: boolean; srm?: boolean } | null;
+};
+
+type Fetched = { answer: FixAnswer; tools: { emudeck?: boolean; srm?: boolean } | null };
+
+async function fetchFixAnswer(about: FixItFor): Promise<Fetched | null> {
+    if (about.target === "play") {
+        const info = await multiplayerPlayInfo(about.gameId, null);
+        return info.plan && info.state
+            ? { answer: { state: info.state, gate: info.gate, detail: info.detail ?? {}, plan: info.plan }, tools: info.tools ?? null }
+            : null;
+    }
+    const checked = await multiplayerCheck(about.target, about.gameId, "", about.roomId ?? "");
+    if (!checked.plan) {
+        return null;
+    }
+    const state = checked.state ?? (checked.gate ? "setup" : "ready");
+    return { answer: { state, gate: checked.gate, detail: checked.detail ?? {}, plan: checked.plan }, tools: about.tools ?? null };
+}
+
+export async function openFixIt(language: LanguageCode, about: FixItFor) {
+    let fetched: Fetched | null = null;
+    try {
+        fetched = await fetchFixAnswer(about);
+    }
+    catch (e) {
+        logError("fix it: couldn't ask what this game needs", e);
+    }
+    if (fetched === null) {
+        return;
+    }
+    const refresh = async () => (await fetchFixAnswer(about))?.answer ?? null;
+    showFixIt(language, {
+        target: about.target,
+        gameId: about.gameId,
+        title: about.title,
+        answer: fetched.answer,
+        tools: fetched.tools,
+        explain: (gate, detail) => gateText(language, about.target, gate, detail, Boolean(about.roomId)),
+        refresh,
+        forget: () => void forgetGameFile(about.gameId),
+        switchTo: about.switchable ? (mode) => void openFixIt(language, { ...about, target: mode }) : undefined
+    });
 }

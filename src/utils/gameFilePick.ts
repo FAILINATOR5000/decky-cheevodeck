@@ -3,7 +3,6 @@ import { useSyncExternalStore } from "react";
 import { multiplayerForgetPickedGame, multiplayerPickGameFile, multiplayerPickStartFolder } from "../api";
 import { openPathPicker } from "../components/pickers/FilePickerModal";
 import { t, type LanguageCode } from "../locales";
-import { showToastAfter } from "./delayedToast";
 import { logError } from "./errors";
 
 export type GameFilePick = {
@@ -18,7 +17,6 @@ export type GameFilePick = {
 type GameFilePickStore = { pick: GameFilePick | null; changed: number };
 
 let store: GameFilePickStore = { pick: null, changed: 0 };
-let windowOpen = false;
 let lastFolder = "";
 const listeners = new Set<() => void>();
 
@@ -40,10 +38,6 @@ export function useGameFilePick(): GameFilePickStore {
     return useSyncExternalStore(subscribe, () => store);
 }
 
-export function setGameFileWindowOpen(open: boolean) {
-    windowOpen = open;
-}
-
 export function gameFilePickFailure(language: LanguageCode, pick: GameFilePick): string {
     if (pick.error === "not_this_game") {
         return t(language, "That file isn't {{game}}, or it's a version RetroAchievements doesn't recognize.", { game: pick.title });
@@ -57,10 +51,8 @@ export function gameFilePickFailure(language: LanguageCode, pick: GameFilePick):
     return t(language, "Couldn't read that file.");
 }
 
-export async function pickGameFile(language: LanguageCode, gameId: number, title: string, onStarted: () => void,
-    toast = true): Promise<GameFilePick | null> {
+export async function pickGameFile(language: LanguageCode, gameId: number, title: string): Promise<GameFilePick | null> {
     if (store.pick?.state === "running") {
-        onStarted();
         return null;
     }
     let folder = lastFolder;
@@ -87,7 +79,6 @@ export async function pickGameFile(language: LanguageCode, gameId: number, title
     }
     lastFolder = path.slice(0, path.lastIndexOf("/")) || "/";
     publish({ pick: { gameId, title, fileName: path.split("/").pop() ?? path, state: "running", error: "", label: "" } });
-    onStarted();
     let result: Awaited<ReturnType<typeof multiplayerPickGameFile>> | null = null;
     try {
         result = await multiplayerPickGameFile(gameId, path);
@@ -103,14 +94,6 @@ export async function pickGameFile(language: LanguageCode, gameId: number, title
         label: result?.label ?? ""
     };
     publish({ pick: ended, changed: store.changed + 1 });
-    if (toast && !windowOpen) {
-        showToastAfter({
-            title: ended.title,
-            body: ended.state === "done" ? t(language, "Game file found")
-                : ended.error === "not_this_game" ? t(language, "That isn't this game's file") : t(language, "Couldn't check that file"),
-            duration: 3000
-        }, 0);
-    }
     return ended;
 }
 

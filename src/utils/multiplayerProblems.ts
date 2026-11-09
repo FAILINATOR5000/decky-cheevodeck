@@ -102,15 +102,6 @@ const PROBLEM_TEXT: Record<string, string> = {
     stream_unreachable: "Couldn't connect to the host's stream. Try Join & Play again."
 };
 
-const FIXABLE_TEXT: Record<string, string> = {
-    link_needs_gpsp: "Link Play needs gpSP",
-    gpsp_too_old: "Link Play needs a newer gpSP",
-    link_needs_melondsds: "Link Play needs melonDS DS",
-    host_core_missing: "The host uses {{core}}, which isn't installed here",
-    no_dolphin_emulator_shortcut: "Couch Play needs Dolphin itself in Steam",
-    no_rmg_shortcut: "N64 Couch Play needs RMG itself in Steam"
-};
-
 const WARNING_TEXT: Record<string, string> = {
     core_override: "Using {{core}} for this session. Your shortcut stays on {{shortcutCore}}.",
     saves_by_core: "Your RetroArch saves are sorted by core, so {{core}} won't see your usual save.",
@@ -137,15 +128,9 @@ export function problemText(language: LanguageCode, code: string, detail?: Recor
     return text;
 }
 
-export function fixableProblemText(language: LanguageCode, code: string, detail?: Record<string, string>): string {
-    const text = FIXABLE_TEXT[code];
-    return text ? t(language, text, detail) : problemText(language, code, detail);
-}
-
 const STREAM_HOST_TEXT: Record<string, string> = {
     no_scan: "Run Cheevo Check first to host",
     not_in_results: "To host, this game needs to be in your Cheevo Check results",
-    no_shortcut: "To host, this game needs a Steam shortcut of its own",
     rom_missing: "This game's file isn't where Cheevo Check last saw it. Run Cheevo Check again to host.",
     no_emulator_shortcut: "To host, add this game, or {{emulator}} itself, to Steam as a non-Steam game."
 };
@@ -153,6 +138,15 @@ const STREAM_HOST_TEXT: Record<string, string> = {
 export function streamHostProblemText(language: LanguageCode, code: string, detail?: Record<string, string>): string {
     const text = STREAM_HOST_TEXT[code];
     return text ? t(language, text, detail) : problemText(language, code, detail);
+}
+
+export function gateText(language: LanguageCode, target: string, gate: string, detail?: Record<string, string>,
+    guest = false): string {
+    const text = target === "stream" && !guest ? streamHostProblemText(language, gate, detail) : problemText(language, gate, detail);
+    if (gate === "no_shortcut" || gate === "no_emulator_shortcut") {
+        return `${text}\n\n${t(language, "A shortcut only counts when it opens the same file Cheevo Check found.")}`;
+    }
+    return text;
 }
 
 export function warningText(language: LanguageCode, code: string, detail?: Record<string, string>): string {

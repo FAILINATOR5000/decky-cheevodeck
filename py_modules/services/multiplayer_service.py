@@ -1768,11 +1768,12 @@ class MultiplayerService:
         route, gate, detail = self._play_route(game_id, choice=choice)
         if route is None:
             fix = self._fix(gate, detail, "play", game_id, None)
+            plan = self._plan_ahead("play", game_id, "", None, (gate, detail, fix), choice=choice)
+            state = "setup" if plan["steps"] else _gate_state(gate, fix, self._emulators is not None and gate in PLANNED_GATES)
             return {"ok": True, "appid": 0, "launchable": False, "fallback": False, "gate": gate, "detail": detail,
-                    "tools": self.desktop_tools(),
-                    "plan": self._plan_ahead("play", game_id, "", None, (gate, detail, fix), choice=choice)}
+                    "tools": self.desktop_tools(), "state": state, "plan": plan}
         return {"ok": True, "appid": route["appid"], "launchable": True, "fallback": bool(_route_args(route)),
-                "gate": None, "detail": {}, "tools": self.desktop_tools(), "kind": _route_kind(route),
+                "gate": None, "detail": {}, "tools": self.desktop_tools(), "kind": _route_kind(route), "state": "ready",
                 "plan": {"outcome": "ready", "stages": [], "steps": [], "blocker": None}}
 
     def _desktop_tool_command(self, tool: str):

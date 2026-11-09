@@ -3277,6 +3277,7 @@ export type PlayInfo = {
     detail: Record<string, string>;
     tools: { emudeck?: boolean; srm?: boolean };
     kind?: string;
+    state?: MultiplayerModeState["state"];
     plan?: FixPlan;
 };
 
