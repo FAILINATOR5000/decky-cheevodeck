@@ -1162,6 +1162,12 @@ class MultiplayerService:
         kind = session.emulator_kind(shortcut["exe"], shortcut["launchOptions"])
         if kind not in catalog.BY_KIND:
             return None
+        try:
+            tokens = shlex.split(f'{shortcut["exe"]} {shortcut["launchOptions"]}', posix=True)
+        except ValueError:
+            return None
+        if any(token.endswith(".sh") for token in tokens[:2]):
+            return None
         via, image = catalog.shortcut_install(kind, shortcut["exe"], shortcut["launchOptions"], self._user_home)
         detail = {"emulator": FALLBACK_NAMES[kind], "kind": kind, "via": via, "path": image}
         if via == "flatpak" and self._flatpak_installed(catalog.BY_KIND[kind]["flatpak"]) is False:
