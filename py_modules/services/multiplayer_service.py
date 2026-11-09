@@ -1028,7 +1028,7 @@ class MultiplayerService:
                 "launchable": launchable,
                 "canLink": can_link,
                 "canCouch": can_couch,
-                "canStream": launchable and system_id not in STREAM_ONE_CONSOLE,
+                "canStream": system_id not in STREAM_ONE_CONSOLE,
             })
         games.sort(key=lambda row: row["title"].lower())
         return {"ok": True, "scanned": True, "games": games, "installedCores": installed}

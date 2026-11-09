@@ -575,7 +575,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
 
     function openGamePicker(pick: (gameId: number) => void, forMode: MultiplayerMode | null) {
         const rows = (mp.games ?? [])
-            .filter((game) => game.launchable && (forMode === null || playsIn(game, forMode)))
+            .filter((game) => forMode === null || playsIn(game, forMode))
             .map((game) => ({
                 key: `${game.systemId}:${game.gameId}`,
                 system: game.system,
@@ -781,7 +781,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
 
     function openLinkGames() {
         const titles = (mp.games ?? [])
-            .filter((game) => game.systemId === GBA_SYSTEM && game.canLink && game.launchable)
+            .filter((game) => game.systemId === GBA_SYSTEM && game.canLink)
             .map((game) => game.title);
         const text = titles.length > 0
             ? titles.join("\n")
