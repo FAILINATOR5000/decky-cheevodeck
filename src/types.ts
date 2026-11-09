@@ -3160,6 +3160,7 @@ export type MultiplayerCheck = {
     lanOnly?: boolean;
     fix?: FixStep[] | null;
     state?: MultiplayerModeState["state"];
+    plan?: FixPlan;
 };
 
 export type PlayPick = { appid: number; kind: string; core: string };
@@ -3190,7 +3191,7 @@ export type CouchChoices = {
     saved: PlayPick | null;
 };
 
-type FixChoice = {
+export type FixChoice = {
     via?: "flatpak" | "appimage";
     core?: string;
     name?: string;
@@ -3204,7 +3205,7 @@ type FixChoice = {
 
 export type FixStep = {
     do: "install_core" | "update_core" | "install_emulator" | "update_emulator" | "add_to_steam" | "enable_shortcut_fallback"
-        | "setup_streaming";
+        | "enable_play_shortcut_fallback" | "setup_streaming" | "pick_game_file";
     where: "backend" | "client";
     core?: string;
     name?: string;
@@ -3215,7 +3216,16 @@ export type FixStep = {
     scope?: string;
     path?: string;
     choices?: FixChoice[];
-    reason?: "" | "host_version" | "game_shortcut" | "single";
+    reason?: "" | "host_version" | "game_shortcut" | "single" | "missing";
+};
+
+type FixStage = { gate: string; detail: Record<string, string>; steps: FixStep[] };
+
+export type FixPlan = {
+    outcome: "ready" | "after_pick" | "blocked";
+    stages: FixStage[];
+    steps: FixStep[];
+    blocker: { gate: string; detail: Record<string, string> } | null;
 };
 
 export type MultiplayerModeState = {
@@ -3223,6 +3233,7 @@ export type MultiplayerModeState = {
     gate: string | null;
     detail: Record<string, string>;
     fix?: FixStep[] | null;
+    plan?: FixPlan;
 };
 
 export type MultiplayerModes = {
@@ -3266,6 +3277,7 @@ export type PlayInfo = {
     detail: Record<string, string>;
     tools: { emudeck?: boolean; srm?: boolean };
     kind?: string;
+    plan?: FixPlan;
 };
 
 export type MultiplayerGuestGame = { gameId: number; title: string; systemId: number; system: string; imageIcon: string };

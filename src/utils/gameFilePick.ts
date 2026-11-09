@@ -57,10 +57,11 @@ export function gameFilePickFailure(language: LanguageCode, pick: GameFilePick):
     return t(language, "Couldn't read that file.");
 }
 
-export async function pickGameFile(language: LanguageCode, gameId: number, title: string, onStarted: () => void) {
+export async function pickGameFile(language: LanguageCode, gameId: number, title: string, onStarted: () => void,
+    toast = true): Promise<GameFilePick | null> {
     if (store.pick?.state === "running") {
         onStarted();
-        return;
+        return null;
     }
     let folder = lastFolder;
     if (!folder) {
@@ -82,7 +83,7 @@ export async function pickGameFile(language: LanguageCode, gameId: number, title
         })).path;
     }
     catch {
-        return;
+        return null;
     }
     lastFolder = path.slice(0, path.lastIndexOf("/")) || "/";
     publish({ pick: { gameId, title, fileName: path.split("/").pop() ?? path, state: "running", error: "", label: "" } });
@@ -102,7 +103,7 @@ export async function pickGameFile(language: LanguageCode, gameId: number, title
         label: result?.label ?? ""
     };
     publish({ pick: ended, changed: store.changed + 1 });
-    if (!windowOpen) {
+    if (toast && !windowOpen) {
         showToastAfter({
             title: ended.title,
             body: ended.state === "done" ? t(language, "Game file found")
@@ -110,6 +111,7 @@ export async function pickGameFile(language: LanguageCode, gameId: number, title
             duration: 3000
         }, 0);
     }
+    return ended;
 }
 
 export async function forgetGameFile(gameId: number) {

@@ -23,8 +23,7 @@ import type {
     MultiplayerAdapter,
     MultiplayerMode,
     MultiplayerRoomStatus,
-    Payload,
-    FixStep
+    Payload
 } from "../types";
 import { logError } from "../utils/errors";
 import { getCurrentLanguage } from "../locales";
@@ -50,7 +49,7 @@ import {
 } from "../utils/multiplayerSession";
 import { pressMultiplayerReady, subscribeMultiplayerRoom } from "../utils/multiplayerRoomState";
 import { useStreamSetup } from "../utils/streamPlay";
-import { useFixPlan } from "../utils/fixPlan";
+import { useFixPlan, type FixAnswer } from "../utils/fixPlan";
 import { useGameFilePick } from "../utils/gameFilePick";
 
 const TICK_MS = 2000;
@@ -575,12 +574,9 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         }
     }
 
-    async function fixFor(forMode: MultiplayerMode): Promise<{ state: string; fix: FixStep[] | null } | null> {
-        if (gameId === null) {
-            return null;
-        }
-        const entry = (await multiplayerModes(gameId, checkRoom)).modes[forMode];
-        return entry ? { state: entry.state, fix: entry.fix ?? null } : null;
+    async function fixFor(forMode: MultiplayerMode, forGame: number): Promise<FixAnswer | null> {
+        const entry = (await multiplayerModes(forGame, checkRoom)).modes[forMode];
+        return entry?.plan ? { state: entry.state, gate: entry.gate, detail: entry.detail, plan: entry.plan } : null;
     }
 
     function play() {

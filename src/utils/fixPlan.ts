@@ -10,19 +10,24 @@ import {
     emulatorsPlanEnd,
     emulatorsPlanStep,
     saveMpShortcutFallback,
+    savePlayShortcutFallback,
     type EmulatorClientUndo
 } from "../api";
 import { askAddToSteam, type AddToSteamChoice } from "../components/emulators/AddToSteamModal";
 import { askEmulatorQuestion } from "../components/emulators/EmulatorQuestionModal";
 import { getCurrentLanguage, t, type LanguageCode } from "../locales";
-import type { FixStep, MultiplayerMode } from "../types";
+import type { FixChoice, FixPlan, FixStep, MultiplayerMode } from "../types";
 import { showToastAfter } from "./delayedToast";
 import { watchEmulatorJob } from "./emulatorJobs";
 import { addEmulatorShortcut, removeEmulatorShortcut, steamCollections } from "./emulatorShortcuts";
 import { logError } from "./errors";
+import { pickGameFile } from "./gameFilePick";
+import { quickAccessIsHidden } from "./quickAccess";
 import { setUpStreaming } from "./streamPlay";
 
-type FixStepState = "waiting" | "running" | "done" | "failed" | "kept";
+export type FixTarget = MultiplayerMode | "play";
+
+type FixStepState = "waiting" | "running" | "done" | "failed" | "kept" | "undone";
 
 export type FixRunStep = {
     step: FixStep;
@@ -31,9 +36,17 @@ export type FixRunStep = {
     error: string;
 };
 
+export type FixAnswer = {
+    state: "ready" | "setup" | "never";
+    gate: string | null;
+    detail: Record<string, string>;
+    plan: FixPlan;
+};
+
 export type FixRun = {
-    mode: MultiplayerMode;
+    target: FixTarget;
     gameId: number;
+    title: string;
     startedAt: number;
     steps: FixRunStep[];
     current: number;
@@ -41,6 +54,10 @@ export type FixRun = {
     done: boolean;
     failed: boolean;
     error: string;
+    already: boolean;
+    kept: boolean;
+    left: string[];
+    next: FixAnswer | null;
 };
 
 type FixPlanStore = { run: FixRun | null; finished: number };
@@ -51,9 +68,12 @@ const MODE_NAMES: Record<MultiplayerMode, string> = {
     stream: "Stream Play"
 };
 
+const MAX_ROUNDS = 6;
+
 let store: FixPlanStore = { run: null, finished: 0 };
-let windowOpen = false;
+let windowsOpen = 0;
 let pageShown = false;
+let reopenWindow: (() => void) | null = null;
 const listeners = new Set<() => void>();
 
 function publish(next: Partial<FixPlanStore>) {
@@ -88,11 +108,17 @@ function fixPlanRunning(): boolean {
 }
 
 export function setFixWindowOpen(open: boolean) {
-    windowOpen = open;
+    windowsOpen = Math.max(0, windowsOpen + (open ? 1 : -1));
 }
 
 export function setMultiplayerPageShown(shown: boolean) {
     pageShown = shown;
+}
+
+function bringWindowBack() {
+    if (windowsOpen === 0 && reopenWindow !== null) {
+        reopenWindow();
+    }
 }
 
 export function chooseFixVia(steps: FixStep[], index: number, via: "flatpak" | "appimage"): FixStep[] {
@@ -120,10 +146,15 @@ export function chooseFixCore(steps: FixStep[], index: number, core: string): Fi
     return steps.map((step, at) => (at === index ? { ...step, core, name: choice.name, size: choice.size } : step));
 }
 
+function choiceSet(choices: FixChoice[] | undefined): string {
+    return (choices ?? []).map((choice) => choice.core ?? choice.via ?? "").sort().join("|");
+}
+
 function carryChoices(fresh: FixStep[], picked: FixStep[]): FixStep[] {
     let steps = fresh;
     picked.forEach((step) => {
-        const at = steps.findIndex((other) => other.do === step.do && other.kind === step.kind && other.choices);
+        const at = steps.findIndex((other) => other.do === step.do && other.kind === step.kind && other.choices
+            && choiceSet(other.choices) === choiceSet(step.choices));
         if (at < 0) {
             return;
         }
@@ -145,6 +176,9 @@ async function runClientUndos(undos: EmulatorClientUndo[]) {
             }
             else if (undo.do === "shortcut_fallback_off") {
                 await saveMpShortcutFallback(false);
+            }
+            else if (undo.do === "play_shortcut_fallback_off") {
+                await savePlayShortcutFallback(false);
             }
         }
         catch (e) {
@@ -173,6 +207,7 @@ async function runBackendStep(language: LanguageCode, plan: string, index: numbe
         if (ended.error !== "newer_than_stable" || force) {
             return ended.error || "failed";
         }
+        bringWindowBack();
         const replace = await askEmulatorQuestion({
             language,
             title: t(language, "Newer Than Stable"),
@@ -216,74 +251,62 @@ async function runClientStep(language: LanguageCode, plan: string, step: FixStep
         await emulatorsPlanClient(plan, { do: "shortcut_fallback_off" });
         return "";
     }
+    if (step.do === "enable_play_shortcut_fallback") {
+        const saved = await savePlayShortcutFallback(true);
+        if (!saved?.ok) {
+            return "failed";
+        }
+        await emulatorsPlanClient(plan, { do: "play_shortcut_fallback_off" });
+        return "";
+    }
     if (step.do === "setup_streaming") {
         return (await setUpStreaming()) ? "" : "failed";
     }
     return "failed";
 }
 
-function announce(language: LanguageCode, mode: MultiplayerMode, ok: boolean) {
-    if (windowOpen || pageShown) {
+function announce(language: LanguageCode, run: FixRun, ok: boolean) {
+    if (!quickAccessIsHidden() && (windowsOpen > 0 || pageShown)) {
         return;
     }
     showToastAfter({
-        title: t(language, MODE_NAMES[mode]),
+        title: run.target === "play" ? run.title : t(language, MODE_NAMES[run.target]),
         body: ok ? t(language, "Ready to play") : t(language, "Couldn't finish the setup"),
         duration: 3000
     }, 0);
 }
 
-export type FixAnswer = { state: string; fix: FixStep[] | null } | null;
-
-export async function runFixPlan(mode: MultiplayerMode, gameId: number, picked: FixStep[], refresh: () => Promise<FixAnswer>) {
-    if (fixPlanRunning() || picked.length === 0) {
-        return;
-    }
-    const language = getCurrentLanguage();
-    const startedAt = Date.now();
-    const begin = (steps: FixStep[]): FixRun => ({ mode, gameId, startedAt,
-        steps: steps.map((step) => ({ step, state: "waiting", progress: -1, error: "" })), current: 0, running: true,
-        done: false, failed: false, error: "" });
-    publish({ run: begin(picked) });
-    let answer: FixAnswer = null;
-    try {
-        answer = await refresh();
-    }
-    catch (e) {
-        logError("ez fix: re-making the plan", e);
-    }
-    if (answer?.state === "ready") {
-        publish({ run: { ...store.run!, steps: store.run!.steps.map((row) => ({ ...row, state: "done" })), running: false,
-            done: true }, finished: store.finished + 1 });
-        announce(language, mode, true);
-        return;
-    }
-    if (!answer?.fix || answer.fix.length === 0) {
-        publish({ run: { ...store.run!, running: false, failed: true, error: "failed" }, finished: store.finished + 1 });
-        announce(language, mode, false);
-        return;
-    }
-    const steps = carryChoices(answer.fix, picked);
-    const shortcuts = new Map<number, AddToSteamChoice>();
+async function askShortcutNames(language: LanguageCode, steps: FixStep[], offset: number): Promise<Map<number, AddToSteamChoice> | null> {
+    const names = new Map<number, AddToSteamChoice>();
     for (const [index, step] of steps.entries()) {
         if (step.do !== "add_to_steam") {
             continue;
         }
+        bringWindowBack();
         const choice = await askAddToSteam(language, {
             defaultName: t(language, "{{name}} (Emulator)", { name: step.name ?? "" }),
             lines: [],
             collections: steamCollections()
         });
         if (choice === null) {
-            publish({ run: null });
-            return;
+            return null;
         }
-        shortcuts.set(index, choice);
+        names.set(offset + index, choice);
     }
-    publish({ run: begin(steps) });
+    return names;
+}
+
+type RoundEnd = { failure: string; kept: boolean; left: string[] };
+
+async function runSession(language: LanguageCode, steps: FixStep[], offset: number,
+    names: Map<number, AddToSteamChoice>): Promise<RoundEnd> {
+    const indexes = steps.map((_step, index) => offset + index).filter((at) => store.run!.steps[at].step.do !== "pick_game_file");
+    if (indexes.length === 0) {
+        return { failure: "", kept: false, left: [] };
+    }
     let plan = "";
     let failure = "";
-    let at = 0;
+    let failedAt = -1;
     try {
         const begun = await emulatorsPlanBegin();
         if (!begun?.ok || !begun.plan) {
@@ -291,12 +314,14 @@ export async function runFixPlan(mode: MultiplayerMode, gameId: number, picked: 
         }
         else {
             plan = begun.plan;
-            for (; at < steps.length; at += 1) {
+            for (const at of indexes) {
+                const step = store.run!.steps[at].step;
                 update(at, { state: "running", progress: -1 }, { current: at });
-                failure = steps[at].where === "backend"
-                    ? await runBackendStep(language, plan, at, steps[at])
-                    : await runClientStep(language, plan, steps[at], shortcuts.get(at) ?? null);
+                failure = step.where === "backend"
+                    ? await runBackendStep(language, plan, at, step)
+                    : await runClientStep(language, plan, step, names.get(at) ?? null);
                 if (failure) {
+                    failedAt = at;
                     break;
                 }
                 update(at, { state: "done", progress: 100 });
@@ -305,9 +330,12 @@ export async function runFixPlan(mode: MultiplayerMode, gameId: number, picked: 
     }
     catch (e) {
         logError("ez fix: running the plan", e);
-        failure = "failed";
+        failure = failure || "failed";
     }
-    if (!failure) {
+    if (!failure || failure === "kept") {
+        if (failure === "kept") {
+            update(failedAt, { state: "kept", error: failure });
+        }
         try {
             const ended = await emulatorsPlanEnd(plan);
             if (!ended?.ok) {
@@ -317,24 +345,121 @@ export async function runFixPlan(mode: MultiplayerMode, gameId: number, picked: 
         catch (e) {
             logError("ez fix: closing the plan", e);
         }
-        publish({ run: { ...store.run!, running: false, done: true }, finished: store.finished + 1 });
-        announce(language, mode, true);
-        return;
+        return { failure: "", kept: failure === "kept", left: [] };
     }
-    if (at < steps.length) {
-        update(at, { state: failure === "kept" ? "kept" : "failed", error: failure });
+    if (failedAt >= 0) {
+        update(failedAt, { state: "failed", error: failure });
     }
+    let left: string[] = [];
     if (plan) {
         try {
             const aborted = await emulatorsPlanAbort(plan);
             await runClientUndos(aborted?.client ?? []);
+            left = aborted?.left ?? [];
         }
         catch (e) {
             logError("ez fix: rolling the plan back", e);
         }
+        for (const at of indexes) {
+            if (store.run!.steps[at].state === "done") {
+                update(at, { state: "undone" });
+            }
+        }
     }
-    publish({ run: { ...store.run!, running: false, failed: true, error: failure }, finished: store.finished + 1 });
-    announce(language, mode, false);
+    return { failure, kept: false, left };
+}
+
+async function fetchAnswer(refresh: () => Promise<FixAnswer | null>): Promise<FixAnswer | null> {
+    try {
+        return await refresh();
+    }
+    catch (e) {
+        logError("ez fix: re-making the plan", e);
+        return null;
+    }
+}
+
+function rows(steps: FixStep[]): FixRunStep[] {
+    return steps.map((step) => ({ step, state: "waiting", progress: -1, error: "" }));
+}
+
+function finish(language: LanguageCode, change: Partial<FixRun>) {
+    const run: FixRun = { ...store.run!, running: false, ...change };
+    publish({ run, finished: store.finished + 1 });
+    announce(language, run, !run.failed && run.next?.state === "ready");
+}
+
+export async function runFixPlan(target: FixTarget, gameId: number, title: string, picked: FixStep[],
+    refresh: () => Promise<FixAnswer | null>, reopen: () => void) {
+    if (fixPlanRunning() || picked.length === 0) {
+        return;
+    }
+    const language = getCurrentLanguage();
+    reopenWindow = reopen;
+    const begin = (steps: FixStep[]): FixRun => ({ target, gameId, title, startedAt: Date.now(), steps: rows(steps),
+        current: 0, running: true, done: false, failed: false, error: "", already: false, kept: false, left: [],
+        next: null });
+    publish({ run: begin(picked) });
+    let answer = await fetchAnswer(refresh);
+    if (answer?.state === "ready" && answer.plan.steps.length === 0) {
+        finish(language, { done: true, already: true, next: answer });
+        return;
+    }
+    if (!answer || answer.plan.steps.length === 0) {
+        finish(language, { failed: true, error: "failed", next: answer });
+        return;
+    }
+    let steps = carryChoices(answer.plan.steps, picked);
+    publish({ run: { ...begin(steps), startedAt: store.run!.startedAt } });
+    let offset = 0;
+    for (let round = 1; ; round += 1) {
+        const names = await askShortcutNames(language, steps, offset);
+        if (names === null) {
+            if (round === 1) {
+                publish({ run: null });
+                return;
+            }
+            finish(language, { done: true, next: answer });
+            return;
+        }
+        const ended = await runSession(language, steps, offset, names);
+        if (ended.failure) {
+            finish(language, { failed: true, error: ended.failure, left: ended.left, next: answer });
+            return;
+        }
+        if (ended.kept) {
+            finish(language, { done: true, kept: true, next: await fetchAnswer(refresh) });
+            return;
+        }
+        const pickAt = steps.findIndex((step) => step.do === "pick_game_file");
+        if (pickAt >= 0) {
+            const at = offset + pickAt;
+            update(at, { state: "running", progress: -1 }, { current: at });
+            const found = await pickGameFile(language, gameId, title, () => undefined, false);
+            if (found === null) {
+                update(at, { state: "waiting" });
+                finish(language, { done: true, next: await fetchAnswer(refresh) });
+                return;
+            }
+            if (found.state !== "done") {
+                update(at, { state: "failed", error: found.error });
+                finish(language, { failed: true, error: found.error, next: answer });
+                return;
+            }
+            update(at, { state: "done", progress: 100 });
+            finish(language, { done: true, next: await fetchAnswer(refresh) });
+            return;
+        }
+        answer = await fetchAnswer(refresh);
+        const more = answer?.plan.steps ?? [];
+        if (more.length === 0 || answer?.plan.outcome === "after_pick" || round >= MAX_ROUNDS) {
+            finish(language, { done: true, next: answer });
+            return;
+        }
+        offset = store.run!.steps.length;
+        steps = more;
+        publish({ run: { ...store.run!, steps: [...store.run!.steps, ...rows(more)] } });
+    }
 }
 
 export async function finishPendingFixes() {

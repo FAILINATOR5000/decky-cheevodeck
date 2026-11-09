@@ -11,10 +11,9 @@ import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { SubTabButton } from "../components/ui/SubTabButton";
 import { ModeChart } from "../components/multiplayer/ModeChart";
 import { showModeReason, type ModeFix } from "../components/multiplayer/ModeReasonModal";
-import { fixStepLabel, showFixIt } from "../components/multiplayer/FixItModal";
+import { fixFailureText, fixStepLabel, showFixIt, type FixItRequest } from "../components/multiplayer/FixItModal";
 import { showGameFile } from "../components/multiplayer/GameFileModal";
 import { ScanOrPickLines } from "../components/multiplayer/ScanOrPickLines";
-import { jobErrorText } from "../utils/emulatorJobs";
 import { runFixPlan, setMultiplayerPageShown, useFixPlan } from "../utils/fixPlan";
 import { forgetGameFile, gameFilePickFailure, pickGameFile, useGameFilePick } from "../utils/gameFilePick";
 import { showMultiplayerProblem } from "../components/multiplayer/ProblemModal";
@@ -43,7 +42,6 @@ import { overrideRecord, topEntryId, usePageLanding, type LandingWindows } from 
 import { t, type LanguageCode } from "../locales";
 import type {
     ButtonSpacing,
-    FixStep,
     MultiplayerCoreChoice,
     MultiplayerGame,
     MultiplayerGuestGame,
@@ -103,8 +101,6 @@ const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 const NAV_ENTER_MAINTAIN_Y = 3;
 const FIX_DONE_MS = 4000;
 const DIR_UP = 9;
-const EMULATOR_SHORTCUT_GATES = ["no_emulator_shortcut", "no_dolphin_emulator_shortcut", "no_rmg_shortcut"];
-const MODE_NAMES: Record<MultiplayerMode, string> = { link: "Link Play", couch: "Couch Play", stream: "Stream Play" };
 
 const LINK_SYSTEMS = [4, 5, 6, 16, 18, 41];
 const DOLPHIN_CONSOLES = ["GameCube", "Wii"];
@@ -431,14 +427,10 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     }
 
     const roomWarnings = (shownCheck?.warnings ?? []).map((warning) => warningText(language, warning.code, warning.detail));
-    const fixHere = fixRun !== null && (fixRun.running || fixRun.gameId === mp.gameId) ? fixRun : null;
+    const fixHere = fixRun !== null && fixRun.target !== "play" && (fixRun.running || fixRun.gameId === mp.gameId) ? fixRun : null;
     const fixStep = fixHere?.running ? fixHere.steps[fixHere.current] ?? null : null;
     const fixProgress = fixStep ? (fixStep.step.do === "setup_streaming" ? stream.progress : fixStep.progress) : -1;
-    const failedStep = fixHere?.failed ? fixHere.steps.find((row) => row.state === "failed" || row.state === "kept") : undefined;
-    const fixFailure = !fixHere?.failed ? "" : failedStep?.state === "kept"
-        ? t(language, "Kept yours")
-        : [jobErrorText(language, fixHere.error, failedStep?.step.name ?? "", failedStep?.step.do.endsWith("_core") ?? false),
-            t(language, "Nothing was changed.")].filter(Boolean).join(" ");
+    const fixFailure = fixHere?.failed ? fixFailureText(language, fixHere) : "";
     const installing = mp.mode === "stream" && setupRunning(stream);
     const settingUp = mp.mode === "stream" && (installing || stream.lastJob === "setup") ? stream.stage : "";
     const setupLine = SETUP_LINES[settingUp] ?? null;
@@ -631,46 +623,23 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         return fixable ? fixableProblemText(language, gate, filled) : problemText(language, gate, filled);
     }
 
-    function fixText(forMode: MultiplayerMode, gate: string, detail: Record<string, string>, steps: FixStep[]) {
-        const install = steps.find((step) => step.do === "install_emulator");
-        const adding = steps.find((step) => step.do === "add_to_steam");
-        const mode = t(language, MODE_NAMES[forMode]);
-        if (gate === "no_shortcut" && steps.some((step) => step.do === "enable_shortcut_fallback")) {
-            const tools = mp.modes?.tools ?? {};
-            const lines = [
-                t(language, "No Steam shortcut was found for this game."),
-                t(language, "Want to try enabling Emulator Shortcuts? It's a feature that lets you launch games without their own shortcut, using the emulator's existing shortcut.")
-            ];
-            if (tools.emudeck) {
-                lines.push(t(language, "The other solution is to run your library through Steam ROM Manager in EmuDeck to add your games as shortcuts."));
-            }
-            else if (tools.srm) {
-                lines.push(t(language, "The other solution is to run your library through Steam ROM Manager to add your games as shortcuts."));
-            }
-            return lines.join("\n\n");
-        }
-        if (EMULATOR_SHORTCUT_GATES.includes(gate) && install) {
-            return t(language, "You don't seem to have {{emulator}} installed, which {{mode}} needs. Would you like to install it?",
-                { emulator: install.name ?? "", mode });
-        }
-        if (EMULATOR_SHORTCUT_GATES.includes(gate) && adding) {
-            return t(language, "{{emulator}} is installed but isn't in Steam yet, which {{mode}} needs. Would you like to add it?",
-                { emulator: adding.name ?? "", mode });
-        }
-        return reasonText(forMode, gate, detail, steps.length > 0);
-    }
-
-    function fixReason(forMode: MultiplayerMode) {
+    function fixRequest(forMode: MultiplayerMode): FixItRequest {
         const entry = mp.modes?.modes[forMode];
-        const gate = entry?.gate ?? "";
+        const forGame = fixRun?.running ? fixRun.gameId : mp.gameId ?? 0;
         return {
-            mode: forMode,
-            gameId: fixRun?.running ? fixRun.gameId : mp.gameId ?? 0,
-            state: entry?.state === "never" ? "never" as const : "setup" as const,
-            text: gate ? fixText(forMode, gate, entry?.detail ?? {}, entry?.fix ?? []) : "",
-            steps: entry?.fix ?? [],
-            tools: gate === "no_shortcut" ? mp.modes?.tools ?? null : null,
-            refresh: () => actions.fixFor(forMode)
+            target: forMode,
+            gameId: forGame,
+            title: title ?? String(forGame),
+            answer: {
+                state: entry?.state ?? "setup",
+                gate: entry?.gate ?? null,
+                detail: entry?.detail ?? {},
+                plan: entry?.plan ?? { outcome: "blocked", stages: [], steps: [], blocker: null }
+            },
+            tools: mp.modes?.tools ?? null,
+            explain: (gate, detail) => reasonText(forMode, gate, detail),
+            refresh: () => actions.fixFor(forMode, forGame),
+            forget: () => void forgetGameFile(forGame)
         };
     }
 
@@ -682,8 +651,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     }
 
     function openModeReason(forMode: MultiplayerMode) {
-        if (fixRun?.running) {
-            showFixIt(language, fixReason(fixRun.mode));
+        if (fixRun?.running && fixRun.target !== "play") {
+            showFixIt(language, fixRequest(fixRun.target));
             return;
         }
         if (gameFilePick?.state === "running" && gameFilePick.gameId === mp.gameId) {
@@ -694,8 +663,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         if (!mp.modes || !entry?.gate || entry.state === "ready") {
             return;
         }
-        if (entry.fix && entry.fix.length > 0) {
-            showFixIt(language, fixReason(forMode));
+        if (entry.plan && entry.plan.steps.length > 0) {
+            showFixIt(language, fixRequest(forMode));
             return;
         }
         const { shortcutFallback, tools } = mp.modes;
@@ -1878,9 +1847,14 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                                             bottomSeparator="none"
                                             outerStyle={buttonStyle}
                                             focusKey="multiplayer:fix:retry"
-                                            focusFallback={[`multiplayer:mode:${fixHere.mode}:status`, `multiplayer:mode:${fixHere.mode}`]}
-                                            onClick={() => void runFixPlan(fixHere.mode, fixHere.gameId, fixHere.steps.map((row) => row.step),
-                                                () => actions.fixFor(fixHere.mode))}
+                                            focusFallback={[`multiplayer:mode:${fixHere.target}:status`, `multiplayer:mode:${fixHere.target}`]}
+                                            onClick={() => {
+                                                const target = fixHere.target;
+                                                if (target !== "play") {
+                                                    void runFixPlan(target, fixHere.gameId, fixHere.title, fixHere.steps.map((row) => row.step),
+                                                        () => actions.fixFor(target, fixHere.gameId), () => showFixIt(language, fixRequest(target)));
+                                                }
+                                            }}
                                         >
                                             <div style={{ width: "100%", textAlign: "center" }}>{t(language, "Try Again")}</div>
                                         </FocusableItem>
