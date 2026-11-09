@@ -48,12 +48,19 @@ export function gameFilePickFailure(language: LanguageCode, pick: GameFilePick):
     if (pick.error === "no_account") {
         return t(language, "Sign in to RetroAchievements first");
     }
+    if (pick.error === "needs_dolphin") {
+        return t(language, "GameCube and Wii games need Dolphin's Flatpak installed for Cheevo Check");
+    }
     return t(language, "Couldn't read that file.");
 }
 
-export async function pickGameFile(language: LanguageCode, gameId: number, title: string): Promise<GameFilePick | null> {
+export async function pickGameFile(language: LanguageCode, gameId: number, title: string,
+    chosen = ""): Promise<GameFilePick | null> {
     if (store.pick?.state === "running") {
         return null;
+    }
+    if (chosen) {
+        return checkGameFile(gameId, title, chosen);
     }
     let folder = lastFolder;
     if (!folder) {
@@ -78,6 +85,10 @@ export async function pickGameFile(language: LanguageCode, gameId: number, title
         return null;
     }
     lastFolder = path.slice(0, path.lastIndexOf("/")) || "/";
+    return checkGameFile(gameId, title, path);
+}
+
+async function checkGameFile(gameId: number, title: string, path: string): Promise<GameFilePick> {
     publish({ pick: { gameId, title, fileName: path.split("/").pop() ?? path, state: "running", error: "", label: "" } });
     let result: Awaited<ReturnType<typeof multiplayerPickGameFile>> | null = null;
     try {

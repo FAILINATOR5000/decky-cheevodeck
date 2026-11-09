@@ -1627,6 +1627,16 @@ class EmulatorService:
         return [{"do": "install_emulator", "where": "backend", "kind": kind, "name": catalog.BY_KIND[kind]["name"],
                  "via": via, "choices": choices[:1], "reason": "missing"}]
 
+    def _dolphin_tool_plan(self, inventory: dict):
+        row = self._row_for(inventory, "dolphin")
+        if row is None or row["flatpak"]["installed"]:
+            return None
+        choices = self._install_choices(inventory, "dolphin", "flatpak", "")
+        if not choices:
+            return None
+        return [{"do": "install_emulator", "where": "backend", "kind": "dolphin", "name": row["name"], "via": "flatpak",
+                 "choices": choices, "reason": "dolphin_tool"}]
+
     def _duckstation_plan(self, inventory: dict, context: dict):
         steps = []
         ps1 = next((row for row in inventory["retroarch"]["systems"] if row["id"] == session.PS1_SYSTEM), None)
@@ -1703,6 +1713,8 @@ class EmulatorService:
             return self._system_core_plan(inventory, context.get("systemId"), couch=False)
         if gate == "emulator_missing":
             return self._reinstall_plan(inventory, str(context.get("kind") or ""), detail)
+        if gate == "needs_dolphin":
+            return self._dolphin_tool_plan(inventory)
         if gate in UPDATE_GATES:
             core = UPDATE_GATES[gate]
             step = self._core_step(inventory, core, "update_core")

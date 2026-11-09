@@ -3723,6 +3723,8 @@ const RU: LocaleTable = {
     "{{emulator}} isn't installed anymore, but its Steam shortcut is still there. Put {{emulator}} back where the shortcut points, or remove the shortcut.": "{{emulator}} больше не установлен, но его ярлык в Steam остался. Верни {{emulator}} туда, куда указывает ярлык, или удали ярлык.",
     "Open RetroArch once so it can set itself up, then press Fix It again.": "Открой RetroArch один раз, чтобы он настроился, а потом снова нажми «Исправить».",
     "None of the installed RetroArch cores can run this game": "Ни одно из установленных ядер RetroArch не запускает эту игру",
+    "Check {{file}}": "Проверить {{file}}",
+    "Cheevo Check reads GameCube and Wii files with a tool inside Dolphin's Flatpak": "Cheevo Check читает файлы GameCube и Wii инструментом из Flatpak Dolphin",
 };
 
 export default RU;

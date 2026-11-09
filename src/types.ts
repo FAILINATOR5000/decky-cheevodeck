@@ -3216,7 +3216,7 @@ export type FixStep = {
     scope?: string;
     path?: string;
     choices?: FixChoice[];
-    reason?: "" | "host_version" | "game_shortcut" | "single" | "missing";
+    reason?: "" | "host_version" | "game_shortcut" | "single" | "missing" | "dolphin_tool";
 };
 
 type FixStage = { gate: string; detail: Record<string, string>; steps: FixStep[] };

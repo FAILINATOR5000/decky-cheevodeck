@@ -101,7 +101,9 @@ export function fixStepLabel(language: LanguageCode, step: FixStep): string {
         case "setup_streaming":
             return t(language, "Set Up Streaming");
         case "pick_game_file":
-            return t(language, "Pick the Game's File");
+            return step.path
+                ? t(language, "Check {{file}}", { file: step.path.slice(step.path.lastIndexOf("/") + 1) })
+                : t(language, "Pick the Game's File");
     }
 }
 
@@ -187,6 +189,9 @@ function reasonLine(language: LanguageCode, step: FixStep): string {
     }
     if (step.reason === "missing") {
         return t(language, "Its Steam shortcut is still there, so it isn't added again");
+    }
+    if (step.reason === "dolphin_tool") {
+        return t(language, "Cheevo Check reads GameCube and Wii files with a tool inside Dolphin's Flatpak");
     }
     return "";
 }

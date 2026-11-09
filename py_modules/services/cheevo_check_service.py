@@ -49,6 +49,7 @@ DOLPHIN_TIMEOUT_SECONDS = 180
 ARCHIVE_LIST_TIMEOUT_SECONDS = 120
 ARCHIVE_EXTRACT_TIMEOUT_SECONDS = 1800
 FLATPAK_QUERY_TIMEOUT_SECONDS = 30
+DOLPHIN_RECHECK_SECONDS = 10
 
 FETCH_GAP_SECONDS = 1.0
 FETCH_BACKOFF_SECONDS = 5.0
@@ -212,6 +213,7 @@ class CheevoCheckService:
         self._progress = None
         self._cancel = threading.Event()
         self._dolphin_ready = None
+        self._dolphin_checked = 0.0
         self._indexes = {}
 
         self._identity_cache = None
@@ -1694,8 +1696,10 @@ class CheevoCheckService:
             os.close(dir_fd)
 
     def _dolphin_available(self) -> bool:
-        if self._dolphin_ready is not None:
+        if self._dolphin_ready or (self._dolphin_ready is False
+                                   and time.monotonic() - self._dolphin_checked < DOLPHIN_RECHECK_SECONDS):
             return self._dolphin_ready
+        self._dolphin_checked = time.monotonic()
 
         for installed in (
             self._user_home / ".local" / "share" / "flatpak" / "app" / DOLPHIN_FLATPAK_APP_ID,

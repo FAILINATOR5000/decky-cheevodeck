@@ -26,7 +26,7 @@ import multiplayer_session as session
 import rom_headers
 import steam_shortcuts
 import subprocess_util
-from cheevo_check_systems import by_console_id
+from cheevo_check_systems import RAW_DISC_EXTENSIONS, by_console_id
 from play_picks_store import PlayPicksStore, clean_pick
 from multiplayer_protocol import decode, frame, read_frame
 from nearby_protocol import FrameError, clean_title, is_nonce, verify
@@ -210,7 +210,7 @@ STREAM_EMULATOR_NAMES = {
     "pcsx2": "PCSX2", "melonds": "melonDS",
 }
 SETUP_GATES = {
-    "stream_not_set_up", "stream_needs_update", "no_play_core", "emulator_missing", "retroarch_first_run",
+    "stream_not_set_up", "stream_needs_update", "no_play_core", "emulator_missing", "retroarch_first_run", "needs_dolphin",
     "host_core_missing", "no_couch_core", "core_cant_couch", "match_host_core",
     "link_needs_gambatte", "link_needs_gambatte_both", "link_needs_gpsp", "link_needs_melondsds", "link_needs_ppsspp",
     "gpsp_too_old", "melondsds_too_old",
@@ -229,7 +229,7 @@ PLANNED_GATES = {
     "link_needs_gambatte", "link_needs_gambatte_both", "link_needs_gpsp", "link_needs_melondsds", "link_needs_ppsspp",
     "gpsp_too_old", "melondsds_too_old", "no_emulator_shortcut", "no_dolphin_emulator_shortcut", "no_rmg_shortcut",
     "duckstation_no_multiplayer", "dolphin_version_mismatch", "rmg_version_mismatch", "ppsspp_version_mismatch",
-    "no_play_core", "emulator_missing",
+    "no_play_core", "emulator_missing", "needs_dolphin",
 }
 
 
@@ -390,6 +390,7 @@ class MultiplayerService:
         self._hotspot = None
         self._voice_relay = False
         self._overlays = threading.local()
+        self._dolphin_picks = {}
 
     def set_friends(self, friends) -> None:
         self._friends = friends
@@ -861,6 +862,10 @@ class MultiplayerService:
         system_id = to_int(game.get("ConsoleID"), 0)
         if not stat.S_ISREG(before.st_mode) or system_id <= 0 or self._cheevo_check is None:
             return {"ok": False, "error": "unreadable"}
+        if system_id in session.DOLPHIN_SYSTEMS and Path(path).suffix.lower() not in RAW_DISC_EXTENSIONS \
+                and self._flatpak_installed(session.DOLPHIN_FLATPAK) is False:
+            self._dolphin_picks[game_id] = path
+            return {"ok": False, "error": "needs_dolphin"}
         digest = (self._cheevo_check.hash_rom_for_room(path, system_id) or "").lower()
         if not digest:
             return {"ok": False, "error": "unreadable"}
@@ -881,6 +886,7 @@ class MultiplayerService:
         })
         if not saved:
             return {"ok": False, "error": "unreadable"}
+        self._dolphin_picks.pop(game_id, None)
         decky.logger.info("multiplayer: picked a file for game %d (%s)", game_id, label or "no label")
         return {"ok": True, "title": title, "label": label}
 
@@ -2280,6 +2286,7 @@ class MultiplayerService:
         fix_game = (joined["own"] or joined["row"]["gameId"]) if joined is not None else game_id
         fix_room = joined["row"] if joined is not None else room
         gate, detail, fix = first
+        first_gate = gate
         stages, steps, outcome, blocker = [], [], "blocked", None
         overlay = _Overlay()
         self._overlays.now = overlay
@@ -2288,15 +2295,20 @@ class MultiplayerService:
                 if not gate:
                     outcome = "ready"
                     break
+                tried = self._dolphin_picks.get(fix_game) if gate in PICK_GATES else None
+                if tried is not None and self._flatpak_installed(session.DOLPHIN_FLATPAK) is False:
+                    gate, detail = "needs_dolphin", {}
                 if gate in PICK_GATES:
-                    stages.append({"gate": gate, "detail": detail, "steps": [dict(PICK_STEP)]})
-                    steps = steps + [dict(PICK_STEP)]
+                    pick = {**PICK_STEP, "path": tried} if tried is not None else dict(PICK_STEP)
+                    stages.append({"gate": gate, "detail": detail, "steps": [pick]})
+                    steps = steps + [pick]
                     outcome = "after_pick"
                     break
-                if stages:
+                if stages or gate != first_gate:
                     fix = None
                     if len(stages) < PLAN_STAGES and self._emulators is not None:
-                        fix = self._fix(gate, detail, mode, fix_game, fix_room, self._emulators.inventory_after(steps))
+                        fix = self._fix(gate, detail, mode, fix_game, fix_room,
+                                        self._emulators.inventory_after(steps) if steps else None)
                 merged = _merge_steps(steps, fix or [])
                 if len(merged) == len(steps):
                     blocker = {"gate": gate, "detail": detail}
