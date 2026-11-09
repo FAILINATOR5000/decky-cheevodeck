@@ -196,7 +196,7 @@ async function runClientStep(language: LanguageCode, plan: string, step: FixStep
             ? { via: "flatpak" as const, id: step.id ?? "", scope: step.scope ?? "user" }
             : { via: "appimage" as const, path: step.path ?? "" };
         const name = shortcut?.name || t(language, "{{name}} (Emulator)", { name: step.name ?? "" });
-        const appid = await addEmulatorShortcut(name, install, shortcut?.collection ?? "");
+        const appid = await addEmulatorShortcut(name, install, shortcut?.collection ?? "", shortcut?.newCollection ?? "");
         if (appid <= 0) {
             return "failed";
         }

@@ -3409,6 +3409,7 @@ const JA: LocaleTable = {
     "Nothing was changed.": "何も変更されていません。",
     "Step {{step}} of {{count}}": "ステップ {{step}}/{{count}}",
     "Fix It": "修正する",
+    "Or a new collection": "または新しいコレクション",
     "{{core}} was installed.": "{{core}}をインストールしました。",
     "{{core}} was updated.": "{{core}}を更新しました。",
     "{{emulator}} was installed.": "{{emulator}}をインストールしました。",

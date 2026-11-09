@@ -19,7 +19,7 @@ type AddToSteamOffer = {
     collections: SteamCollection[];
 };
 
-export type AddToSteamChoice = { name: string; collection: string };
+export type AddToSteamChoice = { name: string; collection: string; newCollection: string };
 
 function collectionKey(collection: SteamCollection): string {
     return `emulators:steam:collection:${collection.id || "none"}`;
@@ -29,6 +29,7 @@ function AddToSteamModal(props: { language: LanguageCode; offer: AddToSteamOffer
     const { language, offer, onAdd, close } = props;
     const [name, setName] = useState(offer.defaultName);
     const [chosen, setChosen] = useState("");
+    const [newCollection, setNewCollection] = useState("");
     const items = useMemo(() => [{ id: "", name: t(language, "None") }, ...offer.collections], [language, offer.collections]);
     const list = useSlidingWindow({
         items,
@@ -46,7 +47,7 @@ function AddToSteamModal(props: { language: LanguageCode; offer: AddToSteamOffer
     });
 
     function add() {
-        onAdd({ name: name.trim() || offer.defaultName, collection: chosen });
+        onAdd({ name: name.trim() || offer.defaultName, collection: chosen, newCollection: newCollection.trim() });
         close();
     }
 
@@ -66,7 +67,7 @@ function AddToSteamModal(props: { language: LanguageCode; offer: AddToSteamOffer
                             <SlidingWindowRows list={list}>
                                 {list.mountedItems.map((collection, index) => {
                                     const at = list.start + index;
-                                    const picked = collection.id === chosen;
+                                    const picked = collection.id === chosen && !newCollection.trim();
                                     return (
                                         <FocusTarget key={collection.id || "none"} focusKey={collectionKey(collection)}>
                                             <DialogButton
@@ -89,6 +90,10 @@ function AddToSteamModal(props: { language: LanguageCode; offer: AddToSteamOffer
                         </Focusable>
                     </ScrollPanelGroup>
                 </div>
+                <div style={smallTextStyle()}>{t(language, "Or a new collection")}</div>
+                <FocusTarget focusKey="emulators:steam:new-collection">
+                    <TextField value={newCollection} onChange={(e: { target: { value: string } }) => setNewCollection(e.target.value.slice(0, 128))} />
+                </FocusTarget>
                 <Focusable flow-children="row" style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
                     <FocusTarget focusKey="emulators:steam:add">
                         <DialogButton autoFocus onClick={add}>{t(language, "Add")}</DialogButton>

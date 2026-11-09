@@ -3647,6 +3647,7 @@ const RU: LocaleTable = {
     "Nothing was changed.": "Ничего не изменено.",
     "Step {{step}} of {{count}}": "Шаг {{step}} из {{count}}",
     "Fix It": "Исправить",
+    "Or a new collection": "Или новая коллекция",
     "{{core}} was installed.": "{{core}} установлен.",
     "{{core}} was updated.": "{{core}} обновлён.",
     "{{emulator}} was installed.": "{{emulator}} установлен.",

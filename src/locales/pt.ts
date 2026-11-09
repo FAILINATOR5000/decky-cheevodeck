@@ -3593,6 +3593,7 @@ const PT: LocaleTable = {
     "Nothing was changed.": "Nada foi alterado.",
     "Step {{step}} of {{count}}": "Etapa {{step}} de {{count}}",
     "Fix It": "Corrigir",
+    "Or a new collection": "Ou uma nova coleção",
     "{{core}} was installed.": "{{core}} foi instalado.",
     "{{core}} was updated.": "{{core}} foi atualizado.",
     "{{emulator}} was installed.": "{{emulator}} foi instalado.",

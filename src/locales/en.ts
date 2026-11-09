@@ -3572,6 +3572,7 @@ export const EN: LocaleTable = {
     "Nothing was changed.": "Nothing was changed.",
     "Step {{step}} of {{count}}": "Step {{step}} of {{count}}",
     "Fix It": "Fix It",
+    "Or a new collection": "Or a new collection",
     "{{core}} was installed.": "{{core}} was installed.",
     "{{core}} was updated.": "{{core}} was updated.",
     "{{emulator}} was installed.": "{{emulator}} was installed.",

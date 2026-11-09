@@ -269,7 +269,7 @@ async function addToSteam(language: LanguageCode, kind: EmulatorKind, name: stri
         return;
     }
     try {
-        const appid = await addEmulatorShortcut(choice.name, install, choice.collection);
+        const appid = await addEmulatorShortcut(choice.name, install, choice.collection, choice.newCollection);
         if (appid <= 0) {
             notice(language, t(language, "Couldn't add it to Steam."));
             return;

@@ -33,7 +33,7 @@ export function steamCollections(): SteamCollection[] {
     }
 }
 
-export async function addEmulatorShortcut(name: string, install: EmulatorInstall, collectionId: string): Promise<number> {
+export async function addEmulatorShortcut(name: string, install: EmulatorInstall, collectionId: string, newCollection = ""): Promise<number> {
     let exe = "/usr/bin/flatpak";
     let startDir = "/usr/bin";
     let options = "";
@@ -55,7 +55,10 @@ export async function addEmulatorShortcut(name: string, install: EmulatorInstall
     for (let tries = 0; tries < OVERVIEW_TRIES && !shortcutExists(appid); tries += 1) {
         await new Promise((resolve) => setTimeout(resolve, OVERVIEW_WAIT_MS));
     }
-    if (collectionId) {
+    if (newCollection) {
+        await fileIntoNewCollection(appid, newCollection);
+    }
+    else if (collectionId) {
         try {
             const collection = collectionStore.GetCollection(collectionId)?.AsDragDropCollection();
             const overview = appStore.GetAppOverviewByAppID(appid);
@@ -68,6 +71,27 @@ export async function addEmulatorShortcut(name: string, install: EmulatorInstall
         }
     }
     return appid;
+}
+
+async function fileIntoNewCollection(appid: number, name: string) {
+    try {
+        const overview = appStore.GetAppOverviewByAppID(appid);
+        if (!overview) {
+            return;
+        }
+        const existing = collectionStore.GetUserCollectionsByName(name)[0];
+        if (existing) {
+            existing.AsDragDropCollection()?.AddApps([overview]);
+            return;
+        }
+        if (collectionStore.BIsSystemCollectionName(name)) {
+            return;
+        }
+        await collectionStore.SaveCollection(collectionStore.NewUnsavedCollection(name, undefined, [overview]));
+    }
+    catch (e) {
+        logError("emulators: filing a shortcut into a new collection", e);
+    }
 }
 
 export function removeEmulatorShortcut(appid: number) {
