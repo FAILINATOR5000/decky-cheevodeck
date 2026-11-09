@@ -1094,6 +1094,12 @@ class MultiplayerService:
         if game.get("changed"):
             return None, "rom_missing", {"picked": "1"}
         system_id = game["systemId"]
+        if mode == "link" and system_id not in session.LINK_CORES:
+            return None, "link_system", {}
+        if mode == "link" and system_id == session.GAMECUBE_SYSTEM and game_id not in session.GC_LAN_GAMES:
+            return None, "link_gc_no_lan", {}
+        if mode == "couch" and system_id == session.DS_SYSTEM:
+            return None, "ds_no_couch", {}
         saved = self._picks.get(game_id, "couch") if use_saved and room is None and mode == "couch" else None
         own_pick, vehicle, saved_core = None, None, ""
         if saved is not None:
@@ -1155,10 +1161,6 @@ class MultiplayerService:
             return None, "melonds_standalone", {}
         if emulator == "duckstation" and mode == "couch":
             return self._duckstation_couch_local(local, core, room, saved_core)
-        if mode == "link" and system_id not in session.LINK_CORES:
-            return None, "link_system", {}
-        if mode == "couch" and system_id == session.DS_SYSTEM:
-            return None, "ds_no_couch", {}
         if mode == "link" and system_id == session.GBA_SYSTEM:
             local["gameCode"] = self._game_code_of(pick["real"], system_id)
             if not local["gameCode"]:

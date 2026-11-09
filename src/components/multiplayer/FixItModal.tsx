@@ -71,6 +71,9 @@ function reasonLine(language: LanguageCode, step: FixStep): string {
         const latest = step.choices?.find((choice) => choice.via === step.via)?.latest ?? "";
         return t(language, "Matches the host's {{emulator}} {{version}}", { emulator: step.name ?? "", version: latest });
     }
+    if (step.do === "enable_shortcut_fallback") {
+        return t(language, "Uses the emulator's own Steam shortcut, so the game doesn't need one");
+    }
     if (step.reason === "game_shortcut") {
         return t(language, "Same install as this game's shortcut");
     }

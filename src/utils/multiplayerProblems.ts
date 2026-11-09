@@ -10,7 +10,7 @@ const PROBLEM_TEXT: Record<string, string> = {
     cap_reached: "Leave this page and come back to look again",
     no_scan: "Run Cheevo Check first",
     not_in_results: "This game isn't in your Cheevo Check results",
-    no_shortcut: "No Steam ROM Manager shortcut for this game",
+    no_shortcut: "This game has no Steam shortcut of its own",
     no_emulator_shortcut: "Add this game, or {{emulator}} itself, to Steam as a non-Steam game.",
     rom_missing: "This game's file isn't where Cheevo Check last saw it. Run Cheevo Check again.",
     unsupported_emulator: "This emulator isn't supported",
@@ -142,7 +142,7 @@ export function fixableProblemText(language: LanguageCode, code: string, detail?
 const STREAM_HOST_TEXT: Record<string, string> = {
     no_scan: "Run Cheevo Check first to host",
     not_in_results: "To host, this game needs to be in your Cheevo Check results",
-    no_shortcut: "To host, this game needs a Steam ROM Manager shortcut",
+    no_shortcut: "To host, this game needs a Steam shortcut of its own",
     rom_missing: "This game's file isn't where Cheevo Check last saw it. Run Cheevo Check again to host.",
     no_emulator_shortcut: "To host, add this game, or {{emulator}} itself, to Steam as a non-Steam game."
 };
