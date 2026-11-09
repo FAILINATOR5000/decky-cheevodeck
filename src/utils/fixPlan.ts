@@ -12,12 +12,13 @@ import {
     saveMpShortcutFallback,
     type EmulatorClientUndo
 } from "../api";
+import { askAddToSteam, type AddToSteamChoice } from "../components/emulators/AddToSteamModal";
 import { askEmulatorQuestion } from "../components/emulators/EmulatorQuestionModal";
 import { getCurrentLanguage, t, type LanguageCode } from "../locales";
 import type { FixStep, MultiplayerMode } from "../types";
 import { showToastAfter } from "./delayedToast";
 import { watchEmulatorJob } from "./emulatorJobs";
-import { addEmulatorShortcut, removeEmulatorShortcut } from "./emulatorShortcuts";
+import { addEmulatorShortcut, removeEmulatorShortcut, steamCollections } from "./emulatorShortcuts";
 import { logError } from "./errors";
 import { setUpStreaming } from "./streamPlay";
 
@@ -189,12 +190,13 @@ async function runBackendStep(language: LanguageCode, plan: string, index: numbe
     }
 }
 
-async function runClientStep(language: LanguageCode, plan: string, step: FixStep): Promise<string> {
+async function runClientStep(language: LanguageCode, plan: string, step: FixStep, shortcut: AddToSteamChoice | null): Promise<string> {
     if (step.do === "add_to_steam" && step.kind && step.via) {
         const install = step.via === "flatpak"
             ? { via: "flatpak" as const, id: step.id ?? "", scope: step.scope ?? "user" }
             : { via: "appimage" as const, path: step.path ?? "" };
-        const appid = await addEmulatorShortcut(t(language, "{{name}} (Emulator)", { name: step.name ?? "" }), install, "");
+        const name = shortcut?.name || t(language, "{{name}} (Emulator)", { name: step.name ?? "" });
+        const appid = await addEmulatorShortcut(name, install, shortcut?.collection ?? "");
         if (appid <= 0) {
             return "failed";
         }
@@ -262,6 +264,22 @@ export async function runFixPlan(mode: MultiplayerMode, gameId: number, picked: 
         return;
     }
     const steps = carryChoices(answer.fix, picked);
+    const shortcuts = new Map<number, AddToSteamChoice>();
+    for (const [index, step] of steps.entries()) {
+        if (step.do !== "add_to_steam") {
+            continue;
+        }
+        const choice = await askAddToSteam(language, {
+            defaultName: t(language, "{{name}} (Emulator)", { name: step.name ?? "" }),
+            lines: [],
+            collections: steamCollections()
+        });
+        if (choice === null) {
+            publish({ run: null });
+            return;
+        }
+        shortcuts.set(index, choice);
+    }
     publish({ run: begin(steps) });
     let plan = "";
     let failure = "";
@@ -277,7 +295,7 @@ export async function runFixPlan(mode: MultiplayerMode, gameId: number, picked: 
                 update(at, { state: "running", progress: -1 }, { current: at });
                 failure = steps[at].where === "backend"
                     ? await runBackendStep(language, plan, at, steps[at])
-                    : await runClientStep(language, plan, steps[at]);
+                    : await runClientStep(language, plan, steps[at], shortcuts.get(at) ?? null);
                 if (failure) {
                     break;
                 }
