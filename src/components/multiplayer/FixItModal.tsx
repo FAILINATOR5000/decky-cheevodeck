@@ -66,6 +66,28 @@ export function fixStepLabel(language: LanguageCode, step: FixStep): string {
     }
 }
 
+const MODE_NAMES: Record<MultiplayerMode, string> = { link: "Link Play", couch: "Couch Play", stream: "Stream Play" };
+
+function fixDoneLine(language: LanguageCode, step: FixStep): string {
+    const name = step.name ?? "";
+    switch (step.do) {
+        case "install_core":
+            return t(language, "{{core}} was installed.", { core: name });
+        case "update_core":
+            return t(language, "{{core}} was updated.", { core: name });
+        case "install_emulator":
+            return t(language, "{{emulator}} was installed.", { emulator: name });
+        case "update_emulator":
+            return t(language, "{{emulator}} was updated.", { emulator: name });
+        case "add_to_steam":
+            return t(language, "{{emulator}} was added to Steam.", { emulator: name });
+        case "enable_shortcut_fallback":
+            return t(language, "Emulator Shortcuts was enabled.");
+        case "setup_streaming":
+            return t(language, "Streaming was set up.");
+    }
+}
+
 function reasonLine(language: LanguageCode, step: FixStep): string {
     if (step.reason === "host_version") {
         const latest = step.choices?.find((choice) => choice.via === step.via)?.latest ?? "";
@@ -95,7 +117,6 @@ function FixItModal(props: { language: LanguageCode; reason: FixItReason; close:
     const [steps, setSteps] = useState(reason.steps);
     const [openedAt] = useState(() => Date.now());
     const [followed, setFollowed] = useState(run?.running ? run.startedAt : 0);
-    const look = STATE_LOOKS[reason.state];
 
     useEffect(() => {
         setFixWindowOpen(true);
@@ -113,6 +134,7 @@ function FixItModal(props: { language: LanguageCode; reason: FixItReason; close:
     const finished = run !== null && ours && run.done && !run.running
         && (run.startedAt >= openedAt || run.startedAt === followed);
     const phase = shown?.running ? "running" : shown?.failed ? "failed" : finished ? "done" : "ready";
+    const look = STATE_LOOKS[phase === "done" ? "ready" : reason.state];
 
     function start() {
         const picked = shown?.failed ? shown.steps.map((row) => row.step) : steps;
@@ -176,11 +198,13 @@ function FixItModal(props: { language: LanguageCode; reason: FixItReason; close:
         <ModalRoot onCancel={close} onEscKeypress={close}>
             <div style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700, marginBottom: "12px", display: "flex", alignItems: "center", gap: "10px" }}>
                 <look.Icon style={{ color: look.color, flexShrink: 0 }} />
-                {t(language, TITLES[reason.mode][reason.state])}
+                {phase === "done" ? t(language, MODE_NAMES[reason.mode]) : t(language, TITLES[reason.mode][reason.state])}
             </div>
-            <div style={{ fontSize: `${modalSize(16)}px`, lineHeight: 1.4, whiteSpace: "pre-line", marginBottom: "12px" }}>
-                {reason.text}
-            </div>
+            {phase !== "done" && (
+                <div style={{ fontSize: `${modalSize(16)}px`, lineHeight: 1.4, whiteSpace: "pre-line", marginBottom: "12px" }}>
+                    {reason.text}
+                </div>
+            )}
             {shown !== null ? (
                 <div>
                     {shown.running && (
@@ -190,8 +214,14 @@ function FixItModal(props: { language: LanguageCode; reason: FixItReason; close:
                     )}
                     {shown.steps.map(renderProgress)}
                 </div>
-            ) : finished ? (
-                <div style={{ fontSize: `${modalSize(16)}px`, color: achievementGreen }}>{t(language, "Done")}</div>
+            ) : finished && run !== null ? (
+                <div>
+                    {run.steps.map((row, index) => (
+                        <div key={index} style={{ fontSize: `${modalSize(16)}px`, lineHeight: 1.4, color: achievementGreen, marginBottom: "6px" }}>
+                            {`✔ ${fixDoneLine(language, row.step)}`}
+                        </div>
+                    ))}
+                </div>
             ) : (
                 <Focusable flow-children="column">
                     {steps.map((step, index) => (

@@ -43,6 +43,7 @@ import { overrideRecord, topEntryId, usePageLanding, type LandingWindows } from 
 import { t, type LanguageCode } from "../locales";
 import type {
     ButtonSpacing,
+    FixStep,
     MultiplayerCoreChoice,
     MultiplayerGame,
     MultiplayerGuestGame,
@@ -102,6 +103,8 @@ const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 const NAV_ENTER_MAINTAIN_Y = 3;
 const FIX_DONE_MS = 4000;
 const DIR_UP = 9;
+const EMULATOR_SHORTCUT_GATES = ["no_emulator_shortcut", "no_dolphin_emulator_shortcut", "no_rmg_shortcut"];
+const MODE_NAMES: Record<MultiplayerMode, string> = { link: "Link Play", couch: "Couch Play", stream: "Stream Play" };
 
 const LINK_SYSTEMS = [4, 5, 6, 16, 18, 41];
 const DOLPHIN_CONSOLES = ["GameCube", "Wii"];
@@ -628,6 +631,35 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         return fixable ? fixableProblemText(language, gate, filled) : problemText(language, gate, filled);
     }
 
+    function fixText(forMode: MultiplayerMode, gate: string, detail: Record<string, string>, steps: FixStep[]) {
+        const install = steps.find((step) => step.do === "install_emulator");
+        const adding = steps.find((step) => step.do === "add_to_steam");
+        const mode = t(language, MODE_NAMES[forMode]);
+        if (gate === "no_shortcut" && steps.some((step) => step.do === "enable_shortcut_fallback")) {
+            const tools = mp.modes?.tools ?? {};
+            const lines = [
+                t(language, "No Steam shortcut was found for this game."),
+                t(language, "Want to try enabling Emulator Shortcuts? It's a feature that lets you launch games without their own shortcut, using the emulator's existing shortcut.")
+            ];
+            if (tools.emudeck) {
+                lines.push(t(language, "The other solution is to run your library through Steam ROM Manager in EmuDeck to add your games as shortcuts."));
+            }
+            else if (tools.srm) {
+                lines.push(t(language, "The other solution is to run your library through Steam ROM Manager to add your games as shortcuts."));
+            }
+            return lines.join("\n\n");
+        }
+        if (EMULATOR_SHORTCUT_GATES.includes(gate) && install) {
+            return t(language, "You don't seem to have {{emulator}} installed, which {{mode}} needs. Would you like to install it?",
+                { emulator: install.name ?? "", mode });
+        }
+        if (EMULATOR_SHORTCUT_GATES.includes(gate) && adding) {
+            return t(language, "{{emulator}} is installed but isn't in Steam yet, which {{mode}} needs. Would you like to add it?",
+                { emulator: adding.name ?? "", mode });
+        }
+        return reasonText(forMode, gate, detail, steps.length > 0);
+    }
+
     function fixReason(forMode: MultiplayerMode) {
         const entry = mp.modes?.modes[forMode];
         const gate = entry?.gate ?? "";
@@ -635,7 +667,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             mode: forMode,
             gameId: fixRun?.running ? fixRun.gameId : mp.gameId ?? 0,
             state: entry?.state === "never" ? "never" as const : "setup" as const,
-            text: gate ? reasonText(forMode, gate, entry?.detail ?? {}, (entry?.fix ?? []).length > 0) : "",
+            text: gate ? fixText(forMode, gate, entry?.detail ?? {}, entry?.fix ?? []) : "",
             steps: entry?.fix ?? [],
             tools: gate === "no_shortcut" ? mp.modes?.tools ?? null : null,
             refresh: () => actions.fixFor(forMode)
