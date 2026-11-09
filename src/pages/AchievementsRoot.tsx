@@ -3746,6 +3746,10 @@ function AchievementsRoot() {
             setView("gameOverview", "back");
             return;
         }
+        if (from === "multiplayer") {
+            setView("multiplayer", "back");
+            return;
+        }
 
         backToAchievements();
     }

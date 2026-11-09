@@ -82,6 +82,7 @@ import { getCurrentControllerGlyphStyle } from "../utils/controllerGlyphs";
 import { ButtonHints, type ButtonHint } from "../components/ui/ButtonHints";
 import { openExternalUrl, raLookupSearchUrl } from "../utils/navigation";
 import { playMoveSound } from "../utils/navSound";
+import { requestRoute } from "../utils/pendingPanelEntry";
 import { ROOM_ENDED, fixableProblemText, problemText, streamHostProblemText, warningText } from "../utils/multiplayerProblems";
 import {
     achievementGreen,
@@ -670,6 +671,15 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     if (!installing) {
                         openStreamSetup(language, stream.size || "?");
                     }
+                }
+            });
+        }
+        if (gate === "no_scan" || gate === "not_in_results" || gate === "rom_missing") {
+            fixes.push({
+                labelKey: "Run Cheevo Check Scan",
+                onPress: (close) => {
+                    requestRoute({ kind: "cheevoCheck" });
+                    close();
                 }
             });
         }
