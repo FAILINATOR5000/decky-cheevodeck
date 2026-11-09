@@ -1,3 +1,4 @@
+import copy
 import fnmatch
 import hashlib
 import json
@@ -418,6 +419,9 @@ class EmulatorService:
             decky.logger.info("emulators: couldn't read the core info list (%s)", type(e).__name__)
         self._zip_infos = (stamp, infos)
         return infos
+
+    def listed_core_info(self, core: str):
+        return self._infos_from_zip().get(core)
 
     def _crc(self, path, st) -> str:
         key = (str(path), st.st_mtime_ns, st.st_size)
@@ -1584,11 +1588,14 @@ class EmulatorService:
         entry = catalog.BY_KIND[kind]
         installed = []
         if row["flatpak"]["installed"]:
-            installed.append({"via": "flatpak", "id": entry["flatpak"], "scope": row["flatpak"]["scope"]})
+            installed.append({"via": "flatpak", "id": entry["flatpak"], "scope": row["flatpak"]["scope"],
+                              "steam": row["flatpak"].get("steam")})
         for image in row.get("appimages") or []:
             if not image["missing"]:
-                installed.append({"via": "appimage", "path": image["path"]})
+                installed.append({"via": "appimage", "path": image["path"], "steam": image.get("steam")})
         usable = [choice for choice in installed if not only or choice["via"] == only]
+        if any(choice["steam"] is not None for choice in usable):
+            return None
         if usable:
             usable.sort(key=lambda choice: choice["via"] != entry["via"])
             return [self._add_step(kind, entry["name"], usable[0])]
@@ -1646,21 +1653,22 @@ class EmulatorService:
             return None
         return [{"do": "update_emulator", "where": "backend", "kind": kind, "name": row["name"], **target}]
 
-    def plan(self, gate: str, detail: dict, context: dict):
+    def plan(self, gate: str, detail: dict, context: dict, inventory=None):
         try:
-            return self._plan(gate, detail or {}, context or {})
+            return self._plan(gate, detail or {}, context or {}, inventory)
         except Exception as e:
             decky.logger.warning("emulators: planning a fix for %s failed (%s)", gate, type(e).__name__)
             return None
 
-    def _plan(self, gate: str, detail: dict, context: dict):
+    def _plan(self, gate: str, detail: dict, context: dict, inventory=None):
         if gate == "stream_not_set_up":
             return [{"do": "setup_streaming", "where": "client"}]
         if gate == "no_shortcut":
             return None if context.get("shortcutFallback", True) else [{"do": "enable_shortcut_fallback", "where": "client"}]
         if gate == "link_needs_gambatte_both":
             return None
-        inventory = self._inventory if self._inventory is not None else self.inventory(network=False)
+        if inventory is None:
+            inventory = self._inventory if self._inventory is not None else self.inventory(network=False)
         host = context.get("hostVersion", "")
         if gate in LINK_GATES:
             return self._core_plan(inventory, LINK_GATES[gate])
@@ -1683,6 +1691,43 @@ class EmulatorService:
         if gate in MISMATCH_GATES:
             return self._match_plan(inventory, MISMATCH_GATES[gate], detail, context)
         return None
+
+    def inventory_after(self, steps) -> dict:
+        inventory = copy.deepcopy(self._inventory if self._inventory is not None else self.inventory(network=False))
+        for step in steps:
+            do = step.get("do")
+            if do in ("install_core", "update_core"):
+                for system in inventory["retroarch"]["systems"]:
+                    for core in system["cores"]:
+                        if core["core"] == step.get("core"):
+                            core.update(installed=True, update=False)
+                continue
+            if do not in ("install_emulator", "add_to_steam"):
+                continue
+            row = self._row_for(inventory, step.get("kind"))
+            if row is None:
+                continue
+            choice = next((option for option in step.get("choices") or [] if option["via"] == step.get("via")), step)
+            if step.get("via") == "flatpak":
+                target = row["flatpak"]
+                key = f"{step['kind']}:flatpak"
+                if do == "install_emulator":
+                    target.update(installed=True, scope=choice.get("scope") or "user")
+            else:
+                path = str(choice.get("path") or "")
+                key = f"{step['kind']}:{path_key(path)}"
+                target = next((image for image in row.get("appimages") or [] if image["path"] == path), None)
+                if target is None:
+                    target = {"path": path, "key": path_key(path), "fileName": Path(path).name, "version": "", "repo": "",
+                              "howFound": "planned", "ours": True, "missing": False, "latest": "", "update": False,
+                              "newerThanStable": False, "backup": None, "steam": None}
+                    row.setdefault("appimages", []).append(target)
+                else:
+                    target["missing"] = False
+            row["found"] = True
+            if do == "add_to_steam":
+                target["steam"] = {"appid": 0, "ours": True, "key": key}
+        return inventory
 
     def plan_begin(self) -> dict:
         if not self._repaired:

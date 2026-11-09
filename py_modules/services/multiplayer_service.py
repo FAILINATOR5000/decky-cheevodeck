@@ -218,12 +218,54 @@ SETUP_GATES = {
     "no_scan", "not_in_results", "rom_missing",
 }
 VERSION_GATES = {"dolphin_version_mismatch", "rmg_version_mismatch", "ppsspp_version_mismatch"}
+PICK_GATES = {"no_scan", "not_in_results", "rom_missing"}
+PICK_STEP = {"do": "pick_game_file", "where": "client"}
+PLAN_STAGES = 6
+STEP_ORDER = {"enable_shortcut_fallback": 0, "enable_play_shortcut_fallback": 0, "setup_streaming": 0,
+              "install_emulator": 1, "update_emulator": 1, "add_to_steam": 2, "install_core": 3, "update_core": 3,
+              "pick_game_file": 4}
 PLANNED_GATES = {
     "stream_not_set_up", "no_shortcut", "host_core_missing", "no_couch_core",
     "link_needs_gambatte", "link_needs_gambatte_both", "link_needs_gpsp", "link_needs_melondsds", "link_needs_ppsspp",
     "gpsp_too_old", "melondsds_too_old", "no_emulator_shortcut", "no_dolphin_emulator_shortcut", "no_rmg_shortcut",
     "duckstation_no_multiplayer", "dolphin_version_mismatch", "rmg_version_mismatch", "ppsspp_version_mismatch",
 }
+
+
+class _Overlay:
+    def __init__(self):
+        self.mp_fallback = None
+        self.play_fallback = None
+        self.streaming = False
+        self.flatpaks = set()
+        self.shortcuts = []
+        self.cores = set()
+        self.versions = {}
+
+
+class _RetroArchAfter(session.RetroArch):
+    def __init__(self, home, cores, listed):
+        super().__init__(home)
+        self._after = cores
+        self._listed = listed
+
+    def info(self, core: str):
+        found = super().info(core)
+        if found is None and core in self._after and self._listed is not None:
+            found = self._listed(core)
+            self._info[core] = found
+        return found
+
+    def installed(self, core: str) -> bool:
+        return (core in self._after and self.info(core) is not None) or super().installed(core)
+
+    def installed_cores(self) -> list:
+        cores = set(super().installed_cores())
+        cores.update(core for core in self._after if self.info(core) is not None)
+        return sorted(cores)
+
+    def version(self, core: str) -> str:
+        return "" if core in self._after else super().version(core)
 
 
 class _Responder(asyncio.DatagramProtocol):
@@ -345,6 +387,7 @@ class MultiplayerService:
         self._friends = None
         self._hotspot = None
         self._voice_relay = False
+        self._overlays = threading.local()
 
     def set_friends(self, friends) -> None:
         self._friends = friends
@@ -903,6 +946,9 @@ class MultiplayerService:
         return self._code_memo[key]
 
     def _gpsp_has_cable(self, path: Path) -> bool:
+        overlay = self._overlay()
+        if overlay is not None and Path(path).name.removesuffix("_libretro.so") in overlay.cores:
+            return True
         try:
             st = os.stat(path)
         except OSError:
@@ -933,6 +979,9 @@ class MultiplayerService:
         return out if code == 0 else None
 
     def _flatpak_version(self, app: str) -> str:
+        overlay = self._overlay()
+        if overlay is not None and app in overlay.versions:
+            return overlay.versions[app]
         versions = self._versions
         if versions is None:
             versions = {}
@@ -945,6 +994,9 @@ class MultiplayerService:
         return versions.get(app, "")
 
     def _flatpak_reads_home(self, app: str) -> bool:
+        overlay = self._overlay()
+        if overlay is not None and app in overlay.flatpaks:
+            return True
         if app not in self._permissions:
             out = self._flatpak("info", "--show-permissions", app)
             reads = out is None
@@ -955,6 +1007,13 @@ class MultiplayerService:
                     break
             self._permissions[app] = reads
         return self._permissions[app]
+
+    def _retroarch(self):
+        overlay = self._overlay()
+        if overlay is not None and overlay.cores:
+            listed = self._emulators.listed_core_info if self._emulators is not None else None
+            return _RetroArchAfter(self._user_home, overlay.cores, listed)
+        return session.RetroArch(self._user_home)
 
     def _compatible(self, ra, mode: str, system_id: int) -> list:
         cores = []
@@ -985,7 +1044,7 @@ class MultiplayerService:
         return compatible[0] if compatible else ""
 
     def games(self) -> dict:
-        ra = session.RetroArch(self._user_home)
+        ra = self._retroarch()
         installed = ra.installed_cores() if ra.found else []
         library = self._library()
         if library is None:
@@ -1183,7 +1242,7 @@ class MultiplayerService:
         if emulator != "retroarch":
             return None, "unsupported_emulator", {}
 
-        ra = session.RetroArch(self._user_home)
+        ra = self._retroarch()
         if not ra.found:
             return None, "no_shortcut" if local["fallback"] else "unsupported_emulator", {}
         local["ra"] = ra
@@ -1293,7 +1352,7 @@ class MultiplayerService:
         return self._appimage_version(session.rmg_appimage(shortcut["exe"], shortcut["launchOptions"], self._user_home))
 
     def _duckstation_couch_local(self, local: dict, core: str, room, saved_core: str = ""):
-        ra = session.RetroArch(self._user_home)
+        ra = self._retroarch()
         if not ra.found:
             return None, "duckstation_no_multiplayer", {}
         compatible = self._compatible(ra, "couch", session.PS1_SYSTEM)
@@ -1323,7 +1382,16 @@ class MultiplayerService:
         return local, None, {}
 
     def _fallback_on(self) -> bool:
+        overlay = self._overlay()
+        if overlay is not None and overlay.mp_fallback is not None:
+            return overlay.mp_fallback
         return bool(self._settings_store.load_config().get("mpShortcutFallback", True))
+
+    def _play_fallback_on(self) -> bool:
+        overlay = self._overlay()
+        if overlay is not None and overlay.play_fallback is not None:
+            return overlay.play_fallback
+        return bool(self._settings_store.load_config().get("playShortcutFallback", True))
 
     def _play_route(self, game_id: int, fallback_on=None, choice=None, session_pick: bool = False):
         library = self._library()
@@ -1350,7 +1418,7 @@ class MultiplayerService:
             own = self._pick_shortcut(linked["shortcuts"], "play", game["systemId"])
             return {"appid": own["appid"], "fallback": False, "shortcut": own, "rom": linked["path"]}, None, {}
         if fallback_on is None:
-            fallback_on = bool(self._settings_store.load_config().get("playShortcutFallback", True))
+            fallback_on = self._play_fallback_on()
         if not fallback_on:
             return None, "no_shortcut", {}
         rom = next((entry["path"] for entry in game["paths"] if os.path.isfile(entry["real"])), None)
@@ -1365,7 +1433,7 @@ class MultiplayerService:
                 continue
             route = {"appid": shortcut["appid"], "fallback": True, "kind": kind, "rom": rom, "corePath": ""}
             if kind == "retroarch":
-                ra = session.RetroArch(self._user_home)
+                ra = self._retroarch()
                 core = self._play_core(ra, system_id, Path(rom))
                 if not core:
                     coreless = True
@@ -1383,7 +1451,7 @@ class MultiplayerService:
         own = next((row for row in linked["shortcuts"] if row["appid"] == pick["appid"]), None) \
             if linked is not None and pick["appid"] else None
         core = pick["core"]
-        ra = session.RetroArch(self._user_home) if core else None
+        ra = self._retroarch() if core else None
         if core and (not ra.found or not ra.installed(core) or not ra.runs_system(core, system_id)):
             return None
         if own is not None:
@@ -1444,7 +1512,7 @@ class MultiplayerService:
         if game is None:
             return {"ok": False, "error": ERROR_NO_GAME}
         system_id = game["systemId"]
-        ra = session.RetroArch(self._user_home)
+        ra = self._retroarch()
         linked = next((entry for entry in game["paths"] if entry["shortcuts"]), None)
         own = linked["shortcuts"] if linked is not None else []
         default = self._pick_shortcut(own, "play", system_id) if own else None
@@ -1476,7 +1544,7 @@ class MultiplayerService:
         if game is None:
             return {"ok": False, "error": ERROR_NO_GAME}
         system_id = game["systemId"]
-        ra = session.RetroArch(self._user_home)
+        ra = self._retroarch()
         linked = next((entry for entry in game["paths"] if entry["shortcuts"]), None)
         own = [row for row in (linked["shortcuts"] if linked is not None else [])
                if self._shortcut_entry(row, ra)["kind"] in self._couch_kinds(system_id)]
@@ -1534,7 +1602,7 @@ class MultiplayerService:
             rom = route["rom"]
         core_name = STREAM_EMULATOR_NAMES.get(emulator, "")
         if core:
-            ra = session.RetroArch(self._user_home)
+            ra = self._retroarch()
             core_name = ra.core_name(core) if ra.found else core
         local = {
             "gameId": game_id,
@@ -1607,6 +1675,9 @@ class MultiplayerService:
         if room is not None:
             return None
         record = self._stream_setup.status() if self._stream_setup is not None else None
+        overlay = self._overlay()
+        if overlay is not None and overlay.streaming:
+            record = {"ready": True, "busy": False}
         if record is None or not record["ready"] or record["busy"]:
             self._debug("stream: not set up (%s)", "no setup" if record is None
                         else "busy" if record["busy"] else "not ready")
@@ -1625,7 +1696,7 @@ class MultiplayerService:
         return compatible[0] if compatible else ""
 
     def shortcut_changes(self, kind: str) -> dict:
-        if not bool(self._settings_store.load_config().get("playShortcutFallback", True)):
+        if not self._play_fallback_on():
             return {"ok": True, "changes": []}
         library = self._library() or {}
         have = {session.emulator_kind(row["exe"], row["launchOptions"]) for row in self._emulator_shortcuts()}
@@ -1645,10 +1716,13 @@ class MultiplayerService:
     def play_info(self, game_id: int, choice=None) -> dict:
         route, gate, detail = self._play_route(game_id, choice=choice)
         if route is None:
+            fix = self._fix(gate, detail, "play", game_id, None)
             return {"ok": True, "appid": 0, "launchable": False, "fallback": False, "gate": gate, "detail": detail,
-                    "tools": self.desktop_tools()}
+                    "tools": self.desktop_tools(),
+                    "plan": self._plan_ahead("play", game_id, "", None, (gate, detail, fix), choice=choice)}
         return {"ok": True, "appid": route["appid"], "launchable": True, "fallback": bool(_route_args(route)),
-                "gate": None, "detail": {}, "tools": self.desktop_tools(), "kind": _route_kind(route)}
+                "gate": None, "detail": {}, "tools": self.desktop_tools(), "kind": _route_kind(route),
+                "plan": {"outcome": "ready", "stages": [], "steps": [], "blocker": None}}
 
     def _desktop_tool_command(self, tool: str):
         home = self._user_home
@@ -1827,7 +1901,11 @@ class MultiplayerService:
     def _emulator_shortcuts(self) -> list:
         held = self.restore_record()["record"]
         held = (held["appid"], held["original"]) if held is not None else None
-        return steam_shortcuts.emulator_shortcuts(self._user_home, held)
+        found = steam_shortcuts.emulator_shortcuts(self._user_home, held)
+        overlay = self._overlay()
+        if overlay is not None and overlay.shortcuts:
+            return found + overlay.shortcuts
+        return found
 
     def _emulator_by_appid(self, appid: int):
         return next((row for row in self._emulator_shortcuts() if row["appid"] == appid), None)
@@ -1855,6 +1933,9 @@ class MultiplayerService:
             session.dolphin_appimage(shortcut["exe"], shortcut["launchOptions"], self._user_home))
 
     def _appimage_version(self, image: str) -> str:
+        overlay = self._overlay()
+        if overlay is not None and image in overlay.versions:
+            return overlay.versions[image]
         try:
             st = os.stat(image)
         except OSError:
@@ -2058,7 +2139,7 @@ class MultiplayerService:
             answer["modes"][mode] = _mode_state(self._check(mode, game_id, core, room))
         return answer
 
-    def _fix(self, gate, detail: dict, mode: str, game_id: int, room):
+    def _fix(self, gate, detail: dict, mode: str, game_id: int, room, inventory=None):
         if self._emulators is None or gate not in PLANNED_GATES:
             return None
         library = self._library() or {}
@@ -2066,7 +2147,7 @@ class MultiplayerService:
         context = {
             "mode": mode,
             "systemId": game.get("systemId"),
-            "shortcutFallback": self._fallback_on(),
+            "shortcutFallback": self._fallback_on() if mode != "play" else True,
             "hostVersion": str(room.get("emuVersion") or "") if room is not None and mode == "couch" else "",
             "raShortcut": self._emulator_shortcut("retroarch") is not None,
         }
@@ -2077,7 +2158,7 @@ class MultiplayerService:
             if shortcut is not None:
                 find = session.dolphin_appimage if gate.startswith("dolphin") else session.rmg_appimage
                 context["path"] = find(shortcut["exe"], shortcut["launchOptions"], self._user_home)
-        return self._emulators.plan(gate, detail, context)
+        return self._emulators.plan(gate, detail, context, inventory)
 
     def _gate_answer(self, gate, detail: dict, mode: str, game_id: int, room) -> dict:
         fix = self._fix(gate, detail, mode, game_id, room)
@@ -2088,11 +2169,11 @@ class MultiplayerService:
     def _check(self, mode: str, game_id: int, core: str, room) -> dict:
         local, gate, detail = self._local(mode, game_id, core, room)
         if local is None:
-            return {"ok": True, "gate": gate, "detail": detail, "warnings": [], "local": None,
-                    **self._gate_answer(gate, detail, mode, game_id, room)}
+            return self._with_plan({"ok": True, "gate": gate, "detail": detail, "warnings": [], "local": None,
+                                    **self._gate_answer(gate, detail, mode, game_id, room)}, mode, game_id, core, room)
         found, warnings = self._gates(mode, local, room, self._players(mode, room))
         gate, detail = (found[0], found[1]) if found else (None, {})
-        return {
+        return self._with_plan({
             "ok": True,
             "gate": gate,
             "detail": detail,
@@ -2100,7 +2181,100 @@ class MultiplayerService:
             "local": _local_view(local),
             "lanOnly": _lan_only(mode, local),
             **self._gate_answer(gate, detail, mode, game_id, room),
-        }
+        }, mode, game_id, core, room)
+
+    def _with_plan(self, checked: dict, mode: str, game_id: int, core: str, room, joined=None) -> dict:
+        checked["plan"] = self._plan_ahead(mode, game_id, core, room, (checked["gate"], checked["detail"], checked["fix"]),
+                                           joined=joined)
+        if checked["plan"]["steps"]:
+            checked["state"] = "setup"
+        return checked
+
+    def _overlay(self):
+        return getattr(self._overlays, "now", None)
+
+    def _gate_now(self, target: str, game_id: int, core: str, room, joined=None, choice=None):
+        if target == "play":
+            _route, gate, detail = self._play_route(game_id, choice=choice)
+            return gate, detail
+        if joined is not None:
+            local, gate, detail = self._decide(joined["row"], joined["own"], joined["core"])
+            return (None, {}) if local is not None else (gate, detail)
+        local, gate, detail = self._local(target, game_id, core, room)
+        if local is None:
+            return gate, detail
+        found, _warnings = self._gates(target, local, room, self._players(target, room), warn_crc=False)
+        return (found[0], found[1]) if found else (None, {})
+
+    def plan_ahead(self, target: str, game_id: int, room_id: str = "", choice=None) -> dict:
+        if target == "play":
+            first = self._gate_now("play", game_id, "", None, choice=choice)
+            fix = self._fix(first[0], first[1], "play", game_id, None) if first[0] else None
+            return self._plan_ahead("play", game_id, "", None, (*first, fix), choice=choice)
+        joined = self._joined if self._room is None else None
+        if joined is not None:
+            checked = self._joined_check(joined)
+            return checked["plan"]
+        room = self._room_row(room_id) if self._room is None else None
+        core = ""
+        if self._room is not None:
+            target, game_id, core = self._room["mode"], self._room["gameId"], self._room["core"]
+        return self._check(target, game_id, core, room)["plan"]
+
+    def _plan_ahead(self, target: str, game_id: int, core: str, room, first, joined=None, choice=None) -> dict:
+        mode = joined["row"]["mode"] if joined is not None else target
+        fix_game = (joined["own"] or joined["row"]["gameId"]) if joined is not None else game_id
+        fix_room = joined["row"] if joined is not None else room
+        gate, detail, fix = first
+        stages, steps, outcome, blocker = [], [], "blocked", None
+        overlay = _Overlay()
+        self._overlays.now = overlay
+        try:
+            while True:
+                if not gate:
+                    outcome = "ready"
+                    break
+                if gate in PICK_GATES:
+                    stages.append({"gate": gate, "detail": detail, "steps": [dict(PICK_STEP)]})
+                    steps = steps + [dict(PICK_STEP)]
+                    outcome = "after_pick"
+                    break
+                if stages:
+                    fix = None
+                    if len(stages) < PLAN_STAGES and self._emulators is not None:
+                        fix = self._fix(gate, detail, mode, fix_game, fix_room, self._emulators.inventory_after(steps))
+                merged = _merge_steps(steps, fix or [])
+                if len(merged) == len(steps):
+                    blocker = {"gate": gate, "detail": detail}
+                    break
+                stages.append({"gate": gate, "detail": detail, "steps": fix})
+                steps = merged
+                self._imagine(overlay, fix, detail)
+                gate, detail = self._gate_now(target, game_id, core, room, joined, choice)
+        finally:
+            self._overlays.now = None
+        return {"outcome": outcome, "stages": stages, "steps": steps, "blocker": blocker}
+
+    def _imagine(self, overlay: _Overlay, steps: list, detail: dict) -> None:
+        for step in steps:
+            do = step["do"]
+            if do == "enable_shortcut_fallback":
+                overlay.mp_fallback = True
+            elif do == "enable_play_shortcut_fallback":
+                overlay.play_fallback = True
+            elif do == "setup_streaming":
+                overlay.streaming = True
+            elif do in ("install_core", "update_core"):
+                overlay.cores.add(step["core"])
+            elif do == "install_emulator":
+                choice = next((option for option in step.get("choices") or [] if option["via"] == step["via"]), {})
+                if step["via"] == "flatpak":
+                    overlay.flatpaks.add(choice.get("id") or catalog.BY_KIND[step["kind"]]["flatpak"])
+            elif do == "update_emulator":
+                key = catalog.BY_KIND[step["kind"]]["flatpak"] if step["via"] == "flatpak" else step.get("path", "")
+                overlay.versions[key] = str(detail.get("version") or "")
+            elif do == "add_to_steam":
+                overlay.shortcuts.append(_planned_shortcut(step, len(overlay.shortcuts)))
 
     def _joined_check(self, joined: dict) -> dict:
         if not joined["can"]:
@@ -2113,7 +2287,7 @@ class MultiplayerService:
             _found, warnings = self._gates(row["mode"], local, row, self._players(row["mode"], row))
         gate = None if joined["can"] else joined["reason"]
         detail = {} if joined["can"] else joined["detail"]
-        return {
+        return self._with_plan({
             "ok": True,
             "gate": gate,
             "detail": detail,
@@ -2121,7 +2295,7 @@ class MultiplayerService:
             "local": _local_view(local) if local is not None else None,
             **self._gate_answer(gate, detail, joined["row"]["mode"], joined["own"] or joined["row"]["gameId"],
                                 joined["row"]),
-        }
+        }, joined["row"]["mode"], joined["own"] or joined["row"]["gameId"], "", joined["row"], joined=joined)
 
     def _decide(self, row: dict, own_game: int, core: str):
         mode = row["mode"]
@@ -4768,7 +4942,7 @@ class MultiplayerService:
             room = self._room
             if local["emulator"] == "retroarch" and local["core"] in session.MULTITAP \
                     and room is not None and room["max"] > 2:
-                ra = session.RetroArch(self._user_home)
+                ra = self._retroarch()
                 rom = Path(local["path"])
                 adapter = self._room_tap(room)
                 devices = session.multitap(local["core"], adapter).get("devices", {})
@@ -5695,7 +5869,32 @@ def _gate_state(gate, fix=None, planned: bool = False) -> str:
 
 
 def _mode_state(checked: dict) -> dict:
-    return {"state": checked["state"], "gate": checked["gate"], "detail": checked["detail"], "fix": checked["fix"]}
+    return {"state": checked["state"], "gate": checked["gate"], "detail": checked["detail"], "fix": checked["fix"],
+            "plan": checked["plan"]}
+
+
+def _merge_steps(steps: list, more: list) -> list:
+    merged = list(steps)
+    seen = {_step_key(step) for step in steps}
+    for step in more:
+        if _step_key(step) not in seen:
+            seen.add(_step_key(step))
+            merged.append(step)
+    merged.sort(key=lambda step: STEP_ORDER.get(step["do"], 2))
+    return merged
+
+
+def _step_key(step: dict) -> tuple:
+    return step["do"], step.get("kind") or step.get("core") or ""
+
+
+def _planned_shortcut(step: dict, index: int) -> dict:
+    if step["via"] == "flatpak":
+        scope = "system" if step.get("scope") == "system" else "user"
+        exe, options = "/usr/bin/flatpak", f"run --{scope} {step.get('id', '')}"
+    else:
+        exe, options = f'"{step.get("path", "")}"', ""
+    return {"appid": -1 - index, "name": step.get("name", ""), "exe": exe, "launchOptions": options}
 
 
 def _local_view(local: dict) -> dict:
