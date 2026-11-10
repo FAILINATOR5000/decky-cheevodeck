@@ -4,6 +4,7 @@ import { t, type LanguageCode } from "../../locales";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { modalSize } from "../../utils/scale";
 import { FocusTarget } from "../ui/FocusTarget";
+import { HeadingStop } from "../ui/HeadingStop";
 
 export type CoresOffer = {
     systems: number;
@@ -27,7 +28,10 @@ function InstallCoresModal(props: { language: LanguageCode; offer: CoresOffer; o
 
     return (
         <ModalRoot onCancel={close} onEscKeypress={close}>
-            <div style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700, marginBottom: "12px" }}>{t(language, "Install Cores")}</div>
+            <HeadingStop focusKey="emulators:cores:title" autoFocus outerStyle={{ marginBottom: "12px" }}
+                style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700 }}>
+                {t(language, "Install Cores")}
+            </HeadingStop>
             <div style={{ fontSize: `${modalSize(16)}px`, lineHeight: 1.4 }}>
                 {t(language, "{{count}} systems with games have no core yet. Install the recommended one for each?", { count: offer.systems })}
             </div>
@@ -42,7 +46,7 @@ function InstallCoresModal(props: { language: LanguageCode; offer: CoresOffer; o
             </div>
             <Focusable style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "16px" }} flow-children="column">
                 <FocusTarget focusKey="emulators:cores:recommended">
-                    <DialogButton autoFocus onClick={() => choose("recommended")}>{t(language, "Install Recommended")}</DialogButton>
+                    <DialogButton onClick={() => choose("recommended")}>{t(language, "Install Recommended")}</DialogButton>
                 </FocusTarget>
                 <FocusTarget focusKey="emulators:cores:all">
                     <DialogButton onClick={() => choose("all")}>{t(language, "Install Every Core")}</DialogButton>

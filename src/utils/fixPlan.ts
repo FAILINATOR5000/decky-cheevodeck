@@ -220,8 +220,7 @@ async function runBackendStep(language: LanguageCode, plan: string, index: numbe
                 name: step.name ?? ""
             }),
             confirm: t(language, "Replace with Stable"),
-            cancel: t(language, "Keep Mine"),
-            focusConfirm: false
+            cancel: t(language, "Keep Mine")
         });
         if (!replace) {
             return "kept";

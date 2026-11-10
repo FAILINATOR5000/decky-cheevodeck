@@ -105,8 +105,7 @@ async function pointTo(language: LanguageCode, kind: EmulatorKind, name: string)
                     emulator: name
                 }),
                 confirm: t(language, "Use It"),
-                cancel: t(language, "Cancel"),
-                focusConfirm: false
+                cancel: t(language, "Cancel")
             });
             if (!yes) {
                 return;
@@ -214,8 +213,7 @@ async function startEmulatorJob(language: LanguageCode, name: string, start: (fo
                     stable: result.stable ?? ""
                 }),
                 confirm: t(language, "Replace with {{version}}", { version: result.stable ?? "" }),
-                cancel: t(language, "Keep Mine"),
-                focusConfirm: false
+                cancel: t(language, "Keep Mine")
             });
             if (replace) {
                 started(language, await start(true), name);
@@ -301,8 +299,7 @@ async function backups(language: LanguageCode, what: BackupsChoice, target: stri
             text: t(language, "Delete the {{version}} backup? This can't be undone.", { version }),
             path: choice.backup.path,
             confirm: t(language, "Delete"),
-            cancel: t(language, "Cancel"),
-            focusConfirm: false
+            cancel: t(language, "Cancel")
         });
         if (yes) {
             started(language, await emulatorsDeleteBackup(choice.backup.path, target));
@@ -340,8 +337,7 @@ async function uninstall(language: LanguageCode, what: UninstallChoice, target: 
         text: lines.join("\n"),
         path: what.path || undefined,
         confirm: t(language, "Uninstall"),
-        cancel: t(language, "Cancel"),
-        focusConfirm: false
+        cancel: t(language, "Cancel")
     });
     if (!yes) {
         return;

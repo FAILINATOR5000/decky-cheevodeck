@@ -3,6 +3,7 @@ import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
 import { t, type LanguageCode } from "../../locales";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { modalSize } from "../../utils/scale";
+import { HeadingStop } from "../ui/HeadingStop";
 
 export type ProblemItem = string | { text: string; onPress: () => void };
 
@@ -13,9 +14,10 @@ function ProblemModal(props: { language: LanguageCode; title: string; text: stri
     const bulleted = items !== null && items.length > 1;
     return (
         <ModalRoot onCancel={close} onEscKeypress={close}>
-            <div style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700, marginBottom: "12px" }}>
+            <HeadingStop focusKey="problem:title" autoFocus outerStyle={{ marginBottom: "12px" }}
+                style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700 }}>
                 {props.title}
-            </div>
+            </HeadingStop>
             {items === null ? (
                 <div style={{ fontSize: `${modalSize(16)}px`, lineHeight: 1.4, whiteSpace: "pre-line" }}>
                     {text}
