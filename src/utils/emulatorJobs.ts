@@ -22,7 +22,7 @@ const watchers = new Set<(state: EmulatorJobState) => void>();
 
 const ERROR_LINES: Record<string, string> = {
     no_space: "Not enough free space.",
-    no_network: "Couldn't reach the server.",
+    no_network: "Couldn't reach the server. Check your internet connection and try again.",
     unsafe: "A file wasn't the way CheevoDeck expected, so it stopped.",
     busy: "Another install is running."
 };

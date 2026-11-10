@@ -73,6 +73,19 @@ OLD_COPY = re.compile(r"(?i)\.appimage.*(\.bak|\.old$)")
 _CORE = re.compile(r"^[A-Za-z0-9_+.-]{1,64}$")
 
 
+FLATPAK_NETWORK = re.compile(r"resolve host|could not connect|failed to connect|network is unreachable"
+                             r"|timeout was reached|timed out|unable to load summary", re.I)
+FLATPAK_SPACE = re.compile(r"no space left|not enough (disk )?space", re.I)
+
+
+def _flatpak_error(err: str) -> str:
+    if FLATPAK_SPACE.search(err or ""):
+        return "no_space"
+    if FLATPAK_NETWORK.search(err or ""):
+        return "no_network"
+    return "failed"
+
+
 class StepFailed(Exception):
     def __init__(self, code: str, detail: str = ""):
         super().__init__(detail or code)
@@ -1345,7 +1358,7 @@ class EmulatorService:
             done.set()
             watcher.join(WATCH_SECONDS * 2)
         if code != 0:
-            raise StepFailed("stopped" if self._stop.is_set() else "failed",
+            raise StepFailed("stopped" if self._stop.is_set() else _flatpak_error(err),
                              f"flatpak {argv[0]} failed ({code}: {err.strip()[-200:]})")
 
     def _installed_flatpak(self, app: str):
