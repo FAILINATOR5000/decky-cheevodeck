@@ -102,6 +102,8 @@ class MultiplayerMixin(PluginContext):
         return await self.multiplayer_service.join(str(room_id or ""), str(password or ""), bool(hardcore))
 
     async def multiplayer_set_ready(self, ready: bool = False, reason: str = ""):
+        if ready:
+            await asyncio.to_thread(self.multiplayer_service.redecide_if_changed)
         return self.multiplayer_service.set_ready(bool(ready), str(reason or ""))
 
     async def multiplayer_say(self, text: str = ""):

@@ -2432,13 +2432,22 @@ class MultiplayerService:
             elif do == "add_to_steam":
                 overlay.shortcuts.append(_planned_shortcut(step, len(overlay.shortcuts)))
 
-    def _joined_check(self, joined: dict) -> dict:
+    def _redecide(self, joined: dict, always: bool = False) -> None:
         changed = self._emulators.changed if self._emulators is not None else 0
-        if not joined["can"] or joined.get("changed") != changed:
-            rev = joined["rowRev"]
-            local, reason, detail = self._decide(joined["row"], joined["own"], joined["core"])
-            if joined["rowRev"] == rev:
-                joined.update(local=local, can=local is not None, reason=reason, detail=detail, changed=changed)
+        if not always and joined.get("changed") == changed:
+            return
+        rev = joined["rowRev"]
+        local, reason, detail = self._decide(joined["row"], joined["own"], joined["core"])
+        if joined["rowRev"] == rev:
+            joined.update(local=local, can=local is not None, reason=reason, detail=detail, changed=changed)
+
+    def redecide_if_changed(self) -> None:
+        joined = self._joined
+        if joined is not None:
+            self._redecide(joined)
+
+    def _joined_check(self, joined: dict) -> dict:
+        self._redecide(joined, always=not joined["can"])
         local = joined["local"]
         warnings = []
         if local is not None:

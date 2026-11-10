@@ -569,9 +569,10 @@ class EmulatorService:
 
     def inventory(self, refresh: bool = False, network: bool = True) -> dict:
         with self._lock:
-            if self._inventory is not None and not refresh \
-                    and self._stamp(self._inventory["emulators"]) == self._inventory_stamp:
-                return self._inventory
+            if self._inventory is not None and not refresh:
+                if self._stamp(self._inventory["emulators"]) == self._inventory_stamp:
+                    return self._inventory
+                self.changed += 1
             self._forget_gone_backups()
             record = self._store.get()
             flatpaks = self._flatpaks()
