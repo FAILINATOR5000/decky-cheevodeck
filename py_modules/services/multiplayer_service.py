@@ -123,6 +123,7 @@ PARK_UNPAIR_AGAIN_SECONDS = 21
 APP_ENDED_GRACE_SECONDS = 10
 FLATPAK_SECONDS = 10
 FLATPAK_RECHECK_SECONDS = 10
+HASH_WAIT_SECONDS = 900
 
 EMULATOR_NAMES = ("retroarch", "PPSSPPSDL", "PPSSPPQt", "dolphin-emu", "RMG")
 GAME_AUDIO_BINARIES = (*EMULATOR_NAMES, "moonlight")
@@ -377,6 +378,8 @@ class MultiplayerService:
         self._picked_watch = ()
         self._verdict_memo = {}
         self._hash_memo = {}
+        self._hash_reads = {}
+        self._hash_lock = threading.Lock()
         self._crc_memo = {}
         self._build_memo = {}
         self._code_memo = {}
@@ -934,14 +937,41 @@ class MultiplayerService:
         except OSError:
             return ""
         key = (entry["real"], st.st_mtime_ns, st.st_size)
-        if key not in self._hash_memo:
+        if key in self._hash_memo:
+            return self._hash_memo[key]
+        with self._hash_lock:
+            reading = self._hash_reads.get(key)
+            mine = reading is None
+            if mine:
+                reading = self._hash_reads[key] = threading.Event()
+        if not mine:
+            reading.wait(HASH_WAIT_SECONDS)
+            return self._hash_memo.get(key, "")
+        try:
             found = ""
             if self._cheevo_check is not None:
                 found = self._cheevo_check.hash_rom_for_room(entry["real"], system_id)
-            if not found:
-                return ""
-            self._hash_memo[key] = found
-        return self._hash_memo[key]
+            if found:
+                self._hash_memo[key] = found
+            return found
+        finally:
+            with self._hash_lock:
+                self._hash_reads.pop(key, None)
+            reading.set()
+
+    def _read_ahead(self, local: dict, system_id: int) -> None:
+        if local["hash"] or system_id not in session.DOLPHIN_SYSTEMS or self._cheevo_check is None \
+                or self._overlay() is not None:
+            return
+        try:
+            st = os.stat(local["real"])
+        except OSError:
+            return
+        key = (local["real"], st.st_mtime_ns, st.st_size)
+        if key in self._hash_memo or key in self._hash_reads or self._cheevo_check.cached_room_hash(local["real"], system_id):
+            return
+        entry = {"hash": "", "real": local["real"]}
+        threading.Thread(target=self._hash_of, args=(entry, system_id), name="room-hash", daemon=True).start()
 
     def _hash_needs_dolphin(self, entry: dict, system_id: int) -> bool:
         if entry["hash"] or system_id not in session.DOLPHIN_SYSTEMS or self._cheevo_check is None:
@@ -2113,8 +2143,10 @@ class MultiplayerService:
 
         if local["fallback"] and not os.path.isfile(local["path"]):
             return ("rom_missing", {}), warnings
-        if room is None and mode == "couch" and self._hash_needs_dolphin(local, system_id):
-            return ("needs_dolphin", {}), warnings
+        if room is None and mode == "couch":
+            if self._hash_needs_dolphin(local, system_id):
+                return ("needs_dolphin", {}), warnings
+            self._read_ahead(local, system_id)
 
         if room is not None:
             if room.get("where") == "online" and _lan_only(mode, local):

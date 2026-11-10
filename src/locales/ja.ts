@@ -3478,6 +3478,7 @@ const JA: LocaleTable = {
     "Show Systems": "システムを表示",
     "Hide Systems": "システムを隠す",
     "The host couldn't check its game file": "ホストがゲームファイルを確認できませんでした",
+    "Reading the game file... {{seconds}} s": "ゲームファイルを読み込み中... {{seconds}}秒",
 };
 
 export default JA;

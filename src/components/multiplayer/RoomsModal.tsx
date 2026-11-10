@@ -9,6 +9,7 @@ import type { MultiplayerRoomRow } from "../../types";
 import { logError } from "../../utils/errors";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { multiplayerChoices, rememberMultiplayerRoomFilter, rememberMultiplayerTab } from "../../utils/multiplayerChoices";
+import { startReadingLine } from "../../utils/readingLine";
 import { getCurrentModalScale, modalSize } from "../../utils/scale";
 import { searchKey } from "../../utils/searchText";
 import { compactButtonStyle, modalBodyStyle, warnAmber } from "../../utils/style";
@@ -221,8 +222,12 @@ function RoomsModal(props: RoomsModalProps) {
         }
         setBusy(true);
         setLine({ tone: "busy", text: t(language, "Joining...") });
+        const stopReading = row.mode === "couch"
+            ? startReadingLine(language, (text) => setLine({ tone: "busy", text }))
+            : () => { };
         try {
             const joined = await multiplayerJoin(row.room, typed, hardcore);
+            stopReading();
             if (joined.ok) {
                 joinedRef.current = true;
                 rememberMultiplayerTab(row.mode);
@@ -237,6 +242,7 @@ function RoomsModal(props: RoomsModalProps) {
             setLine({ tone: "error", text: describe(joined.gate ?? joined.error ?? "unavailable", joined.detail) });
         }
         catch (e) {
+            stopReading();
             logError("multiplayerJoin", e);
             setLine({ tone: "error", text: describe("unavailable") });
         }

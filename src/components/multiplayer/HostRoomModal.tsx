@@ -9,6 +9,7 @@ import { logError } from "../../utils/errors";
 import { multiplayerChoices, rememberMultiplayerHostPicks, rememberMultiplayerVoice } from "../../utils/multiplayerChoices";
 import { screenSize } from "../../utils/multiplayerSession";
 import { showManagedModal } from "../../utils/modalRegistry";
+import { startReadingLine } from "../../utils/readingLine";
 import { modalSize } from "../../utils/scale";
 import { achievementGreen, compactButtonStyle, modalBodyStyle, warnAmber } from "../../utils/style";
 import { helpDescription } from "../ui/InfoText";
@@ -88,11 +89,15 @@ function HostRoomModal(props: HostRoomModalProps) {
         setLine({ tone: "busy", text: t(language, "Hosting...") });
         rememberMultiplayerHostPicks(seats, status, place.online && !localOnly ? where : picks.where, access);
         rememberMultiplayerVoice(voice);
+        const stopReading = request.mode === "couch"
+            ? startReadingLine(language, (text) => setLine({ tone: "busy", text }))
+            : () => { };
         try {
             await multiplayerSetVisible(true, true);
             const hosted = await multiplayerHost(request.mode, request.gameId, request.hardcore, request.core,
                 request.share, name.trim(), seats, access === "private" ? password : "", status, where, request.watch,
                 access === "friends", voice, screenSize());
+            stopReading();
             if (hosted.ok) {
                 overrideRecord(entryId, { focusKey: "multiplayer:host" });
                 close();
@@ -101,6 +106,7 @@ function HostRoomModal(props: HostRoomModalProps) {
             setLine({ tone: "error", text: describe(hosted.gate ?? hosted.error ?? "unavailable", hosted.detail) });
         }
         catch (e) {
+            stopReading();
             logError("multiplayerHost", e);
             setLine({ tone: "error", text: describe("unavailable") });
         }

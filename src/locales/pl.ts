@@ -3739,6 +3739,7 @@ const PL: LocaleTable = {
     "Show Systems": "Pokaż systemy",
     "Hide Systems": "Ukryj systemy",
     "The host couldn't check its game file": "Host nie mógł sprawdzić swojego pliku gry",
+    "Reading the game file... {{seconds}} s": "Odczytywanie pliku gry... {{seconds}} s",
 };
 
 export default PL;

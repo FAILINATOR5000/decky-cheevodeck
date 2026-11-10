@@ -3638,4 +3638,5 @@ export const EN: LocaleTable = {
     "Show Systems": "Show Systems",
     "Hide Systems": "Hide Systems",
     "The host couldn't check its game file": "The host couldn't check its game file",
+    "Reading the game file... {{seconds}} s": "Reading the game file... {{seconds}} s",
 };

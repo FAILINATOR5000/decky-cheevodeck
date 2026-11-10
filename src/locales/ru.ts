@@ -3708,6 +3708,7 @@ const RU: LocaleTable = {
     "Show Systems": "Показать системы",
     "Hide Systems": "Скрыть системы",
     "The host couldn't check its game file": "Хост не смог проверить свой файл игры",
+    "Reading the game file... {{seconds}} s": "Чтение файла игры... {{seconds}} с",
 };
 
 export default RU;

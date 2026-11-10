@@ -214,6 +214,7 @@ class CheevoCheckService:
         self._cancel = threading.Event()
         self._dolphin_ready = None
         self._dolphin_checked = 0.0
+        self._room_cache_lock = threading.Lock()
         self._indexes = {}
 
         self._identity_cache = None
@@ -1815,7 +1816,17 @@ class CheevoCheckService:
             decky.logger.warning("cheevocheck: hashing %s for a room failed (%s)", rom.name, type(e).__name__)
             return ""
         digest = (row or {}).get("hash")
-        return digest if isinstance(digest, str) and re.fullmatch(r"[0-9a-f]{32}", digest) else ""
+        if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{32}", digest):
+            return ""
+        if self._cache_hashes_enabled():
+            with self._room_cache_lock:
+                cache = self._store.load_hash_cache()
+                self._remember(cache, console_id, rom, digest)
+                try:
+                    self._store.save_hash_cache(cache)
+                except OSError as e:
+                    decky.logger.info("cheevocheck: couldn't keep %s's hash (%s)", rom.name, type(e).__name__)
+        return digest
 
     def cached_room_hash(self, path, console_id: int) -> str:
         rom = Path(path)
