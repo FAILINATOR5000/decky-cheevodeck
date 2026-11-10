@@ -3633,4 +3633,8 @@ export const EN: LocaleTable = {
     "Couldn't delete the backup.": "Couldn't delete the backup.",
     "Update All Cores": "Update All Cores",
     "Clear Custom Install": "Clear Custom Install",
+    "Non-Steam Shortcut": "Non-Steam Shortcut",
+    "Cores by System": "Cores by System",
+    "Show Systems": "Show Systems",
+    "Hide Systems": "Hide Systems",
 };

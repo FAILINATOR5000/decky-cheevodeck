@@ -3654,6 +3654,10 @@ const FR: LocaleTable = {
     "Couldn't delete the backup.": "Impossible de supprimer la sauvegarde.",
     "Update All Cores": "Mettre à jour tous les cœurs",
     "Clear Custom Install": "Retirer l'installation perso",
+    "Non-Steam Shortcut": "Raccourci non-Steam",
+    "Cores by System": "Cœurs par système",
+    "Show Systems": "Afficher les systèmes",
+    "Hide Systems": "Masquer les systèmes",
 };
 
 export default FR;

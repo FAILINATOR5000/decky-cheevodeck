@@ -3621,6 +3621,10 @@ const DE: LocaleTable = {
     "Couldn't delete the backup.": "Die Sicherung konnte nicht gelöscht werden.",
     "Update All Cores": "Alle Kerne aktualisieren",
     "Clear Custom Install": "Eigene Installation entfernen",
+    "Non-Steam Shortcut": "Nicht-Steam-Verknüpfung",
+    "Cores by System": "Kerne nach System",
+    "Show Systems": "Systeme zeigen",
+    "Hide Systems": "Systeme ausblenden",
 };
 
 export default DE;

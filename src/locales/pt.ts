@@ -3654,6 +3654,10 @@ const PT: LocaleTable = {
     "Couldn't delete the backup.": "Não foi possível apagar o backup.",
     "Update All Cores": "Atualizar todos os núcleos",
     "Clear Custom Install": "Remover instalação própria",
+    "Non-Steam Shortcut": "Atalho não Steam",
+    "Cores by System": "Núcleos por sistema",
+    "Show Systems": "Mostrar sistemas",
+    "Hide Systems": "Ocultar sistemas",
 };
 
 export default PT;

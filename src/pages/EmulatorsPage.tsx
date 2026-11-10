@@ -26,7 +26,8 @@ import { useSlidingWindow } from "../hooks/useSlidingWindow";
 import { t, type LanguageCode } from "../locales";
 import type { ButtonSpacing, ControllerGlyphStyle, ViewKey } from "../types";
 import { jobErrorText } from "../utils/emulatorJobs";
-import { BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT, BUTTON_OPTIONS, BUTTON_SECONDARY } from "../utils/gamepadButtons";
+import type { EmulatorInstall } from "../utils/emulatorShortcuts";
+import { BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT, BUTTON_OPTIONS, BUTTON_SECONDARY, BUTTON_TRIGGER_RIGHT } from "../utils/gamepadButtons";
 import { textSize } from "../utils/scale";
 import {
     achievementGreen,
@@ -43,6 +44,7 @@ const BACK_KEY = "emulators:back";
 const REFRESH_KEY = "emulators:refresh";
 const RA_KEY = "emulators:row:retroarch:flatpak";
 const CORES_KEY = "emulators:ra:install-cores";
+const SYSTEMS_KEY = "emulators:ra:systems";
 const ROWS_INITIAL = 24;
 const ROWS_STEP = 24;
 const SENTINEL_ROOT_MARGIN_PX = 600;
@@ -77,12 +79,14 @@ type InstallRow = {
     checkFailed: boolean;
     version: string;
     shortcut: boolean;
+    install: EmulatorInstall | null;
     image: EmulatorAppImage | null;
 };
 
 type Row =
     | InstallRow
     | { type: "cores"; count: number }
+    | { type: "systems"; updates: number; collapsed: boolean }
     | { type: "system"; system: RetroArchSystem; collapsed: boolean }
     | { type: "core"; system: RetroArchSystem; core: RetroArchCore };
 
@@ -104,6 +108,8 @@ function rowKey(row: Row): string {
             return row.key;
         case "cores":
             return CORES_KEY;
+        case "systems":
+            return SYSTEMS_KEY;
         case "system":
             return systemKey(row.system);
         case "core":
@@ -132,6 +138,7 @@ function buildRows(language: LanguageCode, inventory: EmulatorInventory | null):
         checkFailed: ra.flatpak.checkFailed,
         version: ra.flatpak.version,
         shortcut: ra.flatpak.steam !== null,
+        install: ra.flatpak.installed ? { via: "flatpak", id: ra.flatpak.id, scope: ra.flatpak.scope } : null,
         image: null
     }];
     if (ra.configFound) {
@@ -139,7 +146,10 @@ function buildRows(language: LanguageCode, inventory: EmulatorInventory | null):
         if (missing > 0) {
             rows.push({ type: "cores", count: missing });
         }
-        for (const system of ra.systems) {
+        const updates = new Set(ra.systems.flatMap((system) => system.cores).filter((core) => core.update).map((core) => core.core));
+        const hidden = isFolded(SYSTEMS_KEY);
+        rows.push({ type: "systems", updates: updates.size, collapsed: hidden });
+        for (const system of hidden ? [] : ra.systems) {
             const collapsed = isFolded(systemKey(system));
             rows.push({ type: "system", system, collapsed });
             if (!collapsed) {
@@ -163,6 +173,7 @@ function buildRows(language: LanguageCode, inventory: EmulatorInventory | null):
             checkFailed: flatpak.checkFailed,
             version: flatpak.version,
             shortcut: flatpak.steam !== null,
+            install: flatpak.installed ? { via: "flatpak", id: flatpak.id, scope: flatpak.scope } : null,
             image: null
         });
         const images = emulator.appimages.filter((image) => !image.missing);
@@ -181,6 +192,7 @@ function buildRows(language: LanguageCode, inventory: EmulatorInventory | null):
                 checkFailed: image.checkFailed,
                 version: image.version,
                 shortcut: image.steam !== null,
+                install: image.missing ? null : { via: "appimage", path: image.path },
                 image
             });
         });
@@ -197,6 +209,7 @@ function buildRows(language: LanguageCode, inventory: EmulatorInventory | null):
                 checkFailed: false,
                 version: "",
                 shortcut: false,
+                install: null,
                 image: null
             });
         }
@@ -299,6 +312,10 @@ function EmulatorsPage(props: EmulatorsPageProps) {
             if (inventory === null) {
                 return false;
             }
+            if ((key.startsWith("emulators:core:") || key.startsWith("emulators:system:")) && isFolded(SYSTEMS_KEY)) {
+                toggle(SYSTEMS_KEY);
+                return true;
+            }
             for (const system of inventory.retroarch.systems) {
                 if (key.startsWith(`emulators:core:${system.id}:`) && isFolded(systemKey(system))) {
                     toggle(systemKey(system));
@@ -327,6 +344,9 @@ function EmulatorsPage(props: EmulatorsPageProps) {
         }
         if (row.type === "system") {
             return { label: row.collapsed ? t(language, "Show Cores") : t(language, "Hide Cores"), run: () => toggle(key) };
+        }
+        if (row.type === "systems") {
+            return { label: row.collapsed ? t(language, "Show Systems") : t(language, "Hide Systems"), run: () => toggle(key) };
         }
         if (row.type === "core") {
             if (!row.core.installed) {
@@ -398,6 +418,13 @@ function EmulatorsPage(props: EmulatorsPageProps) {
         return null;
     }
 
+    function shortcutFor(row: Row): { install: EmulatorInstall; storeKey: string } | null {
+        if (row.type !== "install" || row.install === null || row.shortcut || busy(row.key)) {
+            return null;
+        }
+        return { install: row.install, storeKey: `${row.kind}:${row.image === null ? "flatpak" : row.image.key}` };
+    }
+
     function staleCores(): string[] {
         if (inventory === null || !inventory.retroarch.configFound) {
             return [];
@@ -431,6 +458,9 @@ function EmulatorsPage(props: EmulatorsPageProps) {
                 label: row.image?.howFound === "pointed" ? t(language, "Clear Custom Install") : t(language, "Point to Custom Install")
             });
         }
+        if (shortcutFor(row) !== null) {
+            hints.push({ button: "r2", label: t(language, "Non-Steam Shortcut") });
+        }
         return hints;
     }
 
@@ -451,6 +481,13 @@ function EmulatorsPage(props: EmulatorsPageProps) {
             const what = backupsFor(row);
             if (what !== null) {
                 emulators.actions.backups(what, rowKey(row));
+            }
+            return;
+        }
+        if (button === BUTTON_TRIGGER_RIGHT) {
+            const shortcut = shortcutFor(row);
+            if (shortcut !== null && row.type === "install") {
+                emulators.actions.addToSteam(row.kind, row.name, shortcut.install, shortcut.storeKey);
             }
             return;
         }
@@ -488,6 +525,12 @@ function EmulatorsPage(props: EmulatorsPageProps) {
         let status: { text: string; color: string } | null = null;
         if (row.type === "cores") {
             title = t(language, "Install Cores for {{count}} Systems", { count: row.count });
+        }
+        else if (row.type === "systems") {
+            title = `${row.collapsed ? "▸" : "▾"} ${t(language, "Cores by System")}`;
+            status = row.updates > 0
+                ? { text: t(language, "{{count}} updates", { count: row.updates }), color: masteredGold }
+                : null;
         }
         else if (row.type === "system") {
             title = `${row.collapsed ? "▸" : "▾"} ${t(language, "{{system}} · {{installed}} of {{count}} cores installed", {

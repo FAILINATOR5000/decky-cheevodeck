@@ -3703,6 +3703,10 @@ const RU: LocaleTable = {
     "Couldn't delete the backup.": "Не удалось удалить копию.",
     "Update All Cores": "Обновить все ядра",
     "Clear Custom Install": "Сбросить свою установку",
+    "Non-Steam Shortcut": "Ярлык не из Steam",
+    "Cores by System": "Ядра по системам",
+    "Show Systems": "Показать системы",
+    "Hide Systems": "Скрыть системы",
 };
 
 export default RU;

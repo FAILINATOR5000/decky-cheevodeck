@@ -3665,6 +3665,10 @@ const ES: LocaleTable = {
     "Couldn't delete the backup.": "No se pudo borrar la copia.",
     "Update All Cores": "Actualizar todos los núcleos",
     "Clear Custom Install": "Quitar instalación propia",
+    "Non-Steam Shortcut": "Acceso directo no de Steam",
+    "Cores by System": "Núcleos por sistema",
+    "Show Systems": "Mostrar sistemas",
+    "Hide Systems": "Ocultar sistemas",
 };
 
 export default ES;

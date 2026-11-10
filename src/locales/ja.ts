@@ -3473,6 +3473,10 @@ const JA: LocaleTable = {
     "Couldn't delete the backup.": "バックアップを削除できませんでした。",
     "Update All Cores": "すべてのコアを更新",
     "Clear Custom Install": "カスタムを解除",
+    "Non-Steam Shortcut": "非Steamショートカット",
+    "Cores by System": "システム別のコア",
+    "Show Systems": "システムを表示",
+    "Hide Systems": "システムを隠す",
 };
 
 export default JA;

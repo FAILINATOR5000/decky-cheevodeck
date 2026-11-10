@@ -3734,6 +3734,10 @@ const PL: LocaleTable = {
     "Couldn't delete the backup.": "Nie udało się usunąć kopii.",
     "Update All Cores": "Zaktualizuj wszystkie rdzenie",
     "Clear Custom Install": "Usuń własną instalację",
+    "Non-Steam Shortcut": "Skrót spoza Steam",
+    "Cores by System": "Rdzenie według systemu",
+    "Show Systems": "Pokaż systemy",
+    "Hide Systems": "Ukryj systemy",
 };
 
 export default PL;
