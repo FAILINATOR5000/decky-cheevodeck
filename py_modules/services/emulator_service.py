@@ -73,6 +73,7 @@ MISMATCH_GATES = {"dolphin_version_mismatch": "dolphin", "rmg_version_mismatch":
 CLIENT_UNDOS = ("remove_shortcut", "shortcut_fallback_off", "play_shortcut_fallback_off")
 
 _CORE = re.compile(r"^[A-Za-z0-9_+.-]{1,64}$")
+RELEASE_VERSION = re.compile(r"<release\b[^>]*\bversion=\"([^\"<>]{1,64})\"")
 
 
 FLATPAK_NETWORK = re.compile(r"resolve host|could not connect|failed to connect|network is unreachable"
@@ -214,9 +215,19 @@ class EmulatorService:
             if code != 0:
                 return ""
             for desktop in (folder / "squashfs-root").glob("*.desktop"):
+                if not desktop.is_file():
+                    continue
                 for line in desktop.read_text(encoding="utf-8", errors="replace").splitlines():
                     if line.startswith("X-AppImage-Version="):
                         return line.split("=", 1)[1].strip()[:64]
+            self._run(["sh", "-c", 'cd "$1" && exec "$2" --appimage-extract "usr/share/metainfo/*"', "sh", str(folder),
+                       image])
+            for info in sorted((folder / "squashfs-root" / "usr" / "share" / "metainfo").glob("*.xml")):
+                if not info.is_file():
+                    continue
+                found = RELEASE_VERSION.search(info.read_text(encoding="utf-8", errors="replace")[:INFO_MAX])
+                if found:
+                    return found.group(1).strip()
         except Exception as e:
             decky.logger.info("emulators: couldn't read %s's version (%s)", Path(image).name, type(e).__name__)
         finally:
