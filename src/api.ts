@@ -1090,14 +1090,6 @@ export const emulatorsStatus = callable<[], {
 }>(
     "emulators_status"
 );
-export const emulatorsCoresOffer = callable<[], {
-    ok: boolean;
-    error?: string;
-    recommended: string[];
-    all: string[];
-    recommendedBytes: number;
-    allBytes: number;
-}>("emulators_cores_offer");
 export const emulatorsInstallCores = callable<[cores: string[], target: string], EmulatorJobStart>("emulators_install_cores");
 export const emulatorsUpdateCores = callable<[cores: string[], target: string], EmulatorJobStart>(
     "emulators_update_cores"

@@ -1,7 +1,6 @@
 import { useEffect, useSyncExternalStore } from "react";
 
 import {
-    emulatorsCoresOffer,
     emulatorsDeleteBackup,
     emulatorsForget,
     emulatorsIdentify,
@@ -25,7 +24,6 @@ import {
 import { askAddToSteam } from "../components/emulators/AddToSteamModal";
 import { askBackups } from "../components/emulators/BackupsModal";
 import { askEmulatorQuestion } from "../components/emulators/EmulatorQuestionModal";
-import { askInstallCores } from "../components/emulators/InstallCoresModal";
 import { openPathPicker, type PickedPath } from "../components/pickers/FilePickerModal";
 import { t, type LanguageCode } from "../locales";
 import { showToastAfter } from "../utils/delayedToast";
@@ -183,27 +181,6 @@ async function updateCores(language: LanguageCode, cores: string[], target: stri
     }
     catch (e) {
         logError("emulators: updating cores", e);
-    }
-}
-
-async function installMissingCores(language: LanguageCode, systems: number, target: string) {
-    try {
-        const offer = await emulatorsCoresOffer();
-        if (!offer?.ok) {
-            notice(language, t(language, "Couldn't reach the server."));
-            return;
-        }
-        if (offer.recommended.length === 0) {
-            notice(language, t(language, "Every system has a core already."));
-            return;
-        }
-        const choice = await askInstallCores(language, { ...offer, systems });
-        if (choice !== null) {
-            await installCores(language, choice === "all" ? offer.all : offer.recommended, target);
-        }
-    }
-    catch (e) {
-        logError("emulators: offering cores", e);
     }
 }
 
@@ -377,7 +354,6 @@ export function useEmulatorsController(props: { isActive: boolean; language: Lan
             clearPoint: (kind: EmulatorKind, path: string) => void clearPoint(kind, path),
             installCores: (cores: string[], target: string) => void installCores(language, cores, target),
             updateCores: (cores: string[], target: string) => void updateCores(language, cores, target),
-            installMissingCores: (systems: number, target: string) => void installMissingCores(language, systems, target),
             installFlatpak: (kind: EmulatorKind, name: string, target: string) =>
                 void startEmulatorJob(language, name, () => emulatorsInstallFlatpak(kind, target)),
             updateFlatpak: (kind: EmulatorKind, name: string, target: string) =>

@@ -1,5 +1,5 @@
 import { Focusable, PanelSectionRow } from "@decky/ui";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import type {
     EmulatorAppImage,
@@ -11,11 +11,12 @@ import type {
     RetroArchSystem
 } from "../api";
 import { useEmulators } from "../components/emulators/EmulatorsContext";
+import { showMultiplayerProblem } from "../components/multiplayer/ProblemModal";
 import type { BackupsChoice, UninstallChoice } from "../hooks/useEmulatorsController";
 import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 import { BackButton } from "../components/ui/BackButton";
 import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
-import { ButtonHints, type ButtonHint } from "../components/ui/ButtonHints";
+import { ButtonHints } from "../components/ui/ButtonHints";
 import { FocusableItem } from "../components/ui/FocusableItem";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
 import { PageNavStrip } from "../components/ui/PageNavStrip";
@@ -44,8 +45,8 @@ import {
 const BACK_KEY = "emulators:back";
 const REFRESH_KEY = "emulators:refresh";
 const RA_KEY = "emulators:row:retroarch:flatpak";
-const CORES_KEY = "emulators:ra:install-cores";
 const SYSTEMS_KEY = "emulators:ra:systems";
+const STATUS_WIDTH = "35%";
 const ROWS_INITIAL = 24;
 const ROWS_STEP = 24;
 const SENTINEL_ROOT_MARGIN_PX = 600;
@@ -78,6 +79,7 @@ type InstallRow = {
     installed: boolean;
     update: boolean;
     checkFailed: boolean;
+    newer: boolean;
     version: string;
     shortcut: boolean;
     install: EmulatorInstall | null;
@@ -87,12 +89,9 @@ type InstallRow = {
 
 type Row =
     | InstallRow
-    | { type: "cores"; count: number }
     | { type: "systems"; updates: number; collapsed: boolean }
     | { type: "system"; system: RetroArchSystem; collapsed: boolean }
     | { type: "core"; system: RetroArchSystem; core: RetroArchCore };
-
-type RowAction = { label: string; run: () => void };
 
 const folded = new Map<string, boolean>();
 
@@ -108,8 +107,6 @@ function rowKey(row: Row): string {
     switch (row.type) {
         case "install":
             return row.key;
-        case "cores":
-            return CORES_KEY;
         case "systems":
             return SYSTEMS_KEY;
         case "system":
@@ -138,6 +135,7 @@ function buildRows(language: LanguageCode, inventory: EmulatorInventory | null):
         installed: ra.flatpak.installed,
         update: ra.flatpak.update,
         checkFailed: ra.flatpak.checkFailed,
+        newer: ra.flatpak.newerThanStable,
         version: ra.flatpak.version,
         shortcut: ra.flatpak.steam !== null,
         install: ra.flatpak.installed ? { via: "flatpak", id: ra.flatpak.id, scope: ra.flatpak.scope } : null,
@@ -145,10 +143,6 @@ function buildRows(language: LanguageCode, inventory: EmulatorInventory | null):
         leftovers: []
     }];
     if (ra.configFound) {
-        const missing = ra.systems.filter((system) => system.hasGames && !system.cores.some((core) => core.installed)).length;
-        if (missing > 0) {
-            rows.push({ type: "cores", count: missing });
-        }
         const updates = new Set(ra.systems.flatMap((system) => system.cores).filter((core) => core.update).map((core) => core.core));
         const hidden = isFolded(SYSTEMS_KEY);
         rows.push({ type: "systems", updates: updates.size, collapsed: hidden });
@@ -174,6 +168,7 @@ function buildRows(language: LanguageCode, inventory: EmulatorInventory | null):
             installed: flatpak.installed,
             update: flatpak.update,
             checkFailed: flatpak.checkFailed,
+            newer: flatpak.newerThanStable,
             version: flatpak.version,
             shortcut: flatpak.steam !== null,
             install: flatpak.installed ? { via: "flatpak", id: flatpak.id, scope: flatpak.scope } : null,
@@ -194,6 +189,7 @@ function buildRows(language: LanguageCode, inventory: EmulatorInventory | null):
                 installed: !image.missing,
                 update: image.update,
                 checkFailed: image.checkFailed,
+                newer: image.newerThanStable,
                 version: image.version,
                 shortcut: image.steam !== null,
                 install: image.missing ? null : { via: "appimage", path: image.path },
@@ -212,6 +208,7 @@ function buildRows(language: LanguageCode, inventory: EmulatorInventory | null):
                 installed: false,
                 update: false,
                 checkFailed: false,
+                newer: false,
                 version: "",
                 shortcut: false,
                 install: null,
@@ -283,7 +280,7 @@ function EmulatorsPage(props: EmulatorsPageProps) {
     const job = jobs.state;
     const working = jobs.busy && job !== null && job.stage !== "done" && job.stage !== "failed";
     const [foldings, setFoldings] = useState(0);
-    const [focusedKey, setFocusedKey] = useState<string | null>(null);
+    const focusedKey = useRef<string | null>(null);
 
     const rows = useMemo(() => buildRows(language, inventory), [language, inventory, foldings]);
 
@@ -344,30 +341,31 @@ function EmulatorsPage(props: EmulatorsPageProps) {
         return jobs.active.find((state) => state.target === key) ?? null;
     }
 
-    function busy(key: string): boolean {
-        return activeJob(key) !== null;
+    function settling(key: string): boolean {
+        return job !== null && job.stage === "done" && job.target === key && (loading || emulators.state.seen !== jobs.finished);
     }
 
-    function actionFor(row: Row): RowAction | null {
+    function busy(key: string): boolean {
+        return activeJob(key) !== null || settling(key);
+    }
+
+    function actionFor(row: Row): (() => void) | null {
         const key = rowKey(row);
         if (busy(key)) {
             return null;
         }
-        if (row.type === "cores") {
-            return { label: t(language, "Install"), run: () => emulators.actions.installMissingCores(row.count, key) };
-        }
         if (row.type === "system") {
-            return { label: row.collapsed ? t(language, "Show Cores") : t(language, "Hide Cores"), run: () => toggle(key) };
+            return () => toggle(key);
         }
         if (row.type === "systems") {
-            return { label: row.collapsed ? t(language, "Show Systems") : t(language, "Hide Systems"), run: () => toggle(key) };
+            return () => toggle(key);
         }
         if (row.type === "core") {
             if (!row.core.installed) {
-                return { label: t(language, "Install"), run: () => emulators.actions.installCores([row.core.core], key) };
+                return () => emulators.actions.installCores([row.core.core], key);
             }
             if (row.core.update) {
-                return { label: t(language, "Update"), run: () => emulators.actions.updateCores([row.core.core], key) };
+                return () => emulators.actions.updateCores([row.core.core], key);
             }
             return null;
         }
@@ -376,16 +374,16 @@ function EmulatorsPage(props: EmulatorsPageProps) {
                 return null;
             }
             return row.via === "flatpak"
-                ? { label: t(language, "Install"), run: () => emulators.actions.installFlatpak(row.kind, row.name, key) }
-                : { label: t(language, "Install"), run: () => emulators.actions.installAppImage(row.kind, row.name, key) };
+                ? () => emulators.actions.installFlatpak(row.kind, row.name, key)
+                : () => emulators.actions.installAppImage(row.kind, row.name, key);
         }
         if (!row.update) {
             return null;
         }
         const image = row.image;
         return image === null
-            ? { label: t(language, "Update"), run: () => emulators.actions.updateFlatpak(row.kind, row.name, key) }
-            : { label: t(language, "Update"), run: () => emulators.actions.updateAppImage(image.path, row.name, key) };
+            ? () => emulators.actions.updateFlatpak(row.kind, row.name, key)
+            : () => emulators.actions.updateAppImage(image.path, row.name, key);
     }
 
     function uninstallFor(row: Row): UninstallChoice | null {
@@ -452,72 +450,115 @@ function EmulatorsPage(props: EmulatorsPageProps) {
             .map((core) => core.core))];
     }
 
-    function hintsFor(row: Row | undefined): ButtonHint[] {
-        if (row === undefined) {
-            return [];
+    function whyNot(row: Row | undefined, button: "a" | "x" | "l1" | "r1" | "r2"): string {
+        if (row === undefined || row.type === "system" || row.type === "systems") {
+            return button === "r1"
+                ? t(language, "Only AppImage rows can point to a custom install.")
+                : t(language, "Pick an emulator or a core first.");
         }
-        const hints: ButtonHint[] = [];
-        const action = actionFor(row);
-        if (action !== null) {
-            hints.push({ button: "a", label: action.label });
+        const name = row.type === "core" ? row.core.name : row.title;
+        if (busy(rowKey(row))) {
+            return t(language, "{{name}} is busy right now. Wait for it to finish.", { name });
         }
-        if (uninstallFor(row) !== null) {
-            hints.push({ button: "x", label: t(language, "Uninstall") });
+        if (button === "r1") {
+            return t(language, "Only AppImage rows can point to a custom install.");
         }
-        if (backupsFor(row) !== null) {
-            hints.push({ button: "l1", label: t(language, "Backup/Restore") });
+        if (button === "r2" && row.type === "core") {
+            return t(language, "Cores run inside RetroArch, so they don't get their own shortcut.");
         }
-        if (row.type === "install" && row.key === RA_KEY && staleCores().length > 0 && !busy(RA_KEY)) {
-            hints.push({ button: "y", label: t(language, "Update All Cores") });
+        if (button === "r2" && row.type === "install" && row.shortcut) {
+            return t(language, "You already have a shortcut for this.");
         }
-        if (row.type === "install" && row.via === "appimage" && !busy(row.key)) {
-            hints.push({
-                button: "r1",
-                label: row.image?.howFound === "pointed" ? t(language, "Clear Custom Install") : t(language, "Point to Custom Install")
-            });
+        if (button === "l1" && row.type === "install" && row.via === "flatpak") {
+            return t(language, "Flatpaks don't keep backups. Only AppImages and cores do.");
         }
-        if (shortcutFor(row) !== null) {
-            hints.push({ button: "r2", label: t(language, "Non-Steam Shortcut") });
+        if (row.type === "install" && row.image?.missing) {
+            return t(language, "This AppImage isn't where it was pointed to anymore. Press R1 to clear it.");
         }
-        return hints;
+        if (row.type === "core" ? !row.core.installed : !row.installed) {
+            return t(language, "{{name}} isn't installed.", { name });
+        }
+        if (button === "l1") {
+            return t(language, "No backups yet. Updating keeps a copy of the old version here.");
+        }
+        if (row.type === "core" ? row.core.checkFailed : row.checkFailed) {
+            return t(language, "Couldn't check {{name}} for updates. Press Refresh to try again.", { name });
+        }
+        if (row.type === "install" && row.newer) {
+            return t(language, "{{name}} is newer than the stable release, so there's nothing to update.", { name });
+        }
+        return t(language, "{{name}} is up to date.", { name });
+    }
+
+    function explain(title: string, text: string) {
+        showMultiplayerProblem(language, title, text);
+    }
+
+    function updateAllCores() {
+        if (inventory === null) {
+            return;
+        }
+        if (!inventory.retroarch.configFound) {
+            explain("Update All Cores", t(language, "RetroArch isn't set up yet, so there are no cores to update."));
+            return;
+        }
+        if (busy(RA_KEY)) {
+            explain("Update All Cores", t(language, "{{name}} is busy right now. Wait for it to finish.", { name: inventory.retroarch.name }));
+            return;
+        }
+        const stale = staleCores();
+        if (stale.length === 0) {
+            explain("Update All Cores", t(language, "Every core is up to date."));
+            return;
+        }
+        emulators.actions.updateCores(stale, RA_KEY);
     }
 
     function handleButton(evt: { detail?: { button?: number } }) {
-        const row = rows.find((other) => rowKey(other) === focusedKey);
         const button = evt?.detail?.button;
-        if (row === undefined || inventory === null) {
+        if (inventory === null) {
             return;
         }
+        if (button === BUTTON_OPTIONS) {
+            updateAllCores();
+            return;
+        }
+        const row = rows.find((other) => rowKey(other) === focusedKey.current);
         if (button === BUTTON_SECONDARY) {
-            const what = uninstallFor(row);
-            if (what !== null) {
+            const what = row === undefined ? null : uninstallFor(row);
+            if (what !== null && row !== undefined) {
                 emulators.actions.uninstall(what, rowKey(row));
+            }
+            else {
+                explain("Uninstall", whyNot(row, "x"));
             }
             return;
         }
         if (button === BUTTON_BUMPER_LEFT) {
-            const what = backupsFor(row);
-            if (what !== null) {
+            const what = row === undefined ? null : backupsFor(row);
+            if (what !== null && row !== undefined) {
                 emulators.actions.backups(what, rowKey(row));
+            }
+            else {
+                explain("Backup/Restore", whyNot(row, "l1"));
             }
             return;
         }
         if (button === BUTTON_TRIGGER_RIGHT) {
-            const shortcut = shortcutFor(row);
-            if (shortcut !== null && row.type === "install") {
+            const shortcut = row === undefined ? null : shortcutFor(row);
+            if (shortcut !== null && row?.type === "install") {
                 emulators.actions.addToSteam(row.kind, row.name, shortcut.install, shortcut.storeKey);
             }
-            return;
-        }
-        if (button === BUTTON_OPTIONS && row.type === "install" && row.key === RA_KEY && !busy(RA_KEY)) {
-            const stale = staleCores();
-            if (stale.length > 0) {
-                emulators.actions.updateCores(stale, RA_KEY);
+            else {
+                explain("Non-Steam Shortcut", whyNot(row, "r2"));
             }
             return;
         }
-        if (button === BUTTON_BUMPER_RIGHT && row.type === "install" && row.via === "appimage" && !busy(row.key)) {
-            if (row.image?.howFound === "pointed") {
+        if (button === BUTTON_BUMPER_RIGHT) {
+            if (row?.type !== "install" || row.via !== "appimage" || busy(row.key)) {
+                explain("Point to AppImage", whyNot(row, "r1"));
+            }
+            else if (row.image?.howFound === "pointed") {
                 emulators.actions.clearPoint(row.kind, row.image.path);
             }
             else {
@@ -544,10 +585,7 @@ function EmulatorsPage(props: EmulatorsPageProps) {
         let detail = "";
         let path = false;
         let status: { text: string; color: string } | null = null;
-        if (row.type === "cores") {
-            title = t(language, "Install Cores for {{count}} Systems", { count: row.count });
-        }
-        else if (row.type === "systems") {
+        if (row.type === "systems") {
             title = `${row.collapsed ? "▸" : "▾"} ${t(language, "Cores by System")}`;
             status = row.updates > 0
                 ? { text: t(language, "{{count}} updates", { count: row.updates }), color: masteredGold }
@@ -576,7 +614,7 @@ function EmulatorsPage(props: EmulatorsPageProps) {
             }
             status = statusOf(language, row.installed, row.update, row.checkFailed, row.image?.missing);
         }
-        const progress = activeJob(key)?.progress ?? null;
+        const progress = activeJob(key)?.progress ?? (settling(key) ? 100 : null);
         const refreshing = loading && row.type === "install";
         return (
             <PanelSectionRow key={key}>
@@ -584,16 +622,20 @@ function EmulatorsPage(props: EmulatorsPageProps) {
                     outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
                     focusKey={key}
                     focusFallback={fallbacks(row, at)}
-                    onClick={() => action?.run()}
+                    onClick={() => (action !== null ? action() : explain("Install/Update", whyNot(row, "a")))}
                     onGamepadFocus={() => {
-                        setFocusedKey(key);
+                        focusedKey.current = key;
                         rowWindow.onItemFocus(at);
                     }}
-                    onGamepadBlur={() => setFocusedKey((current) => (current === key ? null : current))}
+                    onGamepadBlur={() => {
+                        if (focusedKey.current === key) {
+                            focusedKey.current = null;
+                        }
+                    }}
                     onGamepadDirection={rowWindow.guardTopRow(at)}
                 >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", minWidth: 0 }}>
-                        <div style={{ flex: "1 1 auto", minWidth: 0 }}>
+                    <div style={{ width: "100%", display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
+                        <div style={{ flex: "1 1 0", minWidth: 0, textAlign: "left" }}>
                             <div style={{ overflowWrap: "anywhere" }}>{title}</div>
                             {detail && (
                                 <div style={{ ...smallTextStyle(), overflowWrap: "anywhere", wordBreak: path ? "break-all" : undefined }}>
@@ -601,27 +643,10 @@ function EmulatorsPage(props: EmulatorsPageProps) {
                                 </div>
                             )}
                         </div>
-                        {progress === null && !refreshing && status !== null && (
-                            <span style={{ ...bodyTextStyle(), flex: "0 1 auto", maxWidth: "50%", textAlign: "right", color: status.color }}>
-                                {status.text}
-                            </span>
-                        )}
+                        <span style={{ ...bodyTextStyle(), flex: `0 0 ${STATUS_WIDTH}`, textAlign: "right", color: status?.color }}>
+                            {progress === null && !refreshing && status !== null ? status.text : ""}
+                        </span>
                     </div>
-                    {row.type === "install" && row.key === RA_KEY && inventory !== null && inventory.retroarch.configFound && row.installed
-                        && !busy(RA_KEY) && (
-                        <div style={{ marginTop: "6px" }}>
-                            <ButtonHints
-                                style={state.controllerGlyphStyle}
-                                dense
-                                hints={[{
-                                    button: "y",
-                                    label: staleCores().length > 0
-                                        ? `${t(language, "Update All Cores")} · ${t(language, "{{count}} updates", { count: staleCores().length })}`
-                                        : `${t(language, "Update All Cores")} · ${t(language, "Up to date")}`
-                                }]}
-                            />
-                        </div>
-                    )}
                     {(progress !== null || refreshing) && (
                         <div style={{ marginTop: "6px", display: "flex", alignItems: "center", gap: "8px" }}>
                             <div style={{ flex: 1, minWidth: 0 }}>
@@ -634,8 +659,6 @@ function EmulatorsPage(props: EmulatorsPageProps) {
             </PanelSectionRow>
         );
     }
-
-    const focusedRow = rows.find((row) => rowKey(row) === focusedKey);
 
     return (
         <Focusable flow-children="column" onButtonDown={handleButton}>
@@ -658,7 +681,7 @@ function EmulatorsPage(props: EmulatorsPageProps) {
                         focusKey={REFRESH_KEY}
                         disabled={loading || jobs.busy}
                         onClick={emulators.actions.refresh}
-                        onGamepadFocus={() => setFocusedKey(null)}
+                        onGamepadFocus={() => { focusedKey.current = null; }}
                     >
                         {t(language, "Refresh")}
                     </FocusableItem>
@@ -679,9 +702,17 @@ function EmulatorsPage(props: EmulatorsPageProps) {
                 )}
 
                 <PanelSectionRow>
-                    <div style={{ minHeight: `${Math.round(textSize(11) * 1.35 * 2 + 10)}px` }}>
-                        <ButtonHints style={state.controllerGlyphStyle} dense hints={hintsFor(focusedRow)} />
-                    </div>
+                    <ButtonHints
+                        style={state.controllerGlyphStyle}
+                        hints={[
+                            { button: "a", label: t(language, "Install/Update") },
+                            { button: "x", label: t(language, "Uninstall") },
+                            { button: "y", label: t(language, "Update All Cores") },
+                            { button: "l1", label: t(language, "Backup/Restore") },
+                            { button: "r1", label: t(language, "Point to AppImage") },
+                            { button: "r2", label: t(language, "Non-Steam Shortcut") }
+                        ]}
+                    />
                 </PanelSectionRow>
 
                 {inventory === null && (
@@ -696,7 +727,7 @@ function EmulatorsPage(props: EmulatorsPageProps) {
                     {rowWindow.mountedItems.map((row, index) => renderRow(row, rowWindow.start + index))}
                 </SlidingWindowRows>
 
-                <BottomFocusAnchor focusKey="emulators:bottom:anchor" />
+                {inventory !== null && <BottomFocusAnchor focusKey="emulators:bottom:anchor" />}
             </PanelSection>
         </Focusable>
     );
