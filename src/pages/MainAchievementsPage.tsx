@@ -82,6 +82,7 @@ import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 import { useMultiplayerRoomRole } from "../utils/multiplayerRoomState";
 import { useHotspotOn } from "../utils/hotspotState";
 import { PlaySplitButton } from "../components/game/PlaySplitButton";
+import { FixRunLine } from "../components/multiplayer/FixRunLine";
 import { useGamePlayController } from "../hooks/useGamePlayController";
 
 // Layout constants
@@ -1111,7 +1112,6 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
     const play = useGamePlayController({
         gameId: payload?.gameId ?? null,
         title: payload?.title ?? "",
-        consoleName: payload?.consoleName ?? null,
         isActive: view === "achievements",
         language,
         openMultiplayer
@@ -2659,6 +2659,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                                     style={{ marginTop: "6px" }}
                                 />
                             )}
+                            {play.fixRun !== null && <FixRunLine language={language} run={play.fixRun} />}
                             {payload?.gameId && (
                                 <div
                                     style={{

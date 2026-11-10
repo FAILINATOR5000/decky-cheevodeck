@@ -56,6 +56,7 @@ export type FixRun = {
     error: string;
     already: boolean;
     kept: boolean;
+    refused: boolean;
     left: string[];
     next: FixAnswer | null;
 };
@@ -69,6 +70,10 @@ const MODE_NAMES: Record<MultiplayerMode, string> = {
 };
 
 const MAX_ROUNDS = 6;
+
+export const RUN_SETTLE_MS = 700;
+
+export const HOST_GATES = ["no_scan", "not_in_results", "rom_missing", "no_shortcut", "no_emulator_shortcut"];
 
 let store: FixPlanStore = { run: null, finished: 0 };
 let windowsOpen = 0;
@@ -266,7 +271,7 @@ async function runClientStep(language: LanguageCode, plan: string, step: FixStep
 }
 
 function announce(language: LanguageCode, run: FixRun, ok: boolean) {
-    if (!quickAccessIsHidden() && (windowsOpen > 0 || pageShown)) {
+    if (windowsOpen > 0 || (pageShown && !quickAccessIsHidden())) {
         return;
     }
     showToastAfter({
@@ -399,15 +404,15 @@ function finish(language: LanguageCode, change: Partial<FixRun>) {
 }
 
 export async function runFixPlan(target: FixTarget, gameId: number, title: string, picked: FixStep[],
-    refresh: () => Promise<FixAnswer | null>, reopen: () => void) {
+    refresh: () => Promise<FixAnswer | null>, reopen: () => void, pickOnly = false) {
     if (fixPlanRunning() || picked.length === 0) {
         return;
     }
     const language = getCurrentLanguage();
     reopenWindow = reopen;
     const begin = (steps: FixStep[]): FixRun => ({ target, gameId, title, startedAt: Date.now(), steps: rows(steps),
-        current: 0, running: true, done: false, failed: false, error: "", already: false, kept: false, left: [],
-        next: null });
+        current: 0, running: true, done: false, failed: false, error: "", already: false, kept: false, refused: false,
+        left: [], next: null });
     publish({ run: begin(picked) });
     let answer = await fetchAnswer(refresh);
     if (answer?.state === "ready" && answer.plan.steps.length === 0) {
@@ -419,6 +424,9 @@ export async function runFixPlan(target: FixTarget, gameId: number, title: strin
         return;
     }
     let steps = carryChoices(answer.plan.steps, picked);
+    if (pickOnly) {
+        steps = steps.filter((step) => step.do === "pick_game_file").map((step) => ({ ...step, path: undefined }));
+    }
     publish({ run: { ...begin(steps), startedAt: store.run!.startedAt } });
     let offset = 0;
     for (let round = 1; ; round += 1) {
@@ -453,7 +461,7 @@ export async function runFixPlan(target: FixTarget, gameId: number, title: strin
             }
             if (found.error === "needs_dolphin") {
                 update(at, { state: "waiting" });
-                finish(language, { done: true, next: await fetchAnswer(refresh) });
+                finish(language, { done: true, refused: true, next: await fetchAnswer(refresh) });
                 return;
             }
             if (found.state !== "done") {

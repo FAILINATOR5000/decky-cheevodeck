@@ -9,6 +9,7 @@ import { modalSize } from "../../utils/scale";
 import { achievementGreen, smallTextStyle } from "../../utils/style";
 import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { FocusTarget } from "../ui/FocusTarget";
+import { HeadingStop } from "../ui/HeadingStop";
 
 const ROWS_INITIAL = 30;
 const ROWS_STEP = 30;
@@ -54,7 +55,9 @@ function AddToSteamModal(props: { language: LanguageCode; offer: AddToSteamOffer
     return (
         <ModalRoot onCancel={close} onEscKeypress={close}>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                <div style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700 }}>{t(language, "Add to Steam")}</div>
+                <HeadingStop focusKey="emulators:steam:title" autoFocus style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700 }}>
+                    {t(language, "Add to Steam")}
+                </HeadingStop>
                 <div style={smallTextStyle()}>{t(language, "Name")}</div>
                 <TextField value={name} onChange={(e: { target: { value: string } }) => setName(e.target.value.slice(0, 128))} />
                 {offer.lines.map((line) => (
@@ -96,7 +99,7 @@ function AddToSteamModal(props: { language: LanguageCode; offer: AddToSteamOffer
                 </FocusTarget>
                 <Focusable flow-children="row" style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
                     <FocusTarget focusKey="emulators:steam:add">
-                        <DialogButton autoFocus onClick={add}>{t(language, "Add")}</DialogButton>
+                        <DialogButton onClick={add}>{t(language, "Add")}</DialogButton>
                     </FocusTarget>
                     <FocusTarget focusKey="emulators:steam:cancel">
                         <DialogButton onClick={close}>{t(language, "Cancel")}</DialogButton>

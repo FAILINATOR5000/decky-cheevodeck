@@ -397,7 +397,7 @@ function CheevoCheckPage(props: CheevoCheckPageProps) {
                             {results.skippedDolphin > 0 && (
                                 <PanelSectionRow>
                                     <InfoText>
-                                        {t(language, "Skipped {{count}} GameCube or Wii files because Dolphin isn't installed.", {
+                                        {t(language, "Skipped {{count}} GameCube or Wii files because Dolphin's Flatpak isn't installed.", {
                                             count: results.skippedDolphin
                                         })}
                                     </InfoText>

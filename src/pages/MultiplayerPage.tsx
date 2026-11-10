@@ -10,7 +10,8 @@ import { FocusTarget } from "../components/ui/FocusTarget";
 import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { SubTabButton } from "../components/ui/SubTabButton";
 import { ModeChart } from "../components/multiplayer/ModeChart";
-import { fixFailureText, fixStepLabel, showFixIt, type FixItRequest } from "../components/multiplayer/FixItModal";
+import { showFixIt, type FixItRequest } from "../components/multiplayer/FixItModal";
+import { FixRunLine } from "../components/multiplayer/FixRunLine";
 import { runFixPlan, setMultiplayerPageShown, useFixPlan } from "../utils/fixPlan";
 import { forgetGameFile, gameFilePickFailure, useGameFilePick } from "../utils/gameFilePick";
 import { showMultiplayerProblem } from "../components/multiplayer/ProblemModal";
@@ -424,9 +425,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
 
     const roomWarnings = (shownCheck?.warnings ?? []).map((warning) => warningText(language, warning.code, warning.detail));
     const fixHere = fixRun !== null && fixRun.target !== "play" && (fixRun.running || fixRun.gameId === mp.gameId) ? fixRun : null;
-    const fixStep = fixHere?.running ? fixHere.steps[fixHere.current] ?? null : null;
-    const fixProgress = fixStep ? (fixStep.step.do === "setup_streaming" ? stream.progress : fixStep.progress) : -1;
-    const fixFailure = fixHere?.failed ? fixFailureText(language, fixHere) : "";
     const installing = mp.mode === "stream" && setupRunning(stream);
     const settingUp = mp.mode === "stream" && (installing || stream.lastJob === "setup") ? stream.stage : "";
     const setupLine = SETUP_LINES[settingUp] ?? null;
@@ -633,7 +631,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             tools: mp.modes?.tools ?? null,
             explain: (gate, detail) => reasonText(forMode, gate, detail),
             refresh: () => actions.fixFor(forMode, forGame),
-            forget: () => void forgetGameFile(forGame)
+            forget: () => forgetGameFile(forGame)
         };
     }
 
@@ -1730,25 +1728,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                                 )}
                                 {fixHere !== null && (fixHere.running || fixHere.failed) && (
                                     <PanelSectionRow>
-                                        <div style={{ width: "100%", paddingTop: "4px" }}>
-                                            {fixStep !== null && (
-                                                <>
-                                                    <div style={bodyTextStyle()}>
-                                                        {fixStepLabel(language, fixStep.step)}
-                                                    </div>
-                                                    <div style={{ marginTop: "6px" }}>
-                                                        <ProgressBar fraction={fixProgress >= 0 ? fixProgress / 100 : null} />
-                                                    </div>
-                                                    <div style={{ ...bodyTextStyle(), marginTop: "6px" }}>
-                                                        {t(language, "Step {{step}} of {{count}}", { step: fixHere.current + 1, count: fixHere.steps.length })}
-                                                        {fixProgress >= 0 ? ` · ${fixProgress}%` : ""}
-                                                    </div>
-                                                </>
-                                            )}
-                                            {fixHere.failed && (
-                                                <div style={{ ...bodyTextStyle(), color: errorRed, opacity: 1 }}>{fixFailure}</div>
-                                            )}
-                                        </div>
+                                        <FixRunLine language={language} run={fixHere} streamProgress={stream.progress} />
                                     </PanelSectionRow>
                                 )}
                                 {fixHere !== null && fixHere.failed && (

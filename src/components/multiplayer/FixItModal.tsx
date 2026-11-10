@@ -2,6 +2,7 @@ import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { multiplayerCheck, multiplayerPlayInfo } from "../../api";
+import { useSlowWait } from "../../hooks/useSlowWait";
 import { t, type LanguageCode } from "../../locales";
 import type { FixPlan, FixStep, MultiplayerMode } from "../../types";
 import { jobErrorText } from "../../utils/emulatorJobs";
@@ -9,6 +10,8 @@ import { logError } from "../../utils/errors";
 import {
     chooseFixCore,
     chooseFixVia,
+    HOST_GATES,
+    RUN_SETTLE_MS,
     runFixPlan,
     setFixWindowOpen,
     useFixPlan,
@@ -26,10 +29,10 @@ import { useStreamSetup } from "../../utils/streamPlay";
 import { achievementGreen, errorRed, smallTextStyle } from "../../utils/style";
 import { DesktopToolButtons } from "../game/DesktopToolButtons";
 import { FocusTarget } from "../ui/FocusTarget";
+import { HeadingStop } from "../ui/HeadingStop";
 import { ProgressBar } from "../ui/ProgressBar";
 import { STATE_LOOKS } from "./ModeChart";
 import { showMultiplayerProblem } from "./ProblemModal";
-import { ScanOrPickLines } from "./ScanOrPickLines";
 
 export type FixItRequest = {
     target: FixTarget;
@@ -39,18 +42,16 @@ export type FixItRequest = {
     tools: { emudeck?: boolean; srm?: boolean } | null;
     explain: (gate: string, detail: Record<string, string>) => string;
     refresh: () => Promise<FixAnswer | null>;
-    forget?: () => void;
-    switchTo?: (mode: MultiplayerMode) => void;
+    forget?: () => Promise<void>;
+    host?: boolean;
 };
-
-const MODES: MultiplayerMode[] = ["link", "couch", "stream"];
 
 const MODE_NAMES: Record<MultiplayerMode, string> = { link: "Link Play", couch: "Couch Play", stream: "Stream Play" };
 
-const TITLES: Record<MultiplayerMode, Record<"setup" | "never", string>> = {
-    link: { setup: "Link Play: Needs setup", never: "Link Play: Won't work" },
-    couch: { setup: "Couch Play: Needs setup", never: "Couch Play: Won't work" },
-    stream: { setup: "Stream Play: Needs setup", never: "Stream Play: Won't work" }
+const TITLES: Record<MultiplayerMode, Record<"setup" | "never" | "failed", string>> = {
+    link: { setup: "Link Play: Needs setup", never: "Link Play: Won't work", failed: "Link Play: Couldn't finish setup" },
+    couch: { setup: "Couch Play: Needs setup", never: "Couch Play: Won't work", failed: "Couch Play: Couldn't finish setup" },
+    stream: { setup: "Stream Play: Needs setup", never: "Stream Play: Won't work", failed: "Stream Play: Couldn't finish setup" }
 };
 
 const WILL_BE_READY: Record<FixTarget, string> = {
@@ -132,18 +133,21 @@ function fixDoneLine(language: LanguageCode, step: FixStep): string {
     }
 }
 
-function missingLine(language: LanguageCode, step: FixStep, gate: string, detail: Record<string, string>): string {
+function missingLine(language: LanguageCode, step: FixStep, gate: string, detail: Record<string, string>, game: string): string {
     const name = step.name ?? "";
     switch (step.do) {
         case "enable_shortcut_fallback":
         case "enable_play_shortcut_fallback":
-            return t(language, "This game has no Steam shortcut of its own");
+            return t(language, "There is no non-Steam shortcut for {{name}}", { name: game });
         case "install_emulator":
+            if (step.reason === "dolphin_tool") {
+                return t(language, "Dolphin's Flatpak isn't installed. Cheevo Check needs it to read GameCube and Wii files, even when you play with Dolphin's AppImage.");
+            }
             return step.reason === "missing"
-                ? t(language, "{{emulator}} isn't installed anymore, but its Steam shortcut is still there", { emulator: name })
+                ? t(language, "{{emulator}} isn't installed anymore, but its non-Steam shortcut is still there", { emulator: name })
                 : t(language, "{{emulator}} isn't installed", { emulator: name });
         case "add_to_steam":
-            return t(language, "{{emulator}} isn't in Steam", { emulator: name });
+            return t(language, "There is no non-Steam shortcut for {{name}}", { name });
         case "install_core":
             if ((step.choices?.length ?? 0) > 1) {
                 return gate === "no_couch_core"
@@ -167,15 +171,18 @@ function missingLine(language: LanguageCode, step: FixStep, gate: string, detail
     }
 }
 
-function missingLines(language: LanguageCode, plan: FixPlan): string[] {
+function missingLines(language: LanguageCode, plan: FixPlan, game: string): string[] {
     const seen = new Set<string>();
     const lines: string[] = [];
     for (const stage of plan.stages) {
         for (const step of stage.steps) {
+            if (step.do === "pick_game_file" && step.path) {
+                continue;
+            }
             const key = `${step.do}:${step.kind ?? step.core ?? ""}`;
             if (!seen.has(key)) {
                 seen.add(key);
-                lines.push(missingLine(language, step, stage.gate, stage.detail));
+                lines.push(missingLine(language, step, stage.gate, stage.detail, game));
             }
         }
     }
@@ -188,16 +195,13 @@ function reasonLine(language: LanguageCode, step: FixStep): string {
         return t(language, "Matches the host's {{emulator}} {{version}}", { emulator: step.name ?? "", version: latest });
     }
     if (SHORTCUT_TOGGLES.includes(step.do)) {
-        return t(language, "Uses the emulator's own Steam shortcut, so the game doesn't need one");
+        return t(language, "Uses the emulator's own non-Steam shortcut, so the game doesn't need one");
     }
     if (step.reason === "game_shortcut") {
         return t(language, "Same install as this game's shortcut");
     }
     if (step.reason === "missing") {
-        return t(language, "Its Steam shortcut is still there, so it isn't added again");
-    }
-    if (step.reason === "dolphin_tool") {
-        return t(language, "Cheevo Check reads GameCube and Wii files with a tool inside Dolphin's Flatpak");
+        return t(language, "Its non-Steam shortcut is still there, so it isn't added again");
     }
     return "";
 }
@@ -207,44 +211,59 @@ function pickFailure(language: LanguageCode, run: FixRun, row: FixRunStep): stri
         error: row.error, label: "" });
 }
 
-function rowFailure(language: LanguageCode, run: FixRun, row: FixRunStep): string {
-    if (row.state === "kept") {
-        return t(language, "Kept yours. Fix It stopped here, and the steps before it stay done.");
-    }
-    if (row.step.do === "pick_game_file") {
+function failureReason(language: LanguageCode, run: FixRun, row: FixRunStep | undefined): string {
+    if (row?.step.do === "pick_game_file") {
         return pickFailure(language, run, row);
     }
-    const why = jobErrorText(language, row.error, row.step.name ?? "", row.step.do.endsWith("_core"));
-    return why ? `${why} ${afterFailure(language, run)}` : afterFailure(language, run);
+    const why = row
+        ? jobErrorText(language, row.error, row.step.name ?? "", row.step.do.endsWith("_core"))
+        : jobErrorText(language, run.error, "", false);
+    return why || t(language, "Something went wrong, so Fix It stopped.");
 }
 
-function afterFailure(language: LanguageCode, run: FixRun): string {
-    if (run.left.length > 0) {
-        return t(language, "Some of it couldn't be undone: {{items}}", { items: run.left.join(", ") });
-    }
-    if (run.steps.some((other) => other.state === "undone")) {
-        return t(language, "The steps before it were undone.");
-    }
-    if (run.steps.some((other) => other.state === "done")) {
-        return t(language, "The steps marked done stay done.");
-    }
-    return t(language, "Nothing was changed.");
+function leftBehind(language: LanguageCode, run: FixRun): string {
+    return run.left.length > 0 ? t(language, "Some of it couldn't be undone: {{items}}", { items: run.left.join(", ") }) : "";
 }
 
 export function fixFailureText(language: LanguageCode, run: FixRun): string {
-    const row = run.steps.find((other) => other.state === "failed" || other.state === "kept");
-    if (row) {
-        return rowFailure(language, run, row);
-    }
-    const why = jobErrorText(language, run.error, "", false);
-    return why ? `${why} ${afterFailure(language, run)}` : afterFailure(language, run);
+    const row = run.steps.find((other) => other.state === "failed");
+    return [failureReason(language, run, row), leftBehind(language, run)].filter(Boolean).join(" ");
 }
 
-function Section(props: { label: string; children: ReactNode }) {
+function Section(props: { focusKey: string; label: string; children: ReactNode }) {
     return (
-        <div style={{ marginBottom: "12px" }}>
-            <div style={{ ...smallTextStyle(), fontWeight: 700, opacity: 1, marginBottom: "4px" }}>{props.label}</div>
+        <div style={{ marginBottom: "14px" }}>
+            <HeadingStop focusKey={props.focusKey} style={{ fontSize: `${modalSize(15)}px`, fontWeight: 700 }}
+                outerStyle={{ marginBottom: "6px" }}>
+                {props.label}
+            </HeadingStop>
             {props.children}
+        </div>
+    );
+}
+
+function Bullet(props: { children: ReactNode }) {
+    return (
+        <div style={{ display: "flex", gap: "8px", fontSize: `${modalSize(15)}px`, lineHeight: 1.4, marginBottom: "6px", paddingLeft: "4px" }}>
+            <span style={{ flexShrink: 0 }}>•</span>
+            <span>{props.children}</span>
+        </div>
+    );
+}
+
+function Item(props: { children: ReactNode }) {
+    return (
+        <div style={{ fontSize: `${modalSize(15)}px`, lineHeight: 1.4, marginBottom: "4px", paddingLeft: "4px" }}>{props.children}</div>
+    );
+}
+
+function Intro(props: { lines: string[]; children: ReactNode }) {
+    return (
+        <div style={{ marginBottom: "16px" }}>
+            {props.lines.map((line) => (
+                <div key={line} style={{ fontSize: `${modalSize(16)}px`, lineHeight: 1.4, marginBottom: "10px" }}>{line}</div>
+            ))}
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>{props.children}</div>
         </div>
     );
 }
@@ -264,7 +283,6 @@ function FixItModal(props: { language: LanguageCode; request: FixItRequest; clos
     const stream = useStreamSetup(true);
     const [openedAt] = useState(() => Date.now());
     const [followed, setFollowed] = useState(run?.running ? run.startedAt : 0);
-
     useEffect(() => {
         setFixWindowOpen(true);
         return () => setFixWindowOpen(false);
@@ -276,34 +294,57 @@ function FixItModal(props: { language: LanguageCode; request: FixItRequest; clos
         }
     }, [run?.running, run?.startedAt]);
 
-    const ours = run !== null && run.target === request.target && run.gameId === request.gameId;
+    const ours = run !== null && run.target === request.target && run.gameId === request.gameId
+        && (run.running || run.startedAt >= openedAt || run.startedAt === followed);
     const live = run !== null && (run.running || (ours && run.failed)) ? run : null;
-    const ended = run !== null && ours && run.done && !run.running && (run.startedAt >= openedAt || run.startedAt === followed)
-        ? run : null;
+    const ended = run !== null && ours && run.done && !run.running ? run : null;
     const waiting = ended?.next && ended.next.state !== "ready" && ended.next.plan.steps.length > 0 ? ended.next : null;
     const answer = waiting ?? request.answer;
     const plan = answer.plan;
-    const phase = live?.running ? "running" : live?.failed ? "failed" : ended && !waiting ? "done" : "ready";
-    const [steps, setSteps] = useState(plan.steps);
-
-    useEffect(() => {
-        setSteps(plan.steps);
-    }, [plan]);
+    const settled = useSlowWait(live?.running === true, RUN_SETTLE_MS)
+        || (live?.running === true && Date.now() - live.startedAt >= RUN_SETTLE_MS);
+    const phase = live?.running && settled ? "running" : live?.failed ? "failed" : ended && !waiting ? "done" : "ready";
+    const briefing = phase === "ready" && plan.steps.length > 0;
+    const [chosen, setChosen] = useState({ plan, steps: plan.steps });
+    const steps = chosen.plan === plan ? chosen.steps : plan.steps;
+    const setSteps = (change: (current: FixStep[]) => FixStep[]) => setChosen({ plan, steps: change(steps) });
 
     const after = ended?.next ?? null;
     const state = phase === "done" ? after?.state === "ready" ? "ready" : after?.state === "never" ? "never" : "setup" : answer.state;
-    const look = STATE_LOOKS[state];
+    const look = STATE_LOOKS[phase === "failed" ? "never" : state];
     const title = request.target === "play" ? request.title
+        : request.host ? t(language, phase === "failed" ? "Host: Couldn't finish setup" : state === "ready" ? "Host" : "Host: Needs setup")
+        : phase === "failed" ? t(language, TITLES[request.target].failed)
         : state === "ready" ? t(language, MODE_NAMES[request.target]) : t(language, TITLES[request.target][state]);
-    const picking = plan.steps.some((step) => step.do === "pick_game_file");
-    const toggling = plan.steps.some((step) => SHORTCUT_TOGGLES.includes(step.do))
-        || (plan.steps.length === 0 && (answer.gate === "no_shortcut" || answer.gate === "no_emulator_shortcut"));
+    const picking = plan.steps.some((step) => step.do === "pick_game_file" && !step.path);
+    const heldFile = phase === "ready" && plan.steps.some((step) => step.do === "pick_game_file" && step.path);
+    const needsDolphin = heldFile && ended?.refused === true;
+    const fileMoved = plan.stages.some((stage) => stage.gate === "rom_missing" && !stage.detail.picked);
+    const shortcutless = !picking && plan.steps.some((step) => SHORTCUT_TOGGLES.includes(step.do) || step.do === "add_to_steam");
+    const noPlanForShortcut = plan.steps.length === 0 && (answer.gate === "no_shortcut" || answer.gate === "no_emulator_shortcut");
+
+    function pickAnother() {
+        void runFixPlan(request.target, request.gameId, request.title, steps, request.refresh,
+            () => showFixIt(language, request), true);
+    }
 
     function start() {
-        const picked = live?.failed ? live.steps.map((row) => row.step) : steps;
-        void runFixPlan(request.target, request.gameId, request.title, picked, request.refresh,
+        void runFixPlan(request.target, request.gameId, request.title, steps, request.refresh,
             () => showFixIt(language, request));
     }
+
+    const scanButton = (
+        <FocusTarget focusKey="fix:scan">
+            <DialogButton
+                onClick={() => {
+                    requestRoute({ kind: "cheevoCheck" });
+                    close();
+                }}
+            >
+                {t(language, "Run Cheevo Check Scan")}
+            </DialogButton>
+        </FocusTarget>
+    );
 
     function renderChoices(step: FixStep, index: number) {
         if (!step.choices || step.choices.length < 2) {
@@ -324,7 +365,6 @@ function FixItModal(props: { language: LanguageCode; request: FixItRequest; clos
                         <FocusTarget key={id} focusKey={`fix:choice:${index}:${id}`}>
                             <DialogButton
                                 onClick={choose}
-                                onGamepadFocus={choose}
                                 style={{ outline: chosen ? `2px solid ${achievementGreen}` : undefined, borderRadius: "4px", padding: "4px 10px" }}
                             >
                                 {chosen ? "✔ " : ""}{label}{choice.recommended ? ` · ${t(language, "Recommended")}` : ""}
@@ -341,9 +381,9 @@ function FixItModal(props: { language: LanguageCode; request: FixItRequest; clos
         const percent = row.step.do === "setup_streaming" ? stream.progress : row.progress;
         const checking = row.step.do === "pick_game_file" && pick?.state === "running" && pick.gameId === shown.gameId;
         return (
-            <div key={index} style={{ marginBottom: "8px", opacity: row.state === "waiting" || row.state === "undone" ? 0.5 : 1 }}>
+            <div key={index} style={{ marginBottom: "8px", opacity: row.state === "waiting" ? 0.5 : 1 }}>
                 <div style={{ fontSize: `${modalSize(15)}px`, color: row.state === "done" ? achievementGreen : undefined }}>
-                    {row.state === "done" ? `✔ ${label}` : row.state === "undone" ? `${label} · ${t(language, "Undone")}` : label}
+                    {row.state === "done" ? `✔ ${label}` : label}
                 </div>
                 {row.state === "running" && (
                     <div style={{ marginTop: "4px" }}>
@@ -361,8 +401,10 @@ function FixItModal(props: { language: LanguageCode; request: FixItRequest; clos
                         )}
                     </div>
                 )}
-                {(row.state === "failed" || row.state === "kept") && (
-                    <div style={{ ...smallTextStyle(), color: errorRed, opacity: 1 }}>{rowFailure(language, shown, row)}</div>
+                {row.state === "kept" && (
+                    <div style={{ ...smallTextStyle(), opacity: 1 }}>
+                        {t(language, "Kept yours. Fix It stopped here, and the steps before it stay done.")}
+                    </div>
                 )}
             </div>
         );
@@ -374,15 +416,27 @@ function FixItModal(props: { language: LanguageCode; request: FixItRequest; clos
         ));
     }
 
+    function renderFailure(shown: FixRun) {
+        const row = shown.steps.find((other) => other.state === "failed");
+        const left = leftBehind(language, shown);
+        return (
+            <>
+                {row && <Line>{`✕ ${fixStepLabel(language, row.step)}`}</Line>}
+                <Line>{failureReason(language, shown, row)}</Line>
+                {left && <Line color={errorRed}>{left}</Line>}
+            </>
+        );
+    }
+
     function renderOutcome(shown: FixRun) {
         const next = shown.next;
         const blocker = next?.plan.blocker ?? (next && next.state !== "ready" && next.gate
             ? { gate: next.gate, detail: next.detail } : null);
         return (
             <>
-                {shown.kept && <Line>{t(language, "Kept yours. Fix It stopped here, and the steps before it stay done.")}</Line>}
+                {!shown.already && shown.steps.map((row, index) => renderProgress(shown, row, index))}
                 {shown.already && <Line>{t(language, "Already set up")}</Line>}
-                {next?.state === "ready" && <Line color={achievementGreen}>{t(language, IS_READY[shown.target])}</Line>}
+                {next?.state === "ready" && <Line color={achievementGreen}>{t(language, request.host ? "Host is ready." : IS_READY[shown.target])}</Line>}
                 {next?.state !== "ready" && blocker && (
                     <>
                         <Line>{t(language, "One thing is still needed:")}</Line>
@@ -396,7 +450,7 @@ function FixItModal(props: { language: LanguageCode; request: FixItRequest; clos
     function renderPlan() {
         if (plan.steps.length === 0) {
             if (answer.state === "ready" || !answer.gate) {
-                return <Line color={achievementGreen}>{t(language, IS_READY[request.target])}</Line>;
+                return <Line color={achievementGreen}>{t(language, request.host ? "Host is ready." : IS_READY[request.target])}</Line>;
             }
             return <Line>{request.explain(answer.gate, answer.detail)}</Line>;
         }
@@ -406,29 +460,47 @@ function FixItModal(props: { language: LanguageCode; request: FixItRequest; clos
                 {waiting && ended?.kept && (
                     <Line>{t(language, "Kept yours. Fix It stopped here, and the steps before it stay done.")}</Line>
                 )}
-                <Section label={t(language, "What's missing")}>
-                    {missingLines(language, plan).map((line) => <Line key={line}>{line}</Line>)}
-                    {picking && <ScanOrPickLines language={language} />}
+                {picking && (
+                    <Intro lines={fileMoved ? [
+                        t(language, "The file for this game might have been moved or deleted since the last Cheevo Check scan. It's recommended to rescan your library whenever you make changes to ROM names, folders, etc."),
+                        t(language, "Don't want to run a scan now? Try the “Fix It” feature below that will scan just this game only.")
+                    ] : [
+                        t(language, "For the smoothest experience, run a Cheevo Check scan once on your whole library. It tells CheevoDeck which game each file is."),
+                        t(language, "Rather not? The “Fix It” feature below checks just this game's file instead.")
+                    ]}>
+                        {scanButton}
+                    </Intro>
+                )}
+                {shortcutless && (
+                    <Intro lines={[
+                        t(language, "For the smoothest experience, add your games to Steam as non-Steam shortcuts with Steam ROM Manager, which bulk adds your games at once. At the least, add your emulators as non-Steam shortcuts, which allows CheevoDeck to launch your games through them."),
+                        t(language, "Rather not? The “Fix It” feature below takes a quicker route to get you up and running right now.")
+                    ]}>
+                        {request.tools && <DesktopToolButtons language={language} tools={request.tools} close={close} />}
+                    </Intro>
+                )}
+                <Section focusKey="fix:section:missing" label={t(language, "What's missing")}>
+                    {missingLines(language, plan, request.title).map((line) => <Bullet key={line}>{line}</Bullet>)}
                 </Section>
-                <Section label={t(language, "What Fix It will do")}>
+                <Section focusKey="fix:section:steps" label={t(language, "What Fix It will do")}>
                     <Focusable key={`fix:steps:${waiting ? ended?.startedAt : "first"}`} flow-children="column">
                         {steps.map((step, index) => (
-                            <div key={index} style={{ marginBottom: "8px" }}>
+                            <div key={index} style={{ marginBottom: "8px", paddingLeft: "4px" }}>
                                 <div style={{ fontSize: `${modalSize(15)}px` }}>{`${index + 1}. ${fixStepLabel(language, step)}`}</div>
                                 {renderChoices(step, index)}
                             </div>
                         ))}
                     </Focusable>
                 </Section>
-                <Section label={t(language, "After this")}>
-                    {plan.outcome === "ready" && <Line>{t(language, WILL_BE_READY[request.target])}</Line>}
+                <Section focusKey="fix:section:after" label={t(language, "After this")}>
+                    {plan.outcome === "ready" && <Item>{t(language, request.host ? "Host will be ready." : WILL_BE_READY[request.target])}</Item>}
                     {plan.outcome === "after_pick" && (
-                        <Line>{t(language, "Fix It will check what else is needed once the file is found.")}</Line>
+                        <Item>{t(language, "Fix It will check what else is needed once the file is found.")}</Item>
                     )}
                     {plan.outcome === "blocked" && plan.blocker && (
                         <>
-                            <Line>{t(language, "After that, one thing is still needed:")}</Line>
-                            <Line>{request.explain(plan.blocker.gate, plan.blocker.detail)}</Line>
+                            <Item>{t(language, "After that, one thing is still needed:")}</Item>
+                            <Item>{request.explain(plan.blocker.gate, plan.blocker.detail)}</Item>
                         </>
                     )}
                 </Section>
@@ -438,66 +510,39 @@ function FixItModal(props: { language: LanguageCode; request: FixItRequest; clos
 
     return (
         <ModalRoot onCancel={close} onEscKeypress={close}>
-            <div style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700, marginBottom: "12px", display: "flex", alignItems: "center", gap: "10px" }}>
+            <HeadingStop focusKey="fix:title" autoFocus={briefing} outerStyle={{ marginBottom: "12px" }}
+                style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700, display: "flex", alignItems: "center", gap: "10px" }}>
                 <look.Icon style={{ color: look.color, flexShrink: 0 }} />
                 {title}
-            </div>
-            {request.switchTo && request.target !== "play" && phase !== "running" && (
-                <Focusable key="fix:modes" flow-children="row" style={{ display: "flex", gap: "6px", marginBottom: "12px" }}>
-                    {MODES.map((mode) => (
-                        <FocusTarget key={mode} focusKey={`fix:mode:${mode}`}>
-                            <DialogButton
-                                onClick={() => {
-                                    if (mode !== request.target) {
-                                        close();
-                                        request.switchTo?.(mode);
-                                    }
-                                }}
-                                style={{ outline: mode === request.target ? `2px solid ${achievementGreen}` : undefined, borderRadius: "4px",
-                                    padding: "4px 10px", minWidth: 0 }}
-                            >
-                                {t(language, MODE_NAMES[mode])}
-                            </DialogButton>
-                        </FocusTarget>
-                    ))}
-                </Focusable>
+            </HeadingStop>
+            {needsDolphin && (
+                <Line color={errorRed}>{t(language, "Scan failed because you do not have Dolphin's Flatpak. New fix plan proposed.")}</Line>
             )}
-            {live !== null ? (
+            {phase === "running" && live ? (
                 <div>
-                    {live.running && (
-                        <div style={{ ...smallTextStyle(), marginBottom: "8px" }}>
-                            {t(language, "Step {{step}} of {{count}}", { step: live.current + 1, count: live.steps.length })}
-                        </div>
-                    )}
+                    <div style={{ ...smallTextStyle(), marginBottom: "8px" }}>
+                        {t(language, "Step {{step}} of {{count}}", { step: live.current + 1, count: live.steps.length })}
+                    </div>
                     {live.steps.map((row, index) => renderProgress(live, row, index))}
-                    {live.failed && !live.steps.some((row) => row.state === "failed" || row.state === "kept") && (
-                        <div style={{ ...smallTextStyle(), color: errorRed, opacity: 1 }}>{fixFailureText(language, live)}</div>
-                    )}
                 </div>
+            ) : live?.failed ? (
+                <div>{renderFailure(live)}</div>
             ) : phase === "done" && ended !== null ? (
-                <div>
-                    {renderDone(ended)}
-                    {renderOutcome(ended)}
-                </div>
+                <div>{renderOutcome(ended)}</div>
             ) : renderPlan()}
             <Focusable key={`fix:buttons:${phase}`} style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "16px" }}
                 flow-children="column">
-                {(phase === "running" || phase === "failed" || (phase === "ready" && plan.steps.length > 0)) && (
+                {(phase === "running" || (phase === "ready" && plan.steps.length > 0)) && (
                     <FocusTarget focusKey="fix:run">
-                        <DialogButton autoFocus={phase !== "running"} disabled={phase === "running"} onClick={start}>
-                            {phase === "running" ? t(language, "Working...") : phase === "failed" ? t(language, "Try Again") : t(language, "Fix It")}
+                        <DialogButton disabled={phase === "running"} onClick={start}>
+                            {phase === "running" ? t(language, "Working...") : t(language, "Fix It")}
                         </DialogButton>
                     </FocusTarget>
                 )}
-                {phase === "ready" && picking && (
-                    <FocusTarget focusKey="fix:scan">
-                        <DialogButton
-                            onClick={() => {
-                                requestRoute({ kind: "cheevoCheck" });
-                                close();
-                            }}
-                        >
-                            {t(language, "Run Cheevo Check Scan")}
+                {heldFile && request.forget && (
+                    <FocusTarget focusKey="fix:repick">
+                        <DialogButton onClick={pickAnother}>
+                            {t(language, "Pick a Different File")}
                         </DialogButton>
                     </FocusTarget>
                 )}
@@ -506,19 +551,18 @@ function FixItModal(props: { language: LanguageCode; request: FixItRequest; clos
                         <DialogButton
                             onClick={() => {
                                 close();
-                                request.forget?.();
+                                void request.forget?.();
                             }}
                         >
                             {t(language, "Forget This File")}
                         </DialogButton>
                     </FocusTarget>
                 )}
-                {phase === "ready" && toggling && request.tools && (
+                {phase === "ready" && noPlanForShortcut && request.tools && (
                     <DesktopToolButtons language={language} tools={request.tools} close={close} />
                 )}
                 <FocusTarget focusKey="fix:close">
-                    <DialogButton autoFocus={phase === "done" || phase === "running" || (phase === "ready" && plan.steps.length === 0)}
-                        onClick={close}>
+                    <DialogButton autoFocus={phase !== "ready" || plan.steps.length === 0} onClick={close}>
                         {t(language, "Close")}
                     </DialogButton>
                 </FocusTarget>
@@ -536,7 +580,7 @@ type FixItFor = {
     gameId: number;
     title: string;
     roomId?: string;
-    switchable?: boolean;
+    host?: boolean;
     tools?: { emudeck?: boolean; srm?: boolean } | null;
 };
 
@@ -554,7 +598,17 @@ async function fetchFixAnswer(about: FixItFor): Promise<Fetched | null> {
         return null;
     }
     const state = checked.state ?? (checked.gate ? "setup" : "ready");
-    return { answer: { state, gate: checked.gate, detail: checked.detail ?? {}, plan: checked.plan }, tools: about.tools ?? null };
+    const answer: FixAnswer = { state, gate: checked.gate, detail: checked.detail ?? {}, plan: checked.plan };
+    return { answer: about.host ? hostAnswer(answer) : answer, tools: about.tools ?? null };
+}
+
+function hostAnswer(answer: FixAnswer): FixAnswer {
+    const first = answer.plan.stages[0];
+    if (!answer.gate || !HOST_GATES.includes(answer.gate) || !first) {
+        return { state: "ready", gate: null, detail: {}, plan: { outcome: "ready", stages: [], steps: [], blocker: null } };
+    }
+    const picking = first.steps.some((step) => step.do === "pick_game_file");
+    return { ...answer, plan: { outcome: picking ? "after_pick" : "ready", stages: [first], steps: first.steps, blocker: null } };
 }
 
 export async function openFixIt(language: LanguageCode, about: FixItFor) {
@@ -578,7 +632,7 @@ export async function openFixIt(language: LanguageCode, about: FixItFor) {
         tools: fetched.tools,
         explain: (gate, detail) => gateText(language, about.target, gate, detail, Boolean(about.roomId)),
         refresh,
-        forget: () => void forgetGameFile(about.gameId),
-        switchTo: about.switchable ? (mode) => void openFixIt(language, { ...about, target: mode }) : undefined
+        forget: () => forgetGameFile(about.gameId),
+        host: about.host
     });
 }

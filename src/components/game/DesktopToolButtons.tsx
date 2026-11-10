@@ -4,6 +4,7 @@ import { multiplayerOpenInDesktop } from "../../api";
 import { t, type LanguageCode } from "../../locales";
 import { logError } from "../../utils/errors";
 import { anyGameRunning } from "../../utils/multiplayerSession";
+import { FocusTarget } from "../ui/FocusTarget";
 import { showMultiplayerProblem } from "../multiplayer/ProblemModal";
 
 type DesktopTool = "emudeck" | "srm";
@@ -37,15 +38,16 @@ export function DesktopToolButtons(props: { language: LanguageCode; tools: { emu
     return (
         <>
             {toolsFound(props.tools).map((tool) => (
-                <DialogButton
-                    key={tool}
-                    onClick={() => {
-                        close();
-                        openInDesktop(language, tool);
-                    }}
-                >
-                    {t(language, TOOL_LABELS[tool])}
-                </DialogButton>
+                <FocusTarget key={tool} focusKey={`desktop:${tool}`}>
+                    <DialogButton
+                        onClick={() => {
+                            close();
+                            openInDesktop(language, tool);
+                        }}
+                    >
+                        {t(language, TOOL_LABELS[tool])}
+                    </DialogButton>
+                </FocusTarget>
             ))}
         </>
     );

@@ -908,7 +908,8 @@ class MultiplayerService:
         return {"ok": True, "title": title, "label": label}
 
     def forget_picked_game(self, game_id: int) -> dict:
-        return {"ok": self._cheevo_check_store.forget_picked(game_id)}
+        held = self._dolphin_picks.pop(game_id, None) is not None
+        return {"ok": self._cheevo_check_store.forget_picked(game_id) or held}
 
     def pick_start_folder(self) -> str:
         results = self._cheevo_check_store.load_results() if self._cheevo_check_store.results_fingerprint() else None

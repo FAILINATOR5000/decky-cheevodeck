@@ -53,6 +53,7 @@ import { BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT } from "../utils/gamepadButtons
 import { playOkSound } from "../utils/navSound";
 import { pendingLandingKey, usePageLanding } from "../focusRecords";
 import { PlaySplitButton } from "../components/game/PlaySplitButton";
+import { FixRunLine } from "../components/multiplayer/FixRunLine";
 import { useGamePlayController } from "../hooks/useGamePlayController";
 
 const GO_ROW_FALLBACK = [
@@ -336,7 +337,6 @@ function GameOverviewPage(props: GameOverviewPageProps) {
     const play = useGamePlayController({
         gameId,
         title: payloadHere ? loadedPayload?.title ?? "" : "",
-        consoleName: payloadHere ? loadedPayload?.consoleName ?? null : null,
         isActive: view === "gameOverview",
         language,
         openMultiplayer: onOpenMultiplayer
@@ -878,6 +878,7 @@ function GameOverviewPage(props: GameOverviewPageProps) {
                                     style={{ marginTop: "4px" }}
                                 />
                             )}
+                            {play.fixRun !== null && <FixRunLine language={language} run={play.fixRun} />}
                             {hasGameInfo && (
                                 <div
                                     style={{

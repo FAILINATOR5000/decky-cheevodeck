@@ -5,16 +5,11 @@ import { showPlayWith } from "../components/game/PlayWithModal";
 import { openFixIt } from "../components/multiplayer/FixItModal";
 import { showMultiplayerProblem } from "../components/multiplayer/ProblemModal";
 import { t, type LanguageCode } from "../locales";
-import type { MultiplayerMode, PlayInfo, PlayPick } from "../types";
+import type { PlayInfo, PlayPick } from "../types";
 import { logError } from "../utils/errors";
-import { useFixPlan } from "../utils/fixPlan";
+import { HOST_GATES, useFixPlan } from "../utils/fixPlan";
 import { useGameFilePick } from "../utils/gameFilePick";
-import {
-    multiplayerChoices,
-    rememberMultiplayerGame,
-    rememberMultiplayerPage,
-    rememberMultiplayerTab
-} from "../utils/multiplayerChoices";
+import { rememberMultiplayerGame, rememberMultiplayerPage } from "../utils/multiplayerChoices";
 import { problemText } from "../utils/multiplayerProblems";
 import { useMultiplayerRoomRole } from "../utils/multiplayerRoomState";
 import {
@@ -28,25 +23,23 @@ import {
 
 export type PlayMode = "play" | "host" | "with";
 
-const LINK_CONSOLES = ["Game Boy", "Game Boy Color", "Game Boy Advance", "Nintendo DS", "GameCube", "PlayStation Portable"];
-
 const NEXT_MODE: Record<PlayMode, PlayMode> = { play: "host", host: "with", with: "play" };
 
-type HostCheck = { gameId: number; mode: MultiplayerMode | null; first: MultiplayerMode; gate: string | null; detail: Record<string, string> };
+type HostCheck = { gameId: number; gate: string | null };
 
 const playInfos = new Map<number, PlayInfo>();
 
 export function useGamePlayController(props: {
     gameId: number | null;
     title: string;
-    consoleName: string | null;
     isActive: boolean;
     language: LanguageCode;
     openMultiplayer: () => void;
 }) {
-    const { gameId, consoleName, isActive, language } = props;
+    const { gameId, isActive, language } = props;
     const gameFilesChanged = useGameFilePick().changed;
-    const fixesFinished = useFixPlan().finished;
+    const fixPlan = useFixPlan();
+    const fixesFinished = fixPlan.finished;
     const [chosen, setChosen] = useState<{ gameId: number | null; mode: PlayMode }>({ gameId, mode: "play" });
     const mode: PlayMode = chosen.gameId === gameId ? chosen.mode : "play";
     const [loaded, setLoaded] = useState<{ gameId: number; info: PlayInfo } | null>(null);
@@ -84,40 +77,17 @@ export function useGamePlayController(props: {
             return;
         }
         let alive = true;
-        void (async () => {
-            const first = multiplayerChoices().tab;
-            const modes: MultiplayerMode[] = [first, ...(["link", "couch", "stream"] as MultiplayerMode[]).filter((each) => each !== first)];
-            let result: HostCheck = { gameId, mode: null, first, gate: null, detail: {} };
-            let fixable: MultiplayerMode | null = null;
-            try {
-                for (const each of modes) {
-                    const checked = await multiplayerCheck(each, gameId, "", "");
-                    if (!checked.gate) {
-                        result = { gameId, mode: each, first, gate: null, detail: {} };
-                        break;
-                    }
-                    if (result.gate === null) {
-                        result = { gameId, mode: null, first, gate: checked.gate, detail: checked.detail ?? {} };
-                    }
-                    const neverLinks = each === "link" && checked.plan?.outcome === "after_pick"
-                        && consoleName !== null && !LINK_CONSOLES.includes(consoleName);
-                    if (fixable === null && (checked.plan?.steps.length ?? 0) > 0 && !neverLinks) {
-                        fixable = each;
-                    }
+        multiplayerCheck("couch", gameId, "", "")
+            .then((checked) => {
+                if (alive) {
+                    setHostCheck({ gameId, gate: checked.gate && HOST_GATES.includes(checked.gate) ? checked.gate : null });
                 }
-            }
-            catch (e) {
-                logError("play: couldn't check whether this game can host", e);
-                return;
-            }
-            if (alive) {
-                setHostCheck(result.mode === null ? { ...result, first: fixable ?? first } : result);
-            }
-        })();
+            })
+            .catch((e) => logError("play: couldn't check whether this game can host", e));
         return () => {
             alive = false;
         };
-    }, [isActive, mode, gameId, roomRole, hostChecked, consoleName]);
+    }, [isActive, mode, gameId, roomRole, hostChecked]);
 
     const ownAppid = info?.launchable && !info.fallback ? info.appid : 0;
     const playing = (ownAppid !== 0 && running.appid === ownAppid)
@@ -189,23 +159,24 @@ export function useGamePlayController(props: {
     if (mode === "host") {
         label = t(language, "Host");
         if (roomRole !== null) {
-            explain = () => showMultiplayerProblem(language, "Can't Host", t(language, "You are already in a room."));
+            explain = () => showMultiplayerProblem(language, "Can't Host", t(language, "Cannot host now since you are already in a room."));
         }
-        else if (playing || gameRunning) {
+        else if (playing) {
+            explain = () => showMultiplayerProblem(language, "Can't Host", t(language, "You're playing this game right now. Close it first, then host it."));
+        }
+        else if (gameRunning) {
             explain = anotherGameRunning;
         }
-        else if (host?.mode && gameId != null) {
-            const hostMode = host.mode;
+        else if (host !== null && host.gate === null && gameId != null) {
             const hostGame = gameId;
             press = () => {
                 rememberMultiplayerGame(hostGame);
-                rememberMultiplayerTab(hostMode);
                 rememberMultiplayerPage("play");
                 props.openMultiplayer();
             };
         }
         else if (host?.gate && gameId != null) {
-            const about = { target: host.first, gameId, title: props.title, switchable: true, tools: info?.tools ?? null };
+            const about = { target: "couch" as const, gameId, title: props.title, host: true, tools: info?.tools ?? null };
             explain = () => void openFixIt(language, about);
         }
     }
@@ -253,5 +224,8 @@ export function useGamePlayController(props: {
     const hostPending = mode === "host" && roomRole === null && gameId != null && host === null && !gameRunning && !playing;
     const playLit = Boolean(info?.launchable) && !playing;
 
-    return { mode, label, disabled: hostPending ? !playLit : press === null, onPress, onToggleMode };
+    const run = fixPlan.run;
+    const fixRun = run !== null && run.gameId === gameId && (run.running || run.failed) ? run : null;
+
+    return { mode, label, disabled: hostPending ? !playLit : press === null, onPress, onToggleMode, fixRun };
 }
