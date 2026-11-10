@@ -41,8 +41,8 @@ export async function addEmulatorShortcut(name: string, install: EmulatorInstall
         options = `run --${install.scope === "system" ? "system" : "user"} ${install.id}`;
     }
     else {
-        exe = `"${install.path}"`;
-        startDir = `"${install.path.slice(0, install.path.lastIndexOf("/")) || "/"}"`;
+        exe = install.path;
+        startDir = install.path.slice(0, install.path.lastIndexOf("/")) || "/";
     }
     const appid: number = await SteamClient.Apps.AddShortcut(name, exe, startDir, options);
     if (typeof appid !== "number" || appid <= 0) {
