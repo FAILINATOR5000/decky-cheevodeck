@@ -307,6 +307,7 @@ async function runSession(language: LanguageCode, steps: FixStep[], offset: numb
     let plan = "";
     let failure = "";
     let failedAt = -1;
+    let current = -1;
     try {
         const begun = await emulatorsPlanBegin();
         if (!begun?.ok || !begun.plan) {
@@ -316,6 +317,7 @@ async function runSession(language: LanguageCode, steps: FixStep[], offset: numb
             plan = begun.plan;
             for (const at of indexes) {
                 const step = store.run!.steps[at].step;
+                current = at;
                 update(at, { state: "running", progress: -1 }, { current: at });
                 failure = step.where === "backend"
                     ? await runBackendStep(language, plan, at, step)
@@ -331,6 +333,9 @@ async function runSession(language: LanguageCode, steps: FixStep[], offset: numb
     catch (e) {
         logError("ez fix: running the plan", e);
         failure = failure || "failed";
+        if (failedAt < 0) {
+            failedAt = current;
+        }
     }
     if (!failure || failure === "kept") {
         if (failure === "kept") {
@@ -379,6 +384,10 @@ async function fetchAnswer(refresh: () => Promise<FixAnswer | null>): Promise<Fi
     }
 }
 
+function stepKey(step: FixStep): string {
+    return `${step.do}:${step.kind ?? step.core ?? ""}`;
+}
+
 function rows(steps: FixStep[]): FixRunStep[] {
     return steps.map((step) => ({ step, state: "waiting", progress: -1, error: "" }));
 }
@@ -416,7 +425,8 @@ export async function runFixPlan(target: FixTarget, gameId: number, title: strin
         const names = await askShortcutNames(language, steps, offset);
         if (names === null) {
             if (round === 1) {
-                publish({ run: null });
+                publish({ run: { ...store.run!, running: false, done: true,
+                    next: answer && { ...answer, plan: { ...answer.plan, steps } } } });
                 return;
             }
             finish(language, { done: true, next: answer });
@@ -457,7 +467,9 @@ export async function runFixPlan(target: FixTarget, gameId: number, title: strin
         }
         answer = await fetchAnswer(refresh);
         const more = answer?.plan.steps ?? [];
-        if (more.length === 0 || answer?.plan.outcome === "after_pick" || round >= MAX_ROUNDS) {
+        const done = new Set(store.run!.steps.filter((row) => row.state === "done").map((row) => stepKey(row.step)));
+        const repeats = more.length > 0 && more.every((step) => done.has(stepKey(step)));
+        if (more.length === 0 || repeats || answer?.plan.outcome === "after_pick" || round >= MAX_ROUNDS) {
             finish(language, { done: true, next: answer });
             return;
         }

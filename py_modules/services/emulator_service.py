@@ -42,6 +42,7 @@ CORE_MAX = 1 << 30
 INFO_MAX = 8 << 20
 INDEX_SECONDS = 600
 RELEASE_SECONDS = 600
+MATCH_FETCH_SECONDS = 5
 PLAN_SETTLE_SECONDS = 30
 FLATPAK_INSTALL_SECONDS = 1800
 WATCH_SECONDS = 1.0
@@ -138,9 +139,11 @@ class EmulatorService:
         self._state = None
         self._said = (None, 0.0, -2)
         self._releases = {}
+        self._match_asked = {}
         self._flathub = (0.0, None)
         self._sha256s = {}
         self._plan_run = None
+        self.changed = 0
 
     def _work_dir(self) -> Path:
         return self._runtime_dir / WORK_FOLDER
@@ -715,6 +718,7 @@ class EmulatorService:
         finally:
             shutil.rmtree(self._work_dir() / ".work" / f"job-{job['id']}", ignore_errors=True)
             self._inventory = None
+            self.changed += 1
 
     def _apply(self, job: dict, step: dict, journal: dict) -> None:
         do = step.get("do")
@@ -1157,8 +1161,8 @@ class EmulatorService:
                     remote[app] = found
         self._flathub = (time.monotonic(), remote)
 
-    def _flathub_info(self, scope: str, app: str) -> dict:
-        code, out, _err = self._run(["flatpak", "remote-info", scope, "flathub", app])
+    def _flathub_info(self, scope: str, app: str, timeout=FLATPAK_SECONDS) -> dict:
+        code, out, _err = self._run(["flatpak", "remote-info", scope, "flathub", app], timeout=timeout)
         if code != 0:
             return {}
         fields = {}
@@ -1176,7 +1180,7 @@ class EmulatorService:
             return {"repo": source["repo"], "tag": source["tag"], "asset": source["asset"]}
         return {"repo": entry["repo"], "tag": entry["tag"], "asset": entry["asset"]}
 
-    def _release_for(self, kind: str, path: str, network: bool):
+    def _release_for(self, kind: str, path: str, network: bool, timeout=FETCH_SECONDS):
         source = self._release_source(kind, path)
         key = (source["repo"], source["tag"], source["asset"])
         cached = self._releases.get(key)
@@ -1185,16 +1189,17 @@ class EmulatorService:
         if not network:
             return None
         try:
-            release = self._github_release(**source)
+            release = self._github_release(**source, timeout=timeout)
         except (StepFailed, urllib.error.URLError, OSError, ValueError) as e:
             decky.logger.info("emulators: couldn't read %s's latest release (%s)", source["repo"], type(e).__name__)
             return cached[1] if cached is not None else None
         self._releases[key] = (time.monotonic(), release)
         return release
 
-    def _github_release(self, repo: str, tag: str, asset: str):
+    def _github_release(self, repo: str, tag: str, asset: str, timeout=FETCH_SECONDS):
         which = f"tags/{tag}" if tag else "latest"
-        with self._open(RELEASES_URL.format(repo=repo, which=which), {"Accept": "application/vnd.github+json"}) as response:
+        with self._open(RELEASES_URL.format(repo=repo, which=which), {"Accept": "application/vnd.github+json"},
+                        timeout) as response:
             raw = json.loads(response.read(4 << 20).decode("utf-8"))
         if not isinstance(raw, dict) or raw.get("prerelease") or raw.get("draft"):
             return None
@@ -1590,10 +1595,10 @@ class EmulatorService:
         installed = []
         if row["flatpak"]["installed"]:
             installed.append({"via": "flatpak", "id": entry["flatpak"], "scope": row["flatpak"]["scope"],
-                              "steam": row["flatpak"].get("steam")})
+                              "steam": self._in_steam(row["flatpak"].get("steam"))})
         for image in row.get("appimages") or []:
             if not image["missing"]:
-                installed.append({"via": "appimage", "path": image["path"], "steam": image.get("steam")})
+                installed.append({"via": "appimage", "path": image["path"], "steam": self._in_steam(image.get("steam"))})
         usable = [choice for choice in installed if not only or choice["via"] == only]
         if any(choice["steam"] is not None for choice in usable):
             return None
@@ -1612,9 +1617,19 @@ class EmulatorService:
 
     def _steam_for(self, row: dict, choice: dict):
         if choice["via"] == "flatpak":
-            return row["flatpak"].get("steam")
+            return self._in_steam(row["flatpak"].get("steam"))
         image = next((image for image in row.get("appimages") or [] if image["path"] == choice.get("path")), None)
-        return image.get("steam") if image is not None else None
+        return self._in_steam(image.get("steam")) if image is not None else None
+
+    def _in_steam(self, steam):
+        if steam is None or not steam["appid"]:
+            return steam
+        kind = steam["key"].split(":", 1)[0]
+        wanted = {steam["appid"], steam["appid"] - (1 << 32), steam["appid"] + (1 << 32)}
+        for shortcut in steam_shortcuts.emulator_shortcuts(self._user_home):
+            if shortcut["appid"] in wanted and session.emulator_kind(shortcut["exe"], shortcut["launchOptions"]) == kind:
+                return steam
+        return None
 
     def _reinstall_plan(self, inventory: dict, kind: str, detail: dict):
         if kind not in catalog.BY_KIND or self._row_for(inventory, kind) is None:
@@ -1672,16 +1687,35 @@ class EmulatorService:
         if install == "flatpak":
             mine, latest = row["flatpak"]["version"], row["flatpak"]["latest"]
             target = {"via": "flatpak"}
+            if not latest:
+                app = catalog.BY_KIND[kind]["flatpak"]
+                latest = self._latest_once(("flatpak", app), lambda: self._flathub_info(
+                    self._flathub_scope(), app, MATCH_FETCH_SECONDS).get("version", ""))
         else:
             image = next((image for image in row["appimages"] if image["path"] == context.get("path")), None)
             if image is None:
                 return None
             mine, latest = image["version"], image["latest"]
             target = {"via": "appimage", "path": image["path"]}
+            if not latest:
+                latest = self._latest_once((kind, image["path"]), lambda: (self._release_for(
+                    kind, image["path"], True, MATCH_FETCH_SECONDS) or {}).get("version", ""))
         older, newest = catalog.version_key(mine), catalog.version_key(latest)
         if not latest or host != latest or older is None or newest is None or not older < newest:
             return None
         return [{"do": "update_emulator", "where": "backend", "kind": kind, "name": row["name"], **target}]
+
+    def _latest_once(self, key: tuple, fetch) -> str:
+        asked = self._match_asked.get(key)
+        if asked is not None and time.monotonic() - asked[0] < RELEASE_SECONDS:
+            return asked[1]
+        try:
+            latest = fetch() or ""
+        except Exception as e:
+            decky.logger.info("emulators: couldn't read the newest %s (%s)", key[0], type(e).__name__)
+            latest = ""
+        self._match_asked[key] = (time.monotonic(), latest)
+        return latest
 
     def plan(self, gate: str, detail: dict, context: dict, inventory=None):
         try:
@@ -1732,7 +1766,7 @@ class EmulatorService:
         return None
 
     def inventory_after(self, steps) -> dict:
-        inventory = copy.deepcopy(self._inventory if self._inventory is not None else self.inventory(network=False))
+        inventory = copy.deepcopy(self.inventory(network=False))
         for step in steps:
             do = step.get("do")
             if do in ("install_core", "update_core"):
@@ -1844,6 +1878,7 @@ class EmulatorService:
         left = self._rollback(journal)
         self._close_journal(journal)
         self._inventory = None
+        self.changed += 1
         return {"ok": True, "client": journal.get("pendingClient") or [], "left": left}
 
     def plan_abandon(self) -> dict:

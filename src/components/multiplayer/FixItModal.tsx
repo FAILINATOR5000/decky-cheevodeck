@@ -28,6 +28,7 @@ import { DesktopToolButtons } from "../game/DesktopToolButtons";
 import { FocusTarget } from "../ui/FocusTarget";
 import { ProgressBar } from "../ui/ProgressBar";
 import { STATE_LOOKS } from "./ModeChart";
+import { showMultiplayerProblem } from "./ProblemModal";
 import { ScanOrPickLines } from "./ScanOrPickLines";
 
 export type FixItRequest = {
@@ -131,7 +132,7 @@ function fixDoneLine(language: LanguageCode, step: FixStep): string {
     }
 }
 
-function missingLine(language: LanguageCode, step: FixStep, gate: string): string {
+function missingLine(language: LanguageCode, step: FixStep, gate: string, detail: Record<string, string>): string {
     const name = step.name ?? "";
     switch (step.do) {
         case "enable_shortcut_fallback":
@@ -157,6 +158,11 @@ function missingLine(language: LanguageCode, step: FixStep, gate: string): strin
         case "setup_streaming":
             return t(language, "Streaming isn't set up yet");
         case "pick_game_file":
+            if (gate === "rom_missing") {
+                return detail.picked
+                    ? t(language, "The file picked for this game changed or moved")
+                    : t(language, "This game's file isn't where Cheevo Check last saw it");
+            }
             return t(language, "CheevoDeck doesn't know which file is this game yet");
     }
 }
@@ -169,7 +175,7 @@ function missingLines(language: LanguageCode, plan: FixPlan): string[] {
             const key = `${step.do}:${step.kind ?? step.core ?? ""}`;
             if (!seen.has(key)) {
                 seen.add(key);
-                lines.push(missingLine(language, step, stage.gate));
+                lines.push(missingLine(language, step, stage.gate, stage.detail));
             }
         }
     }
@@ -209,22 +215,29 @@ function rowFailure(language: LanguageCode, run: FixRun, row: FixRunStep): strin
         return pickFailure(language, run, row);
     }
     const why = jobErrorText(language, row.error, row.step.name ?? "", row.step.do.endsWith("_core"));
-    let after = t(language, "Nothing was changed.");
+    return why ? `${why} ${afterFailure(language, run)}` : afterFailure(language, run);
+}
+
+function afterFailure(language: LanguageCode, run: FixRun): string {
     if (run.left.length > 0) {
-        after = t(language, "Some of it couldn't be undone: {{items}}", { items: run.left.join(", ") });
+        return t(language, "Some of it couldn't be undone: {{items}}", { items: run.left.join(", ") });
     }
-    else if (run.steps.some((other) => other.state === "undone")) {
-        after = t(language, "The steps before it were undone.");
+    if (run.steps.some((other) => other.state === "undone")) {
+        return t(language, "The steps before it were undone.");
     }
-    else if (run.steps.some((other) => other.state === "done")) {
-        after = t(language, "The steps marked done stay done.");
+    if (run.steps.some((other) => other.state === "done")) {
+        return t(language, "The steps marked done stay done.");
     }
-    return why ? `${why} ${after}` : after;
+    return t(language, "Nothing was changed.");
 }
 
 export function fixFailureText(language: LanguageCode, run: FixRun): string {
     const row = run.steps.find((other) => other.state === "failed" || other.state === "kept");
-    return row ? rowFailure(language, run, row) : t(language, "Nothing was changed.");
+    if (row) {
+        return rowFailure(language, run, row);
+    }
+    const why = jobErrorText(language, run.error, "", false);
+    return why ? `${why} ${afterFailure(language, run)}` : afterFailure(language, run);
 }
 
 function Section(props: { label: string; children: ReactNode }) {
@@ -382,11 +395,17 @@ function FixItModal(props: { language: LanguageCode; request: FixItRequest; clos
 
     function renderPlan() {
         if (plan.steps.length === 0) {
-            return <Line>{answer.gate ? request.explain(answer.gate, answer.detail) : ""}</Line>;
+            if (answer.state === "ready" || !answer.gate) {
+                return <Line color={achievementGreen}>{t(language, IS_READY[request.target])}</Line>;
+            }
+            return <Line>{request.explain(answer.gate, answer.detail)}</Line>;
         }
         return (
             <>
                 {waiting && ended && renderDone(ended)}
+                {waiting && ended?.kept && (
+                    <Line>{t(language, "Kept yours. Fix It stopped here, and the steps before it stay done.")}</Line>
+                )}
                 <Section label={t(language, "What's missing")}>
                     {missingLines(language, plan).map((line) => <Line key={line}>{line}</Line>)}
                     {picking && <ScanOrPickLines language={language} />}
@@ -451,6 +470,9 @@ function FixItModal(props: { language: LanguageCode; request: FixItRequest; clos
                         </div>
                     )}
                     {live.steps.map((row, index) => renderProgress(live, row, index))}
+                    {live.failed && !live.steps.some((row) => row.state === "failed" || row.state === "kept") && (
+                        <div style={{ ...smallTextStyle(), color: errorRed, opacity: 1 }}>{fixFailureText(language, live)}</div>
+                    )}
                 </div>
             ) : phase === "done" && ended !== null ? (
                 <div>
@@ -544,6 +566,7 @@ export async function openFixIt(language: LanguageCode, about: FixItFor) {
         logError("fix it: couldn't ask what this game needs", e);
     }
     if (fetched === null) {
+        showMultiplayerProblem(language, "Fix It", t(language, "Couldn't check what this game needs. Try again."));
         return;
     }
     const refresh = async () => (await fetchFixAnswer(about))?.answer ?? null;

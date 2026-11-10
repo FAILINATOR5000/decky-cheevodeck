@@ -7,6 +7,7 @@ import { showMultiplayerProblem } from "../components/multiplayer/ProblemModal";
 import { t, type LanguageCode } from "../locales";
 import type { MultiplayerMode, PlayInfo, PlayPick } from "../types";
 import { logError } from "../utils/errors";
+import { useFixPlan } from "../utils/fixPlan";
 import { useGameFilePick } from "../utils/gameFilePick";
 import {
     multiplayerChoices,
@@ -27,6 +28,8 @@ import {
 
 export type PlayMode = "play" | "host" | "with";
 
+const LINK_CONSOLES = ["Game Boy", "Game Boy Color", "Game Boy Advance", "Nintendo DS", "GameCube", "PlayStation Portable"];
+
 const NEXT_MODE: Record<PlayMode, PlayMode> = { play: "host", host: "with", with: "play" };
 
 type HostCheck = { gameId: number; mode: MultiplayerMode | null; first: MultiplayerMode; gate: string | null; detail: Record<string, string> };
@@ -36,12 +39,14 @@ const playInfos = new Map<number, PlayInfo>();
 export function useGamePlayController(props: {
     gameId: number | null;
     title: string;
+    consoleName: string | null;
     isActive: boolean;
     language: LanguageCode;
     openMultiplayer: () => void;
 }) {
-    const { gameId, isActive, language } = props;
+    const { gameId, consoleName, isActive, language } = props;
     const gameFilesChanged = useGameFilePick().changed;
+    const fixesFinished = useFixPlan().finished;
     const [chosen, setChosen] = useState<{ gameId: number | null; mode: PlayMode }>({ gameId, mode: "play" });
     const mode: PlayMode = chosen.gameId === gameId ? chosen.mode : "play";
     const [loaded, setLoaded] = useState<{ gameId: number; info: PlayInfo } | null>(null);
@@ -67,11 +72,11 @@ export function useGamePlayController(props: {
         return () => {
             alive = false;
         };
-    }, [isActive, gameId, gameFilesChanged]);
+    }, [isActive, gameId, gameFilesChanged, fixesFinished]);
 
     useEffect(() => {
         setHostCheck(null);
-    }, [gameFilesChanged]);
+    }, [gameFilesChanged, fixesFinished]);
 
     const hostChecked = host !== null;
     useEffect(() => {
@@ -83,6 +88,7 @@ export function useGamePlayController(props: {
             const first = multiplayerChoices().tab;
             const modes: MultiplayerMode[] = [first, ...(["link", "couch", "stream"] as MultiplayerMode[]).filter((each) => each !== first)];
             let result: HostCheck = { gameId, mode: null, first, gate: null, detail: {} };
+            let fixable: MultiplayerMode | null = null;
             try {
                 for (const each of modes) {
                     const checked = await multiplayerCheck(each, gameId, "", "");
@@ -93,6 +99,11 @@ export function useGamePlayController(props: {
                     if (result.gate === null) {
                         result = { gameId, mode: null, first, gate: checked.gate, detail: checked.detail ?? {} };
                     }
+                    const neverLinks = each === "link" && checked.plan?.outcome === "after_pick"
+                        && consoleName !== null && !LINK_CONSOLES.includes(consoleName);
+                    if (fixable === null && (checked.plan?.steps.length ?? 0) > 0 && !neverLinks) {
+                        fixable = each;
+                    }
                 }
             }
             catch (e) {
@@ -100,13 +111,13 @@ export function useGamePlayController(props: {
                 return;
             }
             if (alive) {
-                setHostCheck(result);
+                setHostCheck(result.mode === null ? { ...result, first: fixable ?? first } : result);
             }
         })();
         return () => {
             alive = false;
         };
-    }, [isActive, mode, gameId, roomRole, hostChecked]);
+    }, [isActive, mode, gameId, roomRole, hostChecked, consoleName]);
 
     const ownAppid = info?.launchable && !info.fallback ? info.appid : 0;
     const playing = (ownAppid !== 0 && running.appid === ownAppid)

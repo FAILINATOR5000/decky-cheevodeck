@@ -122,6 +122,7 @@ SUNSHINE_PARK_SECONDS = 120
 PARK_UNPAIR_AGAIN_SECONDS = 21
 APP_ENDED_GRACE_SECONDS = 10
 FLATPAK_SECONDS = 10
+FLATPAK_RECHECK_SECONDS = 10
 
 EMULATOR_NAMES = ("retroarch", "PPSSPPSDL", "PPSSPPQt", "dolphin-emu", "RMG")
 GAME_AUDIO_BINARIES = (*EMULATOR_NAMES, "moonlight")
@@ -373,6 +374,7 @@ class MultiplayerService:
         self._goodbye = None
         self._library_cache = (None, None)
         self._picked_cache = (None, {})
+        self._picked_watch = ()
         self._verdict_memo = {}
         self._hash_memo = {}
         self._crc_memo = {}
@@ -465,7 +467,10 @@ class MultiplayerService:
                 return {"ok": False, "error": ERROR_CAP_REACHED}
 
             self._visible_until = min(now + LEASE_SECONDS, self._cap_until)
-            if self._room is not None and self._room["state"] == "lobby":
+            changed = self._emulators.changed if self._emulators is not None else 0
+            if self._room is not None and self._room["state"] == "lobby" \
+                    and (entry or changed != self._room.get("versionsChecked")):
+                self._room["versionsChecked"] = changed
                 self._spawn(self.refresh_room_version())
             if self._expiry is not None:
                 self._expiry.cancel()
@@ -777,7 +782,8 @@ class MultiplayerService:
             self._picked_cache = (picked_stamp, self._cheevo_check_store.load_picked() if picked_stamp is not None else {})
         picked = self._picked_cache[1]
         unchanged = {key: self._picked_unchanged(row) for key, row in picked.items()}
-        stamp = (results_stamp, picked_stamp, tuple(unchanged.items()), id(by_rom), held and (held["appid"], held["original"]))
+        stamp = (results_stamp, picked_stamp, tuple(unchanged.items()), id(by_rom), held and (held["appid"], held["original"]),
+                 tuple(os.path.isfile(path) for path in self._picked_watch))
         if self._library_cache[0] == stamp:
             return self._library_cache[1]
         results = self._cheevo_check_store.load_results() if results_stamp is not None else None
@@ -829,9 +835,14 @@ class MultiplayerService:
                     "shortcut": found[0] if found else None,
                     "shortcuts": found,
                 })
+        watched = []
         for key, row in picked.items():
             game_id = int(key)
-            if game_id in library:
+            scanned = library.get(game_id)
+            if scanned is not None:
+                watched.extend(entry["path"] for entry in scanned["paths"])
+                if unchanged[key] and not any(os.path.isfile(entry["path"]) for entry in scanned["paths"]):
+                    scanned["paths"].append(self._picked_path(row, by_rom, held))
                 continue
             system = by_console_id(row["systemId"])
             entry = {
@@ -847,16 +858,21 @@ class MultiplayerService:
             library[game_id] = entry
             if entry["changed"]:
                 continue
-            path = row["path"]
-            real = os.path.realpath(path)
-            found = [shortcut for shortcut in by_rom.get(real) or by_rom.get(path) or []
-                     if held is None or shortcut["appid"] != held["appid"]]
-            entry["paths"].append({"path": path, "real": real, "hash": row["raHash"],
-                                   "shortcut": found[0] if found else None, "shortcuts": found})
-        self._library_cache = (stamp, library)
+            entry["paths"].append(self._picked_path(row, by_rom, held))
+        self._picked_watch = tuple(watched)
+        self._library_cache = (stamp[:-1] + (tuple(os.path.isfile(path) for path in watched),), library)
         return library
 
+    def _picked_path(self, row: dict, by_rom: dict, held) -> dict:
+        path = row["path"]
+        real = os.path.realpath(path)
+        found = [shortcut for shortcut in by_rom.get(real) or by_rom.get(path) or []
+                 if held is None or shortcut["appid"] != held["appid"]]
+        return {"path": path, "real": real, "hash": row["raHash"], "shortcut": found[0] if found else None,
+                "shortcuts": found}
+
     def pick_game_file(self, game_id: int, path: str, game: dict, hashes: list) -> dict:
+        self._dolphin_picks.pop(game_id, None)
         try:
             before = os.stat(path)
         except OSError:
@@ -864,11 +880,11 @@ class MultiplayerService:
         system_id = to_int(game.get("ConsoleID"), 0)
         if not stat.S_ISREG(before.st_mode) or system_id <= 0 or self._cheevo_check is None:
             return {"ok": False, "error": "unreadable"}
-        if system_id in session.DOLPHIN_SYSTEMS and Path(path).suffix.lower() not in RAW_DISC_EXTENSIONS \
+        digest = (self._cheevo_check.hash_rom_for_room(path, system_id) or "").lower()
+        if not digest and system_id in session.DOLPHIN_SYSTEMS and Path(path).suffix.lower() not in RAW_DISC_EXTENSIONS \
                 and self._flatpak_installed(session.DOLPHIN_FLATPAK) is False:
             self._dolphin_picks[game_id] = path
             return {"ok": False, "error": "needs_dolphin"}
-        digest = (self._cheevo_check.hash_rom_for_room(path, system_id) or "").lower()
         if not digest:
             return {"ok": False, "error": "unreadable"}
         match = next((row for row in hashes if str(row.get("md5") or "").lower() == digest), None)
@@ -888,7 +904,6 @@ class MultiplayerService:
         })
         if not saved:
             return {"ok": False, "error": "unreadable"}
-        self._dolphin_picks.pop(game_id, None)
         decky.logger.info("multiplayer: picked a file for game %d (%s)", game_id, label or "no label")
         return {"ok": True, "title": title, "label": label}
 
@@ -998,21 +1013,26 @@ class MultiplayerService:
         overlay = self._overlay()
         if overlay is not None and app in overlay.flatpaks:
             return True
-        listed, versions = self._flatpak_listing()
+        listed, versions, read_at = self._flatpak_listing()
+        if listed and app not in versions and time.monotonic() - read_at > FLATPAK_RECHECK_SECONDS:
+            listed, versions, read_at = self._flatpak_listing(fresh=True)
         return app in versions if listed else None
 
-    def _flatpak_listing(self) -> tuple:
+    def _flatpak_listing(self, fresh: bool = False) -> tuple:
+        changed = self._emulators.changed if self._emulators is not None else 0
         found = self._versions
-        if found is None:
+        if fresh or found is None or found[2] != changed:
+            if found is not None:
+                self._permissions = {}
             versions = {}
             out = self._flatpak("list", "--app", "--columns=application,version")
             for line in (out or "").splitlines():
                 parts = line.split("\t")
                 if len(parts) >= 2:
                     versions[parts[0].strip()] = parts[1].strip()
-            found = (out is not None, versions)
+            found = (out is not None, versions, changed, time.monotonic())
             self._versions = found
-        return found
+        return found[0], found[1], found[3]
 
     def _flatpak_reads_home(self, app: str) -> bool:
         overlay = self._overlay()
@@ -1086,7 +1106,7 @@ class MultiplayerService:
                 emulator, path, launchable = "retroarch", None, False
             else:
                 emulator = self._fallback_kinds("couch", system_id)[0]
-                path = next((p for p in entry["paths"] if os.path.isfile(p["real"])), None)
+                path = next((p for p in entry["paths"] if os.path.isfile(p["path"])), None)
                 kinds = set(self._play_kinds(system_id) + self._fallback_kinds("couch", system_id))
                 for kind in kinds - emulators.keys():
                     emulators[kind] = self._emulator_shortcut(kind, None) is not None
@@ -1219,7 +1239,7 @@ class MultiplayerService:
             if not self._fallback_on():
                 return None, "no_shortcut", {}
             fallback = self._fallback(mode, system_id)
-            candidates = [{**entry, "shortcut": fallback} for entry in game["paths"] if os.path.isfile(entry["real"])]
+            candidates = [{**entry, "shortcut": fallback} for entry in game["paths"] if os.path.isfile(entry["path"])]
             if not candidates:
                 return None, "rom_missing", {}
 
@@ -1338,9 +1358,11 @@ class MultiplayerService:
         return local, None, {}
 
     def _no_retroarch(self, shortcut: dict):
+        if not shortcut["appid"]:
+            return None, "no_emulator_shortcut", {"emulator": FALLBACK_NAMES["retroarch"]}
         if self._flatpak_installed(session.RETROARCH_FLATPAK):
             return None, "retroarch_first_run", {}
-        gone = self._gone(shortcut) if shortcut["appid"] else None
+        gone = self._gone(shortcut)
         if gone is not None:
             return None, "emulator_missing", gone
         return None, "no_emulator_shortcut", {"emulator": FALLBACK_NAMES["retroarch"]}
@@ -1475,7 +1497,7 @@ class MultiplayerService:
             fallback_on = self._play_fallback_on()
         if not fallback_on:
             return None, "no_shortcut", {}
-        rom = next((entry["path"] for entry in game["paths"] if os.path.isfile(entry["real"])), None)
+        rom = next((entry["path"] for entry in game["paths"] if os.path.isfile(entry["path"])), None)
         if rom is None:
             return None, "rom_missing", {}
         system_id = game["systemId"]
@@ -1533,7 +1555,7 @@ class MultiplayerService:
             shortcut = self._emulator_shortcut(kind, None)
         if shortcut is None or (kind == "retroarch") != bool(core):
             return None
-        rom = next((entry["path"] for entry in game["paths"] if os.path.isfile(entry["real"])), None)
+        rom = next((entry["path"] for entry in game["paths"] if os.path.isfile(entry["path"])), None)
         if rom is None:
             return None
         route = {"appid": shortcut["appid"], "fallback": True, "kind": kind, "rom": rom, "corePath": ""}
@@ -1981,14 +2003,17 @@ class MultiplayerService:
                    if session.emulator_kind(row["exe"], row["launchOptions"]) == kind)
 
     def _emulator_shortcut(self, kind: str, install=""):
+        first = None
         for shortcut in self._emulator_shortcuts():
             if session.emulator_kind(shortcut["exe"], shortcut["launchOptions"]) != kind:
                 continue
             if kind == "dolphin" and install is not None and session.dolphin_install(
                     shortcut["exe"], shortcut["launchOptions"], self._user_home) != install:
                 continue
-            return shortcut
-        return None
+            if self._gone(shortcut) is None:
+                return shortcut
+            first = first or shortcut
+        return first
 
     def _dolphin_version(self, install: str, shortcut: dict) -> str:
         if install == "flatpak":
@@ -2065,7 +2090,7 @@ class MultiplayerService:
         system_id = local["systemId"]
         ra = local.get("ra")
 
-        if local["fallback"] and not os.path.isfile(local["real"]):
+        if local["fallback"] and not os.path.isfile(local["path"]):
             return ("rom_missing", {}), warnings
 
         if room is not None:
@@ -2353,9 +2378,12 @@ class MultiplayerService:
                 overlay.shortcuts.append(_planned_shortcut(step, len(overlay.shortcuts)))
 
     def _joined_check(self, joined: dict) -> dict:
-        if not joined["can"]:
+        changed = self._emulators.changed if self._emulators is not None else 0
+        if not joined["can"] or joined.get("changed") != changed:
+            rev = joined["rowRev"]
             local, reason, detail = self._decide(joined["row"], joined["own"], joined["core"])
-            joined.update(local=local, can=local is not None, reason=reason, detail=detail)
+            if joined["rowRev"] == rev:
+                joined.update(local=local, can=local is not None, reason=reason, detail=detail, changed=changed)
         local = joined["local"]
         warnings = []
         if local is not None:
@@ -2730,6 +2758,8 @@ class MultiplayerService:
             if not _runs_same(room["local"], local):
                 return
             if (local["emuVersion"], local["coreBuild"]) == (room["emuVersion"], room["coreBuild"]):
+                return
+            if _known(room["emuVersion"]) and not _known(local["emuVersion"]):
                 return
             decky.logger.info("multiplayer: the room's %s is now %s", local["coreName"] or local["emulator"],
                               local["emuVersion"] or "an unknown version")
@@ -4269,6 +4299,7 @@ class MultiplayerService:
                 "own": 0,
                 "core": "",
                 "rowRev": 0,
+                "changed": self._emulators.changed if self._emulators is not None else 0,
                 "hardcore": bool(hardcore),
                 "seq": 0,
                 "said": None,

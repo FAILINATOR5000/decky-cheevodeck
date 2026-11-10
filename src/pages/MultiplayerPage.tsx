@@ -520,7 +520,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         }
     }
     const playFixable = !canPlay && inLobby && inSession && Boolean(shownCheck?.gate);
-    const hostGated = !hosted && Boolean(shownCheck?.gate);
+    const hostGated = !hosted && Boolean((mp.modes?.modes[mp.mode] ?? shownCheck)?.gate);
     const playGreen = playLabel !== "Unready";
     const playBackground = !playGreen || playFocused ? undefined : canPlay ? steamPlayGreen : steamPlayGrey;
     const playColor = !playGreen || playFocused ? undefined : canPlay ? "#ffffff" : steamPlayGreyText;
@@ -623,7 +623,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         return {
             target: forMode,
             gameId: forGame,
-            title: title ?? String(forGame),
+            title: fixRun?.running ? fixRun.title : title ?? String(forGame),
             answer: {
                 state: entry?.state ?? "setup",
                 gate: entry?.gate ?? null,
@@ -1790,7 +1790,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                                         </div>
                                     </PanelSectionRow>
                                 )}
-                                {fixDoneShown && fixHere?.done && !fixHere.running && (
+                                {fixDoneShown && fixHere?.done && !fixHere.running && fixHere.next?.state === "ready" && (
                                     <PanelSectionRow>
                                         <div style={{ ...bodyTextStyle(), color: achievementGreen, opacity: 1 }}>{t(language, "Done")}</div>
                                     </PanelSectionRow>

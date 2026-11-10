@@ -3670,6 +3670,9 @@ const FR: LocaleTable = {
     "None of the installed RetroArch cores can run this game": "Aucun des cœurs RetroArch installés ne peut lancer ce jeu",
     "Check {{file}}": "Vérifier {{file}}",
     "Cheevo Check reads GameCube and Wii files with a tool inside Dolphin's Flatpak": "Cheevo Check lit les fichiers GameCube et Wii avec un outil inclus dans le Flatpak de Dolphin",
+    "The file picked for this game changed or moved": "Le fichier choisi pour ce jeu a changé ou a été déplacé",
+    "This game's file isn't where Cheevo Check last saw it": "Le fichier de ce jeu n'est plus là où Cheevo Check l'a vu la dernière fois",
+    "Couldn't check what this game needs. Try again.": "Impossible de vérifier ce dont ce jeu a besoin. Réessaie.",
 };
 
 export default FR;
