@@ -3484,6 +3484,9 @@ const JA: LocaleTable = {
     "Every core is up to date.": "すべてのコアが最新です。",
     "Keep Backups": "バックアップを残す",
     "When updating, keep a backup of the previous version, allowing you to restore it if needed.": "更新するときに前のバージョンのバックアップを残し、必要なら復元できるようにします。",
+    "Update All": "すべて更新",
+    "Everything is up to date.": "すべて最新です。",
+    "Update All ({{count}})": "すべて更新（{{count}}）",
 };
 
 export default JA;

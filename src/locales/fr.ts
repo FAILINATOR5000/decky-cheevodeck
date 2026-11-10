@@ -3659,6 +3659,9 @@ const FR: LocaleTable = {
     "Every core is up to date.": "Tous les cœurs sont à jour.",
     "Keep Backups": "Garder les sauvegardes",
     "When updating, keep a backup of the previous version, allowing you to restore it if needed.": "Lors d'une mise à jour, garde une sauvegarde de la version précédente pour pouvoir la restaurer si besoin.",
+    "Update All": "Tout mettre à jour",
+    "Everything is up to date.": "Tout est à jour.",
+    "Update All ({{count}})": "Tout mettre à jour ({{count}})",
 };
 
 export default FR;

@@ -3710,6 +3710,9 @@ const RU: LocaleTable = {
     "Every core is up to date.": "Все ядра в актуальной версии.",
     "Keep Backups": "Хранить резервные копии",
     "When updating, keep a backup of the previous version, allowing you to restore it if needed.": "При обновлении сохраняет резервную копию предыдущей версии, чтобы её можно было восстановить.",
+    "Update All": "Обновить всё",
+    "Everything is up to date.": "Всё в актуальной версии.",
+    "Update All ({{count}})": "Обновить всё ({{count}})",
 };
 
 export default RU;

@@ -46,6 +46,7 @@ import {
 const BACK_KEY = "emulators:back";
 const REFRESH_KEY = "emulators:refresh";
 const KEEP_KEY = "emulators:keep-backups";
+const UPDATE_ALL_KEY = "emulators:update-all";
 const RA_KEY = "emulators:row:retroarch:flatpak";
 const SYSTEMS_KEY = "emulators:ra:systems";
 const STATUS_WIDTH = "35%";
@@ -496,6 +497,36 @@ function EmulatorsPage(props: EmulatorsPageProps) {
         showMultiplayerProblem(language, title, text);
     }
 
+    function pendingUpdates() {
+        const stale = rows.filter((row): row is InstallRow => row.type === "install" && row.installed && row.update
+            && !row.newer && !row.image?.missing && !busy(row.key));
+        const cores = inventory !== null && inventory.retroarch.configFound && !busy(RA_KEY) ? staleCores() : [];
+        return { stale, cores };
+    }
+
+    function updateEverything() {
+        if (inventory === null) {
+            return;
+        }
+        const { stale, cores } = pendingUpdates();
+        if (stale.length === 0 && cores.length === 0) {
+            explain("Update All", t(language, "Everything is up to date."));
+            return;
+        }
+        for (const row of stale) {
+            const image = row.image;
+            if (image === null) {
+                emulators.actions.updateFlatpak(row.kind, row.name, row.key);
+            }
+            else {
+                emulators.actions.updateAppImage(image.path, row.name, row.key);
+            }
+        }
+        if (cores.length > 0) {
+            emulators.actions.updateCores(cores, RA_KEY);
+        }
+    }
+
     function updateAllCores() {
         if (inventory === null) {
             return;
@@ -662,6 +693,9 @@ function EmulatorsPage(props: EmulatorsPageProps) {
         );
     }
 
+    const pending = pendingUpdates();
+    const updateCount = pending.stale.length + pending.cores.length;
+
     return (
         <Focusable flow-children="column" onButtonDown={handleButton}>
             <PanelSection>
@@ -686,6 +720,19 @@ function EmulatorsPage(props: EmulatorsPageProps) {
                         onGamepadFocus={() => { focusedKey.current = null; }}
                     >
                         {t(language, "Refresh")}
+                    </FocusableItem>
+                </PanelSectionRow>
+
+                <PanelSectionRow>
+                    <FocusableItem
+                        outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                        focusKey={UPDATE_ALL_KEY}
+                        focusFallback={[REFRESH_KEY]}
+                        disabled={inventory === null || loading}
+                        onClick={updateEverything}
+                        onGamepadFocus={() => { focusedKey.current = null; }}
+                    >
+                        {t(language, "Update All ({{count}})", { count: updateCount })}
                     </FocusableItem>
                 </PanelSectionRow>
 

@@ -3659,6 +3659,9 @@ const PT: LocaleTable = {
     "Every core is up to date.": "Todos os núcleos estão atualizados.",
     "Keep Backups": "Manter backups",
     "When updating, keep a backup of the previous version, allowing you to restore it if needed.": "Ao atualizar, mantém um backup da versão anterior para você restaurá-la se precisar.",
+    "Update All": "Atualizar tudo",
+    "Everything is up to date.": "Tudo está atualizado.",
+    "Update All ({{count}})": "Atualizar tudo ({{count}})",
 };
 
 export default PT;

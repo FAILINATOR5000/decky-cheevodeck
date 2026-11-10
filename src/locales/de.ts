@@ -3626,6 +3626,9 @@ const DE: LocaleTable = {
     "Every core is up to date.": "Alle Kerne sind auf dem neuesten Stand.",
     "Keep Backups": "Sicherungen behalten",
     "When updating, keep a backup of the previous version, allowing you to restore it if needed.": "Beim Aktualisieren eine Sicherung der vorherigen Version behalten, damit du sie bei Bedarf wiederherstellen kannst.",
+    "Update All": "Alle aktualisieren",
+    "Everything is up to date.": "Alles ist auf dem neuesten Stand.",
+    "Update All ({{count}})": "Alle aktualisieren ({{count}})",
 };
 
 export default DE;

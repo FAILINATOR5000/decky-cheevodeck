@@ -3638,4 +3638,7 @@ export const EN: LocaleTable = {
     "Every core is up to date.": "Every core is up to date.",
     "Keep Backups": "Keep Backups",
     "When updating, keep a backup of the previous version, allowing you to restore it if needed.": "When updating, keep a backup of the previous version, allowing you to restore it if needed.",
+    "Update All": "Update All",
+    "Everything is up to date.": "Everything is up to date.",
+    "Update All ({{count}})": "Update All ({{count}})",
 };
