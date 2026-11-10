@@ -26,7 +26,7 @@ import { useSlidingWindow } from "../hooks/useSlidingWindow";
 import { t, type LanguageCode } from "../locales";
 import type { ButtonSpacing, ControllerGlyphStyle, ViewKey } from "../types";
 import { jobErrorText } from "../utils/emulatorJobs";
-import { BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT, BUTTON_SECONDARY } from "../utils/gamepadButtons";
+import { BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT, BUTTON_OPTIONS, BUTTON_SECONDARY } from "../utils/gamepadButtons";
 import { textSize } from "../utils/scale";
 import {
     achievementGreen,
@@ -398,6 +398,15 @@ function EmulatorsPage(props: EmulatorsPageProps) {
         return null;
     }
 
+    function staleCores(): string[] {
+        if (inventory === null || !inventory.retroarch.configFound) {
+            return [];
+        }
+        return [...new Set(inventory.retroarch.systems.flatMap((system) => system.cores)
+            .filter((core) => core.installed && core.update)
+            .map((core) => core.core))];
+    }
+
     function hintsFor(row: Row | undefined): ButtonHint[] {
         if (row === undefined) {
             return [];
@@ -413,8 +422,14 @@ function EmulatorsPage(props: EmulatorsPageProps) {
         if (backupsFor(row) !== null) {
             hints.push({ button: "l1", label: t(language, "Backup/Restore") });
         }
+        if (row.type === "install" && row.key === RA_KEY && staleCores().length > 0 && !busy(RA_KEY)) {
+            hints.push({ button: "y", label: t(language, "Update All Cores") });
+        }
         if (row.type === "install" && row.via === "appimage") {
-            hints.push({ button: "r1", label: t(language, "Point to Custom Install") });
+            hints.push({
+                button: "r1",
+                label: row.image?.howFound === "pointed" ? t(language, "Clear Custom Install") : t(language, "Point to Custom Install")
+            });
         }
         return hints;
     }
@@ -439,8 +454,20 @@ function EmulatorsPage(props: EmulatorsPageProps) {
             }
             return;
         }
+        if (button === BUTTON_OPTIONS && row.type === "install" && row.key === RA_KEY && !busy(RA_KEY)) {
+            const stale = staleCores();
+            if (stale.length > 0) {
+                emulators.actions.updateCores(stale, RA_KEY);
+            }
+            return;
+        }
         if (button === BUTTON_BUMPER_RIGHT && row.type === "install" && row.via === "appimage") {
-            emulators.actions.pointTo(row.kind, row.name);
+            if (row.image?.howFound === "pointed") {
+                emulators.actions.clearPoint(row.kind, row.image.path);
+            }
+            else {
+                emulators.actions.pointTo(row.kind, row.name);
+            }
         }
     }
 
@@ -515,6 +542,20 @@ function EmulatorsPage(props: EmulatorsPageProps) {
                             </span>
                         )}
                     </div>
+                    {row.type === "install" && row.key === RA_KEY && inventory !== null && inventory.retroarch.configFound && row.installed && (
+                        <div style={{ marginTop: "6px" }}>
+                            <ButtonHints
+                                style={state.controllerGlyphStyle}
+                                dense
+                                hints={[{
+                                    button: "y",
+                                    label: staleCores().length > 0
+                                        ? `${t(language, "Update All Cores")} · ${t(language, "{{count}} updates", { count: staleCores().length })}`
+                                        : `${t(language, "Update All Cores")} · ${t(language, "Up to date")}`
+                                }]}
+                            />
+                        </div>
+                    )}
                     {(progress !== null || refreshing) && (
                         <div style={{ marginTop: "6px", display: "flex", alignItems: "center", gap: "8px" }}>
                             <div style={{ flex: 1, minWidth: 0 }}>

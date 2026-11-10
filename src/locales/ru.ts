@@ -3701,6 +3701,8 @@ const RU: LocaleTable = {
     "Delete Backup": "Удалить копию",
     "Delete the {{version}} backup? This can't be undone.": "Удалить копию {{version}}? Это нельзя отменить.",
     "Couldn't delete the backup.": "Не удалось удалить копию.",
+    "Update All Cores": "Обновить все ядра",
+    "Clear Custom Install": "Сбросить свою установку",
 };
 
 export default RU;

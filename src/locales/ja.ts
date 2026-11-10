@@ -3471,6 +3471,8 @@ const JA: LocaleTable = {
     "Delete Backup": "バックアップを削除",
     "Delete the {{version}} backup? This can't be undone.": "{{version}}のバックアップを削除しますか？元に戻せません。",
     "Couldn't delete the backup.": "バックアップを削除できませんでした。",
+    "Update All Cores": "すべてのコアを更新",
+    "Clear Custom Install": "カスタムを解除",
 };
 
 export default JA;

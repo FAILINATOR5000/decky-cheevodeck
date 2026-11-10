@@ -3631,4 +3631,6 @@ export const EN: LocaleTable = {
     "Delete Backup": "Delete Backup",
     "Delete the {{version}} backup? This can't be undone.": "Delete the {{version}} backup? This can't be undone.",
     "Couldn't delete the backup.": "Couldn't delete the backup.",
+    "Update All Cores": "Update All Cores",
+    "Clear Custom Install": "Clear Custom Install",
 };

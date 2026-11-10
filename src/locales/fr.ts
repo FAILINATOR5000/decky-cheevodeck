@@ -3652,6 +3652,8 @@ const FR: LocaleTable = {
     "Delete Backup": "Supprimer la sauvegarde",
     "Delete the {{version}} backup? This can't be undone.": "Supprimer la sauvegarde {{version}} ? C'est irréversible.",
     "Couldn't delete the backup.": "Impossible de supprimer la sauvegarde.",
+    "Update All Cores": "Mettre à jour tous les cœurs",
+    "Clear Custom Install": "Retirer l'installation perso",
 };
 
 export default FR;

@@ -3619,6 +3619,8 @@ const DE: LocaleTable = {
     "Delete Backup": "Sicherung löschen",
     "Delete the {{version}} backup? This can't be undone.": "Die Sicherung {{version}} löschen? Das lässt sich nicht rückgängig machen.",
     "Couldn't delete the backup.": "Die Sicherung konnte nicht gelöscht werden.",
+    "Update All Cores": "Alle Kerne aktualisieren",
+    "Clear Custom Install": "Eigene Installation entfernen",
 };
 
 export default DE;

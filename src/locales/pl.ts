@@ -3732,6 +3732,8 @@ const PL: LocaleTable = {
     "Delete Backup": "Usuń kopię",
     "Delete the {{version}} backup? This can't be undone.": "Usunąć kopię {{version}}? Tego nie można cofnąć.",
     "Couldn't delete the backup.": "Nie udało się usunąć kopii.",
+    "Update All Cores": "Zaktualizuj wszystkie rdzenie",
+    "Clear Custom Install": "Usuń własną instalację",
 };
 
 export default PL;

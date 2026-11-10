@@ -3,6 +3,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import {
     emulatorsCoresOffer,
     emulatorsDeleteBackup,
+    emulatorsForget,
     emulatorsIdentify,
     emulatorsInstallAppimage,
     emulatorsInstallCores,
@@ -118,6 +119,18 @@ async function pointTo(language: LanguageCode, kind: EmulatorKind, name: string)
     }
     catch (e) {
         logError("emulators: pointing to an AppImage", e);
+    }
+}
+
+async function clearPoint(kind: EmulatorKind, path: string) {
+    try {
+        const result = await emulatorsForget(kind, path);
+        if (result?.inventory) {
+            publish({ inventory: result.inventory });
+        }
+    }
+    catch (e) {
+        logError("emulators: clearing a custom install", e);
     }
 }
 
@@ -358,6 +371,7 @@ export function useEmulatorsController(props: { isActive: boolean; language: Lan
         actions: {
             refresh: () => void loadInventory(true),
             pointTo: (kind: EmulatorKind, name: string) => void pointTo(language, kind, name),
+            clearPoint: (kind: EmulatorKind, path: string) => void clearPoint(kind, path),
             installCores: (cores: string[], target: string) => void installCores(language, cores, target),
             updateCores: (cores: string[], target: string) => void updateCores(language, cores, target),
             installMissingCores: (systems: number, target: string) => void installMissingCores(language, systems, target),

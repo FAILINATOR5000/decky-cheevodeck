@@ -1054,6 +1054,9 @@ export const emulatorsInventory = callable<[refresh: boolean], EmulatorInventory
 export const emulatorsIdentify = callable<[path: string], { ok: boolean; error?: string; path?: string; kind?: string }>(
     "emulators_identify"
 );
+export const emulatorsForget = callable<[kind: string, path: string], { ok: boolean; inventory?: EmulatorInventory }>(
+    "emulators_forget"
+);
 export const emulatorsPoint = callable<[kind: string, path: string], { ok: boolean; error?: string; inventory?: EmulatorInventory }>(
     "emulators_point"
 );

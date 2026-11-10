@@ -598,7 +598,8 @@ class EmulatorService:
             record["paths"].setdefault(kind, []).insert(0, found["path"])
 
         saved = self._store.change(edit)
-        return {"ok": saved, "inventory": self.inventory(refresh=True)}
+        self._inventory = None
+        return {"ok": saved, "inventory": self.inventory(network=False)}
 
     def forget(self, kind: str, path: str) -> dict:
         def edit(record):
@@ -607,7 +608,8 @@ class EmulatorService:
                 paths.remove(path)
 
         saved = self._store.change(edit)
-        return {"ok": saved, "inventory": self.inventory(refresh=True)}
+        self._inventory = None
+        return {"ok": saved, "inventory": self.inventory(network=False)}
 
     def _open(self, url: str, headers=None, timeout=FETCH_SECONDS):
         request = urllib.request.Request(url, headers={"User-Agent": build_user_agent(), **(headers or {})})

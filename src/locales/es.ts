@@ -3663,6 +3663,8 @@ const ES: LocaleTable = {
     "Delete Backup": "Borrar copia",
     "Delete the {{version}} backup? This can't be undone.": "¿Borrar la copia {{version}}? No se puede deshacer.",
     "Couldn't delete the backup.": "No se pudo borrar la copia.",
+    "Update All Cores": "Actualizar todos los núcleos",
+    "Clear Custom Install": "Quitar instalación propia",
 };
 
 export default ES;
