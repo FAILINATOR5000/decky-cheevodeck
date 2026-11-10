@@ -14,6 +14,7 @@ import urllib.request
 import zipfile
 import zlib
 from collections import deque
+from concurrent.futures import ThreadPoolExecutor, wait
 from pathlib import Path
 
 import decky
@@ -33,6 +34,8 @@ JOURNAL_FILE = "emulators_plan.json"
 JOB_EVENT = "emulator_job"
 PROGRESS_SECONDS = 0.5
 FETCH_SECONDS = 20
+CHECK_SECONDS = 8
+RECHECK_SECONDS = 60
 DOWNLOAD_SECONDS = 1800
 EXTRACT_SECONDS = 1200
 STOP_SECONDS = 5
@@ -155,6 +158,7 @@ class EmulatorService:
         self._match_asked = {}
         self._flathub = (0.0, None)
         self._sha256s = {}
+        self._check_failed = set()
         self._plan_run = None
         self.changed = 0
 
@@ -309,10 +313,11 @@ class EmulatorService:
             "latest": "",
             "update": False,
             "newerThanStable": False,
+            "checkFailed": False,
             "backup": self._backup_of(path, record),
         }
 
-    def _standalones(self, record: dict, flatpaks, network: bool) -> list:
+    def _appimage_rows(self, record: dict) -> dict:
         emudeck = catalog.emudeck_paths(self._user_home)
         launched = {}
         for kind, image in self._launcher_images(emudeck["toolsPath"]):
@@ -341,14 +346,44 @@ class EmulatorService:
                         rows[kind].append({"path": path, "key": path_key(path), "fileName": Path(path).name,
                                            "version": "", "repo": "", "howFound": "pointed", "ours": False,
                                            "missing": True, "latest": "", "update": False,
-                                           "newerThanStable": False})
+                                           "newerThanStable": False, "checkFailed": False})
+        return rows
+
+    def _check_latest(self, rows: dict, flatpaks, refresh: bool) -> None:
+        checks = {}
+        if flatpaks is not None and (refresh or self._flathub[1] is None):
+            checks["flathub"] = lambda: self._read_flathub(flatpaks, CHECK_SECONDS)
+        if session.RetroArch(self._user_home).found:
+            checks["nightly"] = lambda: self._nightly(True, refresh, CHECK_SECONDS)
+        age = RECHECK_SECONDS if refresh else RELEASE_SECONDS
+        for kind, images in rows.items():
+            for row in images:
+                if row["missing"]:
+                    continue
+                source = self._release_source(kind, row["path"])
+                checks.setdefault(self._release_key(source),
+                                  lambda kind=kind, path=row["path"]: self._release_for(kind, path, True, CHECK_SECONDS, age))
+        if not checks:
+            return
+        pool = ThreadPoolExecutor(max_workers=len(checks), thread_name_prefix="emulator-check")
+        futures = {pool.submit(check): key for key, check in checks.items()}
+        _done, late = wait(futures, timeout=CHECK_SECONDS + 2)
+        pool.shutdown(wait=False)
+        for future in late:
+            self._check_failed.add(futures[future])
+
+    def _standalones(self, record: dict, flatpaks, rows: dict) -> list:
         emulators = []
         shortcuts = self._shortcuts_by_install()
         for kind in catalog.STANDALONES:
             entry = catalog.BY_KIND[kind]
             for row in rows[kind]:
                 row["steam"] = self._steam(f"{kind}:{row['key']}", shortcuts, record)
-                release = self._release_for(kind, row["path"], network) if not row["missing"] else None
+                if row["missing"]:
+                    continue
+                source = self._release_source(kind, row["path"])
+                release = self._release_for(kind, row["path"], False)
+                row["checkFailed"] = self._release_key(source) in self._check_failed
                 if release is not None:
                     row["latest"] = release["version"]
                     row.update(self._appimage_compare(row, release))
@@ -377,6 +412,7 @@ class EmulatorService:
             "size": remote.get("download", 0),
             "update": False,
             "newerThanStable": False,
+            "checkFailed": installed is not None and "flathub" in self._check_failed,
         }
         if installed and remote.get("commit"):
             row.update(self._flatpak_compare(installed, remote))
@@ -450,12 +486,13 @@ class EmulatorService:
 
     def _core_state(self, ra, core: str, nightly: dict, ours: dict) -> dict:
         path = ra.core_path(core)
-        state = {"installed": False, "ours": False, "update": False}
+        state = {"installed": False, "ours": False, "update": False, "checkFailed": False}
         try:
             st = os.stat(path)
         except OSError:
             return state
         state["installed"] = True
+        state["checkFailed"] = "nightly" in self._check_failed
         latest = nightly.get(core)
         record = ours.get(core)
         crc = self._crc(path, st)
@@ -463,12 +500,12 @@ class EmulatorService:
         state["update"] = latest is not None and crc != "" and crc != latest["crc"]
         return state
 
-    def _retroarch(self, record: dict, flatpaks, network: bool, refresh: bool = False) -> dict:
+    def _retroarch(self, record: dict, flatpaks) -> dict:
         entry = catalog.BY_KIND[catalog.RETROARCH]
         ra = session.RetroArch(self._user_home)
         flatpak = self._flatpak_row(entry, flatpaks)
         flatpak["steam"] = self._steam(f"{catalog.RETROARCH}:flatpak", self._shortcuts_by_install(), record)
-        index = self._nightly(network, refresh) if ra.found else {}
+        index = self._nightly(False) if ra.found else {}
         infos = self._info_cores(ra) if ra.found else {}
         packed = index.get("cores") or {}
         ours = record["installed"]["cores"]
@@ -524,14 +561,15 @@ class EmulatorService:
                 return self._inventory
             record = self._store.get()
             flatpaks = self._flatpaks()
-            if network and flatpaks is not None and (refresh or self._flathub[1] is None):
-                self._read_flathub(flatpaks)
-            emulators = self._standalones(record, flatpaks, network)
+            rows = self._appimage_rows(record)
+            if network:
+                self._check_latest(rows, flatpaks, refresh)
+            emulators = self._standalones(record, flatpaks, rows)
             self._inventory = {
                 "ok": True,
                 "appsDir": str(self._user_home / "Applications"),
                 "flatpakAvailable": flatpaks is not None,
-                "retroarch": self._retroarch(record, flatpaks, network, refresh),
+                "retroarch": self._retroarch(record, flatpaks),
                 "emulators": emulators,
                 "cleanup": self._cleanup_summary(emulators),
             }
@@ -581,14 +619,14 @@ class EmulatorService:
             return NIGHTLY_URL
         return url if url.endswith("/") else url + "/"
 
-    def _read_nightly(self, url: str) -> dict:
-        with self._open(url + ".index-extended") as response:
+    def _read_nightly(self, url: str, timeout=FETCH_SECONDS) -> dict:
+        with self._open(url + ".index-extended", timeout=timeout) as response:
             text = response.read(1 << 20).decode("utf-8", "replace")
         cores = catalog.nightly_index(text)
         if not cores:
             raise StepFailed("failed", "the core index was empty")
         try:
-            with self._open(url) as response:
+            with self._open(url, timeout=timeout) as response:
                 sizes = catalog.listing_sizes(response.read(4 << 20).decode("utf-8", "replace"))
         except (urllib.error.URLError, OSError) as e:
             decky.logger.info("emulators: couldn't read the core sizes (%s)", type(e).__name__)
@@ -597,10 +635,10 @@ class EmulatorService:
             row["size"] = sizes.get(core, 0)
         return {"url": url, "fetched": int(time.time()), "cores": cores}
 
-    def _fetch_info(self) -> None:
+    def _fetch_info(self, timeout=FETCH_SECONDS) -> None:
         folder = self._work_dir()
         ensure_dir(folder)
-        with self._open(INFO_URL) as response:
+        with self._open(INFO_URL, timeout=timeout) as response:
             data = response.read(INFO_MAX + 1)
         if len(data) > INFO_MAX:
             raise StepFailed("failed", "info list larger than expected")
@@ -609,19 +647,21 @@ class EmulatorService:
             out.write(data)
         os.replace(folder / ".info.zip.tmp", save_path)
 
-    def _nightly(self, network: bool, refresh: bool = False) -> dict:
+    def _nightly(self, network: bool, refresh: bool = False, timeout=FETCH_SECONDS) -> dict:
         index = self._store.get()["nightly"]
         url = self._cores_url()
         fresh = index and index["url"] == url and time.time() - index["fetched"] < INDEX_SECONDS
         if not network or (fresh and not refresh):
             return index
         try:
-            fetched = self._read_nightly(url)
+            fetched = self._read_nightly(url, timeout)
         except (StepFailed, urllib.error.URLError, OSError, ValueError) as e:
             decky.logger.info("emulators: couldn't read the nightly core index (%s: %s)", type(e).__name__, e)
+            self._check_failed.add("nightly")
             return index
+        self._check_failed.discard("nightly")
         try:
-            self._fetch_info()
+            self._fetch_info(timeout)
         except (StepFailed, urllib.error.URLError, OSError) as e:
             decky.logger.info("emulators: couldn't fetch the core info list (%s)", type(e).__name__)
         self._store.change(lambda record: record.__setitem__("nightly", fetched))
@@ -1152,24 +1192,29 @@ class EmulatorService:
             return "--user"
         return "--system" if scopes else ""
 
-    def _read_flathub(self, flatpaks: dict) -> None:
+    def _read_flathub(self, flatpaks: dict, timeout=FLATPAK_SECONDS) -> None:
         scope = self._flathub_scope()
         if not scope:
             self._flathub = (time.monotonic(), {})
             return
         code, out, _err = self._run(["flatpak", "remote-ls", scope, "flathub", "--app",
-                                     "--columns=application,version,commit,download-size"])
+                                     "--columns=application,version,commit,download-size"], timeout)
+        if code != 0:
+            self._check_failed.add("flathub")
+            if self._flathub[1] is None:
+                self._flathub = (time.monotonic(), {})
+            return
+        self._check_failed.discard("flathub")
         remote = {}
-        if code == 0:
-            wanted = {row["flatpak"] for row in catalog.CATALOG}
-            for line in out.splitlines():
-                parts = [part.strip() for part in line.split("\t")]
-                if len(parts) >= 4 and parts[0] in wanted:
-                    remote[parts[0]] = {"version": parts[1], "commit": parts[2],
-                                        "download": catalog.flatpak_size(parts[3])}
+        wanted = {row["flatpak"] for row in catalog.CATALOG}
+        for line in out.splitlines():
+            parts = [part.strip() for part in line.split("\t")]
+            if len(parts) >= 4 and parts[0] in wanted:
+                remote[parts[0]] = {"version": parts[1], "commit": parts[2],
+                                    "download": catalog.flatpak_size(parts[3])}
         for app in flatpaks:
-            if app in {row["flatpak"] for row in catalog.CATALOG} and app not in remote:
-                found = self._flathub_info(scope, app)
+            if app in wanted and app not in remote:
+                found = self._flathub_info(scope, app, timeout)
                 if found:
                     remote[app] = found
         self._flathub = (time.monotonic(), remote)
@@ -1193,11 +1238,14 @@ class EmulatorService:
             return {"repo": source["repo"], "tag": source["tag"], "asset": source["asset"]}
         return {"repo": entry["repo"], "tag": entry["tag"], "asset": entry["asset"]}
 
-    def _release_for(self, kind: str, path: str, network: bool, timeout=FETCH_SECONDS):
+    def _release_key(self, source: dict) -> tuple:
+        return source["repo"], source["tag"], source["asset"]
+
+    def _release_for(self, kind: str, path: str, network: bool, timeout=FETCH_SECONDS, max_age=RELEASE_SECONDS):
         source = self._release_source(kind, path)
-        key = (source["repo"], source["tag"], source["asset"])
+        key = self._release_key(source)
         cached = self._releases.get(key)
-        if cached is not None and (not network or time.monotonic() - cached[0] < RELEASE_SECONDS):
+        if cached is not None and (not network or time.monotonic() - cached[0] < max_age):
             return cached[1]
         if not network:
             return None
@@ -1205,7 +1253,9 @@ class EmulatorService:
             release = self._github_release(**source, timeout=timeout)
         except (StepFailed, urllib.error.URLError, OSError, ValueError) as e:
             decky.logger.info("emulators: couldn't read %s's latest release (%s)", source["repo"], type(e).__name__)
+            self._check_failed.add(key)
             return cached[1] if cached is not None else None
+        self._check_failed.discard(key)
         self._releases[key] = (time.monotonic(), release)
         return release
 
@@ -1806,7 +1856,7 @@ class EmulatorService:
                 if target is None:
                     target = {"path": path, "key": path_key(path), "fileName": Path(path).name, "version": "", "repo": "",
                               "howFound": "planned", "ours": True, "missing": False, "latest": "", "update": False,
-                              "newerThanStable": False, "backup": None, "steam": None}
+                              "newerThanStable": False, "checkFailed": False, "backup": None, "steam": None}
                     row.setdefault("appimages", []).append(target)
                 else:
                     target["missing"] = False
