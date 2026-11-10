@@ -3624,6 +3624,8 @@ const DE: LocaleTable = {
     "{{name}} is up to date.": "{{name}} ist auf dem neuesten Stand.",
     "RetroArch isn't set up yet, so there are no cores to update.": "RetroArch ist noch nicht eingerichtet, also gibt es keine Kerne zu aktualisieren.",
     "Every core is up to date.": "Alle Kerne sind auf dem neuesten Stand.",
+    "Keep Backups": "Sicherungen behalten",
+    "When updating, keep a backup of the previous version, allowing you to restore it if needed.": "Beim Aktualisieren eine Sicherung der vorherigen Version behalten, damit du sie bei Bedarf wiederherstellen kannst.",
 };
 
 export default DE;

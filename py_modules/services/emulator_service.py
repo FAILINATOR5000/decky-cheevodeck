@@ -134,8 +134,9 @@ def free_bytes(path) -> int:
 
 
 class EmulatorService:
-    def __init__(self, *, user_home, runtime_dir, ssl_context, store, cheevo_check_store, emit=None):
+    def __init__(self, *, user_home, runtime_dir, ssl_context, store, cheevo_check_store, emit=None, keep_backups=None):
         self._user_home = Path(user_home)
+        self._keep_backups = keep_backups or (lambda: True)
         self._runtime_dir = Path(runtime_dir)
         self._ssl_context = ssl_context
         self._store = store
@@ -869,6 +870,15 @@ class EmulatorService:
             raise StepFailed("failed", f"unknown step {do}")
 
     def _finish(self, journal: dict) -> None:
+        for backup in journal.get("drop") or []:
+            try:
+                self._check_target(Path(backup))
+                if os.path.isfile(backup) and not os.path.islink(backup):
+                    os.unlink(backup)
+            except (StepFailed, OSError) as e:
+                decky.logger.info("emulators: kept %s (%s)", Path(backup).name, type(e).__name__)
+                continue
+            self._store.change(lambda record, gone=backup: record["installed"]["backups"].pop(gone, None))
         for trim in journal.get("trim") or []:
             path = Path(trim["path"])
             try:
@@ -1219,6 +1229,8 @@ class EmulatorService:
         self._note(journal, {"undo": "store_core", "core": core, "previous": record})
         self._note_backup(journal, backup, {"of": str(target), "kind": "core", "version": (record or {}).get("from", ""),
                                             "record": record})
+        if not self._keep_backups():
+            journal.setdefault("drop", []).append(str(backup))
         os.replace(target, backup)
         self._place(source, target, 0o644)
         self._verify(target)
@@ -1682,6 +1694,8 @@ class EmulatorService:
         self._note(journal, {"undo": "store_appimage", "path": str(path), "previous": record})
         self._note_backup(journal, backup, {"of": str(path), "kind": "appimage", "version": version, "record": record})
         journal.setdefault("trim", []).append({"path": str(path), "keep": str(backup)})
+        if not self._keep_backups():
+            journal.setdefault("drop", []).append(str(backup))
         os.replace(path, backup)
         os.replace(fetched, path)
         self._verify(path)

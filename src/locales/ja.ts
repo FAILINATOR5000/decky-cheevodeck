@@ -3482,6 +3482,8 @@ const JA: LocaleTable = {
     "{{name}} is up to date.": "{{name}}は最新です。",
     "RetroArch isn't set up yet, so there are no cores to update.": "RetroArchがまだ設定されていないので、更新するコアはありません。",
     "Every core is up to date.": "すべてのコアが最新です。",
+    "Keep Backups": "バックアップを残す",
+    "When updating, keep a backup of the previous version, allowing you to restore it if needed.": "更新するときに前のバージョンのバックアップを残し、必要なら復元できるようにします。",
 };
 
 export default JA;

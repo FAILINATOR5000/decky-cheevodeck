@@ -1050,7 +1050,9 @@ export type EmulatorInventory = {
         systems: RetroArchSystem[];
     };
     emulators: EmulatorEntry[];
+    keepBackups?: boolean;
 };
+export const saveEmulatorKeepBackups = callable<[keep: boolean], { ok: boolean; keepBackups: boolean }>("save_emulator_keep_backups");
 export const emulatorsInventory = callable<[refresh: boolean], EmulatorInventory>("emulators_inventory");
 export const emulatorsIdentify = callable<[path: string], { ok: boolean; error?: string; path?: string; kind?: string }>(
     "emulators_identify"

@@ -16,6 +16,7 @@ import {
     emulatorsUpdateAppimage,
     emulatorsUpdateCores,
     emulatorsUpdateFlatpak,
+    saveEmulatorKeepBackups,
     type EmulatorBackup,
     type EmulatorInventory,
     type EmulatorJobStart,
@@ -36,9 +37,10 @@ type EmulatorsLoad = {
     failed: boolean;
     loading: boolean;
     seen: number;
+    keepBackups: boolean;
 };
 
-let loaded: EmulatorsLoad = { inventory: null, failed: false, loading: false, seen: 0 };
+let loaded: EmulatorsLoad = { inventory: null, failed: false, loading: false, seen: 0, keepBackups: true };
 const listeners = new Set<() => void>();
 
 function publish(next: Partial<EmulatorsLoad>) {
@@ -66,6 +68,9 @@ async function loadInventory(refresh: boolean, seen = loaded.seen) {
     try {
         const result = await emulatorsInventory(refresh);
         publish(result?.ok ? { inventory: result, failed: false } : { failed: true });
+        if (typeof result?.keepBackups === "boolean") {
+            publish({ keepBackups: result.keepBackups });
+        }
     }
     catch (e) {
         logError("emulators: reading the inventory", e);
@@ -123,6 +128,19 @@ async function pointTo(language: LanguageCode, kind: EmulatorKind, name: string)
     }
     catch (e) {
         logError("emulators: pointing to an AppImage", e);
+    }
+}
+
+async function setKeepBackups(keep: boolean) {
+    const before = loaded.keepBackups;
+    publish({ keepBackups: keep });
+    try {
+        const result = await saveEmulatorKeepBackups(keep);
+        publish({ keepBackups: result?.ok ? Boolean(result.keepBackups) : before });
+    }
+    catch (e) {
+        logError("emulators: saving Keep Backups", e);
+        publish({ keepBackups: before });
     }
 }
 
@@ -352,6 +370,7 @@ export function useEmulatorsController(props: { isActive: boolean; language: Lan
             refresh: () => void loadInventory(true),
             pointTo: (kind: EmulatorKind, name: string) => void pointTo(language, kind, name),
             clearPoint: (kind: EmulatorKind, path: string) => void clearPoint(kind, path),
+            setKeepBackups: (keep: boolean) => void setKeepBackups(keep),
             installCores: (cores: string[], target: string) => void installCores(language, cores, target),
             updateCores: (cores: string[], target: string) => void updateCores(language, cores, target),
             installFlatpak: (kind: EmulatorKind, name: string, target: string) =>

@@ -7,7 +7,12 @@ from utils import to_int
 class EmulatorsMixin(PluginContext):
 
     async def emulators_inventory(self, refresh: bool = False):
-        return await asyncio.to_thread(self.emulator_service.inventory, bool(refresh))
+        inventory = await asyncio.to_thread(self.emulator_service.inventory, bool(refresh))
+        keep = bool(self.settings_store.load_config().get("emulatorKeepBackups", True))
+        return {**inventory, "keepBackups": keep}
+
+    async def save_emulator_keep_backups(self, keep: bool = True):
+        return {"ok": True, "keepBackups": self.settings_store.update_emulator_keep_backups(bool(keep))}
 
     async def emulators_identify(self, path: str = ""):
         return await asyncio.to_thread(self.emulator_service.identify, str(path or ""))

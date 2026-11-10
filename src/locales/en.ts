@@ -3636,4 +3636,6 @@ export const EN: LocaleTable = {
     "{{name}} is up to date.": "{{name}} is up to date.",
     "RetroArch isn't set up yet, so there are no cores to update.": "RetroArch isn't set up yet, so there are no cores to update.",
     "Every core is up to date.": "Every core is up to date.",
+    "Keep Backups": "Keep Backups",
+    "When updating, keep a backup of the previous version, allowing you to restore it if needed.": "When updating, keep a backup of the previous version, allowing you to restore it if needed.",
 };

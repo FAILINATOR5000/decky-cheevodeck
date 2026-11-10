@@ -588,6 +588,7 @@ class Plugin(
             store=EmulatorsStore(base_dir=self.runtime_dir),
             cheevo_check_store=self.cheevo_check_store,
             emit=self._emit_from_thread,
+            keep_backups=lambda: bool(self.settings_store.load_config().get("emulatorKeepBackups", True)),
         )
         self.repair_service = RepairService(
             update_checker_service=self.update_checker_service,

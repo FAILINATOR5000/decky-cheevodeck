@@ -475,6 +475,7 @@ _KNOBS = (
     Knob("mpShowOnline", default=True, normalize=True, read=READ_BOOL),
     Knob("mpSuggestFriends", default=True, normalize=True, read=READ_BOOL),
     Knob("mpShortcutFallback", default=True, normalize=True, read=READ_BOOL),
+    Knob("emulatorKeepBackups", default=True, normalize=True, read=READ_BOOL),
     Knob("mpVoicePushToTalk", default=False, normalize=True, read=READ_BOOL),
     Knob("mpVoicePttToggle", default=True, normalize=True, read=READ_BOOL),
     Knob("mpVoiceSensitivity", default=2, normalize=True),
@@ -2358,6 +2359,11 @@ class SettingsStore:
         cfg = self._update_config("mpSuggestFriends", bool(value))
 
         return bool(cfg.get("mpSuggestFriends", True))
+
+    def update_emulator_keep_backups(self, value: bool) -> bool:
+        cfg = self._update_config("emulatorKeepBackups", bool(value))
+
+        return bool(cfg.get("emulatorKeepBackups", True))
 
     def update_mp_shortcut_fallback(self, value: bool) -> bool:
         cfg = self._update_config("mpShortcutFallback", bool(value))

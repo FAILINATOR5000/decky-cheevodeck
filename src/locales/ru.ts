@@ -3708,6 +3708,8 @@ const RU: LocaleTable = {
     "{{name}} is up to date.": "{{name}} в актуальной версии.",
     "RetroArch isn't set up yet, so there are no cores to update.": "RetroArch ещё не настроен, поэтому обновлять ядра нечего.",
     "Every core is up to date.": "Все ядра в актуальной версии.",
+    "Keep Backups": "Хранить резервные копии",
+    "When updating, keep a backup of the previous version, allowing you to restore it if needed.": "При обновлении сохраняет резервную копию предыдущей версии, чтобы её можно было восстановить.",
 };
 
 export default RU;

@@ -11,6 +11,7 @@ import type {
     RetroArchSystem
 } from "../api";
 import { useEmulators } from "../components/emulators/EmulatorsContext";
+import { OptionToggle } from "../components/options/OptionRows";
 import { showMultiplayerProblem } from "../components/multiplayer/ProblemModal";
 import type { BackupsChoice, UninstallChoice } from "../hooks/useEmulatorsController";
 import { skipWhileHidden } from "../components/panel/skipWhileHidden";
@@ -44,6 +45,7 @@ import {
 
 const BACK_KEY = "emulators:back";
 const REFRESH_KEY = "emulators:refresh";
+const KEEP_KEY = "emulators:keep-backups";
 const RA_KEY = "emulators:row:retroarch:flatpak";
 const SYSTEMS_KEY = "emulators:ra:systems";
 const STATUS_WIDTH = "35%";
@@ -714,6 +716,15 @@ function EmulatorsPage(props: EmulatorsPageProps) {
                         ]}
                     />
                 </PanelSectionRow>
+
+                <OptionToggle
+                    outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
+                    focusKey={KEEP_KEY}
+                    label={t(language, "Keep Backups")}
+                    help={t(language, "When updating, keep a backup of the previous version, allowing you to restore it if needed.")}
+                    value={emulators.state.keepBackups}
+                    onChange={emulators.actions.setKeepBackups}
+                />
 
                 {inventory === null && (
                     <PanelSectionRow>

@@ -3657,6 +3657,8 @@ const PT: LocaleTable = {
     "{{name}} is up to date.": "{{name}} está atualizado.",
     "RetroArch isn't set up yet, so there are no cores to update.": "O RetroArch ainda não está configurado, então não há núcleos para atualizar.",
     "Every core is up to date.": "Todos os núcleos estão atualizados.",
+    "Keep Backups": "Manter backups",
+    "When updating, keep a backup of the previous version, allowing you to restore it if needed.": "Ao atualizar, mantém um backup da versão anterior para você restaurá-la se precisar.",
 };
 
 export default PT;
