@@ -67,6 +67,8 @@ function HostRoomModal(props: HostRoomModalProps) {
     const [status, setStatus] = useState(picks.status);
     const [voice, setVoice] = useState(picks.voice);
     const [hosting, setHosting] = useState(false);
+    const stopReading = useRef<() => void>(() => { });
+    useEffect(() => () => stopReading.current(), []);
     const [line, setLine] = useState<DialogLineState>({ tone: "hint", text: "" });
     const [entryId] = useState(topEntryId);
     const nameRef = useRef<HTMLDivElement | null>(null);
@@ -89,7 +91,7 @@ function HostRoomModal(props: HostRoomModalProps) {
         setLine({ tone: "busy", text: t(language, "Hosting...") });
         rememberMultiplayerHostPicks(seats, status, place.online && !localOnly ? where : picks.where, access);
         rememberMultiplayerVoice(voice);
-        const stopReading = request.mode === "couch"
+        stopReading.current = request.mode === "couch"
             ? startReadingLine(language, (text) => setLine({ tone: "busy", text }))
             : () => { };
         try {
@@ -97,7 +99,7 @@ function HostRoomModal(props: HostRoomModalProps) {
             const hosted = await multiplayerHost(request.mode, request.gameId, request.hardcore, request.core,
                 request.share, name.trim(), seats, access === "private" ? password : "", status, where, request.watch,
                 access === "friends", voice, screenSize());
-            stopReading();
+            stopReading.current();
             if (hosted.ok) {
                 overrideRecord(entryId, { focusKey: "multiplayer:host" });
                 close();
@@ -106,7 +108,7 @@ function HostRoomModal(props: HostRoomModalProps) {
             setLine({ tone: "error", text: describe(hosted.gate ?? hosted.error ?? "unavailable", hosted.detail) });
         }
         catch (e) {
-            stopReading();
+            stopReading.current();
             logError("multiplayerHost", e);
             setLine({ tone: "error", text: describe("unavailable") });
         }

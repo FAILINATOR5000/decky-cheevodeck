@@ -124,6 +124,7 @@ APP_ENDED_GRACE_SECONDS = 10
 FLATPAK_SECONDS = 10
 FLATPAK_RECHECK_SECONDS = 10
 HASH_WAIT_SECONDS = 900
+HASH_RETRY_SECONDS = 60
 
 EMULATOR_NAMES = ("retroarch", "PPSSPPSDL", "PPSSPPQt", "dolphin-emu", "RMG")
 GAME_AUDIO_BINARIES = (*EMULATOR_NAMES, "moonlight")
@@ -379,6 +380,7 @@ class MultiplayerService:
         self._verdict_memo = {}
         self._hash_memo = {}
         self._hash_reads = {}
+        self._hash_failed = {}
         self._hash_lock = threading.Lock()
         self._crc_memo = {}
         self._build_memo = {}
@@ -939,6 +941,8 @@ class MultiplayerService:
         key = (entry["real"], st.st_mtime_ns, st.st_size)
         if key in self._hash_memo:
             return self._hash_memo[key]
+        if self._failed_recently(key):
+            return ""
         with self._hash_lock:
             reading = self._hash_reads.get(key)
             mine = reading is None
@@ -953,11 +957,18 @@ class MultiplayerService:
                 found = self._cheevo_check.hash_rom_for_room(entry["real"], system_id)
             if found:
                 self._hash_memo[key] = found
+            else:
+                self._hash_failed[key] = (self._emulators.changed if self._emulators is not None else 0, time.monotonic())
             return found
         finally:
             with self._hash_lock:
                 self._hash_reads.pop(key, None)
             reading.set()
+
+    def _failed_recently(self, key: tuple) -> bool:
+        failed = self._hash_failed.get(key)
+        changed = self._emulators.changed if self._emulators is not None else 0
+        return failed is not None and failed[0] == changed and time.monotonic() - failed[1] < HASH_RETRY_SECONDS
 
     def _read_ahead(self, local: dict, system_id: int) -> None:
         if local["hash"] or system_id not in session.DOLPHIN_SYSTEMS or self._cheevo_check is None \
@@ -968,7 +979,8 @@ class MultiplayerService:
         except OSError:
             return
         key = (local["real"], st.st_mtime_ns, st.st_size)
-        if key in self._hash_memo or key in self._hash_reads or self._cheevo_check.cached_room_hash(local["real"], system_id):
+        if key in self._hash_memo or key in self._hash_reads or self._failed_recently(key) \
+                or self._hash_needs_dolphin(local, system_id) or self._cheevo_check.cached_room_hash(local["real"], system_id):
             return
         entry = {"hash": "", "real": local["real"]}
         threading.Thread(target=self._hash_of, args=(entry, system_id), name="room-hash", daemon=True).start()
@@ -2143,10 +2155,8 @@ class MultiplayerService:
 
         if local["fallback"] and not os.path.isfile(local["path"]):
             return ("rom_missing", {}), warnings
-        if room is None and mode == "couch":
-            if self._hash_needs_dolphin(local, system_id):
-                return ("needs_dolphin", {}), warnings
-            self._read_ahead(local, system_id)
+        if room is None and mode == "couch" and self._hash_needs_dolphin(local, system_id):
+            return ("needs_dolphin", {}), warnings
 
         if room is not None:
             if room.get("where") == "online" and _lan_only(mode, local):
@@ -2283,6 +2293,11 @@ class MultiplayerService:
         for mode in proto.MODES:
             core = hosted["core"] if hosted is not None and mode == hosted["mode"] else ""
             answer["modes"][mode] = _mode_state(self._check(mode, game_id, core, room))
+        if room is None and hosted is None:
+            game = (self._library() or {}).get(game_id)
+            for entry in (game or {}).get("paths") or []:
+                if os.path.isfile(entry["real"]):
+                    self._read_ahead(entry, game["systemId"])
         return answer
 
     def _fix(self, gate, detail: dict, mode: str, game_id: int, room, inventory=None):
@@ -4318,9 +4333,11 @@ class MultiplayerService:
             if row["friends"] and invite is None and pair is None:
                 return {"ok": False, "error": ERROR_FRIENDS_ONLY}
             local, reason, detail = await asyncio.to_thread(self._decide, row, 0, "")
+            digest = await asyncio.to_thread(self._hash_of_path, local, local["systemId"]) \
+                if local and row["mode"] != "stream" else ""
             params = proto.join_params(
                 self._user(),
-                self._hash_of_path(local, local["systemId"]) if local and row["mode"] != "stream" else "",
+                digest,
                 self._crc_of(local["real"]) if local and row["mode"] == "couch" and local["emulator"] == "retroarch" else "",
                 local["core"] if local else "",
                 local["emuVersion"] if local else "",

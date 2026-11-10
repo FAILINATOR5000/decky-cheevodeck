@@ -70,6 +70,8 @@ function RoomsModal(props: RoomsModalProps) {
     const [address, setAddress] = useState("");
     const [visit, setVisit] = useState(0);
     const [busy, setBusy] = useState(false);
+    const stopReading = useRef<() => void>(() => { });
+    useEffect(() => () => stopReading.current(), []);
     const [line, setLine] = useState<DialogLineState>({ tone: "hint", text: "" });
     const [entryId] = useState(topEntryId);
     const joinedRef = useRef(false);
@@ -222,12 +224,12 @@ function RoomsModal(props: RoomsModalProps) {
         }
         setBusy(true);
         setLine({ tone: "busy", text: t(language, "Joining...") });
-        const stopReading = row.mode === "couch"
+        stopReading.current = row.mode === "couch"
             ? startReadingLine(language, (text) => setLine({ tone: "busy", text }))
             : () => { };
         try {
             const joined = await multiplayerJoin(row.room, typed, hardcore);
-            stopReading();
+            stopReading.current();
             if (joined.ok) {
                 joinedRef.current = true;
                 rememberMultiplayerTab(row.mode);
@@ -242,7 +244,7 @@ function RoomsModal(props: RoomsModalProps) {
             setLine({ tone: "error", text: describe(joined.gate ?? joined.error ?? "unavailable", joined.detail) });
         }
         catch (e) {
-            stopReading();
+            stopReading.current();
             logError("multiplayerJoin", e);
             setLine({ tone: "error", text: describe("unavailable") });
         }

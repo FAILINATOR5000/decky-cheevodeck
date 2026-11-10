@@ -1005,13 +1005,14 @@ export type EmulatorAppImage = {
     steam: EmulatorSteam | null;
     backups: EmulatorBackup[];
 };
-type EmulatorEntry = {
+export type EmulatorEntry = {
     kind: EmulatorKind;
     name: string;
     achievements: boolean;
     fileName: string;
     flatpak: EmulatorFlatpak;
     appimages: EmulatorAppImage[];
+    leftovers: { target: string; backups: EmulatorBackup[] }[];
     found: boolean;
 };
 export type RetroArchCore = {
@@ -1080,7 +1081,13 @@ export type EmulatorJobStart = {
     installed?: string;
     stable?: string;
 };
-export const emulatorsStatus = callable<[], { ok: boolean; busy: boolean; queued: string[]; state: EmulatorJobState | null }>(
+export const emulatorsStatus = callable<[], {
+    ok: boolean;
+    busy: boolean;
+    running?: string;
+    queued: string[];
+    state: EmulatorJobState | null;
+}>(
     "emulators_status"
 );
 export const emulatorsCoresOffer = callable<[], {

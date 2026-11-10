@@ -46,6 +46,7 @@ const PROBLEM_TEXT: Record<string, string> = {
     other_game: "Close the running game first",
     rom_mismatch: "Your copy is a different version of the game from the host's. Couch Play needs the same version.",
     host_unchecked: "The host couldn't check its game file",
+    needs_dolphin: "Dolphin's Flatpak isn't installed. Cheevo Check needs it to read GameCube and Wii files, even when you play with Dolphin's AppImage.",
     crc_mismatch: "Your copy matches the host's game but not their exact file. Couch Play on NES needs the exact same file.",
     link_gb_both: "Link Play needs a Game Boy game on both",
     link_needs_gambatte_both: "Link Play needs Gambatte on both devices",

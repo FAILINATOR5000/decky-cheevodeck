@@ -77,7 +77,7 @@ export function DesktopToolButtons(props: {
             : t(language, "Install Steam ROM Manager");
         return (
             <>
-                <FocusTarget focusKey="desktop:srm:install">
+                <FocusTarget focusKey="desktop:srm">
                     <DialogButton onClick={() => void installSrm()}>{label}</DialogButton>
                 </FocusTarget>
                 {install.state === "failed" && (
@@ -94,6 +94,7 @@ export function DesktopToolButtons(props: {
             {found.map((tool) => (
                 <FocusTarget key={tool} focusKey={`desktop:${tool}`}>
                     <DialogButton
+                        autoFocus={install.state === "done"}
                         onClick={() => {
                             close();
                             openInDesktop(language, tool);

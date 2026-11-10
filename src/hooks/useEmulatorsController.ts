@@ -57,8 +57,11 @@ function subscribe(listener: () => void): () => void {
     };
 }
 
+let loadAgain = false;
+
 async function loadInventory(refresh: boolean, seen = loaded.seen) {
     if (loaded.loading) {
+        loadAgain = true;
         return;
     }
     publish({ loading: true, seen });
@@ -72,6 +75,10 @@ async function loadInventory(refresh: boolean, seen = loaded.seen) {
     }
     finally {
         publish({ loading: false });
+    }
+    if (loadAgain) {
+        loadAgain = false;
+        await loadInventory(false);
     }
 }
 
@@ -280,7 +287,7 @@ async function addToSteam(language: LanguageCode, kind: EmulatorKind, name: stri
     }
 }
 
-export type BackupsChoice = { title: string; path: string; backups: EmulatorBackup[] };
+export type BackupsChoice = { title: string; path: string; backups: EmulatorBackup[]; core: boolean };
 
 async function backups(language: LanguageCode, what: BackupsChoice, target: string) {
     const choice = await askBackups(language, what);
@@ -290,7 +297,7 @@ async function backups(language: LanguageCode, what: BackupsChoice, target: stri
     const version = choice.backup.version || t(language, "Unknown version");
     try {
         if (choice.action === "restore") {
-            started(language, await emulatorsRestore(what.path, choice.backup.path, target), what.title);
+            started(language, await emulatorsRestore(what.path, choice.backup.path, target), what.core ? "" : what.title);
             return;
         }
         const yes = await askEmulatorQuestion({
@@ -343,7 +350,7 @@ async function uninstall(language: LanguageCode, what: UninstallChoice, target: 
         return;
     }
     try {
-        started(language, await emulatorsUninstall(what.kind, what.via, what.item, target), what.name);
+        started(language, await emulatorsUninstall(what.kind, what.via, what.item, target), what.via === "core" ? "" : what.name);
     }
     catch (e) {
         logError("emulators: uninstalling", e);

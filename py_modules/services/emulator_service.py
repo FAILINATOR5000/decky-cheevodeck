@@ -20,6 +20,7 @@ from pathlib import Path
 import decky
 
 import emulator_catalog as catalog
+import emulators_store
 import multiplayer_session as session
 import steam_shortcuts
 import subprocess_util
@@ -35,7 +36,7 @@ JOB_EVENT = "emulator_job"
 PROGRESS_SECONDS = 0.5
 FETCH_SECONDS = 20
 CHECK_SECONDS = 8
-RECHECK_SECONDS = 60
+RECHECK_SECONDS = 300
 DOWNLOAD_SECONDS = 1800
 EXTRACT_SECONDS = 1200
 STOP_SECONDS = 5
@@ -357,8 +358,13 @@ class EmulatorService:
                         rows[kind].append({"path": path, "key": path_key(path), "fileName": Path(path).name,
                                            "version": "", "repo": "", "howFound": "pointed", "ours": False,
                                            "missing": True, "latest": "", "update": False,
-                                           "newerThanStable": False, "checkFailed": False})
+                                           "newerThanStable": False, "checkFailed": False,
+                                           "backups": self._backups_of(path, record)})
         return rows
+
+    def _backup_kind(self, target: str, record: dict) -> str:
+        repo = (record["installed"]["appimages"].get(target) or {}).get("repo") or ""
+        return (catalog.kind_by_repo(repo) if repo else "") or catalog.kind_by_name(Path(target).name)
 
     def _check_latest(self, rows: dict, flatpaks, refresh: bool) -> None:
         checks = {}
@@ -378,10 +384,20 @@ class EmulatorService:
             return
         pool = ThreadPoolExecutor(max_workers=len(checks), thread_name_prefix="emulator-check")
         futures = {pool.submit(check): key for key, check in checks.items()}
-        _done, late = wait(futures, timeout=CHECK_SECONDS + 2)
+        done, late = wait(futures, timeout=CHECK_SECONDS + 2)
         pool.shutdown(wait=False)
+        for future in done:
+            if future.exception() is not None:
+                key = futures[future]
+                decky.logger.info("emulators: checking %s failed (%s)", key if isinstance(key, str) else key[0],
+                                  type(future.exception()).__name__)
+                self._check_failed.add(futures[future])
         for future in late:
             self._check_failed.add(futures[future])
+            future.add_done_callback(self._late_answer)
+
+    def _late_answer(self, _future) -> None:
+        self._inventory = None
 
     def _standalones(self, record: dict, flatpaks, rows: dict) -> list:
         emulators = []
@@ -400,6 +416,15 @@ class EmulatorService:
                     row.update(self._appimage_compare(row, release))
             flatpak = self._flatpak_row(entry, flatpaks)
             flatpak["steam"] = self._steam(f"{kind}:flatpak", shortcuts, record)
+            listed = {row["path"] for row in rows[kind]}
+            leftovers = []
+            for target in dict.fromkeys(row["of"] for row in record["installed"]["backups"].values()
+                                        if row["kind"] == "appimage"):
+                if target in listed or os.path.lexists(target) or self._backup_kind(target, record) != kind:
+                    continue
+                found = self._backups_of(target, record)
+                if found:
+                    leftovers.append({"target": target, "backups": found})
             emulators.append({
                 "kind": kind,
                 "name": entry["name"],
@@ -407,6 +432,7 @@ class EmulatorService:
                 "fileName": entry["fileName"],
                 "flatpak": flatpak,
                 "appimages": rows[kind],
+                "leftovers": leftovers,
                 "found": bool(rows[kind]) or bool(flatpaks and entry["flatpak"] in flatpaks),
             })
         return emulators
@@ -569,10 +595,12 @@ class EmulatorService:
 
     def inventory(self, refresh: bool = False, network: bool = True) -> dict:
         with self._lock:
-            if self._inventory is not None and not refresh:
-                if self._stamp(self._inventory["emulators"]) == self._inventory_stamp:
-                    return self._inventory
+            cached = self._inventory
+            if cached is not None and not refresh:
+                if self._stamp(cached["emulators"]) == self._inventory_stamp:
+                    return cached
                 self.changed += 1
+            head = self._head_stamp()
             self._forget_gone_backups()
             record = self._store.get()
             flatpaks = self._flatpaks()
@@ -587,14 +615,23 @@ class EmulatorService:
                 "retroarch": self._retroarch(record, flatpaks),
                 "emulators": emulators,
             }
-            self._inventory_stamp = self._stamp(emulators)
+            self._inventory_stamp = head + self._row_stamp(emulators)
             return self._inventory
 
     def _stamp(self, emulators) -> tuple:
-        paths = [self._user_home / "Applications"]
+        return self._head_stamp() + self._row_stamp(emulators)
+
+    def _head_stamp(self) -> tuple:
+        return self._stat_all([self._user_home / "Applications", self._runtime_dir / emulators_store.FILENAME])
+
+    def _row_stamp(self, emulators) -> tuple:
+        paths = []
         for emulator in emulators:
             for row in emulator["appimages"]:
                 paths.extend((Path(row["path"]), Path(row["path"]).parent))
+        return self._stat_all(paths)
+
+    def _stat_all(self, paths) -> tuple:
         stamp = []
         for path in dict.fromkeys(paths):
             try:
@@ -728,7 +765,8 @@ class EmulatorService:
         with self._job_lock:
             busy = self._job is not None or bool(self._jobs)
             queued = [job["id"] for job in self._jobs]
-        return {"ok": True, "busy": busy, "queued": queued, "state": self._state}
+            current = self._job["id"] if self._job is not None else ""
+        return {"ok": True, "busy": busy, "running": current, "queued": queued, "state": self._state}
 
     def _submit(self, kind: str, steps: list, *, target: str = "", names=None, plan: str = "") -> dict:
         if not self._repaired:
@@ -1044,8 +1082,11 @@ class EmulatorService:
         return fixed
 
     def _forget_downloads(self) -> bool:
+        record = self._store.get()
         folders = {self._user_home / "Applications"}
-        folders.update(Path(path).parent for path in self._store.get()["installed"]["appimages"])
+        folders.update(Path(path).parent for path in record["installed"]["appimages"])
+        folders.update(Path(path).parent for paths in record["paths"].values() for path in paths)
+        folders.update(Path(row["of"]).parent for row in record["installed"]["backups"].values())
         dropped = False
         for folder in folders:
             if catalog.under_desktop(folder, self._user_home):
@@ -2069,7 +2110,8 @@ class EmulatorService:
         with self._job_lock:
             if self._job is not None or self._jobs:
                 return
-        gone = [path for path in self._store.get()["installed"]["backups"] if not os.path.lexists(path)]
+        gone = [path for path in self._store.get()["installed"]["backups"]
+                if os.path.isdir(Path(path).parent) and not os.path.lexists(path)]
         if not gone:
             return
 
@@ -2176,7 +2218,7 @@ class EmulatorService:
         row = record["installed"]["backups"][found["path"]]
         kind = catalog.RETROARCH if row["kind"] == "core" else next(
             (emulator["kind"] for emulator in self.inventory()["emulators"]
-             for image in emulator["appimages"] if image["path"] == target), "")
+             for image in emulator["appimages"] if image["path"] == target), "") or self._backup_kind(target, record)
         if kind and running(kind):
             return {"ok": False, "error": "running"}
         name = Path(target).name
@@ -2187,14 +2229,39 @@ class EmulatorService:
         return self._submit("restore_backup", [{"do": "restore_backup", "target": target, "backup": found["path"], "kind": kind}],
                             target=job_target, names=[name])
 
+    def _put_back(self, target: Path, backup: Path, record: dict, journal: dict) -> None:
+        row = record["installed"]["backups"][str(backup)]
+        self._check_target(target)
+        self._check_target(backup)
+        core = row["kind"] == "core"
+        section = "cores" if core else "appimages"
+        key = target.name[: -len("_libretro.so")] if core else str(target)
+        undo = "store_core" if core else "store_appimage"
+        self._note(journal, {"undo": undo, ("core" if core else "path"): key,
+                             "previous": record["installed"][section].get(key)})
+        self._note(journal, {"undo": "store_backup", "path": str(backup), "previous": row})
+        self._note(journal, {"undo": "move", "src": str(target), "dst": str(backup)})
+        os.replace(backup, target)
+        self._verify(target)
+
+        def edit(stored):
+            stored["installed"]["backups"].pop(str(backup), None)
+            if row.get("record") is not None:
+                stored["installed"][section][key] = row["record"]
+
+        self._store.change(edit)
+
     def _restore_backup(self, step: dict, journal: dict) -> None:
         target = Path(step["target"])
         record = self._store.get()
         found = self._backup_of(str(target), record, step.get("backup") or "")
-        if found is None or not target.is_file():
+        if found is None:
             raise StepFailed("not_found", f"no old copy of {target.name}")
         if step.get("kind") and running(step["kind"]):
             raise StepFailed("running")
+        if not os.path.lexists(target):
+            self._put_back(target, Path(found["path"]), record, journal)
+            return
         backup = Path(found["path"])
         row = record["installed"]["backups"][str(backup)]
         if row["kind"] == "core":

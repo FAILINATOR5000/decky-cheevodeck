@@ -12,9 +12,11 @@ type EmulatorJobs = {
     state: EmulatorJobState | null;
     busy: boolean;
     finished: number;
+    active: EmulatorJobState[];
 };
 
-let jobs: EmulatorJobs = { state: null, busy: false, finished: 0 };
+let jobs: EmulatorJobs = { state: null, busy: false, finished: 0, active: [] };
+const active = new Map<string, EmulatorJobState>();
 let endedJob = "";
 let poll = 0;
 const listeners = new Set<() => void>();
@@ -34,13 +36,27 @@ export function jobErrorText(language: LanguageCode, error: string, name: string
     return ERROR_LINES[error] ? t(language, ERROR_LINES[error]) : "";
 }
 
-function publish(state: EmulatorJobState | null, busy: boolean) {
+function publish(state: EmulatorJobState | null, busy: boolean, live?: string[]) {
     let finished = jobs.finished;
-    if (state && (state.stage === "done" || state.stage === "failed") && state.job !== endedJob) {
+    const ended = state !== null && (state.stage === "done" || state.stage === "failed");
+    if (ended && state.job !== endedJob) {
         endedJob = state.job;
         finished += 1;
     }
-    jobs = { state, busy, finished };
+    if (state !== null) {
+        if (ended) {
+            active.delete(state.job);
+        }
+        else {
+            active.set(state.job, state);
+        }
+    }
+    for (const job of [...active.keys()]) {
+        if (!busy || (live !== undefined && !live.includes(job))) {
+            active.delete(job);
+        }
+    }
+    jobs = { state, busy, finished, active: [...active.values()] };
     for (const listener of listeners) {
         listener();
     }
@@ -80,7 +96,8 @@ async function refreshEmulatorJobs() {
     try {
         const status = await emulatorsStatus();
         if (status?.ok) {
-            publish(status.state ?? jobs.state, Boolean(status.busy));
+            const live = typeof status.running === "string" ? [status.running, ...(status.queued ?? [])] : undefined;
+            publish(status.state ?? jobs.state, Boolean(status.busy), live);
         }
     }
     catch (e) {

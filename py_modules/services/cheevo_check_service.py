@@ -948,7 +948,10 @@ class CheevoCheckService:
             return scanned
         finally:
             if cache_on:
-                self._store.save_hash_cache(cache if aborted else self._prune_cache(cache))
+                with self._room_cache_lock:
+                    for key, entry in self._store.load_hash_cache().items():
+                        cache.setdefault(key, entry)
+                    self._store.save_hash_cache(cache if aborted else self._prune_cache(cache))
 
     def _arcade_scan(self, candidate):
         """An arcade set's row, without ever hashing its contents.
@@ -1793,6 +1796,9 @@ class CheevoCheckService:
         cached = self._cached_hash(self._store.load_hash_cache(), self._cache_key(console_id, rom), rom)
         if cached is not None:
             return cached
+        with self._lock:
+            if not self._running:
+                self._cancel.clear()
         suffix = rom.suffix.lower()
         if suffix in systems.EXTRACT_EXTENSIONS:
             kind = "archive"

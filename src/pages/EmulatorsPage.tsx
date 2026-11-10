@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 
 import type {
     EmulatorAppImage,
+    EmulatorEntry,
     EmulatorInventory,
     EmulatorJobState,
     EmulatorKind,
@@ -81,6 +82,7 @@ type InstallRow = {
     shortcut: boolean;
     install: EmulatorInstall | null;
     image: EmulatorAppImage | null;
+    leftovers: EmulatorEntry["leftovers"];
 };
 
 type Row =
@@ -139,7 +141,8 @@ function buildRows(language: LanguageCode, inventory: EmulatorInventory | null):
         version: ra.flatpak.version,
         shortcut: ra.flatpak.steam !== null,
         install: ra.flatpak.installed ? { via: "flatpak", id: ra.flatpak.id, scope: ra.flatpak.scope } : null,
-        image: null
+        image: null,
+        leftovers: []
     }];
     if (ra.configFound) {
         const missing = ra.systems.filter((system) => system.hasGames && !system.cores.some((core) => core.installed)).length;
@@ -174,13 +177,14 @@ function buildRows(language: LanguageCode, inventory: EmulatorInventory | null):
             version: flatpak.version,
             shortcut: flatpak.steam !== null,
             install: flatpak.installed ? { via: "flatpak", id: flatpak.id, scope: flatpak.scope } : null,
-            image: null
+            image: null,
+            leftovers: []
         });
         const images = emulator.appimages.filter((image) => !image.missing);
         emulator.appimages.forEach((image, at) => {
             rows.push({
                 type: "install",
-                key: `emulators:row:${kind}:appimage:${image.key}`,
+                key: at === 0 ? `emulators:row:${kind}:appimage` : `emulators:row:${kind}:appimage:${image.key}`,
                 kind,
                 name,
                 title: at === 0
@@ -193,7 +197,8 @@ function buildRows(language: LanguageCode, inventory: EmulatorInventory | null):
                 version: image.version,
                 shortcut: image.steam !== null,
                 install: image.missing ? null : { via: "appimage", path: image.path },
-                image
+                image,
+                leftovers: []
             });
         });
         if (images.length === 0) {
@@ -210,7 +215,8 @@ function buildRows(language: LanguageCode, inventory: EmulatorInventory | null):
                 version: "",
                 shortcut: false,
                 install: null,
-                image: null
+                image: null,
+                leftovers: emulator.leftovers ?? []
             });
         }
     }
@@ -242,7 +248,7 @@ function systemStatus(language: LanguageCode, system: RetroArchSystem) {
 }
 
 function errorLine(language: LanguageCode, state: EmulatorJobState): string {
-    return jobErrorText(language, state.error, state.names[0] ?? "", state.kind.endsWith("_cores"));
+    return jobErrorText(language, state.error, state.names[0] ?? "", state.kind.endsWith("_cores") || state.target.startsWith("emulators:core:"));
 }
 
 function failedLine(language: LanguageCode, state: EmulatorJobState): string {
@@ -312,17 +318,21 @@ function EmulatorsPage(props: EmulatorsPageProps) {
             if (inventory === null) {
                 return false;
             }
+            let opened = false;
             if ((key.startsWith("emulators:core:") || key.startsWith("emulators:system:")) && isFolded(SYSTEMS_KEY)) {
-                toggle(SYSTEMS_KEY);
-                return true;
+                folded.set(SYSTEMS_KEY, false);
+                opened = true;
             }
             for (const system of inventory.retroarch.systems) {
                 if (key.startsWith(`emulators:core:${system.id}:`) && isFolded(systemKey(system))) {
-                    toggle(systemKey(system));
-                    return true;
+                    folded.set(systemKey(system), false);
+                    opened = true;
                 }
             }
-            return false;
+            if (opened) {
+                setFoldings((count) => count + 1);
+            }
+            return opened;
         }
     });
 
@@ -330,8 +340,12 @@ function EmulatorsPage(props: EmulatorsPageProps) {
         return null;
     }
 
+    function activeJob(key: string) {
+        return jobs.active.find((state) => state.target === key) ?? null;
+    }
+
     function busy(key: string): boolean {
-        return working && job !== null && job.target === key;
+        return activeJob(key) !== null;
     }
 
     function actionFor(row: Row): RowAction | null {
@@ -410,12 +424,16 @@ function EmulatorsPage(props: EmulatorsPageProps) {
             return null;
         }
         if (row.type === "core" && row.core.installed && row.core.backups.length > 0) {
-            return { title: row.core.name, path: row.core.path, backups: row.core.backups };
+            return { title: row.core.name, path: row.core.path, backups: row.core.backups, core: true };
         }
-        if (row.type === "install" && row.installed && row.image !== null && row.image.backups.length > 0) {
-            return { title: row.title, path: row.image.path, backups: row.image.backups };
+        if (row.type !== "install") {
+            return null;
         }
-        return null;
+        if (row.image !== null && row.image.backups.length > 0) {
+            return { title: row.title, path: row.image.path, backups: row.image.backups, core: false };
+        }
+        const spare = row.leftovers[0];
+        return spare ? { title: row.title, path: spare.target, backups: spare.backups, core: false } : null;
     }
 
     function shortcutFor(row: Row): { install: EmulatorInstall; storeKey: string } | null {
@@ -452,7 +470,7 @@ function EmulatorsPage(props: EmulatorsPageProps) {
         if (row.type === "install" && row.key === RA_KEY && staleCores().length > 0 && !busy(RA_KEY)) {
             hints.push({ button: "y", label: t(language, "Update All Cores") });
         }
-        if (row.type === "install" && row.via === "appimage") {
+        if (row.type === "install" && row.via === "appimage" && !busy(row.key)) {
             hints.push({
                 button: "r1",
                 label: row.image?.howFound === "pointed" ? t(language, "Clear Custom Install") : t(language, "Point to Custom Install")
@@ -498,7 +516,7 @@ function EmulatorsPage(props: EmulatorsPageProps) {
             }
             return;
         }
-        if (button === BUTTON_BUMPER_RIGHT && row.type === "install" && row.via === "appimage") {
+        if (button === BUTTON_BUMPER_RIGHT && row.type === "install" && row.via === "appimage" && !busy(row.key)) {
             if (row.image?.howFound === "pointed") {
                 emulators.actions.clearPoint(row.kind, row.image.path);
             }
@@ -512,6 +530,9 @@ function EmulatorsPage(props: EmulatorsPageProps) {
         const near = [rows[at + 1], rows[at - 1]].filter((other): other is Row => other !== undefined).map(rowKey);
         if (row.type === "core") {
             return [...near, systemKey(row.system), RA_KEY, REFRESH_KEY];
+        }
+        if (row.type === "install" && row.via === "appimage" && row.key !== `emulators:row:${row.kind}:appimage`) {
+            return [`emulators:row:${row.kind}:appimage`, ...near, REFRESH_KEY];
         }
         return [...near, REFRESH_KEY];
     }
@@ -555,7 +576,7 @@ function EmulatorsPage(props: EmulatorsPageProps) {
             }
             status = statusOf(language, row.installed, row.update, row.checkFailed, row.image?.missing);
         }
-        const progress = busy(key) && job !== null ? job.progress : null;
+        const progress = activeJob(key)?.progress ?? null;
         const refreshing = loading && row.type === "install";
         return (
             <PanelSectionRow key={key}>
@@ -568,6 +589,7 @@ function EmulatorsPage(props: EmulatorsPageProps) {
                         setFocusedKey(key);
                         rowWindow.onItemFocus(at);
                     }}
+                    onGamepadBlur={() => setFocusedKey((current) => (current === key ? null : current))}
                     onGamepadDirection={rowWindow.guardTopRow(at)}
                 >
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", minWidth: 0 }}>
@@ -585,7 +607,8 @@ function EmulatorsPage(props: EmulatorsPageProps) {
                             </span>
                         )}
                     </div>
-                    {row.type === "install" && row.key === RA_KEY && inventory !== null && inventory.retroarch.configFound && row.installed && (
+                    {row.type === "install" && row.key === RA_KEY && inventory !== null && inventory.retroarch.configFound && row.installed
+                        && !busy(RA_KEY) && (
                         <div style={{ marginTop: "6px" }}>
                             <ButtonHints
                                 style={state.controllerGlyphStyle}
@@ -646,14 +669,18 @@ function EmulatorsPage(props: EmulatorsPageProps) {
                         <div style={{ ...bodyTextStyle(), color: warnAmber }}>
                             <div>{failedLine(language, job)}</div>
                             {errorLine(language, job) && <div>{errorLine(language, job)}</div>}
-                            {job.left.length > 0 && <div>{t(language, "Couldn't put these back: {{files}}", { files: job.left.join(", ") })}</div>}
+                            {job.left.length > 0 && (
+                                <div style={{ overflowWrap: "anywhere", wordBreak: "break-all" }}>
+                                    {t(language, "Couldn't put these back: {{files}}", { files: job.left.join(", ") })}
+                                </div>
+                            )}
                         </div>
                     </PanelSectionRow>
                 )}
 
                 <PanelSectionRow>
-                    <div style={{ minHeight: `${textSize(12) * 1.5 + 4}px` }}>
-                        <ButtonHints style={state.controllerGlyphStyle} hints={hintsFor(focusedRow)} />
+                    <div style={{ minHeight: `${Math.round(textSize(11) * 1.35 * 2 + 10)}px` }}>
+                        <ButtonHints style={state.controllerGlyphStyle} dense hints={hintsFor(focusedRow)} />
                     </div>
                 </PanelSectionRow>
 
@@ -665,11 +692,9 @@ function EmulatorsPage(props: EmulatorsPageProps) {
                     </PanelSectionRow>
                 )}
 
-                <Focusable flow-children="column" resetNavOnEntry>
-                    <SlidingWindowRows list={rowWindow}>
-                        {rowWindow.mountedItems.map((row, index) => renderRow(row, rowWindow.start + index))}
-                    </SlidingWindowRows>
-                </Focusable>
+                <SlidingWindowRows list={rowWindow}>
+                    {rowWindow.mountedItems.map((row, index) => renderRow(row, rowWindow.start + index))}
+                </SlidingWindowRows>
 
                 <BottomFocusAnchor focusKey="emulators:bottom:anchor" />
             </PanelSection>
