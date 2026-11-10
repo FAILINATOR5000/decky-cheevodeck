@@ -82,6 +82,23 @@ function rememberModes(key: string, answer: MultiplayerModes) {
     modesCache.set(key, answer);
 }
 
+function warmPickedGame(gameId: number, mode: MultiplayerMode, core: string, room: string) {
+    multiplayerModes(gameId, room)
+        .then((answer) => {
+            if (answer.ok) {
+                rememberModes([gameId, room].join("|"), answer);
+            }
+        })
+        .catch((e) => logError("multiplayer: asking about a picked game's modes", e));
+    warmCheck(gameId, mode, core, room);
+}
+
+function warmCheck(gameId: number, mode: MultiplayerMode, core: string, room: string) {
+    multiplayerCheck(mode, gameId, core, room)
+        .then((result) => rememberCheck([mode, gameId, core, room].join("|"), result))
+        .catch((e) => logError("multiplayer: checking a game ahead of the page", e));
+}
+
 const reported = new Set<string>();
 let lastDialog = { titleKey: "", at: 0 };
 let missedProblem: MultiplayerProblem | null = null;
@@ -224,6 +241,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         failureSeqRef.current = null;
         setStatus(null);
         setCheck(null);
+        setCheckedFor("");
         setModes(null);
         setVisibleError("");
     }, [isActive]);
@@ -345,6 +363,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     useEffect(() => {
         if (!isActive || gameId === null) {
             setCheck(null);
+            setCheckedFor("");
             return;
         }
         const token = checkTokenRef.current + 1;
@@ -508,6 +527,9 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     }
 
     function pickGame(next: number | null) {
+        if (next !== null) {
+            warmPickedGame(next, mode, checkCore, checkRoom);
+        }
         rememberMultiplayerGame(next);
         setPickedGameId(next);
         pressed();
@@ -575,7 +597,14 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     }
 
     async function fixFor(forMode: MultiplayerMode, forGame: number): Promise<FixAnswer | null> {
-        const entry = (await multiplayerModes(forGame, checkRoom)).modes[forMode];
+        const answer = await multiplayerModes(forGame, checkRoom);
+        if (answer.ok) {
+            const key = [forGame, checkRoom].join("|");
+            rememberModes(key, answer);
+            setModes({ key, answer });
+        }
+        warmCheck(forGame, mode, checkCore, checkRoom);
+        const entry = answer.modes[forMode];
         return entry?.plan ? { state: entry.state, gate: entry.gate, detail: entry.detail, plan: entry.plan } : null;
     }
 
