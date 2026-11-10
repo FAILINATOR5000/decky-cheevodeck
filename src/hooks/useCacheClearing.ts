@@ -17,6 +17,7 @@ import {
 } from "../api";
 import { t, type LanguageCode } from "../locales";
 import type { FriendGamePayload, FriendRow, FriendsPayload, Payload } from "../types";
+import { pickedFilesCleared } from "../utils/gameFilePick";
 
 type UseCacheClearingArgs = {
     language: LanguageCode;
@@ -322,6 +323,7 @@ export function useCacheClearing({
             "Couldn't clear the picked game files.",
             async () => {
                 await clearCacheGroup("pickedGameFiles");
+                pickedFilesCleared();
             }
         );
     }

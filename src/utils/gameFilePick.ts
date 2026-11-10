@@ -108,6 +108,10 @@ async function checkGameFile(gameId: number, title: string, path: string): Promi
     return ended;
 }
 
+export function pickedFilesCleared() {
+    publish({ pick: null, changed: store.changed + 1 });
+}
+
 export async function forgetGameFile(gameId: number) {
     try {
         await multiplayerForgetPickedGame(gameId);
