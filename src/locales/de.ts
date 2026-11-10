@@ -3528,19 +3528,8 @@ const DE: LocaleTable = {
     "Ready to play": "Bereit zum Spielen",
     "Couldn't finish the setup": "Einrichtung nicht abgeschlossen",
     "Couldn't add it to Steam.": "Nicht zu Steam hinzugefügt.",
-    "Clean Up": "Aufräumen",
-    "Clean Up · {{size}}": "Aufräumen · {{size}}",
-    "Emulator backups": "Emulator-Sicherungen",
-    "Core backups": "Core-Sicherungen",
-    "Leftovers": "Reste",
-    "Other old copies": "Andere alte Kopien",
-    "Delete {{count}} files ({{size}})": {
-        one: "{{count}} Datei löschen ({{size}})",
-        other: "{{count}} Dateien löschen ({{size}})"
-    },
     "Restore {{version}}": "{{version}} wiederherstellen",
     "Couldn't restore {{name}}. Nothing was changed.": "{{name}} konnte nicht wiederhergestellt werden. Es wurde nichts geändert.",
-    "Couldn't clear old copies.": "Alte Kopien konnten nicht gelöscht werden.",
     "Turn On Play Through Emulator Shortcuts": "„Über Emulator-Verknüpfungen spielen“ einschalten",
     "Play Through Emulator Shortcuts was turned on.": "„Über Emulator-Verknüpfungen spielen“ wurde eingeschaltet.",
     "The game's file was found.": "Die Spieldatei wurde gefunden.",
@@ -3623,6 +3612,13 @@ const DE: LocaleTable = {
     "Its backups are deleted too.": "Seine Sicherungen werden ebenfalls gelöscht.",
     "{{name}}'s shortcut in Steam will stop working.": "Die Steam-Verknüpfung von {{name}} funktioniert dann nicht mehr.",
     "Couldn't uninstall {{name}}.": "{{name}} konnte nicht deinstalliert werden.",
+    "Backup/Restore": "Sichern/Wiederherstellen",
+    "Backups of {{name}}": "Sicherungen von {{name}}",
+    "An update keeps the version it replaced here. Restoring swaps it with the one installed now.": "Ein Update bewahrt hier die Version auf, die es ersetzt hat. Wiederherstellen tauscht sie mit der jetzt installierten.",
+    "Unknown version": "Unbekannte Version",
+    "Delete Backup": "Sicherung löschen",
+    "Delete the {{version}} backup? This can't be undone.": "Die Sicherung {{version}} löschen? Das lässt sich nicht rückgängig machen.",
+    "Couldn't delete the backup.": "Die Sicherung konnte nicht gelöscht werden.",
 };
 
 export default DE;

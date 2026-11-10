@@ -71,7 +71,6 @@ LINK_GATES = {"link_needs_gambatte": "gambatte", "link_needs_gpsp": "gpsp", "lin
 UPDATE_GATES = {"gpsp_too_old": "gpsp", "melondsds_too_old": "melondsds"}
 MISMATCH_GATES = {"dolphin_version_mismatch": "dolphin", "rmg_version_mismatch": "rmg", "ppsspp_version_mismatch": "ppsspp"}
 CLIENT_UNDOS = ("remove_shortcut", "shortcut_fallback_off", "play_shortcut_fallback_off")
-OLD_COPY = re.compile(r"(?i)\.appimage.*(\.bak|\.old$)")
 
 _CORE = re.compile(r"^[A-Za-z0-9_+.-]{1,64}$")
 
@@ -314,7 +313,7 @@ class EmulatorService:
             "update": False,
             "newerThanStable": False,
             "checkFailed": False,
-            "backup": self._backup_of(path, record),
+            "backups": self._backups_of(path, record),
         }
 
     def _appimage_rows(self, record: dict) -> dict:
@@ -526,7 +525,8 @@ class EmulatorService:
                     "name": info.get("corename") or core,
                     "version": ra.version(core) if states[core]["installed"] else "",
                     "size": (packed.get(core) or {}).get("size", 0),
-                    "backup": self._backup_of(str(ra.core_path(core)), record) if states[core]["installed"] else None,
+                    "path": str(ra.core_path(core)),
+                    "backups": self._backups_of(str(ra.core_path(core)), record) if states[core]["installed"] else [],
                     **states[core],
                 })
             if not cores:
@@ -559,6 +559,7 @@ class EmulatorService:
         with self._lock:
             if self._inventory is not None and not refresh:
                 return self._inventory
+            self._forget_gone_backups()
             record = self._store.get()
             flatpaks = self._flatpaks()
             rows = self._appimage_rows(record)
@@ -571,7 +572,6 @@ class EmulatorService:
                 "flatpakAvailable": flatpaks is not None,
                 "retroarch": self._retroarch(record, flatpaks),
                 "emulators": emulators,
-                "cleanup": self._cleanup_summary(emulators),
             }
             return self._inventory
 
@@ -789,8 +789,8 @@ class EmulatorService:
             self._update_appimage_step(job, step, journal)
         elif do == "restore_backup" and not job["plan"]:
             self._restore_backup(step, journal)
-        elif do == "delete_files" and not job["plan"]:
-            self._delete_files(step)
+        elif do == "delete_backup" and not job["plan"]:
+            self._delete_backup(step)
         elif do == "uninstall" and not job["plan"]:
             self._uninstall(job, step)
         else:
@@ -1005,7 +1005,32 @@ class EmulatorService:
         if os.path.isdir(work / ".work"):
             shutil.rmtree(work / ".work", ignore_errors=True)
             fixed.append("emulators_work")
+        if self._forget_downloads():
+            fixed.append("emulators_downloads")
         return fixed
+
+    def _forget_downloads(self) -> bool:
+        folders = {self._user_home / "Applications"}
+        folders.update(Path(path).parent for path in self._store.get()["installed"]["appimages"])
+        dropped = False
+        for folder in folders:
+            if catalog.under_desktop(folder, self._user_home):
+                continue
+            try:
+                names = os.listdir(folder)
+            except OSError:
+                continue
+            for name in names:
+                if not (name.startswith(".") and name.endswith(".cheevodeck-download")):
+                    continue
+                try:
+                    self._check_target(folder / name)
+                    os.unlink(folder / name)
+                except (StepFailed, OSError) as e:
+                    decky.logger.info("emulators: left %s (%s)", name, type(e).__name__)
+                    continue
+                dropped = True
+        return dropped
 
     def pending_client(self) -> list:
         journal = load_json_file(self._journal_path(), None)
@@ -1858,7 +1883,7 @@ class EmulatorService:
                 if target is None:
                     target = {"path": path, "key": path_key(path), "fileName": Path(path).name, "version": "", "repo": "",
                               "howFound": "planned", "ours": True, "missing": False, "latest": "", "update": False,
-                              "newerThanStable": False, "checkFailed": False, "backup": None, "steam": None}
+                              "newerThanStable": False, "checkFailed": False, "backups": [], "steam": None}
                     row.setdefault("appimages", []).append(target)
                 else:
                     target["missing"] = False
@@ -1960,96 +1985,53 @@ class EmulatorService:
         self._note(journal, {"undo": "store_backup", "path": str(backup), "previous": previous})
         self._store.change(lambda record: record["installed"]["backups"].__setitem__(str(backup), row))
 
-    def _backup_of(self, target: str, record: dict):
+    def _backups_of(self, target: str, record: dict) -> list:
+        found = []
         for path, row in record["installed"]["backups"].items():
-            if row["of"] == target:
-                try:
-                    st = os.lstat(path)
-                except OSError:
-                    continue
-                if stat.S_ISREG(st.st_mode):
-                    return {"path": path, "version": row["version"], "size": st.st_size}
-        return None
-
-    def _appimage_folders(self, emulators=None) -> list:
-        folders = [self._user_home / "Applications"]
-        for emulator in emulators if emulators is not None else (self._inventory or {}).get("emulators") or []:
-            for image in emulator["appimages"]:
-                folders.append(Path(image["path"]).parent)
-        for row in self._store.get()["installed"]["backups"].values():
-            folders.append(Path(row["of"]).parent)
-        unique = []
-        for folder in folders:
-            if folder not in unique and not catalog.under_desktop(folder, self._user_home):
-                unique.append(folder)
-        return unique
-
-    def clean_offer(self, emulators=None) -> dict:
-        backups = self._store.get()["installed"]["backups"]
-        items = []
-        seen = set()
-
-        def add(path, group, ours):
-            path = str(path)
-            if path in seen:
-                return
+            if row["of"] != target:
+                continue
             try:
                 st = os.lstat(path)
             except OSError:
-                return
-            if not stat.S_ISREG(st.st_mode):
-                return
-            try:
-                self._check_target(Path(path))
-            except StepFailed:
-                return
-            seen.add(path)
-            items.append({"path": path, "fileName": Path(path).name, "group": group, "ours": ours, "size": st.st_size})
-
-        for path, row in backups.items():
-            if not os.path.lexists(row["of"]):
-                add(path, "leftovers", True)
-            else:
-                add(path, "emulators" if row["kind"] == "appimage" else "cores", True)
-        for folder in self._appimage_folders(emulators):
-            try:
-                names = sorted(os.listdir(folder))
-            except OSError:
                 continue
-            for name in names:
-                if name.startswith(".") and name.endswith(".cheevodeck-download"):
-                    add(folder / name, "leftovers", True)
-                elif OLD_COPY.search(name):
-                    add(folder / name, "others", False)
-        return {"ok": True, "items": items}
+            if stat.S_ISREG(st.st_mode):
+                found.append((st.st_mtime, {"path": path, "version": row["version"], "size": st.st_size}))
+        found.sort(key=lambda pair: pair[0], reverse=True)
+        return [backup for _when, backup in found]
 
-    def _cleanup_summary(self, emulators) -> dict:
-        ours = [item for item in self.clean_offer(emulators)["items"] if item["ours"]]
-        return {"count": len(ours), "bytes": sum(item["size"] for item in ours)}
+    def _backup_of(self, target: str, record: dict, path: str = ""):
+        for backup in self._backups_of(target, record):
+            if not path or backup["path"] == path:
+                return backup
+        return None
 
-    def clean(self, paths) -> dict:
-        paths = [path for path in dict.fromkeys(paths or []) if isinstance(path, str) and path.startswith("/")]
-        if not paths:
+    def _forget_gone_backups(self) -> None:
+        with self._job_lock:
+            if self._job is not None or self._jobs:
+                return
+        gone = [path for path in self._store.get()["installed"]["backups"] if not os.path.lexists(path)]
+        if not gone:
+            return
+
+        def edit(record):
+            for path in gone:
+                record["installed"]["backups"].pop(path, None)
+
+        self._store.change(edit)
+
+    def delete_backup(self, path: str, target: str = "") -> dict:
+        if path not in self._store.get()["installed"]["backups"]:
             return {"ok": False, "error": "not_found"}
-        return self._submit("delete_files", [{"do": "delete_files", "paths": paths}], names=[])
+        return self._submit("delete_backup", [{"do": "delete_backup", "path": path}], target=target, names=[])
 
-    def _delete_files(self, step: dict) -> None:
-        offered = {item["path"] for item in self.clean_offer()["items"]}
-        held = set()
-        for undo in ((self._plan_run or {}).get("journal") or {}).get("done") or []:
-            for key in ("path", "backup", "src", "dst"):
-                if isinstance(undo, dict) and isinstance(undo.get(key), str):
-                    held.add(undo[key])
-        for path in step["paths"]:
-            if path not in offered or path in held:
-                continue
-            try:
-                self._check_target(Path(path))
-                os.unlink(path)
-            except (StepFailed, OSError) as e:
-                decky.logger.info("emulators: left %s (%s)", Path(path).name, type(e).__name__)
-                continue
-            self._store.change(lambda record, gone=path: record["installed"]["backups"].pop(gone, None))
+    def _delete_backup(self, step: dict) -> None:
+        path = Path(step["path"])
+        if str(path) not in self._store.get()["installed"]["backups"]:
+            return
+        self._check_target(path)
+        if path.is_file() and not path.is_symlink():
+            os.unlink(path)
+        self._store.change(lambda record: record["installed"]["backups"].pop(str(path), None))
 
     def uninstall(self, kind: str, via: str, item: str = "", target: str = "") -> dict:
         if via == "flatpak" and kind in catalog.BY_KIND:
@@ -2126,12 +2108,12 @@ class EmulatorService:
                 continue
             self._store.change(lambda record, gone=backup: record["installed"]["backups"].pop(gone, None))
 
-    def restore(self, target: str) -> dict:
+    def restore(self, target: str, backup: str = "", job_target: str = "") -> dict:
         record = self._store.get()
-        backup = self._backup_of(str(target), record)
-        row = next((row for path, row in record["installed"]["backups"].items() if row["of"] == target), None)
-        if backup is None or row is None:
+        found = self._backup_of(str(target), record, backup)
+        if found is None:
             return {"ok": False, "error": "not_found"}
+        row = record["installed"]["backups"][found["path"]]
         kind = catalog.RETROARCH if row["kind"] == "core" else next(
             (emulator["kind"] for emulator in self.inventory()["emulators"]
              for image in emulator["appimages"] if image["path"] == target), "")
@@ -2142,12 +2124,13 @@ class EmulatorService:
             name = self._core_names([name[: -len("_libretro.so")]])[0]
         elif kind:
             name = catalog.BY_KIND[kind]["name"]
-        return self._submit("restore_backup", [{"do": "restore_backup", "target": target, "kind": kind}], names=[name])
+        return self._submit("restore_backup", [{"do": "restore_backup", "target": target, "backup": found["path"], "kind": kind}],
+                            target=job_target, names=[name])
 
     def _restore_backup(self, step: dict, journal: dict) -> None:
         target = Path(step["target"])
         record = self._store.get()
-        found = self._backup_of(str(target), record)
+        found = self._backup_of(str(target), record, step.get("backup") or "")
         if found is None or not target.is_file():
             raise StepFailed("not_found", f"no old copy of {target.name}")
         if step.get("kind") and running(step["kind"]):

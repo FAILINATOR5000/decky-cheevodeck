@@ -3613,20 +3613,8 @@ const RU: LocaleTable = {
     "Ready to play": "Можно играть",
     "Couldn't finish the setup": "Не удалось завершить настройку",
     "Couldn't add it to Steam.": "Не удалось добавить в Steam.",
-    "Clean Up": "Очистка",
-    "Clean Up · {{size}}": "Очистка · {{size}}",
-    "Emulator backups": "Копии эмуляторов",
-    "Core backups": "Копии ядер",
-    "Leftovers": "Остатки",
-    "Other old copies": "Другие старые копии",
-    "Delete {{count}} files ({{size}})": {
-        one: "Удалить {{count}} файл ({{size}})",
-        few: "Удалить {{count}} файла ({{size}})",
-        many: "Удалить {{count}} файлов ({{size}})"
-    },
     "Restore {{version}}": "Вернуть {{version}}",
     "Couldn't restore {{name}}. Nothing was changed.": "Не удалось вернуть {{name}}. Ничего не изменено.",
-    "Couldn't clear old copies.": "Не удалось удалить старые копии.",
     "Turn On Play Through Emulator Shortcuts": "Включить «Играть через ярлыки эмуляторов»",
     "Play Through Emulator Shortcuts was turned on.": "«Играть через ярлыки эмуляторов» включено.",
     "The game's file was found.": "Файл игры найден.",
@@ -3706,6 +3694,13 @@ const RU: LocaleTable = {
     "Its backups are deleted too.": "Его резервные копии тоже будут удалены.",
     "{{name}}'s shortcut in Steam will stop working.": "Ярлык {{name}} в Steam перестанет работать.",
     "Couldn't uninstall {{name}}.": "Не удалось удалить {{name}}.",
+    "Backup/Restore": "Копии/Восстановление",
+    "Backups of {{name}}": "Резервные копии: {{name}}",
+    "An update keeps the version it replaced here. Restoring swaps it with the one installed now.": "Обновление сохраняет здесь заменённую версию. Восстановление меняет её местами с установленной сейчас.",
+    "Unknown version": "Неизвестная версия",
+    "Delete Backup": "Удалить копию",
+    "Delete the {{version}} backup? This can't be undone.": "Удалить копию {{version}}? Это нельзя отменить.",
+    "Couldn't delete the backup.": "Не удалось удалить копию.",
 };
 
 export default RU;

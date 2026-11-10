@@ -9,9 +9,8 @@ import type {
     RetroArchCore,
     RetroArchSystem
 } from "../api";
-import { sizeText } from "../components/emulators/CleanUpModal";
 import { useEmulators } from "../components/emulators/EmulatorsContext";
-import type { UninstallChoice } from "../hooks/useEmulatorsController";
+import type { BackupsChoice, UninstallChoice } from "../hooks/useEmulatorsController";
 import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 import { BackButton } from "../components/ui/BackButton";
 import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
@@ -27,7 +26,7 @@ import { useSlidingWindow } from "../hooks/useSlidingWindow";
 import { t, type LanguageCode } from "../locales";
 import type { ButtonSpacing, ControllerGlyphStyle, ViewKey } from "../types";
 import { jobErrorText } from "../utils/emulatorJobs";
-import { BUTTON_BUMPER_RIGHT, BUTTON_SECONDARY } from "../utils/gamepadButtons";
+import { BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT, BUTTON_SECONDARY } from "../utils/gamepadButtons";
 import { textSize } from "../utils/scale";
 import {
     achievementGreen,
@@ -239,8 +238,8 @@ function failedLine(language: LanguageCode, state: EmulatorJobState): string {
     if (state.kind === "restore_backup") {
         return t(language, "Couldn't restore {{name}}. Nothing was changed.", { name });
     }
-    if (state.kind === "delete_files") {
-        return t(language, "Couldn't clear old copies.");
+    if (state.kind === "delete_backup") {
+        return t(language, "Couldn't delete the backup.");
     }
     if (state.kind === "uninstall") {
         return t(language, "Couldn't uninstall {{name}}.", { name });
@@ -368,7 +367,7 @@ function EmulatorsPage(props: EmulatorsPageProps) {
                 name: row.core.name,
                 path: "",
                 shortcut: false,
-                backups: row.core.backup !== null
+                backups: row.core.backups.length > 0
             };
         }
         if (row.type !== "install" || !row.installed) {
@@ -382,8 +381,21 @@ function EmulatorsPage(props: EmulatorsPageProps) {
             name: row.name,
             path: row.image?.path ?? "",
             shortcut: row.shortcut,
-            backups: row.image !== null && row.image.backup !== null
+            backups: row.image !== null && row.image.backups.length > 0
         };
+    }
+
+    function backupsFor(row: Row): BackupsChoice | null {
+        if (busy(rowKey(row))) {
+            return null;
+        }
+        if (row.type === "core" && row.core.installed && row.core.backups.length > 0) {
+            return { title: row.core.name, path: row.core.path, backups: row.core.backups };
+        }
+        if (row.type === "install" && row.installed && row.image !== null && row.image.backups.length > 0) {
+            return { title: row.title, path: row.image.path, backups: row.image.backups };
+        }
+        return null;
     }
 
     function hintsFor(row: Row | undefined): ButtonHint[] {
@@ -397,6 +409,9 @@ function EmulatorsPage(props: EmulatorsPageProps) {
         }
         if (uninstallFor(row) !== null) {
             hints.push({ button: "x", label: t(language, "Uninstall") });
+        }
+        if (backupsFor(row) !== null) {
+            hints.push({ button: "l1", label: t(language, "Backup/Restore") });
         }
         if (row.type === "install" && row.via === "appimage") {
             hints.push({ button: "r1", label: t(language, "Point to Custom Install") });
@@ -414,6 +429,13 @@ function EmulatorsPage(props: EmulatorsPageProps) {
             const what = uninstallFor(row);
             if (what !== null) {
                 emulators.actions.uninstall(what, rowKey(row));
+            }
+            return;
+        }
+        if (button === BUTTON_BUMPER_LEFT) {
+            const what = backupsFor(row);
+            if (what !== null) {
+                emulators.actions.backups(what, rowKey(row));
             }
             return;
         }
@@ -534,21 +556,6 @@ function EmulatorsPage(props: EmulatorsPageProps) {
                         {t(language, "Refresh")}
                     </FocusableItem>
                 </PanelSectionRow>
-
-                {inventory !== null && inventory.cleanup.count > 0 && (
-                    <PanelSectionRow>
-                        <FocusableItem
-                            outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
-                            focusKey="emulators:cleanup"
-                            focusFallback={[REFRESH_KEY]}
-                            disabled={loading || jobs.busy}
-                            onClick={emulators.actions.cleanUp}
-                            onGamepadFocus={() => setFocusedKey(null)}
-                        >
-                            {t(language, "Clean Up · {{size}}", { size: sizeText(inventory.cleanup.bytes) })}
-                        </FocusableItem>
-                    </PanelSectionRow>
-                )}
 
                 {job !== null && !working && job.stage === "failed" && (
                     <PanelSectionRow>

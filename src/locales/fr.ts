@@ -3561,19 +3561,8 @@ const FR: LocaleTable = {
     "Ready to play": "Prêt à jouer",
     "Couldn't finish the setup": "Configuration inachevée",
     "Couldn't add it to Steam.": "Impossible de l'ajouter à Steam.",
-    "Clean Up": "Nettoyer",
-    "Clean Up · {{size}}": "Nettoyer · {{size}}",
-    "Emulator backups": "Sauvegardes d'émulateurs",
-    "Core backups": "Sauvegardes de cœurs",
-    "Leftovers": "Restes",
-    "Other old copies": "Autres anciennes copies",
-    "Delete {{count}} files ({{size}})": {
-        one: "Supprimer {{count}} fichier ({{size}})",
-        other: "Supprimer {{count}} fichiers ({{size}})"
-    },
     "Restore {{version}}": "Restaurer {{version}}",
     "Couldn't restore {{name}}. Nothing was changed.": "Impossible de restaurer {{name}}. Rien n'a été modifié.",
-    "Couldn't clear old copies.": "Impossible de supprimer les anciennes copies.",
     "Turn On Play Through Emulator Shortcuts": "Activer « Jouer via les raccourcis d'émulateurs »",
     "Play Through Emulator Shortcuts was turned on.": "« Jouer via les raccourcis d'émulateurs » a été activé.",
     "The game's file was found.": "Le fichier du jeu a été trouvé.",
@@ -3656,6 +3645,13 @@ const FR: LocaleTable = {
     "Its backups are deleted too.": "Ses sauvegardes sont aussi supprimées.",
     "{{name}}'s shortcut in Steam will stop working.": "Le raccourci Steam de {{name}} ne fonctionnera plus.",
     "Couldn't uninstall {{name}}.": "Impossible de désinstaller {{name}}.",
+    "Backup/Restore": "Sauvegarde/Restauration",
+    "Backups of {{name}}": "Sauvegardes de {{name}}",
+    "An update keeps the version it replaced here. Restoring swaps it with the one installed now.": "Une mise à jour conserve ici la version qu'elle a remplacée. Restaurer l'échange avec celle installée maintenant.",
+    "Unknown version": "Version inconnue",
+    "Delete Backup": "Supprimer la sauvegarde",
+    "Delete the {{version}} backup? This can't be undone.": "Supprimer la sauvegarde {{version}} ? C'est irréversible.",
+    "Couldn't delete the backup.": "Impossible de supprimer la sauvegarde.",
 };
 
 export default FR;

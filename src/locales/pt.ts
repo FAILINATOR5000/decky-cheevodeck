@@ -3561,19 +3561,8 @@ const PT: LocaleTable = {
     "Ready to play": "Pronto para jogar",
     "Couldn't finish the setup": "Não foi possível concluir a configuração",
     "Couldn't add it to Steam.": "Não foi possível adicionar à Steam.",
-    "Clean Up": "Limpar",
-    "Clean Up · {{size}}": "Limpar · {{size}}",
-    "Emulator backups": "Cópias de emuladores",
-    "Core backups": "Cópias de núcleos",
-    "Leftovers": "Sobras",
-    "Other old copies": "Outras cópias antigas",
-    "Delete {{count}} files ({{size}})": {
-        one: "Apagar {{count}} arquivo ({{size}})",
-        other: "Apagar {{count}} arquivos ({{size}})"
-    },
     "Restore {{version}}": "Restaurar {{version}}",
     "Couldn't restore {{name}}. Nothing was changed.": "Não foi possível restaurar {{name}}. Nada foi alterado.",
-    "Couldn't clear old copies.": "Não foi possível apagar as cópias antigas.",
     "Turn On Play Through Emulator Shortcuts": "Ativar \"Jogar por atalhos de emuladores\"",
     "Play Through Emulator Shortcuts was turned on.": "\"Jogar por atalhos de emuladores\" foi ativado.",
     "The game's file was found.": "O arquivo do jogo foi encontrado.",
@@ -3656,6 +3645,13 @@ const PT: LocaleTable = {
     "Its backups are deleted too.": "Os backups também são apagados.",
     "{{name}}'s shortcut in Steam will stop working.": "O atalho de {{name}} na Steam vai parar de funcionar.",
     "Couldn't uninstall {{name}}.": "Não foi possível desinstalar {{name}}.",
+    "Backup/Restore": "Backup/Restaurar",
+    "Backups of {{name}}": "Backups de {{name}}",
+    "An update keeps the version it replaced here. Restoring swaps it with the one installed now.": "Uma atualização guarda aqui a versão que substituiu. Restaurar troca-a pela instalada agora.",
+    "Unknown version": "Versão desconhecida",
+    "Delete Backup": "Apagar backup",
+    "Delete the {{version}} backup? This can't be undone.": "Apagar o backup {{version}}? Isso não pode ser desfeito.",
+    "Couldn't delete the backup.": "Não foi possível apagar o backup.",
 };
 
 export default PT;

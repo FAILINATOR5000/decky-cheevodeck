@@ -3644,20 +3644,8 @@ const PL: LocaleTable = {
     "Ready to play": "Gotowe do gry",
     "Couldn't finish the setup": "Nie udało się dokończyć konfiguracji",
     "Couldn't add it to Steam.": "Nie udało się dodać do Steam.",
-    "Clean Up": "Sprzątanie",
-    "Clean Up · {{size}}": "Sprzątanie · {{size}}",
-    "Emulator backups": "Kopie emulatorów",
-    "Core backups": "Kopie rdzeni",
-    "Leftovers": "Pozostałości",
-    "Other old copies": "Inne stare kopie",
-    "Delete {{count}} files ({{size}})": {
-        one: "Usuń {{count}} plik ({{size}})",
-        few: "Usuń {{count}} pliki ({{size}})",
-        many: "Usuń {{count}} plików ({{size}})"
-    },
     "Restore {{version}}": "Przywróć {{version}}",
     "Couldn't restore {{name}}. Nothing was changed.": "Nie udało się przywrócić {{name}}. Nic nie zostało zmienione.",
-    "Couldn't clear old copies.": "Nie udało się usunąć starych kopii.",
     "Turn On Play Through Emulator Shortcuts": "Włącz „Graj przez skróty emulatorów”",
     "Play Through Emulator Shortcuts was turned on.": "Włączono „Graj przez skróty emulatorów”.",
     "The game's file was found.": "Znaleziono plik gry.",
@@ -3737,6 +3725,13 @@ const PL: LocaleTable = {
     "Its backups are deleted too.": "Jego kopie zapasowe też zostaną usunięte.",
     "{{name}}'s shortcut in Steam will stop working.": "Skrót {{name}} w Steam przestanie działać.",
     "Couldn't uninstall {{name}}.": "Nie udało się odinstalować {{name}}.",
+    "Backup/Restore": "Kopia/Przywracanie",
+    "Backups of {{name}}": "Kopie zapasowe: {{name}}",
+    "An update keeps the version it replaced here. Restoring swaps it with the one installed now.": "Aktualizacja zachowuje tutaj zastąpioną wersję. Przywrócenie zamienia ją z obecnie zainstalowaną.",
+    "Unknown version": "Nieznana wersja",
+    "Delete Backup": "Usuń kopię",
+    "Delete the {{version}} backup? This can't be undone.": "Usunąć kopię {{version}}? Tego nie można cofnąć.",
+    "Couldn't delete the backup.": "Nie udało się usunąć kopii.",
 };
 
 export default PL;

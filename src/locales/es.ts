@@ -3572,19 +3572,8 @@ const ES: LocaleTable = {
     "Ready to play": "Listo para jugar",
     "Couldn't finish the setup": "No se pudo terminar la configuración",
     "Couldn't add it to Steam.": "No se pudo añadir a Steam.",
-    "Clean Up": "Limpiar",
-    "Clean Up · {{size}}": "Limpiar · {{size}}",
-    "Emulator backups": "Copias de emuladores",
-    "Core backups": "Copias de núcleos",
-    "Leftovers": "Restos",
-    "Other old copies": "Otras copias antiguas",
-    "Delete {{count}} files ({{size}})": {
-        one: "Borrar {{count}} archivo ({{size}})",
-        other: "Borrar {{count}} archivos ({{size}})"
-    },
     "Restore {{version}}": "Restaurar {{version}}",
     "Couldn't restore {{name}}. Nothing was changed.": "No se pudo restaurar {{name}}. No se cambió nada.",
-    "Couldn't clear old copies.": "No se pudieron borrar las copias antiguas.",
     "Turn On Play Through Emulator Shortcuts": "Activar «Jugar mediante accesos directos de emuladores»",
     "Play Through Emulator Shortcuts was turned on.": "Se activó «Jugar mediante accesos directos de emuladores».",
     "The game's file was found.": "Se encontró el archivo del juego.",
@@ -3667,6 +3656,13 @@ const ES: LocaleTable = {
     "Its backups are deleted too.": "También se borran sus copias de seguridad.",
     "{{name}}'s shortcut in Steam will stop working.": "El acceso directo de {{name}} en Steam dejará de funcionar.",
     "Couldn't uninstall {{name}}.": "No se pudo desinstalar {{name}}.",
+    "Backup/Restore": "Copias/Restaurar",
+    "Backups of {{name}}": "Copias de seguridad de {{name}}",
+    "An update keeps the version it replaced here. Restoring swaps it with the one installed now.": "Una actualización guarda aquí la versión que reemplazó. Restaurar la intercambia con la instalada ahora.",
+    "Unknown version": "Versión desconocida",
+    "Delete Backup": "Borrar copia",
+    "Delete the {{version}} backup? This can't be undone.": "¿Borrar la copia {{version}}? No se puede deshacer.",
+    "Couldn't delete the backup.": "No se pudo borrar la copia.",
 };
 
 export default ES;

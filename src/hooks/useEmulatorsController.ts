@@ -1,9 +1,8 @@
 import { useEffect, useSyncExternalStore } from "react";
 
 import {
-    emulatorsClean,
-    emulatorsCleanOffer,
     emulatorsCoresOffer,
+    emulatorsDeleteBackup,
     emulatorsIdentify,
     emulatorsInstallAppimage,
     emulatorsInstallCores,
@@ -11,17 +10,19 @@ import {
     emulatorsInventory,
     emulatorsPoint,
     emulatorsRecordShortcut,
+    emulatorsRestore,
     emulatorsShortcutChanges,
     emulatorsUninstall,
     emulatorsUpdateAppimage,
     emulatorsUpdateCores,
     emulatorsUpdateFlatpak,
+    type EmulatorBackup,
     type EmulatorInventory,
     type EmulatorJobStart,
     type EmulatorKind
 } from "../api";
 import { askAddToSteam } from "../components/emulators/AddToSteamModal";
-import { askCleanUp } from "../components/emulators/CleanUpModal";
+import { askBackups } from "../components/emulators/BackupsModal";
 import { askEmulatorQuestion } from "../components/emulators/EmulatorQuestionModal";
 import { askInstallCores } from "../components/emulators/InstallCoresModal";
 import { openPathPicker, type PickedPath } from "../components/pickers/FilePickerModal";
@@ -268,19 +269,34 @@ async function addToSteam(language: LanguageCode, kind: EmulatorKind, name: stri
     }
 }
 
-async function cleanUp(language: LanguageCode) {
+export type BackupsChoice = { title: string; path: string; backups: EmulatorBackup[] };
+
+async function backups(language: LanguageCode, what: BackupsChoice, target: string) {
+    const choice = await askBackups(language, what);
+    if (choice === null) {
+        return;
+    }
+    const version = choice.backup.version || t(language, "Unknown version");
     try {
-        const offer = await emulatorsCleanOffer();
-        if (!offer?.ok || !Array.isArray(offer.items) || offer.items.length === 0) {
+        if (choice.action === "restore") {
+            started(language, await emulatorsRestore(what.path, choice.backup.path, target), what.title);
             return;
         }
-        const paths = await askCleanUp(language, offer.items);
-        if (paths !== null && paths.length > 0) {
-            started(language, await emulatorsClean(paths));
+        const yes = await askEmulatorQuestion({
+            language,
+            title: t(language, "Delete Backup"),
+            text: t(language, "Delete the {{version}} backup? This can't be undone.", { version }),
+            path: choice.backup.path,
+            confirm: t(language, "Delete"),
+            cancel: t(language, "Cancel"),
+            focusConfirm: false
+        });
+        if (yes) {
+            started(language, await emulatorsDeleteBackup(choice.backup.path, target));
         }
     }
     catch (e) {
-        logError("emulators: cleaning up", e);
+        logError("emulators: restoring or deleting a backup", e);
     }
 }
 
@@ -357,7 +373,7 @@ export function useEmulatorsController(props: { isActive: boolean; language: Lan
             addToSteam: (kind: EmulatorKind, name: string, install: EmulatorInstall, key: string) =>
                 void addToSteam(language, kind, name, install, key),
             uninstall: (what: UninstallChoice, target: string) => void uninstall(language, what, target),
-            cleanUp: () => void cleanUp(language)
+            backups: (what: BackupsChoice, target: string) => void backups(language, what, target)
         }
     };
 }
