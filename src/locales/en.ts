@@ -3637,4 +3637,5 @@ export const EN: LocaleTable = {
     "Cores by System": "Cores by System",
     "Show Systems": "Show Systems",
     "Hide Systems": "Hide Systems",
+    "The host couldn't check its game file": "The host couldn't check its game file",
 };

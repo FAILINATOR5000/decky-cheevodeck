@@ -938,8 +938,25 @@ class MultiplayerService:
             found = ""
             if self._cheevo_check is not None:
                 found = self._cheevo_check.hash_rom_for_room(entry["real"], system_id)
+            if not found:
+                return ""
             self._hash_memo[key] = found
         return self._hash_memo[key]
+
+    def _hash_needs_dolphin(self, entry: dict, system_id: int) -> bool:
+        if entry["hash"] or system_id not in session.DOLPHIN_SYSTEMS or self._cheevo_check is None:
+            return False
+        if Path(entry["real"]).suffix.lower() in RAW_DISC_EXTENSIONS:
+            return False
+        try:
+            st = os.stat(entry["real"])
+        except OSError:
+            return False
+        if self._hash_memo.get((entry["real"], st.st_mtime_ns, st.st_size)):
+            return False
+        if self._cheevo_check.cached_room_hash(entry["real"], system_id):
+            return False
+        return self._flatpak_installed(session.DOLPHIN_FLATPAK) is False
 
     def _crc_of(self, path: str) -> str:
         try:
@@ -1246,9 +1263,12 @@ class MultiplayerService:
 
         pick = candidates[0]
         if room is not None and mode == "couch":
-            pick = next((entry for entry in candidates
-                         if room["hash"] and self._hash_of(entry, system_id) == room["hash"]), None)
+            if not room["hash"]:
+                return None, "host_unchecked", {}
+            pick = next((entry for entry in candidates if self._hash_of(entry, system_id) == room["hash"]), None)
             if pick is None:
+                if any(self._hash_needs_dolphin(entry, system_id) for entry in candidates):
+                    return None, "needs_dolphin", {}
                 return None, "rom_mismatch", {}
         if fallback is not None:
             detected = {"emulator": fallback["kind"], "core": ""}
@@ -2093,6 +2113,8 @@ class MultiplayerService:
 
         if local["fallback"] and not os.path.isfile(local["path"]):
             return ("rom_missing", {}), warnings
+        if room is None and mode == "couch" and self._hash_needs_dolphin(local, system_id):
+            return ("needs_dolphin", {}), warnings
 
         if room is not None:
             if room.get("where") == "online" and _lan_only(mode, local):

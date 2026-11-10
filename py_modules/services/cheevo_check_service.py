@@ -1817,6 +1817,10 @@ class CheevoCheckService:
         digest = (row or {}).get("hash")
         return digest if isinstance(digest, str) and re.fullmatch(r"[0-9a-f]{32}", digest) else ""
 
+    def cached_room_hash(self, path, console_id: int) -> str:
+        rom = Path(path)
+        return self._cached_hash(self._store.load_hash_cache(), self._cache_key(console_id, rom), rom) or ""
+
     def _cache_key(self, console_id: int, path: Path) -> str:
         return f"{console_id}|{os.path.realpath(path)}"
 

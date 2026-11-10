@@ -3738,6 +3738,7 @@ const PL: LocaleTable = {
     "Cores by System": "Rdzenie według systemu",
     "Show Systems": "Pokaż systemy",
     "Hide Systems": "Ukryj systemy",
+    "The host couldn't check its game file": "Host nie mógł sprawdzić swojego pliku gry",
 };
 
 export default PL;

@@ -3477,6 +3477,7 @@ const JA: LocaleTable = {
     "Cores by System": "システム別のコア",
     "Show Systems": "システムを表示",
     "Hide Systems": "システムを隠す",
+    "The host couldn't check its game file": "ホストがゲームファイルを確認できませんでした",
 };
 
 export default JA;

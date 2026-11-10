@@ -3669,6 +3669,7 @@ const ES: LocaleTable = {
     "Cores by System": "Núcleos por sistema",
     "Show Systems": "Mostrar sistemas",
     "Hide Systems": "Ocultar sistemas",
+    "The host couldn't check its game file": "El anfitrión no pudo comprobar su archivo del juego",
 };
 
 export default ES;

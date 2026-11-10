@@ -45,6 +45,7 @@ const PROBLEM_TEXT: Record<string, string> = {
     saves_by_core: "Your RetroArch saves are sorted by core, so {{core}} can't see your save. Use {{shortcutCore}}.",
     other_game: "Close the running game first",
     rom_mismatch: "Your copy is a different version of the game from the host's. Couch Play needs the same version.",
+    host_unchecked: "The host couldn't check its game file",
     crc_mismatch: "Your copy matches the host's game but not their exact file. Couch Play on NES needs the exact same file.",
     link_gb_both: "Link Play needs a Game Boy game on both",
     link_needs_gambatte_both: "Link Play needs Gambatte on both devices",
