@@ -3627,6 +3627,9 @@ const DE: LocaleTable = {
     "Hide Systems": "Systeme ausblenden",
     "The host couldn't check its game file": "Der Host konnte seine Spieldatei nicht prüfen",
     "Reading the game file... {{seconds}} s": "Spieldatei wird gelesen... {{seconds}} s",
+    "Install Steam ROM Manager": "Steam ROM Manager installieren",
+    "Installing Steam ROM Manager...": "Steam ROM Manager wird installiert...",
+    "Couldn't install Steam ROM Manager.": "Steam ROM Manager konnte nicht installiert werden.",
 };
 
 export default DE;

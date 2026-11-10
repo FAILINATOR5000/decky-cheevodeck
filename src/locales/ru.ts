@@ -3709,6 +3709,9 @@ const RU: LocaleTable = {
     "Hide Systems": "Скрыть системы",
     "The host couldn't check its game file": "Хост не смог проверить свой файл игры",
     "Reading the game file... {{seconds}} s": "Чтение файла игры... {{seconds}} с",
+    "Install Steam ROM Manager": "Установить Steam ROM Manager",
+    "Installing Steam ROM Manager...": "Устанавливаем Steam ROM Manager...",
+    "Couldn't install Steam ROM Manager.": "Не удалось установить Steam ROM Manager.",
 };
 
 export default RU;

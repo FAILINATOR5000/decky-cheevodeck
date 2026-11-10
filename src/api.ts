@@ -1120,6 +1120,7 @@ export const emulatorsShortcutChanges = callable<[kind: string], { ok: boolean; 
     "emulators_shortcut_changes"
 );
 export const emulatorsInstallAppimage = callable<[kind: string, target: string], EmulatorJobStart>("emulators_install_appimage");
+export const emulatorsInstallTool = callable<[kind: "srm", target: string], EmulatorJobStart>("emulators_install_tool");
 export const emulatorsUpdateAppimage = callable<[path: string, force: boolean, target: string], EmulatorJobStart>(
     "emulators_update_appimage"
 );

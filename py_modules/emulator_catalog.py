@@ -33,6 +33,10 @@ CATALOG = (
 )
 BY_KIND = {row["kind"]: row for row in CATALOG}
 STANDALONES = tuple(row["kind"] for row in CATALOG if row["kind"] != RETROARCH)
+TOOLS = {
+    "srm": {"kind": "srm", "name": "Steam ROM Manager", "repo": "SteamGridDB/steam-rom-manager", "tag": "",
+            "asset": "Steam-ROM-Manager-*.AppImage", "fileName": "Steam-ROM-Manager.AppImage"},
+}
 
 SYSTEM_DATABASES = {
     **session.DATABASES,

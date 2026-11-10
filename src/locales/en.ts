@@ -3639,4 +3639,7 @@ export const EN: LocaleTable = {
     "Hide Systems": "Hide Systems",
     "The host couldn't check its game file": "The host couldn't check its game file",
     "Reading the game file... {{seconds}} s": "Reading the game file... {{seconds}} s",
+    "Install Steam ROM Manager": "Install Steam ROM Manager",
+    "Installing Steam ROM Manager...": "Installing Steam ROM Manager...",
+    "Couldn't install Steam ROM Manager.": "Couldn't install Steam ROM Manager.",
 };

@@ -3479,6 +3479,9 @@ const JA: LocaleTable = {
     "Hide Systems": "システムを隠す",
     "The host couldn't check its game file": "ホストがゲームファイルを確認できませんでした",
     "Reading the game file... {{seconds}} s": "ゲームファイルを読み込み中... {{seconds}}秒",
+    "Install Steam ROM Manager": "Steam ROM Managerをインストール",
+    "Installing Steam ROM Manager...": "Steam ROM Managerをインストール中...",
+    "Couldn't install Steam ROM Manager.": "Steam ROM Managerをインストールできませんでした。",
 };
 
 export default JA;

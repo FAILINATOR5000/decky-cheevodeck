@@ -40,6 +40,9 @@ class EmulatorsMixin(PluginContext):
     async def emulators_install_appimage(self, kind: str = "", target: str = ""):
         return await asyncio.to_thread(self.emulator_service.install_appimage, str(kind or ""), str(target or ""))
 
+    async def emulators_install_tool(self, kind: str = "", target: str = ""):
+        return await asyncio.to_thread(self.emulator_service.install_tool, str(kind or ""), str(target or ""))
+
     async def emulators_update_appimage(self, path: str = "", force: bool = False, target: str = ""):
         return await asyncio.to_thread(self.emulator_service.update_appimage, str(path or ""), bool(force),
                                        str(target or ""))

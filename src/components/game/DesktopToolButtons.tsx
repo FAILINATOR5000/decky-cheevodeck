@@ -1,7 +1,9 @@
 import { DialogButton } from "@decky/ui";
+import { useState } from "react";
 
-import { multiplayerOpenInDesktop } from "../../api";
+import { emulatorsInstallTool, multiplayerOpenInDesktop } from "../../api";
 import { t, type LanguageCode } from "../../locales";
+import { jobErrorText, watchEmulatorJob } from "../../utils/emulatorJobs";
 import { logError } from "../../utils/errors";
 import { anyGameRunning } from "../../utils/multiplayerSession";
 import { FocusTarget } from "../ui/FocusTarget";
@@ -33,11 +35,63 @@ function toolsFound(tools: { emudeck?: boolean; srm?: boolean }): DesktopTool[] 
     return tools.emudeck ? ["emudeck"] : tools.srm ? ["srm"] : [];
 }
 
-export function DesktopToolButtons(props: { language: LanguageCode; tools: { emudeck?: boolean; srm?: boolean }; close: () => void }) {
+type SrmInstall = { state: "idle" | "working" | "failed" | "done"; progress: number; error: string };
+
+export function DesktopToolButtons(props: {
+    language: LanguageCode;
+    tools: { emudeck?: boolean; srm?: boolean };
+    offerInstall?: boolean;
+    close: () => void;
+}) {
     const { language, close } = props;
+    const [install, setInstall] = useState<SrmInstall>({ state: "idle", progress: -1, error: "" });
+    const found = toolsFound(install.state === "done" ? { srm: true } : props.tools);
+
+    async function installSrm() {
+        if (install.state === "working") {
+            return;
+        }
+        setInstall({ state: "working", progress: -1, error: "" });
+        try {
+            const started = await emulatorsInstallTool("srm", "fixit:srm");
+            if (!started?.ok || !started.job) {
+                setInstall({ state: "failed", progress: -1, error: started?.error ?? "" });
+                return;
+            }
+            const end = await watchEmulatorJob(started.job, (state) => {
+                setInstall({ state: "working", progress: state.progress, error: "" });
+            });
+            setInstall(end.stage === "done"
+                ? { state: "done", progress: 100, error: "" }
+                : { state: "failed", progress: -1, error: end.error });
+        }
+        catch (e) {
+            logError("emulators: installing Steam ROM Manager", e);
+            setInstall({ state: "failed", progress: -1, error: "" });
+        }
+    }
+
+    if (found.length === 0 && props.offerInstall) {
+        const label = install.state === "working"
+            ? `${t(language, "Installing Steam ROM Manager...")}${install.progress >= 0 ? ` ${install.progress}%` : ""}`
+            : t(language, "Install Steam ROM Manager");
+        return (
+            <>
+                <FocusTarget focusKey="desktop:srm:install">
+                    <DialogButton onClick={() => void installSrm()}>{label}</DialogButton>
+                </FocusTarget>
+                {install.state === "failed" && (
+                    <div style={{ opacity: 0.8 }}>
+                        {[t(language, "Couldn't install Steam ROM Manager."), jobErrorText(language, install.error, "", false)]
+                            .filter(Boolean).join(" ")}
+                    </div>
+                )}
+            </>
+        );
+    }
     return (
         <>
-            {toolsFound(props.tools).map((tool) => (
+            {found.map((tool) => (
                 <FocusTarget key={tool} focusKey={`desktop:${tool}`}>
                     <DialogButton
                         onClick={() => {

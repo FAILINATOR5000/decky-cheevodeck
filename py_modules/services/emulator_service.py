@@ -793,6 +793,8 @@ class EmulatorService:
             self._restore_backup(step, journal)
         elif do == "delete_backup" and not job["plan"]:
             self._delete_backup(step)
+        elif do == "install_tool" and step.get("kind") in catalog.TOOLS and not job["plan"]:
+            self._install_tool_step(job, step, journal)
         elif do == "uninstall" and not job["plan"]:
             self._uninstall(job, step)
         else:
@@ -1261,7 +1263,7 @@ class EmulatorService:
                 "download": catalog.flatpak_size(fields.get("Download Size", ""))}
 
     def _release_source(self, kind: str, path: str = "") -> dict:
-        entry = catalog.BY_KIND[kind]
+        entry = catalog.BY_KIND.get(kind) or catalog.TOOLS[kind]
         source = catalog.update_source(catalog.update_info(path)) if path else {}
         if source and catalog.valid_repo(source["repo"]) and catalog.kind_by_repo(source["repo"]) == kind:
             return {"repo": source["repo"], "tag": source["tag"], "asset": source["asset"]}
@@ -1306,6 +1308,8 @@ class EmulatorService:
             url = str(row.get("browser_download_url") or "")
             size = row.get("size")
             if not fnmatch.fnmatch(name, asset) or name.endswith(".zsync") or "/" in name:
+                continue
+            if "arm64" in name.lower() or "aarch64" in name.lower():
                 continue
             if not url.startswith("https://github.com/") or type(size) is not int or not 0 < size <= APPIMAGE_MAX:
                 continue
@@ -1386,6 +1390,30 @@ class EmulatorService:
             return {"ok": False, "error": "no_network"}
         return self._submit("install_emulator", [{"do": "install_emulator", "kind": kind, "via": "appimage"}],
                             target=target, names=[catalog.BY_KIND[kind]["name"]])
+
+    def install_tool(self, kind: str, target: str = "") -> dict:
+        if kind not in catalog.TOOLS:
+            return {"ok": False, "error": "not_found"}
+        if self._release_for(kind, "", True) is None:
+            return {"ok": False, "error": "no_network"}
+        return self._submit("install_emulator", [{"do": "install_tool", "kind": kind}], target=target,
+                            names=[catalog.TOOLS[kind]["name"]])
+
+    def _install_tool_step(self, job: dict, step: dict, journal: dict) -> None:
+        entry = catalog.TOOLS[step["kind"]]
+        folder = self._user_home / "Applications"
+        ensure_dir(folder)
+        target = folder / entry["fileName"]
+        self._check_target(target)
+        if os.path.lexists(target):
+            return
+        release = self._release_for(step["kind"], "", True)
+        if release is None:
+            raise StepFailed("no_network")
+        fetched = self._fetch_appimage(job, release, folder, entry["fileName"])
+        self._note(journal, {"undo": "remove_file", "path": str(target), "sha256": self._sha256(str(fetched))})
+        os.replace(fetched, target)
+        self._verify(target)
 
     def update_appimage(self, path: str, force: bool = False, target: str = "") -> dict:
         found = None

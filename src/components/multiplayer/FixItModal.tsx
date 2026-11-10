@@ -476,7 +476,7 @@ function FixItModal(props: { language: LanguageCode; request: FixItRequest; clos
                         t(language, "For the smoothest experience, add your games to Steam as non-Steam shortcuts with Steam ROM Manager, which bulk adds your games at once. At the least, add your emulators as non-Steam shortcuts, which allows CheevoDeck to launch your games through them."),
                         t(language, "Rather not? The “Fix It” feature below takes a quicker route to get you up and running right now.")
                     ]}>
-                        {request.tools && <DesktopToolButtons language={language} tools={request.tools} close={close} />}
+                        {request.tools && <DesktopToolButtons language={language} tools={request.tools} offerInstall close={close} />}
                     </Intro>
                 )}
                 <Section focusKey="fix:section:missing" label={t(language, "What's missing")}>
