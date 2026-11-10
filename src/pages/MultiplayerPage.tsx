@@ -12,7 +12,7 @@ import { SubTabButton } from "../components/ui/SubTabButton";
 import { ModeChart } from "../components/multiplayer/ModeChart";
 import { showFixIt, type FixItRequest } from "../components/multiplayer/FixItModal";
 import { FixRunLine } from "../components/multiplayer/FixRunLine";
-import { runFixPlan, setMultiplayerPageShown, useFixPlan } from "../utils/fixPlan";
+import { setMultiplayerPageShown, useFixPlan } from "../utils/fixPlan";
 import { forgetGameFile, gameFilePickFailure, useGameFilePick } from "../utils/gameFilePick";
 import { showMultiplayerProblem } from "../components/multiplayer/ProblemModal";
 import { openStreamSetup } from "../components/multiplayer/StreamSetupModal";
@@ -1729,25 +1729,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                                 {fixHere !== null && (fixHere.running || fixHere.failed) && (
                                     <PanelSectionRow>
                                         <FixRunLine language={language} run={fixHere} streamProgress={stream.progress} />
-                                    </PanelSectionRow>
-                                )}
-                                {fixHere !== null && fixHere.failed && (
-                                    <PanelSectionRow>
-                                        <FocusableItem
-                                            bottomSeparator="none"
-                                            outerStyle={buttonStyle}
-                                            focusKey="multiplayer:fix:retry"
-                                            focusFallback={[`multiplayer:mode:${fixHere.target}:status`, `multiplayer:mode:${fixHere.target}`]}
-                                            onClick={() => {
-                                                const target = fixHere.target;
-                                                if (target !== "play") {
-                                                    void runFixPlan(target, fixHere.gameId, fixHere.title, fixHere.steps.map((row) => row.step),
-                                                        () => actions.fixFor(target, fixHere.gameId), () => showFixIt(language, fixRequest(target)));
-                                                }
-                                            }}
-                                        >
-                                            <div style={{ width: "100%", textAlign: "center" }}>{t(language, "Try Again")}</div>
-                                        </FocusableItem>
                                     </PanelSectionRow>
                                 )}
                                 {gameFilePick !== null && gameFilePick.gameId === mp.gameId && gameFilePick.state !== "done" && (
