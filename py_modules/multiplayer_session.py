@@ -805,7 +805,9 @@ def compose_launch_options(original: str, args: str) -> str:
 
 
 def quote(value: str) -> str:
-    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    for special in ("\\", '"', "$", "`"):
+        value = value.replace(special, "\\" + special)
+    return '"' + value + '"'
 
 
 def ip_digits(address: str) -> str:
