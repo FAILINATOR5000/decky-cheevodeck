@@ -57,6 +57,12 @@ export function useGameHeaderArt(
         };
     }, [gameId, iconUrl, ingameUrl, enabled]);
 
+    useEffect(() => {
+        if ((art.iconCold && art.iconUri) || (art.ingameCold && art.ingameUri)) {
+            setArt((from) => ({ ...from, iconCold: from.iconCold && !from.iconUri, ingameCold: from.ingameCold && !from.ingameUri }));
+        }
+    }, [art.iconCold, art.iconUri, art.ingameCold, art.ingameUri]);
+
     return art;
 }
 
