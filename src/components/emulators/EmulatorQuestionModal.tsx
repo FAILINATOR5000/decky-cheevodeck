@@ -9,13 +9,14 @@ type EmulatorQuestion = {
     language: LanguageCode;
     title: string;
     text: string;
+    path?: string;
     confirm: string;
     cancel: string;
     focusConfirm: boolean;
 };
 
 function EmulatorQuestionModal(props: EmulatorQuestion & { onAnswer: (yes: boolean) => void; close: () => void }) {
-    const { title, text, confirm, cancel, focusConfirm, onAnswer, close } = props;
+    const { title, text, path, confirm, cancel, focusConfirm, onAnswer, close } = props;
 
     function answer(yes: boolean) {
         onAnswer(yes);
@@ -26,6 +27,11 @@ function EmulatorQuestionModal(props: EmulatorQuestion & { onAnswer: (yes: boole
         <ModalRoot onCancel={close} onEscKeypress={close}>
             <div style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700, marginBottom: "12px" }}>{title}</div>
             <div style={{ fontSize: `${modalSize(16)}px`, lineHeight: 1.4, whiteSpace: "pre-line" }}>{text}</div>
+            {path && (
+                <div style={{ fontSize: `${modalSize(14)}px`, lineHeight: 1.4, marginTop: "8px", opacity: 0.8, overflowWrap: "anywhere", wordBreak: "break-all" }}>
+                    {path}
+                </div>
+            )}
             <Focusable style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "16px" }} flow-children="row">
                 <FocusTarget focusKey="emulators:question:yes">
                     <DialogButton autoFocus={focusConfirm} onClick={() => answer(true)}>{confirm}</DialogButton>

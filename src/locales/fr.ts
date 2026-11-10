@@ -3648,6 +3648,14 @@ const FR: LocaleTable = {
         one: "Installer les cœurs pour {{count}} système",
         other: "Installer les cœurs pour {{count}} systèmes"
     },
+    "Uninstall": "Désinstaller",
+    "Uninstall {{name}}?": "Désinstaller {{name}} ?",
+    "Its settings folder is kept.": "Son dossier de paramètres est conservé.",
+    "The core file is deleted.": "Le fichier du cœur est supprimé.",
+    "The AppImage file is deleted.": "Le fichier AppImage est supprimé.",
+    "Its backups are deleted too.": "Ses sauvegardes sont aussi supprimées.",
+    "{{name}}'s shortcut in Steam will stop working.": "Le raccourci Steam de {{name}} ne fonctionnera plus.",
+    "Couldn't uninstall {{name}}.": "Impossible de désinstaller {{name}}.",
 };
 
 export default FR;

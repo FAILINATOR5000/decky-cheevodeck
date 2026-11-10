@@ -791,6 +791,8 @@ class EmulatorService:
             self._restore_backup(step, journal)
         elif do == "delete_files" and not job["plan"]:
             self._delete_files(step)
+        elif do == "uninstall" and not job["plan"]:
+            self._uninstall(job, step)
         else:
             raise StepFailed("failed", f"unknown step {do}")
 
@@ -2048,6 +2050,81 @@ class EmulatorService:
                 decky.logger.info("emulators: left %s (%s)", Path(path).name, type(e).__name__)
                 continue
             self._store.change(lambda record, gone=path: record["installed"]["backups"].pop(gone, None))
+
+    def uninstall(self, kind: str, via: str, item: str = "", target: str = "") -> dict:
+        if via == "flatpak" and kind in catalog.BY_KIND:
+            step = {"do": "uninstall", "kind": kind, "via": via}
+            name = catalog.BY_KIND[kind]["name"]
+            if self._installed_flatpak(catalog.BY_KIND[kind]["flatpak"]) is None:
+                return {"ok": False, "error": "not_found"}
+        elif via == "appimage" and kind in catalog.STANDALONES:
+            emulator = self._emulator(kind) or {}
+            if not any(row["path"] == item and not row["missing"] for row in emulator.get("appimages") or []):
+                return {"ok": False, "error": "not_found"}
+            step = {"do": "uninstall", "kind": kind, "via": via, "path": item}
+            name = catalog.BY_KIND[kind]["name"]
+        elif via == "core" and _CORE.match(item or ""):
+            ra = self._cores_retroarch()
+            if ra is None or not ra.core_path(item).is_file():
+                return {"ok": False, "error": "not_found"}
+            step = {"do": "uninstall", "kind": catalog.RETROARCH, "via": via, "core": item}
+            name = self._core_names([item])[0]
+        else:
+            return {"ok": False, "error": "not_found"}
+        if running(step["kind"]):
+            return {"ok": False, "error": "running"}
+        return self._submit("uninstall", [step], target=target, names=[name])
+
+    def _uninstall(self, job: dict, step: dict) -> None:
+        if running(step["kind"]):
+            raise StepFailed("running")
+        if step["via"] == "flatpak":
+            app = catalog.BY_KIND[step["kind"]]["flatpak"]
+            installed = self._installed_flatpak(app)
+            if installed is None:
+                return
+            self._say(job, "flatpak", -1)
+            code, _out, err = self._run(["flatpak", "uninstall", f"--{installed['scope']}", "-y", "--noninteractive", app],
+                                        FLATPAK_INSTALL_SECONDS, self._stop)
+            if code != 0:
+                raise StepFailed(_flatpak_error(err), f"flatpak uninstall failed ({code}: {err.strip()[-200:]})")
+            return
+        if step["via"] == "core":
+            ra = self._cores_retroarch()
+            if ra is None:
+                raise StepFailed("not_found", "RetroArch isn't set up")
+            path = ra.core_path(step["core"])
+        else:
+            path = Path(step["path"])
+            self.inventory(network=False)
+        self._check_target(path)
+        if os.path.lexists(path):
+            os.unlink(path)
+        self._drop_backups(str(path))
+
+        def edit(record):
+            if step["via"] == "core":
+                record["installed"]["cores"].pop(step["core"], None)
+                return
+            record["installed"]["appimages"].pop(str(path), None)
+            for paths in record["paths"].values():
+                if str(path) in paths:
+                    paths.remove(str(path))
+
+        self._store.change(edit)
+
+    def _drop_backups(self, target: str) -> None:
+        for backup, row in list(self._store.get()["installed"]["backups"].items()):
+            if row["of"] != target:
+                continue
+            try:
+                self._check_target(Path(backup))
+                if os.path.isfile(backup) and not os.path.islink(backup):
+                    os.unlink(backup)
+            except (StepFailed, OSError) as e:
+                decky.logger.info("emulators: left %s (%s)", Path(backup).name, type(e).__name__)
+                continue
+            self._store.change(lambda record, gone=backup: record["installed"]["backups"].pop(gone, None))
 
     def restore(self, target: str) -> dict:
         record = self._store.get()

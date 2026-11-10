@@ -3615,6 +3615,14 @@ const DE: LocaleTable = {
         one: "Kerne für {{count}} System installieren",
         other: "Kerne für {{count}} Systeme installieren"
     },
+    "Uninstall": "Deinstallieren",
+    "Uninstall {{name}}?": "{{name}} deinstallieren?",
+    "Its settings folder is kept.": "Der Einstellungsordner bleibt erhalten.",
+    "The core file is deleted.": "Die Kerndatei wird gelöscht.",
+    "The AppImage file is deleted.": "Die AppImage-Datei wird gelöscht.",
+    "Its backups are deleted too.": "Seine Sicherungen werden ebenfalls gelöscht.",
+    "{{name}}'s shortcut in Steam will stop working.": "Die Steam-Verknüpfung von {{name}} funktioniert dann nicht mehr.",
+    "Couldn't uninstall {{name}}.": "{{name}} konnte nicht deinstalliert werden.",
 };
 
 export default DE;

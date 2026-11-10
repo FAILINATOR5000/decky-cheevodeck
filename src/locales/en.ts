@@ -3627,4 +3627,12 @@ export const EN: LocaleTable = {
         one: "Install Cores for {{count}} System",
         other: "Install Cores for {{count}} Systems"
     },
+    "Uninstall": "Uninstall",
+    "Uninstall {{name}}?": "Uninstall {{name}}?",
+    "Its settings folder is kept.": "Its settings folder is kept.",
+    "The core file is deleted.": "The core file is deleted.",
+    "The AppImage file is deleted.": "The AppImage file is deleted.",
+    "Its backups are deleted too.": "Its backups are deleted too.",
+    "{{name}}'s shortcut in Steam will stop working.": "{{name}}'s shortcut in Steam will stop working.",
+    "Couldn't uninstall {{name}}.": "Couldn't uninstall {{name}}.",
 };

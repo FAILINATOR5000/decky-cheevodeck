@@ -44,6 +44,10 @@ class EmulatorsMixin(PluginContext):
         return await asyncio.to_thread(self.emulator_service.update_appimage, str(path or ""), bool(force),
                                        str(target or ""))
 
+    async def emulators_uninstall(self, kind: str = "", via: str = "", item: str = "", target: str = ""):
+        return await asyncio.to_thread(self.emulator_service.uninstall, str(kind or ""), str(via or ""), str(item or ""),
+                                       str(target or ""))
+
     async def emulators_record_shortcut(self, key: str = "", appid: int = 0):
         return await asyncio.to_thread(self.emulator_service.record_shortcut, str(key or ""),
                                        to_int(appid, 0))

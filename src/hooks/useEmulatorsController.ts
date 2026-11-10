@@ -12,6 +12,7 @@ import {
     emulatorsPoint,
     emulatorsRecordShortcut,
     emulatorsShortcutChanges,
+    emulatorsUninstall,
     emulatorsUpdateAppimage,
     emulatorsUpdateCores,
     emulatorsUpdateFlatpak,
@@ -283,6 +284,47 @@ async function cleanUp(language: LanguageCode) {
     }
 }
 
+export type UninstallChoice = {
+    kind: EmulatorKind;
+    via: "flatpak" | "appimage" | "core";
+    item: string;
+    title: string;
+    name: string;
+    path: string;
+    shortcut: boolean;
+    backups: boolean;
+};
+
+async function uninstall(language: LanguageCode, what: UninstallChoice, target: string) {
+    const lines = [what.via === "flatpak"
+        ? t(language, "Its settings folder is kept.")
+        : what.via === "core" ? t(language, "The core file is deleted.") : t(language, "The AppImage file is deleted.")];
+    if (what.backups) {
+        lines.push(t(language, "Its backups are deleted too."));
+    }
+    if (what.shortcut) {
+        lines.push(t(language, "{{name}}'s shortcut in Steam will stop working.", { name: what.name }));
+    }
+    const yes = await askEmulatorQuestion({
+        language,
+        title: t(language, "Uninstall {{name}}?", { name: what.title }),
+        text: lines.join("\n"),
+        path: what.path || undefined,
+        confirm: t(language, "Uninstall"),
+        cancel: t(language, "Cancel"),
+        focusConfirm: false
+    });
+    if (!yes) {
+        return;
+    }
+    try {
+        started(language, await emulatorsUninstall(what.kind, what.via, what.item, target), what.name);
+    }
+    catch (e) {
+        logError("emulators: uninstalling", e);
+    }
+}
+
 export function useEmulatorsController(props: { isActive: boolean; language: LanguageCode }) {
     const state = useSyncExternalStore(subscribe, () => loaded);
     const jobs = useEmulatorJobs();
@@ -314,6 +356,7 @@ export function useEmulatorsController(props: { isActive: boolean; language: Lan
             notice: (body: string) => notice(language, body),
             addToSteam: (kind: EmulatorKind, name: string, install: EmulatorInstall, key: string) =>
                 void addToSteam(language, kind, name, install, key),
+            uninstall: (what: UninstallChoice, target: string) => void uninstall(language, what, target),
             cleanUp: () => void cleanUp(language)
         }
     };

@@ -3729,6 +3729,14 @@ const PL: LocaleTable = {
     "Hide Cores": "Ukryj rdzenie",
     "Point to Custom Install": "Wskaż własną instalację",
     "Install Cores for {{count}} Systems": "Zainstaluj rdzenie (systemy: {{count}})",
+    "Uninstall": "Odinstaluj",
+    "Uninstall {{name}}?": "Odinstalować {{name}}?",
+    "Its settings folder is kept.": "Folder ustawień zostanie zachowany.",
+    "The core file is deleted.": "Plik rdzenia zostanie usunięty.",
+    "The AppImage file is deleted.": "Plik AppImage zostanie usunięty.",
+    "Its backups are deleted too.": "Jego kopie zapasowe też zostaną usunięte.",
+    "{{name}}'s shortcut in Steam will stop working.": "Skrót {{name}} w Steam przestanie działać.",
+    "Couldn't uninstall {{name}}.": "Nie udało się odinstalować {{name}}.",
 };
 
 export default PL;

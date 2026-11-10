@@ -3464,6 +3464,14 @@ const JA: LocaleTable = {
     "Hide Cores": "コアを隠す",
     "Point to Custom Install": "カスタムを指定",
     "Install Cores for {{count}} Systems": "{{count}}システムのコアをインストール",
+    "Uninstall": "アンインストール",
+    "Uninstall {{name}}?": "{{name}}をアンインストールしますか？",
+    "Its settings folder is kept.": "設定フォルダーは残ります。",
+    "The core file is deleted.": "コアファイルは削除されます。",
+    "The AppImage file is deleted.": "AppImageファイルは削除されます。",
+    "Its backups are deleted too.": "バックアップも削除されます。",
+    "{{name}}'s shortcut in Steam will stop working.": "Steamの{{name}}ショートカットは使えなくなります。",
+    "Couldn't uninstall {{name}}.": "{{name}}をアンインストールできませんでした。",
 };
 
 export default JA;

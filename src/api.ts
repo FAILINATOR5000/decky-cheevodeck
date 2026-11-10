@@ -1117,6 +1117,8 @@ export const emulatorsPendingClient = callable<[], { ok: boolean; client: Emulat
 export const emulatorsClearPendingClient = callable<[], { ok: boolean }>("emulators_clear_pending_client");
 export const emulatorsCleanOffer = callable<[], { ok: boolean; items: EmulatorCleanItem[] }>("emulators_clean_offer");
 export const emulatorsClean = callable<[paths: string[]], EmulatorJobStart>("emulators_clean");
+export const emulatorsUninstall = callable<[kind: string, via: "flatpak" | "appimage" | "core", item: string, target: string],
+    EmulatorJobStart>("emulators_uninstall");
 export const emulatorsRecordShortcut = callable<[key: string, appid: number], { ok: boolean }>("emulators_record_shortcut");
 export const emulatorsShortcutChanges = callable<[kind: string], { ok: boolean; changes: { system: string; current: string }[] }>(
     "emulators_shortcut_changes"

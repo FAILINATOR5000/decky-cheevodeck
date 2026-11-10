@@ -3648,6 +3648,14 @@ const PT: LocaleTable = {
         one: "Instalar núcleos para {{count}} sistema",
         other: "Instalar núcleos para {{count}} sistemas"
     },
+    "Uninstall": "Desinstalar",
+    "Uninstall {{name}}?": "Desinstalar {{name}}?",
+    "Its settings folder is kept.": "A pasta de configurações é mantida.",
+    "The core file is deleted.": "O arquivo do núcleo é apagado.",
+    "The AppImage file is deleted.": "O arquivo AppImage é apagado.",
+    "Its backups are deleted too.": "Os backups também são apagados.",
+    "{{name}}'s shortcut in Steam will stop working.": "O atalho de {{name}} na Steam vai parar de funcionar.",
+    "Couldn't uninstall {{name}}.": "Não foi possível desinstalar {{name}}.",
 };
 
 export default PT;

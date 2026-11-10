@@ -11,6 +11,7 @@ import type {
 } from "../api";
 import { sizeText } from "../components/emulators/CleanUpModal";
 import { useEmulators } from "../components/emulators/EmulatorsContext";
+import type { UninstallChoice } from "../hooks/useEmulatorsController";
 import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 import { BackButton } from "../components/ui/BackButton";
 import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
@@ -26,7 +27,7 @@ import { useSlidingWindow } from "../hooks/useSlidingWindow";
 import { t, type LanguageCode } from "../locales";
 import type { ButtonSpacing, ControllerGlyphStyle, ViewKey } from "../types";
 import { jobErrorText } from "../utils/emulatorJobs";
-import { BUTTON_BUMPER_RIGHT } from "../utils/gamepadButtons";
+import { BUTTON_BUMPER_RIGHT, BUTTON_SECONDARY } from "../utils/gamepadButtons";
 import { textSize } from "../utils/scale";
 import {
     achievementGreen,
@@ -76,6 +77,7 @@ type InstallRow = {
     update: boolean;
     checkFailed: boolean;
     version: string;
+    shortcut: boolean;
     image: EmulatorAppImage | null;
 };
 
@@ -130,6 +132,7 @@ function buildRows(language: LanguageCode, inventory: EmulatorInventory | null):
         update: ra.flatpak.update,
         checkFailed: ra.flatpak.checkFailed,
         version: ra.flatpak.version,
+        shortcut: ra.flatpak.steam !== null,
         image: null
     }];
     if (ra.configFound) {
@@ -160,6 +163,7 @@ function buildRows(language: LanguageCode, inventory: EmulatorInventory | null):
             update: flatpak.update,
             checkFailed: flatpak.checkFailed,
             version: flatpak.version,
+            shortcut: flatpak.steam !== null,
             image: null
         });
         const images = emulator.appimages.filter((image) => !image.missing);
@@ -177,6 +181,7 @@ function buildRows(language: LanguageCode, inventory: EmulatorInventory | null):
                 update: image.update,
                 checkFailed: image.checkFailed,
                 version: image.version,
+                shortcut: image.steam !== null,
                 image
             });
         });
@@ -192,6 +197,7 @@ function buildRows(language: LanguageCode, inventory: EmulatorInventory | null):
                 update: false,
                 checkFailed: false,
                 version: "",
+                shortcut: false,
                 image: null
             });
         }
@@ -235,6 +241,9 @@ function failedLine(language: LanguageCode, state: EmulatorJobState): string {
     }
     if (state.kind === "delete_files") {
         return t(language, "Couldn't clear old copies.");
+    }
+    if (state.kind === "uninstall") {
+        return t(language, "Couldn't uninstall {{name}}.", { name });
     }
     if (state.kind === "install_cores" || state.kind === "install_emulator") {
         return count === 1
@@ -346,6 +355,37 @@ function EmulatorsPage(props: EmulatorsPageProps) {
             : { label: t(language, "Update"), run: () => emulators.actions.updateAppImage(image.path, row.name, key) };
     }
 
+    function uninstallFor(row: Row): UninstallChoice | null {
+        if (busy(rowKey(row))) {
+            return null;
+        }
+        if (row.type === "core" && row.core.installed) {
+            return {
+                kind: "retroarch",
+                via: "core",
+                item: row.core.core,
+                title: row.core.name,
+                name: row.core.name,
+                path: "",
+                shortcut: false,
+                backups: row.core.backup !== null
+            };
+        }
+        if (row.type !== "install" || !row.installed) {
+            return null;
+        }
+        return {
+            kind: row.kind,
+            via: row.via,
+            item: row.image?.path ?? "",
+            title: row.title,
+            name: row.name,
+            path: row.image?.path ?? "",
+            shortcut: row.shortcut,
+            backups: row.image !== null && row.image.backup !== null
+        };
+    }
+
     function hintsFor(row: Row | undefined): ButtonHint[] {
         if (row === undefined) {
             return [];
@@ -354,6 +394,9 @@ function EmulatorsPage(props: EmulatorsPageProps) {
         const action = actionFor(row);
         if (action !== null) {
             hints.push({ button: "a", label: action.label });
+        }
+        if (uninstallFor(row) !== null) {
+            hints.push({ button: "x", label: t(language, "Uninstall") });
         }
         if (row.type === "install" && row.via === "appimage") {
             hints.push({ button: "r1", label: t(language, "Point to Custom Install") });
@@ -365,6 +408,13 @@ function EmulatorsPage(props: EmulatorsPageProps) {
         const row = rows.find((other) => rowKey(other) === focusedKey);
         const button = evt?.detail?.button;
         if (row === undefined || inventory === null) {
+            return;
+        }
+        if (button === BUTTON_SECONDARY) {
+            const what = uninstallFor(row);
+            if (what !== null) {
+                emulators.actions.uninstall(what, rowKey(row));
+            }
             return;
         }
         if (button === BUTTON_BUMPER_RIGHT && row.type === "install" && row.via === "appimage") {

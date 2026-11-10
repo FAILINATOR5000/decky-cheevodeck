@@ -3698,6 +3698,14 @@ const RU: LocaleTable = {
     "Hide Cores": "Скрыть ядра",
     "Point to Custom Install": "Указать свою установку",
     "Install Cores for {{count}} Systems": "Установить ядра (систем: {{count}})",
+    "Uninstall": "Удалить",
+    "Uninstall {{name}}?": "Удалить {{name}}?",
+    "Its settings folder is kept.": "Папка с настройками останется.",
+    "The core file is deleted.": "Файл ядра будет удалён.",
+    "The AppImage file is deleted.": "Файл AppImage будет удалён.",
+    "Its backups are deleted too.": "Его резервные копии тоже будут удалены.",
+    "{{name}}'s shortcut in Steam will stop working.": "Ярлык {{name}} в Steam перестанет работать.",
+    "Couldn't uninstall {{name}}.": "Не удалось удалить {{name}}.",
 };
 
 export default RU;
