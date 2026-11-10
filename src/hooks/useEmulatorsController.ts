@@ -4,8 +4,6 @@ import {
     emulatorsClean,
     emulatorsCleanOffer,
     emulatorsCoresOffer,
-    emulatorsForget,
-    emulatorsForgetShortcut,
     emulatorsIdentify,
     emulatorsInstallAppimage,
     emulatorsInstallCores,
@@ -13,25 +11,23 @@ import {
     emulatorsInventory,
     emulatorsPoint,
     emulatorsRecordShortcut,
-    emulatorsRestore,
     emulatorsShortcutChanges,
     emulatorsUpdateAppimage,
     emulatorsUpdateCores,
     emulatorsUpdateFlatpak,
     type EmulatorInventory,
     type EmulatorJobStart,
-    type EmulatorKind,
-    type EmulatorSteam
+    type EmulatorKind
 } from "../api";
 import { askAddToSteam } from "../components/emulators/AddToSteamModal";
-import { askCleanUp, sizeText } from "../components/emulators/CleanUpModal";
+import { askCleanUp } from "../components/emulators/CleanUpModal";
 import { askEmulatorQuestion } from "../components/emulators/EmulatorQuestionModal";
 import { askInstallCores } from "../components/emulators/InstallCoresModal";
 import { openPathPicker, type PickedPath } from "../components/pickers/FilePickerModal";
-import { getCurrentLanguage, t, type LanguageCode } from "../locales";
+import { t, type LanguageCode } from "../locales";
 import { showToastAfter } from "../utils/delayedToast";
 import { noteEmulatorJobStarted, useEmulatorJobs } from "../utils/emulatorJobs";
-import { addEmulatorShortcut, removeEmulatorShortcut, steamCollections, type EmulatorInstall } from "../utils/emulatorShortcuts";
+import { addEmulatorShortcut, steamCollections, type EmulatorInstall } from "../utils/emulatorShortcuts";
 import { logError } from "../utils/errors";
 
 type EmulatorsLoad = {
@@ -120,18 +116,6 @@ async function pointTo(language: LanguageCode, kind: EmulatorKind, name: string)
     }
     catch (e) {
         logError("emulators: pointing to an AppImage", e);
-    }
-}
-
-export async function forgetEmulatorPath(kind: EmulatorKind, path: string) {
-    try {
-        const result = await emulatorsForget(kind, path);
-        if (result?.inventory) {
-            publish({ inventory: result.inventory });
-        }
-    }
-    catch (e) {
-        logError("emulators: forgetting an AppImage", e);
     }
 }
 
@@ -283,59 +267,6 @@ async function addToSteam(language: LanguageCode, kind: EmulatorKind, name: stri
     }
 }
 
-async function removeFromSteam(language: LanguageCode, name: string, steam: EmulatorSteam) {
-    const remove = await askEmulatorQuestion({
-        language,
-        title: t(language, "Remove from Steam"),
-        text: t(language, "Remove the {{name}} shortcut CheevoDeck added to Steam?", { name }),
-        confirm: t(language, "Remove"),
-        cancel: t(language, "Cancel"),
-        focusConfirm: false
-    });
-    if (!remove) {
-        return;
-    }
-    try {
-        removeEmulatorShortcut(steam.appid);
-        await emulatorsForgetShortcut(steam.key);
-        await loadInventory(false);
-    }
-    catch (e) {
-        logError("emulators: removing a shortcut", e);
-    }
-}
-
-export async function restoreOldCopy(target: string, name: string) {
-    const language = getCurrentLanguage();
-    try {
-        started(language, await emulatorsRestore(target), name);
-    }
-    catch (e) {
-        logError("emulators: restoring an old copy", e);
-    }
-}
-
-export async function deleteOldCopy(path: string, file: string, size: number) {
-    const language = getCurrentLanguage();
-    const yes = await askEmulatorQuestion({
-        language,
-        title: t(language, "Delete old copy ({{size}})", { size: sizeText(size) }),
-        text: t(language, "Delete the old copy {{file}}? This can't be undone.", { file }),
-        confirm: t(language, "Delete"),
-        cancel: t(language, "Cancel"),
-        focusConfirm: false
-    });
-    if (!yes) {
-        return;
-    }
-    try {
-        started(language, await emulatorsClean([path]));
-    }
-    catch (e) {
-        logError("emulators: deleting an old copy", e);
-    }
-}
-
 async function cleanUp(language: LanguageCode) {
     try {
         const offer = await emulatorsCleanOffer();
@@ -383,7 +314,6 @@ export function useEmulatorsController(props: { isActive: boolean; language: Lan
             notice: (body: string) => notice(language, body),
             addToSteam: (kind: EmulatorKind, name: string, install: EmulatorInstall, key: string) =>
                 void addToSteam(language, kind, name, install, key),
-            removeFromSteam: (name: string, steam: EmulatorSteam) => void removeFromSteam(language, name, steam),
             cleanUp: () => void cleanUp(language)
         }
     };

@@ -975,8 +975,8 @@ export const hotspotSetPrivate = callable<[boolean], HotspotStatus>("hotspot_set
 export const saveHotspotIntroOff = callable<[boolean], { ok: boolean; hotspotIntroOff: boolean }>("save_hotspot_intro_off");
 export const saveHotspotDedicated = callable<[boolean], { ok: boolean; hotspotDedicated: boolean }>("save_hotspot_dedicated");
 export type EmulatorKind = "retroarch" | "dolphin" | "pcsx2" | "duckstation" | "ppsspp" | "rmg" | "melonds";
-export type EmulatorSteam = { appid: number; ours: boolean; key: string };
-export type EmulatorBackup = { path: string; version: string; size: number };
+type EmulatorSteam = { appid: number; ours: boolean; key: string };
+type EmulatorBackup = { path: string; version: string; size: number };
 export type EmulatorCleanItem = {
     path: string;
     fileName: string;
@@ -984,7 +984,7 @@ export type EmulatorCleanItem = {
     ours: boolean;
     size: number;
 };
-export type EmulatorFlatpak = {
+type EmulatorFlatpak = {
     id: string;
     installed: boolean;
     version: string;
@@ -993,6 +993,7 @@ export type EmulatorFlatpak = {
     size: number;
     update: boolean;
     newerThanStable: boolean;
+    checkFailed: boolean;
     steam: EmulatorSteam | null;
 };
 export type EmulatorAppImage = {
@@ -1007,10 +1008,11 @@ export type EmulatorAppImage = {
     latest: string;
     update: boolean;
     newerThanStable: boolean;
+    checkFailed: boolean;
     steam: EmulatorSteam | null;
     backup: EmulatorBackup | null;
 };
-export type EmulatorEntry = {
+type EmulatorEntry = {
     kind: EmulatorKind;
     name: string;
     achievements: boolean;
@@ -1028,6 +1030,7 @@ export type RetroArchCore = {
     installed: boolean;
     ours: boolean;
     update: boolean;
+    checkFailed: boolean;
 };
 export type RetroArchSystem = {
     id: number;
@@ -1060,9 +1063,6 @@ export const emulatorsIdentify = callable<[path: string], { ok: boolean; error?:
 );
 export const emulatorsPoint = callable<[kind: string, path: string], { ok: boolean; error?: string; inventory?: EmulatorInventory }>(
     "emulators_point"
-);
-export const emulatorsForget = callable<[kind: string, path: string], { ok: boolean; inventory?: EmulatorInventory }>(
-    "emulators_forget"
 );
 export type EmulatorJobState = {
     job: string;
@@ -1117,9 +1117,7 @@ export const emulatorsPendingClient = callable<[], { ok: boolean; client: Emulat
 export const emulatorsClearPendingClient = callable<[], { ok: boolean }>("emulators_clear_pending_client");
 export const emulatorsCleanOffer = callable<[], { ok: boolean; items: EmulatorCleanItem[] }>("emulators_clean_offer");
 export const emulatorsClean = callable<[paths: string[]], EmulatorJobStart>("emulators_clean");
-export const emulatorsRestore = callable<[path: string], EmulatorJobStart>("emulators_restore");
 export const emulatorsRecordShortcut = callable<[key: string, appid: number], { ok: boolean }>("emulators_record_shortcut");
-export const emulatorsForgetShortcut = callable<[key: string], { ok: boolean }>("emulators_forget_shortcut");
 export const emulatorsShortcutChanges = callable<[kind: string], { ok: boolean; changes: { system: string; current: string }[] }>(
     "emulators_shortcut_changes"
 );

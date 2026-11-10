@@ -48,9 +48,6 @@ class EmulatorsMixin(PluginContext):
         return await asyncio.to_thread(self.emulator_service.record_shortcut, str(key or ""),
                                        to_int(appid, 0))
 
-    async def emulators_forget_shortcut(self, key: str = ""):
-        return await asyncio.to_thread(self.emulator_service.forget_shortcut, str(key or ""))
-
     async def emulators_shortcut_changes(self, kind: str = ""):
         return await asyncio.to_thread(self.multiplayer_service.shortcut_changes, str(kind or ""))
 
