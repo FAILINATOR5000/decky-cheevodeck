@@ -141,6 +141,7 @@ class EmulatorService:
         self._emit = emit
         self._lock = threading.Lock()
         self._inventory = None
+        self._inventory_stamp = ()
         self._versions = {}
         self._games = (None, frozenset())
         self._crcs = {}
@@ -557,7 +558,8 @@ class EmulatorService:
 
     def inventory(self, refresh: bool = False, network: bool = True) -> dict:
         with self._lock:
-            if self._inventory is not None and not refresh:
+            if self._inventory is not None and not refresh \
+                    and self._stamp(self._inventory["emulators"]) == self._inventory_stamp:
                 return self._inventory
             self._forget_gone_backups()
             record = self._store.get()
@@ -573,7 +575,23 @@ class EmulatorService:
                 "retroarch": self._retroarch(record, flatpaks),
                 "emulators": emulators,
             }
+            self._inventory_stamp = self._stamp(emulators)
             return self._inventory
+
+    def _stamp(self, emulators) -> tuple:
+        paths = [self._user_home / "Applications"]
+        for emulator in emulators:
+            for row in emulator["appimages"]:
+                paths.extend((Path(row["path"]), Path(row["path"]).parent))
+        stamp = []
+        for path in dict.fromkeys(paths):
+            try:
+                st = os.stat(path)
+            except OSError:
+                stamp.append((str(path), 0, -1))
+                continue
+            stamp.append((str(path), st.st_mtime_ns, st.st_size))
+        return tuple(stamp)
 
     def identify(self, path: str) -> dict:
         path = os.path.abspath(path)
