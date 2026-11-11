@@ -12864,6 +12864,33 @@
      "obfuscated": false,
      "points": 3
     },
+    "571393": {
+     "achievementId": 145222,
+     "consoleId": 12,
+     "consoleName": "PlayStation",
+     "gameId": 13897,
+     "gameTitle": "Looney Tunes: Sheep Raider",
+     "obfuscated": false,
+     "points": 5
+    },
+    "571394": {
+     "achievementId": 252404,
+     "consoleId": 21,
+     "consoleName": "PlayStation 2",
+     "gameId": 3057,
+     "gameTitle": "Bully",
+     "obfuscated": false,
+     "points": 1
+    },
+    "571395": {
+     "achievementId": 419015,
+     "consoleId": 76,
+     "consoleName": "PC Engine CD/TurboGrafx-CD",
+     "gameId": 8838,
+     "gameTitle": "Ys III: Wanderers from Ys",
+     "obfuscated": false,
+     "points": 5
+    },
     "571403": {
      "achievementId": 365954,
      "consoleId": 21,
@@ -12953,6 +12980,15 @@
      "gameTitle": "ICO",
      "obfuscated": false,
      "points": 5
+    },
+    "571413": {
+     "achievementId": 140062,
+     "consoleId": 5,
+     "consoleName": "Game Boy Advance",
+     "gameId": 9596,
+     "gameTitle": "Hamtaro: Rainbow Rescue",
+     "obfuscated": false,
+     "points": 25
     }
    },
    "state": "active",
@@ -13560,7 +13596,7 @@
      "kind": "points",
      "masteryBonus": 2,
      "target": 60,
-     "text": "Earn 60 points by beating and mastering games featured and developed in the original event. Every beat will award one point, and mastering a game will award an two additional points."
+     "text": "Earn 60 points by beating and mastering games featured and developed in the original event. Every beat will award one point, and mastering a game will award two additional points."
     },
     "sections": [
      {
@@ -14690,6 +14726,87 @@
      "gameTitle": "~Hack~ Hatsune Miku in Sonic 1",
      "obfuscated": false,
      "points": 10
+    },
+    "579237": {
+     "achievementId": 49295,
+     "consoleId": 5,
+     "consoleName": "Game Boy Advance",
+     "gameId": 9045,
+     "gameTitle": "~Hack~ Pok\u00e9mon Edicion Naranja",
+     "obfuscated": false,
+     "points": 10
+    },
+    "579238": {
+     "achievementId": 401021,
+     "consoleId": 18,
+     "consoleName": "Nintendo DS",
+     "gameId": 28645,
+     "gameTitle": "Dragon Quest V: Hand of the Heavenly Bride [Subset - Goodies Globetrotter]",
+     "obfuscated": false,
+     "points": 2
+    },
+    "579239": {
+     "achievementId": 409061,
+     "consoleId": 7,
+     "consoleName": "NES/Famicom",
+     "gameId": 28594,
+     "gameTitle": "Final Fantasy [Subset - 126 Combination Challenge]",
+     "obfuscated": false,
+     "points": 10
+    },
+    "579240": {
+     "achievementId": 60691,
+     "consoleId": 2,
+     "consoleName": "Nintendo 64",
+     "gameId": 10173,
+     "gameTitle": "Yoshi's Story",
+     "obfuscated": false,
+     "points": 5
+    },
+    "579241": {
+     "achievementId": 555561,
+     "consoleId": 1,
+     "consoleName": "Genesis/Mega Drive",
+     "gameId": 116,
+     "gameTitle": "Mega Man: The Wily Wars",
+     "obfuscated": false,
+     "points": 10
+    },
+    "579242": {
+     "achievementId": 261427,
+     "consoleId": 21,
+     "consoleName": "PlayStation 2",
+     "gameId": 3151,
+     "gameTitle": "Sly Cooper and the Thievius Raccoonus",
+     "obfuscated": false,
+     "points": 4
+    },
+    "579243": {
+     "achievementId": 7096,
+     "consoleId": 7,
+     "consoleName": "NES/Famicom",
+     "gameId": 1803,
+     "gameTitle": "Little Nemo: The Dream Master",
+     "obfuscated": false,
+     "points": 3
+    },
+    "579244": {
+     "achievementId": 452342,
+     "consoleId": 16,
+     "consoleName": "GameCube",
+     "gameId": 25424,
+     "gameTitle": "Barnyard",
+     "obfuscated": false,
+     "points": 5
+    },
+    "579245": {
+     "achievementId": 216906,
+     "consoleId": 14,
+     "consoleName": "Neo Geo Pocket",
+     "gameId": 17338,
+     "gameTitle": "Ganbare Neo Poke-kun",
+     "obfuscated": false,
+     "points": 1
     },
     "579279": {
      "achievementId": 585265,
@@ -23321,6 +23438,312 @@
      "gameTitle": "Super Contra",
      "obfuscated": false,
      "points": 5
+    },
+    "647793": {
+     "achievementId": 132128,
+     "consoleId": 27,
+     "consoleName": "Arcade",
+     "gameId": 11767,
+     "gameTitle": "Shock Troopers",
+     "obfuscated": false,
+     "points": 10
+    },
+    "647794": {
+     "achievementId": 6099,
+     "consoleId": 4,
+     "consoleName": "Game Boy",
+     "gameId": 2548,
+     "gameTitle": "Nail 'n Scale",
+     "obfuscated": false,
+     "points": 5
+    },
+    "647795": {
+     "achievementId": 6109,
+     "consoleId": 4,
+     "consoleName": "Game Boy",
+     "gameId": 2548,
+     "gameTitle": "Nail 'n Scale",
+     "obfuscated": false,
+     "points": 5
+    },
+    "647796": {
+     "achievementId": 499678,
+     "consoleId": 21,
+     "consoleName": "PlayStation 2",
+     "gameId": 19028,
+     "gameTitle": "Fallout: Brotherhood of Steel",
+     "obfuscated": false,
+     "points": 5
+    },
+    "647797": {
+     "achievementId": 517406,
+     "consoleId": 21,
+     "consoleName": "PlayStation 2",
+     "gameId": 19028,
+     "gameTitle": "Fallout: Brotherhood of Steel",
+     "obfuscated": false,
+     "points": 5
+    },
+    "647798": {
+     "achievementId": 314357,
+     "consoleId": 78,
+     "consoleName": "Nintendo DSi",
+     "gameId": 23795,
+     "gameTitle": "Plants vs. Zombies",
+     "obfuscated": false,
+     "points": 10
+    },
+    "647799": {
+     "achievementId": 314359,
+     "consoleId": 78,
+     "consoleName": "Nintendo DSi",
+     "gameId": 23795,
+     "gameTitle": "Plants vs. Zombies",
+     "obfuscated": false,
+     "points": 10
+    },
+    "647800": {
+     "achievementId": 314149,
+     "consoleId": 7,
+     "consoleName": "NES/Famicom",
+     "gameId": 5836,
+     "gameTitle": "S.C.A.T.: Special Cybernetic Attack Team",
+     "obfuscated": false,
+     "points": 10
+    },
+    "647801": {
+     "achievementId": 246350,
+     "consoleId": 21,
+     "consoleName": "PlayStation 2",
+     "gameId": 19189,
+     "gameTitle": "Cold Fear",
+     "obfuscated": false,
+     "points": 5
+    },
+    "647802": {
+     "achievementId": 139133,
+     "consoleId": 12,
+     "consoleName": "PlayStation",
+     "gameId": 11301,
+     "gameTitle": "Tales of Phantasia",
+     "obfuscated": false,
+     "points": 1
+    },
+    "647803": {
+     "achievementId": 537087,
+     "consoleId": 16,
+     "consoleName": "GameCube",
+     "gameId": 3340,
+     "gameTitle": "TimeSplitters 2",
+     "obfuscated": false,
+     "points": 10
+    },
+    "647804": {
+     "achievementId": 246336,
+     "consoleId": 21,
+     "consoleName": "PlayStation 2",
+     "gameId": 19189,
+     "gameTitle": "Cold Fear",
+     "obfuscated": false,
+     "points": 5
+    },
+    "647805": {
+     "achievementId": 246345,
+     "consoleId": 21,
+     "consoleName": "PlayStation 2",
+     "gameId": 19189,
+     "gameTitle": "Cold Fear",
+     "obfuscated": false,
+     "points": 5
+    },
+    "647806": {
+     "achievementId": 479495,
+     "consoleId": 21,
+     "consoleName": "PlayStation 2",
+     "gameId": 19029,
+     "gameTitle": "Forbidden Siren 2",
+     "obfuscated": false,
+     "points": 10
+    },
+    "647807": {
+     "achievementId": 479496,
+     "consoleId": 21,
+     "consoleName": "PlayStation 2",
+     "gameId": 19029,
+     "gameTitle": "Forbidden Siren 2",
+     "obfuscated": false,
+     "points": 10
+    },
+    "647808": {
+     "achievementId": 479479,
+     "consoleId": 21,
+     "consoleName": "PlayStation 2",
+     "gameId": 19029,
+     "gameTitle": "Forbidden Siren 2",
+     "obfuscated": false,
+     "points": 10
+    },
+    "647809": {
+     "achievementId": 608246,
+     "consoleId": 40,
+     "consoleName": "Dreamcast",
+     "gameId": 3503,
+     "gameTitle": "D2",
+     "obfuscated": false,
+     "points": 1
+    },
+    "647810": {
+     "achievementId": 624084,
+     "consoleId": 40,
+     "consoleName": "Dreamcast",
+     "gameId": 3503,
+     "gameTitle": "D2",
+     "obfuscated": false,
+     "points": 10
+    },
+    "647811": {
+     "achievementId": 624237,
+     "consoleId": 40,
+     "consoleName": "Dreamcast",
+     "gameId": 3503,
+     "gameTitle": "D2",
+     "obfuscated": false,
+     "points": 10
+    },
+    "647812": {
+     "achievementId": 539518,
+     "consoleId": 8,
+     "consoleName": "PC Engine/TurboGrafx-16",
+     "gameId": 2324,
+     "gameTitle": "Silent Debuggers",
+     "obfuscated": false,
+     "points": 5
+    },
+    "647813": {
+     "achievementId": 539520,
+     "consoleId": 8,
+     "consoleName": "PC Engine/TurboGrafx-16",
+     "gameId": 2324,
+     "gameTitle": "Silent Debuggers",
+     "obfuscated": false,
+     "points": 5
+    },
+    "647814": {
+     "achievementId": 539523,
+     "consoleId": 8,
+     "consoleName": "PC Engine/TurboGrafx-16",
+     "gameId": 2324,
+     "gameTitle": "Silent Debuggers",
+     "obfuscated": false,
+     "points": 10
+    },
+    "649254": {
+     "achievementId": 258243,
+     "consoleId": 7,
+     "consoleName": "NES/Famicom",
+     "gameId": 21402,
+     "gameTitle": "~Homebrew~ Friday The 13th: Return To Camp Blood Demake",
+     "obfuscated": false,
+     "points": 1
+    },
+    "649255": {
+     "achievementId": 3224,
+     "consoleId": 7,
+     "consoleName": "NES/Famicom",
+     "gameId": 1474,
+     "gameTitle": "Friday the 13th",
+     "obfuscated": false,
+     "points": 25
+    },
+    "649256": {
+     "achievementId": 397987,
+     "consoleId": 41,
+     "consoleName": "PlayStation Portable",
+     "gameId": 10523,
+     "gameTitle": "LocoRoco",
+     "obfuscated": false,
+     "points": 10
+    },
+    "649257": {
+     "achievementId": 65285,
+     "consoleId": 7,
+     "consoleName": "NES/Famicom",
+     "gameId": 4990,
+     "gameTitle": "Zombie Hunter",
+     "obfuscated": false,
+     "points": 5
+    },
+    "649258": {
+     "achievementId": 445990,
+     "consoleId": 27,
+     "consoleName": "Arcade",
+     "gameId": 11989,
+     "gameTitle": "Avenging Spirit",
+     "obfuscated": false,
+     "points": 10
+    },
+    "649259": {
+     "achievementId": 533961,
+     "consoleId": 12,
+     "consoleName": "PlayStation",
+     "gameId": 5049,
+     "gameTitle": "Rogue Trip: Vacation 2012",
+     "obfuscated": false,
+     "points": 5
+    },
+    "649260": {
+     "achievementId": 209,
+     "consoleId": 1,
+     "consoleName": "Genesis/Mega Drive",
+     "gameId": 69,
+     "gameTitle": "Castlevania: Bloodlines",
+     "obfuscated": false,
+     "points": 5
+    },
+    "649261": {
+     "achievementId": 382675,
+     "consoleId": 39,
+     "consoleName": "Saturn",
+     "gameId": 11654,
+     "gameTitle": "Elevator Action Returns",
+     "obfuscated": false,
+     "points": 3
+    },
+    "649262": {
+     "achievementId": 581568,
+     "consoleId": 29,
+     "consoleName": "MSX",
+     "gameId": 33462,
+     "gameTitle": "Castle Excellent",
+     "obfuscated": false,
+     "points": 5
+    },
+    "649263": {
+     "achievementId": 231661,
+     "consoleId": 81,
+     "consoleName": "Famicom Disk System",
+     "gameId": 5782,
+     "gameTitle": "Ai Senshi Nicol",
+     "obfuscated": false,
+     "points": 1
+    },
+    "649264": {
+     "achievementId": 295964,
+     "consoleId": 3,
+     "consoleName": "SNES/Super Famicom",
+     "gameId": 2953,
+     "gameTitle": "Gourmet Warriors",
+     "obfuscated": false,
+     "points": 3
+    },
+    "649265": {
+     "achievementId": 258158,
+     "consoleId": 27,
+     "consoleName": "Arcade",
+     "gameId": 13853,
+     "gameTitle": "Sengoku Blade: Sengoku Ace Episode II",
+     "obfuscated": false,
+     "points": 5
     }
    },
    "state": "active",
@@ -23603,6 +24026,60 @@
      "gameTitle": "Wario Land 4",
      "obfuscated": false,
      "points": 10
+    },
+    "644566": {
+     "achievementId": 509667,
+     "consoleId": 16,
+     "consoleName": "GameCube",
+     "gameId": 3779,
+     "gameTitle": "Sonic Adventure 2: Battle",
+     "obfuscated": false,
+     "points": 2
+    },
+    "644567": {
+     "achievementId": 431609,
+     "consoleId": 16,
+     "consoleName": "GameCube",
+     "gameId": 6313,
+     "gameTitle": "Sonic Heroes",
+     "obfuscated": false,
+     "points": 5
+    },
+    "644568": {
+     "achievementId": 34291,
+     "consoleId": 3,
+     "consoleName": "SNES/Super Famicom",
+     "gameId": 1175,
+     "gameTitle": "Todd McFarlane's Spawn: The Video Game",
+     "obfuscated": false,
+     "points": 5
+    },
+    "644570": {
+     "achievementId": 592567,
+     "consoleId": 19,
+     "consoleName": "Wii",
+     "gameId": 4039,
+     "gameTitle": "Sonic and the Black Knight",
+     "obfuscated": false,
+     "points": 5
+    },
+    "644572": {
+     "achievementId": 154025,
+     "consoleId": 18,
+     "consoleName": "Nintendo DS",
+     "gameId": 14808,
+     "gameTitle": "Sonic Colors",
+     "obfuscated": false,
+     "points": 10
+    },
+    "644573": {
+     "achievementId": 446709,
+     "consoleId": 16,
+     "consoleName": "GameCube",
+     "gameId": 28371,
+     "gameTitle": "~Hack~ Shadow the Hedgehog: Reloaded",
+     "obfuscated": false,
+     "points": 25
     }
    },
    "state": "active",
@@ -23622,6 +24099,139 @@
    "sources": {},
    "state": "concluded",
    "title": "Achievement of the Week 2020 - Camping Event"
+  },
+  "47681": {
+   "activeFrom": "2026-11-09T00:00:00+00:00",
+   "activeThrough": null,
+   "activeUntil": null,
+   "badgeUrl": "https://media.retroachievements.org/Images/169332.png",
+   "eventId": 237,
+   "evergreen": true,
+   "forumTopicId": 38347,
+   "gameId": 47681,
+   "imageIcon": "/Images/169332.png",
+   "kind": "automated",
+   "sources": {
+    "650645": {
+     "achievementId": 131488,
+     "consoleId": 9,
+     "consoleName": "Sega CD",
+     "gameId": 14852,
+     "gameTitle": "The Amazing Spider-Man vs. the Kingpin",
+     "obfuscated": false,
+     "points": 5
+    },
+    "650646": {
+     "achievementId": 265232,
+     "consoleId": 21,
+     "consoleName": "PlayStation 2",
+     "gameId": 19265,
+     "gameTitle": "The Lord of the Rings: The Two Towers",
+     "obfuscated": false,
+     "points": 3
+    },
+    "650647": {
+     "achievementId": 254404,
+     "consoleId": 21,
+     "consoleName": "PlayStation 2",
+     "gameId": 3070,
+     "gameTitle": "Ratchet & Clank",
+     "obfuscated": false,
+     "points": 3
+    },
+    "650648": {
+     "achievementId": 301781,
+     "consoleId": 21,
+     "consoleName": "PlayStation 2",
+     "gameId": 20688,
+     "gameTitle": "Star Wars: Bounty Hunter",
+     "obfuscated": false,
+     "points": 5
+    },
+    "650649": {
+     "achievementId": 495173,
+     "consoleId": 21,
+     "consoleName": "PlayStation 2",
+     "gameId": 19145,
+     "gameTitle": "X-Men Legends II: Rise of Apocalypse",
+     "obfuscated": false,
+     "points": 10
+    },
+    "650650": {
+     "achievementId": 501014,
+     "consoleId": 21,
+     "consoleName": "PlayStation 2",
+     "gameId": 19341,
+     "gameTitle": "Tomb Raider: Anniversary",
+     "obfuscated": false,
+     "points": 10
+    },
+    "650651": {
+     "achievementId": 352187,
+     "consoleId": 21,
+     "consoleName": "PlayStation 2",
+     "gameId": 9371,
+     "gameTitle": "Ben 10: Protector of Earth",
+     "obfuscated": false,
+     "points": 5
+    },
+    "650652": {
+     "achievementId": 232301,
+     "consoleId": 21,
+     "consoleName": "PlayStation 2",
+     "gameId": 2831,
+     "gameTitle": "Metal Gear Solid 3: Subsistence",
+     "obfuscated": false,
+     "points": 5
+    },
+    "650653": {
+     "achievementId": 432521,
+     "consoleId": 41,
+     "consoleName": "PlayStation Portable",
+     "gameId": 2758,
+     "gameTitle": "Secret Agent Clank",
+     "obfuscated": false,
+     "points": 3
+    },
+    "650654": {
+     "achievementId": 601161,
+     "consoleId": 19,
+     "consoleName": "Wii",
+     "gameId": 86,
+     "gameTitle": "MadWorld",
+     "obfuscated": false,
+     "points": 5
+    },
+    "650655": {
+     "achievementId": 243939,
+     "consoleId": 21,
+     "consoleName": "PlayStation 2",
+     "gameId": 2606,
+     "gameTitle": "Resident Evil 4",
+     "obfuscated": false,
+     "points": 10
+    },
+    "650656": {
+     "achievementId": 435949,
+     "consoleId": 16,
+     "consoleName": "GameCube",
+     "gameId": 2356,
+     "gameTitle": "Resident Evil 4",
+     "obfuscated": false,
+     "points": 5
+    },
+    "650657": {
+     "achievementId": 575023,
+     "consoleId": 19,
+     "consoleName": "Wii",
+     "gameId": 186,
+     "gameTitle": "Resident Evil 4: Wii Edition",
+     "obfuscated": false,
+     "points": 10
+    }
+   },
+   "state": "evergreen",
+   "title": "Jim Ward Memorial Event"
   },
   "5982": {
    "activeFrom": null,
@@ -24841,7 +25451,7 @@
   "1103": {
    "consoleId": 3,
    "consoleName": "SNES/Super Famicom",
-   "imageIcon": "/Images/026005.png",
+   "imageIcon": "/Images/165876.png",
    "title": "Pocky & Rocky"
   },
   "1105": {
@@ -25108,6 +25718,12 @@
    "imageIcon": "/Images/082751.png",
    "title": "Oddworld: Abe's Oddysee"
   },
+  "11301": {
+   "consoleId": 12,
+   "consoleName": "PlayStation",
+   "imageIcon": "/Images/075413.png",
+   "title": "Tales of Phantasia"
+  },
   "11302": {
    "consoleId": 12,
    "consoleName": "PlayStation",
@@ -25135,7 +25751,7 @@
   "11318": {
    "consoleId": 12,
    "consoleName": "PlayStation",
-   "imageIcon": "/Images/029487.png",
+   "imageIcon": "/Images/165196.png",
    "title": "Dino Crisis"
   },
   "11322": {
@@ -25354,6 +25970,12 @@
    "imageIcon": "/Images/067523.png",
    "title": "Shin Megami Tensei: Strange Journey"
   },
+  "11654": {
+   "consoleId": 39,
+   "consoleName": "Saturn",
+   "imageIcon": "/Images/116527.png",
+   "title": "Elevator Action Returns"
+  },
   "11656": {
    "consoleId": 12,
    "consoleName": "PlayStation",
@@ -25431,6 +26053,12 @@
    "consoleName": "Game Gear",
    "imageIcon": "/Images/108343.png",
    "title": "Tails Adventure"
+  },
+  "1175": {
+   "consoleId": 3,
+   "consoleName": "SNES/Super Famicom",
+   "imageIcon": "/Images/075725.png",
+   "title": "Todd McFarlane's Spawn: The Video Game"
   },
   "11750": {
    "consoleId": 27,
@@ -25569,6 +26197,12 @@
    "consoleName": "Arcade",
    "imageIcon": "/Images/126354.png",
    "title": "Altered Beast"
+  },
+  "11989": {
+   "consoleId": 27,
+   "consoleName": "Arcade",
+   "imageIcon": "/Images/032250.png",
+   "title": "Avenging Spirit"
   },
   "11993": {
    "consoleId": 27,
@@ -26206,6 +26840,12 @@
    "imageIcon": "/Images/085539.png",
    "title": "Life Force"
   },
+  "13853": {
+   "consoleId": 27,
+   "consoleName": "Arcade",
+   "imageIcon": "/Images/062938.png",
+   "title": "Sengoku Blade: Sengoku Ace Episode II"
+  },
   "1386": {
    "consoleId": 3,
    "consoleName": "SNES/Super Famicom",
@@ -26710,6 +27350,12 @@
    "imageIcon": "/Images/063480.png",
    "title": "Sonic Rush Adventure"
   },
+  "14808": {
+   "consoleId": 18,
+   "consoleName": "Nintendo DS",
+   "imageIcon": "/Images/114272.png",
+   "title": "Sonic Colors"
+  },
   "14810": {
    "consoleId": 18,
    "consoleName": "Nintendo DS",
@@ -26775,6 +27421,12 @@
    "consoleName": "Game Boy Advance",
    "imageIcon": "/Images/062334.png",
    "title": "Spider-Man: Battle for New York"
+  },
+  "14852": {
+   "consoleId": 9,
+   "consoleName": "Sega CD",
+   "imageIcon": "/Images/164811.png",
+   "title": "The Amazing Spider-Man vs. the Kingpin"
   },
   "14853": {
    "consoleId": 18,
@@ -27049,7 +27701,7 @@
   "1594": {
    "consoleId": 7,
    "consoleName": "NES/Famicom",
-   "imageIcon": "/Images/051197.png",
+   "imageIcon": "/Images/166678.png",
    "title": "Bubble Bobble: Part 2"
   },
   "1596": {
@@ -27175,7 +27827,7 @@
   "1622": {
    "consoleId": 7,
    "consoleName": "NES/Famicom",
-   "imageIcon": "/Images/108434.png",
+   "imageIcon": "/Images/164808.png",
    "title": "Cliffhanger"
   },
   "16221": {
@@ -27506,7 +28158,7 @@
    "consoleId": 7,
    "consoleName": "NES/Famicom",
    "imageIcon": "/Images/097447.png",
-   "title": "Formula 1: Built to Win"
+   "title": "Formula One: Built to Win"
   },
   "16994": {
    "consoleId": 12,
@@ -27597,6 +28249,12 @@
    "consoleName": "PlayStation",
    "imageIcon": "/Images/046123.png",
    "title": "The Mummy"
+  },
+  "17338": {
+   "consoleId": 14,
+   "consoleName": "Neo Geo Pocket",
+   "imageIcon": "/Images/130737.png",
+   "title": "Ganbare Neo Poke-kun"
   },
   "17346": {
    "consoleId": 12,
@@ -28051,7 +28709,7 @@
   "1836": {
    "consoleId": 7,
    "consoleName": "NES/Famicom",
-   "imageIcon": "/Images/049124.png",
+   "imageIcon": "/Images/164954.png",
    "title": "Might and Magic: Secret of the Inner Sanctum"
   },
   "18370": {
@@ -28082,7 +28740,7 @@
    "consoleId": 7,
    "consoleName": "NES/Famicom",
    "imageIcon": "/Images/070776.png",
-   "title": "NARC: No One had the Guts... Until Now"
+   "title": "NARC"
   },
   "1852": {
    "consoleId": 7,
@@ -28293,6 +28951,12 @@
    "consoleName": "PlayStation 2",
    "imageIcon": "/Images/082635.png",
    "title": "Fallout: Brotherhood of Steel"
+  },
+  "19029": {
+   "consoleId": 21,
+   "consoleName": "PlayStation 2",
+   "imageIcon": "/Images/104940.png",
+   "title": "Forbidden Siren 2"
   },
   "19030": {
    "consoleId": 21,
@@ -28629,6 +29293,12 @@
    "consoleName": "PlayStation 2",
    "imageIcon": "/Images/057919.png",
    "title": "The Legend of Spyro: A New Beginning"
+  },
+  "19341": {
+   "consoleId": 21,
+   "consoleName": "PlayStation 2",
+   "imageIcon": "/Images/108531.png",
+   "title": "Tomb Raider: Anniversary"
   },
   "19343": {
    "consoleId": 21,
@@ -29191,7 +29861,7 @@
   "20528": {
    "consoleId": 21,
    "consoleName": "PlayStation 2",
-   "imageIcon": "/Images/128310.png",
+   "imageIcon": "/Images/163025.png",
    "title": "The Dog Island"
   },
   "20529": {
@@ -29367,6 +30037,12 @@
    "consoleName": "PlayStation 2",
    "imageIcon": "/Images/128972.png",
    "title": "LEGO Indiana Jones: The Original Adventures"
+  },
+  "20688": {
+   "consoleId": 21,
+   "consoleName": "PlayStation 2",
+   "imageIcon": "/Images/066627.png",
+   "title": "Star Wars: Bounty Hunter"
   },
   "20693": {
    "consoleId": 21,
@@ -29686,6 +30362,12 @@
    "imageIcon": "/Images/128936.png",
    "title": "Splatterhouse: Wanpaku Graffiti"
   },
+  "21402": {
+   "consoleId": 7,
+   "consoleName": "NES/Famicom",
+   "imageIcon": "/Images/063013.png",
+   "title": "~Homebrew~ Friday The 13th: Return To Camp Blood Demake"
+  },
   "21426": {
    "consoleId": 21,
    "consoleName": "PlayStation 2",
@@ -29725,7 +30407,7 @@
   "21462": {
    "consoleId": 21,
    "consoleName": "PlayStation 2",
-   "imageIcon": "/Images/063577.png",
+   "imageIcon": "/Images/168494.png",
    "title": "Guitar Hero [Subset - Expert Full Combos]"
   },
   "21463": {
@@ -29953,7 +30635,7 @@
   "22112": {
    "consoleId": 21,
    "consoleName": "PlayStation 2",
-   "imageIcon": "/Images/111086.png",
+   "imageIcon": "/Images/166896.png",
    "title": "Guilty Gear XX \u266fReload"
   },
   "22113": {
@@ -30208,6 +30890,12 @@
    "imageIcon": "/Images/124433.png",
    "title": "~Hack~ Sonic Winter Adventures"
   },
+  "2324": {
+   "consoleId": 8,
+   "consoleName": "PC Engine/TurboGrafx-16",
+   "imageIcon": "/Images/119459.png",
+   "title": "Silent Debuggers"
+  },
   "233": {
    "consoleId": 1,
    "consoleName": "Genesis/Mega Drive",
@@ -30229,7 +30917,7 @@
   "2347": {
    "consoleId": 3,
    "consoleName": "SNES/Super Famicom",
-   "imageIcon": "/Images/060822.png",
+   "imageIcon": "/Images/167156.png",
    "title": "Bishoujo Senshi Sailor Moon"
   },
   "2348": {
@@ -30285,6 +30973,12 @@
    "consoleName": "SNES/Super Famicom",
    "imageIcon": "/Images/042130.png",
    "title": "Clock Tower"
+  },
+  "23795": {
+   "consoleId": 78,
+   "consoleName": "Nintendo DSi",
+   "imageIcon": "/Images/074600.png",
+   "title": "Plants vs. Zombies"
   },
   "2384": {
    "consoleId": 4,
@@ -30391,7 +31085,7 @@
   "242": {
    "consoleId": 3,
    "consoleName": "SNES/Super Famicom",
-   "imageIcon": "/Images/035303.png",
+   "imageIcon": "/Images/164481.png",
    "title": "Terranigma"
   },
   "24229": {
@@ -30745,7 +31439,7 @@
   "25457": {
    "consoleId": 16,
    "consoleName": "GameCube",
-   "imageIcon": "/Images/147945.png",
+   "imageIcon": "/Images/163024.png",
    "title": "Naruto: Clash of Ninja 2"
   },
   "25459": {
@@ -30763,7 +31457,7 @@
   "25463": {
    "consoleId": 16,
    "consoleName": "GameCube",
-   "imageIcon": "/Images/088813.png",
+   "imageIcon": "/Images/166920.png",
    "title": "Piglet's Big Game"
   },
   "25466": {
@@ -31186,6 +31880,12 @@
    "imageIcon": "/Images/093452.png",
    "title": "City Crisis"
   },
+  "2758": {
+   "consoleId": 41,
+   "consoleName": "PlayStation Portable",
+   "imageIcon": "/Images/071043.png",
+   "title": "Secret Agent Clank"
+  },
   "27587": {
    "consoleId": 7,
    "consoleName": "NES/Famicom",
@@ -31456,6 +32156,12 @@
    "imageIcon": "/Images/089953.png",
    "title": "Super Mario Sunshine [Subset - Bonus]"
   },
+  "28594": {
+   "consoleId": 7,
+   "consoleName": "NES/Famicom",
+   "imageIcon": "/Images/113182.png",
+   "title": "Final Fantasy [Subset - 126 Combination Challenge]"
+  },
   "28598": {
    "consoleId": 16,
    "consoleName": "GameCube",
@@ -31503,6 +32209,12 @@
    "consoleName": "GameCube",
    "imageIcon": "/Images/089922.png",
    "title": "Final Fantasy Crystal Chronicles [Subset - Multiplayer]"
+  },
+  "28645": {
+   "consoleId": 18,
+   "consoleName": "Nintendo DS",
+   "imageIcon": "/Images/089938.png",
+   "title": "Dragon Quest V: Hand of the Heavenly Bride [Subset - Goodies Globetrotter]"
   },
   "28647": {
    "consoleId": 21,
@@ -31707,6 +32419,12 @@
    "consoleName": "SNES/Super Famicom",
    "imageIcon": "/Images/095388.png",
    "title": "Go Go Ackman"
+  },
+  "2953": {
+   "consoleId": 3,
+   "consoleName": "SNES/Super Famicom",
+   "imageIcon": "/Images/069301.png",
+   "title": "Gourmet Warriors"
   },
   "29578": {
    "consoleId": 6,
@@ -32377,7 +33095,7 @@
   "3254": {
    "consoleId": 3,
    "consoleName": "SNES/Super Famicom",
-   "imageIcon": "/Images/028481.png",
+   "imageIcon": "/Images/164187.png",
    "title": "Miracle Girls"
   },
   "3255": {
@@ -32509,7 +33227,7 @@
   "332": {
    "consoleId": 3,
    "consoleName": "SNES/Super Famicom",
-   "imageIcon": "/Images/006314.png",
+   "imageIcon": "/Images/164363.png",
    "title": "Zero the Kamikaze Squirrel"
   },
   "333": {
@@ -32530,6 +33248,12 @@
    "imageIcon": "/Images/110122.png",
    "title": "~Hack~ Super Mariomon"
   },
+  "3340": {
+   "consoleId": 16,
+   "consoleName": "GameCube",
+   "imageIcon": "/Images/116557.png",
+   "title": "TimeSplitters 2"
+  },
   "3342": {
    "consoleId": 16,
    "consoleName": "GameCube",
@@ -32541,6 +33265,12 @@
    "consoleName": "PlayStation 2",
    "imageIcon": "/Images/061818.png",
    "title": "Everybody's Golf 3"
+  },
+  "33462": {
+   "consoleId": 29,
+   "consoleName": "MSX",
+   "imageIcon": "/Images/124100.png",
+   "title": "Castle Excellent"
   },
   "3351": {
    "consoleId": 3,
@@ -33454,6 +34184,12 @@
    "imageIcon": "/Images/065096.png",
    "title": "Rayman 2: The Great Escape"
   },
+  "3503": {
+   "consoleId": 40,
+   "consoleName": "Dreamcast",
+   "imageIcon": "/Images/127415.png",
+   "title": "D2"
+  },
   "3504": {
    "consoleId": 40,
    "consoleName": "Dreamcast",
@@ -33751,7 +34487,7 @@
   "355": {
    "consoleId": 3,
    "consoleName": "SNES/Super Famicom",
-   "imageIcon": "/Images/059119.png",
+   "imageIcon": "/Images/165392.png",
    "title": "The Legend of Zelda: A Link to the Past"
   },
   "35514": {
@@ -35053,7 +35789,7 @@
   "4820": {
    "consoleId": 7,
    "consoleName": "NES/Famicom",
-   "imageIcon": "/Images/013734.png",
+   "imageIcon": "/Images/167158.png",
    "title": "Chou Fuyuu Yousai Exed Exes"
   },
   "4829": {
@@ -35140,6 +35876,12 @@
    "imageIcon": "/Images/039083.png",
    "title": "Super Mario World: Super Mario Advance 2"
   },
+  "4990": {
+   "consoleId": 7,
+   "consoleName": "NES/Famicom",
+   "imageIcon": "/Images/064512.png",
+   "title": "Zombie Hunter"
+  },
   "50": {
    "consoleId": 1,
    "consoleName": "Genesis/Mega Drive",
@@ -35199,6 +35941,12 @@
    "consoleName": "Game Boy",
    "imageIcon": "/Images/105307.png",
    "title": "Kaeru no Tame ni Kane wa Naru"
+  },
+  "5049": {
+   "consoleId": 12,
+   "consoleName": "PlayStation",
+   "imageIcon": "/Images/115598.png",
+   "title": "Rogue Trip: Vacation 2012"
   },
   "505": {
    "consoleId": 5,
@@ -35305,7 +36053,7 @@
   "5152": {
    "consoleId": 7,
    "consoleName": "NES/Famicom",
-   "imageIcon": "/Images/086287.png",
+   "imageIcon": "/Images/165197.png",
    "title": "Dragon Scroll"
   },
   "5175": {
@@ -35697,6 +36445,12 @@
    "consoleName": "Game Boy Advance",
    "imageIcon": "/Images/113726.png",
    "title": "Daredevil"
+  },
+  "5782": {
+   "consoleId": 81,
+   "consoleName": "Famicom Disk System",
+   "imageIcon": "/Images/115353.png",
+   "title": "Ai Senshi Nicol"
   },
   "5795": {
    "consoleId": 7,
@@ -36133,7 +36887,7 @@
   "6726": {
    "consoleId": 12,
    "consoleName": "PlayStation",
-   "imageIcon": "/Images/047424.png",
+   "imageIcon": "/Images/163020.png",
    "title": "The Adventures of Lomax"
   },
   "6727": {
@@ -37234,6 +37988,12 @@
    "imageIcon": "/Images/104797.png",
    "title": "Turbo Turtle Adventure"
   },
+  "86": {
+   "consoleId": 19,
+   "consoleName": "Wii",
+   "imageIcon": "/Images/164960.png",
+   "title": "MadWorld"
+  },
   "8677": {
    "consoleId": 5,
    "consoleName": "Game Boy Advance",
@@ -37281,6 +38041,12 @@
    "consoleName": "SNES/Super Famicom",
    "imageIcon": "/Images/070040.png",
    "title": "~Hack~ Super Mario World Bros"
+  },
+  "8838": {
+   "consoleId": 76,
+   "consoleName": "PC Engine CD/TurboGrafx-CD",
+   "imageIcon": "/Images/120101.png",
+   "title": "Ys III: Wanderers from Ys"
   },
   "8849": {
    "consoleId": 39,
@@ -37456,6 +38222,12 @@
    "imageIcon": "/Images/061614.png",
    "title": "Breath of Fire: Dragon Quarter"
   },
+  "9371": {
+   "consoleId": 21,
+   "consoleName": "PlayStation 2",
+   "imageIcon": "/Images/081732.png",
+   "title": "Ben 10: Protector of Earth"
+  },
   "938": {
    "consoleId": 3,
    "consoleName": "SNES/Super Famicom",
@@ -37513,7 +38285,7 @@
   "947": {
    "consoleId": 3,
    "consoleName": "SNES/Super Famicom",
-   "imageIcon": "/Images/052903.png",
+   "imageIcon": "/Images/166555.png",
    "title": "Incantation"
   },
   "9490": {
@@ -37545,6 +38317,12 @@
    "consoleName": "Game Boy Advance",
    "imageIcon": "/Images/123771.png",
    "title": "~Hack~ Pok\u00e9mon Adventure: Red Chapter"
+  },
+  "9596": {
+   "consoleId": 5,
+   "consoleName": "Game Boy Advance",
+   "imageIcon": "/Images/112066.png",
+   "title": "Hamtaro: Rainbow Rescue"
   },
   "9597": {
    "consoleId": 7,
@@ -37579,7 +38357,7 @@
   "963": {
    "consoleId": 3,
    "consoleName": "SNES/Super Famicom",
-   "imageIcon": "/Images/114169.png",
+   "imageIcon": "/Images/167327.png",
    "title": "Joe & Mac: Caveman Ninja"
   },
   "9699": {
@@ -37721,6 +38499,6 @@
    "title": "Phantasy Star"
   }
  },
- "generatedAt": "2026-10-23T23:43:48Z",
+ "generatedAt": "2026-11-11T04:00:29Z",
  "schemaVersion": 1
 }
