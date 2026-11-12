@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { multiplayerLounge } from "../../api";
 import { t, type LanguageCode } from "../../locales";
 import type { MultiplayerLounge, MultiplayerLoungeBoard, MultiplayerLoungeGame } from "../../types";
-import { playDrop, playMark, playTick } from "../../utils/lobbySounds";
+import { playDrop, playDropOther, playMark, playMarkOther, playTick } from "../../utils/lobbySounds";
 import { logError } from "../../utils/errors";
 import { roomGameWhy } from "../../utils/multiplayerProblems";
 import { forgetNavAxisMemory, type NavAxisRef } from "../../utils/navAxisMemory";
@@ -86,6 +86,26 @@ export function LoungeTab(props: {
     }, [game, board.board, board.match]);
     const gameKey = game === "ttt" ? "Tic-tac-toe" : "Connect Four";
     const mine = activeSlot(board, ownSeat);
+    const seen = useRef({ game, match: board.match, board: board.board });
+    useEffect(() => {
+        const before = seen.current;
+        seen.current = { game, match: board.match, board: board.board };
+        if (before.game !== game || (before.match !== board.match && /[^.]/.test(before.board))) {
+            return;
+        }
+        for (let index = 0; index < board.board.length; index++) {
+            const mark = board.board[index];
+            if (before.board[index] === "." && mark !== "." && Number(mark) !== mine) {
+                if (game === "ttt") {
+                    playMarkOther();
+                }
+                else {
+                    playDropOther();
+                }
+                return;
+            }
+        }
+    }, [game, board.board, board.match]);
     const started = game === "ttt" ? board.players.length === 2 : Boolean(board.started);
     const turnName = board.players[board.turn]?.name ?? "";
 

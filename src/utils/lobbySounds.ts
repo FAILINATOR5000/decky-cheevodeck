@@ -129,6 +129,18 @@ export function playDrop() {
     ], 0.6, 600);
 }
 
+export function playMarkOther() {
+    void play([{ frequency: E5, at: 0, peak: 0.24, decay: 0.2, sweep: 0.1 }], 0.6, 500);
+}
+
+export function playDropOther() {
+    void play([
+        { frequency: E5, at: 0, peak: 0.2, decay: 0.12, sweep: 0.05 },
+        { frequency: A5, at: 0.06, peak: 0.18, decay: 0.16, sweep: 0.08 },
+        { frequency: D6, at: 0.13, peak: 0.16, decay: 0.14, sweep: 0.08 }
+    ], 0.6, 600);
+}
+
 export function playStart() {
     void play([
         { frequency: E6, at: 0, peak: 0.24, decay: 0.9, sweep: 0.72 },
