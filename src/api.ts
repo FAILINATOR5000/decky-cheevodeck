@@ -2017,6 +2017,17 @@ const getGameIcon = callable<
 let GAME_ICON_CACHE_LIMIT = 1024;
 const gameIconMemoryCache = new Map<number, string>();
 const gameIconCacheOrder: number[] = [];
+const gameIconSource = new Map<number, string>();
+
+function artFile(url: string | null | undefined): string {
+    const path = String(url ?? "").trim().split(/[?#]/)[0];
+    return path.slice(path.lastIndexOf("/") + 1).toLowerCase();
+}
+
+function iconFits(gameId: number, imageIcon: string | null | undefined): boolean {
+    const want = artFile(imageIcon);
+    return !want || gameIconSource.get(gameId) === want;
+}
 
 // Game icons
 export function getCachedGameIconDataUri(gameId: number | null | undefined): string | null {
@@ -2026,18 +2037,20 @@ export function getCachedGameIconDataUri(gameId: number | null | undefined): str
     return gameIconMemoryCache.get(gameId) ?? null;
 }
 
-function storeGameIcon(gameId: number, dataUri: string) {
+function storeGameIcon(gameId: number, dataUri: string, source: string) {
     const existingIndex = gameIconCacheOrder.indexOf(gameId);
     if (existingIndex >= 0) {
         gameIconCacheOrder.splice(existingIndex, 1);
     }
     gameIconCacheOrder.push(gameId);
     gameIconMemoryCache.set(gameId, dataUri);
+    gameIconSource.set(gameId, source);
 
     while (gameIconCacheOrder.length > GAME_ICON_CACHE_LIMIT) {
         const oldestGameId = gameIconCacheOrder.shift();
         if (oldestGameId !== undefined) {
             gameIconMemoryCache.delete(oldestGameId);
+            gameIconSource.delete(oldestGameId);
         }
     }
 
@@ -2093,7 +2106,7 @@ export async function getGameIconCached(
         return { dataUri: null };
     }
     const cached = gameIconMemoryCache.get(gameId);
-    if (cached) {
+    if (cached && iconFits(gameId, imageIcon)) {
         return { dataUri: cached };
     }
 
@@ -2107,7 +2120,7 @@ export async function getGameIconCached(
         const result = await getGameIcon(gameId, imageIcon);
         const dataUri = result?.dataUri ?? null;
         if (dataUri) {
-            storeGameIcon(gameId, dataUri);
+            storeGameIcon(gameId, dataUri, artFile(imageIcon));
         }
         return { dataUri };
     })();
@@ -2123,14 +2136,17 @@ export async function getGameIconCached(
 export function clearGameIconMemoryCache() {
     gameIconMemoryCache.clear();
     gameIconCacheOrder.length = 0;
+    gameIconSource.clear();
 }
 
 function populateGameIconMemoryCache(
-    icons: Record<string | number, string | null> | null | undefined
+    icons: Record<string | number, string | null> | null | undefined,
+    asked: ReadonlyArray<{ gameId: number; imageIcon: string | null }>
 ): void {
     if (!icons) {
         return;
     }
+    const sources = new Map(asked.map((entry) => [entry.gameId, artFile(entry.imageIcon)]));
     for (const rawKey of Object.keys(icons)) {
         const gameId = Number(rawKey);
         if (!Number.isFinite(gameId) || gameId <= 0) {
@@ -2138,7 +2154,7 @@ function populateGameIconMemoryCache(
         }
         const dataUri = icons[rawKey];
         if (dataUri) {
-            storeGameIcon(gameId, dataUri);
+            storeGameIcon(gameId, dataUri, sources.get(gameId) ?? "");
         }
     }
 }
@@ -2182,7 +2198,7 @@ export async function prefetchGameIcons(
             continue;
         }
         seen.add(gameId);
-        if (gameIconMemoryCache.has(gameId)) {
+        if (gameIconMemoryCache.has(gameId) && iconFits(gameId, raw?.imageIcon)) {
             continue;
         }
         needed.push({
@@ -2201,7 +2217,7 @@ export async function prefetchGameIcons(
         for (let i = 0; i < needed.length; i += chunkSize) {
             const chunk = needed.slice(i, i + chunkSize);
             const result = await getGameIcons(chunk);
-            populateGameIconMemoryCache(result?.icons);
+            populateGameIconMemoryCache(result?.icons, chunk);
         }
     }
     catch (e) {
@@ -2378,7 +2394,7 @@ export async function prefetchTabGameIcons(
             continue;
         }
         seen.add(gameId);
-        if (gameIconMemoryCache.has(gameId)) {
+        if (gameIconMemoryCache.has(gameId) && iconFits(gameId, raw?.imageIcon)) {
             continue;
         }
         needed.push({
@@ -2398,7 +2414,7 @@ export async function prefetchTabGameIcons(
             }
             const chunk = needed.slice(i, i + chunkSize);
             const result = await getTabGameIcons(chunk);
-            populateGameIconMemoryCache(result?.icons);
+            populateGameIconMemoryCache(result?.icons, chunk);
         }
     }
     catch (e) {
@@ -2417,6 +2433,7 @@ const getGameImage = callable<
 let GAME_IMAGE_CACHE_LIMIT = 1024;
 const gameImageMemoryCache = new Map<string, string>();
 const gameImageCacheOrder: string[] = [];
+const gameImageSource = new Map<string, string>();
 
 function gameImageCacheKey(gameId: number, kind: GameImageKind): string {
     return `${gameId}:${kind}`;
@@ -2432,18 +2449,20 @@ export function getCachedGameImageDataUri(
     return gameImageMemoryCache.get(gameImageCacheKey(gameId, kind)) ?? null;
 }
 
-function storeGameImage(key: string, dataUri: string) {
+function storeGameImage(key: string, dataUri: string, source: string) {
     const existingIndex = gameImageCacheOrder.indexOf(key);
     if (existingIndex >= 0) {
         gameImageCacheOrder.splice(existingIndex, 1);
     }
     gameImageCacheOrder.push(key);
     gameImageMemoryCache.set(key, dataUri);
+    gameImageSource.set(key, source);
 
     while (gameImageCacheOrder.length > GAME_IMAGE_CACHE_LIMIT) {
         const oldest = gameImageCacheOrder.shift();
         if (oldest !== undefined) {
             gameImageMemoryCache.delete(oldest);
+            gameImageSource.delete(oldest);
         }
     }
 }
@@ -2460,12 +2479,14 @@ export function applyGameArtCacheCap(value: number) {
         const oldestGameId = gameIconCacheOrder.shift();
         if (oldestGameId !== undefined) {
             gameIconMemoryCache.delete(oldestGameId);
+            gameIconSource.delete(oldestGameId);
         }
     }
     while (gameImageCacheOrder.length > GAME_IMAGE_CACHE_LIMIT) {
         const oldest = gameImageCacheOrder.shift();
         if (oldest !== undefined) {
             gameImageMemoryCache.delete(oldest);
+            gameImageSource.delete(oldest);
         }
     }
 }
@@ -2480,13 +2501,14 @@ export async function getGameImageCached(
     }
     const memoryKey = gameImageCacheKey(gameId, kind);
     const cached = gameImageMemoryCache.get(memoryKey);
-    if (cached) {
+    const want = artFile(imageUrl);
+    if (cached && (!want || gameImageSource.get(memoryKey) === want)) {
         return { dataUri: cached };
     }
     const result = await getGameImage(gameId, kind, imageUrl);
     const dataUri = result?.dataUri ?? null;
     if (dataUri) {
-        storeGameImage(memoryKey, dataUri);
+        storeGameImage(memoryKey, dataUri, want);
     }
     return { dataUri };
 }
@@ -2494,6 +2516,7 @@ export async function getGameImageCached(
 export function clearGameImageMemoryCache() {
     gameImageMemoryCache.clear();
     gameImageCacheOrder.length = 0;
+    gameImageSource.clear();
 }
 
 const getUserAvatarCached = callable<[string], { dataUri: string | null }>(

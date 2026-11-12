@@ -108,9 +108,7 @@ function awardHasGameIcon(award: UserAwardRow) {
     if (award.awardData <= 0) {
         return false;
     }
-    return type === "Mastery/Completion"
-        || type === "Game Beaten"
-        || type === "Event";
+    return type === "Mastery/Completion" || type === "Game Beaten";
 }
 
 function matchesFilter(award: UserAwardRow, filter: BadgeFilter) {

@@ -366,7 +366,7 @@ class IconService:
 
         return {"icons": icons}
 
-    def _get_cached_game_icon(self, bundle):
+    def _get_cached_game_icon(self, bundle, url=None):
         """Look up the game icon entry inside a pre-loaded bundle.
 
         The bundle is the per-game blob from
@@ -376,6 +376,8 @@ class IconService:
         if not isinstance(bundle, dict):
             return None
         entry = bundle.get("gameIcon") or {}
+        if url and isinstance(entry, dict) and entry.get("srcUrl") != url:
+            return None
         return self._fresh_data_uri(entry, self._game_icon_max_age_seconds)
 
     def get_game_icon(self, game_id, image_icon=None) -> dict:
@@ -383,12 +385,12 @@ class IconService:
         if game_id_int is None:
             return {"dataUri": None}
 
+        url = self.game_icon_url(image_icon)
         bundle_snapshot = self._cache_store.load_game_bundle(game_id_int)
-        cached = self._get_cached_game_icon(bundle_snapshot)
+        cached = self._get_cached_game_icon(bundle_snapshot, url)
         if cached:
             return {"dataUri": cached}
 
-        url = self.game_icon_url(image_icon)
         if not url:
             return {"dataUri": None}
 
@@ -398,7 +400,7 @@ class IconService:
 
         with self._cache_store.game_bundle_lock(game_id_int):
             bundle = self._cache_store.load_game_bundle(game_id_int)
-            if not self._get_cached_game_icon(bundle):
+            if not self._get_cached_game_icon(bundle, url):
                 bundle["gameIcon"] = {
                     "dataUri": data_uri,
                     "cachedAt": int(time.time()),
@@ -447,7 +449,7 @@ class IconService:
         missing = []
         for game_id_int, url in cleaned:
             bundle_snapshot = self._cache_store.load_game_bundle(game_id_int)
-            cached = self._get_cached_game_icon(bundle_snapshot)
+            cached = self._get_cached_game_icon(bundle_snapshot, url)
             if cached:
                 icons[game_id_int] = cached
                 continue
@@ -487,7 +489,7 @@ class IconService:
         for gid, data_uri in fetched.items():
             with self._cache_store.game_bundle_lock(gid):
                 bundle = self._cache_store.load_game_bundle(gid)
-                if not self._get_cached_game_icon(bundle):
+                if not self._get_cached_game_icon(bundle, url_by_gid.get(gid)):
                     bundle["gameIcon"] = {
                         "dataUri": data_uri,
                         "cachedAt": now,
@@ -627,7 +629,7 @@ class IconService:
         missing = []
         for game_id_int, url in cleaned:
             bundle_snapshot = self._cache_store.load_game_bundle(game_id_int)
-            cached = self._get_cached_game_icon(bundle_snapshot)
+            cached = self._get_cached_game_icon(bundle_snapshot, url)
             if cached:
                 icons[game_id_int] = cached
                 continue
@@ -690,7 +692,7 @@ class IconService:
         for gid, data_uri in fetched.items():
             with self._cache_store.game_bundle_lock(gid):
                 bundle = self._cache_store.load_game_bundle(gid)
-                if not self._get_cached_game_icon(bundle):
+                if not self._get_cached_game_icon(bundle, url_by_gid.get(gid)):
                     bundle["gameIcon"] = {
                         "dataUri": data_uri,
                         "cachedAt": now,
@@ -706,13 +708,13 @@ class IconService:
             return text
         return None
 
-    def _get_cached_game_image(self, kind, bundle):
+    def _get_cached_game_image(self, kind, bundle, url=None):
         """Look up one non-icon game image inside a pre-loaded bundle."""
         norm_kind = self._norm_game_image_kind(kind)
         if norm_kind is None:
             return None
         if norm_kind == "icon":
-            return self._get_cached_game_icon(bundle)
+            return self._get_cached_game_icon(bundle, url)
 
         if not isinstance(bundle, dict):
             return None
@@ -720,6 +722,8 @@ class IconService:
         if not isinstance(game_images, dict):
             return None
         entry = game_images.get(norm_kind) or {}
+        if url and isinstance(entry, dict) and entry.get("srcUrl") != url:
+            return None
         return self._fresh_data_uri(entry, self._game_image_max_age_seconds)
 
     def get_game_image(self, game_id, kind=None, image_url=None) -> dict:
@@ -731,12 +735,12 @@ class IconService:
         if norm_kind == "icon":
             return self.get_game_icon(game_id_int, image_url)
 
+        url = self.game_icon_url(image_url)
         bundle_snapshot = self._cache_store.load_game_bundle(game_id_int)
-        cached = self._get_cached_game_image(norm_kind, bundle_snapshot)
+        cached = self._get_cached_game_image(norm_kind, bundle_snapshot, url)
         if cached:
             return {"dataUri": cached}
 
-        url = str(image_url or "").strip()
         if not url:
             return {"dataUri": None}
 
@@ -750,10 +754,11 @@ class IconService:
             if not isinstance(game_images, dict):
                 game_images = {}
                 bundle["gameImages"] = game_images
-            if not self._get_cached_game_image(norm_kind, bundle):
+            if not self._get_cached_game_image(norm_kind, bundle, url):
                 game_images[norm_kind] = {
                     "dataUri": data_uri,
                     "cachedAt": int(time.time()),
+                    "srcUrl": url,
                 }
                 self._cache_store.save_game_bundle(game_id_int, bundle)
         return {"dataUri": data_uri}

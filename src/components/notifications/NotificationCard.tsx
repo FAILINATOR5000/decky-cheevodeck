@@ -507,11 +507,12 @@ export const NotificationCard = React.memo(function NotificationCard(props: Noti
 
     useEffect(() => {
         if (!isGameSource || gameId == null) {
+            setGameIconDataUri(null);
             return;
         }
         const cached = getCachedGameIconDataUri(gameId);
+        setGameIconDataUri(cached);
         if (cached) {
-            setGameIconDataUri(cached);
             return;
         }
         let cancelled = false;

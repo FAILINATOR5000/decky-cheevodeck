@@ -18,9 +18,9 @@ export function useResilientGameIcon(
             return;
         }
         const cached = getCachedGameIconDataUri(gameId);
+        coldRef.current = false;
+        setIconDataUri(cached);
         if (cached) {
-            coldRef.current = false;
-            setIconDataUri(cached);
             return;
         }
         let cancelled = false;

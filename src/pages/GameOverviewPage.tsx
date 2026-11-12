@@ -371,7 +371,7 @@ function GameOverviewPage(props: GameOverviewPageProps) {
         kind: "game",
         id: gameId,
         buildEntry: () => {
-            if (gameId == null || !loadedPayload) {
+            if (gameId == null || loadedPayload?.gameId !== gameId) {
                 return null;
             }
             const gameTitle = loadedPayload.title ?? "";
