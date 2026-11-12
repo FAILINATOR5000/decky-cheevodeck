@@ -3257,7 +3257,7 @@ const RU: LocaleTable = {
     "New Device Online": "Новое устройство в сети",
     "New Message": "Новое сообщение",
     "Room Invite": "Приглашение в комнату",
-    "Room Chat": "Чат комнаты",
+    "{{name}} said:": "{{name}} пишет:",
     "Friend Request Accepted": "Заявка в друзья принята",
     "Joined Room": "Вход в комнату",
     "Left Room": "Выход из комнаты",

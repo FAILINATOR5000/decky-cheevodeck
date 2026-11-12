@@ -3220,7 +3220,7 @@ const ES: LocaleTable = {
     "New Device Online": "Nuevo dispositivo conectado",
     "New Message": "Nuevo mensaje",
     "Room Invite": "Invitación a sala",
-    "Room Chat": "Chat de sala",
+    "{{name}} said:": "{{name}} dice:",
     "Friend Request Accepted": "Solicitud de amistad aceptada",
     "Joined Room": "Se unió a la sala",
     "Left Room": "Salió de la sala",

@@ -3185,7 +3185,7 @@ export const EN: LocaleTable = {
     "New Device Online": "New Device Online",
     "New Message": "New Message",
     "Room Invite": "Room Invite",
-    "Room Chat": "Room Chat",
+    "{{name}} said:": "{{name}} said:",
     "Friend Request Accepted": "Friend Request Accepted",
     "Joined Room": "Joined Room",
     "Left Room": "Left Room",

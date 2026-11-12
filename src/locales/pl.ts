@@ -3288,7 +3288,7 @@ const PL: LocaleTable = {
     "New Device Online": "Nowe urządzenie online",
     "New Message": "Nowa wiadomość",
     "Room Invite": "Zaproszenie do pokoju",
-    "Room Chat": "Czat pokoju",
+    "{{name}} said:": "{{name}} pisze:",
     "Friend Request Accepted": "Prośba o znajomość przyjęta",
     "Joined Room": "Dołączono do pokoju",
     "Left Room": "Opuszczono pokój",

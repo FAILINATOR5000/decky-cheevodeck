@@ -3043,7 +3043,7 @@ const JA: LocaleTable = {
     "New Device Online": "新しい端末でログイン",
     "New Message": "新着メッセージ",
     "Room Invite": "ルームへの招待",
-    "Room Chat": "ルームチャット",
+    "{{name}} said:": "{{name}}のメッセージ:",
     "Friend Request Accepted": "フレンド申請が承認されました",
     "Joined Room": "ルームに参加しました",
     "Left Room": "ルームから退出",

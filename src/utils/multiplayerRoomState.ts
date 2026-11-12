@@ -63,6 +63,7 @@ let pressed: boolean | null = null;
 let seatedAt = 0;
 
 const CHAT_SETTLE_MS = 5000;
+const CHAT_TOAST_MS = 6000;
 const listeners = new Set<() => void>();
 let chatToastsInGame = false;
 const chatToastListeners = new Set<() => void>();
@@ -169,7 +170,7 @@ function chatter(before: MultiplayerRoomMarker, after: MultiplayerRoomMarker) {
         return;
     }
     if (playing || quickAccessIsHidden()) {
-        toaster.toast({ title: t(getCurrentLanguage(), "Room Chat"), body: `${line.name}: ${line.text}` });
+        toaster.toast({ title: t(getCurrentLanguage(), "{{name}} said:", { name: line.name }), body: line.text, duration: CHAT_TOAST_MS });
     }
     else {
         playTick();
