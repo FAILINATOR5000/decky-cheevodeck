@@ -4512,17 +4512,23 @@ class MultiplayerService:
             if held is not None and held[0]["door"] == "lan" and held[0]["address"] != row["address"] \
                     and (held[2] or self._round - held[1] < MISSED_ROUNDS):
                 continue
-            if room_id != own and (held is not None or len(self._rooms) < ROOMS_KEPT_MAX):
+            if room_id != own:
                 self._rooms[room_id] = (row, self._round, False)
         for room_id, (row, seen, manual) in list(self._rooms.items()):
             if row["door"] == "server" and room_id not in self._online:
                 del self._rooms[room_id]
             elif not manual and self._round - seen >= MISSED_ROUNDS:
                 del self._rooms[room_id]
+        online_kept = sum(1 for kept, _seen, _manual in self._rooms.values() if kept["door"] == "server")
         for room_id, row in self._online.items():
             held = self._rooms.get(room_id)
-            if room_id != own and (held is None or held[0]["door"] == "server" or self._prefer_server):
-                self._rooms[room_id] = (row, self._round, False)
+            if room_id == own or not (held is None or held[0]["door"] == "server" or self._prefer_server):
+                continue
+            if held is None or held[0]["door"] != "server":
+                if online_kept >= ROOMS_KEPT_MAX:
+                    continue
+                online_kept += 1
+            self._rooms[room_id] = (row, self._round, False)
         self._debug("discovery round %s found %s, %s online", self._round, len(found), len(self._online))
         rows = self._room_rows()
         if rows and self._room is None and self._joined is None:
@@ -4551,7 +4557,7 @@ class MultiplayerService:
 
     def _verdicts(self, rows: list) -> dict:
         stamp = (self._cheevo_check_store.results_fingerprint(), self._cheevo_check_store.picked_fingerprint())
-        if len(self._verdict_memo) > 64:
+        if len(self._verdict_memo) > ROOMS_KEPT_MAX + ROOMS_FOUND_MAX:
             self._verdict_memo.clear()
         found = {}
         for row in rows:
@@ -4569,7 +4575,7 @@ class MultiplayerService:
     def _room_rows(self) -> list:
         rows = [dict(row) for row, _seen, _manual in self._rooms.values()
                 if not row["friends"] or self._friend_pair(row["owner"]) is not None]
-        return sorted(rows, key=lambda row: (row["user"].lower(), row["room"]))
+        return sorted(rows, key=lambda row: (row["door"] != "lan", row["user"].lower(), row["room"]))
 
     async def lookup(self, address: str) -> dict:
         refused = self._refusal()
