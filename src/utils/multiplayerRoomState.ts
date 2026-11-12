@@ -2,7 +2,7 @@ import { addEventListener, removeEventListener, toaster } from "@decky/api";
 import { Router } from "@decky/ui";
 import { useSyncExternalStore } from "react";
 
-import { multiplayerCloseRoom, multiplayerLeave, multiplayerRoomStatus, multiplayerSetReady } from "../api";
+import { multiplayerCloseRoom, multiplayerLeave, multiplayerRoomStatus, multiplayerSetReady, saveMpChatToastsInGame } from "../api";
 import { getCurrentLanguage, t } from "../locales";
 import type { MultiplayerLounge, MultiplayerRoomStatus, MultiplayerVote } from "../types";
 import { logError } from "./errors";
@@ -64,6 +64,44 @@ let seatedAt = 0;
 
 const CHAT_SETTLE_MS = 5000;
 const listeners = new Set<() => void>();
+let chatToastsInGame = false;
+const chatToastListeners = new Set<() => void>();
+
+function publishChatToasts(next: boolean) {
+    if (next === chatToastsInGame) {
+        return;
+    }
+    chatToastsInGame = next;
+    for (const listener of chatToastListeners) {
+        listener();
+    }
+}
+
+export function setChatToastSettings(next: { mpChatToastsInGame?: boolean }) {
+    publishChatToasts(next.mpChatToastsInGame ?? chatToastsInGame);
+}
+
+export function useChatToastsInGame(): boolean {
+    return useSyncExternalStore((listener) => {
+        chatToastListeners.add(listener);
+        return () => {
+            chatToastListeners.delete(listener);
+        };
+    }, () => chatToastsInGame);
+}
+
+export async function changeChatToastsInGame(next: boolean) {
+    const was = chatToastsInGame;
+    publishChatToasts(next);
+    try {
+        const saved = await saveMpChatToastsInGame(next);
+        publishChatToasts(saved.mpChatToastsInGame);
+    }
+    catch (e) {
+        logError("room chat: saving In-Game Chat Toasts", e);
+        publishChatToasts(was);
+    }
+}
 
 function publish(next: MultiplayerRoomMarker, at: number, heard: boolean) {
     if (at < seq) {
@@ -126,10 +164,11 @@ function chatter(before: MultiplayerRoomMarker, after: MultiplayerRoomMarker) {
     }
     const own = after.role === "host" ? after.host : after.seats[after.seat]?.name ?? "";
     const old = after.chatBacklog >= 0 ? line.seq <= after.chatBacklog : Date.now() - seatedAt < CHAT_SETTLE_MS;
-    if (line.name === own || Number(Router.MainRunningApp?.appid ?? 0) > 0 || old) {
+    const playing = Number(Router.MainRunningApp?.appid ?? 0) > 0;
+    if (line.name === own || old || (playing && !chatToastsInGame)) {
         return;
     }
-    if (quickAccessIsHidden()) {
+    if (playing || quickAccessIsHidden()) {
         toaster.toast({ title: t(getCurrentLanguage(), "Room Chat"), body: `${line.name}: ${line.text}` });
     }
     else {

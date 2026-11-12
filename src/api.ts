@@ -941,6 +941,9 @@ export const streamSize = callable<[], { ok: boolean; size: string }>("stream_si
 export const streamSetUp = callable<[], StreamStatus>("stream_set_up");
 export const streamFinishSetup = callable<[appid: number], StreamStatus>("stream_finish_setup");
 export const streamUpdate = callable<[], StreamStatus>("stream_update");
+export const saveMpChatToastsInGame = callable<[boolean], { ok: boolean; mpChatToastsInGame: boolean }>(
+    "save_mp_chat_toasts_in_game"
+);
 export const saveMpStreamSlowConnection = callable<[boolean], { ok: boolean; mpStreamSlowConnection: boolean }>(
     "save_mp_stream_slow_connection"
 );

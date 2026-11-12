@@ -2968,6 +2968,8 @@ const JA: LocaleTable = {
     "DuckStation can't do Couch Play, and its saves won't carry over. {{core}} works, so this session uses it.": "DuckStationはCouch Playに対応しておらず、そのセーブデータは引き継がれません。{{core}}は対応しているので、このセッションではそれを使います。",
     "Chat History": "チャット履歴",
     Chat: "チャット",
+    "In-Game Chat Toasts": "ゲーム中のチャット通知",
+    "If enabled, whenever someone sends a chat message in the room, it will be pushed as a toast while you are playing your game.": "有効にすると、ルームで誰かがチャットを送信したとき、ゲームのプレイ中でも通知として表示されます。",
     "Send": "送信",
     "No messages yet": "まだメッセージはありません",
     "Couldn't send that message": "メッセージを送信できませんでした",

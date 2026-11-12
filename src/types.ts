@@ -876,6 +876,7 @@ export type SettingsResponse = {
     mpShortcutFallback: boolean;
     mpVoicePushToTalk: boolean;
     mpStreamSlowConnection: boolean;
+    mpChatToastsInGame: boolean;
     mpStreamScreenWarningOff: boolean;
     hotspotIntroOff: boolean;
     hotspotDedicated: boolean;

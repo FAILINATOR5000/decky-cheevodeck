@@ -36,6 +36,7 @@ import { setStormbreakerEnabled, setStormbreakerGameMode } from "./stormbreaker"
 import { setPhantomMouseGuardGameMode } from "./phantomMouseGuard";
 import { setVoiceSettings } from "./voiceChat";
 import { setStreamSettings } from "./streamPlay";
+import { setChatToastSettings } from "./multiplayerRoomState";
 import { setHotspotSettings } from "./hotspotState";
 
 const STARTUP_TRIES = 3;
@@ -80,6 +81,7 @@ export function applyFrontendSettings(settings: SettingsResponse): void {
     setAccurateAvatarDebug(settings.debugLogging);
     setVoiceSettings(settings);
     setStreamSettings(settings);
+    setChatToastSettings(settings);
     setHotspotSettings(settings);
     applyGameArtCacheCap(settings.gameArtCacheCap);
     applyAvatarCacheCap(settings.avatarCacheCap);

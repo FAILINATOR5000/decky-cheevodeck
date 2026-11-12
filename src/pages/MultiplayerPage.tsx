@@ -85,6 +85,7 @@ import {
     useSlowConnection,
     useStreamSetup
 } from "../utils/streamPlay";
+import { changeChatToastsInGame, useChatToastsInGame } from "../utils/multiplayerRoomState";
 import { ProgressBar } from "../components/ui/ProgressBar";
 import { hotspotWithoutInternet, useHotspot } from "../utils/hotspotState";
 import { getCurrentControllerGlyphStyle } from "../utils/controllerGlyphs";
@@ -275,6 +276,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const gameVolume = useGameVolume(visible);
     const stream = useStreamSetup(visible && mp.mode === "stream");
     const slowConnection = useSlowConnection();
+    const chatToastsInGame = useChatToastsInGame();
     const hotspot = useHotspot();
 
     useEffect(() => {
@@ -1666,6 +1668,19 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             </FocusableItem>
         </PanelSectionRow>
     );
+    const chatToastRow = inSession && (
+        <ToggleRow
+            bottomSeparator="none"
+            controlled
+            label={t(language, "In-Game Chat Toasts")}
+            value={chatToastsInGame}
+            outerStyle={buttonStyle}
+            focusKey="multiplayer:toggle:chattoasts"
+            focusFallback={["multiplayer:toggle:voice", "multiplayer:adapter", "multiplayer:toggle:watch", "multiplayer:toggle:share", "multiplayer:toggle:hardcore", exitKey]}
+            onChange={(next) => void changeChatToastsInGame(next)}
+            help={t(language, "If enabled, whenever someone sends a chat message in the room, it will be pushed as a toast while you are playing your game.")}
+        />
+    );
     const optionRows = (roomHasOptions || inSession) && (
         <>
             <SectionTitle label={t(language, "Options")} />
@@ -1681,6 +1696,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             {showWatch && watchRow}
             {showAdapter && adapterRow}
             {voiceRow}
+            {chatToastRow}
         </>
     );
 

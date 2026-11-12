@@ -705,6 +705,14 @@ class OptionsMixin(PluginContext):
             "hotspotIntroOff": value,
         }
 
+    async def save_mp_chat_toasts_in_game(self, mp_chat_toasts_in_game: bool):
+        value = self.settings_store.update_mp_chat_toasts_in_game(mp_chat_toasts_in_game)
+
+        return {
+            "ok": True,
+            "mpChatToastsInGame": value,
+        }
+
     async def save_mp_stream_slow_connection(self, mp_stream_slow_connection: bool):
         value = self.settings_store.update_mp_stream_slow_connection(mp_stream_slow_connection)
 
