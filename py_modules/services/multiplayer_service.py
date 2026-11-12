@@ -4561,8 +4561,7 @@ class MultiplayerService:
             self._verdict_memo.clear()
         found = {}
         for row in rows:
-            key = (row["room"], row["mode"], row["gameId"], row["core"], row["hash"], row["coreBuild"],
-                   row["emuVersion"], row["gameCode"], row["hostState"], stamp)
+            key = (json.dumps(row, sort_keys=True, separators=(",", ":")), stamp)
             verdict = self._verdict_memo.get(key)
             if verdict is None or not verdict["can"]:
                 local, reason, detail = self._decide(row, 0, "")
