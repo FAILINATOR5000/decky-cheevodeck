@@ -68,7 +68,6 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
     async function join() {
         setBusy(true);
         setLine({ tone: "busy", text: t(language, "Joining...") });
-        let joinedRunningGame = false;
         try {
             await multiplayerSetVisible(true, true);
             const joined = await multiplayerFriendJoin(friend.ulid, password, props.hardcore);
@@ -87,9 +86,6 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
                 failed(joined.error);
                 return;
             }
-            const room = joined.room;
-            joinedRunningGame = (room?.mode === "stream" || (room?.mode === "couch" && room.emulator === "retroarch"))
-                && room.state === "playing";
         }
         catch (e) {
             logError("multiplayerFriendJoin", e);
@@ -98,9 +94,7 @@ function FriendCardModal(props: FriendCardOptions & { language: LanguageCode; cl
             return;
         }
         rememberMultiplayerPage("play");
-        overrideRecord(entryId, joinedRunningGame
-            ? { focusKey: "multiplayer:play", fallbacks: ["multiplayer:leave"], tabPath: ["play"] }
-            : { focusKey: "multiplayer:leave", tabPath: ["play"] });
+        overrideRecord(entryId, { focusKey: "multiplayer:play", fallbacks: ["multiplayer:leave"], tabPath: ["play"] });
         close();
     }
 

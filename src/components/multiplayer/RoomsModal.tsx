@@ -233,11 +233,7 @@ function RoomsModal(props: RoomsModalProps) {
             if (joined.ok) {
                 joinedRef.current = true;
                 rememberMultiplayerTab(row.mode);
-                const running = (row.mode === "stream" || (row.mode === "couch" && row.emulator === "retroarch"))
-                    && row.state === "playing";
-                overrideRecord(entryId, running
-                    ? { focusKey: "multiplayer:play", fallbacks: ["multiplayer:leave"] }
-                    : { focusKey: "multiplayer:leave" });
+                overrideRecord(entryId, { focusKey: "multiplayer:play", fallbacks: ["multiplayer:leave"] });
                 close();
                 return;
             }

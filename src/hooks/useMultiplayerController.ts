@@ -323,7 +323,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
                 setVisibleError(opened.ok ? "" : opened.error ?? "unavailable");
                 const invite = opened.ok ? takeMultiplayerInvite() : null;
                 if (invite && await run("Couldn't Join the Room", () => multiplayerAcceptInvite(invite, hardcore))) {
-                    landOnTop("multiplayer", "multiplayer:leave");
+                    landOnTop("multiplayer", "multiplayer:play");
                 }
             }
             catch (e) {
