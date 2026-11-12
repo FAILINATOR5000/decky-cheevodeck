@@ -115,6 +115,19 @@ class MultiplayerMixin(PluginContext):
     async def multiplayer_start_cancel(self, error: str = ""):
         return self.multiplayer_service.start_cancel(str(error or ""))
 
+    async def multiplayer_vote_start(self, kind: str = "", games=None):
+        listed = [to_int(game, 0) for game in games[:8]] if isinstance(games, list) else []
+        return await self.multiplayer_service.vote_start("pick" if kind == "pick" else "vote", listed)
+
+    async def multiplayer_vote_cancel(self):
+        return self.multiplayer_service.vote_cancel()
+
+    async def multiplayer_vote(self, vote: int = 0, pick: int = 0):
+        return await self.multiplayer_service.vote(to_int(vote, 0), to_int(pick, 0))
+
+    async def multiplayer_lounge(self, game: str = "", act: str = "", cell: int = 0):
+        return await self.multiplayer_service.lounge_press(str(game or ""), str(act or ""), to_int(cell, 0))
+
     async def multiplayer_leave(self):
         return self.multiplayer_service.leave()
 

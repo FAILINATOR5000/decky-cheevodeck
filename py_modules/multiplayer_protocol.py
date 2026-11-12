@@ -68,7 +68,7 @@ _TITLE_MAX = 64
 _CORE_NAME_MAX = 48
 _VERSION_MAX = 32
 
-TAGGED_OPS = ("status", "launched", "leave", "ready", "say", "friend", "pass", "voice")
+TAGGED_OPS = ("status", "launched", "leave", "ready", "say", "friend", "pass", "voice", "vote", "lounge")
 
 CHAT_MAX = 120
 CHAT_KEPT = 50
@@ -612,8 +612,12 @@ def read_status_reply(key: bytes, message, nonce: str):
     last = message.get("lastStart")
     sent = message.get("room")
     room = _room_fields({**sent, "seats": members}) if isinstance(sent, dict) and isinstance(members, list) else None
+    vote = read_vote(message.get("vote"))
+    lounge = read_lounge(message.get("lounge"))
     if (
         room is None
+        or (message.get("vote") is not None and vote is None)
+        or lounge is None
         or message.get("state") not in STATES
         or type(message.get("hardcore")) is not bool
         or not is_ipv4(message.get("ip"))
@@ -662,6 +666,8 @@ def read_status_reply(key: bytes, message, nonce: str):
         "inbox": [item for item in (read_inbox_item(raw) for raw in message["inbox"]) if item is not None],
         "voice": [item for item in (read_voice_item(raw) for raw in message.get("voice", [])) if item is not None],
         "turn": read_turn(message.get("turn")),
+        "vote": vote,
+        "lounge": lounge,
         "stream": read_stream(message.get("stream")),
         "pipe": read_pipe(message.get("pipe")),
         "rmg": message["rmg"] if type(message.get("rmg")) is int and 0 < message["rmg"] < 2 ** 31 else 0,
@@ -877,3 +883,135 @@ def read_turn(raw):
     if not isinstance(raw.get("p"), str):
         return None
     return {"u": raw["u"], "p": raw["p"], "ttl": ttl, "n": nonce}
+
+
+VOTE_KINDS = ("vote", "pick")
+VOTE_ENDS = ("", "won", "canceled", "started")
+VOTE_GAMES_MAX = 4
+_ICON = re.compile(r"/Images/[0-9A-Za-z_]{1,32}\.(png|jpg)")
+_TTT_BOARD = re.compile(r"[.01]{9}")
+_C4_BOARD = re.compile(r"[.0-3]{42}")
+LOUNGE_ENDS = ("", "win", "draw")
+LOUNGE_GAMES = ("ttt", "c4")
+LOUNGE_ACTS = ("move", "start", "clear")
+
+
+def _small_int(value, low: int, high: int) -> bool:
+    return type(value) is int and low <= value <= high
+
+
+def _vote_game(raw):
+    if not isinstance(raw, dict):
+        return None
+    title = _clean(raw.get("title"), _TITLE_MAX)
+    icon = raw.get("icon")
+    if (
+        not title
+        or not _small_int(raw.get("gameId"), 1, 2 ** 31 - 1)
+        or not _small_int(raw.get("systemId"), 1, 999)
+        or not isinstance(icon, str)
+        or (icon and _ICON.fullmatch(icon) is None)
+    ):
+        return None
+    return {"gameId": raw["gameId"], "systemId": raw["systemId"], "title": title, "icon": icon}
+
+
+def clean_title(value) -> str:
+    return _clean(value, _TITLE_MAX) or ""
+
+
+def clean_icon(value) -> str:
+    return value if isinstance(value, str) and _ICON.fullmatch(value) is not None else ""
+
+
+def read_vote(raw):
+    if not isinstance(raw, dict):
+        return None
+    games = raw.get("games")
+    counts = raw.get("counts")
+    if (
+        not _small_int(raw.get("id"), 1, 2 ** 31 - 1)
+        or raw.get("kind") not in VOTE_KINDS
+        or type(raw.get("open")) is not bool
+        or raw.get("ended") not in VOTE_ENDS
+        or not isinstance(games, list)
+        or not 2 <= len(games) <= VOTE_GAMES_MAX
+        or not isinstance(counts, list)
+        or len(counts) != len(games)
+        or not all(_small_int(count, 0, MAX_SEATS * 4) for count in counts)
+        or not _small_int(raw.get("winner"), -1, len(games) - 1)
+        or not _small_int(raw.get("mine"), -1, len(games) - 1)
+    ):
+        return None
+    read = [_vote_game(game) for game in games]
+    if any(game is None for game in read):
+        return None
+    return {"id": raw["id"], "kind": raw["kind"], "open": raw["open"], "ended": raw["ended"], "winner": raw["winner"],
+            "games": read, "counts": list(counts), "mine": raw["mine"]}
+
+
+def _lounge_players(raw, most: int):
+    if not isinstance(raw, list) or len(raw) > most:
+        return None
+    players = []
+    for entry in raw:
+        if (
+            not isinstance(entry, dict)
+            or not _small_int(entry.get("seat"), 0, MAX_SEATS - 1)
+            or not _clean(entry.get("name"), _USER_MAX)
+            or type(entry.get("gone")) is not bool
+        ):
+            return None
+        players.append({"seat": entry["seat"], "name": _clean(entry["name"], _USER_MAX), "pic": clean_pic(entry.get("pic")),
+                        "gone": entry["gone"]})
+    return players
+
+
+def _lounge_board(raw, pattern, players_most: int, cells: int):
+    if not isinstance(raw, dict):
+        return None
+    players = _lounge_players(raw.get("players"), players_most)
+    line = raw.get("line")
+    if (
+        players is None
+        or not isinstance(raw.get("board"), str)
+        or pattern.fullmatch(raw["board"]) is None
+        or not _small_int(raw.get("match"), 0, 2 ** 31 - 1)
+        or not _small_int(raw.get("turn"), 0, players_most - 1)
+        or raw.get("end") not in LOUNGE_ENDS
+        or not _small_int(raw.get("winner"), -1, players_most - 1)
+        or not isinstance(line, list)
+        or len(line) > 8
+        or not all(_small_int(cell, 0, cells - 1) for cell in line)
+    ):
+        return None
+    return {"match": raw["match"], "board": raw["board"], "players": players, "turn": raw["turn"], "end": raw["end"],
+            "winner": raw["winner"], "line": list(line)}
+
+
+def read_lounge(raw):
+    if not isinstance(raw, dict):
+        return None
+    ttt = _lounge_board(raw.get("ttt"), _TTT_BOARD, 2, 9)
+    c4 = _lounge_board(raw.get("c4"), _C4_BOARD, 4, 42)
+    if ttt is None or c4 is None or type(raw["c4"].get("started")) is not bool:
+        return None
+    c4["started"] = raw["c4"]["started"]
+    return {"ttt": ttt, "c4": c4}
+
+
+def read_vote_press(raw):
+    if not isinstance(raw, dict) or not _small_int(raw.get("vote"), 1, 2 ** 31 - 1) \
+            or not _small_int(raw.get("pick"), 0, VOTE_GAMES_MAX - 1):
+        return None
+    return raw["vote"], raw["pick"]
+
+
+def read_lounge_press(raw):
+    if not isinstance(raw, dict) or raw.get("game") not in LOUNGE_GAMES or raw.get("act") not in LOUNGE_ACTS:
+        return None
+    cells = 9 if raw["game"] == "ttt" else 7
+    cell = raw.get("cell", 0)
+    if not _small_int(cell, 0, cells - 1):
+        return None
+    return raw["game"], raw["act"], cell

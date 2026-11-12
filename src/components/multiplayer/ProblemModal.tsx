@@ -7,14 +7,21 @@ import { HeadingStop } from "../ui/HeadingStop";
 
 export type ProblemItem = string | { text: string; onPress: () => void };
 
-function ProblemModal(props: { language: LanguageCode; title: string; text: string | ProblemItem[]; close: () => void }) {
+function ProblemModal(props: {
+    language: LanguageCode;
+    title: string;
+    text: string | ProblemItem[];
+    titleFirst: boolean;
+    close: () => void;
+}) {
     const { language, close } = props;
     const text = typeof props.text === "string" ? props.text : null;
     const items = typeof props.text === "string" ? null : props.text;
     const bulleted = items !== null && items.length > 1;
+    const closeFirst = items === null && !props.titleFirst;
     return (
         <ModalRoot onCancel={close} onEscKeypress={close}>
-            <HeadingStop focusKey="problem:title" autoFocus outerStyle={{ marginBottom: "12px" }}
+            <HeadingStop focusKey="problem:title" autoFocus={!closeFirst} outerStyle={{ marginBottom: "12px" }}
                 style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700 }}>
                 {props.title}
             </HeadingStop>
@@ -39,14 +46,14 @@ function ProblemModal(props: { language: LanguageCode; title: string; text: stri
                 </div>
             ))}
             <Focusable style={{ display: "flex", justifyContent: "flex-end", marginTop: "16px" }} flow-children="row">
-                <DialogButton onClick={close}>{t(language, "Close")}</DialogButton>
+                <DialogButton onClick={close} autoFocus={closeFirst}>{t(language, "Close")}</DialogButton>
             </Focusable>
         </ModalRoot>
     );
 }
 
-export function showMultiplayerProblem(language: LanguageCode, titleKey: string, text: string | ProblemItem[]) {
+export function showMultiplayerProblem(language: LanguageCode, titleKey: string, text: string | ProblemItem[], titleFirst = false) {
     showManagedModal((close) => (
-        <ProblemModal language={language} title={t(language, titleKey)} text={text} close={close} />
+        <ProblemModal language={language} title={t(language, titleKey)} text={text} titleFirst={titleFirst} close={close} />
     ));
 }

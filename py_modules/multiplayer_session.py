@@ -632,18 +632,55 @@ def dolphin_config(home, install: str):
 
 
 def dolphin_missing_folder(home, install: str, rom: str) -> str:
+    folder = os.path.dirname(os.path.realpath(rom))
+    return folder if dolphin_folder_unlisted(home, install, folder) else ""
+
+
+def dolphin_folder_unlisted(home, install: str, folder: str) -> bool:
     config = dolphin_config(home, install)
     if config is None or not config.is_file():
-        return ""
+        return False
     pairs = dict(_ini_pairs(config))
     recursive = pairs.get("RecursiveISOPaths", "").strip().lower() == "true"
-    folder = os.path.dirname(os.path.realpath(rom))
+    folder = os.path.realpath(folder)
     listed = [os.path.realpath(_expand(value.strip(), Path(home), Path(home)))
               for key, value in pairs.items() if re.fullmatch(r"ISOPath\d+", key) and value.strip()]
     for path in listed:
         if folder == path or (recursive and folder.startswith(path.rstrip("/") + "/")):
-            return ""
-    return os.path.dirname(rom)
+            return False
+    return True
+
+
+def dolphin_add_folder(text: str, folder: str) -> str:
+    newline = "\r\n" if "\r\n" in text else "\n"
+    lines = text.splitlines(keepends=True)
+    if lines and not lines[-1].endswith("\n"):
+        lines[-1] += newline
+    start = next((at for at, line in enumerate(lines) if line.strip().lower() == "[general]"), None)
+    if start is None:
+        lines.append("[General]" + newline)
+        start = len(lines) - 1
+    end = next((at for at in range(start + 1, len(lines)) if lines[at].lstrip().startswith("[")), len(lines))
+    keys = {}
+    for at in range(start + 1, end):
+        found = _INI_LINE.match(lines[at])
+        if found:
+            keys[found.group(1)] = at
+    count = _INI_LINE.match(lines[keys["ISOPaths"]]).group(2) if "ISOPaths" in keys else ""
+    index = int(count) if count.isdigit() else 0
+    entry = f"ISOPath{index}"
+    if "ISOPaths" in keys:
+        lines[keys["ISOPaths"]] = f"ISOPaths = {index + 1}{newline}"
+    if entry in keys:
+        placed = keys[entry]
+        lines[placed] = f"{entry} = {folder}{newline}"
+    else:
+        near = [at for key, at in keys.items() if key.startswith("ISOPath")] or list(keys.values()) or [start]
+        placed = max(near) + 1
+        lines.insert(placed, f"{entry} = {folder}{newline}")
+    if "ISOPaths" not in keys:
+        lines.insert(placed + 1, f"ISOPaths = {index + 1}{newline}")
+    return "".join(lines)
 
 
 def dolphin_netplay_args(*, host_ip: str, nick: str, hardcore: bool, marker: Path,

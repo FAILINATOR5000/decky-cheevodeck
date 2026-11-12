@@ -1,6 +1,7 @@
 import type {
     GameOverviewIdentity,
     MultiplayerAccess,
+    MultiplayerLoungeGame,
     MultiplayerMode,
     MultiplayerRoomFilter,
     MultiplayerRoomTab,
@@ -23,6 +24,7 @@ type Choices = {
     filter: MultiplayerRoomFilter;
     page: MultiplayerTab;
     roomTab: { room: string; tab: MultiplayerRoomTab };
+    loungeGame: MultiplayerLoungeGame;
     invite: { id: string; at: number } | null;
     message: { friend: string; id: string; at: number } | null;
     source: MultiplayerSource;
@@ -47,6 +49,7 @@ const choices: Choices = {
     filter: NO_ROOM_FILTER,
     page: "play",
     roomTab: { room: "", tab: "room" },
+    loungeGame: "ttt",
     invite: null,
     message: null,
     source: "achievements",
@@ -111,6 +114,10 @@ export function rememberMultiplayerPage(page: MultiplayerTab) {
 
 export function rememberMultiplayerRoomTab(room: string, tab: MultiplayerRoomTab) {
     choices.roomTab = { room, tab };
+}
+
+export function rememberMultiplayerLoungeGame(game: MultiplayerLoungeGame) {
+    choices.loungeGame = game;
 }
 
 export function rememberMultiplayerInvite(invite: string | null) {

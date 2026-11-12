@@ -2948,7 +2948,35 @@ export type MultiplayerAdapter = "auto" | "team" | "4way" | "port1" | "port2";
 
 export type MultiplayerTab = "play" | "friends";
 
-export type MultiplayerRoomTab = "room" | "audio" | "misc";
+export type MultiplayerRoomTab = "room" | "vote" | "lounge" | "audio" | "stream";
+
+export type MultiplayerLoungeGame = "ttt" | "c4";
+
+export type MultiplayerVote = {
+    id: number;
+    kind: "vote" | "pick";
+    open: boolean;
+    ended: "" | "won" | "canceled" | "started";
+    winner: number;
+    games: { gameId: number; systemId: number; title: string; icon: string }[];
+    counts: number[];
+    mine: number;
+};
+
+type MultiplayerLoungePlayer = { seat: number; name: string; pic: string; gone: boolean };
+
+export type MultiplayerLoungeBoard = {
+    match: number;
+    board: string;
+    players: MultiplayerLoungePlayer[];
+    turn: number;
+    end: "" | "win" | "draw";
+    winner: number;
+    line: number[];
+    started?: boolean;
+};
+
+export type MultiplayerLounge = { ttt: MultiplayerLoungeBoard; c4: MultiplayerLoungeBoard & { started: boolean } };
 
 export type MultiplayerWhere = "local" | "online";
 
@@ -3057,6 +3085,8 @@ export type MultiplayerHostedRoom = {
     lastStart: MultiplayerLastStart;
     notice: { code: string; detail: Record<string, string> } | null;
     chat: MultiplayerChatLine[];
+    vote: MultiplayerVote | null;
+    lounge: MultiplayerLounge;
 };
 
 type MultiplayerGuestStatus = {
@@ -3073,6 +3103,8 @@ type MultiplayerGuestStatus = {
         st?: string }[];
     lastStart: MultiplayerLastStart;
     ids: { ulid: string; pic: string }[];
+    vote: MultiplayerVote | null;
+    lounge: MultiplayerLounge;
 };
 
 export type MultiplayerRoomStatus =
@@ -3213,7 +3245,7 @@ export type FixChoice = {
 
 export type FixStep = {
     do: "install_core" | "update_core" | "install_emulator" | "update_emulator" | "add_to_steam" | "enable_shortcut_fallback"
-        | "enable_play_shortcut_fallback" | "setup_streaming" | "pick_game_file";
+        | "enable_play_shortcut_fallback" | "setup_streaming" | "pick_game_file" | "add_dolphin_folder";
     where: "backend" | "client";
     core?: string;
     name?: string;
@@ -3223,6 +3255,8 @@ export type FixStep = {
     id?: string;
     scope?: string;
     path?: string;
+    folder?: string;
+    install?: string;
     choices?: FixChoice[];
     reason?: "" | "host_version" | "game_shortcut" | "single" | "missing" | "dolphin_tool";
 };

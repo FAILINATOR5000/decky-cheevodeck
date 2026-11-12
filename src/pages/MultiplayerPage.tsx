@@ -23,6 +23,9 @@ import { openCorePicker } from "../components/multiplayer/CorePickerModal";
 import { showPlayWith } from "../components/game/PlayWithModal";
 import { RoomChatBox } from "../components/multiplayer/RoomChatBox";
 import { RoomTable, type RoomTableVoice, type StreamSeatState } from "../components/multiplayer/RoomTable";
+import { ROOM_TABS, RoomTabs } from "../components/multiplayer/RoomTabs";
+import { GameVoteTab } from "../components/multiplayer/GameVoteTab";
+import { LoungeTab } from "../components/multiplayer/LoungeTab";
 import { pressOwnMic } from "../components/multiplayer/VoiceDialogs";
 import { FriendsTab } from "../components/multiplayer/FriendsTab";
 import { openSeatCard } from "../components/multiplayer/SeatCardModal";
@@ -36,13 +39,14 @@ import { SectionTitle } from "../components/ui/SectionTitle";
 import { useMultiplayer } from "../components/multiplayer/MultiplayerContext";
 import { CheevoCheckGamesModal } from "../components/pickers/CheevoCheckGamesModal";
 import { skipWhileHidden } from "../components/panel/skipWhileHidden";
-import { usePageLanding, type LandingWindows } from "../focusRecords";
+import { landOnTop, usePageLanding, type LandingWindows } from "../focusRecords";
 import { t, type LanguageCode } from "../locales";
 import type {
     ButtonSpacing,
     MultiplayerCoreChoice,
     MultiplayerGuestGame,
     MultiplayerAdapter,
+    MultiplayerLoungeGame,
     MultiplayerMode,
     MultiplayerRoomTab,
     MultiplayerSeatState,
@@ -55,7 +59,11 @@ import { showManagedModal } from "../utils/modalRegistry";
 import { logError } from "../utils/errors";
 import { multiplayerCouchChoices, multiplayerGuestGames, multiplayerPlayChoices, multiplayerSetStreamPick } from "../api";
 import { anyGameRunning, otherGameRunning } from "../utils/multiplayerSession";
-import { multiplayerChoices, rememberMultiplayerRoomTab } from "../utils/multiplayerChoices";
+import {
+    multiplayerChoices,
+    rememberMultiplayerLoungeGame,
+    rememberMultiplayerRoomTab
+} from "../utils/multiplayerChoices";
 import { shortcutButtonGlyphs } from "../utils/options";
 import { changeMicLevel, changePttToggle, changePushToTalk, changeSensitivity, usePushToTalk, useVoiceChat } from "../utils/voiceChat";
 import {
@@ -82,7 +90,7 @@ import { getCurrentControllerGlyphStyle } from "../utils/controllerGlyphs";
 import { ButtonHints, type ButtonHint } from "../components/ui/ButtonHints";
 import { openExternalUrl, raLookupSearchUrl } from "../utils/navigation";
 import { playMoveSound } from "../utils/navSound";
-import { ROOM_ENDED, gateText, problemText, streamHostProblemText, warningText } from "../utils/multiplayerProblems";
+import { ROOM_ENDED, gateText, problemText, roomGameWhy, streamHostProblemText, warningText } from "../utils/multiplayerProblems";
 import {
     achievementGreen,
     bodyTextStyle,
@@ -97,6 +105,7 @@ import {
 const BACK_BUTTON_SCROLL_MARGIN_PX = 24;
 const NAV_ENTER_MAINTAIN_Y = 3;
 const FIX_DONE_MS = 4000;
+let fixDoneShownFor = 0;
 const DIR_UP = 9;
 
 const DOLPHIN_CONSOLES = ["GameCube", "Wii"];
@@ -104,6 +113,14 @@ const GBA_SYSTEM = 5;
 const NO_CORES: MultiplayerCoreChoice[] = [];
 
 const STREAM_SEAT_STATES: StreamSeatState[] = ["pairing", "connecting", "streaming", "relay", "failed"];
+
+function asSentence(language: LanguageCode, text: string): string {
+    const trimmed = text.trim();
+    if (/[.!?。！？]$/.test(trimmed)) {
+        return trimmed;
+    }
+    return trimmed + (language === "ja" ? "。" : ".");
+}
 
 function seatMark(ready: boolean, seatState: MultiplayerSeatState | undefined, can: boolean): "ready" | MultiplayerSeatState {
     if (ready) {
@@ -121,8 +138,6 @@ const TABS: { tab: MultiplayerTab; labelKey: string; focusKey: string }[] = [
     { tab: "friends", labelKey: "Friends", focusKey: "multiplayer:tab:friends" }
 ];
 
-const WAITING = ["nobody_ready", "drop_in"];
-const ROOM_NOTICES = ["unreadied_other_game", "other_game"];
 
 const SETUP_LINES: Record<string, { key: string; color?: string }> = {
     sunshine: { key: "Downloading Sunshine…" },
@@ -241,14 +256,16 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     }, [visible]);
 
     useEffect(() => {
-        if (!fixRun?.done) {
+        if (!fixRun?.done || fixPlan.finished === fixDoneShownFor) {
             return;
         }
+        fixDoneShownFor = fixPlan.finished;
         setFixDoneShown(true);
         const timer = window.setTimeout(() => setFixDoneShown(false), FIX_DONE_MS);
         return () => window.clearTimeout(timer);
     }, [fixPlan.finished]);
     const landingWindows = useRef<LandingWindows | null>(null);
+    const streamModeNav = useRef<any>(null);
     const [playFocused, setPlayFocused] = useState(false);
     const [screenHz, setScreenHz] = useState<number | null>(null);
     const voice = useVoiceChat(visible);
@@ -286,25 +303,39 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const roomId = mp.hosted?.id ?? mp.joined?.room.room ?? "";
     const roomVoice = mp.hosted ? mp.hosted.voice : Boolean(mp.joined?.room.voice);
     const [roomTabChoice, setRoomTabChoice] = useState(() => multiplayerChoices().roomTab);
-    if (roomId && !roomVoice && roomTabChoice.room === roomId && roomTabChoice.tab === "audio") {
-        setRoomTabChoice({ room: roomId, tab: "room" });
-        rememberMultiplayerRoomTab(roomId, "room");
-    }
     const streamRoom = (mp.hosted?.mode ?? mp.joined?.room.mode) === "stream";
+    const tabOff: Partial<Record<MultiplayerRoomTab, boolean>> = { audio: !roomVoice, stream: !streamRoom };
     const chosenTab = roomTabChoice.room === roomId ? roomTabChoice.tab : "room";
-    const roomTab: MultiplayerRoomTab = (chosenTab === "audio" && roomVoice) || (chosenTab === "misc" && streamRoom)
-        ? chosenTab : "room";
+    const roomTab: MultiplayerRoomTab = ROOM_TABS.some((entry) => entry.tab === chosenTab) && !tabOff[chosenTab] ? chosenTab : "room";
     function showRoomTab(tab: MultiplayerRoomTab) {
         setRoomTabChoice({ room: roomId, tab });
         rememberMultiplayerRoomTab(roomId, tab);
+    }
+    const tabBodyRef = useRef<HTMLDivElement | null>(null);
+    const cursorTab = useRef<MultiplayerRoomTab | null>(null);
+    const lostTab = roomTabChoice.room === roomId && tabOff[roomTabChoice.tab] ? roomTabChoice.tab : null;
+    useEffect(() => {
+        if (!lostTab) {
+            return;
+        }
+        const wasInside = cursorTab.current === lostTab;
+        showRoomTab("room");
+        if (wasInside) {
+            landOnTop("multiplayer", "multiplayer:roomtab:room");
+        }
+    }, [lostTab]);
+    const [loungeGame, setLoungeGame] = useState(() => multiplayerChoices().loungeGame);
+    function showLoungeGame(game: MultiplayerLoungeGame) {
+        setLoungeGame(game);
+        rememberMultiplayerLoungeGame(game);
     }
 
     usePageLanding({
         view: "multiplayer",
         active: visible,
         subject: null,
-        tabPath: [tabs.tab, mp.mode, roomTab],
-        restoreTabPath: ([nextTab, nextMode, nextRoomTab]) => {
+        tabPath: [tabs.tab, mp.mode, roomTab, loungeGame],
+        restoreTabPath: ([nextTab, nextMode, nextRoomTab, nextLounge]) => {
             let changed = false;
             const tab = TABS.find((entry) => entry.tab === nextTab);
             if (tab && tab.tab !== tabs.tab) {
@@ -315,9 +346,13 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 actions.setTab(nextMode);
                 changed = true;
             }
-            if ((nextRoomTab === "room" || (nextRoomTab === "audio" && roomVoice) || (nextRoomTab === "misc" && streamRoom))
-                && (roomVoice || streamRoom) && nextRoomTab !== roomTab) {
-                showRoomTab(nextRoomTab);
+            const nextShown = ROOM_TABS.find((entry) => entry.tab === nextRoomTab)?.tab;
+            if (roomId && nextShown && !tabOff[nextShown] && nextShown !== roomTab) {
+                showRoomTab(nextShown);
+                changed = true;
+            }
+            if ((nextLounge === "ttt" || nextLounge === "c4") && nextLounge !== loungeGame) {
+                showLoungeGame(nextLounge);
                 changed = true;
             }
             return changed;
@@ -330,7 +365,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     });
 
     const shown = mp.gameId !== null && mp.gameId === currentGameId ? state.payload : mp.headerPayload;
-    const art = useGameHeaderArt(mp.gameId, shown?.imageIcon, shown?.imageIngame, state.showIcons && visible);
+    const art = useGameHeaderArt(mp.gameId, shown, state.showIcons && visible);
 
     if (!visible) {
         return null;
@@ -371,51 +406,18 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const ownGameOk = local !== null && mp.checkCurrent && !gateCheck?.gate;
     const canStartNow = Boolean(hosted?.canStart) && !mp.busy && ownGameOk && !otherGameRunning() && !playing;
     const canStartShown = Boolean(hosted?.canStart) && local !== null && !shownCheck?.gate && !otherGameRunning() && !playing;
-    const hostSettling: MultiplayerSeatState = joined?.room.hostState ?? "";
     const readyShown = Boolean(joined && inLobby && !joined.launched
-        && (joined.ready || (local !== null && !shownCheck?.gate && !runningOther && !hostSettling)));
+        && (joined.ready || (local !== null && !shownCheck?.gate && !runningOther)));
     const readyAllowed = Boolean(joined && inLobby && !joined.launched
-        && (joined.ready || (ownGameOk && !runningOther && !hostSettling)));
+        && (joined.ready || (ownGameOk && !runningOther)));
     const canRejoinShown = Boolean(joined?.rejoin) && !playing && !runningOther && ownGameOk;
     const roomMode = hosted?.mode ?? joined?.room.mode;
     const dropIn = roomMode === "stream" || (roomMode === "couch" && (hosted?.emulator ?? joined?.room.emulator) === "retroarch");
     const canJoinLateShown = !playing && !runningOther && ownGameOk;
 
-    function playStatus(): { code: string; detail?: Record<string, string> } | null {
-        if (!hosted && !joined) {
-            return null;
-        }
-        if (joined?.error === "host_gone") {
-            return { code: "host_waiting" };
-        }
-        if (joined && ROOM_NOTICES.includes(joined.notice)) {
-            return { code: joined.notice };
-        }
-        if (playing || !inLobby) {
-            return null;
-        }
-        if (hosted?.hostState) {
-            return { code: hosted.hostState === "setup" ? "host_needs_setup" : "host_wont_work" };
-        }
-        if (joined && hostSettling && !joined.ready) {
-            return { code: hostSettling === "setup" ? "host_setting_up" : "host_cant_play" };
-        }
-        if (hosted && !dropIn && !hosted.canStart && hosted.seats.some((seat, index) => index > 0 && seat?.can)) {
-            return { code: "nobody_ready" };
-        }
-        if (hosted ? otherGameRunning() : runningOther && !joined?.ready) {
-            return { code: "other_game" };
-        }
-        if (hosted && dropIn && !hosted.seats.some((seat, index) => index > 0 && seat?.ready)) {
-            return { code: "drop_in" };
-        }
-        return null;
-    }
-
     const problem = gameProblem();
     const modeFact = problem && MODE_FACTS.includes(problem.code) ? problem : null;
     const shownProblem = problem && !modeFact ? problem : null;
-    const status = playStatus();
     const inSession = hosted !== null || joined !== null;
 
     const endedCode = !inSession ? mp.closedReason
@@ -533,20 +535,18 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             const gate = ownGate ?? hosted.hostGate;
             const detail = ownGate ? own?.detail ?? {} : hosted.hostDetail;
             return hosted.hostState === "setup"
-                ? t(language, "You need setup for this game first. Press Needs setup on the chart to fix it.")
+                ? t(language, "Setup is needed for this game first. Select “Needs setup” on the chart to fix it.")
                 : t(language, "This game won't work on your device. {{reason}} Pick another game with Change Game.",
-                    { reason: reasonText(mp.mode, gate, detail) });
+                    { reason: asSentence(language, reasonText(mp.mode, gate, detail)) });
         }
         if (!joined || joined.ready || joined.launched) {
             return null;
         }
         if (ownGate) {
             return own?.state === "setup"
-                ? t(language, "You need setup for this game first. Press Needs setup on the chart to fix it.")
-                : t(language, "This game won't work on your device. {{reason}}", { reason: reasonText(mp.mode, ownGate, own?.detail ?? {}) });
-        }
-        if (hostSettling) {
-            return problemText(language, hostSettling === "setup" ? "host_setup" : "host_never");
+                ? t(language, "Setup is needed for this game first. Select “Needs setup” on the chart to fix it.")
+                : t(language, "This game won't work on your device. {{reason}}",
+                    { reason: asSentence(language, reasonText(mp.mode, ownGate, own?.detail ?? {})) });
         }
         return null;
     }
@@ -566,6 +566,9 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const xReadies = readyShown && !state.mouseKeyboardMode;
     const yExplains = Boolean(hosted) && !yStarts && Boolean(whyNot) && !state.mouseKeyboardMode;
     const xExplains = Boolean(joined) && !xReadies && Boolean(whyNot) && !state.mouseKeyboardMode;
+    const yFixes = Boolean(hosted) && !yStarts && playFixable && !state.mouseKeyboardMode;
+    const xFixes = Boolean(joined) && !xReadies && playFixable && !state.mouseKeyboardMode;
+    const openOwnFix = () => openModeReason(mp.mode);
     const slotStyle = { display: "flex", width: "100%", marginTop: "8px" };
     const slotButtonStyle = { width: "100%", minWidth: 0 };
 
@@ -577,7 +580,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
 
     function pressUpdateStreaming() {
         if (hosted && hosted.mode === "stream") {
-            showMultiplayerProblem(language, "Update Streaming", t(language, "Close your Stream Play room before updating."));
+            showMultiplayerProblem(language, "Update Streaming Tools", t(language, "Close your Stream Play room before updating."));
             return;
         }
         if (!updating) {
@@ -606,25 +609,27 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         });
     }
 
+    function pickerRows() {
+        return (mp.games ?? []).map((game) => ({
+            key: `${game.systemId}:${game.gameId}`,
+            system: game.system,
+            systemId: game.systemId,
+            title: game.title,
+            detail: "",
+            note: "",
+            gameId: game.gameId,
+            imageIcon: game.imageIcon,
+            searchTitle: ""
+        }));
+    }
+
     function openGamePicker(pick: (gameId: number) => void) {
-        const rows = (mp.games ?? [])
-            .map((game) => ({
-                key: `${game.systemId}:${game.gameId}`,
-                system: game.system,
-                systemId: game.systemId,
-                title: game.title,
-                detail: "",
-                note: "",
-                gameId: game.gameId,
-                imageIcon: game.imageIcon,
-                searchTitle: ""
-            }));
         showManagedModal((close) => (
             <CheevoCheckGamesModal
                 language={language}
                 showIcons={state.showIcons}
                 kind="supported"
-                rows={rows}
+                rows={pickerRows()}
                 onPick={(gameId) => {
                     pick(gameId);
                     close();
@@ -634,6 +639,28 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     void openExternalUrl(raLookupSearchUrl(search));
                 }}
                 close={close}
+            />
+        ));
+    }
+
+    function openVotePicker(onDone: (gameIds: number[]) => void) {
+        showManagedModal((close) => (
+            <CheevoCheckGamesModal
+                language={language}
+                showIcons={state.showIcons}
+                kind="supported"
+                rows={pickerRows()}
+                onPick={() => undefined}
+                onWebSearch={(search) => {
+                    close();
+                    void openExternalUrl(raLookupSearchUrl(search));
+                }}
+                close={close}
+                multi={{
+                    max: 4,
+                    onFull: (row) => showMultiplayerProblem(language, row.title, roomGameWhy(language, "vote_four")),
+                    onDone
+                }}
             />
         ));
     }
@@ -901,20 +928,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         </>
     );
 
-    const statusRow = inSession && (
-        <PanelSectionRow>
-            <div
-                style={{
-                    ...bodyTextStyle(),
-                    opacity: 1,
-                    minHeight: "1.4em",
-                    color: status && WAITING.includes(status.code) ? undefined : warnAmber
-                }}
-            >
-                {status ? problemText(language, status.code, status.detail) : ""}
-            </div>
-        </PanelSectionRow>
-    );
 
     const hardcoreLocked = (mp.mode === "couch" || mp.mode === "stream") && roomLocked;
     const runsWithRow = showRunsWith && local && (
@@ -1189,7 +1202,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
 
     const roomRows = hosted ? (
         <>
-            {hintsRow}
             {hosted.where === "online" && (
                 <PanelSectionRow>
                     <div style={{ ...bodyTextStyle(), color: hosted.lobby === "down" ? warnAmber : undefined }}>
@@ -1230,19 +1242,12 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         </>
     ) : joined && (
         <>
-            {hintsRow}
-            {mp.mode === "couch" && !runsRmg && (
-                <PanelSectionRow>
-                    <div style={bodyTextStyle()}>
-                        {t(language, joined.status?.hardcore ? "Hardcore on, set by the host" : "Hardcore off, set by the host")}
-                    </div>
-                </PanelSectionRow>
-            )}
-            {mp.mode === "couch" && joined.room.share && joined.room.emulator === "retroarch" && (
-                <PanelSectionRow>
-                    <div style={bodyTextStyle()}>{t(language, "Controls shared, set by the host")}</div>
-                </PanelSectionRow>
-            )}
+            <PanelSectionRow>
+                <div style={{ ...bodyTextStyle(), visibility: mp.mode === "couch" && !runsRmg ? "visible" : "hidden" }}>
+                    {t(language, joined.status?.hardcore ? "Host: Hardcore on" : "Host: Hardcore off")}
+                    {joined.room.share && joined.room.emulator === "retroarch" ? ` · ${t(language, "Controls shared")}` : ""}
+                </div>
+            </PanelSectionRow>
             <RoomTable
                 language={language}
                 seats={Array.from({ length: joined.room.max }, (_, index) => {
@@ -1253,7 +1258,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         name,
                         game: index === 0 ? joined.room.title : flags?.title ?? "",
                         tag: index === 0 ? "host" : "",
-                        mark: !name || !flags ? "" : index === 0 ? flags.seatState : seatMark(flags.ready, flags.seatState, flags.can),
+                        mark: !name ? "" : index === 0 ? joined.room.hostState : !flags ? "" : seatMark(flags.ready, flags.seatState, flags.can),
                         activity: !name ? "" : index === 0 ? (roomState === "lobby" ? "" : "game")
                             : (index === joined.seat ? joined.launched : flags?.launched)
                                 ? (joined.room.watch ? "watch" : "game") : "",
@@ -1282,17 +1287,16 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     );
 
     const noteCount = warnings.length + tips.length;
+    const chartLocked = joined !== null || (hosted !== null && hosted.state !== "lobby");
 
-    function upIntoChart(evt: { detail?: { button?: number }; currentTarget?: EventTarget | null }) {
+    function upIntoChart(evt: { detail?: { button?: number } }) {
         if (evt.detail?.button !== DIR_UP) {
             return false;
         }
-        const root = (evt.currentTarget as HTMLElement | null)?.closest("[data-cheevodeck-root]");
-        const stream = root?.querySelector<HTMLElement>('[data-focus-key="multiplayer:mode:stream"] button:not([disabled])');
-        if (!stream) {
+        if ((chartLocked && mp.mode !== "stream") || !streamModeNav.current) {
             return false;
         }
-        stream.focus();
+        streamModeNav.current.TakeFocus(true);
         playMoveSound();
         return true;
     }
@@ -1326,14 +1330,14 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const showWatch = showShare || (mp.mode === "stream" && !joined);
     const showChangeGame = hosted !== null || (joined !== null && mp.mode === "link");
     const showAdapter = Boolean(hosted?.adapterShown);
-    const roomKeys = [showChangeGame ? "multiplayer:changegame" : "", showCores && mp.mode !== "link" ? "multiplayer:core" : "",
+    const roomKeys = [showCores && mp.mode !== "link" ? "multiplayer:core" : "",
         showRunsWith ? "multiplayer:runswith" : "",
         showHardcore ? "multiplayer:toggle:hardcore" : "", showShare ? "multiplayer:toggle:share" : "",
         showWatch ? "multiplayer:toggle:watch" : "", showAdapter ? "multiplayer:adapter" : "",
         hosted ? "multiplayer:toggle:voice" : "",
         joined ? "multiplayer:leave" : "multiplayer:host", "multiplayer:back"].filter(Boolean);
-    const roomHasOptions = showChangeGame || showCores || showHardcore || showWatch || hosted !== null;
-    const afterSliders = roomHasOptions ? ["multiplayer:roomtab:audio", ...roomKeys] : roomKeys;
+    const roomHasOptions = showCores || showHardcore || showWatch || hosted !== null;
+    const afterSliders = ["multiplayer:roomtab:audio", ...roomKeys];
     const duckShown = gameVolume.output === "speaker" || gameVolume.output === "external";
     const voiceSliders = roomVoice && (
         <>
@@ -1507,55 +1511,59 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             )}
         </>
     );
-    const tabList: MultiplayerRoomTab[] = [
-        ...(roomHasOptions ? ["room" as const] : []),
-        ...(roomVoice ? ["audio" as const] : []),
-        ...(streamRoom ? ["misc" as const] : [])
-    ];
-    const shownRoomTab: MultiplayerRoomTab = tabList.includes(roomTab) ? roomTab : tabList[0] ?? "room";
-    if (roomId && tabList.length > 0 && shownRoomTab !== roomTab) {
-        setRoomTabChoice({ room: roomId, tab: shownRoomTab });
+    const vote = hosted?.vote ?? joined?.status?.vote ?? null;
+    const lounge = hosted?.lounge ?? joined?.status?.lounge ?? null;
+    function explainTab(tab: MultiplayerRoomTab) {
+        const text = tab === "audio"
+            ? t(language, "Voice chat is off in this room. The host can turn it on in the Room tab.")
+            : t(language, "Stream Options are for Stream Play rooms. This room uses {{mode}}.",
+                { mode: t(language, mp.mode === "link" ? "Link Play" : "Couch Play") });
+        showMultiplayerProblem(language, tab === "audio" ? "Audio" : "Stream Options", text);
     }
-    const roomTabs = tabList.length > 1 && (
-        <>
-            <SectionTitle label={t(language, "Options")} />
-            <Focusable
-                flow-children="row"
-                style={{ width: "100%", display: "flex", gap: "6px", margin: "6px 0 4px 0" }}
-            >
-                {tabList.includes("room") && (
-                    <SubTabButton
-                        label={t(language, "Room")}
-                        active={shownRoomTab === "room"}
-                        onClick={() => showRoomTab("room")}
-                        focusKey="multiplayer:roomtab:room"
-                        focusFallback={roomKeys}
-                    />
-                )}
-                {roomVoice && (
-                    <SubTabButton
-                        label={t(language, "Audio")}
-                        active={shownRoomTab === "audio"}
-                        onClick={() => showRoomTab("audio")}
-                        focusKey="multiplayer:roomtab:audio"
-                        focusFallback={["multiplayer:roomtab:room", "multiplayer:roomtab:misc", ...roomKeys]}
-                    />
-                )}
-                {streamRoom && (
-                    <SubTabButton
-                        label={t(language, "Misc")}
-                        active={shownRoomTab === "misc"}
-                        onClick={() => showRoomTab("misc")}
-                        focusKey="multiplayer:roomtab:misc"
-                        focusFallback={["multiplayer:roomtab:audio", "multiplayer:roomtab:room", ...roomKeys]}
-                    />
-                )}
-            </Focusable>
-        </>
+    const roomTabs = inSession && (
+        <RoomTabs
+            language={language}
+            active={roomTab}
+            disabled={tabOff}
+            dot={{
+                vote: Boolean(vote?.open && vote.mine < 0),
+                lounge: lounge !== null && (lounge.ttt.players.length > 0 && !lounge.ttt.end
+                    || lounge.c4.players.length > 0 && !lounge.c4.end)
+            }}
+            onPick={showRoomTab}
+            onDisabled={explainTab}
+            focusFallback={roomKeys}
+        />
+    );
+    const voteBody = inSession && (
+        <GameVoteTab
+            language={language}
+            showIcons={state.showIcons}
+            host={hosted !== null}
+            inLobby={inLobby}
+            vote={vote}
+            buttonStyle={buttonStyle}
+            exitKey={exitKey}
+            onPickGames={openVotePicker}
+        />
+    );
+    const loungeBody = inSession && lounge !== null && (
+        <LoungeTab
+            language={language}
+            lounge={lounge}
+            ownSeat={hosted ? 0 : joined?.seat ?? -1}
+            game={loungeGame}
+            avatars={friends.state.avatars}
+            self={hosted
+                ? { name: hosted.seats[0]?.name ?? "", pic: hosted.seats[0]?.pic ?? "" }
+                : { name: joined?.status?.members[joined.seat] ?? "", pic: joined?.status?.ids[joined.seat]?.pic ?? "" }}
+            buttonStyle={buttonStyle}
+            exitKey={exitKey}
+            onGame={showLoungeGame}
+        />
     );
     const miscRows = streamRoom && (
         <>
-            {!roomTabs && <SectionTitle label={t(language, "Options")} />}
             <ToggleRow
                 bottomSeparator="none"
                 controlled
@@ -1563,7 +1571,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 value={slowConnection}
                 outerStyle={buttonStyle}
                 focusKey="multiplayer:toggle:slowconnection"
-                focusFallback={["multiplayer:roomtab:misc", ...roomKeys]}
+                focusFallback={["multiplayer:roomtab:stream", ...roomKeys]}
                 onChange={(next) => void changeSlowConnection(next)}
                 help={t(language, "Halves the stream's quality so it fits a slow internet connection. Affects rooms you host and rooms you join.")}
             />
@@ -1572,11 +1580,11 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     bottomSeparator="none"
                     outerStyle={buttonStyle}
                     focusKey="multiplayer:updatestreaming"
-                    focusFallback={["multiplayer:toggle:slowconnection", "multiplayer:roomtab:misc", ...roomKeys]}
+                    focusFallback={["multiplayer:toggle:slowconnection", "multiplayer:roomtab:stream", ...roomKeys]}
                     onClick={pressUpdateStreaming}
                     help={t(language, "Updates Sunshine and Moonlight to their latest versions.")}
                 >
-                    <div style={{ opacity: updating ? 0.45 : 1 }}>{t(language, "Update Streaming")}</div>
+                    <div style={{ opacity: updating ? 0.45 : 1 }}>{t(language, "Update Streaming Tools")}</div>
                 </FocusableItem>
             </PanelSectionRow>
             <PanelSectionRow>
@@ -1594,7 +1602,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     buttonSpacing={state.buttonSpacing}
                     bottomSeparator="none"
                     focusKey="multiplayer:removestreaming"
-                    focusFallback={["multiplayer:updatestreaming", "multiplayer:roomtab:misc", ...roomKeys]}
+                    focusFallback={["multiplayer:updatestreaming", "multiplayer:roomtab:stream", ...roomKeys]}
                     idleLabel={t(language, "Remove Stream Tools")}
                     armedLabel={t(language, "Press again to confirm")}
                     disabled={false}
@@ -1605,25 +1613,30 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             </PanelSectionRow>
         </>
     );
-    const optionRows = roomHasOptions && (
+    const changeGameRow = showChangeGame && (
+        <PanelSectionRow>
+            <FocusableItem
+                bottomSeparator="none"
+                outerStyle={buttonStyle}
+                focusKey="multiplayer:changegame"
+                focusFallback={["multiplayer:notes", "multiplayer:leave", "multiplayer:back"]}
+                disabled={!inLobby || Boolean(joined?.ready)}
+                onClick={() => {
+                    if (!mp.busy) {
+                        void (hosted ? openGamePicker(actions.changeGame) : openGuestGames());
+                    }
+                }}
+            >
+                {t(language, "Change Game")}
+            </FocusableItem>
+        </PanelSectionRow>
+    );
+    const optionRows = (roomHasOptions || inSession) && (
         <>
-            {!roomTabs && <SectionTitle label={t(language, "Options")} />}
-            {showChangeGame && (
+            {!inSession && <SectionTitle label={t(language, "Options")} />}
+            {inSession && !roomHasOptions && (
                 <PanelSectionRow>
-                    <FocusableItem
-                        bottomSeparator="none"
-                        outerStyle={buttonStyle}
-                        focusKey="multiplayer:changegame"
-                        focusFallback={["multiplayer:core", "multiplayer:runswith", hosted ? "multiplayer:host" : "multiplayer:leave", "multiplayer:back"]}
-                        disabled={!inLobby || Boolean(joined?.ready)}
-                        onClick={() => {
-                            if (!mp.busy) {
-                                void (hosted ? openGamePicker(actions.changeGame) : openGuestGames());
-                            }
-                        }}
-                    >
-                        {t(language, "Change Game")}
-                    </FocusableItem>
+                    <div style={bodyTextStyle()}>{t(language, "The host sets this room's options.")}</div>
                 </PanelSectionRow>
             )}
             {coreRows}
@@ -1640,11 +1653,16 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         <Focusable
             key="multiplayer:view"
             flow-children="column"
+            onGamepadFocus={(evt) => {
+                const target = evt.target as Element;
+                const below = target.closest?.("[data-focus-key]")?.getAttribute("data-focus-key") === "multiplayer:bottom:anchor";
+                cursorTab.current = tabBodyRef.current?.contains(target) || below ? roomTab : null;
+            }}
             onCancelButton={pressBack}
-            onOptionsButton={onPlay && yStarts ? pressPlay : onPlay && yExplains ? explainStart : undefined}
-            onOptionsActionDescription={onPlay && (yStarts || yExplains) ? t(language, "mp_footer_start") : undefined}
-            onSecondaryButton={onPlay && xReadies ? pressPlay : onPlay && xExplains ? explainStart : undefined}
-            onSecondaryActionDescription={onPlay && (xReadies || xExplains)
+            onOptionsButton={onPlay && yStarts ? pressPlay : onPlay && yFixes ? openOwnFix : onPlay && yExplains ? explainStart : undefined}
+            onOptionsActionDescription={onPlay && (yStarts || yFixes || yExplains) ? t(language, "mp_footer_start") : undefined}
+            onSecondaryButton={onPlay && xReadies ? pressPlay : onPlay && xFixes ? openOwnFix : onPlay && xExplains ? explainStart : undefined}
+            onSecondaryActionDescription={onPlay && (xReadies || xFixes || xExplains)
                 ? t(language, joined?.ready ? "mp_footer_unready" : "mp_footer_ready") : undefined}
         >
             <PanelSection>
@@ -1712,14 +1730,14 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         {playRows}
                         {drawLower && (
                             <>
-                                {statusRow}
                                 <ModeChart
                                     language={language}
                                     mode={mp.mode}
-                                    locked={joined !== null || (hosted !== null && hosted.state !== "lobby")}
+                                    locked={chartLocked}
                                     states={mp.modes?.modes ?? {}}
                                     onChoose={actions.setTab}
                                     onStatus={openModeReason}
+                                    streamNav={streamModeNav}
                                 />
                                 <PanelSectionRow>
                                     <div style={bodyTextStyle()}>
@@ -1801,12 +1819,17 @@ function MultiplayerPage(props: MultiplayerPageProps) {
 
                                 <Focusable key={scopeKey} flow-children="column" resetNavOnEntry>
                                     {notesRow}
+                                    {changeGameRow}
                                     {roomButton}
-                                    {roomRows}
                                     {roomTabs}
-                                    <Focusable key={`multiplayer:roomtab:${shownRoomTab}`} flow-children="column" resetNavOnEntry
-                                        navEntryPreferPosition={NAV_ENTER_MAINTAIN_Y}>
-                                        {shownRoomTab === "audio" ? voiceSliders : shownRoomTab === "misc" ? miscRows : optionRows}
+                                    <Focusable key={`multiplayer:roomtab:${inSession ? roomTab : "room"}`} ref={tabBodyRef} flow-children="column"
+                                        resetNavOnEntry navEntryPreferPosition={NAV_ENTER_MAINTAIN_Y}>
+                                        {!inSession ? optionRows
+                                            : roomTab === "audio" ? voiceSliders
+                                                : roomTab === "stream" ? miscRows
+                                                    : roomTab === "vote" ? voteBody
+                                                        : roomTab === "lounge" ? loungeBody
+                                                            : <>{hintsRow}{roomRows}{optionRows}</>}
                                     </Focusable>
                                     <BottomFocusAnchor focusKey="multiplayer:bottom:anchor" />
                                 </Focusable>

@@ -53,6 +53,7 @@ import type {
     MultiplayerFriendsState,
     MultiplayerGame,
     MultiplayerGuestGame,
+    MultiplayerLoungeGame,
     MultiplayerHostedRoom,
     MultiplayerMessage,
     MultiplayerAdapter,
@@ -875,6 +876,12 @@ export const multiplayerChangeGame = callable<[MultiplayerMode, number, string],
 export const multiplayerGuestGames = callable<[], { ok: boolean; error?: string; games?: MultiplayerGuestGame[] }>("multiplayer_guest_games");
 export const multiplayerGuestGame = callable<[number], MultiplayerReply>("multiplayer_guest_game");
 export const multiplayerLeave = callable<[], { ok: boolean; error?: string }>("multiplayer_leave");
+export const multiplayerVoteStart = callable<["vote" | "pick", number[]], MultiplayerReply>("multiplayer_vote_start");
+export const multiplayerVoteCancel = callable<[], MultiplayerReply>("multiplayer_vote_cancel");
+export const multiplayerVote = callable<[vote: number, pick: number], MultiplayerReply>("multiplayer_vote");
+export const multiplayerLounge = callable<[game: MultiplayerLoungeGame, act: "move" | "start" | "clear", cell: number], MultiplayerReply>(
+    "multiplayer_lounge"
+);
 export const multiplayerRoomStatus = callable<[], MultiplayerRoomStatus>("multiplayer_room_status");
 export const multiplayerVoiceJoin = callable<[boolean], { ok: boolean; error?: string; on?: boolean }>("multiplayer_voice_join");
 export const multiplayerVoiceSend = callable<[number, string, string, number], { ok: boolean; error?: string }>(

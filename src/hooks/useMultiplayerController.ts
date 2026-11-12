@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import {
+    getCachedGameImageDataUri,
+    getGameImageCached,
     getGamePayload,
     multiplayerAcceptInvite,
     multiplayerChangeGame,
@@ -104,6 +106,57 @@ let lastDialog = { titleKey: "", at: 0 };
 let missedProblem: MultiplayerProblem | null = null;
 let endedLineCleared = false;
 
+const PREPARE_MS = 800;
+
+type RoomGame = { gameId: number; mode: MultiplayerMode; core: string; room: string };
+
+function roomGameOf(status: MultiplayerRoomStatus | null): RoomGame | null {
+    if (status?.role === "host") {
+        return { gameId: status.room.gameId, mode: status.room.mode, core: status.room.core, room: "" };
+    }
+    if (status?.role === "guest") {
+        return { gameId: status.local?.gameId ?? status.room.gameId, mode: status.room.mode, core: "", room: status.room.room };
+    }
+    return null;
+}
+
+async function prepareRoomGame(game: RoomGame) {
+    const modesKey = [game.gameId, game.room].join("|");
+    const checkKey = [game.mode, game.gameId, game.core, game.room].join("|");
+    const tasks: Promise<unknown>[] = [];
+    if (!modesCache.has(modesKey)) {
+        tasks.push(multiplayerModes(game.gameId, game.room).then((answer) => {
+            if (answer.ok) {
+                rememberModes(modesKey, answer);
+            }
+        }));
+    }
+    if (!checkCache.has(checkKey)) {
+        tasks.push(multiplayerCheck(game.mode, game.gameId, game.core, game.room).then((result) => rememberCheck(checkKey, result)));
+    }
+    const missingArt = (["icon", "ingame"] as const).filter((kind) => getCachedGameImageDataUri(game.gameId, kind) === null);
+    if (!headerPayloads.has(game.gameId)) {
+        tasks.push(getGamePayload(game.gameId).then((response) => {
+            if (response.payload?.gameId === game.gameId) {
+                headerPayloads.set(game.gameId, response.payload);
+            }
+            return fetchArt(game.gameId, missingArt, response.payload ?? null);
+        }));
+    }
+    else if (missingArt.length > 0) {
+        tasks.push(fetchArt(game.gameId, missingArt, headerPayloads.get(game.gameId) ?? null));
+    }
+    if (tasks.length === 0) {
+        return;
+    }
+    await Promise.race([Promise.allSettled(tasks), new Promise((resolve) => window.setTimeout(resolve, PREPARE_MS))]);
+}
+
+function fetchArt(gameId: number, kinds: ("icon" | "ingame")[], payload: Payload | null) {
+    const own = payload?.gameId === gameId ? payload : null;
+    return Promise.all(kinds.map((kind) => getGameImageCached(gameId, kind, kind === "icon" ? own?.imageIcon : own?.imageIngame)));
+}
+
 function showProblem(titleKey: string, problem: MultiplayerProblem) {
     lastDialog = { titleKey, at: Date.now() };
     const language = getCurrentLanguage();
@@ -195,12 +248,20 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     const checkCore = hosted ? hosted.core : "";
     const checkKey = [mode, gameId ?? 0, checkCore, checkRoom].join("|");
 
+    const shownStatusRef = useRef<MultiplayerRoomStatus | null>(null);
     const reloadStatus = useCallback(async () => {
         const token = statusTokenRef.current + 1;
         statusTokenRef.current = token;
         try {
             const next = await multiplayerRoomStatus();
+            const before = roomGameOf(shownStatusRef.current);
+            const after = roomGameOf(next);
+            if (before && after && statusTokenRef.current === token
+                && (before.gameId !== after.gameId || before.mode !== after.mode || before.core !== after.core)) {
+                await prepareRoomGame(after);
+            }
             if (statusTokenRef.current === token) {
+                shownStatusRef.current = next;
                 setStatus(next);
             }
         }
@@ -239,6 +300,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         statusTokenRef.current += 1;
         previousStatusRef.current = null;
         failureSeqRef.current = null;
+        shownStatusRef.current = null;
         setStatus(null);
         setCheck(null);
         setCheckedFor("");
@@ -397,8 +459,11 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         joined?.reason, streamReady, fixesFinished, gameFilesChanged]);
 
     const hostState = hosted?.hostState ?? "";
+    const fixSeenRef = useRef({ fixesFinished, gameFilesChanged });
     useEffect(() => {
-        if (!isActive || !hostState) {
+        const seen = fixSeenRef.current;
+        fixSeenRef.current = { fixesFinished, gameFilesChanged };
+        if (!isActive || !hostState || (seen.fixesFinished === fixesFinished && seen.gameFilesChanged === gameFilesChanged)) {
             return;
         }
         multiplayerSetVisible(true, false).catch((e) => logError("multiplayer: settling the room after a fix", e));
@@ -444,7 +509,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
         void (async () => {
             try {
                 const response = await getGamePayload(gameId);
-                if (response.payload) {
+                if (response.payload?.gameId === gameId) {
                     headerPayloads.set(gameId, response.payload);
                     if (!cancelled) {
                         setHeaderPayload(response.payload);
@@ -674,7 +739,8 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
             busy,
             missed,
             endedLineCleared,
-            headerPayload,
+            headerPayload: gameId === null ? null
+                : headerPayloads.get(gameId) ?? (headerPayload?.gameId === gameId ? headerPayload : null),
             session,
             loaded: games !== null && status !== null
         },

@@ -2,7 +2,6 @@ import { Focusable, PanelSectionRow } from "@decky/ui";
 import { useEffect, useState, type CSSProperties } from "react";
 
 import { FocusTarget } from "../ui/FocusTarget";
-import { SectionTitle } from "../ui/SectionTitle";
 import { t, type LanguageCode } from "../../locales";
 import { achievementGreen, bodyTextStyle, masteredGold, warnAmber } from "../../utils/style";
 import type { VoiceMine } from "../../utils/voiceChat";
@@ -111,7 +110,6 @@ export function RoomTable(props: {
 
     return (
         <>
-            <SectionTitle label={t(language, "Room")} />
             <PanelSectionRow>
                 <div style={{ display: "flex", flexDirection: "column", width: "100%", paddingBottom: "8px" }}>
                     {seats.map((seat, index) => {

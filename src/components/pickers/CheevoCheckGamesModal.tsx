@@ -28,6 +28,11 @@ export type CheevoCheckGamesModalProps = {
     onPick: (gameId: number) => void;
     onWebSearch: (title: string) => void;
     close: () => void;
+    multi?: {
+        max: number;
+        onFull: (row: CheevoCheckBrowseRow) => void;
+        onDone: (gameIds: number[]) => void;
+    };
 };
 
 type Step = "console" | "games";
@@ -91,7 +96,15 @@ function headingKey(kind: CheevoCheckListKind): string {
 }
 
 export function CheevoCheckGamesModal(props: CheevoCheckGamesModalProps) {
-    const { language, showIcons, kind, rows, onPick, onWebSearch, close } = props;
+    const { language, showIcons, kind, rows, onPick, onWebSearch, multi } = props;
+    const [picked, setPicked] = useState<number[]>([]);
+    const pickedRef = useRef(picked);
+    pickedRef.current = picked;
+    const pickedIds = useMemo(() => new Set(picked), [picked]);
+    function close() {
+        props.close();
+        multi?.onDone(pickedRef.current);
+    }
 
     const [step, setStep] = useState<Step>("console");
     const [selectedSystem, setSelectedSystem] = useState<SystemGroup | null>(null);
@@ -227,6 +240,18 @@ export function CheevoCheckGamesModal(props: CheevoCheckGamesModalProps) {
     }
 
     function handlePickRow(row: CheevoCheckBrowseRow) {
+        if (multi && row.gameId > 0) {
+            if (pickedRef.current.includes(row.gameId)) {
+                setPicked(pickedRef.current.filter((gameId) => gameId !== row.gameId));
+            }
+            else if (pickedRef.current.length >= multi.max) {
+                multi.onFull(row);
+            }
+            else {
+                setPicked([...pickedRef.current, row.gameId]);
+            }
+            return;
+        }
         if (row.gameId > 0) {
             if (selectedSystem?.id === ALL_CONSOLES_ID && row.systemId > 0) {
                 void saveCheevoCheckLastSystemId(row.systemId).catch((e) => {
@@ -255,6 +280,7 @@ export function CheevoCheckGamesModal(props: CheevoCheckGamesModalProps) {
             <style>{FADE_IN_KEYFRAMES}</style>
             <div style={{ fontSize: `${modalSize(20)}px`, fontWeight: 700, marginBottom: "12px" }}>
                 {t(language, headingKey(kind))}
+                {multi ? ` (${picked.length}/${multi.max})` : ""}
             </div>
 
             <div ref={bodyRef}>
@@ -280,6 +306,7 @@ export function CheevoCheckGamesModal(props: CheevoCheckGamesModalProps) {
                         showIcons={showIcons}
                         onPickRow={handlePickRow}
                         onBack={handleBackToSystems}
+                        pickedIds={multi ? pickedIds : null}
                     />
                 )}
             </div>
@@ -294,7 +321,7 @@ export function CheevoCheckGamesModal(props: CheevoCheckGamesModalProps) {
                 flow-children="row"
             >
                 <DialogButton onClick={close}>
-                    {t(language, "Cancel")}
+                    {t(language, multi ? "Done" : "Cancel")}
                 </DialogButton>
             </Focusable>
         </ModalRoot>
@@ -509,6 +536,7 @@ type GameStepProps = {
     showIcons: boolean;
     onPickRow: (row: CheevoCheckBrowseRow) => void;
     onBack: () => void;
+    pickedIds: Set<number> | null;
 };
 
 function GameStep(props: GameStepProps) {
@@ -521,7 +549,8 @@ function GameStep(props: GameStepProps) {
         language,
         showIcons,
         onPickRow,
-        onBack
+        onBack,
+        pickedIds
     } = props;
 
     const rowWindow = useSlidingWindow({
@@ -644,6 +673,7 @@ function GameStep(props: GameStepProps) {
                                     consoleIconUrl={consoleIcons[row.systemId] ?? null}
                                     index={rowWindow.start + index}
                                     list={resultRowList}
+                                    added={pickedIds === null ? null : pickedIds.has(row.gameId)}
                                     onGamepadDirection={rowWindow.guardTopRow(rowWindow.start + index)}
                                 />
                             </div>
@@ -668,11 +698,12 @@ type ResultRowProps = {
     consoleIconUrl: string | null;
     index: number;
     list: ResultRowListProps;
+    added: boolean | null;
     onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
 };
 
 const ResultRow = React.memo(function ResultRow(props: ResultRowProps) {
-    const { row, consoleIconUrl, list } = props;
+    const { row, consoleIconUrl, list, added } = props;
     const { language, showIcons, metrics } = list;
 
     const openable = row.gameId > 0;
@@ -712,7 +743,8 @@ const ResultRow = React.memo(function ResultRow(props: ResultRowProps) {
                     gap: `${Math.max(8, metrics.iconGap - 2)}px`,
                     alignItems: "flex-start",
                     padding: `${Math.max(3, Math.round(metrics.rowPaddingY * 0.42))}px 0`,
-                    minWidth: 0
+                    minWidth: 0,
+                    opacity: added ? 0.6 : 1
                 }}
             >
                 {showIcons && (
@@ -845,7 +877,7 @@ const ResultRow = React.memo(function ResultRow(props: ResultRowProps) {
                     ))}
                     {
 }
-                    {(openable || searchable) && (
+                    {added === null ? (openable || searchable) && (
                         <div
                             style={{
                                 ...smallTextStyle(),
@@ -856,6 +888,20 @@ const ResultRow = React.memo(function ResultRow(props: ResultRowProps) {
                             }}
                         >
                             {t(language, openable ? "Open game details" : "Search the web for this game")}
+                        </div>
+                    ) : (
+                        <div
+                            style={{
+                                ...smallTextStyle(),
+                                fontSize: `${metrics.bodyFontSize}px`,
+                                lineHeight: metrics.bodyLineHeight,
+                                opacity: 1,
+                                fontWeight: 800,
+                                minWidth: 0,
+                                visibility: added ? "visible" : "hidden"
+                            }}
+                        >
+                            {t(language, "Added")}
                         </div>
                     )}
                 </div>

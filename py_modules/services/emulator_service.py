@@ -866,6 +866,8 @@ class EmulatorService:
             self._install_tool_step(job, step, journal)
         elif do == "uninstall" and not job["plan"]:
             self._uninstall(job, step)
+        elif do == "add_dolphin_folder" and step.get("install") in ("flatpak", "appimage"):
+            self._dolphin_folder_step(step, journal)
         else:
             raise StepFailed("failed", f"unknown step {do}")
 
@@ -912,6 +914,7 @@ class EmulatorService:
 
     def _allowed_roots(self) -> list:
         roots = [self._runtime_dir, self._user_home / "Applications"]
+        roots.extend(session.dolphin_config(self._user_home, install).parent for install in ("flatpak", "appimage"))
         ra = self._cores_retroarch()
         if ra is not None:
             roots.append(ra.cores_dir)
@@ -1857,6 +1860,43 @@ class EmulatorService:
         return [{"do": "install_emulator", "where": "backend", "kind": "dolphin", "name": row["name"], "via": "flatpak",
                  "choices": choices, "reason": "dolphin_tool"}]
 
+    def _dolphin_folder_plan(self, detail: dict):
+        install, folder = detail.get("install"), str(detail.get("folder") or "")
+        if install not in ("flatpak", "appimage") or not folder.startswith("/"):
+            return None
+        return [{"do": "add_dolphin_folder", "where": "backend", "name": catalog.BY_KIND["dolphin"]["name"],
+                 "install": install, "folder": folder}]
+
+    def _dolphin_folder_step(self, step: dict, journal: dict) -> None:
+        install, folder = step["install"], str(step.get("folder") or "")
+        config = session.dolphin_config(self._user_home, install)
+        if not folder.startswith("/") or not os.path.isdir(folder) or not config.is_file():
+            raise StepFailed("not_found", "Dolphin's settings or the game's folder are gone")
+        if not session.dolphin_folder_unlisted(self._user_home, install, folder):
+            return
+        if running("dolphin"):
+            raise StepFailed("running")
+        self._check_target(config)
+        mode = stat.S_IMODE(os.stat(config).st_mode)
+        with open(config, "rb") as handle:
+            original = handle.read()
+        text = session.dolphin_add_folder(original.decode("utf-8", "surrogateescape"), folder)
+        backup = config.with_name(config.name + ".cheevodeck-prev")
+        self._check_target(backup)
+        if os.path.lexists(backup):
+            os.unlink(backup)
+        self._note(journal, {"undo": "restore", "path": str(config), "backup": str(backup)})
+        journal.setdefault("drop", []).append(str(backup))
+        with exclusive_file(backup) as out:
+            out.write(original)
+        os.chmod(backup, mode)
+        temp = config.with_name(f".{config.name}.cheevodeck-tmp")
+        with exclusive_file(temp, replace=True) as out:
+            out.write(text.encode("utf-8", "surrogateescape"))
+        os.chmod(temp, mode)
+        os.replace(temp, config)
+        self._verify(config)
+
     def _duckstation_plan(self, inventory: dict, context: dict):
         steps = []
         ps1 = next((row for row in inventory["retroarch"]["systems"] if row["id"] == session.PS1_SYSTEM), None)
@@ -1954,6 +1994,8 @@ class EmulatorService:
             return self._reinstall_plan(inventory, str(context.get("kind") or ""), detail)
         if gate == "needs_dolphin":
             return self._dolphin_tool_plan(inventory)
+        if gate == "dolphin_game_list":
+            return self._dolphin_folder_plan(detail)
         if gate in UPDATE_GATES:
             core = UPDATE_GATES[gate]
             step = self._core_step(inventory, core, "update_core")
@@ -2038,6 +2080,10 @@ class EmulatorService:
             if do == "update_emulator" and step["via"] == "appimage":
                 clean["path"] = str(step.get("path") or "")
             name = catalog.BY_KIND[step["kind"]]["name"]
+        elif do == "add_dolphin_folder" and step.get("install") in ("flatpak", "appimage") \
+                and isinstance(step.get("folder"), str) and step["folder"].startswith("/"):
+            clean = {"do": do, "install": step["install"], "folder": step["folder"]}
+            name = catalog.BY_KIND["dolphin"]["name"]
         else:
             return {"ok": False, "error": "not_found"}
         kind = "install_cores" if do == "install_core" else "update_cores" if do == "update_core" else do

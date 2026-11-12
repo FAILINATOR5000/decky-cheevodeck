@@ -48,10 +48,7 @@ const PROBLEM_TEXT: Record<string, string> = {
     host_unchecked: "The host couldn't check its game file",
     host_setup: "The host is still setting up this game. You can Ready once they're done.",
     host_never: "This game won't work for the host. They can pick another game with Change Game.",
-    host_setting_up: "The host is setting up this game.",
-    host_cant_play: "This game won't work for the host.",
-    host_needs_setup: "Set up this game to start. Your guests can Ready once you're done.",
-    host_wont_work: "This game won't work on your device. Pick another game with Change Game.",
+    room_switching: "The room is moving to the chosen game.",
     needs_dolphin: "Dolphin's Flatpak isn't installed. Cheevo Check needs it to read GameCube and Wii files, even when you play with Dolphin's AppImage.",
     crc_mismatch: "Your copy matches the host's game but not their exact file. Couch Play on NES needs the exact same file.",
     link_gb_both: "Link Play needs a Game Boy game on both",
@@ -61,7 +58,6 @@ const PROBLEM_TEXT: Record<string, string> = {
     match_host_core: "The host uses {{core}}. Switch to it to join.",
     no_guests: "Waiting for players",
     nobody_ready: "Waiting for someone to ready up",
-    unreadied_other_game: "You started another game, so you're not ready",
     not_lobby: "In-Game",
     room_gone: "That room is gone",
     no_room: "That room is gone",
@@ -72,7 +68,7 @@ const PROBLEM_TEXT: Record<string, string> = {
     full: "That room is full",
     chat_refused: "Couldn't send that message",
     no_dolphin_emulator_shortcut: "Add Dolphin itself to Steam ROM Manager",
-    dolphin_game_list: "Add {{folder}} to Dolphin's game list",
+    dolphin_game_list: "Dolphin's NetPlay offers games from folders you point Dolphin to look in. This folder isn't added yet.",
     dolphin_version_mismatch: "The host uses Dolphin {{version}}. Every device needs the same Dolphin version.",
     no_rmg_shortcut: "N64 Couch Play needs RMG itself in Steam. Add it with Steam ROM Manager.",
     rmg_version_mismatch: "The host uses RMG {{version}}. Every device needs the same RMG version.",
@@ -81,7 +77,6 @@ const PROBLEM_TEXT: Record<string, string> = {
     not_found: "No room found at that address",
     bad_address: "Not a valid address",
     host_gone: "Lost the host",
-    host_waiting: "Lost the host. Waiting for it to come back...",
     dropped: "The host dropped you from the room",
     timed_out: "Your seat was freed while this device was away",
     closed: "The host closed the room",
@@ -93,7 +88,6 @@ const PROBLEM_TEXT: Record<string, string> = {
     shortcut_gone: "Steam can't find this game's shortcut anymore. Run Steam ROM Manager again.",
     host_start_failed: "The host's game didn't start. Ready up to try again.",
     seat_not_taken: "The host's game didn't let you in. Try again.",
-    drop_in: "Players can join while you play",
     seated: "Close the room to change it",
     unavailable: "Couldn't open a room on this network",
     lobby_unreachable: "Couldn't reach the online lobby",
@@ -159,4 +153,35 @@ export function gateText(language: LanguageCode, target: string, gate: string, d
 
 export function warningText(language: LanguageCode, code: string, detail?: Record<string, string>): string {
     return t(language, WARNING_TEXT[code] ?? WARNING_TEXT.version_mismatch, detail);
+}
+
+const ROOM_GAME_WHY: Record<string, string> = {
+    vote_wait_lobby: "Wait until everyone is back in the lobby.",
+    vote_games: "Pick at least two games.",
+    vote_open: "A vote is open. Cancel it first to use Random Pick.",
+    vote_four: "You can pick up to four games.",
+    vote_none: "The vote is over.",
+    vote_over: "The vote is over.",
+    vote_in_game: "Voting is closed while the game is running.",
+    vote_voted: "You've already voted.",
+    pick_not_vote: "This was a Random Pick, not a vote.",
+    pick_landing: "Wait for the Random Pick to land.",
+    c4_start_ready: "Press Start Match to begin.",
+    ttt_two_players: "This match already has two players. Wait for it to finish, or press Clear to start a new one.",
+    ttt_waiting: "Wait for another player to take a turn.",
+    not_your_turn: "It's {{name}}'s turn.",
+    square_taken: "That square is taken.",
+    column_full: "That column is full.",
+    c4_full: "This match is full. Wait for it to finish, or press Clear to start a new one.",
+    c4_waiting: "You've joined. Wait for {{name}} to start the match.",
+    c4_join: "Press “Join Match” to play.",
+    c4_need_two: "Wait for at least one more player to join.",
+    match_over: "This match is over. Press Clear to play again.",
+    unavailable: "Couldn't reach the host. Try again.",
+    host_gone: "Couldn't reach the host. Try again."
+};
+
+export function roomGameWhy(language: LanguageCode, code: string, vars?: Record<string, string>): string {
+    const text = ROOM_GAME_WHY[code];
+    return text ? t(language, text, vars) : problemText(language, code);
 }

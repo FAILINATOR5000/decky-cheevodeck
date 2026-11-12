@@ -116,6 +116,10 @@ export function setFixWindowOpen(open: boolean) {
     windowsOpen = Math.max(0, windowsOpen + (open ? 1 : -1));
 }
 
+export function fixWindowOpen(): boolean {
+    return windowsOpen > 0;
+}
+
 export function setMultiplayerPageShown(shown: boolean) {
     pageShown = shown;
 }

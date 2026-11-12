@@ -1,5 +1,6 @@
 export type NavAxisRef = {
     current: {
+        TakeFocus?: (bTakeFocus?: boolean) => void;
         m_node?: {
             m_Tree?: {
                 m_lastFocusNodeXMovement?: { Reset?: () => void };

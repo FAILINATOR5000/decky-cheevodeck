@@ -62,7 +62,7 @@ declare module "@decky/api" {
 }
 declare module "@decky/ui" {
     type NoDomFocusEvents = {
-        onGamepadFocus?: () => void;
+        onGamepadFocus?: (evt: CustomEvent) => void;
         onGamepadBlur?: () => void;
         onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
         onFocus?: never;
@@ -231,4 +231,8 @@ declare module "react-icons/fa" {
     export const FaMicrophone: any;
     export const FaMicrophoneSlash: any;
     export const FaVolumeMute: any;
+    export const FaVolumeUp: any;
+    export const FaVoteYea: any;
+    export const FaChessBoard: any;
+    export const FaBroadcastTower: any;
 }

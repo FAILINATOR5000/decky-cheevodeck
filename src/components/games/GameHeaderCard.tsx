@@ -8,6 +8,7 @@ import { consoleInlineName } from "../../utils/consoles";
 import { logError } from "../../utils/errors";
 import { bannerSize, headerSize, textSize } from "../../utils/scale";
 import { bodyTextStyle } from "../../utils/style";
+import type { Payload } from "../../types";
 
 type GameHeaderArt = {
     iconUri: string | null;
@@ -16,26 +17,39 @@ type GameHeaderArt = {
     ingameCold: boolean;
 };
 
+function cachedArt(gameId: number | null): GameHeaderArt {
+    const iconUri = getCachedGameImageDataUri(gameId, "icon");
+    const ingameUri = getCachedGameImageDataUri(gameId, "ingame");
+    return { iconUri, iconCold: iconUri === null, ingameUri, ingameCold: ingameUri === null };
+}
+
+const NO_ART: GameHeaderArt = { iconUri: null, iconCold: false, ingameUri: null, ingameCold: false };
+
 export function useGameHeaderArt(
     gameId: number | null,
-    iconUrl: string | null | undefined,
-    ingameUrl: string | null | undefined,
+    payload: Payload | null | undefined,
     enabled: boolean
 ): GameHeaderArt {
-    const [art, setArt] = useState<GameHeaderArt>(() => {
-        const iconUri = getCachedGameImageDataUri(gameId, "icon");
-        const ingameUri = getCachedGameImageDataUri(gameId, "ingame");
-        return { iconUri, iconCold: iconUri === null, ingameUri, ingameCold: ingameUri === null };
-    });
+    const own = payload && payload.gameId === gameId ? payload : null;
+    const iconUrl = own?.imageIcon;
+    const ingameUrl = own?.imageIngame;
+    const [art, setArt] = useState<GameHeaderArt>(() => cachedArt(gameId));
+    const [artFor, setArtFor] = useState(gameId);
+
+    let shown = art;
+    if (artFor !== gameId) {
+        shown = enabled && gameId !== null ? cachedArt(gameId) : NO_ART;
+        setArtFor(gameId);
+        setArt(shown);
+    }
 
     useEffect(() => {
         if (!enabled || gameId === null) {
-            setArt({ iconUri: null, iconCold: false, ingameUri: null, ingameCold: false });
+            setArt(NO_ART);
             return;
         }
-        const iconUri = getCachedGameImageDataUri(gameId, "icon");
-        const ingameUri = getCachedGameImageDataUri(gameId, "ingame");
-        setArt({ iconUri, iconCold: iconUri === null, ingameUri, ingameCold: ingameUri === null });
+        const cached = cachedArt(gameId);
+        setArt((from) => from.iconUri === cached.iconUri && from.ingameUri === cached.ingameUri ? from : cached);
         let cancelled = false;
         for (const kind of ["icon", "ingame"] as const) {
             const url = kind === "icon" ? iconUrl : ingameUrl;
@@ -63,7 +77,7 @@ export function useGameHeaderArt(
         }
     }, [art.iconCold, art.iconUri, art.ingameCold, art.ingameUri]);
 
-    return art;
+    return shown;
 }
 
 type GameHeaderCardProps = GameHeaderArt & {

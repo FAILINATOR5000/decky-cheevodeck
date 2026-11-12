@@ -102,6 +102,8 @@ export function fixStepLabel(language: LanguageCode, step: FixStep): string {
             return t(language, "Turn On Play Through Emulator Shortcuts");
         case "setup_streaming":
             return t(language, "Set Up Streaming");
+        case "add_dolphin_folder":
+            return t(language, "Add the Game's Folder to Dolphin");
         case "pick_game_file":
             return step.path
                 ? t(language, "Check {{file}}", { file: step.path.slice(step.path.lastIndexOf("/") + 1) })
@@ -128,6 +130,8 @@ function fixDoneLine(language: LanguageCode, step: FixStep): string {
             return t(language, "Play Through Emulator Shortcuts was turned on.");
         case "setup_streaming":
             return t(language, "Streaming was set up.");
+        case "add_dolphin_folder":
+            return t(language, "The game's folder was added to Dolphin.");
         case "pick_game_file":
             return t(language, "The game's file was found.");
     }
@@ -161,6 +165,8 @@ function missingLine(language: LanguageCode, step: FixStep, gate: string, detail
             return t(language, "{{emulator}} isn't the host's version", { emulator: name });
         case "setup_streaming":
             return t(language, "Streaming isn't set up yet");
+        case "add_dolphin_folder":
+            return t(language, "Dolphin's NetPlay offers games from folders you point Dolphin to look in. This folder isn't added yet.");
         case "pick_game_file":
             if (gate === "rom_missing") {
                 return detail.picked
@@ -482,7 +488,7 @@ function FixItModal(props: { language: LanguageCode; request: FixItRequest; clos
                 <Section focusKey="fix:section:missing" label={t(language, "What's missing")}>
                     {missingLines(language, plan, request.title).map((line) => <Bullet key={line}>{line}</Bullet>)}
                 </Section>
-                <Section focusKey="fix:section:steps" label={t(language, "What Fix It will do")}>
+                <Section focusKey="fix:section:steps" label={t(language, "What the “Fix It” button below will do")}>
                     <Focusable key={`fix:steps:${waiting ? ended?.startedAt : "first"}`} flow-children="column">
                         {steps.map((step, index) => (
                             <div key={index} style={{ marginBottom: "8px", paddingLeft: "4px" }}>
@@ -620,7 +626,7 @@ export async function openFixIt(language: LanguageCode, about: FixItFor) {
         logError("fix it: couldn't ask what this game needs", e);
     }
     if (fetched === null) {
-        showMultiplayerProblem(language, "Fix It", t(language, "Couldn't check what this game needs. Try again."));
+        showMultiplayerProblem(language, "Fix It", t(language, "Couldn't check what this game needs. Try again."), true);
         return;
     }
     const refresh = async () => (await fetchFixAnswer(about))?.answer ?? null;

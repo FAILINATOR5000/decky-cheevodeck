@@ -91,6 +91,7 @@ export function ModeChart(props: {
     states: Partial<Record<MultiplayerMode, MultiplayerModeState>>;
     onChoose: (mode: MultiplayerMode) => void;
     onStatus: (mode: MultiplayerMode) => void;
+    streamNav?: { current: any };
 }) {
     const { language, mode, locked } = props;
     const [focused, setFocused] = useState<MultiplayerMode | null>(null);
@@ -113,6 +114,7 @@ export function ModeChart(props: {
                 style={{ display: "flex", minWidth: 0 }}
             >
                 <DialogButton
+                    navRef={each === "stream" ? props.streamNav : undefined}
                     onClick={() => props.onChoose(each)}
                     focusable={!disabled}
                     onGamepadFocus={() => {
