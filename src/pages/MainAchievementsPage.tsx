@@ -1076,17 +1076,15 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
     const tabBodyRef = useRef<HTMLDivElement | null>(null);
     const [heldBodyHeight, setHeldBodyHeight] = useState<number | null>(null);
     const releaseHeldBodyHeightRef = useRef<(() => void) | null>(null);
-    const [drawerReturnToken, setDrawerReturnToken] = useState(0);
-
-    const [tickerReturnToken, setTickerReturnToken] = useState(0);
+    const quickMenuButtonNavRef = useRef<any>(null);
 
     const entryFromComparePicker = mainEntryToken > 0 && mainEntryFromView === "comparePicker";
     const entryFromNavigation = mainEntryToken > 0 && !entryFromComparePicker;
 
     function collapseQuickMenuToHamburger() {
         playOkSound();
+        quickMenuButtonNavRef.current?.TakeFocus(true);
         setQuickMenuExpanded(false);
-        setDrawerReturnToken((value) => value + 1);
     }
 
     const [tickerEvent, setTickerEvent] = useState<GameTickerEvent | null>(null);
@@ -1960,13 +1958,13 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
 
     function dismissTicker() {
         playOkSound();
+        quickMenuButtonNavRef.current?.TakeFocus(true);
         if (showReminderInTicker) {
             setReminderEvent(null);
         }
         else {
             setSocialHubTickerEvent(null);
         }
-        setTickerReturnToken((token) => token + 1);
     }
 
     const showReminderInTicker = reminderEvent !== null && showReminderTicker;
@@ -2033,6 +2031,7 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
                         }
                         setQuickMenuExpanded((value) => !value);
                     }}
+                    navRef={quickMenuButtonNavRef}
                     onGamepadFocus={() => focusStripButton("quickmenu")}
                     onGamepadBlur={() => blurStripButton("quickmenu")}
                     preferredFocus={true}
@@ -2113,11 +2112,11 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
 
     const iconRow = (
         <Focusable
-            key={`iconrow:${drawerReturnToken}:${tickerReturnToken}:${mainEntryToken}`}
+            key={`iconrow:${mainEntryToken}`}
             flow-children="row"
             navEntryPreferPosition={NAV_ENTER_PREFERRED_CHILD}
             resetNavOnEntry={true}
-            autoFocus={drawerReturnToken > 0 || tickerReturnToken > 0 || (entryFromNavigation && !entryOwned) || undefined}
+            autoFocus={(entryFromNavigation && !entryOwned) || undefined}
             style={{ display: "flex", gap: "6px" }}
         >
             {profileButton}
