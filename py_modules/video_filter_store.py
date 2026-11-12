@@ -2,6 +2,7 @@ import json
 import math
 import re
 import threading
+import time
 from pathlib import Path
 from typing import Any, Optional
 
@@ -28,6 +29,7 @@ MAX_VALUE_LENGTH = 64
 MAX_OBJECT_ENTRIES = 8
 
 STRIKES_TO_DEAD = 2
+DEAD_SECONDS = 24 * 60 * 60
 
 MIN_HOLD_SECONDS = 2
 MAX_HOLD_SECONDS = 20
@@ -184,7 +186,7 @@ def parse_video_filters(raw: bytes) -> Optional[dict]:
 
 def _clean_dead(raw: Any) -> dict:
     if not isinstance(raw, dict):
-        return {"revision": 0, "names": [], "strikes": {}}
+        return {"revision": 0, "names": [], "strikes": {}, "since": {}}
     names = []
     for name in raw.get("names") if isinstance(raw.get("names"), list) else []:
         if isinstance(name, str) and _NAME.fullmatch(name) and name not in names:
@@ -202,7 +204,23 @@ def _clean_dead(raw: Any) -> dict:
                 clean.append(video)
         if clean:
             strikes[name] = clean[:STRIKES_TO_DEAD]
-    return {"revision": to_int(raw.get("revision"), 0), "names": names[:MAX_DISGUISES], "strikes": strikes}
+    since = {}
+    raw_since = raw.get("since") if isinstance(raw.get("since"), dict) else {}
+    for name, stamp in raw_since.items():
+        if isinstance(name, str) and (name in names or name in strikes) and to_int(stamp, 0) > 0:
+            since[name] = to_int(stamp, 0)
+    return {"revision": to_int(raw.get("revision"), 0), "names": names[:MAX_DISGUISES], "strikes": strikes, "since": since}
+
+
+def _forget_old_failures(dead: dict, now: int) -> None:
+    for name in set(dead["names"]) | set(dead["strikes"]):
+        stamp = dead["since"].get(name, 0)
+        if 0 < stamp <= now and now - stamp < DEAD_SECONDS:
+            continue
+        if name in dead["names"]:
+            dead["names"].remove(name)
+        dead["strikes"].pop(name, None)
+        dead["since"].pop(name, None)
 
 
 class VideoFilterStore:
@@ -265,6 +283,7 @@ class VideoFilterStore:
             state = self._load_state()
             doc = self._current(state)
         revision = doc["revision"] if doc else 0
+        _forget_old_failures(state["dead"], int(time.time()))
         dead = state["dead"]["names"] if state["dead"]["revision"] == revision and revision else []
         return {
             "doc": doc,
@@ -303,8 +322,11 @@ class VideoFilterStore:
                 return None
             if not isinstance(video_id, str) or not _VIDEO_ID.fullmatch(video_id):
                 return None
-            dead = state["dead"] if state["dead"]["revision"] == revision else {"revision": revision, "names": [], "strikes": {}}
+            now = int(time.time())
+            dead = state["dead"] if state["dead"]["revision"] == revision else {"revision": revision, "names": [], "strikes": {}, "since": {}}
+            _forget_old_failures(dead, now)
             if name not in dead["names"]:
+                dead["since"].setdefault(name, now)
                 videos = dead["strikes"].setdefault(name, [])
                 if video_id not in videos:
                     videos.append(video_id)

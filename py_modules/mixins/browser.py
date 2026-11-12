@@ -743,7 +743,7 @@ class BrowserMixin(PluginContext):
     async def report_video_filter(self, revision: int = 0, name: str = "", video_id: str = ""):
         dead = await asyncio.to_thread(self.video_filter_store.record_failure, revision, name, video_id)
         if dead is True:
-            decky.logger.info("video filters: disguise %s failed on two videos in revision %s, not tried again", name, revision)
+            decky.logger.info("video filters: disguise %s failed on two videos in revision %s, not tried again for a day", name, revision)
         elif dead is False:
             decky.logger.info("video filters: disguise %s failed once on revision %s, a second video marks it dead", name, revision)
         return {"ok": dead is not None, "dead": dead is True}
