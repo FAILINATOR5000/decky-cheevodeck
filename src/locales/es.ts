@@ -1341,6 +1341,8 @@ const ES: LocaleTable = {
     "Auto-Check Mastery Goals": "Comprobar objetivos automáticamente",
     "help_tracked_sets_auto_check": "Cuando está activado, abrir Objetivos de maestría actualiza la completitud de cada objetivo automáticamente. Activado por defecto. El botón Comprobar de cada objetivo está siempre disponible de todos modos.",
     "Mastery Goals Service": "Servicio de objetivos de maestría",
+    "Keep Games Page Fresh": "Mantener al día la página Juegos",
+    "help_tracked_sets_keep_games_fresh": "El Servicio de objetivos de maestría solo revisa tu biblioteca de juegos mientras tienes un objetivo sin terminar. Actívalo para que la revise en cada tick aunque no tengas objetivos, así tu página Juegos siempre se abre al instante en lugar de cargar desde RetroAchievements. Desactivado por defecto.",
     "help_tracked_sets_service": "Comprobación en segundo plano que te felicita cuando un objetivo llega al 100%... bueno, ¡mucho más que eso! Revisa tu progreso en cada ciclo y actualiza tus datos de los Objetivos de maestría. Entre ciclo y ciclo, también revisa el progreso de tu juego actual cada vez que abres este plugin en el menú de acceso rápido.",
     "Mastery Goal Refresh Frequency": "Frecuencia de actualización de objetivos",
     "help_tracked_set_refresh_frequency": "Cada cuánto el servicio reverifica tus Objetivos de maestría por su cuenta, para detectar un objetivo que terminaste en la web donde no se dispara ningún desbloqueo en la Deck. 15 minutos es el valor por defecto. Los valores más bajos son sobre todo para pruebas; el servicio solo gasta una comprobación cuando un objetivo sigue figurando como incompleto.",

@@ -1330,6 +1330,8 @@ const PT: LocaleTable = {
     "Auto-Check Mastery Goals": "Verificar Objetivos de Maestria automaticamente",
     "help_tracked_sets_auto_check": "Quando ativado, abrir os Objetivos de Maestria atualiza a conclusão de cada objetivo automaticamente. Ativado por padrão. O botão Verificar de cada objetivo continua disponível de qualquer forma.",
     "Mastery Goals Service": "Serviço de Objetivos de Maestria",
+    "Keep Games Page Fresh": "Manter a página Jogos atualizada",
+    "help_tracked_sets_keep_games_fresh": "O Serviço de Objetivos de Maestria só verifica a tua biblioteca de jogos enquanto tens um objetivo por concluir. Ativa isto para que a verifique a cada tick mesmo sem objetivos, e a tua página Jogos abre sempre de imediato em vez de carregar a partir do RetroAchievements. Desativado por padrão.",
     "help_tracked_sets_service": "Verificação em segundo plano que te parabeniza quando um objetivo chega a 100%... bem, muito mais que isso! Ela verifica o seu progresso a cada ciclo e atualiza os seus dados dos Objetivos de Maestria. Entre um ciclo e outro, também verifica o progresso do seu jogo atual sempre que você abre este plugin no menu de acesso rápido.",
     "Mastery Goal Refresh Frequency": "Frequência de atualização de Objetivos de Maestria",
     "help_tracked_set_refresh_frequency": "Com que frequência o serviço reverifica seus Objetivos de Maestria por conta própria, para pegar um objetivo que você terminou no site onde nenhum desbloqueio dispara na Deck. 15 minutos é o padrão. Os valores mais baixos são mais para testes; o serviço só gasta uma verificação quando um objetivo ainda consta como incompleto.",

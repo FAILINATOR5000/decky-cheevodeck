@@ -1330,6 +1330,8 @@ const DE: LocaleTable = {
     "Auto-Check Mastery Goals": "Meisterziele automatisch prüfen",
     "help_tracked_sets_auto_check": "Wenn an, aktualisiert das Öffnen von Meisterziele automatisch den Abschluss jedes Ziels. Standardmäßig an. Der Prüfen-Knopf pro Ziel ist so oder so immer verfügbar.",
     "Mastery Goals Service": "Meisterziele-Dienst",
+    "Keep Games Page Fresh": "Spiele-Seite aktuell halten",
+    "help_tracked_sets_keep_games_fresh": "Der Meisterziele-Dienst prüft deine Spielebibliothek nur, solange du ein unfertiges Ziel hast. Schalte das ein, damit er sie bei jedem Tick prüft, auch ohne Ziele, und deine Spiele-Seite immer sofort öffnet, statt von RetroAchievements zu laden. Standardmäßig aus.",
     "help_tracked_sets_service": "Hintergrundprüfung, die dich beglückwünscht, wenn ein Ziel 100 % erreicht ... na ja, viel mehr als das! Sie prüft deinen Spielfortschritt bei jedem Tick und aktualisiert deine Daten für die Meisterziele. Zwischen den Ticks prüft sie außerdem den Fortschritt deines aktuellen Spiels, wann immer du dieses Plugin im Schnellzugriffsmenü öffnest.",
     "Mastery Goal Refresh Frequency": "Meisterziel-Aktualisierungsfrequenz",
     "help_tracked_set_refresh_frequency": "Wie oft der Dienst deine Meisterziele von sich aus erneut prüft, um ein Ziel zu erwischen, das du auf der Website abgeschlossen hast, wo keine Freischaltung auf der Deck ausgelöst wird. Standard sind 15 Minuten. Niedrigere Werte sind vor allem zum Testen; der Dienst verbraucht nur dann eine Prüfung, wenn ein Ziel noch als unvollständig gilt.",

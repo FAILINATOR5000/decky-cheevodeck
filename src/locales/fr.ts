@@ -1330,6 +1330,8 @@ const FR: LocaleTable = {
     "Auto-Check Mastery Goals": "Vérifier les objectifs automatiquement",
     "help_tracked_sets_auto_check": "Quand c'est activé, ouvrir les Objectifs de maîtrise actualise automatiquement l'achèvement de chaque objectif. Activé par défaut. Le bouton Vérifier de chaque objectif reste disponible dans tous les cas.",
     "Mastery Goals Service": "Service des objectifs de maîtrise",
+    "Keep Games Page Fresh": "Garder la page Jeux à jour",
+    "help_tracked_sets_keep_games_fresh": "Le Service des objectifs de maîtrise ne vérifie ta bibliothèque de jeux que tant que tu as un objectif inachevé. Active ceci pour qu'il la vérifie à chaque tick même sans objectif, et ta page Jeux s'ouvre alors tout de suite au lieu de se charger depuis RetroAchievements. Désactivé par défaut.",
     "help_tracked_sets_service": "Vérification en arrière-plan qui te félicite quand un objectif atteint 100 %... enfin, bien plus que ça ! Elle vérifie ta progression à chaque cycle et met à jour tes données pour les Objectifs de maîtrise. Entre deux cycles, elle vérifie aussi la progression de ton jeu en cours chaque fois que tu ouvres ce plugin dans le menu d'accès rapide.",
     "Mastery Goal Refresh Frequency": "Fréquence d'actualisation des objectifs",
     "help_tracked_set_refresh_frequency": "À quelle fréquence le service revérifie tes Objectifs de maîtrise de lui-même, pour rattraper un objectif que tu as terminé sur le site web, où aucun déblocage ne se produit sur la Deck. 15 minutes par défaut. Les valeurs plus basses servent surtout aux tests ; le service ne dépense une vérification que lorsqu'un objectif figure encore comme incomplet.",

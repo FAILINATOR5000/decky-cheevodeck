@@ -3248,6 +3248,9 @@ export const saveTrackedSetsAutoCheck = callable<[boolean], { ok: boolean; track
 export const saveTrackedSetsServiceEnabled = callable<[boolean], { ok: boolean; trackedSetsServiceEnabled: boolean }>(
     "save_tracked_sets_service_enabled",
 );
+export const saveTrackedSetsKeepGamesFresh = callable<[boolean], { ok: boolean; trackedSetsKeepGamesFresh: boolean }>(
+    "save_tracked_sets_keep_games_fresh",
+);
 export const saveTrackedSetsRefreshMinutes = callable<[number], { ok: boolean; trackedSetsRefreshMinutes: number }>(
     "save_tracked_sets_refresh_minutes",
 );

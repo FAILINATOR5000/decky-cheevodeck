@@ -251,6 +251,7 @@ type OptionsPageState = {
     keepGuidesOffline: boolean;
     trackedSetsAutoCheck: boolean;
     trackedSetsServiceEnabled: boolean;
+    trackedSetsKeepGamesFresh: boolean;
     trackedSetsRefreshMinutes: number;
     milestonesServiceEnabled: boolean;
     milestonesTickMinutes: number;
@@ -516,6 +517,7 @@ type OptionsPageActions = {
     onToggleAutoPurgeService: (nextValue: boolean) => void | Promise<void>;
     onToggleTrackedSetsAutoCheck: (nextValue: boolean) => void | Promise<void>;
     onToggleTrackedSetsServiceEnabled: (nextValue: boolean) => void | Promise<void>;
+    onToggleTrackedSetsKeepGamesFresh: (nextValue: boolean) => void | Promise<void>;
     onCycleTrackedSetsRefreshMinutes: () => void | Promise<void>;
     onToggleMilestonesServiceEnabled: (nextValue: boolean) => void | Promise<void>;
     onCycleMilestonesTickMinutes: () => void | Promise<void>;
@@ -1120,6 +1122,15 @@ function SystemTab(props: TabContentProps) {
                 onChange={actions.onToggleTrackedSetsServiceEnabled}
                 disabled={disabled}
                 help={t(state.language, "help_tracked_sets_service")}
+            />
+            <OptionToggle
+                outerStyle={buttonOuterStyle}
+                focusKey="options:toggle:trackedSetsKeepGamesFresh"
+                label={t(state.language, "Keep Games Page Fresh")}
+                value={state.trackedSetsKeepGamesFresh}
+                onChange={actions.onToggleTrackedSetsKeepGamesFresh}
+                disabled={disabled}
+                help={t(state.language, "help_tracked_sets_keep_games_fresh")}
             />
             <OptionToggle
                 outerStyle={buttonOuterStyle}

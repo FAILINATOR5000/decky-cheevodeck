@@ -1118,6 +1118,7 @@ export type SettingsResponse = {
     friendShowAllAchievements: boolean;
     trackedSetsAutoCheck: boolean;
     trackedSetsServiceEnabled: boolean;
+    trackedSetsKeepGamesFresh: boolean;
     trackedSetsRefreshMinutes: number;
     milestonesServiceEnabled: boolean;
     milestonesTickMinutes: number;

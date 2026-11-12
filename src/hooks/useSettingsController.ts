@@ -174,6 +174,7 @@ export function useSettingsController({
     const [friendShowAllAchievements, setFriendShowAllAchievements] = useState(true);
     const [trackedSetsAutoCheck, setTrackedSetsAutoCheck] = useState(true);
     const [trackedSetsServiceEnabled, setTrackedSetsServiceEnabled] = useState(true);
+    const [trackedSetsKeepGamesFresh, setTrackedSetsKeepGamesFresh] = useState(false);
     const [trackedSetsRefreshMinutes, setTrackedSetsRefreshMinutes] = useState(15);
     const [milestonesServiceEnabled, setMilestonesServiceEnabled] = useState(true);
     const [milestonesTickMinutes, setMilestonesTickMinutes] = useState(60);
@@ -474,6 +475,7 @@ export function useSettingsController({
         setFriendShowAllAchievements(source.friendShowAllAchievements);
         setTrackedSetsAutoCheck(source.trackedSetsAutoCheck);
         setTrackedSetsServiceEnabled(source.trackedSetsServiceEnabled);
+        setTrackedSetsKeepGamesFresh(source.trackedSetsKeepGamesFresh);
         setTrackedSetsRefreshMinutes(source.trackedSetsRefreshMinutes);
         setMilestonesServiceEnabled(source.milestonesServiceEnabled);
         setMilestonesTickMinutes(source.milestonesTickMinutes);
@@ -766,6 +768,7 @@ export function useSettingsController({
         friendShowAllAchievements,
         trackedSetsAutoCheck,
         trackedSetsServiceEnabled,
+        trackedSetsKeepGamesFresh,
         trackedSetsRefreshMinutes,
         milestonesServiceEnabled,
         milestonesTickMinutes,
@@ -1027,6 +1030,7 @@ export function useSettingsController({
         setFriendShowAllAchievements,
         setTrackedSetsAutoCheck,
         setTrackedSetsServiceEnabled,
+        setTrackedSetsKeepGamesFresh,
         setTrackedSetsRefreshMinutes,
         setMilestonesServiceEnabled,
         setMilestonesTickMinutes,

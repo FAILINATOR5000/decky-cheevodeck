@@ -703,6 +703,7 @@ _KNOBS = (
     Knob("trackedSetsSelectorSort", default="alphabetical"),
     Knob("trackedSetsSelectorFilter", default="all"),
     Knob("trackedSetsServiceEnabled", default=True),
+    Knob("trackedSetsKeepGamesFresh", default=False),
     Knob("trackedSetsRefreshMinutes", default=15),
     Knob("milestonesServiceEnabled", default=True),
     Knob("milestonesTickMinutes", default=60),
@@ -1626,6 +1627,11 @@ class SettingsStore:
         cfg = self._update_config("trackedSetsServiceEnabled", bool(value))
 
         return self.get_tracked_sets_service_enabled(cfg)
+
+    def update_tracked_sets_keep_games_fresh(self, value: bool) -> bool:
+        cfg = self._update_config("trackedSetsKeepGamesFresh", bool(value))
+
+        return self.get_tracked_sets_keep_games_fresh(cfg)
 
     def update_tracked_sets_refresh_minutes(self, value: int) -> int:
         cfg = self._update_config("trackedSetsRefreshMinutes", to_int(value, 15))
@@ -5170,6 +5176,9 @@ class SettingsStore:
 
     def get_tracked_sets_service_enabled(self, cfg: dict) -> bool:
         return bool(cfg.get("trackedSetsServiceEnabled", True))
+
+    def get_tracked_sets_keep_games_fresh(self, cfg: dict) -> bool:
+        return bool(cfg.get("trackedSetsKeepGamesFresh", False))
 
     def get_tracked_sets_refresh_minutes(self, cfg: dict) -> int:
         value = to_int(cfg.get("trackedSetsRefreshMinutes", 15), 15)

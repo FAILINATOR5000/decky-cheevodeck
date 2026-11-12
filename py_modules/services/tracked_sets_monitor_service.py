@@ -102,6 +102,13 @@ class TrackedSetsMonitorService:
             return True
         return self._settings_store.get_tracked_sets_service_enabled(cfg)
 
+    def _keep_games_fresh(self):
+        try:
+            cfg = self._settings_store.load_config()
+        except Exception:
+            return False
+        return self._settings_store.get_tracked_sets_keep_games_fresh(cfg)
+
     def _battery_saver_active(self):
         try:
             cfg = self._settings_store.load_config()
@@ -376,7 +383,7 @@ class TrackedSetsMonitorService:
         if not username or not web_api_key:
             return
 
-        if not self._any_unfinished_set():
+        if not self._any_unfinished_set() and not self._keep_games_fresh():
             self._debug_log("tracked sets monitor: no unfinished set, skipping periodic tick")
             return
 

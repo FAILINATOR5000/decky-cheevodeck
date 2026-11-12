@@ -48,6 +48,7 @@ import {
     saveAutoPurgeService,
     saveTrackedSetsAutoCheck,
     saveTrackedSetsServiceEnabled,
+    saveTrackedSetsKeepGamesFresh,
     saveDebugLogging,
     saveAlwaysStaggerMounting,
     saveAutoRefresh,
@@ -418,6 +419,7 @@ type UseOptionsControllerArgs = {
     keepGuidesOffline: boolean;
     trackedSetsAutoCheck: boolean;
     trackedSetsServiceEnabled: boolean;
+    trackedSetsKeepGamesFresh: boolean;
     debugLogging: boolean;
     notifyDebugEnabled: boolean;
     notifyDebugToast: boolean;
@@ -708,6 +710,7 @@ type UseOptionsControllerArgs = {
     setAutoPurgeService: Dispatch<SetStateAction<boolean>>;
     setTrackedSetsAutoCheck: Dispatch<SetStateAction<boolean>>;
     setTrackedSetsServiceEnabled: Dispatch<SetStateAction<boolean>>;
+    setTrackedSetsKeepGamesFresh: Dispatch<SetStateAction<boolean>>;
     setDebugLogging: Dispatch<SetStateAction<boolean>>;
     setNotifyDebugEnabled: Dispatch<SetStateAction<boolean>>;
     setNotifyDebugToast: Dispatch<SetStateAction<boolean>>;
@@ -910,6 +913,7 @@ export function buildOptionsController({
     keepGuidesOffline,
     trackedSetsAutoCheck,
     trackedSetsServiceEnabled,
+    trackedSetsKeepGamesFresh,
     debugLogging,
     notifyDebugEnabled,
     notifyDebugToast,
@@ -1200,6 +1204,7 @@ export function buildOptionsController({
     setAutoPurgeService,
     setTrackedSetsAutoCheck,
     setTrackedSetsServiceEnabled,
+    setTrackedSetsKeepGamesFresh,
     setDebugLogging,
     setNotifyDebugEnabled,
     setNotifyDebugToast,
@@ -1467,6 +1472,7 @@ export function buildOptionsController({
         setAutoPurgeService(Boolean(result.autoPurgeService ?? true));
         setTrackedSetsAutoCheck(Boolean(result.trackedSetsAutoCheck ?? true));
         setTrackedSetsServiceEnabled(Boolean(result.trackedSetsServiceEnabled ?? true));
+        setTrackedSetsKeepGamesFresh(Boolean(result.trackedSetsKeepGamesFresh ?? false));
         setDebugLogging(Boolean(result.debugLogging ?? false));
         setNotifyDebugEnabled(Boolean(result.notifyDebugEnabled ?? false));
         setNotifyDebugToast(Boolean(result.notifyDebugToast ?? false));
@@ -2037,6 +2043,15 @@ export function buildOptionsController({
             applyValue: setTrackedSetsServiceEnabled,
             saveCall: saveTrackedSetsServiceEnabled,
             getSavedValue: (result, fallbackValue) => Boolean(result.trackedSetsServiceEnabled ?? fallbackValue),
+        });
+
+    const onToggleTrackedSetsKeepGamesFresh = (nextValue: boolean) =>
+        saveSettingWithRollback<boolean>({
+            nextValue,
+            previousValue: trackedSetsKeepGamesFresh,
+            applyValue: setTrackedSetsKeepGamesFresh,
+            saveCall: saveTrackedSetsKeepGamesFresh,
+            getSavedValue: (result, fallbackValue) => Boolean(result.trackedSetsKeepGamesFresh ?? fallbackValue),
         });
 
     const onCycleTrackedSetsRefreshMinutes = () => {
@@ -3946,6 +3961,7 @@ export function buildOptionsController({
         keepGuidesOffline,
         trackedSetsAutoCheck,
         trackedSetsServiceEnabled,
+        trackedSetsKeepGamesFresh,
         debugLogging,
         notifyDebugEnabled,
         notifyDebugToast,
@@ -4206,6 +4222,7 @@ export function buildOptionsController({
         onToggleAutoPurgeService,
         onToggleTrackedSetsAutoCheck,
         onToggleTrackedSetsServiceEnabled,
+        onToggleTrackedSetsKeepGamesFresh,
         onToggleDebugLogging,
         onToggleNotifyDebugEnabled,
         onToggleNotifyDebugToast,

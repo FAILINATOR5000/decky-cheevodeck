@@ -23,6 +23,14 @@ class TrackedSetsMixin(PluginContext):
             "trackedSetsServiceEnabled": value,
         }
 
+    async def save_tracked_sets_keep_games_fresh(self, tracked_sets_keep_games_fresh: bool):
+        value = self.settings_store.update_tracked_sets_keep_games_fresh(tracked_sets_keep_games_fresh)
+
+        return {
+            "ok": True,
+            "trackedSetsKeepGamesFresh": value,
+        }
+
     async def save_tracked_sets_refresh_minutes(self, tracked_sets_refresh_minutes: int):
         value = self.settings_store.update_tracked_sets_refresh_minutes(tracked_sets_refresh_minutes)
 

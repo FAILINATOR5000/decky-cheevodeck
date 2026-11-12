@@ -1324,6 +1324,8 @@ export const EN: LocaleTable = {
     "Auto-Check Mastery Goals": "Auto-Check Mastery Goals",
     "help_tracked_sets_auto_check": "When on, opening Mastery Goals refreshes the completion of every goal automatically. On by default. The per-goal Check button is always available either way and the mastery goals service will update it each tick too.",
     "Mastery Goals Service": "Mastery Goals Service",
+    "Keep Games Page Fresh": "Keep Games Page Fresh",
+    "help_tracked_sets_keep_games_fresh": "The Mastery Goals Service only checks your game library while you have an unfinished goal. Turn this on to have it check every tick even with no goals, so your Games page always opens instantly instead of loading from RetroAchievements. Off by default.",
     "help_tracked_sets_service": "Background check that congratulates you when a goal reaches 100%... well, much more than that! It checks your game progress each tick and updates your data for mastery goals. In between ticks, it also checks your current game progress whenever you open this plugin in the quick access menu.",
     "Mastery Goal Refresh Frequency": "Mastery Goal Refresh Frequency",
     "help_tracked_set_refresh_frequency": "How often the service re-checks your Mastery Goals on its own.",

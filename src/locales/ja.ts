@@ -1320,6 +1320,8 @@ const JA: LocaleTable = {
     "Auto-Check Mastery Goals": "マスター目標を自動確認",
     "help_tracked_sets_auto_check": "オンにすると、マスター目標を開くたびにすべての目標の達成度を自動で更新します。標準はオン。目標ごとの「確認」ボタンはどちらでも使えますし、マスター目標サービスもティックごとに更新します。",
     "Mastery Goals Service": "マスター目標サービス",
+    "Keep Games Page Fresh": "ゲームページを最新に保つ",
+    "help_tracked_sets_keep_games_fresh": "マスター目標サービスは、未達成の目標があるあいだだけゲームライブラリを確認します。オンにすると目標がなくてもティックごとに確認するので、ゲームページはRetroAchievementsから読み込まずにすぐ開きます。標準はオフ。",
     "help_tracked_sets_service": "目標が100% に届いたときに祝ってくれる…だけではないバックグラウンドの確認です。ティックごとにゲームの進捗を確認し、マスター目標のデータを更新します。ティックの合間にも、クイックアクセスメニューでこのプラグインを開くたびに、プレイ中のゲームの進捗を確認します。",
     "Mastery Goal Refresh Frequency": "マスター目標の更新間隔",
     "help_tracked_set_refresh_frequency": "サービスがマスター目標を自分で確認し直す間隔です。",
