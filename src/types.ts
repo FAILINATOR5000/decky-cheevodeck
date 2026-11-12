@@ -3042,6 +3042,7 @@ export type MultiplayerRoomsReply = {
     rooms?: MultiplayerRoomRow[];
     total?: number | null;
     next?: string | null;
+    checkHere?: boolean;
     size?: number;
     onlineError?: string;
 };

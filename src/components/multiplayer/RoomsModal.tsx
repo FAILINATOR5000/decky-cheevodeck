@@ -37,12 +37,13 @@ const LINE_INSET = "12px";
 const ENTRY_MS = 6000;
 const SEARCH_SETTLE_MS = 400;
 const SPINNER_DELAY_MS = 300;
+const SPINNER_MIN_MS = 400;
 const QUERY_MAX = 64;
 const NO_ROOMS: MultiplayerRoomRow[] = [];
 
-type PageState = { total: number | null; next: string | null; size: number };
+type PageState = { total: number | null; next: string | null; checkHere: boolean; size: number };
 
-const NO_PAGE_STATE: PageState = { total: null, next: null, size: 64 };
+const NO_PAGE_STATE: PageState = { total: null, next: null, checkHere: false, size: 64 };
 
 type Entry =
     | { kind: "heading"; key: "local" | "online" }
@@ -55,7 +56,7 @@ function entryKey(entry: Entry): string {
 }
 
 function entryFocusKey(entry: Entry): string {
-    return entry.kind === "heading" ? `multiplayer:rooms:heading:${entry.key}` : rowKey(entry.row);
+    return entry.kind === "heading" ? `multiplayer:roomsheading:${entry.key}` : rowKey(entry.row);
 }
 
 function filterKey(filter: MultiplayerRoomFilter): string {
@@ -140,12 +141,15 @@ function RoomsModal(props: RoomsModalProps) {
     queryRef.current = query;
     const filterRef = useRef(filter);
     filterRef.current = filter;
-    const askedRef = useRef({ query: "", filter: filterKey(filter) });
+    const askedRef = useRef({ query: "", filter: filterKey(filter), value: filter });
+    const [answered, setAnswered] = useState(() => ({ query: "", filter }));
+    const seekRef = useRef(false);
+    const searchTimerRef = useRef(0);
 
     function pageRequest(after: string | null): MultiplayerRoomsPage {
         const wanted = searchKey(queryRef.current.trim()).slice(0, QUERY_MAX);
         const current = filterRef.current;
-        askedRef.current = { query: wanted, filter: filterKey(current) };
+        askedRef.current = { query: wanted, filter: filterKey(current), value: current };
         return {
             q: wanted,
             statuses: wanted
@@ -170,16 +174,22 @@ function RoomsModal(props: RoomsModalProps) {
         shownCountRef.current = shown.length;
         pagedRef.current = found.total !== null && found.total !== undefined;
         setRooms(shown);
-        setPageState({ total: found.total ?? null, next: found.next ?? null, size: found.size ?? NO_PAGE_STATE.size });
+        setPageState({ total: found.total ?? null, next: found.next ?? null, checkHere: found.checkHere === true,
+            size: found.size ?? NO_PAGE_STATE.size });
         setOnlineError(found.onlineError ?? "");
     }
 
     async function askPage(stack: (string | null)[], seek: boolean, quiet = false) {
         const ticket = ++ticketRef.current;
+        const asked = askedRef.current;
+        seekRef.current = seekRef.current || seek;
+        const seeking = seekRef.current;
         loadingRef.current = true;
         setAsking(true);
+        let spinnerAt = 0;
         const startLoading = () => {
             if (ticket === ticketRef.current && aliveRef.current) {
+                spinnerAt = performance.now();
                 setHoldPx(listRef.current?.offsetHeight ?? 0);
                 setLoading(true);
             }
@@ -189,17 +199,41 @@ function RoomsModal(props: RoomsModalProps) {
             startLoading();
         }
         try {
-            const found = await multiplayerRoomsPage(pageRequest(stack[stack.length - 1]), seek);
-            if (ticket === ticketRef.current && aliveRef.current && found.ok) {
-                setCursors(stack);
-                show(found, true);
-                if (pagedRef.current && searchKey(queryRef.current.trim()).slice(0, QUERY_MAX) !== askedRef.current.query) {
-                    void askPage([null], false);
-                }
+            const found = await multiplayerRoomsPage(pageRequest(stack[stack.length - 1]), seeking);
+            window.clearTimeout(slow);
+            const shownFor = spinnerAt ? performance.now() - spinnerAt : SPINNER_MIN_MS;
+            if (shownFor < SPINNER_MIN_MS) {
+                await new Promise((done) => window.setTimeout(done, SPINNER_MIN_MS - shownFor));
+            }
+            if (ticket !== ticketRef.current || !aliveRef.current) {
+                return;
+            }
+            if (!found.ok) {
+                askedRef.current = asked;
+                return;
+            }
+            if (seeking) {
+                seekRef.current = false;
+            }
+            const online = (found.rooms ?? NO_ROOMS).filter((row) => row.door === "server").length;
+            if (stack.length > 1 && (found.total === null || found.total === undefined || online === 0)) {
+                void askPage([null], false);
+                return;
+            }
+            setCursors(stack);
+            setAnswered({ query: askedRef.current.query, filter: askedRef.current.value });
+            show(found, true);
+            const typed = searchKey(queryRef.current.trim()).slice(0, QUERY_MAX) !== askedRef.current.query;
+            const filtered = filterKey(filterRef.current) !== askedRef.current.filter;
+            if (pagedRef.current && ((typed && !searchTimerRef.current) || filtered)) {
+                void askPage([null], false, true);
             }
         }
         catch (e) {
             logError("multiplayerRoomsPage", e);
+            if (ticket === ticketRef.current) {
+                askedRef.current = asked;
+            }
         }
         finally {
             window.clearTimeout(slow);
@@ -298,6 +332,7 @@ function RoomsModal(props: RoomsModalProps) {
 
     function refresh() {
         ticketRef.current += 1;
+        seekRef.current = true;
         loadingRef.current = true;
         setAsking(true);
         setHoldPx(listRef.current?.offsetHeight ?? 0);
@@ -314,8 +349,19 @@ function RoomsModal(props: RoomsModalProps) {
         if (!pagedRef.current || searchKey(query.trim()).slice(0, QUERY_MAX) === askedRef.current.query) {
             return;
         }
-        const timer = window.setTimeout(() => void askPage([null], false, true), SEARCH_SETTLE_MS);
-        return () => window.clearTimeout(timer);
+        const timer = window.setTimeout(() => {
+            searchTimerRef.current = 0;
+            if (searchKey(queryRef.current.trim()).slice(0, QUERY_MAX) !== askedRef.current.query) {
+                void askPage([null], false, true);
+            }
+        }, SEARCH_SETTLE_MS);
+        searchTimerRef.current = timer;
+        return () => {
+            window.clearTimeout(timer);
+            if (searchTimerRef.current === timer) {
+                searchTimerRef.current = 0;
+            }
+        };
     }, [query]);
 
     function filterClosed() {
@@ -350,16 +396,19 @@ function RoomsModal(props: RoomsModalProps) {
     const listed = rooms ?? NO_ROOMS;
     const paged = pageState.total !== null;
     const firstPage = cursors.length === 1;
-    const filtered = useMemo(() => listed.filter((row) => (paged && row.door === "server") || roomPasses(row, filter)),
-        [listed, filter, paged]);
+    const serverFiltered = paged && !pageState.checkHere;
+    const appliedFilter = paged ? answered.filter : filter;
+    const appliedQuery = paged ? answered.query : query;
+    const filtered = useMemo(() => listed.filter((row) => (serverFiltered && row.door === "server") || roomPasses(row, appliedFilter)),
+        [listed, appliedFilter, serverFiltered]);
     const searched = useMemo(() => {
-        const wanted = searchKey(query.trim());
+        const wanted = searchKey(appliedQuery.trim());
         if (!wanted) {
             return filtered;
         }
         return filtered.filter((row) => (paged && row.door === "server") || [row.name, row.title, row.user, statusLabel(row.status)]
             .some((text) => searchKey(text).includes(wanted)));
-    }, [filtered, query, language, paged]);
+    }, [filtered, appliedQuery, language, paged]);
     const entries = useMemo(() => {
         const local = firstPage ? searched.filter((row) => row.door !== "server") : NO_ROOMS;
         const online = searched.filter((row) => row.door === "server");
@@ -499,9 +548,9 @@ function RoomsModal(props: RoomsModalProps) {
     let emptyText = "";
     if (!looking && rooms !== null && entries.length === 0) {
         if (paged) {
-            emptyText = query.trim()
+            emptyText = answered.query
                 ? t(language, "Nothing here matches what you typed.")
-                : filterKey(filter) !== filterKey(NO_ROOM_FILTER)
+                : filterKey(answered.filter) !== filterKey(NO_ROOM_FILTER)
                     ? t(language, "No rooms match the filter.")
                     : t(language, "No rooms yet. Local rooms need the same Wi-Fi; online rooms need the lobby server.");
         }
