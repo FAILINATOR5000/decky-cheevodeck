@@ -6,6 +6,8 @@ import { achievementGreen, bodyTextStyle } from "../../utils/style";
 
 const CHAT_LINES = 6;
 const PAD_PX = 4;
+const SIDE_PX = 8;
+const BORDER_PX = 1;
 
 export function RoomChatBox(props: { language: LanguageCode; chat: MultiplayerChatLine[] }) {
     const { language, chat } = props;
@@ -16,7 +18,7 @@ export function RoomChatBox(props: { language: LanguageCode; chat: MultiplayerCh
         if (!element) {
             return;
         }
-        const top = element.getBoundingClientRect().top + PAD_PX;
+        const top = element.getBoundingClientRect().top + BORDER_PX + PAD_PX;
         for (const line of Array.from(element.children) as HTMLElement[]) {
             line.style.visibility = "";
             if (line.getBoundingClientRect().top < top - 0.5) {
@@ -32,13 +34,17 @@ export function RoomChatBox(props: { language: LanguageCode; chat: MultiplayerCh
                 ...bodyTextStyle(),
                 opacity: 1,
                 width: "100%",
-                height: `${CHAT_LINES * 1.4}em`,
+                boxSizing: "border-box",
+                height: `calc(${CHAT_LINES * 1.4}em + ${2 * (PAD_PX + BORDER_PX)}px)`,
                 lineHeight: 1.4,
                 overflow: "hidden",
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "flex-end",
-                padding: `${PAD_PX}px 0`
+                padding: `${PAD_PX}px ${SIDE_PX}px`,
+                border: `${BORDER_PX}px solid rgba(255, 255, 255, 0.12)`,
+                borderRadius: "6px",
+                background: "rgba(255, 255, 255, 0.05)"
             }}
         >
             {chat.length === 0 ? (

@@ -3109,6 +3109,7 @@ export const EN: LocaleTable = {
     "Say Something": "Say Something",
     "DuckStation can't do Couch Play, and its saves won't carry over. {{core}} works, so this session uses it.": "DuckStation can't do Couch Play, and its saves won't carry over. {{core}} works, so this session uses it.",
     "Chat History": "Chat History",
+    Chat: "Chat",
     "Send": "Send",
     "No messages yet": "No messages yet",
     "Couldn't send that message": "Couldn't send that message",

@@ -2967,6 +2967,7 @@ const JA: LocaleTable = {
     "Say Something": "メッセージを送る",
     "DuckStation can't do Couch Play, and its saves won't carry over. {{core}} works, so this session uses it.": "DuckStationはCouch Playに対応しておらず、そのセーブデータは引き継がれません。{{core}}は対応しているので、このセッションではそれを使います。",
     "Chat History": "チャット履歴",
+    Chat: "チャット",
     "Send": "送信",
     "No messages yet": "まだメッセージはありません",
     "Couldn't send that message": "メッセージを送信できませんでした",

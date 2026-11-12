@@ -1161,6 +1161,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 focusFallback={["multiplayer:say", exitKey, "multiplayer:back"]}
                 headroomPx={0}
             />
+            <SectionTitle label={t(language, "Chat")} />
             <PanelSectionRow>
                 <RoomChatBox language={language} chat={chat} />
             </PanelSectionRow>
@@ -1566,19 +1567,35 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         />
     );
     const loungeBody = inSession && lounge !== null && (
-        <LoungeTab
-            language={language}
-            lounge={lounge}
-            ownSeat={hosted ? 0 : joined?.seat ?? -1}
-            game={loungeGame}
-            avatars={friends.state.avatars}
-            self={hosted
-                ? { name: hosted.seats[0]?.name ?? "", pic: hosted.seats[0]?.pic ?? "" }
-                : { name: joined?.status?.members[joined.seat] ?? "", pic: joined?.status?.ids[joined.seat]?.pic ?? "" }}
-            buttonStyle={buttonStyle}
-            exitKey={exitKey}
-            onGame={showLoungeGame}
-        />
+        <>
+            <PanelSectionRow>
+                <RoomChatBox language={language} chat={chat} />
+            </PanelSectionRow>
+            <PanelSectionRow>
+                <FocusableItem
+                    bottomSeparator="none"
+                    outerStyle={buttonStyle}
+                    focusKey="multiplayer:lounge:say"
+                    focusFallback={["multiplayer:roomtab:lounge", exitKey, "multiplayer:back"]}
+                    onClick={() => openChatSay(language)}
+                >
+                    {t(language, "Say Something")}
+                </FocusableItem>
+            </PanelSectionRow>
+            <LoungeTab
+                language={language}
+                lounge={lounge}
+                ownSeat={hosted ? 0 : joined?.seat ?? -1}
+                game={loungeGame}
+                avatars={friends.state.avatars}
+                self={hosted
+                    ? { name: hosted.seats[0]?.name ?? "", pic: hosted.seats[0]?.pic ?? "" }
+                    : { name: joined?.status?.members[joined.seat] ?? "", pic: joined?.status?.ids[joined.seat]?.pic ?? "" }}
+                buttonStyle={buttonStyle}
+                exitKey={exitKey}
+                onGame={showLoungeGame}
+            />
+        </>
     );
     const miscRows = streamRoom && (
         <>
@@ -1651,7 +1668,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     );
     const optionRows = (roomHasOptions || inSession) && (
         <>
-            {!inSession && <SectionTitle label={t(language, "Options")} />}
+            <SectionTitle label={t(language, "Options")} />
             {inSession && !roomHasOptions && (
                 <PanelSectionRow>
                     <div style={bodyTextStyle()}>{t(language, "The host sets this room's options.")}</div>
