@@ -101,6 +101,7 @@ class HostStreams:
         self._seats = {}
         self._pairing = None
         self._closed = False
+        self._stale = None
         self.host_size = None
         self.speed_mbit = 0.0
         self.checking = False
@@ -265,7 +266,16 @@ class HostStreams:
                 pending = []
             else:
                 said.pop("read", None)
+                if self._stale is None:
+                    self._stale = {request["id"] for request in pending}
+                    if self._stale:
+                        self._debug("stream: leaving %s pairing request(s) from before this window alone",
+                                    len(self._stale))
+                pending = [request for request in pending if request["id"] not in self._stale]
             if pending:
+                self._debug("stream: pairing requests %s, seats waiting %s",
+                            [(request["id"][:8], _bare(request["address"])) for request in pending],
+                            [each["source"] if each["piped"] else each["ip"] for each in waiting])
                 heard = sorted(_bare(request["address"]) for request in pending)
                 expected = sorted(each["source"] if each["piped"] else each["ip"] for each in waiting)
                 if not set(heard) & set(expected) and (heard, expected) != said.get("match"):
@@ -278,6 +288,7 @@ class HostStreams:
                               if address == (each["source"] if each["piped"] else each["ip"])), None)
                 if entry is None:
                     continue
+                self._debug("stream: answering pairing request %s from %s", request["id"][:8], address)
                 try:
                     ok = await asyncio.to_thread(self._sunshine.answer_pin, request["id"], entry["pin"],
                                                  _client_name(entry))
