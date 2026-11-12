@@ -92,6 +92,7 @@ def emit_notification(
     toast_line=None,
     force_toast=False,
     after_press=False,
+    dnd_exempt=False,
 ) -> None:
     spec = NOTIFICATION_TYPES.get(ntype)
     if spec is None or event_loop is None:
@@ -107,6 +108,7 @@ def emit_notification(
 
     if (
         not force_toast
+        and not dnd_exempt
         and cfg.get("doNotDisturb", False)
         and cfg.get("doNotDisturbDisablesToast", True)
         and ntype != "noteReminder"

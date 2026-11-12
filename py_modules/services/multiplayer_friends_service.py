@@ -776,6 +776,7 @@ class MultiplayerFriendsService:
             title_key=TOASTS[kind][0],
             line_key=TOASTS[kind][1],
             template_vars={"name": name},
+            dnd_exempt=True,
         )
 
     def state(self) -> dict:

@@ -770,6 +770,7 @@ class MultiplayerService:
             line_key=line,
             template_vars={"name": name},
             force_toast=force,
+            dnd_exempt=True,
         )
 
     def _fresh_nonce(self, nonce: str, now: float) -> bool:
