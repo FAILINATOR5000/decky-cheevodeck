@@ -2627,8 +2627,10 @@ class MultiplayerService:
             error = ""
         elif game == "ttt":
             error = lounge.ttt_move(room["lounge"]["ttt"], index, seat, cell) if act == "move" else ERROR_UNAVAILABLE
+        elif game == "rev":
+            error = lounge.rev_act(room["lounge"]["rev"], index, seat, act, cell) if act != "start" else ERROR_UNAVAILABLE
         else:
-            error = lounge.c4_act(room["lounge"]["c4"], index, seat, act, cell)
+            error = lounge.c4_act(room["lounge"]["c4"], index, seat, act, cell) if act != "join" else ERROR_UNAVAILABLE
         if not error:
             self._announce()
         return error
@@ -2792,7 +2794,7 @@ class MultiplayerService:
                 "carried": {},
                 "vote": None,
                 "switching": False,
-                "lounge": {"ttt": lounge.ttt_new(), "c4": lounge.c4_new()},
+                "lounge": lounge.new_lounge(),
             }
             if self._closed_tail is not None:
                 self._shut()
@@ -4776,7 +4778,7 @@ class MultiplayerService:
                 answered = False
             if not answered:
                 await asyncio.sleep(POLL_BACKOFF_SECONDS)
-            elif time.monotonic() < joined["fastUntil"]:
+            elif time.monotonic() < joined["fastUntil"] or _in_lounge_match(joined["status"], joined["seat"]):
                 await asyncio.sleep(VOICE_POLL_SECONDS)
             else:
                 await asyncio.sleep(POLL_SECONDS)
@@ -6536,11 +6538,17 @@ def _vote_marker(view):
             "voted": view["mine"] >= 0, "counts": list(view["counts"])}
 
 
+def _in_lounge_match(status, seat: int) -> bool:
+    boards = (status or {}).get("lounge") or {}
+    return any(not board["end"] and any(player["seat"] == seat and not player["gone"] for player in board["players"])
+               for board in boards.values())
+
+
 def _lounge_marker(view):
     if view is None:
         return None
     marker = {}
-    for name in ("ttt", "c4"):
+    for name in ("ttt", "c4", "rev"):
         board = view[name]
         players = board["players"]
         won = board["end"] == "win" and 0 <= board["winner"] < len(players)

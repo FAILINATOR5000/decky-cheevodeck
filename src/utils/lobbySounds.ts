@@ -2,8 +2,11 @@ export const START_SOUND_MS = 2100;
 
 const CLOSE_AFTER_MS = 10000;
 const WET_GAIN = 0.3;
+const FLIP_TICKS_MAX = 6;
+const FLIP_TICK_GAP = 0.04;
 
 const E5 = 659.25;
+const G5 = 783.99;
 const A5 = 880;
 const D6 = 1174.66;
 const E6 = 1318.51;
@@ -139,6 +142,28 @@ export function playDropOther() {
         { frequency: A5, at: 0.06, peak: 0.18, decay: 0.16, sweep: 0.08 },
         { frequency: D6, at: 0.13, peak: 0.16, decay: 0.14, sweep: 0.08 }
     ], 0.6, 600);
+}
+
+export function playFlip(count: number) {
+    void play([
+        { frequency: D6, at: 0, peak: 0.22, decay: 0.16, sweep: 0.08 },
+        ...flipTicks(count, 1)
+    ], 0.6, 700);
+}
+
+export function playFlipOther(count: number) {
+    void play([
+        { frequency: G5, at: 0, peak: 0.22, decay: 0.16, sweep: 0.08 },
+        ...flipTicks(count, -1)
+    ], 0.6, 700);
+}
+
+function flipTicks(count: number, direction: 1 | -1): Voice[] {
+    const ticks: Voice[] = [];
+    for (let i = 0; i < Math.min(count, FLIP_TICKS_MAX); i++) {
+        ticks.push({ frequency: E6 * Math.pow(2, direction * i / 12), at: 0.08 + i * FLIP_TICK_GAP, peak: 0.08, decay: 0.07, sweep: 0.04 });
+    }
+    return ticks;
 }
 
 export function playStart() {

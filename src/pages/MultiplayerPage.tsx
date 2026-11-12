@@ -368,7 +368,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 showRoomTab(nextShown);
                 changed = true;
             }
-            if ((nextLounge === "ttt" || nextLounge === "c4") && nextLounge !== loungeGame) {
+            if ((nextLounge === "ttt" || nextLounge === "c4" || nextLounge === "rev") && nextLounge !== loungeGame) {
                 showLoungeGame(nextLounge);
                 changed = true;
             }
@@ -1545,7 +1545,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             dot={{
                 vote: Boolean(vote?.open && vote.mine < 0),
                 lounge: lounge !== null && (lounge.ttt.players.length > 0 && !lounge.ttt.end
-                    || lounge.c4.players.length > 0 && !lounge.c4.end)
+                    || lounge.c4.players.length > 0 && !lounge.c4.end
+                    || lounge.rev.players.length > 0 && !lounge.rev.end)
             }}
             onPick={showRoomTab}
             onDisabled={explainTab}

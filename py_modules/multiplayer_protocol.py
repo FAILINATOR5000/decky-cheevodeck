@@ -891,9 +891,11 @@ VOTE_GAMES_MAX = 4
 _ICON = re.compile(r"/Images/[0-9A-Za-z_]{1,32}\.(png|jpg)")
 _TTT_BOARD = re.compile(r"[.01]{9}")
 _C4_BOARD = re.compile(r"[.0-3]{42}")
+_REV_BOARD = re.compile(r"[.01]{64}")
 LOUNGE_ENDS = ("", "win", "draw")
-LOUNGE_GAMES = ("ttt", "c4")
-LOUNGE_ACTS = ("move", "start", "clear")
+LOUNGE_GAMES = ("ttt", "c4", "rev")
+LOUNGE_ACTS = ("move", "start", "clear", "join")
+_LOUNGE_CELLS = {"ttt": 9, "c4": 7, "rev": 64}
 
 
 def _small_int(value, low: int, high: int) -> bool:
@@ -994,10 +996,19 @@ def read_lounge(raw):
         return None
     ttt = _lounge_board(raw.get("ttt"), _TTT_BOARD, 2, 9)
     c4 = _lounge_board(raw.get("c4"), _C4_BOARD, 4, 42)
-    if ttt is None or c4 is None or type(raw["c4"].get("started")) is not bool:
+    rev = _lounge_board(raw.get("rev"), _REV_BOARD, 2, 64)
+    if (
+        ttt is None
+        or c4 is None
+        or rev is None
+        or type(raw["c4"].get("started")) is not bool
+        or type(raw["rev"].get("started")) is not bool
+        or not _small_int(raw["rev"].get("passed"), -1, 1)
+    ):
         return None
     c4["started"] = raw["c4"]["started"]
-    return {"ttt": ttt, "c4": c4}
+    rev.update(started=raw["rev"]["started"], passed=raw["rev"]["passed"])
+    return {"ttt": ttt, "c4": c4, "rev": rev}
 
 
 def read_vote_press(raw):
@@ -1010,8 +1021,7 @@ def read_vote_press(raw):
 def read_lounge_press(raw):
     if not isinstance(raw, dict) or raw.get("game") not in LOUNGE_GAMES or raw.get("act") not in LOUNGE_ACTS:
         return None
-    cells = 9 if raw["game"] == "ttt" else 7
     cell = raw.get("cell", 0)
-    if not _small_int(cell, 0, cells - 1):
+    if not _small_int(cell, 0, _LOUNGE_CELLS[raw["game"]] - 1):
         return None
     return raw["game"], raw["act"], cell

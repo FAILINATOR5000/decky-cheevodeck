@@ -2950,7 +2950,7 @@ export type MultiplayerTab = "play" | "friends";
 
 export type MultiplayerRoomTab = "room" | "vote" | "lounge" | "audio" | "stream";
 
-export type MultiplayerLoungeGame = "ttt" | "c4";
+export type MultiplayerLoungeGame = "ttt" | "c4" | "rev";
 
 export type MultiplayerVote = {
     id: number;
@@ -2974,9 +2974,14 @@ export type MultiplayerLoungeBoard = {
     winner: number;
     line: number[];
     started?: boolean;
+    passed?: number;
 };
 
-export type MultiplayerLounge = { ttt: MultiplayerLoungeBoard; c4: MultiplayerLoungeBoard & { started: boolean } };
+export type MultiplayerLounge = {
+    ttt: MultiplayerLoungeBoard;
+    c4: MultiplayerLoungeBoard & { started: boolean };
+    rev: MultiplayerLoungeBoard & { started: boolean; passed: number };
+};
 
 export type MultiplayerWhere = "local" | "online";
 

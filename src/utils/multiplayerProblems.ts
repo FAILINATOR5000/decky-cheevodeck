@@ -172,6 +172,7 @@ const ROOM_GAME_WHY: Record<string, string> = {
     not_your_turn: "It's {{name}}'s turn.",
     square_taken: "That square is taken.",
     column_full: "That column is full.",
+    rev_illegal: "You can't play there.",
     c4_full: "This match is full. Wait for it to finish, or press Clear to start a new one.",
     c4_waiting: "You've joined. Wait for {{name}} to start the match.",
     c4_join: "Press “Join Match” to play.",

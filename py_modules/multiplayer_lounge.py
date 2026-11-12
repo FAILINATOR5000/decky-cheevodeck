@@ -8,6 +8,10 @@ TTT_CELLS = 9
 C4_COLUMNS = 7
 C4_ROWS = 6
 C4_PLAYERS = 4
+REV_SIDE = 8
+REV_CELLS = REV_SIDE * REV_SIDE
+REV_START = {27: 1, 28: 0, 35: 0, 36: 1}
+REV_DIRECTIONS = ((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1))
 
 COUNT_MAX = 40
 
@@ -27,6 +31,8 @@ NOT_YOUR_TURN = "not_your_turn"
 SQUARE_TAKEN = "square_taken"
 COLUMN_FULL = "column_full"
 MATCH_OVER = "match_over"
+REV_ILLEGAL = "rev_illegal"
+C4_JOIN = "c4_join"
 
 
 def voter_key(seat: dict) -> str:
@@ -75,6 +81,14 @@ def ttt_new(match: int = 0) -> dict:
 def c4_new(match: int = 0) -> dict:
     return {"match": match, "board": [-1] * (C4_COLUMNS * C4_ROWS), "players": [], "started": False, "turn": 0,
             "end": "", "winner": -1, "line": []}
+
+
+def rev_new(match: int = 0) -> dict:
+    board = [-1] * REV_CELLS
+    for cell, slot in REV_START.items():
+        board[cell] = slot
+    return {"match": match, "board": board, "players": [], "started": False, "turn": 0, "end": "", "winner": -1,
+            "passed": -1, "line": []}
 
 
 def _slot(state: dict, seat_index: int) -> int:
@@ -185,6 +199,73 @@ def _next_turn(state: dict, slot: int) -> int:
     return slot
 
 
+def rev_flips(board: list, slot: int, cell: int) -> list:
+    if board[cell] >= 0:
+        return []
+    row, column = divmod(cell, REV_SIDE)
+    flips = []
+    for d_row, d_column in REV_DIRECTIONS:
+        run = []
+        r, c = row + d_row, column + d_column
+        while 0 <= r < REV_SIDE and 0 <= c < REV_SIDE and board[r * REV_SIDE + c] == 1 - slot:
+            run.append(r * REV_SIDE + c)
+            r, c = r + d_row, c + d_column
+        if run and 0 <= r < REV_SIDE and 0 <= c < REV_SIDE and board[r * REV_SIDE + c] == slot:
+            flips.extend(run)
+    return flips
+
+
+def rev_legal(board: list, slot: int) -> list:
+    return [cell for cell in range(REV_CELLS) if rev_flips(board, slot, cell)]
+
+
+def rev_act(state: dict, seat_index: int, seat: dict, act: str, cell: int) -> str:
+    if state["end"]:
+        return MATCH_OVER
+    players = state["players"]
+    slot = _slot(state, seat_index)
+    if act == "join":
+        if state["started"] or len(players) >= 2:
+            return TTT_TWO
+        if slot >= 0:
+            return C4_NEED_TWO
+        players.append(_player(seat_index, seat))
+        if len(players) == 2:
+            if random.random() < 0.5:
+                players.reverse()
+            state.update(started=True, turn=0, match=state["match"] + 1)
+        return ""
+    if not state["started"]:
+        return C4_NEED_TWO if slot >= 0 else C4_JOIN
+    if slot < 0:
+        return TTT_TWO
+    if slot != state["turn"]:
+        return NOT_YOUR_TURN
+    board = state["board"]
+    flips = rev_flips(board, slot, cell)
+    if not flips:
+        return REV_ILLEGAL
+    board[cell] = slot
+    for flipped in flips:
+        board[flipped] = slot
+    state["passed"] = -1
+    if rev_legal(board, 1 - slot):
+        state["turn"] = 1 - slot
+    elif rev_legal(board, slot):
+        state["passed"] = 1 - slot
+    else:
+        _rev_end(state)
+    return ""
+
+
+def _rev_end(state: dict) -> None:
+    counts = [state["board"].count(0), state["board"].count(1)]
+    if counts[0] == counts[1]:
+        state["end"] = "draw"
+    else:
+        state.update(end="win", winner=0 if counts[0] > counts[1] else 1)
+
+
 def _c4_line(board: list, row: int, column: int, slot: int) -> list:
     for d_row, d_column in ((0, 1), (1, 0), (1, 1), (1, -1)):
         cells = [(row, column)]
@@ -203,6 +284,10 @@ def seat_left(lounge: dict, seat_index: int) -> bool:
     ttt = lounge["ttt"]
     if _slot(ttt, seat_index) >= 0:
         lounge["ttt"] = ttt_new(ttt["match"])
+        changed = True
+    rev = lounge["rev"]
+    if _slot(rev, seat_index) >= 0:
+        lounge["rev"] = rev_new(rev["match"])
         changed = True
     c4 = lounge["c4"]
     slot = _slot(c4, seat_index)
@@ -226,12 +311,18 @@ def seat_left(lounge: dict, seat_index: int) -> bool:
 def clear(lounge: dict, game: str) -> None:
     if game == "ttt":
         lounge["ttt"] = ttt_new(lounge["ttt"]["match"])
+    elif game == "rev":
+        lounge["rev"] = rev_new(lounge["rev"]["match"])
     else:
         lounge["c4"] = c4_new(lounge["c4"]["match"])
 
 
+def new_lounge() -> dict:
+    return {"ttt": ttt_new(), "c4": c4_new(), "rev": rev_new()}
+
+
 def lounge_view(lounge: dict) -> dict:
-    ttt, c4 = lounge["ttt"], lounge["c4"]
+    ttt, c4, rev = lounge["ttt"], lounge["c4"], lounge["rev"]
     return {
         "ttt": {"match": ttt["match"], "board": "".join("." if mark < 0 else str(mark) for mark in ttt["board"]),
                 "players": [dict(player) for player in ttt["players"]], "turn": ttt["turn"], "end": ttt["end"],
@@ -239,4 +330,8 @@ def lounge_view(lounge: dict) -> dict:
         "c4": {"match": c4["match"], "board": "".join("." if mark < 0 else str(mark) for mark in c4["board"]),
                "players": [dict(player) for player in c4["players"]], "started": c4["started"], "turn": c4["turn"],
                "end": c4["end"], "winner": c4["winner"], "line": list(c4["line"])},
+        "rev": {"match": rev["match"], "board": "".join("." if mark < 0 else str(mark) for mark in rev["board"]),
+                "players": [dict(player) for player in rev["players"]], "started": rev["started"],
+                "turn": rev["turn"], "end": rev["end"], "winner": rev["winner"], "passed": rev["passed"],
+                "line": []},
     }
