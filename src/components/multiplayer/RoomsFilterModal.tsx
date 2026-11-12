@@ -24,7 +24,7 @@ type Section = {
 };
 
 const SECTIONS: Section[] = [
-    { key: "game", headingKey: "Game", choices: [{ value: "compatible", labelKey: "Compatible" }] },
+    { key: "game", headingKey: "Game", choices: [{ value: "mine", labelKey: "My Games" }] },
     { key: "mode", headingKey: "Mode", choices: [{ value: "link", labelKey: "Link Play" }, { value: "couch", labelKey: "Couch Play" },
         { value: "stream", labelKey: "Stream Play" }] },
     { key: "kind", headingKey: "Room", choices: [{ value: "play", labelKey: "Play" }, { value: "watch", labelKey: "Watch Only" }] },
@@ -35,7 +35,7 @@ const SECTIONS: Section[] = [
 
 export function roomPasses(row: MultiplayerRoomRow, filter: MultiplayerRoomFilter): boolean {
     return (
-        (filter.game !== "compatible" || row.verdict?.can === true)
+        (filter.game !== "mine" || row.mine === true)
         && (!filter.mode || row.mode === filter.mode)
         && (!filter.kind || row.watch === (filter.kind === "watch"))
         && (!filter.access || roomAccess(row) === filter.access)

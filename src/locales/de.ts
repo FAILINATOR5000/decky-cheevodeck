@@ -3129,7 +3129,7 @@ const DE: LocaleTable = {
     "Turn on EZ Multiplayer Friends to host a Friend Only room.": "Schalte EZ-Multiplayer-Freunde ein, um einen Nur-Freunde-Raum zu hosten.",
     "A Private room needs a password.": "Ein privater Raum braucht ein Passwort.",
     "Mode": "Modus",
-    "Compatible": "Kompatibel",
+    "My Games": "Meine Spiele",
     "Seats": "Plätze",
     "Open seats": "Freie Plätze",
     "No rooms match the filter.": "Kein Raum passt zum Filter.",

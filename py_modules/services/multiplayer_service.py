@@ -95,7 +95,7 @@ PAGE_CHOICES = {
     "where": ("local", "online"),
 }
 NO_PAGE = {"q": "", "statuses": (), "mode": "", "kind": "", "access": "", "seats": "", "where": "",
-           "compatible": False, "after": None}
+           "mine": False, "after": None}
 NO_PAGE_INFO = {"total": None, "next": None, "checkHere": False}
 _STATUS_CODE = re.compile(r"[a-z_]{1,16}")
 
@@ -344,7 +344,7 @@ def _read_page(raw) -> dict:
     for name, allowed in PAGE_CHOICES.items():
         value = raw.get(name)
         page[name] = value if isinstance(value, str) and value in allowed else ""
-    page["compatible"] = raw.get("compatible") is True
+    page["mine"] = raw.get("mine") is True
     after = raw.get("after")
     page["after"] = after if isinstance(after, str) and 0 < len(after) <= lobby_client.CURSOR_CHARS else None
     return page
@@ -4648,8 +4648,10 @@ class MultiplayerService:
         rows = self._room_rows()
         if rows and self._room is None and self._joined is None:
             verdicts = await asyncio.to_thread(self._verdicts, rows)
+            have = await asyncio.to_thread(self._game_ids)
             for row in rows:
                 row["verdict"] = verdicts[row["room"]]
+                row["mine"] = row["mode"] == "stream" or row["gameId"] in have
         return {"ok": True, "rooms": rows, "total": self._page_info["total"], "next": self._page_info["next"],
                 "checkHere": self._page_info["checkHere"], "size": lobby_client.PAGE_ROOMS,
                 "onlineError": self._online_error}
@@ -4707,7 +4709,7 @@ class MultiplayerService:
         if page["where"] == "local":
             return {"heard": False, "rooms": [], "ids": [], "total": 0, "next": None}
         games = None
-        if page["compatible"]:
+        if page["mine"]:
             census = await lobby_client.list_rooms(server, ulid, census=_wire_filters(page))
             if census["total"] is None:
                 return {"heard": True, **census}

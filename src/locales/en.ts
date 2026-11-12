@@ -3138,7 +3138,7 @@ export const EN: LocaleTable = {
     "Turn on EZ Multiplayer Friends to host a Friend Only room.": "Turn on EZ Multiplayer Friends to host a Friend Only room.",
     "A Private room needs a password.": "A Private room needs a password.",
     "Mode": "Mode",
-    "Compatible": "Compatible",
+    "My Games": "My Games",
     "Seats": "Seats",
     "Open seats": "Open seats",
     "No rooms match the filter.": "No rooms match the filter.",

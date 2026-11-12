@@ -161,7 +161,7 @@ function RoomsModal(props: RoomsModalProps) {
             access: current.access,
             seats: current.seats,
             where: current.where,
-            compatible: current.game === "compatible",
+            mine: current.game === "mine",
             after
         };
     }

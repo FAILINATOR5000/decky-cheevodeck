@@ -2996,7 +2996,7 @@ const JA: LocaleTable = {
     "Turn on EZ Multiplayer Friends to host a Friend Only room.": "フレンドのみのルームを立てるには、EZ Multiplayerのフレンドをオンにしてください。",
     "A Private room needs a password.": "プライベートルームにはパスワードが必要です。",
     "Mode": "モード",
-    "Compatible": "互換性あり",
+    "My Games": "自分のゲーム",
     "Seats": "席",
     "Open seats": "空席あり",
     "No rooms match the filter.": "フィルターに合うルームはありません。",

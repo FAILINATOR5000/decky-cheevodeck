@@ -2990,7 +2990,7 @@ export type MultiplayerWhere = "local" | "online";
 export type MultiplayerAccess = "public" | "friends" | "private";
 
 export type MultiplayerRoomFilter = {
-    game: "" | "compatible";
+    game: "" | "mine";
     mode: "" | MultiplayerMode;
     kind: "" | "play" | "watch";
     access: "" | MultiplayerAccess;
@@ -3028,6 +3028,7 @@ export type MultiplayerRoomRow = {
     address: string;
     door: "lan" | "server";
     away: boolean;
+    mine?: boolean;
     verdict?: {
         can: boolean;
         reason: string;
@@ -3056,7 +3057,7 @@ export type MultiplayerRoomsPage = {
     access: string;
     seats: string;
     where: string;
-    compatible: boolean;
+    mine: boolean;
     after: string | null;
 };
 

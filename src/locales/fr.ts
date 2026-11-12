@@ -3162,7 +3162,7 @@ const FR: LocaleTable = {
     "Turn on EZ Multiplayer Friends to host a Friend Only room.": "Active Amis EZ Multiplayer pour héberger une salle Amis seulement.",
     "A Private room needs a password.": "Une salle privée a besoin d'un mot de passe.",
     "Mode": "Mode",
-    "Compatible": "Compatible",
+    "My Games": "Mes jeux",
     "Seats": "Places",
     "Open seats": "Places libres",
     "No rooms match the filter.": "Aucune salle ne correspond au filtre.",

@@ -3210,7 +3210,7 @@ const RU: LocaleTable = {
     "Turn on EZ Multiplayer Friends to host a Friend Only room.": "Включи «Друзья в EZ Multiplayer», чтобы создать комнату только для друзей.",
     "A Private room needs a password.": "Для закрытой комнаты нужен пароль.",
     "Mode": "Режим",
-    "Compatible": "Совместима",
+    "My Games": "Мои игры",
     "Seats": "Места",
     "Open seats": "Есть места",
     "No rooms match the filter.": "Ни одна комната не подходит под фильтр.",
