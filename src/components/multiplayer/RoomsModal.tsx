@@ -34,6 +34,8 @@ const RENEW_EVERY = 5;
 const PASSWORD_MAX = 32;
 const ADDRESS_MAX = 15;
 const LINE_INSET = "12px";
+const ENTRY_MS = 6000;
+const NO_ROOMS: MultiplayerRoomRow[] = [];
 
 function rowKey(row: MultiplayerRoomRow): string {
     return `multiplayer:rooms:${row.room}`;
@@ -67,8 +69,10 @@ function RoomsModal(props: RoomsModalProps) {
     const [picked, setPicked] = useState<MultiplayerRoomRow | null>(null);
     const [password, setPassword] = useState("");
     const [address, setAddress] = useState("");
-    const [visit, setVisit] = useState(0);
     const [busy, setBusy] = useState(false);
+    const [visit, setVisit] = useState(0);
+    const [settling, setSettling] = useState(true);
+    const [backFromIp, setBackFromIp] = useState(false);
     const stopReading = useRef<() => void>(() => { });
     useEffect(() => () => stopReading.current(), []);
     const [line, setLine] = useState<DialogLineState>({ tone: "hint", text: "" });
@@ -82,6 +86,10 @@ function RoomsModal(props: RoomsModalProps) {
         let alive = true;
         let tick = 0;
         let looking = false;
+        let shownCount = -1;
+        const settleUntil = performance.now() + ENTRY_MS;
+        setSettling(true);
+        const settled = window.setTimeout(() => setSettling(false), ENTRY_MS);
         async function look() {
             if (looking) {
                 return;
@@ -89,7 +97,8 @@ function RoomsModal(props: RoomsModalProps) {
             looking = true;
             try {
                 const found = await multiplayerDiscover();
-                if (alive && found.ok) {
+                if (alive && found.ok && (shownCount <= 0 || performance.now() < settleUntil)) {
+                    shownCount = (found.rooms ?? []).length;
                     setRooms(found.rooms ?? []);
                     setOnlineError(found.onlineError ?? "");
                 }
@@ -120,6 +129,7 @@ function RoomsModal(props: RoomsModalProps) {
             tick += 1;
             if (tick % RENEW_EVERY === 0) {
                 multiplayerSetVisible(true, false)
+                    .then((renewed) => renewed.ok || renewed.error !== "cap_reached" ? renewed : multiplayerSetVisible(true, true))
                     .then((renewed) => {
                         if (alive) {
                             setVisibleError(renewed.ok ? "" : renewed.error ?? "unavailable");
@@ -127,18 +137,26 @@ function RoomsModal(props: RoomsModalProps) {
                     })
                     .catch((e) => logError("multiplayerSetVisible", e));
             }
-            if (tick % DISCOVER_EVERY === 0) {
+            if (tick % DISCOVER_EVERY === 0 || shownCount <= 0) {
                 void look();
             }
         }, TICK_MS);
         return () => {
             alive = false;
+            window.clearTimeout(settled);
             window.clearInterval(timer);
             if (!joinedRef.current) {
                 multiplayerSetVisible(false, false).catch((e) => logError("multiplayerSetVisible", e));
             }
         };
     }, [visit]);
+
+    function refresh() {
+        setVisibleError("");
+        setOnlineError("");
+        setRooms(null);
+        setVisit((count) => count + 1);
+    }
 
     useEffect(() => {
         if (step === "password") {
@@ -149,19 +167,13 @@ function RoomsModal(props: RoomsModalProps) {
         }
     }, [step]);
 
-    function lookAgain() {
-        setVisibleError("");
-        setRooms(null);
-        setVisit((count) => count + 1);
-        searchRef.current?.querySelector("input")?.focus();
-    }
 
     const statusLabel = (code: string) => {
         const key = roomStatusLabelKey(code);
         return key ? t(language, key) : "";
     };
 
-    const listed = rooms ?? [];
+    const listed = rooms ?? NO_ROOMS;
     const filtered = useMemo(() => listed.filter((row) => roomPasses(row, filter)), [listed, filter]);
     const searched = useMemo(() => {
         const wanted = searchKey(query.trim());
@@ -203,6 +215,7 @@ function RoomsModal(props: RoomsModalProps) {
     }
 
     function backToList() {
+        setBackFromIp(step === "ip");
         setStep("list");
         setPicked(null);
         setPassword("");
@@ -363,13 +376,25 @@ function RoomsModal(props: RoomsModalProps) {
     else {
         body = (
             <Focusable key="list" flow-children="column">
-                <div ref={searchRef} data-focus-key="multiplayer:rooms:search">
-                    <TextField
-                        label={t(language, "Search rooms")}
-                        value={query}
-                        onChange={(e: any) => setQuery(String(e?.target?.value ?? ""))}
-                    />
-                </div>
+                <Focusable flow-children="row" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <div ref={searchRef} data-focus-key="multiplayer:rooms:search" style={{ flex: 1, minWidth: 0 }}>
+                        <TextField
+                            label={t(language, "Search rooms")}
+                            value={query}
+                            onChange={(e: any) => setQuery(String(e?.target?.value ?? ""))}
+                        />
+                    </div>
+                    <div data-focus-key="multiplayer:rooms:joinip">
+                        <DialogButton onClick={() => { setLine({ tone: "hint", text: "" }); setStep("ip"); }} style={compactButtonStyle} autoFocus={backFromIp}>
+                            {t(language, "Join by IP")}
+                        </DialogButton>
+                    </div>
+                    <div data-focus-key="multiplayer:rooms:refresh">
+                        <DialogButton onClick={refresh} style={compactButtonStyle}>
+                            {t(language, "Refresh List")}
+                        </DialogButton>
+                    </div>
+                </Focusable>
                 <LabeledRow
                     focusKey="multiplayer:rooms:filter"
                     focusFallback={["multiplayer:rooms:search", "multiplayer:rooms:joinip"]}
@@ -378,18 +403,7 @@ function RoomsModal(props: RoomsModalProps) {
                     onClick={openFilter}
                     bottomSeparator="none"
                 />
-                {visibleError === "cap_reached" ? (
-                    <Focusable flow-children="row" style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "8px", paddingLeft: LINE_INSET }}>
-                        <div style={{ ...modalBodyStyle(), color: warnAmber, opacity: 1, flex: 1, minWidth: 0 }}>
-                            {t(language, "Stopped looking for rooms after 10 minutes.")}
-                        </div>
-                        <div data-focus-key="multiplayer:rooms:lookagain">
-                            <DialogButton onClick={lookAgain} style={compactButtonStyle}>
-                                {t(language, "Look Again")}
-                            </DialogButton>
-                        </div>
-                    </Focusable>
-                ) : visibleError && (
+                {visibleError && (
                     <div style={{ ...modalBodyStyle(), color: warnAmber, opacity: 1, marginTop: "8px", paddingLeft: LINE_INSET }}>
                         {describe(visibleError)}
                     </div>
@@ -400,12 +414,12 @@ function RoomsModal(props: RoomsModalProps) {
                     </div>
                 )}
                 <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: "8px" }}>
-                    {rooms === null && !visibleError && (
+                    {(rooms === null || (settling && listed.length === 0)) && !visibleError && (
                         <div style={{ paddingLeft: LINE_INSET }}>
                             <InlineSpinner label={t(language, "Looking for rooms...")} />
                         </div>
                     )}
-                    {rooms !== null && listed.length === 0 && (
+                    {rooms !== null && !settling && listed.length === 0 && (
                         <div style={{ ...modalBodyStyle(), paddingLeft: LINE_INSET }}>
                             {t(language, "No rooms yet. Local rooms need the same Wi-Fi; online rooms need the lobby server.")}
                         </div>
@@ -478,22 +492,9 @@ function RoomsModal(props: RoomsModalProps) {
                         </SlidingWindowRows>
                     )}
                 </div>
-                <Focusable
-                    style={{ display: "flex", justifyContent: "flex-start", gap: "8px", marginTop: "16px" }}
-                    flow-children="row"
-                >
-                    <div data-focus-key="multiplayer:rooms:joinip">
-                        <DialogButton onClick={() => { setLine({ tone: "hint", text: "" }); setStep("ip"); }} style={compactButtonStyle}>
-                            {t(language, "Join by IP")}
-                        </DialogButton>
-                    </div>
-                    <div data-focus-key="multiplayer:rooms:cancel">
-                        <DialogButton onClick={close} style={compactButtonStyle}>
-                            {t(language, "Cancel")}
-                        </DialogButton>
-                    </div>
+                <div style={{ display: "flex", marginTop: "8px" }}>
                     {dialogLine}
-                </Focusable>
+                </div>
             </Focusable>
         );
     }
