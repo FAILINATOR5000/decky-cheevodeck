@@ -1205,7 +1205,7 @@ class MultiplayerFriendsService:
             if self._room_is_theirs(room_id, address):
                 return True
         for _round in range(FIND_ROUNDS):
-            await self._mp.discover()
+            await self._mp.discover(room_id)
             if self._room_is_theirs(room_id, address):
                 return True
         return False

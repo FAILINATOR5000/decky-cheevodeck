@@ -81,6 +81,22 @@ HOUSEKEEPING_SECONDS = 5
 DOLPHIN_TUNNEL_PORT = 2627
 
 LIST_GRACE_SECONDS = 0.5
+PAGE_RENEW_ROUNDS = 3
+PAGE_RETRY_SECONDS = 1.0
+QUERY_CHARS = 64
+STATUS_CODES_MAX = 8
+GAMES_BYTES_MAX = 12000
+PAGE_CHOICES = {
+    "mode": ("link", "couch", "stream"),
+    "kind": ("play", "watch"),
+    "access": ("public", "friends", "private"),
+    "seats": ("open",),
+    "where": ("local", "online"),
+}
+NO_PAGE = {"q": "", "statuses": (), "mode": "", "kind": "", "access": "", "seats": "", "where": "",
+           "compatible": False, "after": None}
+NO_PAGE_INFO = {"total": None, "next": None}
+_STATUS_CODE = re.compile(r"[a-z_]{1,16}")
 
 BAD_TAGS_PER_ADDRESS = 3
 LOCKOUT_SECONDS = 60
@@ -313,6 +329,44 @@ class _Collector(asyncio.DatagramProtocol):
         pass
 
 
+def _read_page(raw) -> dict:
+    page = dict(NO_PAGE)
+    if not isinstance(raw, dict):
+        return page
+    query = raw.get("q")
+    if isinstance(query, str):
+        page["q"] = query.strip()[:QUERY_CHARS]
+    statuses = raw.get("statuses")
+    if isinstance(statuses, list):
+        page["statuses"] = tuple(code for code in statuses
+                                 if isinstance(code, str) and _STATUS_CODE.fullmatch(code))[:STATUS_CODES_MAX]
+    for name, allowed in PAGE_CHOICES.items():
+        value = raw.get(name)
+        page[name] = value if isinstance(value, str) and value in allowed else ""
+    page["compatible"] = raw.get("compatible") is True
+    after = raw.get("after")
+    page["after"] = after if isinstance(after, str) and 0 < len(after) <= lobby_client.CURSOR_CHARS else None
+    return page
+
+
+def _wire_filters(page: dict) -> dict:
+    wire = {name: page[name] for name in ("mode", "kind", "access", "seats") if page[name]}
+    if page["q"]:
+        wire["q"] = page["q"]
+        if page["statuses"]:
+            wire["statuses"] = list(page["statuses"])
+    return wire
+
+
+def _wire_page(page: dict, games) -> dict:
+    wire = {"size": lobby_client.PAGE_ROOMS, **_wire_filters(page)}
+    if page["after"]:
+        wire["after"] = page["after"]
+    if games is not None:
+        wire["games"] = games
+    return wire
+
+
 class MultiplayerService:
     def __init__(
         self, *, settings_store, game_mode, user_home, runtime_dir, cheevo_check_service, cheevo_check_store,
@@ -373,6 +427,11 @@ class MultiplayerService:
         self._online = {}
         self._online_error = ""
         self._prefer_server = False
+        self._paged = None
+        self._page = NO_PAGE
+        self._page_info = NO_PAGE_INFO
+        self._page_gen = 0
+        self._page_round = 0
 
         self._housekeeper = None
         self._poller = None
@@ -471,8 +530,7 @@ class MultiplayerService:
                 self._verdict_memo.clear()
                 if entry:
                     self._rooms.clear()
-                    self._online = {}
-                    self._online_error = ""
+                    self._forget_page()
             elif now >= self._cap_until:
                 if self._live():
                     decky.logger.info("multiplayer: the visit reached its cap")
@@ -505,7 +563,7 @@ class MultiplayerService:
         self._visible_until = 0.0
         self._cap_until = 0.0
         self._rooms.clear()
-        self._online = {}
+        self._forget_page()
 
     def close(self) -> None:
         if self._expiry is not None:
@@ -4487,25 +4545,64 @@ class MultiplayerService:
         subnet = self._hotspot.broadcast_address() if self._hotspot is not None else ""
         return [self._broadcast, subnet] if subnet else [self._broadcast]
 
-    async def discover(self) -> dict:
+    async def discover(self, find: str = "") -> dict:
         refused = self._refusal()
         if refused is not None:
             return {"ok": False, "error": refused}
-        nonce = secrets.token_hex(16)
-        self._fresh_nonce(nonce, time.monotonic())
         server = self._lobby_server()
         if server is None:
-            self._online = {}
-            self._online_error = ""
+            self._forget_page()
         elif self._listing is None or self._listing.done():
-            self._listing = self._spawn(self._list_online(server))
-        found = await self._collect(
+            if find:
+                self._listing = self._spawn(self._list_online(server, "find", find))
+            elif self._paged != server:
+                self._listing = self._spawn(self._list_online(server, "page"))
+            elif not self._online or self._round - self._page_round >= PAGE_RENEW_ROUNDS:
+                self._listing = self._spawn(self._list_online(server, "renew"))
+        found = await self._seek()
+        if server is not None and self._listing is not None and not self._listing.done():
+            await asyncio.wait({self._listing}, timeout=LIST_GRACE_SECONDS)
+        self._round += 1
+        self._take_lan(found)
+        self._debug("discovery round %s found %s, %s online", self._round, len(found), len(self._online))
+        return await self._rooms_reply()
+
+    async def rooms_page(self, raw: dict, seek: bool = False) -> dict:
+        refused = self._refusal()
+        if refused is not None:
+            return {"ok": False, "error": refused}
+        self._page = _read_page(raw)
+        self._page_gen += 1
+        server = self._lobby_server()
+        if server is None:
+            self._forget_page()
+            listing = None
+        else:
+            listing = self._listing = self._spawn(self._list_online(server, "page"))
+        if seek:
+            found = await self._seek()
+            self._round += 1
+            self._take_lan(found)
+        if listing is not None:
+            await asyncio.wait({listing})
+        return await self._rooms_reply()
+
+    def _forget_page(self) -> None:
+        self._online = {}
+        self._online_error = ""
+        self._page = NO_PAGE
+        self._page_info = NO_PAGE_INFO
+        self._page_gen += 1
+
+    async def _seek(self) -> dict:
+        nonce = secrets.token_hex(16)
+        self._fresh_nonce(nonce, time.monotonic())
+        return await self._collect(
             proto.make_seek(nonce, int(time.time()), self._identity()[0]),
             lambda message: proto.read_room(message, nonce),
         )
-        if server is not None and not self._listing.done():
-            await asyncio.wait({self._listing}, timeout=LIST_GRACE_SECONDS)
-        self._round += 1
+
+    def _take_lan(self, found: dict) -> None:
         own = self._room["id"] if self._room is not None else None
         for room_id, row in found.items():
             held = self._rooms.get(room_id)
@@ -4515,9 +4612,13 @@ class MultiplayerService:
             if room_id != own:
                 self._rooms[room_id] = (row, self._round, False)
         for room_id, (row, seen, manual) in list(self._rooms.items()):
-            if row["door"] == "server" and room_id not in self._online:
+            if row["door"] != "server" and not manual and self._round - seen >= MISSED_ROUNDS:
                 del self._rooms[room_id]
-            elif not manual and self._round - seen >= MISSED_ROUNDS:
+
+    async def _rooms_reply(self) -> dict:
+        own = self._room["id"] if self._room is not None else None
+        for room_id, (row, _seen, _manual) in list(self._rooms.items()):
+            if row["door"] == "server" and room_id not in self._online:
                 del self._rooms[room_id]
         online_kept = sum(1 for kept, _seen, _manual in self._rooms.values() if kept["door"] == "server")
         for room_id, row in self._online.items():
@@ -4529,31 +4630,80 @@ class MultiplayerService:
                     continue
                 online_kept += 1
             self._rooms[room_id] = (row, self._round, False)
-        self._debug("discovery round %s found %s, %s online", self._round, len(found), len(self._online))
         rows = self._room_rows()
         if rows and self._room is None and self._joined is None:
             verdicts = await asyncio.to_thread(self._verdicts, rows)
             for row in rows:
                 row["verdict"] = verdicts[row["room"]]
-        return {"ok": True, "rooms": rows, "onlineError": self._online_error}
+        return {"ok": True, "rooms": rows, "total": self._page_info["total"], "next": self._page_info["next"],
+                "size": lobby_client.PAGE_ROOMS, "onlineError": self._online_error}
 
-    async def _list_online(self, server) -> None:
+    async def _list_online(self, server, mode: str, find: str = "") -> None:
+        generation = self._page_gen
+        page = self._page
+        self._page_round = self._round
         try:
-            listed = await lobby_client.list_rooms(server, self._identity()[0])
+            try:
+                listing = await self._page_listing(server, page, find)
+            except asyncio.IncompleteReadError:
+                if mode != "page":
+                    raise
+                await asyncio.sleep(PAGE_RETRY_SECONDS)
+                if generation != self._page_gen:
+                    return
+                listing = await self._page_listing(server, page, find)
         except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError, FrameError) as e:
+            if generation != self._page_gen or (mode != "page" and self._online):
+                return
             if not self._online_error:
                 decky.logger.info("multiplayer: couldn't reach the online lobby (%s)", type(e).__name__)
             self._online = {}
             self._online_error = "unreachable"
+            self._page_info = NO_PAGE_INFO
             return
+        if generation != self._page_gen:
+            return
+        if listing["heard"]:
+            self._paged = server if listing["total"] is not None else None
         online = {}
-        for body, away in listed:
+        for body, away in listing["rooms"]:
             row = proto.read_room(body)
             if row is not None and row["where"] == "online":
                 row.update(address="", door="server", away=away)
                 online[row["room"]] = row
-        self._online = online
+        paged = listing["total"] is not None
+        if mode == "find" and paged:
+            self._online.update(online)
+        elif mode == "renew" and paged and self._online:
+            for room_id in self._online:
+                if room_id in online:
+                    self._online[room_id] = online[room_id]
+        else:
+            self._online = online
+            self._page_info = {"total": listing["total"], "next": listing["next"]} if paged else NO_PAGE_INFO
         self._online_error = ""
+
+    async def _page_listing(self, server, page: dict, find: str) -> dict:
+        ulid = self._identity()[0]
+        if find:
+            return {"heard": True, **await lobby_client.list_rooms(server, ulid, page={"size": 1, "room": find})}
+        if page["where"] == "local":
+            return {"heard": False, "rooms": [], "ids": [], "total": 0, "next": None}
+        games = None
+        if page["compatible"]:
+            census = await lobby_client.list_rooms(server, ulid, census=_wire_filters(page))
+            if census["total"] is None:
+                return {"heard": True, **census}
+            if census["total"] == 0:
+                return {"heard": True, "rooms": [], "ids": [], "total": 0, "next": None}
+            have = await asyncio.to_thread(self._game_ids)
+            games = sorted(set(census["ids"]) & have)
+            if len(",".join(str(game) for game in games)) > GAMES_BYTES_MAX:
+                games = None
+        return {"heard": True, **await lobby_client.list_rooms(server, ulid, page=_wire_page(page, games))}
+
+    def _game_ids(self) -> set:
+        return set(self._library() or {})
 
     def _verdicts(self, rows: list) -> dict:
         stamp = (self._cheevo_check_store.results_fingerprint(), self._cheevo_check_store.picked_fingerprint())
@@ -4574,7 +4724,14 @@ class MultiplayerService:
     def _room_rows(self) -> list:
         rows = [dict(row) for row, _seen, _manual in self._rooms.values()
                 if not row["friends"] or self._friend_pair(row["owner"]) is not None]
-        return sorted(rows, key=lambda row: (row["door"] != "lan", row["user"].lower(), row["room"]))
+        local = sorted((row for row in rows if row["door"] != "server"), key=lambda row: (row["user"].lower(), row["room"]))
+        online = [row for row in rows if row["door"] == "server"]
+        if self._page_info["total"] is not None:
+            order = {room_id: index for index, room_id in enumerate(self._online)}
+            online.sort(key=lambda row: order.get(row["room"], len(order)))
+        else:
+            online.sort(key=lambda row: (row["user"].lower(), row["room"]))
+        return local + online
 
     async def lookup(self, address: str) -> dict:
         refused = self._refusal()

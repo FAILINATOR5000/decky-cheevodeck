@@ -14,6 +14,9 @@ class MultiplayerMixin(PluginContext):
     async def multiplayer_discover(self):
         return await self.multiplayer_service.discover()
 
+    async def multiplayer_rooms_page(self, page=None, seek: bool = False):
+        return await self.multiplayer_service.rooms_page(page if isinstance(page, dict) else {}, bool(seek))
+
     async def multiplayer_lookup(self, address: str = ""):
         return await self.multiplayer_service.lookup(str(address or "").strip())
 

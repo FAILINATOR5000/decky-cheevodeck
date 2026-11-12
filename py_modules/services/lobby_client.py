@@ -16,6 +16,10 @@ SILENT_SECONDS = 30
 RETRY_SECONDS = (2, 5, 10, 30)
 LIST_MAX = 200
 LIST_SECONDS = 15
+PAGE_ROOMS = 64
+CENSUS_FRAMES_MAX = 4
+CENSUS_IDS_MAX = 4096
+CURSOR_CHARS = 160
 CONVERSATIONS_MAX = 32
 FRAME_HEAD_BYTES = 4
 CONVERSATION_FRAMES_MAX = 8
@@ -68,27 +72,47 @@ async def read_envelope_or_skip(reader):
         return None
 
 
-async def list_rooms(server, ulid: str = "") -> list:
-    return await asyncio.wait_for(_list_rooms(server, ulid), LIST_SECONDS)
+async def list_rooms(server, ulid: str = "", page=None, census=None) -> dict:
+    return await asyncio.wait_for(_list_rooms(server, ulid, page, census), LIST_SECONDS)
 
 
-async def _list_rooms(server, ulid: str) -> list:
+async def _list_rooms(server, ulid: str, page, census) -> dict:
     reader, writer = await connect(server)
     try:
         asking = {"op": "list", "v": proto.VERSION}
         if ulid:
             asking["u"] = ulid
+        if page is not None:
+            asking["page"] = page
+        if census is not None:
+            asking["census"] = census
         writer.write(envelope(asking))
         await asyncio.wait_for(writer.drain(), LEG_SECONDS)
-        rooms = []
-        for _frame in range(LIST_MAX + 1):
+        rooms, ids = [], []
+        total = more = None
+        for _frame in range(LIST_MAX + CENSUS_FRAMES_MAX + 1):
             message = await asyncio.wait_for(read_envelope_or_skip(reader), LEG_SECONDS)
             if message is None:
                 continue
-            if message.get("op") != "room":
-                break
-            rooms.append((message.get("room"), message.get("away") is True))
-        return rooms
+            op = message.get("op")
+            if op == "room":
+                rooms.append((message.get("room"), message.get("away") is True))
+                continue
+            if op == "games":
+                found = message.get("ids")
+                if isinstance(found, list):
+                    ids.extend(game for game in found if type(game) is int and 0 < game < 2 ** 31)
+                continue
+            if op == "end":
+                if type(message.get("total")) is int and message["total"] >= 0:
+                    total = message["total"]
+                cursor = message.get("next")
+                if isinstance(cursor, str) and 0 < len(cursor) <= CURSOR_CHARS:
+                    more = cursor
+            break
+        if total is not None:
+            rooms = rooms[:PAGE_ROOMS]
+        return {"rooms": rooms, "ids": ids[:CENSUS_IDS_MAX], "total": total, "next": more}
     finally:
         writer.close()
 
