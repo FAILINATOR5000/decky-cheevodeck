@@ -425,7 +425,7 @@ export function useSlidingWindow<T>(options: SlidingWindowOptions<T>): SlidingWi
             ? { ...collapsed(next, count), jumpToken }
             : { ...next, jumpToken };
     }
-    if (next.items !== items) {
+    if (next.items !== items && !(next.items.length === 0 && items.length === 0)) {
         next = rekeyed(next, items);
     }
     if (next.scope !== scope) {

@@ -17,6 +17,7 @@ import { openHotspotCode } from "./HotspotCodeModal";
 
 const CANCEL_KEY = "hotspot:join:cancel";
 const SCAN_MS = 5000;
+const NO_ROWS: HotspotRow[] = [];
 
 function rowKey(row: HotspotRow): string {
     return "hotspot:join:" + row.ssid;
@@ -47,7 +48,7 @@ function HotspotJoinModal(props: { language: LanguageCode; close: () => void }) 
         };
     }, []);
 
-    const rows = found ?? [];
+    const rows = found ?? NO_ROWS;
     const rowWindow = useSlidingWindow({
         items: rows,
         itemKey: (row) => row.ssid,

@@ -16,6 +16,8 @@ import { friendError } from "./AddFriendModal";
 import { DialogLine, type DialogLineState } from "./DialogLine";
 import { PicAvatar, friendGame, friendName, friendStatus } from "./PicAvatar";
 
+const NO_FRIENDS: MultiplayerFriend[] = [];
+
 function rowKey(friend: MultiplayerFriend): string {
     return `multiplayer:invite:${friend.ulid}`;
 }
@@ -56,7 +58,7 @@ function InviteFriendsModal(props: { language: LanguageCode; avatars: Record<str
     }, [friends]);
 
     const list = useSlidingWindow({
-        items: friends ?? [],
+        items: friends ?? NO_FRIENDS,
         itemKey: (friend) => friend.ulid,
         focusKeyFor: rowKey,
         windowId: "multiplayer:invitepicker",
