@@ -100,6 +100,10 @@ export function forgetMultiplayerRoomChoices() {
     choices.hardcore = false;
 }
 
+export function forgetMultiplayerRoomTab() {
+    choices.roomTab = { room: "", tab: "room" };
+}
+
 export function rememberMultiplayerSource(source: MultiplayerSource) {
     choices.source = source;
 }

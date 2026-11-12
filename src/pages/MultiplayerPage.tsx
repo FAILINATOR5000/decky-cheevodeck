@@ -60,6 +60,7 @@ import { logError } from "../utils/errors";
 import { multiplayerCouchChoices, multiplayerGuestGames, multiplayerPlayChoices, multiplayerSetStreamPick } from "../api";
 import { anyGameRunning, otherGameRunning } from "../utils/multiplayerSession";
 import {
+    forgetMultiplayerRoomTab,
     multiplayerChoices,
     rememberMultiplayerLoungeGame,
     rememberMultiplayerRoomTab
@@ -311,6 +312,12 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         setRoomTabChoice({ room: roomId, tab });
         rememberMultiplayerRoomTab(roomId, tab);
     }
+    useEffect(() => {
+        if (!roomId) {
+            setRoomTabChoice({ room: "", tab: "room" });
+            forgetMultiplayerRoomTab();
+        }
+    }, [roomId]);
     const tabBodyRef = useRef<HTMLDivElement | null>(null);
     const cursorTab = useRef<MultiplayerRoomTab | null>(null);
     const lostTab = roomTabChoice.room === roomId && tabOff[roomTabChoice.tab] ? roomTabChoice.tab : null;

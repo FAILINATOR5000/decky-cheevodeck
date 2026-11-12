@@ -11,7 +11,7 @@ import { showToastAfter } from "./delayedToast";
 import { playReady, playTick, playUnready } from "./lobbySounds";
 import { PRESS_TOAST_DELAY_MS } from "./navSound";
 import { quickAccessIsHidden } from "./quickAccess";
-import { forgetMultiplayerRoomChoices } from "./multiplayerChoices";
+import { forgetMultiplayerRoomChoices, forgetMultiplayerRoomTab } from "./multiplayerChoices";
 
 const ROOM_EVENT = "multiplayer_room";
 
@@ -374,6 +374,7 @@ export async function endMultiplayerRoom() {
         else if (marker.role === "guest") {
             await multiplayerLeave();
         }
+        forgetMultiplayerRoomTab();
     }
     catch (e) {
         logError("multiplayer: ending the room from the notifications", e);
