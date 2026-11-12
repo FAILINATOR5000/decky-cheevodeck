@@ -228,6 +228,11 @@ export function CheevoCheckGamesModal(props: CheevoCheckGamesModalProps) {
 
     function handlePickRow(row: CheevoCheckBrowseRow) {
         if (row.gameId > 0) {
+            if (selectedSystem?.id === ALL_CONSOLES_ID && row.systemId > 0) {
+                void saveCheevoCheckLastSystemId(row.systemId).catch((e) => {
+                    logError("saveCheevoCheckLastSystemId", e);
+                });
+            }
             onPick(row.gameId);
             return;
         }
