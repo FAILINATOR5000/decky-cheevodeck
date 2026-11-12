@@ -85,7 +85,8 @@ PAGE_RENEW_ROUNDS = 3
 PAGE_RETRY_SECONDS = 1.0
 QUERY_CHARS = 64
 STATUS_CODES_MAX = 8
-GAMES_BYTES_MAX = 12000
+GAMES_BYTES_MAX = 15000
+VERDICTS_HELD = 512
 PAGE_CHOICES = {
     "mode": ("link", "couch", "stream"),
     "kind": ("play", "watch"),
@@ -95,7 +96,7 @@ PAGE_CHOICES = {
 }
 NO_PAGE = {"q": "", "statuses": (), "mode": "", "kind": "", "access": "", "seats": "", "where": "",
            "compatible": False, "after": None}
-NO_PAGE_INFO = {"total": None, "next": None}
+NO_PAGE_INFO = {"total": None, "next": None, "checkHere": False}
 _STATUS_CODE = re.compile(r"[a-z_]{1,16}")
 
 BAD_TAGS_PER_ADDRESS = 3
@@ -445,6 +446,7 @@ class MultiplayerService:
         self._picked_cache = (None, {})
         self._picked_watch = ()
         self._verdict_memo = {}
+        self._verdict_lock = threading.Lock()
         self._hash_memo = {}
         self._hash_reads = {}
         self._hash_failed = {}
@@ -530,7 +532,10 @@ class MultiplayerService:
                 self._verdict_memo.clear()
                 if entry:
                     self._rooms.clear()
-                    self._forget_page()
+                    self._online = {}
+                    self._online_error = ""
+                    self._page_info = NO_PAGE_INFO
+                    self._page_gen += 1
             elif now >= self._cap_until:
                 if self._live():
                     decky.logger.info("multiplayer: the visit reached its cap")
@@ -4582,13 +4587,17 @@ class MultiplayerService:
         if seek:
             seeking = self._spawn(self._seek())
             if listing is not None:
-                await asyncio.wait({listing})
+                await asyncio.wait({listing}, timeout=SEEK_SECONDS)
                 online = list(self._online.values())
-                if online and self._room is None and self._joined is None:
+                if listing.done() and self._page_info["total"] is not None and online \
+                        and self._room is None and self._joined is None:
                     await asyncio.to_thread(self._verdicts, online)
             found = await seeking
             self._round += 1
             self._take_lan(found)
+            if listing is not None and not listing.done():
+                await asyncio.wait({listing}, timeout=LIST_GRACE_SECONDS)
+            return await self._rooms_reply()
         if listing is not None:
             await asyncio.wait({listing})
         return await self._rooms_reply()
@@ -4642,7 +4651,8 @@ class MultiplayerService:
             for row in rows:
                 row["verdict"] = verdicts[row["room"]]
         return {"ok": True, "rooms": rows, "total": self._page_info["total"], "next": self._page_info["next"],
-                "size": lobby_client.PAGE_ROOMS, "onlineError": self._online_error}
+                "checkHere": self._page_info["checkHere"], "size": lobby_client.PAGE_ROOMS,
+                "onlineError": self._online_error}
 
     async def _list_online(self, server, mode: str, find: str = "") -> None:
         generation = self._page_gen
@@ -4686,7 +4696,8 @@ class MultiplayerService:
                     self._online[room_id] = online[room_id]
         else:
             self._online = online
-            self._page_info = {"total": listing["total"], "next": listing["next"]} if paged else NO_PAGE_INFO
+            self._page_info = {"total": listing["total"], "next": listing["next"],
+                               "checkHere": listing.get("checkHere", False)} if paged else NO_PAGE_INFO
         self._online_error = ""
 
     async def _page_listing(self, server, page: dict, find: str) -> dict:
@@ -4705,15 +4716,22 @@ class MultiplayerService:
             have = await asyncio.to_thread(self._game_ids)
             games = sorted(set(census["ids"]) & have)
             if len(",".join(str(game) for game in games)) > GAMES_BYTES_MAX:
-                games = None
+                listing = await lobby_client.list_rooms(server, ulid, page=_wire_page(page, None))
+                return {"heard": True, **listing, "checkHere": True}
         return {"heard": True, **await lobby_client.list_rooms(server, ulid, page=_wire_page(page, games))}
 
     def _game_ids(self) -> set:
         return set(self._library() or {})
 
     def _verdicts(self, rows: list) -> dict:
-        stamp = (self._cheevo_check_store.results_fingerprint(), self._cheevo_check_store.picked_fingerprint())
-        if len(self._verdict_memo) > ROOMS_KEPT_MAX + ROOMS_FOUND_MAX:
+        with self._verdict_lock:
+            return self._verdicts_held(rows)
+
+    def _verdicts_held(self, rows: list) -> dict:
+        self._library()
+        stamp = (self._cheevo_check_store.results_fingerprint(), self._cheevo_check_store.picked_fingerprint(),
+                 self._library_cache[0], self._emulators.changed if self._emulators is not None else 0)
+        if len(self._verdict_memo) > VERDICTS_HELD:
             self._verdict_memo.clear()
         found = {}
         for row in rows:
