@@ -45,7 +45,7 @@ const choices: Choices = {
     seats: 4,
     status: "",
     where: "local",
-    access: "friends",
+    access: "public",
     filter: NO_ROOM_FILTER,
     page: "play",
     roomTab: { room: "", tab: "room" },
