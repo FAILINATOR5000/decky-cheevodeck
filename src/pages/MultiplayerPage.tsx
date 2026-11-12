@@ -331,6 +331,16 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             landOnTop("multiplayer", "multiplayer:roomtab:room");
         }
     }, [lostTab]);
+    const cursorOnChart = useRef(false);
+    const guestMode = mp.joined?.room.mode ?? null;
+    const seenGuestMode = useRef(guestMode);
+    useEffect(() => {
+        const before = seenGuestMode.current;
+        seenGuestMode.current = guestMode;
+        if (guestMode && before && before !== guestMode && cursorOnChart.current) {
+            landOnTop("multiplayer", `multiplayer:mode:${guestMode}`);
+        }
+    }, [guestMode]);
     const [loungeGame, setLoungeGame] = useState(() => multiplayerChoices().loungeGame);
     function showLoungeGame(game: MultiplayerLoungeGame) {
         setLoungeGame(game);
@@ -1662,8 +1672,9 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             flow-children="column"
             onGamepadFocus={(evt) => {
                 const target = evt.target as Element;
-                const below = target.closest?.("[data-focus-key]")?.getAttribute("data-focus-key") === "multiplayer:bottom:anchor";
-                cursorTab.current = tabBodyRef.current?.contains(target) || below ? roomTab : null;
+                const key = target.closest?.("[data-focus-key]")?.getAttribute("data-focus-key") ?? "";
+                cursorTab.current = tabBodyRef.current?.contains(target) || key === "multiplayer:bottom:anchor" ? roomTab : null;
+                cursorOnChart.current = key.startsWith("multiplayer:mode:");
             }}
             onCancelButton={pressBack}
             onOptionsButton={onPlay && yStarts ? pressPlay : onPlay && yFixes ? openOwnFix : onPlay && yExplains ? explainStart : undefined}
