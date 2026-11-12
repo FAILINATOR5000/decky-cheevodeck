@@ -60,6 +60,8 @@ import type {
     MultiplayerMode,
     MultiplayerRestoreRecord,
     MultiplayerRoomRow,
+    MultiplayerRoomsPage,
+    MultiplayerRoomsReply,
     MultiplayerRoomStatus,
     MultiplayerWhere,
     MemoriesTransferStatus,
@@ -828,7 +830,8 @@ export const getDataTransferLocalSummary = callable<[], DataTransferSummary>("ge
 type MultiplayerReply = { ok: boolean; error?: string; gate?: string; detail?: Record<string, string> };
 
 export const multiplayerSetVisible = callable<[boolean, boolean], { ok: boolean; error?: string; visible?: boolean }>("multiplayer_set_visible");
-export const multiplayerDiscover = callable<[], { ok: boolean; error?: string; rooms?: MultiplayerRoomRow[]; onlineError?: string }>("multiplayer_discover");
+export const multiplayerDiscover = callable<[], MultiplayerRoomsReply>("multiplayer_discover");
+export const multiplayerRoomsPage = callable<[MultiplayerRoomsPage, boolean], MultiplayerRoomsReply>("multiplayer_rooms_page");
 export const multiplayerLookup = callable<[string], { ok: boolean; error?: string; room?: MultiplayerRoomRow }>("multiplayer_lookup");
 export const multiplayerGames = callable<[], { ok: boolean; scanned: boolean; games: MultiplayerGame[]; installedCores?: string[] }>("multiplayer_games");
 export const multiplayerCheck = callable<[MultiplayerMode, number, string, string], MultiplayerCheck>("multiplayer_check");

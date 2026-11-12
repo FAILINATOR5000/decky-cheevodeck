@@ -3036,6 +3036,28 @@ export type MultiplayerRoomRow = {
     };
 };
 
+export type MultiplayerRoomsReply = {
+    ok: boolean;
+    error?: string;
+    rooms?: MultiplayerRoomRow[];
+    total?: number | null;
+    next?: string | null;
+    size?: number;
+    onlineError?: string;
+};
+
+export type MultiplayerRoomsPage = {
+    q: string;
+    statuses: string[];
+    mode: string;
+    kind: string;
+    access: string;
+    seats: string;
+    where: string;
+    compatible: boolean;
+    after: string | null;
+};
+
 export type MultiplayerSeatState = "" | "setup" | "never";
 
 type MultiplayerSeat = {

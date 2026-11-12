@@ -4580,7 +4580,13 @@ class MultiplayerService:
         else:
             listing = self._listing = self._spawn(self._list_online(server, "page"))
         if seek:
-            found = await self._seek()
+            seeking = self._spawn(self._seek())
+            if listing is not None:
+                await asyncio.wait({listing})
+                online = list(self._online.values())
+                if online and self._room is None and self._joined is None:
+                    await asyncio.to_thread(self._verdicts, online)
+            found = await seeking
             self._round += 1
             self._take_lan(found)
         if listing is not None:
