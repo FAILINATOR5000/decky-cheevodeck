@@ -36,6 +36,7 @@ export type MultiplayerRoomMarker = {
     round: number;
     state: string;
     chat: ChatLine | null;
+    chatBacklog: number;
     autostart: { room: string; round: number; appid: number; steps: string; game: string } | null;
     voice: RoomVoice | null;
     roomVoice: boolean;
@@ -52,7 +53,7 @@ type RoomEvent = Partial<MultiplayerRoomMarker> & { seq?: number };
 
 const EMPTY: MultiplayerRoomMarker = {
     role: null, title: "", host: "", seated: 0, error: "", seat: 0, ready: false, seats: [], rev: 0, round: 0, state: "lobby",
-    chat: null, autostart: null, voice: null, roomVoice: false, gameId: 0, imageIcon: "", size: 0, taken: 0, own: null,
+    chat: null, chatBacklog: -1, autostart: null, voice: null, roomVoice: false, gameId: 0, imageIcon: "", size: 0, taken: 0, own: null,
     vote: null, lounge: null
 };
 
@@ -124,12 +125,15 @@ function chatter(before: MultiplayerRoomMarker, after: MultiplayerRoomMarker) {
         return;
     }
     const own = after.role === "host" ? after.host : after.seats[after.seat]?.name ?? "";
-    if (line.name === own || Number(Router.MainRunningApp?.appid ?? 0) > 0 || Date.now() - seatedAt < CHAT_SETTLE_MS) {
+    const old = after.chatBacklog >= 0 ? line.seq <= after.chatBacklog : Date.now() - seatedAt < CHAT_SETTLE_MS;
+    if (line.name === own || Number(Router.MainRunningApp?.appid ?? 0) > 0 || old) {
         return;
     }
-    playTick();
     if (quickAccessIsHidden()) {
         toaster.toast({ title: t(getCurrentLanguage(), "Room Chat"), body: `${line.name}: ${line.text}` });
+    }
+    else {
+        playTick();
     }
 }
 
@@ -230,6 +234,7 @@ function onRoomEvent(payload: RoomEvent) {
         round: Number(payload.round) || 0,
         state: payload.state ?? "lobby",
         chat: payload.chat && typeof payload.chat.seq === "number" ? payload.chat : null,
+        chatBacklog: typeof payload.chatBacklog === "number" ? payload.chatBacklog : -1,
         autostart: payload.autostart && typeof payload.autostart.appid === "number" ? payload.autostart : null,
         voice: readVoice(payload.voice),
         roomVoice: payload.roomVoice === true,

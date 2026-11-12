@@ -671,6 +671,7 @@ def read_status_reply(key: bytes, message, nonce: str):
         "stream": read_stream(message.get("stream")),
         "pipe": read_pipe(message.get("pipe")),
         "rmg": message["rmg"] if type(message.get("rmg")) is int and 0 < message["rmg"] < 2 ** 31 else 0,
+        "chatTop": message["chatTop"] if type(message.get("chatTop")) is int and 0 <= message["chatTop"] < 2 ** 31 else -1,
     }
 
 

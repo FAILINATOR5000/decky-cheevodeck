@@ -682,7 +682,7 @@ class MultiplayerService:
                                "ready": bool(seat) and index > 0 and self._seat_shown_ready(room, index, seat)}
                               for index, seat in enumerate(room["seats"])],
                     "rev": room["rev"], "round": room["round"], "state": self._public_state(room),
-                    "chat": dict(room["chat"][-1]) if room["chat"] else None, "lobby": self._lobby_state(),
+                    "chat": dict(room["chat"][-1]) if room["chat"] else None, "chatBacklog": 0, "lobby": self._lobby_state(),
                     "voice": self._voice_view(), "roomVoice": bool(room["voice"]),
                     "gameId": room["gameId"], "imageIcon": room["imageIcon"],
                     "size": len(room["seats"]), "taken": 1 + len(_guests(room)), "own": None,
@@ -700,7 +700,7 @@ class MultiplayerService:
                               for index, name in enumerate(members)],
                     "rev": status.get("rev", 0), "round": status.get("round", 0),
                     "state": status.get("state", "lobby"),
-                    "chat": dict(joined["chat"][-1]) if joined["chat"] else None,
+                    "chat": dict(joined["chat"][-1]) if joined["chat"] else None, "chatBacklog": joined["chatBacklog"],
                     "autostart": self._pending_start(joined), "voice": self._voice_view(),
                     "roomVoice": bool(joined["row"].get("voice")),
                     "gameId": joined["row"]["gameId"], "size": len(members),
@@ -4280,6 +4280,7 @@ class MultiplayerService:
             "members": [taken["name"] if taken else "" for taken in room["seats"]],
             "hardcore": room["hardcore"],
             "ip": seat["ip"],
+            "chatTop": room["chatSeq"],
             "rev": room["rev"],
             "round": room["round"],
             "start": index in roster,
@@ -4687,6 +4688,7 @@ class MultiplayerService:
                 "clock": (time.time(), time.monotonic()),
                 "chat": [],
                 "chatSince": 0,
+                "chatBacklog": -1,
                 "fsince": 0,
                 "vc": False,
                 "vsince": 0,
@@ -4918,6 +4920,8 @@ class MultiplayerService:
             if joined["games"] is not None:
                 joined["fastUntil"] = max(joined["fastUntil"], time.monotonic() + GAMES_FAST_SECONDS)
             joined["games"] = games
+        if joined["chatBacklog"] < 0 and status["chatTop"] >= 0:
+            joined["chatBacklog"] = status["chatTop"]
         fresh = [entry for entry in status["chat"] if entry["seq"] > joined["chatSince"]]
         if fresh:
             joined["chat"] = (joined["chat"] + fresh)[-proto.CHAT_KEPT:]
