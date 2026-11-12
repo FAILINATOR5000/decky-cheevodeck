@@ -70,8 +70,7 @@ ADDRESS_GRACE_SECONDS = 60
 HOST_GONE_GRACE_SECONDS = 60
 
 CLOSED_TAIL_SECONDS = 10
-JOIN_TOAST_SECONDS = 300
-FORCED_TOASTS_PER_MINUTE = 3
+JOIN_TOAST_SECONDS = 5
 
 LAUNCH_WAIT_SECONDS = 300
 LAUNCH_START_SECONDS = 60
@@ -366,7 +365,6 @@ class MultiplayerService:
         self._announced = None
         self._event_seq = 0
         self._join_toasts = {}
-        self._forced_toasts = []
         self._joined = None
         self._rooms = {}
         self._round = 0
@@ -763,11 +761,7 @@ class MultiplayerService:
         return current is not None and bool(current["started"]) and not current["exited"]
 
     def _toast_seat(self, name: str, title: str, line: str) -> None:
-        now = time.monotonic()
-        self._forced_toasts = [at for at in self._forced_toasts if now - at < 60]
-        force = not self._in_game() and len(self._forced_toasts) < FORCED_TOASTS_PER_MINUTE
-        if force:
-            self._forced_toasts.append(now)
+        force = not self._in_game()
         emit_notification(
             ntype="system",
             settings_store=self._settings_store,
@@ -3746,7 +3740,7 @@ class MultiplayerService:
         if all(key not in self._join_toasts for key in toast_keys):
             for key in toast_keys:
                 self._join_toasts[key] = now
-            self._toast_seat(params["user"], "Join Room", "{{name}} joined.")
+            self._toast_seat(params["user"], "Joined Room", "{{name}} joined.")
 
     async def _tunnel_ask(self, link, ask: dict) -> None:
         room = self._room

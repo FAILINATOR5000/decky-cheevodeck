@@ -3045,6 +3045,7 @@ const JA: LocaleTable = {
     "Room Invite": "ルームへの招待",
     "Room Chat": "ルームチャット",
     "Friend Request Accepted": "フレンド申請が承認されました",
+    "Joined Room": "ルームに参加しました",
     "Left Room": "ルームから退出",
     "Request from {{name}}.": "{{name}}さんからの申請です。",
     "{{name}} accepted.": "{{name}}さんが承認しました。",

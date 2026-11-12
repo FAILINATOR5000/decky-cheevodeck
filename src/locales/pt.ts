@@ -3211,6 +3211,7 @@ const PT: LocaleTable = {
     "Room Invite": "Convite para sala",
     "Room Chat": "Chat da sala",
     "Friend Request Accepted": "Pedido de amizade aceito",
+    "Joined Room": "Entrou na sala",
     "Left Room": "Saiu da sala",
     "Request from {{name}}.": "Pedido de {{name}}.",
     "{{name}} accepted.": "{{name}} aceitou.",

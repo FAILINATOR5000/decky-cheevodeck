@@ -3259,6 +3259,7 @@ const RU: LocaleTable = {
     "Room Invite": "Приглашение в комнату",
     "Room Chat": "Чат комнаты",
     "Friend Request Accepted": "Заявка в друзья принята",
+    "Joined Room": "Вход в комнату",
     "Left Room": "Выход из комнаты",
     "Request from {{name}}.": "Заявка от {{name}}.",
     "{{name}} accepted.": "{{name}}: заявка принята.",
