@@ -278,9 +278,10 @@ function EmulatorsPage(props: EmulatorsPageProps) {
     const { language } = state;
     const visible = state.view === "emulators";
     const emulators = useEmulators();
-    const { inventory, failed, loading } = emulators.state;
+    const { inventory, failed, loading, refreshing } = emulators.state;
     const jobs = emulators.jobs;
     const job = jobs.state;
+    const [finishedAtEntry] = useState(jobs.finished);
     const working = jobs.busy && job !== null && job.stage !== "done" && job.stage !== "failed";
     const [foldings, setFoldings] = useState(0);
     const focusedKey = useRef<string | null>(null);
@@ -345,7 +346,8 @@ function EmulatorsPage(props: EmulatorsPageProps) {
     }
 
     function settling(key: string): boolean {
-        return job !== null && job.stage === "done" && job.target === key && (loading || emulators.state.seen !== jobs.finished);
+        return job !== null && job.stage === "done" && job.target === key && jobs.finished !== finishedAtEntry
+            && (loading || emulators.state.seen !== jobs.finished);
     }
 
     function busy(key: string): boolean {
@@ -648,7 +650,7 @@ function EmulatorsPage(props: EmulatorsPageProps) {
             status = statusOf(language, row.installed, row.update, row.checkFailed, row.image?.missing);
         }
         const progress = activeJob(key)?.progress ?? (settling(key) ? 100 : null);
-        const refreshing = loading && row.type === "install";
+        const rowRefreshing = refreshing && row.type === "install";
         return (
             <PanelSectionRow key={key}>
                 <FocusableItem
@@ -677,10 +679,10 @@ function EmulatorsPage(props: EmulatorsPageProps) {
                             )}
                         </div>
                         <span style={{ ...bodyTextStyle(), flex: `0 0 ${STATUS_WIDTH}`, textAlign: "right", color: status?.color }}>
-                            {progress === null && !refreshing && status !== null ? status.text : ""}
+                            {progress === null && !rowRefreshing && status !== null ? status.text : ""}
                         </span>
                     </div>
-                    {(progress !== null || refreshing) && (
+                    {(progress !== null || rowRefreshing) && (
                         <div style={{ marginTop: "6px", display: "flex", alignItems: "center", gap: "8px" }}>
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <ProgressBar fraction={progress !== null && progress >= 0 ? progress / 100 : null} />
@@ -715,7 +717,7 @@ function EmulatorsPage(props: EmulatorsPageProps) {
                     <FocusableItem
                         outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
                         focusKey={REFRESH_KEY}
-                        disabled={loading || jobs.busy}
+                        disabled={refreshing || jobs.busy}
                         onClick={emulators.actions.refresh}
                         onGamepadFocus={() => { focusedKey.current = null; }}
                     >
@@ -728,7 +730,7 @@ function EmulatorsPage(props: EmulatorsPageProps) {
                         outerStyle={regularButtonSpacingStyle(state.buttonSpacing)}
                         focusKey={UPDATE_ALL_KEY}
                         focusFallback={[REFRESH_KEY]}
-                        disabled={inventory === null || loading}
+                        disabled={inventory === null || refreshing}
                         onClick={updateEverything}
                         onGamepadFocus={() => { focusedKey.current = null; }}
                     >

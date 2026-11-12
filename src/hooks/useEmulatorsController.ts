@@ -36,11 +36,12 @@ type EmulatorsLoad = {
     inventory: EmulatorInventory | null;
     failed: boolean;
     loading: boolean;
+    refreshing: boolean;
     seen: number;
     keepBackups: boolean;
 };
 
-let loaded: EmulatorsLoad = { inventory: null, failed: false, loading: false, seen: 0, keepBackups: true };
+let loaded: EmulatorsLoad = { inventory: null, failed: false, loading: false, refreshing: false, seen: 0, keepBackups: true };
 const listeners = new Set<() => void>();
 
 function publish(next: Partial<EmulatorsLoad>) {
@@ -58,13 +59,15 @@ function subscribe(listener: () => void): () => void {
 }
 
 let loadAgain = false;
+let refreshAgain = false;
 
 async function loadInventory(refresh: boolean, seen = loaded.seen) {
     if (loaded.loading) {
         loadAgain = true;
+        refreshAgain = refreshAgain || refresh;
         return;
     }
-    publish({ loading: true, seen });
+    publish({ loading: true, refreshing: refresh, seen });
     try {
         const result = await emulatorsInventory(refresh);
         publish(result?.ok ? { inventory: result, failed: false } : { failed: true });
@@ -77,11 +80,13 @@ async function loadInventory(refresh: boolean, seen = loaded.seen) {
         publish({ failed: true });
     }
     finally {
-        publish({ loading: false });
+        publish({ loading: false, refreshing: false });
     }
     if (loadAgain) {
+        const again = refreshAgain;
         loadAgain = false;
-        await loadInventory(false);
+        refreshAgain = false;
+        await loadInventory(again);
     }
 }
 
