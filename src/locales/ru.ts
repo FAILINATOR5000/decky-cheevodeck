@@ -3713,6 +3713,15 @@ const RU: LocaleTable = {
     "Update All": "Обновить всё",
     "Everything is up to date.": "Всё в актуальной версии.",
     "Update All ({{count}})": "Обновить всё ({{count}})",
+    "You need setup for this game first. Press Needs setup on the chart to fix it.": "Сначала нужно настроить эту игру. Нажмите «Нужна настройка» в таблице, чтобы исправить.",
+    "This game won't work on your device. {{reason}} Pick another game with Change Game.": "Эта игра не работает на вашем устройстве. {{reason}} Выберите другую игру через «Сменить игру».",
+    "This game won't work on your device. {{reason}}": "Эта игра не работает на вашем устройстве. {{reason}}",
+    "The host is still setting up this game. You can Ready once they're done.": "Хост ещё настраивает эту игру. Отметить готовность можно будет, когда он закончит.",
+    "This game won't work for the host. They can pick another game with Change Game.": "У хоста эта игра не работает. Он может выбрать другую через «Сменить игру».",
+    "The host is setting up this game.": "Хост настраивает эту игру.",
+    "This game won't work for the host.": "У хоста эта игра не работает.",
+    "Set up this game to start. Your guests can Ready once you're done.": "Настройте эту игру, чтобы начать. Гости смогут отметить готовность, когда вы закончите.",
+    "This game won't work on your device. Pick another game with Change Game.": "Эта игра не работает на вашем устройстве. Выберите другую игру через «Сменить игру».",
 };
 
 export default RU;

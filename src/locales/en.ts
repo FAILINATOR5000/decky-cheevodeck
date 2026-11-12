@@ -3641,4 +3641,13 @@ export const EN: LocaleTable = {
     "Update All": "Update All",
     "Everything is up to date.": "Everything is up to date.",
     "Update All ({{count}})": "Update All ({{count}})",
+    "You need setup for this game first. Press Needs setup on the chart to fix it.": "You need setup for this game first. Press Needs setup on the chart to fix it.",
+    "This game won't work on your device. {{reason}} Pick another game with Change Game.": "This game won't work on your device. {{reason}} Pick another game with Change Game.",
+    "This game won't work on your device. {{reason}}": "This game won't work on your device. {{reason}}",
+    "The host is still setting up this game. You can Ready once they're done.": "The host is still setting up this game. You can Ready once they're done.",
+    "This game won't work for the host. They can pick another game with Change Game.": "This game won't work for the host. They can pick another game with Change Game.",
+    "The host is setting up this game.": "The host is setting up this game.",
+    "This game won't work for the host.": "This game won't work for the host.",
+    "Set up this game to start. Your guests can Ready once you're done.": "Set up this game to start. Your guests can Ready once you're done.",
+    "This game won't work on your device. Pick another game with Change Game.": "This game won't work on your device. Pick another game with Change Game.",
 };

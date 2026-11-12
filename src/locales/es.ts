@@ -3673,6 +3673,15 @@ const ES: LocaleTable = {
     "Update All": "Actualizar todo",
     "Everything is up to date.": "Todo está actualizado.",
     "Update All ({{count}})": "Actualizar todo ({{count}})",
+    "You need setup for this game first. Press Needs setup on the chart to fix it.": "Primero tienes que configurar este juego. Pulsa Requiere configuración en el cuadro para arreglarlo.",
+    "This game won't work on your device. {{reason}} Pick another game with Change Game.": "Este juego no funciona en tu dispositivo. {{reason}} Elige otro juego con Cambiar de juego.",
+    "This game won't work on your device. {{reason}}": "Este juego no funciona en tu dispositivo. {{reason}}",
+    "The host is still setting up this game. You can Ready once they're done.": "El anfitrión todavía está configurando este juego. Podrás marcar Listo cuando termine.",
+    "This game won't work for the host. They can pick another game with Change Game.": "Este juego no funciona en el dispositivo del anfitrión. Puede elegir otro con Cambiar de juego.",
+    "The host is setting up this game.": "El anfitrión está configurando este juego.",
+    "This game won't work for the host.": "Este juego no funciona en el dispositivo del anfitrión.",
+    "Set up this game to start. Your guests can Ready once you're done.": "Configura este juego para empezar. Tus invitados podrán marcar Listo cuando termines.",
+    "This game won't work on your device. Pick another game with Change Game.": "Este juego no funciona en tu dispositivo. Elige otro juego con Cambiar de juego.",
 };
 
 export default ES;

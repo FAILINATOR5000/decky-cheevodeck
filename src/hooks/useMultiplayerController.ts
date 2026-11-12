@@ -396,6 +396,14 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     }, [isActive, mode, gameId, checkCore, checkRoom, hosted?.core, hosted?.rev, hostedSeats, joinedState, joined?.status?.rev,
         joined?.reason, streamReady, fixesFinished, gameFilesChanged]);
 
+    const hostState = hosted?.hostState ?? "";
+    useEffect(() => {
+        if (!isActive || !hostState) {
+            return;
+        }
+        multiplayerSetVisible(true, false).catch((e) => logError("multiplayer: settling the room after a fix", e));
+    }, [isActive, fixesFinished, gameFilesChanged]);
+
     const modesKey = [gameId ?? 0, checkRoom].join("|");
     useEffect(() => {
         if (!isActive || gameId === null) {

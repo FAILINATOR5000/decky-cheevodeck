@@ -4,10 +4,11 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { FocusTarget } from "../ui/FocusTarget";
 import { SectionTitle } from "../ui/SectionTitle";
 import { t, type LanguageCode } from "../../locales";
-import { achievementGreen, bodyTextStyle, errorRed, masteredGold, warnAmber } from "../../utils/style";
+import { achievementGreen, bodyTextStyle, masteredGold, warnAmber } from "../../utils/style";
 import type { VoiceMine } from "../../utils/voiceChat";
 import { PicAvatar } from "./PicAvatar";
 import { MutedPlayerIcon, OwnMicIcon } from "./VoiceIcons";
+import { STATE_LOOKS } from "./ModeChart";
 
 export type StreamSeatState = "pairing" | "connecting" | "streaming" | "relay" | "failed" | "";
 
@@ -21,7 +22,7 @@ type RoomTableSeat = {
     name: string;
     game: string;
     tag: "host" | "";
-    mark?: "ready" | "cant" | "";
+    mark?: "ready" | "setup" | "never" | "";
     activity?: "game" | "watch" | "";
     stream?: StreamSeatState;
     avatar?: string;
@@ -51,6 +52,15 @@ export type RoomTableVoice = {
 };
 
 const AVATAR_PX = 24;
+
+function SeatStateIcon(props: { state: "setup" | "never"; style: CSSProperties }) {
+    const look = STATE_LOOKS[props.state];
+    return (
+        <span style={{ ...props.style, color: look.color }}>
+            <look.Icon />
+        </span>
+    );
+}
 
 function seatKey(index: number): string {
     return `multiplayer:seat:${index}`;
@@ -137,8 +147,8 @@ export function RoomTable(props: {
                             <>
                                 {seat.mark === "ready" ? (
                                     <span style={{ ...bodyTextStyle(), ...seatCell, opacity: 1, color: masteredGold, fontWeight: 800 }}>✔</span>
-                                ) : seat.mark === "cant" ? (
-                                    <span style={{ ...bodyTextStyle(), ...seatCell, opacity: 1, color: errorRed, fontWeight: 800 }}>✖</span>
+                                ) : seat.mark === "setup" || seat.mark === "never" ? (
+                                    <SeatStateIcon state={seat.mark} style={{ ...bodyTextStyle(), ...seatCell, opacity: 1 }} />
                                 ) : (
                                     <span style={{ ...bodyTextStyle(), ...seatCell }}>{index + 1}</span>
                                 )}

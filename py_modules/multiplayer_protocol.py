@@ -18,6 +18,7 @@ CLOCK_SKEW_SECONDS = 120
 
 MODES = ("link", "couch", "stream")
 STATES = ("lobby", "starting", "playing")
+SEAT_STATES = ("", "setup", "never")
 
 MAX_SEATS = 10
 DEFAULT_SEATS = 4
@@ -307,6 +308,7 @@ def room_body(room: dict, reveal: bool = False) -> dict:
         "crc": room["crc"],
         "coreBuild": room["coreBuild"],
         "gameCode": room["gameCode"],
+        "hostState": room["hostState"],
         "hardcore": room["hardcore"],
         "private": room["private"],
         "friends": room.get("friends", False),
@@ -388,6 +390,7 @@ def _room_fields(message):
         or (core and _CORE.fullmatch(core) is None)
         or not _optional(message.get("hash"), _HASH)
         or not _optional(message.get("crc"), _CRC)
+        or message.get("hostState") not in SEAT_STATES
     ):
         return None
     return {
@@ -408,6 +411,7 @@ def _room_fields(message):
         "crc": message["crc"],
         "coreBuild": build,
         "gameCode": game_code,
+        "hostState": message["hostState"],
         "hardcore": message["hardcore"],
         "private": message["private"],
         "friends": message.get("friends") is True,
@@ -530,9 +534,10 @@ def tagged_ok(key: bytes, message, now: float) -> bool:
 
 
 def report(*, seq: int, ready: bool, rev: int, round_: int, can: bool, reason: str, game_id: int, title: str,
-           launched: bool, hardcore: bool, st: str = "", kb: int = 0) -> dict:
+           launched: bool, hardcore: bool, seat_state: str = "", st: str = "", kb: int = 0) -> dict:
     body = {"seq": seq, "ready": ready, "rev": rev, "round": round_, "can": can, "reason": reason,
-            "gameId": game_id, "title": title[:_TITLE_MAX], "launched": launched, "hardcore": hardcore}
+            "gameId": game_id, "title": title[:_TITLE_MAX], "launched": launched, "hardcore": hardcore,
+            "seatState": seat_state}
     if st:
         body["st"] = st
     if kb:
@@ -583,10 +588,12 @@ def read_report(raw):
         or not isinstance(raw.get("reason"), str)
         or _REASON.fullmatch(raw["reason"]) is None
         or not isinstance(raw.get("title"), str)
+        or raw.get("seatState") not in SEAT_STATES
     ):
         return None
     kb = raw.get("kb", 0)
-    return {**{name: raw[name] for name in (*numbers, *flags, "reason")}, "title": _clean(raw["title"], _TITLE_MAX),
+    return {**{name: raw[name] for name in (*numbers, *flags, "reason", "seatState")},
+            "title": _clean(raw["title"], _TITLE_MAX),
             "st": stream_state(raw.get("st")), "kb": kb if type(kb) is int and 0 <= kb <= 100000 else 0}
 
 
@@ -643,6 +650,7 @@ def read_status_reply(key: bytes, message, nonce: str):
         "players": message["players"],
         "seats": [{"ready": seat["ready"], "can": seat["can"], "launched": seat["launched"],
                    "playing": seat["playing"], "title": _clean(seat["title"], _TITLE_MAX),
+                   "seatState": seat["seatState"],
                    "vc": seat.get("vc") is True, "vs": _stamp(seat.get("vs")),
                    "st": stream_state(seat.get("st"))} for seat in seats],
         "lastStart": None if last is None else {"round": last["round"], "ok": last["ok"], "error": last["error"]},
@@ -760,6 +768,7 @@ def _seat_ok(seat) -> bool:
         isinstance(seat, dict)
         and all(type(seat.get(name)) is bool for name in ("ready", "can", "launched", "playing"))
         and isinstance(seat.get("title"), str)
+        and seat.get("seatState") in SEAT_STATES
     )
 
 

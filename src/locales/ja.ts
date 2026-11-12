@@ -3487,6 +3487,15 @@ const JA: LocaleTable = {
     "Update All": "すべて更新",
     "Everything is up to date.": "すべて最新です。",
     "Update All ({{count}})": "すべて更新（{{count}}）",
+    "You need setup for this game first. Press Needs setup on the chart to fix it.": "このゲームはまず設定が必要です。表の「要設定」を押して直してください。",
+    "This game won't work on your device. {{reason}} Pick another game with Change Game.": "このゲームはこのデバイスでは動きません。{{reason}}「ゲームを変更」で別のゲームを選んでください。",
+    "This game won't work on your device. {{reason}}": "このゲームはこのデバイスでは動きません。{{reason}}",
+    "The host is still setting up this game. You can Ready once they're done.": "ホストはまだこのゲームを設定中です。終わったら準備完了にできます。",
+    "This game won't work for the host. They can pick another game with Change Game.": "このゲームはホストの環境では動きません。ホストは「ゲームを変更」で別のゲームを選べます。",
+    "The host is setting up this game.": "ホストがこのゲームを設定中です。",
+    "This game won't work for the host.": "このゲームはホストの環境では動きません。",
+    "Set up this game to start. Your guests can Ready once you're done.": "開始するにはこのゲームを設定してください。終わればゲストが準備完了にできます。",
+    "This game won't work on your device. Pick another game with Change Game.": "このゲームはこのデバイスでは動きません。「ゲームを変更」で別のゲームを選んでください。",
 };
 
 export default JA;

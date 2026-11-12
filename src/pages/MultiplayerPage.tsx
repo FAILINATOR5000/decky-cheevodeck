@@ -41,11 +41,11 @@ import { t, type LanguageCode } from "../locales";
 import type {
     ButtonSpacing,
     MultiplayerCoreChoice,
-    MultiplayerGame,
     MultiplayerGuestGame,
     MultiplayerAdapter,
     MultiplayerMode,
     MultiplayerRoomTab,
+    MultiplayerSeatState,
     MultiplayerTab,
     Payload,
     ShortcutButton,
@@ -99,22 +99,21 @@ const NAV_ENTER_MAINTAIN_Y = 3;
 const FIX_DONE_MS = 4000;
 const DIR_UP = 9;
 
-const LINK_SYSTEMS = [4, 5, 6, 16, 18, 41];
 const DOLPHIN_CONSOLES = ["GameCube", "Wii"];
 const GBA_SYSTEM = 5;
 const NO_CORES: MultiplayerCoreChoice[] = [];
 
 const STREAM_SEAT_STATES: StreamSeatState[] = ["pairing", "connecting", "streaming", "relay", "failed"];
 
-function streamSeat(value: string | undefined): StreamSeatState {
-    return STREAM_SEAT_STATES.find((state) => state === value) ?? "";
+function seatMark(ready: boolean, seatState: MultiplayerSeatState | undefined, can: boolean): "ready" | MultiplayerSeatState {
+    if (ready) {
+        return "ready";
+    }
+    return seatState || (can ? "" : "never");
 }
 
-function playsIn(game: MultiplayerGame, mode: MultiplayerMode) {
-    if (mode === "stream") {
-        return game.canStream;
-    }
-    return mode === "couch" ? game.canCouch : LINK_SYSTEMS.includes(game.systemId) && game.canLink;
+function streamSeat(value: string | undefined): StreamSeatState {
+    return STREAM_SEAT_STATES.find((state) => state === value) ?? "";
 }
 
 const TABS: { tab: MultiplayerTab; labelKey: string; focusKey: string }[] = [
@@ -372,10 +371,11 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const ownGameOk = local !== null && mp.checkCurrent && !gateCheck?.gate;
     const canStartNow = Boolean(hosted?.canStart) && !mp.busy && ownGameOk && !otherGameRunning() && !playing;
     const canStartShown = Boolean(hosted?.canStart) && local !== null && !shownCheck?.gate && !otherGameRunning() && !playing;
+    const hostSettling: MultiplayerSeatState = joined?.room.hostState ?? "";
     const readyShown = Boolean(joined && inLobby && !joined.launched
-        && (joined.ready || (local !== null && !shownCheck?.gate && !runningOther)));
+        && (joined.ready || (local !== null && !shownCheck?.gate && !runningOther && !hostSettling)));
     const readyAllowed = Boolean(joined && inLobby && !joined.launched
-        && (joined.ready || (ownGameOk && !runningOther)));
+        && (joined.ready || (ownGameOk && !runningOther && !hostSettling)));
     const canRejoinShown = Boolean(joined?.rejoin) && !playing && !runningOther && ownGameOk;
     const roomMode = hosted?.mode ?? joined?.room.mode;
     const dropIn = roomMode === "stream" || (roomMode === "couch" && (hosted?.emulator ?? joined?.room.emulator) === "retroarch");
@@ -393,6 +393,12 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         }
         if (playing || !inLobby) {
             return null;
+        }
+        if (hosted?.hostState) {
+            return { code: hosted.hostState === "setup" ? "host_needs_setup" : "host_wont_work" };
+        }
+        if (joined && hostSettling && !joined.ready) {
+            return { code: hostSettling === "setup" ? "host_setting_up" : "host_cant_play" };
         }
         if (hosted && !dropIn && !hosted.canStart && hosted.seats.some((seat, index) => index > 0 && seat?.can)) {
             return { code: "nobody_ready" };
@@ -517,6 +523,40 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             canPlay = false;
         }
     }
+    function startWhy(): string | null {
+        if (!inLobby || playing) {
+            return null;
+        }
+        const own = mp.modes?.modes[mp.mode];
+        const ownGate = own && own.state !== "ready" ? own.gate : null;
+        if (hosted?.hostState) {
+            const gate = ownGate ?? hosted.hostGate;
+            const detail = ownGate ? own?.detail ?? {} : hosted.hostDetail;
+            return hosted.hostState === "setup"
+                ? t(language, "You need setup for this game first. Press Needs setup on the chart to fix it.")
+                : t(language, "This game won't work on your device. {{reason}} Pick another game with Change Game.",
+                    { reason: reasonText(mp.mode, gate, detail) });
+        }
+        if (!joined || joined.ready || joined.launched) {
+            return null;
+        }
+        if (ownGate) {
+            return own?.state === "setup"
+                ? t(language, "You need setup for this game first. Press Needs setup on the chart to fix it.")
+                : t(language, "This game won't work on your device. {{reason}}", { reason: reasonText(mp.mode, ownGate, own?.detail ?? {}) });
+        }
+        if (hostSettling) {
+            return problemText(language, hostSettling === "setup" ? "host_setup" : "host_never");
+        }
+        return null;
+    }
+    const whyNot = canPlay ? null : startWhy();
+    function explainStart() {
+        if (whyNot) {
+            showMultiplayerProblem(language, hosted ? "Start" : "Ready", whyNot);
+        }
+    }
+
     const playFixable = !canPlay && inLobby && inSession && Boolean(shownCheck?.gate);
     const hostGated = !hosted && Boolean((mp.modes?.modes[mp.mode] ?? shownCheck)?.gate);
     const playGreen = playLabel !== "Unready";
@@ -524,6 +564,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
     const playColor = !playGreen || playFocused ? undefined : canPlay ? "#ffffff" : steamPlayGreyText;
     const yStarts = canStartShown && !state.mouseKeyboardMode;
     const xReadies = readyShown && !state.mouseKeyboardMode;
+    const yExplains = Boolean(hosted) && !yStarts && Boolean(whyNot) && !state.mouseKeyboardMode;
+    const xExplains = Boolean(joined) && !xReadies && Boolean(whyNot) && !state.mouseKeyboardMode;
     const slotStyle = { display: "flex", width: "100%", marginTop: "8px" };
     const slotButtonStyle = { width: "100%", minWidth: 0 };
 
@@ -564,9 +606,8 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         });
     }
 
-    function openGamePicker(pick: (gameId: number) => void, forMode: MultiplayerMode | null) {
+    function openGamePicker(pick: (gameId: number) => void) {
         const rows = (mp.games ?? [])
-            .filter((game) => forMode === null || playsIn(game, forMode))
             .map((game) => ({
                 key: `${game.systemId}:${game.gameId}`,
                 system: game.system,
@@ -595,17 +636,6 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                 close={close}
             />
         ));
-    }
-
-    function chooseMode(next: MultiplayerMode) {
-        const roomGame = hosted && next !== hosted.mode
-            ? mp.games?.find((game) => game.gameId === hosted.gameId)
-            : undefined;
-        if (roomGame && !playsIn(roomGame, next)) {
-            openGamePicker((gameId) => actions.changeGame(gameId, next), next);
-            return;
-        }
-        actions.setTab(next);
     }
 
     function reasonText(forMode: MultiplayerMode, gate: string, detail: Record<string, string>) {
@@ -835,9 +865,9 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         style={slotStyle}
                     >
                         <DialogButton
-                            focusable={canPlay || playFixable}
-                            disabled={!canPlay && !playFixable}
-                            onClick={canPlay ? pressPlay : () => openModeReason(mp.mode)}
+                            focusable={canPlay || playFixable || Boolean(whyNot)}
+                            disabled={!canPlay && !playFixable && !whyNot}
+                            onClick={canPlay ? pressPlay : playFixable ? () => openModeReason(mp.mode) : explainStart}
                             onGamepadFocus={() => setPlayFocused(true)}
                             onGamepadBlur={() => setPlayFocused(false)}
                             style={{
@@ -860,7 +890,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     >
                         <DialogButton
                             disabled={!mp.games || mp.games.length === 0}
-                            onClick={() => openGamePicker(actions.pickGame, null)}
+                            onClick={() => openGamePicker(actions.pickGame)}
                             style={slotButtonStyle}
                         >
                             {t(language, "Pick Another Game")}
@@ -1173,7 +1203,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                     name: seat?.name ?? "",
                     game: seat?.title ?? "",
                     tag: index === 0 ? "host" : "",
-                    mark: !seat || index === 0 ? "" : !seat.can ? "cant" : seat.ready ? "ready" : "",
+                    mark: !seat ? "" : index === 0 ? hosted.hostState : seatMark(seat.ready, seat.seatState, seat.can),
                     activity: !seat ? "" : index === 0 ? (hosted.state === "lobby" ? "" : "game")
                         : seat.launched ? (hosted.watch ? "watch" : "game") : "",
                     stream: streamSeat(seat?.st),
@@ -1223,7 +1253,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         name,
                         game: index === 0 ? joined.room.title : flags?.title ?? "",
                         tag: index === 0 ? "host" : "",
-                        mark: !name || index === 0 || !flags ? "" : !flags.can ? "cant" : flags.ready ? "ready" : "",
+                        mark: !name || !flags ? "" : index === 0 ? flags.seatState : seatMark(flags.ready, flags.seatState, flags.can),
                         activity: !name ? "" : index === 0 ? (roomState === "lobby" ? "" : "game")
                             : (index === joined.seat ? joined.launched : flags?.launched)
                                 ? (joined.room.watch ? "watch" : "game") : "",
@@ -1588,7 +1618,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                         disabled={!inLobby || Boolean(joined?.ready)}
                         onClick={() => {
                             if (!mp.busy) {
-                                void (hosted ? openGamePicker(actions.changeGame, mp.mode) : openGuestGames());
+                                void (hosted ? openGamePicker(actions.changeGame) : openGuestGames());
                             }
                         }}
                     >
@@ -1611,10 +1641,11 @@ function MultiplayerPage(props: MultiplayerPageProps) {
             key="multiplayer:view"
             flow-children="column"
             onCancelButton={pressBack}
-            onOptionsButton={onPlay && yStarts ? pressPlay : undefined}
-            onOptionsActionDescription={onPlay && yStarts ? t(language, "mp_footer_start") : undefined}
-            onSecondaryButton={onPlay && xReadies ? pressPlay : undefined}
-            onSecondaryActionDescription={onPlay && xReadies ? t(language, joined?.ready ? "mp_footer_unready" : "mp_footer_ready") : undefined}
+            onOptionsButton={onPlay && yStarts ? pressPlay : onPlay && yExplains ? explainStart : undefined}
+            onOptionsActionDescription={onPlay && (yStarts || yExplains) ? t(language, "mp_footer_start") : undefined}
+            onSecondaryButton={onPlay && xReadies ? pressPlay : onPlay && xExplains ? explainStart : undefined}
+            onSecondaryActionDescription={onPlay && (xReadies || xExplains)
+                ? t(language, joined?.ready ? "mp_footer_unready" : "mp_footer_ready") : undefined}
         >
             <PanelSection>
                 <PageNavStrip
@@ -1687,7 +1718,7 @@ function MultiplayerPage(props: MultiplayerPageProps) {
                                     mode={mp.mode}
                                     locked={joined !== null || (hosted !== null && hosted.state !== "lobby")}
                                     states={mp.modes?.modes ?? {}}
-                                    onChoose={chooseMode}
+                                    onChoose={actions.setTab}
                                     onStatus={openModeReason}
                                 />
                                 <PanelSectionRow>

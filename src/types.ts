@@ -2979,6 +2979,7 @@ export type MultiplayerRoomRow = {
     emuVersion: string;
     hash: string;
     crc: string;
+    hostState: MultiplayerSeatState;
     hardcore: boolean;
     private: boolean;
     friends: boolean;
@@ -3001,11 +3002,14 @@ export type MultiplayerRoomRow = {
     };
 };
 
+export type MultiplayerSeatState = "" | "setup" | "never";
+
 type MultiplayerSeat = {
     name: string;
     launched: boolean;
     ready: boolean;
     can: boolean;
+    seatState: MultiplayerSeatState;
     reason?: string;
     title: string;
     ulid: string;
@@ -3037,6 +3041,9 @@ export type MultiplayerHostedRoom = {
     share: boolean;
     watch: boolean;
     voice: boolean;
+    hostState: MultiplayerSeatState;
+    hostGate: string;
+    hostDetail: Record<string, string>;
     adapter: MultiplayerAdapter;
     adapterAuto: "" | "team" | "4way" | "port1" | "port2";
     adapterShown: boolean;
@@ -3062,7 +3069,8 @@ type MultiplayerGuestStatus = {
     start: boolean;
     port: number;
     players: number;
-    seats: { ready: boolean; can: boolean; launched: boolean; playing: boolean; title: string; st?: string }[];
+    seats: { ready: boolean; can: boolean; launched: boolean; playing: boolean; title: string; seatState: MultiplayerSeatState;
+        st?: string }[];
     lastStart: MultiplayerLastStart;
     ids: { ulid: string; pic: string }[];
 };
