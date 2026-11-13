@@ -7,6 +7,7 @@ export type CollapsibleTitleProps = {
     focusFallback?: string[];
     disabled?: boolean;
     preserveCase?: boolean;
+    bold?: boolean;
     onToggle: () => void;
     onGamepadFocus?: () => void;
     onGamepadDirection?: (evt: { detail?: { button?: number } }) => boolean | void;
@@ -20,6 +21,7 @@ export function CollapsibleTitle(props: CollapsibleTitleProps) {
                     flex: 1,
                     minWidth: 0,
                     overflowWrap: "break-word",
+                    fontWeight: props.bold ? 700 : undefined,
                     textTransform: props.preserveCase ? "none" : "uppercase"
                 }}
             >

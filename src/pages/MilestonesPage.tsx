@@ -256,6 +256,7 @@ function MilestonesPage(props: { state: MilestonesPageState; actions: Milestones
                         label={label}
                         collapsed={entry.collapsed}
                         preserveCase={state.headerStyle === "typed"}
+                        bold
                         focusKey={entryFocusKey(entry)}
                         focusFallback={SORT_FALLBACK}
                         onToggle={() => controller.actions.toggleCategory(entry.category.id)}
