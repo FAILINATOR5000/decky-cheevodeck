@@ -862,6 +862,7 @@ class Plugin(
             ra_call=self.run_ra_call_for_trickle,
             ra=self.ra,
             own_rank=self.milestones_service.own_rank,
+            notice_store=self.developer_message_store,
         )
         self.milestones_service.set_rank_listener(self.multiplayer_friends_service.rank_changed)
         self.multiplayer_service.set_milestone_event(self.milestones_service.record_event)
@@ -1771,6 +1772,8 @@ class Plugin(
         }
 
     async def mark_intro_viewed(self):
+        if not self.settings_store.get_viewed_intro(self.settings_store.load_config()):
+            self.multiplayer_friends_service.hold_notices()
         self.settings_store.update_viewed_intro(True)
 
         return {
@@ -1790,6 +1793,7 @@ class Plugin(
         document = await self.load_help_document("welcome")
         text = str(document.get("text") or "").strip()
         if not text:
+            self.multiplayer_friends_service.release_held_notice()
             return {"ok": True, "announced": False}
 
         cfg = self.settings_store.load_config()
@@ -1814,6 +1818,7 @@ class Plugin(
             settings_store=self.settings_store,
             event_loop=self._asyncio_loop,
         )
+        self.multiplayer_friends_service.release_held_notice()
 
         return {"ok": True, "announced": True}
 

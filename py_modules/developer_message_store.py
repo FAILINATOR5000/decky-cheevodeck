@@ -8,6 +8,8 @@ CURRENT_SCHEMA_VERSION = 1
 
 DEVELOPER_MESSAGE_FILENAME = "developer_message.json"
 
+SERVER_NOTICE_FILENAME = "server_notice.json"
+
 
 class DeveloperMessageStore:
     """What this device knows about the developer's broadcast message.
@@ -110,3 +112,22 @@ class DeveloperMessageStore:
     def clear(self) -> None:
         with self._lock:
             save_json_file(self._path(), self._empty_file(), compact=True)
+
+    def load_notice(self) -> dict:
+        with self._lock:
+            raw = load_json_file(self._base_dir / SERVER_NOTICE_FILENAME, {})
+        if not isinstance(raw, dict) or to_int(raw.get("schemaVersion", 0), 0) != CURRENT_SCHEMA_VERSION:
+            raw = {}
+        return {
+            "schemaVersion": CURRENT_SCHEMA_VERSION,
+            "noticeId": str(raw.get("noticeId") or "").strip(),
+            "shownAt": to_int(raw.get("shownAt"), 0),
+        }
+
+    def record_notice(self, notice_id: str, shown_at: int) -> None:
+        with self._lock:
+            save_json_file(self._base_dir / SERVER_NOTICE_FILENAME, {
+                "schemaVersion": CURRENT_SCHEMA_VERSION,
+                "noticeId": str(notice_id or "").strip(),
+                "shownAt": to_int(shown_at, 0),
+            }, compact=True)

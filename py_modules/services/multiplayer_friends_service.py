@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import hmac
 import json
+import re
 import secrets
 import time
 
@@ -30,6 +31,9 @@ DATAGRAM_BYTES = 2048
 DATAGRAMS_PER_SECOND = 20
 DATAGRAMS_PER_SECOND_ALL = 100
 INCOMING_REQUESTS_MAX = 100
+NOTICE_ID = re.compile(r"[A-Za-z0-9._-]{1,64}")
+NOTICE_CHARS = 4000
+PLUGIN_VERSION = str(getattr(decky, "DECKY_PLUGIN_VERSION", "") or "").strip()
 CLOCK_SKEW_SECONDS = 120
 LIST_MAX = 500
 REPORT_ULIDS_MAX = 520
@@ -90,9 +94,10 @@ class _Listener(asyncio.DatagramProtocol):
 
 class MultiplayerFriendsService:
     def __init__(self, *, store, messages_store, settings_store, game_mode, multiplayer, notifications_store,
-                 ra_friends, resolved_avatars, heal, ra_call, ra, own_rank=None, port: int = FRIEND_PORT,
-                 peer_port: int = FRIEND_PORT, broadcast: str = "255.255.255.255"):
+                 ra_friends, resolved_avatars, heal, ra_call, ra, own_rank=None, notice_store=None,
+                 port: int = FRIEND_PORT, peer_port: int = FRIEND_PORT, broadcast: str = "255.255.255.255"):
         self._store = store
+        self._notice_store = notice_store
         self._own_rank = own_rank
         self._rank = None
         self._rank_at = None
@@ -138,6 +143,8 @@ class MultiplayerFriendsService:
         self._lan_seen = {}
         self._lan_here = None
         self._milestone_event = None
+        self._held_notice = None
+        self._holding_notices = False
 
     def set_event_loop(self, loop) -> None:
         self._loop = loop
@@ -413,6 +420,8 @@ class MultiplayerFriendsService:
             report = self._report(data)
             hello = {"op": "hello", "ulid": self._me(), "name": name, "pic": data["selfPic"], "proof": proof,
                      **report}
+            if PLUGIN_VERSION:
+                hello["ver"] = PLUGIN_VERSION
             if challenge.get("known") is not True:
                 hello["verifier"] = verifier
             writer.write(lobby_client.envelope(hello))
@@ -553,6 +562,61 @@ class MultiplayerFriendsService:
             self._take_mail(message)
         elif op == "invite":
             self._take_invite(message.get("from"), message.get("body"), message.get("t"))
+        elif op == "notice":
+            self._take_notice(message)
+
+    def hold_notices(self) -> None:
+        self._holding_notices = True
+
+    def release_held_notice(self) -> None:
+        self._holding_notices = False
+        held, self._held_notice = self._held_notice, None
+        if held is not None:
+            self._take_notice(held)
+
+    def _take_notice(self, message: dict) -> None:
+        notice_id, text = message.get("id"), message.get("text")
+        if (self._notice_store is None or not isinstance(notice_id, str) or NOTICE_ID.fullmatch(notice_id) is None
+                or not isinstance(text, str) or not 0 < len(text) <= NOTICE_CHARS):
+            self._debug("ignored a malformed notice")
+            return
+        try:
+            if notice_id == self._notice_store.load_notice()["noticeId"]:
+                return
+            cfg = self._cfg()
+            if self._holding_notices or not self._settings_store.get_viewed_intro(cfg):
+                self._held_notice = message
+                self._debug("notice %s held until the welcome", notice_id)
+                return
+            self._notice_store.record_notice(notice_id, int(time.time()))
+            if notice_id == self._notice_store.load()["messageId"]:
+                self._debug("notice %s already came as the broadcast", notice_id)
+                return
+        except Exception as e:
+            decky.logger.warning("friends: couldn't read or save the notice record (%s)", type(e).__name__)
+            return
+        decky.logger.info("friends: notice %s from the lobby server, notifying", notice_id)
+        if self._notifications is not None and is_type_enabled("system", self._settings_store, cfg):
+            try:
+                self._notifications.append({
+                    "type": "system",
+                    "kind": "actionable",
+                    "iconSource": "none",
+                    "title": "Message from FAILINATOR5000",
+                    "body": text,
+                    "source": "notifications",
+                    "target": {"view": "message"},
+                    "meta": {"messageId": notice_id, "via": "server"},
+                })
+            except Exception as e:
+                decky.logger.warning("friends: the notice could not be filed (%s)", type(e).__name__)
+        emit_notification(
+            ntype="system",
+            title_key="Message from FAILINATOR5000",
+            line_key="View in Notifications",
+            settings_store=self._settings_store,
+            event_loop=self._loop,
+        )
 
     def _take_presence(self, message: dict) -> None:
         ulid = message.get("ulid")
