@@ -1,5 +1,5 @@
 import { DialogButton, Focusable, ModalRoot, TextField } from "@decky/ui";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { multiplayerDiscover, multiplayerJoin, multiplayerLookup, multiplayerRoomsPage, multiplayerSetVisible } from "../../api";
 import { overrideRecord, topEntryId } from "../../focusRecords";
@@ -131,6 +131,9 @@ function RoomsModal(props: RoomsModalProps) {
     const passwordRef = useRef<HTMLDivElement | null>(null);
     const addressRef = useRef<HTMLDivElement | null>(null);
     const listRef = useRef<HTMLDivElement | null>(null);
+    const topPrevRef = useRef<HTMLDivElement | null>(null);
+    const topNextRef = useRef<HTMLDivElement | null>(null);
+    const topPressRef = useRef<"prev" | "next" | null>(null);
     const aliveRef = useRef(true);
     useEffect(() => () => { aliveRef.current = false; }, []);
     const ticketRef = useRef(0);
@@ -341,7 +344,6 @@ function RoomsModal(props: RoomsModalProps) {
         setOnlineError("");
         setRooms(null);
         setCursors([null]);
-        setPageState(NO_PAGE_STATE);
         setVisit((count) => count + 1);
     }
 
@@ -370,13 +372,48 @@ function RoomsModal(props: RoomsModalProps) {
         }
     }
 
-    function turnPage(stack: (string | null)[]) {
-        if (busy) {
+    function turnPage(stack: (string | null)[], from: "top" | "bottom", button: "prev" | "next") {
+        if (busy || loadingRef.current) {
             return;
         }
-        searchRef.current?.querySelector("input")?.focus();
+        if (from === "bottom") {
+            topPressRef.current = null;
+            searchRef.current?.querySelector("input")?.focus();
+        }
+        else {
+            topPressRef.current = button;
+        }
         void askPage(stack, false);
     }
+
+    useLayoutEffect(() => {
+        const pressed = topPressRef.current;
+        if (pressed === null || loadingRef.current) {
+            return;
+        }
+        topPressRef.current = null;
+        const focusIn = (holder: HTMLDivElement | null) => {
+            const control = holder?.querySelector<HTMLElement>("button, .DialogButton, [tabindex]");
+            if (!control) {
+                return false;
+            }
+            control.focus();
+            return true;
+        };
+        let landed = true;
+        if (pressed === "next" && pageState.next === null) {
+            landed = focusIn(topPrevRef.current);
+        }
+        else if (pressed === "prev" && cursors.length === 1) {
+            landed = focusIn(topNextRef.current);
+        }
+        else if (!topNextRef.current) {
+            landed = false;
+        }
+        if (!landed) {
+            searchRef.current?.querySelector("input")?.focus();
+        }
+    }, [cursors, pageState, loading]);
 
     useEffect(() => {
         if (step === "password") {
@@ -564,6 +601,44 @@ function RoomsModal(props: RoomsModalProps) {
         }
     }
     const firstMountedRoom = roomWindow.mountedItems.findIndex((entry) => entry.kind === "room");
+    const pageRow = (where: "top" | "bottom") => (
+        <Focusable
+            flow-children="row"
+            style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", gap: "8px", marginTop: where === "top" ? "8px" : 0 }}
+        >
+            <div
+                ref={where === "top" ? topPrevRef : undefined}
+                data-focus-key={where === "top" ? "multiplayer:rooms:prevpagetop" : "multiplayer:rooms:prevpage"}
+                style={{ justifySelf: "start" }}
+            >
+                <DialogButton
+                    onClick={() => turnPage(cursors.slice(0, -1), where, "prev")}
+                    disabled={firstPage}
+                    focusable={!firstPage}
+                    style={compactButtonStyle}
+                >
+                    {t(language, "Previous Page")}
+                </DialogButton>
+            </div>
+            <div style={{ ...modalBodyStyle(), textAlign: "center" }}>
+                {t(language, "Page {{n}} of {{m}}", { n: cursors.length, m: Math.max(pages, cursors.length) })}
+            </div>
+            <div
+                ref={where === "top" ? topNextRef : undefined}
+                data-focus-key={where === "top" ? "multiplayer:rooms:nextpagetop" : "multiplayer:rooms:nextpage"}
+                style={{ justifySelf: "end" }}
+            >
+                <DialogButton
+                    onClick={() => turnPage([...cursors, pageState.next], where, "next")}
+                    disabled={pageState.next === null}
+                    focusable={pageState.next !== null}
+                    style={compactButtonStyle}
+                >
+                    {t(language, "Next Page")}
+                </DialogButton>
+            </div>
+        </Focusable>
+    );
     const canJoinPicked = picked !== null && password.length > 0 && !busy;
     const dialogLine = <DialogLine {...line} beside />;
 
@@ -670,6 +745,7 @@ function RoomsModal(props: RoomsModalProps) {
                     onClick={openFilter}
                     bottomSeparator="none"
                 />
+                {paged && pages > 1 && pageRow("top")}
                 {visibleError && (
                     <div style={{ ...modalBodyStyle(), color: warnAmber, opacity: 1, marginTop: "8px", paddingLeft: LINE_INSET }}>
                         {describe(visibleError)}
@@ -765,33 +841,7 @@ function RoomsModal(props: RoomsModalProps) {
                             })}
                         </SlidingWindowRows>
                     )}
-                    {!looking && !asking && paged && pages > 1 && firstMountedRoom >= 0 && (
-                        <Focusable flow-children="row" style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", gap: "8px" }}>
-                            <div data-focus-key="multiplayer:rooms:prevpage" style={{ justifySelf: "start" }}>
-                                <DialogButton
-                                    onClick={() => turnPage(cursors.slice(0, -1))}
-                                    disabled={firstPage}
-                                    focusable={!firstPage}
-                                    style={compactButtonStyle}
-                                >
-                                    {t(language, "Previous Page")}
-                                </DialogButton>
-                            </div>
-                            <div style={{ ...modalBodyStyle(), textAlign: "center" }}>
-                                {t(language, "Page {{n}} of {{m}}", { n: cursors.length, m: Math.max(pages, cursors.length) })}
-                            </div>
-                            <div data-focus-key="multiplayer:rooms:nextpage" style={{ justifySelf: "end" }}>
-                                <DialogButton
-                                    onClick={() => turnPage([...cursors, pageState.next])}
-                                    disabled={pageState.next === null}
-                                    focusable={pageState.next !== null}
-                                    style={compactButtonStyle}
-                                >
-                                    {t(language, "Next Page")}
-                                </DialogButton>
-                            </div>
-                        </Focusable>
-                    )}
+                    {!looking && !asking && paged && pages > 1 && firstMountedRoom >= 0 && pageRow("bottom")}
                 </div>
                 <div style={{ display: "flex", marginTop: "8px" }}>
                     {dialogLine}
