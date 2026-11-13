@@ -241,14 +241,17 @@ export function NotificationsModal(props: NotificationsModalProps) {
             </Focusable>
 
             {!isArchivedTab && (
-                <MultiplayerNotificationRow
-                    language={language}
-                    nav={nav}
-                    close={close}
-                    onMenuButton={closeOnMenu}
-                    onButtonDown={handleTabButtons}
-                    actionDescriptionMap={tabLegend}
-                />
+                <>
+                    <MultiplayerNotificationRow
+                        language={language}
+                        nav={nav}
+                        close={close}
+                        onMenuButton={closeOnMenu}
+                        onButtonDown={handleTabButtons}
+                        actionDescriptionMap={tabLegend}
+                    />
+                    <div style={{ height: "1px", background: "rgba(255,255,255,0.14)", marginBottom: "12px" }} />
+                </>
             )}
 
             {isArchivedTab && (

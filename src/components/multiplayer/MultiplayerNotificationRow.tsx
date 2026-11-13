@@ -8,7 +8,7 @@ import { getGameIconCached, multiplayerFriends } from "../../api";
 import { useGameIcon } from "../../hooks/useGameIcon";
 import { t, type LanguageCode } from "../../locales";
 import type { NotificationNav } from "../../notifications/registry";
-import type { MultiplayerFriendsState } from "../../types";
+import type { MultiplayerFriendsState, MultiplayerTab } from "../../types";
 import { logError } from "../../utils/errors";
 import { hotspotIsOn, leaveHotspot, toggleHotspot, useHotspot } from "../../utils/hotspotState";
 import { rememberMultiplayerPage } from "../../utils/multiplayerChoices";
@@ -23,6 +23,7 @@ const FRIENDS_EVENT = "cheevodeck_multiplayer_friends";
 const ROW_KEY = "notif:multiplayer:room";
 const HOTSPOT_KEY = "notif:multiplayer:hotspot";
 const JOIN_KEY = "notif:multiplayer:join";
+const FRIENDS_KEY = "notif:multiplayer:friends";
 const CLOSE_KEY = "notif:multiplayer:close";
 const SIDE_BUTTON = 24;
 const SIDE_GAP = 4;
@@ -220,8 +221,8 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
         (target?.querySelector("button, [tabindex]") as HTMLElement | null | undefined)?.focus();
     }, [inRoom]);
 
-    function open() {
-        rememberMultiplayerPage(inRoom ? "play" : "friends");
+    function open(page: MultiplayerTab) {
+        rememberMultiplayerPage(page);
         nav.openMultiplayer?.();
         close();
     }
@@ -242,7 +243,7 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
     const button = modalSize(SIDE_BUTTON);
     const gap = modalSize(SIDE_GAP);
     const inset = modalSize(8);
-    const buttons = inRoom ? 3 : 2;
+    const buttons = inRoom ? 4 : 3;
     const hotspotOn = hotspotIsOn(hotspot);
     const joined = hotspot.role === "guest" && hotspot.state !== "stopping";
 
@@ -257,7 +258,7 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
             >
                 <FocusTarget focusKey={ROW_KEY} style={{ flex: 1, minWidth: 0, display: "flex" }}>
                     <DialogButton
-                        onClick={open}
+                        onClick={() => open("play")}
                         style={{
                             width: "100%",
                             minWidth: 0,
@@ -320,6 +321,15 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
                         gap: `${gap}px`
                     }}
                 >
+                    <SideButton
+                        {...props}
+                        focusKey={FRIENDS_KEY}
+                        label={t(language, "Play Together Friends")}
+                        lit={false}
+                        onClick={() => open("friends")}
+                    >
+                        <FaUserFriends style={{ width: "60%", height: "60%" }} />
+                    </SideButton>
                     <SideButton
                         {...props}
                         focusKey={HOTSPOT_KEY}
