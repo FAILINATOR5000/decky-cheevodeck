@@ -315,11 +315,11 @@ function MultiplayerPage(props: MultiplayerPageProps) {
         rememberMultiplayerRoomTab(roomId, tab);
     }
     useEffect(() => {
-        if (!roomId) {
+        if (mp.loaded && !roomId) {
             setRoomTabChoice({ room: "", tab: "room" });
             forgetMultiplayerRoomTab();
         }
-    }, [roomId]);
+    }, [mp.loaded, roomId]);
     const tabBodyRef = useRef<HTMLDivElement | null>(null);
     const cursorTab = useRef<MultiplayerRoomTab | null>(null);
     const lostTab = roomTabChoice.room === roomId && tabOff[roomTabChoice.tab] ? roomTabChoice.tab : null;
