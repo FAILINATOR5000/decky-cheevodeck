@@ -1,10 +1,9 @@
 import { DialogButton, Focusable, ModalRoot } from "@decky/ui";
-import { useEffect, useState } from "react";
 
-import { hotspotScan, type HotspotRow } from "../../api";
+import type { HotspotRow } from "../../api";
+import { useHotspotScan } from "../../hooks/useHotspotScan";
 import { useSlidingWindow } from "../../hooks/useSlidingWindow";
 import { getCurrentLanguage, t, type LanguageCode } from "../../locales";
-import { logError } from "../../utils/errors";
 import { joinHotspot } from "../../utils/hotspotState";
 import { showManagedModal } from "../../utils/modalRegistry";
 import { getCurrentModalScale, modalSize } from "../../utils/scale";
@@ -16,7 +15,6 @@ import { SlidingWindowRows } from "../ui/SlidingWindowRows";
 import { openHotspotCode } from "./HotspotCodeModal";
 
 const CANCEL_KEY = "hotspot:join:cancel";
-const SCAN_MS = 5000;
 const NO_ROWS: HotspotRow[] = [];
 
 function rowKey(row: HotspotRow): string {
@@ -25,28 +23,7 @@ function rowKey(row: HotspotRow): string {
 
 function HotspotJoinModal(props: { language: LanguageCode; close: () => void }) {
     const { language, close } = props;
-    const [found, setFound] = useState<HotspotRow[] | null>(null);
-
-    useEffect(() => {
-        let alive = true;
-        async function scan() {
-            try {
-                const result = await hotspotScan();
-                if (alive && result.ok) {
-                    setFound(result.hotspots);
-                }
-            }
-            catch (e) {
-                logError("offline hotspot: scanning from the notifications", e);
-            }
-        }
-        void scan();
-        const timer = setInterval(() => void scan(), SCAN_MS);
-        return () => {
-            alive = false;
-            clearInterval(timer);
-        };
-    }, []);
+    const found = useHotspotScan(true, "offline hotspot: scanning from the notifications");
 
     const rows = found ?? NO_ROWS;
     const rowWindow = useSlidingWindow({

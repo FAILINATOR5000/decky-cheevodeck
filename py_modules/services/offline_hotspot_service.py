@@ -53,6 +53,7 @@ WARN_SECONDS = 5 * 60
 ACTIVATE_SECONDS = 25
 TICK_SECONDS = 1.0
 SCAN_WAIT_SECONDS = 8.0
+SCAN_FRESH_SECONDS = 20
 DEVICES_SECONDS = 5.0
 HELLO_SECONDS = 5.0
 NAME_SECONDS = 20.0
@@ -876,10 +877,14 @@ class OfflineHotspotService:
                     deadline = time.monotonic() + SCAN_WAIT_SECONDS
                     while time.monotonic() < deadline and nm.last_scan(device) == before:
                         time.sleep(0.25)
+            scanned = nm.last_scan(device) // 1000
             best = {}
             for point in nm.access_points(device):
                 ssid = bytes(point.get("Ssid") or b"").decode("ascii", "replace")
                 if not subnet_of(ssid):
+                    continue
+                seen = int(point.get("LastSeen", -1))
+                if scanned > 0 and 0 <= seen < scanned - SCAN_FRESH_SECONDS:
                     continue
                 strength = int(point.get("Strength", 0))
                 if ssid not in best or strength > best[ssid]["strength"]:

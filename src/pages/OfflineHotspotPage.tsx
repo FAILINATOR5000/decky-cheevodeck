@@ -1,7 +1,7 @@
 import { Focusable, PanelSectionRow } from "@decky/ui";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
-import { hotspotScan, type HotspotDevice, type HotspotRow } from "../api";
+import type { HotspotDevice, HotspotRow } from "../api";
 import { openHotspotCode } from "../components/hotspot/HotspotCodeModal";
 import { skipWhileHidden } from "../components/panel/skipWhileHidden";
 import { BackButton } from "../components/ui/BackButton";
@@ -15,10 +15,10 @@ import { SectionTitle } from "../components/ui/SectionTitle";
 import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
 import { ToggleRow } from "../components/ui/ToggleRow";
 import { pendingLandingKey, subLandingAhead, usePageLanding } from "../focusRecords";
+import { useHotspotScan } from "../hooks/useHotspotScan";
 import { useSlidingWindow } from "../hooks/useSlidingWindow";
 import { t, type LanguageCode } from "../locales";
 import type { ButtonSpacing, ViewKey } from "../types";
-import { logError } from "../utils/errors";
 import {
     joinHotspot,
     leaveHotspot,
@@ -39,7 +39,6 @@ const PRIVATE_KEY = "offlineHotspot:toggle:private";
 const LEAVE_KEY = "offlineHotspot:leave";
 const DEVICE_PREFIX = "offlineHotspot:device:";
 const JOIN_PREFIX = "offlineHotspot:join:";
-const SCAN_MS = 5000;
 const ROWS_INITIAL = 20;
 const ROWS_STEP = 20;
 const SENTINEL_ROOT_MARGIN_PX = 600;
@@ -83,32 +82,9 @@ function OfflineHotspotPage(props: OfflineHotspotPageProps) {
     const privateNext = useHotspotPrivateNext();
     const dedicated = useHotspotDedicated();
     const hosting = hotspot.role === "host" && hotspot.state !== "stopping";
-    const [found, setFound] = useState<HotspotRow[] | null>(null);
     const [joining, setJoining] = useState("");
 
-    useEffect(() => {
-        if (!visible || hosting) {
-            return;
-        }
-        let alive = true;
-        async function scan() {
-            try {
-                const result = await hotspotScan();
-                if (alive && result.ok) {
-                    setFound(result.hotspots);
-                }
-            }
-            catch (e) {
-                logError("offline hotspot: scanning", e);
-            }
-        }
-        void scan();
-        const timer = setInterval(() => void scan(), SCAN_MS);
-        return () => {
-            alive = false;
-            clearInterval(timer);
-        };
-    }, [visible, hosting]);
+    const found = useHotspotScan(visible && !hosting, "offline hotspot: scanning");
 
     const devices = hosting ? hotspot.devices : NO_DEVICES;
     const hotspots = hosting ? NO_HOTSPOTS : (found ?? NO_HOTSPOTS);
