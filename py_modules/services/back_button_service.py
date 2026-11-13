@@ -123,7 +123,6 @@ SUMMON_ACTIONS = (
     "milestones",
     "dolphinMapper",
     "stormbreaker",
-    "ezMultiplayer",
 )
 
 _SUMMON_BUTTONS = ("l4", "r4", "l5", "r5")

@@ -3127,7 +3127,6 @@ const DE: LocaleTable = {
     "Your RetroArch or core version differs from the host's.": "Deine RetroArch- oder Core-Version unterscheidet sich von der des Hosts.",
     "Your copy is a different version of the game from the host's.": "Deine Kopie ist eine andere Version des Spiels als die des Hosts.",
     "Your game differs from the host's, so it may not link.": "Dein Spiel unterscheidet sich von dem des Hosts, daher klappt die Verbindung vielleicht nicht.",
-    "help_quick_shortcut_ez_multiplayer": "Öffnet Play Together, wo du im selben WLAN oder online einen Raum hosten oder einem beitreten kannst.",
     "Room": "Raum",
     "Audio": "Audio",
     "Host": "Host",

@@ -532,7 +532,6 @@ const QUICK_MENU_SHORTCUT_ICONS: Record<QuickMenuShortcut, ComponentType<{ size?
     smbShares: FaNetworkWired,
     fileWatcher: FaFileAlt,
     stormbreaker: FaBolt,
-    ezMultiplayer: FaUserFriends,
     memories: FaImage,
     calculator: FaCalculator,
     browser: FaGlobe,
@@ -1386,10 +1385,6 @@ function MainAchievementsPage(props: MainAchievementsPageProps) {
         }
         if (id === "stormbreaker") {
             openStormbreaker();
-            return;
-        }
-        if (id === "ezMultiplayer") {
-            openMultiplayer();
             return;
         }
         if (id === "memories") {

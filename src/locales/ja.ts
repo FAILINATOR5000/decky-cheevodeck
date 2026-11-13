@@ -2994,7 +2994,6 @@ const JA: LocaleTable = {
     "Your RetroArch or core version differs from the host's.": "RetroArchまたはコアのバージョンがホストと異なります。",
     "Your copy is a different version of the game from the host's.": "あなたのゲームはホストとは別のバージョンです。",
     "Your game differs from the host's, so it may not link.": "ホストとは別のゲームのため、リンクできない可能性があります。",
-    "help_quick_shortcut_ez_multiplayer": "Play Togetherを開き、同じWi-Fiやオンラインでルームをホストしたり参加したりできます。",
     "Room": "ルーム",
     "Audio": "オーディオ",
     "Host": "ホスト",

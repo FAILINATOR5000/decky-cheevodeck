@@ -4855,10 +4855,6 @@ function AchievementsRoot() {
             goToQamGuard("hub");
             return;
         }
-        if (action === "ezMultiplayer") {
-            goToMultiplayer("hub");
-            return;
-        }
         if (action === "memories") {
             void goToMemories("hub");
             return;

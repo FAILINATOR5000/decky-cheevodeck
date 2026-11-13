@@ -248,7 +248,6 @@ export const QUICK_MENU_SHORTCUTS: { id: QuickMenuShortcut; labelKey: string; he
     { id: "smbShares", labelKey: "SMB Shares", helpKey: "help_quick_shortcut_smb_shares" },
     { id: "fileWatcher", labelKey: "File Watcher", helpKey: "help_quick_shortcut_file_watcher" },
     { id: "stormbreaker", labelKey: "Stormbreaker", helpKey: "help_quick_shortcut_stormbreaker" },
-    { id: "ezMultiplayer", labelKey: "Play Together", helpKey: "help_quick_shortcut_ez_multiplayer" },
     { id: "memories", labelKey: "Memories", helpKey: "help_quick_shortcut_memories" },
     { id: "calculator", labelKey: "Calculator", helpKey: "help_quick_shortcut_calculator" },
     { id: "browser", labelKey: "Web Browser", helpKey: "help_quick_shortcut_browser" },
@@ -337,8 +336,7 @@ export const GLOBAL_SHORTCUT_ACTIONS: readonly ShortcutAction[] = [
     "trackedsets",
     "milestones",
     "dolphinMapper",
-    "stormbreaker",
-    "ezMultiplayer"
+    "stormbreaker"
 ];
 
 export function worksOutsidePanel(button: ShortcutButton, action: ShortcutAction): boolean {
@@ -385,7 +383,6 @@ const SHORTCUT_ACTIONS: { id: ShortcutAction; labelKey: string; category: Shortc
     { id: "smbShares", labelKey: "SMB Shares", category: "tools" },
     { id: "fileWatcher", labelKey: "File Watcher", category: "tools" },
     { id: "stormbreaker", labelKey: "Stormbreaker", category: "tools" },
-    { id: "ezMultiplayer", labelKey: "Play Together", category: "tools" },
     { id: "memories", labelKey: "Memories", category: "memories" },
     { id: "lastMemory", labelKey: "View Last Memory", category: "memories" },
     { id: "calculator", labelKey: "Calculator", category: "tools" },

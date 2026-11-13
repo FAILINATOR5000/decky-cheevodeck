@@ -39,7 +39,6 @@ const BACK_BUTTON_EVENT = "cheevodeck_back_button";
 type PageAction =
     | "dolphinMapper"
     | "stormbreaker"
-    | "ezMultiplayer"
     | "socialActivity"
     | "socialhub"
     | "news"
@@ -204,8 +203,6 @@ async function pageEntry(action: PageAction): Promise<PanelEntry | null> {
             return { kind: "dolphinMapper" };
         case "stormbreaker":
             return { kind: "stormbreaker" };
-        case "ezMultiplayer":
-            return { kind: "multiplayer" };
         case "trackedsets":
             return { kind: "trackedSets" };
         case "milestones":

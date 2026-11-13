@@ -3136,7 +3136,6 @@ export const EN: LocaleTable = {
     "Your RetroArch or core version differs from the host's.": "Your RetroArch or core version differs from the host's.",
     "Your copy is a different version of the game from the host's.": "Your copy is a different version of the game from the host's.",
     "Your game differs from the host's, so it may not link.": "Your game differs from the host's, so it may not link.",
-    "help_quick_shortcut_ez_multiplayer": "Opens Play Together, where you can host or join a room on the same Wi-Fi or online.",
     "Room": "Room",
     "Audio": "Audio",
     "Host": "Host",
