@@ -3074,7 +3074,6 @@ const RU: LocaleTable = {
     "Looking for rooms...": "Ищу комнаты...",
     "Previous Page": "Предыдущая страница",
     "Next Page": "Следующая страница",
-    "On Your Network": "В твоей сети",
     "Join by IP": "Войти по IP",
     "Refresh List": "Обновить список",
     "Not a valid address": "Неверный адрес",

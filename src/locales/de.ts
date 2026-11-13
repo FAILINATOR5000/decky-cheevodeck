@@ -2993,7 +2993,6 @@ const DE: LocaleTable = {
     "Looking for rooms...": "Suche nach Räumen...",
     "Previous Page": "Vorherige Seite",
     "Next Page": "Nächste Seite",
-    "On Your Network": "In deinem Netzwerk",
     "Join by IP": "Per IP beitreten",
     "Refresh List": "Liste aktualisieren",
     "Not a valid address": "Keine gültige Adresse",

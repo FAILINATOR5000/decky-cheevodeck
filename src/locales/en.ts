@@ -3002,7 +3002,6 @@ export const EN: LocaleTable = {
     "Looking for rooms...": "Looking for rooms...",
     "Previous Page": "Previous Page",
     "Next Page": "Next Page",
-    "On Your Network": "On Your Network",
     "Join by IP": "Join by IP",
     "Refresh List": "Refresh List",
     "Not a valid address": "Not a valid address",

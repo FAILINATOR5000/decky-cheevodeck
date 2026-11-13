@@ -3026,7 +3026,6 @@ const PT: LocaleTable = {
     "Looking for rooms...": "Procurando salas...",
     "Previous Page": "Página anterior",
     "Next Page": "Página seguinte",
-    "On Your Network": "Na tua rede",
     "Join by IP": "Entrar por IP",
     "Refresh List": "Atualizar lista",
     "Not a valid address": "Endereço inválido",

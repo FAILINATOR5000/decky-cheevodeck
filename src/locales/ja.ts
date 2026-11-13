@@ -2860,7 +2860,6 @@ const JA: LocaleTable = {
     "Looking for rooms...": "ルームを探しています...",
     "Previous Page": "前のページ",
     "Next Page": "次のページ",
-    "On Your Network": "同じネットワーク",
     "Join by IP": "IPで参加",
     "Refresh List": "リストを更新",
     "Not a valid address": "有効なアドレスではありません",

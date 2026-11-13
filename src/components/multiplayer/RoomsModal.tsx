@@ -778,7 +778,7 @@ function RoomsModal(props: RoomsModalProps) {
                                             key={entryKey(entry)}
                                             style={{ ...modalBodyStyle(13), opacity: 1, fontWeight: 700, paddingLeft: LINE_INSET, paddingTop: at === 0 ? 0 : "8px", paddingBottom: "4px" }}
                                         >
-                                            {t(language, entry.key === "local" ? "On Your Network" : "Online")}
+                                            {t(language, entry.key === "local" ? "Local" : "Online")}
                                         </div>
                                     );
                                 }
