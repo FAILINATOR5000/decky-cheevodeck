@@ -27,7 +27,7 @@ const SECTIONS: Section[] = [
     { key: "game", headingKey: "Game", choices: [{ value: "mine", labelKey: "My Games" }] },
     { key: "mode", headingKey: "Mode", choices: [{ value: "link", labelKey: "Link Play" }, { value: "couch", labelKey: "Couch Play" },
         { value: "stream", labelKey: "Stream Play" }] },
-    { key: "kind", headingKey: "Room", choices: [{ value: "play", labelKey: "Play" }, { value: "watch", labelKey: "Watch Only" }] },
+    { key: "kind", headingKey: "Room", choices: [{ value: "play", labelKey: "play_game" }, { value: "watch", labelKey: "Watch Only" }] },
     { key: "access", headingKey: "Who Can Join", choices: ROOM_ACCESS.map((entry) => ({ value: entry.code, labelKey: entry.labelKey })) },
     { key: "where", headingKey: "Where", choices: [{ value: "local", labelKey: "Local" }, { value: "online", labelKey: "Online" }] },
     { key: "seats", headingKey: "Seats", choices: [{ value: "open", labelKey: "Open seats" }] }

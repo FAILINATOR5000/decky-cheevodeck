@@ -136,7 +136,7 @@ function streamSeat(value: string | undefined): StreamSeatState {
 }
 
 const TABS: { tab: MultiplayerTab; labelKey: string; focusKey: string }[] = [
-    { tab: "play", labelKey: "Play", focusKey: "multiplayer:tab:play" },
+    { tab: "play", labelKey: "play_game", focusKey: "multiplayer:tab:play" },
     { tab: "friends", labelKey: "Friends", focusKey: "multiplayer:tab:friends" }
 ];
 
