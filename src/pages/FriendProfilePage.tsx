@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
+import { addEventListener, removeEventListener } from "@decky/api";
 import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 import { PanelSection } from "../components/ui/PanelSection";
 // Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
@@ -9,7 +10,8 @@ import {
     getGameIconCached,
     getGameImageCached,
     prefetchGameIcons,
-    logSortDebug
+    logSortDebug,
+    multiplayerFriends
 } from "../api";
 import type { LanguageCode } from "../locales";
 import { AchievementList } from "../components/achievements/AchievementList";
@@ -62,6 +64,7 @@ import { formatRatio, formatInteger, formatMemberSince } from "../utils/format";
 import { loadCachedImage } from "../utils/loadCachedImage";
 import { pendingLandingKey, usePageLanding } from "../focusRecords";
 import { skipWhileHidden } from "../components/panel/skipWhileHidden";
+import { logError } from "../utils/errors";
 
 
 type FriendQuickActionId = "history" | "leaderboards" | "compare";
@@ -321,6 +324,35 @@ type FriendProfilePageProps = {
     };
 };
 
+const FRIENDS_EVENT = "cheevodeck_multiplayer_friends";
+
+function usePlayTogetherOnline(ulid: string, active: boolean): boolean {
+    const [online, setOnline] = useState(false);
+    useEffect(() => {
+        if (!active || !ulid) {
+            setOnline(false);
+            return;
+        }
+        let alive = true;
+        const load = () => {
+            multiplayerFriends()
+                .then((friends) => {
+                    if (alive) {
+                        setOnline(Boolean(friends.ok && friends.friends?.some((friend) => friend.ulid === ulid && friend.online)));
+                    }
+                })
+                .catch((e) => logError("friend profile: Play Together presence", e));
+        };
+        load();
+        addEventListener(FRIENDS_EVENT, load);
+        return () => {
+            alive = false;
+            removeEventListener(FRIENDS_EVENT, load);
+        };
+    }, [ulid, active]);
+    return online;
+}
+
 function FriendProfilePage(props: FriendProfilePageProps) {
     const { state, actions } = props;
     const {
@@ -420,7 +452,8 @@ function FriendProfilePage(props: FriendProfilePageProps) {
     const memberSinceLabel = formatMemberSince(friendGamePayload?.memberSince, language);
     const mottoText = String(friendGamePayload?.motto || "").trim();
 
-    const showOnlineDot = Boolean(selectedFriend?.isSelf || friendGamePayload?.isOnline);
+    const playTogetherOnline = usePlayTogetherOnline(friendGamePayload?.ulid || selectedFriend?.ulid || "", view === "friendGame");
+    const showOnlineDot = Boolean(selectedFriend?.isSelf || playTogetherOnline || friendGamePayload?.isOnline);
     const onlineDotPx = Math.max(6, Math.round(textSize(8)));
     const onlineDotGapPx = Math.max(4, Math.round(textSize(5)));
 
