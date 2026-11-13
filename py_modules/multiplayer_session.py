@@ -700,6 +700,8 @@ def dolphin_netplay_args(*, host_ip: str, nick: str, hardcore: bool, marker: Pat
         "Dolphin.NetPlay.IndexPassword=",
         "Dolphin.NetPlay.EnableChunkedUploadLimit=False",
         "Dolphin.NetPlay.ChunkedUploadLimit=3000",
+        "Dolphin.NetPlay.SyncSaves=True",
+        "Dolphin.NetPlay.SyncAllWiiSaves=False",
         f"Achievements.Achievements.HardcoreEnabled={'True' if hardcore else 'False'}",
         f"Dolphin.CheevoDeck.Session={marker}",
     ]
