@@ -660,7 +660,7 @@ export function useMultiplayerController({ isActive }: { isActive: boolean }) {
     async function closeRoom() {
         await run("Couldn't Leave the Room", () => multiplayerCloseRoom());
         forgetMultiplayerRoomChoices();
-        setHardcoreState(false);
+        setHardcoreState(true);
     }
 
     async function leave() {

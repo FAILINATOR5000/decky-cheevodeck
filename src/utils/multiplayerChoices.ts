@@ -38,7 +38,7 @@ export const NO_ROOM_FILTER: MultiplayerRoomFilter = { game: "", mode: "", kind:
 const choices: Choices = {
     tab: "link",
     gameId: null,
-    hardcore: false,
+    hardcore: true,
     share: false,
     watch: false,
     voice: false,
@@ -97,7 +97,7 @@ export function rememberMultiplayerRoomFilter(filter: MultiplayerRoomFilter) {
 }
 
 export function forgetMultiplayerRoomChoices() {
-    choices.hardcore = false;
+    choices.hardcore = true;
 }
 
 export function forgetMultiplayerRoomTab() {
