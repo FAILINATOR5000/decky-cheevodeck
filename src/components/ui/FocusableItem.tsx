@@ -25,13 +25,14 @@ export type FocusableItemProps = {
     autoFocus?: boolean;
     outerStyle?: React.CSSProperties;
     scrollMarginTop?: number;
+    paddingRight?: number;
     bottomSeparator?: "standard" | "thick" | "none";
     help?: React.ReactNode;
     modalHelp?: boolean;
 };
 
 export function FocusableItem(props: FocusableItemProps) {
-    const { children, onClick, onFocus, onBlur, onGamepadFocus, onGamepadBlur, onButtonDown, onGamepadDirection, onMenuButton, actionDescriptionMap, onMouseEnter, onMouseLeave, disabled, skipWhenDisabled, autoFocus, focusKey, focusFallback, recordOff, recordAs, outerStyle, scrollMarginTop, bottomSeparator = "standard", help, modalHelp } = props;
+    const { children, onClick, onFocus, onBlur, onGamepadFocus, onGamepadBlur, onButtonDown, onGamepadDirection, onMenuButton, actionDescriptionMap, onMouseEnter, onMouseLeave, disabled, skipWhenDisabled, autoFocus, focusKey, focusFallback, recordOff, recordAs, outerStyle, scrollMarginTop, paddingRight, bottomSeparator = "standard", help, modalHelp } = props;
     const wrapperRef = useRef<HTMLDivElement | null>(null);
 
     function handleFocusCapture() {
@@ -73,6 +74,14 @@ export function FocusableItem(props: FocusableItemProps) {
         }
         target.style.scrollMarginTop = scrollMarginTop ? `${scrollMarginTop}px` : "";
     }, [scrollMarginTop]);
+
+    useLayoutEffect(() => {
+        const target = wrapperRef.current?.querySelector("button, [tabindex]") as HTMLElement | null;
+        if (!target) {
+            return;
+        }
+        target.style.paddingRight = paddingRight === undefined ? "" : `${paddingRight}px`;
+    }, [paddingRight]);
 
     return (
         <FocusTarget

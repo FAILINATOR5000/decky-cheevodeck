@@ -26,6 +26,7 @@ import { useMultiplayer } from "./MultiplayerContext";
 import { NewPill, PicAvatar, friendGame, friendName, friendStatus } from "./PicAvatar";
 
 const AVATAR_PX = 44;
+const FRIEND_PADDING_RIGHT = 12;
 const ADD_KEY = "multiplayer:friends:add";
 const NAV_ENTER_MAINTAIN_Y = 3;
 const ALERTS_SHOWN = 2;
@@ -302,6 +303,7 @@ export function FriendsTab(props: FriendsTabProps) {
                                     <FocusableItem
                                         focusKey={key}
                                         focusFallback={heirs(at, "friend")}
+                                        paddingRight={FRIEND_PADDING_RIGHT}
                                         onGamepadFocus={() => list.onItemFocus(at)}
                                         onGamepadDirection={list.guardTopRow(at)}
                                         onClick={() => openFriendCard(language, {
