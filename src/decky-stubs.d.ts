@@ -235,4 +235,5 @@ declare module "react-icons/fa" {
     export const FaVoteYea: any;
     export const FaChessBoard: any;
     export const FaBroadcastTower: any;
+    export const FaUsers: any;
 }

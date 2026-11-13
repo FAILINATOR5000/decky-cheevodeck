@@ -1,15 +1,15 @@
 // Font Awesome Free icons, CC BY 4.0. See ATTRIBUTIONS.md.
 import { DialogButton, Focusable, PanelSectionRow } from "@decky/ui";
 import { useState } from "react";
-import { FaBroadcastTower, FaChessBoard, FaDoorOpen, FaVolumeUp, FaVoteYea } from "react-icons/fa";
+import { FaBroadcastTower, FaChessBoard, FaUsers, FaVolumeUp, FaVoteYea } from "react-icons/fa";
 
 import { t, type LanguageCode } from "../../locales";
 import type { MultiplayerRoomTab } from "../../types";
 import { achievementGreen, bodyTextStyle } from "../../utils/style";
 import { FocusTarget } from "../ui/FocusTarget";
 
-export const ROOM_TABS: { tab: MultiplayerRoomTab; Icon: typeof FaDoorOpen; labelKey: string }[] = [
-    { tab: "room", Icon: FaDoorOpen, labelKey: "Room" },
+export const ROOM_TABS: { tab: MultiplayerRoomTab; Icon: typeof FaUsers; labelKey: string }[] = [
+    { tab: "room", Icon: FaUsers, labelKey: "Room" },
     { tab: "vote", Icon: FaVoteYea, labelKey: "Game Vote" },
     { tab: "lounge", Icon: FaChessBoard, labelKey: "Lounge" },
     { tab: "audio", Icon: FaVolumeUp, labelKey: "Audio" },
