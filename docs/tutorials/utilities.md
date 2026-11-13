@@ -28,6 +28,22 @@ Protects you from a rare, long-standing SteamOS glitch where the Quick Access Me
 
 Tool to import or export your saved memories from/to other devices.
 
+## [Data Transfer](data-transfer.md)
+
+Got a second device? Send your tracked achievements and notes for the current game, plus your milestones, over to it, either merged with what's already there or replacing it completely.
+
+## [Play Together](play-together.md)
+
+Play your games with other people, on the same Wi-Fi, over the internet, or with no Wi-Fi at all. Host a room or join one, and CheevoDeck handles the netplay setup for you, with Link Play, Couch Play and Stream Play to pick from.
+
+## [Offline Hotspot](offline-hotspot.md)
+
+No router around? Turn your device into a Wi-Fi network that other devices running CheevoDeck can join, so you can still use Play Together on a plane, in a car, or anywhere else.
+
+## [Manage Emulators](manage-emulators.md)
+
+Install, update and remove your emulators and RetroArch cores right from Game Mode, without ever opening Desktop Mode. Updates to AppImages and cores keep a backup of the version you had, so you can go back if the new one gives you trouble.
+
 ## Calculator
 
 The ultimate tool for all serious achievement hunters... a calculator.

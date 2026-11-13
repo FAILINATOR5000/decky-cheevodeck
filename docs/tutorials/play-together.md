@@ -19,6 +19,8 @@ Every room uses one of three modes. Here's the short version of each, as well as
 
 The page shows each mode as **Ready**, **Needs setup** or **Won't work** for the game you've picked, so you can see at a glance which ones you can play right now.
 
+**Ready** means you're good to go and can play that mode right now. **Needs setup** means something is missing, like an emulator, a core, a shortcut or the game's file, but press it and **Fix It** can almost always sort it out in one press, usually in seconds, or a minute or two when it has to download an emulator (see [When Something Needs Setup](#when-something-needs-setup) below). **Won't work** means that mode can't run that game at all, like a Wii game in Link Play, and pressing it tells you why.
+
 ## Hosting and Joining
 
 **Host a Room** opens a window where you name your room and pick:
