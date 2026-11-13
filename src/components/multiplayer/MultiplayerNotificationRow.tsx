@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { FaDoorOpen, FaSearch, FaSignInAlt, FaSignOutAlt, FaUserFriends, FaWifi } from "react-icons/fa";
 
 import { getGameIconCached, multiplayerFriends, multiplayerGames } from "../../api";
+import { useFocusClaim } from "../../hooks/useFocusClaim";
 import { useGameIcon } from "../../hooks/useGameIcon";
 import { t, type LanguageCode } from "../../locales";
 import type { NotificationNav } from "../../notifications/registry";
@@ -17,6 +18,7 @@ import { endMultiplayerRoom, useMultiplayerRoomMarker } from "../../utils/multip
 import { modalSize } from "../../utils/scale";
 import { achievementGreen, skyBlue } from "../../utils/style";
 import { notificationCardMetrics } from "../notifications/NotificationCard";
+import { FocusClaim } from "../ui/FocusClaim";
 import { FocusTarget } from "../ui/FocusTarget";
 import { openHotspotJoin } from "../hotspot/HotspotJoinModal";
 import { openRooms } from "./RoomsModal";
@@ -141,6 +143,7 @@ function SideButton(props: FocusProps & {
     label: string;
     lit: boolean;
     onClick: () => void;
+    onCursor: (here: boolean) => void;
     children: ReactNode;
 }) {
     const [selected, setSelected] = useState(false);
@@ -149,8 +152,14 @@ function SideButton(props: FocusProps & {
         <FocusTarget focusKey={props.focusKey} style={{ position: "relative", display: "flex" }}>
             <DialogButton
                 onClick={props.onClick}
-                onGamepadFocus={() => setSelected(true)}
-                onGamepadBlur={() => setSelected(false)}
+                onGamepadFocus={() => {
+                    setSelected(true);
+                    props.onCursor(true);
+                }}
+                onGamepadBlur={() => {
+                    setSelected(false);
+                    props.onCursor(false);
+                }}
                 onMenuButton={props.onMenuButton}
                 onButtonDown={props.onButtonDown}
                 actionDescriptionMap={props.actionDescriptionMap}
@@ -197,6 +206,9 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
     const hotspot = useHotspot();
     const waiting = useWaiting();
     const inRoom = room.role !== null;
+    const hotspotOn = hotspotIsOn(hotspot);
+    const joined = hotspot.role === "guest" && hotspot.state !== "stopping";
+    const hosting = hotspot.role === "host" && hotspot.state !== "stopping";
     const box = useRef<HTMLDivElement>(null);
     const finding = useRef(false);
     const metrics = notificationCardMetrics();
@@ -209,21 +221,36 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
         }
     }, [iconGame, game?.imageIcon]);
 
-    const wasInRoom = useRef(inRoom);
+    const onSide = useRef(false);
+    const moves = useRef(0);
+    function sideCursor(here: boolean) {
+        const move = ++moves.current;
+        if (here) {
+            onSide.current = true;
+            return;
+        }
+        queueMicrotask(() => {
+            if (moves.current === move) {
+                onSide.current = false;
+            }
+        });
+    }
+    function cardCursor() {
+        moves.current += 1;
+        onSide.current = false;
+    }
+    const cardClaim = useFocusClaim();
+    const layout = `${inRoom}|${joined}`;
+    const lastLayout = useRef(layout);
     useEffect(() => {
-        const was = wasInRoom.current;
-        wasInRoom.current = inRoom;
-        if (inRoom || !was) {
+        if (lastLayout.current === layout) {
             return;
         }
-        const doc = box.current?.ownerDocument;
-        const active = doc?.activeElement;
-        if (!doc || (active && active !== doc.body && active.isConnected)) {
-            return;
+        lastLayout.current = layout;
+        if (onSide.current) {
+            cardClaim.claimSlot(0);
         }
-        const target = box.current?.querySelector(`[data-focus-key="${HOTSPOT_KEY}"]`);
-        (target?.querySelector("button, [tabindex]") as HTMLElement | null | undefined)?.focus();
-    }, [inRoom]);
+    }, [layout, cardClaim.claimSlot]);
 
     function open(page: MultiplayerTab) {
         rememberMultiplayerPage(page);
@@ -267,8 +294,6 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
     const gap = modalSize(SIDE_GAP);
     const inset = modalSize(8);
     const buttons = 4;
-    const hotspotOn = hotspotIsOn(hotspot);
-    const joined = hotspot.role === "guest" && hotspot.state !== "stopping";
 
     return (
         <div ref={box}>
@@ -280,56 +305,64 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
                 style={{ position: "relative", display: "flex", flexDirection: "row", marginBottom: "12px" }}
             >
                 <FocusTarget focusKey={ROW_KEY} style={{ flex: 1, minWidth: 0, display: "flex" }}>
-                    <DialogButton
-                        onClick={() => open("play")}
-                        style={{
-                            width: "100%",
-                            minWidth: 0,
-                            minHeight: `${button * buttons + gap * (buttons - 1) + modalSize(6) * 2}px`,
-                            textAlign: "left",
-                            paddingRight: `${button + inset * 2}px`,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: `${metrics.iconGap}px`
-                        }}
+                    <FocusClaim
+                        token={cardClaim.claim?.token ?? 0}
+                        armed={cardClaim.claim?.armed ?? false}
+                        onSpent={cardClaim.spend}
+                        style={{ flex: 1, minWidth: 0, display: "flex" }}
                     >
-                        <div
+                        <DialogButton
+                            onClick={() => open("play")}
+                            onGamepadFocus={cardCursor}
                             style={{
-                                width: `${metrics.iconSize}px`,
-                                height: `${metrics.iconSize}px`,
-                                flex: "none",
-                                borderRadius: "7px",
-                                overflow: "hidden",
-                                background: TILE_FILL,
-                                border: `1px solid ${TILE_EDGE}`,
-                                boxSizing: "border-box",
-                                color: "#dcdedf",
+                                width: "100%",
+                                minWidth: 0,
+                                minHeight: `${button * buttons + gap * (buttons - 1) + modalSize(6) * 2}px`,
+                                textAlign: "left",
+                                paddingRight: `${button + inset * 2}px`,
                                 display: "flex",
                                 alignItems: "center",
-                                justifyContent: "center"
+                                gap: `${metrics.iconGap}px`
                             }}
                         >
-                            {inRoom && iconDataUri
-                                ? <img src={iconDataUri} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                                : <FaUserFriends style={{ width: "50%", height: "50%", opacity: 0.85 }} />}
-                        </div>
-                        <div
-                            style={{
-                                minWidth: 0,
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: `${metrics.contentGap}px`,
-                                fontSize: `${metrics.bodyFontSize}px`,
-                                lineHeight: metrics.bodyLineHeight
-                            }}
-                        >
-                            <div style={{ fontSize: `${metrics.titleFontSize}px`, fontWeight: 800, lineHeight: metrics.titleLineHeight }}>
-                                {t(language, "Play Together")}
+                            <div
+                                style={{
+                                    width: `${metrics.iconSize}px`,
+                                    height: `${metrics.iconSize}px`,
+                                    flex: "none",
+                                    borderRadius: "7px",
+                                    overflow: "hidden",
+                                    background: TILE_FILL,
+                                    border: `1px solid ${TILE_EDGE}`,
+                                    boxSizing: "border-box",
+                                    color: "#dcdedf",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center"
+                                }}
+                            >
+                                {inRoom && iconDataUri
+                                    ? <img src={iconDataUri} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                    : <FaUserFriends style={{ width: "50%", height: "50%", opacity: 0.85 }} />}
                             </div>
-                            {inRoom && <Parts parts={roomParts} />}
-                            <WaitingLine language={language} waiting={waiting} />
-                        </div>
-                    </DialogButton>
+                            <div
+                                style={{
+                                    minWidth: 0,
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: `${metrics.contentGap}px`,
+                                    fontSize: `${metrics.bodyFontSize}px`,
+                                    lineHeight: metrics.bodyLineHeight
+                                }}
+                            >
+                                <div style={{ fontSize: `${metrics.titleFontSize}px`, fontWeight: 800, lineHeight: metrics.titleLineHeight }}>
+                                    {t(language, "Play Together")}
+                                </div>
+                                {inRoom && <Parts parts={roomParts} />}
+                                <WaitingLine language={language} waiting={waiting} />
+                            </div>
+                        </DialogButton>
+                    </FocusClaim>
                 </FocusTarget>
                 <Focusable
                     flow-children="column"
@@ -346,6 +379,7 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
                 >
                     <SideButton
                         {...props}
+                        onCursor={sideCursor}
                         focusKey={FRIENDS_KEY}
                         label={t(language, "Play Together Friends")}
                         lit={false}
@@ -356,6 +390,7 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
                     {!inRoom && (
                         <SideButton
                             {...props}
+                            onCursor={sideCursor}
                             focusKey={FIND_KEY}
                             label={t(language, "Find a Room")}
                             lit={false}
@@ -366,6 +401,7 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
                     )}
                     <SideButton
                         {...props}
+                        onCursor={sideCursor}
                         focusKey={HOTSPOT_KEY}
                         label={t(language, joined ? "Connected to Offline Hotspot" : hotspotOn ? "Offline Hotspot On" : "Offline Hotspot Off")}
                         lit={hotspotOn}
@@ -377,20 +413,24 @@ export function MultiplayerNotificationRow(props: FocusProps & { language: Langu
                     >
                         <FaWifi style={{ width: "60%", height: "60%" }} />
                     </SideButton>
-                    <SideButton
-                        {...props}
-                        focusKey={JOIN_KEY}
-                        label={t(language, joined ? "Leave Offline Hotspot" : "Join Offline Hotspot")}
-                        lit={false}
-                        onClick={joined ? () => void leaveHotspot() : openHotspotJoin}
-                    >
-                        {joined
-                            ? <FaSignOutAlt style={{ width: "60%", height: "60%" }} />
-                            : <FaSignInAlt style={{ width: "60%", height: "60%" }} />}
-                    </SideButton>
+                    {!hosting && (
+                        <SideButton
+                            {...props}
+                            onCursor={sideCursor}
+                            focusKey={JOIN_KEY}
+                            label={t(language, joined ? "Leave Offline Hotspot" : "Join Offline Hotspot")}
+                            lit={false}
+                            onClick={joined ? () => void leaveHotspot() : openHotspotJoin}
+                        >
+                            {joined
+                                ? <FaSignOutAlt style={{ width: "60%", height: "60%" }} />
+                                : <FaSignInAlt style={{ width: "60%", height: "60%" }} />}
+                        </SideButton>
+                    )}
                     {inRoom && (
                         <SideButton
                             {...props}
+                            onCursor={sideCursor}
                             focusKey={CLOSE_KEY}
                             label={t(language, room.role === "host" ? "Close Room" : "Leave Room")}
                             lit={false}
