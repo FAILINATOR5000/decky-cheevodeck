@@ -790,6 +790,7 @@ class MilestonesService(TickServiceBase):
         self._period_cache = None
 
         self._announcer = self._notify
+        self._rank_listener = None
 
         self._moving_until = 0.0
         self._move_token = 0
@@ -798,6 +799,9 @@ class MilestonesService(TickServiceBase):
     @property
     def defs(self):
         return self._defs
+
+    def set_rank_listener(self, listener):
+        self._rank_listener = listener
 
     def record_event(self, kind, detail=None, count=1):
         if kind == "main_tab":
@@ -1122,6 +1126,8 @@ class MilestonesService(TickServiceBase):
                     if (self._milestone(mid) or {}).get("rule", {}).get("type") != "state"
                 ])
             self._announce(data, announced)
+            if outcome.get("rankUp") is not None and self._rank_listener is not None:
+                self._rank_listener()
         offline = ra is not None and ra.get("offline", False)
         if changed:
             self._emit_changed(ra=ra is not None and not offline)

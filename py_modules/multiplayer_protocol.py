@@ -548,10 +548,12 @@ def tagged_ok(key: bytes, message, now: float) -> bool:
 
 
 def report(*, seq: int, ready: bool, rev: int, round_: int, can: bool, reason: str, game_id: int, title: str,
-           launched: bool, hardcore: bool, seat_state: str = "", st: str = "", kb: int = 0) -> dict:
+           launched: bool, hardcore: bool, seat_state: str = "", st: str = "", kb: int = 0, rank=None) -> dict:
     body = {"seq": seq, "ready": ready, "rev": rev, "round": round_, "can": can, "reason": reason,
             "gameId": game_id, "title": title[:_TITLE_MAX], "launched": launched, "hardcore": hardcore,
             "seatState": seat_state}
+    if rank is not None:
+        body["rank"] = rank
     if st:
         body["st"] = st
     if kb:
@@ -608,7 +610,8 @@ def read_report(raw):
     kb = raw.get("kb", 0)
     return {**{name: raw[name] for name in (*numbers, *flags, "reason", "seatState")},
             "title": _clean(raw["title"], _TITLE_MAX),
-            "st": stream_state(raw.get("st")), "kb": kb if type(kb) is int and 0 <= kb <= 100000 else 0}
+            "st": stream_state(raw.get("st")), "kb": kb if type(kb) is int and 0 <= kb <= 100000 else 0,
+            "rank": clean_rank(raw.get("rank"))}
 
 
 def status_reply(key: bytes, nonce: str, body: dict) -> dict:

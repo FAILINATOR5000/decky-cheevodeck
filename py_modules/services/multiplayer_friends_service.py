@@ -19,6 +19,7 @@ FRIENDS_EVENT = "cheevodeck_multiplayer_friends"
 
 PING_SECONDS = 20
 REPORT_REFRESH_SECONDS = 300
+RANK_SECONDS = 60
 SILENT_SECONDS = 75
 REPLY_SECONDS = 5
 RETRY_SECONDS = (2, 5, 10, 15, 30)
@@ -93,6 +94,8 @@ class MultiplayerFriendsService:
                  peer_port: int = FRIEND_PORT, broadcast: str = "255.255.255.255"):
         self._store = store
         self._own_rank = own_rank
+        self._rank = None
+        self._rank_at = None
         self._messages = messages_store
         self._resolved_avatars = resolved_avatars
         self._heal = heal
@@ -262,7 +265,20 @@ class MultiplayerFriendsService:
         return self._me(), data["selfPic"] if data else ""
 
     def rank(self):
-        return self._own_rank() if self._own_rank is not None else None
+        if self._own_rank is None:
+            return None
+        now = time.monotonic()
+        if self._rank_at is None or now - self._rank_at >= RANK_SECONDS:
+            self._rank = self._own_rank()
+            self._rank_at = now
+        return self._rank
+
+    def rank_changed(self) -> None:
+        self._soon(self._rank_moved)
+
+    def _rank_moved(self) -> None:
+        self._rank_at = None
+        self.report_changed()
 
     async def _refresh_self_pic(self) -> None:
         data = self._store.ensure()

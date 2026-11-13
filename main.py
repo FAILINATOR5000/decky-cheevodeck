@@ -860,6 +860,7 @@ class Plugin(
             ra=self.ra,
             own_rank=self.milestones_service.own_rank,
         )
+        self.milestones_service.set_rank_listener(self.multiplayer_friends_service.rank_changed)
         self.multiplayer_service.set_friends(self.multiplayer_friends_service)
         self.offline_hotspot_service = OfflineHotspotService(
             settings_store=self.settings_store,

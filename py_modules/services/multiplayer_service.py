@@ -2815,8 +2815,8 @@ class MultiplayerService:
                 "adapter": "auto",
                 "voice": bool(voice),
                 "max": seats,
-                "seats": [{"name": user, "host": True, "said": 0.0, "ulid": ulid, "pic": pic, "rank": self._rank(),
-                           "vc": False, "vstamp": 1}] + [None] * (seats - 1),
+                "seats": [{"name": user, "host": True, "said": 0.0, "ulid": ulid, "pic": pic, "vc": False,
+                           "vstamp": 1}] + [None] * (seats - 1),
                 "inboxSeq": 0,
                 "stampSeq": 1,
                 "voiceSeq": 0,
@@ -3463,7 +3463,7 @@ class MultiplayerService:
                 None if seat is None
                 else {"name": seat["name"], "launched": False, "ready": False, "can": not room["hostState"],
                       "seatState": room["hostState"], "title": room["title"],
-                      "ulid": seat.get("ulid", ""), "pic": seat.get("pic", ""), "rank": seat.get("rank")}
+                      "ulid": seat.get("ulid", ""), "pic": seat.get("pic", ""), "rank": self._rank()}
                 if index == 0
                 else {"name": seat["name"], "launched": seat["launched"], "ready": self._seat_shown_ready(room, index, seat),
                       "can": seat["can"], "reason": seat["reason"], "seatState": seat["seatState"], "title": seat["title"],
@@ -4292,7 +4292,8 @@ class MultiplayerService:
         was_ready = self._seat_ready(room, seat)
         seat.update(seq=report["seq"], ready=report["ready"], rev=report["rev"], round=report["round"],
                     can=report["can"], reason=report["reason"], gameId=report["gameId"],
-                    title=report["title"], launched=report["launched"], seatState=report["seatState"])
+                    title=report["title"], launched=report["launched"], seatState=report["seatState"],
+                    rank=report["rank"])
         if room.get("streams") is not None:
             room["streams"].report(index, report["st"], report["kb"])
         if self._seat_ready(room, seat) != was_ready:
@@ -4361,9 +4362,10 @@ class MultiplayerService:
             "lastStart": dict(last) if last else None,
             "room": proto.status_room_fields(room),
             "chat": [],
-            "ids": [{"ulid": taken.get("ulid", ""), "pic": taken.get("pic", ""), "rank": taken.get("rank")}
+            "ids": [{"ulid": taken.get("ulid", ""), "pic": taken.get("pic", ""),
+                     "rank": self._rank() if position == 0 else taken.get("rank")}
                     if taken else {"ulid": "", "pic": "", "rank": None}
-                    for taken in room["seats"]],
+                    for position, taken in enumerate(room["seats"])],
             "inbox": list(seat["inbox"]),
             "vote": lounge.vote_view(room["vote"], lounge.voter_key(seat)),
             "lounge": lounge.lounge_view(room["lounge"]),
@@ -5183,9 +5185,10 @@ class MultiplayerService:
     def _report(self, joined: dict) -> dict:
         local = joined["local"]
         reason = joined["reason"] if proto.is_reason(joined["reason"]) else "unsupported_emulator"
+        rank = self._rank()
         said = (joined["ready"], joined["readyRev"], joined["readyRound"], joined["can"], reason,
                 local["gameId"] if local else 0, local["title"] if local else "", joined["launched"], joined["hardcore"],
-                joined["seatState"])
+                joined["seatState"], rank)
         if said != joined["said"]:
             joined["said"] = said
             joined["seq"] += 1
@@ -5204,7 +5207,7 @@ class MultiplayerService:
             seq=joined["seq"], ready=joined["ready"], rev=joined["readyRev"], round_=joined["readyRound"],
             can=joined["can"], reason=reason, game_id=local["gameId"] if local else 0,
             title=local["title"] if local else "", launched=joined["launched"], hardcore=joined["hardcore"],
-            seat_state=joined["seatState"], st=state, kb=kb,
+            seat_state=joined["seatState"], st=state, kb=kb, rank=rank,
         )
 
     def guest_games(self) -> dict:
