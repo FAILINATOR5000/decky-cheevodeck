@@ -9,7 +9,7 @@ import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
 import { FocusableItem } from "../components/ui/FocusableItem";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
 import { LabeledRow } from "../components/ui/LabeledRow";
-import { PageNavStrip } from "../components/ui/PageNavStrip";
+import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { PanelSection } from "../components/ui/PanelSection";
 import { SectionTitle } from "../components/ui/SectionTitle";
 import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
@@ -187,7 +187,12 @@ function OfflineHotspotPage(props: OfflineHotspotPageProps) {
     return (
         <Focusable flow-children="column">
             <PanelSection>
-                <PageNavStrip title={t(language, "Offline Hotspot")} buttonSpacing={state.buttonSpacing} onHome={actions.onHome} />
+                <PageNavStrip
+                    title={t(language, "Offline Hotspot")}
+                    buttonSpacing={state.buttonSpacing}
+                    onHome={actions.onHome}
+                    help={<PageHelpButton focusKey="offlineHotspot:help" guide="offline-hotspot" />}
+                />
 
                 <BackButton
                     label={t(language, "Back")}

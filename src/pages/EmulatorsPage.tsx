@@ -20,7 +20,7 @@ import { BottomFocusAnchor } from "../components/ui/BottomFocusAnchor";
 import { ButtonHints } from "../components/ui/ButtonHints";
 import { FocusableItem } from "../components/ui/FocusableItem";
 import { InlineSpinner } from "../components/ui/InlineSpinner";
-import { PageNavStrip } from "../components/ui/PageNavStrip";
+import { PageHelpButton, PageNavStrip } from "../components/ui/PageNavStrip";
 import { PanelSection } from "../components/ui/PanelSection";
 import { ProgressBar } from "../components/ui/ProgressBar";
 import { SlidingWindowRows } from "../components/ui/SlidingWindowRows";
@@ -701,7 +701,12 @@ function EmulatorsPage(props: EmulatorsPageProps) {
     return (
         <Focusable flow-children="column" onButtonDown={handleButton}>
             <PanelSection>
-                <PageNavStrip title={t(language, "Manage Emulators")} buttonSpacing={state.buttonSpacing} onHome={actions.onHome} />
+                <PageNavStrip
+                    title={t(language, "Manage Emulators")}
+                    buttonSpacing={state.buttonSpacing}
+                    onHome={actions.onHome}
+                    help={<PageHelpButton focusKey="emulators:help" guide="manage-emulators" />}
+                />
 
                 <BackButton
                     label={t(language, "Back")}
